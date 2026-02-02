@@ -1,0 +1,344 @@
+# Spacegate Core Schema (v0)
+
+This document is the source of truth for the **v0 core astronomical data model** and its invariants.
+It is written as an **executable contract**: ingestion, QC, export, and API behavior should follow this.
+
+## Scope (v0)
+
+v0 ingests **only**:
+
+- **AT-HYG** star catalog CSV (local sphere subset already in repo)
+- **NASA Exoplanet Archive** CSV (filtered to < 306.6 pc / 1000 ly)
+
+v0 produces a **pure astronomy** dataset. No lore, blurbs, or images live in core.
+
+Optional packs (substellar/compact/extended objects) and editorial/lore layers are v0.1+ and are separate artifacts.
+
+---
+
+## Primary artifact
+
+- `out/<build_id>/core.duckdb` (DuckDB database)
+- `out/<build_id>/parquet/{systems,stars,planets}.parquet`
+- `reports/<build_id>/...` (match/QC/provenance reports)
+
+### Build ID
+`build_id = YYYY-MM-DD_<gitshortsha>`
+
+---
+
+## Coordinate conventions and units
+
+### Units
+- Distances in the database are stored in **light-years (ly)** where possible.
+- Orbital SMA is stored in **AU** (from NASA).
+
+### Frames
+We store two cartesian frames:
+
+1) **Heliocentric (primary for local sphere)**
+- `x_helio_ly, y_helio_ly, z_helio_ly`
+- Origin at Sol
+- Used for neighborhood queries and rendering with floating origin on the client.
+
+2) **Galactocentric (optional; nullable in v0)**
+- `x_gal_ly, y_gal_ly, z_gal_ly`
+- Used for galaxy-scale views later.
+
+### Required invariant
+For rows with both `dist_ly` and heliocentric xyz present:
+
+`abs(sqrt(x^2 + y^2 + z^2) - dist_ly) < eps`
+
+Default `eps = 1e-3 ly` (adjust if source rounding is coarser).
+
+### RA/Dec
+- Stored in degrees (`ra_deg`, `dec_deg`) if available from source.
+- Heliocentric xyz may be sourced directly (AT-HYG provides xyz) or derived from RA/Dec+dist when needed.
+
+## Spatial Indexing (Morton Z-Order)
+
+To optimize 3D range queries (e.g., "find all stars within 10 ly of Earth") and file scanning, we strictly order data on disk using a Spatial Index.
+
+### Implementation
+- **Algorithm:** 64-bit Morton Code (Z-Order Curve).
+- **Coordinate Space:** Heliocentric `x, y, z` in light-years.
+- **Transform:**
+  1. **Offset:** Add `5000.0` to x, y, z (shifts domain to positive integers).
+  2. **Quantize:** Multiply by `1000` and cast to unsigned integer (precision ~0.001 ly).
+  3. **Interleave:** Bit-interleave the three 21-bit integers into a single 64-bit integer.
+- **Storage:** Stored as signed `BIGINT` (DuckDB native type) for compatibility, but treated logically as bitset.
+
+### Invariants
+- All output Parquet files (`stars.parquet`, `systems.parquet`) must be **physically sorted** by `spatial_index`.
+
+---
+
+## Stable keys and IDs
+
+### Internal IDs
+- `system_id`, `star_id`, `planet_id` are surrogate integer primary keys (BIGINT).
+- They may change between builds.
+- All cross-artifact joins should use `stable_object_key`.
+
+### stable_object_key (required)
+A stable identifier used to join:
+- core ↔ optional packs
+- core ↔ editorial content/images
+- core ↔ lore overlay
+
+
+
+**Rule of thumb: prefer authoritative catalog IDs; fall back to deterministic hashes.**
+
+#### Stars
+Preferred order:
+1) Gaia DR3 source id: `star:gaia:<gaia_id>`
+2) HIP: `star:hip:<hip_id>`
+3) HD: `star:hd:<hd_id>`
+4) fallback: `star:hash:<hash>`
+
+Fallback hash input (deterministic):
+- normalized name (if any)
+- rounded RA/Dec (e.g., 1e-5 deg)
+- rounded dist_ly (e.g., 1e-3 ly)
+
+#### Systems (Clustering & IDs)
+Systems are logical groupings of stars. Aggregation is performed during ingestion:
+
+1. **Name-based Grouping:** Stars sharing a `proper_name` root (e.g., "Sirius A", "Sirius B") are grouped.
+2. **Proximity-based Grouping:** Stars within **0.25 ly** (~3000 AU) of each other are grouped if they do not already share a name.
+   *(Threshold chosen to capture wide binaries while minimizing false positives in the local field).*
+
+**Stable Key Generation:**
+The System inherits its identity from the **Primary Star** (brightest by Vmag) in the group.
+
+- `system:gaia:<primary_star_gaia_id>`
+- `system:hip:<primary_star_hip_id>`
+- `system:hash:<hash>` (fallback)
+
+**Coordinates:**
+- `system.x/y/z` = `primary_star.x/y/z` (Barycenter calculation deferred to v2).
+
+#### Planets
+- From NASA planet name primarily:
+  - `planet:nasa:<normalized_pl_name>`
+- If collisions occur, include host normalized name or NASA row id in hash.
+
+---
+
+## Normalization rules
+
+### Name normalization
+`*_name_norm`:
+- lowercase
+- strip punctuation
+- collapse whitespace
+- normalize apostrophes/diacritics to ASCII where possible
+
+### Spectral parsing
+Store both raw and structured fields:
+
+- `spectral_type_raw` (exact source string)
+- `spectral_class` (O/B/A/F/G/K/M/L/T/Y/...; nullable)
+- `spectral_subtype` (0–9.x; nullable)
+- `luminosity_class` (I/II/III/IV/V/VI/VII; nullable)
+- `spectral_peculiar` (flags like e/p/m/n/var, composite markers like +, etc.)
+
+Parsing rules:
+- Parse the **primary** component when composite (e.g., `K1III+DA2` → primary `K1III`, peculiar `+DA2`)
+- If ambiguous/unparseable, keep raw and leave structured null.
+
+---
+
+## Provenance (required on every derived row)
+
+Every row in `systems`, `stars`, `planets` must include provenance fields. These are mandatory in v0.
+
+Minimum set:
+
+- `source_catalog` (e.g., `athyg`, `nasa_exoplanets`)
+- `source_version` (string, may be build-time constant)
+- `source_url` (where the raw file was retrieved)
+- `source_download_url` (direct file URL used for the download)
+- `source_doi` (DOI if applicable)
+- `source_pk` (authoritative PK if available, e.g., Gaia source_id)
+- `source_row_id` (row identifier if present) OR `source_row_hash` (hash of raw row)
+- `license`, `redistribution_ok`, `license_note`
+- `retrieval_etag` and/or `retrieval_checksum` (when available)
+- `retrieved_at`, `ingested_at`
+- `transform_version` (git SHA or pipeline version string)
+
+QC: provenance completeness must be 100% for required fields.
+
+---
+
+## Tables (v0)
+
+This doc describes the tables defined in `schema/core_v0.sql`.
+
+### systems
+
+Represents a star system (single or multiple stars). Systems are the top-level “place” users navigate.
+
+Key columns:
+- `system_id` (PK)
+- `spatial_index` (BIGINT, distinct, cluster key)
+- `stable_object_key` (unique, join key)
+- `system_name`, `system_name_norm`
+- `ra_deg`, `dec_deg`, `dist_ly` (best available; may represent anchor star)
+- `x_helio_ly,y_helio_ly,z_helio_ly` (anchor position)
+- optional `x_gal_ly,y_gal_ly,z_gal_ly` (nullable)
+- external IDs where applicable (`gaia_id`, `hip_id`, `hd_id`)
+- provenance fields
+
+Indexes:
+- unique on `stable_object_key`
+- xyz index for radius queries
+
+### stars
+
+Represents individual stars (including components A/B/C where possible).
+
+Key columns:
+- `star_id` (PK)
+- `spatial_index` (BIGINT, distinct, cluster key)
+- `system_id` (FK to systems)
+- `stable_object_key` (unique, join key)
+- `star_name`, `star_name_norm`, `component`
+- coordinates (ra_deg, dec_deg, dist_ly, x/y/z_helio_ly)
+- `pm_ra_mas_yr`, `pm_dec_mas_yr` (proper motion)
+- `radial_velocity_kms` (required for v2 epoch projection)
+- radial velocity
+- spectral fields (raw + parsed)
+- optional photometry/physicals (nullable)
+- catalog IDs and `catalog_ids_json`
+- provenance fields
+
+Indexes:
+- unique on `stable_object_key`
+- index on `system_id`
+- xyz index for radius queries
+- index on `gaia_id`
+
+### planets
+
+Represents confirmed exoplanets from NASA (as of CSV export).
+
+Key columns:
+- `planet_id` (PK)
+- `spatial_index` (BIGINT, cluster key)
+- `stable_object_key` (unique)
+- `system_id` (FK, nullable until matched)
+- `star_id` (FK, nullable until matched)
+- `planet_name`, `planet_name_norm`
+- discovery fields (method/year/facility; nullable)
+- orbital parameters: `orbital_period_days`, `semi_major_axis_au`, `eccentricity`, `inclination_deg`
+- planet properties: mass/radius/temp/insolation fields (nullable)
+- host identifiers as seen in NASA row:
+  - `host_name_raw`, `host_name_norm`, `host_gaia_id`, `host_hip_id`, `host_hd_id`
+- match provenance:
+  - `match_method`, `match_confidence`, `match_notes`
+- provenance fields
+
+Indexes:
+- unique on `stable_object_key`
+- indexes on `star_id`, `system_id`, `host_name_norm`
+
+### planet_host_match_audit (optional but recommended)
+
+Append-only audit records describing match decisions.
+
+Key columns:
+- `planet_id` (FK)
+- `star_id`, `system_id` (FKs; nullable)
+- `match_method`, `match_confidence`, `match_notes`
+- `decided_at`, `transform_version`
+
+---
+
+## Planet → host matching algorithm (v0)
+
+Goal: assign `star_id` and `system_id` for as many planets as possible, with explainable provenance.
+
+### Matching priority (highest to lowest)
+
+1) **Gaia DR3 ID match**
+- NASA `gaia_dr3_id` → `stars.gaia_id`
+
+2) **HIP match**
+- NASA `hip_name` parsed to integer → `stars.hip_id`
+
+3) **HD match**
+- NASA `hd_name` parsed to integer → `stars.hd_id`
+
+4) **Host name match**
+- NASA `hostname` normalized → compare against:
+  - `stars.star_name_norm`
+  - `systems.system_name_norm`
+- If multiple candidates, break ties by proximity if `sy_dist` exists.
+
+5) (Optional in v0) **Fuzzy name match**
+- Only if enabled; must record method `fuzzy` and lower confidence.
+
+### Confidence scoring (suggested)
+- Gaia exact: 1.00
+- HIP exact: 0.95
+- HD exact: 0.90
+- Hostname exact unique: 0.80
+- Hostname ambiguous tie-broken by distance: 0.70
+- Fuzzy: <= 0.60
+
+### Unmatched handling
+- Leave `planets.star_id` and `planets.system_id` NULL.
+- Set `match_method = 'unmatched'`, `match_confidence = 0`, notes include reason if known.
+
+---
+
+## QC gates (v0)
+
+Hard failures:
+- Required provenance fields are non-null in 100% of rows.
+- xyz/dist invariant holds for rows with both present (within eps).
+- `stable_object_key` is unique within each table.
+
+Warnings:
+- planet match rate changes by > 0.5% absolute vs previous build
+- unmatched planets increases by > 25 vs previous build
+- duplicate host name mappings exceed threshold
+
+Reports produced each build:
+- `reports/<build_id>/match_report.json`
+- `reports/<build_id>/qc_report.json`
+- `reports/<build_id>/provenance_report.json`
+
+---
+
+## Exports
+
+Parquet exports should preserve:
+- column names and types
+- `stable_object_key`
+- provenance columns
+- match columns on planets
+
+Export location:
+- `out/<build_id>/parquet/`
+
+---
+
+## Forward-compatible changes
+
+Allowed without bumping major schema:
+- add new **nullable** columns
+- add new indexes
+- add new optional tables
+
+Breaking changes (avoid; require schema version bump):
+- renaming columns
+- changing meaning of `stable_object_key`
+- changing units of stored fields
+
+Schema versioning:
+- Keep this doc as “v0 core”.
+- Future revisions should be `SCHEMA_v0_1.md` etc if needed.

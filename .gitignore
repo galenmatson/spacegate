@@ -1,0 +1,14 @@
+# big / regenerable
+/raw/*
+!/raw/manifests/
+/cooked/
+/out/
+/served/
+/cache/
+/logs/*
+
+# local env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store

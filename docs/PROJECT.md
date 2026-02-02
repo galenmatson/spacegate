@@ -1,0 +1,397 @@
+# Spacegate: Local Stellar + Exoplanet Worldbuilding Database
+I've seen 3D star maps on the internet but they are all awful. The ones in space games are way better, but not technically more sophisticated, just better designed. I want to make one that is fun to browse, fun to click on stars and objects and read about them, and fun to play with. I want to do more than just list sterile data from the database. 
+
+I've worked for a long time on a fictional scifi universe, drawing elaborate star maps of trade lanes. While the entire universe is fully hard scifi and sublight until 2500 or so, for space opera and grand adventure I had to make a concession for faster than light travel. 
+
+The system uses space contraction between two 'spacegates' at different points in space. The spacegates, separated by several light years, must achieve an unfathomably perfect alignment and synchronization and both must annihilate a prohibitively expensive amount of antimatter. 
+
+The antimatter requirement increases quadratically with distance. Jumps between far systems are extremely expensive and infrequent and quite few whereas close or clustered systems are better connected. Jump distances are generally limited to around 4 or 5 light years. There should be no absolute limit but economics would exclude jumps over 11 light years or so. 
+
+This does leave a lot of systems outside the FTL network (but there's a substantial amount of STL (< .2 c) traffic). While the breakthroughs behind the spacegates are known by the mid 2100s the energy requirement is so extravagant that economically beneficial interstellar FTL isn't available until energy production rises to meet it. And that is basically done by damming starlight with massive solar arrays that generate antimatter. 
+
+The surface area requirements result in dyson swarms of solar collectors around the brightest stars, with the antimatter production for the same collector area rising with the Stephan Boltzman law, making bright A, B, and O type stars the most desirable for energy production. They fuel the spacegates and antimatter rocket based sublight interstellar travel and form the energy core of empires in the future. 
+
+My desire is to have an interactive 3D map rendered in a browser which draws an accurate star map using the latest parallax measurements and build a space empire mapping tool on top of it. Create an agent to generate engaging but factual English blurbs for each system. Starting with the most important (Sirus, Alpha Centauri, etc) and unique (bright stars, exoplanets in habitable zones, inferno planets, trinary stars, dust rings, etc.) systems. It should be interesting and informative in a way that people will just read about space stuff for fun and keep exploring.
+
+The world building features of the map should allow for things like trade lanes, spacegate links, or other connections to be drawn between stars. Spheres of control around owned/occupied systems that form the 3D shape of interstellar empires. Place megastructures like solar collectors, foundaries, shipyards, Dyson swarms, colonies, momentum banks, space elevators, mines, mass drivers, space stations, etc. on planets, in orbit of them, in stellar orbit, or galactic orbit (unbound to stars).
+
+These objects should be definable so I can create solar collectors 1000000 square kilometers that output 1 gram of antimatter per year or something like that. Or a mine that produces x kilotons of 18% aluminum 12% iron ore per day. And an ore processor that separataes and concentrates that to 78% grade aluminum ore and 68% iron ore. And an aluminum smelter that outputs x amount of pure aluminum. And a foundry that outputs x tons of steel per day. And a space elevator that can bring x tons up to orbit per day. And a ship yard that consumes x tons of aluminum per day as it produces a ship that contains x tons of aluminum and steel. For example.
+
+
+## Purpose
+- Build a rich stellar database with a user friendly interface for learning, exploration, and imagination.
+- Collect, organize, and enrich public astronomical data distributed across many systems, databases, and organizations in a single high utility, high accessibility tool for the public.
+- Avail these collated and consolidated datasets and all of this project's code to the public.
+- Use AI to generate vivid descriptions and imagery of systems and exoplanets that is scientifically accurate and compelling to the public.
+- Tools for worldbuilding: trade lanes, empires, cultures, megastructures, spacegates, space stations, space elevators, Dyson spheres, and other metadata for authors and anyone else that wants to fantasize about exploring the visible stars in the night sky.
+- Moveable, zoomable, rotatable, recenterable, interactive 3D map of the our region of Orion's Arm within 1000 LY which visualizes both real astronomical objects and fictional overlays; links, bubbles, borders, etc. for scifi world building.
+
+## Primary deliverables over time:
+- A versioned core astronomical dataset (stars/systems/planets) with provenance.
+- Optional object packs (substellar/compact/superstellar) that can be toggled in search/render/download.
+- An enriched content set built from that data and accurate scientific knowledge.
+- A public browser UI with excellent UX and factual, engaging descriptions and depictions of objects based on that enriched data.
+- A free browser based, navigable, 3D map of nearby space.
+- A lore layer for building fiction about what could be atop what is known.
+
+## Non-goals (for now)
+- No full astrophysics simulation.
+- No n-body integration or time-evolving ephemerides in v0–v2.
+- No attempt to perfectly resolve all binary/multiple edge cases in v0 (we’ll record what catalogs provide and improve later).
+- No “download the entire universe” use the public astronomical data sources listed in the next section for now, we can add to it later.
+
+# Data Sources
+## Primary sources (v0 only)
+- AT-HYG stellar catalog CSV (stars <= 1000 ly)
+- NASA exoplanets CSV (exoplanets <= 1000 ly)
+
+## Optional packs (v0.1+)
+### Object catalogs (curated objects)
+- UltracoolSheet (UCDs / substellar; CSV)
+- DwarfArchives brown dwarfs (VOTable)
+- Gaia DR3 UCD sample (CDS; fixed-width)
+- Gaia EDR3/DR3 white dwarf catalogs (FITS)
+- ATNF pulsar catalog (psrcat)
+- McGill magnetar catalog (CSV)
+### Detection catalogs (raw survey detections; not “objects”)
+- CatWISE2020 full tiles (bulk detections; very large)
+  - If used later, treat as a sources pack (not object pack) and keep separate from “unique object” tables.
+
+## Source protection / reproducibility
+- data/raw/** source files should be preserved as read-only once downloaded.
+- Raw data is only updated with newer raw data through the catalog download process with an update to the manifest.
+- The file operations to retrieve, decompress, and combine the source data should be logged.
+- All builds must be reproducible from pinned versions + checksums/etags where possible.
+
+
+# Data model and artifacts
+
+## Terminology
+- **Core astronomy**: real objects intended for general browsing in the ≤1000 ly sphere (systems, stars, planets) + strict provenance. These are downloaded and normalized by scripts and background functions but are not changeable by the user app.
+- **Expanded astronomy**: additional *real* object categories (substellar/compact/superstellar/etc.) that can be toggled in search/render/download. Like the core astronomy, read-only except by the catalog management functions.
+- **Enriched astronomy**: derived, regenerable content generated from core/packs (e.g., deterministic snapshot manifests, fact sheets, generated blurbs, generated imagery). Not edited in-place; regenerate instead.
+- **Engagement**: user feedback, click counts, likes. Informs the enrichment AI on systems of most interest. Linking to external forum threads on specific topics.
+- **Lore**: user-authored fictional metadata and fictional entities. Editable. Stored separately so core data stays shareable.
+
+## Output artifacts (versioned per build)
+All artifacts are produced under a versioned build directory: `out/<build_id>/...` (see “Build layout and versioning”).
+
+### 1) Core astronomy dataset (v0+)
+**Purpose:** the clean, shareable, authoritative “real astronomy” foundation.
+
+- DuckDB (authoritative query format for the app/API):
+  - `out/<build_id>/core.duckdb`
+- Parquet export (for publishing/sharing, tooling interoperability):
+  - `out/<build_id>/core/*.parquet`
+
+Core tables (minimum):
+- `systems`
+- `stars` (including components where available)
+- `planets` (NASA-derived)
+- plus required provenance fields on all rows.
+
+Rule: **No blurbs, images, or lore** stored in core.
+Rule: **Spatial sorting** All core Parquet files must be sorted by `spatial_index` (Morton Z-order). This enables high-performance "range scans" for 3D queries without reading the entire file.
+
+### 2) Expanded astronomy dataset (v0.1+)
+**Purpose:** keep additional object categories optional and independently maintainable.
+
+- Pack artifacts are separate from core:
+  - DuckDB (optional): `out/<build_id>/packs/<pack_name>.duckdb`
+  - Parquet (recommended): `out/<build_id>/packs/<pack_name>/*.parquet`
+
+Planned pack names:
+- `pack_substellar` (brown dwarfs, ultracool dwarfs, rogue/free-floating planets when available)
+- `pack_compact` (white dwarfs, neutron stars, pulsars, magnetars; curated nearby BH list if it exists)
+- `pack_superstellar` (extended objects within or near the local sphere: nebulae, SNRs, clusters)
+
+Note: “superstellar” objects are often extended, not point sources. This pack must support angular size and rendering primitives (billboards/volumes), not just xyz points.
+
+Rule: packs are **read-only** inputs to search/render/download. Each pack has its own provenance.
+
+### 3) Enrichment dataset (v1.1+)
+**Purpose:** derived artifacts that make the UI engaging while remaining strictly traceable to source facts.
+
+- DuckDB (authoritative query format for the app/API):
+  - `out/<build_id>/enrichment.duckdb`
+- Parquet export:
+  - `out/<build_id>/enrichment/*.parquet`
+
+Enrichment tables (initial):
+- `snapshot_manifest` (deterministic system visualization snapshots; see v1.1)
+- `factsheets` (structured JSON facts per object, with provenance pointers)
+- `blurbs` (engaging but factual descriptions generated strictly from factsheets; see v1.2)
+
+Rules:
+- Enrichment is **not edited in-place**. If content is wrong or the generator changes, regenerate enrichment with a new `generator_version` / build.
+- Each enrichment row must be traceable:
+  - factsheets: include `facts_hash`, `generator_version`, and pointers to source rows/fields
+  - blurbs: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
+  - snapshots: include `params_hash`, `params_json`, `generator_version`, `source_build_inputs_hash`
+
+### 4) Engagement signals (v1.3+)
+**Purpose:** capture minimal, privacy-respecting signals of collective human curiosity to improve discovery and prioritization — without analytics, profiling, or monetization.
+
+This dataset exists to give the people what they want. If they are explicit in their interest of goldilocks planets or white dwarf trinaries or hell worlds or whatever, we should have a method of capturing that interest and feeding it into the interestingness algorithm that prioritizes data enrichment.
+
+This is not monetizable. It is explicitly not behavioral tracking. Store no personal data.
+
+- DuckDB (optional for local builds / analysis):
+  - `out/<build_id>/engagement.duckdb`
+- Parquet export (for transparency / research use):
+  - `out/<build_id>/engagement/*.parquet`
+
+### 5) Lore overlays dataset (v2)
+**Purpose:** editable worldbuilding overlays and free-floating fictional entities, stored separately so the base data stays shareable.
+
+- DuckDB (recommended):
+  - `out/<build_id>/lore.duckdb` (typically per user/namespace)
+- Optional Parquet export for sharing:
+  - `out/<build_id>/lore/*.parquet`
+
+Minimum lore tables:
+- `lore_entities(entity_type, entity_key, namespace, lore_json, updated_at, source)`
+- Lore entities may be:
+  - anchored to a real object (system/star/planet) via `stable_object_key`
+  - free-floating (absolute heliocentric coords in ly; or relative offsets from an anchor)
+
+Rules:
+- Lore is editable.
+- Lore never mutates core/packs/enrichment tables.
+
+## Snapshot assets vs snapshot manifest (v1.1)
+Deterministic snapshot images are stored as **asset files**, referenced by a manifest row in the enrichment dataset.
+
+- Snapshot assets (files; filesystem or object storage):
+  - `out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
+- Snapshot manifest (table; in `enrichment.duckdb` and exported to Parquet):
+  - `snapshot_manifest(stable_object_key, object_type, view_type, params_json, params_hash, generator_version, build_id, artifact_path, created_at, source_build_inputs_hash, ...)`
+
+Rule: snapshots are derived artifacts; do not store image bytes in DuckDB.
+
+
+# IDs, matching, and provenance
+## IDs
+- Core tables use internal surrogate *_id (BIGINT) for performance and FK sanity.
+- Also store stable external keys where available:
+  - gaia_id, hip_id, hd_id, etc.
+- Also compute a stable_object_key for rebuild stability and lore/packs joining:
+  - Prefer authoritative catalog IDs when present.
+  - Fallback: coordinate hash with versioned precision buckets + normalized name.
+## Match provenance (planet → host)
+- match_method (gaia | hip | hd | hostname | fuzzy | manual)
+- match_confidence (0..1)
+- match_notes (optional)
+## Row lineage provenance (required for all derived rows)
+Every derived row must include:
+- source_catalog
+- source_version
+- source_url
+- source_pk (primary key from source if available, e.g., Gaia source_id)
+- source_row_id (or source_row_hash)
+- license
+- redistribution_ok (bool)
+- license_note
+- retrieval_checksum (when possible) and/or retrieval_etag
+- retrieved_at
+- ingested_at
+- transform_version (git SHA or pipeline version)
+
+# Units and coordinates
+- Distances displayed in light-years (ly) by default (selectable later).
+- Store 3D Cartesian coordinates in light-years.
+Coordinate storage:
+- Store heliocentric coordinates as the primary working frame for the local sphere:
+  - x_helio_ly, y_helio_ly, z_helio_ly
+- Optionally store galactocentric coordinates for galaxy-scale views:
+  - x_gal_ly, y_gal_ly, z_gal_ly
+Rendering rule:
+- The renderer always rebases around the selected object (“floating origin”) before sending to GPU (float32 safety).
+
+# Build layout and versioning
+Recommended directory conventions:
+- data/external/<catalog>/<version>/... (immutable)
+- data/processed/<catalog>/<version>/*.parquet
+- out/<build_id>/core.duckdb, out/<build_id>/core.parquet (and split tables if desired)
+- out/<build_id>/packs/<pack_name>.parquet
+- reports/<build_id>/...
+Where:
+- build_id = YYYY-MM-DD_<gitshortsha>
+
+# QC gates
+These checks run every build. Some fail hard; some warn.
+Hard failures:
+- any rows missing required provenance
+- sanity check: abs(norm(x,y,z) - dist_ly) < eps for rows where both are present
+Warnings (thresholds to refine):
+- match rate drops by > 0.5% absolute from previous build
+- unmatched planets increases by > 25 from previous build
+- large shifts in distance distribution or magnitude distribution beyond set thresholds
+- spikes in duplicate stable keys
+
+
+
+# Milestones
+
+## v0: Core ingestion
+Success criteria:
+- Create functions to download <1000 LY objects from core, authoritative public databases
+  - Should be rerunnable for updates with recover and retry on failure.
+- Build a DuckDB database from core astronomical data.
+  - store in data/
+- **Implement Spatial Indexing:**
+  - Compute 64-bit Morton Codes for all objects based on heliocentric xyz.
+  - Ensure Parquet exports are physically sorted by this index.
+- Normalize identifiers and types. 
+  - For instance, Gaia DR3 keys are stored as strings sometimes with 'Gaia DR3 ' prefix. 
+  - They should be stripped down to the ID and stored as high precision integers.
+- Join exoplanets to host stars/systems with match provenance + confidence.
+- Parse spectral types into components while retaining raw strings.
+- Export Parquet artifacts for core tables.
+- Produce reports:
+  - match report (counts by method, unmatched rows, suspicious cases)
+  - provenance coverage report
+  - basic QC sanity checks
+
+## v0.1: Optional object packs
+Success criteria:
+- Create optional “object packs” as separate artifacts:
+  - pack_substellar, pack_compact, optional pack_superstellar (local extended objects)
+- Each pack has its own staging + provenance.
+- Compute dist_ly, helio and galactic coordinates
+- Export Parquet pack artifacts + pack QC reports.
+- Request approval for each new source before ingestion.
+
+## v1: Public database browser UI
+Success criteria:
+- “Spacegate browser” UI
+- Hosted on Google Cloud
+- Public at spacegates.org
+- Attractive, searchable, filterable interface
+- Reads core data + optional packs + lore overlays (lore editable; core read-only)
+
+## v1.1 Deterministic System Visualization Snapshots
+Goal: produce **deterministic, cacheable “system snapshot” images** that make the browser fun immediately, without requiring the full v2 3D map.
+
+### Success criteria
+- A reproducible snapshot generator that emits small, fast assets per system:
+  - **Local neighborhood (10 ly)** view: nearby stars relative to the selected system.
+  - **Regional neighborhood (50 ly)** view: nearby “interesting” stars (configurable filter; default keeps Sol visible).
+  - **Inner system orbit view (<5 AU)** for systems with known planets (if any).
+  - **Outer system orbit view (>30 AU)** when wide-orbit planets exist (if any).
+- Snapshots are deterministic and **stable across rebuilds** given the same inputs:
+  - same object IDs, same generator version, same parameters ⇒ byte-identical SVG (or visually identical PNG if raster).
+- Snapshots are available to the v1 UI:
+  - list + detail pages can show the relevant snapshot(s) with zero extra computation at request time (after warm cache).
+
+### Deterministic rendering rules (no “artistic drift”)
+- Coordinate inputs:
+  - Use **heliocentric XYZ** as the primary working frame for local ≤1000 ly views (double precision in generation).
+  - Always render snapshots in a **recentered frame** (origin = selected system) for numeric stability.
+- Camera conventions (fixed):
+  - Neighborhood views: **“top-down” from Galactic North** (standard orientation, consistent axes, labeled).
+  - Provide a legend/scale bar and a small “Sol” marker when Sol is in-frame (or optionally always, via inset).
+- Visual encoding (fixed mapping):
+  - Star marker size = function(apparent magnitude or absolute magnitude; choose one and document it).
+  - Color = function(spectral class (OBAFGKM…) when available; otherwise neutral).
+  - Optional toggles become **parameters** (and therefore part of the cache key), not ad-hoc.
+- Output formats:
+  - Default: **SVG** for crisp zoom + tiny size.
+  - Optional: PNG thumbnails derived from SVG for fast grids.
+
+### Storage model (future-proof; keeps core astro immutable)
+Snapshots are **derived artifacts** (like reports), not part of the immutable core astronomy tables.
+
+- Store binary image blobs in object storage / filesystem (preferred):
+  - `out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
+- Store a manifest table (Parquet and/or DuckDB table) that the UI can query:
+  - `snapshot_manifest` fields:
+    - `stable_object_key`
+    - `object_type` (system/star/planet)
+    - `view_type` (neighbors_10ly, neighbors_50ly, orbits_inner, orbits_outer, …)
+    - `params_json` (the exact parameter set used)
+    - `params_hash` (cache key)
+    - `generator_version` (git SHA or semantic version)
+    - `build_id`
+    - `artifact_path` (relative path or signed URL target)
+    - `created_at`
+    - `source_build_inputs` (hash of the relevant input rows / tables)
+- Rationale:
+  - Core astronomy remains shareable and clean.
+  - Snapshots can be regenerated, swapped, or replaced without touching core data.
+
+### Generation strategy (don’t precompute everything blindly)
+- Implement **lazy generation + caching**:
+  - On first request (or during an offline “warm cache” job), generate and write the snapshot + manifest row.
+- Define a “warm set” for initial usability:
+  - Systems with known exoplanets.
+  - Bright / nearby / named systems (configurable).
+  - Then expand coverage opportunistically.
+
+### Guardrails
+- Snapshots must be generated strictly from:
+  - core data + enabled optional packs (if used) + documented parameters.
+- No “invented” planets, orbits, colors, or relationships.
+  - If required fields are missing, render a minimal view with a clear “insufficient data” note.
+- Any change to rendering rules must bump `generator_version` and invalidate cache by construction.
+
+
+## v1.2: Description enrichment (“facts → blurb”)
+Success criteria:
+- Rank objects by “interestingness” using explicit criteria.
+- Generate fact sheets (structured JSON) per selected object with sources/provenance.
+- Generate engaging but factual blurbs strictly from fact sheets.
+- Store blurbs as derived artifacts with:
+  - model/version, generated_at, and fact-sheet hash
+- Target voice: science outreach personality (factual, enthusiastic; no fabrication).
+- Counter prompt is used to evaluate the factuality of the blurb and discard hallucinations
+
+### v1.2+: External reference links (curated web sources)
+Goal: augment enrichment with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
+
+Method (proposed):
+- **Discovery**: for each object, generate candidate queries from stable identifiers and common names (e.g., primary name, catalog IDs).
+- **Source allowlist** (default): Wikipedia, SIMBAD, NASA Exoplanet Archive, ESA/Gaia docs, IPAC/IRSA, CDS, Exoplanet.eu, relevant observatory pages.
+- **Quality scoring**: rank candidates by:
+  - Authority (domain allowlist > others)
+  - Specificity (object page vs generic topic page)
+  - Content richness (presence of sections like “Physical characteristics”, “Discovery”, “Orbit”)
+  - Recency/maintenance signals (last updated if available)
+  - Licensing suitability (links allowed even when content cannot be reproduced)
+- **Human override**: optionally pin or blacklist specific links in a small manual overrides file.
+
+Storage model:
+- New enrichment table `reference_links`:
+  - `stable_object_key`, `object_type`
+  - `link_type` (wikipedia | simbad | nasa_exoplanet_archive | observatory | other)
+  - `url`
+  - `title`
+  - `quality_score` (0..1) and `quality_notes`
+  - `source_domain`
+  - `retrieved_at`, `generator_version`, `build_id`
+  - `discovery_query`, `discovery_method`
+  - `license_note` (link-only; no reproduction)
+
+Reasonable limits (initial defaults):
+- **Max links per object**: 3 (1 authoritative catalog + 1 encyclopedia + 1 optional observatory/mission page).
+- **Max candidates evaluated per object**: 10.
+- **Domain cap**: 2 links from the same domain per object.
+- **Coverage budget**: only “interestingness” top N objects in v1.2; full coverage later.
+- **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
+- **Strictly link-only**: store URLs + metadata only; no copying page text into enrichment.
+
+## v2: 3D map (browser)
+Success criteria:
+- Lightweight browser-based 3D viewer (likely three.js; evaluate alternatives later).
+- Smooth controls: zoom/rotate/pan/recenter; selection; tooltips.
+- Filters (distance bubble, spectral class, magnitude, etc.)
+- Optional rendering toggles: planets, packs, lore layers, neighbor links, spacegate links.
+
+## v2.1+: System view and generators (stretch goals for later)
+- The data epoch is J2000, add feature to select date. Recompute, rerender stars for different points in time based on proper motion.
+- 3D Exoplanet render (plausible visualizations based on data)
+- World builder tools (procedural generation with sliders)
+
+# Status (as of 2026-01-28)
+- Additional catalogs downloaded; CatWISE2020 full tiles are downloading (slow, large; 113 tiles present so far).
+- No ingestion pipeline changes yet; only data acquisition and schema planning.
