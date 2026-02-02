@@ -95,15 +95,18 @@ These sources are required for v0 ingestion and must always be present.
 **Authority**: Astronexus / HYG Database
 
 **Raw inputs**:
-- `raw/athyg/athyg_part1.csv.gz`
-- `raw/athyg/athyg_part2.csv.gz`
+- `raw/athyg/athyg_v33-1.csv.gz`
+- `raw/athyg/athyg_v33-2.csv.gz`
 
 **Source URL**:
 
-- `https://codeberg.org/astronexus/hyg`
+- `https://codeberg.org/astronexus/athyg`
 
 **Cooked outputs**:
 - `cooked/athyg/athyg.csv.gz` (concatenated, column-normalized)
+
+**Notes**:
+- AT-HYG files are stored via Git LFS on Codeberg; the downloader resolves LFS pointers.
 
 **Format**: gzipped CSV
 

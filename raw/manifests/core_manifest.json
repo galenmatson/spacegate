@@ -1,0 +1,5 @@
+[
+{"source_name":"athyg_v33-1","url":"https://codeberg.org/astronexus/athyg.git/info/lfs/objects/fd5747cc019d00632bba9bae55004702981bf43777bfd69aaf59ae48397d8c64","dest_path":"raw/athyg/athyg_v33-1.csv.gz","retrieved_at":"2026-02-02T21:38:54Z","checked_at":"2026-02-02T21:38:54Z","sha256":"fd5747cc019d00632bba9bae55004702981bf43777bfd69aaf59ae48397d8c64","bytes_written":98907182}
+,
+{"source_name":"athyg_v33-2","url":"https://codeberg.org/astronexus/athyg.git/info/lfs/objects/f90cb09eda1e433f2ee635c0bc2477116bfd83ceebe816c6771ab0f617ea9bb2","dest_path":"raw/athyg/athyg_v33-2.csv.gz","retrieved_at":"2026-02-02T21:40:04Z","checked_at":"2026-02-02T21:40:04Z","sha256":"f90cb09eda1e433f2ee635c0bc2477116bfd83ceebe816c6771ab0f617ea9bb2","bytes_written":100114994}
+]
