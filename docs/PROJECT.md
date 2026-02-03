@@ -395,3 +395,6 @@ Success criteria:
 # Status (as of 2026-01-28)
 - Additional catalogs downloaded; CatWISE2020 full tiles are downloading (slow, large; 113 tiles present so far).
 - No ingestion pipeline changes yet; only data acquisition and schema planning.
+
+
+# On completion, prune dependencies
