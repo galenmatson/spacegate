@@ -1,17 +1,103 @@
 #!/usr/bin/env python3
 import argparse
+import atexit
 import datetime as dt
 import json
 import os
+import signal
 import subprocess
+import time
 from pathlib import Path
 
 import duckdb
 
 PC_TO_LY = 3.26156
-MORTON_OFFSET = 5000.0
-MORTON_SCALE = 1000.0
-MORTON_BITS = 23  # Spec says 21, but 23 is needed to cover +/-1000 ly with offset+scale.
+BITS_PER_AXIS = 21
+MORTON_MAX_ABS_LY = 1000.0
+MORTON_N = (1 << BITS_PER_AXIS) - 1
+MORTON_SCALE = MORTON_N / (2 * MORTON_MAX_ABS_LY)
+PROX_MAX_DIST_LY = 0.25
+PROX_CELL_SIZE_LY = 0.25
+PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
+
+
+def log(message: str) -> None:
+    timestamp = dt.datetime.now(dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    print(f"{timestamp} {message}", flush=True)
+
+
+def acquire_lock(lock_path: Path, build_id: str) -> None:
+    lock_info = (
+        f"pid={os.getpid()}\n"
+        f"build_id={build_id}\n"
+        f"started_at={dt.datetime.now(dt.UTC).isoformat(timespec='seconds').replace('+00:00', 'Z')}\n"
+    )
+
+    def read_lock_details() -> str:
+        try:
+            return lock_path.read_text()
+        except Exception:
+            return "(unable to read lock details)"
+
+    def parse_pid(details: str) -> int | None:
+        for line in details.splitlines():
+            if line.startswith("pid="):
+                try:
+                    return int(line.split("=", 1)[1].strip())
+                except ValueError:
+                    return None
+        return None
+
+    if lock_path.exists():
+        details = read_lock_details()
+        pid = parse_pid(details)
+        stale = False
+        if pid is not None:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                stale = True
+            except PermissionError:
+                stale = False
+        if stale:
+            log(f"Stale lockfile detected for pid={pid}; removing {lock_path}")
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass
+        else:
+            raise SystemExit(
+                f"Lockfile exists: {lock_path}\n"
+                f"{details}\n"
+                "Another ingest_core may be running. Remove the lockfile if you are sure it is stale."
+            )
+
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        details = read_lock_details()
+        raise SystemExit(
+            f"Lockfile exists: {lock_path}\n"
+            f"{details}\n"
+            "Another ingest_core may be running. Remove the lockfile if you are sure it is stale."
+        )
+
+    with os.fdopen(fd, "w") as handle:
+        handle.write(lock_info)
+
+    def cleanup() -> None:
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            pass
+
+    def handle_signal(signum: int, _frame) -> None:
+        cleanup()
+        raise SystemExit(f"Interrupted by signal {signum}")
+
+    atexit.register(cleanup)
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, handle_signal)
 
 
 def get_git_sha(root: Path) -> str:
@@ -34,25 +120,79 @@ def load_manifest(manifest_path: Path) -> dict:
     return {entry.get("source_name"): entry for entry in data}
 
 
+def sql_literal(value: str | None) -> str:
+    if value is None:
+        return "NULL"
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+class UnionFind:
+    def __init__(self) -> None:
+        self.parent: dict[int, int] = {}
+        self.rank: dict[int, int] = {}
+
+    def add(self, x: int) -> None:
+        if x not in self.parent:
+            self.parent[x] = x
+            self.rank[x] = 0
+
+    def find(self, x: int) -> int:
+        self.add(x)
+        root = self.parent[x]
+        if root != x:
+            self.parent[x] = self.find(root)
+        return self.parent[x]
+
+    def union(self, a: int, b: int) -> None:
+        self.add(a)
+        self.add(b)
+        ra = self.find(a)
+        rb = self.find(b)
+        if ra == rb:
+            return
+        if self.rank[ra] < self.rank[rb]:
+            self.parent[ra] = rb
+        elif self.rank[ra] > self.rank[rb]:
+            self.parent[rb] = ra
+        else:
+            self.parent[rb] = ra
+            self.rank[ra] += 1
+
+    def items(self) -> list[int]:
+        return list(self.parent.keys())
+
+
 def morton3d(x: float, y: float, z: float) -> int | None:
     if x is None or y is None or z is None:
         return None
+    if abs(x) > MORTON_MAX_ABS_LY or abs(y) > MORTON_MAX_ABS_LY or abs(z) > MORTON_MAX_ABS_LY:
+        raise ValueError(
+            f"Morton domain exceeded: ({x}, {y}, {z}) outside ±{MORTON_MAX_ABS_LY} ly"
+        )
     try:
-        xi = int(round((x + MORTON_OFFSET) * MORTON_SCALE))
-        yi = int(round((y + MORTON_OFFSET) * MORTON_SCALE))
-        zi = int(round((z + MORTON_OFFSET) * MORTON_SCALE))
+        xi = int(round((x + MORTON_MAX_ABS_LY) * MORTON_SCALE))
+        yi = int(round((y + MORTON_MAX_ABS_LY) * MORTON_SCALE))
+        zi = int(round((z + MORTON_MAX_ABS_LY) * MORTON_SCALE))
     except Exception:
         return None
-    if xi < 0 or yi < 0 or zi < 0:
-        return None
-    max_val = (1 << MORTON_BITS) - 1
-    if xi > max_val or yi > max_val or zi > max_val:
-        return None
+
+    if xi < 0:
+        xi = 0
+    elif xi > MORTON_N:
+        xi = MORTON_N
+    if yi < 0:
+        yi = 0
+    elif yi > MORTON_N:
+        yi = MORTON_N
+    if zi < 0:
+        zi = 0
+    elif zi > MORTON_N:
+        zi = MORTON_N
 
     def part1by2(n: int) -> int:
-        n &= max_val
+        n &= MORTON_N
         out = 0
-        for i in range(MORTON_BITS):
+        for i in range(BITS_PER_AXIS):
             out |= ((n >> i) & 1) << (3 * i)
         return out
 
@@ -62,6 +202,36 @@ def morton3d(x: float, y: float, z: float) -> int | None:
 def write_json(path: Path, obj: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, indent=2, sort_keys=True))
+
+
+def has_retrieval(manifest_entry: dict) -> bool:
+    if not manifest_entry:
+        return False
+    return bool(
+        manifest_entry.get("sha256")
+        or manifest_entry.get("etag")
+        or manifest_entry.get("retrieval_etag")
+    )
+
+
+def require_manifest_entry(manifest: dict, source_name: str, label: str) -> dict:
+    entry = manifest.get(source_name)
+    if not entry:
+        raise SystemExit(
+            f"Missing manifest entry for {label} ({source_name}). "
+            f"Re-run the downloader to refresh raw/manifests."
+        )
+    if not entry.get("retrieved_at"):
+        raise SystemExit(
+            f"Manifest entry for {label} ({source_name}) missing retrieved_at. "
+            f"Re-run the downloader."
+        )
+    if not entry.get("sha256") and not entry.get("etag") and not entry.get("retrieval_etag"):
+        raise SystemExit(
+            f"Manifest entry for {label} ({source_name}) missing checksum/etag. "
+            f"Re-run the downloader."
+        )
+    return entry
 
 
 def main() -> int:
@@ -80,32 +250,71 @@ def main() -> int:
     if not cooked_nasa.exists():
         raise SystemExit(f"Missing cooked NASA: {cooked_nasa}")
 
+    log("Ingest core start")
     manifest = load_manifest(manifest_path)
 
-    today = dt.date.today().strftime("%Y-%m-%d")
-    build_id = args.build_id or f"{today}_{get_git_sha(root)}"
+    now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H%M%SZ")
+    build_id = args.build_id or f"{now}_{get_git_sha(root)}"
+    log(f"Build id: {build_id}")
 
-    out_dir = root / "out" / build_id
-    parquet_dir = out_dir / "parquet"
+    lock_path = root / "out" / ".ingest_core.lock"
+    acquire_lock(lock_path, build_id)
+
+    final_out_dir = root / "out" / build_id
+    tmp_out_dir = root / "out" / f"{build_id}.tmp"
+    parquet_dir = tmp_out_dir / "parquet"
     reports_dir = root / "reports" / build_id
 
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if final_out_dir.exists():
+        raise SystemExit(f"Build output already exists: {final_out_dir}")
+    if tmp_out_dir.exists():
+        raise SystemExit(f"Temporary build output already exists: {tmp_out_dir}")
+
+    tmp_out_dir.mkdir(parents=True, exist_ok=True)
     parquet_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
+    tmp_work_dir = tmp_out_dir / "tmp"
+    tmp_work_dir.mkdir(parents=True, exist_ok=True)
 
-    db_path = out_dir / "core.duckdb"
-    if db_path.exists():
-        db_path.unlink()
+    db_path = tmp_out_dir / "core.duckdb"
 
     con = duckdb.connect(str(db_path))
     con.create_function("morton3d", morton3d)
+    con.execute("SET threads TO 4")
+    con.execute("SET memory_limit='24GB'")
+    con.execute(f"SET temp_directory='{str(tmp_work_dir).replace("'", "''")}'")
 
-    ingested_at = dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    ingested_at = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     transform_version = get_git_sha(root)
 
-    athyg_p1 = manifest.get("athyg_v33-1", {})
-    athyg_p2 = manifest.get("athyg_v33-2", {})
-    nasa_manifest = manifest.get("pscomppars", {})
+    log("Writing build_metadata")
+    con.execute(
+        """
+        create table if not exists build_metadata (
+          key text,
+          value text
+        )
+        """
+    )
+    con.execute(
+        f"""
+        insert into build_metadata values
+          ('build_id', {sql_literal(build_id)}),
+          ('git_sha', {sql_literal(transform_version)}),
+          ('morton_bits_per_axis', {sql_literal(str(BITS_PER_AXIS))}),
+          ('morton_max_abs_ly', {sql_literal(str(MORTON_MAX_ABS_LY))}),
+          ('morton_scale', {sql_literal(str(MORTON_SCALE))}),
+          ('morton_quantization', {sql_literal('round((coord + max_abs) * scale), clamp to [0,N]')}),
+          ('morton_frame', {sql_literal('heliocentric_ly')})
+        """
+    )
+
+    log("Loading manifest entries")
+    athyg_p1 = require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
+    athyg_p2 = require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
+    nasa_manifest = require_manifest_entry(
+        manifest, "pscomppars", "NASA Exoplanet Archive"
+    )
 
     athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
     athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
@@ -120,6 +329,7 @@ def main() -> int:
     athyg_download_url = ";".join([u for u in [athyg_p1_url, athyg_p2_url] if u])
     if not athyg_download_url:
         athyg_download_url = None
+    athyg_has_retrieval = has_retrieval(athyg_p1) or has_retrieval(athyg_p2)
 
     nasa_url = nasa_manifest.get(
         "url",
@@ -127,28 +337,31 @@ def main() -> int:
     )
     nasa_sha = nasa_manifest.get("sha256")
     nasa_retrieved = nasa_manifest.get("retrieved_at")
+    nasa_has_retrieval = has_retrieval(nasa_manifest)
 
+    athyg_path = str(cooked_athyg).replace("'", "''")
+    log("Loading cooked AT-HYG")
     con.execute(
-        """
+        f"""
         create or replace temp view athyg_raw as
-        select * from read_csv_auto(?,
+        select * from read_csv_auto('{athyg_path}',
             compression='gzip',
             delim=',',
-            quote='"',
-            escape='"',
+            quote='\"',
+            escape='\"',
             header=true,
             strict_mode=false,
             null_padding=true,
             all_varchar=true
         )
-        """,
-        [str(cooked_athyg)],
+        """
     )
 
     # Build stars table
+    log("Building stars table")
     con.execute(
-        """
-        create or replace temp view stars_stage as
+        f"""
+        create or replace temp view stars_stage_base as
         with base as (
           select
             nullif(id,'')::bigint as source_pk,
@@ -192,10 +405,10 @@ def main() -> int:
           from base
         ), converted as (
           select *,
-            dist_pc_final * ? as dist_ly,
-            x_pc * ? as x_helio_ly,
-            y_pc * ? as y_helio_ly,
-            z_pc * ? as z_helio_ly
+            dist_pc_final * {PC_TO_LY} as dist_ly,
+            x_pc * {PC_TO_LY} as x_helio_ly,
+            y_pc * {PC_TO_LY} as y_helio_ly,
+            z_pc * {PC_TO_LY} as z_helio_ly
           from coords
         ), named as (
           select *,
@@ -227,7 +440,7 @@ def main() -> int:
             regexp_extract(spectral_type_raw, '(I{1,3}|IV|V|VI|VII)', 1) as luminosity_class
           from named
         ), filtered as (
-          select * from normalized where dist_ly is not null and dist_ly <= 1000
+          select * from normalized where dist_ly is not null and dist_ly <= {MORTON_MAX_ABS_LY}
         )
         select
           *,
@@ -242,17 +455,38 @@ def main() -> int:
               coalesce(round(dist_ly,3)::varchar,'')
             ), 1, 16)
           end as stable_object_key,
-          morton3d(x_helio_ly, y_helio_ly, z_helio_ly) as spatial_index
         from filtered
-        """,
-        [PC_TO_LY, PC_TO_LY, PC_TO_LY, PC_TO_LY],
+        """
+    )
+
+    log("Validating Morton domain")
+    max_abs = con.execute(
+        """
+        select max(greatest(abs(x_helio_ly), abs(y_helio_ly), abs(z_helio_ly)))
+        from stars_stage_base
+        """
+    ).fetchone()[0]
+    if max_abs is not None and max_abs > MORTON_MAX_ABS_LY:
+        raise SystemExit(
+            f"Morton domain exceeded: max |coord| = {max_abs:.6f} ly "
+            f"> {MORTON_MAX_ABS_LY} ly. Increase MORTON_MAX_ABS_LY or filter input."
+        )
+
+    log("Computing spatial_index (Morton)")
+    con.execute(
+        """
+        create or replace temp view stars_stage as
+        select *,
+          cast(morton3d(x_helio_ly, y_helio_ly, z_helio_ly) as bigint) as spatial_index
+        from stars_stage_base
+        """
     )
 
     con.execute(
         """
         create table stars as
         select
-          row_number() over ()::bigint as star_id,
+          row_number() over (order by stable_object_key)::bigint as star_id,
           spatial_index,
           null::bigint as system_id,
           stable_object_key,
@@ -288,7 +522,7 @@ def main() -> int:
           'athyg' as source_catalog,
           'v3.3' as source_version,
           'https://codeberg.org/astronexus/athyg' as source_url,
-          ? as source_download_url,
+          null::varchar as source_download_url,
           null::varchar as source_doi,
           source_pk as source_pk,
           source_pk as source_row_id,
@@ -297,32 +531,407 @@ def main() -> int:
           true as redistribution_ok,
           'https://codeberg.org/astronexus/athyg' as license_note,
           null::varchar as retrieval_etag,
-          ? as retrieval_checksum,
-          ? as retrieved_at,
-          ? as ingested_at,
-          ? as transform_version,
+          null::varchar as retrieval_checksum,
+          null::varchar as retrieved_at,
+          null::varchar as ingested_at,
+          null::varchar as transform_version,
           system_name_root_norm
         from stars_stage
         """,
-        [athyg_download_url, athyg_checksum, athyg_retrieved, ingested_at, transform_version],
+    )
+    con.execute(
+        f"""
+        update stars set
+          source_download_url = {sql_literal(athyg_download_url)},
+          retrieval_checksum = {sql_literal(athyg_checksum)},
+          retrieved_at = {sql_literal(athyg_retrieved)},
+          ingested_at = {sql_literal(ingested_at)},
+          transform_version = {sql_literal(transform_version)}
+        """
     )
 
-    # Systems (name-based only)
+    # System grouping: name-based first, then optional proximity for ungrouped stars.
+    log("System grouping: name-based pass")
+    name_stage_start = time.monotonic()
+    con.execute(
+        """
+        create temp table name_groups as
+        select star_id, 'name:' || system_name_root_norm as system_group_key
+        from stars
+        where system_name_root_norm is not null
+        """
+    )
+    name_group_count = con.execute(
+        "select count(distinct system_group_key) from name_groups"
+    ).fetchone()[0]
+    total_stars = con.execute("select count(*) from stars").fetchone()[0]
+    name_grouped = con.execute("select count(*) from name_groups").fetchone()[0]
+    prox_eligible = total_stars - name_grouped
+    log(f"System grouping: name pass complete in {time.monotonic() - name_stage_start:.1f}s")
+    log(
+        "System grouping: counts "
+        f"(total={total_stars}, name_grouped={name_grouped}, proximity_eligible={prox_eligible})"
+    )
+
+    proximity_enabled = os.getenv("SPACEGATE_ENABLE_PROXIMITY") == "1"
+    prox_group_count = 0
+    pair_count = 0
+
+    if proximity_enabled and prox_eligible > 0:
+        stage_start = time.monotonic()
+        log(
+            "System grouping: proximity pass "
+            f"(cell_size={PROX_CELL_SIZE_LY} ly, max_dist={PROX_MAX_DIST_LY} ly)"
+        )
+        con.execute(
+            f"""
+            create or replace temp view ungrouped_cells as
+            select
+              star_id,
+              x_helio_ly as x,
+              y_helio_ly as y,
+              z_helio_ly as z,
+              cast(floor(x_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_x,
+              cast(floor(y_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_y,
+              cast(floor(z_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_z
+            from stars
+            where system_name_root_norm is null
+            """
+        )
+
+        con.execute(
+            """
+            create or replace temp table neighbor_offsets(dx, dy, dz) as
+            select * from (
+              values
+                (-1,-1,-1), (-1,-1,0), (-1,-1,1),
+                (-1,0,-1),  (-1,0,0),  (-1,0,1),
+                (-1,1,-1),  (-1,1,0),  (-1,1,1),
+                (0,-1,-1),  (0,-1,0),  (0,-1,1),
+                (0,0,-1),   (0,0,0),   (0,0,1),
+                (0,1,-1),   (0,1,0),   (0,1,1),
+                (1,-1,-1),  (1,-1,0),  (1,-1,1),
+                (1,0,-1),   (1,0,0),   (1,0,1),
+                (1,1,-1),   (1,1,0),   (1,1,1)
+            )
+            """
+        )
+
+        preflight_start = time.monotonic()
+        log("System grouping: preflight cell counts (python)")
+        cell_counts: dict[tuple[int, int, int], int] = {}
+        intra_pairs = 0
+        star_count = 0
+        cell_max = 0
+        last_log = time.monotonic()
+        cur = con.execute(
+            """
+            select cell_x, cell_y, cell_z, count(*)::bigint as cnt
+            from ungrouped_cells
+            group by 1, 2, 3
+            """
+        )
+        while True:
+            rows = cur.fetchmany(10000)
+            if not rows:
+                break
+            for cx, cy, cz, cnt in rows:
+                cell_counts[(int(cx), int(cy), int(cz))] = int(cnt)
+                star_count += int(cnt)
+                intra_pairs += int(cnt) * (int(cnt) - 1) // 2
+                if cnt > cell_max:
+                    cell_max = int(cnt)
+            now = time.monotonic()
+            if now - last_log >= 10:
+                log(
+                    "System grouping: preflight cell counts progress "
+                    f"(cells={len(cell_counts):,}, stars={star_count:,})"
+                )
+                last_log = now
+
+        cell_count = len(cell_counts)
+        densest_cells = sorted(
+            [(cx, cy, cz, cnt) for (cx, cy, cz), cnt in cell_counts.items()],
+            key=lambda item: item[3],
+            reverse=True,
+        )[:20]
+
+        log(
+            "System grouping: preflight cell counts complete "
+            f"in {time.monotonic() - preflight_start:.1f}s"
+        )
+
+        neighbor_start = time.monotonic()
+        log("System grouping: preflight neighbor upper bound (python)")
+        neighbor_upper_raw = 0
+        last_log = time.monotonic()
+        offsets = [
+            (-1, -1, -1),
+            (-1, -1, 0),
+            (-1, -1, 1),
+            (-1, 0, -1),
+            (-1, 0, 0),
+            (-1, 0, 1),
+            (-1, 1, -1),
+            (-1, 1, 0),
+            (-1, 1, 1),
+            (0, -1, -1),
+            (0, -1, 0),
+            (0, -1, 1),
+            (0, 0, -1),
+            (0, 0, 0),
+            (0, 0, 1),
+            (0, 1, -1),
+            (0, 1, 0),
+            (0, 1, 1),
+            (1, -1, -1),
+            (1, -1, 0),
+            (1, -1, 1),
+            (1, 0, -1),
+            (1, 0, 0),
+            (1, 0, 1),
+            (1, 1, -1),
+            (1, 1, 0),
+            (1, 1, 1),
+        ]
+        processed = 0
+        for (cx, cy, cz), cnt in cell_counts.items():
+            neighbor_sum = 0
+            for dx, dy, dz in offsets:
+                neighbor_sum += cell_counts.get((cx + dx, cy + dy, cz + dz), 0)
+            neighbor_upper_raw += cnt * max(neighbor_sum - 1, 0)
+            processed += 1
+            now = time.monotonic()
+            if now - last_log >= 10:
+                log(
+                    "System grouping: preflight neighbor progress "
+                    f"(cells={processed:,}/{cell_count:,})"
+                )
+                last_log = now
+
+        neighbor_upper = neighbor_upper_raw // 2
+        log(
+            "System grouping: preflight neighbor upper bound complete "
+            f"in {time.monotonic() - neighbor_start:.1f}s"
+        )
+
+        estimate_pairs = max(intra_pairs, neighbor_upper)
+        log(
+            "System grouping: preflight "
+            f"(cells={cell_count}, max_cell={cell_max}, "
+            f"intra_pairs={intra_pairs:,}, neighbor_upper={neighbor_upper:,}) "
+            f"in {time.monotonic() - preflight_start:.1f}s"
+        )
+
+        if estimate_pairs > PROX_PAIR_ESTIMATE_LIMIT:
+            densest_lines = "\n".join(
+                [f"  cell({row[0]},{row[1]},{row[2]}): {row[3]}" for row in densest_cells]
+            )
+            raise SystemExit(
+                "Proximity preflight failed: estimated candidate pairs exceed limit.\n"
+                f"N stars: {prox_eligible}\n"
+                f"Non-empty cells: {cell_count}\n"
+                f"Top densest cells:\n{densest_lines}\n"
+                f"Estimated candidate pairs: {estimate_pairs:,}\n"
+                f"Limit: {PROX_PAIR_ESTIMATE_LIMIT:,}\n"
+                "Suggestion: reduce radius, increase cell size, or refactor to incremental neighbor processing."
+            )
+
+        uf = UnionFind()
+        cells = sorted(cell_counts.keys())
+
+        batch_size = 5000
+        batches = 0
+        last_log = time.monotonic()
+        debug_sql = os.getenv("SPACEGATE_DEBUG_SQL") == "1"
+        debug_done = False
+
+        log(f"System grouping: pairing cells (batches of {batch_size})")
+        for idx in range(0, len(cells), batch_size):
+            batch = cells[idx : idx + batch_size]
+            con.execute(
+                """
+                create or replace temp table batch_cells(
+                  cell_x bigint,
+                  cell_y bigint,
+                  cell_z bigint
+                )
+                """
+            )
+            con.executemany("insert into batch_cells values (?, ?, ?)", batch)
+
+            pair_query = f"""
+                select a.star_id, b.star_id
+                from ungrouped_cells a
+                join batch_cells bc
+                  on a.cell_x = bc.cell_x
+                 and a.cell_y = bc.cell_y
+                 and a.cell_z = bc.cell_z
+                join neighbor_offsets o on true
+                join ungrouped_cells b
+                  on b.cell_x = a.cell_x + o.dx
+                 and b.cell_y = a.cell_y + o.dy
+                 and b.cell_z = a.cell_z + o.dz
+                where a.star_id < b.star_id
+                  and (
+                    (a.x - b.x) * (a.x - b.x) +
+                    (a.y - b.y) * (a.y - b.y) +
+                    (a.z - b.z) * (a.z - b.z)
+                  ) <= {PROX_MAX_DIST_LY * PROX_MAX_DIST_LY}
+                """
+            if debug_sql and not debug_done:
+                explain = con.execute(f"explain analyze {pair_query}").fetchall()
+                log("EXPLAIN ANALYZE for proximity batch:")
+                for row in explain:
+                    print(row[0])
+                debug_done = True
+
+            cur = con.execute(pair_query)
+            while True:
+                batch_pairs = cur.fetchmany(100000)
+                if not batch_pairs:
+                    break
+                for a_id, b_id in batch_pairs:
+                    uf.union(a_id, b_id)
+                pair_count += len(batch_pairs)
+                now = time.monotonic()
+                if now - last_log >= 10:
+                    log(
+                        "System grouping: proximity progress "
+                        f"(pairs={pair_count:,}, batches={batches}, "
+                        f"cells_processed={min(idx + batch_size, len(cells))}/{len(cells)})"
+                    )
+                    last_log = now
+
+            batches += 1
+            now = time.monotonic()
+            if now - last_log >= 10:
+                log(
+                    "System grouping: proximity progress "
+                    f"(pairs={pair_count:,}, batches={batches}, "
+                    f"cells_processed={min(idx + batch_size, len(cells))}/{len(cells)})"
+                )
+                last_log = now
+
+        con.execute(
+            """
+            create temp table prox_roots(
+              star_id bigint,
+              root_id bigint
+            )
+            """
+        )
+        roots = []
+        for star_id in uf.items():
+            roots.append((star_id, uf.find(star_id)))
+            if len(roots) >= 100000:
+                con.executemany("insert into prox_roots values (?, ?)", roots)
+                roots = []
+        if roots:
+            con.executemany("insert into prox_roots values (?, ?)", roots)
+
+        con.execute(
+            """
+            create temp view prox_roots_full as
+            select u.star_id,
+                   coalesce(p.root_id, u.star_id) as root_id
+            from (select star_id from stars where system_name_root_norm is null) u
+            left join prox_roots p using (star_id)
+            """
+        )
+
+        con.execute(
+            """
+            create temp view prox_primary as
+            select root_id, stable_object_key
+            from (
+              select pr.root_id,
+                     s.stable_object_key,
+                     row_number() over (
+                       partition by pr.root_id
+                       order by s.vmag asc nulls last, s.stable_object_key asc, s.star_id asc
+                     ) as rn
+              from prox_roots_full pr
+              join stars s on s.star_id = pr.star_id
+            ) ranked
+            where rn = 1
+            """
+        )
+
+        con.execute(
+            """
+            create temp table prox_groups as
+            select pr.star_id,
+                   'prox:' || p.stable_object_key as system_group_key
+            from prox_roots_full pr
+            join prox_primary p on p.root_id = pr.root_id
+            """
+        )
+        prox_group_count = con.execute(
+            "select count(distinct system_group_key) from prox_groups"
+        ).fetchone()[0]
+
+        log(
+            "System grouping: proximity pass complete "
+            f"(pairs_processed={pair_count:,}, elapsed={time.monotonic() - stage_start:.1f}s)"
+        )
+    elif proximity_enabled:
+        log("System grouping: proximity pass skipped (no eligible stars)")
+    else:
+        log("System grouping: proximity disabled (SPACEGATE_ENABLE_PROXIMITY!=1)")
+
+    if proximity_enabled:
+        con.execute(
+            """
+            create temp table system_groups as
+            select * from name_groups
+            union all
+            select * from prox_groups
+            """
+        )
+    else:
+        con.execute(
+            """
+            create temp table system_groups as
+            select * from name_groups
+            union all
+            select star_id, 'solo:' || stable_object_key as system_group_key
+            from stars
+            where system_name_root_norm is null
+            """
+        )
+
+    group_counts = con.execute(
+        """
+        select
+          (select count(*) from stars) as total,
+          (select count(*) from system_groups) as grouped,
+          (select count(*) from (
+            select star_id, count(*) as cnt from system_groups group by star_id having cnt > 1
+          )) as dupes
+        """
+    ).fetchone()
+    if group_counts[1] != group_counts[0] or group_counts[2] != 0:
+        raise SystemExit(
+            "System grouping failed: "
+            f"total={group_counts[0]}, grouped={group_counts[1]}, duplicates={group_counts[2]}"
+        )
+
+    log("System grouping: creating systems table")
     con.execute(
         """
         create table systems as
-        with groups as (
-          select
-            case
-              when system_name_root_norm is not null then 'name:' || system_name_root_norm
-              else 'star:' || stable_object_key
-            end as system_group_key,
-            *
-          from stars
+        with grouped as (
+          select s.*, g.system_group_key
+          from stars s
+          join system_groups g using (star_id)
         ), primary_star as (
           select *,
-            row_number() over (partition by system_group_key order by vmag asc nulls last) as rn
-          from groups
+            row_number() over (
+              partition by system_group_key
+              order by vmag asc nulls last, stable_object_key asc
+            ) as rn
+          from grouped
         ), system_rows as (
           select * from primary_star where rn = 1
         )
@@ -352,7 +961,7 @@ def main() -> int:
           'athyg' as source_catalog,
           'v3.3' as source_version,
           'https://codeberg.org/astronexus/athyg' as source_url,
-          ? as source_download_url,
+          null::varchar as source_download_url,
           null::varchar as source_doi,
           source_pk as source_pk,
           source_pk as source_row_id,
@@ -361,42 +970,90 @@ def main() -> int:
           true as redistribution_ok,
           'https://codeberg.org/astronexus/athyg' as license_note,
           null::varchar as retrieval_etag,
-          ? as retrieval_checksum,
-          ? as retrieved_at,
-          ? as ingested_at,
-          ? as transform_version,
+          null::varchar as retrieval_checksum,
+          null::varchar as retrieved_at,
+          null::varchar as ingested_at,
+          null::varchar as transform_version,
           system_group_key
         from system_rows
-        """,
-        [athyg_download_url, athyg_checksum, athyg_retrieved, ingested_at, transform_version],
+        """
+    )
+    con.execute(
+        f"""
+        update systems set
+          source_download_url = {sql_literal(athyg_download_url)},
+          retrieval_checksum = {sql_literal(athyg_checksum)},
+          retrieved_at = {sql_literal(athyg_retrieved)},
+          ingested_at = {sql_literal(ingested_at)},
+          transform_version = {sql_literal(transform_version)}
+        """
     )
 
-    # Assign system_id to stars
     con.execute(
         """
         update stars
         set system_id = systems.system_id
-        from systems
-        where (
-          case
-            when stars.system_name_root_norm is not null then 'name:' || stars.system_name_root_norm
-            else 'star:' || stars.stable_object_key
-          end
-        ) = systems.system_group_key
+        from system_groups
+        join systems using (system_group_key)
+        where stars.star_id = system_groups.star_id
         """
     )
 
     con.execute("alter table systems drop column system_group_key")
+
+    system_counts = con.execute(
+        """
+        select
+          count(*) as total_systems,
+          sum(case when cnt > 1 then 1 else 0 end) as multi_star_systems,
+          max(cnt) as max_component_size
+        from (
+          select system_id, count(*) as cnt from stars group by system_id
+        )
+        """
+    ).fetchone()
+
+    solo_group_count = con.execute(
+        """
+        select count(distinct system_group_key)
+        from system_groups
+        where system_group_key like 'solo:%'
+        """
+    ).fetchone()[0]
+
+    system_grouping_report = {
+        "build_id": build_id,
+        "proximity_enabled": proximity_enabled,
+        "name_group_count": name_group_count,
+        "proximity_group_count": prox_group_count,
+        "solo_group_count": solo_group_count,
+        "total_systems": system_counts[0],
+        "multi_star_systems": system_counts[1],
+        "max_component_size": system_counts[2],
+        "proximity_pairs_processed": pair_count,
+    }
+    write_json(reports_dir / "system_grouping_report.json", system_grouping_report)
+
+    con.execute("drop table system_groups")
     con.execute("alter table stars drop column system_name_root")
     con.execute("alter table stars drop column system_name_root_norm")
 
     # Planets
+    log("Building planets table")
+    nasa_path = str(cooked_nasa).replace("'", "''")
     con.execute(
-        """
+        f"""
         create or replace temp view nasa_raw as
-        select * from read_csv_auto(?, header=true, all_varchar=true)
-        """,
-        [str(cooked_nasa)],
+        select * from read_csv_auto('{nasa_path}',
+            delim=',',
+            quote='\"',
+            escape='\"',
+            header=true,
+            strict_mode=false,
+            null_padding=true,
+            all_varchar=true
+        )
+        """
     )
 
     con.execute(
@@ -436,9 +1093,9 @@ def main() -> int:
             case when host_name_raw is null then null else
               lower(trim(regexp_replace(regexp_replace(host_name_raw, '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g')))
             end as host_name_norm,
-            cast(regexp_extract(hip_name, '(\\d+)', 1) as bigint) as host_hip_id,
-            cast(regexp_extract(hd_name, '(\\d+)', 1) as bigint) as host_hd_id,
-            cast(regexp_extract(coalesce(gaia_dr3_id, gaia_dr2_id, ''), '(\\d+)', 1) as bigint) as host_gaia_id
+            cast(nullif(regexp_extract(hip_name, '(\\d+)', 1), '') as bigint) as host_hip_id,
+            cast(nullif(regexp_extract(hd_name, '(\\d+)', 1), '') as bigint) as host_hd_id,
+            cast(nullif(regexp_extract(coalesce(gaia_dr3_id, gaia_dr2_id, ''), '(\\d+)', 1), '') as bigint) as host_gaia_id
           from base
         ), name_match as (
           select
@@ -466,12 +1123,12 @@ def main() -> int:
           left join name_match nm on n.host_name_norm is not null and nm.star_name_norm = n.host_name_norm
         )
         select
-          row_number() over ()::bigint as planet_id,
+          row_number() over (order by stable_object_key nulls last, m.source_pk)::bigint as planet_id,
           morton3d(s.x_helio_ly, s.y_helio_ly, s.z_helio_ly) as spatial_index,
           case
             when planet_name_norm is null then null
             when count(*) over (partition by planet_name_norm) = 1 then 'planet:nasa:' || planet_name_norm
-            else 'planet:nasa:' || planet_name_norm || ':' || source_pk::varchar
+            else 'planet:nasa:' || planet_name_norm || ':' || m.source_pk::varchar
           end as stable_object_key,
           coalesce(gaia_system_id, hip_system_id, hd_system_id, name_system_id) as system_id,
           coalesce(gaia_star_id, hip_star_id, hd_star_id, name_star_id) as star_id,
@@ -521,27 +1178,157 @@ def main() -> int:
           'nasa_exoplanet_archive' as source_catalog,
           'pscomppars' as source_version,
           'https://exoplanetarchive.ipac.caltech.edu' as source_url,
-          ? as source_download_url,
+          null::varchar as source_download_url,
           null::varchar as source_doi,
-          source_pk as source_pk,
-          source_pk as source_row_id,
+          m.source_pk as source_pk,
+          m.source_pk as source_row_id,
           null::varchar as source_row_hash,
           'NASA Exoplanet Archive' as license,
           true as redistribution_ok,
           'https://exoplanetarchive.ipac.caltech.edu' as license_note,
           null::varchar as retrieval_etag,
-          ? as retrieval_checksum,
-          ? as retrieved_at,
-          ? as ingested_at,
-          ? as transform_version
-        from matches
+          null::varchar as retrieval_checksum,
+          null::varchar as retrieved_at,
+          null::varchar as ingested_at,
+          null::varchar as transform_version
+        from matches m
         left join stars s on s.star_id = coalesce(gaia_star_id, hip_star_id, hd_star_id, name_star_id)
         """,
-        [nasa_url, nasa_sha, nasa_retrieved, ingested_at, transform_version],
+    )
+    con.execute(
+        f"""
+        update planets set
+          source_download_url = {sql_literal(nasa_url)},
+          retrieval_checksum = {sql_literal(nasa_sha)},
+          retrieved_at = {sql_literal(nasa_retrieved)},
+          ingested_at = {sql_literal(ingested_at)},
+          transform_version = {sql_literal(transform_version)}
+        """
     )
 
-    # Provenance already applied with combined checksums.
+    # Provenance QC gate
+    required_text = [
+        "source_catalog",
+        "source_version",
+        "source_url",
+        "source_download_url",
+        "license",
+        "license_note",
+        "retrieved_at",
+        "ingested_at",
+        "transform_version",
+    ]
+    required_numeric = ["source_pk"]
+    required_bool = ["redistribution_ok"]
+    optional_text = ["source_doi"]
+
+    def count_null_text(table: str, col: str) -> int:
+        return con.execute(
+            f"""
+            select count(*) from {table}
+            where {col} is null or trim({col}) = ''
+            """
+        ).fetchone()[0]
+
+    def count_null(table: str, col: str) -> int:
+        return con.execute(
+            f"select count(*) from {table} where {col} is null"
+        ).fetchone()[0]
+
+    def count_row_id_or_hash_missing(table: str) -> int:
+        return con.execute(
+            f"""
+            select count(*) from {table}
+            where source_row_id is null
+              and (source_row_hash is null or trim(source_row_hash) = '')
+            """
+        ).fetchone()[0]
+
+    def count_retrieval_missing(table: str) -> int:
+        return con.execute(
+            f"""
+            select count(*) from {table}
+            where (retrieval_etag is null or trim(retrieval_etag) = '')
+              and (retrieval_checksum is null or trim(retrieval_checksum) = '')
+            """
+        ).fetchone()[0]
+
+    def table_provenance_report(table: str, require_retrieval: bool) -> dict:
+        report = {
+            "null_counts": {},
+            "row_id_or_hash_missing": 0,
+            "retrieval_missing": 0,
+            "warnings": [],
+        }
+        failures = 0
+
+        for col in required_text:
+            cnt = count_null_text(table, col)
+            report["null_counts"][col] = cnt
+            if cnt:
+                failures += cnt
+
+        for col in required_numeric:
+            cnt = count_null(table, col)
+            report["null_counts"][col] = cnt
+            if cnt:
+                failures += cnt
+
+        for col in required_bool:
+            cnt = count_null(table, col)
+            report["null_counts"][col] = cnt
+            if cnt:
+                failures += cnt
+
+        for col in optional_text:
+            report["null_counts"][col] = count_null_text(table, col)
+
+        row_missing = count_row_id_or_hash_missing(table)
+        report["row_id_or_hash_missing"] = row_missing
+        if row_missing:
+            failures += row_missing
+
+        retrieval_missing = count_retrieval_missing(table)
+        report["retrieval_missing"] = retrieval_missing
+        if retrieval_missing and require_retrieval:
+            failures += retrieval_missing
+        elif retrieval_missing and not require_retrieval:
+            report["warnings"].append(
+                "retrieval_etag/checksum missing but raw manifest lacks them"
+            )
+
+        report["failures"] = failures
+        return report
+
+    provenance_report = {
+        "build_id": build_id,
+        "athyg": {
+            "source_url": "https://codeberg.org/astronexus/athyg",
+            "part1": athyg_p1,
+            "part2": athyg_p2,
+        },
+        "nasa_exoplanet_archive": nasa_manifest,
+        "tables": {
+            "stars": table_provenance_report("stars", athyg_has_retrieval),
+            "systems": table_provenance_report("systems", athyg_has_retrieval),
+            "planets": table_provenance_report("planets", nasa_has_retrieval),
+        },
+    }
+
+    write_json(reports_dir / "provenance_report.json", provenance_report)
+
+    total_failures = sum(
+        provenance_report["tables"][name]["failures"]
+        for name in ("stars", "systems", "planets")
+    )
+    if total_failures > 0:
+        raise SystemExit(
+            f"Provenance QC failed: {total_failures} missing required fields. "
+            f"See {reports_dir / 'provenance_report.json'}"
+        )
+
     # Reports
+    log("QC checks")
     counts = con.execute(
         """
         select
@@ -580,9 +1367,14 @@ def main() -> int:
         "counts": {"stars": counts[0], "systems": counts[1], "planets": counts[2]},
         "dist_invariant_violations": dist_violations,
         "provenance_missing_stars": provenance_missing,
+        "morton": {
+            "bits_per_axis": BITS_PER_AXIS,
+            "max_abs_ly": MORTON_MAX_ABS_LY,
+            "scale": MORTON_SCALE,
+            "n": MORTON_N,
+        },
         "notes": [
-            "System grouping is name-based only; proximity-based grouping not yet implemented.",
-            "Morton code uses 23 bits to cover +/-1000 ly with offset+scale; spec currently says 21 bits.",
+            "System grouping uses name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
         ],
     }
 
@@ -591,21 +1383,11 @@ def main() -> int:
         "match_counts": [{"method": row[0], "count": row[1]} for row in match_counts],
     }
 
-    provenance_report = {
-        "build_id": build_id,
-        "athyg": {
-            "source_url": "https://codeberg.org/astronexus/athyg",
-            "part1": athyg_p1,
-            "part2": athyg_p2,
-        },
-        "nasa_exoplanet_archive": nasa_manifest,
-    }
-
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
-    write_json(reports_dir / "provenance_report.json", provenance_report)
 
     # Parquet exports (sorted by spatial_index)
+    log("Writing Parquet exports")
     con.execute(
         f"COPY (SELECT * FROM stars ORDER BY spatial_index) TO '{parquet_dir / 'stars.parquet'}' (FORMAT 'parquet')"
     )
@@ -617,6 +1399,9 @@ def main() -> int:
     )
 
     con.close()
+    tmp_out_dir.rename(final_out_dir)
+    log(f"Promoted build output to {final_out_dir}")
+    log("Ingest core complete")
     return 0
 
 

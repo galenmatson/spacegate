@@ -1,0 +1,41 @@
+# Spacegate data tooling (initial, generous)
+
+# Core runtime for ingestion + SQL pipeline
+# DuckDB handles CSV/Parquet/GZIP in-process.
+duckdb>=0.10.2
+
+# Dataframes / fast ETL helpers
+polars>=1.10.0
+pandas>=2.1.0
+numpy>=1.26.0
+
+# Parquet / Arrow interchange
+pyarrow>=16.0.0
+
+# CSV + text normalization
+python-dateutil>=2.9.0.post0
+rapidfuzz>=3.9.0
+regex>=2024.5.15
+
+# CLI / logging / configuration
+click>=8.1.7
+rich>=13.7.1
+python-dotenv>=1.0.1
+
+# HTTP / downloads (future catalog helpers)
+requests>=2.32.3
+urllib3>=2.2.1
+
+# JSON / serialization
+orjson>=3.10.3
+ujson>=5.10.0
+
+# Filesystem / path helpers
+platformdirs>=4.2.2
+
+# Visualization (future reports/debug)
+matplotlib>=3.8.4
+seaborn>=0.13.2
+
+# Geospatial / indexing helpers (if needed later)
+scipy>=1.13.0

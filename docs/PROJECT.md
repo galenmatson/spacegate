@@ -15,10 +15,10 @@ My desire is to have an interactive 3D map rendered in a browser which draws an 
 
 The world building features of the map should allow for things like trade lanes, spacegate links, or other connections to be drawn between stars. Spheres of control around owned/occupied systems that form the 3D shape of interstellar empires. Place megastructures like solar collectors, foundaries, shipyards, Dyson swarms, colonies, momentum banks, space elevators, mines, mass drivers, space stations, etc. on planets, in orbit of them, in stellar orbit, or galactic orbit (unbound to stars).
 
-These objects should be definable so I can create solar collectors 1000000 square kilometers that output 1 gram of antimatter per year or something like that. Or a mine that produces x kilotons of 18% aluminum 12% iron ore per day. And an ore processor that separataes and concentrates that to 78% grade aluminum ore and 68% iron ore. And an aluminum smelter that outputs x amount of pure aluminum. And a foundry that outputs x tons of steel per day. And a space elevator that can bring x tons up to orbit per day. And a ship yard that consumes x tons of aluminum per day as it produces a ship that contains x tons of aluminum and steel. For example.
+These objects should be definable so I can create immense solar collectors that output 1 gram of antimatter per year or something like that. Or a mine that produces x kilotons of 18% aluminum 12% iron ore per day. And an ore processor that separataes and concentrates that to 78% grade aluminum ore and 68% iron ore. And an aluminum smelter that outputs x amount of pure aluminum. And a foundry that outputs x tons of steel per day. And a space elevator that can bring x tons up to orbit per day. And a ship yard that consumes x tons of aluminum per day as it produces a ship that contains x tons of aluminum and steel. For example.
 
 
-## Purpose
+# Purpose
 - Build a rich stellar database with a user friendly interface for learning, exploration, and imagination.
 - Collect, organize, and enrich public astronomical data distributed across many systems, databases, and organizations in a single high utility, high accessibility tool for the public.
 - Avail these collated and consolidated datasets and all of this project's code to the public.
@@ -43,19 +43,10 @@ These objects should be definable so I can create solar collectors 1000000 squar
 # Data Sources
 ## Primary sources (v0 only)
 - AT-HYG stellar catalog CSV (stars <= 1000 ly)
-- NASA exoplanets CSV (exoplanets <= 1000 ly)
+- NASA exoplanets CSV (pscomppars; host matching limited by core star coverage)
 
-## Optional packs (v0.1+)
-### Object catalogs (curated objects)
-- UltracoolSheet (UCDs / substellar; CSV)
-- DwarfArchives brown dwarfs (VOTable)
-- Gaia DR3 UCD sample (CDS; fixed-width)
-- Gaia EDR3/DR3 white dwarf catalogs (FITS)
-- ATNF pulsar catalog (psrcat)
-- McGill magnetar catalog (CSV)
-### Detection catalogs (raw survey detections; not “objects”)
-- CatWISE2020 full tiles (bulk detections; very large)
-  - If used later, treat as a sources pack (not object pack) and keep separate from “unique object” tables.
+## Optional packs (v2.1+)
+Deferred until after the v1 UI. See **v2.1 Additional catalogs** below.
 
 ## Source protection / reproducibility
 - data/raw/** source files should be preserved as read-only once downloaded.
@@ -82,7 +73,7 @@ All artifacts are produced under a versioned build directory: `out/<build_id>/..
 - DuckDB (authoritative query format for the app/API):
   - `out/<build_id>/core.duckdb`
 - Parquet export (for publishing/sharing, tooling interoperability):
-  - `out/<build_id>/core/*.parquet`
+  - `out/<build_id>/parquet/{systems,stars,planets}.parquet`
 
 Core tables (minimum):
 - `systems`
@@ -93,12 +84,13 @@ Core tables (minimum):
 Rule: **No blurbs, images, or lore** stored in core.
 Rule: **Spatial sorting** All core Parquet files must be sorted by `spatial_index` (Morton Z-order). This enables high-performance "range scans" for 3D queries without reading the entire file.
 
-### 2) Expanded astronomy dataset (v0.1+)
+### 2) Expanded astronomy dataset (v2.1+)
 **Purpose:** keep additional object categories optional and independently maintainable.
 
 - Pack artifacts are separate from core:
   - DuckDB (optional): `out/<build_id>/packs/<pack_name>.duckdb`
   - Parquet (recommended): `out/<build_id>/packs/<pack_name>/*.parquet`
+  - Manifest: `out/<build_id>/packs_manifest.json`
 
 Planned pack names:
 - `pack_substellar` (brown dwarfs, ultracool dwarfs, rogue/free-floating planets when available)
@@ -121,6 +113,7 @@ Enrichment tables (initial):
 - `snapshot_manifest` (deterministic system visualization snapshots; see v1.1)
 - `factsheets` (structured JSON facts per object, with provenance pointers)
 - `blurbs` (engaging but factual descriptions generated strictly from factsheets; see v1.2)
+- `system_neighbors` (10 nearest systems per system; see v1.2.2)
 
 Rules:
 - Enrichment is **not edited in-place**. If content is wrong or the generator changes, regenerate enrichment with a new `generator_version` / build.
@@ -212,11 +205,14 @@ Rendering rule:
 Recommended directory conventions:
 - data/external/<catalog>/<version>/... (immutable)
 - data/processed/<catalog>/<version>/*.parquet
-- out/<build_id>/core.duckdb, out/<build_id>/core.parquet (and split tables if desired)
+- out/<build_id>/core.duckdb, out/<build_id>/parquet/*.parquet
+- out/<build_id>.tmp/ (staging directory; atomically promoted to out/<build_id>/ on success)
 - out/<build_id>/packs/<pack_name>.parquet
+- out/<build_id>/packs_manifest.json
+- served/current -> out/<build_id> (promoted build pointer for apps/queries)
 - reports/<build_id>/...
 Where:
-- build_id = YYYY-MM-DD_<gitshortsha>
+- build_id = YYYY-MM-DDTHHMMSSZ_<gitshortsha>
 
 # QC gates
 These checks run every build. Some fail hard; some warn.
@@ -240,8 +236,11 @@ Success criteria:
 - Build a DuckDB database from core astronomical data.
   - store in data/
 - **Implement Spatial Indexing:**
-  - Compute 64-bit Morton Codes for all objects based on heliocentric xyz.
-  - Ensure Parquet exports are physically sorted by this index.
+  - Compute 63-bit Morton (Z-order) spatial_index for all objects from heliocentric xyz (ly), stored as signed BIGINT.
+  - Use 21 bits per axis with a domain-parameterized cube (v0 default: ±1000 ly).
+  - scale = (2^21 - 1) / (2 * MORTON_MAX_ABS_LY); quantize with round(); clamp defensively to [0, 2^21 - 1].
+  - Ingestion fails hard if any star coordinate exceeds the domain.
+  - Ensure Parquet exports are physically sorted by spatial_index.
 - Normalize identifiers and types. 
   - For instance, Gaia DR3 keys are stored as strings sometimes with 'Gaia DR3 ' prefix. 
   - They should be stripped down to the ID and stored as high precision integers.
@@ -252,15 +251,6 @@ Success criteria:
   - match report (counts by method, unmatched rows, suspicious cases)
   - provenance coverage report
   - basic QC sanity checks
-
-## v0.1: Optional object packs
-Success criteria:
-- Create optional “object packs” as separate artifacts:
-  - pack_substellar, pack_compact, optional pack_superstellar (local extended objects)
-- Each pack has its own staging + provenance.
-- Compute dist_ly, helio and galactic coordinates
-- Export Parquet pack artifacts + pack QC reports.
-- Request approval for each new source before ingestion.
 
 ## v1: Public database browser UI
 Success criteria:
@@ -380,6 +370,29 @@ Reasonable limits (initial defaults):
 - **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
 - **Strictly link-only**: store URLs + metadata only; no copying page text into enrichment.
 
+## v1.2.2: System neighbor graph (10 nearest systems)
+Goal: precompute nearest-neighbor relationships between systems for fast UI queries and navigation.
+
+Success criteria:
+- For every core `systems` row, compute the 10 nearest *other* systems by 3D Euclidean distance (ly).
+- Store results in enrichment as a stable, reproducible derived artifact.
+- Deterministic ordering for ties (distance, then `neighbor_system_id` asc).
+
+Storage model:
+- New enrichment table `system_neighbors`:
+  - `system_id` (core FK)
+  - `neighbor_rank` (1..10)
+  - `neighbor_system_id` (core FK)
+  - `distance_ly` (FLOAT)
+  - `method` (e.g., `knn_exact`, `knn_indexed`)
+  - `generator_version`, `build_id`, `created_at`
+
+Rules:
+- Use **core systems only** (exclude packs/lore).
+- Exclude self-matches; always 10 neighbors unless fewer than 11 systems exist.
+- Distances are computed from canonical core coordinates (J2000 xyz in ly).
+- Results must be exact (indexing acceleration is OK, but output must match exact kNN within numeric tolerance).
+
 ## v2: 3D map (browser)
 Success criteria:
 - Lightweight browser-based 3D viewer (likely three.js; evaluate alternatives later).
@@ -387,14 +400,41 @@ Success criteria:
 - Filters (distance bubble, spectral class, magnitude, etc.)
 - Optional rendering toggles: planets, packs, lore layers, neighbor links, spacegate links.
 
-## v2.1+: System view and generators (stretch goals for later)
+## v2.1 Additional catalogs
+Success criteria:
+- Create optional “object packs” as separate artifacts:
+  - pack_substellar, pack_compact, optional pack_superstellar (local extended objects)
+- Each pack has its own staging + provenance.
+- Compute dist_ly, helio and galactic coordinates.
+- Export Parquet pack artifacts + pack QC reports.
+- Request approval for each new source before ingestion.
+
+Candidate sources (curated objects):
+- UltracoolSheet (UCDs / substellar; CSV)
+- DwarfArchives brown dwarfs (VOTable)
+- Gaia DR3 UCD sample (CDS; fixed-width)
+- Gaia EDR3/DR3 white dwarf catalogs (FITS)
+- ATNF pulsar catalog (psrcat)
+- McGill magnetar catalog (CSV)
+
+Detection catalogs (raw survey detections; not “objects”):
+- CatWISE2020 full tiles (bulk detections; very large)
+  - If used later, treat as a sources pack (not object pack) and keep separate from “unique object” tables.
+
+## v2.2: System view and generators (stretch goals for later)
 - The data epoch is J2000, add feature to select date. Recompute, rerender stars for different points in time based on proper motion.
 - 3D Exoplanet render (plausible visualizations based on data)
 - World builder tools (procedural generation with sliders)
 
-# Status (as of 2026-01-28)
-- Additional catalogs downloaded; CatWISE2020 full tiles are downloading (slow, large; 113 tiles present so far).
-- No ingestion pipeline changes yet; only data acquisition and schema planning.
+## v5 Crazy aspiration
+- procedural ground generation of a planet/moon surface based on known planet / exoplanet data
+
+# Status (as of 2026-02-04)
+- Core ingestion pipeline complete (AT-HYG + NASA exoplanets).
+- Morton indexing implemented (21 bits/axis, ±1000 ly), Parquet outputs sorted by spatial_index.
+- `served/current` promoted to latest build.
+- CLI explorer available: `scripts/explore_core.py`.
+- Optional packs deferred to v2.1.
 
 
 # On completion, prune dependencies

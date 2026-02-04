@@ -8,7 +8,7 @@ The goal is strict provenance, reproducibility, and clear separation between:
 - **what we assembled and normalized** (`cooked/`)
 - **what we actively serve and query** (`served/`)
 
-Nothing in this file is aspirational. Everything here reflects either current v0 reality or explicitly optional future packs.
+Nothing in this file is aspirational. Everything here reflects current v0 reality.
 
 ---
 
@@ -52,13 +52,13 @@ cooked/
 - Built exclusively from `cooked/`
 - Optimized for querying, filtering, joining
 - Used by applications, analysis, visualization
+- `served/current` is a symlink to the promoted `out/<build_id>/` directory
 
 Formats include DuckDB and Parquet.
 
 ```
 served/
-├── spacegate.duckdb
-├── *.parquet
+├── current -> ../out/<build_id>/
 ```
 
 ---
@@ -153,50 +153,9 @@ These sources are required for v0 ingestion and must always be present.
 
 ---
 
-## Optional catalogs (packs, v0.1+)
+## Optional catalogs (packs, v2.1+)
 
-These catalogs are not required for v0 but are retrieved via the same reproducible mechanism.
-
-### Binary/Multiplicity — Washington Double Star Catalog (WDS)
-
-**Authority**: US Naval Observatory (USNO)
-
-**Raw input**:
-- `raw/wds/wds.sum.gz`
-
-**Source URL**:
-- `http://www.astro.gsu.edu/wds/wds.sum.gz`
-
-**Cooked output**:
-- `cooked/wds/wds_clean.csv`
-
-**Format**: Fixed-width text (custom)
-
-**Contents**:
-- Orbital elements for binary/trinary systems
-- Separation distances and position angles
-- Component identifiers (A, B, C...) matching HIP/HD stars
-
----
-
-### Star Clusters — Gaia DR2 Clusters (Cantat-Gaudin et al. 2020)
-
-**Authority**: CDS / Astronomy & Astrophysics
-
-**Raw input**:
-- `raw/clusters/cantat_gaudin_2020.fits` (Vizier table J/A+A/640/A1)
-
-**Source URL**:
-- `ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/640/A1/table1.dat.gz`
-
-**Cooked output**:
-- `cooked/clusters/cluster_memberships.csv`
-
-**Format**: FITS / Gzipped Text
-
-**Contents**:
-- Cluster names (e.g., Hyades, Pleiades) and membership probabilities
-- Links between Gaia Source IDs and specific clusters
+No optional pack sources are active yet. This section will be updated when sources are approved and added.
 
 ---
 
@@ -420,7 +379,7 @@ Scripts features:
 
 - `raw/` is immutable
 - `cooked/` is fully disposable
-- `served/` depends only on `cooked/`
+- `served/` depends only on `cooked/` (via promoted `out/<build_id>/` builds)
 - No manual edits to `raw/`
 - All provenance lives in `raw/manifests/`
 

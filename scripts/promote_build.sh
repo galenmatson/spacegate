@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUT_DIR="$ROOT_DIR/out"
+SERVED_DIR="$ROOT_DIR/served"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/promote_build.sh [BUILD_ID]
+
+If BUILD_ID is not provided, the latest out/* directory (by name sort) is promoted.
+USAGE
+}
+
+select_latest_build() {
+  local -a builds=()
+  while IFS= read -r name; do
+    builds+=("$name")
+  done < <(find "$OUT_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+
+  if [[ ${#builds[@]} -eq 0 ]]; then
+    echo "Error: no builds found in $OUT_DIR" >&2
+    exit 1
+  fi
+
+  printf '%s' "${builds[-1]}"
+}
+
+require_artifacts() {
+  local build_dir="$1"
+  local core_db="$build_dir/core.duckdb"
+  local parquet_dir="$build_dir/parquet"
+  local reports_dir="$ROOT_DIR/reports/$(basename "$build_dir")"
+
+  if [[ ! -f "$core_db" ]]; then
+    echo "Error: missing $core_db" >&2
+    exit 1
+  fi
+
+  if [[ ! -d "$parquet_dir" ]]; then
+    echo "Error: missing parquet directory $parquet_dir" >&2
+    exit 1
+  fi
+
+  if ! find "$parquet_dir" -maxdepth 1 -type f -name '*.parquet' -print -quit | grep -q .; then
+    echo "Error: no parquet files found in $parquet_dir" >&2
+    exit 1
+  fi
+
+  if [[ ! -d "$reports_dir" ]]; then
+    echo "Warning: reports directory not found: $reports_dir" >&2
+  fi
+}
+
+main() {
+  local build_id="${1:-}"
+  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    usage
+    exit 0
+  fi
+
+  if [[ -z "$build_id" ]]; then
+    build_id="$(select_latest_build)"
+  fi
+
+  local build_dir="$OUT_DIR/$build_id"
+  if [[ ! -d "$build_dir" ]]; then
+    echo "Error: build directory not found: $build_dir" >&2
+    exit 1
+  fi
+
+  require_artifacts "$build_dir"
+
+  mkdir -p "$SERVED_DIR"
+
+  # Atomic pointer update: replace the symlink in a single operation.
+  ln -sfn "$build_dir" "$SERVED_DIR/current"
+
+  printf 'Promoted build %s -> %s/current\n' "$build_id" "$SERVED_DIR"
+}
+
+main "$@"

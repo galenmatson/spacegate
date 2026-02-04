@@ -8,11 +8,11 @@ It is written as an **executable contract**: ingestion, QC, export, and API beha
 v0 ingests **only**:
 
 - **AT-HYG** star catalog CSV (local sphere subset already in repo)
-- **NASA Exoplanet Archive** CSV (filtered to < 306.6 pc / 1000 ly)
+- **NASA Exoplanet Archive** CSV (pscomppars; host matching limited by core star coverage)
 
 v0 produces a **pure astronomy** dataset. No lore, blurbs, or images live in core.
 
-Optional packs (substellar/compact/extended objects) and editorial/lore layers are v0.1+ and are separate artifacts.
+Optional packs (substellar/compact/extended objects) and editorial/lore layers are v2.1+ and are separate artifacts.
 
 ---
 
@@ -23,7 +23,7 @@ Optional packs (substellar/compact/extended objects) and editorial/lore layers a
 - `reports/<build_id>/...` (match/QC/provenance reports)
 
 ### Build ID
-`build_id = YYYY-MM-DD_<gitshortsha>`
+`build_id = YYYY-MM-DDTHHMMSSZ_<gitshortsha>`
 
 ---
 
@@ -61,16 +61,24 @@ Default `eps = 1e-3 ly` (adjust if source rounding is coarser).
 To optimize 3D range queries (e.g., "find all stars within 10 ly of Earth") and file scanning, we strictly order data on disk using a Spatial Index.
 
 ### Implementation
-- **Algorithm:** 64-bit Morton Code (Z-Order Curve).
+- **Algorithm:** 63-bit Morton Code (Z-Order Curve) stored in signed 64-bit `BIGINT`.
 - **Coordinate Space:** Heliocentric `x, y, z` in light-years.
-- **Transform:**
-  1. **Offset:** Add `5000.0` to x, y, z (shifts domain to positive integers).
-  2. **Quantize:** Multiply by `1000` and cast to unsigned integer (precision ~0.001 ly).
-  3. **Interleave:** Bit-interleave the three 21-bit integers into a single 64-bit integer.
-- **Storage:** Stored as signed `BIGINT` (DuckDB native type) for compatibility, but treated logically as bitset.
+- **Bits per axis:** 21 (total interleaved bits = 63; guaranteed to fit in signed BIGINT).
+- **Domain:** build-scoped cube centered on Sol with half-width `MORTON_MAX_ABS_LY` (v0 default: 1000.0 ly).
+- **Quantization:**
+  - Let `N = 2^21 - 1`.
+  - Let `scale = N / (2 * MORTON_MAX_ABS_LY)`. (Computed once per build.)
+  - For each axis `coord ∈ [-MORTON_MAX_ABS_LY, +MORTON_MAX_ABS_LY]`:
+    - `q = round((coord + MORTON_MAX_ABS_LY) * scale)`
+    - clamp `q` into `[0, N]` (defensive guard only).
+- **Interleave:** bit-interleave `qx, qy, qz` (21 bits each) into a 63-bit Morton integer.
+- **Storage:** stored as signed `BIGINT` for portability; interpret logically as an unsigned bitset.
 
 ### Invariants
 - All output Parquet files (`stars.parquet`, `systems.parquet`) must be **physically sorted** by `spatial_index`.
+- Ingestion must **hard-fail** if any star coordinate exceeds the configured domain:
+  - `max(|x|,|y|,|z|) > MORTON_MAX_ABS_LY` ⇒ abort with clear error message.
+- Morton parameters (`bits_per_axis`, `MORTON_MAX_ABS_LY`, `scale`, quantization rule) must be recorded as build metadata for reproducibility.
 
 ---
 
@@ -108,8 +116,9 @@ Systems are logical groupings of stars. Aggregation is performed during ingestio
 
 1. **Name-based Grouping:** Stars sharing a `proper_name` root (e.g., "Sirius A", "Sirius B") are grouped.
 2. **Proximity-based Grouping:** Stars within **0.25 ly** (~3000 AU) of each other are grouped if they do not already share a name.
-   *(Threshold chosen to capture wide binaries while minimizing false positives in the local field).*
-
+   - This grouping is transitive (A near B, B near C ⇒ A/B/C grouped).
+   - In v0, proximity grouping is optional and gated by `SPACEGATE_ENABLE_PROXIMITY=1`.
+   - When disabled, ungrouped stars are treated as singleton systems.
 **Stable Key Generation:**
 The System inherits its identity from the **Primary Star** (brightest by Vmag) in the group.
 
@@ -191,6 +200,23 @@ Key columns:
 - optional `x_gal_ly,y_gal_ly,z_gal_ly` (nullable)
 - external IDs where applicable (`gaia_id`, `hip_id`, `hd_id`)
 - provenance fields
+
+### build_metadata
+
+Build metadata for reproducibility.
+
+Key columns:
+- `key` (TEXT)
+- `value` (TEXT)
+
+Required keys (v0):
+- `build_id`
+- `git_sha`
+- `morton_bits_per_axis`
+- `morton_max_abs_ly`
+- `morton_scale`
+- `morton_quantization`
+- `morton_frame`
 
 Indexes:
 - unique on `stable_object_key`

@@ -1,0 +1,97 @@
+# Spacegate (Python) - generous baseline
+# Keep this file "batteries included", then prune once the pipeline/UI stabilizes.
+
+# -------------------------
+# Core data + IO (v0)
+# -------------------------
+duckdb>=1.0
+pandas>=2.2
+pyarrow>=16.0
+polars>=1.0
+numpy>=1.26
+
+# Compression + hashing + fast JSON (useful for provenance + manifests)
+zstandard>=0.22
+xxhash>=3.4
+orjson>=3.10
+ujson>=5.10.0
+
+# File-system abstractions (local now, cloud later)
+fsspec>=2024.6
+s3fs>=2024.6
+gcsfs>=2024.6
+
+# HTTP + retries (downloads, metadata checks)
+requests>=2.32
+aiohttp>=3.9
+tenacity>=8.3
+
+# Config + CLI
+pyyaml>=6.0
+typer>=0.12
+rich>=13.7
+
+# Logging
+structlog>=24.1
+
+# Progress bars
+tqdm>=4.66
+
+# -------------------------
+# Astronomy / catalogs (v0.1+ packs, future enrichment)
+# -------------------------
+astropy>=6.1
+astroquery>=0.4.7
+
+# FITS readers (optional but handy; sometimes faster than astropy.io.fits)
+fitsio>=1.2.3
+
+# Spatial / math helpers
+scipy>=1.13
+
+# Fast name matching (planet host matching + catalog joins)
+rapidfuzz>=3.9
+
+# -------------------------
+# QC / stats / reporting
+# -------------------------
+pydantic>=2.8
+jsonschema>=4.22
+
+# Optional: profiling / performance measurement
+pyinstrument>=4.6
+
+# -------------------------
+# Snapshot / visualization (v1.1)
+# -------------------------
+matplotlib>=3.9
+pillow>=10.4
+svgwrite>=1.4.3
+cairosvg>=2.7.1
+seaborn>=0.13.2
+
+# -------------------------
+# API / serving (v1)
+# -------------------------
+fastapi>=0.112
+uvicorn[standard]>=0.30
+
+# Optional: templating for simple pages/emails/debug UIs
+jinja2>=3.1
+
+# -------------------------
+# Developer tooling (strongly recommended)
+# -------------------------
+pytest>=8.2
+hypothesis>=6.108
+
+ruff>=0.5
+black>=24.4
+mypy>=1.10
+types-requests>=2.32
+
+pre-commit>=3.7
+
+# Optional: notebooks for exploration (keep if you actually use it)
+jupyterlab>=4.2
+ipykernel>=6.29
