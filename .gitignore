@@ -6,6 +6,7 @@
 /served/
 /cache/
 /logs/*
+/reports/
 
 # local env
 .venv/
