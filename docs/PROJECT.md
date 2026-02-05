@@ -252,7 +252,7 @@ Success criteria:
   - provenance coverage report
   - basic QC sanity checks
 
-## v1: Public database browser UI
+## v0.1: Public database browser UI
 Success criteria:
 - “Spacegate browser” UI
 - Hosted on Google Cloud
@@ -260,7 +260,24 @@ Success criteria:
 - Attractive, searchable, filterable interface
 - Reads core data + optional packs + lore overlays (lore editable; core read-only)
 
-## v1.1 Deterministic System Visualization Snapshots
+## v0.2: 'Interestingness' Initial Enrichment
+This ensures our compute resources for v1.2 blurb and image generation are spent on systems with high narrative and scientific "yield".The following features should be aggregated into a final Interestingness Score stored in the enrichment database:
+- Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
+- High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
+- Stellar Multiplicity (Architectural Complexity): Points scale with the number of stars in the system; hierarchical trinaries or quaternaries rank significantly higher than simple binaries.
+- Nice Exoplanets: Biological potential or high colonization targets. Known Earth like planets: habitable zone or close, not too big, not too small, stable star. Eye planets (tidally locked but in the habitable zone).
+- Weird Exoplanets: Strange atmospheric composition, water worlds, diamond worlds, extreme size, acid worlds, lava worlds, "hell worlds" (ultra-short periods) or planets being devoured by their stars. High eccentricity planets that spend time in the habitable zone (like Trisolaris) and freeze/thaw. 
+- Metallicity ($[Fe/H]$) (Industrial Capability): High-metal stars are prioritized as likely hubs for mining, foundries, and heavy industry.
+- Compact Remnants: White dwarfs, neutron stars, pulsars, or magnetars adds a rarity multiplier due to their unique physics and "graveyard system" narrative.
+- Anomalous Features: Specific data flags for high eccentricity, extreme stellar flares, or circumstellar dust rings.
+- Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of interestingness).
+
+### Ranking by Narrative Density: By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack.
+### With these rankings stored in the enrichment database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
+
+---
+
+## v1 System Visualization
 Goal: produce **deterministic, cacheable “system snapshot” images** that make the browser fun immediately, without requiring the full v2 3D map.
 
 ### Success criteria
@@ -393,6 +410,8 @@ Rules:
 - Distances are computed from canonical core coordinates (J2000 xyz in ly).
 - Results must be exact (indexing acceleration is OK, but output must match exact kNN within numeric tolerance).
 
+---
+
 ## v2: 3D map (browser)
 Success criteria:
 - Lightweight browser-based 3D viewer (likely three.js; evaluate alternatives later).
@@ -426,7 +445,7 @@ Detection catalogs (raw survey detections; not “objects”):
 - 3D Exoplanet render (plausible visualizations based on data)
 - World builder tools (procedural generation with sliders)
 
-## v5 Crazy aspiration
+## v3 Aspirational
 - procedural ground generation of a planet/moon surface based on known planet / exoplanet data
 
 # Status (as of 2026-02-04)
