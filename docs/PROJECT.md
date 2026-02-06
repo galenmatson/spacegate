@@ -267,13 +267,13 @@ This ensures our compute resources for v1.2 blurb and image generation are spent
 - Stellar Multiplicity (Architectural Complexity): Points scale with the number of stars in the system; hierarchical trinaries or quaternaries rank significantly higher than simple binaries.
 - Nice Exoplanets: Biological potential or high colonization targets. Known Earth like planets: habitable zone or close, not too big, not too small, stable star. Eye planets (tidally locked but in the habitable zone).
 - Weird Exoplanets: Strange atmospheric composition, water worlds, diamond worlds, extreme size, acid worlds, lava worlds, "hell worlds" (ultra-short periods) or planets being devoured by their stars. High eccentricity planets that spend time in the habitable zone (like Trisolaris) and freeze/thaw. 
-- Metallicity ($[Fe/H]$) (Industrial Capability): High-metal stars are prioritized as likely hubs for mining, foundries, and heavy industry.
+- Metallicity (Fe/H) (Industrial Capability): High-metal stars are prioritized as likely hubs for mining, foundries, and heavy industry.
 - Compact Remnants: White dwarfs, neutron stars, pulsars, or magnetars adds a rarity multiplier due to their unique physics and "graveyard system" narrative.
 - Anomalous Features: Specific data flags for high eccentricity, extreme stellar flares, or circumstellar dust rings.
 - Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of interestingness).
+- Science Fiction: Wolf 359 is where the Federation made its final stand against the Borg in Star Trek: The Next Generation. The exotic moon "Pandora" from the movie Avatar orbits a gas giant in the Alpha Centauri system. Vega is famous for its role in Carl Sagan's Contact.
 
-### Ranking by Narrative Density: By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack.
-### With these rankings stored in the enrichment database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
+**Ranking by Narrative Density:** By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack. With these rankings stored in the enrichment database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
 
 ---
 
@@ -447,6 +447,8 @@ Detection catalogs (raw survey detections; not “objects”):
 
 ## v3 Aspirational
 - procedural ground generation of a planet/moon surface based on known planet / exoplanet data
+- dark mode with a slider, a sun on one side and moon on the other side of the slider
+- add political maps from popular scifi franchises like Star Trek and BATTLETECH.
 
 # Status (as of 2026-02-04)
 - Core ingestion pipeline complete (AT-HYG + NASA exoplanets).

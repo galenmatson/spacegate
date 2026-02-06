@@ -13,3 +13,19 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Node
+**/node_modules/
+**/.vite/
+**/dist/
+**/.cache/
+.npm-cache/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+
+# OS/editor
+.DS_Store
+.vscode/
