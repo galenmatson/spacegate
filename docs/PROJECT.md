@@ -34,11 +34,41 @@ These objects should be definable so I can create immense solar collectors that 
 - A free browser based, navigable, 3D map of nearby space.
 - A lore layer for building fiction about what could be atop what is known.
 
-## Non-goals (for now)
-- No full astrophysics simulation.
-- No n-body integration or time-evolving ephemerides in v0–v2.
-- No attempt to perfectly resolve all binary/multiple edge cases in v0 (we’ll record what catalogs provide and improve later).
-- No “download the entire universe” use the public astronomical data sources listed in the next section for now, we can add to it later.
+
+# Filesystem Layout & Environment Variables
+
+Spacegate does not assume a fixed filesystem layout. All persistent state locations are defined via environment variables to support:
+
+- reproducible deployments
+- read-only code checkouts
+- Docker and containerized execution
+- separation of code and data
+- large external data volumes
+
+## Required Environment Variables
+
+| Variable               | Description              | Default                |
+|------------------------|--------------------------|------------------------|
+| `SPACEGATE_STATE_DIR`  | Astro catalogs, databases| `/var/lib/spacegate`   |
+| `SPACEGATE_CACHE_DIR`  | Download and build cache | `/var/cache/spacegate` |
+| `SPACEGATE_LOG_DIR`    | Application logs         | `/var/log/spacegate`   |
+| `SPACEGATE_CONFIG_DIR` | Runtime configuration    | `/etc/spacegate`       |
+
+If not explicitly set, Spacegate SHOULD default to the values above.
+
+## State Directory Structure
+
+Within `SPACEGATE_STATE_DIR`, Spacegate maintains the following structure:
+
+raw/ # Original source datasets (immutable)
+cooked/ # Cleaned and normalized datasets
+out/ # Build outputs (DuckDB, Parquet, etc.)
+served/ # Active "current" build (symlink or directory)
+reports/ # QC, provenance, and validation reports
+logs/ # Optional per-build logs
+
+Build outputs SHOULD be treated as immutable. Promotion between builds SHOULD be done via atomic directory swaps or symlink updates.
+
 
 # Data Sources
 ## Primary sources (v0 only)
