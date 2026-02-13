@@ -146,6 +146,18 @@ rows = con.execute(
       st.spectral_type_raw,
       p.planet_name,
       round(s.dist_ly, 2) as dist_ly,
+      coalesce(round(p.mass_earth, 2), round(p.mass_jup, 2)) as mass,
+      case
+        when p.mass_earth is not null then 'M⊕'
+        when p.mass_jup is not null then 'M♃'
+        else null
+      end as mass_unit,
+      coalesce(round(p.radius_earth, 2), round(p.radius_jup, 2)) as radius,
+      case
+        when p.radius_earth is not null then 'R⊕'
+        when p.radius_jup is not null then 'R♃'
+        else null
+      end as radius_unit,
       p.match_method,
       p.match_confidence
     from planets p
@@ -161,13 +173,17 @@ if not rows:
     raise SystemExit("No joined planet/star/system rows found in core.duckdb")
 
 headers = [
-    "system_name",
-    "star_name",
-    "spectral_type_raw",
-    "planet_name",
+    "system",
+    "star",
+    "spec",
+    "planet",
     "dist_ly",
-    "match_method",
-    "match_confidence",
+    "mass",
+    "m_u",
+    "radius",
+    "r_u",
+    "match",
+    "conf",
 ]
 
 print("OK: sample join")
