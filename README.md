@@ -45,6 +45,45 @@
   - /var/log/spacegate
   - /etc/spacegate
 
+## Quickstart (from scratch)
+
+This is the simplest path to download, build, and serve the core dataset.
+
+1. Install system dependencies: `python3`, `pip`, `aria2c`, `curl`, `gzip`, `git`.
+1. Clone and install Python deps.
+1. Download core catalogs, cook them, ingest into DuckDB, then promote the build.
+1. (Optional) Run the API.
+
+```bash
+git clone https://github.com/galenmatson/spacegate.git
+cd spacegate
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Optional: choose data locations (defaults to ./data)
+# export SPACEGATE_STATE_DIR=/var/lib/spacegate
+# export SPACEGATE_CACHE_DIR=/var/cache/spacegate
+# export SPACEGATE_LOG_DIR=/var/log/spacegate
+
+# Optional: tune DuckDB resources (otherwise auto-detected)
+# export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
+# export SPACEGATE_DUCKDB_THREADS=4
+
+scripts/download_core.sh --core --non-interactive
+scripts/cook_core.sh
+scripts/ingest_core.sh
+scripts/promote_build.sh
+
+# Optional: run the API
+cd services/api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
 # Roadmap (high level)
 
   - v1.1: static snapshot generation (SVG) with deterministic rendering rules.
