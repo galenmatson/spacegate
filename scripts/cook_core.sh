@@ -179,6 +179,7 @@ main() {
   cook_athyg
   cook_nasa
   log "Cook core complete"
+  echo "Next: scripts/ingest_core.sh to build the core database."
 }
 
 main "$@"

@@ -51,6 +51,8 @@ main() {
 
   echo "==> Verify build"
   "$ROOT_DIR/scripts/verify_build.sh"
+  echo "Build complete."
+  echo "Next: scripts/run_spacegate.sh to start API + web."
 }
 
 main "$@"

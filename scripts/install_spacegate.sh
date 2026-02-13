@@ -16,6 +16,8 @@ and builds the core database if missing.
 
 Options:
   --overwrite   Re-download catalogs even if present.
+  --skip-web    Skip web UI dependency install.
+  --skip-build  Skip building the core database.
 USAGE
 }
 
@@ -49,10 +51,20 @@ check_deps() {
 
 main() {
   local overwrite=""
+  local skip_web=0
+  local skip_build=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --overwrite)
         overwrite="--overwrite"
+        shift 1
+        ;;
+      --skip-web)
+        skip_web=1
+        shift 1
+        ;;
+      --skip-build)
+        skip_build=1
         shift 1
         ;;
       -h|--help)
@@ -70,17 +82,29 @@ main() {
   check_deps
 
   echo "==> Setup venvs and dependencies"
-  "$ROOT_DIR/scripts/setup_spacegate.sh"
-
-  local core_db="$STATE_DIR/served/current/core.duckdb"
-  if [[ ! -f "$core_db" ]]; then
-    echo "==> Core database not found; building"
-    "$ROOT_DIR/scripts/build_core.sh" $overwrite
+  if [[ $skip_web -eq 1 ]]; then
+    "$ROOT_DIR/scripts/setup_spacegate.sh" --skip-web
   else
-    echo "==> Core database exists: $core_db"
+    "$ROOT_DIR/scripts/setup_spacegate.sh"
   fi
 
-  echo "Install complete. Start with: scripts/run_spacegate.sh"
+  local core_db="$STATE_DIR/served/current/core.duckdb"
+  if [[ $skip_build -eq 1 ]]; then
+    echo "Skip build (--skip-build)"
+  else
+    if [[ ! -f "$core_db" ]]; then
+      echo "==> Core database not found; building"
+      "$ROOT_DIR/scripts/build_core.sh" $overwrite
+    else
+      echo "==> Core database exists: $core_db"
+    fi
+  fi
+
+  echo "Install complete."
+  if [[ $skip_build -eq 1 ]]; then
+    echo "Next: scripts/build_core.sh to download and build the core database."
+  fi
+  echo "Then: scripts/run_spacegate.sh to start API + web."
 }
 
 main "$@"

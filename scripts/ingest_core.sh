@@ -38,3 +38,4 @@ PY
 }
 "$PYTHON_BIN" "$ROOT_DIR/scripts/ingest_core.py" "$@" | tee -a "$LOG_FILE"
 log "Ingest core complete"
+echo "Next: scripts/promote_build.sh to activate the new build."

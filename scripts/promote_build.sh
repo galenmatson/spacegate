@@ -81,6 +81,7 @@ main() {
   ln -sfn "$build_dir" "$SERVED_DIR/current"
 
   printf 'Promoted build %s -> %s/current\n' "$build_id" "$SERVED_DIR"
+  echo "Next: scripts/verify_build.sh to validate the promoted build."
 }
 
 main "$@"

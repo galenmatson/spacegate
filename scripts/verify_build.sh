@@ -203,6 +203,7 @@ for row in values_rows:
 PY
 
   echo "Verified build $build_id"
+  echo "Next: scripts/run_spacegate.sh to start API + web."
 }
 
 main "$@"
