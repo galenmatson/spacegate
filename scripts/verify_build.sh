@@ -105,6 +105,54 @@ if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
 print("OK")
 PY
 
+  python3 - <<'PY' "$core_db"
+import sys
+import duckdb
+
+db_path = sys.argv[1]
+con = duckdb.connect(db_path, read_only=True)
+
+row = con.execute(
+    """
+    select
+      s.system_name,
+      st.star_name,
+      st.spectral_type_raw,
+      p.planet_name,
+      s.dist_ly,
+      s.ra_deg,
+      s.dec_deg,
+      p.match_method,
+      p.match_confidence
+    from planets p
+    join stars st on p.star_id = st.star_id
+    join systems s on p.system_id = s.system_id
+    where p.star_id is not null and p.system_id is not null
+    order by random()
+    limit 1
+    """
+).fetchone()
+
+if not row:
+    raise SystemExit("No joined planet/star/system rows found in core.duckdb")
+
+labels = [
+    "system_name",
+    "star_name",
+    "spectral_type_raw",
+    "planet_name",
+    "dist_ly",
+    "ra_deg",
+    "dec_deg",
+    "match_method",
+    "match_confidence",
+]
+
+print("Sample joined record:")
+for label, value in zip(labels, row):
+    print(f"  {label}: {value}")
+PY
+
   echo "Verified build $build_id"
 }
 
