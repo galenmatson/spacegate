@@ -7,6 +7,7 @@ STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 SERVED_DIR="$STATE_DIR/served"
 OUT_DIR="$STATE_DIR/out"
 REPORTS_DIR="$STATE_DIR/reports"
+PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 
 usage() {
   cat <<'USAGE'
@@ -25,6 +26,25 @@ resolve_path() {
 }
 
 main() {
+  if [[ -z "$PYTHON_BIN" ]]; then
+    if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
+      PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
+    else
+      PYTHON_BIN="python3"
+    fi
+  fi
+
+  if ! "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1; then
+import duckdb
+PY
+    echo "Error: python module 'duckdb' not found." >&2
+    echo "Tip: activate the project venv or install requirements:" >&2
+    echo "  cd $ROOT_DIR" >&2
+    echo "  python3 -m venv .venv && source .venv/bin/activate" >&2
+    echo "  pip install -r requirements.txt" >&2
+    exit 1
+  fi
+
   local build_id="${1:-}"
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
@@ -79,7 +99,7 @@ main() {
     exit 1
   fi
 
-  python3 - <<'PY' "$qc_report" "$build_id"
+  "$PYTHON_BIN" - <<'PY' "$qc_report" "$build_id"
 import json
 import sys
 from pathlib import Path
@@ -105,7 +125,7 @@ if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
 print("OK")
 PY
 
-  python3 - <<'PY' "$core_db"
+  "$PYTHON_BIN" - <<'PY' "$core_db"
 import sys
 import duckdb
 
