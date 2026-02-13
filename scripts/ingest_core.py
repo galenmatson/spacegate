@@ -4,6 +4,7 @@ import atexit
 import datetime as dt
 import json
 import os
+import shutil
 import signal
 import subprocess
 import time
@@ -378,6 +379,14 @@ def main() -> int:
     reports_dir.mkdir(parents=True, exist_ok=True)
     tmp_work_dir = tmp_out_dir / "tmp"
     tmp_work_dir.mkdir(parents=True, exist_ok=True)
+    keep_tmp = os.getenv("SPACEGATE_KEEP_TMP") == "1"
+    def cleanup_tmp() -> None:
+        if keep_tmp:
+            return
+        if tmp_out_dir.exists():
+            log(f"Cleaning up temp output: {tmp_out_dir}")
+            shutil.rmtree(tmp_out_dir, ignore_errors=True)
+    atexit.register(cleanup_tmp)
 
     db_path = tmp_out_dir / "core.duckdb"
 
