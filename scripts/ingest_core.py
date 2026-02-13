@@ -360,6 +360,7 @@ def main() -> int:
     log(f"Build id: {build_id}")
 
     lock_path = state_dir / "out" / ".ingest_core.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
     acquire_lock(lock_path, build_id)
 
     final_out_dir = state_dir / "out" / build_id
