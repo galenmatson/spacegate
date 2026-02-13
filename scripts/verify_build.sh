@@ -66,6 +66,8 @@ PY
     build_id="$(basename "$build_dir")"
   fi
 
+  echo "Verify target: $build_dir"
+
   if [[ ! -d "$build_dir" ]]; then
     echo "Error: build directory not found: $build_dir" >&2
     exit 1
@@ -79,16 +81,19 @@ PY
     echo "Error: missing $core_db" >&2
     exit 1
   fi
+  echo "OK: core.duckdb"
 
   if [[ ! -f "$parquet_dir/stars.parquet" || ! -f "$parquet_dir/systems.parquet" || ! -f "$parquet_dir/planets.parquet" ]]; then
     echo "Error: missing parquet files in $parquet_dir" >&2
     exit 1
   fi
+  echo "OK: parquet exports"
 
   if [[ ! -d "$reports_dir" ]]; then
     echo "Error: missing reports directory $reports_dir" >&2
     exit 1
   fi
+  echo "OK: reports directory"
 
   local qc_report="$reports_dir/qc_report.json"
   local match_report="$reports_dir/match_report.json"
@@ -98,6 +103,7 @@ PY
     echo "Error: missing QC reports in $reports_dir" >&2
     exit 1
   fi
+  echo "OK: QC reports"
 
   "$PYTHON_BIN" - <<'PY' "$qc_report" "$build_id"
 import json
@@ -122,7 +128,7 @@ counts = data.get("counts") or {}
 if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
     raise SystemExit(f"Invalid counts in QC report: {counts}")
 
-print("OK")
+print("OK: qc_report.json")
 PY
 
   "$PYTHON_BIN" - <<'PY' "$core_db"
@@ -168,6 +174,7 @@ headers = [
     "match_confidence",
 ]
 
+print("OK: sample join")
 print("| " + " | ".join(headers) + " |")
 print("| " + " | ".join(["---"] * len(headers)) + " |")
 for row in rows:
