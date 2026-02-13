@@ -51,7 +51,7 @@ This is the simplest path to download, build, and serve the core dataset.
 
 1. Install system dependencies: `python3`, `pip`, `aria2c`, `curl`, `gzip`, `git`.
 1. Clone and install Python deps.
-1. Download core catalogs, cook them, ingest into DuckDB, then promote the build.
+1. Run the one-step build script (download → cook → ingest → promote → verify).
 1. (Optional) Run the API.
 
 ```bash
@@ -71,10 +71,7 @@ pip install -r requirements.txt
 # export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 # export SPACEGATE_DUCKDB_THREADS=4
 
-scripts/download_core.sh --core --non-interactive
-scripts/cook_core.sh
-scripts/ingest_core.sh
-scripts/promote_build.sh
+scripts/build_core.sh
 
 # Optional: run the API
 cd services/api
