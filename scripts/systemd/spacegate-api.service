@@ -1,0 +1,19 @@
+# Managed by Spacegate setup script (template).
+# This file is installed by scripts/install_spacegate_systemd.sh
+# Note: uvicorn is started with --proxy-headers and --forwarded-allow-ips="*"
+#       to respect X-Forwarded-* headers from nginx.
+
+[Unit]
+Description=Spacegate API (uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=__SPACEGATE_USER__
+WorkingDirectory=__SPACEGATE_ROOT__/services/api
+Environment=SPACEGATE_STATE_DIR=__SPACEGATE_STATE_DIR__
+ExecStart=__SPACEGATE_ROOT__/services/api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port __SPACEGATE_API_PORT__ --proxy-headers --forwarded-allow-ips="*"
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

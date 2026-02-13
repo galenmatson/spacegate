@@ -116,6 +116,31 @@ export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 export SPACEGATE_DUCKDB_THREADS=4
 ```
 
+## Nginx setup (optional)
+
+If you want a reverse proxy in front of the API/UI, run:
+
+```bash
+sudo scripts/setup_nginx_spacegate.sh
+```
+
+Behavior:
+- Uses port 80 if free or already owned by nginx.
+- Falls back to port 8080 if port 80 is in use by a non‑nginx process.
+- Writes `/etc/nginx/sites-available/spacegate.conf` with provenance comments.
+- Symlinks to `/etc/nginx/sites-enabled/spacegate.conf` (without touching other sites).
+- Runs `nginx -t` before reload/start.
+
+### Systemd (optional, recommended for servers)
+
+Install and start the Spacegate API as a systemd service:
+
+```bash
+sudo scripts/install_spacegate_systemd.sh
+```
+
+This runs uvicorn with `--proxy-headers` and `--forwarded-allow-ips="*"` so nginx can forward scheme/client IP.
+
 ### Troubleshooting
 
 - **`pip` missing in venv**  
