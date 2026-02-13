@@ -112,7 +112,7 @@ import duckdb
 db_path = sys.argv[1]
 con = duckdb.connect(db_path, read_only=True)
 
-row = con.execute(
+rows = con.execute(
     """
     select
       s.system_name,
@@ -129,14 +129,14 @@ row = con.execute(
     join systems s on p.system_id = s.system_id
     where p.star_id is not null and p.system_id is not null
     order by random()
-    limit 1
+    limit 4
     """
-).fetchone()
+).fetchall()
 
-if not row:
+if not rows:
     raise SystemExit("No joined planet/star/system rows found in core.duckdb")
 
-labels = [
+headers = [
     "system_name",
     "star_name",
     "spectral_type_raw",
@@ -148,9 +148,11 @@ labels = [
     "match_confidence",
 ]
 
-print("Sample joined record:")
-for label, value in zip(labels, row):
-    print(f"  {label}: {value}")
+print("| " + " | ".join(headers) + " |")
+print("| " + " | ".join(["---"] * len(headers)) + " |")
+for row in rows:
+    values = ["" if v is None else str(v) for v in row]
+    print("| " + " | ".join(values) + " |")
 PY
 
   echo "Verified build $build_id"
