@@ -79,7 +79,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cd ../..
-scripts/run_stargate.sh
+scripts/run_spacegate.sh
 ```
 
 # Roadmap (high level)
