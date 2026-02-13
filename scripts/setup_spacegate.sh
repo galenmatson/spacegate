@@ -23,11 +23,21 @@ require_command() {
   fi
 }
 
+ensure_pip() {
+  local pybin="$1"
+  if "$pybin" -m pip --version >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "pip not found for $pybin. Bootstrapping with ensurepip..." >&2
+  "$pybin" -m ensurepip --upgrade >/dev/null
+}
+
 setup_root_venv() {
   echo "==> Setup root venv (.venv)"
   if [[ ! -d "$ROOT_DIR/.venv" ]]; then
     "$PYTHON_BIN" -m venv "$ROOT_DIR/.venv"
   fi
+  ensure_pip "$ROOT_DIR/.venv/bin/python"
   "$ROOT_DIR/.venv/bin/python" -m pip install -U pip >/dev/null
   "$ROOT_DIR/.venv/bin/python" -m pip install -r "$ROOT_DIR/requirements.txt"
 }
@@ -38,6 +48,7 @@ setup_api_venv() {
   if [[ ! -d "$api_dir/.venv" ]]; then
     "$PYTHON_BIN" -m venv "$api_dir/.venv"
   fi
+  ensure_pip "$api_dir/.venv/bin/python"
   "$api_dir/.venv/bin/python" -m pip install -U pip >/dev/null
   "$api_dir/.venv/bin/python" -m pip install -r "$api_dir/requirements.txt"
 }
