@@ -513,7 +513,10 @@ def main() -> int:
           from athyg_raw
         ), coords as (
           select *,
-            coalesce(dist_pc, sqrt(x_pc*x_pc + y_pc*y_pc + z_pc*z_pc)) as dist_pc_final
+            case
+              when x_pc is not null and y_pc is not null and z_pc is not null then sqrt(x_pc*x_pc + y_pc*y_pc + z_pc*z_pc)
+              else dist_pc
+            end as dist_pc_final
           from base
         ), converted as (
           select *,
