@@ -116,6 +116,21 @@ export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 export SPACEGATE_DUCKDB_THREADS=4
 ```
 
+### Troubleshooting
+
+- **`pip` missing in venv**  
+  Install `python3-venv` (Debian/Ubuntu), then rerun `scripts/install_spacegate.sh`.
+
+- **`npm` not found**  
+  Install Node.js and npm, then rerun `scripts/install_spacegate.sh`.
+
+- **Port already in use**  
+  Stop the running instance with `scripts/run_spacegate.sh --stop`, or change ports with:
+  `SPACEGATE_API_PORT=8001 SPACEGATE_WEB_PORT=5174 scripts/run_spacegate.sh`
+
+- **Build verification fails**  
+  Run `scripts/verify_build.sh` directly to see details. If it references an old build, rebuild with `scripts/build_core.sh --overwrite`.
+
 # Roadmap (high level)
 
   - v1.1: static snapshot generation (SVG) with deterministic rendering rules.
