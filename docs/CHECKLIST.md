@@ -13,13 +13,17 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 ## Core Data Acquisition (v0)
 - [x] Download scripts for AT-HYG + NASA Exoplanet Archive
 - [x] Resolve LFS pointers during AT-HYG download
-- [x] Raw manifests recorded under `raw/manifests/`
+- [x] Manifests recorded under `reports/manifests/`
 - [x] Cooked core outputs generated deterministically
 
 ## Core Ingestion (v0)
 - [x] Build DuckDB core DB from cooked inputs
+- [x] Normalize identifiers and types (Gaia/HIP/HD, etc.)
+- [x] Parse spectral types into components while retaining raw strings
+- [x] Join exoplanets to host stars/systems with match provenance + confidence
 - [x] Morton spatial index (63-bit, 21 bits/axis, ±1000 ly)
 - [x] Morton domain hard-fail on out-of-bounds coords
+- [ ] Distance invariant QC hard-fail (abs(norm(x,y,z) - dist_ly) < eps)
 - [x] Parquet exports sorted by `spatial_index`
 - [x] Provenance QC gate (hard-fail on missing required fields)
 - [x] Build metadata table recorded in core.duckdb
@@ -42,21 +46,37 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
   - [x] system members
   - [x] neighbors (kNN by xyz)
 
+## API (v0.1)
+- [x] Read-only API service implemented (FastAPI)
+- [x] Endpoints per `docs/API_SPEC.md` (`/health`, `/systems/search`, `/systems/{id}`, `/systems/by-key`)
+- [x] Cursor pagination + parameterized SQL
+- [x] Responses include provenance + match confidence fields
+
 ## UI (v1)
-- [ ] Decide UI stack (DuckDB WASM vs. API)
-- [ ] Build minimal browser UI scaffold
-- [ ] Implement search + detail views
-- [ ] Add filters/sorting
+- [x] Decide UI stack (DuckDB WASM vs. API)
+- [x] Build minimal browser UI scaffold
+- [x] Implement search + detail views
+- [x] Add filters/sorting
+- [ ] UI matches `docs/UX_SPEC.md` (provenance links, match confidence warnings, accessibility)
+- [ ] Support optional packs + lore overlays in UI (core read-only)
 - [ ] Deploy initial UI
 
+## Deployment (v0.1)
+- [ ] Host UI/API on Google Cloud
+- [ ] Public at `spacegates.org`
+
 ## Enrichment (v1.1+)
+- [ ] Interestingness scoring + ranking stored in enrichment
 - [ ] Snapshot generator and manifest
 - [ ] Factsheets + blurbs pipeline
 - [ ] Deterministic rendering rules and QC
 - [ ] Enrichment artifact storage + versioning
+- [ ] External reference links (curated authoritative sources)
+- [ ] System neighbor graph (10 nearest systems per system)
 
 ## 3D Map (v2)
 - [ ] 3D viewer (camera controls, selection, tooltips)
+- [ ] Filters (distance bubble, spectral class, magnitude)
 - [ ] Rendering toggles (planets, lore, links)
 - [ ] Performance & floating-origin correctness
 

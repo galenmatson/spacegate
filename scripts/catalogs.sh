@@ -5,7 +5,7 @@ IFS=$'\n\t'
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RAW_DIR="$ROOT_DIR/raw"
 LOG_DIR="$ROOT_DIR/logs"
-MANIFEST_DIR="$RAW_DIR/manifests"
+MANIFEST_DIR="$ROOT_DIR/reports/manifests"
 CONFIG_ENV="$ROOT_DIR/configs/catalog_urls.env"
 
 mkdir -p "$RAW_DIR" "$LOG_DIR" "$MANIFEST_DIR"

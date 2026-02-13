@@ -219,7 +219,7 @@ def require_manifest_entry(manifest: dict, source_name: str, label: str) -> dict
     if not entry:
         raise SystemExit(
             f"Missing manifest entry for {label} ({source_name}). "
-            f"Re-run the downloader to refresh raw/manifests."
+            f"Re-run the downloader to refresh reports/manifests."
         )
     if not entry.get("retrieved_at"):
         raise SystemExit(
@@ -243,7 +243,7 @@ def main() -> int:
     root = Path(args.root)
     cooked_athyg = root / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = root / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
-    manifest_path = root / "raw" / "manifests" / "core_manifest.json"
+    manifest_path = root / "reports" / "manifests" / "core_manifest.json"
 
     if not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")

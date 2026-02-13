@@ -7,6 +7,7 @@ The goal is strict provenance, reproducibility, and clear separation between:
 - **what the universe gave us** (`raw/`)
 - **what we assembled and normalized** (`cooked/`)
 - **what we actively serve and query** (`served/`)
+- **what we log and validate** (`reports/`)
 
 Nothing in this file is aspirational. Everything here reflects current v0 reality.
 
@@ -22,11 +23,11 @@ Nothing in this file is aspirational. Everything here reflects current v0 realit
 - Never edited by hand
 - Only written by downloader scripts
 - Can always be re-fetched from source URLs
+- `raw/` is runtime state and is not tracked in git
 
 ```
 raw/
 ├── <catalog>/
-├── manifests/
 ```
 
 ### `cooked/` — assembled, normalized, file-based products
@@ -61,6 +62,13 @@ served/
 ├── current -> ../out/<build_id>/
 ```
 
+### `reports/` — logs, QC, and download manifests
+
+**Purpose**: Record download provenance and QC outputs.
+
+- Build reports live under `reports/<build_id>/`
+- Download manifests live under `reports/manifests/`
+
 ---
 
 ## Manifests
@@ -68,7 +76,7 @@ served/
 Manifests live in:
 
 ```
-raw/manifests/
+reports/manifests/
 ```
 
 They record **provenance of raw inputs only**.
@@ -118,7 +126,7 @@ These sources are required for v0 ingestion and must always be present.
 
 **Download script**: `raw/download_core.sh`
 
-**Manifest**: `raw/manifests/core_manifest.json`
+**Manifest**: `reports/manifests/core_manifest.json`
 
 ---
 
@@ -149,7 +157,7 @@ These sources are required for v0 ingestion and must always be present.
 
 **Download script**: `raw/download_core.sh`
 
-**Manifest**: `raw/manifests/core_manifest.json`
+**Manifest**: `reports/manifests/core_manifest.json`
 
 ---
 
@@ -381,6 +389,6 @@ Scripts features:
 - `cooked/` is fully disposable
 - `served/` depends only on `cooked/` (via promoted `out/<build_id>/` builds)
 - No manual edits to `raw/`
-- All provenance lives in `raw/manifests/`
+- Download provenance manifests live in `reports/manifests/`
 
 If a file violates these rules, it is in the wrong directory.
