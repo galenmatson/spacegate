@@ -47,29 +47,73 @@
 
 ## Quickstart (from scratch)
 
-This is the simplest path to download, build, and serve the core dataset.
+This walks a new user from zero to a running Spacegate (API + web UI).
 
-1. Install system dependencies: `python3`, `pip`, `aria2c`, `curl`, `gzip`, `git`, `node`, `npm`.
-1. Clone and run the installer (sets up venvs, installs deps, builds DB if missing).
-1. Run the launcher (API + web).
+### 1) Install system prerequisites
+You need Python, Node, and basic download tools available on your PATH:
+
+- `python3` + `pip`
+- `node` + `npm`
+- `git`, `curl`, `aria2c`, `gzip`
+
+On Debian/Ubuntu the following usually works:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-venv python3-pip git curl aria2 gzip nodejs npm
+```
+
+### 2) Clone and install dependencies
+The installer creates virtualenvs, installs Python and web dependencies, and builds the database if it doesn’t exist.
 
 ```bash
 git clone https://github.com/galenmatson/spacegate.git
 cd spacegate
 
 scripts/install_spacegate.sh
+```
 
-# Optional: choose data locations (defaults to ./data)
-# export SPACEGATE_STATE_DIR=/var/lib/spacegate
-# export SPACEGATE_CACHE_DIR=/var/cache/spacegate
-# export SPACEGATE_LOG_DIR=/var/log/spacegate
+Optional flags:
+- `--overwrite` re-downloads catalogs even if present.
+- `--skip-web` skips the web UI dependency install.
+- `--skip-build` skips the data build step.
 
-# Optional: tune DuckDB resources (otherwise auto-detected)
-# export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
-# export SPACEGATE_DUCKDB_THREADS=4
+### 3) Build the core database (if you skipped it)
+If you used `--skip-build` or want to rebuild:
 
-# Start API + web
+```bash
+scripts/build_core.sh
+```
+
+### 4) Run Spacegate (API + web)
+The launcher verifies the database, then starts both services:
+
+```bash
 scripts/run_spacegate.sh
+```
+
+Defaults:
+- API: `http://0.0.0.0:8000`
+- Web UI: `http://0.0.0.0:5173`
+
+### 5) Stop or restart
+
+```bash
+scripts/run_spacegate.sh --stop
+scripts/run_spacegate.sh --restart
+```
+
+### Optional configuration
+
+```bash
+# Data locations (defaults to ./data)
+export SPACEGATE_STATE_DIR=/var/lib/spacegate
+export SPACEGATE_CACHE_DIR=/var/cache/spacegate
+export SPACEGATE_LOG_DIR=/var/log/spacegate
+
+# DuckDB resources (otherwise auto-detected)
+export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
+export SPACEGATE_DUCKDB_THREADS=4
 ```
 
 # Roadmap (high level)
