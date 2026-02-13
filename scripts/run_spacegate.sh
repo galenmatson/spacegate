@@ -7,9 +7,10 @@ STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 PID_FILE="$LOG_DIR/spacegate_api.pid"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/services/api/.venv/bin/python}"
+API_DIR="${SPACEGATE_API_DIR:-$ROOT_DIR/services/api}"
 HOST="${SPACEGATE_API_HOST:-0.0.0.0}"
 PORT="${SPACEGATE_API_PORT:-8000}"
-APP_PATH="${SPACEGATE_API_APP:-$ROOT_DIR/services/api/app.main:app}"
+APP_PATH="${SPACEGATE_API_APP:-app.main:app}"
 VERIFY_BIN="${SPACEGATE_VERIFY_BIN:-$ROOT_DIR/scripts/verify_build.sh}"
 
 usage() {
@@ -40,6 +41,14 @@ PY
     echo "  cd $ROOT_DIR/services/api" >&2
     echo "  python3 -m venv .venv && source .venv/bin/activate" >&2
     echo "  pip install -r requirements.txt" >&2
+    exit 1
+  fi
+}
+
+ensure_app_path() {
+  if [[ "$APP_PATH" == *"/"* ]]; then
+    echo "Error: SPACEGATE_API_APP should be a module path like app.main:app" >&2
+    echo "Got: $APP_PATH" >&2
     exit 1
   fi
 }
@@ -143,7 +152,7 @@ main() {
   mkdir -p "$LOG_DIR"
   ensure_python
   ensure_uvicorn
-  verify_build
+  ensure_app_path
 
   if [[ "$action" == "stop" ]]; then
     stop_pidfile_process
@@ -153,6 +162,8 @@ main() {
   if [[ "$action" == "restart" ]]; then
     stop_pidfile_process || true
   fi
+
+  verify_build
 
   if [[ -f "$PID_FILE" ]]; then
     pid="$(read_pid)"
@@ -172,8 +183,19 @@ main() {
   echo "Using $PYTHON_BIN" >&2
   echo "PID file: $PID_FILE" >&2
 
-  "$PYTHON_BIN" -m uvicorn "$APP_PATH" --host "$HOST" --port "$PORT" &
-  echo $! > "$PID_FILE"
+  (
+    cd "$API_DIR"
+    "$PYTHON_BIN" -m uvicorn "$APP_PATH" --host "$HOST" --port "$PORT"
+  ) &
+  pid=$!
+  echo "$pid" > "$PID_FILE"
+
+  sleep 0.5
+  if ! pid_is_running "$pid"; then
+    echo "Server failed to start (pid $pid exited). See logs above." >&2
+    rm -f "$PID_FILE"
+    exit 1
+  fi
 
   echo "Started pid $(cat "$PID_FILE")" >&2
 }
