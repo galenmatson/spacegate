@@ -17,7 +17,9 @@ log() {
 }
 
 PYTHON_BIN=""
-if command -v python3 >/dev/null 2>&1; then
+if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
+  PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
 elif command -v python >/dev/null 2>&1; then
   PYTHON_BIN="python"
@@ -27,5 +29,12 @@ else
 fi
 
 log "Ingest core begin"
+"$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || {
+import duckdb
+PY
+  echo "Error: python module 'duckdb' not found for $PYTHON_BIN" >&2
+  echo "Tip: run scripts/setup_spacegate.sh (or install requirements.txt in the root venv)." >&2
+  exit 1
+}
 "$PYTHON_BIN" "$ROOT_DIR/scripts/ingest_core.py" "$@" | tee -a "$LOG_FILE"
 log "Ingest core complete"
