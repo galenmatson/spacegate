@@ -145,9 +145,7 @@ rows = con.execute(
       st.star_name,
       st.spectral_type_raw,
       p.planet_name,
-      s.dist_ly,
-      s.ra_deg,
-      s.dec_deg,
+      round(s.dist_ly, 2) as dist_ly,
       p.match_method,
       p.match_confidence
     from planets p
@@ -168,8 +166,6 @@ headers = [
     "spectral_type_raw",
     "planet_name",
     "dist_ly",
-    "ra_deg",
-    "dec_deg",
     "match_method",
     "match_confidence",
 ]
