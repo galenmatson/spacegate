@@ -47,14 +47,15 @@ Spacegate does not assume a fixed filesystem layout. All persistent state locati
 
 ## Required Environment Variables
 
-| Variable               | Description              | Default                |
-|------------------------|--------------------------|------------------------|
-| `SPACEGATE_STATE_DIR`  | Astro catalogs, databases| `/var/lib/spacegate`   |
-| `SPACEGATE_CACHE_DIR`  | Download and build cache | `/var/cache/spacegate` |
-| `SPACEGATE_LOG_DIR`    | Application logs         | `/var/log/spacegate`   |
-| `SPACEGATE_CONFIG_DIR` | Runtime configuration    | `/etc/spacegate`       |
+| Variable               | Description              | Default         |
+|------------------------|--------------------------|-----------------|
+| `SPACEGATE_STATE_DIR`  | Astro catalogs, databases| `./data`        |
+| `SPACEGATE_CACHE_DIR`  | Download and build cache | `./data/cache`  |
+| `SPACEGATE_LOG_DIR`    | Application logs         | `./data/logs`   |
+| `SPACEGATE_CONFIG_DIR` | Runtime configuration    | `./configs`     |
 
-If not explicitly set, Spacegate SHOULD default to the values above.
+For production deployments, set these to standard Linux locations
+(e.g., `/var/lib/spacegate`, `/var/cache/spacegate`, `/var/log/spacegate`, `/etc/spacegate`).
 
 ## State Directory Structure
 
@@ -79,7 +80,7 @@ Build outputs SHOULD be treated as immutable. Promotion between builds SHOULD be
 Deferred until after the v1 UI. See **v2.1 Additional catalogs** below.
 
 ## Source protection / reproducibility
-- data/raw/** source files should be preserved as read-only once downloaded.
+- $SPACEGATE_STATE_DIR/raw/** source files should be preserved as read-only once downloaded.
 - Raw data is only updated with newer raw data through the catalog download process with an update to the manifest.
 - The file operations to retrieve, decompress, and combine the source data should be logged.
 - All builds must be reproducible from pinned versions + checksums/etags where possible.
@@ -90,20 +91,20 @@ Deferred until after the v1 UI. See **v2.1 Additional catalogs** below.
 ## Terminology
 - **Core astronomy**: real objects intended for general browsing in the ≤1000 ly sphere (systems, stars, planets) + strict provenance. These are downloaded and normalized by scripts and background functions but are not changeable by the user app.
 - **Expanded astronomy**: additional *real* object categories (substellar/compact/superstellar/etc.) that can be toggled in search/render/download. Like the core astronomy, read-only except by the catalog management functions.
-- **Enriched astronomy**: derived, regenerable content generated from core/packs (e.g., deterministic snapshot manifests, fact sheets, generated blurbs, generated imagery). Not edited in-place; regenerate instead.
+- **Rich astronomy**: derived, regenerable content generated from core/packs (e.g., deterministic snapshot manifests, fact sheets, generated blurbs, generated imagery). Not edited in-place; regenerate instead.
 - **Engagement**: user feedback, click counts, likes. Informs the enrichment AI on systems of most interest. Linking to external forum threads on specific topics.
 - **Lore**: user-authored fictional metadata and fictional entities. Editable. Stored separately so core data stays shareable.
 
 ## Output artifacts (versioned per build)
-All artifacts are produced under a versioned build directory: `out/<build_id>/...` (see “Build layout and versioning”).
+All artifacts are produced under a versioned build directory: `$SPACEGATE_STATE_DIR/out/<build_id>/...` (see “Build layout and versioning”).
 
 ### 1) Core astronomy dataset (v0+)
 **Purpose:** the clean, shareable, authoritative “real astronomy” foundation.
 
 - DuckDB (authoritative query format for the app/API):
-  - `out/<build_id>/core.duckdb`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb`
 - Parquet export (for publishing/sharing, tooling interoperability):
-  - `out/<build_id>/parquet/{systems,stars,planets}.parquet`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{systems,stars,planets}.parquet`
 
 Core tables (minimum):
 - `systems`
@@ -118,9 +119,9 @@ Rule: **Spatial sorting** All core Parquet files must be sorted by `spatial_inde
 **Purpose:** keep additional object categories optional and independently maintainable.
 
 - Pack artifacts are separate from core:
-  - DuckDB (optional): `out/<build_id>/packs/<pack_name>.duckdb`
-  - Parquet (recommended): `out/<build_id>/packs/<pack_name>/*.parquet`
-  - Manifest: `out/<build_id>/packs_manifest.json`
+  - DuckDB (optional): `$SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>.duckdb`
+  - Parquet (recommended): `$SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>/*.parquet`
+  - Manifest: `$SPACEGATE_STATE_DIR/out/<build_id>/packs_manifest.json`
 
 Planned pack names:
 - `pack_substellar` (brown dwarfs, ultracool dwarfs, rogue/free-floating planets when available)
@@ -131,23 +132,23 @@ Note: “superstellar” objects are often extended, not point sources. This pac
 
 Rule: packs are **read-only** inputs to search/render/download. Each pack has its own provenance.
 
-### 3) Enrichment dataset (v1.1+)
+### 3) Rich dataset (v1.1+)
 **Purpose:** derived artifacts that make the UI engaging while remaining strictly traceable to source facts.
 
 - DuckDB (authoritative query format for the app/API):
-  - `out/<build_id>/enrichment.duckdb`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb`
 - Parquet export:
-  - `out/<build_id>/enrichment/*.parquet`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet`
 
-Enrichment tables (initial):
+Rich tables (initial):
 - `snapshot_manifest` (deterministic system visualization snapshots; see v1.1)
 - `factsheets` (structured JSON facts per object, with provenance pointers)
 - `blurbs` (engaging but factual descriptions generated strictly from factsheets; see v1.2)
 - `system_neighbors` (10 nearest systems per system; see v1.2.2)
 
 Rules:
-- Enrichment is **not edited in-place**. If content is wrong or the generator changes, regenerate enrichment with a new `generator_version` / build.
-- Each enrichment row must be traceable:
+- Rich is **not edited in-place**. If content is wrong or the generator changes, regenerate rich with a new `generator_version` / build.
+- Each rich row must be traceable:
   - factsheets: include `facts_hash`, `generator_version`, and pointers to source rows/fields
   - blurbs: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
   - snapshots: include `params_hash`, `params_json`, `generator_version`, `source_build_inputs_hash`
@@ -160,17 +161,17 @@ This dataset exists to give the people what they want. If they are explicit in t
 This is not monetizable. It is explicitly not behavioral tracking. Store no personal data.
 
 - DuckDB (optional for local builds / analysis):
-  - `out/<build_id>/engagement.duckdb`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/engagement.duckdb`
 - Parquet export (for transparency / research use):
-  - `out/<build_id>/engagement/*.parquet`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/engagement/*.parquet`
 
 ### 5) Lore overlays dataset (v2)
 **Purpose:** editable worldbuilding overlays and free-floating fictional entities, stored separately so the base data stays shareable.
 
 - DuckDB (recommended):
-  - `out/<build_id>/lore.duckdb` (typically per user/namespace)
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/lore.duckdb` (typically per user/namespace)
 - Optional Parquet export for sharing:
-  - `out/<build_id>/lore/*.parquet`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/lore/*.parquet`
 
 Minimum lore tables:
 - `lore_entities(entity_type, entity_key, namespace, lore_json, updated_at, source)`
@@ -180,14 +181,14 @@ Minimum lore tables:
 
 Rules:
 - Lore is editable.
-- Lore never mutates core/packs/enrichment tables.
+- Lore never mutates core/packs/rich tables.
 
 ## Snapshot assets vs snapshot manifest (v1.1)
-Deterministic snapshot images are stored as **asset files**, referenced by a manifest row in the enrichment dataset.
+Deterministic snapshot images are stored as **asset files**, referenced by a manifest row in the rich dataset.
 
 - Snapshot assets (files; filesystem or object storage):
-  - `out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
-- Snapshot manifest (table; in `enrichment.duckdb` and exported to Parquet):
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
+- Snapshot manifest (table; in `rich.duckdb` and exported to Parquet):
   - `snapshot_manifest(stable_object_key, object_type, view_type, params_json, params_hash, generator_version, build_id, artifact_path, created_at, source_build_inputs_hash, ...)`
 
 Rule: snapshots are derived artifacts; do not store image bytes in DuckDB.
@@ -233,14 +234,14 @@ Rendering rule:
 
 # Build layout and versioning
 Recommended directory conventions:
-- data/external/<catalog>/<version>/... (immutable)
-- data/processed/<catalog>/<version>/*.parquet
-- out/<build_id>/core.duckdb, out/<build_id>/parquet/*.parquet
-- out/<build_id>.tmp/ (staging directory; atomically promoted to out/<build_id>/ on success)
-- out/<build_id>/packs/<pack_name>.parquet
-- out/<build_id>/packs_manifest.json
-- served/current -> out/<build_id> (promoted build pointer for apps/queries)
-- reports/<build_id>/...
+- $SPACEGATE_STATE_DIR/external/<catalog>/<version>/... (immutable)
+- $SPACEGATE_STATE_DIR/processed/<catalog>/<version>/*.parquet
+- $SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb, $SPACEGATE_STATE_DIR/out/<build_id>/parquet/*.parquet
+- $SPACEGATE_STATE_DIR/out/<build_id>.tmp/ (staging directory; atomically promoted to $SPACEGATE_STATE_DIR/out/<build_id>/ on success)
+- $SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>.parquet
+- $SPACEGATE_STATE_DIR/out/<build_id>/packs_manifest.json
+- $SPACEGATE_STATE_DIR/served/current -> ../out/<build_id> (promoted build pointer for apps/queries)
+- $SPACEGATE_STATE_DIR/reports/<build_id>/...
 Where:
 - build_id = YYYY-MM-DDTHHMMSSZ_<gitshortsha>
 
@@ -291,7 +292,7 @@ Success criteria:
 - Reads core data + optional packs + lore overlays (lore editable; core read-only)
 
 ## v0.2: 'Interestingness' Initial Enrichment
-This ensures our compute resources for v1.2 blurb and image generation are spent on systems with high narrative and scientific "yield".The following features should be aggregated into a final Interestingness Score stored in the enrichment database:
+This ensures our compute resources for v1.2 blurb and image generation are spent on systems with high narrative and scientific "yield".The following features should be aggregated into a final Interestingness Score stored in the rich database:
 - Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
 - High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
 - Stellar Multiplicity (Architectural Complexity): Points scale with the number of stars in the system; hierarchical trinaries or quaternaries rank significantly higher than simple binaries.
@@ -303,7 +304,7 @@ This ensures our compute resources for v1.2 blurb and image generation are spent
 - Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of interestingness).
 - Science Fiction: Wolf 359 is where the Federation made its final stand against the Borg in Star Trek: The Next Generation. The exotic moon "Pandora" from the movie Avatar orbits a gas giant in the Alpha Centauri system. Vega is famous for its role in Carl Sagan's Contact.
 
-**Ranking by Narrative Density:** By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack. With these rankings stored in the enrichment database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
+**Ranking by Narrative Density:** By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack. With these rankings stored in the rich database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
 
 ---
 
@@ -340,7 +341,7 @@ Goal: produce **deterministic, cacheable “system snapshot” images** that mak
 Snapshots are **derived artifacts** (like reports), not part of the immutable core astronomy tables.
 
 - Store binary image blobs in object storage / filesystem (preferred):
-  - `out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
+  - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
 - Store a manifest table (Parquet and/or DuckDB table) that the UI can query:
   - `snapshot_manifest` fields:
     - `stable_object_key`
@@ -384,7 +385,7 @@ Success criteria:
 - Counter prompt is used to evaluate the factuality of the blurb and discard hallucinations
 
 ### v1.2+: External reference links (curated web sources)
-Goal: augment enrichment with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
+Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
 
 Method (proposed):
 - **Discovery**: for each object, generate candidate queries from stable identifiers and common names (e.g., primary name, catalog IDs).
@@ -398,7 +399,7 @@ Method (proposed):
 - **Human override**: optionally pin or blacklist specific links in a small manual overrides file.
 
 Storage model:
-- New enrichment table `reference_links`:
+- New rich table `reference_links`:
   - `stable_object_key`, `object_type`
   - `link_type` (wikipedia | simbad | nasa_exoplanet_archive | observatory | other)
   - `url`
@@ -415,18 +416,18 @@ Reasonable limits (initial defaults):
 - **Domain cap**: 2 links from the same domain per object.
 - **Coverage budget**: only “interestingness” top N objects in v1.2; full coverage later.
 - **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
-- **Strictly link-only**: store URLs + metadata only; no copying page text into enrichment.
+- **Strictly link-only**: store URLs + metadata only; no copying page text into rich.
 
 ## v1.2.2: System neighbor graph (10 nearest systems)
 Goal: precompute nearest-neighbor relationships between systems for fast UI queries and navigation.
 
 Success criteria:
 - For every core `systems` row, compute the 10 nearest *other* systems by 3D Euclidean distance (ly).
-- Store results in enrichment as a stable, reproducible derived artifact.
+- Store results in rich as a stable, reproducible derived artifact.
 - Deterministic ordering for ties (distance, then `neighbor_system_id` asc).
 
 Storage model:
-- New enrichment table `system_neighbors`:
+- New rich table `system_neighbors`:
   - `system_id` (core FK)
   - `neighbor_rank` (1..10)
   - `neighbor_system_id` (core FK)
@@ -483,7 +484,7 @@ Detection catalogs (raw survey detections; not “objects”):
 # Status (as of 2026-02-04)
 - Core ingestion pipeline complete (AT-HYG + NASA exoplanets).
 - Morton indexing implemented (21 bits/axis, ±1000 ly), Parquet outputs sorted by spatial_index.
-- `served/current` promoted to latest build.
+- `$SPACEGATE_STATE_DIR/served/current` promoted to latest build.
 - CLI explorer available: `scripts/explore_core.py`.
 - Optional packs deferred to v2.1.
 

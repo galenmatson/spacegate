@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
+import os
 import sys
+from pathlib import Path
 from typing import Optional
 
 import duckdb
 import requests
 
-DB_PATH = "/data/spacegate/served/current/core.duckdb"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+STATE_DIR = Path(os.getenv("SPACEGATE_STATE_DIR") or ROOT_DIR / "data")
+DEFAULT_DB_PATH = STATE_DIR / "served" / "current" / "core.duckdb"
+DB_PATH = os.getenv("SPACEGATE_DB_PATH", str(DEFAULT_DB_PATH))
 
 
 def find_system_by_identifier(kind: str, value: int) -> Optional[int]:

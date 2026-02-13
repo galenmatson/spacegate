@@ -3,15 +3,16 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT_DIR="$ROOT_DIR/out"
-SERVED_DIR="$ROOT_DIR/served"
+STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+OUT_DIR="$STATE_DIR/out"
+SERVED_DIR="$STATE_DIR/served"
 
 usage() {
   cat <<'USAGE'
 Usage:
   scripts/promote_build.sh [BUILD_ID]
 
-If BUILD_ID is not provided, the latest out/* directory (by name sort) is promoted.
+If BUILD_ID is not provided, the latest $SPACEGATE_STATE_DIR/out/* directory (by name sort) is promoted.
 USAGE
 }
 
@@ -33,7 +34,7 @@ require_artifacts() {
   local build_dir="$1"
   local core_db="$build_dir/core.duckdb"
   local parquet_dir="$build_dir/parquet"
-  local reports_dir="$ROOT_DIR/reports/$(basename "$build_dir")"
+  local reports_dir="$STATE_DIR/reports/$(basename "$build_dir")"
 
   if [[ ! -f "$core_db" ]]; then
     echo "Error: missing $core_db" >&2

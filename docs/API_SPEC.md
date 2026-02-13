@@ -71,7 +71,7 @@ Response 200:
 {
   "status": "ok",
   "build_id": "2026-02-04T202142Z_73ea6e7",
-  "db_path": "/data/spacegate/served/current/core.duckdb",
+  "db_path": "$SPACEGATE_STATE_DIR/served/current/core.duckdb",
   "time_utc": "2026-02-05T00:00:00Z"
 }
 ```

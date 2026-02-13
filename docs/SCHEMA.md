@@ -13,14 +13,15 @@ v0 ingests **only**:
 v0 produces a **pure astronomy** dataset. No lore, blurbs, or images live in core.
 
 Optional packs (substellar/compact/extended objects) and editorial/lore layers are v2.1+ and are separate artifacts.
+Derived “rich” artifacts (factsheets/blurbs/snapshots) are out of scope for this schema and live in their own dataset.
 
 ---
 
 ## Primary artifact
 
-- `out/<build_id>/core.duckdb` (DuckDB database)
-- `out/<build_id>/parquet/{systems,stars,planets}.parquet`
-- `reports/<build_id>/...` (match/QC/provenance reports)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb` (DuckDB database)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{systems,stars,planets}.parquet`
+- `$SPACEGATE_STATE_DIR/reports/<build_id>/...` (match/QC/provenance reports)
 
 ### Build ID
 `build_id = YYYY-MM-DDTHHMMSSZ_<gitshortsha>`
@@ -334,9 +335,9 @@ Warnings:
 - duplicate host name mappings exceed threshold
 
 Reports produced each build:
-- `reports/<build_id>/match_report.json`
-- `reports/<build_id>/qc_report.json`
-- `reports/<build_id>/provenance_report.json`
+- `$SPACEGATE_STATE_DIR/reports/<build_id>/match_report.json`
+- `$SPACEGATE_STATE_DIR/reports/<build_id>/qc_report.json`
+- `$SPACEGATE_STATE_DIR/reports/<build_id>/provenance_report.json`
 
 ---
 
@@ -349,7 +350,7 @@ Parquet exports should preserve:
 - match columns on planets
 
 Export location:
-- `out/<build_id>/parquet/`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/`
 
 ---
 

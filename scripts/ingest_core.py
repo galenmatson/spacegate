@@ -26,6 +26,107 @@ def log(message: str) -> None:
     print(f"{timestamp} {message}", flush=True)
 
 
+def read_int_file(path: Path) -> int | None:
+    try:
+        text = path.read_text().strip()
+    except Exception:
+        return None
+    if not text:
+        return None
+    if text.lower() == "max":
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def detect_mem_total_bytes() -> int | None:
+    meminfo = Path("/proc/meminfo")
+    if not meminfo.exists():
+        return None
+    try:
+        for line in meminfo.read_text().splitlines():
+            if line.startswith("MemTotal:"):
+                parts = line.split()
+                if len(parts) >= 2 and parts[1].isdigit():
+                    return int(parts[1]) * 1024
+    except Exception:
+        return None
+    return None
+
+
+def detect_cgroup_limit_bytes(mem_total: int | None) -> int | None:
+    candidates = [
+        Path("/sys/fs/cgroup/memory.max"),
+        Path("/sys/fs/cgroup/memory/memory.limit_in_bytes"),
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        limit = read_int_file(path)
+        if limit is None:
+            continue
+        # Ignore "unlimited" sentinel values.
+        if limit >= (1 << 60):
+            continue
+        if mem_total is not None and limit > mem_total:
+            # Likely an unlimited cgroup value, fall back to mem_total.
+            continue
+        return limit
+    return None
+
+
+def detect_available_memory_bytes() -> int | None:
+    mem_total = detect_mem_total_bytes()
+    cgroup_limit = detect_cgroup_limit_bytes(mem_total)
+    if mem_total is not None and cgroup_limit is not None:
+        return min(mem_total, cgroup_limit)
+    if cgroup_limit is not None:
+        return cgroup_limit
+    return mem_total
+
+
+def choose_memory_limit_bytes(available_bytes: int) -> int:
+    target = int(available_bytes * 0.70)
+    min_bytes = 512 * 1024 * 1024
+    if target < min_bytes:
+        target = min(min_bytes, available_bytes)
+    return max(target, 1)
+
+
+def resolve_duckdb_memory_limit() -> tuple[str | None, str]:
+    env_limit = os.getenv("SPACEGATE_DUCKDB_MEMORY_LIMIT")
+    if env_limit:
+        return env_limit.strip(), "env"
+    available = detect_available_memory_bytes()
+    if available:
+        limit_bytes = choose_memory_limit_bytes(available)
+        return f"{limit_bytes}B", "auto"
+    return None, "default"
+
+
+def resolve_duckdb_threads() -> tuple[int | None, str]:
+    env_threads = os.getenv("SPACEGATE_DUCKDB_THREADS")
+    if env_threads:
+        try:
+            threads = int(env_threads)
+        except ValueError as exc:
+            raise SystemExit(
+                f"Invalid SPACEGATE_DUCKDB_THREADS value: {env_threads!r} (expected integer)"
+            ) from exc
+        if threads < 1:
+            raise SystemExit(
+                f"Invalid SPACEGATE_DUCKDB_THREADS value: {env_threads!r} (must be >= 1)"
+            )
+        return threads, "env"
+    try:
+        cpu = len(os.sched_getaffinity(0))
+    except AttributeError:
+        cpu = os.cpu_count() or 1
+    return max(cpu, 1), "auto"
+
+
 def acquire_lock(lock_path: Path, build_id: str) -> None:
     lock_info = (
         f"pid={os.getpid()}\n"
@@ -219,7 +320,7 @@ def require_manifest_entry(manifest: dict, source_name: str, label: str) -> dict
     if not entry:
         raise SystemExit(
             f"Missing manifest entry for {label} ({source_name}). "
-            f"Re-run the downloader to refresh reports/manifests."
+            f"Re-run the downloader to refresh $SPACEGATE_STATE_DIR/reports/manifests."
         )
     if not entry.get("retrieved_at"):
         raise SystemExit(
@@ -241,9 +342,10 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root)
-    cooked_athyg = root / "cooked" / "athyg" / "athyg.csv.gz"
-    cooked_nasa = root / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
-    manifest_path = root / "reports" / "manifests" / "core_manifest.json"
+    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or root / "data")
+    cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
+    cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
+    manifest_path = state_dir / "reports" / "manifests" / "core_manifest.json"
 
     if not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
@@ -257,13 +359,13 @@ def main() -> int:
     build_id = args.build_id or f"{now}_{get_git_sha(root)}"
     log(f"Build id: {build_id}")
 
-    lock_path = root / "out" / ".ingest_core.lock"
+    lock_path = state_dir / "out" / ".ingest_core.lock"
     acquire_lock(lock_path, build_id)
 
-    final_out_dir = root / "out" / build_id
-    tmp_out_dir = root / "out" / f"{build_id}.tmp"
+    final_out_dir = state_dir / "out" / build_id
+    tmp_out_dir = state_dir / "out" / f"{build_id}.tmp"
     parquet_dir = tmp_out_dir / "parquet"
-    reports_dir = root / "reports" / build_id
+    reports_dir = state_dir / "reports" / build_id
 
     if final_out_dir.exists():
         raise SystemExit(f"Build output already exists: {final_out_dir}")
@@ -280,8 +382,17 @@ def main() -> int:
 
     con = duckdb.connect(str(db_path))
     con.create_function("morton3d", morton3d)
-    con.execute("SET threads TO 4")
-    con.execute("SET memory_limit='24GB'")
+    threads, threads_source = resolve_duckdb_threads()
+    if threads is not None:
+        con.execute(f"SET threads TO {threads}")
+        log(f"DuckDB threads set to {threads} ({threads_source})")
+
+    memory_limit, mem_source = resolve_duckdb_memory_limit()
+    if memory_limit is not None:
+        con.execute(f"SET memory_limit='{memory_limit}'")
+        log(f"DuckDB memory_limit set to {memory_limit} ({mem_source})")
+    else:
+        log("DuckDB memory_limit not set (using DuckDB default)")
     con.execute(f"SET temp_directory='{str(tmp_work_dir).replace("'", "''")}'")
 
     ingested_at = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1344,9 +1455,17 @@ def main() -> int:
         """
     ).fetchall()
 
-    dist_violations = con.execute(
+    dist_violations_stars = con.execute(
         """
         select count(*) from stars
+        where dist_ly is not null and x_helio_ly is not null and y_helio_ly is not null and z_helio_ly is not null
+          and abs(sqrt(x_helio_ly*x_helio_ly + y_helio_ly*y_helio_ly + z_helio_ly*z_helio_ly) - dist_ly) > 1e-3
+        """
+    ).fetchone()[0]
+
+    dist_violations_systems = con.execute(
+        """
+        select count(*) from systems
         where dist_ly is not null and x_helio_ly is not null and y_helio_ly is not null and z_helio_ly is not null
           and abs(sqrt(x_helio_ly*x_helio_ly + y_helio_ly*y_helio_ly + z_helio_ly*z_helio_ly) - dist_ly) > 1e-3
         """
@@ -1365,7 +1484,9 @@ def main() -> int:
     qc_report = {
         "build_id": build_id,
         "counts": {"stars": counts[0], "systems": counts[1], "planets": counts[2]},
-        "dist_invariant_violations": dist_violations,
+        "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
+        "dist_invariant_violations_stars": dist_violations_stars,
+        "dist_invariant_violations_systems": dist_violations_systems,
         "provenance_missing_stars": provenance_missing,
         "morton": {
             "bits_per_axis": BITS_PER_AXIS,
@@ -1385,6 +1506,12 @@ def main() -> int:
 
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
+
+    if dist_violations_stars + dist_violations_systems > 0:
+        raise SystemExit(
+            "QC failed: distance invariant violations detected. "
+            f"See {reports_dir / 'qc_report.json'}"
+        )
 
     # Parquet exports (sorted by spatial_index)
     log("Writing Parquet exports")

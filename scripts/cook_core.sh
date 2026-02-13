@@ -3,9 +3,10 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RAW_DIR="$ROOT_DIR/raw"
-COOKED_DIR="$ROOT_DIR/cooked"
-LOG_DIR="$ROOT_DIR/logs"
+STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+RAW_DIR="$STATE_DIR/raw"
+COOKED_DIR="$STATE_DIR/cooked"
+LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 PYTHON_BIN=""
 
 ATHYG_PART1="${ATHYG_PART1:-$RAW_DIR/athyg/athyg_v33-1.csv.gz}"
@@ -56,7 +57,7 @@ ensure_inputs() {
   fi
   if [[ $missing -eq 0 ]]; then
     if is_lfs_pointer "$ATHYG_PART1" || is_lfs_pointer "$ATHYG_PART2"; then
-      echo "AT-HYG files are Git LFS pointers. Re-run raw/download_core.sh to fetch the real data." >&2
+      echo "AT-HYG files are Git LFS pointers. Re-run scripts/download_core.sh to fetch the real data." >&2
       exit 1
     fi
   fi

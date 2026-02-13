@@ -2,6 +2,7 @@
 import argparse
 import datetime as dt
 import json
+import os
 from pathlib import Path
 
 
@@ -11,7 +12,8 @@ def utc_now() -> str:
 
 def default_build_dir() -> Path:
     root = Path(__file__).resolve().parents[1]
-    return (root / "served" / "current").resolve()
+    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or root / "data")
+    return (state_dir / "served" / "current").resolve()
 
 
 def main() -> int:

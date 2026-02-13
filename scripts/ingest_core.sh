@@ -3,7 +3,8 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG_DIR="$ROOT_DIR/logs"
+STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 LOG_FILE="$LOG_DIR/ingest_core.log"
 
 mkdir -p "$LOG_DIR"

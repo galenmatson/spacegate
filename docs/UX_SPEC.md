@@ -1,6 +1,6 @@
 # Spacegate v0.1 UX Spec (Public Database Browser)
 
-Scope: search/browse core systems, stars, and planets from `core.duckdb`. No 3D map, no lore, no enrichment beyond counts/aggregation. UI is read-only.
+Scope: search/browse core systems, stars, and planets from `core.duckdb`. No 3D map, no lore, no rich layer beyond counts/aggregation. UI is read-only.
 
 ## Global UI Principles
 - Primary task: find a system and understand what is known about it.

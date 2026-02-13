@@ -1,11 +1,14 @@
 import os
+from pathlib import Path
 from contextlib import contextmanager
 from typing import Iterator
 
 import duckdb
 
 
-DEFAULT_DB_PATH = "/data/spacegate/served/current/core.duckdb"
+ROOT_DIR = Path(__file__).resolve().parents[3]
+DEFAULT_STATE_DIR = Path(os.getenv("SPACEGATE_STATE_DIR") or ROOT_DIR / "data")
+DEFAULT_DB_PATH = str(DEFAULT_STATE_DIR / "served" / "current" / "core.duckdb")
 
 
 def get_db_path() -> str:

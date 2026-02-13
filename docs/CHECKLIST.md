@@ -8,12 +8,12 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [x] Document current data sources in `docs/DATA_SOURCES.md`
 - [x] Add pack contract doc `docs/PACKS.md`
 - [x] Add packs manifest stub generator `scripts/generate_packs_manifest.py`
-- [x] Add `.gitignore` entries for generated artifacts (`/reports/`, `/out/`, etc.)
+- [x] Add `.gitignore` entries for generated artifacts (`/data/`, etc.)
 
 ## Core Data Acquisition (v0)
 - [x] Download scripts for AT-HYG + NASA Exoplanet Archive
 - [x] Resolve LFS pointers during AT-HYG download
-- [x] Manifests recorded under `reports/manifests/`
+- [x] Manifests recorded under `$SPACEGATE_STATE_DIR/reports/manifests/`
 - [x] Cooked core outputs generated deterministically
 
 ## Core Ingestion (v0)
@@ -23,21 +23,21 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [x] Join exoplanets to host stars/systems with match provenance + confidence
 - [x] Morton spatial index (63-bit, 21 bits/axis, ±1000 ly)
 - [x] Morton domain hard-fail on out-of-bounds coords
-- [ ] Distance invariant QC hard-fail (abs(norm(x,y,z) - dist_ly) < eps)
+- [x] Distance invariant QC hard-fail (abs(norm(x,y,z) - dist_ly) < eps)
 - [x] Parquet exports sorted by `spatial_index`
 - [x] Provenance QC gate (hard-fail on missing required fields)
 - [x] Build metadata table recorded in core.duckdb
 - [x] System grouping: name-root + optional proximity (gated by `SPACEGATE_ENABLE_PROXIMITY=1`)
 - [x] Lockfile to prevent concurrent ingest
-- [x] Atomic build output staging (`out/<build_id>.tmp/` → `out/<build_id>/`)
+- [x] Atomic build output staging (`$SPACEGATE_STATE_DIR/out/<build_id>.tmp/` → `$SPACEGATE_STATE_DIR/out/<build_id>/`)
 - [x] Build IDs include UTC time (`YYYY-MM-DDTHHMMSSZ_<gitsha>`)
 
 ## Build Outputs & Promotion
-- [x] `out/<build_id>/core.duckdb` produced
-- [x] `out/<build_id>/parquet/{stars,systems,planets}.parquet` produced
-- [x] `reports/<build_id>/` generated (QC, provenance, match, grouping)
+- [x] `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb` produced
+- [x] `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{stars,systems,planets}.parquet` produced
+- [x] `$SPACEGATE_STATE_DIR/reports/<build_id>/` generated (QC, provenance, match, grouping)
 - [x] Promotion script `scripts/promote_build.sh`
-- [x] `served/current` points to promoted build
+- [x] `$SPACEGATE_STATE_DIR/served/current` points to promoted build
 
 ## Tooling & Exploration
 - [x] CLI explorer `scripts/explore_core.py`
@@ -65,12 +65,12 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [ ] Host UI/API on Google Cloud
 - [ ] Public at `spacegates.org`
 
-## Enrichment (v1.1+)
-- [ ] Interestingness scoring + ranking stored in enrichment
+## Rich (v1.1+)
+- [ ] Interestingness scoring + ranking stored in rich
 - [ ] Snapshot generator and manifest
 - [ ] Factsheets + blurbs pipeline
 - [ ] Deterministic rendering rules and QC
-- [ ] Enrichment artifact storage + versioning
+- [ ] Rich artifact storage + versioning
 - [ ] External reference links (curated authoritative sources)
 - [ ] System neighbor graph (10 nearest systems per system)
 

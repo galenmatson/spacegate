@@ -1,4 +1,5 @@
 # big / regenerable
+/data/*
 /raw/
 /cooked/
 /out/
@@ -6,8 +7,6 @@
 /cache/
 /logs/*
 /reports/*
-# !/reports/manifests/
-# !/reports/manifests/**
 
 # local env
 .venv/

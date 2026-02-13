@@ -3,9 +3,10 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RAW_DIR="$ROOT_DIR/raw"
-LOG_DIR="$ROOT_DIR/logs"
-MANIFEST_DIR="$ROOT_DIR/reports/manifests"
+STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+RAW_DIR="$STATE_DIR/raw"
+LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
+MANIFEST_DIR="$STATE_DIR/reports/manifests"
 CONFIG_ENV="$ROOT_DIR/configs/catalog_urls.env"
 
 mkdir -p "$RAW_DIR" "$LOG_DIR" "$MANIFEST_DIR"
@@ -427,7 +428,7 @@ main() {
     url="${url%%|*}"
     dest="${entry##*|}"
 
-    local dest_abs="$ROOT_DIR/$dest"
+    local dest_abs="$STATE_DIR/$dest"
     local dest_dir
     dest_dir="$(dirname "$dest_abs")"
     mkdir -p "$dest_dir"
@@ -491,7 +492,7 @@ main() {
       continue
     fi
 
-    local dest_abs="$ROOT_DIR/$dest"
+    local dest_abs="$STATE_DIR/$dest"
     if [[ ! -f "$dest_abs" ]]; then
       log "Error: missing downloaded file $dest"
       size_ok=0

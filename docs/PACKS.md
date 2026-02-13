@@ -11,9 +11,9 @@ Packs are **read-only**, versioned artifacts that augment core data without muta
 ## Pack directory layout
 Each build may include zero or more packs:
 
-- `out/<build_id>/packs/<pack_name>/*.parquet`
-- `out/<build_id>/packs/<pack_name>.duckdb` (optional)
-- `out/<build_id>/packs_manifest.json` (discovery index)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>/*.parquet`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>.duckdb` (optional)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/packs_manifest.json` (discovery index)
 
 ## Pack schema contract (minimum)
 Every pack table must include these fields:

@@ -11,7 +11,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Optional: point to a different build
-export SPACEGATE_DB_PATH=/data/spacegate/served/current/core.duckdb
+export SPACEGATE_STATE_DIR=/data/spacegate/data
+# or export SPACEGATE_DB_PATH=/data/spacegate/data/served/current/core.duckdb
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```

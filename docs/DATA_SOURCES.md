@@ -4,10 +4,10 @@ This document defines **all external data sources** used by the Spacegate projec
 
 The goal is strict provenance, reproducibility, and clear separation between:
 
-- **what the universe gave us** (`raw/`)
-- **what we assembled and normalized** (`cooked/`)
-- **what we actively serve and query** (`served/`)
-- **what we log and validate** (`reports/`)
+- **what the universe gave us** (`$SPACEGATE_STATE_DIR/raw/`)
+- **what we assembled and normalized** (`$SPACEGATE_STATE_DIR/cooked/`)
+- **what we actively serve and query** (`$SPACEGATE_STATE_DIR/served/`)
+- **what we log and validate** (`$SPACEGATE_STATE_DIR/reports/`)
 
 Nothing in this file is aspirational. Everything here reflects current v0 reality.
 
@@ -15,7 +15,7 @@ Nothing in this file is aspirational. Everything here reflects current v0 realit
 
 ## Directory semantics (normative)
 
-### `raw/` — immutable inputs
+### `$SPACEGATE_STATE_DIR/raw/` — immutable inputs
 
 **Purpose**: Preserve exact upstream artifacts.
 
@@ -23,51 +23,54 @@ Nothing in this file is aspirational. Everything here reflects current v0 realit
 - Never edited by hand
 - Only written by downloader scripts
 - Can always be re-fetched from source URLs
-- `raw/` is runtime state and is not tracked in git
+- `$SPACEGATE_STATE_DIR/raw/` is runtime state and is not tracked in git
 
 ```
-raw/
-├── <catalog>/
+data/
+├── raw/
+│   ├── <catalog>/
 ```
 
-### `cooked/` — assembled, normalized, file-based products
+### `$SPACEGATE_STATE_DIR/cooked/` — assembled, normalized, file-based products
 
 **Purpose**: Deterministic preparation for ingestion.
 
-- Built exclusively from `raw/`
+- Built exclusively from `$SPACEGATE_STATE_DIR/raw/`
 - Still catalog-shaped (CSV, FITS-derived tables, etc.)
 - No joins across catalogs
 - No inference or enrichment
 
-Everything in `cooked/` is disposable and regenerable.
+Everything in `$SPACEGATE_STATE_DIR/cooked/` is disposable and regenerable.
 
 ```
-cooked/
-├── <catalog>/
+data/
+├── cooked/
+│   ├── <catalog>/
 ```
 
-### `served/` — queryable data products
+### `$SPACEGATE_STATE_DIR/served/` — queryable data products
 
 **Purpose**: Efficient consumption.
 
-- Built exclusively from `cooked/`
+- Built exclusively from `$SPACEGATE_STATE_DIR/cooked/`
 - Optimized for querying, filtering, joining
 - Used by applications, analysis, visualization
-- `served/current` is a symlink to the promoted `out/<build_id>/` directory
+- `served/current` is a symlink to the promoted `$SPACEGATE_STATE_DIR/out/<build_id>/` directory
 
 Formats include DuckDB and Parquet.
 
 ```
-served/
-├── current -> ../out/<build_id>/
+data/
+├── served/
+│   ├── current -> ../out/<build_id>/
 ```
 
-### `reports/` — logs, QC, and download manifests
+### `$SPACEGATE_STATE_DIR/reports/` — logs, QC, and download manifests
 
 **Purpose**: Record download provenance and QC outputs.
 
-- Build reports live under `reports/<build_id>/`
-- Download manifests live under `reports/manifests/`
+- Build reports live under `$SPACEGATE_STATE_DIR/reports/<build_id>/`
+- Download manifests live under `$SPACEGATE_STATE_DIR/reports/manifests/`
 
 ---
 
@@ -76,7 +79,7 @@ served/
 Manifests live in:
 
 ```
-reports/manifests/
+$SPACEGATE_STATE_DIR/reports/manifests/
 ```
 
 They record **provenance of raw inputs only**.
@@ -90,7 +93,11 @@ Each manifest entry contains:
 - `sha256`
 - `bytes_written`
 
+`dest_path` is relative to `$SPACEGATE_STATE_DIR`.
+
 Manifests are rewritten when download scripts are re-run.
+
+Manifests are generated locally and are not tracked in git.
 
 ---
 
@@ -103,15 +110,15 @@ These sources are required for v0 ingestion and must always be present.
 **Authority**: Astronexus / HYG Database
 
 **Raw inputs**:
-- `raw/athyg/athyg_v33-1.csv.gz`
-- `raw/athyg/athyg_v33-2.csv.gz`
+- `$SPACEGATE_STATE_DIR/raw/athyg/athyg_v33-1.csv.gz`
+- `$SPACEGATE_STATE_DIR/raw/athyg/athyg_v33-2.csv.gz`
 
 **Source URL**:
 
 - `https://codeberg.org/astronexus/athyg`
 
 **Cooked outputs**:
-- `cooked/athyg/athyg.csv.gz` (concatenated, column-normalized)
+- `$SPACEGATE_STATE_DIR/cooked/athyg/athyg.csv.gz` (concatenated, column-normalized)
 
 **Notes**:
 - AT-HYG files are stored via Git LFS on Codeberg; the downloader resolves LFS pointers.
@@ -124,9 +131,9 @@ These sources are required for v0 ingestion and must always be present.
 - Identifiers (HIP, HD, Gaia where available)
 - Photometry and spectral types
 
-**Download script**: `raw/download_core.sh`
+**Download script**: `scripts/download_core.sh`
 
-**Manifest**: `reports/manifests/core_manifest.json`
+**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/core_manifest.json`
 
 ---
 
@@ -135,13 +142,13 @@ These sources are required for v0 ingestion and must always be present.
 **Authority**: NASA Exoplanet Archive
 
 **Raw input**:
-- `raw/nasa_exoplanet_archive/pscomppars.csv`
+- `$SPACEGATE_STATE_DIR/raw/nasa_exoplanet_archive/pscomppars.csv`
 
 **Source URL**:
 - `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+pscomppars&format=csv`
 
 **Cooked output**:
-- `cooked/nasa_exoplanet_archive/pscomppars_clean.csv`
+- `$SPACEGATE_STATE_DIR/cooked/nasa_exoplanet_archive/pscomppars_clean.csv`
 
 **Format**: CSV
 
@@ -155,9 +162,9 @@ These sources are required for v0 ingestion and must always be present.
 - TAP synchronous query
 - Table: `pscomppars`
 
-**Download script**: `raw/download_core.sh`
+**Download script**: `scripts/download_core.sh`
 
-**Manifest**: `reports/manifests/core_manifest.json`
+**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/core_manifest.json`
 
 ---
 
@@ -172,13 +179,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: AAVSO
 
 **Raw input**:
-- `raw/vsx/vsx.dat.gz`
+- `$SPACEGATE_STATE_DIR/raw/vsx/vsx.dat.gz`
 
 **Source URL**:
 - `ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz` (CDS Mirror)
 
 **Cooked output**:
-- `cooked/vsx/variables_classified.csv`
+- `$SPACEGATE_STATE_DIR/cooked/vsx/variables_classified.csv`
 
 **Format**: CSV
 
@@ -194,13 +201,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: MRAO Cambridge (D.A. Green)
 
 **Raw input**:
-- `raw/snr/snrs.list`
+- `$SPACEGATE_STATE_DIR/raw/snr/snrs.list`
 
 **Source URL**:
 - `https://www.mrao.cam.ac.uk/surveys/snrs/snrs.list`
 
 **Cooked output**:
-- `cooked/snr/snr_boundaries.csv`
+- `$SPACEGATE_STATE_DIR/cooked/snr/snr_boundaries.csv`
 
 **Format**: Fixed-width text
 
@@ -216,13 +223,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: Australia Telescope National Facility (ATNF)
 
 **Raw input**:
-- `raw/atnf/psrcat_pkg.tar.gz`
+- `$SPACEGATE_STATE_DIR/raw/atnf/psrcat_pkg.tar.gz`
 
 **Source URL**:
 - `https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz`
 
 **Cooked output**:
-- `cooked/atnf/pulsars_clean.csv`
+- `$SPACEGATE_STATE_DIR/cooked/atnf/pulsars_clean.csv`
 
 **Format**: tar.gz package
 
@@ -238,13 +245,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: McGill University
 
 **Raw input**:
-- `raw/magnetar/TabO1.csv`
+- `$SPACEGATE_STATE_DIR/raw/magnetar/TabO1.csv`
 
 **Source URL**:
 - `http://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv`
 
 **Cooked output**:
-- `cooked/magnetar/magnetars_clean.csv`
+- `$SPACEGATE_STATE_DIR/cooked/magnetar/magnetars_clean.csv`
 
 **Format**: CSV
 
@@ -260,13 +267,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: UltracoolSheet Team
 
 **Raw input**:
-- `raw/ultracoolsheet/UltracoolSheet - Main.csv`
+- `$SPACEGATE_STATE_DIR/raw/ultracoolsheet/UltracoolSheet - Main.csv`
 
 **Source URL**:
 - `http://bit.ly/UltracoolSheet` (Redirects to Google Sheet export)
 
 **Cooked output**:
-- `cooked/ultracoolsheet/ultracool_main_clean.csv`
+- `$SPACEGATE_STATE_DIR/cooked/ultracoolsheet/ultracool_main_clean.csv`
 
 **Format**: CSV
 
@@ -283,13 +290,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: CDS / Gaia Collaboration
 
 **Raw input**:
-- `raw/gaia_ucd/table4.dat.gz`
+- `$SPACEGATE_STATE_DIR/raw/gaia_ucd/table4.dat.gz`
 
 **Source URL**:
 - `ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/657/A69/table4.dat.gz`
 
 **Cooked output**:
-- `cooked/gaia_ucd/gaia_ucd_clean.csv`
+- `$SPACEGATE_STATE_DIR/cooked/gaia_ucd/gaia_ucd_clean.csv`
 
 **Format**: fixed-width text table
 
@@ -304,13 +311,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: University of Warwick / MNRAS
 
 **Raw input**:
-- `raw/white_dwarf/gaiaedr3_wd_main.fits.gz`
+- `$SPACEGATE_STATE_DIR/raw/white_dwarf/gaiaedr3_wd_main.fits.gz`
 
 **Source URL**:
 - `https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz`
 
 **Cooked output**:
-- `cooked/white_dwarf/white_dwarfs_clean.csv`
+- `$SPACEGATE_STATE_DIR/cooked/white_dwarf/white_dwarfs_clean.csv`
 
 **Format**: FITS
 
@@ -325,13 +332,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: DwarfArchives.org
 
 **Raw input (when enabled)**:
-- `raw/dwarfarchives/dwarfarchives.data`
+- `$SPACEGATE_STATE_DIR/raw/dwarfarchives/dwarfarchives.data`
 
 **Source URL**:
 - `http://dwarfarchives.org/` (Requires scraping)
 
 **Cooked output**:
-- `cooked/dwarfarchives/dwarfarchives_parsed.csv`
+- `$SPACEGATE_STATE_DIR/cooked/dwarfarchives/dwarfarchives_parsed.csv`
 
 **Format**: upstream-defined
 
@@ -346,13 +353,13 @@ No optional pack sources are active yet. This section will be updated when sourc
 **Authority**: IPAC / IRSA
 
 **Raw inputs**:
-- `raw/catwise_full/<tile>/*.tbl.gz`
+- `$SPACEGATE_STATE_DIR/raw/catwise_full/<tile>/*.tbl.gz`
 
 **Source URL**:
 - `https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/catwise_2020.html` (Base URL for file list)
 
 **Cooked output**:
-- `cooked/catwise_full/catwise_detections.parquet` (Partitioned by tile)
+- `$SPACEGATE_STATE_DIR/cooked/catwise_full/catwise_detections.parquet` (Partitioned by tile)
 
 **Format**: gzipped IPAC tables
 
@@ -379,16 +386,16 @@ Scripts features:
 - Verify byte counts
 - Compute SHA-256 hashes
 - Write manifest entries
-- Log begin/end, error, complete, totals, etc. to logs/catalogs.log
+- Log begin/end, error, complete, totals, etc. to `$SPACEGATE_STATE_DIR/logs/catalogs.log`
 
 ---
 
 ## Invariants (non-negotiable)
 
-- `raw/` is immutable
-- `cooked/` is fully disposable
-- `served/` depends only on `cooked/` (via promoted `out/<build_id>/` builds)
-- No manual edits to `raw/`
-- Download provenance manifests live in `reports/manifests/`
+- `$SPACEGATE_STATE_DIR/raw/` is immutable
+- `$SPACEGATE_STATE_DIR/cooked/` is fully disposable
+- `$SPACEGATE_STATE_DIR/served/` depends only on `$SPACEGATE_STATE_DIR/cooked/` (via promoted `$SPACEGATE_STATE_DIR/out/<build_id>/` builds)
+- No manual edits to `$SPACEGATE_STATE_DIR/raw/`
+- Download provenance manifests live in `$SPACEGATE_STATE_DIR/reports/manifests/`
 
 If a file violates these rules, it is in the wrong directory.

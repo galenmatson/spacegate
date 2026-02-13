@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -8,7 +9,8 @@ import duckdb
 
 def default_db_path() -> Path:
     root = Path(__file__).resolve().parents[1]
-    return root / "served" / "current" / "core.duckdb"
+    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or root / "data")
+    return state_dir / "served" / "current" / "core.duckdb"
 
 
 def connect(db_path: Path) -> duckdb.DuckDBPyConnection:
