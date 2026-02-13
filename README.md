@@ -50,15 +50,14 @@
 This is the simplest path to download, build, and serve the core dataset.
 
 1. Install system dependencies: `python3`, `pip`, `aria2c`, `curl`, `gzip`, `git`, `node`, `npm`.
-1. Clone and run the setup script (creates venvs + installs deps).
-1. Run the one-step build script (download → cook → ingest → promote → verify).
+1. Clone and run the installer (sets up venvs, installs deps, builds DB if missing).
 1. Run the launcher (API + web).
 
 ```bash
 git clone https://github.com/galenmatson/spacegate.git
 cd spacegate
 
-scripts/setup_spacegate.sh
+scripts/install_spacegate.sh
 
 # Optional: choose data locations (defaults to ./data)
 # export SPACEGATE_STATE_DIR=/var/lib/spacegate
@@ -68,8 +67,6 @@ scripts/setup_spacegate.sh
 # Optional: tune DuckDB resources (otherwise auto-detected)
 # export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 # export SPACEGATE_DUCKDB_THREADS=4
-
-scripts/build_core.sh
 
 # Start API + web
 scripts/run_spacegate.sh

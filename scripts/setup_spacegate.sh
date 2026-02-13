@@ -23,20 +23,33 @@ require_command() {
   fi
 }
 
+create_venv() {
+  local venv_dir="$1"
+  if [[ ! -d "$venv_dir" ]]; then
+    if ! "$PYTHON_BIN" -m venv "$venv_dir"; then
+      echo "Error: failed to create venv at $venv_dir" >&2
+      echo "Tip: on Debian/Ubuntu install python3-venv." >&2
+      exit 1
+    fi
+  fi
+}
+
 ensure_pip() {
   local pybin="$1"
   if "$pybin" -m pip --version >/dev/null 2>&1; then
     return 0
   fi
   echo "pip not found for $pybin. Bootstrapping with ensurepip..." >&2
-  "$pybin" -m ensurepip --upgrade >/dev/null
+  if ! "$pybin" -m ensurepip --upgrade >/dev/null; then
+    echo "Error: ensurepip failed for $pybin" >&2
+    echo "Tip: on Debian/Ubuntu install python3-venv or python3-pip." >&2
+    exit 1
+  fi
 }
 
 setup_root_venv() {
   echo "==> Setup root venv (.venv)"
-  if [[ ! -d "$ROOT_DIR/.venv" ]]; then
-    "$PYTHON_BIN" -m venv "$ROOT_DIR/.venv"
-  fi
+  create_venv "$ROOT_DIR/.venv"
   ensure_pip "$ROOT_DIR/.venv/bin/python"
   "$ROOT_DIR/.venv/bin/python" -m pip install -U pip >/dev/null
   "$ROOT_DIR/.venv/bin/python" -m pip install -r "$ROOT_DIR/requirements.txt"
@@ -45,9 +58,7 @@ setup_root_venv() {
 setup_api_venv() {
   echo "==> Setup API venv (services/api/.venv)"
   local api_dir="$ROOT_DIR/services/api"
-  if [[ ! -d "$api_dir/.venv" ]]; then
-    "$PYTHON_BIN" -m venv "$api_dir/.venv"
-  fi
+  create_venv "$api_dir/.venv"
   ensure_pip "$api_dir/.venv/bin/python"
   "$api_dir/.venv/bin/python" -m pip install -U pip >/dev/null
   "$api_dir/.venv/bin/python" -m pip install -r "$api_dir/requirements.txt"
