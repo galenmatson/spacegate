@@ -175,11 +175,19 @@ headers = [
 ]
 
 print("OK: sample join")
-print("| " + " | ".join(headers) + " |")
-print("| " + " | ".join(["---"] * len(headers)) + " |")
-for row in rows:
-    values = ["" if v is None else str(v) for v in row]
-    print("| " + " | ".join(values) + " |")
+values_rows = [[("" if v is None else str(v)) for v in row] for row in rows]
+widths = []
+for idx, header in enumerate(headers):
+    max_val = max(len(r[idx]) for r in values_rows) if values_rows else 0
+    widths.append(max(len(header), max_val))
+
+def fmt_row(items):
+    return "| " + " | ".join(item.ljust(widths[i]) for i, item in enumerate(items)) + " |"
+
+print(fmt_row(headers))
+print("| " + " | ".join("-" * w for w in widths) + " |")
+for row in values_rows:
+    print(fmt_row(row))
 PY
 
   echo "Verified build $build_id"
