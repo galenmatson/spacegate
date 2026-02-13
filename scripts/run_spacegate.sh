@@ -6,12 +6,19 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 PID_FILE="$LOG_DIR/spacegate_api.pid"
+WEB_PID_FILE="$LOG_DIR/spacegate_web.pid"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/services/api/.venv/bin/python}"
 API_DIR="${SPACEGATE_API_DIR:-$ROOT_DIR/services/api}"
 HOST="${SPACEGATE_API_HOST:-0.0.0.0}"
 PORT="${SPACEGATE_API_PORT:-8000}"
 APP_PATH="${SPACEGATE_API_APP:-app.main:app}"
 VERIFY_BIN="${SPACEGATE_VERIFY_BIN:-$ROOT_DIR/scripts/verify_build.sh}"
+WEB_DIR="${SPACEGATE_WEB_DIR:-$ROOT_DIR/services/web}"
+WEB_HOST="${SPACEGATE_WEB_HOST:-0.0.0.0}"
+WEB_PORT="${SPACEGATE_WEB_PORT:-5173}"
+WEB_ENABLE="${SPACEGATE_WEB_ENABLE:-1}"
+VITE_API_PROXY="${VITE_API_PROXY:-http://127.0.0.1:$PORT}"
+VITE_API_BASE="${VITE_API_BASE:-}"
 
 usage() {
   cat <<'USAGE'
@@ -41,6 +48,14 @@ PY
     echo "  cd $ROOT_DIR/services/api" >&2
     echo "  python3 -m venv .venv && source .venv/bin/activate" >&2
     echo "  pip install -r requirements.txt" >&2
+    exit 1
+  fi
+}
+
+ensure_npm() {
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Error: npm not found. Install Node.js to run the web UI." >&2
+    echo "Tip: run scripts/setup_spacegate.sh to install dependencies." >&2
     exit 1
   fi
 }
@@ -87,6 +102,12 @@ read_pid() {
   fi
 }
 
+read_web_pid() {
+  if [[ -f "$WEB_PID_FILE" ]]; then
+    cat "$WEB_PID_FILE"
+  fi
+}
+
 stop_pidfile_process() {
   local pid
   pid="$(read_pid)"
@@ -112,6 +133,33 @@ stop_pidfile_process() {
     echo "Pidfile process not running (stale pid: $pid)" >&2
   fi
   rm -f "$PID_FILE"
+}
+
+stop_web_process() {
+  local pid
+  pid="$(read_web_pid)"
+  if [[ -z "$pid" ]]; then
+    echo "No web pidfile found at $WEB_PID_FILE" >&2
+    return 1
+  fi
+  if pid_is_running "$pid"; then
+    echo "Stopping web process $pid" >&2
+    kill "$pid"
+    for _ in {1..20}; do
+      if pid_is_running "$pid"; then
+        sleep 0.2
+      else
+        break
+      fi
+    done
+    if pid_is_running "$pid"; then
+      echo "Web process $pid did not stop; sending SIGKILL" >&2
+      kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+  else
+    echo "Web pidfile process not running (stale pid: $pid)" >&2
+  fi
+  rm -f "$WEB_PID_FILE"
 }
 
 port_in_use() {
@@ -155,12 +203,18 @@ main() {
   ensure_app_path
 
   if [[ "$action" == "stop" ]]; then
-    stop_pidfile_process
+    stop_pidfile_process || true
+    if [[ "$WEB_ENABLE" == "1" ]]; then
+      stop_web_process || true
+    fi
     exit 0
   fi
 
   if [[ "$action" == "restart" ]]; then
     stop_pidfile_process || true
+    if [[ "$WEB_ENABLE" == "1" ]]; then
+      stop_web_process || true
+    fi
   fi
 
   verify_build
@@ -173,10 +227,25 @@ main() {
     fi
   fi
 
+  if [[ "$WEB_ENABLE" == "1" && -f "$WEB_PID_FILE" ]]; then
+    wpid="$(read_web_pid)"
+    if pid_is_running "$wpid"; then
+      echo "Web server already running with pid $wpid (pidfile $WEB_PID_FILE)" >&2
+      exit 1
+    fi
+  fi
+
   if port_in_use "$PORT"; then
     echo "Port $PORT appears to be in use. Refusing to start." >&2
     echo "If this is the Spacegate server and you want to restart it, run with --restart." >&2
     exit 1
+  fi
+
+  if [[ "$WEB_ENABLE" == "1" ]]; then
+    if port_in_use "$WEB_PORT"; then
+      echo "Port $WEB_PORT appears to be in use. Refusing to start web UI." >&2
+      exit 1
+    fi
   fi
 
   echo "Starting Spacegate API on $HOST:$PORT" >&2
@@ -197,7 +266,32 @@ main() {
     exit 1
   fi
 
-  echo "Started pid $(cat "$PID_FILE")" >&2
+  echo "Started API pid $(cat "$PID_FILE")" >&2
+
+  if [[ "$WEB_ENABLE" == "1" ]]; then
+    ensure_npm
+    if [[ ! -d "$WEB_DIR/node_modules" ]]; then
+      echo "Error: $WEB_DIR/node_modules not found. Run scripts/setup_spacegate.sh first." >&2
+      stop_pidfile_process || true
+      exit 1
+    fi
+    echo "Starting Spacegate Web on $WEB_HOST:$WEB_PORT" >&2
+    echo "Web pid file: $WEB_PID_FILE" >&2
+    (
+      cd "$WEB_DIR"
+      VITE_API_PROXY="$VITE_API_PROXY" VITE_API_BASE="$VITE_API_BASE" npm run dev -- --host "$WEB_HOST" --port "$WEB_PORT"
+    ) &
+    wpid=$!
+    echo "$wpid" > "$WEB_PID_FILE"
+    sleep 0.5
+    if ! pid_is_running "$wpid"; then
+      echo "Web server failed to start (pid $wpid exited). See logs above." >&2
+      rm -f "$WEB_PID_FILE"
+      stop_pidfile_process || true
+      exit 1
+    fi
+    echo "Started Web pid $(cat "$WEB_PID_FILE")" >&2
+  fi
 }
 
 main "$@"

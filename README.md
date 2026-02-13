@@ -49,18 +49,16 @@
 
 This is the simplest path to download, build, and serve the core dataset.
 
-1. Install system dependencies: `python3`, `pip`, `aria2c`, `curl`, `gzip`, `git`.
-1. Clone and install Python deps.
+1. Install system dependencies: `python3`, `pip`, `aria2c`, `curl`, `gzip`, `git`, `node`, `npm`.
+1. Clone and run the setup script (creates venvs + installs deps).
 1. Run the one-step build script (download → cook → ingest → promote → verify).
-1. (Optional) Run the API.
+1. Run the launcher (API + web).
 
 ```bash
 git clone https://github.com/galenmatson/spacegate.git
 cd spacegate
 
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+scripts/setup_spacegate.sh
 
 # Optional: choose data locations (defaults to ./data)
 # export SPACEGATE_STATE_DIR=/var/lib/spacegate
@@ -73,12 +71,7 @@ pip install -r requirements.txt
 
 scripts/build_core.sh
 
-# Optional: run the API
-cd services/api
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd ../..
+# Start API + web
 scripts/run_spacegate.sh
 ```
 
