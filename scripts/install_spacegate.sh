@@ -9,15 +9,16 @@ PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/install_spacegate.sh [--overwrite]
+  scripts/install_spacegate.sh [--overwrite] [--skip-web] [--skip-web-build] [--skip-build]
 
 Checks system dependencies, sets up venvs, installs deps,
 and builds the core database if missing.
 
 Options:
   --overwrite   Re-download catalogs even if present.
-  --skip-web    Skip web UI dependency install.
-  --skip-build  Skip building the core database.
+  --skip-web        Skip web UI dependency install.
+  --skip-web-build  Skip building the web UI bundle.
+  --skip-build      Skip building the core database.
 USAGE
 }
 
@@ -52,6 +53,7 @@ check_deps() {
 main() {
   local overwrite=""
   local skip_web=0
+  local skip_web_build=0
   local skip_build=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -61,6 +63,10 @@ main() {
         ;;
       --skip-web)
         skip_web=1
+        shift 1
+        ;;
+      --skip-web-build)
+        skip_web_build=1
         shift 1
         ;;
       --skip-build)
@@ -85,7 +91,11 @@ main() {
   if [[ $skip_web -eq 1 ]]; then
     "$ROOT_DIR/scripts/setup_spacegate.sh" --skip-web
   else
-    "$ROOT_DIR/scripts/setup_spacegate.sh"
+    if [[ $skip_web_build -eq 1 ]]; then
+      "$ROOT_DIR/scripts/setup_spacegate.sh" --skip-web-build
+    else
+      "$ROOT_DIR/scripts/setup_spacegate.sh"
+    fi
   fi
 
   local core_db="$STATE_DIR/served/current/core.duckdb"

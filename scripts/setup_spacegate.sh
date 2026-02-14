@@ -8,7 +8,7 @@ PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/setup_spacegate.sh [--skip-web]
+  scripts/setup_spacegate.sh [--skip-web] [--skip-web-build]
 
 Creates Python virtualenvs and installs dependencies for data tooling,
 API, and the web UI (Vite).
@@ -73,21 +73,40 @@ setup_web_deps() {
   else
     (cd "$web_dir" && npm install)
   fi
+  if [[ -f "$web_dir/package.json" && $SKIP_WEB_BUILD -eq 0 ]]; then
+    if [[ ! -f "$web_dir/dist/index.html" ]]; then
+      echo "==> Build web UI (services/web/dist)"
+    else
+      echo "==> Rebuild web UI (services/web/dist)"
+    fi
+    (cd "$web_dir" && npm run build)
+  fi
 }
 
 main() {
   local skip_web=0
+  SKIP_WEB_BUILD=0
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
     exit 0
   fi
-  if [[ "${1:-}" == "--skip-web" ]]; then
-    skip_web=1
-  elif [[ -n "${1:-}" ]]; then
-    echo "Unknown argument: $1" >&2
-    usage
-    exit 1
-  fi
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --skip-web)
+        skip_web=1
+        shift 1
+        ;;
+      --skip-web-build)
+        SKIP_WEB_BUILD=1
+        shift 1
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
 
   require_command "$PYTHON_BIN"
   setup_root_venv
