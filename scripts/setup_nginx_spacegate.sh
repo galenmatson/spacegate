@@ -16,9 +16,12 @@ API_UPSTREAM="${SPACEGATE_API_UPSTREAM:-http://127.0.0.1:8000}"
 usage() {
   cat <<'USAGE'
 Usage:
-  sudo scripts/setup_nginx_spacegate.sh
+  sudo scripts/setup_nginx_spacegate.sh [--force]
 
 Idempotent nginx setup for Spacegate.
+
+Options:
+  --force   Overwrite /etc/nginx/sites-available/spacegate.conf even if not managed.
 USAGE
 }
 
@@ -93,8 +96,12 @@ choose_listen_port() {
 ensure_managed_config() {
   if [[ -f "$CONF_PATH" ]]; then
     if ! grep -q "Managed by Spacegate setup script" "$CONF_PATH"; then
+      if [[ "${FORCE_OVERWRITE:-0}" -eq 1 ]]; then
+        echo "Warning: overwriting unmanaged config at $CONF_PATH due to --force." >&2
+        return 0
+      fi
       echo "Error: $CONF_PATH exists but is not managed by Spacegate." >&2
-      echo "Refusing to overwrite." >&2
+      echo "Refusing to overwrite. Re-run with --force to override." >&2
       exit 1
     fi
   fi
@@ -206,10 +213,24 @@ print_summary() {
 }
 
 main() {
-  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    usage
-    exit 0
-  fi
+  FORCE_OVERWRITE=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --force)
+        FORCE_OVERWRITE=1
+        shift 1
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
 
   require_root
   require_debian
