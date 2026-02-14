@@ -21,7 +21,7 @@ services:
     depends_on:
       - api
     ports:
-      - "80:80"
+      - "8081:80"
 
 volumes:
   spacegate_data:

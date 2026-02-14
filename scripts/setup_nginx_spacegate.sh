@@ -12,6 +12,7 @@ SERVER_NAME="${SPACEGATE_SERVER_NAME:-_}"
 WEB_DIST_DEFAULT="/data/spacegate/srv/web/dist"
 WEB_DIST="${SPACEGATE_WEB_DIST:-$WEB_DIST_DEFAULT}"
 API_UPSTREAM="${SPACEGATE_API_UPSTREAM:-http://127.0.0.1:8000}"
+WEB_UPSTREAM="${SPACEGATE_WEB_UPSTREAM:-}"
 
 usage() {
   cat <<'USAGE'
@@ -22,6 +23,8 @@ Idempotent nginx setup for Spacegate.
 
 Options:
   --force   Overwrite /etc/nginx/sites-available/spacegate.conf even if not managed.
+Environment:
+  SPACEGATE_WEB_UPSTREAM  Proxy web UI to a running server (e.g., http://127.0.0.1:8081).
 USAGE
 }
 
@@ -138,7 +141,20 @@ server {
     }
 EOF_CONF
 
-  if [[ $has_dist -eq 1 ]]; then
+  if [[ -n "$WEB_UPSTREAM" ]]; then
+    cat >>"$CONF_PATH" <<EOF_CONF
+
+    # Proxy Web UI
+    location / {
+        proxy_pass ${WEB_UPSTREAM};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF_CONF
+  elif [[ $has_dist -eq 1 ]]; then
     cat >>"$CONF_PATH" <<EOF_CONF
 
     # Static web UI
