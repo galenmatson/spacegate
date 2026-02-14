@@ -1,6 +1,6 @@
 # Spacegate Project Checklist
 
-This is the canonical end-to-end checklist for Spacegate. Checked items reflect current repo state.
+This checklist tracks deliverables against `docs/PROJECT.md`. Checked items reflect current repo state.
 
 ## Project Foundations
 - [x] Define core vision, scope, and non-goals in `docs/PROJECT.md`
@@ -9,6 +9,11 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [x] Add pack contract doc `docs/PACKS.md`
 - [x] Add packs manifest stub generator `scripts/generate_packs_manifest.py`
 - [x] Add `.gitignore` entries for generated artifacts (`/data/`, etc.)
+
+## Environment & Layout
+- [x] Document required environment variables and defaults
+- [x] Document state directory structure and immutability rules
+- [x] Build IDs include UTC time (`YYYY-MM-DDTHHMMSSZ_<gitsha>`)
 
 ## Core Data Acquisition (v0)
 - [x] Download scripts for AT-HYG + NASA Exoplanet Archive
@@ -30,7 +35,6 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [x] System grouping: name-root + optional proximity (gated by `SPACEGATE_ENABLE_PROXIMITY=1`)
 - [x] Lockfile to prevent concurrent ingest
 - [x] Atomic build output staging (`$SPACEGATE_STATE_DIR/out/<build_id>.tmp/` → `$SPACEGATE_STATE_DIR/out/<build_id>/`)
-- [x] Build IDs include UTC time (`YYYY-MM-DDTHHMMSSZ_<gitsha>`)
 
 ## Build Outputs & Promotion
 - [x] `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb` produced
@@ -41,10 +45,7 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 
 ## Tooling & Exploration
 - [x] CLI explorer `scripts/explore_core.py`
-  - [x] stats (incl. binary + multi-star counts)
-  - [x] search by name
-  - [x] system members
-  - [x] neighbors (kNN by xyz)
+- [x] Build/verify helpers (`scripts/build_core.sh`, `scripts/verify_build.sh`)
 
 ## API (v0.1)
 - [x] Read-only API service implemented (FastAPI)
@@ -52,7 +53,7 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [x] Cursor pagination + parameterized SQL
 - [x] Responses include provenance + match confidence fields
 
-## UI (v1)
+## UI (v0.1)
 - [x] Decide UI stack (DuckDB WASM vs. API)
 - [x] Build minimal browser UI scaffold
 - [x] Implement search + detail views
@@ -60,6 +61,12 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [ ] UI matches `docs/UX_SPEC.md` (provenance links, match confidence warnings, accessibility)
 - [ ] Support optional packs + lore overlays in UI (core read-only)
 - [x] Deploy initial UI
+
+## Operations
+- [x] Installer script (`scripts/install_spacegate.sh`) for deps + build
+- [x] Launcher script (`scripts/run_spacegate.sh`) for API + web
+- [x] Nginx setup script (`scripts/setup_nginx_spacegate.sh`) with safe re-run
+- [x] Systemd unit installer (`scripts/install_spacegate_systemd.sh`)
 
 ## Deployment (v0.1)
 - [ ] Host UI/API on Google Cloud
