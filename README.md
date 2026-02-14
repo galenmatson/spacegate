@@ -131,6 +131,21 @@ Behavior:
 - Symlinks to `/etc/nginx/sites-enabled/spacegate.conf` (without touching other sites).
 - Runs `nginx -t` before reload/start.
 
+### HTTPS (not configured by the script)
+
+The setup script intentionally configures **HTTP only**. If you want TLS:
+
+1. Re-run nginx setup with the full hostnames:
+   ```bash
+   sudo SPACEGATE_SERVER_NAME="spacegates.org www.spacegates.org" scripts/setup_nginx_spacegate.sh --force
+   ```
+2. Use certbot (nginx installer) to add the TLS server block:
+   ```bash
+   sudo certbot --nginx -d spacegates.org -d www.spacegates.org
+   ```
+
+Note: re-running the nginx setup script with `--force` after certbot will overwrite certbot’s TLS edits.
+
 ### Systemd (optional, recommended for servers)
 
 Install and start the Spacegate API as a systemd service:
