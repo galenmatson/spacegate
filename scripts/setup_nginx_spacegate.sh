@@ -68,7 +68,7 @@ nginx_active() {
 port_owner() {
   local port="$1"
   if command -v ss >/dev/null 2>&1; then
-    ss -ltnp | awk -v p=":$port" '$4 ~ p {print; exit}'
+    ss -ltnpH | awk -v port="$port" 'match($4, /:([0-9]+)$/, m) && m[1] == port {print; exit}'
   elif command -v lsof >/dev/null 2>&1; then
     lsof -nP -iTCP:"$port" -sTCP:LISTEN | awk 'NR==2{print $1, $2, $9}'
   else
