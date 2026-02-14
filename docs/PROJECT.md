@@ -81,6 +81,13 @@ Example (valid for small/typical installs):
 For large datasets (Gaia, full catalogs, etc.), **do not** use `/var` if it is on the root disk.
 Instead, place `SPACEGATE_STATE_DIR` on a large, fast volume (e.g., `/data/spacegate`, `/mnt/spacegate`, or any custom path).
 
+Example:
+```
+export SPACEGATE_STATE_DIR=/data/spacegate
+export SPACEGATE_CACHE_DIR=/data/spacegate/cache
+export SPACEGATE_LOG_DIR=/data/spacegate/logs
+```
+
 Note: For local development, the default state directory is `./data` inside the repo.
 
 ## Required Environment Variables
