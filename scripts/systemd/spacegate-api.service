@@ -10,9 +10,9 @@ After=network.target
 [Service]
 Type=simple
 User=__SPACEGATE_USER__
-WorkingDirectory=__SPACEGATE_ROOT__/services/api
+WorkingDirectory=__SPACEGATE_ROOT__/srv/api
 Environment=SPACEGATE_STATE_DIR=__SPACEGATE_STATE_DIR__
-ExecStart=__SPACEGATE_ROOT__/services/api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port __SPACEGATE_API_PORT__ --proxy-headers --forwarded-allow-ips="*"
+ExecStart=__SPACEGATE_ROOT__/srv/api/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port __SPACEGATE_API_PORT__ --proxy-headers --forwarded-allow-ips="*"
 Restart=on-failure
 
 [Install]

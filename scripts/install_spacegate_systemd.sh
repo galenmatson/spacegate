@@ -40,7 +40,7 @@ ensure_template() {
 }
 
 ensure_uvicorn() {
-  local uvicorn_bin="$ROOT_DIR/services/api/.venv/bin/uvicorn"
+  local uvicorn_bin="$ROOT_DIR/srv/api/.venv/bin/uvicorn"
   if [[ ! -x "$uvicorn_bin" ]]; then
     echo "Error: uvicorn not found at $uvicorn_bin" >&2
     echo "Tip: run scripts/setup_spacegate.sh first." >&2

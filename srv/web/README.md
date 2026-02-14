@@ -5,7 +5,7 @@ Minimal React + Vite frontend for browsing Spacegate systems.
 ## Run
 
 ```bash
-cd /data/spacegate/services/web
+cd /data/spacegate/srv/web
 npm install
 
 # Point at API if running on another host/port

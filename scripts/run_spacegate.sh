@@ -7,13 +7,13 @@ STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 PID_FILE="$LOG_DIR/spacegate_api.pid"
 WEB_PID_FILE="$LOG_DIR/spacegate_web.pid"
-PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/services/api/.venv/bin/python}"
-API_DIR="${SPACEGATE_API_DIR:-$ROOT_DIR/services/api}"
+PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/srv/api/.venv/bin/python}"
+API_DIR="${SPACEGATE_API_DIR:-$ROOT_DIR/srv/api}"
 HOST="${SPACEGATE_API_HOST:-0.0.0.0}"
 PORT="${SPACEGATE_API_PORT:-8000}"
 APP_PATH="${SPACEGATE_API_APP:-app.main:app}"
 VERIFY_BIN="${SPACEGATE_VERIFY_BIN:-$ROOT_DIR/scripts/verify_build.sh}"
-WEB_DIR="${SPACEGATE_WEB_DIR:-$ROOT_DIR/services/web}"
+WEB_DIR="${SPACEGATE_WEB_DIR:-$ROOT_DIR/srv/web}"
 WEB_HOST="${SPACEGATE_WEB_HOST:-0.0.0.0}"
 WEB_PORT="${SPACEGATE_WEB_PORT:-5173}"
 WEB_ENABLE="${SPACEGATE_WEB_ENABLE:-1}"
@@ -48,7 +48,7 @@ import uvicorn
 PY
     echo "Error: uvicorn not found for $PYTHON_BIN" >&2
     echo "Tip: create and install API venv:" >&2
-    echo "  cd $ROOT_DIR/services/api" >&2
+    echo "  cd $ROOT_DIR/srv/api" >&2
     echo "  python3 -m venv .venv && source .venv/bin/activate" >&2
     echo "  pip install -r requirements.txt" >&2
     exit 1

@@ -9,7 +9,7 @@ CONF_PATH="$SITES_AVAILABLE/spacegate.conf"
 LINK_PATH="$SITES_ENABLED/spacegate.conf"
 
 SERVER_NAME="${SPACEGATE_SERVER_NAME:-_}"
-WEB_DIST_DEFAULT="/data/spacegate/services/web/dist"
+WEB_DIST_DEFAULT="/data/spacegate/srv/web/dist"
 WEB_DIST="${SPACEGATE_WEB_DIST:-$WEB_DIST_DEFAULT}"
 API_UPSTREAM="${SPACEGATE_API_UPSTREAM:-http://127.0.0.1:8000}"
 
@@ -110,8 +110,8 @@ ensure_managed_config() {
 write_config() {
   local dist_path="$WEB_DIST"
   if [[ ! -d "$dist_path" ]]; then
-    if [[ -d "$ROOT_DIR/services/web/dist" ]]; then
-      dist_path="$ROOT_DIR/services/web/dist"
+    if [[ -d "$ROOT_DIR/srv/web/dist" ]]; then
+      dist_path="$ROOT_DIR/srv/web/dist"
     fi
   fi
 

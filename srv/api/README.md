@@ -5,7 +5,7 @@ Read-only FastAPI service for browsing the core DuckDB database.
 ## Run
 
 ```bash
-cd /data/spacegate/services/api
+cd /data/spacegate/srv/api
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt

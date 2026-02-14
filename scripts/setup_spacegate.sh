@@ -56,8 +56,8 @@ setup_root_venv() {
 }
 
 setup_api_venv() {
-  echo "==> Setup API venv (services/api/.venv)"
-  local api_dir="$ROOT_DIR/services/api"
+  echo "==> Setup API venv (srv/api/.venv)"
+  local api_dir="$ROOT_DIR/srv/api"
   create_venv "$api_dir/.venv"
   ensure_pip "$api_dir/.venv/bin/python"
   "$api_dir/.venv/bin/python" -m pip install -U pip >/dev/null
@@ -65,8 +65,8 @@ setup_api_venv() {
 }
 
 setup_web_deps() {
-  echo "==> Setup web dependencies (services/web)"
-  local web_dir="$ROOT_DIR/services/web"
+  echo "==> Setup web dependencies (srv/web)"
+  local web_dir="$ROOT_DIR/srv/web"
   require_command npm
   if [[ -f "$web_dir/package-lock.json" ]]; then
     (cd "$web_dir" && npm install)
@@ -75,9 +75,9 @@ setup_web_deps() {
   fi
   if [[ -f "$web_dir/package.json" && $SKIP_WEB_BUILD -eq 0 ]]; then
     if [[ ! -f "$web_dir/dist/index.html" ]]; then
-      echo "==> Build web UI (services/web/dist)"
+      echo "==> Build web UI (srv/web/dist)"
     else
-      echo "==> Rebuild web UI (services/web/dist)"
+      echo "==> Rebuild web UI (srv/web/dist)"
     fi
     (cd "$web_dir" && npm run build)
   fi
