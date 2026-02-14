@@ -59,11 +59,11 @@ This is the canonical end-to-end checklist for Spacegate. Checked items reflect 
 - [x] Add filters/sorting
 - [ ] UI matches `docs/UX_SPEC.md` (provenance links, match confidence warnings, accessibility)
 - [ ] Support optional packs + lore overlays in UI (core read-only)
-- [ ] Deploy initial UI
+- [x] Deploy initial UI
 
 ## Deployment (v0.1)
 - [ ] Host UI/API on Google Cloud
-- [ ] Public at `spacegates.org`
+- [x] Public at `spacegates.org`
 
 ## Rich (v1.1+)
 - [ ] Interestingness scoring + ranking stored in rich
