@@ -156,6 +156,29 @@ sudo scripts/install_spacegate_systemd.sh
 
 This runs uvicorn with `--proxy-headers` and `--forwarded-allow-ips="*"` so nginx can forward scheme/client IP.
 
+## Docker (optional)
+
+Spacegate can run in Docker with two containers: API + web. The web container serves the static UI and proxies `/api` to the API container.
+
+### Build and run
+
+```bash
+docker compose up --build
+```
+
+This exposes:
+- API: `http://localhost:8000`
+- Web: `http://localhost/`
+
+### Data volume
+
+The API container uses a named volume `spacegate_data` mounted at `/data` for all state. You still need to build the core database (once) and place it in that volume. Easiest path:
+
+1. Run the build on the host (recommended), then bind-mount the resulting data into the container volume.
+2. Or exec into the API container and run the build scripts there (requires build tools inside the image).
+
+If you want a dedicated “builder” container in compose, say the word and I’ll add it.
+
 ### Troubleshooting
 
 - **`pip` missing in venv**  
