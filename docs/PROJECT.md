@@ -45,6 +45,44 @@ Spacegate does not assume a fixed filesystem layout. All persistent state locati
 - separation of code and data
 - large external data volumes
 
+### Repo layout (code checkout)
+Example (recommended for servers):
+/
+└── srv
+    └── spacegate
+        ├── srv
+        │   ├── api
+        │   └── web
+        ├── scripts
+        ├── docs
+        ├── configs
+        └── data          # default local-dev state dir (optional)
+
+### State layout (runtime data, FHS-aligned)
+Example (valid for small/typical installs):
+/
+├── data                  # This should be a large volume if you will use the expanded dataset (>100 GB)
+│   └── spacegate
+│       └── data          # SPACEGATE_STATE_DIR
+│           ├── raw
+│           ├── cooked
+│           ├── out
+│           ├── served
+│           └── reports
+├── var
+│   ├── cache
+│   │   └── spacegate     # SPACEGATE_CACHE_DIR
+│   └── log
+│       └── spacegate     # SPACEGATE_LOG_DIR
+└── etc
+    └── spacegate         # SPACEGATE_CONFIG_DIR
+
+### Large-data recommendation (preferred)
+For large datasets (Gaia, full catalogs, etc.), **do not** use `/var` if it is on the root disk.
+Instead, place `SPACEGATE_STATE_DIR` on a large, fast volume (e.g., `/data/spacegate`, `/mnt/spacegate`, or any custom path).
+
+Note: For local development, the default state directory is `./data` inside the repo.
+
 ## Required Environment Variables
 
 | Variable               | Description              | Default         |
@@ -61,12 +99,13 @@ For production deployments, set these to standard Linux locations
 
 Within `SPACEGATE_STATE_DIR`, Spacegate maintains the following structure:
 
-raw/ # Original source datasets (immutable)
-cooked/ # Cleaned and normalized datasets
-out/ # Build outputs (DuckDB, Parquet, etc.)
-served/ # Active "current" build (symlink or directory)
-reports/ # QC, provenance, and validation reports
-logs/ # Optional per-build logs
+| Directory | Description                           | Location        |
+|-----------|---------------------------------------|-----------------|
+| raw       | Source datasets (immutable)           | `./data/raw`    |
+| cooked    | Cleaned and normalized datasets       | `./data/cooked` |
+| out       | Build outputs (DuckDB, Parquet, aso)  | `./data/out`    |
+| served    | "current" build (symlink or directory)| `./data/served` |
+| reports   | QC, provenance, and validation reports| `./data/reports`|
 
 Build outputs SHOULD be treated as immutable. Promotion between builds SHOULD be done via atomic directory swaps or symlink updates.
 
