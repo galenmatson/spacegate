@@ -23,13 +23,16 @@ VITE_API_BASE="${VITE_API_BASE:-}"
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/run_spacegate.sh [--restart|--stop]
+  scripts/run_spacegate.sh [--restart|--stop|--stop-api|--stop-web|--force]
 
 Starts the Spacegate API with uvicorn.
 
 Options:
   --restart   Stop the previous pidfile-tracked process, then start.
-  --stop      Stop the pidfile-tracked process and exit.
+  --stop      Stop the pidfile-tracked API and web processes and exit.
+  --stop-api  Stop only the pidfile-tracked API process.
+  --stop-web  Stop only the pidfile-tracked web process.
+  --force     If pidfile is missing, kill the process bound to the port.
 USAGE
 }
 
@@ -173,8 +176,28 @@ port_in_use() {
   fi
 }
 
+pid_from_port() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnp | awk -v p=":$port" '$4 ~ p {print $NF; exit}' | sed -n 's/.*pid=\\([0-9]\\+\\).*/\\1/p'
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN | awk 'NR==2{print $2}'
+  fi
+}
+
+describe_pid() {
+  local pid="$1"
+  if [[ -z "$pid" ]]; then
+    return 1
+  fi
+  ps -p "$pid" -o pid=,comm=,args=
+}
+
 main() {
   local action="start"
+  local stop_api_only=0
+  local stop_web_only=0
+  local force_stop=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --restart)
@@ -183,6 +206,20 @@ main() {
         ;;
       --stop)
         action="stop"
+        shift 1
+        ;;
+      --stop-api)
+        action="stop"
+        stop_api_only=1
+        shift 1
+        ;;
+      --stop-web)
+        action="stop"
+        stop_web_only=1
+        shift 1
+        ;;
+      --force)
+        force_stop=1
         shift 1
         ;;
       -h|--help)
@@ -203,9 +240,28 @@ main() {
   ensure_app_path
 
   if [[ "$action" == "stop" ]]; then
-    stop_pidfile_process || true
-    if [[ "$WEB_ENABLE" == "1" ]]; then
+    if [[ $stop_web_only -eq 0 ]]; then
+      stop_pidfile_process || true
+    fi
+    if [[ $stop_api_only -eq 0 && "$WEB_ENABLE" == "1" ]]; then
       stop_web_process || true
+    fi
+
+    if [[ $force_stop -eq 1 ]]; then
+      if [[ $stop_web_only -eq 0 ]]; then
+        api_pid="$(pid_from_port "$PORT" || true)"
+        if [[ -n "${api_pid:-}" ]]; then
+          echo "Force-stopping process on port $PORT: $(describe_pid "$api_pid")" >&2
+          kill "$api_pid" >/dev/null 2>&1 || true
+        fi
+      fi
+      if [[ $stop_api_only -eq 0 && "$WEB_ENABLE" == "1" ]]; then
+        web_pid="$(pid_from_port "$WEB_PORT" || true)"
+        if [[ -n "${web_pid:-}" ]]; then
+          echo "Force-stopping process on port $WEB_PORT: $(describe_pid "$web_pid")" >&2
+          kill "$web_pid" >/dev/null 2>&1 || true
+        fi
+      fi
     fi
     exit 0
   fi
