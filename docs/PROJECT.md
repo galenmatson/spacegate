@@ -232,18 +232,6 @@ Coordinate storage:
 Rendering rule:
 - The renderer always rebases around the selected object (“floating origin”) before sending to GPU (float32 safety).
 
-# Build layout and versioning
-Recommended directory conventions:
-- $SPACEGATE_STATE_DIR/external/<catalog>/<version>/... (immutable)
-- $SPACEGATE_STATE_DIR/processed/<catalog>/<version>/*.parquet
-- $SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb, $SPACEGATE_STATE_DIR/out/<build_id>/parquet/*.parquet
-- $SPACEGATE_STATE_DIR/out/<build_id>.tmp/ (staging directory; atomically promoted to $SPACEGATE_STATE_DIR/out/<build_id>/ on success)
-- $SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>.parquet
-- $SPACEGATE_STATE_DIR/out/<build_id>/packs_manifest.json
-- $SPACEGATE_STATE_DIR/served/current -> ../out/<build_id> (promoted build pointer for apps/queries)
-- $SPACEGATE_STATE_DIR/reports/<build_id>/...
-Where:
-- build_id = YYYY-MM-DDTHHMMSSZ_<gitshortsha>
 
 # QC gates
 These checks run every build. Some fail hard; some warn.
@@ -283,7 +271,7 @@ Success criteria:
   - provenance coverage report
   - basic QC sanity checks
 
-## v0.1: Public database browser UI
+### v0.1: Public database browser UI
 Success criteria:
 - “Spacegate browser” UI
 - Hosted on Google Cloud
@@ -291,7 +279,7 @@ Success criteria:
 - Attractive, searchable, filterable interface
 - Reads core data + optional packs + lore overlays (lore editable; core read-only)
 
-## v0.2: 'Interestingness' Initial Enrichment
+### v0.2: 'Interestingness' Initial Enrichment
 This ensures our compute resources for v1.2 blurb and image generation are spent on systems with high narrative and scientific "yield".The following features should be aggregated into a final Interestingness Score stored in the rich database:
 - Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
 - High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
@@ -374,17 +362,7 @@ Snapshots are **derived artifacts** (like reports), not part of the immutable co
 - Any change to rendering rules must bump `generator_version` and invalidate cache by construction.
 
 
-## v1.2: Description enrichment (“facts → blurb”)
-Success criteria:
-- Rank objects by “interestingness” using explicit criteria.
-- Generate fact sheets (structured JSON) per selected object with sources/provenance.
-- Generate engaging but factual blurbs strictly from fact sheets.
-- Store blurbs as derived artifacts with:
-  - model/version, generated_at, and fact-sheet hash
-- Target voice: science outreach personality (factual, enthusiastic; no fabrication).
-- Counter prompt is used to evaluate the factuality of the blurb and discard hallucinations
-
-### v1.2+: External reference links (curated web sources)
+## v1.1: External reference links (curated web sources)
 Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
 
 Method (proposed):
@@ -398,18 +376,6 @@ Method (proposed):
   - Licensing suitability (links allowed even when content cannot be reproduced)
 - **Human override**: optionally pin or blacklist specific links in a small manual overrides file.
 
-Storage model:
-- New rich table `reference_links`:
-  - `stable_object_key`, `object_type`
-  - `link_type` (wikipedia | simbad | nasa_exoplanet_archive | observatory | other)
-  - `url`
-  - `title`
-  - `quality_score` (0..1) and `quality_notes`
-  - `source_domain`
-  - `retrieved_at`, `generator_version`, `build_id`
-  - `discovery_query`, `discovery_method`
-  - `license_note` (link-only; no reproduction)
-
 Reasonable limits (initial defaults):
 - **Max links per object**: 3 (1 authoritative catalog + 1 encyclopedia + 1 optional observatory/mission page).
 - **Max candidates evaluated per object**: 10.
@@ -418,7 +384,90 @@ Reasonable limits (initial defaults):
 - **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
 - **Strictly link-only**: store URLs + metadata only; no copying page text into rich.
 
-## v1.2.2: System neighbor graph (10 nearest systems)
+## v1.2: AI rich description (“facts → blurb”)
+Success criteria:
+- Generate fact sheets (structured JSON) per selected object with sources/provenance.
+- Generate engaging but factual descriptions derived from known facts.
+- Store generated content as derived artifacts with:
+  - model/version, generated_at, prompt, and fact-sheet hash
+  - display small text notification if fact sheet hash no longer matches (indicating new information)
+- Target voice: science outreach personality (factual, enthusiastic; no fabrication).
+- Counter prompt is used to evaluate the factuality of the blurb and discard hallucinations
+
+
+## v1.3: Image generator
+Based on the descriptions from the blurbs, generate instructions for image
+generator model create vivid imagery of planets, stars, and systems.
+- Shareable versions with text captions at the bottom
+- link an image generator that will generate system images on interestingness or first visit
+- tooltip with prompt that generated the image
+- generate more images in systems wtih lots of visits
+- up/down voting, reorder with most popular
+- popular images push system to be featured on front page and suggested in system links
+- most popularist images get expanded in size and resolution to full page background images, 
+  - free download as (up to) 4k desktop backgrounds
+- generate short, captivating meme text like "Hell World HD 189733_b where it rains glass sideways in Earth sized cyclones."
+- make recaptioning and sharing easy, link back
+
+### Star/System view
+  - interestingness score should prioritize complex systems and exotic stars
+  - center close binaries and planets
+  - show distant companions in background
+  - aim for accuracy but exagerate slightly if necessary to make dim companions visible
+  - star is accurate to spectrum, surface temp, and size
+  - flare stars depicted with erupting solar flares
+  - pulsars depicted with polar jets though they might be invisible without gas/dust to scatter/emit)
+  - magnetars show powerful rotating magnetic fields (despite being invisible or show them interacting with something)
+
+### v1.3.1 Planets
+#### Global view
+  - planet in the foreground and the star behind
+  - show flare stars scorching them with glowing prominences
+  - eyeball planets for tidally locked planets at right distance
+  - maybe young systems or lots of dust detected show asteroid/comet strikes
+  - add moons to large planets even if none detected
+  - include subtext that these images are extrapolated from scientific data, not observation, and reality is likely quite different.
+
+#### v1.3.2 Surface view
+This should show what it might feel like to visit this planet and stand on its surface.
+This requires the most license of all. We can ground the view in some facts that should
+make it clear to visitors the link between orbit, composition, and climate.
+Aim to inspire.
+- Volcanic worlds shows lava spewing smoke belching volcanoes
+  - powerful lightning strikes
+  - dark, oppressive skies
+  - vivid, steaming lava fields
+  - volcanic bombs smashing into the landscape 
+- Water worlds
+  - got lots'a water
+  - colossal waves
+- Ice worlds
+  - ice mountains with different compositions depending on the expected temperature
+  - rocky if in close and high metallicity
+  - methane/CO2/nitrogen ice depending on how cold
+  - cryovolcanism
+- Desert planets
+- Hell worlds 
+  - close star
+  - molten surface
+  - thick atmosphere
+  - heavy molecular composition
+  - glass rain (https://en.wikipedia.org/wiki/HD_189733_b)
+- Acid worlds
+  - thick, sulfurous atmosphere
+  - melting landscape
+- Ringed planets (https://en.wikipedia.org/wiki/J1407b)
+- Dead worlds
+  - sterilized with no hope of life 
+  - surface stripped by supernova
+  - scoured by massive radiation
+  - orbiting dead/remnant stars
+And much more! The more creative we are with descriptions while linking everything to real science the more viewers will be inspired. So lets come up with awesome fantasy planets defendably grounded in facts.
+
+
+
+
+## v1.4: System neighbor graph (10 nearest systems)
 Goal: precompute nearest-neighbor relationships between systems for fast UI queries and navigation.
 
 Success criteria:
@@ -471,7 +520,7 @@ Detection catalogs (raw survey detections; not “objects”):
 - CatWISE2020 full tiles (bulk detections; very large)
   - If used later, treat as a sources pack (not object pack) and keep separate from “unique object” tables.
 
-## v2.2: System view and generators (stretch goals for later)
+## v2.2: System view and generators
 - The data epoch is J2000, add feature to select date. Recompute, rerender stars for different points in time based on proper motion.
 - 3D Exoplanet render (plausible visualizations based on data)
 - World builder tools (procedural generation with sliders)
