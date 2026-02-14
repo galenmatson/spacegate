@@ -179,7 +179,9 @@ port_in_use() {
 pid_from_port() {
   local port="$1"
   if command -v ss >/dev/null 2>&1; then
-    ss -ltnp | awk -v p=":$port" '$4 ~ p {print $NF; exit}' | sed -n 's/.*pid=\\([0-9]\\+\\).*/\\1/p'
+    local line
+    line="$(ss -ltnpH \"sport = :$port\" 2>/dev/null | head -n 1)"
+    echo "$line" | sed -n 's/.*pid=\\([0-9]\\+\\).*/\\1/p'
   elif command -v lsof >/dev/null 2>&1; then
     lsof -nP -iTCP:"$port" -sTCP:LISTEN | awk 'NR==2{print $2}'
   fi
@@ -253,6 +255,8 @@ main() {
         if [[ -n "${api_pid:-}" ]]; then
           echo "Force-stopping process on port $PORT: $(describe_pid "$api_pid")" >&2
           kill "$api_pid" >/dev/null 2>&1 || true
+        else
+          echo "No process found on port $PORT" >&2
         fi
       fi
       if [[ $stop_api_only -eq 0 && "$WEB_ENABLE" == "1" ]]; then
@@ -260,6 +264,8 @@ main() {
         if [[ -n "${web_pid:-}" ]]; then
           echo "Force-stopping process on port $WEB_PORT: $(describe_pid "$web_pid")" >&2
           kill "$web_pid" >/dev/null 2>&1 || true
+        else
+          echo "No process found on port $WEB_PORT" >&2
         fi
       fi
     fi
