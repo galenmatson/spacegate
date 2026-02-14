@@ -180,7 +180,10 @@ pid_from_port() {
   local port="$1"
   if command -v ss >/dev/null 2>&1; then
     local line
-    line="$(ss -ltnpH 2>/dev/null | awk -v p=\":$port\" '$4 ~ p {print; exit}')"
+    line="$(ss -ltnpH 2>/dev/null | awk -v p=\":$port\" '$4 ~ p || $5 ~ p {print; exit}')"
+    if [[ -z "$line" ]]; then
+      line="$(ss -ltnpH 2>/dev/null | grep -m1 -F ":$port" || true)"
+    fi
     echo "$line" | sed -n 's/.*pid=\\([0-9]\\+\\).*/\\1/p'
   elif command -v lsof >/dev/null 2>&1; then
     lsof -nP -iTCP:"$port" -sTCP:LISTEN | awk 'NR==2{print $2}'
