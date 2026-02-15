@@ -131,6 +131,12 @@ Behavior:
 - Symlinks to `/etc/nginx/sites-enabled/spacegate.conf` (without touching other sites).
 - Runs `nginx -t` before reload/start.
 
+Tip: if you access by IP or a specific hostname, set it explicitly:
+
+```bash
+sudo SPACEGATE_SERVER_NAME="192.168.1.102" scripts/setup_nginx_spacegate.sh --force
+```
+
 ### HTTPS (not configured by the script)
 
 The setup script intentionally configures **HTTP only**. If you want TLS:
@@ -172,9 +178,15 @@ This exposes:
 
 ### Data volume
 
-The API container uses a named volume `spacegate_data` mounted at `/data` for all state. You still need to build the core database (once) and place it in that volume. Easiest path:
+By default, compose bind-mounts `./data` from the repo into `/data` inside the API container. If you want a different host path, set `SPACEGATE_DATA_DIR` before running compose:
 
-1. Run the build on the host (recommended), then bind-mount the resulting data into the container volume.
+```bash
+SPACEGATE_DATA_DIR=/data/spacegate/data docker compose up --build
+```
+
+You still need to build the core database (once). Easiest path:
+
+1. Run the build on the host (recommended), then start compose (the container sees `./data`).
 2. Or exec into the API container and run the build scripts there (requires build tools inside the image).
 
 If you want a dedicated “builder” container in compose, say the word and I’ll add it.

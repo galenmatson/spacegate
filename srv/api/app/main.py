@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import db
+from .db import DatabaseUnavailable
 from .queries import (
     fetch_build_id,
     fetch_counts_for_system,
@@ -73,6 +74,21 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
                 "code": "internal_error",
                 "message": "Internal server error",
                 "details": {},
+                "request_id": getattr(request.state, "request_id", None),
+            }
+        },
+    )
+
+
+@app.exception_handler(DatabaseUnavailable)
+async def db_unavailable_handler(request: Request, exc: DatabaseUnavailable):
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": {
+                "code": "db_unavailable",
+                "message": "Database not available",
+                "details": {"reason": str(exc), "db_path": db.get_db_path()},
                 "request_id": getattr(request.state, "request_id", None),
             }
         },

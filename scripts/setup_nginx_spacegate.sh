@@ -9,7 +9,7 @@ CONF_PATH="$SITES_AVAILABLE/spacegate.conf"
 LINK_PATH="$SITES_ENABLED/spacegate.conf"
 
 SERVER_NAME="${SPACEGATE_SERVER_NAME:-_}"
-WEB_DIST_DEFAULT="/data/spacegate/srv/web/dist"
+WEB_DIST_DEFAULT="$ROOT_DIR/srv/web/dist"
 WEB_DIST="${SPACEGATE_WEB_DIST:-$WEB_DIST_DEFAULT}"
 API_UPSTREAM="${SPACEGATE_API_UPSTREAM:-http://127.0.0.1:8000}"
 WEB_UPSTREAM="${SPACEGATE_WEB_UPSTREAM:-}"
@@ -61,6 +61,21 @@ ensure_nginx() {
     echo "Installing nginx..." >&2
     apt-get update
     apt-get install -y nginx
+  fi
+}
+
+warn_server_name_conflict() {
+  if [[ "$SERVER_NAME" != "_" ]]; then
+    return 0
+  fi
+  if [[ -d "$SITES_ENABLED" ]]; then
+    local conflicts
+    conflicts="$(grep -R "server_name _;" "$SITES_ENABLED" 2>/dev/null | grep -v "$CONF_PATH" || true)"
+    if [[ -n "$conflicts" ]]; then
+      echo "Warning: another nginx site uses server_name '_' on this host." >&2
+      echo "Requests by IP/localhost may hit that site instead of Spacegate." >&2
+      echo "Tip: set SPACEGATE_SERVER_NAME to your domain or IP and re-run this script." >&2
+    fi
   fi
 }
 
@@ -218,6 +233,7 @@ print_summary() {
   fi
   if [[ "$SERVER_NAME" == "_" ]]; then
     echo "Test URL: http://localhost:${LISTEN_PORT}/"
+    echo "Tip: if you see the nginx welcome page, re-run with SPACEGATE_SERVER_NAME=your.domain.or.ip"
   else
     echo "Test URL: http://${SERVER_NAME}:${LISTEN_PORT}/"
   fi
@@ -254,6 +270,7 @@ main() {
 
   choose_listen_port
 
+  warn_server_name_conflict
   ensure_managed_config
   write_config
   ensure_symlink
