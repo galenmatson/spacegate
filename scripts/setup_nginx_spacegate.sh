@@ -19,12 +19,13 @@ DL_ALIAS_DIR="${SPACEGATE_DL_ALIAS_DIR:-/srv/spacegate/dl}"
 usage() {
   cat <<'USAGE'
 Usage:
-  sudo scripts/setup_nginx_spacegate.sh [--force]
+  sudo scripts/setup_nginx_spacegate.sh [--force] [--container-web]
 
 Idempotent nginx setup for Spacegate.
 
 Options:
   --force   Overwrite /etc/nginx/sites-available/spacegate.conf even if not managed.
+  --container-web  Proxy / to container web UI at http://127.0.0.1:8081.
 Environment:
   SPACEGATE_WEB_UPSTREAM  Proxy web UI to a running server (e.g., http://127.0.0.1:8081).
   SPACEGATE_DL_ENABLE     Enable /dl/ static download endpoint (default: 1).
@@ -268,10 +269,15 @@ print_summary() {
 
 main() {
   FORCE_OVERWRITE=0
+  CONTAINER_WEB=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --force)
         FORCE_OVERWRITE=1
+        shift 1
+        ;;
+      --container-web)
+        CONTAINER_WEB=1
         shift 1
         ;;
       -h|--help)
@@ -291,6 +297,9 @@ main() {
   ensure_nginx
 
   choose_listen_port
+  if [[ $CONTAINER_WEB -eq 1 && -z "$WEB_UPSTREAM" ]]; then
+    WEB_UPSTREAM="http://127.0.0.1:8081"
+  fi
 
   warn_server_name_conflict
   ensure_managed_config

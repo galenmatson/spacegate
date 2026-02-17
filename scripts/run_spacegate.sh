@@ -9,6 +9,8 @@ PID_FILE="$LOG_DIR/spacegate_api.pid"
 WEB_PID_FILE="$LOG_DIR/spacegate_web.pid"
 API_LOG_FILE="${SPACEGATE_API_LOG_FILE:-$LOG_DIR/spacegate_api.log}"
 WEB_LOG_FILE="${SPACEGATE_WEB_LOG_FILE:-$LOG_DIR/spacegate_web.log}"
+DOCKER_COMPOSE_FILE="${SPACEGATE_DOCKER_COMPOSE_FILE:-$ROOT_DIR/docker-compose.yml}"
+IGNORE_DOCKER_CHECK="${SPACEGATE_IGNORE_DOCKER_CHECK:-0}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/srv/api/.venv/bin/python}"
 API_DIR="${SPACEGATE_API_DIR:-$ROOT_DIR/srv/api}"
 HOST="${SPACEGATE_API_HOST:-0.0.0.0}"
@@ -39,6 +41,8 @@ Options:
   --force     If pidfile is missing, kill the process bound to the port.
   --web-dev   Also start the Vite dev server on SPACEGATE_WEB_PORT (default 5173).
   --api-only  Explicitly disable Vite dev server startup.
+Environment:
+  SPACEGATE_IGNORE_DOCKER_CHECK=1  Skip docker-compose conflict detection.
 USAGE
 }
 
@@ -219,6 +223,48 @@ describe_pid() {
   ps -p "$pid" -o pid=,comm=,args=
 }
 
+docker_compose_running_services() {
+  if ! command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ ! -f "$DOCKER_COMPOSE_FILE" ]]; then
+    return 0
+  fi
+  docker compose -f "$DOCKER_COMPOSE_FILE" ps --services --status running 2>/dev/null || true
+}
+
+check_docker_conflicts() {
+  if [[ "$IGNORE_DOCKER_CHECK" == "1" ]]; then
+    return 0
+  fi
+  local running=""
+  running="$(docker_compose_running_services)"
+  if [[ -z "$running" ]]; then
+    return 0
+  fi
+
+  local conflict=0
+  if echo "$running" | grep -qx "api"; then
+    conflict=1
+  fi
+  if [[ "$WEB_ENABLE" == "1" ]] && echo "$running" | grep -qx "web"; then
+    conflict=1
+  fi
+  if [[ $conflict -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Error: docker compose services are already running:" >&2
+  echo "$running" | sed 's/^/  - /' >&2
+  echo "Refusing to start host-run services on overlapping ports." >&2
+  echo "Use one runtime mode at a time:" >&2
+  echo "  docker compose up -d" >&2
+  echo "or" >&2
+  echo "  docker compose down && scripts/run_spacegate.sh" >&2
+  echo "Override with SPACEGATE_IGNORE_DOCKER_CHECK=1 if intentional." >&2
+  exit 1
+}
+
 main() {
   local action="start"
   local stop_api_only=0
@@ -308,6 +354,8 @@ main() {
     stop_pidfile_process || true
     stop_web_process || true
   fi
+
+  check_docker_conflicts
 
   verify_build
 
