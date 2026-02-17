@@ -16,6 +16,16 @@ If BUILD_ID is not provided, the latest $SPACEGATE_STATE_DIR/out/* directory (by
 USAGE
 }
 
+relative_path() {
+  local from_dir="$1"
+  local to_path="$2"
+  python3 - "$from_dir" "$to_path" <<'PY'
+import os
+import sys
+print(os.path.relpath(sys.argv[2], sys.argv[1]))
+PY
+}
+
 select_latest_build() {
   local -a builds=()
   while IFS= read -r name; do
@@ -78,9 +88,11 @@ main() {
   mkdir -p "$SERVED_DIR"
 
   # Atomic pointer update: replace the symlink in a single operation.
-  ln -sfn "$build_dir" "$SERVED_DIR/current"
+  local rel_target=""
+  rel_target="$(relative_path "$SERVED_DIR" "$build_dir")"
+  ln -sfn "$rel_target" "$SERVED_DIR/current"
 
-  printf 'Promoted build %s -> %s/current\n' "$build_id" "$SERVED_DIR"
+  printf 'Promoted build %s -> %s/current (%s)\n' "$build_id" "$SERVED_DIR" "$rel_target"
   echo "Next: scripts/verify_build.sh to validate the promoted build."
 }
 
