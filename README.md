@@ -37,56 +37,69 @@
   - export SPACEGATE_STATE_DIR=./data
   - export SPACEGATE_CACHE_DIR=./data/cache
   - export SPACEGATE_LOG_DIR=./data/logs
-  These directories are ignored by git and may be safely deleted.
-
+These directories are ignored by git and may be safely deleted.
+Depending on which catalogs you download the data directory can be quite large, over 100 GB.
+If you intend to download all of the raw astronomical data, consider locating 
+  SPACEGATE_STATE_DIR on a separate volume from the root.
+  
 ### For production deployments, standard Linux locations are recommended:
-  - /var/lib/spacegate
+  - /srv/spacegate            # web and api servers
+  - /var/lib/spacegate        
   - /var/cache/spacegate
   - /var/log/spacegate
   - /etc/spacegate
 
 ## Quickstart (from scratch)
 
-This walks a new user from zero to a running Spacegate (API + web UI).
+Running Spacegate (API + web UI) from scratch.
 
 ### 1) Install system prerequisites
-You need Python, Node, and basic download tools available on your PATH:
+You need Python, Node (18+), and basic download tools available on your PATH:
 
 - `python3` + `pip`
-- `node` + `npm`
-- `git`, `curl`, `aria2c`, `gzip`
+- `node` (v18+) + `npm`
+- `git`, `curl`, `aria2c`, `gzip`, `7z`
 
-On Debian/Ubuntu the following usually works:
+On Debian/Ubuntu, install base tools first, then install Node.js 20:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y python3 python3-venv python3-pip git curl aria2 gzip nodejs npm
+sudo apt-get install -y python3 python3-venv python3-pip git curl aria2 gzip p7zip-full ca-certificates gnupg
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
 ```
 
 ### 2) Clone and install dependencies
-The installer creates virtualenvs, installs Python and web dependencies, and builds the database if it doesn’t exist.
+The installer creates virtualenvs, installs Python/web dependencies, and if needed bootstraps the current prebuilt core DB from `https://spacegates.org/dl/current.json` (with fallback to local source build).
 
 ```bash
 git clone https://github.com/galenmatson/spacegate.git
 cd spacegate
 
-scripts/install_spacegate.sh
+./install_spacegate.sh
 ```
 
 Optional flags:
-- `--overwrite` re-downloads catalogs even if present.
+- `--overwrite` re-downloads installer inputs even if present.
 - `--skip-web` skips the web UI dependency install.
 - `--skip-build` skips the data build step.
+- `--skip-db-download` skips prebuilt DB bootstrap and builds from catalogs instead.
 
-### 3) Build the core database (if you skipped it)
-If you used `--skip-build` or want to rebuild:
+### 3) Build the core database from source (if needed)
+If you used `--skip-build`, used `--skip-db-download`, or want to rebuild:
 
 ```bash
 scripts/build_core.sh
 ```
 
-### 4) Run Spacegate (API + web)
-The launcher verifies the database, then starts both services:
+To fetch the currently published prebuilt DB manually:
+
+```bash
+scripts/bootstrap_core_db.sh
+```
+
+### 4) Run Spacegate API (default mode)
+The launcher verifies the database, then starts the API service:
 
 ```bash
 scripts/run_spacegate.sh
@@ -94,6 +107,14 @@ scripts/run_spacegate.sh
 
 Defaults:
 - API: `http://0.0.0.0:8000`
+
+For local UI development, opt in to the Vite dev server:
+
+```bash
+scripts/run_spacegate.sh --web-dev
+```
+
+Dev web default:
 - Web UI: `http://0.0.0.0:5173`
 
 ### 5) Stop or restart
@@ -114,11 +135,19 @@ export SPACEGATE_LOG_DIR=/var/log/spacegate
 # DuckDB resources (otherwise auto-detected)
 export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 export SPACEGATE_DUCKDB_THREADS=4
+
+# Core DB bootstrap controls
+export SPACEGATE_BOOTSTRAP_DB=0
+export SPACEGATE_BOOTSTRAP_META_URL=https://spacegates.org/dl/current.json
+
+# Web runtime mode for scripts/run_spacegate.sh
+# 0 = API only (default), 1 = API + Vite dev server
+export SPACEGATE_WEB_ENABLE=1
 ```
 
 ## Nginx setup (optional)
 
-If you want a reverse proxy in front of the API/UI, run:
+For release deployments, use nginx in front of the API and serve the baked static web UI from `srv/web/dist`:
 
 ```bash
 sudo scripts/setup_nginx_spacegate.sh
@@ -129,6 +158,7 @@ Behavior:
 - Falls back to port 8080 if port 80 is in use by a non‑nginx process.
 - Writes `/etc/nginx/sites-available/spacegate.conf` with provenance comments.
 - Symlinks to `/etc/nginx/sites-enabled/spacegate.conf` (without touching other sites).
+- Serves `/dl/` from `/srv/spacegate/dl` by default (`SPACEGATE_DL_ENABLE=0` to disable).
 - Runs `nginx -t` before reload/start.
 
 Tip: if you access by IP or a specific hostname, set it explicitly:
@@ -194,14 +224,19 @@ If you want a dedicated “builder” container in compose, say the word and I�
 ### Troubleshooting
 
 - **`pip` missing in venv**  
-  Install `python3-venv` (Debian/Ubuntu), then rerun `scripts/install_spacegate.sh`.
+  Install `python3-venv` (Debian/Ubuntu), then rerun `./install_spacegate.sh`.
 
-- **`npm` not found**  
-  Install Node.js and npm, then rerun `scripts/install_spacegate.sh`.
+- **`npm` not found or Node is too old**  
+  Install/upgrade Node.js (v18+; v20 recommended), then rerun `./install_spacegate.sh`.
+
+- **`7z` not found**  
+  Install `p7zip-full` (Debian/Ubuntu), then rerun `./install_spacegate.sh`.
 
 - **Port already in use**  
   Stop the running instance with `scripts/run_spacegate.sh --stop`, or change ports with:
-  `SPACEGATE_API_PORT=8001 SPACEGATE_WEB_PORT=5174 scripts/run_spacegate.sh`
+  `SPACEGATE_API_PORT=8001 scripts/run_spacegate.sh`
+  If using dev web mode, also set:
+  `SPACEGATE_WEB_PORT=5174 scripts/run_spacegate.sh --web-dev`
 
 - **Build verification fails**  
   Run `scripts/verify_build.sh` directly to see details. If it references an old build, rebuild with `scripts/build_core.sh --overwrite`.

@@ -13,6 +13,8 @@ WEB_DIST_DEFAULT="$ROOT_DIR/srv/web/dist"
 WEB_DIST="${SPACEGATE_WEB_DIST:-$WEB_DIST_DEFAULT}"
 API_UPSTREAM="${SPACEGATE_API_UPSTREAM:-http://127.0.0.1:8000}"
 WEB_UPSTREAM="${SPACEGATE_WEB_UPSTREAM:-}"
+DL_ENABLE="${SPACEGATE_DL_ENABLE:-1}"
+DL_ALIAS_DIR="${SPACEGATE_DL_ALIAS_DIR:-/srv/spacegate/dl}"
 
 usage() {
   cat <<'USAGE'
@@ -25,6 +27,8 @@ Options:
   --force   Overwrite /etc/nginx/sites-available/spacegate.conf even if not managed.
 Environment:
   SPACEGATE_WEB_UPSTREAM  Proxy web UI to a running server (e.g., http://127.0.0.1:8081).
+  SPACEGATE_DL_ENABLE     Enable /dl/ static download endpoint (default: 1).
+  SPACEGATE_DL_ALIAS_DIR  Directory served at /dl/ (default: /srv/spacegate/dl).
 USAGE
 }
 
@@ -127,6 +131,7 @@ ensure_managed_config() {
 
 write_config() {
   local dist_path="$WEB_DIST"
+  local dl_alias_dir="${DL_ALIAS_DIR%/}"
   if [[ ! -d "$dist_path" ]]; then
     if [[ -d "$ROOT_DIR/srv/web/dist" ]]; then
       dist_path="$ROOT_DIR/srv/web/dist"
@@ -145,6 +150,23 @@ write_config() {
 server {
     listen ${LISTEN_PORT};
     server_name ${SERVER_NAME};
+EOF_CONF
+
+  if [[ "$DL_ENABLE" != "0" ]]; then
+    cat >>"$CONF_PATH" <<EOF_CONF
+
+    # Public DB downloads
+    location /dl/ {
+        alias ${dl_alias_dir}/;
+        autoindex off;
+        add_header Cache-Control "public, max-age=3600";
+        types { application/octet-stream 7z; }
+        default_type application/octet-stream;
+    }
+EOF_CONF
+  fi
+
+  cat >>"$CONF_PATH" <<EOF_CONF
 
     # Proxy API
     location /api/ {

@@ -8,6 +8,7 @@ SERVED_DIR="$STATE_DIR/served"
 OUT_DIR="$STATE_DIR/out"
 REPORTS_DIR="$STATE_DIR/reports"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
+REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
 
 usage() {
   cat <<'USAGE'
@@ -15,6 +16,7 @@ Usage:
   scripts/verify_build.sh [BUILD_ID]
 
 If BUILD_ID is not provided, the script verifies $SPACEGATE_STATE_DIR/served/current.
+Set SPACEGATE_VERIFY_REQUIRE_REPORTS=1 for strict report validation.
 USAGE
 }
 
@@ -89,23 +91,27 @@ PY
   fi
   echo "OK: parquet exports"
 
-  if [[ ! -d "$reports_dir" ]]; then
-    echo "Error: missing reports directory $reports_dir" >&2
-    exit 1
-  fi
-  echo "OK: reports directory"
-
   local qc_report="$reports_dir/qc_report.json"
   local match_report="$reports_dir/match_report.json"
   local prov_report="$reports_dir/provenance_report.json"
 
-  if [[ ! -f "$qc_report" || ! -f "$match_report" || ! -f "$prov_report" ]]; then
-    echo "Error: missing QC reports in $reports_dir" >&2
-    exit 1
+  local have_reports=1
+  if [[ ! -d "$reports_dir" ]]; then
+    have_reports=0
+  elif [[ ! -f "$qc_report" || ! -f "$match_report" || ! -f "$prov_report" ]]; then
+    have_reports=0
   fi
-  echo "OK: QC reports"
 
-  "$PYTHON_BIN" - <<'PY' "$qc_report" "$build_id"
+  if [[ $have_reports -eq 0 ]]; then
+    if [[ "$REQUIRE_REPORTS" == "1" ]]; then
+      echo "Error: missing reports for $build_id in $reports_dir" >&2
+      echo "Set SPACEGATE_VERIFY_REQUIRE_REPORTS=0 to allow reportless prebuilt DB verification." >&2
+      exit 1
+    fi
+    echo "Warning: reports missing for $build_id; continuing with relaxed verification." >&2
+  else
+    echo "OK: QC reports"
+    "$PYTHON_BIN" - <<'PY' "$qc_report" "$build_id"
 import json
 import sys
 from pathlib import Path
@@ -130,6 +136,7 @@ if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
 
 print("OK: qc_report.json")
 PY
+  fi
 
   "$PYTHON_BIN" - <<'PY' "$core_db"
 import sys

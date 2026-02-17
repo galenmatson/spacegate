@@ -7,6 +7,8 @@ STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 PID_FILE="$LOG_DIR/spacegate_api.pid"
 WEB_PID_FILE="$LOG_DIR/spacegate_web.pid"
+API_LOG_FILE="${SPACEGATE_API_LOG_FILE:-$LOG_DIR/spacegate_api.log}"
+WEB_LOG_FILE="${SPACEGATE_WEB_LOG_FILE:-$LOG_DIR/spacegate_web.log}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/srv/api/.venv/bin/python}"
 API_DIR="${SPACEGATE_API_DIR:-$ROOT_DIR/srv/api}"
 HOST="${SPACEGATE_API_HOST:-0.0.0.0}"
@@ -16,16 +18,18 @@ VERIFY_BIN="${SPACEGATE_VERIFY_BIN:-$ROOT_DIR/scripts/verify_build.sh}"
 WEB_DIR="${SPACEGATE_WEB_DIR:-$ROOT_DIR/srv/web}"
 WEB_HOST="${SPACEGATE_WEB_HOST:-0.0.0.0}"
 WEB_PORT="${SPACEGATE_WEB_PORT:-5173}"
-WEB_ENABLE="${SPACEGATE_WEB_ENABLE:-1}"
+WEB_ENABLE="${SPACEGATE_WEB_ENABLE:-0}"
+WEB_VITE_BIN="${SPACEGATE_WEB_VITE_BIN:-$WEB_DIR/node_modules/.bin/vite}"
 VITE_API_PROXY="${VITE_API_PROXY:-http://127.0.0.1:$PORT}"
 VITE_API_BASE="${VITE_API_BASE:-}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/run_spacegate.sh [--restart|--stop|--stop-api|--stop-web|--force]
+  scripts/run_spacegate.sh [--restart|--stop|--stop-api|--stop-web|--force] [--web-dev|--api-only]
 
 Starts the Spacegate API with uvicorn.
+Default mode is API-only (production-friendly; static web is served by nginx).
 
 Options:
   --restart   Stop the previous pidfile-tracked process, then start.
@@ -33,6 +37,8 @@ Options:
   --stop-api  Stop only the pidfile-tracked API process.
   --stop-web  Stop only the pidfile-tracked web process.
   --force     If pidfile is missing, kill the process bound to the port.
+  --web-dev   Also start the Vite dev server on SPACEGATE_WEB_PORT (default 5173).
+  --api-only  Explicitly disable Vite dev server startup.
 USAGE
 }
 
@@ -61,6 +67,13 @@ ensure_npm() {
     echo "Tip: run scripts/setup_spacegate.sh to install dependencies." >&2
     exit 1
   fi
+}
+
+ensure_web_runner() {
+  if [[ -x "$WEB_VITE_BIN" ]]; then
+    return 0
+  fi
+  ensure_npm
 }
 
 ensure_app_path() {
@@ -132,6 +145,10 @@ stop_pidfile_process() {
       echo "Process $pid did not stop; sending SIGKILL" >&2
       kill -9 "$pid" >/dev/null 2>&1 || true
     fi
+    if pid_is_running "$pid"; then
+      echo "Error: process $pid is still running after SIGKILL" >&2
+      return 1
+    fi
   else
     echo "Pidfile process not running (stale pid: $pid)" >&2
   fi
@@ -158,6 +175,10 @@ stop_web_process() {
     if pid_is_running "$pid"; then
       echo "Web process $pid did not stop; sending SIGKILL" >&2
       kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+    if pid_is_running "$pid"; then
+      echo "Error: web process $pid is still running after SIGKILL" >&2
+      return 1
     fi
   else
     echo "Web pidfile process not running (stale pid: $pid)" >&2
@@ -227,6 +248,14 @@ main() {
         force_stop=1
         shift 1
         ;;
+      --web-dev)
+        WEB_ENABLE=1
+        shift 1
+        ;;
+      --api-only)
+        WEB_ENABLE=0
+        shift 1
+        ;;
       -h|--help)
         usage
         exit 0
@@ -248,7 +277,7 @@ main() {
     if [[ $stop_web_only -eq 0 ]]; then
       stop_pidfile_process || true
     fi
-    if [[ $stop_api_only -eq 0 && "$WEB_ENABLE" == "1" ]]; then
+    if [[ $stop_api_only -eq 0 ]]; then
       stop_web_process || true
     fi
 
@@ -262,7 +291,7 @@ main() {
           echo "No process found on port $PORT" >&2
         fi
       fi
-      if [[ $stop_api_only -eq 0 && "$WEB_ENABLE" == "1" ]]; then
+      if [[ $stop_api_only -eq 0 ]]; then
         web_pid="$(pid_from_port "$WEB_PORT" || true)"
         if [[ -n "${web_pid:-}" ]]; then
           echo "Force-stopping process on port $WEB_PORT: $(describe_pid "$web_pid")" >&2
@@ -277,9 +306,7 @@ main() {
 
   if [[ "$action" == "restart" ]]; then
     stop_pidfile_process || true
-    if [[ "$WEB_ENABLE" == "1" ]]; then
-      stop_web_process || true
-    fi
+    stop_web_process || true
   fi
 
   verify_build
@@ -316,11 +343,9 @@ main() {
   echo "Starting Spacegate API on $HOST:$PORT" >&2
   echo "Using $PYTHON_BIN" >&2
   echo "PID file: $PID_FILE" >&2
+  echo "API log: $API_LOG_FILE" >&2
 
-  (
-    cd "$API_DIR"
-    "$PYTHON_BIN" -m uvicorn "$APP_PATH" --host "$HOST" --port "$PORT"
-  ) &
+  nohup "$PYTHON_BIN" -m uvicorn --app-dir "$API_DIR" "$APP_PATH" --host "$HOST" --port "$PORT" >>"$API_LOG_FILE" 2>&1 < /dev/null &
   pid=$!
   echo "$pid" > "$PID_FILE"
 
@@ -334,7 +359,7 @@ main() {
   echo "Started API pid $(cat "$PID_FILE")" >&2
 
   if [[ "$WEB_ENABLE" == "1" ]]; then
-    ensure_npm
+    ensure_web_runner
     if [[ ! -d "$WEB_DIR/node_modules" ]]; then
       echo "Error: $WEB_DIR/node_modules not found. Run scripts/setup_spacegate.sh first." >&2
       stop_pidfile_process || true
@@ -342,10 +367,12 @@ main() {
     fi
     echo "Starting Spacegate Web on $WEB_HOST:$WEB_PORT" >&2
     echo "Web pid file: $WEB_PID_FILE" >&2
-    (
-      cd "$WEB_DIR"
-      VITE_API_PROXY="$VITE_API_PROXY" VITE_API_BASE="$VITE_API_BASE" npm run dev -- --host "$WEB_HOST" --port "$WEB_PORT"
-    ) &
+    echo "Web log: $WEB_LOG_FILE" >&2
+    if [[ -x "$WEB_VITE_BIN" ]]; then
+      nohup bash -lc "cd \"$WEB_DIR\" && exec env VITE_API_PROXY=\"$VITE_API_PROXY\" VITE_API_BASE=\"$VITE_API_BASE\" \"$WEB_VITE_BIN\" --host \"$WEB_HOST\" --port \"$WEB_PORT\"" >>"$WEB_LOG_FILE" 2>&1 < /dev/null &
+    else
+      nohup bash -lc "cd \"$WEB_DIR\" && exec env VITE_API_PROXY=\"$VITE_API_PROXY\" VITE_API_BASE=\"$VITE_API_BASE\" npm run dev -- --host \"$WEB_HOST\" --port \"$WEB_PORT\"" >>"$WEB_LOG_FILE" 2>&1 < /dev/null &
+    fi
     wpid=$!
     echo "$wpid" > "$WEB_PID_FILE"
     sleep 0.5
@@ -356,6 +383,9 @@ main() {
       exit 1
     fi
     echo "Started Web pid $(cat "$WEB_PID_FILE")" >&2
+  else
+    echo "Web dev server disabled (API-only mode)." >&2
+    echo "Use --web-dev or SPACEGATE_WEB_ENABLE=1 to run Vite on $WEB_HOST:$WEB_PORT." >&2
   fi
 }
 
