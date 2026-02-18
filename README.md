@@ -139,6 +139,13 @@ scripts/spacegate_status.sh
 scripts/spacegate_status.sh --watch 2
 ```
 
+### 6.1) Ops report (one-shot health summary)
+
+```bash
+scripts/ops_report.sh
+scripts/ops_report.sh --public-url https://spacegates.org
+```
+
 ### 7) Stress tester (load + latency gates)
 
 ```bash
@@ -176,6 +183,9 @@ For release deployments, use nginx in front of the API and web containers (`/api
 ```bash
 sudo scripts/setup_nginx_spacegate.sh
 ```
+
+For the current antiproton production runtime notes, see:
+- `docs/ANTIPROTON_RUNTIME.md`
 
 Behavior:
 - Uses port 80 if free or already owned by nginx.
