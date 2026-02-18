@@ -176,6 +176,34 @@ export SPACEGATE_BOOTSTRAP_META_URL=https://spacegates.org/dl/current.json
 export SPACEGATE_WEB_ENABLE=1
 ```
 
+### Persistent Local Env File (Recommended)
+
+Instead of exporting variables for every command, create a local env file in the repo root:
+
+```bash
+cat > .spacegate.env <<'EOF'
+SPACEGATE_STATE_DIR=/data/spacegate/data
+SPACEGATE_CACHE_DIR=/data/spacegate/data/cache
+SPACEGATE_LOG_DIR=/data/spacegate/data/logs
+
+# Optional source-build knobs
+SPACEGATE_ENABLE_PROXIMITY=1
+SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
+SPACEGATE_DUCKDB_THREADS=12
+EOF
+```
+
+Most scripts now auto-load these files, in this order:
+
+1. `SPACEGATE_ENV_FILE` (if set)
+2. `./.spacegate.env`
+3. `./.spacegate.local.env`
+4. `/etc/spacegate/spacegate.env`
+
+Precedence: command-line env overrides file values, and file values override built-in script defaults.
+
+Note: `.spacegate.env` and `.spacegate.local.env` are ignored by git.
+
 ## Nginx setup (optional)
 
 For release deployments, use nginx in front of the API and web containers (`/api` -> `127.0.0.1:8000`, `/` -> `127.0.0.1:8081`):

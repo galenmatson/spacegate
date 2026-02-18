@@ -3,6 +3,11 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
+  source "$ROOT_DIR/scripts/lib/env_loader.sh"
+  spacegate_load_env_defaults "$ROOT_DIR"
+fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 DOCKER_COMPOSE_FILE="${SPACEGATE_DOCKER_COMPOSE_FILE:-$ROOT_DIR/docker-compose.yml}"
 NGINX_CONF="${SPACEGATE_NGINX_CONF:-/etc/nginx/sites-available/spacegate.conf}"

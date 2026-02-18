@@ -10,6 +10,8 @@
 
 # local env
 .venv/
+/.spacegate.env
+/.spacegate.local.env
 __pycache__/
 *.pyc
 .DS_Store

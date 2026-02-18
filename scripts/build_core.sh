@@ -4,6 +4,11 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
+  source "$ROOT_DIR/scripts/lib/env_loader.sh"
+  spacegate_load_env_defaults "$ROOT_DIR"
+fi
+
 usage() {
   cat <<'USAGE'
 Usage:

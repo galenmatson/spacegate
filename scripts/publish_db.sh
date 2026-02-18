@@ -10,6 +10,11 @@ DL_CURRENT_JSON="$DL_ROOT/current.json"    # metadata file (optional but recomme
 
 # Spacegate state
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
+  source "$ROOT_DIR/scripts/lib/env_loader.sh"
+  spacegate_load_env_defaults "$ROOT_DIR"
+fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 SERVED_CURRENT="$STATE_DIR/served/current"
 

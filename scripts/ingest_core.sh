@@ -3,6 +3,11 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
+  source "$ROOT_DIR/scripts/lib/env_loader.sh"
+  spacegate_load_env_defaults "$ROOT_DIR"
+fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
 LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 LOG_FILE="$LOG_DIR/ingest_core.log"
