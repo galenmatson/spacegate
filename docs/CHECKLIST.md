@@ -67,10 +67,12 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Prebuilt DB bootstrap script (`scripts/bootstrap_core_db.sh`)
 - [x] Launcher script (`scripts/run_spacegate.sh`) for API (+ optional web dev server)
 - [x] Status dashboard script (`scripts/spacegate_status.sh`)
+- [x] Ops report script (`scripts/ops_report.sh`)
 - [x] Stress tester script (`scripts/spacegate_stress.sh`)
 - [x] Nginx setup script (`scripts/setup_nginx_spacegate.sh`) with safe re-run
 - [x] Runtime hardening: localhost-only container binds + nginx API limits/timeouts
 - [x] Systemd unit installer (`scripts/install_spacegate_systemd.sh`)
+- [x] Runtime notes template (`docs/RUNTIME_NOTES_TEMPLATE.md`) for host-local `/srv/spacegate/RUNTIME.md`
 
 ## Deployment (v0.1)
 - [ ] Host UI/API on Google Cloud

@@ -184,8 +184,9 @@ For release deployments, use nginx in front of the API and web containers (`/api
 sudo scripts/setup_nginx_spacegate.sh
 ```
 
-For the current antiproton production runtime notes, see:
-- `docs/ANTIPROTON_RUNTIME.md`
+For host-local deployment notes, use:
+- `docs/RUNTIME_NOTES_TEMPLATE.md` as a template
+- copy it to `/srv/spacegate/RUNTIME.md` (outside git) and fill host-specific values
 
 Behavior:
 - Uses port 80 if free or already owned by nginx.
