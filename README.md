@@ -147,7 +147,7 @@ export SPACEGATE_WEB_ENABLE=1
 
 ## Nginx setup (optional)
 
-For release deployments, use nginx in front of the API and serve the baked static web UI from `srv/web/dist`:
+For release deployments, use nginx in front of the API and web containers (`/api` -> `127.0.0.1:8000`, `/` -> `127.0.0.1:8081`):
 
 ```bash
 sudo scripts/setup_nginx_spacegate.sh
@@ -158,8 +158,15 @@ Behavior:
 - Falls back to port 8080 if port 80 is in use by a non‑nginx process.
 - Writes `/etc/nginx/sites-available/spacegate.conf` with provenance comments.
 - Symlinks to `/etc/nginx/sites-enabled/spacegate.conf` (without touching other sites).
+- Proxies web UI to container upstream `http://127.0.0.1:8081` by default.
 - Serves `/dl/` from `/srv/spacegate/dl` by default (`SPACEGATE_DL_ENABLE=0` to disable).
 - Runs `nginx -t` before reload/start.
+
+If you prefer host-served static files from `srv/web/dist`, use:
+
+```bash
+sudo scripts/setup_nginx_spacegate.sh --static-web --force
+```
 
 Tip: if you access by IP or a specific hostname, set it explicitly:
 

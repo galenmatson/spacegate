@@ -12,22 +12,27 @@ SERVER_NAME="${SPACEGATE_SERVER_NAME:-_}"
 WEB_DIST_DEFAULT="$ROOT_DIR/srv/web/dist"
 WEB_DIST="${SPACEGATE_WEB_DIST:-$WEB_DIST_DEFAULT}"
 API_UPSTREAM="${SPACEGATE_API_UPSTREAM:-http://127.0.0.1:8000}"
-WEB_UPSTREAM="${SPACEGATE_WEB_UPSTREAM:-}"
+# Default web mode is container web proxy. Set SPACEGATE_WEB_UPSTREAM='' or use
+# --static-web to serve local dist assets directly from host nginx.
+WEB_UPSTREAM="${SPACEGATE_WEB_UPSTREAM-http://127.0.0.1:8081}"
 DL_ENABLE="${SPACEGATE_DL_ENABLE:-1}"
 DL_ALIAS_DIR="${SPACEGATE_DL_ALIAS_DIR:-/srv/spacegate/dl}"
+WEB_CONFIG_MODE=""
 
 usage() {
   cat <<'USAGE'
 Usage:
-  sudo scripts/setup_nginx_spacegate.sh [--force] [--container-web]
+  sudo scripts/setup_nginx_spacegate.sh [--force] [--container-web|--static-web]
 
 Idempotent nginx setup for Spacegate.
 
 Options:
   --force   Overwrite /etc/nginx/sites-available/spacegate.conf even if not managed.
-  --container-web  Proxy / to container web UI at http://127.0.0.1:8081.
+  --container-web  Proxy / to container web UI (default: http://127.0.0.1:8081).
+  --static-web     Serve local static web UI from srv/web/dist (host filesystem).
 Environment:
-  SPACEGATE_WEB_UPSTREAM  Proxy web UI to a running server (e.g., http://127.0.0.1:8081).
+  SPACEGATE_WEB_UPSTREAM  Web upstream URL (default: http://127.0.0.1:8081). Set empty for static mode.
+  SPACEGATE_WEB_DIST      Static web dist path for --static-web mode.
   SPACEGATE_DL_ENABLE     Enable /dl/ static download endpoint (default: 1).
   SPACEGATE_DL_ALIAS_DIR  Directory served at /dl/ (default: /srv/spacegate/dl).
 USAGE
@@ -180,6 +185,7 @@ EOF_CONF
 EOF_CONF
 
   if [[ -n "$WEB_UPSTREAM" ]]; then
+    WEB_CONFIG_MODE="proxy:${WEB_UPSTREAM}"
     cat >>"$CONF_PATH" <<EOF_CONF
 
     # Proxy Web UI
@@ -193,6 +199,7 @@ EOF_CONF
 }
 EOF_CONF
   elif [[ $has_dist -eq 1 ]]; then
+    WEB_CONFIG_MODE="static:${dist_path}"
     cat >>"$CONF_PATH" <<EOF_CONF
 
     # Static web UI
@@ -205,6 +212,7 @@ EOF_CONF
 }
 EOF_CONF
   else
+    WEB_CONFIG_MODE="static-missing:${dist_path}"
     cat >>"$CONF_PATH" <<EOF_CONF
 
     # Static web UI not found at ${dist_path}
@@ -261,6 +269,9 @@ print_summary() {
     echo "Test URL: http://${SERVER_NAME}:${LISTEN_PORT}/"
   fi
   echo "API check: http://localhost:${LISTEN_PORT}/api/v1/health"
+  if [[ -n "$WEB_CONFIG_MODE" ]]; then
+    echo "Web mode: $WEB_CONFIG_MODE"
+  fi
   echo "Logs:"
   echo "  sudo tail -f /var/log/nginx/access.log"
   echo "  sudo tail -f /var/log/nginx/error.log"
@@ -270,6 +281,7 @@ print_summary() {
 main() {
   FORCE_OVERWRITE=0
   CONTAINER_WEB=0
+  STATIC_WEB=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --force)
@@ -278,6 +290,12 @@ main() {
         ;;
       --container-web)
         CONTAINER_WEB=1
+        STATIC_WEB=0
+        shift 1
+        ;;
+      --static-web)
+        STATIC_WEB=1
+        CONTAINER_WEB=0
         shift 1
         ;;
       -h|--help)
@@ -297,7 +315,9 @@ main() {
   ensure_nginx
 
   choose_listen_port
-  if [[ $CONTAINER_WEB -eq 1 && -z "$WEB_UPSTREAM" ]]; then
+  if [[ $STATIC_WEB -eq 1 ]]; then
+    WEB_UPSTREAM=""
+  elif [[ $CONTAINER_WEB -eq 1 && -z "$WEB_UPSTREAM" ]]; then
     WEB_UPSTREAM="http://127.0.0.1:8081"
   fi
 
