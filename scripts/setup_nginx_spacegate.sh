@@ -18,6 +18,17 @@ WEB_UPSTREAM="${SPACEGATE_WEB_UPSTREAM-http://127.0.0.1:8081}"
 DL_ENABLE="${SPACEGATE_DL_ENABLE:-1}"
 DL_ALIAS_DIR="${SPACEGATE_DL_ALIAS_DIR:-/srv/spacegate/dl}"
 WEB_CONFIG_MODE=""
+API_RATE_RPS="${SPACEGATE_API_RATE_RPS:-20}"
+API_RATE_BURST="${SPACEGATE_API_RATE_BURST:-40}"
+API_CONN_LIMIT="${SPACEGATE_API_CONN_LIMIT:-40}"
+PROXY_CONNECT_TIMEOUT="${SPACEGATE_PROXY_CONNECT_TIMEOUT:-5s}"
+PROXY_READ_TIMEOUT="${SPACEGATE_PROXY_READ_TIMEOUT:-60s}"
+PROXY_SEND_TIMEOUT="${SPACEGATE_PROXY_SEND_TIMEOUT:-60s}"
+TLS_ENABLE="${SPACEGATE_TLS_ENABLE:-0}"
+TLS_CERT_FILE="${SPACEGATE_TLS_CERT_FILE:-}"
+TLS_KEY_FILE="${SPACEGATE_TLS_KEY_FILE:-}"
+TLS_INCLUDE_FILE="${SPACEGATE_TLS_INCLUDE_FILE:-/etc/letsencrypt/options-ssl-nginx.conf}"
+TLS_DHPARAM_FILE="${SPACEGATE_TLS_DHPARAM_FILE:-/etc/letsencrypt/ssl-dhparams.pem}"
 
 usage() {
   cat <<'USAGE'
@@ -33,6 +44,17 @@ Options:
 Environment:
   SPACEGATE_WEB_UPSTREAM  Web upstream URL (default: http://127.0.0.1:8081). Set empty for static mode.
   SPACEGATE_WEB_DIST      Static web dist path for --static-web mode.
+  SPACEGATE_API_RATE_RPS  API request rate limit per IP (default: 20).
+  SPACEGATE_API_RATE_BURST API burst above rate limit (default: 40).
+  SPACEGATE_API_CONN_LIMIT Concurrent API connections per IP (default: 40).
+  SPACEGATE_PROXY_CONNECT_TIMEOUT Proxy connect timeout (default: 5s).
+  SPACEGATE_PROXY_READ_TIMEOUT    Proxy read timeout (default: 60s).
+  SPACEGATE_PROXY_SEND_TIMEOUT    Proxy send timeout (default: 60s).
+  SPACEGATE_TLS_ENABLE     Set to 1 to enable HTTPS server + HTTP redirect.
+  SPACEGATE_TLS_CERT_FILE  TLS fullchain cert path (required when TLS enabled).
+  SPACEGATE_TLS_KEY_FILE   TLS private key path (required when TLS enabled).
+  SPACEGATE_TLS_INCLUDE_FILE Optional ssl include (default letsencrypt options file).
+  SPACEGATE_TLS_DHPARAM_FILE Optional dhparam file path.
   SPACEGATE_DL_ENABLE     Enable /dl/ static download endpoint (default: 1).
   SPACEGATE_DL_ALIAS_DIR  Directory served at /dl/ (default: /srv/spacegate/dl).
 USAGE
@@ -135,6 +157,25 @@ ensure_managed_config() {
   fi
 }
 
+validate_tls_config() {
+  if [[ "$TLS_ENABLE" != "1" ]]; then
+    return 0
+  fi
+  if [[ -z "$TLS_CERT_FILE" || -z "$TLS_KEY_FILE" ]]; then
+    echo "Error: TLS enabled but cert/key paths are missing." >&2
+    echo "Set SPACEGATE_TLS_CERT_FILE and SPACEGATE_TLS_KEY_FILE." >&2
+    exit 1
+  fi
+  if [[ ! -f "$TLS_CERT_FILE" ]]; then
+    echo "Error: TLS cert file not found: $TLS_CERT_FILE" >&2
+    exit 1
+  fi
+  if [[ ! -f "$TLS_KEY_FILE" ]]; then
+    echo "Error: TLS key file not found: $TLS_KEY_FILE" >&2
+    exit 1
+  fi
+}
+
 write_config() {
   local dist_path="$WEB_DIST"
   local dl_alias_dir="${DL_ALIAS_DIR%/}"
@@ -152,11 +193,40 @@ write_config() {
   cat >"$CONF_PATH" <<EOF_CONF
 # Managed by Spacegate setup script. Do not edit by hand.
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Rate-limit zones (http context)
+limit_req_zone \$binary_remote_addr zone=sg_api_rate:10m rate=${API_RATE_RPS}r/s;
+limit_conn_zone \$binary_remote_addr zone=sg_api_conn:10m;
+EOF_CONF
+
+  if [[ "$TLS_ENABLE" == "1" ]]; then
+    cat >>"$CONF_PATH" <<EOF_CONF
+
+server {
+    listen 443 ssl;
+    server_name ${SERVER_NAME};
+    limit_req_status 429;
+    ssl_certificate ${TLS_CERT_FILE};
+    ssl_certificate_key ${TLS_KEY_FILE};
+EOF_CONF
+    if [[ -f "$TLS_INCLUDE_FILE" ]]; then
+      cat >>"$CONF_PATH" <<EOF_CONF
+    include ${TLS_INCLUDE_FILE};
+EOF_CONF
+    fi
+    if [[ -f "$TLS_DHPARAM_FILE" ]]; then
+      cat >>"$CONF_PATH" <<EOF_CONF
+    ssl_dhparam ${TLS_DHPARAM_FILE};
+EOF_CONF
+    fi
+  else
+    cat >>"$CONF_PATH" <<EOF_CONF
 
 server {
     listen ${LISTEN_PORT};
     server_name ${SERVER_NAME};
+    limit_req_status 429;
 EOF_CONF
+  fi
 
   if [[ "$DL_ENABLE" != "0" ]]; then
     cat >>"$CONF_PATH" <<EOF_CONF
@@ -176,7 +246,12 @@ EOF_CONF
 
     # Proxy API
     location /api/ {
+        limit_req zone=sg_api_rate burst=${API_RATE_BURST};
+        limit_conn sg_api_conn ${API_CONN_LIMIT};
         proxy_pass ${API_UPSTREAM};
+        proxy_connect_timeout ${PROXY_CONNECT_TIMEOUT};
+        proxy_read_timeout ${PROXY_READ_TIMEOUT};
+        proxy_send_timeout ${PROXY_SEND_TIMEOUT};
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -222,6 +297,17 @@ EOF_CONF
 }
 EOF_CONF
   fi
+
+  if [[ "$TLS_ENABLE" == "1" ]]; then
+    cat >>"$CONF_PATH" <<EOF_CONF
+
+server {
+    listen ${LISTEN_PORT};
+    server_name ${SERVER_NAME};
+    return 301 https://\$host\$request_uri;
+}
+EOF_CONF
+  fi
 }
 
 ensure_symlink() {
@@ -256,6 +342,11 @@ validate_and_reload() {
 }
 
 print_summary() {
+  local scheme="http"
+  if [[ "$TLS_ENABLE" == "1" ]]; then
+    scheme="https"
+  fi
+
   echo ""
   echo "Spacegate nginx setup complete."
   echo "Chosen port: $LISTEN_PORT"
@@ -263,12 +354,12 @@ print_summary() {
     echo "Port 80 in use by: $PORT_OWNER"
   fi
   if [[ "$SERVER_NAME" == "_" ]]; then
-    echo "Test URL: http://localhost:${LISTEN_PORT}/"
+    echo "Test URL: ${scheme}://localhost:${LISTEN_PORT}/"
     echo "Tip: if you see the nginx welcome page, re-run with SPACEGATE_SERVER_NAME=your.domain.or.ip"
   else
-    echo "Test URL: http://${SERVER_NAME}:${LISTEN_PORT}/"
+    echo "Test URL: ${scheme}://${SERVER_NAME}:${LISTEN_PORT}/"
   fi
-  echo "API check: http://localhost:${LISTEN_PORT}/api/v1/health"
+  echo "API check: ${scheme}://localhost:${LISTEN_PORT}/api/v1/health"
   if [[ -n "$WEB_CONFIG_MODE" ]]; then
     echo "Web mode: $WEB_CONFIG_MODE"
   fi
@@ -323,6 +414,7 @@ main() {
 
   warn_server_name_conflict
   ensure_managed_config
+  validate_tls_config
   write_config
   ensure_symlink
   validate_and_reload

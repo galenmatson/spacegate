@@ -3,20 +3,47 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
     environment:
       SPACEGATE_STATE_DIR: /data
       SPACEGATE_CACHE_DIR: /data/cache
       SPACEGATE_LOG_DIR: /data/logs
+      SPACEGATE_API_DUCKDB_MEMORY_LIMIT: ${SPACEGATE_API_DUCKDB_MEMORY_LIMIT:-8GB}
+      SPACEGATE_API_DUCKDB_THREADS: ${SPACEGATE_API_DUCKDB_THREADS:-4}
     volumes:
       - ${SPACEGATE_DATA_DIR:-./data}:/data
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request; d=json.loads(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2).read().decode()); sys.exit(0 if d.get('status')=='ok' else 1)"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   web:
     build:
       context: .
       dockerfile: docker/Dockerfile.web
+    restart: unless-stopped
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
-      - "8081:80"
+      - "127.0.0.1:8081:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

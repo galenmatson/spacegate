@@ -173,6 +173,8 @@ Behavior:
 - Writes `/etc/nginx/sites-available/spacegate.conf` with provenance comments.
 - Symlinks to `/etc/nginx/sites-enabled/spacegate.conf` (without touching other sites).
 - Proxies web UI to container upstream `http://127.0.0.1:8081` by default.
+- Applies API abuse controls by default: per-IP rate limit, burst limit, and connection limit.
+- Applies proxy timeouts on API upstream connections.
 - Serves `/dl/` from `/srv/spacegate/dl` by default (`SPACEGATE_DL_ENABLE=0` to disable).
 - Runs `nginx -t` before reload/start.
 
@@ -188,20 +190,38 @@ Tip: if you access by IP or a specific hostname, set it explicitly:
 sudo SPACEGATE_SERVER_NAME="192.168.1.102" scripts/setup_nginx_spacegate.sh --force
 ```
 
-### HTTPS (not configured by the script)
+Rate-limit and timeout tuning example:
 
-The setup script intentionally configures **HTTP only**. If you want TLS:
+```bash
+sudo SPACEGATE_SERVER_NAME="spacegates.org www.spacegates.org" \
+  SPACEGATE_API_RATE_RPS=15 \
+  SPACEGATE_API_RATE_BURST=30 \
+  SPACEGATE_API_CONN_LIMIT=30 \
+  SPACEGATE_PROXY_READ_TIMEOUT=45s \
+  scripts/setup_nginx_spacegate.sh --force
+```
 
-1. Re-run nginx setup with the full hostnames:
-   ```bash
-   sudo SPACEGATE_SERVER_NAME="spacegates.org www.spacegates.org" scripts/setup_nginx_spacegate.sh --force
-   ```
-2. Use certbot (nginx installer) to add the TLS server block:
+Optional HTTPS enforcement from this script (requires cert files):
+
+```bash
+sudo SPACEGATE_SERVER_NAME="spacegates.org www.spacegates.org" \
+  SPACEGATE_TLS_ENABLE=1 \
+  SPACEGATE_TLS_CERT_FILE=/etc/letsencrypt/live/spacegates.org/fullchain.pem \
+  SPACEGATE_TLS_KEY_FILE=/etc/letsencrypt/live/spacegates.org/privkey.pem \
+  scripts/setup_nginx_spacegate.sh --force
+```
+
+### HTTPS alternatives
+
+You can either:
+
+1. Use script-managed TLS via `SPACEGATE_TLS_ENABLE=1` and cert/key paths (shown above), or
+2. Keep script-managed HTTP and let certbot edit nginx:
    ```bash
    sudo certbot --nginx -d spacegates.org -d www.spacegates.org
    ```
 
-Note: re-running the nginx setup script with `--force` after certbot will overwrite certbot’s TLS edits.
+If you use certbot-managed TLS, re-running `scripts/setup_nginx_spacegate.sh --force` will overwrite certbot's nginx edits.
 
 ### Systemd (optional, recommended for servers)
 
@@ -224,8 +244,11 @@ docker compose up --build
 ```
 
 This exposes:
-- API: `http://localhost:8000`
-- Web: `http://localhost/`
+- API: `http://127.0.0.1:8000`
+- Web container: `http://127.0.0.1:8081`
+
+Note: compose now binds API/web container ports to loopback only (`127.0.0.1`) by default.
+Public traffic should go through host nginx (`80/443`) only.
 
 ### Data volume
 
@@ -233,6 +256,14 @@ By default, compose bind-mounts `./data` from the repo into `/data` inside the A
 
 ```bash
 SPACEGATE_DATA_DIR=/data/spacegate/data docker compose up --build
+```
+
+Optional API DuckDB runtime caps for smaller hosts:
+
+```bash
+SPACEGATE_API_DUCKDB_MEMORY_LIMIT=6GB \
+SPACEGATE_API_DUCKDB_THREADS=4 \
+docker compose up --build
 ```
 
 You still need to build the core database (once). Easiest path:
