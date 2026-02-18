@@ -124,6 +124,13 @@ scripts/run_spacegate.sh --stop
 scripts/run_spacegate.sh --restart
 ```
 
+### 6) Status monitor (color terminal dashboard)
+
+```bash
+scripts/spacegate_status.sh
+scripts/spacegate_status.sh --watch 2
+```
+
 ### Optional configuration
 
 ```bash

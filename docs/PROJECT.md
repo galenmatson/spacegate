@@ -538,6 +538,32 @@ Rules:
 
 ---
 
+## v1.5: Operations dashboard and telemetry
+Goal: after rich content is working, add an at-a-glance operations view so service health and usage can be assessed in seconds.
+
+Success criteria:
+- Single dashboard view with clear green/yellow/red status.
+- Service/runtime status:
+  - nginx status and active config mode (container web vs static web).
+  - API and web process/container status, uptime, and restart counts.
+- Endpoint checks:
+  - `GET /` and `GET /api/v1/health` through nginx.
+  - Direct API health check.
+- Build state:
+  - current `build_id`, active DB path, and `served/current` pointer target.
+- Usage and reliability metrics:
+  - request rate and endpoint mix (especially search endpoints),
+  - error rate (4xx/5xx),
+  - basic latency percentiles (p50/p95) for key API endpoints.
+- Capacity snapshot:
+  - CPU, memory, and disk usage for host + containers.
+
+Implementation notes:
+- Start with a local terminal monitor (`scripts/spacegate_status.sh`).
+- Then expose metrics from API/nginx and add a dashboard stack (e.g., Prometheus + Grafana) with basic alerts.
+
+---
+
 ## v2: 3D map (browser)
 Success criteria:
 - Lightweight browser-based 3D viewer (likely three.js; evaluate alternatives later).

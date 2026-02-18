@@ -66,6 +66,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Installer script (`install_spacegate.sh`) for deps + build
 - [x] Prebuilt DB bootstrap script (`scripts/bootstrap_core_db.sh`)
 - [x] Launcher script (`scripts/run_spacegate.sh`) for API (+ optional web dev server)
+- [x] Status dashboard script (`scripts/spacegate_status.sh`)
 - [x] Nginx setup script (`scripts/setup_nginx_spacegate.sh`) with safe re-run
 - [x] Systemd unit installer (`scripts/install_spacegate_systemd.sh`)
 
