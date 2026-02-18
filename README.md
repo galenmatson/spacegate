@@ -131,6 +131,13 @@ scripts/spacegate_status.sh
 scripts/spacegate_status.sh --watch 2
 ```
 
+### 7) Stress tester (load + latency gates)
+
+```bash
+scripts/spacegate_stress.sh --profile smoke --url http://192.168.1.102
+scripts/spacegate_stress.sh --profile sustain --url http://192.168.1.102 --duration 600
+```
+
 ### Optional configuration
 
 ```bash
