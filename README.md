@@ -98,6 +98,14 @@ To fetch the currently published prebuilt DB manually:
 scripts/bootstrap_core_db.sh
 ```
 
+For server deploys, pass the target state dir inline so files land where Docker mounts them:
+
+```bash
+SPACEGATE_STATE_DIR=/srv/spacegate/data \
+SPACEGATE_CACHE_DIR=/srv/spacegate/data/cache \
+scripts/bootstrap_core_db.sh
+```
+
 ### 4) Run Spacegate API (default mode)
 The launcher verifies the database, then starts the API service:
 
@@ -145,6 +153,8 @@ scripts/spacegate_stress.sh --profile sustain --url http://192.168.1.102 --durat
 export SPACEGATE_STATE_DIR=/var/lib/spacegate
 export SPACEGATE_CACHE_DIR=/var/cache/spacegate
 export SPACEGATE_LOG_DIR=/var/log/spacegate
+# Alias used by bootstrap script (if SPACEGATE_STATE_DIR is unset)
+export SPACEGATE_DATA_DIR=/var/lib/spacegate
 
 # DuckDB resources (otherwise auto-detected)
 export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB

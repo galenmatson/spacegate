@@ -4,6 +4,8 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+CACHE_DIR="${SPACEGATE_CACHE_DIR:-$STATE_DIR/cache}"
+LOG_DIR="${SPACEGATE_LOG_DIR:-$STATE_DIR/logs}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 NODE_MIN_MAJOR="${SPACEGATE_NODE_MIN_MAJOR:-18}"
 
@@ -39,6 +41,7 @@ check_deps() {
   require_cmd curl
   require_cmd aria2c
   require_cmd gzip
+  require_cmd 7z
   require_cmd node
   require_cmd npm
 
@@ -111,6 +114,7 @@ main() {
   done
 
   check_deps
+  echo "==> Using state dir: $STATE_DIR"
 
   echo "==> Setup venvs and dependencies"
   if [[ $skip_web -eq 1 ]]; then
@@ -132,7 +136,11 @@ main() {
       local bootstrapped=0
       if [[ $skip_db_download -eq 0 && "$bootstrap_enabled" != "0" ]]; then
         echo "==> Core database not found; bootstrapping from Spacegate download"
-        if "$ROOT_DIR/scripts/bootstrap_core_db.sh" $overwrite; then
+        if \
+          SPACEGATE_STATE_DIR="$STATE_DIR" \
+          SPACEGATE_CACHE_DIR="$CACHE_DIR" \
+          SPACEGATE_LOG_DIR="$LOG_DIR" \
+          "$ROOT_DIR/scripts/bootstrap_core_db.sh" $overwrite; then
           bootstrapped=1
         else
           echo "Warning: bootstrap download failed; falling back to local source build." >&2
@@ -140,6 +148,9 @@ main() {
       fi
       if [[ $bootstrapped -eq 0 ]]; then
         echo "==> Building core database from source catalogs"
+        SPACEGATE_STATE_DIR="$STATE_DIR" \
+        SPACEGATE_CACHE_DIR="$CACHE_DIR" \
+        SPACEGATE_LOG_DIR="$LOG_DIR" \
         "$ROOT_DIR/scripts/build_core.sh" $overwrite
       fi
     else

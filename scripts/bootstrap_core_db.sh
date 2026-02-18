@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 OUT_DIR="$STATE_DIR/out"
 CACHE_DIR="${SPACEGATE_CACHE_DIR:-$STATE_DIR/cache}"
 DOWNLOAD_DIR="${SPACEGATE_BOOTSTRAP_DOWNLOAD_DIR:-$CACHE_DIR/downloads}"
@@ -44,6 +44,8 @@ from urllib.parse import urljoin
 
 base = sys.argv[1]
 path = sys.argv[2]
+if base and not base.endswith("/"):
+    base = base + "/"
 print(urljoin(base, path))
 PY
 }
@@ -150,19 +152,42 @@ main() {
   require_cmd sha256sum
   require_cmd stat
 
+  echo "Using state dir: $STATE_DIR"
+  echo "Using cache dir: $CACHE_DIR"
+  echo "Using download dir: $DOWNLOAD_DIR"
+  if [[ -z "${SPACEGATE_STATE_DIR:-}" && -z "${SPACEGATE_DATA_DIR:-}" ]]; then
+    if [[ -d /srv/spacegate/data && "$STATE_DIR" != "/srv/spacegate/data" ]]; then
+      echo "Warning: defaulting to $STATE_DIR while /srv/spacegate/data exists." >&2
+      echo "Tip: set SPACEGATE_STATE_DIR=/srv/spacegate/data (or SPACEGATE_DATA_DIR)." >&2
+    fi
+  fi
+
   mkdir -p "$DOWNLOAD_DIR" "$OUT_DIR"
 
   local tmp_meta=""
+  local tmp_parse_err=""
   tmp_meta="$(mktemp)"
-  trap 'rm -f "${tmp_meta:-}"' EXIT
+  tmp_parse_err="$(mktemp)"
+  trap 'rm -f "${tmp_meta:-}" "${tmp_parse_err:-}"' EXIT
 
   echo "Fetching metadata: $META_URL"
   curl -fsSL "$META_URL" -o "$tmp_meta"
 
   local -a meta=()
-  mapfile -t meta < <(read_metadata "$tmp_meta")
+  if ! mapfile -t meta < <(read_metadata "$tmp_meta" 2>"$tmp_parse_err"); then
+    echo "Error: failed to parse metadata from $META_URL" >&2
+    if [[ -s "$tmp_parse_err" ]]; then
+      cat "$tmp_parse_err" >&2
+    fi
+    echo "Tip: validate JSON with: python3 -m json.tool /path/to/current.json" >&2
+    echo "Common issue: trailing text after JSON (for example a stray 'EOF')." >&2
+    exit 1
+  fi
   if [[ ${#meta[@]} -lt 4 ]]; then
     echo "Error: failed to parse metadata from $META_URL" >&2
+    if [[ -s "$tmp_parse_err" ]]; then
+      cat "$tmp_parse_err" >&2
+    fi
     exit 1
   fi
 
