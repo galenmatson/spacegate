@@ -7,7 +7,6 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Define v0 schema contract in `docs/SCHEMA.md`
 - [x] Document current data sources in `docs/DATA_SOURCES.md`
 - [x] Add pack contract doc `docs/PACKS.md`
-- [x] Add packs manifest stub generator `scripts/generate_packs_manifest.py`
 - [x] Add `.gitignore` entries for generated artifacts (`/data/`, etc.)
 
 ## Environment & Layout
@@ -59,12 +58,13 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Implement search + detail views
 - [x] Add filters/sorting
 - [ ] UI matches `docs/UX_SPEC.md` (provenance links, match confidence warnings, accessibility)
-- [ ] Support optional packs + lore overlays in UI (core read-only)
+- [ ] Support optional packs in UI (core read-only; lore overlays deferred to v2+)
 - [x] Deploy initial UI
 
 ## Operations
 - [x] Installer script (`install_spacegate.sh`) for deps + build
 - [x] Prebuilt DB bootstrap script (`scripts/bootstrap_core_db.sh`)
+- [x] Publish/download reports alongside prebuilt DB artifacts (`qc_report.json`, `match_report.json`, `provenance_report.json`) and wire via `current.json`
 - [x] Launcher script (`scripts/run_spacegate.sh`) for API (+ optional web dev server)
 - [x] Status dashboard script (`scripts/spacegate_status.sh`)
 - [x] Ops report script (`scripts/ops_report.sh`)
@@ -75,29 +75,64 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Runtime notes template (`docs/RUNTIME_NOTES_TEMPLATE.md`) for host-local `/srv/spacegate/RUNTIME.md`
 
 ## Deployment (v0.1)
-- [ ] Host UI/API on Google Cloud
+- [x] Host UI/API on production cloud infrastructure
 - [x] Public at `spacegates.org`
 
-## Rich (v1.1+)
-- [ ] Interestingness scoring + ranking stored in rich
+## v0.1.5 Admin Control Plane + Auth Foundation
+- [x] Draft Checkpoint A implementation spec (`docs/ADMIN_AUTH_SPEC.md`)
+- [x] OIDC login for admin panel (Google-supported provider path)
+- [x] Server-side admin identity allowlist enforcement
+- [x] Identity schema for future user features (`users`, `auth_identities`, `sessions`, `roles`)
+- [x] RBAC middleware (`admin` role active; future `user` role scaffolded)
+- [x] Session hardening (secure HTTP-only cookies, CSRF, TTL, re-auth on sensitive actions)
+- [x] Admin read-only operations view (build/publish/runtime/reports)
+- [x] Safe allowlisted action runner for existing scripts (no arbitrary shell)
+- [x] Audit log for admin actions (`who`, `what`, `when`, `params`, `result`)
+
+## v0.2 Coolness
+- [x] Coolness scoring + ranking stored in rich with score breakdown (`scripts/score_coolness.py`, includes v1.3-aligned complexity/exotic-star factors)
+- [ ] Versioned weight profiles (reproducible profile id/version in outputs)
+- [ ] CLI preview/apply for weight profiles with diff against active profile
+- [ ] Admin slider/preset UI for weights
+- [ ] Diversity preview checks (class/type distribution before apply)
+- [ ] Scoring report artifact per run (top-N and distribution summary)
+- [ ] Profile activation audit trail + rollback to prior profile
+
+## v1 System Visualization
 - [ ] Snapshot generator and manifest
-- [ ] Factsheets + blurbs pipeline
 - [ ] Deterministic rendering rules and QC
 - [ ] Rich artifact storage + versioning
+
+## v1.1 External Reference Links
 - [ ] External reference links (curated authoritative sources)
+
+## v1.2 AI Rich Description
+- [ ] Factsheets + expositions pipeline
+
+## v1.3 Image Generator
+- [ ] Image generation pipeline and artifact storage
+
+## v1.4 System Neighbor Graph
 - [ ] System neighbor graph (10 nearest systems per system)
 
-## 3D Map (v2)
+## v1.5 Operations Dashboard and Telemetry
+- [ ] Dashboard/telemetry stack beyond local scripts (metrics + alerts)
+
+## v2 3D Map
 - [ ] 3D viewer (camera controls, selection, tooltips)
 - [ ] Filters (distance bubble, spectral class, magnitude)
 - [ ] Rendering toggles (planets, lore, links)
 - [ ] Performance & floating-origin correctness
 
-## Additional Catalogs / Packs (v2.1)
+## v2.1 Additional Catalogs / Packs
 - [ ] Approve candidate sources
 - [ ] Implement pack ingestion pipelines
 - [ ] Pack QC reports + manifests
 - [ ] Integrate packs into UI search/render
+
+## v2.2 System View and Generators
+- [ ] Epoch/time selection with proper-motion re-rendering
+- [ ] System/worldbuilder generator tools
 
 ## Lore & Engagement (v2+)
 - [ ] Lore overlay schema + tooling

@@ -10,10 +10,10 @@ v0 ingests **only**:
 - **AT-HYG** star catalog CSV (local sphere subset already in repo)
 - **NASA Exoplanet Archive** CSV (pscomppars; host matching limited by core star coverage)
 
-v0 produces a **pure astronomy** dataset. No lore, blurbs, or images live in core.
+v0 produces a **pure astronomy** dataset. No lore, expositions, or images live in core.
 
 Optional packs (substellar/compact/extended objects) and editorial/lore layers are v2.1+ and are separate artifacts.
-Derived “rich” artifacts (factsheets/blurbs/snapshots) are out of scope for this schema and live in their own dataset.
+Derived “rich” artifacts (factsheets/expositions/snapshots) are out of scope for this schema and live in their own dataset.
 
 ---
 

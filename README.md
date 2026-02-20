@@ -7,7 +7,7 @@
 
   - Core datasets: systems, stars, planets (AT‑HYG + NASA Exoplanet Archive).
   - Optional “packs” (v2.1+): substellar, compact, superstellar, etc., as separate, read‑only artifacts.
-  - Rich (v1.1+): derived artifacts like blurbs, reference links, snapshots.
+  - Rich (v1.1+): derived artifacts like expositions, reference links, snapshots.
   - A browser 3D map (v2) with filters and overlays.
 
 # Data & Pipeline Model
@@ -106,6 +106,56 @@ SPACEGATE_CACHE_DIR=/srv/spacegate/data/cache \
 scripts/bootstrap_core_db.sh
 ```
 
+### 3.1) Publish a promoted build for public download (operator task)
+
+To package the currently promoted build and update download metadata:
+
+```bash
+scripts/publish_db.sh
+```
+
+By default this writes to `/srv/spacegate/dl` (override with `SPACEGATE_DL_ROOT`):
+
+- archive: `db/<build_id>.7z` (or `.tar.zst` if `7z` is unavailable)
+- symlink: `current -> db/<archive>`
+- metadata: `current.json`
+- reports: `reports/<build_id>/{qc_report,match_report,provenance_report,system_grouping_report,core_manifest}.json` when present
+
+`current.json` includes artifact checksum/size plus report links and summary metadata used by bootstrap clients.
+
+### 3.2) Push published artifacts to a remote host
+
+To copy the published DB archive, `current.json`, and referenced reports to a remote `/dl` tree:
+
+```bash
+scripts/push_published_db.sh --remote antiproton
+```
+
+The script reads local `current.json`, transfers only the referenced files, and preserves relative paths (`db/...`, `reports/...`).
+
+By default it does **not** update the remote `current` symlink. If you still want that pointer on the remote host:
+
+```bash
+scripts/push_published_db.sh --remote antiproton --set-current-link
+```
+
+### 3.3) Deploy app code to antiproton safely (preserve remote auth env)
+
+To sync the app and restart containers without overwriting remote secrets:
+
+```bash
+scripts/deploy_antiproton.sh --remote antiproton --expect-auth enabled
+```
+
+This deploy helper excludes these remote-local env files from rsync:
+- `.spacegate.env`
+- `.spacegate.local.env`
+
+Useful options:
+- `--no-build` restart without image rebuild
+- `--skip-public-check` skip `https://spacegates.org` checks
+- `--dry-run` preview sync/restart steps without changing remote files
+
 ### 4) Run Spacegate API (default mode)
 The launcher verifies the database, then starts the API service:
 
@@ -160,7 +210,7 @@ scripts/spacegate_stress.sh --profile sustain --url http://192.168.1.102 --durat
 export SPACEGATE_STATE_DIR=/var/lib/spacegate
 export SPACEGATE_CACHE_DIR=/var/cache/spacegate
 export SPACEGATE_LOG_DIR=/var/log/spacegate
-# Alias used by bootstrap script (if SPACEGATE_STATE_DIR is unset)
+# Optional alias (compose/scripts fallback to this when SPACEGATE_STATE_DIR is unset)
 export SPACEGATE_DATA_DIR=/var/lib/spacegate
 
 # DuckDB resources (otherwise auto-detected)
@@ -193,14 +243,14 @@ SPACEGATE_DUCKDB_THREADS=12
 EOF
 ```
 
-Most scripts now auto-load these files, in this order:
+Most scripts now auto-load these files in this precedence (lowest to highest):
 
-1. `SPACEGATE_ENV_FILE` (if set)
+1. `/etc/spacegate/spacegate.env`
 2. `./.spacegate.env`
 3. `./.spacegate.local.env`
-4. `/etc/spacegate/spacegate.env`
+4. `SPACEGATE_ENV_FILE` (if set)
 
-Precedence: command-line env overrides file values, and file values override built-in script defaults.
+Process env always wins (inline prefixes like `SPACEGATE_STATE_DIR=... scripts/...` override all files).
 
 Note: `.spacegate.env` and `.spacegate.local.env` are ignored by git.
 
@@ -289,7 +339,7 @@ Spacegate can run in Docker with two containers: API + web. The web container se
 ### Build and run
 
 ```bash
-docker compose up --build
+scripts/compose_spacegate.sh up --build
 ```
 
 This exposes:
@@ -301,7 +351,14 @@ Public traffic should go through host nginx (`80/443`) only.
 
 ### Data volume
 
-By default, compose bind-mounts `./data` from the repo into `/data` inside the API container. If you want a different host path, set `SPACEGATE_DATA_DIR` before running compose:
+By default, compose bind-mounts `./data` from the repo into `/data` inside the API container.
+For consistent env-file behavior (`.spacegate.env`, `.spacegate.local.env`), use the wrapper script:
+
+```bash
+scripts/compose_spacegate.sh up --build
+```
+
+Direct compose still works, but use an inline env prefix (or `--env-file`) when you need a custom mount:
 
 ```bash
 SPACEGATE_DATA_DIR=/data/spacegate/data docker compose up --build
@@ -312,12 +369,12 @@ Optional API DuckDB runtime caps for smaller hosts:
 ```bash
 SPACEGATE_API_DUCKDB_MEMORY_LIMIT=6GB \
 SPACEGATE_API_DUCKDB_THREADS=4 \
-docker compose up --build
+scripts/compose_spacegate.sh up --build
 ```
 
 You still need to build the core database (once). Easiest path:
 
-1. Run the build on the host (recommended), then start compose (the container sees `./data`).
+1. Run the build on the host (recommended), then start compose (the container sees your mounted state dir at `/data`).
 2. Or exec into the API container and run the build scripts there (requires build tools inside the image).
 
 If you want a dedicated “builder” container in compose, say the word and I’ll add it.
@@ -345,7 +402,7 @@ If you want a dedicated “builder” container in compose, say the word and I�
 # Roadmap (high level)
 
   - v1.1: static snapshot generation (SVG) with deterministic rendering rules.
-  - v1.2: factual “facts → blurb” generation + reference links.
+  - v1.2: factual “facts → exposition” generation + reference links.
   - v1.2.2: precomputed 10‑nearest neighbor graph.
   - v2: browser 3D map.
   - v2.1+: optional catalogs as packs.

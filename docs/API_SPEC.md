@@ -63,6 +63,191 @@ If a cursor is invalid or does not match the requested sort, the API returns `40
 
 ## Endpoints
 
+### GET /auth/login/google
+Starts OIDC login flow when auth is enabled (`SPACEGATE_AUTH_ENABLE=1`).
+
+Query params:
+- `next` (optional local path; default `/admin`)
+
+Response:
+- `302` redirect to Google authorization endpoint.
+
+### GET /auth/callback/google
+OIDC callback endpoint. Validates state/nonce, verifies ID token, enforces admin allowlist, and creates a session.
+
+Query params:
+- `code` (required)
+- `state` (required)
+
+Response:
+- `302` redirect to admin page on success.
+- `400/401/403` on invalid state/auth/allowlist failures.
+
+### POST /auth/logout
+Revokes active session and clears auth cookies.
+
+Security:
+- Requires authenticated session.
+- Requires CSRF header (`X-CSRF-Token`) for mutating request.
+
+Response:
+- `204 No Content`
+
+### GET /auth/me
+Returns auth/session summary.
+
+Response when auth disabled:
+```json
+{"auth_enabled": false, "authenticated": false}
+```
+
+Response when auth enabled but unauthenticated:
+```json
+{
+  "auth_enabled": true,
+  "authenticated": false,
+  "csrf": {"cookie_name":"__Host-spacegate_csrf","header_name":"X-CSRF-Token"}
+}
+```
+
+### GET /admin/status
+Admin-only operational status endpoint.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
+### GET /admin/ui
+Admin UI scaffold served by the API (under `/api/v1/admin/ui`).
+
+Notes:
+- Prefer `/api/v1/admin/ui` behind nginx/container deployments to avoid web route conflicts.
+- `/admin` remains available when API is exposed directly.
+
+### GET /admin/actions/catalog
+Returns allowlisted admin actions and parameter schemas.
+
+Notes:
+- Includes `display_name` and `category` fields for admin UI grouping (for example `operations` vs `coolness`).
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
+### POST /admin/actions/run
+Starts an allowlisted admin action as a background job.
+
+Request body:
+```json
+{
+  "action": "verify_build",
+  "params": {"build_id": "2026-02-19T221543Z_2774126"},
+  "confirmation": "RUN verify_build"
+}
+```
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+- Action-level role checks are enforced server-side.
+- High-risk actions require an exact confirmation phrase from catalog metadata.
+
+Response:
+- `200` with created job metadata.
+- `400` invalid action/params.
+- `409` job-capacity conflict (runner busy).
+
+### GET /admin/actions/jobs
+Lists recent admin jobs.
+
+Query params:
+- `limit` (default 20, max 200)
+
+### GET /admin/actions/jobs/{job_id}
+Returns metadata for a specific admin job.
+
+Response:
+- `200` when found.
+- `404` when missing.
+
+### GET /admin/actions/jobs/{job_id}/log
+Returns a log chunk for polling/streaming.
+
+Query params:
+- `offset` (byte offset, default 0)
+- `limit` (bytes to read, default 65536, max 1048576)
+
+Response shape:
+```json
+{
+  "job_id": "job_...",
+  "offset": 0,
+  "next_offset": 1024,
+  "chunk": "...",
+  "eof": false,
+  "status": "running"
+}
+```
+
+### GET /admin/actions/jobs/{job_id}/log/download
+Returns full job log text as a downloadable attachment.
+
+Response:
+- `200 text/plain` with `Content-Disposition: attachment; filename="<job_id>.log"`
+- `404` when missing.
+
+### POST /admin/actions/jobs/{job_id}/cancel
+Cancels a queued job.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+
+Behavior:
+- Cancels only jobs in `queued` status.
+- Returns `409` if the job is already running or terminal.
+
+### GET /admin/backups
+Lists available admin backup artifacts (admin DB snapshots and release metadata snapshots).
+
+Query params:
+- `limit` (default 100, max 500)
+
+### GET /admin/audit
+Lists recent admin/auth audit events from the admin auth database.
+
+Query params:
+- `limit` (default 50, max 500)
+- `before_audit_id` (optional keyset pagination anchor; returns rows with `audit_id < before_audit_id`)
+- `event_type` (optional exact match, e.g. `auth.login.denied`)
+- `event_prefix` (optional prefix match, e.g. `admin.action.`)
+- `result` (optional: `success|deny|error`)
+- `request_id` (optional exact match)
+- `actor_user_id` (optional exact match)
+
+Response shape:
+```json
+{
+  "items": [
+    {
+      "audit_id": 7,
+      "actor_user_id": null,
+      "event_type": "auth.login.denied",
+      "result": "deny",
+      "request_id": "req_efc0733fbb33",
+      "route": "/api/v1/auth/callback/google",
+      "method": "GET",
+      "correlation_id": "job_20260220T190001Z_a1b2c3d4e5",
+      "details": {"email":"galen.matson@archittec.com","reason":"allowlist"},
+      "created_at": "2026-02-20T17:55:21Z"
+    }
+  ],
+  "next_before_audit_id": 7
+}
+```
+
 ### GET /health
 Returns service status and build metadata.
 

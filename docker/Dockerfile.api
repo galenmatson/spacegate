@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy API code
 COPY srv/api /app/srv/api
+COPY scripts /app/scripts
 
 ENV SPACEGATE_STATE_DIR=/data
 ENV SPACEGATE_CACHE_DIR=/data/cache
