@@ -11,7 +11,7 @@ This does leave a lot of systems outside the FTL network (but there's a substant
 
 The surface area requirements result in dyson swarms of solar collectors around the brightest stars, with the antimatter production for the same collector area rising with the Stephan Boltzman law, making bright A, B, and O type stars the most desirable for energy production. They fuel the spacegates and antimatter rocket based sublight interstellar travel and form the energy core of empires in the future. 
 
-My desire is to have an interactive 3D map rendered in a browser which draws an accurate star map using the latest parallax measurements and build a space empire mapping tool on top of it. Create an agent to generate engaging but factual English blurbs for each system. Starting with the most important (Sirus, Alpha Centauri, etc) and unique (bright stars, exoplanets in habitable zones, inferno planets, trinary stars, dust rings, etc.) systems. It should be interesting and informative in a way that people will just read about space stuff for fun and keep exploring.
+My desire is to have an interactive 3D map rendered in a browser which draws an accurate star map using the latest parallax measurements and build a space empire mapping tool on top of it. Create an agent to generate exciting, factual English exposition for each system grounded in real scientific data. Starting with the most important (Sirus, Alpha Centauri, etc) and unique (bright stars, exoplanets in habitable zones, inferno planets, trinary stars, dust rings, etc.) systems. It should be interesting and informative in a way that people will just read about space stuff for fun and keep exploring.
 
 The world building features of the map should allow for things like trade lanes, spacegate links, or other connections to be drawn between stars. Spheres of control around owned/occupied systems that form the 3D shape of interstellar empires. Place megastructures like solar collectors, foundaries, shipyards, Dyson swarms, colonies, momentum banks, space elevators, mines, mass drivers, space stations, etc. on planets, in orbit of them, in stellar orbit, or galactic orbit (unbound to stars).
 
@@ -137,7 +137,7 @@ Deferred until after the v1 UI. See **v2.1 Additional catalogs** below.
 ## Terminology
 - **Core astronomy**: real objects intended for general browsing in the ≤1000 ly sphere (systems, stars, planets) + strict provenance. These are downloaded and normalized by scripts and background functions but are not changeable by the user app.
 - **Expanded astronomy**: additional *real* object categories (substellar/compact/superstellar/etc.) that can be toggled in search/render/download. Like the core astronomy, read-only except by the catalog management functions.
-- **Rich astronomy**: derived, regenerable content generated from core/packs (e.g., deterministic snapshot manifests, fact sheets, generated blurbs, generated imagery). Not edited in-place; regenerate instead.
+- **Rich astronomy**: derived, regenerable content generated from core/packs (e.g., deterministic snapshot manifests, fact sheets, generated expositions, generated imagery). Not edited in-place; regenerate instead.
 - **Engagement**: user feedback, click counts, likes. Informs the enrichment AI on systems of most interest. Linking to external forum threads on specific topics.
 - **Lore**: user-authored fictional metadata and fictional entities. Editable. Stored separately so core data stays shareable.
 
@@ -158,7 +158,7 @@ Core tables (minimum):
 - `planets` (NASA-derived)
 - plus required provenance fields on all rows.
 
-Rule: **No blurbs, images, or lore** stored in core.
+Rule: **No expositions, images, or lore** stored in core.
 Rule: **Spatial sorting** All core Parquet files must be sorted by `spatial_index` (Morton Z-order). This enables high-performance "range scans" for 3D queries without reading the entire file.
 
 ### 2) Expanded astronomy dataset (v2.1+)
@@ -178,7 +178,7 @@ Note: “superstellar” objects are often extended, not point sources. This pac
 
 Rule: packs are **read-only** inputs to search/render/download. Each pack has its own provenance.
 
-### 3) Rich dataset (v1.1+)
+### 3) Rich dataset (v1+)
 **Purpose:** derived artifacts that make the UI engaging while remaining strictly traceable to source facts.
 
 - DuckDB (authoritative query format for the app/API):
@@ -187,22 +187,22 @@ Rule: packs are **read-only** inputs to search/render/download. Each pack has it
   - `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet`
 
 Rich tables (initial):
-- `snapshot_manifest` (deterministic system visualization snapshots; see v1.1)
+- `snapshot_manifest` (deterministic system visualization snapshots; see v1)
 - `factsheets` (structured JSON facts per object, with provenance pointers)
-- `blurbs` (engaging but factual descriptions generated strictly from factsheets; see v1.2)
-- `system_neighbors` (10 nearest systems per system; see v1.2.2)
+- `expositions` (exciting factual descriptions generated strictly from factsheets; see v1.2)
+- `system_neighbors` (10 nearest systems per system; see v1.4)
 
 Rules:
 - Rich is **not edited in-place**. If content is wrong or the generator changes, regenerate rich with a new `generator_version` / build.
 - Each rich row must be traceable:
   - factsheets: include `facts_hash`, `generator_version`, and pointers to source rows/fields
-  - blurbs: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
+  - expositions: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
   - snapshots: include `params_hash`, `params_json`, `generator_version`, `source_build_inputs_hash`
 
 ### 4) Engagement signals (v1.3+)
 **Purpose:** capture minimal, privacy-respecting signals of collective human curiosity to improve discovery and prioritization — without analytics, profiling, or monetization.
 
-This dataset exists to give the people what they want. If they are explicit in their interest of goldilocks planets or white dwarf trinaries or hell worlds or whatever, we should have a method of capturing that interest and feeding it into the interestingness algorithm that prioritizes data enrichment.
+This dataset exists to give the people what they want. If they are explicit in their interest of goldilocks planets or white dwarf trinaries or hell worlds or whatever, we should have a method of capturing that interest and feeding it into the coolness algorithm that prioritizes data enrichment.
 
 This is not monetizable. It is explicitly not behavioral tracking. Store no personal data.
 
@@ -229,7 +229,7 @@ Rules:
 - Lore is editable.
 - Lore never mutates core/packs/rich tables.
 
-## Snapshot assets vs snapshot manifest (v1.1)
+## Snapshot assets vs snapshot manifest (v1)
 Deterministic snapshot images are stored as **asset files**, referenced by a manifest row in the rich dataset.
 
 - Snapshot assets (files; filesystem or object storage):
@@ -320,13 +320,42 @@ Success criteria:
 ### v0.1: Public database browser UI
 Success criteria:
 - “Spacegate browser” UI
-- Hosted on Google Cloud
+- Hosted on production cloud infrastructure
 - Public at spacegates.org
 - Attractive, searchable, filterable interface
-- Reads core data + optional packs + lore overlays (lore editable; core read-only)
+- Reads core data in v0.1 (optional packs and lore overlays are later milestones)
 
-### v0.2: 'Interestingness' Initial Enrichment
-This ensures our compute resources for v1.2 blurb and image generation are spent on systems with high narrative and scientific "yield".The following features should be aggregated into a final Interestingness Score stored in the rich database:
+### v0.1.5: Admin Control Plane + Authentication Foundation
+Goal: add a secure, minimal admin panel that can replace high-value script workflows while establishing the auth foundation for future per-user lore features.
+
+Implementation reference:
+- `docs/ADMIN_AUTH_SPEC.md` (Checkpoint A concrete auth/RBAC schema and flow)
+
+Success criteria:
+- Admin panel route (`/admin`) protected by login.
+- OIDC-based sign-in (Google-supported first) with strict identity allowlist for admin access.
+- General identity model for future user features:
+  - users, auth identities, sessions, roles (RBAC), and audit log.
+- Security defaults:
+  - HTTP-only secure session cookies, CSRF protection, short session TTL, and re-auth for sensitive actions.
+  - Identity-based controls are primary (no static IP dependency required).
+- Read-only operations views in admin:
+  - current build id, served pointer target, publish metadata (`current.json`), reports, process health.
+
+Checkpoints:
+1. Checkpoint A: Auth + RBAC skeleton
+   - schema + login/logout + role checks implemented.
+   - admin allowlist enforced server-side.
+2. Checkpoint B: Read-only admin operations dashboard
+   - expose current build/publish/runtime status in UI without mutation actions.
+3. Checkpoint C: Safe action runner for existing scripts
+   - allowlisted actions only (`build_core`, `verify_build`, `publish_db`, restart services).
+   - streamed job logs per run, explicit run parameters, no arbitrary shell execution.
+4. Checkpoint D: Audit + hardening completion
+   - action audit trail (`who`, `what`, `when`, `params`, `result`), CSRF tests, session expiry tests.
+
+### v0.2: Coolness Scoring + Tuning
+This ensures compute resources for v1.2+ enrichment are spent on systems with high narrative and scientific yield. Features are aggregated into a final Coolness Score stored in the rich dataset.
 - Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
 - High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
 - Stellar Multiplicity (Architectural Complexity): Points scale with the number of stars in the system; hierarchical trinaries or quaternaries rank significantly higher than simple binaries.
@@ -335,10 +364,28 @@ This ensures our compute resources for v1.2 blurb and image generation are spent
 - Metallicity (Fe/H) (Industrial Capability): High-metal stars are prioritized as likely hubs for mining, foundries, and heavy industry.
 - Compact Remnants: White dwarfs, neutron stars, pulsars, or magnetars adds a rarity multiplier due to their unique physics and "graveyard system" narrative.
 - Anomalous Features: Specific data flags for high eccentricity, extreme stellar flares, or circumstellar dust rings.
-- Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of interestingness).
+- Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of coolness).
 - Science Fiction: Wolf 359 is where the Federation made its final stand against the Borg in Star Trek: The Next Generation. The exotic moon "Pandora" from the movie Avatar orbits a gas giant in the Alpha Centauri system. Vega is famous for its role in Carl Sagan's Contact.
 
 **Ranking by Narrative Density:** By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack. With these rankings stored in the rich database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
+
+Success criteria:
+- `coolness_scores` derived artifact created in rich outputs with score breakdown fields.
+- Versioned weight profiles stored and reproducible (profile id + version in outputs/reports).
+- Admin panel includes adjustable weight sliders and named presets (for experimentation).
+- Preview mode before apply:
+  - top-N ranking preview
+  - class/diversity distribution preview (avoid one-class domination)
+  - diff vs current active profile
+- Publish/apply flow:
+  - explicit profile activation with audit record
+  - report artifact written per scoring run
+
+Checkpoints:
+1. Checkpoint A: Scoring pipeline + deterministic report artifact.
+2. Checkpoint B: Weight profile storage + CLI apply/preview.
+3. Checkpoint C: Admin slider UI + preview/diff visualizations.
+4. Checkpoint D: Promotion flow with audit trail and rollback to prior profile.
 
 ---
 
@@ -426,11 +473,11 @@ Reasonable limits (initial defaults):
 - **Max links per object**: 3 (1 authoritative catalog + 1 encyclopedia + 1 optional observatory/mission page).
 - **Max candidates evaluated per object**: 10.
 - **Domain cap**: 2 links from the same domain per object.
-- **Coverage budget**: only “interestingness” top N objects in v1.2; full coverage later.
+- **Coverage budget**: only top-N coolness objects in v1.2; full coverage later.
 - **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
 - **Strictly link-only**: store URLs + metadata only; no copying page text into rich.
 
-## v1.2: AI rich description (“facts → blurb”)
+## v1.2: AI rich description (“facts → exposition”)
 Success criteria:
 - Generate fact sheets (structured JSON) per selected object with sources/provenance.
 - Generate engaging but factual descriptions derived from known facts.
@@ -438,14 +485,14 @@ Success criteria:
   - model/version, generated_at, prompt, and fact-sheet hash
   - display small text notification if fact sheet hash no longer matches (indicating new information)
 - Target voice: science outreach personality (factual, enthusiastic; no fabrication).
-- Counter prompt is used to evaluate the factuality of the blurb and discard hallucinations
+- Counter prompt is used to evaluate the factuality of the exposition and discard hallucinations
 
 
 ## v1.3: Image generator
-Based on the descriptions from the blurbs, generate instructions for image
+Based on the descriptions from the expositions, generate instructions for image
 generator model create vivid imagery of planets, stars, and systems.
 - Shareable versions with text captions at the bottom
-- link an image generator that will generate system images on interestingness or first visit
+- link an image generator that will generate system images on coolness or first visit
 - tooltip with prompt that generated the image
 - generate more images in systems wtih lots of visits
 - up/down voting, reorder with most popular
@@ -456,7 +503,7 @@ generator model create vivid imagery of planets, stars, and systems.
 - make recaptioning and sharing easy, link back
 
 ### Star/System view
-  - interestingness score should prioritize complex systems and exotic stars
+  - coolness score should prioritize complex systems and exotic stars
   - center close binaries and planets
   - show distant companions in background
   - aim for accuracy but exagerate slightly if necessary to make dim companions visible
@@ -602,11 +649,13 @@ Detection catalogs (raw survey detections; not “objects”):
 - dark mode with a slider, a sun on one side and moon on the other side of the slider
 - add political maps from popular scifi franchises like Star Trek and BATTLETECH.
 
-# Status (as of 2026-02-04)
+# Status (as of 2026-02-20)
 - Core ingestion pipeline complete (AT-HYG + NASA exoplanets).
 - Morton indexing implemented (21 bits/axis, ±1000 ly), Parquet outputs sorted by spatial_index.
 - `$SPACEGATE_STATE_DIR/served/current` promoted to latest build.
 - CLI explorer available: `scripts/explore_core.py`.
+- Public deployment live at `spacegates.org` (provider details intentionally excluded from repo docs).
+- Published bootstrap metadata (`current.json`) includes artifact checksums and report references.
 - Optional packs deferred to v2.1.
 
 
