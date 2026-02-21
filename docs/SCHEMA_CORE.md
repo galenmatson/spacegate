@@ -1,19 +1,28 @@
-# Spacegate Core Schema (v0)
+# Spacegate Core Schema
 
-This document is the source of truth for the **v0 core astronomical data model** and its invariants.
+This document is the source of truth for the **core astronomical data model** and its invariants.
 It is written as an **executable contract**: ingestion, QC, export, and API behavior should follow this.
 
-## Scope (v0)
+Schema family:
+- `docs/SCHEMA_CORE.md`: immutable scientific astronomy data (this document)
+- `docs/SCHEMA_RICH.md`: reproducible derived artifacts (coolness, snapshots, factsheets, exposition, links)
+- `docs/SCHEMA_LORE.md`: editable fictional overlays and user-authored worldbuilding content
 
-v0 ingests **only**:
+Hard boundary:
+- Core remains scientific and immutable.
+- Rich and lore data are stored in separate databases/artifacts and must never mutate core rows.
+
+## Scope (Core)
+
+Current baseline ingests:
 
 - **AT-HYG** star catalog CSV (local sphere subset already in repo)
 - **NASA Exoplanet Archive** CSV (pscomppars; host matching limited by core star coverage)
 
-v0 produces a **pure astronomy** dataset. No lore, expositions, or images live in core.
+Core produces a **pure astronomy** dataset. No lore, expositions, or generated imagery live in core.
 
-Optional packs (substellar/compact/extended objects) and editorial/lore layers are v2.1+ and are separate artifacts.
-Derived “rich” artifacts (factsheets/expositions/snapshots) are out of scope for this schema and live in their own dataset.
+Optional packs (substellar/compact/extended objects) and editorial/lore layers are separate artifacts.
+Derived “rich” artifacts are out of scope for this schema and are documented in `docs/SCHEMA_RICH.md`.
 
 ---
 
@@ -42,7 +51,7 @@ We store two cartesian frames:
 - Origin at Sol
 - Used for neighborhood queries and rendering with floating origin on the client.
 
-2) **Galactocentric (optional; nullable in v0)**
+2) **Galactocentric (optional; nullable in current baseline)**
 - `x_gal_ly, y_gal_ly, z_gal_ly`
 - Used for galaxy-scale views later.
 
@@ -163,7 +172,7 @@ Parsing rules:
 
 ## Provenance (required on every derived row)
 
-Every row in `systems`, `stars`, `planets` must include provenance fields. These are mandatory in v0.
+Every row in `systems`, `stars`, `planets` must include provenance fields. These are mandatory in core.
 
 Minimum set:
 
@@ -183,9 +192,9 @@ QC: provenance completeness must be 100% for required fields.
 
 ---
 
-## Tables (v0)
+## Tables (Core)
 
-This doc describes the tables defined in `schema/core_v0.sql`.
+This doc describes the current core table contract used by ingestion and API services.
 
 ### systems
 
@@ -210,7 +219,7 @@ Key columns:
 - `key` (TEXT)
 - `value` (TEXT)
 
-Required keys (v0):
+Required keys (core):
 - `build_id`
 - `git_sha`
 - `morton_bits_per_axis`
@@ -284,7 +293,7 @@ Key columns:
 
 ---
 
-## Planet → host matching algorithm (v0)
+## Planet → host matching algorithm (core baseline)
 
 Goal: assign `star_id` and `system_id` for as many planets as possible, with explainable provenance.
 
@@ -322,7 +331,7 @@ Goal: assign `star_id` and `system_id` for as many planets as possible, with exp
 
 ---
 
-## QC gates (v0)
+## QC gates (core)
 
 Hard failures:
 - Required provenance fields are non-null in 100% of rows.
@@ -367,5 +376,5 @@ Breaking changes (avoid; require schema version bump):
 - changing units of stored fields
 
 Schema versioning:
-- Keep this doc as “v0 core”.
-- Future revisions should be `SCHEMA_v0_1.md` etc if needed.
+- Keep this document as the current core contract.
+- If a breaking change is required, create a versioned successor (`SCHEMA_CORE_v1.md`, etc.).

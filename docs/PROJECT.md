@@ -1,21 +1,20 @@
-# Spacegate: Local Stellar + Exoplanet Worldbuilding Database
-I've seen 3D star maps on the internet but they are all awful. The ones in space games are way better, but not technically more sophisticated, just better designed. I want to make one that is fun to browse, fun to click on stars and objects and read about them, and fun to play with. I want to do more than just list sterile data from the database. 
+# Spacegate: 3D Space Exploration and Worldbuilding Database
+I've seen 3D star maps on the internet but they are all awful to browse. The ones in space games are way better, not technically more sophisticated, just better designed. I want to make one that is fun to browse, fun to click on stars and objects and read about them, and fun to play with. I want to do more than just list sterile data from the database. 
 
-I've worked for a long time on a fictional scifi universe, drawing elaborate star maps of trade lanes. While the entire universe is fully hard scifi and sublight until 2500 or so, for space opera and grand adventure I had to make a concession for faster than light travel. 
+My desire is to have an interactive 3D map rendered in a browser which draws an accurate star map using the latest parallax measurements and build a space empire mapping tool on top of it. Create an agent to generate exciting, factual English exposition for each system grounded in real scientific data. Starting with the most important (Sirius, Alpha Centauri, etc) and unique (bright stars, exoplanets in habitable zones, inferno planets, trinary stars, dust rings, etc.) systems. It should be interesting and informative in a way that people will just read about space stuff for fun and keep exploring.
 
-The system uses space contraction between two 'spacegates' at different points in space. The spacegates, separated by several light years, must achieve an unfathomably perfect alignment and synchronization and both must annihilate a prohibitively expensive amount of antimatter. 
+## The Rule of Cool
+### Crazy Places
+- Sextuple star systems: Castor is 3 binary pairs with a brown dwarf orbiting one of them. The physics are wild.
+- "Hell worlds": tidally locked, ultra-short-period planets like WASP-12b (being eaten by its star) or HD 189733 b (raining glass sideways).
+- Water and ice worlds: candidates like Kepler-22b or "eyeball planets" that are habitable only on the twilight terminator.
+- Pulsar planets: systems like PSR B1257+12, where planets orbit a neutron star.
 
-The antimatter requirement increases quadratically with distance. Jumps between far systems are extremely expensive and infrequent and quite few whereas close or clustered systems are better connected. Jump distances are generally limited to around 4 or 5 light years. There should be no absolute limit but economics would exclude jumps over 11 light years or so. 
+### Backyard Bonus
+We should also prioritize places with a good "go outside and look" factor. For example Andromeda and the Orion Nebula, potentially with a recommended minimum telescope size.
 
-This does leave a lot of systems outside the FTL network (but there's a substantial amount of STL (< .2 c) traffic). While the breakthroughs behind the spacegates are known by the mid 2100s the energy requirement is so extravagant that economically beneficial interstellar FTL isn't available until energy production rises to meet it. And that is basically done by damming starlight with massive solar arrays that generate antimatter. 
-
-The surface area requirements result in dyson swarms of solar collectors around the brightest stars, with the antimatter production for the same collector area rising with the Stephan Boltzman law, making bright A, B, and O type stars the most desirable for energy production. They fuel the spacegates and antimatter rocket based sublight interstellar travel and form the energy core of empires in the future. 
-
-My desire is to have an interactive 3D map rendered in a browser which draws an accurate star map using the latest parallax measurements and build a space empire mapping tool on top of it. Create an agent to generate exciting, factual English exposition for each system grounded in real scientific data. Starting with the most important (Sirus, Alpha Centauri, etc) and unique (bright stars, exoplanets in habitable zones, inferno planets, trinary stars, dust rings, etc.) systems. It should be interesting and informative in a way that people will just read about space stuff for fun and keep exploring.
-
-The world building features of the map should allow for things like trade lanes, spacegate links, or other connections to be drawn between stars. Spheres of control around owned/occupied systems that form the 3D shape of interstellar empires. Place megastructures like solar collectors, foundaries, shipyards, Dyson swarms, colonies, momentum banks, space elevators, mines, mass drivers, space stations, etc. on planets, in orbit of them, in stellar orbit, or galactic orbit (unbound to stars).
-
-These objects should be definable so I can create immense solar collectors that output 1 gram of antimatter per year or something like that. Or a mine that produces x kilotons of 18% aluminum 12% iron ore per day. And an ore processor that separataes and concentrates that to 78% grade aluminum ore and 68% iron ore. And an aluminum smelter that outputs x amount of pure aluminum. And a foundry that outputs x tons of steel per day. And a space elevator that can bring x tons up to orbit per day. And a ship yard that consumes x tons of aluminum per day as it produces a ship that contains x tons of aluminum and steel. For example.
+## World Building
+The world building features of the map should allow for things like trade lanes, spacegate links, or other connections to be drawn between stars. Spheres of control around owned/occupied systems that form the 3D shape of interstellar empires. Place megastructures like solar collectors, foundries, shipyards, Dyson swarms, colonies, momentum banks, space elevators, mines, mass drivers, space stations, etc. on planets, in orbit of them, in stellar orbit, or galactic orbit (unbound to stars). This content is stored in a completely separate database from the immutable scientific data.
 
 
 # Purpose
@@ -36,6 +35,15 @@ These objects should be definable so I can create immense solar collectors that 
 
 
 # Filesystem Layout & Environment Variables
+
+## Schema Documents
+- `docs/SCHEMA_CORE.md`: immutable scientific astronomy schema (authoritative source for core tables/types/invariants).
+- `docs/SCHEMA_RICH.md`: derived/reproducible enrichment schema (coolness, tags, snapshots, factsheets, exposition, links).
+- `docs/SCHEMA_LORE.md`: editable fictional overlay schema (namespaced lore entities/relationships/references).
+
+Cross-dataset key rule:
+- `stable_object_key` is the canonical cross-database join key and is required for object-scoped joins across core, rich, and lore.
+- Numeric surrogate IDs (`system_id`, `star_id`, `planet_id`) remain `BIGINT` and are valid as same-build convenience keys.
 
 Spacegate does not assume a fixed filesystem layout. All persistent state locations are defined via environment variables to support:
 
@@ -61,7 +69,7 @@ Example (recommended for servers):
 ### State layout (runtime data, FHS-aligned)
 Example (valid for small/typical installs):
 /
-├── data                  # This should be a large volume if you will use the expanded dataset (>100 GB)
+├── data                  # This should be a large volume if you will use the expanded dataset (>150 GB)
 │   └── spacegate
 │       └── data          # SPACEGATE_STATE_DIR
 │           ├── raw
@@ -189,8 +197,8 @@ Rule: packs are **read-only** inputs to search/render/download. Each pack has it
 Rich tables (initial):
 - `snapshot_manifest` (deterministic system visualization snapshots; see v1)
 - `factsheets` (structured JSON facts per object, with provenance pointers)
-- `expositions` (exciting factual descriptions generated strictly from factsheets; see v1.2)
-- `system_neighbors` (10 nearest systems per system; see v1.4)
+- `expositions` (exciting factual descriptions generated strictly from factsheets; see v1.3)
+- `system_neighbors` (10 nearest systems per system; see v1.5)
 
 Rules:
 - Rich is **not edited in-place**. If content is wrong or the generator changes, regenerate rich with a new `generator_version` / build.
@@ -199,7 +207,7 @@ Rules:
   - expositions: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
   - snapshots: include `params_hash`, `params_json`, `generator_version`, `source_build_inputs_hash`
 
-### 4) Engagement signals (v1.3+)
+### 4) Engagement signals (v1.4+)
 **Purpose:** capture minimal, privacy-respecting signals of collective human curiosity to improve discovery and prioritization — without analytics, profiling, or monetization.
 
 This dataset exists to give the people what they want. If they are explicit in their interest of goldilocks planets or white dwarf trinaries or hell worlds or whatever, we should have a method of capturing that interest and feeding it into the coolness algorithm that prioritizes data enrichment.
@@ -270,6 +278,7 @@ Every derived row must include:
 # Units and coordinates
 - Distances displayed in light-years (ly) by default (selectable later).
 - Store 3D Cartesian coordinates in light-years.
+- Keep all original parallax measurements referencable.
 Coordinate storage:
 - Store heliocentric coordinates as the primary working frame for the local sphere:
   - x_helio_ly, y_helio_ly, z_helio_ly
@@ -354,8 +363,13 @@ Checkpoints:
 4. Checkpoint D: Audit + hardening completion
    - action audit trail (`who`, `what`, `when`, `params`, `result`), CSRF tests, session expiry tests.
 
-### v0.2: Coolness Scoring + Tuning
-This ensures compute resources for v1.2+ enrichment are spent on systems with high narrative and scientific yield. Features are aggregated into a final Coolness Score stored in the rich dataset.
+Current status (2026-02-21):
+- Checkpoints A-D implemented in the admin API/UI.
+- Admin login, allowlist enforcement, action runner, and audit log are active.
+
+## v0.2: Coolness
+This ensures compute resources for v1.3+ enrichment are spent on systems with high narrative and scientific yield. Features are aggregated into a final Coolness Score stored in the rich dataset.
+- The default page, the first thing a new visitor sees, should be ordered by coolness.
 - Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
 - High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
 - Stellar Multiplicity (Architectural Complexity): Points scale with the number of stars in the system; hierarchical trinaries or quaternaries rank significantly higher than simple binaries.
@@ -365,32 +379,286 @@ This ensures compute resources for v1.2+ enrichment are spent on systems with hi
 - Compact Remnants: White dwarfs, neutron stars, pulsars, or magnetars adds a rarity multiplier due to their unique physics and "graveyard system" narrative.
 - Anomalous Features: Specific data flags for high eccentricity, extreme stellar flares, or circumstellar dust rings.
 - Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of coolness).
-- Science Fiction: Wolf 359 is where the Federation made its final stand against the Borg in Star Trek: The Next Generation. The exotic moon "Pandora" from the movie Avatar orbits a gas giant in the Alpha Centauri system. Vega is famous for its role in Carl Sagan's Contact.
+- Science Fiction: Wolf 359 is where the Federation made its final stand against the Borg in Star Trek: The Next Generation. The exotic moon "Pandora" from the movie Avatar orbits a gas giant in the Alpha Centauri system. Vega is famous for its role in Carl Sagan's Contact. How this ranks is TBD. **Fiction must not contaminate the hard science data** Cultural and fictional importance should be stored with lore.
 
 **Ranking by Narrative Density:** By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack. With these rankings stored in the rich database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
 
-Success criteria:
-- `coolness_scores` derived artifact created in rich outputs with score breakdown fields.
-- Versioned weight profiles stored and reproducible (profile id + version in outputs/reports).
-- Admin panel includes adjustable weight sliders and named presets (for experimentation).
-- Preview mode before apply:
-  - top-N ranking preview
-  - class/diversity distribution preview (avoid one-class domination)
-  - diff vs current active profile
-- Publish/apply flow:
-  - explicit profile activation with audit record
-  - report artifact written per scoring run
+### Coolness Scoring + Tuning
 
-Checkpoints:
-1. Checkpoint A: Scoring pipeline + deterministic report artifact.
-2. Checkpoint B: Weight profile storage + CLI apply/preview.
-3. Checkpoint C: Admin slider UI + preview/diff visualizations.
-4. Checkpoint D: Promotion flow with audit trail and rollback to prior profile.
+The Coolness Score determines which systems receive computationally expensive enrichment (v1.3+ narrative + depiction). The objective is to prioritize systems with high scientific information density and narrative yield while preserving strict data integrity.
+
+Coolness scoring must be:
+- Deterministic
+- Reproducible
+- Derived strictly from core and approved pack data
+- Independent of fictional, cultural, or editorial significance
+
+The score is stored as a derived artifact in the rich dataset.
+
+---
+
+### Design Principles
+
+1. **Scientific Sovereignty**
+   - Only measurable or directly derivable astrophysical properties influence base scoring.
+   - Fictional or cultural references must not modify `coolness_total`.
+
+2. **Narrative Density**
+   - Systems expressing multiple independent astrophysical phenomena rank higher than single-feature outliers.
+   - Implemented via Shannon entropy diversity bonus.
+
+3. **Non-linear Scaling**
+   - Log or sigmoid scaling is preferred for count-based features.
+   - Hard caps prevent domination by any single category.
+
+4. **Explicit Extrapolation Policy**
+   - Physically plausible extrapolations (e.g., potential habitable moons around gas giants) are allowed only when:
+     - Based strictly on known planetary mass/orbital data.
+     - Clearly flagged as inferred.
+     - Labeled in enrichment outputs.
+   - No invented measurements are permitted.
+
+---
+
+### Coolness Categories
+
+Each category produces a bounded subscore.
+
+- **Extreme Luminosity**
+  - O/B/A stars
+  - Unusual stellar radii or temperatures
+  - Rare stellar evolutionary stages
+
+- **High Proper Motion**
+  - Nearby high-velocity or runaway stars
+
+- **Stellar Multiplicity**
+  - Binary, trinary, hierarchical systems
+  - Points scale non-linearly with architectural complexity
+
+- **Habitability Signals**
+  - Confirmed HZ planets
+  - Earth-sized planets in plausible temperature ranges
+  - Tidally locked "eyeball" planets
+  - Gas giants in HZ with plausible habitable-moon potential (flagged extrapolation)
+
+- **Weird Exoplanets**
+  - Ultra-short-period planets
+  - Extreme eccentricity
+  - Lava worlds, evaporating planets
+  - Atmospheric anomalies
+  - High-energy flare environments
+
+- **Metallicity (Fe/H)**
+  - Exceptionally high or low metallicity values
+  - Must be verified measurements
+
+- **Compact Remnants**
+  - White dwarfs
+  - Neutron stars
+  - Pulsars
+  - Magnetars
+
+- **Anomalous Features**
+  - Circumstellar disks
+  - Extreme flaring
+  - Rare astrophysical flags
+
+- **Proximity to Sol**
+  - Distance-based bonus with rapid decay (inverse-square or exponential)
+  - Capped to prevent overshadowing extreme systems
+
+---
+
+### Diversity Bonus (Shannon Entropy)
+
+To reward multi-dimensional systems:
+
+Let:
+
+p_i = category_score_i / total_score_before_entropy
+
+H = - Σ p_i log2(p_i)
+
+Normalized:
+
+H_norm = H / log2(N_categories)
+
+Final:
+
+coolness_total = total_before_entropy + (entropy_weight * H_norm)
+
+This promotes systems exhibiting multiple independent interesting properties.
+
+---
+
+### Front Page Selection (Separate from Scoring)
+
+Scoring and featuring are distinct stages.
+
+Selection algorithm:
+
+1. Rank systems by `coolness_total`.
+2. Select top N (default 500).
+3. Determine dominant category per system.
+4. Enforce diversity constraints:
+   - Minimum 4 distinct dominant categories represented.
+   - No category exceeds 40% of featured slots.
+5. Fill remaining slots by rank.
+
+This preserves scientific integrity while preventing single-category domination.
+
+---
+
+### Cultural Overlay (Non-Scoring)
+
+Fictional or cultural significance is stored in a separate optional pack.
+
+- May influence search relevance.
+- May influence curated featuring layer.
+- Must not alter `coolness_total`.
+
+---
+
+### Success Criteria
+
+- `coolness_scores` derived artifact created in rich outputs.
+- Score breakdown stored per system.
+- Versioned weight profiles (profile_id + profile_version).
+- Profile parameters stored in artifact JSON.
+- Deterministic scoring pipeline.
+- Admin panel supports:
+  - Adjustable category weights
+  - Sub-feature weights
+  - Feature toggles
+  - Entropy weight tuning
+  - Proximity decay configuration
+  - Named presets
+- Preview mode:
+  - Top-N ranking preview
+  - Category distribution preview
+  - Diff vs current profile
+- Publish/apply flow:
+  - Explicit profile activation
+  - Audit record
+  - Rollback capability
+
+---
+
+### Checkpoints
+
+1. Checkpoint A: Deterministic scoring pipeline + report artifact.
+2. Checkpoint B: Versioned profile storage + CLI preview/apply/diff.
+3. Checkpoint C: Admin slider UI + visualization panel.
+4. Checkpoint D: Promotion flow with audit trail and rollback.
+
+---
+
+### Profile Storage Contract (Implemented)
+
+Storage location:
+- `$SPACEGATE_STATE_DIR/config/coolness_profiles/`
+
+Contract rules:
+- Profile versions are immutable (`profile_id + profile_version`).
+- Active profile pointer is stored separately from profile definitions.
+- Activation history is append-only.
+- Audit events are append-only.
+- Score reports persist profile id/version/hash and resolved weights.
+
+Store files:
+- `profiles/<profile_id>/<profile_version>.json` (immutable definitions)
+- `active.json` (current active pointer)
+- `activations.jsonl` (activation/rollback history)
+- `audit.jsonl` (profile + scoring audit events)
+
+CLI commands:
+- `scripts/score_coolness.py list`
+- `scripts/score_coolness.py preview --profile-id <id> --profile-version <ver>`
+- `scripts/score_coolness.py diff --right-weights-json '{\"weird_planets\":0.2}'`
+- `scripts/score_coolness.py apply --profile-id <id> --profile-version <ver> --weights-json '{...}'`
+- `scripts/score_coolness.py rollback --steps 1`
+
+### Current Status (2026-02-21)
+
+- Checkpoint A implemented (`scripts/score_coolness.py` + `coolness_report.json`).
+- Checkpoint B implemented (versioned profile store + list/preview/diff/apply/rollback CLI).
+- Profile activation audit trail + rollback implemented.
+- Next milestone: Checkpoint C (admin slider/preset UI + diversity preview).
+
+---
+
+## v0.2.2: System Tagging Framework
+
+Tags provide a lightweight semantic layer over astrophysical objects.  
+They enable filtering, browsing, search enhancement, and narrative hooks.
+
+Tags are deterministic and reproducible unless explicitly defined as pack-based.
+
+### Design Principles
+
+- Tags are cheap, indexable, and composable.
+- Derived tags must be generated deterministically from measurable data.
+- Tag generation must be versioned and tied to build_id.
+- Tags must not alter base coolness scoring unless explicitly defined in the scoring profile.
+- Cultural or fictional references must never exist as derived tags.
+
+---
+
+### Tag Categories
+
+#### 1. Derived Physics Tags (v0.2)
+
+Generated automatically during scoring or ingestion.
+
+Examples:
+
+Stellar:
+- high_luminosity
+- compact_remnant
+- flare_star
+- runaway_star
+- metal_rich
+- metal_poor
+- multi_star_system
+- hierarchical_system
+- nearby_system
+
+Planetary:
+- habitable_zone_candidate
+- earth_sized_planet
+- gas_giant
+- ultra_short_period
+- high_eccentricity
+- lava_world
+- evaporating_planet
+- water_world
+- extreme_temperature
+
+System-Level:
+- architecturally_complex
+- high_narrative_density
+- anomalous_disk
+- extreme_orbital_dynamics
+
+These must be:
+- Explicitly defined in scoring logic
+- Stored as derived artifacts
+- Recomputable
 
 ---
 
 ## v1 System Visualization
 Goal: produce **deterministic, cacheable “system snapshot” images** that make the browser fun immediately, without requiring the full v2 3D map.
+
+Canonical v1 progression (dependency-first):
+1. v1.0 System visualization snapshots
+2. v1.1 UI beautification
+3. v1.2 External reference links
+4. v1.3 AI exposition
+5. v1.4 Image generation
+6. v1.5 System neighbor graph
+7. v1.6 Operations dashboard and telemetry
 
 ### Success criteria
 - A reproducible snapshot generator that emits small, fast assets per system:
@@ -454,8 +722,234 @@ Snapshots are **derived artifacts** (like reports), not part of the immutable co
   - If required fields are missing, render a minimal view with a clear “insufficient data” note.
 - Any change to rendering rules must bump `generator_version` and invalidate cache by construction.
 
+---
 
-## v1.1: External reference links (curated web sources)
+## v1.1: Beautification
+
+The UI must evolve from functional prototype to intentional interface.
+
+Goals:
+
+- Sleek, modern, and visually coherent
+- Fast to scan and cognitively lightweight
+- Data-dense without being overwhelming
+- Designed around narrative clarity (what makes this system interesting?)
+
+Beautification must not compromise:
+- Performance
+- Accessibility
+- Readability
+- Scientific integrity
+
+---
+
+### Core UI Principles
+
+1. **Clarity Over Ornament**
+   - Visual hierarchy must make it immediately obvious:
+     - What system am I looking at?
+     - Why is it interesting?
+     - What are its most important properties?
+   - Avoid decorative elements that do not improve comprehension.
+
+2. **Progressive Disclosure**
+   - Show summary first.
+   - Reveal deeper parameters on demand.
+   - Avoid dumping full row-level parameter tables by default.
+
+3. **Visual Hierarchy**
+   - System name (largest text)
+   - Coolness breakdown / key tags (secondary emphasis)
+   - High-impact metrics (luminosity class, star count, planet count, distance)
+   - Detailed astrophysical parameters (collapsed by default)
+
+4. **Consistency**
+   - All interactive elements must behave predictably.
+   - Spacing, margins, and typography must follow a unified scale system.
+
+5. **Accessibility**
+   - All themes must meet WCAG AA contrast minimums.
+   - Keyboard navigable.
+   - No information conveyed by color alone.
+   - Motion must be optional (respect reduced-motion preference).
+
+---
+
+### Layout Refinement
+
+System Detail Page:
+
+- Header Section:
+  - System name
+  - Distance
+  - Dominant category tag(s)
+  - Coolness score visualization (subtle but informative)
+
+- Highlight Panel:
+  - 3–5 "Why This Is Interesting" bullet summaries derived from scoring breakdown.
+  - Compact visual bars for category contributions.
+
+- Structural Overview:
+  - Star count
+  - Multiplicity diagram (minimal schematic)
+  - Planet count
+
+- Expandable Sections:
+  - Stellar parameters
+  - Planetary parameters
+  - Metallicity and spectral details
+  - Provenance + match confidence
+
+Search View:
+
+- Clean list layout
+- Left column: system name + summary tags
+- Right column: distance + coolness
+- Hover preview optional
+- No full-parameter overload in list view
+
+---
+
+### Theme System
+
+Themes are cosmetic layers only.  
+They must not change layout structure or behavior.
+
+Themes implemented via CSS variables and design tokens.
+
+#### 1. Simple Dark
+- Neutral dark background
+- Minimal accent color
+- Subtle shadows
+- Modern sans-serif typography
+- Clean card layouts
+
+#### 2. Simple Light
+- Neutral light background
+- Minimal accent color
+- High readability
+- Slightly reduced visual noise
+- Professional scientific aesthetic
+
+#### 3. Cyberpunk
+- Very dark background
+- High contrast neon accent palette
+- Monospaced fonts for data blocks
+- Sharp borders
+- Angular dividers
+- Subtle scanline or console aesthetic (optional, lightweight)
+- Avoid heavy glow effects that reduce readability
+
+#### 4. Star Trek TNG (LCARS-inspired)
+- Black background
+- Rounded rectangular “pill” panels
+- Color-coded information bars
+- Warm muted tones:
+  - Mauve / purple
+  - Orange
+  - Tan
+  - Yellow
+  - Teal
+- High-contrast layout
+- Large typographic labels
+- Flat, panel-based interface
+- No skeuomorphic gradients
+- Must remain usable even without franchise familiarity
+
+Note:
+This theme is an homage, not a replica. Avoid copyrighted UI replication. Capture the design language, not the exact layout.
+
+#### 5. Mission Control
+- Black background
+- Monochrome green or amber text
+- Monospace everywhere
+- No gradients
+- Clean ASCII-inspired
+Appeals to:
+- programmers
+- hacker aesthetic fans
+- minimalists
+- This feels “mission control terminal.”
+
+#### 6. Aurora
+- Deep navy background
+- Soft gradient accent colors (teal → violet)
+- Subtle glow edges
+- Smooth rounded UI
+- Slightly modern Apple-ish
+Appeals to:
+- mainstream modern users
+- design-conscious crowd
+- 20–40 demographic
+- Safe, modern
+
+#### 7. Retro ’90s Web (Tasteful)
+Not Geocities chaos. Instead:
+- Soft gray background
+- Light beveled panels
+- Clean but nostalgic
+- Subtle pixel font for headers only
+Appeals to:
+- 35–55 nostalgic users
+- early web vibe
+- memberberries
+
+#### 8. Deep Space Minimal (Black Void)
+- Pure black background
+- Almost no borders
+- Content floats
+- Sparse accent color
+- Feels like UI in darkness
+Appeals to:
+- people who love minimalism
+- OLED screen users
+- night browsing
+
+---
+
+### Data Density Strategy
+
+Avoid parameter overload.
+
+Instead:
+
+- Display derived, narrative-relevant highlights.
+- Collapse raw numeric tables behind expandable sections.
+- Use icons sparingly and meaningfully.
+- Use tooltips for definitions (spectral class, Fe/H, etc.).
+
+---
+
+### Motion & Interaction
+
+- Animations must be subtle and fast (<200ms).
+- No parallax.
+- No excessive glow.
+- No auto-rotating elements.
+- Hover states must clearly indicate interactivity.
+
+---
+
+### Performance Constraints
+
+- Themes must not significantly increase bundle size.
+- Avoid heavy background images.
+- No large shader effects.
+- Must render cleanly on mid-tier laptops and mobile devices.
+
+---
+
+### Success Criteria
+
+- UI redesign applied without breaking API contracts.
+- Theme switching is instantaneous and persistent.
+- Most important system information is scannable in <3 seconds.
+- Parameter overload reduced in default views.
+- Lighthouse performance score remains high.
+
+---
+  
+## v1.2: External reference links (curated web sources)
 Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
 
 Method (proposed):
@@ -473,11 +967,11 @@ Reasonable limits (initial defaults):
 - **Max links per object**: 3 (1 authoritative catalog + 1 encyclopedia + 1 optional observatory/mission page).
 - **Max candidates evaluated per object**: 10.
 - **Domain cap**: 2 links from the same domain per object.
-- **Coverage budget**: only top-N coolness objects in v1.2; full coverage later.
+- **Coverage budget**: only top-N coolness objects in v1.3; full coverage later.
 - **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
 - **Strictly link-only**: store URLs + metadata only; no copying page text into rich.
 
-## v1.2: AI rich description (“facts → exposition”)
+## v1.3: AI rich description (“facts → exposition”)
 Success criteria:
 - Generate fact sheets (structured JSON) per selected object with sources/provenance.
 - Generate engaging but factual descriptions derived from known facts.
@@ -488,7 +982,7 @@ Success criteria:
 - Counter prompt is used to evaluate the factuality of the exposition and discard hallucinations
 
 
-## v1.3: Image generator
+## v1.4: Image generator
 Based on the descriptions from the expositions, generate instructions for image
 generator model create vivid imagery of planets, stars, and systems.
 - Shareable versions with text captions at the bottom
@@ -512,7 +1006,7 @@ generator model create vivid imagery of planets, stars, and systems.
   - pulsars depicted with polar jets though they might be invisible without gas/dust to scatter/emit)
   - magnetars show powerful rotating magnetic fields (despite being invisible or show them interacting with something)
 
-### v1.3.1 Planets
+### v1.4.1 Planets
 #### Global view
   - planet in the foreground and the star behind
   - show flare stars scorching them with glowing prominences
@@ -521,7 +1015,7 @@ generator model create vivid imagery of planets, stars, and systems.
   - add moons to large planets even if none detected
   - include subtext that these images are extrapolated from scientific data, not observation, and reality is likely quite different.
 
-#### v1.3.2 Surface view
+#### v1.4.2 Surface view
 This should show what it might feel like to visit this planet and stand on its surface.
 This requires the most license of all. We can ground the view in some facts that should
 make it clear to visitors the link between orbit, composition, and climate.
@@ -560,7 +1054,7 @@ And much more! The more creative we are with descriptions while linking everythi
 
 
 
-## v1.4: System neighbor graph (10 nearest systems)
+## v1.5: System neighbor graph (10 nearest systems)
 Goal: precompute nearest-neighbor relationships between systems for fast UI queries and navigation.
 
 Success criteria:
@@ -585,7 +1079,7 @@ Rules:
 
 ---
 
-## v1.5: Operations dashboard and telemetry
+## v1.6: Operations dashboard and telemetry
 Goal: after rich content is working, add an at-a-glance operations view so service health and usage can be assessed in seconds.
 
 Success criteria:
@@ -612,11 +1106,20 @@ Implementation notes:
 ---
 
 ## v2: 3D map (browser)
+This is the ultimate goal. An intuitive and inviting interface that makes it easy to explore space.
+
 Success criteria:
 - Lightweight browser-based 3D viewer (likely three.js; evaluate alternatives later).
 - Smooth controls: zoom/rotate/pan/recenter; selection; tooltips.
 - Filters (distance bubble, spectral class, magnitude, etc.)
 - Optional rendering toggles: planets, packs, lore layers, neighbor links, spacegate links.
+- Easy zoom and transition:
+    - Click a system, zoom to extents: furthest separation of stars or planets
+    - Smooth zoom from the starfield to the system
+    - Display the 3D system with labeled components, system card, description, and linked list of objects
+    - Click a system object, if it's a subsystem, smooth zoom to its extents
+    - Display a system card with scrollable cards for subobjects in the system ordered by coolness
+    - Continue navigating down hierarchies 
 
 ## v2.1 Additional catalogs
 Success criteria:
@@ -649,13 +1152,15 @@ Detection catalogs (raw survey detections; not “objects”):
 - dark mode with a slider, a sun on one side and moon on the other side of the slider
 - add political maps from popular scifi franchises like Star Trek and BATTLETECH.
 
-# Status (as of 2026-02-20)
+# Status (as of 2026-02-21)
 - Core ingestion pipeline complete (AT-HYG + NASA exoplanets).
 - Morton indexing implemented (21 bits/axis, ±1000 ly), Parquet outputs sorted by spatial_index.
 - `$SPACEGATE_STATE_DIR/served/current` promoted to latest build.
 - CLI explorer available: `scripts/explore_core.py`.
 - Public deployment live at `spacegates.org` (provider details intentionally excluded from repo docs).
 - Published bootstrap metadata (`current.json`) includes artifact checksums and report references.
+- v0.1.5 Admin Control Plane checkpoints A-D implemented (OIDC auth, allowlist, action runner, audit).
+- v0.2 Coolness checkpoints A and B implemented (scoring outputs, profile contract, CLI preview/diff/apply/rollback, report/audit provenance).
 - Optional packs deferred to v2.1.
 
 

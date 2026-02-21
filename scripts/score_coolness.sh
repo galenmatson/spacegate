@@ -33,13 +33,20 @@ log() {
   printf '%s %s\n' "$ts" "$msg" | tee -a "$LOG_FILE"
 }
 
-log "Coolness scoring begin"
-"$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || {
+cmd="${1:-score}"
+if [[ "$cmd" == "score" || "$cmd" == -* ]]; then
+  log "Coolness scoring begin"
+  "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || {
 import duckdb
 PY
-  echo "Error: python module 'duckdb' not found for $PYTHON_BIN" >&2
-  echo "Tip: run scripts/setup_spacegate.sh (or install requirements.txt in the root venv)." >&2
-  exit 1
-}
-"$PYTHON_BIN" "$ROOT_DIR/scripts/score_coolness.py" "$@" | tee -a "$LOG_FILE"
-log "Coolness scoring complete"
+    echo "Error: python module 'duckdb' not found for $PYTHON_BIN" >&2
+    echo "Tip: run scripts/setup_spacegate.sh (or install requirements.txt in the root venv)." >&2
+    exit 1
+  }
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/score_coolness.py" "$@" | tee -a "$LOG_FILE"
+  log "Coolness scoring complete"
+else
+  log "Coolness profile command begin ($cmd)"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/score_coolness.py" "$@" | tee -a "$LOG_FILE"
+  log "Coolness profile command complete ($cmd)"
+fi

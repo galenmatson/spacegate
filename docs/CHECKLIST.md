@@ -4,7 +4,9 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 
 ## Project Foundations
 - [x] Define core vision, scope, and non-goals in `docs/PROJECT.md`
-- [x] Define v0 schema contract in `docs/SCHEMA.md`
+- [x] Define core schema contract in `docs/SCHEMA_CORE.md`
+- [x] Define rich derived schema contract in `docs/SCHEMA_RICH.md`
+- [x] Define lore overlay schema contract in `docs/SCHEMA_LORE.md`
 - [x] Document current data sources in `docs/DATA_SOURCES.md`
 - [x] Add pack contract doc `docs/PACKS.md`
 - [x] Add `.gitignore` entries for generated artifacts (`/data/`, etc.)
@@ -90,32 +92,37 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Audit log for admin actions (`who`, `what`, `when`, `params`, `result`)
 
 ## v0.2 Coolness
-- [x] Coolness scoring + ranking stored in rich with score breakdown (`scripts/score_coolness.py`, includes v1.3-aligned complexity/exotic-star factors)
-- [ ] Versioned weight profiles (reproducible profile id/version in outputs)
-- [ ] CLI preview/apply for weight profiles with diff against active profile
+- [x] Coolness scoring + ranking stored in rich with score breakdown (`scripts/score_coolness.py`, includes v1.4-aligned complexity/exotic-star factors)
+- [x] Versioned weight profiles (reproducible profile id/version in outputs)
+- [x] CLI preview/apply for weight profiles with diff against active profile
 - [ ] Admin slider/preset UI for weights
 - [ ] Diversity preview checks (class/type distribution before apply)
-- [ ] Scoring report artifact per run (top-N and distribution summary)
-- [ ] Profile activation audit trail + rollback to prior profile
+- [x] Scoring report artifact per run (top-N and distribution summary)
+- [x] Profile activation audit trail + rollback to prior profile
 
 ## v1 System Visualization
 - [ ] Snapshot generator and manifest
 - [ ] Deterministic rendering rules and QC
 - [ ] Rich artifact storage + versioning
 
-## v1.1 External Reference Links
+## v1.1 Beautification
+- [ ] UI visual refresh (intentional hierarchy + readability)
+- [ ] Theme system with persistence and accessibility guardrails
+- [ ] Data-density cleanup (progressive disclosure in system/detail views)
+
+## v1.2 External Reference Links
 - [ ] External reference links (curated authoritative sources)
 
-## v1.2 AI Rich Description
+## v1.3 AI Rich Description
 - [ ] Factsheets + expositions pipeline
 
-## v1.3 Image Generator
+## v1.4 Image Generator
 - [ ] Image generation pipeline and artifact storage
 
-## v1.4 System Neighbor Graph
+## v1.5 System Neighbor Graph
 - [ ] System neighbor graph (10 nearest systems per system)
 
-## v1.5 Operations Dashboard and Telemetry
+## v1.6 Operations Dashboard and Telemetry
 - [ ] Dashboard/telemetry stack beyond local scripts (metrics + alerts)
 
 ## v2 3D Map
