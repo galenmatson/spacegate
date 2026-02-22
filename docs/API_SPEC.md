@@ -266,11 +266,18 @@ Search and browse systems with filters and cursor pagination.
 
 Query params:
 - `q` (string, optional)
-- `max_dist_ly` (float, optional)
-- `min_dist_ly` (float, optional)
+- `max_dist_ly` (float, optional, `>= 0`)
+- `min_dist_ly` (float, optional, `>= 0`)
+- `min_star_count` (int, optional, `>= 0`)
+- `max_star_count` (int, optional, `>= 0`)
+- `min_planet_count` (int, optional, `>= 0`)
+- `max_planet_count` (int, optional, `>= 0`)
+- `min_coolness_score` (float, optional)
+- `max_coolness_score` (float, optional)
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y)
-- `has_planets` (bool, optional)
-- `sort` ("name" | "distance", default "name")
+- `has_planets` (`true|false`, optional)
+- `has_habitable` (`true|false`, optional)
+- `sort` (`name` | `distance` | `coolness`, default `name`)
 - `limit` (int, default 50, max 200)
 - `cursor` (string, optional)
 
@@ -282,6 +289,17 @@ Matching rules (when `q` is provided):
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.
+
+When `q` is not provided:
+- `sort=name`: `system_name_norm` asc, `system_id` asc
+- `sort=distance`: `dist_ly` asc nulls last, `system_id` asc
+- `sort=coolness`: `coolness_rank` asc, `system_name_norm` asc, `system_id` asc
+
+Validation and availability behavior:
+- Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.
+- Invalid enum/filter values (for example `sort=foo`, `has_planets=maybe`, `spectral_class=ZZ`) return `400 bad_request`.
+- Requesting coolness sort/score filters when `rich.coolness_scores` is unavailable returns `409 conflict`.
+- Framework-level bound checks (for example negative `min_dist_ly`, `limit > 200`) return `422`.
 
 Response 200:
 ```json
@@ -305,6 +323,20 @@ Response 200:
       "star_count": 1,
       "planet_count": 0,
       "spectral_classes": ["G"],
+      "coolness_rank": 97,
+      "coolness_score": 18.4412,
+      "coolness_nice_planet_count": 0,
+      "coolness_weird_planet_count": 0,
+      "coolness_dominant_spectral_class": "G",
+      "snapshot": {
+        "build_id": "2026-02-19T221543Z_2774126",
+        "view_type": "system_card",
+        "artifact_path": "snapshots/system_card/system_gaia_19316224572460416/ea9f1d1a15216a90.svg",
+        "params_hash": "ea9f1d1a15216a90",
+        "width_px": 980,
+        "height_px": 560,
+        "url": "/api/v1/snapshots/2026-02-19T221543Z_2774126/snapshots/system_card/system_gaia_19316224572460416/ea9f1d1a15216a90.svg"
+      },
       "provenance": {"source_catalog":"athyg", "source_version":"v3.3", "license":"CC BY-SA 4.0", "redistribution_ok":true, "retrieved_at":"...", "transform_version":"...", "source_url":"...", "source_download_url":"...", "source_pk":196694, "source_row_id":196694, "source_row_hash":null, "license_note":"...", "retrieval_etag":null, "retrieval_checksum":"...", "ingested_at":"...", "source_doi":null}
     }
   ],
@@ -379,7 +411,9 @@ Response 200: same as `/systems/{system_id}`.
 ## Error Codes
 - `bad_request` (400)
 - `invalid_cursor` (400)
+- `conflict` (409)
 - `not_found` (404)
+- `validation_error` (422 framework-generated payload)
 - `internal_error` (500)
 
 ## Notes

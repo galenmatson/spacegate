@@ -44,6 +44,8 @@ from .utils import (
 app = FastAPI(title="Spacegate API", version="0.1")
 ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
+SUPPORTED_SEARCH_SORTS = {"name", "distance", "coolness"}
+SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"}
 
 COOLNESS_WEIGHT_KEYS = [
     ("luminosity", "luminosity_feature"),
@@ -233,6 +235,13 @@ def systems_search(
     q: Optional[str] = Query(default=None),
     max_dist_ly: Optional[float] = Query(default=None, ge=0),
     min_dist_ly: Optional[float] = Query(default=None, ge=0),
+    min_star_count: Optional[int] = Query(default=None, ge=0),
+    max_star_count: Optional[int] = Query(default=None, ge=0),
+    min_planet_count: Optional[int] = Query(default=None, ge=0),
+    max_planet_count: Optional[int] = Query(default=None, ge=0),
+    has_habitable: Optional[str] = Query(default=None),
+    min_coolness_score: Optional[float] = Query(default=None),
+    max_coolness_score: Optional[float] = Query(default=None),
     spectral_class: Optional[str] = Query(default=None),
     has_planets: Optional[str] = Query(default=None),
     sort: str = Query(default="name"),
@@ -248,6 +257,37 @@ def systems_search(
                 "details": {},
             },
         )
+    if max_star_count is not None and min_star_count is not None and min_star_count > max_star_count:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid star-count range",
+                "details": {},
+            },
+        )
+    if max_planet_count is not None and min_planet_count is not None and min_planet_count > max_planet_count:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid planet-count range",
+                "details": {},
+            },
+        )
+    if (
+        max_coolness_score is not None
+        and min_coolness_score is not None
+        and min_coolness_score > max_coolness_score
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid coolness-score range",
+                "details": {},
+            },
+        )
 
     q_norm = normalize_query_text(q or "")
     id_query = parse_identifier_query(q_norm)
@@ -259,12 +299,20 @@ def systems_search(
             system_id_exact = None
 
     sort_key = sort.lower() if sort else "name"
-    if sort_key not in {"name", "distance", "coolness"}:
-        sort_key = "name"
+    if sort_key not in SUPPORTED_SEARCH_SORTS:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid sort option",
+                "details": {
+                    "sort": sort,
+                    "allowed": sorted(SUPPORTED_SEARCH_SORTS),
+                },
+            },
+        )
 
     rich_db_path = _resolve_rich_db_path()
-    if sort_key == "coolness" and not rich_db_path:
-        sort_key = "name"
 
     match_mode = bool(q_norm) or bool(id_query)
 
@@ -294,24 +342,73 @@ def systems_search(
             )
 
     spectral_classes = parse_spectral_classes(spectral_class)
+    invalid_spectral = [value for value in spectral_classes if value not in SUPPORTED_SPECTRAL_FILTERS]
+    if invalid_spectral:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid spectral_class filter",
+                "details": {
+                    "invalid": invalid_spectral,
+                    "allowed": sorted(SUPPORTED_SPECTRAL_FILTERS),
+                },
+            },
+        )
     has_planets_bool = parse_bool(has_planets)
+    if has_planets is not None and has_planets_bool is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid has_planets filter",
+                "details": {"value": has_planets, "allowed": ["true", "false"]},
+            },
+        )
+    has_habitable_bool = parse_bool(has_habitable)
+    if has_habitable is not None and has_habitable_bool is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid has_habitable filter",
+                "details": {"value": has_habitable, "allowed": ["true", "false"]},
+            },
+        )
 
-    with db.connection_scope() as con:
-        rows = search_systems(
-            con,
-            q_norm=q_norm or None,
-            q_raw=q,
-            system_id_exact=system_id_exact,
-            id_query=id_query,
-            max_dist_ly=max_dist_ly,
-            min_dist_ly=min_dist_ly,
-            spectral_classes=spectral_classes,
-            has_planets=has_planets_bool,
-            sort=sort_key,
-            match_mode=match_mode,
-            limit=limit + 1,
-            cursor_values=cursor_values,
-            rich_db_path=rich_db_path,
+    try:
+        with db.connection_scope() as con:
+            rows = search_systems(
+                con,
+                q_norm=q_norm or None,
+                q_raw=q,
+                system_id_exact=system_id_exact,
+                id_query=id_query,
+                max_dist_ly=max_dist_ly,
+                min_dist_ly=min_dist_ly,
+                min_star_count=min_star_count,
+                max_star_count=max_star_count,
+                min_planet_count=min_planet_count,
+                max_planet_count=max_planet_count,
+                spectral_classes=spectral_classes,
+                has_planets=has_planets_bool,
+                has_habitable=has_habitable_bool,
+                min_coolness_score=min_coolness_score,
+                max_coolness_score=max_coolness_score,
+                sort=sort_key,
+                match_mode=match_mode,
+                limit=limit + 1,
+                cursor_values=cursor_values,
+                rich_db_path=rich_db_path,
+            )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "conflict",
+                "message": str(exc),
+                "details": {},
+            },
         )
 
     has_more = len(rows) > limit
