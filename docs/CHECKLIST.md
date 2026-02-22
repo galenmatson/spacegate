@@ -59,8 +59,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Build minimal browser UI scaffold
 - [x] Implement search + detail views
 - [x] Add filters/sorting
-- [ ] UI matches `docs/UX_SPEC.md` (provenance links, match confidence warnings, accessibility)
-- [ ] Support optional packs in UI (core read-only; lore overlays deferred to v2+)
+- [x] UI matches `docs/UX_SPEC.md` (provenance links, match confidence warnings, accessibility)
 - [x] Deploy initial UI
 
 ## Operations
@@ -95,20 +94,20 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Coolness scoring + ranking stored in rich with score breakdown (`scripts/score_coolness.py`, includes v1.4-aligned complexity/exotic-star factors)
 - [x] Versioned weight profiles (reproducible profile id/version in outputs)
 - [x] CLI preview/apply for weight profiles with diff against active profile
-- [ ] Admin slider/preset UI for weights
-- [ ] Diversity preview checks (class/type distribution before apply)
+- [x] Admin slider/preset UI for weights
+- [x] Diversity preview checks (class/type distribution before apply)
 - [x] Scoring report artifact per run (top-N and distribution summary)
 - [x] Profile activation audit trail + rollback to prior profile
 
 ## v1 System Visualization
-- [ ] Snapshot generator and manifest
-- [ ] Deterministic rendering rules and QC
-- [ ] Rich artifact storage + versioning
+- [x] Snapshot generator and manifest (`scripts/generate_snapshots.py` + `snapshot_manifest`)
+- [x] Deterministic rendering rules and QC (deterministic SVG output + parameter hash + input hash)
+- [x] Rich artifact storage + versioning (`out/<build_id>/snapshots/...`, `rich.duckdb`, `snapshot_report.json`)
 
 ## v1.1 Beautification
-- [ ] UI visual refresh (intentional hierarchy + readability)
+- [x] UI visual refresh (intentional hierarchy + readability)
 - [ ] Theme system with persistence and accessibility guardrails
-- [ ] Data-density cleanup (progressive disclosure in system/detail views)
+- [x] Data-density cleanup (snapshot-first list/detail hierarchy and cleaner card layout)
 
 ## v1.2 External Reference Links
 - [ ] External reference links (curated authoritative sources)

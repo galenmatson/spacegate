@@ -55,7 +55,7 @@ Current status snapshot:
 - `coolness_scores`: implemented (`scripts/score_coolness.py`)
 - `system_neighbors`: planned
 - `system_tags`: planned
-- `snapshot_manifest`: planned
+- `snapshot_manifest`: implemented (`scripts/generate_snapshots.py`)
 - `external_reference_links`: planned
 - `factsheets`: planned
 - `expositions`: planned
@@ -131,13 +131,17 @@ Manifest for deterministic snapshot assets.
 
 Required columns:
 - `stable_object_key TEXT`
+- `system_id BIGINT`
 - `object_type TEXT`
 - `view_type TEXT`
 - `params_json TEXT`
 - `params_hash TEXT`
 - `artifact_path TEXT`
+- `artifact_mime TEXT`
 - `build_id TEXT`
 - `generator_version TEXT`
+- `width_px INTEGER`
+- `height_px INTEGER`
 - `source_build_inputs_hash TEXT`
 - `created_at TIMESTAMP`
 

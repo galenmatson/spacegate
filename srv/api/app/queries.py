@@ -43,6 +43,51 @@ def _parse_catalog_ids(raw: Optional[str]) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _attach_rich_db(
+    con: duckdb.DuckDBPyConnection,
+    rich_db_path: Optional[str],
+    *,
+    alias: str = "rich_db",
+) -> bool:
+    if not rich_db_path:
+        return False
+    try:
+        attached = {str(row[1]) for row in con.execute("PRAGMA database_list").fetchall()}
+        if alias in attached:
+            return True
+    except Exception:
+        pass
+    try:
+        rich_path_sql = str(rich_db_path).replace("'", "''")
+        con.execute(f"ATTACH '{rich_path_sql}' AS {alias} (READ_ONLY)")
+        return True
+    except Exception:
+        return False
+
+
+def _has_table(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    alias: str,
+    table_name: str,
+) -> bool:
+    try:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_catalog = ?
+              AND table_schema = 'main'
+              AND table_name = ?
+            LIMIT 1
+            """,
+            [alias, table_name],
+        ).fetchone()
+        return bool(row)
+    except Exception:
+        return False
+
+
 def fetch_build_id(con: duckdb.DuckDBPyConnection) -> Optional[str]:
     try:
         row = con.execute(
@@ -143,6 +188,53 @@ def fetch_counts_for_system(
     return int(star_count), int(planet_count)
 
 
+def fetch_snapshot_for_system(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    stable_object_key: Optional[str],
+    rich_db_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not _attach_rich_db(con, rich_db_path, alias="rich_snap"):
+        return None
+    if not _has_table(con, alias="rich_snap", table_name="snapshot_manifest"):
+        return None
+    row = con.execute(
+        """
+        SELECT
+          sm.build_id AS snapshot_build_id,
+          sm.view_type AS snapshot_view_type,
+          sm.artifact_path AS snapshot_artifact_path,
+          sm.params_hash AS snapshot_params_hash,
+          sm.width_px AS snapshot_width_px,
+          sm.height_px AS snapshot_height_px
+        FROM rich_snap.snapshot_manifest sm
+        JOIN (
+          SELECT value AS build_id
+          FROM build_metadata
+          WHERE key = 'build_id'
+          LIMIT 1
+        ) b ON sm.build_id = b.build_id
+        WHERE sm.object_type = 'system'
+          AND sm.view_type = 'system_card'
+          AND (sm.system_id = ? OR sm.stable_object_key = ?)
+        ORDER BY sm.created_at DESC
+        LIMIT 1
+        """,
+        [system_id, stable_object_key],
+    ).fetchone()
+    if not row:
+        return None
+    return {
+        "build_id": row[0],
+        "view_type": row[1],
+        "artifact_path": row[2],
+        "params_hash": row[3],
+        "width_px": int(row[4]) if row[4] is not None else None,
+        "height_px": int(row[5]) if row[5] is not None else None,
+    }
+
+
 def search_systems(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -158,6 +250,7 @@ def search_systems(
     match_mode: bool,
     limit: int,
     cursor_values: Optional[Dict[str, Any]],
+    rich_db_path: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     conditions: List[str] = []
     params: List[Any] = []
@@ -241,6 +334,20 @@ def search_systems(
             "EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
         )
 
+    rich_attached = _attach_rich_db(con, rich_db_path, alias="rich_db")
+    has_coolness_scores = rich_attached and _has_table(
+        con,
+        alias="rich_db",
+        table_name="coolness_scores",
+    )
+    has_snapshot_manifest = rich_attached and _has_table(
+        con,
+        alias="rich_db",
+        table_name="snapshot_manifest",
+    )
+
+    use_coolness_sort = sort == "coolness" and not match_mode and has_coolness_scores
+
     order_by = "system_name_norm ASC NULLS LAST, system_id ASC"
     cursor_clause = ""
     outer_clause = ""
@@ -300,6 +407,30 @@ def search_systems(
                         cursor_values.get("id"),
                     ]
                 )
+        elif sort == "coolness" and use_coolness_sort:
+            order_by = (
+                "COALESCE(coolness_rank, 9223372036854775807) ASC, "
+                "COALESCE(system_name_norm, '') ASC, system_id ASC"
+            )
+            if cursor_values:
+                cursor_rank = cursor_values.get("cool_rank")
+                if cursor_rank is None:
+                    cursor_rank = 9223372036854775807
+                cursor_clause = (
+                    "(COALESCE(c.coolness_rank, 9223372036854775807) > ? OR "
+                    "(COALESCE(c.coolness_rank, 9223372036854775807) = ? AND COALESCE(s.system_name_norm, '') > ?) OR "
+                    "(COALESCE(c.coolness_rank, 9223372036854775807) = ? AND COALESCE(s.system_name_norm, '') = ? AND s.system_id > ?))"
+                )
+                params.extend(
+                    [
+                        cursor_rank,
+                        cursor_rank,
+                        cursor_values.get("name", ""),
+                        cursor_rank,
+                        cursor_values.get("name", ""),
+                        cursor_values.get("id"),
+                    ]
+                )
         else:
             if cursor_values:
                 cursor_clause = (
@@ -321,6 +452,80 @@ def search_systems(
     if conditions:
         where_sql = "WHERE " + " AND ".join(conditions)
 
+    coolness_cte = ""
+    coolness_join = ""
+    coolness_select = "NULL::BIGINT AS coolness_rank, NULL::DOUBLE AS coolness_score,"
+    if use_coolness_sort:
+        coolness_cte = """
+        coolness AS (
+            SELECT system_id, rank AS coolness_rank, score_total AS coolness_score
+            FROM rich_db.coolness_scores
+        ),
+        """
+        coolness_join = "LEFT JOIN coolness c ON c.system_id = s.system_id"
+        coolness_select = "c.coolness_rank, c.coolness_score,"
+
+    snapshot_cte = ""
+    snapshot_join = ""
+    snapshot_select = (
+        "NULL::VARCHAR AS snapshot_build_id, "
+        "NULL::VARCHAR AS snapshot_view_type, "
+        "NULL::VARCHAR AS snapshot_artifact_path, "
+        "NULL::VARCHAR AS snapshot_params_hash, "
+        "NULL::INTEGER AS snapshot_width_px, "
+        "NULL::INTEGER AS snapshot_height_px,"
+    )
+    if has_snapshot_manifest:
+        snapshot_cte = """
+        snapshot_ranked AS (
+            SELECT
+              sm.system_id,
+              sm.stable_object_key,
+              sm.build_id AS snapshot_build_id,
+              sm.view_type AS snapshot_view_type,
+              sm.artifact_path AS snapshot_artifact_path,
+              sm.params_hash AS snapshot_params_hash,
+              sm.width_px AS snapshot_width_px,
+              sm.height_px AS snapshot_height_px,
+              ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(sm.system_id, -1), sm.stable_object_key
+                ORDER BY sm.created_at DESC
+              ) AS snapshot_rn
+            FROM rich_db.snapshot_manifest sm
+            JOIN (
+                SELECT value AS build_id
+                FROM build_metadata
+                WHERE key = 'build_id'
+                LIMIT 1
+            ) b ON sm.build_id = b.build_id
+            WHERE sm.object_type = 'system'
+              AND sm.view_type = 'system_card'
+              AND sm.system_id IS NOT NULL
+        ),
+        snapshot_one AS (
+            SELECT
+              system_id,
+              stable_object_key,
+              snapshot_build_id,
+              snapshot_view_type,
+              snapshot_artifact_path,
+              snapshot_params_hash,
+              snapshot_width_px,
+              snapshot_height_px
+            FROM snapshot_ranked
+            WHERE snapshot_rn = 1
+        ),
+        """
+        snapshot_join = "LEFT JOIN snapshot_one sm ON sm.system_id = s.system_id"
+        snapshot_select = (
+            "sm.snapshot_build_id, "
+            "sm.snapshot_view_type, "
+            "sm.snapshot_artifact_path, "
+            "sm.snapshot_params_hash, "
+            "sm.snapshot_width_px, "
+            "sm.snapshot_height_px,"
+        )
+
     sql = f"""
         WITH star_agg AS (
             SELECT
@@ -338,16 +543,22 @@ def search_systems(
             WHERE system_id IS NOT NULL
             GROUP BY system_id
         ),
+        {coolness_cte}
+        {snapshot_cte}
         base AS (
             SELECT
                 s.*,
                 sa.star_count,
                 sa.spectral_classes,
                 pa.planet_count,
+                {coolness_select}
+                {snapshot_select}
                 {match_rank_expr}
             FROM systems s
             LEFT JOIN star_agg sa ON sa.system_id = s.system_id
             LEFT JOIN planet_agg pa ON pa.system_id = s.system_id
+            {coolness_join}
+            {snapshot_join}
             {where_sql}
         )
         SELECT * FROM base
@@ -370,6 +581,23 @@ def search_systems(
         payload["spectral_classes"] = [cls for cls in spectral if cls]
         payload["star_count"] = int(payload.get("star_count") or 0)
         payload["planet_count"] = int(payload.get("planet_count") or 0)
+        snapshot_build_id = payload.pop("snapshot_build_id", None)
+        snapshot_view_type = payload.pop("snapshot_view_type", None)
+        snapshot_artifact_path = payload.pop("snapshot_artifact_path", None)
+        snapshot_params_hash = payload.pop("snapshot_params_hash", None)
+        snapshot_width_px = payload.pop("snapshot_width_px", None)
+        snapshot_height_px = payload.pop("snapshot_height_px", None)
+        if snapshot_build_id and snapshot_artifact_path:
+            payload["snapshot"] = {
+                "build_id": snapshot_build_id,
+                "view_type": snapshot_view_type,
+                "artifact_path": snapshot_artifact_path,
+                "params_hash": snapshot_params_hash,
+                "width_px": int(snapshot_width_px) if snapshot_width_px is not None else None,
+                "height_px": int(snapshot_height_px) if snapshot_height_px is not None else None,
+            }
+        else:
+            payload["snapshot"] = None
         payload["provenance"] = provenance
         results.append(payload)
 

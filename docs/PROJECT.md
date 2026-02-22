@@ -583,8 +583,9 @@ CLI commands:
 
 - Checkpoint A implemented (`scripts/score_coolness.py` + `coolness_report.json`).
 - Checkpoint B implemented (versioned profile store + list/preview/diff/apply/rollback CLI).
+- Checkpoint C implemented (admin slider/preset UI + diversity preview checks before apply).
 - Profile activation audit trail + rollback implemented.
-- Next milestone: Checkpoint C (admin slider/preset UI + diversity preview).
+- Next milestone: Checkpoint D (promotion workflow hardening + rollback drill validation).
 
 ---
 
@@ -721,6 +722,18 @@ Snapshots are **derived artifacts** (like reports), not part of the immutable co
 - No “invented” planets, orbits, colors, or relationships.
   - If required fields are missing, render a minimal view with a clear “insufficient data” note.
 - Any change to rendering rules must bump `generator_version` and invalidate cache by construction.
+
+### Implementation checkpoint (current)
+- Implemented baseline deterministic snapshot pipeline:
+  - `scripts/generate_snapshots.py` and `scripts/generate_snapshots.sh`
+  - SVG artifacts at `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/system_card/<stable_object_key>/<params_hash>.svg`
+  - `snapshot_manifest` persisted in `rich.duckdb` and exported to `rich/snapshot_manifest.parquet`
+  - report at `$SPACEGATE_STATE_DIR/reports/<build_id>/snapshot_report.json`
+  - API exposure through `GET /api/v1/snapshots/{build_id}/{artifact_path}`
+  - public UI list/detail now render these snapshots when available
+- Remaining v1.0 expansion:
+  - additional view types (`neighbors_10ly`, `neighbors_50ly`, `orbits_inner`, `orbits_outer`)
+  - dedicated QC report for numeric/render invariants
 
 ---
 

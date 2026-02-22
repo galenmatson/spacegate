@@ -1,6 +1,6 @@
-# Spacegate v0.1 UX Spec (Public Database Browser)
+# Spacegate v1.1 UX Spec (Public Database Browser)
 
-Scope: search/browse core systems, stars, and planets from `core.duckdb`. No 3D map, no lore, no rich layer beyond counts/aggregation. UI is read-only.
+Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only rich overlays for coolness ranking and deterministic system snapshots. No 3D map, no lore.
 
 ## Global UI Principles
 - Primary task: find a system and understand what is known about it.
@@ -27,14 +27,17 @@ Scope: search/browse core systems, stars, and planets from `core.duckdb`. No 3D 
 - Has planets: toggle, optional.
 
 ### Sorting
-- Default: Name (A-Z).
+- Default: Coolness (top-ranked).
 - Alternate: Distance (nearest first).
+- Alternate: Name (A-Z).
 
 Sorting rules:
+- Coolness: `rich.coolness_scores.rank` ascending, tie-breakers `system_name_norm`, `system_id`.
 - Name: `system_name_norm` ascending, tie-breaker `system_id`.
 - Distance: `dist_ly` ascending, tie-breaker `system_id`.
 
 ### Result Card Fields (per system)
+- Deterministic snapshot thumbnail (if available in `snapshot_manifest`; otherwise show pending state)
 - System name
 - Distance (ly)
 - RA/Dec (deg)
@@ -65,6 +68,7 @@ Sorting rules:
 
 ### Layout
 - Header section with system name and identifiers.
+- Deterministic snapshot panel near top of page.
 - Quick facts grid (distance, coordinates, counts).
 - Stars section: table/list of member stars.
 - Planets section: table/list of known exoplanets.
@@ -81,6 +85,11 @@ Sorting rules:
 - XYZ (helio, ly)
 - Star count
 - Planet count
+
+### Snapshot Panel
+- Show deterministic snapshot image when present.
+- Show neutral pending state when a snapshot has not been generated yet.
+- Snapshot metadata may include `view_type` and `params_hash` for provenance/debugging.
 
 ### Stars Section (per star)
 - Star name (or "Unnamed")

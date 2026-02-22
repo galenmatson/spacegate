@@ -48,11 +48,14 @@ Optional:
 - `GET /api/v1/systems/search`
 - `GET /api/v1/systems/{system_id}`
 - `GET /api/v1/systems/by-key/{stable_object_key}`
+- `GET /api/v1/snapshots/{build_id}/{artifact_path}`
 - `GET /api/v1/auth/login/google`
 - `GET /api/v1/auth/callback/google`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 - `GET /api/v1/admin/status` (admin only)
+- `GET /api/v1/admin/coolness/state` (admin only; active profile + weights for slider initialization)
+- `POST /api/v1/admin/coolness/preview` (admin only, CSRF required; diversity preview for candidate weights)
 - `GET /api/v1/admin/actions/catalog` (admin only)
 - `POST /api/v1/admin/actions/run` (admin only, CSRF required)
 - `GET /api/v1/admin/actions/jobs` (admin only)
@@ -64,6 +67,20 @@ Optional:
 - `GET /api/v1/admin/audit` (admin only; audit/event feed with filters)
 - `GET /api/v1/admin/ui` (admin page scaffold; preferred behind nginx)
 - `GET /admin` (admin page scaffold when API is exposed directly)
+
+## Deterministic snapshots (v1.0 baseline)
+
+Generate cached system snapshots + manifest rows:
+
+```bash
+cd /data/spacegate/app
+scripts/generate_snapshots.sh --top-coolness 500
+```
+
+Artifacts and metadata:
+- `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/system_card/...`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/rich/snapshot_manifest.parquet`
+- `$SPACEGATE_STATE_DIR/reports/<build_id>/snapshot_report.json`
 
 ## Integration test
 
