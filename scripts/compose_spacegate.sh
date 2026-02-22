@@ -7,7 +7,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
   # shellcheck disable=SC1091
   source "$ROOT_DIR/scripts/lib/env_loader.sh"
-  spacegate_init_env "$ROOT_DIR"
+  if declare -F spacegate_init_env >/dev/null 2>&1; then
+    spacegate_init_env "$ROOT_DIR"
+  else
+    # Back-compat with older env_loader.sh that only defines load helpers.
+    if declare -F spacegate_load_env_defaults >/dev/null 2>&1; then
+      spacegate_load_env_defaults "$ROOT_DIR"
+    fi
+    if declare -F spacegate_normalize_env_paths >/dev/null 2>&1; then
+      spacegate_normalize_env_paths "$ROOT_DIR"
+    fi
+  fi
 fi
 
 DOCKER_COMPOSE_FILE="${SPACEGATE_DOCKER_COMPOSE_FILE:-$ROOT_DIR/docker-compose.yml}"
