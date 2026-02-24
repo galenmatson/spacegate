@@ -240,6 +240,23 @@ def _build_command_score_coolness(params: Dict[str, Any]) -> List[str]:
     return cmd
 
 
+def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
+    cmd = [str(ROOT_DIR / "scripts" / "generate_snapshots.sh")]
+    build_id = str(params.get("build_id", "") or "").strip()
+    if build_id:
+        cmd.extend(["--build-id", build_id])
+    top_coolness = _normalize_integer(params.get("top_coolness", 200))
+    if top_coolness <= 0:
+        raise ActionValidationError("top_coolness must be > 0")
+    cmd.extend(["--top-coolness", str(top_coolness)])
+    view_type = str(params.get("view_type", "") or "").strip()
+    if view_type:
+        cmd.extend(["--view-type", view_type])
+    if _normalize_boolean(params.get("force", False)):
+        cmd.append("--force")
+    return cmd
+
+
 def _build_command_save_coolness_profile(params: Dict[str, Any]) -> List[str]:
     profile_id = str(params.get("profile_id", "") or "").strip()
     profile_version = str(params.get("profile_version", "") or "").strip()
@@ -790,6 +807,45 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         risk_level="low",
         build_command=_build_command_score_coolness,
     ),
+    "generate_snapshots": ActionSpec(
+        name="generate_snapshots",
+        display_name="Generate Snapshots",
+        description="Render system snapshot images for top coolness-ranked systems (defaults to top 200).",
+        params_schema={
+            "build_id": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "placeholder": "leave empty for served/current",
+                "label": "Build ID (optional)",
+            },
+            "top_coolness": {
+                "type": "integer",
+                "required": False,
+                "default": 200,
+                "min": 1,
+                "max": 10000,
+                "label": "Top coolness systems",
+            },
+            "view_type": {
+                "type": "string",
+                "required": False,
+                "default": "system",
+                "allow_empty": False,
+                "label": "View type",
+            },
+            "force": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Force regenerate existing images",
+            },
+        },
+        category="coolness",
+        risk_level="low",
+        build_command=_build_command_generate_snapshots,
+    ),
     "save_coolness_profile": ActionSpec(
         name="save_coolness_profile",
         display_name="Save Coolness Profile",
@@ -994,7 +1050,7 @@ def _validate_params(spec: ActionSpec, params: Dict[str, Any]) -> Dict[str, Any]
 
         normalized[name] = value
 
-    if spec.name in {"verify_build", "publish_db", "build_core", "score_coolness"}:
+    if spec.name in {"verify_build", "publish_db", "build_core", "score_coolness", "generate_snapshots"}:
         build_id = str(normalized.get("build_id", "") or "").strip()
         if build_id and not _is_safe_build_id(build_id):
             raise ActionValidationError("Invalid build_id format")

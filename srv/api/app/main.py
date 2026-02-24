@@ -96,6 +96,145 @@ def _attach_snapshot_url(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+def _actor_user_id_from_request(request: Request) -> Optional[int]:
+    context = getattr(request.state, "auth_user", None)
+    if not isinstance(context, dict):
+        return None
+    value = context.get("user_id")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _should_audit_systems_search(
+    *,
+    q_raw: Optional[str],
+    min_dist_ly: Optional[float],
+    max_dist_ly: Optional[float],
+    min_star_count: Optional[int],
+    max_star_count: Optional[int],
+    min_planet_count: Optional[int],
+    max_planet_count: Optional[int],
+    has_habitable: Optional[bool],
+    has_planets: Optional[bool],
+    min_coolness_score: Optional[float],
+    max_coolness_score: Optional[float],
+    spectral_classes: list[str],
+) -> bool:
+    if str(q_raw or "").strip():
+        return True
+    return any(
+        value is not None
+        for value in (
+            min_dist_ly,
+            max_dist_ly,
+            min_star_count,
+            max_star_count,
+            min_planet_count,
+            max_planet_count,
+            has_habitable,
+            has_planets,
+            min_coolness_score,
+            max_coolness_score,
+        )
+    ) or bool(spectral_classes)
+
+
+def _audit_systems_search(
+    request: Request,
+    *,
+    q_raw: Optional[str],
+    q_norm: str,
+    id_query: Optional[Dict[str, Any]],
+    sort_key: str,
+    limit: int,
+    min_dist_ly: Optional[float],
+    max_dist_ly: Optional[float],
+    min_star_count: Optional[int],
+    max_star_count: Optional[int],
+    min_planet_count: Optional[int],
+    max_planet_count: Optional[int],
+    has_habitable: Optional[bool],
+    has_planets: Optional[bool],
+    min_coolness_score: Optional[float],
+    max_coolness_score: Optional[float],
+    spectral_classes: list[str],
+    returned_count: int,
+    has_more: Optional[bool],
+    total_count: Optional[int],
+    outcome: str,
+    duration_ms: int,
+    error_message: Optional[str] = None,
+) -> None:
+    if not _should_audit_systems_search(
+        q_raw=q_raw,
+        min_dist_ly=min_dist_ly,
+        max_dist_ly=max_dist_ly,
+        min_star_count=min_star_count,
+        max_star_count=max_star_count,
+        min_planet_count=min_planet_count,
+        max_planet_count=max_planet_count,
+        has_habitable=has_habitable,
+        has_planets=has_planets,
+        min_coolness_score=min_coolness_score,
+        max_coolness_score=max_coolness_score,
+        spectral_classes=spectral_classes,
+    ):
+        return
+
+    def _short(value: Optional[str], limit_len: int = 180) -> str:
+        text = str(value or "").strip()
+        if len(text) <= limit_len:
+            return text
+        return text[: limit_len - 3] + "..."
+
+    filters: Dict[str, Any] = {}
+    if min_dist_ly is not None or max_dist_ly is not None:
+        filters["distance_ly"] = {"min": min_dist_ly, "max": max_dist_ly}
+    if min_star_count is not None or max_star_count is not None:
+        filters["star_count"] = {"min": min_star_count, "max": max_star_count}
+    if min_planet_count is not None or max_planet_count is not None:
+        filters["planet_count"] = {"min": min_planet_count, "max": max_planet_count}
+    if min_coolness_score is not None or max_coolness_score is not None:
+        filters["coolness_score"] = {"min": min_coolness_score, "max": max_coolness_score}
+    if spectral_classes:
+        filters["spectral_classes"] = spectral_classes
+    if has_planets is not None:
+        filters["has_planets"] = has_planets
+    if has_habitable is not None:
+        filters["has_habitable"] = has_habitable
+
+    details: Dict[str, Any] = {
+        "query_raw": _short(q_raw),
+        "query_norm": _short(q_norm),
+        "sort": sort_key,
+        "limit": limit,
+        "id_query": id_query,
+        "filters": filters,
+        "response": {
+            "returned_count": returned_count,
+            "has_more": has_more,
+            "total_count": total_count,
+            "zero_results": returned_count == 0,
+        },
+        "outcome": outcome,
+        "duration_ms": duration_ms,
+    }
+    if error_message:
+        details["error"] = _short(error_message, limit_len=260)
+
+    auth.audit_event(
+        request,
+        event_type="api.search.systems",
+        result="error" if outcome == "conflict" else "success",
+        actor_user_id=_actor_user_id_from_request(request),
+        details=details,
+    )
+
+
 @app.on_event("startup")
 def startup_checks():
     auth.initialize()
@@ -232,6 +371,7 @@ def health():
 
 @app.get("/api/v1/systems/search")
 def systems_search(
+    request: Request,
     q: Optional[str] = Query(default=None),
     max_dist_ly: Optional[float] = Query(default=None, ge=0),
     min_dist_ly: Optional[float] = Query(default=None, ge=0),
@@ -388,6 +528,8 @@ def systems_search(
             },
         )
 
+    started_at = datetime.datetime.utcnow()
+
     try:
         with db.connection_scope() as con:
             rows, total_count = search_systems(
@@ -415,6 +557,31 @@ def systems_search(
                 rich_db_path=rich_db_path,
             )
     except ValueError as exc:
+        _audit_systems_search(
+            request,
+            q_raw=q,
+            q_norm=q_norm,
+            id_query=id_query,
+            sort_key=sort_key,
+            limit=limit,
+            min_dist_ly=min_dist_ly,
+            max_dist_ly=max_dist_ly,
+            min_star_count=min_star_count,
+            max_star_count=max_star_count,
+            min_planet_count=min_planet_count,
+            max_planet_count=max_planet_count,
+            has_habitable=has_habitable_bool,
+            has_planets=has_planets_bool,
+            min_coolness_score=min_coolness_score,
+            max_coolness_score=max_coolness_score,
+            spectral_classes=spectral_classes,
+            returned_count=0,
+            has_more=None,
+            total_count=None,
+            outcome="conflict",
+            duration_ms=max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000)),
+            error_message=str(exc),
+        )
         raise HTTPException(
             status_code=409,
             detail={
@@ -475,6 +642,31 @@ def systems_search(
                     "id": last.get("system_id"),
                 }
             )
+
+    _audit_systems_search(
+        request,
+        q_raw=q,
+        q_norm=q_norm,
+        id_query=id_query,
+        sort_key=sort_key,
+        limit=limit,
+        min_dist_ly=min_dist_ly,
+        max_dist_ly=max_dist_ly,
+        min_star_count=min_star_count,
+        max_star_count=max_star_count,
+        min_planet_count=min_planet_count,
+        max_planet_count=max_planet_count,
+        has_habitable=has_habitable_bool,
+        has_planets=has_planets_bool,
+        min_coolness_score=min_coolness_score,
+        max_coolness_score=max_coolness_score,
+        spectral_classes=spectral_classes,
+        returned_count=len(items),
+        has_more=has_more,
+        total_count=total_count,
+        outcome="success",
+        duration_ms=max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000)),
+    )
 
     return {
         "items": items,
@@ -1492,6 +1684,7 @@ def admin_home(request: Request):
           <button id="auditPresetAll" class="active">All</button>
           <button id="auditPresetAuth">Auth</button>
           <button id="auditPresetActions">Admin Actions</button>
+          <button id="auditPresetQueries">Queries</button>
         </div>
         <div class="inline" style="margin-top: 0.45rem;">
           <label for="auditEventType">event_type</label>
@@ -1624,6 +1817,7 @@ def admin_home(request: Request):
         document.getElementById('auditPresetAll').classList.toggle('active', name === 'all');
         document.getElementById('auditPresetAuth').classList.toggle('active', name === 'auth');
         document.getElementById('auditPresetActions').classList.toggle('active', name === 'actions');
+        document.getElementById('auditPresetQueries').classList.toggle('active', name === 'queries');
       }}
 
       function csrfToken() {{
@@ -2801,6 +2995,8 @@ def admin_home(request: Request):
           params.set('event_prefix', 'auth.');
         }} else if (auditPreset === 'actions') {{
           params.set('event_prefix', 'admin.action.');
+        }} else if (auditPreset === 'queries') {{
+          params.set('event_prefix', 'api.search.');
         }}
         const eventType = (auditEventTypeEl.value || '').trim();
         const result = (auditResultEl.value || '').trim();
@@ -2819,8 +3015,24 @@ def admin_home(request: Request):
         (items || []).forEach((entry) => {{
           const li = document.createElement('li');
           const a = document.createElement('a');
+          const details = (entry && typeof entry.details === 'object' && entry.details) ? entry.details : {{}};
+          const response = (details && typeof details.response === 'object' && details.response) ? details.response : {{}};
+          const qRaw = String(details.query_raw || '').trim();
+          const returnedCount = Number.isFinite(Number(response.returned_count)) ? Number(response.returned_count) : null;
+          const totalCount = Number.isFinite(Number(response.total_count)) ? Number(response.total_count) : null;
+          const zeroResults = response.zero_results === true;
+          const hasMore = response.has_more === true;
+          let querySummary = '';
+          if (entry.event_type === 'api.search.systems') {{
+            const qPart = qRaw ? ` q="${{qRaw}}"` : ' q=(filters)';
+            const returnedPart = returnedCount === null ? ' returned=?' : ` returned=${{returnedCount}}`;
+            const totalPart = totalCount === null ? '' : ` total=${{totalCount}}`;
+            const morePart = hasMore ? ' more=yes' : '';
+            const emptyPart = zeroResults ? ' ZERO' : '';
+            querySummary = `${{qPart}}${{returnedPart}}${{totalPart}}${{morePart}}${{emptyPart}}`;
+          }}
           a.href = '#';
-          a.textContent = `#${{entry.audit_id}} [${{entry.result}}] ${{entry.event_type}} ${{entry.request_id || ''}} ${{entry.correlation_id || ''}}`;
+          a.textContent = `#${{entry.audit_id}} [${{entry.result}}] ${{entry.event_type}}${{querySummary}} ${{entry.request_id || ''}} ${{entry.correlation_id || ''}}`;
           a.onclick = (e) => {{
             e.preventDefault();
             auditDetailsEl.textContent = JSON.stringify(entry, null, 2);
@@ -2880,6 +3092,7 @@ def admin_home(request: Request):
       document.getElementById('auditPresetAll').addEventListener('click', () => {{ setAuditPreset('all'); loadAudit(false); }});
       document.getElementById('auditPresetAuth').addEventListener('click', () => {{ setAuditPreset('auth'); loadAudit(false); }});
       document.getElementById('auditPresetActions').addEventListener('click', () => {{ setAuditPreset('actions'); loadAudit(false); }});
+      document.getElementById('auditPresetQueries').addEventListener('click', () => {{ setAuditPreset('queries'); loadAudit(false); }});
       document.getElementById('presetBalanced').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.balanced, 'balanced'));
       document.getElementById('presetExotic').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.exotic, 'exotic'));
       document.getElementById('presetHabitable').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.habitable, 'habitable'));
