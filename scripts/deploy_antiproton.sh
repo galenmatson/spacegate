@@ -187,6 +187,13 @@ main() {
   if [[ -n "${SSH_KEY_PATH:-}" && -f "$SSH_KEY_PATH" ]]; then
     ssh_opts+=(-o IdentitiesOnly=yes -i "$SSH_KEY_PATH")
   fi
+  ssh_opts+=(
+    -o ConnectTimeout=8
+    -o ConnectionAttempts=1
+    -o ControlMaster=auto
+    -o ControlPersist=60
+    -o ControlPath=/tmp/spacegate-deploy-%C
+  )
   local ssh_rsh="ssh"
   local opt
   for opt in "${ssh_opts[@]}"; do
