@@ -4,6 +4,7 @@ import datetime
 import json
 import math
 import os
+import re
 import subprocess
 import uuid
 from pathlib import Path
@@ -123,7 +124,10 @@ def _should_audit_systems_search(
     min_coolness_score: Optional[float],
     max_coolness_score: Optional[float],
     spectral_classes: list[str],
+    returned_count: int,
 ) -> bool:
+    if returned_count == 0:
+        return True
     if str(q_raw or "").strip():
         return True
     return any(
@@ -182,6 +186,7 @@ def _audit_systems_search(
         min_coolness_score=min_coolness_score,
         max_coolness_score=max_coolness_score,
         spectral_classes=spectral_classes,
+        returned_count=returned_count,
     ):
         return
 
@@ -433,9 +438,10 @@ def systems_search(
     q_norm = normalize_query_text(q or "")
     id_query = parse_identifier_query(q_norm)
     system_id_exact: Optional[int] = None
-    if q and q.strip().isdigit() and not id_query and len(q.strip()) <= 9:
+    system_id_match = re.match(r"^(?:system|sys)\s+(\d+)$", q_norm or "")
+    if system_id_match:
         try:
-            system_id_exact = int(q.strip())
+            system_id_exact = int(system_id_match.group(1))
         except ValueError:
             system_id_exact = None
 
@@ -2799,6 +2805,52 @@ def admin_home(request: Request):
         return {{ ok: true, data }};
       }}
 
+      function setActionRunStatus(statusEl, state, message) {{
+        if (!statusEl) return;
+        const st = String(state || 'idle');
+        const msg = String(message || '');
+        statusEl.textContent = msg ? `Status: ${{st}} | ${{msg}}` : `Status: ${{st}}`;
+      }}
+
+      async function followActionJob(jobId, statusEl, actionName) {{
+        const maxPolls = 300;
+        for (let i = 0; i < maxPolls; i += 1) {{
+          const {{ res, data }} = await fetchJson(`/api/v1/admin/actions/jobs/${{jobId}}`, {{ credentials: 'include' }});
+          if (!res.ok) {{
+            setActionRunStatus(statusEl, 'error', `failed to fetch job ${{jobId}}`);
+            return;
+          }}
+          const job = (data && data.job) || {{}};
+          const status = String(job.status || 'unknown');
+          if (status === 'succeeded') {{
+            if (actionName === 'generate_snapshots') {{
+              setActionRunStatus(statusEl, 'succeeded', `job ${{jobId}} complete; snapshots refreshed. Reload search results to display new images.`);
+            }} else {{
+              setActionRunStatus(statusEl, 'succeeded', `job ${{jobId}} complete.`);
+            }}
+            await loadJobs();
+            await loadAudit(false);
+            return;
+          }}
+          if (status === 'failed') {{
+            const err = String(job.error_message || '').trim();
+            setActionRunStatus(statusEl, 'failed', err ? `job ${{jobId}} failed: ${{err}}` : `job ${{jobId}} failed`);
+            await loadJobs();
+            await loadAudit(false);
+            return;
+          }}
+          if (status === 'cancelled') {{
+            setActionRunStatus(statusEl, 'cancelled', `job ${{jobId}} cancelled`);
+            await loadJobs();
+            await loadAudit(false);
+            return;
+          }}
+          setActionRunStatus(statusEl, status, `job ${{jobId}} running...`);
+          await sleep(1000);
+        }}
+        setActionRunStatus(statusEl, 'unknown', `job ${{jobId}} still running; check Activity > Jobs`);
+      }}
+
       async function loadCatalog() {{
         const {{ data }} = await fetchJson('/api/v1/admin/actions/catalog', {{ credentials: 'include' }});
         actionsOpsEl.innerHTML = '';
@@ -2841,6 +2893,10 @@ def admin_home(request: Request):
           runBtn.type = 'submit';
           runBtn.textContent = 'Run';
           form.appendChild(runBtn);
+          const statusEl = document.createElement('div');
+          statusEl.className = 'small';
+          setActionRunStatus(statusEl, 'idle', '');
+          form.appendChild(statusEl);
 
           form.onsubmit = async (e) => {{
             e.preventDefault();
@@ -2867,7 +2923,21 @@ def admin_home(request: Request):
               if (value === null || value === '') continue;
               params[paramName] = value;
             }}
-            await runAction(item.name, params, confirmation);
+            setActionRunStatus(statusEl, 'submitting', 'starting job...');
+            const result = await runAction(item.name, params, confirmation);
+            if (!result || !result.ok) {{
+              setActionRunStatus(statusEl, 'error', 'failed to start');
+              return;
+            }}
+            const job = (result.data && result.data.job) || {{}};
+            const jobId = String(job.job_id || '');
+            if (!jobId) {{
+              setActionRunStatus(statusEl, 'queued', 'job created; check Activity > Jobs');
+              return;
+            }}
+            setActionRunStatus(statusEl, 'queued', `job ${{jobId}} queued`);
+            await loadJobs();
+            void followActionJob(jobId, statusEl, item.name);
           }};
 
           card.appendChild(form);

@@ -314,6 +314,17 @@ def search_systems(
                 match_lines.append(f"WHEN {id_clause} THEN 3")
                 match_clauses.append(id_clause)
                 match_params.extend([id_query.get("value"), id_query.get("value")])
+            elif id_query.get("kind") == "catalog_numeric":
+                id_clause = (
+                    "(s.hip_id = ? OR EXISTS (SELECT 1 FROM stars st "
+                    "WHERE st.system_id = s.system_id AND st.hip_id = ?) "
+                    "OR s.hd_id = ? OR EXISTS (SELECT 1 FROM stars st "
+                    "WHERE st.system_id = s.system_id AND st.hd_id = ?))"
+                )
+                match_lines.append(f"WHEN {id_clause} THEN 3")
+                match_clauses.append(id_clause)
+                value = id_query.get("value")
+                match_params.extend([value, value, value, value])
 
         match_rank_expr = "CASE " + " ".join(match_lines) + " ELSE NULL END AS match_rank"
 

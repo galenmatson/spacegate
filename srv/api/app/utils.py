@@ -26,7 +26,8 @@ def parse_identifier_query(text: str) -> Optional[Dict[str, Any]]:
         # Plain long integers are overwhelmingly Gaia source IDs.
         if len(numeric.group(1)) >= 10:
             return {"kind": "gaia", "value": int(numeric.group(1))}
-        return None
+        # For shorter numeric IDs, match common catalog IDs (HIP/HD).
+        return {"kind": "catalog_numeric", "value": int(numeric.group(1))}
     match = re.match(r"^(hd|hip|gaia)(?:\\s+dr\\d+)?\\s*(\\d+)$", text)
     if not match:
         return None
