@@ -250,6 +250,8 @@ def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
         raise ActionValidationError("top_coolness must be > 0")
     cmd.extend(["--top-coolness", str(top_coolness)])
     view_type = str(params.get("view_type", "") or "").strip()
+    if view_type == "system":
+        view_type = "system_card"
     if view_type:
         cmd.extend(["--view-type", view_type])
     if _normalize_boolean(params.get("force", False)):
@@ -831,7 +833,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "view_type": {
                 "type": "string",
                 "required": False,
-                "default": "system",
+                "default": "system_card",
                 "allow_empty": False,
                 "label": "View type",
             },

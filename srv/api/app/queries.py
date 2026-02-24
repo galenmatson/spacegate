@@ -216,9 +216,11 @@ def fetch_snapshot_for_system(
           LIMIT 1
         ) b ON sm.build_id = b.build_id
         WHERE sm.object_type = 'system'
-          AND sm.view_type = 'system_card'
+          AND sm.view_type IN ('system_card', 'system')
           AND (sm.system_id = ? OR sm.stable_object_key = ?)
-        ORDER BY sm.created_at DESC
+        ORDER BY
+          CASE WHEN sm.view_type = 'system_card' THEN 0 ELSE 1 END ASC,
+          sm.created_at DESC
         LIMIT 1
         """,
         [system_id, stable_object_key],
@@ -606,7 +608,9 @@ def search_systems(
               sm.height_px AS snapshot_height_px,
               ROW_NUMBER() OVER (
                 PARTITION BY COALESCE(sm.system_id, -1), sm.stable_object_key
-                ORDER BY sm.created_at DESC
+                ORDER BY
+                  CASE WHEN sm.view_type = 'system_card' THEN 0 ELSE 1 END ASC,
+                  sm.created_at DESC
               ) AS snapshot_rn
             FROM rich_db.snapshot_manifest sm
             JOIN (
@@ -616,7 +620,7 @@ def search_systems(
                 LIMIT 1
             ) b ON sm.build_id = b.build_id
             WHERE sm.object_type = 'system'
-              AND sm.view_type = 'system_card'
+              AND sm.view_type IN ('system_card', 'system')
               AND sm.system_id IS NOT NULL
         ),
         snapshot_one AS (
