@@ -17,6 +17,9 @@ EXPECT_AUTH="${SPACEGATE_DEPLOY_EXPECT_AUTH:-enabled}" # enabled|disabled|skip
 SSH_KEY_PATH="${SPACEGATE_DEPLOY_SSH_KEY:-$HOME/.ssh/spacegate_antiproton}"
 BUILD_IMAGES=1
 CHECK_PUBLIC=1
+AUTO_SCORE_COOLNESS="${SPACEGATE_DEPLOY_AUTO_SCORE_COOLNESS:-1}" # 1|0
+SSH_RETRY_ATTEMPTS="${SPACEGATE_DEPLOY_SSH_RETRY_ATTEMPTS:-5}"
+SSH_RETRY_DELAY_SECONDS="${SPACEGATE_DEPLOY_SSH_RETRY_DELAY_SECONDS:-2}"
 DRY_RUN=0
 
 usage() {
@@ -36,6 +39,7 @@ Options:
   --expect-auth MODE     enabled|disabled|skip (default: enabled)
   --ssh-key PATH         SSH private key path (default: ~/.ssh/spacegate_antiproton)
   --no-build             Restart containers without --build
+  --skip-auto-score      Skip remote auto-score when coolness outputs are missing
   --skip-public-check    Skip public URL checks
   --dry-run              Show rsync/deploy actions without changing remote files
   -h, --help             Show this help
@@ -58,6 +62,49 @@ assert_expect_auth() {
       exit 1
       ;;
   esac
+}
+
+assert_auto_score_value() {
+  case "$AUTO_SCORE_COOLNESS" in
+    1|0) ;;
+    *)
+      echo "Error: invalid auto-score value: $AUTO_SCORE_COOLNESS" >&2
+      exit 1
+      ;;
+  esac
+}
+
+ssh_with_retry() {
+  local -a ssh_cmd=()
+  while [[ $# -gt 2 ]]; do
+    ssh_cmd+=("$1")
+    shift
+  done
+  local remote_host="$1"
+  local remote_cmd="$2"
+  local attempt rc
+
+  for (( attempt=1; attempt<=SSH_RETRY_ATTEMPTS; attempt++ )); do
+    if ssh "${ssh_cmd[@]}" "$remote_host" "$remote_cmd"; then
+      rc=0
+      return 0
+    else
+      rc=$?
+    fi
+    if [[ "$attempt" -ge "$SSH_RETRY_ATTEMPTS" ]]; then
+      return "$rc"
+    fi
+    echo "SSH attempt $attempt/$SSH_RETRY_ATTEMPTS failed; retrying in ${SSH_RETRY_DELAY_SECONDS}s..." >&2
+    sleep "$SSH_RETRY_DELAY_SECONDS"
+  done
+}
+
+remote_has_coolness_scores() {
+  local -a ssh_cmd=("$@")
+  ssh_with_retry "${ssh_cmd[@]}" "$REMOTE" "
+    cd '$REMOTE_APP_DIR' &&
+    scripts/compose_spacegate.sh exec -T api python -c \"import duckdb, os, sys; p='/data/served/current/rich.duckdb'; exists=os.path.exists(p); print('missing rich.duckdb at ' + p) if not exists else None; sys.exit(2) if not exists else None; con=duckdb.connect(p, read_only=True); has_table=con.execute(\\\"select count(*) from information_schema.tables where table_schema='main' and table_name='coolness_scores'\\\").fetchone()[0] > 0; print('missing coolness_scores table') if not has_table else None; rows=con.execute('select count(*) from coolness_scores').fetchone()[0] if has_table else -1; print(f'coolness_scores rows={rows}') if has_table else None; sys.exit(0 if has_table else 3)\"
+  "
 }
 
 check_auth_enabled_json() {
@@ -105,6 +152,10 @@ main() {
         BUILD_IMAGES=0
         shift 1
         ;;
+      --skip-auto-score)
+        AUTO_SCORE_COOLNESS=0
+        shift 1
+        ;;
       --skip-public-check)
         CHECK_PUBLIC=0
         shift 1
@@ -130,6 +181,7 @@ main() {
   require_cmd curl
   require_cmd python3
   assert_expect_auth
+  assert_auto_score_value
 
   local -a ssh_opts=()
   if [[ -n "${SSH_KEY_PATH:-}" && -f "$SSH_KEY_PATH" ]]; then
@@ -167,6 +219,7 @@ main() {
   echo "Public URL check: $PUBLIC_BASE_URL"
   echo "Expect auth:      $EXPECT_AUTH"
   echo "Build images:     $BUILD_IMAGES"
+  echo "Auto-score miss:  $AUTO_SCORE_COOLNESS"
   echo "Dry run:          $DRY_RUN"
   if [[ "${#ssh_opts[@]}" -gt 0 ]]; then
     echo "SSH key:          $SSH_KEY_PATH"
@@ -174,7 +227,10 @@ main() {
     echo "SSH key:          (ssh default auth)"
   fi
 
-  ssh "${ssh_opts[@]}" "$REMOTE" "test -d '$REMOTE_APP_DIR' && command -v docker >/dev/null && command -v curl >/dev/null"
+  if ! ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "test -d '$REMOTE_APP_DIR' && command -v docker >/dev/null && command -v curl >/dev/null"; then
+    echo "Error: SSH preflight failed for $REMOTE." >&2
+    exit 1
+  fi
 
   echo "Syncing app tree (env files excluded)..."
   rsync -e "$ssh_rsh" "${rsync_args[@]}" "$ROOT_DIR/" "$REMOTE:$REMOTE_APP_DIR/"
@@ -192,16 +248,42 @@ main() {
   fi
 
   echo "Restarting remote services..."
-  ssh "${ssh_opts[@]}" "$REMOTE" "cd '$REMOTE_APP_DIR' && $compose_cmd && scripts/compose_spacegate.sh ps"
+  if ! ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "cd '$REMOTE_APP_DIR' && $compose_cmd && scripts/compose_spacegate.sh ps"; then
+    echo "Error: remote compose restart failed on $REMOTE." >&2
+    exit 1
+  fi
+
+  if [[ "$AUTO_SCORE_COOLNESS" == "1" ]]; then
+    echo "Checking remote coolness outputs..."
+    if remote_has_coolness_scores "${ssh_opts[@]}"; then
+      echo "Remote coolness outputs are present."
+    else
+      echo "Remote coolness outputs missing; running score_coolness on current build..."
+      if ! ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "cd '$REMOTE_APP_DIR' && scripts/compose_spacegate.sh exec -T api /app/scripts/score_coolness.sh score --latest-out"; then
+        echo "Error: remote coolness scoring failed." >&2
+        exit 1
+      fi
+      echo "Re-checking remote coolness outputs..."
+      remote_has_coolness_scores "${ssh_opts[@]}"
+    fi
+  else
+    echo "Skipping remote coolness auto-score check."
+  fi
 
   echo "Running remote API checks..."
   local remote_health
-  remote_health="$(ssh "${ssh_opts[@]}" "$REMOTE" "curl -fsS http://127.0.0.1:8000/api/v1/health")"
+  if ! remote_health="$(ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "curl -fsS http://127.0.0.1:8000/api/v1/health")"; then
+    echo "Error: failed to fetch remote /health via SSH." >&2
+    exit 1
+  fi
   echo "Remote /health: $remote_health"
 
   if [[ "$EXPECT_AUTH" != "skip" ]]; then
     local remote_auth
-    remote_auth="$(ssh "${ssh_opts[@]}" "$REMOTE" "curl -fsS http://127.0.0.1:8000/api/v1/auth/me")"
+    if ! remote_auth="$(ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "curl -fsS http://127.0.0.1:8000/api/v1/auth/me")"; then
+      echo "Error: failed to fetch remote /auth/me via SSH." >&2
+      exit 1
+    fi
     echo "Remote /auth/me: $remote_auth"
     check_auth_enabled_json "$remote_auth" "$EXPECT_AUTH"
   fi
