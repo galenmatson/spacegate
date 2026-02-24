@@ -38,6 +38,7 @@ class AuthConfig:
     session_secret: str
     session_cookie_name: str
     csrf_cookie_name: str
+    state_cookie_name: str
     cookie_secure: bool
     cookie_samesite: str
     cookie_domain: str | None
@@ -79,6 +80,13 @@ def _safe_local_path(path: str | None, fallback: str) -> str:
     return value
 
 
+def _normalize_cookie_name(name: str, *, cookie_secure: bool, fallback: str) -> str:
+    value = (name or "").strip() or fallback
+    if not cookie_secure and value.startswith("__Host-"):
+        value = value[len("__Host-") :].strip() or fallback
+    return value
+
+
 def _load_config() -> AuthConfig:
     enabled = admin_db.auth_enabled()
     provider = os.getenv("SPACEGATE_OIDC_PROVIDER", "google").strip().lower() or "google"
@@ -90,10 +98,26 @@ def _load_config() -> AuthConfig:
         os.getenv("SPACEGATE_AUTH_SUCCESS_REDIRECT", "/api/v1/admin/ui"),
         "/api/v1/admin/ui",
     )
-    session_secret = os.getenv("SPACEGATE_SESSION_SECRET", "").strip()
-    session_cookie_name = os.getenv("SPACEGATE_SESSION_COOKIE_NAME", "__Host-spacegate_session").strip() or "__Host-spacegate_session"
-    csrf_cookie_name = os.getenv("SPACEGATE_CSRF_COOKIE_NAME", "__Host-spacegate_csrf").strip() or "__Host-spacegate_csrf"
     cookie_secure = admin_db.parse_env_bool(os.getenv("SPACEGATE_SESSION_COOKIE_SECURE"), default=True)
+    session_secret = os.getenv("SPACEGATE_SESSION_SECRET", "").strip()
+    session_cookie_default = "__Host-spacegate_session" if cookie_secure else "spacegate_session"
+    csrf_cookie_default = "__Host-spacegate_csrf" if cookie_secure else "spacegate_csrf"
+    state_cookie_default = "__Host-spacegate_oidc_state" if cookie_secure else "spacegate_oidc_state"
+    session_cookie_name = _normalize_cookie_name(
+        os.getenv("SPACEGATE_SESSION_COOKIE_NAME", session_cookie_default),
+        cookie_secure=cookie_secure,
+        fallback=session_cookie_default,
+    )
+    csrf_cookie_name = _normalize_cookie_name(
+        os.getenv("SPACEGATE_CSRF_COOKIE_NAME", csrf_cookie_default),
+        cookie_secure=cookie_secure,
+        fallback=csrf_cookie_default,
+    )
+    state_cookie_name = _normalize_cookie_name(
+        os.getenv("SPACEGATE_OIDC_STATE_COOKIE_NAME", state_cookie_default),
+        cookie_secure=cookie_secure,
+        fallback=state_cookie_default,
+    )
     cookie_domain = os.getenv("SPACEGATE_SESSION_COOKIE_DOMAIN", "").strip() or None
     session_ttl_hours = _parse_env_int("SPACEGATE_SESSION_TTL_HOURS", 12)
     session_idle_minutes = _parse_env_int("SPACEGATE_SESSION_IDLE_MINUTES", 60)
@@ -113,6 +137,7 @@ def _load_config() -> AuthConfig:
         session_secret=session_secret,
         session_cookie_name=session_cookie_name,
         csrf_cookie_name=csrf_cookie_name,
+        state_cookie_name=state_cookie_name,
         cookie_secure=cookie_secure,
         cookie_samesite=_get_cookie_samesite(),
         cookie_domain=cookie_domain,
@@ -172,10 +197,6 @@ def _sha256_hex(value: str) -> str:
 
 def _sign_payload(payload_b64: str, secret: str) -> str:
     return hmac.new(secret.encode("utf-8"), payload_b64.encode("ascii"), hashlib.sha256).hexdigest()
-
-
-def _state_cookie_name() -> str:
-    return "__Host-spacegate_oidc_state"
 
 
 def _build_signed_state_cookie(next_path: str) -> str:
@@ -514,7 +535,7 @@ def login_redirect(request: Request, next_path: str | None = None) -> RedirectRe
     )
     response = RedirectResponse(url=f"{cfg.auth_url}?{query}", status_code=302)
     response.set_cookie(
-        key=_state_cookie_name(),
+        key=cfg.state_cookie_name,
         value=state_cookie,
         max_age=STATE_COOKIE_MAX_AGE_SECONDS,
         secure=cfg.cookie_secure,
@@ -532,7 +553,7 @@ def auth_callback(request: Request, code: str, state: str) -> RedirectResponse:
     if not cfg.enabled:
         raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Auth is disabled", "details": {}})
 
-    cookie_val = request.cookies.get(_state_cookie_name())
+    cookie_val = request.cookies.get(cfg.state_cookie_name)
     if not cookie_val:
         _audit(request, event_type="auth.login.denied", result="deny", actor_user_id=None, details={"reason": "missing_state_cookie"})
         raise HTTPException(status_code=400, detail={"code": "invalid_state", "message": "Missing auth state", "details": {}})
@@ -617,7 +638,7 @@ def auth_callback(request: Request, code: str, state: str) -> RedirectResponse:
     _set_session_cookie(response, session["session_id"])
     _set_csrf_cookie(response, session["csrf_secret"])
     response.delete_cookie(
-        key=_state_cookie_name(),
+        key=cfg.state_cookie_name,
         path="/",
         domain=cfg.cookie_domain,
     )

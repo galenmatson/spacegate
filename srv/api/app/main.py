@@ -246,6 +246,7 @@ def systems_search(
     has_planets: Optional[str] = Query(default=None),
     sort: str = Query(default="name"),
     limit: int = Query(default=50, ge=1, le=200),
+    include_total: Optional[str] = Query(default=None),
     cursor: Optional[str] = Query(default=None),
 ):
     if max_dist_ly is not None and min_dist_ly is not None and min_dist_ly > max_dist_ly:
@@ -292,7 +293,7 @@ def systems_search(
     q_norm = normalize_query_text(q or "")
     id_query = parse_identifier_query(q_norm)
     system_id_exact: Optional[int] = None
-    if q and q.strip().isdigit():
+    if q and q.strip().isdigit() and not id_query and len(q.strip()) <= 9:
         try:
             system_id_exact = int(q.strip())
         except ValueError:
@@ -376,9 +377,20 @@ def systems_search(
             },
         )
 
+    include_total_bool = parse_bool(include_total)
+    if include_total is not None and include_total_bool is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid include_total filter",
+                "details": {"value": include_total, "allowed": ["true", "false"]},
+            },
+        )
+
     try:
         with db.connection_scope() as con:
-            rows = search_systems(
+            rows, total_count = search_systems(
                 con,
                 q_norm=q_norm or None,
                 q_raw=q,
@@ -398,6 +410,7 @@ def systems_search(
                 sort=sort_key,
                 match_mode=match_mode,
                 limit=limit + 1,
+                include_total=bool(include_total_bool),
                 cursor_values=cursor_values,
                 rich_db_path=rich_db_path,
             )
@@ -463,7 +476,12 @@ def systems_search(
                 }
             )
 
-    return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+    return {
+        "items": items,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "total_count": total_count,
+    }
 
 
 @app.get("/api/v1/systems/{system_id}")

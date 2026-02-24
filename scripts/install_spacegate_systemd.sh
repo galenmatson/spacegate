@@ -6,11 +6,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
   source "$ROOT_DIR/scripts/lib/env_loader.sh"
-  spacegate_load_env_defaults "$ROOT_DIR"
+  spacegate_init_env "$ROOT_DIR"
 fi
 UNIT_TEMPLATE="$ROOT_DIR/scripts/systemd/spacegate-api.service"
 UNIT_PATH="/etc/systemd/system/spacegate-api.service"
-STATE_DIR="${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}"
+STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 API_PORT="${SPACEGATE_API_PORT:-8000}"
 API_USER="${SPACEGATE_API_USER:-${SUDO_USER:-$(id -un)}}"
 

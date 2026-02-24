@@ -6,9 +6,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
   source "$ROOT_DIR/scripts/lib/env_loader.sh"
-  spacegate_load_env_defaults "$ROOT_DIR"
+  spacegate_init_env "$ROOT_DIR"
 fi
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
+NPM_CACHE_DIR="${SPACEGATE_NPM_CACHE_DIR:-$ROOT_DIR/.npm-cache}"
 
 usage() {
   cat <<'USAGE'
@@ -73,10 +74,12 @@ setup_web_deps() {
   echo "==> Setup web dependencies (srv/web)"
   local web_dir="$ROOT_DIR/srv/web"
   require_command npm
+  mkdir -p "$NPM_CACHE_DIR"
+  echo "==> Using npm cache: $NPM_CACHE_DIR"
   if [[ -f "$web_dir/package-lock.json" ]]; then
-    (cd "$web_dir" && npm install)
+    (cd "$web_dir" && NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm install)
   else
-    (cd "$web_dir" && npm install)
+    (cd "$web_dir" && NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm install)
   fi
   if [[ -f "$web_dir/package.json" && $SKIP_WEB_BUILD -eq 0 ]]; then
     if [[ ! -f "$web_dir/dist/index.html" ]]; then
@@ -84,7 +87,7 @@ setup_web_deps() {
     else
       echo "==> Rebuild web UI (srv/web/dist)"
     fi
-    (cd "$web_dir" && npm run build)
+    (cd "$web_dir" && NPM_CONFIG_CACHE="$NPM_CACHE_DIR" npm run build)
   fi
 }
 

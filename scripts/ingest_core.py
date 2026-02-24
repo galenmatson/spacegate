@@ -343,7 +343,7 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root)
-    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or root / "data")
+    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     manifest_path = state_dir / "reports" / "manifests" / "core_manifest.json"

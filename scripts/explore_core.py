@@ -9,7 +9,7 @@ import duckdb
 
 def default_db_path() -> Path:
     root = Path(__file__).resolve().parents[1]
-    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or root / "data")
+    state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
     return state_dir / "served" / "current" / "core.duckdb"
 
 

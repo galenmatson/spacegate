@@ -1,7 +1,7 @@
 # Spacegate Admin Auth Spec (v0.1.5 Checkpoint A)
 
-Status: Checkpoint A implemented (pending operational rollout)  
-Last updated: 2026-02-20
+Status: Checkpoint A implemented and deployed; v0.1.5 checkpoints B-D are implemented in admin API/UI.  
+Last updated: 2026-02-21
 
 ## Scope
 This spec defines the first implementation slice of `v0.1.5: Admin Control Plane + Authentication Foundation`:
@@ -10,7 +10,7 @@ This spec defines the first implementation slice of `v0.1.5: Admin Control Plane
 - identity/session data model
 - server-side admin allowlist enforcement
 
-It does not include admin job execution UI yet (`Checkpoint C`), beyond auth and access-control prerequisites.
+This document focuses on Checkpoint A auth/RBAC design. Checkpoints B-D are tracked in `docs/PROJECT.md` and implemented in the current admin API/UI.
 
 ## Goals
 - Add secure authentication for `/admin` and `/api/v1/admin/*`.
@@ -21,7 +21,7 @@ It does not include admin job execution UI yet (`Checkpoint C`), beyond auth and
 - No public user signup.
 - No lore edit UI.
 - No arbitrary command execution from web.
-- No replacement of existing script workflows yet.
+- No full replacement of all script workflows in this Checkpoint A document scope.
 
 ## Architecture Decisions
 - Identity provider: OIDC, Google-supported first.
@@ -160,7 +160,7 @@ Required env vars (production):
 - `SPACEGATE_OIDC_CLIENT_SECRET=...`
 - `SPACEGATE_OIDC_REDIRECT_URI=https://spacegates.org/api/v1/auth/callback/google`
 - `SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v1/admin/ui`
-- `SPACEGATE_ADMIN_DB_PATH=/data/spacegate/data/admin/admin.sqlite3`
+- `SPACEGATE_ADMIN_DB_PATH=$SPACEGATE_STATE_DIR/admin/admin.sqlite3`
 - `SPACEGATE_SESSION_SECRET=...` (high-entropy secret for signing)
 
 Recommended:
@@ -172,7 +172,7 @@ Admin allowlist source options:
 - DB table (`admin_allowlist`) is authoritative.
 - Optional bootstrap env/file for first admin seed, then removed.
 
-## Implementation Checkpoints (A)
+## Implementation Checkpoints (Checkpoint A Scope)
 1. Schema + migration
 - Create tables above and seed roles (`admin`, `user`).
 - Add migration workflow for admin DB schema changes.
@@ -207,4 +207,4 @@ Admin allowlist source options:
 ## Open Decisions for Review
 - SQLite vs Postgres for admin DB on `antiproton` long-term.
 - Exact session timeout values for admin operations.
-- Whether to require step-up re-auth before future `Checkpoint C` mutation actions.
+- Whether to require step-up re-auth before additional high-risk mutation actions.

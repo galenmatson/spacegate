@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
   source "$ROOT_DIR/scripts/lib/env_loader.sh"
-  spacegate_load_env_defaults "$ROOT_DIR"
+  spacegate_init_env "$ROOT_DIR"
 fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 OUT_DIR="$STATE_DIR/out"
@@ -163,7 +163,7 @@ main() {
   if [[ -z "${SPACEGATE_STATE_DIR:-}" && -z "${SPACEGATE_DATA_DIR:-}" ]]; then
     if [[ -d /srv/spacegate/data && "$STATE_DIR" != "/srv/spacegate/data" ]]; then
       echo "Warning: defaulting to $STATE_DIR while /srv/spacegate/data exists." >&2
-      echo "Tip: set SPACEGATE_STATE_DIR=/srv/spacegate/data (or SPACEGATE_DATA_DIR)." >&2
+      echo "Tip: set SPACEGATE_STATE_DIR (or SPACEGATE_DATA_DIR) to your desired state path." >&2
     fi
   fi
 

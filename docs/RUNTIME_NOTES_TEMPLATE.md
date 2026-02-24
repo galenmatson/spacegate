@@ -50,10 +50,9 @@ Keep host-local copy outside git:
 
 ```bash
 cd <repo>
-SPACEGATE_DATA_DIR=<...> \
 SPACEGATE_API_DUCKDB_MEMORY_LIMIT=<...> \
 SPACEGATE_API_DUCKDB_THREADS=<...> \
-docker compose up -d --build
+scripts/compose_spacegate.sh up -d --build
 ```
 
 ## Nginx Apply Command

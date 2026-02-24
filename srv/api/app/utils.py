@@ -21,6 +21,12 @@ def normalize_query_text(text: str) -> str:
 def parse_identifier_query(text: str) -> Optional[Dict[str, Any]]:
     if not text:
         return None
+    numeric = re.match(r"^(\d+)$", text)
+    if numeric:
+        # Plain long integers are overwhelmingly Gaia source IDs.
+        if len(numeric.group(1)) >= 10:
+            return {"kind": "gaia", "value": int(numeric.group(1))}
+        return None
     match = re.match(r"^(hd|hip|gaia)(?:\\s+dr\\d+)?\\s*(\\d+)$", text)
     if not match:
         return None

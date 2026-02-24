@@ -235,6 +235,49 @@ def _build_command_score_coolness(params: Dict[str, Any]) -> List[str]:
     weights_json = str(params.get("weights_json", "") or "").strip()
     if weights_json:
         cmd.extend(["--weights-json", weights_json])
+    if _normalize_boolean(params.get("ephemeral", False)):
+        cmd.append("--ephemeral")
+    return cmd
+
+
+def _build_command_save_coolness_profile(params: Dict[str, Any]) -> List[str]:
+    profile_id = str(params.get("profile_id", "") or "").strip()
+    profile_version = str(params.get("profile_version", "") or "").strip()
+    if not profile_id or not profile_version:
+        raise ActionValidationError("profile_id and profile_version are required")
+    cmd = [
+        str(ROOT_DIR / "scripts" / "score_coolness.sh"),
+        "save",
+        "--profile-id",
+        profile_id,
+        "--profile-version",
+        profile_version,
+    ]
+    weights_json = str(params.get("weights_json", "") or "").strip()
+    if weights_json:
+        cmd.extend(["--weights-json", weights_json])
+    notes = str(params.get("notes", "") or "").strip()
+    if notes:
+        cmd.extend(["--notes", notes])
+    return cmd
+
+
+def _build_command_apply_coolness_profile(params: Dict[str, Any]) -> List[str]:
+    profile_id = str(params.get("profile_id", "") or "").strip()
+    profile_version = str(params.get("profile_version", "") or "").strip()
+    if not profile_id or not profile_version:
+        raise ActionValidationError("profile_id and profile_version are required")
+    cmd = [
+        str(ROOT_DIR / "scripts" / "score_coolness.sh"),
+        "apply",
+        "--profile-id",
+        profile_id,
+        "--profile-version",
+        profile_version,
+    ]
+    reason = str(params.get("reason", "") or "").strip()
+    if reason:
+        cmd.extend(["--reason", reason])
     return cmd
 
 
@@ -704,7 +747,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "score_coolness": ActionSpec(
         name="score_coolness",
         display_name="Score Coolness",
-        description="Generate rich coolness ranking + report for a build.",
+        description="Generate rich coolness ranking + report for a build (supports ephemeral scoring).",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -736,10 +779,86 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                 "placeholder": "{\"weird_planets\":0.20,\"exotic_star\":0.12}",
                 "label": "Weight Overrides JSON (optional)",
             },
+            "ephemeral": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Ephemeral (do not persist profile)",
+            },
         },
         category="coolness",
         risk_level="low",
         build_command=_build_command_score_coolness,
+    ),
+    "save_coolness_profile": ActionSpec(
+        name="save_coolness_profile",
+        display_name="Save Coolness Profile",
+        description="Persist an immutable coolness profile version without activating it.",
+        params_schema={
+            "profile_id": {
+                "type": "string",
+                "required": True,
+                "default": "default",
+                "allow_empty": False,
+                "label": "Profile ID",
+            },
+            "profile_version": {
+                "type": "string",
+                "required": True,
+                "default": "1",
+                "allow_empty": False,
+                "label": "Profile Version",
+            },
+            "weights_json": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "placeholder": "{\"weird_planets\":0.20,\"exotic_star\":0.12}",
+                "label": "Weight Overrides JSON (optional)",
+            },
+            "notes": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Notes (optional)",
+            },
+        },
+        category="coolness",
+        risk_level="low",
+        build_command=_build_command_save_coolness_profile,
+    ),
+    "apply_coolness_profile": ActionSpec(
+        name="apply_coolness_profile",
+        display_name="Activate Coolness Profile",
+        description="Activate a saved immutable coolness profile version.",
+        params_schema={
+            "profile_id": {
+                "type": "string",
+                "required": True,
+                "default": "default",
+                "allow_empty": False,
+                "label": "Profile ID",
+            },
+            "profile_version": {
+                "type": "string",
+                "required": True,
+                "default": "1",
+                "allow_empty": False,
+                "label": "Profile Version",
+            },
+            "reason": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Reason (optional)",
+            },
+        },
+        category="coolness",
+        risk_level="medium",
+        build_command=_build_command_apply_coolness_profile,
     ),
     "backup_admin_db": ActionSpec(
         name="backup_admin_db",

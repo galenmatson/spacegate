@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 import sys
 from typing import Any, Dict, Iterable, Optional
 
@@ -131,6 +132,55 @@ def main():
         if len(ranks) >= 2:
             assert_non_decreasing([float(value) for value in ranks], "coolness rank sort")
 
+    _, gaia_probe = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "coolness", "limit": 50},
+        expected_status={200, 409},
+        label="gaia probe page",
+    )
+    gaia_query = None
+    gaia_probe_item = None
+    if "items" in gaia_probe:
+        for item in gaia_probe.get("items", []):
+            key = str(item.get("stable_object_key") or "")
+            match = re.search(r"(?:^|:)gaia:(\d+)$", key, flags=re.IGNORECASE)
+            if match:
+                gaia_query = match.group(1)
+                gaia_probe_item = item
+                break
+    if gaia_query:
+        _, gaia_search = get_json(
+            base_url,
+            "/systems/search",
+            params={"q": gaia_query, "limit": 5},
+            label="search raw gaia numeric",
+        )
+        if not gaia_search.get("items"):
+            raise AssertionError("raw Gaia numeric query returned zero items")
+        first_gaia = gaia_search["items"][0]
+        if gaia_probe_item and first_gaia.get("stable_object_key") != gaia_probe_item.get("stable_object_key"):
+            raise AssertionError("raw Gaia numeric query did not return the expected system first")
+        gaia_text = first_gaia.get("gaia_id_text")
+        if gaia_text is not None and not str(gaia_text).isdigit():
+            raise AssertionError(f"gaia_id_text should be digit string, got {gaia_text!r}")
+
+    _, total_page = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "coolness", "limit": 25, "include_total": "true"},
+        expected_status={200, 409},
+        label="search include_total",
+    )
+    if "items" in total_page:
+        total_count = total_page.get("total_count")
+        if not isinstance(total_count, int):
+            raise AssertionError(f"include_total=true expected integer total_count, got: {total_count!r}")
+        if total_count < len(total_page.get("items", [])):
+            raise AssertionError(
+                f"total_count should be >= items length ({total_count} < {len(total_page.get('items', []))})"
+            )
+
     _, planets_true = get_json(
         base_url,
         "/systems/search",
@@ -165,6 +215,7 @@ def main():
         ({"min_coolness_score": 30, "max_coolness_score": 5}, 400, "Invalid coolness-score range"),
         ({"has_planets": "maybe"}, 400, "Invalid has_planets filter"),
         ({"has_habitable": "sometimes"}, 400, "Invalid has_habitable filter"),
+        ({"include_total": "sometimes"}, 400, "Invalid include_total filter"),
         ({"sort": "not-a-sort"}, 400, "Invalid sort option"),
         ({"spectral_class": "ZZ"}, 400, "Invalid spectral_class filter"),
         ({"cursor": "not_a_valid_cursor"}, 400, "Invalid cursor"),

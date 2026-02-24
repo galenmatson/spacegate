@@ -377,6 +377,7 @@ def _resolve_score_profile(
     profile_version: str | None,
     weights_json: str,
     notes: str,
+    ephemeral: bool,
 ) -> tuple[dict[str, Any], bool, dict[str, Any] | None]:
     active = _load_active(store_dir)
     overrides = _parse_weights_json(weights_json)
@@ -384,6 +385,36 @@ def _resolve_score_profile(
     explicit_profile = bool(profile_id or profile_version)
     if explicit_profile and (not profile_id or not profile_version):
         raise SystemExit("Both --profile-id and --profile-version are required when specifying a profile.")
+
+    if ephemeral:
+        base_profile: dict[str, Any] | None = None
+        if explicit_profile:
+            pid = _validate_token(profile_id or "", "profile_id")
+            pver = _validate_token(profile_version or "", "profile_version")
+            base_profile = _load_profile(store_dir, pid, pver)
+            if base_profile is None:
+                raise SystemExit(
+                    f"Profile {pid}@{pver} does not exist. Use a stored profile for --ephemeral baseline."
+                )
+        elif active:
+            base_profile = _load_profile(
+                store_dir,
+                str(active.get("profile_id", "")),
+                str(active.get("profile_version", "")),
+            )
+        base_weights = validate_weights((base_profile or {}).get("weights", DEFAULT_WEIGHTS))
+        weights = validate_weights({**base_weights, **overrides})
+        tag = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        profile = {
+            "profile_id": "ephemeral",
+            "profile_version": tag,
+            "profile_hash": _hash_weights(weights),
+            "weights": weights,
+            "base_profile_id": (base_profile or {}).get("profile_id"),
+            "base_profile_version": (base_profile or {}).get("profile_version"),
+            "ephemeral": True,
+        }
+        return profile, False, active
 
     if explicit_profile:
         pid = _validate_token(profile_id or "", "profile_id")
@@ -979,6 +1010,7 @@ def _cmd_score(args: argparse.Namespace, root: Path) -> int:
         profile_version=args.profile_version,
         weights_json=args.weights_json,
         notes=args.notes,
+        ephemeral=bool(args.ephemeral),
     )
     weights = validate_weights(profile["weights"])
 
@@ -1019,12 +1051,14 @@ def _cmd_score(args: argparse.Namespace, root: Path) -> int:
             "profile_version": profile["profile_version"],
             "profile_hash": profile.get("profile_hash"),
             "profile_created_during_run": profile_created,
+            "ephemeral": bool(args.ephemeral),
             "report_path": str(report_path),
             "parquet_path": str(rich_parquet_path),
         },
     )
 
     print(f"Scored build: {build_id}")
+    print(f"Mode: {'ephemeral' if args.ephemeral else 'persistent'}")
     print(f"Profile: {profile['profile_id']}@{profile['profile_version']} ({profile.get('profile_hash')})")
     print(f"Rich DB: {rich_db_path}")
     print(f"Parquet: {rich_parquet_path}")
@@ -1181,6 +1215,65 @@ def _cmd_diff(args: argparse.Namespace, root: Path) -> int:
     return 0
 
 
+def _cmd_save(args: argparse.Namespace, root: Path) -> int:
+    state_dir = _state_dir(root)
+    store_dir = _ensure_profile_store(state_dir)
+
+    if not args.profile_id or not args.profile_version:
+        raise SystemExit("save requires --profile-id and --profile-version")
+
+    pid = _validate_token(args.profile_id, "profile_id")
+    pver = _validate_token(args.profile_version, "profile_version")
+    overrides = _parse_weights_json(args.weights_json)
+
+    profile = _load_profile(store_dir, pid, pver)
+    created = False
+    if profile is None:
+        if not overrides:
+            raise SystemExit(
+                f"Profile {pid}@{pver} does not exist. Provide --weights-json to create it."
+            )
+        weights = validate_weights({**DEFAULT_WEIGHTS, **overrides})
+        payload = _profile_payload(
+            pid,
+            pver,
+            weights,
+            notes=args.notes.strip() or "created during save",
+            created_by=_actor(),
+        )
+        profile, created = _save_profile_immutable(store_dir, payload)
+        if created:
+            _record_audit(
+                store_dir,
+                "profile.create",
+                {
+                    "profile_id": pid,
+                    "profile_version": pver,
+                    "profile_hash": profile.get("profile_hash"),
+                    "created_during": "save",
+                },
+            )
+    else:
+        if overrides:
+            merged = validate_weights({**profile["weights"], **overrides})
+            if merged != profile["weights"]:
+                raise SystemExit(
+                    f"Profile {pid}@{pver} exists and is immutable. "
+                    "Use a new --profile-version to save changed weights."
+                )
+
+    if profile is None:
+        raise SystemExit("Failed to resolve saved profile")
+
+    out = {
+        "profile_store": str(store_dir),
+        "profile": profile,
+        "created": created,
+    }
+    print(json.dumps(out, indent=2, sort_keys=True))
+    return 0
+
+
 def _cmd_apply(args: argparse.Namespace, root: Path) -> int:
     state_dir = _state_dir(root)
     store_dir = _ensure_profile_store(state_dir)
@@ -1300,14 +1393,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Coolness profile management and deterministic scoring. "
-            "Commands: score, list, preview, diff, apply, rollback."
+            "Commands: score, list, preview, diff, save, apply, rollback."
         )
     )
     parser.add_argument(
         "command",
         nargs="?",
         default="score",
-        choices=["score", "list", "preview", "diff", "apply", "rollback"],
+        choices=["score", "list", "preview", "diff", "save", "apply", "rollback"],
     )
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
 
@@ -1324,6 +1417,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--weights-json",
         default="",
         help="JSON object with weight overrides.",
+    )
+    parser.add_argument(
+        "--ephemeral",
+        action="store_true",
+        help="Run scoring with ephemeral weights without persisting a new immutable profile version.",
     )
     parser.add_argument(
         "--notes",
@@ -1365,6 +1463,8 @@ def main() -> int:
         return _cmd_preview(args, root)
     if args.command == "diff":
         return _cmd_diff(args, root)
+    if args.command == "save":
+        return _cmd_save(args, root)
     if args.command == "apply":
         return _cmd_apply(args, root)
     if args.command == "rollback":

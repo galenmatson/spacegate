@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -f "$ROOT_DIR/scripts/lib/env_loader.sh" ]]; then
   source "$ROOT_DIR/scripts/lib/env_loader.sh"
-  spacegate_load_env_defaults "$ROOT_DIR"
+  spacegate_init_env "$ROOT_DIR"
 fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 DOCKER_COMPOSE_FILE="${SPACEGATE_DOCKER_COMPOSE_FILE:-$ROOT_DIR/docker-compose.yml}"
@@ -35,7 +35,7 @@ One-shot operations report for Spacegate:
 Options:
   --public-url URL Base URL for proxied checks (default: http://127.0.0.1).
   --window MIN     Nginx metrics lookback in minutes (default: 15).
-  --state-dir DIR  Override state dir (default from SPACEGATE_STATE_DIR or ./data).
+  --state-dir DIR  Override state dir (default from SPACEGATE_STATE_DIR/SPACEGATE_DATA_DIR or ./data).
   --no-color       Disable ANSI color output.
 USAGE
 }

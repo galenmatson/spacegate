@@ -244,14 +244,22 @@ def search_systems(
     id_query: Optional[Dict[str, Any]],
     max_dist_ly: Optional[float],
     min_dist_ly: Optional[float],
+    min_star_count: Optional[int],
+    max_star_count: Optional[int],
+    min_planet_count: Optional[int],
+    max_planet_count: Optional[int],
     spectral_classes: List[str],
     has_planets: Optional[bool],
+    has_habitable: Optional[bool],
+    min_coolness_score: Optional[float],
+    max_coolness_score: Optional[float],
     sort: str,
     match_mode: bool,
     limit: int,
+    include_total: bool,
     cursor_values: Optional[Dict[str, Any]],
     rich_db_path: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], Optional[int]]:
     conditions: List[str] = []
     params: List[Any] = []
 
@@ -333,6 +341,46 @@ def search_systems(
         conditions.append(
             "EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
         )
+    elif has_planets is False:
+        conditions.append(
+            "NOT EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
+        )
+
+    if min_star_count is not None:
+        conditions.append(
+            "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) >= ?"
+        )
+        params.append(min_star_count)
+
+    if max_star_count is not None:
+        conditions.append(
+            "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) <= ?"
+        )
+        params.append(max_star_count)
+
+    if min_planet_count is not None:
+        conditions.append(
+            "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) >= ?"
+        )
+        params.append(min_planet_count)
+
+    if max_planet_count is not None:
+        conditions.append(
+            "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) <= ?"
+        )
+        params.append(max_planet_count)
+
+    habitability_clause = (
+        "EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id "
+        "AND COALESCE(p.match_confidence, 0.0) >= 0.80 "
+        "AND COALESCE(p.eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0 "
+        "AND COALESCE(p.mass_earth, p.mass_jup * 317.8, -1.0) BETWEEN 0.3 AND 8.0 "
+        "AND COALESCE(p.eccentricity, 0.0) <= 0.35)"
+    )
+    if has_habitable is True:
+        conditions.append(habitability_clause)
+    elif has_habitable is False:
+        conditions.append(f"NOT {habitability_clause}")
 
     rich_attached = _attach_rich_db(con, rich_db_path, alias="rich_db")
     has_coolness_scores = rich_attached and _has_table(
@@ -345,12 +393,31 @@ def search_systems(
         alias="rich_db",
         table_name="snapshot_manifest",
     )
+    if sort == "coolness" and not match_mode and not has_coolness_scores:
+        raise ValueError(
+            "Coolness sort is unavailable for this build; run score_coolness first."
+        )
+
+    coolness_filters_requested = (
+        min_coolness_score is not None or max_coolness_score is not None
+    )
+    if coolness_filters_requested and not has_coolness_scores:
+        raise ValueError(
+            "Coolness filters are unavailable for this build; run score_coolness first."
+        )
+    if min_coolness_score is not None:
+        conditions.append("COALESCE(c.coolness_score, -1e18) >= ?")
+        params.append(min_coolness_score)
+    if max_coolness_score is not None:
+        conditions.append("COALESCE(c.coolness_score, 1e18) <= ?")
+        params.append(max_coolness_score)
 
     use_coolness_sort = sort == "coolness" and not match_mode and has_coolness_scores
 
     order_by = "system_name_norm ASC NULLS LAST, system_id ASC"
     cursor_clause = ""
-    outer_clause = ""
+    filtered_clause = ""
+    cursor_params: List[Any] = []
 
     if match_mode:
         order_by = (
@@ -372,7 +439,7 @@ def search_systems(
                 "(match_rank = ? AND COALESCE(dist_ly, 1e12) = ? AND "
                 "COALESCE(system_name_norm, '') = ? AND system_id > ?))"
             )
-            params.extend(
+            cursor_params.extend(
                 [
                     cursor_match,
                     cursor_match,
@@ -386,9 +453,7 @@ def search_systems(
                     cursor_id,
                 ]
             )
-        outer_clause = "WHERE match_rank IS NOT NULL"
-        if cursor_clause:
-            outer_clause = f"{outer_clause} AND {cursor_clause}"
+        filtered_clause = "WHERE match_rank IS NOT NULL"
     else:
         if sort == "distance":
             order_by = "dist_ly ASC NULLS LAST, system_id ASC"
@@ -397,10 +462,10 @@ def search_systems(
                 if cursor_dist is None:
                     cursor_dist = 1e12
                 cursor_clause = (
-                    "(COALESCE(s.dist_ly, 1e12) > ? OR "
-                    "(COALESCE(s.dist_ly, 1e12) = ? AND s.system_id > ?))"
+                    "(COALESCE(dist_ly, 1e12) > ? OR "
+                    "(COALESCE(dist_ly, 1e12) = ? AND system_id > ?))"
                 )
-                params.extend(
+                cursor_params.extend(
                     [
                         cursor_dist,
                         cursor_dist,
@@ -417,11 +482,11 @@ def search_systems(
                 if cursor_rank is None:
                     cursor_rank = 9223372036854775807
                 cursor_clause = (
-                    "(COALESCE(c.coolness_rank, 9223372036854775807) > ? OR "
-                    "(COALESCE(c.coolness_rank, 9223372036854775807) = ? AND COALESCE(s.system_name_norm, '') > ?) OR "
-                    "(COALESCE(c.coolness_rank, 9223372036854775807) = ? AND COALESCE(s.system_name_norm, '') = ? AND s.system_id > ?))"
+                    "(COALESCE(coolness_rank, 9223372036854775807) > ? OR "
+                    "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(system_name_norm, '') > ?) OR "
+                    "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(system_name_norm, '') = ? AND system_id > ?))"
                 )
-                params.extend(
+                cursor_params.extend(
                     [
                         cursor_rank,
                         cursor_rank,
@@ -434,10 +499,10 @@ def search_systems(
         else:
             if cursor_values:
                 cursor_clause = (
-                    "(COALESCE(s.system_name_norm, '') > ? OR "
-                    "(COALESCE(s.system_name_norm, '') = ? AND s.system_id > ?))"
+                    "(COALESCE(system_name_norm, '') > ? OR "
+                    "(COALESCE(system_name_norm, '') = ? AND system_id > ?))"
                 )
-                params.extend(
+                cursor_params.extend(
                     [
                         cursor_values.get("name", ""),
                         cursor_values.get("name", ""),
@@ -445,25 +510,66 @@ def search_systems(
                     ]
                 )
 
-    if cursor_clause and not match_mode:
-        conditions.append(cursor_clause)
-
     where_sql = ""
     if conditions:
         where_sql = "WHERE " + " AND ".join(conditions)
+    paged_where = f"WHERE {cursor_clause}" if cursor_clause else ""
+    count_select = "COUNT(*) OVER() AS __total_count" if include_total else "NULL::BIGINT AS __total_count"
 
     coolness_cte = ""
     coolness_join = ""
-    coolness_select = "NULL::BIGINT AS coolness_rank, NULL::DOUBLE AS coolness_score,"
-    if use_coolness_sort:
+    coolness_select = (
+        "NULL::BIGINT AS coolness_rank, "
+        "NULL::DOUBLE AS coolness_score, "
+        "NULL::BIGINT AS coolness_nice_planet_count, "
+        "NULL::BIGINT AS coolness_weird_planet_count, "
+        "NULL::VARCHAR AS coolness_dominant_spectral_class, "
+        "NULL::DOUBLE AS coolness_score_luminosity, "
+        "NULL::DOUBLE AS coolness_score_proper_motion, "
+        "NULL::DOUBLE AS coolness_score_multiplicity, "
+        "NULL::DOUBLE AS coolness_score_nice_planets, "
+        "NULL::DOUBLE AS coolness_score_weird_planets, "
+        "NULL::DOUBLE AS coolness_score_proximity, "
+        "NULL::DOUBLE AS coolness_score_system_complexity, "
+        "NULL::DOUBLE AS coolness_score_exotic_star,"
+    )
+    if has_coolness_scores:
         coolness_cte = """
         coolness AS (
-            SELECT system_id, rank AS coolness_rank, score_total AS coolness_score
+            SELECT
+                system_id,
+                rank AS coolness_rank,
+                score_total AS coolness_score,
+                nice_planet_count AS coolness_nice_planet_count,
+                weird_planet_count AS coolness_weird_planet_count,
+                dominant_spectral_class AS coolness_dominant_spectral_class,
+                score_luminosity AS coolness_score_luminosity,
+                score_proper_motion AS coolness_score_proper_motion,
+                score_multiplicity AS coolness_score_multiplicity,
+                score_nice_planets AS coolness_score_nice_planets,
+                score_weird_planets AS coolness_score_weird_planets,
+                score_proximity AS coolness_score_proximity,
+                score_system_complexity AS coolness_score_system_complexity,
+                score_exotic_star AS coolness_score_exotic_star
             FROM rich_db.coolness_scores
         ),
         """
         coolness_join = "LEFT JOIN coolness c ON c.system_id = s.system_id"
-        coolness_select = "c.coolness_rank, c.coolness_score,"
+        coolness_select = (
+            "c.coolness_rank, "
+            "c.coolness_score, "
+            "c.coolness_nice_planet_count, "
+            "c.coolness_weird_planet_count, "
+            "c.coolness_dominant_spectral_class, "
+            "c.coolness_score_luminosity, "
+            "c.coolness_score_proper_motion, "
+            "c.coolness_score_multiplicity, "
+            "c.coolness_score_nice_planets, "
+            "c.coolness_score_weird_planets, "
+            "c.coolness_score_proximity, "
+            "c.coolness_score_system_complexity, "
+            "c.coolness_score_exotic_star,"
+        )
 
     snapshot_cte = ""
     snapshot_join = ""
@@ -548,6 +654,9 @@ def search_systems(
         base AS (
             SELECT
                 s.*,
+                CAST(s.gaia_id AS VARCHAR) AS gaia_id_text,
+                CAST(s.hip_id AS VARCHAR) AS hip_id_text,
+                CAST(s.hd_id AS VARCHAR) AS hd_id_text,
                 sa.star_count,
                 sa.spectral_classes,
                 pa.planet_count,
@@ -560,27 +669,49 @@ def search_systems(
             {coolness_join}
             {snapshot_join}
             {where_sql}
+        ),
+        filtered AS (
+            SELECT * FROM base
+            {filtered_clause}
+        ),
+        counted AS (
+            SELECT
+                *,
+                {count_select}
+            FROM filtered
+        ),
+        paged AS (
+            SELECT *
+            FROM counted
+            {paged_where}
+            ORDER BY {order_by}
+            LIMIT ?
         )
-        SELECT * FROM base
-        {outer_clause}
-        ORDER BY {order_by}
-        LIMIT ?
+        SELECT * FROM paged
     """
-    all_params = match_params + params + [limit]
+    all_params = match_params + params + cursor_params + [limit]
     cursor = con.execute(sql, all_params)
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
 
     results: List[Dict[str, Any]] = []
+    total_count: Optional[int] = None
     for row in rows:
         data = row_to_dict(columns, row)
         payload, provenance = split_provenance(data)
+        row_total_count = payload.pop("__total_count", None)
+        if row_total_count is not None and total_count is None:
+            total_count = int(row_total_count)
         spectral = payload.get("spectral_classes") or []
         if spectral is None:
             spectral = []
         payload["spectral_classes"] = [cls for cls in spectral if cls]
         payload["star_count"] = int(payload.get("star_count") or 0)
         payload["planet_count"] = int(payload.get("planet_count") or 0)
+        if payload.get("coolness_nice_planet_count") is not None:
+            payload["coolness_nice_planet_count"] = int(payload["coolness_nice_planet_count"])
+        if payload.get("coolness_weird_planet_count") is not None:
+            payload["coolness_weird_planet_count"] = int(payload["coolness_weird_planet_count"])
         snapshot_build_id = payload.pop("snapshot_build_id", None)
         snapshot_view_type = payload.pop("snapshot_view_type", None)
         snapshot_artifact_path = payload.pop("snapshot_artifact_path", None)
@@ -601,4 +732,7 @@ def search_systems(
         payload["provenance"] = provenance
         results.append(payload)
 
-    return results
+    if include_total and total_count is None and not cursor_values:
+        total_count = 0
+
+    return results, total_count

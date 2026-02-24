@@ -7,7 +7,9 @@ import duckdb
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-DEFAULT_STATE_DIR = Path(os.getenv("SPACEGATE_STATE_DIR") or ROOT_DIR / "data")
+DEFAULT_STATE_DIR = Path(
+    os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or ROOT_DIR / "data"
+)
 DEFAULT_DB_PATH = str(DEFAULT_STATE_DIR / "served" / "current" / "core.duckdb")
 DEFAULT_DUCKDB_MEMORY_LIMIT = os.getenv("SPACEGATE_API_DUCKDB_MEMORY_LIMIT", "").strip()
 DEFAULT_DUCKDB_THREADS = os.getenv("SPACEGATE_API_DUCKDB_THREADS", "").strip()

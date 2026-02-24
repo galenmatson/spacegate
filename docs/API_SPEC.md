@@ -279,6 +279,7 @@ Query params:
 - `has_habitable` (`true|false`, optional)
 - `sort` (`name` | `distance` | `coolness`, default `name`)
 - `limit` (int, default 50, max 200)
+- `include_total` (`true|false`, optional, default `false`)
 - `cursor` (string, optional)
 
 Matching rules (when `q` is provided):
@@ -286,6 +287,7 @@ Matching rules (when `q` is provided):
 2. Prefix match
 3. Token-and match (all tokens present)
 4. Identifier match (HD/HIP/Gaia patterns like `HD 10700`, `HIP 8102`, `Gaia 123`)
+5. Plain long numeric queries (`10+` digits) are treated as Gaia IDs
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.
@@ -300,6 +302,10 @@ Validation and availability behavior:
 - Invalid enum/filter values (for example `sort=foo`, `has_planets=maybe`, `spectral_class=ZZ`) return `400 bad_request`.
 - Requesting coolness sort/score filters when `rich.coolness_scores` is unavailable returns `409 conflict`.
 - Framework-level bound checks (for example negative `min_dist_ly`, `limit > 200`) return `422`.
+
+Pagination and totals:
+- `next_cursor` is an opaque keyset token for deterministic pagination.
+- `total_count` is returned as an integer only when `include_total=true` (or `null` otherwise).
 
 Response 200:
 ```json
@@ -320,6 +326,9 @@ Response 200:
       "gaia_id": 19316224572460416,
       "hip_id": 12114,
       "hd_id": 16160,
+      "gaia_id_text": "19316224572460416",
+      "hip_id_text": "12114",
+      "hd_id_text": "16160",
       "star_count": 1,
       "planet_count": 0,
       "spectral_classes": ["G"],
@@ -341,7 +350,8 @@ Response 200:
     }
   ],
   "next_cursor": "<opaque>",
-  "has_more": true
+  "has_more": true,
+  "total_count": 123456
 }
 ```
 
