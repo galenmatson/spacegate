@@ -1,8 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchSystemDetail, fetchSystems } from "./api.js";
 
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"];
+const THEME_STORAGE_KEY = "spacegate.theme";
+const THEME_OPTIONS = [
+  { id: "simple_light", label: "Simple Light" },
+  { id: "simple_dark", label: "Simple Dark" },
+  { id: "cyberpunk", label: "Cyberpunk" },
+  { id: "lcars", label: "Enterprise" },
+  { id: "mission_control", label: "Mission Control" },
+  { id: "aurora", label: "Aurora" },
+  { id: "retro_90s", label: "Geocities" },
+  { id: "deep_space_minimal", label: "Deep Space Minimal" },
+];
+const THEME_IDS = new Set(THEME_OPTIONS.map((item) => item.id));
+const THEME_ALIASES = {
+  light: "simple_light",
+  midnight: "simple_dark",
+  mission: "mission_control",
+};
 const triStateOptions = [
   { value: "", label: "Any" },
   { value: "true", label: "Yes" },
@@ -32,6 +49,238 @@ const SPECTRAL_CLASS_INFO = {
   T: { sentence: "Cool methane-rich brown dwarfs with very low thermal emission.", tempRangeK: [700, 1300] },
   Y: { sentence: "Ultra-cool brown dwarfs approaching giant-planet temperatures.", tempRangeK: [250, 700] },
 };
+const ThemeContext = React.createContext({
+  theme: "simple_light",
+  setTheme: () => {},
+  options: THEME_OPTIONS,
+});
+const LCARS_FALLBACK_CHIPS = ["Sol", "Sirius", "Alpha Centauri", "Vega"];
+const LCARS_FALLBACK_GAIA = [
+  "5853498713190528",
+  "4472832130949120",
+  "5167429001440896",
+  "3321984567003136",
+  "2144471203989888",
+  "783120094455232",
+  "1285536706225792",
+  "691254228110656",
+  "1782230945005568",
+  "905511238822400",
+  "2441189304725632",
+  "4029190001419520",
+  "349117264800128",
+  "1927500734413568",
+  "705128390112384",
+  "4588032202741760",
+  "2693301958305408",
+  "1500139114687744",
+  "96022341011200",
+  "3175520911024512",
+  "4201399047744",
+  "632814901220352",
+  "2184403905440640",
+  "77125290018816",
+];
+const LCARS_HISTORY_STORAGE_KEY = "spacegate.lcars.history";
+const LCARS_HISTORY_LIMIT = 32;
+const LCARS_LEFT_CHIP_COUNT = 2;
+const LCARS_RIGHT_CHIP_COUNT = 4;
+const LCARS_TEXT_SLOTS_PER_LINE = 8;
+const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
+
+function isEditableTarget(target) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  return Boolean(target.closest("input, textarea, select, [contenteditable], [role='textbox']"));
+}
+
+function focusGlobalSearchInput(selectText = true) {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const input = document.querySelector(GLOBAL_SEARCH_INPUT_SELECTOR);
+  if (!(input instanceof HTMLInputElement)) {
+    return false;
+  }
+  input.focus({ preventScroll: true });
+  if (selectText) {
+    input.select();
+  }
+  return true;
+}
+
+function normalizeThemeId(raw) {
+  const key = String(raw || "").trim().toLowerCase();
+  const mapped = THEME_ALIASES[key] || key;
+  return THEME_IDS.has(mapped) ? mapped : "";
+}
+
+function detectSystemTheme() {
+  if (typeof window === "undefined") {
+    return "simple_light";
+  }
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "simple_dark" : "simple_light";
+}
+
+function resolveInitialTheme() {
+  if (typeof window === "undefined") {
+    return "simple_light";
+  }
+  const rootTheme = normalizeThemeId(document.documentElement.getAttribute("data-theme"));
+  if (rootTheme) {
+    return rootTheme;
+  }
+  try {
+    const stored = normalizeThemeId(window.localStorage.getItem(THEME_STORAGE_KEY));
+    if (stored) {
+      return stored;
+    }
+  } catch (_) {
+    // Ignore storage access failures and use system fallback.
+  }
+  return detectSystemTheme();
+}
+
+function useThemeControls() {
+  return React.useContext(ThemeContext);
+}
+
+function pickRandomSystems(items, count) {
+  const systems = Array.from(
+    new Map(
+      (Array.isArray(items) ? items : [])
+        .map((item) => ({
+          system_id: item?.system_id,
+          system_name: String(item?.system_name || "").trim(),
+        }))
+        .filter((entry) => entry.system_id !== null && entry.system_id !== undefined && entry.system_name)
+        .map((entry) => [String(entry.system_id), entry]),
+    ).values(),
+  );
+  for (let i = systems.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [systems[i], systems[j]] = [systems[j], systems[i]];
+  }
+  const picked = systems.slice(0, count);
+  if (picked.length < count) {
+    return [
+      ...picked,
+      ...LCARS_FALLBACK_CHIPS.map((name) => ({ system_id: null, system_name: name })),
+    ].slice(0, count);
+  }
+  return picked;
+}
+
+function pickRandomGaiaEntries(items, count) {
+  const gaiaEntries = Array.from(
+    new Set(
+      (Array.isArray(items) ? items : [])
+        .map((item) => {
+          if (item?.gaia_id_text) {
+            return {
+              gaia: String(item.gaia_id_text).trim(),
+              system_id: item?.system_id,
+              system_name: String(item?.system_name || "").trim(),
+            };
+          }
+          if (item?.gaia_id !== null && item?.gaia_id !== undefined) {
+            return {
+              gaia: String(item.gaia_id).trim(),
+              system_id: item?.system_id,
+              system_name: String(item?.system_name || "").trim(),
+            };
+          }
+          const stable = String(item?.stable_object_key || "");
+          const match = stable.match(/(?:^|:)gaia:(\d+)/i);
+          return match?.[1]
+            ? {
+              gaia: String(match[1]).trim(),
+              system_id: item?.system_id,
+              system_name: String(item?.system_name || "").trim(),
+            }
+            : null;
+        })
+        .filter((entry) => entry && /^\d{6,}$/.test(entry.gaia))
+        .map((entry) => `${entry.gaia}|${entry.system_id ?? ""}|${entry.system_name}`),
+    ),
+  ).map((value) => {
+    const [gaia, systemIdRaw, ...nameRest] = value.split("|");
+    const system_id = systemIdRaw ? Number(systemIdRaw) : null;
+    return {
+      gaia,
+      system_id: Number.isFinite(system_id) ? system_id : null,
+      system_name: nameRest.join("|"),
+    };
+  });
+  for (let i = gaiaEntries.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [gaiaEntries[i], gaiaEntries[j]] = [gaiaEntries[j], gaiaEntries[i]];
+  }
+  const selected = gaiaEntries.slice(0, count);
+  if (selected.length >= count) {
+    return selected;
+  }
+  const padded = [...selected];
+  while (padded.length < count) {
+    padded.push({
+      gaia: LCARS_FALLBACK_GAIA[padded.length % LCARS_FALLBACK_GAIA.length],
+      system_id: null,
+      system_name: "",
+    });
+  }
+  return padded;
+}
+
+function loadLcarsHistory() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(LCARS_HISTORY_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .map((entry) => ({
+        system_id: entry?.system_id,
+        system_name: String(entry?.system_name || "").trim(),
+      }))
+      .filter((entry) => entry.system_id !== null && entry.system_id !== undefined && entry.system_name)
+      .slice(0, LCARS_HISTORY_LIMIT);
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveLcarsHistory(entries) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(LCARS_HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, LCARS_HISTORY_LIMIT)));
+  } catch (_) {
+    // Ignore storage write failures.
+  }
+}
+
+function updateLcarsHistoryWithSystem(system) {
+  const systemId = system?.system_id;
+  const systemName = String(system?.system_name || "").trim();
+  if (systemId === null || systemId === undefined || !systemName) {
+    return;
+  }
+  const existing = loadLcarsHistory();
+  const updated = [
+    { system_id: systemId, system_name: systemName },
+    ...existing.filter((entry) => String(entry.system_id) !== String(systemId)),
+  ].slice(0, LCARS_HISTORY_LIMIT);
+  saveLcarsHistory(updated);
+}
 
 function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -189,6 +438,20 @@ function formatCoordinate(value) {
   return value.toFixed(4);
 }
 
+function formatPeriodDaysWithYears(periodDays) {
+  if (periodDays === null || periodDays === undefined || Number.isNaN(periodDays)) {
+    return "Unknown";
+  }
+  const days = Number(periodDays);
+  const dayLabel = `${formatNumber(days, 2)} d`;
+  if (!Number.isFinite(days) || days <= 365.25) {
+    return dayLabel;
+  }
+  const years = days / 365.25;
+  const yearDigits = years >= 100 ? 1 : 2;
+  return `${dayLabel} (${formatNumber(years, yearDigits)} y)`;
+}
+
 function formatConfidence(value) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "Unknown";
@@ -339,6 +602,20 @@ function resolvedEntityGaiaId(entity) {
 
 function resolvedSystemGaiaId(system) {
   return resolvedEntityGaiaId(system);
+}
+
+function buildSystemCatalogIds(system) {
+  const entries = [
+    { label: "Gaia", value: resolvedSystemGaiaId(system) },
+    { label: "HIP", value: system?.hip_id_text ?? system?.hip_id },
+    { label: "HD", value: system?.hd_id_text ?? system?.hd_id },
+  ];
+  return entries
+    .map((entry) => ({
+      ...entry,
+      value: entry.value === null || entry.value === undefined ? "" : String(entry.value).trim(),
+    }))
+    .filter((entry) => entry.value !== "");
 }
 
 function MetricChip({ label, value, tooltipLines = [] }) {
@@ -549,17 +826,261 @@ function SnapshotMetadata({ system, snapshot }) {
 }
 
 function Layout({ children, headerExtra = null, showSearchLink = true }) {
+  const { theme, setTheme, options } = useThemeControls();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isLcars = theme === "lcars";
+  const [lcarsChipSystems, setLcarsChipSystems] = useState(() => LCARS_FALLBACK_CHIPS.map((name) => ({ system_id: null, system_name: name })));
+  const [lcarsGaiaPool, setLcarsGaiaPool] = useState(() => LCARS_FALLBACK_GAIA.map((gaia) => ({ gaia, system_id: null, system_name: "" })));
+  const [lcarsHistory, setLcarsHistory] = useState(() => loadLcarsHistory());
+
+  const currentSystemId = useMemo(() => {
+    const match = String(location.pathname || "").match(/^\/systems\/(\d+)/);
+    return match?.[1] || "";
+  }, [location.pathname]);
+
+  const lcarsHistoryDisplay = useMemo(
+    () => lcarsHistory
+      .filter((entry) => String(entry.system_id) !== currentSystemId)
+      .slice(0, LCARS_LEFT_CHIP_COUNT + LCARS_RIGHT_CHIP_COUNT + (LCARS_TEXT_SLOTS_PER_LINE * 2)),
+    [lcarsHistory, currentSystemId],
+  );
+
+  const lcarsLeftHistory = useMemo(
+    () => lcarsHistoryDisplay.slice(0, LCARS_LEFT_CHIP_COUNT),
+    [lcarsHistoryDisplay],
+  );
+
+  const lcarsRightHistory = useMemo(
+    () => lcarsHistoryDisplay.slice(LCARS_LEFT_CHIP_COUNT, LCARS_LEFT_CHIP_COUNT + LCARS_RIGHT_CHIP_COUNT),
+    [lcarsHistoryDisplay],
+  );
+
+  const lcarsRightChips = useMemo(() => {
+    const historyChips = lcarsRightHistory.map((entry) => ({
+      system_id: entry.system_id,
+      system_name: entry.system_name,
+    }));
+    if (historyChips.length >= LCARS_RIGHT_CHIP_COUNT) {
+      return historyChips.slice(0, LCARS_RIGHT_CHIP_COUNT);
+    }
+    const seenIds = new Set(
+      [...lcarsLeftHistory, ...historyChips]
+        .map((entry) => (
+          entry?.system_id === null || entry?.system_id === undefined ? "" : String(entry.system_id)
+        ))
+        .filter(Boolean),
+    );
+    const fallbackChips = lcarsChipSystems.filter((entry) => {
+      const id = entry?.system_id;
+      if (id === null || id === undefined) {
+        return true;
+      }
+      if (seenIds.has(String(id))) {
+        return false;
+      }
+      seenIds.add(String(id));
+      return true;
+    });
+    return [...historyChips, ...fallbackChips].slice(0, LCARS_RIGHT_CHIP_COUNT);
+  }, [lcarsChipSystems, lcarsLeftHistory, lcarsRightHistory]);
+
+  const lcarsTextRows = useMemo(() => {
+    const historyEntries = lcarsHistoryDisplay.slice(LCARS_LEFT_CHIP_COUNT + LCARS_RIGHT_CHIP_COUNT).map((entry) => ({
+      label: entry.system_name,
+      system_id: entry.system_id,
+      title: entry.system_name,
+    }));
+    const poolEntries = lcarsGaiaPool.length > 0
+      ? lcarsGaiaPool
+      : LCARS_FALLBACK_GAIA.map((gaia) => ({ gaia, system_id: null, system_name: "" }));
+    const pool = poolEntries.map((entry) => ({
+      label: entry.gaia,
+      system_id: entry.system_id,
+      title: entry.system_name || `Gaia ${entry.gaia}`,
+    }));
+    const slots = [];
+    const maxSlots = LCARS_TEXT_SLOTS_PER_LINE * 2;
+    for (let idx = 0; idx < maxSlots; idx += 1) {
+      if (idx < historyEntries.length) {
+        slots.push(historyEntries[idx]);
+      } else {
+        slots.push(pool[idx % pool.length] || { label: "Gaia", system_id: null, title: "Gaia" });
+      }
+    }
+    return [
+      slots.slice(0, LCARS_TEXT_SLOTS_PER_LINE),
+      slots.slice(LCARS_TEXT_SLOTS_PER_LINE),
+    ];
+  }, [lcarsGaiaPool, lcarsHistoryDisplay]);
+
+  useEffect(() => {
+    if (!isLcars) {
+      return;
+    }
+    let cancelled = false;
+    const loadLcarsSystems = async () => {
+      try {
+        const data = await fetchSystems({
+          limit: "120",
+          sort: "coolness",
+          has_planets: "true",
+        });
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (!cancelled) {
+          setLcarsChipSystems(pickRandomSystems(items, LCARS_RIGHT_CHIP_COUNT));
+          setLcarsGaiaPool(pickRandomGaiaEntries(items, LCARS_TEXT_SLOTS_PER_LINE * 2));
+        }
+      } catch (_) {
+        if (!cancelled) {
+          setLcarsChipSystems(pickRandomSystems([], LCARS_RIGHT_CHIP_COUNT));
+          setLcarsGaiaPool(
+            LCARS_FALLBACK_GAIA
+              .slice(0, LCARS_TEXT_SLOTS_PER_LINE * 2)
+              .map((gaia) => ({ gaia, system_id: null, system_name: "" })),
+          );
+        }
+      }
+    };
+    loadLcarsSystems();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLcars]);
+
+  useEffect(() => {
+    if (!isLcars) {
+      return;
+    }
+    setLcarsHistory(loadLcarsHistory());
+  }, [isLcars, location.pathname]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.defaultPrevented || event.repeat) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      if (event.key !== "/") {
+        return;
+      }
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      if (focusGlobalSearchInput()) {
+        return;
+      }
+      if (location.pathname !== "/") {
+        navigate("/");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [location.pathname, navigate]);
+
   return (
-    <div className="app">
+    <div className={`app ${isLcars ? "lcars-app" : ""}`}>
+      {isLcars && (
+        <div className="lcars-topbar">
+          <div className="lcars-top-left">
+            {lcarsLeftHistory.map((entry) => (
+              <Link
+                key={`lcars-hist-left-${entry.system_id}`}
+                to={`/systems/${entry.system_id}`}
+                className="lcars-history-chip"
+                title={entry.system_name}
+              >
+                {entry.system_name}
+              </Link>
+            ))}
+            {Array.from({ length: Math.max(0, LCARS_LEFT_CHIP_COUNT - lcarsLeftHistory.length) }).map((_, idx) => (
+              (() => {
+                const poolEntry = lcarsGaiaPool[idx % Math.max(1, lcarsGaiaPool.length)]
+                  || { gaia: LCARS_FALLBACK_GAIA[idx], system_id: null, system_name: "" };
+                const label = poolEntry.gaia || LCARS_FALLBACK_GAIA[idx] || "Gaia";
+                const to = poolEntry.system_id
+                  ? `/systems/${poolEntry.system_id}`
+                  : `/?q=${encodeURIComponent(label)}`;
+                return (
+                  <Link
+                    key={`lcars-hist-fallback-${idx}-${label}`}
+                    to={to}
+                    className="lcars-history-chip lcars-history-chip-fallback"
+                    title={poolEntry.system_name || `Gaia ${label}`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })()
+            ))}
+          </div>
+          <div className="lcars-top-center">
+            {lcarsTextRows.map((row, rowIdx) => (
+              <div key={`lcars-row-${rowIdx}`} className="lcars-text-row">
+                {row.map((entry, idx) => {
+                  const label = String(entry?.label || "").trim() || "Gaia";
+                  const to = entry?.system_id
+                    ? `/systems/${entry.system_id}`
+                    : `/?q=${encodeURIComponent(label)}`;
+                  return (
+                    <Link
+                      key={`lcars-token-${rowIdx}-${idx}-${label}`}
+                      to={to}
+                      className="lcars-text-token"
+                      title={entry?.title || label}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="lcars-top-right">
+            <strong>LCARS ACCESS 4414</strong>
+            <div className="lcars-chip-row">
+              {lcarsRightChips.map((entry, idx) => {
+                const name = String(entry?.system_name || "").trim() || `System ${idx + 1}`;
+                const to = entry?.system_id
+                  ? `/systems/${entry.system_id}`
+                  : `/?q=${encodeURIComponent(name)}`;
+                return (
+                  <Link key={`lcars-chip-${idx}-${name}`} to={to} className="lcars-chip-link" title={name}>
+                    {name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       <header className="site-header">
         <div>
           <div className="eyebrow">Stellar Data Explorer</div>
-          <h1><Link to="/" className="title-link">Spacegate</Link></h1>
-          <p>
-            Discover and explore nearby systems, stars, and exoplanets.
-          </p>
+          <div className="title-row">
+            <h1><a href="/" className="title-link">Spacegate</a></h1>
+            <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
+          </div>
         </div>
         <div className="header-actions">
+          <div className="theme-picker">
+            <label htmlFor="theme-select" className="sr-only">Theme</label>
+            <select
+              id="theme-select"
+              className="theme-select"
+              value={theme}
+              onChange={(event) => setTheme(event.target.value)}
+            >
+              {options.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           {headerExtra}
           {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
         </div>
@@ -668,6 +1189,7 @@ function SearchPage() {
   const [searchStarted, setSearchStarted] = useState(false);
   const [activeParams, setActiveParams] = useState(null);
   const [totalCount, setTotalCount] = useState(null);
+  const [filtersCollapsedY, setFiltersCollapsedY] = useState(false);
 
   const spectralSet = useMemo(() => new Set(spectral), [spectral]);
   const defaultFilterState = () => ({
@@ -886,137 +1408,166 @@ function SearchPage() {
     distance: "distance",
     name: "name",
   }[sort] || "name";
+  const filtersBodyCollapsed = filtersCollapsedY;
+  const searchLayoutClassName = [
+    "search-layout",
+    filtersCollapsedY ? "filters-collapsed-y" : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <Layout showSearchLink={false}>
-      <section className="search-layout">
-        <form className="panel filters-panel" onSubmit={onSubmit}>
+      <section className={searchLayoutClassName}>
+        <form
+          className={[
+            "panel",
+            "filters-panel",
+            filtersCollapsedY ? "filters-panel-collapsed-y" : "",
+          ].filter(Boolean).join(" ")}
+          onSubmit={onSubmit}
+        >
           <div className="filters-head">
             <h3>Filters</h3>
-          </div>
-
-          <div className="preset-row">
-            {FILTER_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className="button ghost preset-button"
-                onClick={() => applyPreset(preset)}
-                disabled={loading}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          <CompactRangeControl
-            label="Distance Range"
-            unit="ly"
-            minValue={minDist}
-            maxValue={maxDist}
-            minLimit={filterLimits.distance.min}
-            maxLimit={filterLimits.distance.max}
-            step={filterLimits.distance.step}
-            integer={filterLimits.distance.integer}
-            onChangeMin={setMinDist}
-            onChangeMax={setMaxDist}
-          />
-
-          <CompactRangeControl
-            label="Star Count"
-            minValue={minStarCount}
-            maxValue={maxStarCount}
-            minLimit={filterLimits.stars.min}
-            maxLimit={filterLimits.stars.max}
-            step={filterLimits.stars.step}
-            integer={filterLimits.stars.integer}
-            onChangeMin={setMinStarCount}
-            onChangeMax={setMaxStarCount}
-          />
-
-          <CompactRangeControl
-            label="Planet Count"
-            minValue={minPlanetCount}
-            maxValue={maxPlanetCount}
-            minLimit={filterLimits.planets.min}
-            maxLimit={filterLimits.planets.max}
-            step={filterLimits.planets.step}
-            integer={filterLimits.planets.integer}
-            onChangeMin={setMinPlanetCount}
-            onChangeMax={setMaxPlanetCount}
-          />
-
-          <CompactRangeControl
-            label="Coolness Score"
-            minValue={minCoolnessScore}
-            maxValue={maxCoolnessScore}
-            minLimit={filterLimits.coolness.min}
-            maxLimit={filterLimits.coolness.max}
-            step={filterLimits.coolness.step}
-            integer={filterLimits.coolness.integer}
-            onChangeMin={setMinCoolnessScore}
-            onChangeMax={setMaxCoolnessScore}
-          />
-
-          <TriStateToggle
-            label="Has confirmed planets"
-            value={hasPlanetsMode}
-            onChange={setHasPlanetsMode}
-          />
-
-          <TriStateToggle
-            label="Habitable-like candidates"
-            value={hasHabitableMode}
-            onChange={setHasHabitableMode}
-          />
-
-          <div className="field-grid compact-selects">
-            <label className="field">
-              <span>Sort</span>
-              <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
-                <option value="coolness">Coolness (top-ranked)</option>
-                <option value="name">Name (A-Z)</option>
-                <option value="distance">Distance (nearest)</option>
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Page size</span>
-              <select value={pageSize} onChange={(event) => setPageSize(event.target.value)}>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-                <option value="200">200</option>
-              </select>
-            </label>
-          </div>
-
-          <p className="muted">
-            Filters support deterministic cursor pagination, so loading more preserves stable ordering.
-          </p>
-
-          {error && (
-            <div className="error-box">
-              <div>{error}</div>
+            <div className="filters-head-actions">
               <button
                 type="button"
-                className="button ghost retry"
-                onClick={() => runSearch(null, true)}
-                disabled={loading}
+                className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
+                onClick={() => setFiltersCollapsedY((prev) => !prev)}
+                aria-pressed={filtersCollapsedY}
+                title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
               >
-                Retry
+                {filtersCollapsedY ? "Restore" : "Collapse Up"}
               </button>
             </div>
-          )}
+          </div>
+
+          <div className={`filters-body ${filtersBodyCollapsed ? "is-collapsed" : ""}`}>
+            <div className="preset-row">
+              {FILTER_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="button ghost preset-button"
+                  onClick={() => applyPreset(preset)}
+                  disabled={loading}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <CompactRangeControl
+              label="Distance Range"
+              unit="ly"
+              minValue={minDist}
+              maxValue={maxDist}
+              minLimit={filterLimits.distance.min}
+              maxLimit={filterLimits.distance.max}
+              step={filterLimits.distance.step}
+              integer={filterLimits.distance.integer}
+              onChangeMin={setMinDist}
+              onChangeMax={setMaxDist}
+            />
+
+            <CompactRangeControl
+              label="Star Count"
+              minValue={minStarCount}
+              maxValue={maxStarCount}
+              minLimit={filterLimits.stars.min}
+              maxLimit={filterLimits.stars.max}
+              step={filterLimits.stars.step}
+              integer={filterLimits.stars.integer}
+              onChangeMin={setMinStarCount}
+              onChangeMax={setMaxStarCount}
+            />
+
+            <CompactRangeControl
+              label="Planet Count"
+              minValue={minPlanetCount}
+              maxValue={maxPlanetCount}
+              minLimit={filterLimits.planets.min}
+              maxLimit={filterLimits.planets.max}
+              step={filterLimits.planets.step}
+              integer={filterLimits.planets.integer}
+              onChangeMin={setMinPlanetCount}
+              onChangeMax={setMaxPlanetCount}
+            />
+
+            <CompactRangeControl
+              label="Coolness Score"
+              minValue={minCoolnessScore}
+              maxValue={maxCoolnessScore}
+              minLimit={filterLimits.coolness.min}
+              maxLimit={filterLimits.coolness.max}
+              step={filterLimits.coolness.step}
+              integer={filterLimits.coolness.integer}
+              onChangeMin={setMinCoolnessScore}
+              onChangeMax={setMaxCoolnessScore}
+            />
+
+            <TriStateToggle
+              label="Has confirmed planets"
+              value={hasPlanetsMode}
+              onChange={setHasPlanetsMode}
+            />
+
+            <TriStateToggle
+              label="Habitable-like candidates"
+              value={hasHabitableMode}
+              onChange={setHasHabitableMode}
+            />
+
+            <div className="field-grid compact-selects">
+              <label className="field">
+                <span>Sort</span>
+                <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
+                  <option value="coolness">Coolness</option>
+                  <option value="name">Name</option>
+                  <option value="distance">Distance</option>
+                </select>
+              </label>
+
+              <label className="field">
+                <span>Page size</span>
+                <select value={pageSize} onChange={(event) => setPageSize(event.target.value)}>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </label>
+            </div>
+
+            <p className="muted">
+              Filters support deterministic cursor pagination, so loading more preserves stable ordering.
+            </p>
+
+            {error && (
+              <div className="error-box">
+                <div>{error}</div>
+                <button
+                  type="button"
+                  className="button ghost retry"
+                  onClick={() => runSearch(null, true)}
+                  disabled={loading}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
         </form>
 
         <section className="results">
           <div className="results-toolbar panel">
             <form className="results-search-row" onSubmit={onSubmit}>
+              <button className="button compact search-submit-button" type="submit" disabled={loading}>
+                {loading ? "Searching..." : "Search"}
+              </button>
               <label className="results-search-field">
                 <span className="sr-only">Search systems</span>
                 <input
                   type="text"
+                  data-global-search-input="true"
                   className="results-search-input"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -1024,9 +1575,6 @@ function SearchPage() {
                   autoFocus
                 />
               </label>
-              <button className="button compact" type="submit" disabled={loading}>
-                {loading ? "Searching..." : "Search"}
-              </button>
               <button type="button" className="button ghost compact" onClick={resetFilters} disabled={loading}>
                 Clear
               </button>
@@ -1101,11 +1649,6 @@ function SearchPage() {
                       <Link to={`/systems/${item.system_id}`} className="result-snapshot-link">
                         <SnapshotVisual snapshot={item.snapshot} systemName={item.system_name} compact />
                       </Link>
-                      <div className="result-ids muted">
-                        <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(item)} />
-                        <CatalogIdChip label="HIP" value={item.hip_id_text ?? item.hip_id} />
-                        <CatalogIdChip label="HD" value={item.hd_id_text ?? item.hd_id} />
-                      </div>
                     </div>
                     <div className="result-content">
                       <div className="result-header">
@@ -1164,11 +1707,33 @@ function SearchPage() {
                           tooltipLines={buildSpectralTooltipLines(item)}
                         />
                       </div>
-                      <div className="result-source">
-                        Source {formatText(item.provenance?.source_catalog)} · {formatText(item.provenance?.source_version)}
-                      </div>
                     </div>
                   </div>
+                  {(() => {
+                    const cardCatalogIds = buildSystemCatalogIds(item);
+                    return (
+                      <div className="result-source">
+                        <span className="result-source-text">
+                          Source {formatText(item.provenance?.source_catalog)} · {formatText(item.provenance?.source_version)}
+                        </span>
+                        {cardCatalogIds.length > 0 && (
+                          <span className="result-source-ids">
+                            {cardCatalogIds.map((entry) => (
+                              <span className="result-source-id" key={`${item.system_id}-${entry.label}-${entry.value}`}>
+                                <span className="id-chip-label">{entry.label}</span>
+                                <code className="result-source-id-value">{entry.value}</code>
+                                <CopyButton
+                                  value={entry.value}
+                                  label={`${entry.label} ID`}
+                                  className="id-copy copy-btn-inline"
+                                />
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </article>
               ))}
             </div>
@@ -1263,20 +1828,9 @@ function ProvenanceBlock({ provenance }) {
 function SystemDetailPage() {
   const { systemId } = useParams();
   const navigate = useNavigate();
-  const [quickSearchQuery, setQuickSearchQuery] = React.useState("");
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
-
-  const onQuickSearchSubmit = (event) => {
-    event.preventDefault();
-    const q = quickSearchQuery.trim();
-    if (!q) {
-      navigate("/");
-      return;
-    }
-    navigate(`/?q=${encodeURIComponent(q)}`);
-  };
 
   React.useEffect(() => {
     let isActive = true;
@@ -1286,6 +1840,7 @@ function SystemDetailPage() {
       .then((payload) => {
         if (isActive) {
           setData(payload);
+          updateLcarsHistoryWithSystem(payload?.system);
         }
       })
       .catch(() => {
@@ -1326,35 +1881,29 @@ function SystemDetailPage() {
   const { system, stars, planets } = data;
 
   return (
-    <Layout
-      headerExtra={(
-        <form className="header-search" onSubmit={onQuickSearchSubmit}>
-          <span className="sr-only">Search systems</span>
-          <input
-            type="text"
-            value={quickSearchQuery}
-            onChange={(event) => setQuickSearchQuery(event.target.value)}
-            placeholder="Search systems..."
-          />
-        </form>
-      )}
-    >
+    <Layout showSearchLink={false}>
       <section className="detail">
-        <div className="detail-header">
-          <div>
-            <h2>{formatText(system.system_name)}</h2>
-            <p className="muted detail-keyline">
-              <span>{formatText(system.stable_object_key)}</span>
-              <CopyButton value={system.stable_object_key} label="stable key" className="copy-btn-inline" />
-            </p>
+        <div className="system-identifiers-row">
+          <span className="system-identifiers-name">{formatText(system.system_name)}</span>
+          <div className="id-line id-line-inline">
+            <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
+            <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
+            <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
           </div>
-          <button className="button ghost" onClick={() => navigate("/")}>Back</button>
         </div>
+
+        <section className="panel snapshot-panel">
+          <h3>System Snapshot</h3>
+          <div className="snapshot-panel-layout">
+            <SnapshotMetadata system={system} snapshot={system.snapshot} />
+            <SnapshotVisual snapshot={system.snapshot} systemName={system.system_name} />
+          </div>
+        </section>
 
         <div className="quick-facts">
           <div>
             <strong>Distance</strong>
-            <span>{formatNumber(system.dist_ly, 2)} ly</span>
+            <span>{formatNumber(system.dist_ly, 2)} ly ({formatNumber(distanceLyToPc(system.dist_ly), 2)} pc)</span>
           </div>
           <div>
             <strong>RA / Dec</strong>
@@ -1374,24 +1923,7 @@ function SystemDetailPage() {
             <strong>Planets</strong>
             <span>{formatNumber(system.planet_count, 0)}</span>
           </div>
-          <div>
-            <strong>Identifiers</strong>
-            <div className="id-line">
-              <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
-              <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
-              <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
-            </div>
-          </div>
         </div>
-
-        <section className="panel snapshot-panel">
-          <h3>System Snapshot</h3>
-          <div className="snapshot-panel-layout">
-            <SnapshotMetadata system={system} snapshot={system.snapshot} />
-            <SnapshotVisual snapshot={system.snapshot} systemName={system.system_name} />
-          </div>
-          <p className="muted">Metadata is plain selectable text; the image contains only system visualization.</p>
-        </section>
 
         <section className="panel">
           <h3>Stars</h3>
@@ -1472,7 +2004,7 @@ function SystemDetailPage() {
                           </div>
                         </div>
                         <div>
-                          <span>Period {formatNumber(planet.orbital_period_days, 2)} d</span>
+                          <span>Period {formatPeriodDaysWithYears(planet.orbital_period_days)}</span>
                           <span className="muted">
                             SMA {formatNumber(planet.semi_major_axis_au, 3)} AU · Eccentricity {formatNumber(planet.eccentricity, 3)}
                           </span>
@@ -1527,10 +2059,35 @@ function SystemDetailPage() {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState(() => resolveInitialTheme());
+
+  useEffect(() => {
+    if (!THEME_IDS.has(theme)) {
+      return;
+    }
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (_) {
+      // Ignore persistence failures in restricted browser contexts.
+    }
+  }, [theme]);
+
+  const themeContextValue = useMemo(
+    () => ({
+      theme,
+      setTheme,
+      options: THEME_OPTIONS,
+    }),
+    [theme],
+  );
+
   return (
-    <Routes>
-      <Route path="/" element={<SearchPage />} />
-      <Route path="/systems/:systemId" element={<SystemDetailPage />} />
-    </Routes>
+    <ThemeContext.Provider value={themeContextValue}>
+      <Routes>
+        <Route path="/" element={<SearchPage />} />
+        <Route path="/systems/:systemId" element={<SystemDetailPage />} />
+      </Routes>
+    </ThemeContext.Provider>
   );
 }
