@@ -853,7 +853,7 @@ Themes implemented via CSS variables and design tokens.
 - Subtle scanline or console aesthetic (optional, lightweight)
 - Avoid heavy glow effects that reduce readability
 
-#### 4. Star Trek TNG (LCARS-inspired)
+#### 4. Enterprise (LCARS-inspired)
 - Black background
 - Rounded rectangular “pill” panels
 - Color-coded information bars
@@ -896,8 +896,8 @@ Appeals to:
 - 20–40 demographic
 - Safe, modern
 
-#### 7. Retro ’90s Web (Tasteful)
-Not Geocities chaos. Instead:
+#### 7. Geocities (Retro ’90s)
+Leans into intentionally klunky early-web nostalgia while staying usable:
 - Soft gray background
 - Light beveled panels
 - Clean but nostalgic
@@ -917,6 +917,12 @@ Appeals to:
 - people who love minimalism
 - OLED screen users
 - night browsing
+
+#### Current Theme/UX Implementation Notes
+- Theme selection is persisted in browser storage and applied globally.
+- Search shortcut is `/` (focuses search input when not typing in a field).
+- Search filters support `Collapse Up`; when collapsed, results expand to full width.
+- Enterprise theme includes LCARS-style header telemetry, decorative left chips, and linked history chips under `STARS ACCESSED`.
 
 ---
 

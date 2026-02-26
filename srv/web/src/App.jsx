@@ -83,7 +83,7 @@ const LCARS_FALLBACK_GAIA = [
 ];
 const LCARS_HISTORY_STORAGE_KEY = "spacegate.lcars.history";
 const LCARS_HISTORY_LIMIT = 32;
-const LCARS_LEFT_CHIP_COUNT = 2;
+const LCARS_LEFT_DECORATIVE_CHIP_COUNT = 2;
 const LCARS_RIGHT_CHIP_COUNT = 4;
 const LCARS_TEXT_SLOTS_PER_LINE = 8;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
@@ -842,17 +842,12 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
   const lcarsHistoryDisplay = useMemo(
     () => lcarsHistory
       .filter((entry) => String(entry.system_id) !== currentSystemId)
-      .slice(0, LCARS_LEFT_CHIP_COUNT + LCARS_RIGHT_CHIP_COUNT + (LCARS_TEXT_SLOTS_PER_LINE * 2)),
+      .slice(0, LCARS_RIGHT_CHIP_COUNT + (LCARS_TEXT_SLOTS_PER_LINE * 2)),
     [lcarsHistory, currentSystemId],
   );
 
-  const lcarsLeftHistory = useMemo(
-    () => lcarsHistoryDisplay.slice(0, LCARS_LEFT_CHIP_COUNT),
-    [lcarsHistoryDisplay],
-  );
-
   const lcarsRightHistory = useMemo(
-    () => lcarsHistoryDisplay.slice(LCARS_LEFT_CHIP_COUNT, LCARS_LEFT_CHIP_COUNT + LCARS_RIGHT_CHIP_COUNT),
+    () => lcarsHistoryDisplay.slice(0, LCARS_RIGHT_CHIP_COUNT),
     [lcarsHistoryDisplay],
   );
 
@@ -865,7 +860,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       return historyChips.slice(0, LCARS_RIGHT_CHIP_COUNT);
     }
     const seenIds = new Set(
-      [...lcarsLeftHistory, ...historyChips]
+      historyChips
         .map((entry) => (
           entry?.system_id === null || entry?.system_id === undefined ? "" : String(entry.system_id)
         ))
@@ -883,10 +878,10 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       return true;
     });
     return [...historyChips, ...fallbackChips].slice(0, LCARS_RIGHT_CHIP_COUNT);
-  }, [lcarsChipSystems, lcarsLeftHistory, lcarsRightHistory]);
+  }, [lcarsChipSystems, lcarsRightHistory]);
 
   const lcarsTextRows = useMemo(() => {
-    const historyEntries = lcarsHistoryDisplay.slice(LCARS_LEFT_CHIP_COUNT + LCARS_RIGHT_CHIP_COUNT).map((entry) => ({
+    const historyEntries = lcarsHistoryDisplay.slice(LCARS_RIGHT_CHIP_COUNT).map((entry) => ({
       label: entry.system_name,
       system_id: entry.system_id,
       title: entry.system_name,
@@ -986,35 +981,12 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       {isLcars && (
         <div className="lcars-topbar">
           <div className="lcars-top-left">
-            {lcarsLeftHistory.map((entry) => (
-              <Link
-                key={`lcars-hist-left-${entry.system_id}`}
-                to={`/systems/${entry.system_id}`}
-                className="lcars-history-chip"
-                title={entry.system_name}
-              >
-                {entry.system_name}
-              </Link>
-            ))}
-            {Array.from({ length: Math.max(0, LCARS_LEFT_CHIP_COUNT - lcarsLeftHistory.length) }).map((_, idx) => (
-              (() => {
-                const poolEntry = lcarsGaiaPool[idx % Math.max(1, lcarsGaiaPool.length)]
-                  || { gaia: LCARS_FALLBACK_GAIA[idx], system_id: null, system_name: "" };
-                const label = poolEntry.gaia || LCARS_FALLBACK_GAIA[idx] || "Gaia";
-                const to = poolEntry.system_id
-                  ? `/systems/${poolEntry.system_id}`
-                  : `/?q=${encodeURIComponent(label)}`;
-                return (
-                  <Link
-                    key={`lcars-hist-fallback-${idx}-${label}`}
-                    to={to}
-                    className="lcars-history-chip lcars-history-chip-fallback"
-                    title={poolEntry.system_name || `Gaia ${label}`}
-                  >
-                    {label}
-                  </Link>
-                );
-              })()
+            {Array.from({ length: LCARS_LEFT_DECORATIVE_CHIP_COUNT }).map((_, idx) => (
+              <span
+                key={`lcars-deco-left-${idx}`}
+                className={`lcars-left-deco ${idx === 0 ? "lcars-left-deco-top" : "lcars-left-deco-bottom"}`}
+                aria-hidden="true"
+              />
             ))}
           </div>
           <div className="lcars-top-center">
@@ -1040,7 +1012,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
             ))}
           </div>
           <div className="lcars-top-right">
-            <strong>LCARS ACCESS 4414</strong>
+            <strong>STARS ACCESSED</strong>
             <div className="lcars-chip-row">
               {lcarsRightChips.map((entry, idx) => {
                 const name = String(entry?.system_name || "").trim() || `System ${idx + 1}`;

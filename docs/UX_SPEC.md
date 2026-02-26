@@ -2,6 +2,11 @@
 
 Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only rich overlays for coolness ranking and deterministic system snapshots. No 3D map, no lore.
 
+## Current Implementation Notes
+- Theme labels currently exposed in UI: `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`, `Aurora`, `Geocities`, `Deep Space Minimal`.
+- Global search-focus shortcut: `/` (ignored while typing in editable fields).
+- Filters panel supports `Collapse Up`; when collapsed, results expand to full width.
+
 ## Global UI Principles
 - Primary task: find a system and understand what is known about it.
 - Secondary task: compare systems by distance and basic characteristics.

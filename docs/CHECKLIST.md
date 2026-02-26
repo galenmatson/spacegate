@@ -106,7 +106,10 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 
 ## v1.1 Beautification
 - [x] UI visual refresh (intentional hierarchy + readability)
-- [ ] Theme system with persistence and accessibility guardrails
+- [x] Theme system with persistence and accessibility guardrails
+- [x] Theme naming + polish pass (`Enterprise`, `Geocities`, Mission Control/Cyberpunk/Aurora/Deep Space refinements)
+- [x] Enterprise header/history UX updates (decorative left LCARS blocks + `STARS ACCESSED` linked history chips)
+- [x] Search/filters ergonomics (`/` to focus search, collapsible filters with `Collapse Up`)
 - [x] Data-density cleanup (snapshot-first list/detail hierarchy and cleaner card layout)
 
 ## v1.2 External Reference Links
