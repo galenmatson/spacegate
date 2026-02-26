@@ -1375,11 +1375,6 @@ function SearchPage() {
     navigate(`/systems/${systemId}`);
   };
 
-  const sortLabel = {
-    coolness: "coolness rank",
-    distance: "distance",
-    name: "name",
-  }[sort] || "name";
   const filtersBodyCollapsed = filtersCollapsedY;
   const searchLayoutClassName = [
     "search-layout",
@@ -1400,6 +1395,21 @@ function SearchPage() {
           <div className="filters-head">
             <h3>Filters</h3>
             <div className="filters-head-actions">
+              {filtersCollapsedY && (
+                <div className="filters-head-presets">
+                  {FILTER_PRESETS.map((preset) => (
+                    <button
+                      key={`head-${preset.id}`}
+                      type="button"
+                      className="button ghost preset-button preset-button-inline"
+                      onClick={() => applyPreset(preset)}
+                      disabled={loading}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
@@ -1407,7 +1417,7 @@ function SearchPage() {
                 aria-pressed={filtersCollapsedY}
                 title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
               >
-                {filtersCollapsedY ? "Restore" : "Collapse Up"}
+                {filtersCollapsedY ? "Expand" : "Collapse"}
               </button>
             </div>
           </div>
@@ -1488,31 +1498,6 @@ function SearchPage() {
               onChange={setHasHabitableMode}
             />
 
-            <div className="field-grid compact-selects">
-              <label className="field">
-                <span>Sort</span>
-                <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
-                  <option value="coolness">Coolness</option>
-                  <option value="name">Name</option>
-                  <option value="distance">Distance</option>
-                </select>
-              </label>
-
-              <label className="field">
-                <span>Page size</span>
-                <select value={pageSize} onChange={(event) => setPageSize(event.target.value)}>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                  <option value="200">200</option>
-                </select>
-              </label>
-            </div>
-
-            <p className="muted">
-              Filters support deterministic cursor pagination, so loading more preserves stable ordering.
-            </p>
-
             {error && (
               <div className="error-box">
                 <div>{error}</div>
@@ -1569,19 +1554,38 @@ function SearchPage() {
               </div>
             </div>
 
-            <div className="results-stats-row">
-              <div>
-                <strong>{results.length}</strong> loaded
-                {totalCount !== null && (
-                  <>
-                    {" "}
-                    of <strong>{totalCount}</strong>
-                  </>
-                )}
-                {", "}sorted by <strong>{sortLabel}</strong>
+            <div className="results-bottom-row">
+              <div className="results-stats-row">
+                <div>
+                  <strong>{results.length}</strong> loaded
+                  {totalCount !== null && (
+                    <>
+                      {" "}
+                      of <strong>{totalCount}</strong>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="muted">
-                {searchStarted ? (hasMore ? "More results available" : "End of result set") : "Run search to load results"}
+
+              <div className="results-search-options">
+                <label className="results-search-option">
+                  <span>Sort</span>
+                  <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
+                    <option value="coolness">Coolness</option>
+                    <option value="name">Name</option>
+                    <option value="distance">Distance</option>
+                  </select>
+                </label>
+
+                <label className="results-search-option">
+                  <span>Page size</span>
+                  <select value={pageSize} onChange={(event) => setPageSize(event.target.value)}>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                  </select>
+                </label>
               </div>
             </div>
           </div>
