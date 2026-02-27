@@ -2539,17 +2539,8 @@ main {
 .results-spectral-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   min-width: 0;
-}
-
-.results-spectral-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1 1 auto;
 }
 
 .results-spectral-label {
@@ -2570,52 +2561,6 @@ main {
 
 .results-spectral-chips .chip {
   flex: 0 0 auto;
-}
-
-.inline-range-filter {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex: 0 1 560px;
-  min-width: 320px;
-}
-
-.inline-range-label,
-.inline-range-bound span,
-.inline-range-unit {
-  font-size: 0.74rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--subtle-ink);
-  white-space: nowrap;
-}
-
-.inline-range-bound {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.inline-range-bound input[type="number"] {
-  width: 84px;
-  padding: 5px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  color: var(--input-ink);
-  font-size: 0.8rem;
-}
-
-.inline-range-slider {
-  position: relative;
-  flex: 1 1 240px;
-  min-width: 180px;
-  height: 22px;
-  --slider-thumb-size: 14px;
-  --slider-half-thumb: calc(var(--slider-thumb-size) / 2);
-  overflow: visible;
 }
 
 .results-bottom-row {
@@ -3492,17 +3437,6 @@ main {
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
-  }
-
-  .results-spectral-group,
-  .inline-range-filter {
-    width: 100%;
-  }
-
-  .inline-range-filter {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    min-width: 0;
   }
 
   .results-search-row .button {
