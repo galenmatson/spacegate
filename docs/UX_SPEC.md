@@ -28,7 +28,8 @@ Scope: search/browse core systems, stars, and planets from `core.duckdb`, with r
 
 ### Filters
 - Max distance (ly): numeric input, optional.
-- Spectral class: multi-select (O, B, A, F, G, K, M, L, T, Y), optional.
+- Spectral class: multi-select (O, B, A, F, G, K, M, L), optional.
+- Stellar temperature (K): min/max range slider with numeric bounds, optional.
 - Has planets: toggle, optional.
 
 ### Sorting

@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchSystemDetail, fetchSystems } from "./api.js";
 
-const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"];
+const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L"];
 const THEME_STORAGE_KEY = "spacegate.theme";
 const THEME_OPTIONS = [
   { id: "simple_light", label: "Simple Light" },
@@ -32,6 +32,7 @@ const filterLimits = {
   stars: { min: 0, max: 12, step: 1, integer: true },
   planets: { min: 0, max: 20, step: 1, integer: true },
   coolness: { min: 0, max: 40, step: 0.1, integer: false },
+  temperature: { min: 250, max: 50000, step: 100, integer: true },
 };
 const FILTER_PRESETS = [
   { id: "nearby", label: "Nearby", filters: { sort: "distance", minDist: 0, maxDist: 60 } },
@@ -481,6 +482,107 @@ function CompactRangeControl({
           </label>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InlineRangeControl({
+  label,
+  minValue,
+  maxValue,
+  minLimit,
+  maxLimit,
+  step,
+  integer,
+  unit = "",
+  onChangeMin,
+  onChangeMax,
+}) {
+  const valueMin = clampNumber(Math.min(minValue, maxValue), minLimit, maxLimit);
+  const valueMax = clampNumber(Math.max(minValue, maxValue), minLimit, maxLimit);
+  const span = maxLimit - minLimit;
+  const minPercent = span > 0 ? ((valueMin - minLimit) / span) * 100 : 0;
+  const maxPercent = span > 0 ? ((valueMax - minLimit) / span) * 100 : 100;
+  const fillLeft = clampNumber(minPercent, 0, 100);
+  const fillWidth = clampNumber(maxPercent - minPercent, 0, 100);
+
+  return (
+    <div className="inline-range-filter" role="group" aria-label={`${label} range filter`}>
+      <span className="inline-range-label">{label}</span>
+      <label className="inline-range-bound">
+        <span>Min</span>
+        <input
+          type="number"
+          min={minLimit}
+          max={maxLimit}
+          step={step}
+          value={valueMin}
+          aria-label={`${label} minimum value`}
+          onChange={(event) => {
+            const parsed = Number(event.target.value);
+            if (!Number.isFinite(parsed)) {
+              return;
+            }
+            const next = clampNumber(parsed, minLimit, valueMax);
+            onChangeMin(integer ? Math.round(next) : next);
+          }}
+        />
+      </label>
+      <div className="inline-range-slider" aria-hidden="true">
+        <div className="compact-range-track-window">
+          <div className="compact-range-track" />
+          <div
+            className="compact-range-track-fill"
+            style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+          />
+        </div>
+        <input
+          type="range"
+          className="dual-range dual-range-min"
+          min={minLimit}
+          max={maxLimit}
+          step={step}
+          value={valueMin}
+          aria-label={`${label} minimum slider`}
+          onChange={(event) => {
+            const next = clampNumber(Number(event.target.value), minLimit, valueMax);
+            onChangeMin(integer ? Math.round(next) : next);
+          }}
+        />
+        <input
+          type="range"
+          className="dual-range dual-range-max"
+          min={minLimit}
+          max={maxLimit}
+          step={step}
+          value={valueMax}
+          aria-label={`${label} maximum slider`}
+          onChange={(event) => {
+            const next = clampNumber(Number(event.target.value), valueMin, maxLimit);
+            onChangeMax(integer ? Math.round(next) : next);
+          }}
+        />
+      </div>
+      <label className="inline-range-bound">
+        <span>Max</span>
+        <input
+          type="number"
+          min={minLimit}
+          max={maxLimit}
+          step={step}
+          value={valueMax}
+          aria-label={`${label} maximum value`}
+          onChange={(event) => {
+            const parsed = Number(event.target.value);
+            if (!Number.isFinite(parsed)) {
+              return;
+            }
+            const next = clampNumber(parsed, valueMin, maxLimit);
+            onChangeMax(integer ? Math.round(next) : next);
+          }}
+        />
+      </label>
+      {unit ? <span className="inline-range-unit">{unit}</span> : null}
     </div>
   );
 }
@@ -1245,6 +1347,22 @@ function SearchPage() {
     filterLimits.coolness.max,
     filterLimits.coolness.integer,
   ));
+  const [minStarTeffK, setMinStarTeffK] = useState(() => parseRangeParam(
+    searchParams,
+    "min_star_teff_k",
+    filterLimits.temperature.min,
+    filterLimits.temperature.min,
+    filterLimits.temperature.max,
+    filterLimits.temperature.integer,
+  ));
+  const [maxStarTeffK, setMaxStarTeffK] = useState(() => parseRangeParam(
+    searchParams,
+    "max_star_teff_k",
+    filterLimits.temperature.max,
+    filterLimits.temperature.min,
+    filterLimits.temperature.max,
+    filterLimits.temperature.integer,
+  ));
   const [sort, setSort] = useState(() => {
     const value = String(searchParams.get("sort") || "coolness").toLowerCase();
     return ["coolness", "name", "distance"].includes(value) ? value : "coolness";
@@ -1289,6 +1407,8 @@ function SearchPage() {
     maxPlanetCount: filterLimits.planets.max,
     minCoolnessScore: filterLimits.coolness.min,
     maxCoolnessScore: filterLimits.coolness.max,
+    minStarTeffK: filterLimits.temperature.min,
+    maxStarTeffK: filterLimits.temperature.max,
     sort: "coolness",
     spectral: [],
     hasPlanetsMode: "",
@@ -1305,6 +1425,8 @@ function SearchPage() {
     maxPlanetCount,
     minCoolnessScore,
     maxCoolnessScore,
+    minStarTeffK,
+    maxStarTeffK,
     sort,
     spectral,
     hasPlanetsMode,
@@ -1321,6 +1443,8 @@ function SearchPage() {
     setMaxPlanetCount(next.maxPlanetCount);
     setMinCoolnessScore(next.minCoolnessScore);
     setMaxCoolnessScore(next.maxCoolnessScore);
+    setMinStarTeffK(next.minStarTeffK);
+    setMaxStarTeffK(next.maxStarTeffK);
     setSort(next.sort);
     setSpectral(next.spectral);
     setHasPlanetsMode(next.hasPlanetsMode);
@@ -1338,6 +1462,8 @@ function SearchPage() {
     const planetsMax = Math.max(filters.minPlanetCount, filters.maxPlanetCount);
     const coolnessMin = Math.min(filters.minCoolnessScore, filters.maxCoolnessScore);
     const coolnessMax = Math.max(filters.minCoolnessScore, filters.maxCoolnessScore);
+    const teffMin = Math.min(filters.minStarTeffK, filters.maxStarTeffK);
+    const teffMax = Math.max(filters.minStarTeffK, filters.maxStarTeffK);
 
     if (filters.query.trim()) {
       params.q = filters.query.trim();
@@ -1365,6 +1491,12 @@ function SearchPage() {
     }
     if (coolnessMax < filterLimits.coolness.max) {
       params.max_coolness_score = String(coolnessMax);
+    }
+    if (teffMin > filterLimits.temperature.min) {
+      params.min_star_teff_k = String(teffMin);
+    }
+    if (teffMax < filterLimits.temperature.max) {
+      params.max_star_teff_k = String(teffMax);
     }
     if (filters.spectral.length) {
       params.spectral_class = filters.spectral.join(",");
@@ -1653,20 +1785,34 @@ function SearchPage() {
             </form>
 
             <div className="results-spectral-row">
-              <span className="results-spectral-label">Spectral</span>
-              <div className="results-spectral-chips">
-                {spectralOptions.map((option) => (
-                  <button
-                    type="button"
-                    key={option}
-                    className={`chip spectral-chip spectral-${option.toLowerCase()} ${spectralSet.has(option) ? "active" : ""}`}
-                    onClick={() => toggleSpectral(option)}
-                    title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"}`}
-                  >
-                    {option}
-                  </button>
-                ))}
+              <div className="results-spectral-group">
+                <span className="results-spectral-label">Spectral</span>
+                <div className="results-spectral-chips">
+                  {spectralOptions.map((option) => (
+                    <button
+                      type="button"
+                      key={option}
+                      className={`chip spectral-chip spectral-${option.toLowerCase()} ${spectralSet.has(option) ? "active" : ""}`}
+                      onClick={() => toggleSpectral(option)}
+                      title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"}`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <InlineRangeControl
+                label="Temp"
+                unit="K"
+                minValue={minStarTeffK}
+                maxValue={maxStarTeffK}
+                minLimit={filterLimits.temperature.min}
+                maxLimit={filterLimits.temperature.max}
+                step={filterLimits.temperature.step}
+                integer={filterLimits.temperature.integer}
+                onChangeMin={setMinStarTeffK}
+                onChangeMax={setMaxStarTeffK}
+              />
             </div>
 
             <div className="results-bottom-row">
