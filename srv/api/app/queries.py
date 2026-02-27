@@ -246,8 +246,6 @@ def search_systems(
     id_query: Optional[Dict[str, Any]],
     max_dist_ly: Optional[float],
     min_dist_ly: Optional[float],
-    min_star_teff_k: Optional[float],
-    max_star_teff_k: Optional[float],
     min_star_count: Optional[int],
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
@@ -343,25 +341,6 @@ def search_systems(
     if min_dist_ly is not None:
         conditions.append("s.dist_ly >= ?")
         params.append(min_dist_ly)
-
-    if min_star_teff_k is not None and max_star_teff_k is not None:
-        conditions.append(
-            "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-            "AND st.teff_k BETWEEN ? AND ?)"
-        )
-        params.extend([min_star_teff_k, max_star_teff_k])
-    elif min_star_teff_k is not None:
-        conditions.append(
-            "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-            "AND st.teff_k >= ?)"
-        )
-        params.append(min_star_teff_k)
-    elif max_star_teff_k is not None:
-        conditions.append(
-            "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-            "AND st.teff_k <= ?)"
-        )
-        params.append(max_star_teff_k)
 
     if spectral_classes:
         placeholders = ",".join(["?"] * len(spectral_classes))

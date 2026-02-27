@@ -115,8 +115,6 @@ def _should_audit_systems_search(
     q_raw: Optional[str],
     min_dist_ly: Optional[float],
     max_dist_ly: Optional[float],
-    min_star_teff_k: Optional[float],
-    max_star_teff_k: Optional[float],
     min_star_count: Optional[int],
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
@@ -137,8 +135,6 @@ def _should_audit_systems_search(
         for value in (
             min_dist_ly,
             max_dist_ly,
-            min_star_teff_k,
-            max_star_teff_k,
             min_star_count,
             max_star_count,
             min_planet_count,
@@ -161,8 +157,6 @@ def _audit_systems_search(
     limit: int,
     min_dist_ly: Optional[float],
     max_dist_ly: Optional[float],
-    min_star_teff_k: Optional[float],
-    max_star_teff_k: Optional[float],
     min_star_count: Optional[int],
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
@@ -183,8 +177,6 @@ def _audit_systems_search(
         q_raw=q_raw,
         min_dist_ly=min_dist_ly,
         max_dist_ly=max_dist_ly,
-        min_star_teff_k=min_star_teff_k,
-        max_star_teff_k=max_star_teff_k,
         min_star_count=min_star_count,
         max_star_count=max_star_count,
         min_planet_count=min_planet_count,
@@ -207,8 +199,6 @@ def _audit_systems_search(
     filters: Dict[str, Any] = {}
     if min_dist_ly is not None or max_dist_ly is not None:
         filters["distance_ly"] = {"min": min_dist_ly, "max": max_dist_ly}
-    if min_star_teff_k is not None or max_star_teff_k is not None:
-        filters["star_teff_k"] = {"min": min_star_teff_k, "max": max_star_teff_k}
     if min_star_count is not None or max_star_count is not None:
         filters["star_count"] = {"min": min_star_count, "max": max_star_count}
     if min_planet_count is not None or max_planet_count is not None:
@@ -390,8 +380,6 @@ def systems_search(
     q: Optional[str] = Query(default=None),
     max_dist_ly: Optional[float] = Query(default=None, ge=0),
     min_dist_ly: Optional[float] = Query(default=None, ge=0),
-    min_star_teff_k: Optional[float] = Query(default=None, ge=0),
-    max_star_teff_k: Optional[float] = Query(default=None, ge=0),
     min_star_count: Optional[int] = Query(default=None, ge=0),
     max_star_count: Optional[int] = Query(default=None, ge=0),
     min_planet_count: Optional[int] = Query(default=None, ge=0),
@@ -412,19 +400,6 @@ def systems_search(
             detail={
                 "code": "bad_request",
                 "message": "Invalid distance range",
-                "details": {},
-            },
-        )
-    if (
-        max_star_teff_k is not None
-        and min_star_teff_k is not None
-        and min_star_teff_k > max_star_teff_k
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "code": "bad_request",
-                "message": "Invalid star-temperature range",
                 "details": {},
             },
         )
@@ -571,8 +546,6 @@ def systems_search(
                 id_query=id_query,
                 max_dist_ly=max_dist_ly,
                 min_dist_ly=min_dist_ly,
-                min_star_teff_k=min_star_teff_k,
-                max_star_teff_k=max_star_teff_k,
                 min_star_count=min_star_count,
                 max_star_count=max_star_count,
                 min_planet_count=min_planet_count,
@@ -599,8 +572,6 @@ def systems_search(
             limit=limit,
             min_dist_ly=min_dist_ly,
             max_dist_ly=max_dist_ly,
-            min_star_teff_k=min_star_teff_k,
-            max_star_teff_k=max_star_teff_k,
             min_star_count=min_star_count,
             max_star_count=max_star_count,
             min_planet_count=min_planet_count,
@@ -687,8 +658,6 @@ def systems_search(
         limit=limit,
         min_dist_ly=min_dist_ly,
         max_dist_ly=max_dist_ly,
-        min_star_teff_k=min_star_teff_k,
-        max_star_teff_k=max_star_teff_k,
         min_star_count=min_star_count,
         max_star_count=max_star_count,
         min_planet_count=min_planet_count,

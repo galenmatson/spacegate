@@ -347,6 +347,19 @@ function parseRangeParam(searchParams, key, fallback, min, max, integer = false)
   return clampNumber(normalized, min, max);
 }
 
+function spectralClassesForTemperatureRange(minK, maxK) {
+  const lower = Math.min(minK, maxK);
+  const upper = Math.max(minK, maxK);
+  return spectralOptions.filter((option) => {
+    const range = SPECTRAL_CLASS_INFO[option]?.tempRangeK;
+    if (!Array.isArray(range) || range.length !== 2) {
+      return false;
+    }
+    const [classMin, classMax] = range;
+    return classMax >= lower && classMin <= upper;
+  });
+}
+
 function TriStateToggle({ label, value, onChange }) {
   return (
     <div className="field tri-state-field">
@@ -488,6 +501,7 @@ function CompactRangeControl({
 
 function InlineRangeControl({
   label,
+  title = "",
   minValue,
   maxValue,
   minLimit,
@@ -507,8 +521,8 @@ function InlineRangeControl({
   const fillWidth = clampNumber(maxPercent - minPercent, 0, 100);
 
   return (
-    <div className="inline-range-filter" role="group" aria-label={`${label} range filter`}>
-      <span className="inline-range-label">{label}</span>
+    <div className="inline-range-filter" role="group" aria-label={`${label} range filter`} title={title || undefined}>
+      <span className="inline-range-label" title={title || undefined}>{label}</span>
       <label className="inline-range-bound">
         <span>Min</span>
         <input
@@ -1464,6 +1478,17 @@ function SearchPage() {
     const coolnessMax = Math.max(filters.minCoolnessScore, filters.maxCoolnessScore);
     const teffMin = Math.min(filters.minStarTeffK, filters.maxStarTeffK);
     const teffMax = Math.max(filters.minStarTeffK, filters.maxStarTeffK);
+    const temperatureFilterActive =
+      teffMin > filterLimits.temperature.min || teffMax < filterLimits.temperature.max;
+    const temperatureSpectral = temperatureFilterActive
+      ? spectralClassesForTemperatureRange(teffMin, teffMax)
+      : [];
+    let effectiveSpectral = filters.spectral.slice();
+    if (temperatureFilterActive) {
+      effectiveSpectral = effectiveSpectral.length
+        ? effectiveSpectral.filter((option) => temperatureSpectral.includes(option))
+        : temperatureSpectral;
+    }
 
     if (filters.query.trim()) {
       params.q = filters.query.trim();
@@ -1498,8 +1523,10 @@ function SearchPage() {
     if (teffMax < filterLimits.temperature.max) {
       params.max_star_teff_k = String(teffMax);
     }
-    if (filters.spectral.length) {
-      params.spectral_class = filters.spectral.join(",");
+    if (!effectiveSpectral.length && (filters.spectral.length || temperatureFilterActive)) {
+      params.__force_empty = "1";
+    } else if (effectiveSpectral.length) {
+      params.spectral_class = effectiveSpectral.join(",");
     }
     if (filters.hasPlanetsMode) {
       params.has_planets = filters.hasPlanetsMode;
@@ -1518,7 +1545,24 @@ function SearchPage() {
       (!reset && cursorValue && activeParams)
         ? activeParams
         : (overrideBaseParams || buildBaseParams());
-    const requestParams = { ...resolvedBase };
+    if (resolvedBase.__force_empty === "1") {
+      setLoading(false);
+      setSearchStarted(true);
+      setError("");
+      setHasMore(false);
+      setCursor(null);
+      setResults((prev) => (reset ? [] : prev));
+      if (reset) {
+        setTotalCount(0);
+      }
+      if (reset || !activeParams || overrideBaseParams) {
+        setActiveParams(resolvedBase);
+      }
+      return;
+    }
+    const requestParams = Object.fromEntries(
+      Object.entries({ ...resolvedBase }).filter(([key]) => !key.startsWith("__")),
+    );
     if (reset) {
       requestParams.include_total = "true";
     }
@@ -1553,7 +1597,10 @@ function SearchPage() {
   };
 
   const persistParams = () => {
-    setSearchParams(buildBaseParams());
+    const params = Object.fromEntries(
+      Object.entries(buildBaseParams()).filter(([key]) => !key.startsWith("__")),
+    );
+    setSearchParams(params);
   };
 
   const onSubmit = (event) => {
@@ -1590,7 +1637,7 @@ function SearchPage() {
     };
     applyFilterState(next);
     const params = buildBaseParamsFromFilters(next);
-    setSearchParams(params);
+    setSearchParams(Object.fromEntries(Object.entries(params).filter(([key]) => !key.startsWith("__"))));
     runSearch(null, true, params);
   };
 
@@ -1598,7 +1645,7 @@ function SearchPage() {
     setSort(nextSort);
     const next = { ...currentFilterState(), sort: nextSort };
     const params = buildBaseParamsFromFilters(next);
-    setSearchParams(params);
+    setSearchParams(Object.fromEntries(Object.entries(params).filter(([key]) => !key.startsWith("__"))));
     runSearch(null, true, params);
   };
 
@@ -1803,6 +1850,7 @@ function SearchPage() {
               </div>
               <InlineRangeControl
                 label="Temp"
+                title="Approximate temperature filter derived from spectral class ranges in this build."
                 unit="K"
                 minValue={minStarTeffK}
                 maxValue={maxStarTeffK}

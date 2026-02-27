@@ -268,8 +268,6 @@ Query params:
 - `q` (string, optional)
 - `max_dist_ly` (float, optional, `>= 0`)
 - `min_dist_ly` (float, optional, `>= 0`)
-- `min_star_teff_k` (float, optional, `>= 0`)
-- `max_star_teff_k` (float, optional, `>= 0`)
 - `min_star_count` (int, optional, `>= 0`)
 - `max_star_count` (int, optional, `>= 0`)
 - `min_planet_count` (int, optional, `>= 0`)
@@ -300,7 +298,7 @@ When `q` is not provided:
 - `sort=coolness`: `coolness_rank` asc, `system_name_norm` asc, `system_id` asc
 
 Validation and availability behavior:
-- Logical range inversions (for example `min_dist_ly > max_dist_ly`, `min_star_teff_k > max_star_teff_k`) return `400 bad_request`.
+- Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.
 - Invalid enum/filter values (for example `sort=foo`, `has_planets=maybe`, `spectral_class=ZZ`) return `400 bad_request`.
 - Requesting coolness sort/score filters when `rich.coolness_scores` is unavailable returns `409 conflict`.
 - Framework-level bound checks (for example negative `min_dist_ly`, `limit > 200`) return `422`.
