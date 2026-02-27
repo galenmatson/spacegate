@@ -343,6 +343,7 @@ body {
 }
 
 .site-header {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -350,8 +351,45 @@ body {
   background: var(--header-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 28px 32px;
+  padding: 42px 32px 28px;
   box-shadow: var(--shadow);
+}
+
+.header-topline {
+  position: absolute;
+  top: 10px;
+  right: 24px;
+  left: 24px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 18px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.header-top-links {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  pointer-events: auto;
+}
+
+.header-top-link {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-decoration: none;
+  text-transform: uppercase;
+  opacity: 0.86;
+}
+
+.header-top-link:hover {
+  color: var(--accent-dark);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .site-header h1 {
@@ -422,6 +460,57 @@ body {
 .theme-picker {
   display: inline-flex;
   align-items: center;
+}
+
+.markdown-panel {
+  max-width: 920px;
+}
+
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin: 0;
+  line-height: 1.15;
+}
+
+.markdown-content h2 {
+  margin-bottom: 16px;
+  font-size: clamp(1.8rem, 3vw, 2.35rem);
+}
+
+.markdown-content h3 {
+  margin-top: 28px;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.markdown-content h4 {
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-size: 0.98rem;
+}
+
+.markdown-content p,
+.markdown-content ul {
+  margin: 0 0 16px;
+}
+
+.markdown-content ul {
+  padding-left: 22px;
+}
+
+.markdown-content li + li {
+  margin-top: 8px;
+}
+
+.markdown-content hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 24px 0;
+}
+
+.markdown-content a {
+  word-break: break-word;
 }
 
 .theme-select {
@@ -1506,6 +1595,20 @@ select:focus-visible {
   padding-top: 34px;
 }
 
+:root[data-theme="mission_control"] .header-topline {
+  top: 5px;
+  right: 88px;
+}
+
+:root[data-theme="mission_control"] .header-top-link {
+  color: #9fd0ff;
+  opacity: 0.84;
+}
+
+:root[data-theme="mission_control"] .header-top-link:hover {
+  color: #d8eeff;
+}
+
 :root[data-theme="mission_control"] .site-header::before {
   content: "FLIGHT  FDO  GNC  EECOM  INCO  CAPCOM  BOOSTER  FAO  TELMU  PROP";
   position: absolute;
@@ -1674,6 +1777,20 @@ select:focus-visible {
   padding-top: 34px;
 }
 
+:root[data-theme="aurora"] .header-topline {
+  top: 3px;
+  right: 22px;
+}
+
+:root[data-theme="aurora"] .header-top-link {
+  color: #eff5ff;
+  opacity: 0.78;
+}
+
+:root[data-theme="aurora"] .header-top-link:hover {
+  color: #ffffff;
+}
+
 :root[data-theme="aurora"] .site-header::before {
   content: "";
   position: absolute;
@@ -1773,6 +1890,20 @@ select:focus-visible {
 :root[data-theme="deep_space_minimal"] .site-header {
   overflow: hidden;
   padding-top: 34px;
+}
+
+:root[data-theme="deep_space_minimal"] .header-topline {
+  top: 2px;
+  right: 20px;
+}
+
+:root[data-theme="deep_space_minimal"] .header-top-link {
+  color: #bfd3ff;
+  opacity: 0.8;
+}
+
+:root[data-theme="deep_space_minimal"] .header-top-link:hover {
+  color: #f0f6ff;
 }
 
 :root[data-theme="deep_space_minimal"] .site-header::before {

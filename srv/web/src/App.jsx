@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchSystemDetail, fetchSystems } from "./api.js";
+import aboutMarkdown from "../content/about.md?raw";
 
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"];
 const THEME_STORAGE_KEY = "spacegate.theme";
@@ -89,6 +90,8 @@ const LCARS_TEXT_SLOTS_PER_LINE = 5;
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
+const HEADER_ABOUT_LINK = "/about";
+const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
 
 function isEditableTarget(target) {
   if (!(target instanceof Element)) {
@@ -146,6 +149,152 @@ function resolveInitialTheme() {
 
 function useThemeControls() {
   return React.useContext(ThemeContext);
+}
+
+function renderInlineMarkdown(text, keyPrefix) {
+  const source = String(text || "");
+  if (!source) {
+    return "";
+  }
+  const pattern = /(\*\*[^*]+\*\*|https?:\/\/[^\s]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  let tokenIndex = 0;
+  while ((match = pattern.exec(source)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(source.slice(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith("**") && token.endsWith("**")) {
+      parts.push(
+        <strong key={`${keyPrefix}-strong-${tokenIndex}`}>
+          {token.slice(2, -2)}
+        </strong>,
+      );
+    } else if (token.includes("@") && !token.startsWith("http")) {
+      parts.push(
+        <a key={`${keyPrefix}-mail-${tokenIndex}`} href={`mailto:${token}`}>
+          {token}
+        </a>,
+      );
+    } else {
+      parts.push(
+        <a key={`${keyPrefix}-link-${tokenIndex}`} href={token} target="_blank" rel="noreferrer">
+          {token}
+        </a>,
+      );
+    }
+    lastIndex = pattern.lastIndex;
+    tokenIndex += 1;
+  }
+  if (lastIndex < source.length) {
+    parts.push(source.slice(lastIndex));
+  }
+  return parts;
+}
+
+function parseMarkdownBlocks(markdown) {
+  const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let paragraphLines = [];
+  let listItems = [];
+
+  const flushParagraph = () => {
+    if (paragraphLines.length === 0) {
+      return;
+    }
+    blocks.push({
+      type: "paragraph",
+      text: paragraphLines.join(" ").replace(/\s+/g, " ").trim(),
+    });
+    paragraphLines = [];
+  };
+
+  const flushList = () => {
+    if (listItems.length === 0) {
+      return;
+    }
+    blocks.push({
+      type: "list",
+      items: listItems.slice(),
+    });
+    listItems = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+    if (/^-{3,}$/.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      blocks.push({ type: "hr" });
+      continue;
+    }
+    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push({
+        type: "heading",
+        level: headingMatch[1].length,
+        text: headingMatch[2].trim(),
+      });
+      continue;
+    }
+    const listMatch = trimmed.match(/^-\s+(.*)$/);
+    if (listMatch) {
+      flushParagraph();
+      listItems.push(listMatch[1].trim());
+      continue;
+    }
+    flushList();
+    paragraphLines.push(trimmed);
+  }
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+function MarkdownContent({ markdown }) {
+  const blocks = useMemo(() => parseMarkdownBlocks(markdown), [markdown]);
+  return (
+    <div className="markdown-content">
+      {blocks.map((block, index) => {
+        if (block.type === "heading") {
+          if (block.level === 1) {
+            return <h2 key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</h2>;
+          }
+          if (block.level === 2) {
+            return <h3 key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</h3>;
+          }
+          return <h4 key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</h4>;
+        }
+        if (block.type === "list") {
+          return (
+            <ul key={`block-${index}`}>
+              {block.items.map((item, itemIndex) => (
+                <li key={`block-${index}-item-${itemIndex}`}>
+                  {renderInlineMarkdown(item, `block-${index}-item-${itemIndex}`)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.type === "hr") {
+          return <hr key={`block-${index}`} />;
+        }
+        return <p key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</p>;
+      })}
+    </div>
+  );
 }
 
 function pickRandomSystems(items, count) {
@@ -1067,6 +1216,14 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       )}
       {isLcars && <div className="lcars-header-bridge" aria-hidden="true" />}
       <header className="site-header">
+        {!isLcars && (
+          <div className="header-topline">
+            <div className="header-top-links" aria-label="Site links">
+              <Link to={HEADER_ABOUT_LINK} className="header-top-link">ABT</Link>
+              <a href={HEADER_SPONSOR_LINK} className="header-top-link" target="_blank" rel="noreferrer">SPT</a>
+            </div>
+          </div>
+        )}
         <div>
           <div className="eyebrow">Stellar Data Explorer</div>
           <div className="title-row">
@@ -1096,6 +1253,18 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       </header>
       <main>{children}</main>
     </div>
+  );
+}
+
+function AboutPage() {
+  return (
+    <Layout>
+      <section className="detail-layout">
+        <section className="panel markdown-panel">
+          <MarkdownContent markdown={aboutMarkdown} />
+        </section>
+      </section>
+    </Layout>
   );
 }
 
@@ -2099,6 +2268,7 @@ export default function App() {
     <ThemeContext.Provider value={themeContextValue}>
       <Routes>
         <Route path="/" element={<SearchPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/systems/:systemId" element={<SystemDetailPage />} />
       </Routes>
     </ThemeContext.Provider>
