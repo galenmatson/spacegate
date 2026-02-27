@@ -827,22 +827,26 @@ select:focus-visible {
 :root[data-theme="lcars"] .lcars-left-deco-bottom-links {
   position: absolute;
   top: 10px;
-  right: 12px;
+  right: 0;
   z-index: 2;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
-  gap: 4px;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 10px;
 }
 
 :root[data-theme="lcars"] .lcars-left-deco-mini-link {
   color: var(--lcars-text-dark);
   text-decoration: none;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.18em;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1;
+  white-space: nowrap;
 }
 
 :root[data-theme="lcars"] .lcars-left-deco-mini-link:hover {
