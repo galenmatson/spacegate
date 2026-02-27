@@ -1010,8 +1010,19 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
               <span
                 key={`lcars-deco-left-${idx}`}
                 className={`lcars-left-deco ${idx === 0 ? "lcars-left-deco-top" : "lcars-left-deco-bottom"}`}
-                aria-hidden="true"
-              />
+                aria-hidden={idx !== 0}
+              >
+                {idx === 0 && (
+                  <a
+                    href="https://thelcars.com"
+                    className="lcars-left-deco-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    LCARS interface
+                  </a>
+                )}
+              </span>
             ))}
           </div>
           <div className="lcars-top-center">
@@ -1054,6 +1065,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
           </div>
         </div>
       )}
+      {isLcars && <div className="lcars-header-bridge" aria-hidden="true" />}
       <header className="site-header">
         <div>
           <div className="eyebrow">Stellar Data Explorer</div>
@@ -1512,13 +1524,13 @@ function SearchPage() {
             />
 
             <TriStateToggle
-              label="Has confirmed planets"
+              label="Confirmed planets"
               value={hasPlanetsMode}
               onChange={setHasPlanetsMode}
             />
 
             <TriStateToggle
-              label="Habitable-like candidates"
+              label="Habitable candidates"
               value={hasHabitableMode}
               onChange={setHasHabitableMode}
             />

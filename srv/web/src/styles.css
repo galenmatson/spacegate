@@ -692,7 +692,26 @@ select:focus-visible {
 }
 
 :root[data-theme="lcars"] .lcars-left-deco-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px;
   border-radius: 0;
+}
+
+:root[data-theme="lcars"] .lcars-left-deco-link {
+  color: var(--lcars-text-dark);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+:root[data-theme="lcars"] .lcars-left-deco-link:hover {
+  text-decoration: underline;
 }
 
 :root[data-theme="lcars"] .lcars-left-deco-bottom {
@@ -710,7 +729,7 @@ select:focus-visible {
   right: 0;
   height: calc(100% + 30px);
   background: var(--lcars-blue);
-  border-radius: 0 0 0 34px;
+  border-radius: 0 0 0 68px;
 }
 
 :root[data-theme="lcars"] .lcars-top-center {
@@ -791,11 +810,43 @@ select:focus-visible {
   filter: brightness(1.07);
 }
 
+:root[data-theme="lcars"] .lcars-header-bridge {
+  position: relative;
+  height: 68px;
+  margin: -2px 0 0;
+  overflow: visible;
+  z-index: 3;
+}
+
+:root[data-theme="lcars"] .lcars-header-bridge::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--lcars-rail-width);
+  height: 68px;
+  background: var(--lcars-yellow);
+  border-radius: 68px 0 0 0;
+}
+
+:root[data-theme="lcars"] .lcars-header-bridge::after {
+  content: "";
+  position: absolute;
+  left: var(--lcars-rail-width);
+  right: 0;
+  top: 0;
+  height: 52px;
+  background:
+    linear-gradient(var(--lcars-yellow), var(--lcars-yellow)) top / 100% 18px no-repeat,
+    radial-gradient(circle at 100% 100%, #000 0 33px, transparent 34px) 0 18px / 34px 34px no-repeat,
+    linear-gradient(var(--lcars-yellow), var(--lcars-yellow)) 0 18px / 34px 34px no-repeat;
+}
+
 :root[data-theme="lcars"] .site-header {
   position: relative;
   background: #000;
   border: none;
-  border-radius: 34px 28px 28px 0;
+  border-radius: 0 28px 28px 0;
   box-shadow: none;
   overflow: hidden;
   padding: 24px 26px 20px calc(var(--lcars-rail-width) + 24px);
@@ -805,11 +856,11 @@ select:focus-visible {
   content: "";
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 0;
+  bottom: 0;
   width: var(--lcars-rail-width);
   background: var(--lcars-yellow);
-  border-radius: 34px 0 0 0;
+  border-radius: 0;
 }
 
 :root[data-theme="lcars"] .site-header::after {
@@ -935,7 +986,7 @@ select:focus-visible {
 }
 
 :root[data-theme="lcars"] main {
-  margin-top: 10px;
+  margin-top: 2px;
 }
 
 :root[data-theme="lcars"] .search-layout {
@@ -999,9 +1050,10 @@ select:focus-visible {
 }
 
 :root[data-theme="lcars"] .filters-panel {
-  width: var(--lcars-rail-width);
-  min-width: var(--lcars-rail-width);
-  max-width: var(--lcars-rail-width);
+  width: calc(var(--lcars-rail-width) + 2px);
+  min-width: calc(var(--lcars-rail-width) + 2px);
+  max-width: calc(var(--lcars-rail-width) + 2px);
+  margin-left: -1px;
   border-radius: 0;
   border: 2px solid #000;
   background: var(--lcars-yellow);
@@ -1014,9 +1066,23 @@ select:focus-visible {
 }
 
 :root[data-theme="lcars"] .filters-panel-collapsed-y {
-  width: var(--lcars-rail-width);
-  min-width: var(--lcars-rail-width);
-  max-width: var(--lcars-rail-width);
+  width: max-content;
+  min-width: calc(var(--lcars-rail-width) + 2px);
+  max-width: 100%;
+  margin-left: -1px;
+}
+
+:root[data-theme="lcars"] .search-layout.filters-collapsed-y .filters-panel-collapsed-y {
+  justify-self: start;
+}
+
+:root[data-theme="lcars"] .filters-panel-collapsed-y .filters-head-actions {
+  overflow-x: visible;
+}
+
+:root[data-theme="lcars"] .preset-button-inline {
+  width: auto;
+  flex: 0 0 auto;
 }
 
 :root[data-theme="lcars"] .filters-head h3 {
@@ -1027,6 +1093,10 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+:root[data-theme="lcars"] .filters-body.is-collapsed {
+  display: none;
 }
 
 :root[data-theme="lcars"] .filters-body > * {
@@ -3079,6 +3149,10 @@ main {
   }
 
   :root[data-theme="lcars"] .lcars-topbar::before {
+    display: none;
+  }
+
+  :root[data-theme="lcars"] .lcars-header-bridge {
     display: none;
   }
 
