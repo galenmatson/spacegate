@@ -28,6 +28,7 @@ One-screen Spacegate runtime monitor:
 - docker/host process status
 - nginx mode and health checks
 - build ID / served pointer
+- live HTTP connection states
 - recent nginx usage and error counts
 
 Options:
@@ -140,11 +141,33 @@ docker_services_running() {
   docker compose -f "$DOCKER_COMPOSE_FILE" ps --services --status running 2>/dev/null || true
 }
 
+compose_container_names() {
+  if ! cmd_exists docker || [[ ! -f "$DOCKER_COMPOSE_FILE" ]]; then
+    return 0
+  fi
+  docker compose -f "$DOCKER_COMPOSE_FILE" ps --format '{{.Name}}' 2>/dev/null || true
+}
+
 docker_stats_lines() {
   if ! cmd_exists docker; then
     return 0
   fi
-  docker stats --no-stream --format '{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}' 2>/dev/null | grep -E '^spacegate-(api|web)-' || true
+  local container_names
+  container_names="$(compose_container_names)"
+  if [[ -z "$container_names" ]]; then
+    return 0
+  fi
+  docker stats --no-stream --format '{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}' 2>/dev/null \
+    | awk -F'|' -v names="$container_names" '
+      BEGIN {
+        n = split(names, arr, "\n")
+        for (i = 1; i <= n; i++) {
+          if (arr[i] != "") wanted[arr[i]] = 1
+        }
+      }
+      wanted[$1] { print }
+    ' \
+    || true
 }
 
 pid_running_from_file() {
@@ -179,6 +202,74 @@ nginx_field() {
     return 0
   fi
   awk -v p="$pattern" '$1 == p {gsub(";", "", $2); print $2; exit}' "$NGINX_CONF" 2>/dev/null || true
+}
+
+nginx_listen_port() {
+  local listen
+  listen="$(nginx_field listen)"
+  if [[ -z "$listen" ]]; then
+    echo "80"
+    return 0
+  fi
+
+  if [[ "$listen" =~ :([0-9]+)$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  if [[ "$listen" =~ ^([0-9]+)$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  if [[ "$listen" =~ ([0-9]+) ]]; then
+    echo "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  echo "80"
+}
+
+nginx_conn_assignments() {
+  local port="$1"
+  if ! cmd_exists ss || [[ -z "$port" ]]; then
+    cat <<'OUT'
+HTTP_CONN_TOTAL=0
+HTTP_CONN_ESTAB=0
+HTTP_CONN_TIMEWAIT=0
+HTTP_CONN_SYNRECV=0
+HTTP_CONN_OTHER=0
+OUT
+    return 0
+  fi
+
+  ss -Htan state all "( sport = :${port} )" 2>/dev/null | awk '
+    BEGIN {
+      total = 0
+      estab = 0
+      timewait = 0
+      synrecv = 0
+      other = 0
+    }
+    {
+      state = $1
+      if (state == "LISTEN") next
+      total++
+      if (state == "ESTAB") {
+        estab++
+      } else if (state == "TIME-WAIT") {
+        timewait++
+      } else if (state == "SYN-RECV") {
+        synrecv++
+      } else {
+        other++
+      }
+    }
+    END {
+      printf("HTTP_CONN_TOTAL=%d\n", total)
+      printf("HTTP_CONN_ESTAB=%d\n", estab)
+      printf("HTTP_CONN_TIMEWAIT=%d\n", timewait)
+      printf("HTTP_CONN_SYNRECV=%d\n", synrecv)
+      printf("HTTP_CONN_OTHER=%d\n", other)
+    }
+  ' || true
 }
 
 nginx_api_upstream() {
@@ -335,6 +426,105 @@ for k, v in out.items():
 PY
 }
 
+nginx_interesting_events() {
+  python3 - "$NGINX_ACCESS_LOG" "$TAIL_LINES" "$WINDOW_MIN" <<'PY'
+import datetime
+import re
+import sys
+from time import time
+from collections import defaultdict, deque
+
+log_path = sys.argv[1]
+tail_lines = int(sys.argv[2])
+window_min = int(sys.argv[3])
+window_sec = window_min * 60
+
+pattern = re.compile(
+    r'^(?P<ip>\S+)\s+\S+\s+\S+\s+\[(?P<ts>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<path>\S+)\s+[^"]+"\s+(?P<code>\d{3})'
+)
+
+interesting = []
+auth_401 = defaultdict(int)
+suspicious_hits = defaultdict(int)
+
+try:
+    with open(log_path, "r", encoding="utf-8", errors="ignore") as fh:
+        lines = deque(fh, maxlen=tail_lines)
+except Exception:
+    print("LOG_EVENTS_READABLE=0")
+    raise SystemExit(0)
+
+now = time()
+for line in lines:
+    m = pattern.match(line)
+    if not m:
+        continue
+    ip = m.group("ip")
+    ts = m.group("ts")
+    try:
+        dt = datetime.datetime.strptime(ts, "%d/%b/%Y:%H:%M:%S %z")
+    except ValueError:
+        continue
+    if now - dt.timestamp() > window_sec:
+        continue
+    path = m.group("path")
+    code = int(m.group("code"))
+
+    sev = ""
+    reason = ""
+    include = False
+
+    if code >= 500:
+        sev = "ERR"
+        reason = "upstream-5xx"
+        include = True
+    elif code == 429:
+        sev = "WARN"
+        reason = "rate-limit"
+        include = True
+    elif code == 401 and path.startswith("/api/"):
+        sev = "WARN"
+        reason = "auth-401"
+        include = True
+        auth_401[ip] += 1
+    elif code >= 400 and path.startswith("/api/"):
+        sev = "WARN"
+        reason = "api-4xx"
+        include = True
+
+    # Common probe/scanner targets worth surfacing even with non-5xx responses.
+    lower_path = path.lower()
+    if (
+        "/wp-" in lower_path
+        or "wp-admin" in lower_path
+        or lower_path.endswith(".php")
+        or "/.env" in lower_path
+        or "phpmyadmin" in lower_path
+    ):
+        suspicious_hits[ip] += 1
+        if not include and code >= 400:
+            sev = "WARN"
+            reason = "probe-4xx"
+            include = True
+
+    if include:
+        interesting.append((sev, reason, ts, ip, str(code), path))
+
+print("LOG_EVENTS_READABLE=1")
+
+for ip, count in sorted(auth_401.items(), key=lambda x: x[1], reverse=True):
+    if count >= 5:
+        print(f"EVENT|WARN|auth-burst|now|{ip}|401|/api/* x{count}")
+
+for ip, count in sorted(suspicious_hits.items(), key=lambda x: x[1], reverse=True):
+    if count >= 3:
+        print(f"EVENT|WARN|probe-burst|now|{ip}|-|- x{count}")
+
+for sev, reason, ts, ip, code, path in interesting[-8:]:
+    print(f"EVENT|{sev}|{reason}|{ts}|{ip}|{code}|{path}")
+PY
+}
+
 render() {
   local now_utc
   now_utc="$(date -u +"%Y-%m-%d %H:%M:%SZ")"
@@ -388,9 +578,10 @@ render() {
   local served_link
   served_link="$(readlink "$STATE_DIR/served/current" 2>/dev/null || true)"
 
-  local server_name listen_port api_upstream web_mode
+  local server_name listen_port conn_port api_upstream web_mode
   server_name="$(nginx_field server_name)"
   listen_port="$(nginx_field listen)"
+  conn_port="$(nginx_listen_port)"
   api_upstream="$(nginx_api_upstream)"
   web_mode="$(nginx_web_mode)"
 
@@ -409,6 +600,42 @@ render() {
         ;;
     esac
   done < <(nginx_metrics_assignments)
+
+  local HTTP_CONN_TOTAL HTTP_CONN_ESTAB HTTP_CONN_TIMEWAIT HTTP_CONN_SYNRECV HTTP_CONN_OTHER
+  HTTP_CONN_TOTAL=0
+  HTTP_CONN_ESTAB=0
+  HTTP_CONN_TIMEWAIT=0
+  HTTP_CONN_SYNRECV=0
+  HTTP_CONN_OTHER=0
+  while IFS='=' read -r k v; do
+    case "$k" in
+      HTTP_CONN_TOTAL|HTTP_CONN_ESTAB|HTTP_CONN_TIMEWAIT|HTTP_CONN_SYNRECV|HTTP_CONN_OTHER)
+        printf -v "$k" '%s' "$v"
+        ;;
+    esac
+  done < <(nginx_conn_assignments "$conn_port")
+
+  local LOG_EVENTS_READABLE
+  LOG_EVENTS_READABLE=0
+  local -a event_lines
+  event_lines=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    if [[ "$line" == LOG_EVENTS_READABLE=* ]]; then
+      LOG_EVENTS_READABLE="${line#*=}"
+      continue
+    fi
+    if [[ "$line" == EVENT\|* ]]; then
+      local _tag sev reason ts ip code path color
+      IFS='|' read -r _tag sev reason ts ip code path <<<"$line"
+      case "$sev" in
+        ERR) color="$C_RED" ;;
+        WARN) color="$C_YELLOW" ;;
+        *) color="$C_DIM" ;;
+      esac
+      event_lines+=("  ${color}${sev}${C_RESET} ${ts} ip=${ip} code=${code} ${reason} ${path}")
+    fi
+  done < <(nginx_interesting_events)
 
   local disk_line
   disk_line="$(df -h "$STATE_DIR" 2>/dev/null | awk 'NR==2{printf "%s free / %s total (%s used)", $4, $2, $5}' || true)"
@@ -456,11 +683,25 @@ render() {
   printf '%s[%sUSAGE %sm%s]%s req=%s api=%s search=%s uniq_ip=%s err4=%s err5=%s %s\n' \
     "$C_CYAN" "$C_MAGENTA" "$WINDOW_MIN" "$C_CYAN" "$C_RESET" \
     "$TOTAL_REQ" "$API_REQ" "$SEARCH_REQ" "$UNIQ_IP" "$ERR_4XX" "$ERR_5XX" "$(badge "$err_state")"
+  printf '  conn(:%s): total=%s estab=%s timewait=%s synrecv=%s other=%s\n' \
+    "$conn_port" "$HTTP_CONN_TOTAL" "$HTTP_CONN_ESTAB" "$HTTP_CONN_TIMEWAIT" "$HTTP_CONN_SYNRECV" "$HTTP_CONN_OTHER"
   if [[ "$LOG_READABLE" != "1" ]]; then
     printf '  %snginx access log not readable at %s%s\n' "$C_DIM" "$NGINX_ACCESS_LOG" "$C_RESET"
   fi
 
   printf '%s[%sSYSTEM%s]%s disk=%s  load=%s\n' "$C_CYAN" "$C_MAGENTA" "$C_CYAN" "$C_RESET" "$disk_line" "$load_line"
+
+  printf '%s[%sEVENTS%s]%s\n' "$C_CYAN" "$C_MAGENTA" "$C_CYAN" "$C_RESET"
+  if [[ "${#event_lines[@]}" -gt 0 ]]; then
+    local line
+    for line in "${event_lines[@]}"; do
+      printf '%s\n' "$line"
+    done
+  elif [[ "$LOG_EVENTS_READABLE" == "1" ]]; then
+    printf '  %sNo notable log events in recent tail.%s\n' "$C_DIM" "$C_RESET"
+  else
+    printf '  %snginx access log not readable at %s%s\n' "$C_DIM" "$NGINX_ACCESS_LOG" "$C_RESET"
+  fi
 
   local dstats
   dstats="$(docker_stats_lines)"
@@ -476,9 +717,18 @@ render() {
 }
 
 if [[ "$WATCH_SEC" =~ ^[0-9]+$ ]] && (( WATCH_SEC > 0 )); then
+  if [[ -t 1 ]]; then
+    printf '\033[2J\033[H\033[?25l'
+    trap 'printf "\033[?25h"' EXIT INT TERM
+  fi
   while true; do
-    clear
+    if [[ -t 1 ]]; then
+      printf '\033[H'
+    fi
     render
+    if [[ -t 1 ]]; then
+      printf '\033[J'
+    fi
     sleep "$WATCH_SEC"
   done
 else
