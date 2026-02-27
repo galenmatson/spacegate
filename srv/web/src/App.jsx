@@ -1067,6 +1067,19 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
                     LCARS interface
                   </a>
                 )}
+                {idx === 1 && (
+                  <span className="lcars-left-deco-bottom-links" aria-label="Site links">
+                    <Link to={HEADER_ABOUT_LINK} className="lcars-left-deco-mini-link">ABT</Link>
+                    <a
+                      href={HEADER_SPONSOR_LINK}
+                      className="lcars-left-deco-mini-link"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      SPT
+                    </a>
+                  </span>
+                )}
               </span>
             ))}
           </div>
