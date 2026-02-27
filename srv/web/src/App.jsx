@@ -94,6 +94,8 @@ const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
 const HEADER_ABOUT_LINK = "/about";
 const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
+const HEADER_ABOUT_TITLE = "About this site";
+const HEADER_SPONSOR_TITLE = "Support this project";
 const MARKDOWN_CONTENT = import.meta.glob("../content/*.md", {
   eager: true,
   import: "default",
@@ -1185,12 +1187,13 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
                 )}
                 {idx === 1 && (
                   <span className="lcars-left-deco-bottom-links" aria-label="Site links">
-                    <Link to={HEADER_ABOUT_LINK} className="lcars-left-deco-mini-link">ABT</Link>
+                    <Link to={HEADER_ABOUT_LINK} className="lcars-left-deco-mini-link" title={HEADER_ABOUT_TITLE}>ABT</Link>
                     <a
                       href={HEADER_SPONSOR_LINK}
                       className="lcars-left-deco-mini-link"
                       target="_blank"
                       rel="noreferrer"
+                      title={HEADER_SPONSOR_TITLE}
                     >
                       SPT
                     </a>
@@ -1244,8 +1247,8 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
         {!isLcars && (
           <div className="header-topline">
             <div className="header-top-links" aria-label="Site links">
-              <Link to={HEADER_ABOUT_LINK} className="header-top-link">ABT</Link>
-              <a href={HEADER_SPONSOR_LINK} className="header-top-link" target="_blank" rel="noreferrer">SPT</a>
+              <Link to={HEADER_ABOUT_LINK} className="header-top-link" title={HEADER_ABOUT_TITLE}>ABT</Link>
+              <a href={HEADER_SPONSOR_LINK} className="header-top-link" target="_blank" rel="noreferrer" title={HEADER_SPONSOR_TITLE}>SPT</a>
             </div>
           </div>
         )}
