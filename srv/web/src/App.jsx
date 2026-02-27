@@ -85,7 +85,9 @@ const LCARS_HISTORY_STORAGE_KEY = "spacegate.lcars.history";
 const LCARS_HISTORY_LIMIT = 32;
 const LCARS_LEFT_DECORATIVE_CHIP_COUNT = 2;
 const LCARS_RIGHT_CHIP_COUNT = 4;
-const LCARS_TEXT_SLOTS_PER_LINE = 8;
+const LCARS_TEXT_SLOTS_PER_LINE = 5;
+const LCARS_TEXT_ROW_COUNT = 5;
+const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
 
 function isEditableTarget(target) {
@@ -339,6 +341,11 @@ function CompactRangeControl({
     integer ? String(Math.round(value)) : Number(value).toFixed(step < 1 ? 1 : 0)
   );
   const displayUnit = unit ? ` ${unit}` : "";
+  const span = maxLimit - minLimit;
+  const minPercent = span > 0 ? ((valueMin - minLimit) / span) * 100 : 0;
+  const maxPercent = span > 0 ? ((valueMax - minLimit) / span) * 100 : 100;
+  const fillLeft = clampNumber(minPercent, 0, 100);
+  const fillWidth = clampNumber(maxPercent - minPercent, 0, 100);
 
   return (
     <div className="field compact-range">
@@ -347,10 +354,17 @@ function CompactRangeControl({
         <small>{formatValue(valueMin)} - {formatValue(valueMax)}{displayUnit}</small>
       </div>
       <div className="compact-range-body">
-        <label className="compact-bound">
-          <span>Min</span>
+        <div className="compact-range-slider" role="group" aria-label={`${label} range slider`}>
+          <div className="compact-range-track-window" aria-hidden="true">
+            <div className="compact-range-track" />
+            <div
+              className="compact-range-track-fill"
+              style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+            />
+          </div>
           <input
             type="range"
+            className="dual-range dual-range-min"
             min={minLimit}
             max={maxLimit}
             step={step}
@@ -362,26 +376,8 @@ function CompactRangeControl({
             }}
           />
           <input
-            type="number"
-            min={minLimit}
-            max={maxLimit}
-            step={step}
-            value={valueMin}
-            aria-label={`${label} minimum value`}
-            onChange={(event) => {
-              const parsed = Number(event.target.value);
-              if (!Number.isFinite(parsed)) {
-                return;
-              }
-              const next = clampNumber(parsed, minLimit, valueMax);
-              onChangeMin(integer ? Math.round(next) : next);
-            }}
-          />
-        </label>
-        <label className="compact-bound">
-          <span>Max</span>
-          <input
             type="range"
+            className="dual-range dual-range-max"
             min={minLimit}
             max={maxLimit}
             step={step}
@@ -392,23 +388,53 @@ function CompactRangeControl({
               onChangeMax(integer ? Math.round(next) : next);
             }}
           />
-          <input
-            type="number"
-            min={minLimit}
-            max={maxLimit}
-            step={step}
-            value={valueMax}
-            aria-label={`${label} maximum value`}
-            onChange={(event) => {
-              const parsed = Number(event.target.value);
-              if (!Number.isFinite(parsed)) {
-                return;
-              }
-              const next = clampNumber(parsed, valueMin, maxLimit);
-              onChangeMax(integer ? Math.round(next) : next);
-            }}
-          />
-        </label>
+        </div>
+
+        <div className="compact-range-guides" aria-hidden="true">
+          <span>Min</span>
+          <span>Max</span>
+        </div>
+
+        <div className="compact-range-inputs">
+          <label className="compact-bound compact-bound-inline">
+            <span className="sr-only">Min</span>
+            <input
+              type="number"
+              min={minLimit}
+              max={maxLimit}
+              step={step}
+              value={valueMin}
+              aria-label={`${label} minimum value`}
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                if (!Number.isFinite(parsed)) {
+                  return;
+                }
+                const next = clampNumber(parsed, minLimit, valueMax);
+                onChangeMin(integer ? Math.round(next) : next);
+              }}
+            />
+          </label>
+          <label className="compact-bound compact-bound-inline">
+            <span className="sr-only">Max</span>
+            <input
+              type="number"
+              min={minLimit}
+              max={maxLimit}
+              step={step}
+              value={valueMax}
+              aria-label={`${label} maximum value`}
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                if (!Number.isFinite(parsed)) {
+                  return;
+                }
+                const next = clampNumber(parsed, valueMin, maxLimit);
+                onChangeMax(integer ? Math.round(next) : next);
+              }}
+            />
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -842,7 +868,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
   const lcarsHistoryDisplay = useMemo(
     () => lcarsHistory
       .filter((entry) => String(entry.system_id) !== currentSystemId)
-      .slice(0, LCARS_RIGHT_CHIP_COUNT + (LCARS_TEXT_SLOTS_PER_LINE * 2)),
+      .slice(0, LCARS_RIGHT_CHIP_COUNT + LCARS_TEXT_MAX_SLOTS),
     [lcarsHistory, currentSystemId],
   );
 
@@ -895,18 +921,17 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       title: entry.system_name || `Gaia ${entry.gaia}`,
     }));
     const slots = [];
-    const maxSlots = LCARS_TEXT_SLOTS_PER_LINE * 2;
-    for (let idx = 0; idx < maxSlots; idx += 1) {
+    for (let idx = 0; idx < LCARS_TEXT_MAX_SLOTS; idx += 1) {
       if (idx < historyEntries.length) {
         slots.push(historyEntries[idx]);
       } else {
         slots.push(pool[idx % pool.length] || { label: "Gaia", system_id: null, title: "Gaia" });
       }
     }
-    return [
-      slots.slice(0, LCARS_TEXT_SLOTS_PER_LINE),
-      slots.slice(LCARS_TEXT_SLOTS_PER_LINE),
-    ];
+    return Array.from({ length: LCARS_TEXT_ROW_COUNT }, (_, rowIdx) => {
+      const start = rowIdx * LCARS_TEXT_SLOTS_PER_LINE;
+      return slots.slice(start, start + LCARS_TEXT_SLOTS_PER_LINE);
+    });
   }, [lcarsGaiaPool, lcarsHistoryDisplay]);
 
   useEffect(() => {
@@ -924,14 +949,14 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
         const items = Array.isArray(data?.items) ? data.items : [];
         if (!cancelled) {
           setLcarsChipSystems(pickRandomSystems(items, LCARS_RIGHT_CHIP_COUNT));
-          setLcarsGaiaPool(pickRandomGaiaEntries(items, LCARS_TEXT_SLOTS_PER_LINE * 2));
+          setLcarsGaiaPool(pickRandomGaiaEntries(items, LCARS_TEXT_MAX_SLOTS));
         }
       } catch (_) {
         if (!cancelled) {
           setLcarsChipSystems(pickRandomSystems([], LCARS_RIGHT_CHIP_COUNT));
           setLcarsGaiaPool(
             LCARS_FALLBACK_GAIA
-              .slice(0, LCARS_TEXT_SLOTS_PER_LINE * 2)
+              .slice(0, LCARS_TEXT_MAX_SLOTS)
               .map((gaia) => ({ gaia, system_id: null, system_name: "" })),
           );
         }
