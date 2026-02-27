@@ -343,6 +343,8 @@ body {
 }
 
 .site-header {
+  --header-utility-top: 10px;
+  --header-utility-height: 18px;
   position: relative;
   display: flex;
   justify-content: space-between;
@@ -357,13 +359,13 @@ body {
 
 .header-topline {
   position: absolute;
-  top: 10px;
+  top: var(--header-utility-top);
   right: 24px;
   left: 24px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  min-height: 18px;
+  height: var(--header-utility-height);
   z-index: 2;
   pointer-events: none;
 }
@@ -373,6 +375,7 @@ body {
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
+  min-height: 100%;
   pointer-events: auto;
 }
 
@@ -579,10 +582,21 @@ select:focus-visible {
 }
 
 :root[data-theme="cyberpunk"] .site-header {
+  --header-utility-top: 0;
+  --header-utility-height: 24px;
   padding-top: 38px;
   background:
     radial-gradient(circle at 90% 0%, rgba(255, 79, 216, 0.24) 0%, rgba(255, 79, 216, 0) 38%),
     linear-gradient(135deg, #21104b 0%, #191040 47%, #130f32 100%);
+}
+
+:root[data-theme="cyberpunk"] .header-top-link {
+  color: var(--cp-cyan);
+  opacity: 0.84;
+}
+
+:root[data-theme="cyberpunk"] .header-top-link:hover {
+  color: #ffffff;
 }
 
 :root[data-theme="cyberpunk"] .site-header::before {
@@ -1435,9 +1449,27 @@ select:focus-visible {
 }
 
 :root[data-theme="retro_90s"] .site-header {
+  --header-utility-top: 0;
+  --header-utility-height: 28px;
   position: relative;
   padding-top: 40px;
   overflow: hidden;
+}
+
+:root[data-theme="retro_90s"] .header-topline {
+  right: 18px;
+}
+
+:root[data-theme="retro_90s"] .header-top-link {
+  color: #f3f3f3;
+  opacity: 1;
+  font-family: "Tahoma", "Verdana", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+:root[data-theme="retro_90s"] .header-top-link:hover {
+  color: #ffffff;
 }
 
 :root[data-theme="retro_90s"] .site-header::before {
@@ -1591,12 +1623,13 @@ select:focus-visible {
 }
 
 :root[data-theme="mission_control"] .site-header {
+  --header-utility-top: 0;
+  --header-utility-height: 24px;
   overflow: hidden;
   padding-top: 34px;
 }
 
 :root[data-theme="mission_control"] .header-topline {
-  top: 5px;
   right: 88px;
 }
 
@@ -1773,12 +1806,13 @@ select:focus-visible {
 }
 
 :root[data-theme="aurora"] .site-header {
+  --header-utility-top: 0;
+  --header-utility-height: 22px;
   overflow: hidden;
   padding-top: 34px;
 }
 
 :root[data-theme="aurora"] .header-topline {
-  top: 3px;
   right: 22px;
 }
 
@@ -1888,12 +1922,13 @@ select:focus-visible {
 }
 
 :root[data-theme="deep_space_minimal"] .site-header {
+  --header-utility-top: 0;
+  --header-utility-height: 22px;
   overflow: hidden;
   padding-top: 34px;
 }
 
 :root[data-theme="deep_space_minimal"] .header-topline {
-  top: 2px;
   right: 20px;
 }
 

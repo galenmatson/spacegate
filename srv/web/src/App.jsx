@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchSystemDetail, fetchSystems } from "./api.js";
-import aboutMarkdown from "../content/about.md?raw";
 
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"];
 const THEME_STORAGE_KEY = "spacegate.theme";
@@ -92,6 +93,17 @@ const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
 const HEADER_ABOUT_LINK = "/about";
 const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
+const MARKDOWN_CONTENT = import.meta.glob("../content/*.md", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+});
+const ABOUT_MARKDOWN = typeof MARKDOWN_CONTENT["../content/about.md"] === "string"
+  ? MARKDOWN_CONTENT["../content/about.md"]
+  : `# About Spacegate
+
+About content is not available in this checkout.
+`;
 
 function isEditableTarget(target) {
   if (!(target instanceof Element)) {
@@ -151,148 +163,32 @@ function useThemeControls() {
   return React.useContext(ThemeContext);
 }
 
-function renderInlineMarkdown(text, keyPrefix) {
-  const source = String(text || "");
-  if (!source) {
-    return "";
-  }
-  const pattern = /(\*\*[^*]+\*\*|https?:\/\/[^\s]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
-  const parts = [];
-  let lastIndex = 0;
-  let match;
-  let tokenIndex = 0;
-  while ((match = pattern.exec(source)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(source.slice(lastIndex, match.index));
-    }
-    const token = match[0];
-    if (token.startsWith("**") && token.endsWith("**")) {
-      parts.push(
-        <strong key={`${keyPrefix}-strong-${tokenIndex}`}>
-          {token.slice(2, -2)}
-        </strong>,
-      );
-    } else if (token.includes("@") && !token.startsWith("http")) {
-      parts.push(
-        <a key={`${keyPrefix}-mail-${tokenIndex}`} href={`mailto:${token}`}>
-          {token}
-        </a>,
-      );
-    } else {
-      parts.push(
-        <a key={`${keyPrefix}-link-${tokenIndex}`} href={token} target="_blank" rel="noreferrer">
-          {token}
-        </a>,
-      );
-    }
-    lastIndex = pattern.lastIndex;
-    tokenIndex += 1;
-  }
-  if (lastIndex < source.length) {
-    parts.push(source.slice(lastIndex));
-  }
-  return parts;
-}
-
-function parseMarkdownBlocks(markdown) {
-  const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
-  const blocks = [];
-  let paragraphLines = [];
-  let listItems = [];
-
-  const flushParagraph = () => {
-    if (paragraphLines.length === 0) {
-      return;
-    }
-    blocks.push({
-      type: "paragraph",
-      text: paragraphLines.join(" ").replace(/\s+/g, " ").trim(),
-    });
-    paragraphLines = [];
-  };
-
-  const flushList = () => {
-    if (listItems.length === 0) {
-      return;
-    }
-    blocks.push({
-      type: "list",
-      items: listItems.slice(),
-    });
-    listItems = [];
-  };
-
-  for (const rawLine of lines) {
-    const line = rawLine.trimEnd();
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-    if (/^-{3,}$/.test(trimmed)) {
-      flushParagraph();
-      flushList();
-      blocks.push({ type: "hr" });
-      continue;
-    }
-    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
-    if (headingMatch) {
-      flushParagraph();
-      flushList();
-      blocks.push({
-        type: "heading",
-        level: headingMatch[1].length,
-        text: headingMatch[2].trim(),
-      });
-      continue;
-    }
-    const listMatch = trimmed.match(/^-\s+(.*)$/);
-    if (listMatch) {
-      flushParagraph();
-      listItems.push(listMatch[1].trim());
-      continue;
-    }
-    flushList();
-    paragraphLines.push(trimmed);
-  }
-
-  flushParagraph();
-  flushList();
-  return blocks;
-}
-
 function MarkdownContent({ markdown }) {
-  const blocks = useMemo(() => parseMarkdownBlocks(markdown), [markdown]);
   return (
     <div className="markdown-content">
-      {blocks.map((block, index) => {
-        if (block.type === "heading") {
-          if (block.level === 1) {
-            return <h2 key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</h2>;
-          }
-          if (block.level === 2) {
-            return <h3 key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</h3>;
-          }
-          return <h4 key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</h4>;
-        }
-        if (block.type === "list") {
-          return (
-            <ul key={`block-${index}`}>
-              {block.items.map((item, itemIndex) => (
-                <li key={`block-${index}-item-${itemIndex}`}>
-                  {renderInlineMarkdown(item, `block-${index}-item-${itemIndex}`)}
-                </li>
-              ))}
-            </ul>
-          );
-        }
-        if (block.type === "hr") {
-          return <hr key={`block-${index}`} />;
-        }
-        return <p key={`block-${index}`}>{renderInlineMarkdown(block.text, `block-${index}`)}</p>;
-      })}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <h2>{children}</h2>,
+          h2: ({ children }) => <h3>{children}</h3>,
+          h3: ({ children }) => <h4>{children}</h4>,
+          a: ({ href, children }) => {
+            const url = String(href || "");
+            const external = /^https?:\/\//i.test(url);
+            return (
+              <a
+                href={url}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noreferrer" : undefined}
+              >
+                {children}
+              </a>
+            );
+          },
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -1261,7 +1157,7 @@ function AboutPage() {
     <Layout>
       <section className="detail-layout">
         <section className="panel markdown-panel">
-          <MarkdownContent markdown={aboutMarkdown} />
+          <MarkdownContent markdown={ABOUT_MARKDOWN} />
         </section>
       </section>
     </Layout>
