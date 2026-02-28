@@ -427,10 +427,6 @@ function CompactRangeControl({
 }) {
   const valueMin = clampNumber(Math.min(minValue, maxValue), minLimit, maxLimit);
   const valueMax = clampNumber(Math.max(minValue, maxValue), minLimit, maxLimit);
-  const formatValue = (value) => (
-    integer ? String(Math.round(value)) : Number(value).toFixed(step < 1 ? 1 : 0)
-  );
-  const displayUnit = unit ? ` ${unit}` : "";
   const span = maxLimit - minLimit;
   const minPercent = span > 0 ? ((valueMin - minLimit) / span) * 100 : 0;
   const maxPercent = span > 0 ? ((valueMax - minLimit) / span) * 100 : 100;
@@ -441,7 +437,6 @@ function CompactRangeControl({
     <div className="field compact-range">
       <div className="compact-range-head">
         <span>{label}</span>
-        <small>{formatValue(valueMin)} - {formatValue(valueMax)}{displayUnit}</small>
       </div>
       <div className="compact-range-body">
         <div className="compact-range-slider" role="group" aria-label={`${label} range slider`}>

@@ -2106,7 +2106,7 @@ main {
 
 .search-layout {
   display: grid;
-  grid-template-columns: minmax(200px, 270px) minmax(0, 1fr);
+  grid-template-columns: minmax(180px, 188px) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -2190,7 +2190,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px;
+  padding: 14px 12px;
   max-width: 100%;
 }
 
@@ -2303,20 +2303,13 @@ main {
   border: 1px solid rgba(23, 37, 47, 0.12);
   background: var(--surface-soft);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 10px;
 }
 
 .compact-range-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.compact-range-head small {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 600;
+  min-height: 1em;
 }
 
 .compact-range-body {
