@@ -710,6 +710,10 @@ select:focus-visible {
   border-color: rgba(112, 247, 255, 0.24);
 }
 
+:root[data-theme="cyberpunk"] .search-layout {
+  grid-template-columns: minmax(208px, 222px) minmax(0, 1fr);
+}
+
 :root[data-theme="cyberpunk"] .tri-state-btn.active,
 :root[data-theme="cyberpunk"] .chip.active {
   background: linear-gradient(90deg, rgba(112, 247, 255, 0.23) 0%, rgba(255, 79, 216, 0.22) 100%);
@@ -1632,6 +1636,10 @@ select:focus-visible {
 :root[data-theme="retro_90s"] .metric-chip,
 :root[data-theme="retro_90s"] .snapshot-meta {
   background: #cbcbcb;
+}
+
+:root[data-theme="retro_90s"] .search-layout {
+  grid-template-columns: minmax(208px, 222px) minmax(0, 1fr);
 }
 
 :root[data-theme="retro_90s"] .tri-state-btn.active,
