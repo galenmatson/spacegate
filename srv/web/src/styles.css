@@ -1867,6 +1867,34 @@ select:focus-visible {
   backdrop-filter: blur(8px);
 }
 
+:root[data-theme="aurora"] .result-card::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(93, 255, 215, 0.16) 0%, rgba(93, 255, 215, 0) 42%),
+    radial-gradient(circle at 78% 40%, rgba(141, 125, 255, 0.18) 0%, rgba(141, 125, 255, 0) 46%),
+    radial-gradient(circle at 55% 72%, rgba(255, 136, 231, 0.15) 0%, rgba(255, 136, 231, 0) 44%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-6%, 0, 0) scale(1.02);
+  transition: opacity 0.24s ease;
+}
+
+:root[data-theme="aurora"] .result-card:hover {
+  border-color: rgba(157, 233, 255, 0.82);
+  box-shadow:
+    0 18px 42px rgba(9, 14, 42, 0.58),
+    0 0 0 1px rgba(157, 233, 255, 0.12),
+    0 0 34px rgba(93, 255, 215, 0.18),
+    inset 0 1px 0 rgba(236, 245, 255, 0.14);
+}
+
+:root[data-theme="aurora"] .result-card:hover::after {
+  opacity: 1;
+  animation: aurora-card-drift 3.8s ease-in-out infinite alternate;
+}
+
 :root[data-theme="aurora"] .site-header {
   --header-utility-top: 0;
   --header-utility-height: 22px;
@@ -1951,6 +1979,21 @@ select:focus-visible {
 
 :root[data-theme="aurora"] a {
   color: var(--au-ice);
+}
+
+@keyframes aurora-card-drift {
+  0% {
+    transform: translate3d(-8%, -2%, 0) scale(1.02) rotate(-1.2deg);
+    filter: blur(2px) saturate(104%);
+  }
+  50% {
+    transform: translate3d(3%, 2%, 0) scale(1.06) rotate(0.8deg);
+    filter: blur(6px) saturate(114%);
+  }
+  100% {
+    transform: translate3d(9%, -1%, 0) scale(1.03) rotate(-0.6deg);
+    filter: blur(3px) saturate(108%);
+  }
 }
 
 :root[data-theme="deep_space_minimal"] .site-header,

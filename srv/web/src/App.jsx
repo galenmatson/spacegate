@@ -178,6 +178,13 @@ function useThemeControls() {
   return React.useContext(ThemeContext);
 }
 
+function presetLabelForTheme(preset, theme) {
+  if (preset?.id === "habitable_like" && (theme === "cyberpunk" || theme === "retro_90s")) {
+    return "Habitable";
+  }
+  return preset?.label || "";
+}
+
 function MarkdownContent({ markdown }) {
   return (
     <div className="markdown-content">
@@ -1210,6 +1217,7 @@ function DataPage() {
 }
 
 function SearchPage() {
+  const { theme } = useThemeControls();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get("q") || "");
@@ -1551,7 +1559,7 @@ function SearchPage() {
                       onClick={() => applyPreset(preset)}
                       disabled={loading}
                     >
-                      {preset.label}
+                      {presetLabelForTheme(preset, theme)}
                     </button>
                   ))}
                 </div>
@@ -1578,7 +1586,7 @@ function SearchPage() {
                   onClick={() => applyPreset(preset)}
                   disabled={loading}
                 >
-                  {preset.label}
+                  {presetLabelForTheme(preset, theme)}
                 </button>
               ))}
             </div>
