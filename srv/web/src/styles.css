@@ -395,6 +395,19 @@ body {
   text-underline-offset: 0.18em;
 }
 
+.filters-footer {
+  display: none;
+}
+
+.filters-footer-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.filters-footer-link:hover {
+  text-decoration: underline;
+}
+
 .site-header h1 {
   margin: 8px 0 0;
   font-size: clamp(1.9rem, 2.8vw, 2.4rem);
@@ -795,10 +808,7 @@ select:focus-visible {
 }
 
 :root[data-theme="lcars"] .lcars-left-deco-top {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 10px;
+  display: block;
   border-radius: 0;
 }
 
@@ -1242,6 +1252,29 @@ select:focus-visible {
   border-bottom: 2px solid #000;
 }
 
+:root[data-theme="lcars"] .filters-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 10px 10px 0;
+  border-top: 2px solid #000;
+}
+
+:root[data-theme="lcars"] .filters-footer-link {
+  color: var(--lcars-text-dark);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+:root[data-theme="lcars"] .filters-footer-link:hover {
+  text-decoration: underline;
+}
+
 :root[data-theme="lcars"] .filters-body > :nth-child(1) {
   background: #c894d5;
 }
@@ -1502,7 +1535,7 @@ select:focus-visible {
 }
 
 :root[data-theme="retro_90s"] .site-header::before {
-  content: "SPACEGATE BROWSER :: LIVE DATA FEED";
+  content: "COOLSTARS BROWSER :: LIVE DATA FEED";
   position: absolute;
   left: 0;
   right: 0;

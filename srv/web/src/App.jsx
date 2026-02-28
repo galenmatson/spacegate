@@ -91,6 +91,7 @@ const LCARS_TEXT_SLOTS_PER_LINE = 5;
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
+const APP_DISPLAY_NAME = "CoolStars";
 const HEADER_ABOUT_LINK = "/about";
 const HEADER_DATA_LINK = "/data";
 const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
@@ -1101,16 +1102,6 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
                 className={`lcars-left-deco ${idx === 0 ? "lcars-left-deco-top" : "lcars-left-deco-bottom"}`}
                 aria-hidden={idx !== 0}
               >
-                {idx === 0 && (
-                  <a
-                    href="https://thelcars.com"
-                    className="lcars-left-deco-link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    LCARS interface
-                  </a>
-                )}
                 {idx === 1 && (
                   <HeaderNavLinks
                     className="lcars-left-deco-bottom-links"
@@ -1170,7 +1161,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
         <div>
           <div className="eyebrow">Stellar Data Explorer</div>
           <div className="title-row">
-            <h1><a href="/" className="title-link">Spacegate</a></h1>
+            <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
             <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
           </div>
         </div>
@@ -1671,6 +1662,17 @@ function SearchPage() {
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="filters-footer">
+            <a
+              href="https://thelcars.com"
+              className="filters-footer-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              LCARS interface
+            </a>
           </div>
         </form>
 
