@@ -158,7 +158,7 @@ Required env vars (production):
 - `SPACEGATE_OIDC_ISSUER=https://accounts.google.com`
 - `SPACEGATE_OIDC_CLIENT_ID=...`
 - `SPACEGATE_OIDC_CLIENT_SECRET=...`
-- `SPACEGATE_OIDC_REDIRECT_URI=https://spacegates.org/api/v1/auth/callback/google`
+- `SPACEGATE_OIDC_REDIRECT_URI=https://coolstars.org/api/v1/auth/callback/google`
 - `SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v1/admin/ui`
 - `SPACEGATE_ADMIN_DB_PATH=$SPACEGATE_STATE_DIR/admin/admin.sqlite3`
 - `SPACEGATE_SESSION_SECRET=...` (high-entropy secret for signing)

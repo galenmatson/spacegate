@@ -12,7 +12,8 @@ fi
 
 REMOTE="${SPACEGATE_DEPLOY_REMOTE:-sgdeploy@antiproton}"
 REMOTE_APP_DIR="${SPACEGATE_DEPLOY_REMOTE_APP_DIR:-/srv/spacegate/app}"
-PUBLIC_BASE_URL="${SPACEGATE_DEPLOY_PUBLIC_URL:-https://spacegates.org}"
+DEFAULT_PUBLIC_BASE_URL="${SPACEGATE_PUBLIC_BASE_URL:-https://coolstars.org}"
+PUBLIC_BASE_URL="${SPACEGATE_DEPLOY_PUBLIC_URL:-$DEFAULT_PUBLIC_BASE_URL}"
 EXPECT_AUTH="${SPACEGATE_DEPLOY_EXPECT_AUTH:-enabled}" # enabled|disabled|skip
 SSH_KEY_PATH="${SPACEGATE_DEPLOY_SSH_KEY:-$HOME/.ssh/spacegate_antiproton}"
 BUILD_IMAGES=1
@@ -35,7 +36,7 @@ run post-deploy health/auth checks. Protects remote env secrets by excluding:
 Options:
   --remote HOST          SSH target (default: sgdeploy@antiproton)
   --remote-app-dir PATH  Remote app root (default: /srv/spacegate/app)
-  --public-url URL       Public base URL to verify (default: https://spacegates.org)
+  --public-url URL       Public base URL to verify (default: SPACEGATE_DEPLOY_PUBLIC_URL or SPACEGATE_PUBLIC_BASE_URL, else https://coolstars.org)
   --expect-auth MODE     enabled|disabled|skip (default: enabled)
   --ssh-key PATH         SSH private key path (default: ~/.ssh/spacegate_antiproton)
   --no-build             Restart containers without --build

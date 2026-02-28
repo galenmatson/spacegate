@@ -77,7 +77,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 
 ## Deployment (v0.1)
 - [x] Host UI/API on production cloud infrastructure
-- [x] Public at `spacegates.org`
+- [x] Public at `coolstars.org` (`spacegates.org` redirects)
 
 ## v0.1.5 Admin Control Plane + Auth Foundation
 - [x] Draft Checkpoint A implementation spec (`docs/ADMIN_AUTH_SPEC.md`)

@@ -13,7 +13,8 @@ OUT_DIR="$STATE_DIR/out"
 CACHE_DIR="${SPACEGATE_CACHE_DIR:-$STATE_DIR/cache}"
 DOWNLOAD_DIR="${SPACEGATE_BOOTSTRAP_DOWNLOAD_DIR:-$CACHE_DIR/downloads}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
-META_URL="${SPACEGATE_BOOTSTRAP_META_URL:-https://spacegates.org/dl/current.json}"
+PUBLIC_BASE_URL="${SPACEGATE_PUBLIC_BASE_URL:-https://coolstars.org}"
+META_URL="${SPACEGATE_BOOTSTRAP_META_URL:-${PUBLIC_BASE_URL%/}/dl/current.json}"
 BASE_URL="${SPACEGATE_BOOTSTRAP_BASE_URL:-}"
 
 usage() {
@@ -26,7 +27,7 @@ extracts it into $SPACEGATE_STATE_DIR/out/<BUILD_ID>, and promotes it.
 
 Options:
   --overwrite      Re-download archive and replace an existing extracted build.
-  --meta-url URL   Metadata URL (default: https://spacegates.org/dl/current.json).
+  --meta-url URL   Metadata URL (default: SPACEGATE_BOOTSTRAP_META_URL or SPACEGATE_PUBLIC_BASE_URL/dl/current.json; default public base https://coolstars.org).
   --base-url URL   Base URL for relative artifact paths in metadata.
 USAGE
 }

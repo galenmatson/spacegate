@@ -332,7 +332,7 @@ Success criteria:
 Success criteria:
 - “Spacegate browser” UI
 - Hosted on production cloud infrastructure
-- Public at spacegates.org
+- Public at coolstars.org (`spacegates.org` redirects)
 - Attractive, searchable, filterable interface
 - Reads core data in v0.1 (optional packs and lore overlays are later milestones)
 
@@ -1173,12 +1173,12 @@ Detection catalogs (raw survey detections; not “objects”):
 - dark mode with a slider, a sun on one side and moon on the other side of the slider
 - add political maps from popular scifi franchises like Star Trek and BATTLETECH.
 
-# Status (as of 2026-02-21)
+# Status (as of 2026-02-28)
 - Core ingestion pipeline complete (AT-HYG + NASA exoplanets).
 - Morton indexing implemented (21 bits/axis, ±1000 ly), Parquet outputs sorted by spatial_index.
 - `$SPACEGATE_STATE_DIR/served/current` promoted to latest build.
 - CLI explorer available: `scripts/explore_core.py`.
-- Public deployment live at `spacegates.org` (provider details intentionally excluded from repo docs).
+- Public deployment live at `coolstars.org`; `spacegates.org` currently redirects there and is reserved for project/community/backend use.
 - Published bootstrap metadata (`current.json`) includes artifact checksums and report references.
 - v0.1.5 Admin Control Plane checkpoints A-D implemented (OIDC auth, allowlist, action runner, audit).
 - v0.2 Coolness checkpoints A and B implemented (scoring outputs, profile contract, CLI preview/diff/apply/rollback, report/audit provenance).
