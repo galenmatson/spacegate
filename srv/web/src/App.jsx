@@ -92,9 +92,15 @@ const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
 const HEADER_ABOUT_LINK = "/about";
+const HEADER_DATA_LINK = "/data";
 const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
-const HEADER_ABOUT_TITLE = "About this site";
-const HEADER_SPONSOR_TITLE = "Support this project";
+const HEADER_SOURCE_LINK = "https://github.com/galenmatson/spacegate";
+const HEADER_LINKS = [
+  { label: "ABT", href: HEADER_ABOUT_LINK, title: "About this site", external: false },
+  { label: "SPT", href: HEADER_SPONSOR_LINK, title: "Support this project", external: true },
+  { label: "SRC", href: HEADER_SOURCE_LINK, title: "Source code", external: true },
+  { label: "DATA", href: HEADER_DATA_LINK, title: "Source data", external: false },
+];
 const MARKDOWN_CONTENT = import.meta.glob("../content/*.md", {
   eager: true,
   import: "default",
@@ -105,6 +111,12 @@ const ABOUT_MARKDOWN = typeof MARKDOWN_CONTENT["../content/about.md"] === "strin
   : `# About Spacegate
 
 About content is not available in this checkout.
+`;
+const DATA_MARKDOWN = typeof MARKDOWN_CONTENT["../content/sources.md"] === "string"
+  ? MARKDOWN_CONTENT["../content/sources.md"]
+  : `# Spacegate Source Data Overview
+
+Source data content is not available in this checkout.
 `;
 
 function isEditableTarget(target) {
@@ -192,6 +204,36 @@ function MarkdownContent({ markdown }) {
         {markdown}
       </ReactMarkdown>
     </div>
+  );
+}
+
+function HeaderNavLinks({ className, linkClassName }) {
+  return (
+    <span className={className} aria-label="Site links">
+      {HEADER_LINKS.map((item) => (
+        item.external ? (
+          <a
+            key={item.label}
+            href={item.href}
+            className={linkClassName}
+            target="_blank"
+            rel="noreferrer"
+            title={item.title}
+          >
+            {item.label}
+          </a>
+        ) : (
+          <Link
+            key={item.label}
+            to={item.href}
+            className={linkClassName}
+            title={item.title}
+          >
+            {item.label}
+          </Link>
+        )
+      ))}
+    </span>
   );
 }
 
@@ -1070,18 +1112,10 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
                   </a>
                 )}
                 {idx === 1 && (
-                  <span className="lcars-left-deco-bottom-links" aria-label="Site links">
-                    <Link to={HEADER_ABOUT_LINK} className="lcars-left-deco-mini-link" title={HEADER_ABOUT_TITLE}>ABT</Link>
-                    <a
-                      href={HEADER_SPONSOR_LINK}
-                      className="lcars-left-deco-mini-link"
-                      target="_blank"
-                      rel="noreferrer"
-                      title={HEADER_SPONSOR_TITLE}
-                    >
-                      SPT
-                    </a>
-                  </span>
+                  <HeaderNavLinks
+                    className="lcars-left-deco-bottom-links"
+                    linkClassName="lcars-left-deco-mini-link"
+                  />
                 )}
               </span>
             ))}
@@ -1130,10 +1164,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       <header className="site-header">
         {!isLcars && (
           <div className="header-topline">
-            <div className="header-top-links" aria-label="Site links">
-              <Link to={HEADER_ABOUT_LINK} className="header-top-link" title={HEADER_ABOUT_TITLE}>ABT</Link>
-              <a href={HEADER_SPONSOR_LINK} className="header-top-link" target="_blank" rel="noreferrer" title={HEADER_SPONSOR_TITLE}>SPT</a>
-            </div>
+            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" />
           </div>
         )}
         <div>
@@ -1174,6 +1205,18 @@ function AboutPage() {
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={ABOUT_MARKDOWN} />
+        </section>
+      </section>
+    </Layout>
+  );
+}
+
+function DataPage() {
+  return (
+    <Layout>
+      <section className="detail-layout">
+        <section className="panel markdown-panel">
+          <MarkdownContent markdown={DATA_MARKDOWN} />
         </section>
       </section>
     </Layout>
@@ -2180,6 +2223,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<SearchPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/data" element={<DataPage />} />
         <Route path="/systems/:systemId" element={<SystemDetailPage />} />
       </Routes>
     </ThemeContext.Provider>
