@@ -132,8 +132,8 @@ Build outputs SHOULD be treated as immutable. Promotion between builds SHOULD be
 - AT-HYG stellar catalog CSV (stars <= 1000 ly)
 - NASA exoplanets CSV (pscomppars; host matching limited by core star coverage)
 
-## Optional packs (v2.1+)
-Deferred until after the v1 UI. See **v2.1 Additional catalogs** below.
+## Optional packs / additional catalogs (v1.2+)
+Now prioritized ahead of enrichment. See **v1.2 Additional catalogs / packs foundation** below.
 
 ## Source protection / reproducibility
 - $SPACEGATE_STATE_DIR/raw/** source files should be preserved as read-only once downloaded.
@@ -171,7 +171,7 @@ Core tables (minimum):
 Rule: **No expositions, images, or lore** stored in core.
 Rule: **Spatial sorting** All core Parquet files must be sorted by `spatial_index` (Morton Z-order). This enables high-performance "range scans" for 3D queries without reading the entire file.
 
-### 2) Expanded astronomy dataset (v2.1+)
+### 2) Expanded astronomy dataset (v1.2+)
 **Purpose:** keep additional object categories optional and independently maintainable.
 
 - Pack artifacts are separate from core:
@@ -198,9 +198,10 @@ Rule: packs are **read-only** inputs to search/render/download. Each pack has it
 
 Rich tables (initial):
 - `snapshot_manifest` (deterministic system visualization snapshots; see v1)
-- `factsheets` (structured JSON facts per object, with provenance pointers)
-- `expositions` (exciting factual descriptions generated strictly from factsheets; see v1.3)
-- `system_neighbors` (10 nearest systems per system; see v1.5)
+- `external_reference_links` (curated authoritative links per object; see v1.3)
+- `factsheets` (structured JSON facts per object, with provenance pointers; see v1.4)
+- `expositions` (exciting factual descriptions generated strictly from factsheets; see v1.4)
+- `system_neighbors` (10 nearest systems per system; see v1.6)
 
 Rules:
 - Rich is **not edited in-place**. If content is wrong or the generator changes, regenerate rich with a new `generator_version` / build.
@@ -209,7 +210,7 @@ Rules:
   - expositions: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
   - snapshots: include `params_hash`, `params_json`, `generator_version`, `source_build_inputs_hash`
 
-### 4) Engagement signals (v1.4+)
+### 4) Engagement signals (v2.2+)
 **Purpose:** capture minimal, privacy-respecting signals of collective human curiosity to improve discovery and prioritization — without analytics, profiling, or monetization.
 
 This dataset exists to give the people what they want. If they are explicit in their interest of goldilocks planets or white dwarf trinaries or hell worlds or whatever, we should have a method of capturing that interest and feeding it into the coolness algorithm that prioritizes data enrichment.
@@ -370,7 +371,7 @@ Current status (2026-02-21):
 - Admin login, allowlist enforcement, action runner, and audit log are active.
 
 ## v0.2: Coolness
-This ensures compute resources for v1.3+ enrichment are spent on systems with high narrative and scientific yield. Features are aggregated into a final Coolness Score stored in the rich dataset.
+This ensures compute resources for later enrichment phases are spent on systems with high narrative and scientific yield. Features are aggregated into a final Coolness Score stored in the rich dataset.
 - The default page, the first thing a new visitor sees, should be ordered by coolness.
 - Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
 - High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
@@ -387,7 +388,7 @@ This ensures compute resources for v1.3+ enrichment are spent on systems with hi
 
 ### Coolness Scoring + Tuning
 
-The Coolness Score determines which systems receive computationally expensive enrichment (v1.3+ narrative + depiction). The objective is to prioritize systems with high scientific information density and narrative yield while preserving strict data integrity.
+The Coolness Score determines which systems receive computationally expensive enrichment (factsheets, exposition, depiction). The objective is to prioritize systems with high scientific information density and narrative yield while preserving strict data integrity.
 
 Coolness scoring must be:
 - Deterministic
@@ -581,13 +582,11 @@ CLI commands:
 - `scripts/score_coolness.py apply --profile-id <id> --profile-version <ver> --weights-json '{...}'`
 - `scripts/score_coolness.py rollback --steps 1`
 
-### Current Status (2026-02-21)
+### Current Status (2026-02-28)
 
-- Checkpoint A implemented (`scripts/score_coolness.py` + `coolness_report.json`).
-- Checkpoint B implemented (versioned profile store + list/preview/diff/apply/rollback CLI).
-- Checkpoint C implemented (admin slider/preset UI + diversity preview checks before apply).
-- Profile activation audit trail + rollback implemented.
-- Next milestone: Checkpoint D (promotion workflow hardening + rollback drill validation).
+- Checkpoints A-D are complete for the current admin-defined coolness workflow.
+- `scripts/score_coolness.py`, profile storage, admin controls, audit trail, and rollback are in place.
+- Future work is social/product-facing rather than foundational: expose public-facing coolness profile selection and community-defined ranking overlays in a later milestone without contaminating the scientific core ranking.
 
 ---
 
@@ -657,11 +656,12 @@ Goal: produce **deterministic, cacheable “system snapshot” images** that mak
 Canonical v1 progression (dependency-first):
 1. v1.0 System visualization snapshots
 2. v1.1 UI beautification
-3. v1.2 External reference links
-4. v1.3 AI exposition
-5. v1.4 Image generation
-6. v1.5 System neighbor graph
-7. v1.6 Operations dashboard and telemetry
+3. v1.2 Additional catalogs / packs foundation
+4. v1.3 External reference links
+5. v1.4 AI exposition
+6. v1.5 Image generation
+7. v1.6 System neighbor graph
+8. v1.7 Operations dashboard and telemetry
 
 ### Success criteria
 - A reproducible snapshot generator that emits small, fast assets per system:
@@ -970,7 +970,44 @@ Instead:
 
 ---
   
-## v1.2: External reference links (curated web sources)
+## v1.2: Additional catalogs / packs foundation
+Goal: correct core undersights and widen the scientific foundation before heavy enrichment.
+
+Why now:
+- The current foundation is strong enough to browse, rank, and visualize, but still incomplete in important places.
+- Systems like Sol and Castor reveal that "easy to access" starter catalogs are not sufficient for the narrative and visual fidelity goals of the project.
+- Enrichment built on incomplete multiplicity, planetary census, stellar parameters, or neighbor coverage will be expensive to redo and will train the UI toward the wrong picture of reality.
+
+Success criteria:
+- Approve the next tranche of major stellar/system catalogs before ingestion.
+- Define authoritative field targets by source family:
+  - multiplicity / hierarchical membership
+  - stellar astrophysical parameters
+  - exoplanet/system completeness
+  - neighborhood/navigation support
+  - compact/substellar/special populations
+- Build ingestion pipelines for approved additional catalogs with the same standards as v0:
+  - rerunnable fetch/cook/build
+  - manifests/checksums
+  - QC + provenance reports
+  - deterministic outputs
+- Preserve the distinction between:
+  - core canonical browseable systems/stars/planets
+  - optional packs / extended populations
+  - raw detection catalogs that should not masquerade as unique objects
+- Revisit system grouping and host matching as needed so known benchmark systems no longer collapse into obviously incomplete representations.
+
+Guardrails:
+- Do not silently merge catalogs with incompatible object semantics.
+- Do not let optional packs mutate the canonical meaning of core IDs without an explicit migration/versioning plan.
+- Rebuild downstream rich artifacts after any catalog expansion that changes:
+  - system boundaries
+  - planet counts
+  - multiplicity
+  - distances / coordinates
+  - dominant stellar properties
+
+## v1.3: External reference links (curated web sources)
 Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
 
 Method (proposed):
@@ -988,11 +1025,11 @@ Reasonable limits (initial defaults):
 - **Max links per object**: 3 (1 authoritative catalog + 1 encyclopedia + 1 optional observatory/mission page).
 - **Max candidates evaluated per object**: 10.
 - **Domain cap**: 2 links from the same domain per object.
-- **Coverage budget**: only top-N coolness objects in v1.3; full coverage later.
+- **Coverage budget**: only top-N coolness objects in v1.4; full coverage later.
 - **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
 - **Strictly link-only**: store URLs + metadata only; no copying page text into rich.
 
-## v1.3: AI rich description (“facts → exposition”)
+## v1.4: AI rich description (“facts → exposition”)
 Success criteria:
 - Generate fact sheets (structured JSON) per selected object with sources/provenance.
 - Generate engaging but factual descriptions derived from known facts.
@@ -1003,7 +1040,7 @@ Success criteria:
 - Counter prompt is used to evaluate the factuality of the exposition and discard hallucinations
 
 
-## v1.4: Image generator
+## v1.5: Image generator
 Based on the descriptions from the expositions, generate instructions for image
 generator model create vivid imagery of planets, stars, and systems.
 - Shareable versions with text captions at the bottom
@@ -1027,7 +1064,7 @@ generator model create vivid imagery of planets, stars, and systems.
   - pulsars depicted with polar jets though they might be invisible without gas/dust to scatter/emit)
   - magnetars show powerful rotating magnetic fields (despite being invisible or show them interacting with something)
 
-### v1.4.1 Planets
+### v1.5.1 Planets
 #### Global view
   - planet in the foreground and the star behind
   - show flare stars scorching them with glowing prominences
@@ -1036,7 +1073,7 @@ generator model create vivid imagery of planets, stars, and systems.
   - add moons to large planets even if none detected
   - include subtext that these images are extrapolated from scientific data, not observation, and reality is likely quite different.
 
-#### v1.4.2 Surface view
+#### v1.5.2 Surface view
 This should show what it might feel like to visit this planet and stand on its surface.
 This requires the most license of all. We can ground the view in some facts that should
 make it clear to visitors the link between orbit, composition, and climate.
@@ -1075,7 +1112,7 @@ And much more! The more creative we are with descriptions while linking everythi
 
 
 
-## v1.5: System neighbor graph (10 nearest systems)
+## v1.6: System neighbor graph (10 nearest systems)
 Goal: precompute nearest-neighbor relationships between systems for fast UI queries and navigation.
 
 Success criteria:
@@ -1100,7 +1137,7 @@ Rules:
 
 ---
 
-## v1.6: Operations dashboard and telemetry
+## v1.7: Operations dashboard and telemetry
 Goal: after rich content is working, add an at-a-glance operations view so service health and usage can be assessed in seconds.
 
 Success criteria:
@@ -1142,31 +1179,16 @@ Success criteria:
     - Display a system card with scrollable cards for subobjects in the system ordered by coolness
     - Continue navigating down hierarchies 
 
-## v2.1 Additional catalogs
-Success criteria:
-- Create optional “object packs” as separate artifacts:
-  - pack_substellar, pack_compact, optional pack_superstellar (local extended objects)
-- Each pack has its own staging + provenance.
-- Compute dist_ly, helio and galactic coordinates.
-- Export Parquet pack artifacts + pack QC reports.
-- Request approval for each new source before ingestion.
-
-Candidate sources (curated objects):
-- UltracoolSheet (UCDs / substellar; CSV)
-- DwarfArchives brown dwarfs (VOTable)
-- Gaia DR3 UCD sample (CDS; fixed-width)
-- Gaia EDR3/DR3 white dwarf catalogs (FITS)
-- ATNF pulsar catalog (psrcat)
-- McGill magnetar catalog (CSV)
-
-Detection catalogs (raw survey detections; not “objects”):
-- CatWISE2020 full tiles (bulk detections; very large)
-  - If used later, treat as a sources pack (not object pack) and keep separate from “unique object” tables.
-
-## v2.2: System view and generators
+## v2.1: System view and generators
 - The data epoch is J2000, add feature to select date. Recompute, rerender stars for different points in time based on proper motion.
 - 3D Exoplanet render (plausible visualizations based on data)
 - World builder tools (procedural generation with sliders)
+
+## v2.2: Lore, engagement, and community ranking
+- Lore overlay tooling and UI affordances.
+- Privacy-safe engagement dataset and browsing signals.
+- Public-facing coolness profile selection so users can explore different ranking philosophies without altering the canonical scientific ranking.
+- Community-defined ranking presets / shared profile overlays ("bring coolness to the masses") with strict isolation from core science and admin canonical profiles.
 
 ## v3 Aspirational
 - procedural ground generation of a planet/moon surface based on known planet / exoplanet data
@@ -1181,8 +1203,8 @@ Detection catalogs (raw survey detections; not “objects”):
 - Public deployment live at `coolstars.org`; `spacegates.org` currently redirects there and is reserved for project/community/backend use.
 - Published bootstrap metadata (`current.json`) includes artifact checksums and report references.
 - v0.1.5 Admin Control Plane checkpoints A-D implemented (OIDC auth, allowlist, action runner, audit).
-- v0.2 Coolness checkpoints A and B implemented (scoring outputs, profile contract, CLI preview/diff/apply/rollback, report/audit provenance).
-- Optional packs deferred to v2.1.
+- v0.2 Coolness complete for the current admin-defined scope (scoring outputs, profile contract, CLI/admin tuning, report/audit provenance, rollback).
+- Additional catalog / pack ingestion is now prioritized ahead of enrichment because benchmark systems still expose known completeness gaps in the starter dataset mix.
 
 
 # On completion, prune dependencies

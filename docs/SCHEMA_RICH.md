@@ -145,7 +145,7 @@ Required columns:
 - `source_build_inputs_hash TEXT`
 - `created_at TIMESTAMP`
 
-## external_reference_links (v1.2+)
+## external_reference_links (v1.3+)
 
 Curated links only; no copied article text.
 
@@ -160,7 +160,7 @@ Required columns:
 - `build_id TEXT`
 - `created_at TIMESTAMP`
 
-## factsheets (v1.3+)
+## factsheets (v1.4+)
 
 Structured factual summaries used as source-of-truth inputs for exposition.
 
@@ -172,7 +172,7 @@ Required columns:
 - `generator_version TEXT`
 - `created_at TIMESTAMP`
 
-## expositions (v1.3+)
+## expositions (v1.4+)
 
 Generated scientific exposition derived from factsheets.
 
@@ -185,7 +185,7 @@ Required columns:
 - `build_id TEXT`
 - `generated_at TIMESTAMP`
 
-## generated_images (v1.4+)
+## generated_images (v1.5+)
 
 Image generation metadata; binary assets are stored on filesystem/object storage.
 

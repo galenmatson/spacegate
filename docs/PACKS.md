@@ -1,4 +1,4 @@
-# Spacegate Packs Contract (v2.1+)
+# Spacegate Packs Contract (v1.2+)
 
 This document defines the minimal contract for **optional object packs** (substellar/compact/superstellar/etc.).
 Packs are **read-only**, versioned artifacts that augment core data without mutating it.

@@ -168,7 +168,7 @@ These sources are required for v0 ingestion and must always be present.
 
 ---
 
-## Optional catalogs (packs, v2.1+)
+## Optional catalogs (packs, v1.2+)
 
 No optional pack sources are active yet. This section will be updated when sources are approved and added.
 

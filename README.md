@@ -6,7 +6,7 @@
 #  Scope and Deliverables
 
   - Core datasets: systems, stars, planets (AT‑HYG + NASA Exoplanet Archive).
-  - Optional “packs” (v2.1+): substellar, compact, superstellar, etc., as separate, read‑only artifacts.
+  - Optional “packs” (v1.2+): substellar, compact, superstellar, etc., as separate, read‑only artifacts.
   - Rich (v1.1+): derived artifacts like expositions, reference links, snapshots.
   - A browser 3D map (v2) with filters and overlays.
 
@@ -403,7 +403,8 @@ If you want a dedicated “builder” container in compose, say the word and I�
 # Roadmap (high level)
 
   - v1.1: static snapshot generation (SVG) with deterministic rendering rules.
-  - v1.2: factual “facts → exposition” generation + reference links.
-  - v1.2.2: precomputed 10‑nearest neighbor graph.
+  - v1.2: additional catalogs / packs foundation before heavy enrichment.
+  - v1.3-v1.5: reference links, facts → exposition, and image generation.
+  - v1.6: precomputed 10-nearest neighbor graph.
   - v2: browser 3D map.
-  - v2.1+: optional catalogs as packs.
+  - v2.2: lore, engagement, and community ranking overlays.

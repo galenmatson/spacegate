@@ -91,7 +91,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Audit log for admin actions (`who`, `what`, `when`, `params`, `result`)
 
 ## v0.2 Coolness
-- [x] Coolness scoring + ranking stored in rich with score breakdown (`scripts/score_coolness.py`, includes v1.4-aligned complexity/exotic-star factors)
+- [x] Coolness scoring + ranking stored in rich with score breakdown (`scripts/score_coolness.py`, including complexity/exotic-star factors for later enrichment prioritization)
 - [x] Versioned weight profiles (reproducible profile id/version in outputs)
 - [x] CLI preview/apply for weight profiles with diff against active profile
 - [x] Admin slider/preset UI for weights
@@ -112,19 +112,25 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Search/filters ergonomics (`/` to focus search, collapsible filters with `Collapse Up`)
 - [x] Data-density cleanup (snapshot-first list/detail hierarchy and cleaner card layout)
 
-## v1.2 External Reference Links
+## v1.2 Additional Catalogs / Packs Foundation
+- [ ] Approve candidate sources for the next ingestion wave
+- [ ] Implement additional catalog / pack ingestion pipelines
+- [ ] Produce pack QC reports + manifests
+- [ ] Reconcile grouping/host-matching for benchmark systems after catalog expansion
+
+## v1.3 External Reference Links
 - [ ] External reference links (curated authoritative sources)
 
-## v1.3 AI Rich Description
+## v1.4 AI Rich Description
 - [ ] Factsheets + expositions pipeline
 
-## v1.4 Image Generator
+## v1.5 Image Generator
 - [ ] Image generation pipeline and artifact storage
 
-## v1.5 System Neighbor Graph
+## v1.6 System Neighbor Graph
 - [ ] System neighbor graph (10 nearest systems per system)
 
-## v1.6 Operations Dashboard and Telemetry
+## v1.7 Operations Dashboard and Telemetry
 - [ ] Dashboard/telemetry stack beyond local scripts (metrics + alerts)
 
 ## v2 3D Map
@@ -133,17 +139,12 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [ ] Rendering toggles (planets, lore, links)
 - [ ] Performance & floating-origin correctness
 
-## v2.1 Additional Catalogs / Packs
-- [ ] Approve candidate sources
-- [ ] Implement pack ingestion pipelines
-- [ ] Pack QC reports + manifests
-- [ ] Integrate packs into UI search/render
-
-## v2.2 System View and Generators
+## v2.1 System View and Generators
 - [ ] Epoch/time selection with proper-motion re-rendering
 - [ ] System/worldbuilder generator tools
 
-## Lore & Engagement (v2+)
+## v2.2 Lore & Engagement
 - [ ] Lore overlay schema + tooling
 - [ ] Engagement dataset (privacy-safe)
 - [ ] UI affordances for lore/engagement
+- [ ] Public coolness profile selection / community ranking presets
