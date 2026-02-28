@@ -180,7 +180,7 @@ function useThemeControls() {
 
 function presetLabelForTheme(preset, theme) {
   if (preset?.id === "habitable_like" && (theme === "cyberpunk" || theme === "retro_90s")) {
-    return "Habitable";
+    return "Hab Zone";
   }
   return preset?.label || "";
 }
