@@ -1642,6 +1642,10 @@ select:focus-visible {
   grid-template-columns: minmax(208px, 222px) minmax(0, 1fr);
 }
 
+:root[data-theme="retro_90s"] .preset-button {
+  white-space: nowrap;
+}
+
 :root[data-theme="retro_90s"] .tri-state-btn.active,
 :root[data-theme="retro_90s"] .chip.active {
   background: #a0a0ff;
@@ -1866,9 +1870,9 @@ select:focus-visible {
   border: 1px solid rgba(157, 233, 255, 0.42);
   border-radius: 16px;
   background:
-    linear-gradient(165deg, rgba(23, 37, 79, 0.78) 0%, rgba(18, 32, 67, 0.8) 52%, rgba(18, 28, 53, 0.84) 100%),
-    radial-gradient(circle at 85% -10%, rgba(255, 136, 231, 0.32) 0%, rgba(255, 136, 231, 0) 40%),
-    radial-gradient(circle at 15% 0%, rgba(93, 255, 215, 0.3) 0%, rgba(93, 255, 215, 0) 38%);
+    linear-gradient(165deg, rgba(23, 37, 79, 0.9) 0%, rgba(18, 32, 67, 0.92) 52%, rgba(18, 28, 53, 0.95) 100%),
+    radial-gradient(circle at 85% -10%, rgba(255, 136, 231, 0.38) 0%, rgba(255, 136, 231, 0) 38%),
+    radial-gradient(circle at 15% 0%, rgba(93, 255, 215, 0.35) 0%, rgba(93, 255, 215, 0) 34%);
   box-shadow:
     0 14px 36px rgba(8, 12, 36, 0.5),
     inset 0 1px 0 rgba(226, 243, 255, 0.1);
@@ -1890,16 +1894,19 @@ select:focus-visible {
 :root[data-theme="aurora"] .system-identifiers-row::after {
   content: "";
   position: absolute;
-  inset: -18%;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
   background:
-    radial-gradient(circle at 20% 50%, rgba(93, 255, 215, 0.24) 0%, rgba(93, 255, 215, 0) 42%),
-    radial-gradient(circle at 78% 40%, rgba(141, 125, 255, 0.25) 0%, rgba(141, 125, 255, 0) 46%),
-    radial-gradient(circle at 55% 72%, rgba(255, 136, 231, 0.22) 0%, rgba(255, 136, 231, 0) 44%);
-  opacity: 0.68;
+    radial-gradient(circle at 24% 50%, rgba(93, 255, 215, 0.22) 0%, rgba(93, 255, 215, 0) 28%),
+    radial-gradient(circle at 76% 40%, rgba(141, 125, 255, 0.23) 0%, rgba(141, 125, 255, 0) 30%),
+    radial-gradient(circle at 55% 72%, rgba(255, 136, 231, 0.2) 0%, rgba(255, 136, 231, 0) 29%);
+  opacity: 0.58;
   pointer-events: none;
   z-index: 0;
-  transform: translate3d(-6%, 0, 0) scale(1.03);
-  filter: blur(4px) saturate(112%);
+  transform: translate3d(-4%, 0, 0) scale(1);
+  filter: blur(3px) saturate(112%);
   animation: aurora-card-drift 5.6s ease-in-out infinite alternate;
   transition: opacity 0.24s ease, filter 0.24s ease;
 }

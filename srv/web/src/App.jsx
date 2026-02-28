@@ -35,8 +35,8 @@ const filterLimits = {
 };
 const FILTER_PRESETS = [
   { id: "nearby", label: "Nearby", filters: { sort: "distance", minDist: 0, maxDist: 60 } },
-  { id: "planet_rich", label: "Planets", filters: { sort: "coolness", hasPlanetsMode: "true", minPlanetCount: 1 } },
-  { id: "habitable_like", label: "Habitability", filters: { sort: "coolness", hasPlanetsMode: "true", hasHabitableMode: "true", maxDist: 200 } },
+  { id: "planet_rich", label: "Planets", filters: { sort: "coolness", minPlanetCount: 1 } },
+  { id: "habitable_like", label: "Habitability", filters: { sort: "coolness", hasHabitableMode: "true", maxDist: 200 } },
   { id: "high_coolness", label: "Cool", filters: { sort: "coolness", minCoolnessScore: 20 } },
 ];
 const SPECTRAL_CLASS_INFO = {
@@ -1293,10 +1293,6 @@ function SearchPage() {
     const raw = searchParams.get("spectral_class") || "";
     return raw.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean);
   });
-  const [hasPlanetsMode, setHasPlanetsMode] = useState(() => {
-    const value = searchParams.get("has_planets");
-    return value === "true" || value === "false" ? value : "";
-  });
   const [hasHabitableMode, setHasHabitableMode] = useState(() => {
     const value = searchParams.get("has_habitable");
     return value === "true" || value === "false" ? value : "";
@@ -1331,7 +1327,6 @@ function SearchPage() {
     maxCoolnessScore: filterLimits.coolness.max,
     sort: "coolness",
     spectral: [],
-    hasPlanetsMode: "",
     hasHabitableMode: "",
     pageSize: "50",
   });
@@ -1347,7 +1342,6 @@ function SearchPage() {
     maxCoolnessScore,
     sort,
     spectral,
-    hasPlanetsMode,
     hasHabitableMode,
     pageSize,
   });
@@ -1363,7 +1357,6 @@ function SearchPage() {
     setMaxCoolnessScore(next.maxCoolnessScore);
     setSort(next.sort);
     setSpectral(next.spectral);
-    setHasPlanetsMode(next.hasPlanetsMode);
     setHasHabitableMode(next.hasHabitableMode);
     setPageSize(next.pageSize);
   };
@@ -1407,9 +1400,6 @@ function SearchPage() {
     }
     if (filters.spectral.length) {
       params.spectral_class = filters.spectral.join(",");
-    }
-    if (filters.hasPlanetsMode) {
-      params.has_planets = filters.hasPlanetsMode;
     }
     if (filters.hasHabitableMode) {
       params.has_habitable = filters.hasHabitableMode;
@@ -1638,12 +1628,6 @@ function SearchPage() {
               integer={filterLimits.coolness.integer}
               onChangeMin={setMinCoolnessScore}
               onChangeMax={setMaxCoolnessScore}
-            />
-
-            <TriStateToggle
-              label="Confirmed planets"
-              value={hasPlanetsMode}
-              onChange={setHasPlanetsMode}
             />
 
             <TriStateToggle
