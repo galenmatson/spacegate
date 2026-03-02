@@ -2077,7 +2077,7 @@ select:focus-visible {
 }
 
 :root[data-theme="deep_space_minimal"] .site-header::before {
-  content: "ORION ARM LOCAL VOLUME :: EPOCH J2000 :: PARALLAX-ALIGNED";
+  content: "ORION ARM LOCAL VOLUME :: EPOCH J2016 :: PARALLAX-ALIGNED";
   position: absolute;
   top: 0;
   left: 0;

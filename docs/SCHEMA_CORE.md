@@ -55,6 +55,11 @@ We store two cartesian frames:
 - `x_gal_ly, y_gal_ly, z_gal_ly`
 - Used for galaxy-scale views later.
 
+### Reference epoch
+- Core coordinates are stored at a build-scoped reference epoch recorded in `build_metadata`.
+- Current project standard: `J2016.0`, aligned with Gaia-era proper-motion observations.
+- Future epoch rendering/projection must derive new positions from the stored base coordinates plus motion fields; it must not overwrite the canonical stored coordinates for that build.
+
 ### Required invariant
 For rows with both `dist_ly` and heliocentric xyz present:
 
@@ -222,6 +227,7 @@ Key columns:
 Required keys (core):
 - `build_id`
 - `git_sha`
+- `coordinate_epoch`
 - `morton_bits_per_axis`
 - `morton_max_abs_ly`
 - `morton_scale`

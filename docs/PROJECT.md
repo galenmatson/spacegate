@@ -287,6 +287,9 @@ Coordinate storage:
   - x_helio_ly, y_helio_ly, z_helio_ly
 - Optionally store galactocentric coordinates for galaxy-scale views:
   - x_gal_ly, y_gal_ly, z_gal_ly
+Reference epoch:
+- Core coordinates are stored at build reference epoch `J2016.0` (Gaia-aligned) unless a future build explicitly records a different epoch in `build_metadata`.
+- The build metadata should record this as `coordinate_epoch` so renderers and downstream tooling know the baseline before applying proper-motion or radial-velocity projection.
 Rendering rule:
 - The renderer always rebases around the selected object (“floating origin”) before sending to GPU (float32 safety).
 
@@ -312,6 +315,7 @@ Success criteria:
   - Should be rerunnable for updates with recover and retry on failure.
 - Build a DuckDB database from core astronomical data.
   - store in data/
+- Record coordinate reference epoch metadata in the build output (`build_metadata.coordinate_epoch`, current standard `J2016.0`).
 - **Implement Spatial Indexing:**
   - Compute 63-bit Morton (Z-order) spatial_index for all objects from heliocentric xyz (ly), stored as signed BIGINT.
   - Use 21 bits per axis with a domain-parameterized cube (v0 default: ±1000 ly).
@@ -1132,7 +1136,7 @@ Storage model:
 Rules:
 - Use **core systems only** (exclude packs/lore).
 - Exclude self-matches; always 10 neighbors unless fewer than 11 systems exist.
-- Distances are computed from canonical core coordinates (J2000 xyz in ly).
+- Distances are computed from canonical core coordinates at the stored build reference epoch (current standard `J2016.0` xyz in ly).
 - Results must be exact (indexing acceleration is OK, but output must match exact kNN within numeric tolerance).
 
 ---
@@ -1180,7 +1184,7 @@ Success criteria:
     - Continue navigating down hierarchies 
 
 ## v2.1: System view and generators
-- The data epoch is J2000, add feature to select date. Recompute, rerender stars for different points in time based on proper motion.
+- The core reference epoch is `J2016.0`. Add a feature to select an arbitrary date/epoch and recompute/rerender stars from the stored reference epoch using proper motion (and radial velocity where available).
 - 3D Exoplanet render (plausible visualizations based on data)
 - World builder tools (procedural generation with sliders)
 
