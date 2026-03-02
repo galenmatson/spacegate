@@ -40,8 +40,14 @@ Derived “rich” artifacts are out of scope for this schema and are documented
 ## Coordinate conventions and units
 
 ### Units
-- Distances in the database are stored in **light-years (ly)** where possible.
+- Raw and cooked catalog products should preserve source-native units until canonical normalization.
+- Canonical normalized distance/position storage should be in **parsecs (pc)**.
+- Derived/materialized convenience columns in **light-years (ly)** are recommended for API/query/render efficiency and user-facing ergonomics.
 - Orbital SMA is stored in **AU** (from NASA).
+
+Current runtime note:
+- The v0 implementation currently materializes LY columns only.
+- v1.2 should add canonical parsec columns without removing LY convenience columns.
 
 ### Frames
 We store two cartesian frames:
@@ -59,6 +65,7 @@ We store two cartesian frames:
 - Core coordinates are stored at a build-scoped reference epoch recorded in `build_metadata`.
 - Current project standard: `J2016.0`, aligned with Gaia-era proper-motion observations.
 - Future epoch rendering/projection must derive new positions from the stored base coordinates plus motion fields; it must not overwrite the canonical stored coordinates for that build.
+- When non-Gaia source astrometry is projected to the build epoch, preserve the source epoch and normalization method at row level once mixed-source astrometry is introduced.
 
 ### Required invariant
 For rows with both `dist_ly` and heliocentric xyz present:
@@ -70,6 +77,7 @@ Default `eps = 1e-3 ly` (adjust if source rounding is coarser).
 ### RA/Dec
 - Stored in degrees (`ra_deg`, `dec_deg`) if available from source.
 - Heliocentric xyz may be sourced directly (AT-HYG provides xyz) or derived from RA/Dec+dist when needed.
+- Gaia astrometry should be preferred over AT-HYG positional values when an approved Gaia-linked record exists.
 
 ## Spatial Indexing (Morton Z-Order)
 
@@ -173,6 +181,17 @@ Parsing rules:
 - Parse the **primary** component when composite (e.g., `K1III+DA2` → primary `K1III`, peculiar `+DA2`)
 - If ambiguous/unparseable, keep raw and leave structured null.
 
+## Field precedence (v1.2 target)
+
+Field precedence for catalog expansion is defined in `docs/V1_2_SOURCE_MATRIX.md`.
+
+Contract rules:
+- Use approved source families column-by-column rather than treating any one catalog as globally authoritative.
+- Prefer Gaia-linked astrometry/kinematics when available.
+- Use AT-HYG as fallback where preferred sources are absent.
+- Inferred astrophysical values (for example spectral-type-derived `Teff`) do not belong in core; keep them in rich and flag them as inferred there.
+- When canonical coordinates are normalized from a source epoch to the build epoch, the source epoch and normalization method must be preserved once row-level mixed-source astrometry metadata is added.
+
 ---
 
 ## Provenance (required on every derived row)
@@ -210,9 +229,12 @@ Key columns:
 - `spatial_index` (BIGINT, distinct, cluster key)
 - `stable_object_key` (unique, join key)
 - `system_name`, `system_name_norm`
+- planned v1.2 additive: `dist_pc`
 - `ra_deg`, `dec_deg`, `dist_ly` (best available; may represent anchor star)
+- planned v1.2 additive: `x_helio_pc,y_helio_pc,z_helio_pc`
 - `x_helio_ly,y_helio_ly,z_helio_ly` (anchor position)
 - optional `x_gal_ly,y_gal_ly,z_gal_ly` (nullable)
+- planned v1.2 additive: row-level astrometry source epoch / normalization metadata
 - external IDs where applicable (`gaia_id`, `hip_id`, `hd_id`)
 - provenance fields
 
@@ -248,7 +270,9 @@ Key columns:
 - `system_id` (FK to systems)
 - `stable_object_key` (unique, join key)
 - `star_name`, `star_name_norm`, `component`
+- planned v1.2 additive: `dist_pc`, `x_helio_pc`, `y_helio_pc`, `z_helio_pc`
 - coordinates (ra_deg, dec_deg, dist_ly, x/y/z_helio_ly)
+- planned v1.2 additive: row-level astrometry source epoch / normalization metadata
 - `pm_ra_mas_yr`, `pm_dec_mas_yr` (proper motion)
 - `radial_velocity_kms` (required for v2 epoch projection)
 - radial velocity
