@@ -223,11 +223,13 @@ function formatBuildVersionLabel(buildId) {
   return `DB ${raw}`;
 }
 
-function HeaderNavLinks({ className, linkClassName, buildId = "" }) {
+function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels = null }) {
   const buildLabel = formatBuildVersionLabel(buildId);
+  const allowed = Array.isArray(includeLabels) ? new Set(includeLabels) : null;
+  const items = allowed ? HEADER_LINKS.filter((item) => allowed.has(item.label)) : HEADER_LINKS;
   return (
     <span className={className} aria-label="Site links">
-      {HEADER_LINKS.map((item) => (
+      {items.map((item) => (
         item.external ? (
           <a
             key={item.label}
@@ -264,6 +266,18 @@ function HeaderNavLinks({ className, linkClassName, buildId = "" }) {
         )
       ))}
     </span>
+  );
+}
+
+function LcarsDataRail({ buildId = "" }) {
+  const buildLabel = formatBuildVersionLabel(buildId);
+  return (
+    <div className="lcars-data-rail" aria-label="Data build links">
+      <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
+        DATA
+      </Link>
+      {buildLabel ? <span className="lcars-data-build">{buildLabel}</span> : null}
+    </div>
   );
 }
 
@@ -1130,7 +1144,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
                   <HeaderNavLinks
                     className="lcars-left-deco-bottom-links"
                     linkClassName="lcars-left-deco-mini-link"
-                    buildId={buildId}
+                    includeLabels={["ABT", "SPT", "SRC"]}
                   />
                 )}
               </span>
@@ -1176,7 +1190,11 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
           </div>
         </div>
       )}
-      {isLcars && <div className="lcars-header-bridge" aria-hidden="true" />}
+      {isLcars && (
+        <div className="lcars-header-bridge">
+          <LcarsDataRail buildId={buildId} />
+        </div>
+      )}
       <header className="site-header">
         {!isLcars && (
           <div className="header-topline">

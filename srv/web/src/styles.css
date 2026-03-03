@@ -992,6 +992,41 @@ select:focus-visible {
   z-index: 3;
 }
 
+:root[data-theme="lcars"] .lcars-data-rail {
+  position: absolute;
+  right: 18px;
+  top: 4px;
+  z-index: 5;
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  min-width: 180px;
+}
+
+:root[data-theme="lcars"] .lcars-data-link {
+  color: var(--lcars-text-dark);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+:root[data-theme="lcars"] .lcars-data-link:hover {
+  text-decoration: underline;
+}
+
+:root[data-theme="lcars"] .lcars-data-build {
+  color: var(--lcars-text-dark);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  opacity: 0.92;
+}
+
 :root[data-theme="lcars"] .lcars-header-bridge::before {
   content: "";
   position: absolute;
