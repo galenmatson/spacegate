@@ -47,6 +47,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 ## Tooling & Exploration
 - [x] CLI explorer `scripts/explore_core.py`
 - [x] Build/verify helpers (`scripts/build_core.sh`, `scripts/verify_build.sh`)
+- [x] Catalog evaluation sampling/report tool (`scripts/catalog_eval.sh`)
 
 ## API (v0.1)
 - [x] Read-only API service implemented (FastAPI)

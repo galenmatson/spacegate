@@ -1034,16 +1034,16 @@ Goal: correct core undersights and widen the scientific foundation before heavy 
 ### CORE STAR FIELDS (served.stars.*)  [canonical epoch: J2016.0; frame: ICRS]
 
 astrometry (ra, dec, pm, parallax/dist, rv)
-├─ Gaia DR3 (best available)                      [primary]
+├─ Gaia DR3 (best available)                        [primary]
 │  ├─ ra/dec @ J2016.0
 │  ├─ pm_ra/pm_dec
 │  ├─ parallax (+ error)
 │  └─ radial_velocity (if present)
-├─ AT-HYG (if Gaia missing for that star)         [secondary]
+├─ AT-HYG (if Gaia missing for that star)           [secondary]
 │  ├─ use AT-HYG identifiers / names / legacy kinematics as fallback inputs
 │  ├─ prefer source-native parsec values when present
 │  └─ project to J2016.0 only when source epoch + proper motion support it
-└─ HYG (if you still carry it)                    [last resort]
+└─ HYG (if you still carry it)                      [last resort]
    ├─ treat as legacy fallback only if its semantics are preserved explicitly
    ├─ never let HYG silently outrank Gaia or AT-HYG for canonical astrometry
    └─ require row-level legacy/quality flags if used at all
@@ -1056,7 +1056,7 @@ epoch normalization (served fields)
    └─ keep source-epoch astrometry only as an explicitly flagged legacy fallback; do not silently label it native J2016.0
 
 identifiers + names (iau/common, bayer, flamsteed, gliese, hr/hd/hip)
-├─ AT-HYG/HYG curated fields                       [primary]
+├─ AT-HYG/HYG curated fields                        [primary]
 └─ Gaia source_id                                   [always store when present]
 
 photometry (mag, colors)
