@@ -1182,14 +1182,14 @@ Before promoting any new source family into canonical precedence:
   - strong identifier overlap in samples
   - useful as evidence, not a full hierarchy source
 - WDS remains valuable for breadth, but current evidence supports using it through confidence-scored crossmatching rather than as sole canonical grouping authority.
-- BDB/ILB remains strategically attractive as a crosswalk layer, but should stay out of the routine build path until a stable machine-ingest/export path is confirmed.
+- BDB/ILB remains strategically attractive as a crosswalk layer, but is deferred for now because Spacegate should not depend on an uncached remote Russian-hosted source unless we can first confirm a stable local mirror/export path.
 
 Current working multiplicity stack for implementation planning:
 1. Gaia NSS for exact star-level multiplicity evidence.
 2. MSC for hierarchy candidates and explicit subsystem structure.
 3. ORB6 and SBX as orbit-quality support catalogs.
 4. WDS as broad visual coverage through confidence-scored crossmatch.
-5. BDB/ILB as a later crosswalk layer if exportability is confirmed.
+5. BDB/ILB only if we can mirror it locally through a stable export/crawl path; otherwise disregard it.
   
   
 

@@ -18,6 +18,7 @@ MORTON_MAX_ABS_LY = 1000.0
 MORTON_N = (1 << BITS_PER_AXIS) - 1
 MORTON_SCALE = MORTON_N / (2 * MORTON_MAX_ABS_LY)
 COORDINATE_EPOCH = "J2016.0"
+COORDINATE_FRAME = "ICRS"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
@@ -424,6 +425,7 @@ def main() -> int:
           ('build_id', {sql_literal(build_id)}),
           ('git_sha', {sql_literal(transform_version)}),
           ('coordinate_epoch', {sql_literal(COORDINATE_EPOCH)}),
+          ('coordinate_frame', {sql_literal(COORDINATE_FRAME)}),
           ('morton_bits_per_axis', {sql_literal(str(BITS_PER_AXIS))}),
           ('morton_max_abs_ly', {sql_literal(str(MORTON_MAX_ABS_LY))}),
           ('morton_scale', {sql_literal(str(MORTON_SCALE))}),
