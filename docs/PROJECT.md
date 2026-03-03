@@ -1082,7 +1082,8 @@ systems.*
 │  ├─ AT-HYG proper/name fields (if present)                               [v0 core]
 │  └─ fallback: primary star_name (normalized)                             [v0 core]
 ├─ multiplicity / membership (grouping)
-│  ├─ explicit multi-star catalogs / WDS-style relationships               [v1 core enhancement]
+│  ├─ exact-ID multiplicity evidence (Gaia NSS, catalog crosswalks)        [v1 core enhancement]
+│  ├─ explicit hierarchy / relationship catalogs (MSC / ORB6 / WDS class)  [v1 core enhancement]
 │  ├─ name-based grouping (A/B/C)                                          [v0 core]
 │  └─ proximity grouping (<=0.25 ly), gated                                [v0 optional]
 ├─ position (`dist_pc`, `x_helio_pc/y_helio_pc/z_helio_pc`, `ra_deg`, `dec_deg`)
@@ -1162,8 +1163,33 @@ Before promoting any new source family into canonical precedence:
    - epoch/frame clarity
    - numeric plausibility / outlier rate
    - provenance/licensing quality
+   - exact-ID vs coordinate-led join reliability
 6. Update the field-precedence matrix only after the sample comparison is written up.
 7. Only then implement downloader, cooker, and merge-layer changes for the approved source family.
+
+### Current multiplicity evaluation state (March 3, 2026)
+- Gaia NSS remains the cleanest primary evidence layer because it joins directly on `source_id`.
+- MSC is currently the strongest hierarchy candidate evaluated so far:
+  - bulk tables available
+  - strong `HIP/HD` overlap with current core
+  - explicit subsystem/orbit structure
+- ORB6 is currently the strongest visual-orbit support catalog evaluated so far:
+  - bulk text/SQL exports available
+  - strong `HIP/HD` overlap with current core
+  - orbit-grade information useful for confidence weighting
+- SBX is currently the strongest spectroscopic-binary support catalog evaluated so far:
+  - TAP-accessible
+  - strong identifier overlap in samples
+  - useful as evidence, not a full hierarchy source
+- WDS remains valuable for breadth, but current evidence supports using it through confidence-scored crossmatching rather than as sole canonical grouping authority.
+- BDB/ILB remains strategically attractive as a crosswalk layer, but should stay out of the routine build path until a stable machine-ingest/export path is confirmed.
+
+Current working multiplicity stack for implementation planning:
+1. Gaia NSS for exact star-level multiplicity evidence.
+2. MSC for hierarchy candidates and explicit subsystem structure.
+3. ORB6 and SBX as orbit-quality support catalogs.
+4. WDS as broad visual coverage through confidence-scored crossmatch.
+5. BDB/ILB as a later crosswalk layer if exportability is confirmed.
   
   
 
@@ -1349,11 +1375,12 @@ Success criteria:
 - Privacy-safe engagement dataset and browsing signals.
 - Public-facing coolness profile selection so users can explore different ranking philosophies without altering the canonical scientific ranking.
 - Community-defined ranking presets / shared profile overlays ("bring coolness to the masses") with strict isolation from core science and admin canonical profiles.
+- add political maps from popular scifi franchises like Star Trek and BATTLETECH.
 
 ## v3 Aspirational
 - procedural ground generation of a planet/moon surface based on known planet / exoplanet data
 - dark mode with a slider, a sun on one side and moon on the other side of the slider
-- add political maps from popular scifi franchises like Star Trek and BATTLETECH.
+- simulate ecliptic slices of rotating gravity potentials in binary or more systems
 
 # Status (as of 2026-02-28)
 - Core ingestion pipeline complete (AT-HYG + NASA exoplanets).

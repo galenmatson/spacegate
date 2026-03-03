@@ -62,17 +62,17 @@ This section records the current evaluation of candidate multistar sources befor
 | Source | Best role | Join strength | Status | Notes |
 |---|---|---|---|---|
 | Gaia DR3 `gaia_source.non_single_star` and NSS tables | exact multiplicity evidence on existing stars | exact `source_id` | `approved_family` | Best primary evidence layer for star-level multiplicity flags and orbit solutions |
-| MSC (Tokovinin Multiple Star Catalog) | hierarchical system structure for triples and higher | moderate; WDS-centered with common identifiers | `review_required` | Strong candidate for explicit hierarchy because it is purpose-built for nested multiples and ships bulk tables |
-| ORB6 (Sixth Orbit Catalog) | high-confidence visual-binary orbital evidence | moderate; WDS/discoverer-led | `review_required` | Strong support catalog for orbit-confirmed visual binaries; bulk text/SQL files are available |
-| BDB / ILB (Binary Star Database / Identification List of Binaries) | crosswalk between system, pair, and component identifiers across heterogeneous multiplicity catalogs | potentially strong if export is practical | `review_required` | Strategically valuable as a link resolver, but ingestion path is still unclear because no obvious bulk export/API has been confirmed |
-| WDS | broad visual multiplicity coverage | weak exact IDs; strong coordinate/discoverer designations | `review_required` | Valuable breadth source, but matches to core require confidence-scored crossmatching rather than exact joins |
-| SBX (successor to SB9) | spectroscopic-orbit evidence | moderate; identifier quality varies by system | `review_required` | Best specialized source for spectroscopic binaries; useful as supporting evidence, not a full hierarchy catalog |
+| MSC (Tokovinin Multiple Star Catalog) | hierarchical system structure for triples and higher | moderate; WDS-centered with common identifiers | `review_required` | Strong candidate for explicit hierarchy because it is purpose-built for nested multiples and ships bulk tables; sample pass found 3,482 exact-key overlaps with current core |
+| ORB6 (Sixth Orbit Catalog) | high-confidence visual-binary orbital evidence | moderate; WDS/discoverer-led | `review_required` | Strong support catalog for orbit-confirmed visual binaries; bulk text/SQL files are available; sample pass found 3,282 exact-key overlaps with current core |
+| BDB / ILB (Binary Star Database / Identification List of Binaries) | crosswalk between system, pair, and component identifiers across heterogeneous multiplicity catalogs | potentially strong if export is practical | `review_required` | Strategically valuable as a link resolver; published materials describe ILB/VO work and historical batch-mode ideas, but a stable current bulk export/API has still not been confirmed |
+| WDS | broad visual multiplicity coverage | weak exact IDs; strong coordinate/discoverer designations | `review_required` | Valuable breadth source, but matches to core require confidence-scored crossmatching rather than exact joins; current prototype finds mostly low-confidence positional matches |
+| SBX (successor to SB9) | spectroscopic-orbit evidence | moderate; identifier quality varies by system | `review_required` | Best specialized source for spectroscopic binaries; useful as supporting evidence, not a full hierarchy catalog; sampled rows show strong Gaia/HIP/HD overlap |
 | Stelle Doppie | operator lookup / manual QA | derivative of WDS pages with added cross-identifiers | `lookup_only` | Useful for manual inspection, but not suitable as a canonical automated source |
 
 Preferred multiplicity stack for v1.2 planning:
 
 1. Gaia NSS for exact star-level multiplicity evidence.
-2. MSC for explicit higher-order hierarchy, pending sample validation.
+2. MSC for explicit higher-order hierarchy, pending merge-rule approval.
 3. ORB6 and SBX as orbit-quality support catalogs.
 4. WDS for broad visual coverage via confidence-scored crossmatch.
 5. BDB as a later crosswalk layer if a stable machine-ingest path is confirmed.

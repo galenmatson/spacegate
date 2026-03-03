@@ -499,7 +499,7 @@ def main() -> int:
             nullif(flam,'') as flam,
             nullif(con,'') as con,
             nullif(proper,'') as proper,
-            nullif(ra,'')::double as ra_deg,
+            (nullif(ra,'')::double * 15.0) as ra_deg,
             nullif(dec,'')::double as dec_deg,
             nullif(dist,'')::double as dist_pc,
             nullif(x0,'')::double as x_pc,
