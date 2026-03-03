@@ -881,6 +881,20 @@ select:focus-visible {
   text-decoration: underline;
 }
 
+:root[data-theme="lcars"] .header-data-link-group {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+
+:root[data-theme="lcars"] .header-build-badge {
+  display: block;
+  font-size: 0.54rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  opacity: 0.92;
+}
+
 :root[data-theme="lcars"] .lcars-left-deco-bottom::after {
   content: "";
   position: absolute;

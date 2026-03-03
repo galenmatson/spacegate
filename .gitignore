@@ -24,7 +24,6 @@ __pycache__/
 **/dist/
 **/.cache/
 .npm-cache/
-/srv/web/content/
 
 # Python
 **/__pycache__/
