@@ -245,10 +245,24 @@ def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.extend(["--build-id", build_id])
-    top_coolness = _normalize_integer(params.get("top_coolness", 200))
+    top_coolness = _normalize_integer(params.get("top_coolness", 100))
     if top_coolness <= 0:
         raise ActionValidationError("top_coolness must be > 0")
     cmd.extend(["--top-coolness", str(top_coolness)])
+    for param_name, flag_name in (
+        ("min_dist_ly", "--min-dist-ly"),
+        ("max_dist_ly", "--max-dist-ly"),
+        ("min_star_count", "--min-star-count"),
+        ("max_star_count", "--max-star-count"),
+        ("min_planet_count", "--min-planet-count"),
+        ("max_planet_count", "--max-planet-count"),
+        ("min_coolness_score", "--min-coolness-score"),
+        ("max_coolness_score", "--max-coolness-score"),
+    ):
+        raw = params.get(param_name)
+        if raw is None or str(raw).strip() == "":
+            continue
+        cmd.extend([flag_name, str(raw)])
     view_type = str(params.get("view_type", "") or "").strip()
     if view_type == "system":
         view_type = "system_card"
@@ -812,7 +826,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "generate_snapshots": ActionSpec(
         name="generate_snapshots",
         display_name="Generate Snapshots",
-        description="Render system snapshot images for top coolness-ranked systems (defaults to top 200).",
+        description="Render system snapshot images for filtered top coolness-ranked systems (defaults to top 100).",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -825,10 +839,62 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "top_coolness": {
                 "type": "integer",
                 "required": False,
-                "default": 200,
+                "default": 100,
                 "min": 1,
                 "max": 10000,
                 "label": "Top coolness systems",
+            },
+            "min_dist_ly": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Min distance ly (optional)",
+            },
+            "max_dist_ly": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max distance ly (optional)",
+            },
+            "min_star_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Min stars (optional)",
+            },
+            "max_star_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Max stars (optional)",
+            },
+            "min_planet_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Min planets (optional)",
+            },
+            "max_planet_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Max planets (optional)",
+            },
+            "min_coolness_score": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Min coolness score (optional)",
+            },
+            "max_coolness_score": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max coolness score (optional)",
             },
             "view_type": {
                 "type": "string",

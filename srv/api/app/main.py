@@ -1627,6 +1627,58 @@ def admin_home(request: Request):
             </div>
             <div id="coolRunStatus" class="note-box small" style="margin-top:0.45rem;">Status: idle</div>
             <div id="coolPreviewNotice" class="note-box small" style="margin-top:0.45rem;"></div>
+            <div class="field" style="margin-top:1rem; padding-top:0.8rem; border-top:1px solid rgba(255,255,255,0.08);">
+              <h4 style="margin-bottom:0.35rem;">Snapshot (Re)generator</h4>
+              <p class="muted">
+                Generate deterministic system visuals for the current build. Filters are applied before the top-rank limit.
+                Defaults to the top 100 coolness-ranked systems.
+              </p>
+              <div class="field">
+                <label for="snapshotTopCoolness">Top coolness systems</label>
+                <div class="inline">
+                  <input id="snapshotTopCoolness" type="range" min="10" max="1000" step="10" value="100" style="flex:1;" />
+                  <input id="snapshotTopCoolnessNumber" type="number" min="1" max="10000" step="10" value="100" style="width:6rem;" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="snapshotMaxDistanceLy">Max distance (ly)</label>
+                <div class="inline">
+                  <input id="snapshotMaxDistanceLy" type="range" min="1" max="1000" step="1" value="1000" style="flex:1;" />
+                  <input id="snapshotMaxDistanceLyNumber" type="number" min="1" max="1000" step="1" value="1000" style="width:6rem;" />
+                </div>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="snapshotMinStarCount">Min stars</label>
+                  <div class="inline">
+                    <input id="snapshotMinStarCount" type="range" min="0" max="12" step="1" value="0" style="flex:1;" />
+                    <input id="snapshotMinStarCountNumber" type="number" min="0" max="12" step="1" value="0" style="width:5rem;" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="snapshotMinPlanetCount">Min planets</label>
+                  <div class="inline">
+                    <input id="snapshotMinPlanetCount" type="range" min="0" max="20" step="1" value="0" style="flex:1;" />
+                    <input id="snapshotMinPlanetCountNumber" type="number" min="0" max="20" step="1" value="0" style="width:5rem;" />
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label for="snapshotMinCoolnessScore">Min coolness score</label>
+                <div class="inline">
+                  <input id="snapshotMinCoolnessScore" type="range" min="0" max="40" step="0.5" value="0" style="flex:1;" />
+                  <input id="snapshotMinCoolnessScoreNumber" type="number" min="0" max="40" step="0.5" value="0" style="width:6rem;" />
+                </div>
+              </div>
+              <div class="inline">
+                <label for="snapshotForceRegenerate">Force regenerate existing images</label>
+                <input id="snapshotForceRegenerate" type="checkbox" />
+              </div>
+              <div class="inline" style="margin-top:0.45rem;">
+                <button id="snapshotRunBtn" type="button" class="primary">Generate Snapshots</button>
+              </div>
+              <div id="snapshotRunStatus" class="note-box small" style="margin-top:0.45rem;">Status: idle</div>
+            </div>
           </div>
           <div class="action-card">
             <h3>Preview Summary</h3>
@@ -1741,11 +1793,24 @@ def admin_home(request: Request):
       const coolPreviewSpectralDistEl = document.getElementById('coolPreviewSpectralDist');
       const coolPreviewTopSystemsEl = document.getElementById('coolPreviewTopSystems');
 	      const coolRunStatusEl = document.getElementById('coolRunStatus');
-		      const coolPreviewNoticeEl = document.getElementById('coolPreviewNotice');
-		      const coolApplyBtnEl = document.getElementById('coolApplyBtn');
-		      const coolSaveBtnEl = document.getElementById('coolSaveBtn');
-	      const coolActivateBtnEl = document.getElementById('coolActivateBtn');
-		      const presetBalancedBtnEl = document.getElementById('presetBalanced');
+      const coolPreviewNoticeEl = document.getElementById('coolPreviewNotice');
+      const coolApplyBtnEl = document.getElementById('coolApplyBtn');
+      const coolSaveBtnEl = document.getElementById('coolSaveBtn');
+      const coolActivateBtnEl = document.getElementById('coolActivateBtn');
+      const snapshotTopCoolnessEl = document.getElementById('snapshotTopCoolness');
+      const snapshotTopCoolnessNumberEl = document.getElementById('snapshotTopCoolnessNumber');
+      const snapshotMaxDistanceLyEl = document.getElementById('snapshotMaxDistanceLy');
+      const snapshotMaxDistanceLyNumberEl = document.getElementById('snapshotMaxDistanceLyNumber');
+      const snapshotMinStarCountEl = document.getElementById('snapshotMinStarCount');
+      const snapshotMinStarCountNumberEl = document.getElementById('snapshotMinStarCountNumber');
+      const snapshotMinPlanetCountEl = document.getElementById('snapshotMinPlanetCount');
+      const snapshotMinPlanetCountNumberEl = document.getElementById('snapshotMinPlanetCountNumber');
+      const snapshotMinCoolnessScoreEl = document.getElementById('snapshotMinCoolnessScore');
+      const snapshotMinCoolnessScoreNumberEl = document.getElementById('snapshotMinCoolnessScoreNumber');
+      const snapshotForceRegenerateEl = document.getElementById('snapshotForceRegenerate');
+      const snapshotRunBtnEl = document.getElementById('snapshotRunBtn');
+      const snapshotRunStatusEl = document.getElementById('snapshotRunStatus');
+      const presetBalancedBtnEl = document.getElementById('presetBalanced');
 	      const presetExoticBtnEl = document.getElementById('presetExotic');
 	      const presetHabitableBtnEl = document.getElementById('presetHabitable');
 	      const presetNearbyBtnEl = document.getElementById('presetNearby');
@@ -2141,6 +2206,38 @@ def admin_home(request: Request):
       function setRunStatus(status, detail = '') {{
         const head = String(status || 'idle').trim().toLowerCase() || 'idle';
         coolRunStatusEl.textContent = detail ? `Status: ${{head}} | ${{detail}}` : `Status: ${{head}}`;
+      }}
+
+      function setSnapshotRunStatus(status, detail = '') {{
+        const head = String(status || 'idle').trim().toLowerCase() || 'idle';
+        snapshotRunStatusEl.textContent = detail ? `Status: ${{head}} | ${{detail}}` : `Status: ${{head}}`;
+      }}
+
+      function bindRangeNumberPair(rangeEl, numberEl, fallback, options = undefined) {{
+        const min = Number(options && options.min);
+        const max = Number(options && options.max);
+        const step = Number(options && options.step);
+        const defaultValue = Number.isFinite(Number(fallback)) ? Number(fallback) : 0;
+        const normalize = (raw) => {{
+          let value = Number(raw);
+          if (!Number.isFinite(value)) value = defaultValue;
+          if (Number.isFinite(min)) value = Math.max(min, value);
+          if (Number.isFinite(max)) value = Math.min(max, value);
+          if (Number.isFinite(step) && step > 0) {{
+            value = Math.round(value / step) * step;
+          }}
+          return value;
+        }};
+        const apply = (raw) => {{
+          const value = normalize(raw);
+          const display = Number.isFinite(step) && step > 0 && step < 1 ? value.toFixed(1) : String(Math.round(value));
+          rangeEl.value = display;
+          numberEl.value = display;
+          return value;
+        }};
+        rangeEl.addEventListener('input', () => apply(rangeEl.value));
+        numberEl.addEventListener('change', () => apply(numberEl.value));
+        apply(numberEl.value || rangeEl.value || defaultValue);
       }}
 
       function setActivePreset(name) {{
@@ -2621,7 +2718,44 @@ def admin_home(request: Request):
         void followCoolnessJobAndPreview(jobId);
       }}
 
-	      async function saveCoolnessProfile() {{
+      async function runSnapshotGeneration() {{
+        const topCoolness = Math.max(1, Number.parseInt(String(snapshotTopCoolnessNumberEl.value || '100'), 10) || 100);
+        const maxDistanceLy = Math.max(1, Number.parseFloat(String(snapshotMaxDistanceLyNumberEl.value || '1000')) || 1000);
+        const minStarCount = Math.max(0, Number.parseInt(String(snapshotMinStarCountNumberEl.value || '0'), 10) || 0);
+        const minPlanetCount = Math.max(0, Number.parseInt(String(snapshotMinPlanetCountNumberEl.value || '0'), 10) || 0);
+        const minCoolnessScore = Math.max(0, Number.parseFloat(String(snapshotMinCoolnessScoreNumberEl.value || '0')) || 0);
+        snapshotTopCoolnessNumberEl.value = String(topCoolness);
+        snapshotMaxDistanceLyNumberEl.value = String(Math.round(maxDistanceLy));
+        snapshotMinStarCountNumberEl.value = String(minStarCount);
+        snapshotMinPlanetCountNumberEl.value = String(minPlanetCount);
+        snapshotMinCoolnessScoreNumberEl.value = minCoolnessScore.toFixed(1);
+        setSnapshotRunStatus('running', 'starting snapshot job');
+        const params = {{
+          top_coolness: topCoolness,
+          view_type: 'system_card',
+          max_dist_ly: maxDistanceLy,
+          min_star_count: minStarCount,
+          min_planet_count: minPlanetCount,
+          min_coolness_score: minCoolnessScore,
+          force: !!(snapshotForceRegenerateEl && snapshotForceRegenerateEl.checked),
+        }};
+        const runResult = await runAction('generate_snapshots', params);
+        if (!runResult || !runResult.ok) {{
+          setSnapshotRunStatus('error', 'snapshot job failed to start');
+          return;
+        }}
+        const job = (runResult.data && runResult.data.job) || {{}};
+        const jobId = String(job.job_id || '');
+        if (!jobId) {{
+          setSnapshotRunStatus('queued', 'job created; check Activity > Jobs');
+          return;
+        }}
+        setSnapshotRunStatus('queued', `job ${{jobId}}`);
+        await loadJobs();
+        void followActionJob(jobId, snapshotRunStatusEl, 'generate_snapshots');
+      }}
+
+      async function saveCoolnessProfile() {{
         setRunStatus('saving', 'persisting immutable profile');
         if (!Array.isArray(coolnessProfiles) || !coolnessProfiles.length) {{
           await loadCoolnessState({{ preserveEditor: true }});
@@ -3168,15 +3302,22 @@ def admin_home(request: Request):
       document.getElementById('presetHabitable').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.habitable, 'habitable'));
       document.getElementById('presetNearby').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.nearby, 'nearby'));
       coolResetActiveEl.addEventListener('click', resetCoolnessToActive);
-	      coolApplyBtnEl.addEventListener('click', () => {{ void applyCoolness(); }});
-	      coolSaveBtnEl.addEventListener('click', () => {{ void saveCoolnessProfile(); }});
-	      coolActivateBtnEl.addEventListener('click', () => {{ void activateCoolnessProfile(); }});
-	      coolLoadProfileBtnEl.addEventListener('click', loadSelectedSavedProfile);
+      coolApplyBtnEl.addEventListener('click', () => {{ void applyCoolness(); }});
+      coolSaveBtnEl.addEventListener('click', () => {{ void saveCoolnessProfile(); }});
+      coolActivateBtnEl.addEventListener('click', () => {{ void activateCoolnessProfile(); }});
+      coolLoadProfileBtnEl.addEventListener('click', loadSelectedSavedProfile);
+      bindRangeNumberPair(snapshotTopCoolnessEl, snapshotTopCoolnessNumberEl, 100, {{ min: 1, max: 10000, step: 10 }});
+      bindRangeNumberPair(snapshotMaxDistanceLyEl, snapshotMaxDistanceLyNumberEl, 1000, {{ min: 1, max: 1000, step: 1 }});
+      bindRangeNumberPair(snapshotMinStarCountEl, snapshotMinStarCountNumberEl, 0, {{ min: 0, max: 12, step: 1 }});
+      bindRangeNumberPair(snapshotMinPlanetCountEl, snapshotMinPlanetCountNumberEl, 0, {{ min: 0, max: 20, step: 1 }});
+      bindRangeNumberPair(snapshotMinCoolnessScoreEl, snapshotMinCoolnessScoreNumberEl, 0, {{ min: 0, max: 40, step: 0.5 }});
+      snapshotRunBtnEl.addEventListener('click', () => {{ void runSnapshotGeneration(); }});
       setScreen('operations');
       renderCoolnessSliders();
       renderCoolnessPreview(null);
-	      setPreviewNotice('Preview is safe and read-only. Run updates ranking outputs ephemerally; Save Profile persists a chosen version; Activate Profile switches what is live.');
+      setPreviewNotice('Preview is safe and read-only. Run updates ranking outputs ephemerally; Save Profile persists a chosen version; Activate Profile switches what is live.');
       setRunStatus('idle', 'ready');
+      setSnapshotRunStatus('idle', 'top 100 coolness systems');
       callStatus();
       loadCatalog();
       loadCoolnessState();

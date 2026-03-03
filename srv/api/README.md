@@ -75,6 +75,7 @@ Generate cached system snapshots + manifest rows:
 ```bash
 cd /data/spacegate/app
 scripts/generate_snapshots.sh --top-coolness 500
+scripts/generate_snapshots.sh --top-coolness 100 --max-dist-ly 80 --min-planet-count 1 --min-coolness-score 12
 ```
 
 Artifacts and metadata:

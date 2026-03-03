@@ -106,6 +106,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Snapshot generator and manifest (`scripts/generate_snapshots.py` + `snapshot_manifest`)
 - [x] Deterministic rendering rules and QC (deterministic SVG output + parameter hash + input hash)
 - [x] Rich artifact storage + versioning (`out/<build_id>/snapshots/...`, `rich.duckdb`, `snapshot_report.json`)
+- [x] Admin-triggered snapshot regeneration with top-coolness filtering
 
 ## v1.1 Beautification
 - [x] UI visual refresh (intentional hierarchy + readability)

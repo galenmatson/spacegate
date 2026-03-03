@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { fetchSystemDetail, fetchSystems } from "./api.js";
+import { fetchHealth, fetchSystemDetail, fetchSystems } from "./api.js";
 
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L"];
 const THEME_STORAGE_KEY = "spacegate.theme";
@@ -215,7 +215,16 @@ function MarkdownContent({ markdown }) {
   );
 }
 
-function HeaderNavLinks({ className, linkClassName }) {
+function formatBuildVersionLabel(buildId) {
+  const raw = String(buildId || "").trim();
+  if (!raw) {
+    return "";
+  }
+  return `DB ${raw}`;
+}
+
+function HeaderNavLinks({ className, linkClassName, buildId = "" }) {
+  const buildLabel = formatBuildVersionLabel(buildId);
   return (
     <span className={className} aria-label="Site links">
       {HEADER_LINKS.map((item) => (
@@ -231,14 +240,27 @@ function HeaderNavLinks({ className, linkClassName }) {
             {item.label}
           </a>
         ) : (
-          <Link
-            key={item.label}
-            to={item.href}
-            className={linkClassName}
-            title={item.title}
-          >
-            {item.label}
-          </Link>
+          item.label === "DATA" ? (
+            <span key={item.label} className="header-data-link-group" title={buildLabel || item.title}>
+              <Link
+                to={item.href}
+                className={linkClassName}
+                title={item.title}
+              >
+                {item.label}
+              </Link>
+              {buildLabel ? <span className="header-build-badge">{buildLabel}</span> : null}
+            </span>
+          ) : (
+            <Link
+              key={item.label}
+              to={item.href}
+              className={linkClassName}
+              title={item.title}
+            >
+              {item.label}
+            </Link>
+          )
         )
       ))}
     </span>
@@ -943,7 +965,7 @@ function SnapshotMetadata({ system, snapshot }) {
   );
 }
 
-function Layout({ children, headerExtra = null, showSearchLink = true }) {
+function Layout({ children, headerExtra = null, showSearchLink = true, buildId = "" }) {
   const { theme, setTheme, options } = useThemeControls();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1108,6 +1130,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
                   <HeaderNavLinks
                     className="lcars-left-deco-bottom-links"
                     linkClassName="lcars-left-deco-mini-link"
+                    buildId={buildId}
                   />
                 )}
               </span>
@@ -1157,7 +1180,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
       <header className="site-header">
         {!isLcars && (
           <div className="header-topline">
-            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" />
+            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" buildId={buildId} />
           </div>
         )}
         <div>
@@ -1192,9 +1215,9 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
   );
 }
 
-function AboutPage() {
+function AboutPage({ buildId = "" }) {
   return (
-    <Layout>
+    <Layout buildId={buildId}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={ABOUT_MARKDOWN} />
@@ -1204,9 +1227,9 @@ function AboutPage() {
   );
 }
 
-function DataPage() {
+function DataPage({ buildId = "" }) {
   return (
-    <Layout>
+    <Layout buildId={buildId}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={DATA_MARKDOWN} />
@@ -1216,7 +1239,7 @@ function DataPage() {
   );
 }
 
-function SearchPage() {
+function SearchPage({ buildId = "" }) {
   const { theme } = useThemeControls();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1526,7 +1549,7 @@ function SearchPage() {
   ].filter(Boolean).join(" ");
 
   return (
-    <Layout showSearchLink={false}>
+    <Layout showSearchLink={false} buildId={buildId}>
       <section className={searchLayoutClassName}>
         <form
           className={[
@@ -1950,7 +1973,7 @@ function ProvenanceBlock({ provenance }) {
   );
 }
 
-function SystemDetailPage() {
+function SystemDetailPage({ buildId = "" }) {
   const { systemId } = useParams();
   const navigate = useNavigate();
   const [data, setData] = React.useState(null);
@@ -1985,7 +2008,7 @@ function SystemDetailPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <Layout buildId={buildId}>
         <div className="panel">Loading system details...</div>
       </Layout>
     );
@@ -1993,7 +2016,7 @@ function SystemDetailPage() {
 
   if (error || !data) {
     return (
-      <Layout>
+      <Layout buildId={buildId}>
         <div className="panel">
           <h2>System not found</h2>
           <p>{error || "No data returned."}</p>
@@ -2006,7 +2029,7 @@ function SystemDetailPage() {
   const { system, stars, planets } = data;
 
   return (
-    <Layout showSearchLink={false}>
+    <Layout showSearchLink={false} buildId={buildId}>
       <section className="detail">
         <div className="system-identifiers-row">
           <span className="system-identifiers-name">{formatText(system.system_name)}</span>
@@ -2185,6 +2208,7 @@ function SystemDetailPage() {
 
 export default function App() {
   const [theme, setTheme] = useState(() => resolveInitialTheme());
+  const [buildId, setBuildId] = useState("");
 
   useEffect(() => {
     if (!THEME_IDS.has(theme)) {
@@ -2198,6 +2222,26 @@ export default function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    let active = true;
+    fetchHealth()
+      .then((payload) => {
+        if (!active) {
+          return;
+        }
+        setBuildId(String(payload?.build_id || "").trim());
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setBuildId("");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const themeContextValue = useMemo(
     () => ({
       theme,
@@ -2210,10 +2254,10 @@ export default function App() {
   return (
     <ThemeContext.Provider value={themeContextValue}>
       <Routes>
-        <Route path="/" element={<SearchPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/data" element={<DataPage />} />
-        <Route path="/systems/:systemId" element={<SystemDetailPage />} />
+        <Route path="/" element={<SearchPage buildId={buildId} />} />
+        <Route path="/about" element={<AboutPage buildId={buildId} />} />
+        <Route path="/data" element={<DataPage buildId={buildId} />} />
+        <Route path="/systems/:systemId" element={<SystemDetailPage buildId={buildId} />} />
       </Routes>
     </ThemeContext.Provider>
   );

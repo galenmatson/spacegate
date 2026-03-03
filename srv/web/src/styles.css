@@ -395,6 +395,20 @@ body {
   text-underline-offset: 0.18em;
 }
 
+.header-data-link-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-build-badge {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  opacity: 0.78;
+}
+
 .filters-footer {
   display: none;
 }
@@ -3510,6 +3524,15 @@ main {
 
   .header-subtitle {
     font-size: 0.92rem;
+  }
+
+  .header-top-links {
+    gap: 10px;
+  }
+
+  .header-data-link-group {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .header-search input {
