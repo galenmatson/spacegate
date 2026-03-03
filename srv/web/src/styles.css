@@ -811,6 +811,34 @@ select:focus-visible {
   z-index: 1;
 }
 
+:root[data-theme="lcars"] .lcars-utility-rail {
+  position: absolute;
+  right: 18px;
+  bottom: 2px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  max-width: calc(100% - var(--lcars-rail-width) - 32px);
+}
+
+:root[data-theme="lcars"] .lcars-utility-link {
+  color: var(--lcars-text-dark);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:root[data-theme="lcars"] .lcars-utility-link:hover {
+  text-decoration: underline;
+}
+
 :root[data-theme="lcars"] .lcars-top-left {
   position: relative;
   z-index: 2;
@@ -974,13 +1002,6 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-data-link:hover {
   text-decoration: underline;
-}
-
-:root[data-theme="lcars"] .lcars-data-links {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 14px;
 }
 
 :root[data-theme="lcars"] .lcars-data-link-group {

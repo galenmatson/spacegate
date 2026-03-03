@@ -272,12 +272,7 @@ function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels 
 function LcarsDataRail({ buildId = "" }) {
   const buildLabel = formatBuildVersionLabel(buildId);
   return (
-    <div className="lcars-data-rail" aria-label="Site links">
-      <HeaderNavLinks
-        className="lcars-data-links"
-        linkClassName="lcars-data-link"
-        includeLabels={["ABT", "SPT", "SRC"]}
-      />
+    <div className="lcars-data-rail" aria-label="Data links">
       <span className="lcars-data-link-group">
         <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
           DATA
@@ -285,6 +280,16 @@ function LcarsDataRail({ buildId = "" }) {
         {buildLabel ? <span className="lcars-data-build">{buildLabel}</span> : null}
       </span>
     </div>
+  );
+}
+
+function LcarsUtilityRail() {
+  return (
+    <HeaderNavLinks
+      className="lcars-utility-rail"
+      linkClassName="lcars-utility-link"
+      includeLabels={["ABT", "SPT", "SRC"]}
+    />
   );
 }
 
@@ -1140,6 +1145,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
     <div className={`app ${isLcars ? "lcars-app" : ""}`}>
       {isLcars && (
         <div className="lcars-topbar">
+          <LcarsUtilityRail />
           <div className="lcars-top-left">
             {Array.from({ length: LCARS_LEFT_DECORATIVE_CHIP_COUNT }).map((_, idx) => (
               <span
