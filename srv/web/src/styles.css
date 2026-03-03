@@ -986,7 +986,7 @@ select:focus-visible {
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
-  height: 52px;
+  height: 18px;
   max-width: calc(100% - var(--lcars-rail-width) - 32px);
 }
 
