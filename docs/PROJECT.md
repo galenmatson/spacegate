@@ -977,12 +977,12 @@ Instead:
 ## v1.2: Additional catalogs / packs foundation
 Goal: correct core undersights and widen the scientific foundation before heavy enrichment.
 
-Why now:
+### Why now:
 - The current foundation is strong enough to browse, rank, and visualize, but still incomplete in important places.
 - Systems like Sol and Castor reveal that "easy to access" starter catalogs are not sufficient for the narrative and visual fidelity goals of the project.
 - Enrichment built on incomplete multiplicity, planetary census, stellar parameters, or neighbor coverage will be expensive to redo and will train the UI toward the wrong picture of reality.
 
-Success criteria:
+### Success criteria:
 - Approve the next tranche of major stellar/system catalogs before ingestion.
 - Define authoritative field targets by source family:
   - multiplicity / hierarchical membership
@@ -1001,7 +1001,7 @@ Success criteria:
   - raw detection catalogs that should not masquerade as unique objects
 - Revisit system grouping and host matching as needed so known benchmark systems no longer collapse into obviously incomplete representations.
 
-Guardrails:
+### Guardrails:
 - Do not silently merge catalogs with incompatible object semantics.
 - Do not let optional packs mutate the canonical meaning of core IDs without an explicit migration/versioning plan.
 - Rebuild downstream rich artifacts after any catalog expansion that changes:
@@ -1010,6 +1010,162 @@ Guardrails:
   - multiplicity
   - distances / coordinates
   - dominant stellar properties
+
+### Immediate implementation contract (v1.2)
+- Raw downloads preserve source-native files, units, epochs, and identifiers exactly.
+- Cooked outputs remain per-catalog and typed; they normalize formatting and column names but do not merge catalogs.
+- Canonical core rows are merged during ingest column-by-column using explicit field precedence rules.
+- Canonical distance/position storage should retain parsec-valued columns:
+  - `dist_pc`
+  - `x_helio_pc`, `y_helio_pc`, `z_helio_pc`
+- Light-year convenience/materialized columns may also be stored for API/query/render efficiency:
+  - `dist_ly`
+  - `x_helio_ly`, `y_helio_ly`, `z_helio_ly`
+- Core build metadata records the canonical astrometry target:
+  - `coordinate_epoch = J2016.0`
+  - `coordinate_frame = ICRS`
+- Once mixed-source astrometry is active, `stars` and `systems` should also record row-level astrometry lineage fields such as:
+  - `astrometry_source_catalog`
+  - `astrometry_source_epoch`
+  - `astrometry_normalization_method`
+  - `astrometry_quality`
+- Core must not infer stellar physical parameters from spectral type. Such inference belongs only in rich artifacts and must be explicitly flagged there.
+  
+### CORE STAR FIELDS (served.stars.*)  [canonical epoch: J2016.0; frame: ICRS]
+
+astrometry (ra, dec, pm, parallax/dist, rv)
+├─ Gaia DR3 (best available)                      [primary]
+│  ├─ ra/dec @ J2016.0
+│  ├─ pm_ra/pm_dec
+│  ├─ parallax (+ error)
+│  └─ radial_velocity (if present)
+├─ AT-HYG (if Gaia missing for that star)         [secondary]
+│  ├─ use AT-HYG identifiers / names / legacy kinematics as fallback inputs
+│  ├─ prefer source-native parsec values when present
+│  └─ project to J2016.0 only when source epoch + proper motion support it
+└─ HYG (if you still carry it)                    [last resort]
+   ├─ treat as legacy fallback only if its semantics are preserved explicitly
+   ├─ never let HYG silently outrank Gaia or AT-HYG for canonical astrometry
+   └─ require row-level legacy/quality flags if used at all
+
+epoch normalization (served fields)
+├─ if source_epoch == 2016.0 → passthrough
+├─ if source_epoch != 2016.0 AND proper_motion available
+│  └─ propagate to J2016.0 and store both source + propagated lineage
+└─ if source_epoch != 2016.0 AND proper_motion unavailable
+   └─ keep source-epoch astrometry only as an explicitly flagged legacy fallback; do not silently label it native J2016.0
+
+identifiers + names (iau/common, bayer, flamsteed, gliese, hr/hd/hip)
+├─ AT-HYG/HYG curated fields                       [primary]
+└─ Gaia source_id                                   [always store when present]
+
+photometry (mag, colors)
+├─ Gaia DR3 photometry                              [primary]
+└─ fallback: legacy catalog photometry              [secondary]
+
+physical params (teff, radius, luminosity, mass, metallicity)
+├─ Gaia DR3 astrophysical parameters (when present) [primary]
+├─ curated external stellar-params catalogs         [v2+ milestone]
+└─ null                                              [core rule]
+   └─ inferred values from spectral type are RICH ONLY, flagged, and never canonical core fields
+
+multiplicity / system structure (components, hierarchy)
+├─ dedicated multi-star catalogs (v2+ milestone)    [future best]
+└─ AT-HYG/HYG comp/comp_primary/base                [stopgap]
+   └─ mark multiplicity_quality = "partial"
+  
+###  SPACEGATE CORE (≤1000 ly) — field precedence (highest wins; always record provenance)
+
+systems.*
+├─ system_name
+│  ├─ curated common-name table (approved, small, pinned version)          [v1 core enhancement]
+│  ├─ AT-HYG proper/name fields (if present)                               [v0 core]
+│  └─ fallback: primary star_name (normalized)                             [v0 core]
+├─ multiplicity / membership (grouping)
+│  ├─ explicit multi-star catalogs / WDS-style relationships               [v1 core enhancement]
+│  ├─ name-based grouping (A/B/C)                                          [v0 core]
+│  └─ proximity grouping (<=0.25 ly), gated                                [v0 optional]
+├─ position (`dist_pc`, `x_helio_pc/y_helio_pc/z_helio_pc`, `ra_deg`, `dec_deg`)
+│  ├─ primary star canonical astrometry from merged star row               [v1 core enhancement]
+│  ├─ Gaia @ J2016.0 when available                                        [v1 core enhancement]
+│  ├─ else AT-HYG projected to J2016.0 when justified                      [v1 core enhancement]
+│  └─ else flagged legacy source-epoch fallback                            [exception path]
+├─ LY convenience columns (`dist_ly`, `x_helio_ly/y_helio_ly/z_helio_ly`)
+│  └─ deterministic conversion from canonical parsec columns               [v1 core enhancement]
+└─ epoch/frame metadata
+   ├─ build_metadata: `coordinate_epoch=J2016.0`                           [v1 core enhancement]
+   ├─ build_metadata: `coordinate_frame=ICRS`                              [v1 core enhancement]
+   └─ row-level astrometry lineage retained when not natively J2016.0      [v1 core enhancement]
+
+stars.*
+├─ identifiers (gaia_id, hip_id, hd_id, tyc, ...)
+│  ├─ Gaia DR3 source_id (if present)                                      [v0 core]
+│  ├─ HIP, then HD, then others                                            [v0 core]
+│  └─ fallback stable hash (name + rounded coords + dist)                  [v0 core]
+├─ names/aliases
+│  ├─ curated alias table (IAU/common names, Bayer/Flamsteed variants)     [v1 core enhancement]
+│  ├─ AT-HYG name fields                                                   [v0 core]
+│  └─ fallback from catalog IDs ("HD 12345", etc)                          [v0 core]
+├─ canonical astrometry (`dist_pc`, `x_helio_pc/y_helio_pc/z_helio_pc`, `ra_deg`, `dec_deg`)
+│  ├─ Gaia @ J2016.0                                                       [v1 core enhancement]
+│  ├─ else AT-HYG projected to J2016.0 when source epoch + PM allow        [v1 core enhancement]
+│  └─ else flagged legacy source-epoch fallback                            [exception path]
+├─ LY convenience columns (`dist_ly`, `x_helio_ly/y_helio_ly/z_helio_ly`)
+│  └─ deterministic conversion from canonical parsec columns               [v1 core enhancement]
+├─ spectral_type_raw + parsed (class/subtype/luminosity)
+│  ├─ highest-quality spectroscopic survey value (if approved)             [v1 core enhancement]
+│  ├─ AT-HYG spectral string                                               [v0 core]
+│  └─ null (don’t guess)                                                   [rule]
+├─ Teff (effective temperature, K)
+│  ├─ Gaia DR3 astrophysical params (teff*)                                [v1 core enhancement]
+│  ├─ spectroscopic surveys (APOGEE/GALAH/LAMOST/RAVE...)                  [v1 core enhancement]
+│  ├─ other compiled catalogs (older)                                      [v2+ unless curated]
+│  └─ fallback: "typical Teff for spectral type"                           [RICH ONLY — inferred, flagged]
+├─ radius/mass/luminosity/metallicity (if you add them)
+│  ├─ same pattern: Gaia params / high-quality spectroscopy                [v1 core enhancement]
+│  └─ inferred from spectral type                                          [RICH ONLY — inferred, flagged]
+└─ kinematics (pm_ra/pm_dec, radial_velocity)
+   ├─ Gaia (best)                                                          [v1 core enhancement]
+   ├─ AT-HYG (if present)                                                  [v0 core]
+   └─ null                                                                 [rule]
+
+planets.* (NASA pscomppars baseline)
+├─ planet parameters (period/sma/ecc/inc, radius/mass/teq/insolation)
+│  └─ NASA Exoplanet Archive (pscomppars)                                  [v0 core]
+└─ host matching
+   ├─ Gaia ID match                                                        [v0 core]
+   ├─ HIP match                                                            [v0 core]
+   ├─ HD match                                                             [v0 core]
+   ├─ exact hostname match                                                 [v0 core]
+   └─ fuzzy hostname match (opt-in, lower confidence)                      [v1 core enhancement]
+
+### v1.2 catalog evaluation workflow
+Before promoting any new source family into canonical precedence:
+
+1. Pull a small typed sample from each candidate catalog.
+2. Choose a comparison key strategy:
+   - Gaia source id first
+   - HIP / HD next
+   - normalized names only as a weak fallback
+3. For each source, select roughly 100 representative rows:
+   - a random sample across the full file
+   - a targeted overlap sample where candidate keys intersect existing core stars
+4. Compare only the fields with direct product value:
+   - astrometry: `ra`, `dec`, `parallax/dist`, `pm_ra`, `pm_dec`, `radial_velocity`
+   - names/aliases
+   - spectral raw/parsed
+   - photometry
+   - multiplicity indicators
+5. Score each field family on:
+   - coverage
+   - identifier matchability
+   - epoch/frame clarity
+   - numeric plausibility / outlier rate
+   - provenance/licensing quality
+6. Update the field-precedence matrix only after the sample comparison is written up.
+7. Only then implement downloader, cooker, and merge-layer changes for the approved source family.
+  
+  
 
 ## v1.3: External reference links (curated web sources)
 Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
