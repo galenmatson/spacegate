@@ -15,6 +15,8 @@ Default behavior:
 
 Current built-ins:
 
+- `gaia_dr3_non_single_sample`
+- `gaia_dr3_nss_two_body_sample`
 - `gaia_dr3_sample`
 - `athyg`
 - `nasa_exoplanet_archive`

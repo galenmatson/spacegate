@@ -124,6 +124,121 @@ def fetch_gaia_samples(state_dir: Path, sample_size: int, seed: str) -> dict:
     }
 
 
+def fetch_gaia_non_single_samples(state_dir: Path, sample_size: int, seed: str) -> dict:
+    core_db_path = state_dir / "served" / "current" / "core.duckdb"
+    if not core_db_path.exists():
+        raise SystemExit(f"Missing core database for Gaia overlap sample: {core_db_path}")
+
+    output_dir = state_dir / "cooked" / "gaia_dr3_non_single_sample"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    overlap_ids = core_gaia_ids(core_db_path, sample_size, seed + "-nssflag")
+    select_fields = (
+        "source_id,ra,dec,parallax,parallax_error,pmra,pmdec,radial_velocity,"
+        "phot_g_mean_mag,bp_rp,teff_gspphot,logg_gspphot,mh_gspphot,non_single_star"
+    )
+    overlap_query = (
+        f"select {select_fields} from gaiadr3.gaia_source "
+        f"where non_single_star = 1 and source_id in ({','.join(str(value) for value in overlap_ids)})"
+    )
+    random_query = (
+        f"select top {sample_size} {select_fields} from gaiadr3.gaia_source "
+        "where non_single_star = 1 and parallax >= 3.26156 order by source_id"
+    )
+
+    overlap_csv = http_get(gaia_query_url(overlap_query))
+    random_csv = http_get(gaia_query_url(random_query))
+
+    overlap_path = output_dir / "gaia_dr3_non_single_overlap_sample.csv"
+    random_path = output_dir / "gaia_dr3_non_single_random_sample.csv"
+    write_bytes(overlap_path, overlap_csv)
+    write_bytes(random_path, random_csv)
+
+    combined_path = output_dir / "gaia_dr3_non_single_sample.csv"
+    with combined_path.open("w", newline="", encoding="utf-8") as out_f:
+        writer = None
+        seen_ids: set[str] = set()
+        for sample_origin, path in (("overlap", overlap_path), ("random", random_path)):
+            with path.open(newline="", encoding="utf-8") as in_f:
+                reader = csv.DictReader(in_f)
+                fieldnames = list(reader.fieldnames or []) + ["sample_origin"]
+                if writer is None:
+                    writer = csv.DictWriter(out_f, fieldnames=fieldnames)
+                    writer.writeheader()
+                for row in reader:
+                    source_id = (row.get("source_id") or "").strip()
+                    if not source_id or source_id in seen_ids:
+                        continue
+                    seen_ids.add(source_id)
+                    row["sample_origin"] = sample_origin
+                    writer.writerow(row)
+
+    return {
+        "combined_path": str(combined_path),
+        "random_path": str(random_path),
+        "overlap_path": str(overlap_path),
+        "row_count_combined": len(seen_ids),
+        "query_random": random_query,
+    }
+
+
+def fetch_gaia_nss_two_body_samples(state_dir: Path, sample_size: int, seed: str) -> dict:
+    core_db_path = state_dir / "served" / "current" / "core.duckdb"
+    if not core_db_path.exists():
+        raise SystemExit(f"Missing core database for Gaia overlap sample: {core_db_path}")
+
+    output_dir = state_dir / "cooked" / "gaia_dr3_nss_two_body_sample"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    overlap_ids = core_gaia_ids(core_db_path, sample_size, seed + "-nssorbit")
+    select_fields = (
+        "source_id,nss_solution_type,ra,dec,parallax,pmra,pmdec,period,eccentricity,"
+        "center_of_mass_velocity,semi_amplitude_primary,mass_ratio,inclination,flags,significance"
+    )
+    overlap_query = (
+        f"select {select_fields} from gaiadr3.nss_two_body_orbit "
+        f"where source_id in ({','.join(str(value) for value in overlap_ids)})"
+    )
+    random_query = (
+        f"select top {sample_size} {select_fields} from gaiadr3.nss_two_body_orbit order by source_id"
+    )
+
+    overlap_csv = http_get(gaia_query_url(overlap_query))
+    random_csv = http_get(gaia_query_url(random_query))
+
+    overlap_path = output_dir / "gaia_dr3_nss_two_body_overlap_sample.csv"
+    random_path = output_dir / "gaia_dr3_nss_two_body_random_sample.csv"
+    write_bytes(overlap_path, overlap_csv)
+    write_bytes(random_path, random_csv)
+
+    combined_path = output_dir / "gaia_dr3_nss_two_body_sample.csv"
+    with combined_path.open("w", newline="", encoding="utf-8") as out_f:
+        writer = None
+        seen_ids: set[str] = set()
+        for sample_origin, path in (("overlap", overlap_path), ("random", random_path)):
+            with path.open(newline="", encoding="utf-8") as in_f:
+                reader = csv.DictReader(in_f)
+                fieldnames = list(reader.fieldnames or []) + ["sample_origin"]
+                if writer is None:
+                    writer = csv.DictWriter(out_f, fieldnames=fieldnames)
+                    writer.writeheader()
+                for row in reader:
+                    source_id = (row.get("source_id") or "").strip()
+                    if not source_id or source_id in seen_ids:
+                        continue
+                    seen_ids.add(source_id)
+                    row["sample_origin"] = sample_origin
+                    writer.writerow(row)
+
+    return {
+        "combined_path": str(combined_path),
+        "random_path": str(random_path),
+        "overlap_path": str(overlap_path),
+        "row_count_combined": len(seen_ids),
+        "query_random": random_query,
+    }
+
+
 def parse_wds_coord(value: str) -> tuple[float | None, float | None]:
     coord = value.strip()
     if len(coord) < 16:
@@ -258,7 +373,7 @@ def main() -> int:
     parser.add_argument(
         "--catalog",
         action="append",
-        choices=["gaia_dr3_sample", "wds"],
+        choices=["gaia_dr3_sample", "gaia_dr3_non_single_sample", "gaia_dr3_nss_two_body_sample", "wds"],
         help="Catalog sample to fetch. Defaults to both.",
     )
     parser.add_argument(
@@ -277,11 +392,15 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     init_env(root)
     state_dir = default_state_dir(root)
-    selected = args.catalog or ["gaia_dr3_sample", "wds"]
+    selected = args.catalog or ["gaia_dr3_sample", "gaia_dr3_non_single_sample", "gaia_dr3_nss_two_body_sample", "wds"]
 
     summary = {}
     if "gaia_dr3_sample" in selected:
         summary["gaia_dr3_sample"] = fetch_gaia_samples(state_dir, args.sample_size, args.seed)
+    if "gaia_dr3_non_single_sample" in selected:
+        summary["gaia_dr3_non_single_sample"] = fetch_gaia_non_single_samples(state_dir, args.sample_size, args.seed)
+    if "gaia_dr3_nss_two_body_sample" in selected:
+        summary["gaia_dr3_nss_two_body_sample"] = fetch_gaia_nss_two_body_samples(state_dir, args.sample_size, args.seed)
     if "wds" in selected:
         summary["wds"] = fetch_wds_sample(state_dir)
 
