@@ -14,6 +14,7 @@ Status labels:
 - `approved_local`: approved local curated table maintained in-repo or in a pinned sidecar asset
 - `review_required`: plausible source, but not approved for canonical merge yet
 - `pack_only`: valid source for packs, not for canonical core rows
+- `lookup_only`: useful for human lookup or QA, not approved for automated canonical merge
 
 ## Core canonical fields
 
@@ -22,7 +23,7 @@ Status labels:
 | Field family | Preferred source | Fallbacks | Status | Notes |
 |---|---|---|---|---|
 | `system_name` | curated common-name table | AT-HYG proper/name fields; primary `star_name` | `approved_local` | Small, pinned, human-reviewed table for high-value systems |
-| multiplicity / membership | explicit relationship catalogs (WDS-style / multi-star relationship data) | name-root grouping; proximity grouping | `review_required` | Explicit relationships should beat heuristics |
+| multiplicity / membership | approved exact-join multiplicity evidence plus approved hierarchy/relationship catalogs | name-root grouping; proximity grouping | `review_required` | Exact-ID evidence should beat heuristics; coordinate-led visual catalogs are support, not sole authority |
 | canonical astrometry (`ra/dec/dist`, xyz) | Gaia-linked astrometry at build epoch `J2016.0` | AT-HYG astrometry projected to `J2016.0`; final fallback: source-epoch coordinates with explicit flagging | `approved_family` | Gaia should win when available |
 | coordinate frame / epoch metadata | build metadata + row-level astrometry normalization fields | none | `approved_family` | Build epoch is canonical target; row-level source epoch still needed for mixed sources |
 
@@ -54,6 +55,28 @@ Status labels:
 | special populations / variables | VSX | `pack_only` | Better as tags/pack overlays unless a core use case is explicit |
 | extended/superstellar objects | SNR catalogs, cluster catalogs | `pack_only` | These are not point-star replacements for core systems |
 
+## Multiplicity source candidates
+
+This section records the current evaluation of candidate multistar sources before the canonical merge layer is implemented.
+
+| Source | Best role | Join strength | Status | Notes |
+|---|---|---|---|---|
+| Gaia DR3 `gaia_source.non_single_star` and NSS tables | exact multiplicity evidence on existing stars | exact `source_id` | `approved_family` | Best primary evidence layer for star-level multiplicity flags and orbit solutions |
+| MSC (Tokovinin Multiple Star Catalog) | hierarchical system structure for triples and higher | moderate; WDS-centered with common identifiers | `review_required` | Strong candidate for explicit hierarchy because it is purpose-built for nested multiples and ships bulk tables |
+| ORB6 (Sixth Orbit Catalog) | high-confidence visual-binary orbital evidence | moderate; WDS/discoverer-led | `review_required` | Strong support catalog for orbit-confirmed visual binaries; bulk text/SQL files are available |
+| BDB / ILB (Binary Star Database / Identification List of Binaries) | crosswalk between system, pair, and component identifiers across heterogeneous multiplicity catalogs | potentially strong if export is practical | `review_required` | Strategically valuable as a link resolver, but ingestion path is still unclear because no obvious bulk export/API has been confirmed |
+| WDS | broad visual multiplicity coverage | weak exact IDs; strong coordinate/discoverer designations | `review_required` | Valuable breadth source, but matches to core require confidence-scored crossmatching rather than exact joins |
+| SBX (successor to SB9) | spectroscopic-orbit evidence | moderate; identifier quality varies by system | `review_required` | Best specialized source for spectroscopic binaries; useful as supporting evidence, not a full hierarchy catalog |
+| Stelle Doppie | operator lookup / manual QA | derivative of WDS pages with added cross-identifiers | `lookup_only` | Useful for manual inspection, but not suitable as a canonical automated source |
+
+Preferred multiplicity stack for v1.2 planning:
+
+1. Gaia NSS for exact star-level multiplicity evidence.
+2. MSC for explicit higher-order hierarchy, pending sample validation.
+3. ORB6 and SBX as orbit-quality support catalogs.
+4. WDS for broad visual coverage via confidence-scored crossmatch.
+5. BDB as a later crosswalk layer if a stable machine-ingest path is confirmed.
+
 ## Astrometry normalization policy
 
 This is the intended canonical policy for v1.2:
@@ -71,7 +94,8 @@ Implication:
 
 These source families still need a concrete approval call before coding the merge layer:
 
-- exact multiplicity relationship source(s) for canonical system grouping
+- exact multiplicity relationship source(s) for canonical system grouping, especially the Gaia NSS + MSC + WDS interaction model
 - exact Gaia extraction path for the <=1000 ly core subset
 - which spectroscopy catalogs are approved for canonical stellar physical fields
+- whether BDB/ILB has a stable machine-ingest path suitable for routine builds
 - whether any compact/substellar classes should ever graduate from `pack_only` into core canonical rows
