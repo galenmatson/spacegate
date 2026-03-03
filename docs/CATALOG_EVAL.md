@@ -15,8 +15,17 @@ Default behavior:
 
 Current built-ins:
 
+- `gaia_dr3_sample`
 - `athyg`
 - `nasa_exoplanet_archive`
+- `wds`
+
+Fetch the sample inputs first:
+
+```bash
+cd /srv/spacegate/app
+scripts/fetch_catalog_samples.sh --sample-size 100
+```
 
 Current overlap target:
 
@@ -38,7 +47,7 @@ scripts/catalog_eval.sh --catalog athyg --sample-size 100
 
 Recommended workflow:
 
-1. Download candidate catalogs without changing ingest precedence.
+1. Fetch sample inputs for the candidate source families.
 2. Run `catalog_eval.py` on each candidate source family.
 3. Review `summary.md` for coverage and key-overlap counts.
 4. Inspect the random and overlap CSV samples manually.
