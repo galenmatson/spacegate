@@ -272,11 +272,18 @@ function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels 
 function LcarsDataRail({ buildId = "" }) {
   const buildLabel = formatBuildVersionLabel(buildId);
   return (
-    <div className="lcars-data-rail" aria-label="Data build links">
-      <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
-        DATA
-      </Link>
-      {buildLabel ? <span className="lcars-data-build">{buildLabel}</span> : null}
+    <div className="lcars-data-rail" aria-label="Site links">
+      <HeaderNavLinks
+        className="lcars-data-links"
+        linkClassName="lcars-data-link"
+        includeLabels={["ABT", "SPT", "SRC"]}
+      />
+      <span className="lcars-data-link-group">
+        <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
+          DATA
+        </Link>
+        {buildLabel ? <span className="lcars-data-build">{buildLabel}</span> : null}
+      </span>
     </div>
   );
 }
@@ -1139,15 +1146,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
                 key={`lcars-deco-left-${idx}`}
                 className={`lcars-left-deco ${idx === 0 ? "lcars-left-deco-top" : "lcars-left-deco-bottom"}`}
                 aria-hidden={idx !== 0}
-              >
-                {idx === 1 && (
-                  <HeaderNavLinks
-                    className="lcars-left-deco-bottom-links"
-                    linkClassName="lcars-left-deco-mini-link"
-                    includeLabels={["ABT", "SPT", "SRC"]}
-                  />
-                )}
-              </span>
+              />
             ))}
           </div>
           <div className="lcars-top-center">

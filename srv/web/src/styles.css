@@ -852,49 +852,6 @@ select:focus-visible {
   border-radius: 0;
 }
 
-:root[data-theme="lcars"] .lcars-left-deco-bottom-links {
-  position: absolute;
-  top: 10px;
-  right: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 0 10px;
-}
-
-:root[data-theme="lcars"] .lcars-left-deco-mini-link {
-  color: var(--lcars-text-dark);
-  text-decoration: none;
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-:root[data-theme="lcars"] .lcars-left-deco-mini-link:hover {
-  text-decoration: underline;
-}
-
-:root[data-theme="lcars"] .header-data-link-group {
-  display: grid;
-  justify-items: end;
-  gap: 3px;
-}
-
-:root[data-theme="lcars"] .header-build-badge {
-  display: block;
-  font-size: 0.54rem;
-  line-height: 1;
-  letter-spacing: 0.06em;
-  opacity: 0.92;
-}
-
 :root[data-theme="lcars"] .lcars-left-deco-bottom::after {
   content: "";
   position: absolute;
@@ -995,12 +952,13 @@ select:focus-visible {
 :root[data-theme="lcars"] .lcars-data-rail {
   position: absolute;
   right: 18px;
-  top: 4px;
+  top: 6px;
   z-index: 5;
-  display: grid;
-  justify-items: end;
-  gap: 3px;
-  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  max-width: calc(100% - var(--lcars-rail-width) - 32px);
 }
 
 :root[data-theme="lcars"] .lcars-data-link {
@@ -1016,6 +974,20 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-data-link:hover {
   text-decoration: underline;
+}
+
+:root[data-theme="lcars"] .lcars-data-links {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+:root[data-theme="lcars"] .lcars-data-link-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 :root[data-theme="lcars"] .lcars-data-build {
