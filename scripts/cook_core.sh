@@ -17,6 +17,9 @@ PYTHON_BIN=""
 ATHYG_PART1="${ATHYG_PART1:-$RAW_DIR/athyg/athyg_v33-1.csv.gz}"
 ATHYG_PART2="${ATHYG_PART2:-$RAW_DIR/athyg/athyg_v33-2.csv.gz}"
 NASA_RAW="$RAW_DIR/nasa_exoplanet_archive/pscomppars.csv"
+WDS_RAW="$RAW_DIR/wds/wdsweb_summ2.txt"
+MSC_RAW="$RAW_DIR/msc/newmsc-20240101.tar.gz"
+ORB6_RAW="$RAW_DIR/orb6/orb6orbits.sql"
 
 COOKED_ATHYG_DIR="$COOKED_DIR/athyg"
 COOKED_NASA_DIR="$COOKED_DIR/nasa_exoplanet_archive"
@@ -58,6 +61,18 @@ ensure_inputs() {
   fi
   if [[ ! -f "$NASA_RAW" ]]; then
     echo "Missing: $NASA_RAW" >&2
+    missing=1
+  fi
+  if [[ ! -f "$WDS_RAW" ]]; then
+    echo "Missing: $WDS_RAW" >&2
+    missing=1
+  fi
+  if [[ ! -f "$MSC_RAW" ]]; then
+    echo "Missing: $MSC_RAW" >&2
+    missing=1
+  fi
+  if [[ ! -f "$ORB6_RAW" ]]; then
+    echo "Missing: $ORB6_RAW" >&2
     missing=1
   fi
   if [[ $missing -eq 0 ]]; then
@@ -183,6 +198,8 @@ main() {
   log "Cook core begin"
   cook_athyg
   cook_nasa
+  log "Cook: multiplicity catalogs"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
   log "Cook core complete"
   echo "Next: scripts/ingest_core.sh to build the core database."
 }

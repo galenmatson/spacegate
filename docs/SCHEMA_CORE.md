@@ -127,7 +127,8 @@ Preferred order:
 1) Gaia DR3 source id: `star:gaia:<gaia_id>`
 2) HIP: `star:hip:<hip_id>`
 3) HD: `star:hd:<hd_id>`
-4) fallback: `star:hash:<hash>`
+4) WDS component key when a conservative multiplicity insert creates a star with no better exact ID: `star:wds:<wds_id>:<component>`
+5) fallback: `star:hash:<hash>`
 
 Fallback hash input (deterministic):
 - normalized name (if any)
@@ -137,14 +138,16 @@ Fallback hash input (deterministic):
 #### Systems (Clustering & IDs)
 Systems are logical groupings of stars. Aggregation is performed during ingestion:
 
-1. **Name-based Grouping:** Stars sharing a `proper_name` root (e.g., "Sirius A", "Sirius B") are grouped.
-2. **Proximity-based Grouping:** Stars within **0.25 ly** (~3000 AU) of each other are grouped if they do not already share a name.
+1. **WDS-linked Grouping:** Stars carrying the same `wds_id` are grouped first when multiplicity catalogs provide a conservative explicit relationship key.
+2. **Name-based Grouping:** Remaining stars sharing a `proper_name` root (e.g., "Sirius A", "Sirius B") are grouped.
+3. **Proximity-based Grouping:** Remaining stars within **0.25 ly** (~3000 AU) are grouped if they do not already share an explicit multiplicity or name grouping.
    - This grouping is transitive (A near B, B near C ⇒ A/B/C grouped).
    - In v0, proximity grouping is optional and gated by `SPACEGATE_ENABLE_PROXIMITY=1`.
    - When disabled, ungrouped stars are treated as singleton systems.
 **Stable Key Generation:**
-The System inherits its identity from the **Primary Star** (brightest by Vmag) in the group.
+The System prefers an explicit multiplicity key when present; otherwise it inherits identity from the **Primary Star** (brightest by Vmag) in the group.
 
+- `system:wds:<wds_id>` when `grouping_basis = 'wds'`
 - `system:gaia:<primary_star_gaia_id>`
 - `system:hip:<primary_star_hip_id>`
 - `system:hash:<hash>` (fallback)
@@ -229,6 +232,9 @@ Key columns:
 - `spatial_index` (BIGINT, distinct, cluster key)
 - `stable_object_key` (unique, join key)
 - `system_name`, `system_name_norm`
+- `wds_id` (nullable explicit multiplicity/grouping key when available)
+- `grouping_basis`, `grouping_confidence`, `grouping_source_catalogs_json`
+- `has_msc_evidence`, `has_wds_evidence`, `has_orb6_evidence`
 - planned v1.2 additive: `dist_pc`
 - `ra_deg`, `dec_deg`, `dist_ly` (best available; may represent anchor star)
 - planned v1.2 additive: `x_helio_pc,y_helio_pc,z_helio_pc`
@@ -270,6 +276,8 @@ Key columns:
 - `system_id` (FK to systems)
 - `stable_object_key` (unique, join key)
 - `star_name`, `star_name_norm`, `component`
+- `wds_id` (nullable multiplicity/grouping key)
+- `multiplicity_match_method`, `multiplicity_match_confidence`, `multiplicity_source_catalogs_json`
 - planned v1.2 additive: `dist_pc`, `x_helio_pc`, `y_helio_pc`, `z_helio_pc`
 - coordinates (ra_deg, dec_deg, dist_ly, x/y/z_helio_ly)
 - planned v1.2 additive: row-level astrometry source epoch / normalization metadata

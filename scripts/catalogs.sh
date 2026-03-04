@@ -27,7 +27,9 @@ ATHYG_PART2_URL="${ATHYG_PART2_URL:-$ATHYG_BASE_URL_DEFAULT/athyg_v33-2.csv.gz}"
 
 NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+pscomppars&format=csv}"
 
-WDS_URL="${WDS_URL:-http://www.astro.gsu.edu/wds/wds.sum.gz}"
+WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
+MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
 CLUSTERS_URL="${CLUSTERS_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/640/A1/table1.dat.gz}"
 VSX_URL="${VSX_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz}"
 SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.list}"
@@ -144,10 +146,12 @@ lfs_url_from_source() {
 
 catalog_titles() {
   cat <<'LIST'
-core|Core (AT-HYG + NASA Exoplanets)
+core|Core (AT-HYG + NASA Exoplanets + Multiplicity)
 athyg|AT-HYG stellar catalog
 nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
 wds|Washington Double Star Catalog (WDS)
+msc|Multiple Star Catalog (MSC)
+orb6|Sixth Catalog of Orbits of Visual Binary Stars (ORB6)
 clusters|Gaia DR2 clusters (Cantat-Gaudin 2020)
 vsx|AAVSO Variable Star Index (VSX)
 snr|Green's Galactic SNRs
@@ -195,7 +199,13 @@ catalog_sources() {
       printf '%s\n' "nasa_exoplanet_archive|pscomppars|$NASA_EXOPLANET_URL|raw/nasa_exoplanet_archive/pscomppars.csv"
       ;;
     wds)
-      printf '%s\n' "wds|wds_sum|$WDS_URL|raw/wds/wds.sum.gz"
+      printf '%s\n' "wds|wdsweb_summ2|$WDS_URL|raw/wds/wdsweb_summ2.txt"
+      ;;
+    msc)
+      printf '%s\n' "msc|newmsc_20240101|$MSC_URL|raw/msc/newmsc-20240101.tar.gz"
+      ;;
+    orb6)
+      printf '%s\n' "orb6|orb6orbits|$ORB6_URL|raw/orb6/orb6orbits.sql"
       ;;
     clusters)
       printf '%s\n' "clusters|cantat_gaudin_2020|$CLUSTERS_URL|raw/clusters/cantat_gaudin_2020.fits"
@@ -329,7 +339,7 @@ expand_catalogs() {
   for item in "${input[@]}"; do
     case "$item" in
       core)
-        expanded+=("athyg" "nasa_exoplanet_archive")
+        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6")
         ;;
       *)
         expanded+=("$item")
@@ -493,10 +503,6 @@ main() {
     url="${rest%%|*}"
     dest="${entry##*|}"
 
-    if [[ -n "${skip_dest[$dest]:-}" ]]; then
-      continue
-    fi
-
     local dest_abs="$STATE_DIR/$dest"
     if [[ ! -f "$dest_abs" ]]; then
       log "Error: missing downloaded file $dest"
@@ -505,7 +511,7 @@ main() {
     fi
 
     local expected_bytes=""
-    if is_lfs_pointer "$dest_abs"; then
+    if [[ -z "${skip_dest[$dest]:-}" ]] && is_lfs_pointer "$dest_abs"; then
       local oid size
       oid="$(parse_lfs_oid "$dest_abs")"
       size="$(parse_lfs_size "$dest_abs")"
@@ -530,7 +536,7 @@ main() {
       fi
       url="$lfs_url"
       expected_bytes="$size"
-    else
+    elif [[ -z "${skip_dest[$dest]:-}" ]]; then
       expected_bytes="$(get_content_length "$url")"
     fi
 

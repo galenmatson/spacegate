@@ -1190,6 +1190,29 @@ Current working multiplicity stack for implementation planning:
 3. ORB6 and SBX as orbit-quality support catalogs.
 4. WDS as broad visual coverage through confidence-scored crossmatch.
 5. BDB/ILB only if we can mirror it locally through a stable export/crawl path; otherwise disregard it.
+
+### Current multiplicity implementation state (March 4, 2026)
+- First pass is now implemented in the core build pipeline on proton:
+  - `download_core.sh` / `catalogs.sh` now treat `WDS`, `MSC`, and `ORB6` as part of the core build input set.
+  - `cook_core.sh` now deterministically cooks those catalogs into per-catalog typed CSV outputs.
+  - `ingest_core.py` now:
+    - loads `MSC`, `WDS`, and `ORB6`
+    - conservatively matches `MSC` components to current core stars by exact `HIP/HD` only
+    - inserts unmatched `MSC` components as new core `stars`
+    - groups `systems` by `WDS` before name/proximity
+    - records grouping provenance via `wds_id`, `grouping_basis`, `grouping_confidence`, and `grouping_source_catalogs_json`
+- This pass is intentionally conservative:
+  - no fuzzy multiplicity merges
+  - no coordinate-only star identity merges
+  - no Gaia NSS ingest yet
+  - no SBX ingest yet
+- Current benchmark outcome from build `2026-03-04T135257Z_6bff7e3`:
+  - `Castor` now resolves as a 3-star `WDS` system
+  - `16 Cyg` now resolves as a 3-star `WDS` system
+  - `Rigil Kentaurus` (Alpha Centauri) now resolves as a 3-star `WDS` system
+  - `Keid` (40 Eridani) now resolves as a 3-star `WDS` system
+  - `Sirius` remains single in this pass and needs another source/crosswalk path
+- Coordinate/proximity grouping is still available, but for this benchmark build it was disabled to validate the new catalog-driven multiplicity path in isolation.
   
   
 

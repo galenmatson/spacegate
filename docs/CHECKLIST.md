@@ -117,7 +117,8 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Data-density cleanup (snapshot-first list/detail hierarchy and cleaner card layout)
 
 ## v1.2 Additional Catalogs / Packs Foundation
-- [ ] Approve candidate sources for the next ingestion wave
+- [x] Approve candidate sources for the next ingestion wave
+- [x] Implement first-pass multiplicity ingest (`MSC` + `WDS` + `ORB6`) with grouping provenance
 - [ ] Implement additional catalog / pack ingestion pipelines
 - [ ] Produce pack QC reports + manifests
 - [ ] Reconcile grouping/host-matching for benchmark systems after catalog expansion

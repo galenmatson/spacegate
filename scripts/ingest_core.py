@@ -19,6 +19,8 @@ MORTON_N = (1 << BITS_PER_AXIS) - 1
 MORTON_SCALE = MORTON_N / (2 * MORTON_MAX_ABS_LY)
 COORDINATE_EPOCH = "J2016.0"
 COORDINATE_FRAME = "ICRS"
+MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+MSC_VERSION = "2024-01-01"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
@@ -348,15 +350,30 @@ def main() -> int:
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
-    manifest_path = state_dir / "reports" / "manifests" / "core_manifest.json"
+    cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
+    cooked_msc = state_dir / "cooked" / "msc" / "msc_components.csv"
+    cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
+    manifest_dir = state_dir / "reports" / "manifests"
+    manifest_path = manifest_dir / "core_manifest.json"
+    wds_manifest_path = manifest_dir / "wds_manifest.json"
+    msc_manifest_path = manifest_dir / "msc_manifest.json"
+    orb6_manifest_path = manifest_dir / "orb6_manifest.json"
 
     if not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
     if not cooked_nasa.exists():
         raise SystemExit(f"Missing cooked NASA: {cooked_nasa}")
+    if not cooked_wds.exists():
+        raise SystemExit(f"Missing cooked WDS: {cooked_wds}")
+    if not cooked_msc.exists():
+        raise SystemExit(f"Missing cooked MSC: {cooked_msc}")
+    if not cooked_orb6.exists():
+        raise SystemExit(f"Missing cooked ORB6: {cooked_orb6}")
 
     log("Ingest core start")
-    manifest = load_manifest(manifest_path)
+    manifest: dict[str, dict] = {}
+    for path in (manifest_path, wds_manifest_path, msc_manifest_path, orb6_manifest_path):
+        manifest.update(load_manifest(path))
 
     now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H%M%SZ")
     build_id = args.build_id or f"{now}_{get_git_sha(root)}"
@@ -440,6 +457,9 @@ def main() -> int:
     nasa_manifest = require_manifest_entry(
         manifest, "pscomppars", "NASA Exoplanet Archive"
     )
+    wds_manifest = require_manifest_entry(manifest, "wdsweb_summ2", "WDS")
+    msc_manifest = require_manifest_entry(manifest, "newmsc_20240101", "MSC")
+    orb6_manifest = require_manifest_entry(manifest, "orb6orbits", "ORB6")
 
     athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
     athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
@@ -463,6 +483,8 @@ def main() -> int:
     nasa_sha = nasa_manifest.get("sha256")
     nasa_retrieved = nasa_manifest.get("retrieved_at")
     nasa_has_retrieval = has_retrieval(nasa_manifest)
+    msc_sha = msc_manifest.get("sha256")
+    msc_retrieved = msc_manifest.get("retrieved_at")
 
     athyg_path = str(cooked_athyg).replace("'", "''")
     log("Loading cooked AT-HYG")
@@ -482,11 +504,75 @@ def main() -> int:
         """
     )
 
+    wds_path = str(cooked_wds).replace("'", "''")
+    msc_path = str(cooked_msc).replace("'", "''")
+    orb6_path = str(cooked_orb6).replace("'", "''")
+
+    log("Loading cooked multiplicity catalogs")
+    con.execute(
+        f"""
+        create or replace temp view wds_raw as
+        select * from read_csv_auto('{wds_path}',
+            delim=',',
+            quote='\"',
+            escape='\"',
+            header=true,
+            strict_mode=false,
+            null_padding=true,
+            all_varchar=true
+        )
+        """
+    )
+    con.execute(
+        f"""
+        create or replace temp view msc_raw as
+        select * from read_csv_auto('{msc_path}',
+            delim=',',
+            quote='\"',
+            escape='\"',
+            header=true,
+            strict_mode=false,
+            null_padding=true,
+            all_varchar=true
+        )
+        """
+    )
+    con.execute(
+        f"""
+        create or replace temp view orb6_raw as
+        select * from read_csv_auto('{orb6_path}',
+            delim=',',
+            quote='\"',
+            escape='\"',
+            header=true,
+            strict_mode=false,
+            null_padding=true,
+            all_varchar=true
+        )
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view wds_support as
+        select distinct nullif(wds_id, '') as wds_id
+        from wds_raw
+        where nullif(wds_id, '') is not null
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view orb6_support as
+        select distinct nullif(wds_id, '') as wds_id
+        from orb6_raw
+        where nullif(wds_id, '') is not null
+        """
+    )
+
     # Build stars table
     log("Building stars table")
     con.execute(
         f"""
-        create or replace temp view stars_stage_base as
+        create or replace temp view athyg_stage_base as
         with base as (
           select
             nullif(id,'')::bigint as source_pk,
@@ -516,13 +602,7 @@ def main() -> int:
             nullif(vx,'')::double as vx_kms,
             nullif(vy,'')::double as vy_kms,
             nullif(vz,'')::double as vz_kms,
-            nullif(spect,'') as spectral_type_raw,
-            nullif(pos_src,'') as pos_src,
-            nullif(dist_src,'') as dist_src,
-            nullif(mag_src,'') as mag_src,
-            nullif(rv_src,'') as rv_src,
-            nullif(pm_src,'') as pm_src,
-            nullif(spect_src,'') as spect_src
+            nullif(spect,'') as spectral_type_raw
           from athyg_raw
         ), coords as (
           select *,
@@ -582,8 +662,309 @@ def main() -> int:
               coalesce(round(dec_deg,5)::varchar,'') || '|' ||
               coalesce(round(dist_ly,3)::varchar,'')
             ), 1, 16)
-          end as stable_object_key,
+          end as stable_object_key
         from filtered
+        """
+    )
+    con.execute(
+        """
+        create temp table athyg_stars_stage as
+        select
+          row_number() over (order by stable_object_key, source_pk)::bigint as athyg_row_id,
+          *
+        from athyg_stage_base
+        """
+    )
+    con.execute(
+        f"""
+        create or replace temp view msc_components as
+        with base as (
+          select
+            row_number() over (
+              order by
+                coalesce(nullif(wds_id, ''), ''),
+                coalesce(nullif(component, ''), ''),
+                coalesce(nullif(nullif(hip_id, ''), '0')::bigint, 0),
+                coalesce(nullif(nullif(hd_id, ''), '0')::bigint, 0),
+                coalesce(nullif(ra_deg, '')::double, 0),
+                coalesce(nullif(dec_deg, '')::double, 0)
+            )::bigint as msc_row_num,
+            nullif(wds_id, '') as wds_id,
+            nullif(component, '') as msc_component,
+            nullif(nullif(hip_id, ''), '0')::bigint as hip_id,
+            nullif(nullif(hd_id, ''), '0')::bigint as hd_id,
+            nullif(ra_deg, '')::double as ra_deg,
+            nullif(dec_deg, '')::double as dec_deg,
+            nullif(parallax_mas, '')::double as parallax_mas,
+            nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
+            nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
+            nullif(radial_velocity_kms, '')::double as radial_velocity_kms,
+            nullif(vmag, '')::double as vmag,
+            nullif(bmag, '')::double as bmag,
+            nullif(spectral_type_raw, '') as spectral_type_raw,
+            nullif(preferred_name, '') as preferred_name,
+            nullif(other_identifiers, '') as other_identifiers,
+            nullif(subsystem_count, '')::bigint as subsystem_count,
+            nullif(orbit_count, '')::bigint as orbit_count
+          from msc_raw
+        ), coords as (
+          select *,
+            case
+              when parallax_mas is not null and parallax_mas > 0 then 1000.0 / parallax_mas
+              else null
+            end as dist_pc
+          from base
+        ), converted as (
+          select *,
+            dist_pc * {PC_TO_LY} as dist_ly,
+            case
+              when dist_pc is not null and ra_deg is not null and dec_deg is not null
+                then dist_pc * cos(dec_deg * pi() / 180.0) * cos(ra_deg * pi() / 180.0)
+              else null
+            end as x_pc,
+            case
+              when dist_pc is not null and ra_deg is not null and dec_deg is not null
+                then dist_pc * cos(dec_deg * pi() / 180.0) * sin(ra_deg * pi() / 180.0)
+              else null
+            end as y_pc,
+            case
+              when dist_pc is not null and dec_deg is not null
+                then dist_pc * sin(dec_deg * pi() / 180.0)
+              else null
+            end as z_pc
+          from coords
+        ), named as (
+          select *,
+            case
+              when preferred_name is not null then preferred_name
+              when hip_id is not null then 'HIP ' || hip_id::varchar
+              when hd_id is not null then 'HD ' || hd_id::varchar
+              when wds_id is not null and msc_component is not null then 'WDS ' || wds_id || ' ' || msc_component
+              when wds_id is not null then 'WDS ' || wds_id
+              else null
+            end as star_name
+          from converted
+        ), normalized as (
+          select *,
+            case when star_name is null then null else
+              lower(trim(regexp_replace(regexp_replace(star_name, '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g')))
+            end as star_name_norm,
+            regexp_extract(spectral_type_raw, '([OBAFGKMLTY])', 1) as spectral_class,
+            regexp_extract(spectral_type_raw, '[OBAFGKMLTY]([0-9](?:\\.[0-9])?)', 1) as spectral_subtype,
+            regexp_extract(spectral_type_raw, '(I{1,3}|IV|V|VI|VII)', 1) as luminosity_class,
+            lower(regexp_replace(coalesce(msc_component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_norm
+          from named
+        )
+        select *
+        from normalized
+        where dist_ly is not null and dist_ly <= {MORTON_MAX_ABS_LY}
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_exact_matches as
+        with candidates as (
+          select
+            m.msc_row_num,
+            s.athyg_row_id,
+            m.wds_id,
+            m.msc_component,
+            case
+              when m.hip_id is not null and s.hip_id = m.hip_id and m.hd_id is not null and s.hd_id = m.hd_id then 3
+              when m.hip_id is not null and s.hip_id = m.hip_id then 2
+              when m.hd_id is not null and s.hd_id = m.hd_id then 1
+              else 0
+            end as match_score,
+            case
+              when m.hip_id is not null and s.hip_id = m.hip_id and m.hd_id is not null and s.hd_id = m.hd_id then 'msc_exact_hip_hd'
+              when m.hip_id is not null and s.hip_id = m.hip_id then 'msc_exact_hip'
+              else 'msc_exact_hd'
+            end as match_method,
+            case
+              when m.hip_id is not null and s.hip_id = m.hip_id and m.hd_id is not null and s.hd_id = m.hd_id then 1.0
+              when m.hip_id is not null and s.hip_id = m.hip_id then 0.99
+              else 0.97
+            end as match_confidence
+          from msc_components m
+          join athyg_stars_stage s
+            on (m.hip_id is not null and s.hip_id = m.hip_id)
+            or (m.hd_id is not null and s.hd_id = m.hd_id)
+        ), ranked as (
+          select
+            *,
+            row_number() over (partition by msc_row_num order by match_score desc, athyg_row_id asc) as rn_msc,
+            row_number() over (partition by athyg_row_id order by match_score desc, msc_row_num asc) as rn_star
+          from candidates
+        )
+        select
+          msc_row_num,
+          athyg_row_id,
+          wds_id,
+          msc_component,
+          match_method,
+          match_confidence
+        from ranked
+        where rn_msc = 1 and rn_star = 1
+        """
+    )
+    con.execute(
+        f"""
+        create or replace temp view final_star_rows as
+        with athyg_final as (
+          select
+            cast(morton3d(a.x_helio_ly, a.y_helio_ly, a.z_helio_ly) as bigint) as spatial_index,
+            null::bigint as system_id,
+            a.stable_object_key,
+            a.star_name,
+            a.star_name_norm,
+            coalesce(a.component, m.msc_component) as component,
+            a.system_name_root,
+            a.system_name_root_norm,
+            a.ra_deg,
+            a.dec_deg,
+            a.dist_ly,
+            a.x_helio_ly,
+            a.y_helio_ly,
+            a.z_helio_ly,
+            null::double as x_gal_ly,
+            null::double as y_gal_ly,
+            null::double as z_gal_ly,
+            a.pm_ra_mas_yr,
+            a.pm_dec_mas_yr,
+            a.radial_velocity_kms,
+            a.spectral_type_raw,
+            a.spectral_class,
+            a.spectral_subtype,
+            a.luminosity_class,
+            null::varchar as spectral_peculiar,
+            a.vmag,
+            a.absmag,
+            a.color_index,
+            a.gaia_id,
+            a.hip_id,
+            a.hd_id,
+            m.wds_id,
+            coalesce(m.match_method, 'athyg_only') as multiplicity_match_method,
+            coalesce(m.match_confidence, 0.0) as multiplicity_match_confidence,
+            case when m.wds_id is not null then '["msc"]' else '[]' end as multiplicity_source_catalogs_json,
+            json_object(
+              'gaia', a.gaia_id,
+              'hip', a.hip_id,
+              'hd', a.hd_id,
+              'hr', a.hr_id,
+              'gl', a.gl_id,
+              'tyc', a.tyc_id,
+              'hyg', a.hyg_id,
+              'wds', m.wds_id,
+              'wds_component', m.msc_component
+            ) as catalog_ids_json,
+            'athyg' as source_catalog,
+            'v3.3' as source_version,
+            'https://codeberg.org/astronexus/athyg' as source_url,
+            {sql_literal(athyg_download_url)} as source_download_url,
+            null::varchar as source_doi,
+            a.source_pk as source_pk,
+            a.source_pk as source_row_id,
+            null::varchar as source_row_hash,
+            'CC BY-SA 4.0' as license,
+            true as redistribution_ok,
+            'https://codeberg.org/astronexus/athyg' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(athyg_checksum)} as retrieval_checksum,
+            {sql_literal(athyg_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from athyg_stars_stage a
+          left join msc_exact_matches m on m.athyg_row_id = a.athyg_row_id
+        ), msc_only as (
+          select
+            cast(morton3d(m.x_pc * {PC_TO_LY}, m.y_pc * {PC_TO_LY}, m.z_pc * {PC_TO_LY}) as bigint) as spatial_index,
+            null::bigint as system_id,
+            case
+              when m.hip_id is not null then 'star:hip:' || m.hip_id::varchar
+              when m.hd_id is not null then 'star:hd:' || m.hd_id::varchar
+              when m.wds_id is not null and m.component_norm <> '' then 'star:wds:' || m.wds_id || ':' || m.component_norm
+              else 'star:hash:' || substr(sha256(
+                coalesce(m.star_name_norm,'') || '|' ||
+                coalesce(round(m.ra_deg,5)::varchar,'') || '|' ||
+                coalesce(round(m.dec_deg,5)::varchar,'') || '|' ||
+                coalesce(round(m.dist_ly,3)::varchar,'')
+              ), 1, 16)
+            end as stable_object_key,
+            m.star_name,
+            m.star_name_norm,
+            m.msc_component as component,
+            null::varchar as system_name_root,
+            null::varchar as system_name_root_norm,
+            m.ra_deg,
+            m.dec_deg,
+            m.dist_ly,
+            m.x_pc * {PC_TO_LY} as x_helio_ly,
+            m.y_pc * {PC_TO_LY} as y_helio_ly,
+            m.z_pc * {PC_TO_LY} as z_helio_ly,
+            null::double as x_gal_ly,
+            null::double as y_gal_ly,
+            null::double as z_gal_ly,
+            m.pm_ra_mas_yr,
+            m.pm_dec_mas_yr,
+            m.radial_velocity_kms,
+            m.spectral_type_raw,
+            m.spectral_class,
+            m.spectral_subtype,
+            m.luminosity_class,
+            null::varchar as spectral_peculiar,
+            m.vmag,
+            case
+              when m.vmag is not null and m.dist_pc is not null and m.dist_pc > 0
+                then m.vmag - 5.0 * (log10(m.dist_pc) - 1.0)
+              else null
+            end as absmag,
+            case
+              when m.bmag is not null and m.vmag is not null then m.bmag - m.vmag
+              else null
+            end as color_index,
+            null::bigint as gaia_id,
+            m.hip_id,
+            m.hd_id,
+            m.wds_id,
+            'msc_insert' as multiplicity_match_method,
+            1.0 as multiplicity_match_confidence,
+            '["msc"]' as multiplicity_source_catalogs_json,
+            json_object(
+              'gaia', null,
+              'hip', m.hip_id,
+              'hd', m.hd_id,
+              'wds', m.wds_id,
+              'wds_component', m.msc_component
+            ) as catalog_ids_json,
+            'msc' as source_catalog,
+            {sql_literal(MSC_VERSION)} as source_version,
+            {sql_literal(MSC_URL)} as source_url,
+            {sql_literal(MSC_URL)} as source_download_url,
+            null::varchar as source_doi,
+            900000000000 + m.msc_row_num as source_pk,
+            900000000000 + m.msc_row_num as source_row_id,
+            sha256(
+              coalesce(m.wds_id, '') || '|' ||
+              coalesce(m.msc_component, '') || '|' ||
+              coalesce(round(m.ra_deg, 6)::varchar, '') || '|' ||
+              coalesce(round(m.dec_deg, 6)::varchar, '')
+            ) as source_row_hash,
+            'unspecified' as license,
+            true as redistribution_ok,
+            'Official public MSC bulk export; explicit license not stated on source page.' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(msc_sha)} as retrieval_checksum,
+            {sql_literal(msc_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from msc_components m
+          left join msc_exact_matches x on x.msc_row_num = m.msc_row_num
+          where x.msc_row_num is null
+        )
+        select * from athyg_final
+        union all
+        select * from msc_only
         """
     )
 
@@ -591,7 +972,7 @@ def main() -> int:
     max_abs = con.execute(
         """
         select max(greatest(abs(x_helio_ly), abs(y_helio_ly), abs(z_helio_ly)))
-        from stars_stage_base
+        from final_star_rows
         """
     ).fetchone()[0]
     if max_abs is not None and max_abs > MORTON_MAX_ABS_LY:
@@ -600,85 +981,33 @@ def main() -> int:
             f"> {MORTON_MAX_ABS_LY} ly. Increase MORTON_MAX_ABS_LY or filter input."
         )
 
-    log("Computing spatial_index (Morton)")
-    con.execute(
-        """
-        create or replace temp view stars_stage as
-        select *,
-          cast(morton3d(x_helio_ly, y_helio_ly, z_helio_ly) as bigint) as spatial_index
-        from stars_stage_base
-        """
-    )
-
     con.execute(
         """
         create table stars as
         select
-          row_number() over (order by stable_object_key)::bigint as star_id,
-          spatial_index,
-          null::bigint as system_id,
-          stable_object_key,
-          star_name,
-          star_name_norm,
-          component,
-          system_name_root,
-          system_name_root_norm,
-          ra_deg,
-          dec_deg,
-          dist_ly,
-          x_helio_ly,
-          y_helio_ly,
-          z_helio_ly,
-          null::double as x_gal_ly,
-          null::double as y_gal_ly,
-          null::double as z_gal_ly,
-          pm_ra_mas_yr,
-          pm_dec_mas_yr,
-          radial_velocity_kms,
-          spectral_type_raw,
-          spectral_class,
-          spectral_subtype,
-          luminosity_class,
-          null::varchar as spectral_peculiar,
-          vmag,
-          absmag,
-          color_index,
-          gaia_id,
-          hip_id,
-          hd_id,
-          json_object('gaia', gaia_id, 'hip', hip_id, 'hd', hd_id, 'hr', hr_id, 'gl', gl_id, 'tyc', tyc_id, 'hyg', hyg_id) as catalog_ids_json,
-          'athyg' as source_catalog,
-          'v3.3' as source_version,
-          'https://codeberg.org/astronexus/athyg' as source_url,
-          null::varchar as source_download_url,
-          null::varchar as source_doi,
-          source_pk as source_pk,
-          source_pk as source_row_id,
-          null::varchar as source_row_hash,
-          'CC BY-SA 4.0' as license,
-          true as redistribution_ok,
-          'https://codeberg.org/astronexus/athyg' as license_note,
-          null::varchar as retrieval_etag,
-          null::varchar as retrieval_checksum,
-          null::varchar as retrieved_at,
-          null::varchar as ingested_at,
-          null::varchar as transform_version,
-          system_name_root_norm
-        from stars_stage
-        """,
-    )
-    con.execute(
-        f"""
-        update stars set
-          source_download_url = {sql_literal(athyg_download_url)},
-          retrieval_checksum = {sql_literal(athyg_checksum)},
-          retrieved_at = {sql_literal(athyg_retrieved)},
-          ingested_at = {sql_literal(ingested_at)},
-          transform_version = {sql_literal(transform_version)}
+          row_number() over (
+            order by stable_object_key, source_catalog, coalesce(wds_id, ''), coalesce(component, '')
+          )::bigint as star_id,
+          *
+        from final_star_rows
         """
     )
 
-    # System grouping: name-based first, then optional proximity for ungrouped stars.
+    # System grouping: WDS first, then name-root, then optional proximity for remaining stars.
+    log("System grouping: WDS pass")
+    con.execute(
+        """
+        create temp table wds_groups as
+        select star_id, 'wds:' || wds_id as system_group_key
+        from stars
+        where wds_id is not null
+        """
+    )
+    wds_group_count = con.execute(
+        "select count(distinct system_group_key) from wds_groups"
+    ).fetchone()[0]
+    wds_grouped = con.execute("select count(*) from wds_groups").fetchone()[0]
+
     log("System grouping: name-based pass")
     name_stage_start = time.monotonic()
     con.execute(
@@ -686,7 +1015,7 @@ def main() -> int:
         create temp table name_groups as
         select star_id, 'name:' || system_name_root_norm as system_group_key
         from stars
-        where system_name_root_norm is not null
+        where wds_id is null and system_name_root_norm is not null
         """
     )
     name_group_count = con.execute(
@@ -694,11 +1023,11 @@ def main() -> int:
     ).fetchone()[0]
     total_stars = con.execute("select count(*) from stars").fetchone()[0]
     name_grouped = con.execute("select count(*) from name_groups").fetchone()[0]
-    prox_eligible = total_stars - name_grouped
+    prox_eligible = total_stars - wds_grouped - name_grouped
     log(f"System grouping: name pass complete in {time.monotonic() - name_stage_start:.1f}s")
     log(
         "System grouping: counts "
-        f"(total={total_stars}, name_grouped={name_grouped}, proximity_eligible={prox_eligible})"
+        f"(total={total_stars}, wds_grouped={wds_grouped}, name_grouped={name_grouped}, proximity_eligible={prox_eligible})"
     )
 
     proximity_enabled = os.getenv("SPACEGATE_ENABLE_PROXIMITY") == "1"
@@ -723,7 +1052,7 @@ def main() -> int:
               cast(floor(y_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_y,
               cast(floor(z_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_z
             from stars
-            where system_name_root_norm is null
+            where wds_id is null and system_name_root_norm is null
             """
         )
 
@@ -963,7 +1292,7 @@ def main() -> int:
             create temp view prox_roots_full as
             select u.star_id,
                    coalesce(p.root_id, u.star_id) as root_id
-            from (select star_id from stars where system_name_root_norm is null) u
+            from (select star_id from stars where wds_id is null and system_name_root_norm is null) u
             left join prox_roots p using (star_id)
             """
         )
@@ -1012,6 +1341,8 @@ def main() -> int:
         con.execute(
             """
             create temp table system_groups as
+            select * from wds_groups
+            union all
             select * from name_groups
             union all
             select * from prox_groups
@@ -1021,11 +1352,13 @@ def main() -> int:
         con.execute(
             """
             create temp table system_groups as
+            select * from wds_groups
+            union all
             select * from name_groups
             union all
             select star_id, 'solo:' || stable_object_key as system_group_key
             from stars
-            where system_name_root_norm is null
+            where wds_id is null and system_name_root_norm is null
             """
         )
 
@@ -1048,11 +1381,66 @@ def main() -> int:
     log("System grouping: creating systems table")
     con.execute(
         """
+        create temp view system_group_support as
+        with grouped as (
+          select g.system_group_key, s.wds_id, s.source_catalog
+          from system_groups g
+          join stars s using (star_id)
+        ), aggregated as (
+          select
+            system_group_key,
+            max(g.wds_id) as wds_id,
+            max(case when source_catalog = 'msc' then 1 else 0 end) as has_msc_insert,
+            max(case when w.wds_id is not null then 1 else 0 end) as has_wds_evidence,
+            max(case when o.wds_id is not null then 1 else 0 end) as has_orb6_evidence
+          from grouped g
+          left join wds_support w on w.wds_id = g.wds_id
+          left join orb6_support o on o.wds_id = g.wds_id
+          group by system_group_key
+        )
+        select
+          system_group_key,
+          wds_id,
+          case
+            when system_group_key like 'wds:%' then 'wds'
+            when system_group_key like 'name:%' then 'name_root'
+            when system_group_key like 'prox:%' then 'proximity'
+            else 'singleton'
+          end as grouping_basis,
+          has_msc_insert = 1 as has_msc_evidence,
+          has_wds_evidence = 1 as has_wds_evidence,
+          has_orb6_evidence = 1 as has_orb6_evidence,
+          case
+            when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 and has_orb6_evidence = 1 then 0.99
+            when system_group_key like 'wds:%' and has_msc_insert = 1 and (has_wds_evidence = 1 or has_orb6_evidence = 1) then 0.97
+            when system_group_key like 'wds:%' and has_msc_insert = 1 then 0.95
+            when system_group_key like 'wds:%' then 0.90
+            when system_group_key like 'name:%' then 0.80
+            when system_group_key like 'prox:%' then 0.65
+            else 1.0
+          end as grouping_confidence,
+          case
+            when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 and has_orb6_evidence = 1 then '["msc","wds","orb6"]'
+            when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 then '["msc","wds"]'
+            when system_group_key like 'wds:%' and has_msc_insert = 1 and has_orb6_evidence = 1 then '["msc","orb6"]'
+            when system_group_key like 'wds:%' and has_msc_insert = 1 then '["msc"]'
+            when system_group_key like 'wds:%' and has_wds_evidence = 1 and has_orb6_evidence = 1 then '["wds","orb6"]'
+            when system_group_key like 'wds:%' and has_wds_evidence = 1 then '["wds"]'
+            when system_group_key like 'wds:%' and has_orb6_evidence = 1 then '["orb6"]'
+            else '[]'
+          end as grouping_source_catalogs_json
+        from aggregated
+        """
+    )
+    con.execute(
+        """
         create table systems as
         with grouped as (
-          select s.*, g.system_group_key
+          select s.*, g.system_group_key, sg.wds_id as group_wds_id, sg.grouping_basis, sg.grouping_confidence,
+                 sg.has_msc_evidence, sg.has_wds_evidence, sg.has_orb6_evidence, sg.grouping_source_catalogs_json
           from stars s
           join system_groups g using (star_id)
+          join system_group_support sg using (system_group_key)
         ), primary_star as (
           select *,
             row_number() over (
@@ -1067,6 +1455,7 @@ def main() -> int:
           row_number() over (order by system_group_key)::bigint as system_id,
           spatial_index,
           case
+            when grouping_basis = 'wds' and group_wds_id is not null then 'system:wds:' || group_wds_id
             when stable_object_key like 'star:gaia:%' then replace(stable_object_key, 'star:gaia:', 'system:gaia:')
             when stable_object_key like 'star:hip:%' then replace(stable_object_key, 'star:hip:', 'system:hip:')
             when stable_object_key like 'star:hd:%' then replace(stable_object_key, 'star:hd:', 'system:hd:')
@@ -1074,6 +1463,13 @@ def main() -> int:
           end as stable_object_key,
           coalesce(system_name_root, star_name) as system_name,
           coalesce(system_name_root_norm, star_name_norm) as system_name_norm,
+          group_wds_id as wds_id,
+          grouping_basis,
+          grouping_confidence,
+          grouping_source_catalogs_json,
+          has_msc_evidence,
+          has_wds_evidence,
+          has_orb6_evidence,
           ra_deg,
           dec_deg,
           dist_ly,
@@ -1086,34 +1482,24 @@ def main() -> int:
           gaia_id,
           hip_id,
           hd_id,
-          'athyg' as source_catalog,
-          'v3.3' as source_version,
-          'https://codeberg.org/astronexus/athyg' as source_url,
-          null::varchar as source_download_url,
+          source_catalog,
+          source_version,
+          source_url,
+          source_download_url,
           null::varchar as source_doi,
           source_pk as source_pk,
-          source_pk as source_row_id,
-          null::varchar as source_row_hash,
-          'CC BY-SA 4.0' as license,
-          true as redistribution_ok,
-          'https://codeberg.org/astronexus/athyg' as license_note,
+          source_row_id,
+          source_row_hash,
+          license,
+          redistribution_ok,
+          license_note,
           null::varchar as retrieval_etag,
-          null::varchar as retrieval_checksum,
-          null::varchar as retrieved_at,
-          null::varchar as ingested_at,
-          null::varchar as transform_version,
+          retrieval_checksum,
+          retrieved_at,
+          ingested_at,
+          transform_version,
           system_group_key
         from system_rows
-        """
-    )
-    con.execute(
-        f"""
-        update systems set
-          source_download_url = {sql_literal(athyg_download_url)},
-          retrieval_checksum = {sql_literal(athyg_checksum)},
-          retrieved_at = {sql_literal(athyg_retrieved)},
-          ingested_at = {sql_literal(ingested_at)},
-          transform_version = {sql_literal(transform_version)}
         """
     )
 
@@ -1152,6 +1538,7 @@ def main() -> int:
     system_grouping_report = {
         "build_id": build_id,
         "proximity_enabled": proximity_enabled,
+        "wds_group_count": wds_group_count,
         "name_group_count": name_group_count,
         "proximity_group_count": prox_group_count,
         "solo_group_count": solo_group_count,
@@ -1159,6 +1546,10 @@ def main() -> int:
         "multi_star_systems": system_counts[1],
         "max_component_size": system_counts[2],
         "proximity_pairs_processed": pair_count,
+        "notes": [
+            "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
+            "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
+        ],
     }
     write_json(reports_dir / "system_grouping_report.json", system_grouping_report)
 
@@ -1436,6 +1827,9 @@ def main() -> int:
             "part2": athyg_p2,
         },
         "nasa_exoplanet_archive": nasa_manifest,
+        "wds": wds_manifest,
+        "msc": msc_manifest,
+        "orb6": orb6_manifest,
         "tables": {
             "stars": table_provenance_report("stars", athyg_has_retrieval),
             "systems": table_provenance_report("systems", athyg_has_retrieval),
@@ -1512,7 +1906,8 @@ def main() -> int:
             "n": MORTON_N,
         },
         "notes": [
-            "System grouping uses name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
+            "System grouping uses WDS-linked multiplicity first, then name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
+            "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
         ],
     }
 
