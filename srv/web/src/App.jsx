@@ -916,6 +916,24 @@ function parseJsonArray(raw) {
   }
 }
 
+function groupingSourceLabel(groupingBasis, groupingSources) {
+  if (groupingSources.length > 0) {
+    return groupingSources.join(" · ");
+  }
+  switch (String(groupingBasis || "").toLowerCase()) {
+    case "wds":
+      return "WDS-linked grouping";
+    case "name_root":
+      return "Name-root heuristic";
+    case "proximity":
+      return "Proximity heuristic";
+    case "singleton":
+      return "Singleton fallback";
+    default:
+      return "Unknown";
+  }
+}
+
 function SnapshotVisual({ snapshot, systemName, compact = false }) {
   const hasImage = Boolean(snapshot?.url);
   if (!hasImage) {
@@ -1928,6 +1946,7 @@ function ProvenanceBlock({ provenance, grouping = null }) {
         ? "Restricted"
         : "Unknown";
   const groupingSources = parseJsonArray(grouping?.grouping_source_catalogs_json);
+  const groupingSourceText = groupingSourceLabel(grouping?.grouping_basis, groupingSources);
   return (
     <div className="provenance">
       {grouping?.grouping_basis ? (
@@ -1938,7 +1957,7 @@ function ProvenanceBlock({ provenance, grouping = null }) {
           </div>
           <div>
             <strong>Grouping source</strong>
-            <span>{groupingSources.length > 0 ? groupingSources.join(" · ") : "Unknown"}</span>
+            <span>{groupingSourceText}</span>
           </div>
           {grouping?.wds_id ? (
             <div>
