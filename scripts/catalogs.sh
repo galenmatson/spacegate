@@ -146,7 +146,7 @@ lfs_url_from_source() {
 
 catalog_titles() {
   cat <<'LIST'
-core|Core (AT-HYG + NASA Exoplanets + Multiplicity)
+core|Core (AT-HYG + NASA Exoplanets + WDS/ORB6 support)
 athyg|AT-HYG stellar catalog
 nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
 wds|Washington Double Star Catalog (WDS)
@@ -339,7 +339,7 @@ expand_catalogs() {
   for item in "${input[@]}"; do
     case "$item" in
       core)
-        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6")
+        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "orb6")
         ;;
       *)
         expanded+=("$item")

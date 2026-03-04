@@ -898,32 +898,22 @@ function planetCatalogRecordLink(planet) {
   return null;
 }
 
-function splitDownloadUrls(raw) {
+function parseJsonArray(raw) {
   if (!raw) {
     return [];
   }
-  return Array.from(
-    new Set(
-      String(raw)
-        .split(";")
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  );
-}
-
-function isCodebergLfsObjectUrl(url) {
-  return /https?:\/\/codeberg\.org\/.+\.git\/info\/lfs\/objects\/[0-9a-f]{64}$/i.test(String(url || ""));
-}
-
-function resolveDownloadLinks(provenance) {
-  const sourceUrl = provenance?.source_url ? String(provenance.source_url) : "";
-  const urls = splitDownloadUrls(provenance?.source_download_url);
-  if (!urls.length) {
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  try {
+    const parsed = JSON.parse(String(raw));
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+  } catch (_) {
     return [];
   }
-  const nonLfsUrls = urls.filter((url) => !isCodebergLfsObjectUrl(url));
-  return nonLfsUrls.filter((url) => !sourceUrl || url !== sourceUrl);
 }
 
 function SnapshotVisual({ snapshot, systemName, compact = false }) {
@@ -1927,19 +1917,37 @@ function SearchPage({ buildId = "" }) {
   );
 }
 
-function ProvenanceBlock({ provenance }) {
+function ProvenanceBlock({ provenance, grouping = null }) {
   if (!provenance) {
     return null;
   }
-  const downloadLinks = resolveDownloadLinks(provenance);
   const redistribution =
     provenance.redistribution_ok === true
       ? "Allowed"
       : provenance.redistribution_ok === false
         ? "Restricted"
         : "Unknown";
+  const groupingSources = parseJsonArray(grouping?.grouping_source_catalogs_json);
   return (
     <div className="provenance">
+      {grouping?.grouping_basis ? (
+        <>
+          <div>
+            <strong>Grouping</strong>
+            <span>{formatText(grouping.grouping_basis)}</span>
+          </div>
+          <div>
+            <strong>Grouping source</strong>
+            <span>{groupingSources.length > 0 ? groupingSources.join(" · ") : "Unknown"}</span>
+          </div>
+          {grouping?.wds_id ? (
+            <div>
+              <strong>Grouping key</strong>
+              <span>WDS {formatText(grouping.wds_id)}</span>
+            </div>
+          ) : null}
+        </>
+      ) : null}
       <div>
         <strong>Source</strong>
         <span>{formatText(provenance.source_catalog)} {formatText(provenance.source_version)}</span>
@@ -1977,21 +1985,6 @@ function ProvenanceBlock({ provenance }) {
           )}
         </span>
       </div>
-      {downloadLinks.length > 0 && (
-        <div>
-          <strong>Download URL</strong>
-          <span>
-            {downloadLinks.map((url, idx) => (
-              <React.Fragment key={`${url}-${idx}`}>
-                {idx > 0 ? " · " : ""}
-                <a href={String(url)} target="_blank" rel="noreferrer">
-                  {downloadLinks.length > 1 ? `Open download ${idx + 1}` : "Open download"}
-                </a>
-              </React.Fragment>
-            ))}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -2222,7 +2215,7 @@ function SystemDetailPage({ buildId = "" }) {
 
         <section className="panel">
           <h3>Provenance</h3>
-          <ProvenanceBlock provenance={system.provenance} />
+          <ProvenanceBlock provenance={system.provenance} grouping={system} />
         </section>
       </section>
     </Layout>

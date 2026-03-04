@@ -348,6 +348,7 @@ def main() -> int:
 
     root = Path(args.root)
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
+    enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
@@ -365,14 +366,17 @@ def main() -> int:
         raise SystemExit(f"Missing cooked NASA: {cooked_nasa}")
     if not cooked_wds.exists():
         raise SystemExit(f"Missing cooked WDS: {cooked_wds}")
-    if not cooked_msc.exists():
+    if enable_msc and not cooked_msc.exists():
         raise SystemExit(f"Missing cooked MSC: {cooked_msc}")
     if not cooked_orb6.exists():
         raise SystemExit(f"Missing cooked ORB6: {cooked_orb6}")
 
     log("Ingest core start")
     manifest: dict[str, dict] = {}
-    for path in (manifest_path, wds_manifest_path, msc_manifest_path, orb6_manifest_path):
+    manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
+    if enable_msc:
+        manifest_paths.append(msc_manifest_path)
+    for path in manifest_paths:
         manifest.update(load_manifest(path))
 
     now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H%M%SZ")
@@ -458,8 +462,12 @@ def main() -> int:
         manifest, "pscomppars", "NASA Exoplanet Archive"
     )
     wds_manifest = require_manifest_entry(manifest, "wdsweb_summ2", "WDS")
-    msc_manifest = require_manifest_entry(manifest, "newmsc_20240101", "MSC")
     orb6_manifest = require_manifest_entry(manifest, "orb6orbits", "ORB6")
+    msc_manifest = (
+        require_manifest_entry(manifest, "newmsc_20240101", "MSC")
+        if enable_msc
+        else None
+    )
 
     athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
     athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
@@ -483,8 +491,8 @@ def main() -> int:
     nasa_sha = nasa_manifest.get("sha256")
     nasa_retrieved = nasa_manifest.get("retrieved_at")
     nasa_has_retrieval = has_retrieval(nasa_manifest)
-    msc_sha = msc_manifest.get("sha256")
-    msc_retrieved = msc_manifest.get("retrieved_at")
+    msc_sha = msc_manifest.get("sha256") if msc_manifest else None
+    msc_retrieved = msc_manifest.get("retrieved_at") if msc_manifest else None
 
     athyg_path = str(cooked_athyg).replace("'", "''")
     log("Loading cooked AT-HYG")
@@ -523,20 +531,46 @@ def main() -> int:
         )
         """
     )
-    con.execute(
-        f"""
-        create or replace temp view msc_raw as
-        select * from read_csv_auto('{msc_path}',
-            delim=',',
-            quote='\"',
-            escape='\"',
-            header=true,
-            strict_mode=false,
-            null_padding=true,
-            all_varchar=true
+    if enable_msc:
+        con.execute(
+            f"""
+            create or replace temp view msc_raw as
+            select * from read_csv_auto('{msc_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
         )
-        """
-    )
+    else:
+        con.execute(
+            """
+            create or replace temp view msc_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              wds_id, ra_deg, dec_deg, parallax_mas, parallax_ref, pm_ra_mas_yr, pm_dec_mas_yr,
+              radial_velocity_kms, component, sep_arcsec, spectral_type_raw, hip_id, hd_id, bmag,
+              vmag, imag, jmag, hmag, kmag, ncomp, grade, other_identifiers, preferred_name,
+              subsystem_count, orbit_count
+            )
+            where false
+            """
+        )
     con.execute(
         f"""
         create or replace temp view orb6_raw as
@@ -1538,6 +1572,7 @@ def main() -> int:
     system_grouping_report = {
         "build_id": build_id,
         "proximity_enabled": proximity_enabled,
+        "msc_enabled": enable_msc,
         "wds_group_count": wds_group_count,
         "name_group_count": name_group_count,
         "proximity_group_count": prox_group_count,
@@ -1548,7 +1583,11 @@ def main() -> int:
         "proximity_pairs_processed": pair_count,
         "notes": [
             "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
-            "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
+            (
+                "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
+                if enable_msc
+                else "MSC ingest is disabled pending usage terms; WDS/ORB6 remain loaded as support catalogs only."
+            ),
         ],
     }
     write_json(reports_dir / "system_grouping_report.json", system_grouping_report)
@@ -1828,7 +1867,6 @@ def main() -> int:
         },
         "nasa_exoplanet_archive": nasa_manifest,
         "wds": wds_manifest,
-        "msc": msc_manifest,
         "orb6": orb6_manifest,
         "tables": {
             "stars": table_provenance_report("stars", athyg_has_retrieval),
@@ -1836,6 +1874,8 @@ def main() -> int:
             "planets": table_provenance_report("planets", nasa_has_retrieval),
         },
     }
+    if msc_manifest:
+        provenance_report["msc"] = msc_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
@@ -1907,7 +1947,11 @@ def main() -> int:
         },
         "notes": [
             "System grouping uses WDS-linked multiplicity first, then name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
-            "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
+            (
+                "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
+                if enable_msc
+                else "MSC enrichment is disabled pending usage terms; current build does not insert MSC-derived component stars."
+            ),
         ],
     }
 

@@ -62,7 +62,7 @@ This section records the current evaluation of candidate multistar sources befor
 | Source | Best role | Join strength | Status | Notes |
 |---|---|---|---|---|
 | Gaia DR3 `gaia_source.non_single_star` and NSS tables | exact multiplicity evidence on existing stars | exact `source_id` | `approved_family` | Best primary evidence layer for star-level multiplicity flags and orbit solutions |
-| MSC (Tokovinin Multiple Star Catalog) | hierarchical system structure for triples and higher | moderate; WDS-centered with common identifiers | `review_required` | Strong candidate for explicit hierarchy because it is purpose-built for nested multiples and ships bulk tables; sample pass found 3,482 exact-key overlaps with current core |
+| MSC (Tokovinin Multiple Star Catalog) | hierarchical system structure for triples and higher | moderate; WDS-centered with common identifiers | `deferred_pending_terms` | Strong candidate for explicit hierarchy because it is purpose-built for nested multiples and ships bulk tables; sample pass found 3,482 exact-key overlaps with current core, but active ingest is on hold pending usage terms confirmation |
 | ORB6 (Sixth Orbit Catalog) | high-confidence visual-binary orbital evidence | moderate; WDS/discoverer-led | `review_required` | Strong support catalog for orbit-confirmed visual binaries; bulk text/SQL files are available; sample pass found 3,282 exact-key overlaps with current core |
 | BDB / ILB (Binary Star Database / Identification List of Binaries) | crosswalk between system, pair, and component identifiers across heterogeneous multiplicity catalogs | potentially strong if export is practical | `review_required` | Deferred for now: strategically valuable as a link resolver, but a stable current bulk export/API has not been confirmed and Spacegate should not depend on an uncached remote Russian-hosted source for core ingest |
 | WDS | broad visual multiplicity coverage | weak exact IDs; strong coordinate/discoverer designations | `review_required` | Valuable breadth source, but matches to core require confidence-scored crossmatching rather than exact joins; current prototype finds mostly low-confidence positional matches |
@@ -72,7 +72,7 @@ This section records the current evaluation of candidate multistar sources befor
 Preferred multiplicity stack for v1.2 planning:
 
 1. Gaia NSS for exact star-level multiplicity evidence.
-2. MSC for explicit higher-order hierarchy, pending merge-rule approval.
+2. MSC for explicit higher-order hierarchy, pending usage terms confirmation.
 3. ORB6 and SBX as orbit-quality support catalogs.
 4. WDS for broad visual coverage via confidence-scored crossmatch.
 5. BDB is deferred unless a stable local mirror/export path is confirmed.

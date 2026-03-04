@@ -67,10 +67,6 @@ ensure_inputs() {
     echo "Missing: $WDS_RAW" >&2
     missing=1
   fi
-  if [[ ! -f "$MSC_RAW" ]]; then
-    echo "Missing: $MSC_RAW" >&2
-    missing=1
-  fi
   if [[ ! -f "$ORB6_RAW" ]]; then
     echo "Missing: $ORB6_RAW" >&2
     missing=1

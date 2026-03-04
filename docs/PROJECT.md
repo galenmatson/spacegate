@@ -1186,33 +1186,30 @@ Before promoting any new source family into canonical precedence:
 
 Current working multiplicity stack for implementation planning:
 1. Gaia NSS for exact star-level multiplicity evidence.
-2. MSC for hierarchy candidates and explicit subsystem structure.
+2. MSC for hierarchy candidates and explicit subsystem structure, pending usage terms.
 3. ORB6 and SBX as orbit-quality support catalogs.
 4. WDS as broad visual coverage through confidence-scored crossmatch.
 5. BDB/ILB only if we can mirror it locally through a stable export/crawl path; otherwise disregard it.
 
 ### Current multiplicity implementation state (March 4, 2026)
-- First pass is now implemented in the core build pipeline on proton:
-  - `download_core.sh` / `catalogs.sh` now treat `WDS`, `MSC`, and `ORB6` as part of the core build input set.
-  - `cook_core.sh` now deterministically cooks those catalogs into per-catalog typed CSV outputs.
-  - `ingest_core.py` now:
-    - loads `MSC`, `WDS`, and `ORB6`
-    - conservatively matches `MSC` components to current core stars by exact `HIP/HD` only
-    - inserts unmatched `MSC` components as new core `stars`
-    - groups `systems` by `WDS` before name/proximity
-    - records grouping provenance via `wds_id`, `grouping_basis`, `grouping_confidence`, and `grouping_source_catalogs_json`
-- This pass is intentionally conservative:
-  - no fuzzy multiplicity merges
-  - no coordinate-only star identity merges
-  - no Gaia NSS ingest yet
-  - no SBX ingest yet
-- Current benchmark outcome from build `2026-03-04T135257Z_6bff7e3`:
-  - `Castor` now resolves as a 3-star `WDS` system
-  - `16 Cyg` now resolves as a 3-star `WDS` system
-  - `Rigil Kentaurus` (Alpha Centauri) now resolves as a 3-star `WDS` system
-  - `Keid` (40 Eridani) now resolves as a 3-star `WDS` system
-  - `Sirius` remains single in this pass and needs another source/crosswalk path
-- Coordinate/proximity grouping is still available, but for this benchmark build it was disabled to validate the new catalog-driven multiplicity path in isolation.
+- The pipeline now has first-pass multiplicity scaffolding:
+  - `download_core.sh` / `catalogs.sh` treat `WDS` and `ORB6` as part of the active core build input set.
+  - `cook_core.sh` deterministically cooks `WDS`, `MSC`, and `ORB6` into per-catalog typed CSV outputs.
+  - `ingest_core.py` records grouping provenance via `wds_id`, `grouping_basis`, `grouping_confidence`, and `grouping_source_catalogs_json`.
+- `MSC` is currently disabled in active core builds pending usage terms from the catalog maintainer.
+  - The code scaffold remains available behind `SPACEGATE_ENABLE_MSC=1` for local evaluation only.
+  - Do not treat `MSC`-derived inserted stars as approved for proton/antiproton release until terms are confirmed.
+- Current approved active build state from `2026-03-04T154324Z_3612ffe`:
+  - `MSC` disabled
+  - `WDS` / `ORB6` loaded as support catalogs only
+  - no inserted multiplicity component stars
+  - benchmark systems like `Castor`, `Rigil Kentaurus`, and `Keid` revert to single-star representations in the active build
+- Historical benchmark note:
+  - exploratory build `2026-03-04T135257Z_6bff7e3` showed that the conservative `MSC` pass can materially improve systems like `Castor`, `16 Cyg`, `Rigil Kentaurus`, and `Keid`
+  - that result is useful as implementation evidence, but it is not the current approved build policy
+- No Gaia NSS ingest yet.
+- No SBX ingest yet.
+- Coordinate/proximity grouping is still available, but benchmark builds on proton currently disable it to avoid spending rebuild time on the legacy fallback heuristic while v1.2 multiplicity work is in flux.
   
   
 

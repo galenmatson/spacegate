@@ -127,7 +127,7 @@ Preferred order:
 1) Gaia DR3 source id: `star:gaia:<gaia_id>`
 2) HIP: `star:hip:<hip_id>`
 3) HD: `star:hd:<hd_id>`
-4) WDS component key when a conservative multiplicity insert creates a star with no better exact ID: `star:wds:<wds_id>:<component>`
+4) WDS component key when an approved multiplicity ingest creates a star with no better exact ID: `star:wds:<wds_id>:<component>`
 5) fallback: `star:hash:<hash>`
 
 Fallback hash input (deterministic):
@@ -138,7 +138,7 @@ Fallback hash input (deterministic):
 #### Systems (Clustering & IDs)
 Systems are logical groupings of stars. Aggregation is performed during ingestion:
 
-1. **WDS-linked Grouping:** Stars carrying the same `wds_id` are grouped first when multiplicity catalogs provide a conservative explicit relationship key.
+1. **WDS-linked Grouping:** Stars carrying the same `wds_id` are grouped first when approved multiplicity catalogs provide an explicit relationship key.
 2. **Name-based Grouping:** Remaining stars sharing a `proper_name` root (e.g., "Sirius A", "Sirius B") are grouped.
 3. **Proximity-based Grouping:** Remaining stars within **0.25 ly** (~3000 AU) are grouped if they do not already share an explicit multiplicity or name grouping.
    - This grouping is transitive (A near B, B near C ⇒ A/B/C grouped).
@@ -278,6 +278,7 @@ Key columns:
 - `star_name`, `star_name_norm`, `component`
 - `wds_id` (nullable multiplicity/grouping key)
 - `multiplicity_match_method`, `multiplicity_match_confidence`, `multiplicity_source_catalogs_json`
+- note: these fields may be populated sparsely until additional multiplicity sources are approved for active builds
 - planned v1.2 additive: `dist_pc`, `x_helio_pc`, `y_helio_pc`, `z_helio_pc`
 - coordinates (ra_deg, dec_deg, dist_ly, x/y/z_helio_ly)
 - planned v1.2 additive: row-level astrometry source epoch / normalization metadata
