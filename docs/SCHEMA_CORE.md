@@ -18,6 +18,11 @@ Current baseline ingests:
 
 - **AT-HYG** star catalog CSV (local sphere subset already in repo)
 - **NASA Exoplanet Archive** CSV (pscomppars; host matching limited by core star coverage)
+- **WDS** + **ORB6** multiplicity support catalogs
+- **Gaia DR3 NSS support extracts** (`non_single_star`, `nss_two_body_orbit`) for star-level multiplicity evidence
+
+Optional (default-off) multiplicity ingest:
+- **MSC** component insertion (`SPACEGATE_ENABLE_MSC=1`)
 
 Core produces a **pure astronomy** dataset. No lore, expositions, or generated imagery live in core.
 
@@ -143,6 +148,7 @@ Systems are logical groupings of stars. Aggregation is performed during ingestio
 3. **Proximity-based Grouping:** Remaining stars within **0.25 ly** (~3000 AU) are grouped if they do not already share an explicit multiplicity or name grouping.
    - This grouping is transitive (A near B, B near C ⇒ A/B/C grouped).
    - In v0, proximity grouping is optional and gated by `SPACEGATE_ENABLE_PROXIMITY=1`.
+   - Proton benchmark builds currently keep proximity disabled by default (`SPACEGATE_ENABLE_PROXIMITY=0`).
    - When disabled, ungrouped stars are treated as singleton systems.
 **Stable Key Generation:**
 The System prefers an explicit multiplicity key when present; otherwise it inherits identity from the **Primary Star** (brightest by Vmag) in the group.
@@ -234,6 +240,7 @@ Key columns:
 - `system_name`, `system_name_norm`
 - `wds_id` (nullable explicit multiplicity/grouping key when available)
 - `grouping_basis`, `grouping_confidence`, `grouping_source_catalogs_json`
+- `has_gaia_nss_evidence`
 - `has_msc_evidence`, `has_wds_evidence`, `has_orb6_evidence`
 - planned v1.2 additive: `dist_pc`
 - `ra_deg`, `dec_deg`, `dist_ly` (best available; may represent anchor star)
@@ -278,6 +285,10 @@ Key columns:
 - `star_name`, `star_name_norm`, `component`
 - `wds_id` (nullable multiplicity/grouping key)
 - `multiplicity_match_method`, `multiplicity_match_confidence`, `multiplicity_source_catalogs_json`
+- `gaia_non_single_star` (bool exact Gaia NSS flag)
+- `gaia_nss_solution_count` (count of Gaia NSS two-body solutions for the star)
+- `gaia_nss_solution_types_json` (distinct solution types as JSON array)
+- `gaia_nss_significance_max` (max two-body significance from Gaia NSS extract)
 - note: these fields may be populated sparsely until additional multiplicity sources are approved for active builds
 - planned v1.2 additive: `dist_pc`, `x_helio_pc`, `y_helio_pc`, `z_helio_pc`
 - coordinates (ra_deg, dec_deg, dist_ly, x/y/z_helio_ly)

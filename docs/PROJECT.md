@@ -1191,25 +1191,28 @@ Current working multiplicity stack for implementation planning:
 4. WDS as broad visual coverage through confidence-scored crossmatch.
 5. BDB/ILB only if we can mirror it locally through a stable export/crawl path; otherwise disregard it.
 
-### Current multiplicity implementation state (March 4, 2026)
-- The pipeline now has first-pass multiplicity scaffolding:
-  - `download_core.sh` / `catalogs.sh` treat `WDS` and `ORB6` as part of the active core build input set.
-  - `cook_core.sh` deterministically cooks `WDS`, `MSC`, and `ORB6` into per-catalog typed CSV outputs.
-  - `ingest_core.py` records grouping provenance via `wds_id`, `grouping_basis`, `grouping_confidence`, and `grouping_source_catalogs_json`.
-- `MSC` is currently disabled by default in active core builds (approved optional source).
-  - The code scaffold remains available behind `SPACEGATE_ENABLE_MSC=1` for local evaluation only.
-  - Do not treat `MSC`-derived inserted stars as approved for proton/antiproton release until terms are confirmed.
-- Current approved active build state from `2026-03-04T154324Z_3612ffe`:
-  - `MSC` disabled
-  - `WDS` / `ORB6` loaded as support catalogs only
-  - no inserted multiplicity component stars
-  - benchmark systems like `Castor`, `Rigil Kentaurus`, and `Keid` revert to single-star representations in the active build
-- Historical benchmark note:
-  - exploratory build `2026-03-04T135257Z_6bff7e3` showed that the conservative `MSC` pass can materially improve systems like `Castor`, `16 Cyg`, `Rigil Kentaurus`, and `Keid`
-  - that result is useful as implementation evidence, but it is not the current approved build policy
-- No Gaia NSS ingest yet.
-- No SBX ingest yet.
-- Coordinate/proximity grouping is still available, but benchmark builds on proton currently disable it to avoid spending rebuild time on the legacy fallback heuristic while v1.2 multiplicity work is in flux.
+### Current multiplicity implementation state (March 5, 2026)
+- The active core pipeline now includes deterministic Gaia NSS support data:
+  - `download_core.sh` fetches Gaia DR3 `non_single_star` and `nss_two_body_orbit` (partitioned TAP fetch) into `raw/gaia_nss/` and writes `reports/manifests/gaia_nss_manifest.json`.
+  - `cook_core.sh` / `cook_multiplicity.py` produce typed `cooked/gaia_nss/*.csv`.
+  - `ingest_core.py` merges Gaia NSS by exact `gaia_id` into star-level multiplicity evidence fields (`gaia_non_single_star`, `gaia_nss_solution_count`, `gaia_nss_solution_types_json`, `gaia_nss_significance_max`).
+- Grouping provenance remains explicit and ordered:
+  - grouping precedence is still `WDS -> name-root -> (optional) proximity`.
+  - Gaia NSS currently contributes star-level multiplicity evidence and system-level evidence rollup (`has_gaia_nss_evidence`), not direct hierarchy grouping.
+- `MSC` remains approved optional and default-off:
+  - enabled only with `SPACEGATE_ENABLE_MSC=1`.
+  - this keeps public/default builds conservative while preserving hierarchy enrichment paths for comparative runs.
+- Four-mode comparative ingest run now exists and is reproducible via `scripts/run_multiplicity_modes.sh` + `scripts/multiplicity_mode_report.py`:
+  - `baseline` (`NSS=0`, `MSC=0`)
+  - `NSS only` (`NSS=1`, `MSC=0`)
+  - `MSC only` (`NSS=0`, `MSC=1`)
+  - `NSS+MSC` (`NSS=1`, `MSC=1`)
+- Latest proton mode report (`2026-03-05T151324Z`) summary:
+  - Gaia NSS adds evidence coverage but does not change system grouping counts by itself (`+20,116` stars flagged non-single; `+14,050` with two-body solutions).
+  - MSC adds structural multiplicity via inserted component stars (`+7,243` stars, `+1,745` systems, `+4,166` multi-star systems).
+  - benchmark systems (`Castor`, `16 Cyg`, `Keid`, `Rigil Kentaurus`) improve only when MSC is enabled in the current pass.
+- No SBX ingest in active core pipeline yet.
+- Coordinate/proximity grouping is still available, but benchmark builds on proton keep `SPACEGATE_ENABLE_PROXIMITY=0` while v1.2 multiplicity hierarchy work is being tightened.
   
   
 

@@ -61,7 +61,7 @@ This section records the current evaluation of candidate multistar sources befor
 
 | Source | Best role | Join strength | Status | Notes |
 |---|---|---|---|---|
-| Gaia DR3 `gaia_source.non_single_star` and NSS tables | exact multiplicity evidence on existing stars | exact `source_id` | `approved_family` | Best primary evidence layer for star-level multiplicity flags and orbit solutions |
+| Gaia DR3 `gaia_source.non_single_star` and NSS tables | exact multiplicity evidence on existing stars | exact `source_id` | `approved_family` | Best primary evidence layer for star-level multiplicity flags and orbit solutions; active ingest path now implemented with partitioned TAP pulls for the local-sphere core subset |
 | MSC (Tokovinin Multiple Star Catalog) | hierarchical system structure for triples and higher | moderate; WDS-centered with common identifiers | `approved_optional` | Strong candidate for explicit hierarchy because it is purpose-built for nested multiples and ships bulk tables; sample pass found 3,482 exact-key overlaps with current core; active ingest remains optional and disabled by default |
 | ORB6 (Sixth Orbit Catalog) | high-confidence visual-binary orbital evidence | moderate; WDS/discoverer-led | `review_required` | Strong support catalog for orbit-confirmed visual binaries; bulk text/SQL files are available; sample pass found 3,282 exact-key overlaps with current core |
 | BDB / ILB (Binary Star Database / Identification List of Binaries) | crosswalk between system, pair, and component identifiers across heterogeneous multiplicity catalogs | potentially strong if export is practical | `review_required` | Deferred for now: strategically valuable as a link resolver, but a stable current bulk export/API has not been confirmed and Spacegate should not depend on an uncached remote Russian-hosted source for core ingest |
@@ -95,7 +95,7 @@ Implication:
 These source families still need a concrete approval call before coding the merge layer:
 
 - exact multiplicity relationship source(s) for canonical system grouping, especially the Gaia NSS + MSC + WDS interaction model
-- exact Gaia extraction path for the <=1000 ly core subset
 - which spectroscopy catalogs are approved for canonical stellar physical fields
 - whether BDB/ILB can be mirrored locally with a stable machine-ingest path suitable for routine builds
 - whether any compact/substellar classes should ever graduate from `pack_only` into core canonical rows
+- MSC transport hardening path (verified TLS source or trusted local mirror) for non-experimental ingest

@@ -9,7 +9,7 @@ The goal is strict provenance, reproducibility, and clear separation between:
 - **what we actively serve and query** (`$SPACEGATE_STATE_DIR/served/`)
 - **what we log and validate** (`$SPACEGATE_STATE_DIR/reports/`)
 
-Nothing in this file is aspirational. Everything here reflects current v0 reality.
+Nothing in this file is aspirational. Everything here reflects current active pipeline behavior.
 
 ---
 
@@ -101,9 +101,9 @@ Manifests are generated locally and are not tracked in git.
 
 ---
 
-## Core catalogs (v0)
+## Core catalogs (active)
 
-These sources are required for v0 ingestion and must always be present.
+These sources are required for active core ingestion unless explicitly disabled by feature flag.
 
 ### 1. AT-HYG (Astronexus HYG / AT-HYG)
 
@@ -168,9 +168,95 @@ These sources are required for v0 ingestion and must always be present.
 
 ---
 
+### 3. Washington Double Star Catalog (WDS)
+
+**Authority**: US Naval Observatory / WDS team
+
+**Raw input**:
+- `$SPACEGATE_STATE_DIR/raw/wds/wdsweb_summ2.txt`
+
+**Source URL**:
+- `https://astro.gsu.edu/wds/wdsweb_summ2.txt`
+
+**Cooked output**:
+- `$SPACEGATE_STATE_DIR/cooked/wds/wds_summary.csv`
+
+**Role in core**:
+- multiplicity/grouping support (`wds_id` evidence and grouping provenance)
+
+**Download script**: `scripts/download_core.sh`
+
+**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/wds_manifest.json`
+
+---
+
+### 4. ORB6 (Sixth Catalog of Orbits of Visual Binary Stars)
+
+**Authority**: USNO / WDS orbit products
+
+**Raw input**:
+- `$SPACEGATE_STATE_DIR/raw/orb6/orb6orbits.sql`
+
+**Source URL**:
+- `https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql`
+
+**Cooked output**:
+- `$SPACEGATE_STATE_DIR/cooked/orb6/orb6_orbits.csv`
+
+**Role in core**:
+- orbit-quality support evidence for multiplicity confidence/provenance
+
+**Download script**: `scripts/download_core.sh`
+
+**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/orb6_manifest.json`
+
+---
+
+### 5. Gaia DR3 NSS support extracts (partitioned TAP pulls)
+
+**Authority**: ESA Gaia Archive
+
+**Raw inputs**:
+- `$SPACEGATE_STATE_DIR/raw/gaia_nss/gaia_dr3_non_single_star.csv`
+- `$SPACEGATE_STATE_DIR/raw/gaia_nss/gaia_dr3_nss_two_body_orbit.csv`
+
+**Source URL**:
+- `https://gea.esac.esa.int/tap-server/tap/sync`
+
+**Cooked outputs**:
+- `$SPACEGATE_STATE_DIR/cooked/gaia_nss/gaia_dr3_non_single_star.csv`
+- `$SPACEGATE_STATE_DIR/cooked/gaia_nss/gaia_dr3_nss_two_body_orbit.csv`
+
+**Role in core**:
+- exact `gaia_id` star-level multiplicity evidence
+- does not directly create hierarchy/system grouping by itself in current pass
+
+**Acquisition method**:
+- partitioned TAP sync queries (`MOD(source_id, buckets)`)
+- default local-sphere filter: `parallax >= 3.26156` (about 1000 ly)
+
+**Download script**:
+- `scripts/download_core.sh` -> `scripts/fetch_gaia_nss_core.py`
+
+**Manifest**:
+- `$SPACEGATE_STATE_DIR/reports/manifests/gaia_nss_manifest.json`
+
+---
+
 ## Optional catalogs (packs, v1.2+)
 
-No optional pack sources are active yet. This section will be updated when sources are approved and added.
+### MSC (Tokovinin Multiple Star Catalog)
+
+**Status**:
+- approved optional
+- disabled by default (`SPACEGATE_ENABLE_MSC=0`)
+- enabled for comparative hierarchy runs with `SPACEGATE_ENABLE_MSC=1`
+
+**Security / transport note**:
+- historical sample retrieval required an unverified-TLS fallback from the source host.
+- do not make production core builds depend on insecure transport; use only with explicit operator acknowledgement until a verified transport or trusted mirror path is pinned.
+
+---
 
 ---
 
