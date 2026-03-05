@@ -146,7 +146,7 @@ lfs_url_from_source() {
 
 catalog_titles() {
   cat <<'LIST'
-core|Core (AT-HYG + NASA Exoplanets + WDS/ORB6 support)
+core|Core (AT-HYG + NASA Exoplanets + WDS/ORB6 support; Gaia NSS fetched by download_core.sh)
 athyg|AT-HYG stellar catalog
 nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
 wds|Washington Double Star Catalog (WDS)

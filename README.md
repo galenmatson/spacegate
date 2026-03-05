@@ -92,6 +92,12 @@ If you used `--skip-build`, used `--skip-db-download`, or want to rebuild:
 scripts/build_core.sh
 ```
 
+For multiplicity contribution analysis across four build modes (`baseline`, `NSS only`, `MSC only`, `NSS+MSC`):
+
+```bash
+scripts/run_multiplicity_modes.sh
+```
+
 To fetch the currently published prebuilt DB manually:
 
 ```bash
@@ -217,6 +223,16 @@ export SPACEGATE_DATA_DIR=/var/lib/spacegate
 export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 export SPACEGATE_DUCKDB_THREADS=4
 
+# Multiplicity toggles
+export SPACEGATE_ENABLE_GAIA_NSS=1
+export SPACEGATE_ENABLE_MSC=0
+export SPACEGATE_ENABLE_PROXIMITY=0
+
+# Gaia NSS fetch tuning (download_core.sh)
+export SPACEGATE_GAIA_NSS_BUCKETS=8
+export SPACEGATE_GAIA_NSS_TIMEOUT_S=240
+export SPACEGATE_GAIA_NSS_RETRIES=4
+
 # Core DB bootstrap controls
 export SPACEGATE_BOOTSTRAP_DB=0
 export SPACEGATE_PUBLIC_BASE_URL=https://coolstars.org
@@ -239,6 +255,9 @@ SPACEGATE_LOG_DIR=/data/spacegate/data/logs
 
 # Optional source-build knobs
 SPACEGATE_ENABLE_PROXIMITY=0
+SPACEGATE_ENABLE_GAIA_NSS=1
+SPACEGATE_ENABLE_MSC=0
+SPACEGATE_GAIA_NSS_BUCKETS=8
 SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 SPACEGATE_DUCKDB_THREADS=12
 EOF

@@ -20,6 +20,8 @@ NASA_RAW="$RAW_DIR/nasa_exoplanet_archive/pscomppars.csv"
 WDS_RAW="$RAW_DIR/wds/wdsweb_summ2.txt"
 MSC_RAW="$RAW_DIR/msc/newmsc-20240101.tar.gz"
 ORB6_RAW="$RAW_DIR/orb6/orb6orbits.sql"
+GAIA_NSS_NON_SINGLE_RAW="$RAW_DIR/gaia_nss/gaia_dr3_non_single_star.csv"
+GAIA_NSS_TWO_BODY_RAW="$RAW_DIR/gaia_nss/gaia_dr3_nss_two_body_orbit.csv"
 
 COOKED_ATHYG_DIR="$COOKED_DIR/athyg"
 COOKED_NASA_DIR="$COOKED_DIR/nasa_exoplanet_archive"
@@ -50,6 +52,7 @@ is_lfs_pointer() {
 }
 
 ensure_inputs() {
+  local enable_gaia_nss="${SPACEGATE_ENABLE_GAIA_NSS:-1}"
   local missing=0
   if [[ ! -f "$ATHYG_PART1" ]]; then
     echo "Missing: $ATHYG_PART1" >&2
@@ -70,6 +73,16 @@ ensure_inputs() {
   if [[ ! -f "$ORB6_RAW" ]]; then
     echo "Missing: $ORB6_RAW" >&2
     missing=1
+  fi
+  if [[ "$enable_gaia_nss" != "0" ]]; then
+    if [[ ! -f "$GAIA_NSS_NON_SINGLE_RAW" ]]; then
+      echo "Missing: $GAIA_NSS_NON_SINGLE_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$GAIA_NSS_TWO_BODY_RAW" ]]; then
+      echo "Missing: $GAIA_NSS_TWO_BODY_RAW" >&2
+      missing=1
+    fi
   fi
   if [[ $missing -eq 0 ]]; then
     if is_lfs_pointer "$ATHYG_PART1" || is_lfs_pointer "$ATHYG_PART2"; then
@@ -194,7 +207,7 @@ main() {
   log "Cook core begin"
   cook_athyg
   cook_nasa
-  log "Cook: multiplicity catalogs"
+  log "Cook: multiplicity catalogs (WDS/MSC/ORB6/Gaia NSS)"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
   log "Cook core complete"
   echo "Next: scripts/ingest_core.sh to build the core database."

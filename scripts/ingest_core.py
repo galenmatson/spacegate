@@ -19,6 +19,8 @@ MORTON_N = (1 << BITS_PER_AXIS) - 1
 MORTON_SCALE = MORTON_N / (2 * MORTON_MAX_ABS_LY)
 COORDINATE_EPOCH = "J2016.0"
 COORDINATE_FRAME = "ICRS"
+GAIA_NSS_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
+GAIA_NSS_VERSION = "dr3_tap_partitioned_parallax_gte_3.26156"
 MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
 MSC_VERSION = "2024-01-01"
 PROX_MAX_DIST_LY = 0.25
@@ -349,16 +351,20 @@ def main() -> int:
     root = Path(args.root)
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
     enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
+    enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
     cooked_msc = state_dir / "cooked" / "msc" / "msc_components.csv"
     cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
+    cooked_gaia_nss_non_single = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_non_single_star.csv"
+    cooked_gaia_nss_two_body = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     manifest_path = manifest_dir / "core_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     orb6_manifest_path = manifest_dir / "orb6_manifest.json"
+    gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
 
     if not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
@@ -370,12 +376,18 @@ def main() -> int:
         raise SystemExit(f"Missing cooked MSC: {cooked_msc}")
     if not cooked_orb6.exists():
         raise SystemExit(f"Missing cooked ORB6: {cooked_orb6}")
+    if enable_gaia_nss and not cooked_gaia_nss_non_single.exists():
+        raise SystemExit(f"Missing cooked Gaia NSS non_single_star: {cooked_gaia_nss_non_single}")
+    if enable_gaia_nss and not cooked_gaia_nss_two_body.exists():
+        raise SystemExit(f"Missing cooked Gaia NSS two_body: {cooked_gaia_nss_two_body}")
 
     log("Ingest core start")
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
     if enable_msc:
         manifest_paths.append(msc_manifest_path)
+    if enable_gaia_nss:
+        manifest_paths.append(gaia_nss_manifest_path)
     for path in manifest_paths:
         manifest.update(load_manifest(path))
 
@@ -468,6 +480,16 @@ def main() -> int:
         if enable_msc
         else None
     )
+    gaia_nss_non_single_manifest = (
+        require_manifest_entry(manifest, "gaia_dr3_non_single_star", "Gaia DR3 non_single_star")
+        if enable_gaia_nss
+        else None
+    )
+    gaia_nss_two_body_manifest = (
+        require_manifest_entry(manifest, "gaia_dr3_nss_two_body_orbit", "Gaia DR3 nss_two_body_orbit")
+        if enable_gaia_nss
+        else None
+    )
 
     athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
     athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
@@ -493,6 +515,18 @@ def main() -> int:
     nasa_has_retrieval = has_retrieval(nasa_manifest)
     msc_sha = msc_manifest.get("sha256") if msc_manifest else None
     msc_retrieved = msc_manifest.get("retrieved_at") if msc_manifest else None
+    gaia_nss_non_single_sha = (
+        gaia_nss_non_single_manifest.get("sha256") if gaia_nss_non_single_manifest else None
+    )
+    gaia_nss_non_single_retrieved = (
+        gaia_nss_non_single_manifest.get("retrieved_at") if gaia_nss_non_single_manifest else None
+    )
+    gaia_nss_two_body_sha = (
+        gaia_nss_two_body_manifest.get("sha256") if gaia_nss_two_body_manifest else None
+    )
+    gaia_nss_two_body_retrieved = (
+        gaia_nss_two_body_manifest.get("retrieved_at") if gaia_nss_two_body_manifest else None
+    )
 
     athyg_path = str(cooked_athyg).replace("'", "''")
     log("Loading cooked AT-HYG")
@@ -515,6 +549,8 @@ def main() -> int:
     wds_path = str(cooked_wds).replace("'", "''")
     msc_path = str(cooked_msc).replace("'", "''")
     orb6_path = str(cooked_orb6).replace("'", "''")
+    gaia_nss_non_single_path = str(cooked_gaia_nss_non_single).replace("'", "''")
+    gaia_nss_two_body_path = str(cooked_gaia_nss_two_body).replace("'", "''")
 
     log("Loading cooked multiplicity catalogs")
     con.execute(
@@ -585,6 +621,74 @@ def main() -> int:
         )
         """
     )
+    if enable_gaia_nss:
+        con.execute(
+            f"""
+            create or replace temp view gaia_nss_non_single_raw as
+            select * from read_csv_auto('{gaia_nss_non_single_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view gaia_nss_two_body_raw as
+            select * from read_csv_auto('{gaia_nss_two_body_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view gaia_nss_non_single_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              source_id, non_single_star, ra_deg, dec_deg, parallax_mas, parallax_error_mas,
+              pm_ra_mas_yr, pm_dec_mas_yr, radial_velocity_kms
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view gaia_nss_two_body_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              source_id, nss_solution_type, ra_deg, dec_deg, parallax_mas, parallax_error_mas, pm_ra_mas_yr,
+              pm_dec_mas_yr, period_days, eccentricity, center_of_mass_velocity_kms, semi_amplitude_primary_kms,
+              mass_ratio, inclination_deg, flags, significance
+            )
+            where false
+            """
+        )
     con.execute(
         """
         create or replace temp view wds_support as
@@ -842,6 +946,40 @@ def main() -> int:
         """
     )
     con.execute(
+        """
+        create or replace temp view gaia_nss_non_single as
+        select
+          cast(nullif(source_id, '') as bigint) as gaia_id,
+          coalesce(cast(nullif(non_single_star, '') as int), 0) as non_single_star
+        from gaia_nss_non_single_raw
+        where cast(nullif(source_id, '') as bigint) is not null
+          and coalesce(cast(nullif(non_single_star, '') as int), 0) = 1
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view gaia_nss_two_body_agg as
+        with base as (
+          select
+            cast(nullif(source_id, '') as bigint) as gaia_id,
+            nullif(nss_solution_type, '') as nss_solution_type,
+            cast(nullif(significance, '') as double) as significance
+          from gaia_nss_two_body_raw
+          where cast(nullif(source_id, '') as bigint) is not null
+        )
+        select
+          gaia_id,
+          count(*)::bigint as nss_solution_count,
+          coalesce(max(significance), 0.0) as nss_significance_max,
+          coalesce(
+            '[' || string_agg(distinct '"' || replace(nss_solution_type, '"', '\\"') || '"', ',') || ']',
+            '[]'
+          ) as nss_solution_types_json
+        from base
+        group by gaia_id
+        """
+    )
+    con.execute(
         f"""
         create or replace temp view final_star_rows as
         with athyg_final as (
@@ -878,9 +1016,35 @@ def main() -> int:
             a.hip_id,
             a.hd_id,
             m.wds_id,
-            coalesce(m.match_method, 'athyg_only') as multiplicity_match_method,
-            coalesce(m.match_confidence, 0.0) as multiplicity_match_confidence,
-            case when m.wds_id is not null then '["msc"]' else '[]' end as multiplicity_source_catalogs_json,
+            case
+              when n.gaia_id is not null and t.gaia_id is not null and m.wds_id is not null then 'gaia_nss_two_body+' || coalesce(m.match_method, 'msc')
+              when n.gaia_id is not null and m.wds_id is not null then 'gaia_nss+' || coalesce(m.match_method, 'msc')
+              when t.gaia_id is not null then 'gaia_nss_two_body'
+              when n.gaia_id is not null then 'gaia_nss'
+              else coalesce(m.match_method, 'athyg_only')
+            end as multiplicity_match_method,
+            greatest(
+              coalesce(m.match_confidence, 0.0),
+              case
+                when t.gaia_id is not null then 0.99
+                when n.gaia_id is not null then 0.96
+                else 0.0
+              end
+            ) as multiplicity_match_confidence,
+            case
+              when n.gaia_id is not null and t.gaia_id is not null and m.wds_id is not null then '["gaia_nss","gaia_nss_two_body","msc"]'
+              when n.gaia_id is not null and t.gaia_id is not null then '["gaia_nss","gaia_nss_two_body"]'
+              when n.gaia_id is not null and m.wds_id is not null then '["gaia_nss","msc"]'
+              when t.gaia_id is not null and m.wds_id is not null then '["gaia_nss_two_body","msc"]'
+              when t.gaia_id is not null then '["gaia_nss_two_body"]'
+              when n.gaia_id is not null then '["gaia_nss"]'
+              when m.wds_id is not null then '["msc"]'
+              else '[]'
+            end as multiplicity_source_catalogs_json,
+            coalesce(n.gaia_id is not null, false) as gaia_non_single_star,
+            coalesce(t.nss_solution_count, 0) as gaia_nss_solution_count,
+            coalesce(t.nss_solution_types_json, '[]') as gaia_nss_solution_types_json,
+            t.nss_significance_max as gaia_nss_significance_max,
             json_object(
               'gaia', a.gaia_id,
               'hip', a.hip_id,
@@ -910,6 +1074,8 @@ def main() -> int:
             {sql_literal(transform_version)} as transform_version
           from athyg_stars_stage a
           left join msc_exact_matches m on m.athyg_row_id = a.athyg_row_id
+          left join gaia_nss_non_single n on n.gaia_id = a.gaia_id
+          left join gaia_nss_two_body_agg t on t.gaia_id = a.gaia_id
         ), msc_only as (
           select
             cast(morton3d(m.x_pc * {PC_TO_LY}, m.y_pc * {PC_TO_LY}, m.z_pc * {PC_TO_LY}) as bigint) as spatial_index,
@@ -964,6 +1130,10 @@ def main() -> int:
             'msc_insert' as multiplicity_match_method,
             1.0 as multiplicity_match_confidence,
             '["msc"]' as multiplicity_source_catalogs_json,
+            false as gaia_non_single_star,
+            0::bigint as gaia_nss_solution_count,
+            '[]' as gaia_nss_solution_types_json,
+            null::double as gaia_nss_significance_max,
             json_object(
               'gaia', null,
               'hip', m.hip_id,
@@ -1417,7 +1587,7 @@ def main() -> int:
         """
         create temp view system_group_support as
         with grouped as (
-          select g.system_group_key, s.wds_id, s.source_catalog
+          select g.system_group_key, s.wds_id, s.source_catalog, s.gaia_non_single_star
           from system_groups g
           join stars s using (star_id)
         ), aggregated as (
@@ -1425,6 +1595,7 @@ def main() -> int:
             system_group_key,
             max(g.wds_id) as wds_id,
             max(case when source_catalog = 'msc' then 1 else 0 end) as has_msc_insert,
+            max(case when gaia_non_single_star then 1 else 0 end) as has_gaia_nss,
             max(case when w.wds_id is not null then 1 else 0 end) as has_wds_evidence,
             max(case when o.wds_id is not null then 1 else 0 end) as has_orb6_evidence
           from grouped g
@@ -1441,6 +1612,7 @@ def main() -> int:
             when system_group_key like 'prox:%' then 'proximity'
             else 'singleton'
           end as grouping_basis,
+          has_gaia_nss = 1 as has_gaia_nss_evidence,
           has_msc_insert = 1 as has_msc_evidence,
           has_wds_evidence = 1 as has_wds_evidence,
           has_orb6_evidence = 1 as has_orb6_evidence,
@@ -1471,7 +1643,7 @@ def main() -> int:
         create table systems as
         with grouped as (
           select s.*, g.system_group_key, sg.wds_id as group_wds_id, sg.grouping_basis, sg.grouping_confidence,
-                 sg.has_msc_evidence, sg.has_wds_evidence, sg.has_orb6_evidence, sg.grouping_source_catalogs_json
+                 sg.has_gaia_nss_evidence, sg.has_msc_evidence, sg.has_wds_evidence, sg.has_orb6_evidence, sg.grouping_source_catalogs_json
           from stars s
           join system_groups g using (star_id)
           join system_group_support sg using (system_group_key)
@@ -1501,6 +1673,7 @@ def main() -> int:
           grouping_basis,
           grouping_confidence,
           grouping_source_catalogs_json,
+          has_gaia_nss_evidence,
           has_msc_evidence,
           has_wds_evidence,
           has_orb6_evidence,
@@ -1568,11 +1741,21 @@ def main() -> int:
         where system_group_key like 'solo:%'
         """
     ).fetchone()[0]
+    gaia_nss_star_count = con.execute(
+        "select count(*) from stars where gaia_non_single_star"
+    ).fetchone()[0]
+    gaia_nss_system_count = con.execute(
+        "select count(distinct system_id) from stars where gaia_non_single_star"
+    ).fetchone()[0]
+    gaia_nss_two_body_star_count = con.execute(
+        "select count(*) from stars where coalesce(gaia_nss_solution_count, 0) > 0"
+    ).fetchone()[0]
 
     system_grouping_report = {
         "build_id": build_id,
         "proximity_enabled": proximity_enabled,
         "msc_enabled": enable_msc,
+        "gaia_nss_enabled": enable_gaia_nss,
         "wds_group_count": wds_group_count,
         "name_group_count": name_group_count,
         "proximity_group_count": prox_group_count,
@@ -1580,9 +1763,17 @@ def main() -> int:
         "total_systems": system_counts[0],
         "multi_star_systems": system_counts[1],
         "max_component_size": system_counts[2],
+        "gaia_nss_star_count": gaia_nss_star_count,
+        "gaia_nss_system_count": gaia_nss_system_count,
+        "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
         "proximity_pairs_processed": pair_count,
         "notes": [
             "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
+            (
+                "Gaia NSS star-level multiplicity evidence is active in this build."
+                if enable_gaia_nss
+                else "Gaia NSS star-level multiplicity evidence is disabled (SPACEGATE_ENABLE_GAIA_NSS=0)."
+            ),
             (
                 "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
                 if enable_msc
@@ -1876,6 +2067,10 @@ def main() -> int:
     }
     if msc_manifest:
         provenance_report["msc"] = msc_manifest
+    if gaia_nss_non_single_manifest:
+        provenance_report["gaia_nss_non_single_star"] = gaia_nss_non_single_manifest
+    if gaia_nss_two_body_manifest:
+        provenance_report["gaia_nss_two_body_orbit"] = gaia_nss_two_body_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
@@ -1935,6 +2130,10 @@ def main() -> int:
     qc_report = {
         "build_id": build_id,
         "counts": {"stars": counts[0], "systems": counts[1], "planets": counts[2]},
+        "gaia_nss_enabled": enable_gaia_nss,
+        "gaia_nss_star_count": gaia_nss_star_count,
+        "gaia_nss_system_count": gaia_nss_system_count,
+        "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -1947,6 +2146,11 @@ def main() -> int:
         },
         "notes": [
             "System grouping uses WDS-linked multiplicity first, then name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
+            (
+                "Gaia NSS star-level multiplicity evidence enabled (SPACEGATE_ENABLE_GAIA_NSS!=0)."
+                if enable_gaia_nss
+                else "Gaia NSS star-level multiplicity evidence disabled (SPACEGATE_ENABLE_GAIA_NSS=0)."
+            ),
             (
                 "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
                 if enable_msc

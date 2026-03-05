@@ -398,6 +398,111 @@ def cook_orb6(raw_path: Path, cooked_path: Path) -> int:
     return line_count
 
 
+def cook_gaia_nss_non_single(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    line_count = 0
+    with raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        reader = csv.DictReader(in_f)
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "source_id",
+                "non_single_star",
+                "ra_deg",
+                "dec_deg",
+                "parallax_mas",
+                "parallax_error_mas",
+                "pm_ra_mas_yr",
+                "pm_dec_mas_yr",
+                "radial_velocity_kms",
+            ],
+        )
+        writer.writeheader()
+        seen_ids: set[int] = set()
+        for row in reader:
+            source_id = parse_int(row.get("source_id", ""))
+            if source_id is None or source_id in seen_ids:
+                continue
+            non_single = parse_int(row.get("non_single_star", "")) or 0
+            if non_single != 1:
+                continue
+            seen_ids.add(source_id)
+            writer.writerow(
+                {
+                    "source_id": source_id,
+                    "non_single_star": 1,
+                    "ra_deg": parse_float(row.get("ra", "")),
+                    "dec_deg": parse_float(row.get("dec", "")),
+                    "parallax_mas": parse_float(row.get("parallax", "")),
+                    "parallax_error_mas": parse_float(row.get("parallax_error", "")),
+                    "pm_ra_mas_yr": parse_float(row.get("pmra", "")),
+                    "pm_dec_mas_yr": parse_float(row.get("pmdec", "")),
+                    "radial_velocity_kms": parse_float(row.get("radial_velocity", "")),
+                }
+            )
+            line_count += 1
+    return line_count
+
+
+def cook_gaia_nss_two_body(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    line_count = 0
+    with raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        reader = csv.DictReader(in_f)
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "source_id",
+                "nss_solution_type",
+                "ra_deg",
+                "dec_deg",
+                "parallax_mas",
+                "parallax_error_mas",
+                "pm_ra_mas_yr",
+                "pm_dec_mas_yr",
+                "period_days",
+                "eccentricity",
+                "center_of_mass_velocity_kms",
+                "semi_amplitude_primary_kms",
+                "mass_ratio",
+                "inclination_deg",
+                "flags",
+                "significance",
+            ],
+        )
+        writer.writeheader()
+        for row in reader:
+            source_id = parse_int(row.get("source_id", ""))
+            if source_id is None:
+                continue
+            writer.writerow(
+                {
+                    "source_id": source_id,
+                    "nss_solution_type": str(row.get("nss_solution_type", "")).strip(),
+                    "ra_deg": parse_float(row.get("ra", "")),
+                    "dec_deg": parse_float(row.get("dec", "")),
+                    "parallax_mas": parse_float(row.get("parallax", "")),
+                    "parallax_error_mas": parse_float(row.get("parallax_error", "")),
+                    "pm_ra_mas_yr": parse_float(row.get("pmra", "")),
+                    "pm_dec_mas_yr": parse_float(row.get("pmdec", "")),
+                    "period_days": parse_float(row.get("period", "")),
+                    "eccentricity": parse_float(row.get("eccentricity", "")),
+                    "center_of_mass_velocity_kms": parse_float(row.get("center_of_mass_velocity", "")),
+                    "semi_amplitude_primary_kms": parse_float(row.get("semi_amplitude_primary", "")),
+                    "mass_ratio": parse_float(row.get("mass_ratio", "")),
+                    "inclination_deg": parse_float(row.get("inclination", "")),
+                    "flags": str(row.get("flags", "")).strip(),
+                    "significance": parse_float(row.get("significance", "")),
+                }
+            )
+            line_count += 1
+    return line_count
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
@@ -408,6 +513,18 @@ def main() -> int:
         ("wds", raw_dir / "wds" / "wdsweb_summ2.txt", cooked_dir / "wds" / "wds_summary.csv", cook_wds),
         ("msc", raw_dir / "msc" / "newmsc-20240101.tar.gz", cooked_dir / "msc" / "msc_components.csv", cook_msc),
         ("orb6", raw_dir / "orb6" / "orb6orbits.sql", cooked_dir / "orb6" / "orb6_orbits.csv", cook_orb6),
+        (
+            "gaia_nss_non_single",
+            raw_dir / "gaia_nss" / "gaia_dr3_non_single_star.csv",
+            cooked_dir / "gaia_nss" / "gaia_dr3_non_single_star.csv",
+            cook_gaia_nss_non_single,
+        ),
+        (
+            "gaia_nss_two_body",
+            raw_dir / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv",
+            cooked_dir / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv",
+            cook_gaia_nss_two_body,
+        ),
     ]
 
     for label, raw_path, cooked_path, handler in jobs:
