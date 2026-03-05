@@ -20,7 +20,26 @@ else
   exit 1
 fi
 
-"$ROOT_DIR/scripts/catalogs.sh" --core "$@"
+if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
+  catalog_args=(
+    --catalog nasa_exoplanet_archive
+    --catalog wds
+    --catalog orb6
+  )
+  if [[ "${SPACEGATE_ENABLE_MSC:-0}" == "1" ]]; then
+    catalog_args+=(--catalog msc)
+  fi
+  "$ROOT_DIR/scripts/catalogs.sh" \
+    "${catalog_args[@]}" \
+    "$@"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_backbone.py" \
+    --buckets "${SPACEGATE_GAIA_BACKBONE_BUCKETS:-53}" \
+    --min-parallax-mas "${SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS:-3.26156}" \
+    --timeout-s "${SPACEGATE_GAIA_BACKBONE_TIMEOUT_S:-240}" \
+    --retries "${SPACEGATE_GAIA_BACKBONE_RETRIES:-4}"
+else
+  "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
+fi
 if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_nss_core.py" \
     --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-7}" \

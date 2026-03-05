@@ -21,6 +21,8 @@ COORDINATE_EPOCH = "J2016.0"
 COORDINATE_FRAME = "ICRS"
 GAIA_NSS_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 GAIA_NSS_VERSION = "dr3_tap_partitioned_parallax_gte_3.26156"
+GAIA_BACKBONE_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
+GAIA_BACKBONE_VERSION = "dr3_gaia_source_parallax_gte_3.26156"
 WDS_GAIA_XMATCH_URL = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync"
 WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
 MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
@@ -368,6 +370,7 @@ def main() -> int:
 
     root = Path(args.root)
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
+    enable_gaia_backbone = os.getenv("SPACEGATE_ENABLE_GAIA_BACKBONE", "0") == "1"
     enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
     enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
@@ -384,6 +387,7 @@ def main() -> int:
         WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT,
     )
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
+    cooked_gaia_backbone = state_dir / "cooked" / "gaia_backbone" / "gaia_dr3_backbone.csv"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
     cooked_msc = state_dir / "cooked" / "msc" / "msc_components.csv"
@@ -396,11 +400,14 @@ def main() -> int:
     wds_manifest_path = manifest_dir / "wds_manifest.json"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     orb6_manifest_path = manifest_dir / "orb6_manifest.json"
+    gaia_backbone_manifest_path = manifest_dir / "gaia_backbone_manifest.json"
     gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
     wds_gaia_xmatch_manifest_path = manifest_dir / "wds_gaia_xmatch_manifest.json"
 
-    if not cooked_athyg.exists():
+    if not enable_gaia_backbone and not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
+    if enable_gaia_backbone and not cooked_gaia_backbone.exists():
+        raise SystemExit(f"Missing cooked Gaia backbone: {cooked_gaia_backbone}")
     if not cooked_nasa.exists():
         raise SystemExit(f"Missing cooked NASA: {cooked_nasa}")
     if not cooked_wds.exists():
@@ -419,6 +426,8 @@ def main() -> int:
     log("Ingest core start")
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
+    if enable_gaia_backbone:
+        manifest_paths.append(gaia_backbone_manifest_path)
     if enable_msc:
         manifest_paths.append(msc_manifest_path)
     if enable_gaia_nss:
@@ -494,6 +503,7 @@ def main() -> int:
         insert into build_metadata values
           ('build_id', {sql_literal(build_id)}),
           ('git_sha', {sql_literal(transform_version)}),
+          ('gaia_backbone_enabled', {sql_literal("1" if enable_gaia_backbone else "0")}),
           ('coordinate_epoch', {sql_literal(COORDINATE_EPOCH)}),
           ('coordinate_frame', {sql_literal(COORDINATE_FRAME)}),
           ('morton_bits_per_axis', {sql_literal(str(BITS_PER_AXIS))}),
@@ -508,8 +518,21 @@ def main() -> int:
     )
 
     log("Loading manifest entries")
-    athyg_p1 = require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
-    athyg_p2 = require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
+    athyg_p1 = (
+        require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
+        if not enable_gaia_backbone
+        else None
+    )
+    athyg_p2 = (
+        require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
+        if not enable_gaia_backbone
+        else None
+    )
+    gaia_backbone_manifest = (
+        require_manifest_entry(manifest, "gaia_dr3_backbone", "Gaia DR3 backbone")
+        if enable_gaia_backbone
+        else None
+    )
     nasa_manifest = require_manifest_entry(
         manifest, "pscomppars", "NASA Exoplanet Archive"
     )
@@ -536,20 +559,62 @@ def main() -> int:
         else None
     )
 
-    athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
-    athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
+    athyg_checksum = None
+    athyg_retrieved = None
+    athyg_download_url = None
+    athyg_has_retrieval = False
+    if athyg_p1 and athyg_p2:
+        athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
+        athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
+        athyg_p1_sha = athyg_p1.get("sha256")
+        athyg_p2_sha = athyg_p2.get("sha256")
+        athyg_p1_retrieved = athyg_p1.get("retrieved_at")
+        athyg_p2_retrieved = athyg_p2.get("retrieved_at")
 
-    athyg_p1_sha = athyg_p1.get("sha256")
-    athyg_p2_sha = athyg_p2.get("sha256")
-    athyg_p1_retrieved = athyg_p1.get("retrieved_at")
-    athyg_p2_retrieved = athyg_p2.get("retrieved_at")
+        athyg_checksum = ",".join([s for s in [athyg_p1_sha, athyg_p2_sha] if s]) or None
+        athyg_retrieved = max([t for t in [athyg_p1_retrieved, athyg_p2_retrieved] if t], default=None)
+        athyg_download_url = ";".join([u for u in [athyg_p1_url, athyg_p2_url] if u])
+        if not athyg_download_url:
+            athyg_download_url = None
+        athyg_has_retrieval = has_retrieval(athyg_p1) or has_retrieval(athyg_p2)
 
-    athyg_checksum = ",".join([s for s in [athyg_p1_sha, athyg_p2_sha] if s]) or None
-    athyg_retrieved = max([t for t in [athyg_p1_retrieved, athyg_p2_retrieved] if t], default=None)
-    athyg_download_url = ";".join([u for u in [athyg_p1_url, athyg_p2_url] if u])
-    if not athyg_download_url:
-        athyg_download_url = None
-    athyg_has_retrieval = has_retrieval(athyg_p1) or has_retrieval(athyg_p2)
+    gaia_backbone_checksum = (
+        gaia_backbone_manifest.get("sha256") if gaia_backbone_manifest else None
+    )
+    gaia_backbone_retrieved = (
+        gaia_backbone_manifest.get("retrieved_at") if gaia_backbone_manifest else None
+    )
+    gaia_backbone_download_url = (
+        gaia_backbone_manifest.get("url", GAIA_BACKBONE_URL) if gaia_backbone_manifest else None
+    )
+    gaia_backbone_has_retrieval = has_retrieval(gaia_backbone_manifest or {})
+
+    if enable_gaia_backbone:
+        base_source_catalog = "gaia_dr3"
+        base_source_version = (
+            gaia_backbone_manifest.get("source_version", GAIA_BACKBONE_VERSION)
+            if gaia_backbone_manifest
+            else GAIA_BACKBONE_VERSION
+        )
+        base_source_url = gaia_backbone_download_url or GAIA_BACKBONE_URL
+        base_source_download_url = gaia_backbone_download_url or GAIA_BACKBONE_URL
+        base_source_license = "ESA Gaia DR3"
+        base_source_license_note = "https://gea.esac.esa.int/archive/documentation/GDR3/"
+        base_source_checksum = gaia_backbone_checksum
+        base_source_retrieved = gaia_backbone_retrieved
+        base_source_has_retrieval = gaia_backbone_has_retrieval
+        base_only_match_method = "gaia_backbone"
+    else:
+        base_source_catalog = "athyg"
+        base_source_version = "v3.3"
+        base_source_url = "https://codeberg.org/astronexus/athyg"
+        base_source_download_url = athyg_download_url
+        base_source_license = "CC BY-SA 4.0"
+        base_source_license_note = "https://codeberg.org/astronexus/athyg"
+        base_source_checksum = athyg_checksum
+        base_source_retrieved = athyg_retrieved
+        base_source_has_retrieval = athyg_has_retrieval
+        base_only_match_method = "athyg_only"
 
     nasa_url = nasa_manifest.get(
         "url",
@@ -579,23 +644,120 @@ def main() -> int:
         wds_gaia_xmatch_manifest.get("retrieved_at") if wds_gaia_xmatch_manifest else None
     )
 
-    athyg_path = str(cooked_athyg).replace("'", "''")
-    log("Loading cooked AT-HYG")
-    con.execute(
-        f"""
-        create or replace temp view athyg_raw as
-        select * from read_csv_auto('{athyg_path}',
-            compression='gzip',
-            delim=',',
-            quote='\"',
-            escape='\"',
-            header=true,
-            strict_mode=false,
-            null_padding=true,
-            all_varchar=true
+    if enable_gaia_backbone:
+        gaia_backbone_path = str(cooked_gaia_backbone).replace("'", "''")
+        log("Loading cooked Gaia backbone")
+        con.execute(
+            f"""
+            create or replace temp view gaia_backbone_raw as
+            select * from read_csv_auto('{gaia_backbone_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
         )
-        """
-    )
+        con.execute(
+            """
+            create or replace temp view athyg_raw as
+            with base as (
+              select
+                nullif(source_id, '')::bigint as source_id,
+                nullif(ra_deg, '')::double as ra_deg,
+                nullif(dec_deg, '')::double as dec_deg,
+                nullif(parallax_mas, '')::double as parallax_mas,
+                nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
+                nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
+                nullif(radial_velocity_kms, '')::double as radial_velocity_kms,
+                nullif(phot_g_mag, '')::double as phot_g_mag,
+                nullif(bp_rp, '')::double as bp_rp
+              from gaia_backbone_raw
+            ), coords as (
+              select
+                *,
+                case
+                  when parallax_mas is not null and parallax_mas > 0 then 1000.0 / parallax_mas
+                  else null
+                end as dist_pc
+              from base
+            )
+            select
+              source_id::varchar as id,
+              null::varchar as tyc,
+              source_id::varchar as gaia,
+              null::varchar as hyg,
+              null::varchar as hip,
+              null::varchar as hd,
+              null::varchar as hr,
+              null::varchar as gl,
+              null::varchar as bayer,
+              null::varchar as flam,
+              null::varchar as con,
+              'Gaia DR3 ' || source_id::varchar as proper,
+              case when ra_deg is not null then (ra_deg / 15.0)::varchar else null end as ra,
+              case when dec_deg is not null then dec_deg::varchar else null end as dec,
+              'gaia_dr3' as pos_src,
+              case when dist_pc is not null then dist_pc::varchar else null end as dist,
+              case
+                when dist_pc is not null and ra_deg is not null and dec_deg is not null
+                  then (dist_pc * cos(dec_deg * pi() / 180.0) * cos(ra_deg * pi() / 180.0))::varchar
+                else null
+              end as x0,
+              case
+                when dist_pc is not null and ra_deg is not null and dec_deg is not null
+                  then (dist_pc * cos(dec_deg * pi() / 180.0) * sin(ra_deg * pi() / 180.0))::varchar
+                else null
+              end as y0,
+              case
+                when dist_pc is not null and dec_deg is not null
+                  then (dist_pc * sin(dec_deg * pi() / 180.0))::varchar
+                else null
+              end as z0,
+              'gaia_parallax' as dist_src,
+              case when phot_g_mag is not null then phot_g_mag::varchar else null end as mag,
+              case
+                when phot_g_mag is not null and dist_pc is not null and dist_pc > 0
+                  then (phot_g_mag - 5.0 * (log10(dist_pc) - 1.0))::varchar
+                else null
+              end as absmag,
+              case when bp_rp is not null then bp_rp::varchar else null end as ci,
+              'gaia_g_bp_rp' as mag_src,
+              case when radial_velocity_kms is not null then radial_velocity_kms::varchar else null end as rv,
+              'gaia_dr3' as rv_src,
+              case when pm_ra_mas_yr is not null then pm_ra_mas_yr::varchar else null end as pm_ra,
+              case when pm_dec_mas_yr is not null then pm_dec_mas_yr::varchar else null end as pm_dec,
+              'gaia_dr3' as pm_src,
+              null::varchar as vx,
+              null::varchar as vy,
+              null::varchar as vz,
+              null::varchar as spect,
+              null::varchar as spect_src
+            from coords
+            where dist_pc is not null
+            """
+        )
+    else:
+        athyg_path = str(cooked_athyg).replace("'", "''")
+        log("Loading cooked AT-HYG")
+        con.execute(
+            f"""
+            create or replace temp view athyg_raw as
+            select * from read_csv_auto('{athyg_path}',
+                compression='gzip',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
 
     wds_path = str(cooked_wds).replace("'", "''")
     msc_path = str(cooked_msc).replace("'", "''")
@@ -1254,7 +1416,7 @@ def main() -> int:
               when m.wds_id is null and w.wds_id is not null then 'wds_gaia_xmatch'
               when t.gaia_id is not null then 'gaia_nss_two_body'
               when n.gaia_id is not null then 'gaia_nss'
-              else coalesce(m.match_method, 'athyg_only')
+              else coalesce(m.match_method, {sql_literal(base_only_match_method)})
             end as multiplicity_match_method,
             greatest(
               coalesce(m.match_confidence, 0.0),
@@ -1297,20 +1459,20 @@ def main() -> int:
               'wds', coalesce(m.wds_id, w.wds_id),
               'wds_component', coalesce(m.msc_component, w.wds_component)
             ) as catalog_ids_json,
-            'athyg' as source_catalog,
-            'v3.3' as source_version,
-            'https://codeberg.org/astronexus/athyg' as source_url,
-            {sql_literal(athyg_download_url)} as source_download_url,
+            {sql_literal(base_source_catalog)} as source_catalog,
+            {sql_literal(base_source_version)} as source_version,
+            {sql_literal(base_source_url)} as source_url,
+            {sql_literal(base_source_download_url)} as source_download_url,
             null::varchar as source_doi,
             a.source_pk as source_pk,
             a.source_pk as source_row_id,
             null::varchar as source_row_hash,
-            'CC BY-SA 4.0' as license,
+            {sql_literal(base_source_license)} as license,
             true as redistribution_ok,
-            'https://codeberg.org/astronexus/athyg' as license_note,
+            {sql_literal(base_source_license_note)} as license_note,
             null::varchar as retrieval_etag,
-            {sql_literal(athyg_checksum)} as retrieval_checksum,
-            {sql_literal(athyg_retrieved)} as retrieved_at,
+            {sql_literal(base_source_checksum)} as retrieval_checksum,
+            {sql_literal(base_source_retrieved)} as retrieved_at,
             {sql_literal(ingested_at)} as ingested_at,
             {sql_literal(transform_version)} as transform_version
           from athyg_stars_stage a
@@ -2086,6 +2248,31 @@ def main() -> int:
     }
     write_json(reports_dir / "system_grouping_report.json", system_grouping_report)
 
+    if enable_gaia_backbone:
+        gaia_backbone_raw_count = con.execute(
+            "select count(*) from gaia_backbone_raw"
+        ).fetchone()[0]
+        gaia_backbone_stars_count = con.execute(
+            "select count(*) from stars where source_catalog = 'gaia_dr3'"
+        ).fetchone()[0]
+        gaia_backbone_report = {
+            "build_id": build_id,
+            "source_name": "gaia_dr3_backbone",
+            "source_version": base_source_version,
+            "raw_row_count": gaia_backbone_raw_count,
+            "stars_from_backbone_count": gaia_backbone_stars_count,
+            "rows_dropped_before_star_emit": gaia_backbone_raw_count - gaia_backbone_stars_count,
+            "manifest_row_count": (
+                gaia_backbone_manifest.get("row_count")
+                if gaia_backbone_manifest
+                else None
+            ),
+            "notes": [
+                "rows_dropped_before_star_emit reflects rows filtered by ingest validation and Morton-domain constraints.",
+            ],
+        }
+        write_json(reports_dir / "gaia_backbone_report.json", gaia_backbone_report)
+
     con.execute("drop table system_groups")
     con.execute("alter table stars drop column system_name_root")
     con.execute("alter table stars drop column system_name_root_norm")
@@ -2352,22 +2539,36 @@ def main() -> int:
         report["failures"] = failures
         return report
 
-    provenance_report = {
-        "build_id": build_id,
-        "athyg": {
+    base_source_manifest_block = (
+        {
+            "source_catalog": "gaia_dr3",
+            "manifest": gaia_backbone_manifest,
+        }
+        if enable_gaia_backbone
+        else {
+            "source_catalog": "athyg",
             "source_url": "https://codeberg.org/astronexus/athyg",
             "part1": athyg_p1,
             "part2": athyg_p2,
-        },
+        }
+    )
+
+    provenance_report = {
+        "build_id": build_id,
+        "base_source": base_source_manifest_block,
         "nasa_exoplanet_archive": nasa_manifest,
         "wds": wds_manifest,
         "orb6": orb6_manifest,
         "tables": {
-            "stars": table_provenance_report("stars", athyg_has_retrieval),
-            "systems": table_provenance_report("systems", athyg_has_retrieval),
+            "stars": table_provenance_report("stars", base_source_has_retrieval),
+            "systems": table_provenance_report("systems", base_source_has_retrieval),
             "planets": table_provenance_report("planets", nasa_has_retrieval),
         },
     }
+    if not enable_gaia_backbone:
+        provenance_report["athyg"] = base_source_manifest_block
+    if enable_gaia_backbone:
+        provenance_report["gaia_dr3_backbone"] = gaia_backbone_manifest
     if msc_manifest:
         provenance_report["msc"] = msc_manifest
     if gaia_nss_non_single_manifest:
@@ -2435,6 +2636,8 @@ def main() -> int:
     qc_report = {
         "build_id": build_id,
         "counts": {"stars": counts[0], "systems": counts[1], "planets": counts[2]},
+        "gaia_backbone_enabled": enable_gaia_backbone,
+        "base_source_catalog": base_source_catalog,
         "gaia_nss_enabled": enable_gaia_nss,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "gaia_nss_star_count": gaia_nss_star_count,
