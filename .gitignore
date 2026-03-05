@@ -33,3 +33,6 @@ __pycache__/
 # OS/editor
 .DS_Store
 .vscode/
+
+# local doc backups
+/docs/PROJECT-*.md
