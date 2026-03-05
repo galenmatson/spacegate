@@ -1,1487 +1,274 @@
-# Spacegate: 3D Space Exploration and Worldbuilding Database
-I've explored a lot of astronomy databases in my search for hard facts to build my fiction on. Public astronomy databases are targeted at astronomers and researchers and are difficult for laypeople to understand. People gravitate toward narratives and relationships. I think there are plenty of relationships to create and narratives to write about our galaxy. I'm going to try to make that available to anyone that can browse the internet. 
+# Spacegate Project Plan (Gaia-First)
 
-One of the highest priorities, after ingesting stellar catalogs, is to create an intuitive, navigable 3D star map. I've seen 3D star maps on the internet but they limited in capabability or not easy to browse. The ones in space games are way better. They're not technically more sophisticated and usually don't reflect the real galaxy, but they are better designed. I want to make one that is fun to browse, fun to click on stars and objects and read about them, and fun to play with. I want to do more than just list sterile data from the database. 
+## Mission
+Spacegate is a public astronomy and worldbuilding platform:
 
-My desire is to have an interactive 3D map rendered in a browser which draws an accurate star map using the latest parallax measurements and build a space empire mapping tool on top of it. Create an agent to generate exciting, factual English exposition for each system grounded in real scientific data. Starting with the most important (Sirius, Alpha Centauri, etc) and unique (bright stars, exoplanets in habitable zones, inferno planets, trinary stars, dust rings, etc.) systems. It should be interesting and informative in a way that people will just read about space stuff for fun and keep exploring.
+- scientifically grounded, provenance-preserving astronomy data
+- accessible discovery UX for non-specialists
+- deterministic enrichment (scores, snapshots, factsheets, exposition)
+- optional fictional overlays kept separate from science data
 
-## The Rule of Cool
-### Crazy Places
-- Sextuple star systems: Castor is 3 binary pairs with a brown dwarf orbiting one of them. The physics are wild.
-- "Hell worlds": tidally locked, ultra-short-period planets like WASP-12b (being eaten by its star) or HD 189733 b (raining glass sideways).
-- Water and ice worlds: candidates like Kepler-22b or "eyeball planets" that are habitable only on the twilight terminator.
-- Pulsar planets: systems like PSR B1257+12, where planets orbit a neutron star.
+Primary product goals:
 
-### Backyard Bonus
-We should also prioritize places with a good "go outside and look" factor. For example Andromeda and the Orion Nebula, potentially with a recommended minimum telescope size.
+1. Make nearby space browsable, understandable, and compelling.
+2. Keep the scientific core auditable and reproducible.
+3. Support advanced worldbuilding without contaminating canonical astronomy.
 
-## World Building
-The world building features of the map should allow for things like trade lanes, spacegate links, or other connections to be drawn between stars. Spheres of control around owned/occupied systems that form the 3D shape of interstellar empires. Place megastructures like solar collectors, foundries, shipyards, Dyson swarms, colonies, momentum banks, space elevators, mines, mass drivers, space stations, etc. on planets, in orbit of them, in stellar orbit, or galactic orbit (unbound to stars). This content is stored in a completely separate database from the immutable scientific data.
+## Current Direction
+Spacegate is moving from an AT-HYG-centric bootstrap architecture to a Gaia-first core architecture.
 
+Reason:
 
-# Purpose
-- Build a rich stellar database with a user friendly interface for learning, exploration, and imagination.
-- Collect, organize, and enrich public astronomical data distributed across many systems, databases, and organizations in a single high utility, high accessibility tool for the public.
-- Avail these collated and consolidated datasets and all of this project's code to the public.
-- Use AI to generate vivid descriptions and imagery of systems and exoplanets that is scientifically accurate and compelling to the public.
-- Tools for worldbuilding: trade lanes, empires, cultures, megastructures, spacegates, space stations, space elevators, Dyson spheres, and other metadata for authors and anyone else that wants to fantasize about exploring the visible stars in the night sky.
-- Moveable, zoomable, rotatable, recenterable, interactive 3D map of the our region of Orion's Arm within 1000 LY which visualizes both real astronomical objects and fictional overlays; links, bubbles, borders, etc. for scifi world building.
+- Gaia DR3 has substantially better astrometry and coverage.
+- AT-HYG was useful for early velocity and UX bootstrap, but should not remain the canonical inventory substrate if better crosswalks are available.
+- Continuing to treat AT-HYG as canonical risks long-term schema and ingest debt.
 
-## Primary deliverables over time:
-- A versioned core astronomical dataset (stars/systems/planets) with provenance.
-- Optional object packs (substellar/compact/superstellar) that can be toggled in search/render/download.
-- An enriched content set built from that data and accurate scientific knowledge.
-- A public browser UI with excellent UX and factual, engaging descriptions and depictions of objects based on that enriched data.
-- A free browser based, navigable, 3D map of nearby space.
-- A lore layer for building fiction about what could be atop what is known.
+## Core Principles
 
+1. Canonical inventory first, enrichment second.
+2. Provenance on every served row.
+3. Deterministic builds and deterministic promotion.
+4. Clear layer boundaries:
+   - `core`: immutable science
+   - `rich`: reproducible derivatives
+   - `lore`: editable fiction
+5. Explicit confidence for joins/groupings; avoid silent inference.
+6. Security-first ingestion: no required insecure transport dependencies.
 
-# Filesystem Layout & Environment Variables
+## Data Layers
 
-## Schema Documents
-- `docs/SCHEMA_CORE.md`: immutable scientific astronomy schema (authoritative source for core tables/types/invariants).
-- `docs/SCHEMA_RICH.md`: derived/reproducible enrichment schema (coolness, tags, snapshots, factsheets, exposition, links).
-- `docs/SCHEMA_LORE.md`: editable fictional overlay schema (namespaced lore entities/relationships/references).
+### Core (immutable astronomy)
+Authoritative tables for search and API:
 
-Cross-dataset key rule:
-- `stable_object_key` is the canonical cross-database join key and is required for object-scoped joins across core, rich, and lore.
-- Numeric surrogate IDs (`system_id`, `star_id`, `planet_id`) remain `BIGINT` and are valid as same-build convenience keys.
-
-Spacegate does not assume a fixed filesystem layout. All persistent state locations are defined via environment variables to support:
-
-- reproducible deployments
-- read-only code checkouts
-- Docker and containerized execution
-- separation of code and data
-- large external data volumes
-
-### Repo layout (code checkout)
-Example (recommended for servers):
-/
-└── srv
-    └── spacegate
-        ├── srv
-        │   ├── api
-        │   └── web
-        ├── scripts
-        ├── docs
-        ├── configs
-        └── data          # default local-dev state dir (optional)
-
-### State layout (runtime data, FHS-aligned)
-Example (valid for small/typical installs):
-/
-├── data                  # This should be a large volume if you will use the expanded dataset (>150 GB)
-│   └── spacegate
-│       └── data          # SPACEGATE_STATE_DIR
-│           ├── raw
-│           ├── cooked
-│           ├── out
-│           ├── served
-│           └── reports
-├── var
-│   ├── cache
-│   │   └── spacegate     # SPACEGATE_CACHE_DIR
-│   └── log
-│       └── spacegate     # SPACEGATE_LOG_DIR
-└── etc
-    └── spacegate         # SPACEGATE_CONFIG_DIR
-
-### Large-data recommendation (preferred)
-For large datasets (Gaia, full catalogs, etc.), **do not** use `/var` if it is on the root disk.
-Instead, place `SPACEGATE_STATE_DIR` on a large, fast volume (e.g., `/data/spacegate`, `/mnt/spacegate`, or any custom path).
-
-Example:
-```
-export SPACEGATE_STATE_DIR=/data/spacegate
-export SPACEGATE_CACHE_DIR=/data/spacegate/cache
-export SPACEGATE_LOG_DIR=/data/spacegate/logs
-```
-
-Note: For local development, the default state directory is `./data` inside the repo.
-
-## Required Environment Variables
-
-| Variable               | Description              | Default         |
-|------------------------|--------------------------|-----------------|
-| `SPACEGATE_STATE_DIR`  | Astro catalogs, databases| `./data`        |
-| `SPACEGATE_CACHE_DIR`  | Download and build cache | `./data/cache`  |
-| `SPACEGATE_LOG_DIR`    | Application logs         | `./data/logs`   |
-| `SPACEGATE_CONFIG_DIR` | Runtime configuration    | `./configs`     |
-
-For production deployments, set these to standard Linux locations
-(e.g., `/var/lib/spacegate`, `/var/cache/spacegate`, `/var/log/spacegate`, `/etc/spacegate`).
-
-## State Directory Structure
-
-Within `SPACEGATE_STATE_DIR`, Spacegate maintains the following structure:
-
-| Directory | Description                           | Location        |
-|-----------|---------------------------------------|-----------------|
-| raw       | Source datasets (immutable)           | `./data/raw`    |
-| cooked    | Cleaned and normalized datasets       | `./data/cooked` |
-| out       | Build outputs (DuckDB, Parquet, aso)  | `./data/out`    |
-| served    | "current" build (symlink or directory)| `./data/served` |
-| reports   | QC, provenance, and validation reports| `./data/reports`|
-
-Build outputs SHOULD be treated as immutable. Promotion between builds SHOULD be done via atomic directory swaps or symlink updates.
-
-
-# Data Sources
-## Primary sources (v0 only)
-- AT-HYG stellar catalog CSV (stars <= 1000 ly)
-- NASA exoplanets CSV (pscomppars; host matching limited by core star coverage)
-
-## Optional packs / additional catalogs (v1.2+)
-Now prioritized ahead of enrichment. See **v1.2 Additional catalogs / packs foundation** below.
-
-## Source protection / reproducibility
-- $SPACEGATE_STATE_DIR/raw/** source files should be preserved as read-only once downloaded.
-- Raw data is only updated with newer raw data through the catalog download process with an update to the manifest.
-- The file operations to retrieve, decompress, and combine the source data should be logged.
-- All builds must be reproducible from pinned versions + checksums/etags where possible.
-
-
-# Data model and artifacts
-
-## Terminology
-- **Core astronomy**: real objects intended for general browsing in the ≤1000 ly sphere (systems, stars, planets) + strict provenance. These are downloaded and normalized by scripts and background functions but are not changeable by the user app.
-- **Expanded astronomy**: additional *real* object categories (substellar/compact/superstellar/etc.) that can be toggled in search/render/download. Like the core astronomy, read-only except by the catalog management functions.
-- **Rich astronomy**: derived, regenerable content generated from core/packs (e.g., deterministic snapshot manifests, fact sheets, generated expositions, generated imagery). Not edited in-place; regenerate instead.
-- **Engagement**: user feedback, click counts, likes. Informs the enrichment AI on systems of most interest. Linking to external forum threads on specific topics.
-- **Lore**: user-authored fictional metadata and fictional entities. Editable. Stored separately so core data stays shareable.
-
-## Output artifacts (versioned per build)
-All artifacts are produced under a versioned build directory: `$SPACEGATE_STATE_DIR/out/<build_id>/...` (see “Build layout and versioning”).
-
-### 1) Core astronomy dataset (v0+)
-**Purpose:** the clean, shareable, authoritative “real astronomy” foundation.
-
-- DuckDB (authoritative query format for the app/API):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb`
-- Parquet export (for publishing/sharing, tooling interoperability):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{systems,stars,planets}.parquet`
-
-Core tables (minimum):
 - `systems`
-- `stars` (including components where available)
-- `planets` (NASA-derived)
-- plus required provenance fields on all rows.
+- `stars`
+- `planets`
+- `build_metadata`
 
-Rule: **No expositions, images, or lore** stored in core.
-Rule: **Spatial sorting** All core Parquet files must be sorted by `spatial_index` (Morton Z-order). This enables high-performance "range scans" for 3D queries without reading the entire file.
+Core must remain free of generated prose/images/lore.
 
-### 2) Expanded astronomy dataset (v1.2+)
-**Purpose:** keep additional object categories optional and independently maintainable.
+### Rich (rebuildable derived artifacts)
 
-- Pack artifacts are separate from core:
-  - DuckDB (optional): `$SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>.duckdb`
-  - Parquet (recommended): `$SPACEGATE_STATE_DIR/out/<build_id>/packs/<pack_name>/*.parquet`
-  - Manifest: `$SPACEGATE_STATE_DIR/out/<build_id>/packs_manifest.json`
+- coolness scoring
+- snapshots
+- factsheets / expositions
+- external links
+- optional neighbor graph
 
-Planned pack names:
-- `pack_substellar` (brown dwarfs, ultracool dwarfs, rogue/free-floating planets when available)
-- `pack_compact` (white dwarfs, neutron stars, pulsars, magnetars; curated nearby BH list if it exists)
-- `pack_superstellar` (extended objects within or near the local sphere: nebulae, SNRs, clusters)
+Rich is always regenerable from core plus pinned generators.
 
-Note: “superstellar” objects are often extended, not point sources. This pack must support angular size and rendering primitives (billboards/volumes), not just xyz points.
+### Lore (editable overlays)
+User/worldbuilder entities and relationships keyed by `stable_object_key`.
 
-Rule: packs are **read-only** inputs to search/render/download. Each pack has its own provenance.
+## Gaia-First Architecture
 
-### 3) Rich dataset (v1+)
-**Purpose:** derived artifacts that make the UI engaging while remaining strictly traceable to source facts.
+Spacegate will use a two-tier astronomy runtime:
 
-- DuckDB (authoritative query format for the app/API):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb`
-- Parquet export:
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet`
+1. `gaia_backbone` (canonical inventory substrate)
+2. `core_product_slice` (default served subset for UX/performance)
 
-Rich tables (initial):
-- `snapshot_manifest` (deterministic system visualization snapshots; see v1)
-- `external_reference_links` (curated authoritative links per object; see v1.3)
-- `factsheets` (structured JSON facts per object, with provenance pointers; see v1.4)
-- `expositions` (exciting factual descriptions generated strictly from factsheets; see v1.4)
-- `system_neighbors` (10 nearest systems per system; see v1.6)
+Catalog crosswalks and multiplicity catalogs attach to backbone IDs; they are not primary object inventory sources.
 
-Rules:
-- Rich is **not edited in-place**. If content is wrong or the generator changes, regenerate rich with a new `generator_version` / build.
-- Each rich row must be traceable:
-  - factsheets: include `facts_hash`, `generator_version`, and pointers to source rows/fields
-  - expositions: include `facts_hash`, `model_id`, `prompt_version`, `generated_at`
-  - snapshots: include `params_hash`, `params_json`, `generator_version`, `source_build_inputs_hash`
+### Measured Gaia Scale (<1000 ly)
+Gaia DR3 query date: March 5, 2026 (`parallax >= 3.26156 mas`)
 
-### 4) Engagement signals (v2.2+)
-**Purpose:** capture minimal, privacy-respecting signals of collective human curiosity to improve discovery and prioritization — without analytics, profiling, or monetization.
-
-This dataset exists to give the people what they want. If they are explicit in their interest of goldilocks planets or white dwarf trinaries or hell worlds or whatever, we should have a method of capturing that interest and feeding it into the coolness algorithm that prioritizes data enrichment.
-
-This is not monetizable. It is explicitly not behavioral tracking. Store no personal data.
-
-- DuckDB (optional for local builds / analysis):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/engagement.duckdb`
-- Parquet export (for transparency / research use):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/engagement/*.parquet`
-
-### 5) Lore overlays dataset (v2)
-**Purpose:** editable worldbuilding overlays and free-floating fictional entities, stored separately so the base data stays shareable.
-
-- DuckDB (recommended):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/lore.duckdb` (typically per user/namespace)
-- Optional Parquet export for sharing:
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/lore/*.parquet`
-
-Minimum lore tables:
-- `lore_entities(entity_type, entity_key, namespace, lore_json, updated_at, source)`
-- Lore entities may be:
-  - anchored to a real object (system/star/planet) via `stable_object_key`
-  - free-floating (absolute heliocentric coords in ly; or relative offsets from an anchor)
-
-Rules:
-- Lore is editable.
-- Lore never mutates core/packs/rich tables.
-
-## Snapshot assets vs snapshot manifest (v1)
-Deterministic snapshot images are stored as **asset files**, referenced by a manifest row in the rich dataset.
-
-- Snapshot assets (files; filesystem or object storage):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
-- Snapshot manifest (table; in `rich.duckdb` and exported to Parquet):
-  - `snapshot_manifest(stable_object_key, object_type, view_type, params_json, params_hash, generator_version, build_id, artifact_path, created_at, source_build_inputs_hash, ...)`
-
-Rule: snapshots are derived artifacts; do not store image bytes in DuckDB.
-
-
-# IDs, matching, and provenance
-## IDs
-- Core tables use internal surrogate *_id (BIGINT) for performance and FK sanity.
-- Also store stable external keys where available:
-  - gaia_id, hip_id, hd_id, etc.
-- Also compute a stable_object_key for rebuild stability and lore/packs joining:
-  - Prefer authoritative catalog IDs when present.
-  - Fallback: coordinate hash with versioned precision buckets + normalized name.
-## Match provenance (planet → host)
-- match_method (gaia | hip | hd | hostname | fuzzy | manual)
-- match_confidence (0..1)
-- match_notes (optional)
-## Row lineage provenance (required for all derived rows)
-Every derived row must include:
-- source_catalog
-- source_version
-- source_url
-- source_pk (primary key from source if available, e.g., Gaia source_id)
-- source_row_id (or source_row_hash)
-- license
-- redistribution_ok (bool)
-- license_note
-- retrieval_checksum (when possible) and/or retrieval_etag
-- retrieved_at
-- ingested_at
-- transform_version (git SHA or pipeline version)
-
-# Units and coordinates
-- Distances displayed in light-years (ly) by default (selectable later).
-- Store 3D Cartesian coordinates in light-years.
-- Keep all original parallax measurements referencable.
-Coordinate storage:
-- Store heliocentric coordinates as the primary working frame for the local sphere:
-  - x_helio_ly, y_helio_ly, z_helio_ly
-- Optionally store galactocentric coordinates for galaxy-scale views:
-  - x_gal_ly, y_gal_ly, z_gal_ly
-Reference epoch:
-- Core coordinates are stored at build reference epoch `J2016.0` (Gaia-aligned) unless a future build explicitly records a different epoch in `build_metadata`.
-- The build metadata should record this as `coordinate_epoch` so renderers and downstream tooling know the baseline before applying proper-motion or radial-velocity projection.
-Rendering rule:
-- The renderer always rebases around the selected object (“floating origin”) before sending to GPU (float32 safety).
-
-
-# QC gates
-These checks run every build. Some fail hard; some warn.
-Hard failures:
-- any rows missing required provenance
-- sanity check: abs(norm(x,y,z) - dist_ly) < eps for rows where both are present
-Warnings (thresholds to refine):
-- match rate drops by > 0.5% absolute from previous build
-- unmatched planets increases by > 25 from previous build
-- large shifts in distance distribution or magnitude distribution beyond set thresholds
-- spikes in duplicate stable keys
-
-
-
-# Milestones
-
-## v0: Core ingestion
-Success criteria:
-- Create functions to download <1000 LY objects from core, authoritative public databases
-  - Should be rerunnable for updates with recover and retry on failure.
-- Build a DuckDB database from core astronomical data.
-  - store in data/
-- Record coordinate reference epoch metadata in the build output (`build_metadata.coordinate_epoch`, current standard `J2016.0`).
-- **Implement Spatial Indexing:**
-  - Compute 63-bit Morton (Z-order) spatial_index for all objects from heliocentric xyz (ly), stored as signed BIGINT.
-  - Use 21 bits per axis with a domain-parameterized cube (v0 default: ±1000 ly).
-  - scale = (2^21 - 1) / (2 * MORTON_MAX_ABS_LY); quantize with round(); clamp defensively to [0, 2^21 - 1].
-  - Ingestion fails hard if any star coordinate exceeds the domain.
-  - Ensure Parquet exports are physically sorted by spatial_index.
-- Normalize identifiers and types. 
-  - For instance, Gaia DR3 keys are stored as strings sometimes with 'Gaia DR3 ' prefix. 
-  - They should be stripped down to the ID and stored as high precision integers.
-- Join exoplanets to host stars/systems with match provenance + confidence.
-- Parse spectral types into components while retaining raw strings.
-- Export Parquet artifacts for core tables.
-- Produce reports:
-  - match report (counts by method, unmatched rows, suspicious cases)
-  - provenance coverage report
-  - basic QC sanity checks
-
-### v0.1: Public database browser UI
-Success criteria:
-- “Spacegate browser” UI
-- Hosted on production cloud infrastructure
-- Public at coolstars.org (`spacegates.org` redirects)
-- Attractive, searchable, filterable interface
-- Reads core data in v0.1 (optional packs and lore overlays are later milestones)
-
-### v0.1.5: Admin Control Plane + Authentication Foundation
-Goal: add a secure, minimal admin panel that can replace high-value script workflows while establishing the auth foundation for future per-user lore features.
-
-Implementation reference:
-- `docs/ADMIN_AUTH_SPEC.md` (Checkpoint A concrete auth/RBAC schema and flow)
-
-Success criteria:
-- Admin panel route (`/admin`) protected by login.
-- OIDC-based sign-in (Google-supported first) with strict identity allowlist for admin access.
-- General identity model for future user features:
-  - users, auth identities, sessions, roles (RBAC), and audit log.
-- Security defaults:
-  - HTTP-only secure session cookies, CSRF protection, short session TTL, and re-auth for sensitive actions.
-  - Identity-based controls are primary (no static IP dependency required).
-- Read-only operations views in admin:
-  - current build id, served pointer target, publish metadata (`current.json`), reports, process health.
-
-Checkpoints:
-1. Checkpoint A: Auth + RBAC skeleton
-   - schema + login/logout + role checks implemented.
-   - admin allowlist enforced server-side.
-2. Checkpoint B: Read-only admin operations dashboard
-   - expose current build/publish/runtime status in UI without mutation actions.
-3. Checkpoint C: Safe action runner for existing scripts
-   - allowlisted actions only (`build_core`, `verify_build`, `publish_db`, restart services).
-   - streamed job logs per run, explicit run parameters, no arbitrary shell execution.
-4. Checkpoint D: Audit + hardening completion
-   - action audit trail (`who`, `what`, `when`, `params`, `result`), CSRF tests, session expiry tests.
-
-Current status (2026-02-21):
-- Checkpoints A-D implemented in the admin API/UI.
-- Admin login, allowlist enforcement, action runner, and audit log are active.
-
-## v0.2: Coolness
-This ensures compute resources for later enrichment phases are spent on systems with high narrative and scientific yield. Features are aggregated into a final Coolness Score stored in the rich dataset.
-- The default page, the first thing a new visitor sees, should be ordered by coolness.
-- Extreme Luminosity (Economic Value): High-mass stars (O, B, A types) are heavily weighted due to their necessity for antimatter production via Dyson swarms.
-- High Proper Motion (Kinetic Interest): Objects with significant angular movement across the sky are prioritized as "runaway" stars or nearby high-velocity neighbors.
-- Stellar Multiplicity (Architectural Complexity): Points scale with the number of stars in the system; hierarchical trinaries or quaternaries rank significantly higher than simple binaries.
-- Nice Exoplanets: Biological potential or high colonization targets. Known Earth like planets: habitable zone or close, not too big, not too small, stable star. Eye planets (tidally locked but in the habitable zone).
-- Weird Exoplanets: Strange atmospheric composition, water worlds, diamond worlds, extreme size, acid worlds, lava worlds, "hell worlds" (ultra-short periods) or planets being devoured by their stars. High eccentricity planets that spend time in the habitable zone (like Trisolaris) and freeze/thaw. 
-- Metallicity (Fe/H) (Industrial Capability): High-metal stars are prioritized as likely hubs for mining, foundries, and heavy industry.
-- Compact Remnants: White dwarfs, neutron stars, pulsars, or magnetars adds a rarity multiplier due to their unique physics and "graveyard system" narrative.
-- Anomalous Features: Specific data flags for high eccentricity, extreme stellar flares, or circumstellar dust rings.
-- Proximity to Sol: The most colonizable with sublight technology. This bonus should decay quickly (inverse square of coolness).
-- Science Fiction: Wolf 359 is where the Federation made its final stand against the Borg in Star Trek: The Next Generation. The exotic moon "Pandora" from the movie Avatar orbits a gas giant in the Alpha Centauri system. Vega is famous for its role in Carl Sagan's Contact. How this ranks is TBD. **Fiction must not contaminate the hard science data** Cultural and fictional importance should be stored with lore.
-
-**Ranking by Narrative Density:** By combining these, a system like Sirius (high luminosity + White Dwarf companion) or Alpha Centauri (trinary + proximity) naturally rises to the top, while a lonely Red Dwarf at 800 light-years remains at the bottom of the stack. With these rankings stored in the rich database the later enrichment (narrative, depiction) steps will prioritize interest over row order as we enhance the dataset.
-
-### Coolness Scoring + Tuning
-
-The Coolness Score determines which systems receive computationally expensive enrichment (factsheets, exposition, depiction). The objective is to prioritize systems with high scientific information density and narrative yield while preserving strict data integrity.
-
-Coolness scoring must be:
-- Deterministic
-- Reproducible
-- Derived strictly from core and approved pack data
-- Independent of fictional, cultural, or editorial significance
-
-The score is stored as a derived artifact in the rich dataset.
-
----
-
-### Design Principles
-
-1. **Scientific Sovereignty**
-   - Only measurable or directly derivable astrophysical properties influence base scoring.
-   - Fictional or cultural references must not modify `coolness_total`.
-
-2. **Narrative Density**
-   - Systems expressing multiple independent astrophysical phenomena rank higher than single-feature outliers.
-   - Implemented via Shannon entropy diversity bonus.
-
-3. **Non-linear Scaling**
-   - Log or sigmoid scaling is preferred for count-based features.
-   - Hard caps prevent domination by any single category.
-
-4. **Explicit Extrapolation Policy**
-   - Physically plausible extrapolations (e.g., potential habitable moons around gas giants) are allowed only when:
-     - Based strictly on known planetary mass/orbital data.
-     - Clearly flagged as inferred.
-     - Labeled in enrichment outputs.
-   - No invented measurements are permitted.
-
----
-
-### Coolness Categories
-
-Each category produces a bounded subscore.
-
-- **Extreme Luminosity**
-  - O/B/A stars
-  - Unusual stellar radii or temperatures
-  - Rare stellar evolutionary stages
-
-- **High Proper Motion**
-  - Nearby high-velocity or runaway stars
-
-- **Stellar Multiplicity**
-  - Binary, trinary, hierarchical systems
-  - Points scale non-linearly with architectural complexity
-
-- **Habitability Signals**
-  - Confirmed HZ planets
-  - Earth-sized planets in plausible temperature ranges
-  - Tidally locked "eyeball" planets
-  - Gas giants in HZ with plausible habitable-moon potential (flagged extrapolation)
-
-- **Weird Exoplanets**
-  - Ultra-short-period planets
-  - Extreme eccentricity
-  - Lava worlds, evaporating planets
-  - Atmospheric anomalies
-  - High-energy flare environments
-
-- **Metallicity (Fe/H)**
-  - Exceptionally high or low metallicity values
-  - Must be verified measurements
-
-- **Compact Remnants**
-  - White dwarfs
-  - Neutron stars
-  - Pulsars
-  - Magnetars
-
-- **Anomalous Features**
-  - Circumstellar disks
-  - Extreme flaring
-  - Rare astrophysical flags
-
-- **Proximity to Sol**
-  - Distance-based bonus with rapid decay (inverse-square or exponential)
-  - Capped to prevent overshadowing extreme systems
-
----
-
-### Diversity Bonus (Shannon Entropy)
-
-To reward multi-dimensional systems:
-
-Let:
-
-p_i = category_score_i / total_score_before_entropy
-
-H = - Σ p_i log2(p_i)
-
-Normalized:
-
-H_norm = H / log2(N_categories)
-
-Final:
-
-coolness_total = total_before_entropy + (entropy_weight * H_norm)
-
-This promotes systems exhibiting multiple independent interesting properties.
-
----
-
-### Front Page Selection (Separate from Scoring)
-
-Scoring and featuring are distinct stages.
-
-Selection algorithm:
-
-1. Rank systems by `coolness_total`.
-2. Select top N (default 500).
-3. Determine dominant category per system.
-4. Enforce diversity constraints:
-   - Minimum 4 distinct dominant categories represented.
-   - No category exceeds 40% of featured slots.
-5. Fill remaining slots by rank.
-
-This preserves scientific integrity while preventing single-category domination.
-
----
-
-### Cultural Overlay (Non-Scoring)
-
-Fictional or cultural significance is stored in a separate optional pack.
-
-- May influence search relevance.
-- May influence curated featuring layer.
-- Must not alter `coolness_total`.
-
----
-
-### Success Criteria
-
-- `coolness_scores` derived artifact created in rich outputs.
-- Score breakdown stored per system.
-- Versioned weight profiles (profile_id + profile_version).
-- Profile parameters stored in artifact JSON.
-- Deterministic scoring pipeline.
-- Admin panel supports:
-  - Adjustable category weights
-  - Sub-feature weights
-  - Feature toggles
-  - Entropy weight tuning
-  - Proximity decay configuration
-  - Named presets
-- Preview mode:
-  - Top-N ranking preview
-  - Category distribution preview
-  - Diff vs current profile
-- Publish/apply flow:
-  - Explicit profile activation
-  - Audit record
-  - Rollback capability
-
----
-
-### Checkpoints
-
-1. Checkpoint A: Deterministic scoring pipeline + report artifact.
-2. Checkpoint B: Versioned profile storage + CLI preview/apply/diff.
-3. Checkpoint C: Admin slider UI + visualization panel.
-4. Checkpoint D: Promotion flow with audit trail and rollback.
-
----
-
-### Profile Storage Contract (Implemented)
-
-Storage location:
-- `$SPACEGATE_STATE_DIR/config/coolness_profiles/`
-
-Contract rules:
-- Profile versions are immutable (`profile_id + profile_version`).
-- Active profile pointer is stored separately from profile definitions.
-- Activation history is append-only.
-- Audit events are append-only.
-- Score reports persist profile id/version/hash and resolved weights.
-
-Store files:
-- `profiles/<profile_id>/<profile_version>.json` (immutable definitions)
-- `active.json` (current active pointer)
-- `activations.jsonl` (activation/rollback history)
-- `audit.jsonl` (profile + scoring audit events)
-
-CLI commands:
-- `scripts/score_coolness.py list`
-- `scripts/score_coolness.py preview --profile-id <id> --profile-version <ver>`
-- `scripts/score_coolness.py diff --right-weights-json '{\"weird_planets\":0.2}'`
-- `scripts/score_coolness.py apply --profile-id <id> --profile-version <ver> --weights-json '{...}'`
-- `scripts/score_coolness.py rollback --steps 1`
-
-### Current Status (2026-02-28)
-
-- Checkpoints A-D are complete for the current admin-defined coolness workflow.
-- `scripts/score_coolness.py`, profile storage, admin controls, audit trail, and rollback are in place.
-- Future work is social/product-facing rather than foundational: expose public-facing coolness profile selection and community-defined ranking overlays in a later milestone without contaminating the scientific core ranking.
-
----
-
-## v0.2.2: System Tagging Framework
-
-Tags provide a lightweight semantic layer over astrophysical objects.  
-They enable filtering, browsing, search enhancement, and narrative hooks.
-
-Tags are deterministic and reproducible unless explicitly defined as pack-based.
-
-### Design Principles
-
-- Tags are cheap, indexable, and composable.
-- Derived tags must be generated deterministically from measurable data.
-- Tag generation must be versioned and tied to build_id.
-- Tags must not alter base coolness scoring unless explicitly defined in the scoring profile.
-- Cultural or fictional references must never exist as derived tags.
-
----
-
-### Tag Categories
-
-#### 1. Derived Physics Tags (v0.2)
-
-Generated automatically during scoring or ingestion.
-
-Examples:
-
-Stellar:
-- high_luminosity
-- compact_remnant
-- flare_star
-- runaway_star
-- metal_rich
-- metal_poor
-- multi_star_system
-- hierarchical_system
-- nearby_system
-
-Planetary:
-- habitable_zone_candidate
-- earth_sized_planet
-- gas_giant
-- ultra_short_period
-- high_eccentricity
-- lava_world
-- evaporating_planet
-- water_world
-- extreme_temperature
-
-System-Level:
-- architecturally_complex
-- high_narrative_density
-- anomalous_disk
-- extreme_orbital_dynamics
-
-These must be:
-- Explicitly defined in scoring logic
-- Stored as derived artifacts
-- Recomputable
-
----
-
-## v1 System Visualization
-Goal: produce **deterministic, cacheable “system snapshot” images** that make the browser fun immediately, without requiring the full v2 3D map.
-
-Canonical v1 progression (dependency-first):
-1. v1.0 System visualization snapshots
-2. v1.1 UI beautification
-3. v1.2 Additional catalogs / packs foundation
-4. v1.3 External reference links
-5. v1.4 AI exposition
-6. v1.5 Image generation
-7. v1.6 System neighbor graph
-8. v1.7 Operations dashboard and telemetry
-
-### Success criteria
-- A reproducible snapshot generator that emits small, fast assets per system:
-  - **Local neighborhood (10 ly)** view: nearby stars relative to the selected system.
-  - **Regional neighborhood (50 ly)** view: nearby “interesting” stars (configurable filter; default keeps Sol visible).
-  - **Inner system orbit view (<5 AU)** for systems with known planets (if any).
-  - **Outer system orbit view (>30 AU)** when wide-orbit planets exist (if any).
-- Snapshots are deterministic and **stable across rebuilds** given the same inputs:
-  - same object IDs, same generator version, same parameters ⇒ byte-identical SVG (or visually identical PNG if raster).
-- Snapshots are available to the v1 UI:
-  - list + detail pages can show the relevant snapshot(s) with zero extra computation at request time (after warm cache).
-
-### Deterministic rendering rules (no “artistic drift”)
-- Coordinate inputs:
-  - Use **heliocentric XYZ** as the primary working frame for local ≤1000 ly views (double precision in generation).
-  - Always render snapshots in a **recentered frame** (origin = selected system) for numeric stability.
-- Camera conventions (fixed):
-  - Neighborhood views: **“top-down” from Galactic North** (standard orientation, consistent axes, labeled).
-  - Provide a legend/scale bar and a small “Sol” marker when Sol is in-frame (or optionally always, via inset).
-- Visual encoding (fixed mapping):
-  - Star marker size = function(apparent magnitude or absolute magnitude; choose one and document it).
-  - Color = function(spectral class (OBAFGKM…) when available; otherwise neutral).
-  - Optional toggles become **parameters** (and therefore part of the cache key), not ad-hoc.
-- Output formats:
-  - Default: **SVG** for crisp zoom + tiny size.
-  - Optional: PNG thumbnails derived from SVG for fast grids.
-
-### Storage model (future-proof; keeps core astro immutable)
-Snapshots are **derived artifacts** (like reports), not part of the immutable core astronomy tables.
-
-- Store binary image blobs in object storage / filesystem (preferred):
-  - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/<view_type>/<stable_object_key>/<params_hash>.svg`
-- Store a manifest table (Parquet and/or DuckDB table) that the UI can query:
-  - `snapshot_manifest` fields:
-    - `stable_object_key`
-    - `object_type` (system/star/planet)
-    - `view_type` (neighbors_10ly, neighbors_50ly, orbits_inner, orbits_outer, …)
-    - `params_json` (the exact parameter set used)
-    - `params_hash` (cache key)
-    - `generator_version` (git SHA or semantic version)
-    - `build_id`
-    - `artifact_path` (relative path or signed URL target)
-    - `created_at`
-    - `source_build_inputs` (hash of the relevant input rows / tables)
-- Rationale:
-  - Core astronomy remains shareable and clean.
-  - Snapshots can be regenerated, swapped, or replaced without touching core data.
-
-### Generation strategy (don’t precompute everything blindly)
-- Implement **lazy generation + caching**:
-  - On first request (or during an offline “warm cache” job), generate and write the snapshot + manifest row.
-- Define a “warm set” for initial usability:
-  - Systems with known exoplanets.
-  - Bright / nearby / named systems (configurable).
-  - Then expand coverage opportunistically.
-
-### Guardrails
-- Snapshots must be generated strictly from:
-  - core data + enabled optional packs (if used) + documented parameters.
-- No “invented” planets, orbits, colors, or relationships.
-  - If required fields are missing, render a minimal view with a clear “insufficient data” note.
-- Any change to rendering rules must bump `generator_version` and invalidate cache by construction.
-
-### Implementation checkpoint (current)
-- Implemented baseline deterministic snapshot pipeline:
-  - `scripts/generate_snapshots.py` and `scripts/generate_snapshots.sh`
-  - SVG artifacts at `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/system_card/<stable_object_key>/<params_hash>.svg`
-  - `snapshot_manifest` persisted in `rich.duckdb` and exported to `rich/snapshot_manifest.parquet`
-  - report at `$SPACEGATE_STATE_DIR/reports/<build_id>/snapshot_report.json`
-  - API exposure through `GET /api/v1/snapshots/{build_id}/{artifact_path}`
-  - public UI list/detail now render these snapshots when available
-- Remaining v1.0 expansion:
-  - additional view types (`neighbors_10ly`, `neighbors_50ly`, `orbits_inner`, `orbits_outer`)
-  - dedicated QC report for numeric/render invariants
-
----
-
-## v1.1: Beautification
-
-The UI must evolve from functional prototype to intentional interface.
-
-Goals:
-
-- Sleek, modern, and visually coherent
-- Fast to scan and cognitively lightweight
-- Data-dense without being overwhelming
-- Designed around narrative clarity (what makes this system interesting?)
-
-Beautification must not compromise:
-- Performance
-- Accessibility
-- Readability
-- Scientific integrity
-
----
-
-### Core UI Principles
-
-1. **Clarity Over Ornament**
-   - Visual hierarchy must make it immediately obvious:
-     - What system am I looking at?
-     - Why is it interesting?
-     - What are its most important properties?
-   - Avoid decorative elements that do not improve comprehension.
-
-2. **Progressive Disclosure**
-   - Show summary first.
-   - Reveal deeper parameters on demand.
-   - Avoid dumping full row-level parameter tables by default.
-
-3. **Visual Hierarchy**
-   - System name (largest text)
-   - Coolness breakdown / key tags (secondary emphasis)
-   - High-impact metrics (luminosity class, star count, planet count, distance)
-   - Detailed astrophysical parameters (collapsed by default)
-
-4. **Consistency**
-   - All interactive elements must behave predictably.
-   - Spacing, margins, and typography must follow a unified scale system.
-
-5. **Accessibility**
-   - All themes must meet WCAG AA contrast minimums.
-   - Keyboard navigable.
-   - No information conveyed by color alone.
-   - Motion must be optional (respect reduced-motion preference).
-
----
-
-### Layout Refinement
-
-System Detail Page:
-
-- Header Section:
-  - System name
-  - Distance
-  - Dominant category tag(s)
-  - Coolness score visualization (subtle but informative)
-
-- Highlight Panel:
-  - 3–5 "Why This Is Interesting" bullet summaries derived from scoring breakdown.
-  - Compact visual bars for category contributions.
-
-- Structural Overview:
-  - Star count
-  - Multiplicity diagram (minimal schematic)
-  - Planet count
-
-- Expandable Sections:
-  - Stellar parameters
-  - Planetary parameters
-  - Metallicity and spectral details
-  - Provenance + match confidence
-
-Search View:
-
-- Clean list layout
-- Left column: system name + summary tags
-- Right column: distance + coolness
-- Hover preview optional
-- No full-parameter overload in list view
-
----
-
-### Theme System
-
-Themes are cosmetic layers only.  
-They must not change layout structure or behavior.
-
-Themes implemented via CSS variables and design tokens.
-
-#### 1. Simple Dark
-- Neutral dark background
-- Minimal accent color
-- Subtle shadows
-- Modern sans-serif typography
-- Clean card layouts
-
-#### 2. Simple Light
-- Neutral light background
-- Minimal accent color
-- High readability
-- Slightly reduced visual noise
-- Professional scientific aesthetic
-
-#### 3. Cyberpunk
-- Very dark background
-- High contrast neon accent palette
-- Monospaced fonts for data blocks
-- Sharp borders
-- Angular dividers
-- Subtle scanline or console aesthetic (optional, lightweight)
-- Avoid heavy glow effects that reduce readability
-
-#### 4. Enterprise (LCARS-inspired)
-- Black background
-- Rounded rectangular “pill” panels
-- Color-coded information bars
-- Warm muted tones:
-  - Mauve / purple
-  - Orange
-  - Tan
-  - Yellow
-  - Teal
-- High-contrast layout
-- Large typographic labels
-- Flat, panel-based interface
-- No skeuomorphic gradients
-- Must remain usable even without franchise familiarity
-
-Note:
-This theme is an homage, not a replica. Avoid copyrighted UI replication. Capture the design language, not the exact layout.
-
-#### 5. Mission Control
-- Black background
-- Monochrome green or amber text
-- Monospace everywhere
-- No gradients
-- Clean ASCII-inspired
-Appeals to:
-- programmers
-- hacker aesthetic fans
-- minimalists
-- This feels “mission control terminal.”
-
-#### 6. Aurora
-- Deep navy background
-- Soft gradient accent colors (teal → violet)
-- Subtle glow edges
-- Smooth rounded UI
-- Slightly modern Apple-ish
-Appeals to:
-- mainstream modern users
-- design-conscious crowd
-- 20–40 demographic
-- Safe, modern
-
-#### 7. Geocities (Retro ’90s)
-Leans into intentionally klunky early-web nostalgia while staying usable:
-- Soft gray background
-- Light beveled panels
-- Clean but nostalgic
-- Subtle pixel font for headers only
-Appeals to:
-- 35–55 nostalgic users
-- early web vibe
-- memberberries
-
-#### 8. Deep Space Minimal (Black Void)
-- Pure black background
-- Almost no borders
-- Content floats
-- Sparse accent color
-- Feels like UI in darkness
-Appeals to:
-- people who love minimalism
-- OLED screen users
-- night browsing
-
-#### Current Theme/UX Implementation Notes
-- Theme selection is persisted in browser storage and applied globally.
-- Search shortcut is `/` (focuses search input when not typing in a field).
-- Search filters support `Collapse Up`; when collapsed, results expand to full width.
-- Enterprise theme includes LCARS-style header telemetry, decorative left chips, and linked history chips under `STARS ACCESSED`.
-
----
-
-### Data Density Strategy
-
-Avoid parameter overload.
-
-Instead:
-
-- Display derived, narrative-relevant highlights.
-- Collapse raw numeric tables behind expandable sections.
-- Use icons sparingly and meaningfully.
-- Use tooltips for definitions (spectral class, Fe/H, etc.).
-
----
-
-### Motion & Interaction
-
-- Animations must be subtle and fast (<200ms).
-- No parallax.
-- No excessive glow.
-- No auto-rotating elements.
-- Hover states must clearly indicate interactivity.
-
----
-
-### Performance Constraints
-
-- Themes must not significantly increase bundle size.
-- Avoid heavy background images.
-- No large shader effects.
-- Must render cleanly on mid-tier laptops and mobile devices.
-
----
-
-### Success Criteria
-
-- UI redesign applied without breaking API contracts.
-- Theme switching is instantaneous and persistent.
-- Most important system information is scannable in <3 seconds.
-- Parameter overload reduced in default views.
-- Lighthouse performance score remains high.
-
----
-  
-## v1.2: Additional catalogs / packs foundation
-Goal: correct core undersights and widen the scientific foundation before heavy enrichment.
-
-### Why now:
-- The current foundation is strong enough to browse, rank, and visualize, but still incomplete in important places.
-- Systems like Sol and Castor reveal that "easy to access" starter catalogs are not sufficient for the narrative and visual fidelity goals of the project.
-- Enrichment built on incomplete multiplicity, planetary census, stellar parameters, or neighbor coverage will be expensive to redo and will train the UI toward the wrong picture of reality.
-
-### Success criteria:
-- Approve the next tranche of major stellar/system catalogs before ingestion.
-- Define authoritative field targets by source family:
-  - multiplicity / hierarchical membership
-  - stellar astrophysical parameters
-  - exoplanet/system completeness
-  - neighborhood/navigation support
-  - compact/substellar/special populations
-- Build ingestion pipelines for approved additional catalogs with the same standards as v0:
-  - rerunnable fetch/cook/build
-  - manifests/checksums
-  - QC + provenance reports
-  - deterministic outputs
-- Preserve the distinction between:
-  - core canonical browseable systems/stars/planets
-  - optional packs / extended populations
-  - raw detection catalogs that should not masquerade as unique objects
-- Revisit system grouping and host matching as needed so known benchmark systems no longer collapse into obviously incomplete representations.
-
-### Guardrails:
-- Do not silently merge catalogs with incompatible object semantics.
-- Do not let optional packs mutate the canonical meaning of core IDs without an explicit migration/versioning plan.
-- Rebuild downstream rich artifacts after any catalog expansion that changes:
-  - system boundaries
-  - planet counts
-  - multiplicity
-  - distances / coordinates
-  - dominant stellar properties
-
-### Immediate implementation contract (v1.2)
-- Raw downloads preserve source-native files, units, epochs, and identifiers exactly.
-- Cooked outputs remain per-catalog and typed; they normalize formatting and column names but do not merge catalogs.
-- Canonical core rows are merged during ingest column-by-column using explicit field precedence rules.
-- Canonical distance/position storage should retain parsec-valued columns:
-  - `dist_pc`
-  - `x_helio_pc`, `y_helio_pc`, `z_helio_pc`
-- Light-year convenience/materialized columns may also be stored for API/query/render efficiency:
-  - `dist_ly`
-  - `x_helio_ly`, `y_helio_ly`, `z_helio_ly`
-- Core build metadata records the canonical astrometry target:
-  - `coordinate_epoch = J2016.0`
-  - `coordinate_frame = ICRS`
-- Once mixed-source astrometry is active, `stars` and `systems` should also record row-level astrometry lineage fields such as:
-  - `astrometry_source_catalog`
-  - `astrometry_source_epoch`
-  - `astrometry_normalization_method`
-  - `astrometry_quality`
-- Core must not infer stellar physical parameters from spectral type. Such inference belongs only in rich artifacts and must be explicitly flagged there.
-  
-### CORE STAR FIELDS (served.stars.*)  [canonical epoch: J2016.0; frame: ICRS]
-
-astrometry (ra, dec, pm, parallax/dist, rv)
-├─ Gaia DR3 (best available)                        [primary]
-│  ├─ ra/dec @ J2016.0
-│  ├─ pm_ra/pm_dec
-│  ├─ parallax (+ error)
-│  └─ radial_velocity (if present)
-├─ AT-HYG (if Gaia missing for that star)           [secondary]
-│  ├─ use AT-HYG identifiers / names / legacy kinematics as fallback inputs
-│  ├─ prefer source-native parsec values when present
-│  └─ project to J2016.0 only when source epoch + proper motion support it
-└─ HYG (if you still carry it)                      [last resort]
-   ├─ treat as legacy fallback only if its semantics are preserved explicitly
-   ├─ never let HYG silently outrank Gaia or AT-HYG for canonical astrometry
-   └─ require row-level legacy/quality flags if used at all
-
-epoch normalization (served fields)
-├─ if source_epoch == 2016.0 → passthrough
-├─ if source_epoch != 2016.0 AND proper_motion available
-│  └─ propagate to J2016.0 and store both source + propagated lineage
-└─ if source_epoch != 2016.0 AND proper_motion unavailable
-   └─ keep source-epoch astrometry only as an explicitly flagged legacy fallback; do not silently label it native J2016.0
-
-identifiers + names (iau/common, bayer, flamsteed, gliese, hr/hd/hip)
-├─ AT-HYG/HYG curated fields                        [primary]
-└─ Gaia source_id                                   [always store when present]
-
-photometry (mag, colors)
-├─ Gaia DR3 photometry                              [primary]
-└─ fallback: legacy catalog photometry              [secondary]
-
-physical params (teff, radius, luminosity, mass, metallicity)
-├─ Gaia DR3 astrophysical parameters (when present) [primary]
-├─ curated external stellar-params catalogs         [v2+ milestone]
-└─ null                                              [core rule]
-   └─ inferred values from spectral type are RICH ONLY, flagged, and never canonical core fields
-
-multiplicity / system structure (components, hierarchy)
-├─ dedicated multi-star catalogs (v2+ milestone)    [future best]
-└─ AT-HYG/HYG comp/comp_primary/base                [stopgap]
-   └─ mark multiplicity_quality = "partial"
-  
-###  SPACEGATE CORE (≤1000 ly) — field precedence (highest wins; always record provenance)
-
-systems.*
-├─ system_name
-│  ├─ curated common-name table (approved, small, pinned version)          [v1 core enhancement]
-│  ├─ AT-HYG proper/name fields (if present)                               [v0 core]
-│  └─ fallback: primary star_name (normalized)                             [v0 core]
-├─ multiplicity / membership (grouping)
-│  ├─ exact-ID multiplicity evidence (Gaia NSS, catalog crosswalks)        [v1 core enhancement]
-│  ├─ explicit hierarchy / relationship catalogs (MSC / ORB6 / WDS class)  [v1 core enhancement]
-│  ├─ name-based grouping (A/B/C)                                          [v0 core]
-│  └─ proximity grouping (<=0.25 ly), gated                                [v0 optional]
-├─ position (`dist_pc`, `x_helio_pc/y_helio_pc/z_helio_pc`, `ra_deg`, `dec_deg`)
-│  ├─ primary star canonical astrometry from merged star row               [v1 core enhancement]
-│  ├─ Gaia @ J2016.0 when available                                        [v1 core enhancement]
-│  ├─ else AT-HYG projected to J2016.0 when justified                      [v1 core enhancement]
-│  └─ else flagged legacy source-epoch fallback                            [exception path]
-├─ LY convenience columns (`dist_ly`, `x_helio_ly/y_helio_ly/z_helio_ly`)
-│  └─ deterministic conversion from canonical parsec columns               [v1 core enhancement]
-└─ epoch/frame metadata
-   ├─ build_metadata: `coordinate_epoch=J2016.0`                           [v1 core enhancement]
-   ├─ build_metadata: `coordinate_frame=ICRS`                              [v1 core enhancement]
-   └─ row-level astrometry lineage retained when not natively J2016.0      [v1 core enhancement]
-
-stars.*
-├─ identifiers (gaia_id, hip_id, hd_id, tyc, ...)
-│  ├─ Gaia DR3 source_id (if present)                                      [v0 core]
-│  ├─ HIP, then HD, then others                                            [v0 core]
-│  └─ fallback stable hash (name + rounded coords + dist)                  [v0 core]
-├─ names/aliases
-│  ├─ curated alias table (IAU/common names, Bayer/Flamsteed variants)     [v1 core enhancement]
-│  ├─ AT-HYG name fields                                                   [v0 core]
-│  └─ fallback from catalog IDs ("HD 12345", etc)                          [v0 core]
-├─ canonical astrometry (`dist_pc`, `x_helio_pc/y_helio_pc/z_helio_pc`, `ra_deg`, `dec_deg`)
-│  ├─ Gaia @ J2016.0                                                       [v1 core enhancement]
-│  ├─ else AT-HYG projected to J2016.0 when source epoch + PM allow        [v1 core enhancement]
-│  └─ else flagged legacy source-epoch fallback                            [exception path]
-├─ LY convenience columns (`dist_ly`, `x_helio_ly/y_helio_ly/z_helio_ly`)
-│  └─ deterministic conversion from canonical parsec columns               [v1 core enhancement]
-├─ spectral_type_raw + parsed (class/subtype/luminosity)
-│  ├─ highest-quality spectroscopic survey value (if approved)             [v1 core enhancement]
-│  ├─ AT-HYG spectral string                                               [v0 core]
-│  └─ null (don’t guess)                                                   [rule]
-├─ Teff (effective temperature, K)
-│  ├─ Gaia DR3 astrophysical params (teff*)                                [v1 core enhancement]
-│  ├─ spectroscopic surveys (APOGEE/GALAH/LAMOST/RAVE...)                  [v1 core enhancement]
-│  ├─ other compiled catalogs (older)                                      [v2+ unless curated]
-│  └─ fallback: "typical Teff for spectral type"                           [RICH ONLY — inferred, flagged]
-├─ radius/mass/luminosity/metallicity (if you add them)
-│  ├─ same pattern: Gaia params / high-quality spectroscopy                [v1 core enhancement]
-│  └─ inferred from spectral type                                          [RICH ONLY — inferred, flagged]
-└─ kinematics (pm_ra/pm_dec, radial_velocity)
-   ├─ Gaia (best)                                                          [v1 core enhancement]
-   ├─ AT-HYG (if present)                                                  [v0 core]
-   └─ null                                                                 [rule]
-
-planets.* (NASA pscomppars baseline)
-├─ planet parameters (period/sma/ecc/inc, radius/mass/teq/insolation)
-│  └─ NASA Exoplanet Archive (pscomppars)                                  [v0 core]
-└─ host matching
-   ├─ Gaia ID match                                                        [v0 core]
-   ├─ HIP match                                                            [v0 core]
-   ├─ HD match                                                             [v0 core]
-   ├─ exact hostname match                                                 [v0 core]
-   └─ fuzzy hostname match (opt-in, lower confidence)                      [v1 core enhancement]
-
-### v1.2 catalog evaluation workflow
-Before promoting any new source family into canonical precedence:
-
-1. Pull a small typed sample from each candidate catalog.
-2. Choose a comparison key strategy:
-   - Gaia source id first
-   - HIP / HD next
-   - normalized names only as a weak fallback
-3. For each source, select roughly 100 representative rows:
-   - a random sample across the full file
-   - a targeted overlap sample where candidate keys intersect existing core stars
-4. Compare only the fields with direct product value:
-   - astrometry: `ra`, `dec`, `parallax/dist`, `pm_ra`, `pm_dec`, `radial_velocity`
-   - names/aliases
-   - spectral raw/parsed
-   - photometry
-   - multiplicity indicators
-5. Score each field family on:
-   - coverage
-   - identifier matchability
-   - epoch/frame clarity
-   - numeric plausibility / outlier rate
-   - provenance/licensing quality
-   - exact-ID vs coordinate-led join reliability
-6. Update the field-precedence matrix only after the sample comparison is written up.
-7. Only then implement downloader, cooker, and merge-layer changes for the approved source family.
-
-### Current multiplicity evaluation state (March 3, 2026)
-- Gaia NSS remains the cleanest primary evidence layer because it joins directly on `source_id`.
-- MSC is currently the strongest hierarchy candidate evaluated so far:
-  - bulk tables available
-  - strong `HIP/HD` overlap with current core
-  - explicit subsystem/orbit structure
-- ORB6 is currently the strongest visual-orbit support catalog evaluated so far:
-  - bulk text/SQL exports available
-  - strong `HIP/HD` overlap with current core
-  - orbit-grade information useful for confidence weighting
-- SBX is currently the strongest spectroscopic-binary support catalog evaluated so far:
-  - TAP-accessible
-  - strong identifier overlap in samples
-  - useful as evidence, not a full hierarchy source
-- WDS remains valuable for breadth, but current evidence supports using it through confidence-scored crossmatching rather than as sole canonical grouping authority.
-- BDB/ILB remains strategically attractive as a crosswalk layer, but is deferred for now because Spacegate should not depend on an uncached remote Russian-hosted source unless we can first confirm a stable local mirror/export path.
-
-Current working multiplicity stack for implementation planning:
-1. Gaia NSS for exact star-level multiplicity evidence.
-2. MSC for hierarchy candidates and explicit subsystem structure (approved optional; default-off policy).
-3. ORB6 and SBX as orbit-quality support catalogs.
-4. WDS as broad visual coverage through confidence-scored crossmatch.
-5. BDB/ILB only if we can mirror it locally through a stable export/crawl path; otherwise disregard it.
-
-### Current multiplicity implementation state (March 5, 2026)
-- The active core pipeline now includes deterministic Gaia NSS support data:
-  - `download_core.sh` fetches Gaia DR3 `non_single_star` and `nss_two_body_orbit` (partitioned TAP fetch) into `raw/gaia_nss/` and writes `reports/manifests/gaia_nss_manifest.json`.
-  - `cook_core.sh` / `cook_multiplicity.py` produce typed `cooked/gaia_nss/*.csv`.
-  - `ingest_core.py` merges Gaia NSS by exact `gaia_id` into star-level multiplicity evidence fields (`gaia_non_single_star`, `gaia_nss_solution_count`, `gaia_nss_solution_types_json`, `gaia_nss_significance_max`).
-- Grouping provenance remains explicit and ordered:
-  - grouping precedence is still `WDS -> name-root -> (optional) proximity`.
-  - Gaia NSS currently contributes star-level multiplicity evidence and system-level evidence rollup (`has_gaia_nss_evidence`), not direct hierarchy grouping.
-- Optional experimental WDS->Gaia bridge now exists (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`):
-  - source is CDS XMatch (`vizier:B/wds/wds` -> `vizier:I/355/gaiadr3`) with best-match output cooked into `wds_gaia_matches.csv`.
-  - pilot all-sky run produced `140,365` best matches (`140,364` cooked unique rows).
-  - pre-gate pilot ingest (`NSS on`, `MSC off`, `WDS_GAIA_XMATCH on`) mapped `31,941` stars to WDS IDs and raised multi-star systems (`58 -> 473`, `+415`).
-  - ingest now enforces physical-consistency gating on multi-member WDS groups before grouping:
-    - max group distance spread (default `10.0 ly`)
-    - max group proper-motion vector spread (default `25 mas/yr`)
-    - max accepted WDS->Gaia angular match distance (default `2.0 arcsec`)
-  - gate thresholds are configurable via:
-    - `SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY`
-    - `SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR`
-    - `SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC`
-  - current gated proton run (`2026-03-05T192500Z_nss_wdsgaia_gate`) maps `30,702` stars and yields multi-star systems `58 -> 230` (`+172`) while rejecting `2,813 / 3,264` candidate multi-member WDS groups at gate.
-  - this path remains nondefault while we continue quantifying residual false-positive/false-negative tradeoffs.
-- `MSC` remains approved optional and default-off:
-  - enabled only with `SPACEGATE_ENABLE_MSC=1`.
-  - this keeps public/default builds conservative while preserving hierarchy enrichment paths for comparative runs.
-- Four-mode comparative ingest run now exists and is reproducible via `scripts/run_multiplicity_modes.sh` + `scripts/multiplicity_mode_report.py`:
-  - `baseline` (`NSS=0`, `MSC=0`)
-  - `NSS only` (`NSS=1`, `MSC=0`)
-  - `MSC only` (`NSS=0`, `MSC=1`)
-  - `NSS+MSC` (`NSS=1`, `MSC=1`)
-- Latest proton mode report (`2026-03-05T151324Z`) summary:
-  - Gaia NSS adds evidence coverage but does not change system grouping counts by itself (`+20,116` stars flagged non-single; `+14,050` with two-body solutions).
-  - MSC adds structural multiplicity via inserted component stars (`+7,243` stars, `+1,745` systems, `+4,166` multi-star systems).
-  - benchmark systems (`Castor`, `16 Cyg`, `Keid`, `Rigil Kentaurus`) improve only when MSC is enabled in the current pass.
-- No SBX ingest in active core pipeline yet.
-- Coordinate/proximity grouping is still available, but benchmark builds on proton keep `SPACEGATE_ENABLE_PROXIMITY=0` while v1.2 multiplicity hierarchy work is being tightened.
-  
-  
-### Gaia-first core architecture proposal (March 5, 2026)
-Decision intent: shift from an AT-HYG-anchored core to a Gaia-anchored backbone, while preserving Spacegate's deterministic build/report model and practical UI performance.
-
-Measured Gaia DR3 scope for `<1000 ly` (`parallax >= 3.26156 mas`, queried March 5, 2026):
-- raw candidate stars: `17,785,548`
+- raw stars: `17,785,548`
 - `parallax_over_error >= 5`: `9,188,313`
 - `parallax_over_error >= 10`: `6,031,770`
 - `parallax_over_error >= 5` and `ruwe < 1.4`: `6,681,580`
-- brightness-gated working sets:
+- brightness cuts:
   - `G <= 18`: `4,401,648`
   - `G <= 19`: `5,939,410`
   - `G <= 20`: `9,334,894`
 
-Implication: a Gaia-first `<1000 ly` core is a **multi-million object** architecture; this is not a small extension of the current AT-HYG path.
+Implication: this is a multi-million object architecture. Product slice and deep-query pathways must be deliberate.
 
-Proposed architecture split:
-1. `gaia_backbone` (new canonical ingest substrate)
-   - all Gaia DR3 sources passing the active distance/quality contract
-   - source-native astrometry/photometry/quality fields retained
-   - deterministic sharded fetch/cook/manifest/QC pipeline
-2. `core_product_slice` (serving default for UI/API)
-   - deterministic subset policy over `gaia_backbone` (for example quality + brightness + science-interest gates)
-   - keeps UX latency and snapshot generation tractable
-   - explicitly versioned and reproducible from backbone
-3. `catalog_enrichment_links` (AT-HYG/HIP/HD/WDS/MSC/NSS joins)
-   - identifiers, aliases, multiplicity evidence, and hierarchy edges live here
-   - catalogs are no longer mistaken for canonical object inventory
+## Astrometry Standard
 
-System-count expectation under Gaia-first:
-- with current evidence sources, system count remains close to star count (most stars are still singleton systems until higher-fidelity hierarchy/orbit evidence is added).
-- multiplicity catalogs then reduce/group this baseline; they should not be expected to collapse millions of stars into a small system count by themselves.
+- Canonical frame: `ICRS`
+- Canonical epoch: `J2016.0`
+- Build metadata must record:
+  - `coordinate_frame`
+  - `coordinate_epoch`
 
-Implementation phases:
-1. Phase A: backbone pilot
-   - ingest Gaia `<1000 ly` with strict quality floor and no catalog merges beyond Gaia-native fields
-   - emit `gaia_backbone_report.json` (counts, quality histograms, storage footprint, ingest runtime)
-2. Phase B: serving strategy
-   - define and materialize `core_product_slice` from backbone
-   - keep existing API contract against slice first, then add explicit deep/backbone query mode
-3. Phase C: multiplicity reintegration
-   - reattach NSS/MSC/WDS evidence against backbone IDs
-   - maintain explicit confidence tiers for grouping and hierarchy
-4. Phase D: migration
-   - promote Gaia-first build path to default once runtime + quality gates pass
-   - keep AT-HYG mode as fallback profile until deprecation criteria are met
+Future epoch rendering (thousands/millions of years) is a derived operation. Canonical stored coordinates remain fixed for the build epoch.
 
-Go/no-go gates before default switch:
-- build determinism proven across reruns
-- ingest + verify runtime acceptable on proton
-- API p95/p99 latencies within current operational targets
-- benchmark systems (including Castor/Sol analog checks) are not worse than current MSC-enabled path
-- storage growth and backup/restore procedures validated for multi-million-row cadence
+## Identity Strategy
 
+### Canonical star identity
+`stable_object_key` priority:
 
-## v1.3: External reference links (curated web sources)
-Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
+1. `star:gaia:<source_id>`
+2. fallback deterministic hash only where Gaia ID is unavailable (rare edge paths)
 
-Method (proposed):
-- **Discovery**: for each object, generate candidate queries from stable identifiers and common names (e.g., primary name, catalog IDs).
-- **Source allowlist** (default): Wikipedia, SIMBAD, NASA Exoplanet Archive, ESA/Gaia docs, IPAC/IRSA, CDS, Exoplanet.eu, relevant observatory pages.
-- **Quality scoring**: rank candidates by:
-  - Authority (domain allowlist > others)
-  - Specificity (object page vs generic topic page)
-  - Content richness (presence of sections like “Physical characteristics”, “Discovery”, “Orbit”)
-  - Recency/maintenance signals (last updated if available)
-  - Licensing suitability (links allowed even when content cannot be reproduced)
-- **Human override**: optionally pin or blacklist specific links in a small manual overrides file.
+### Canonical system identity
+`systems` are derived from multiplicity hierarchy/grouping materialization:
 
-Reasonable limits (initial defaults):
-- **Max links per object**: 3 (1 authoritative catalog + 1 encyclopedia + 1 optional observatory/mission page).
-- **Max candidates evaluated per object**: 10.
-- **Domain cap**: 2 links from the same domain per object.
-- **Coverage budget**: only top-N coolness objects in v1.4; full coverage later.
-- **Refresh cadence**: re-check links only on build regeneration or every 6–12 months.
-- **Strictly link-only**: store URLs + metadata only; no copying page text into rich.
+- explicit catalog hierarchy edges preferred
+- conservative fallback grouping where hierarchy evidence is weak
 
-## v1.4: AI rich description (“facts → exposition”)
-Success criteria:
-- Generate fact sheets (structured JSON) per selected object with sources/provenance.
-- Generate engaging but factual descriptions derived from known facts.
-- Store generated content as derived artifacts with:
-  - model/version, generated_at, prompt, and fact-sheet hash
-  - display small text notification if fact sheet hash no longer matches (indicating new information)
-- Target voice: science outreach personality (factual, enthusiastic; no fabrication).
-- Counter prompt is used to evaluate the factuality of the exposition and discard hallucinations
+System keys must be deterministic and stable across identical rebuild inputs.
 
+## Multiplicity Strategy
 
-## v1.5: Image generator
-Based on the descriptions from the expositions, generate instructions for image
-generator model create vivid imagery of planets, stars, and systems.
-- Shareable versions with text captions at the bottom
-- link an image generator that will generate system images on coolness or first visit
-- tooltip with prompt that generated the image
-- generate more images in systems wtih lots of visits
-- up/down voting, reorder with most popular
-- popular images push system to be featured on front page and suggested in system links
-- most popularist images get expanded in size and resolution to full page background images, 
-  - free download as (up to) 4k desktop backgrounds
-- generate short, captivating meme text like "Hell World HD 189733_b where it rains glass sideways in Earth sized cyclones."
-- make recaptioning and sharing easy, link back
+Multiplicity evidence sources (current policy):
 
-### Star/System view
-  - coolness score should prioritize complex systems and exotic stars
-  - center close binaries and planets
-  - show distant companions in background
-  - aim for accuracy but exagerate slightly if necessary to make dim companions visible
-  - star is accurate to spectrum, surface temp, and size
-  - flare stars depicted with erupting solar flares
-  - pulsars depicted with polar jets though they might be invisible without gas/dust to scatter/emit)
-  - magnetars show powerful rotating magnetic fields (despite being invisible or show them interacting with something)
+1. Gaia NSS (exact Gaia-linked evidence)
+2. MSC (optional; default-off)
+3. WDS/ORB6 (broad support evidence, confidence-gated)
 
-### v1.5.1 Planets
-#### Global view
-  - planet in the foreground and the star behind
-  - show flare stars scorching them with glowing prominences
-  - eyeball planets for tidally locked planets at right distance
-  - maybe young systems or lots of dust detected show asteroid/comet strikes
-  - add moons to large planets even if none detected
-  - include subtext that these images are extrapolated from scientific data, not observation, and reality is likely quite different.
+Current rules:
 
-#### v1.5.2 Surface view
-This should show what it might feel like to visit this planet and stand on its surface.
-This requires the most license of all. We can ground the view in some facts that should
-make it clear to visitors the link between orbit, composition, and climate.
-Aim to inspire.
-- Volcanic worlds shows lava spewing smoke belching volcanoes
-  - powerful lightning strikes
-  - dark, oppressive skies
-  - vivid, steaming lava fields
-  - volcanic bombs smashing into the landscape 
-- Water worlds
-  - got lots'a water
-  - colossal waves
-- Ice worlds
-  - ice mountains with different compositions depending on the expected temperature
-  - rocky if in close and high metallicity
-  - methane/CO2/nitrogen ice depending on how cold
-  - cryovolcanism
-- Desert planets
-- Hell worlds 
-  - close star
-  - molten surface
-  - thick atmosphere
-  - heavy molecular composition
-  - glass rain (https://en.wikipedia.org/wiki/HD_189733_b)
-- Acid worlds
-  - thick, sulfurous atmosphere
-  - melting landscape
-- Ringed planets (https://en.wikipedia.org/wiki/J1407b)
-- Dead worlds
-  - sterilized with no hope of life 
-  - surface stripped by supernova
-  - scoured by massive radiation
-  - orbiting dead/remnant stars
-And much more! The more creative we are with descriptions while linking everything to real science the more viewers will be inspired. So lets come up with awesome fantasy planets defendably grounded in facts.
+- proximity grouping stays nondefault
+- WDS-Gaia path stays optional and confidence-gated
+- physical consistency gating is required for WDS-linked grouping via bridge:
+  - distance spread threshold
+  - proper-motion spread threshold
+  - match angular-distance threshold
 
+### Systems of systems
+Architecture target:
 
+- represent explicit hierarchy (parent/child subsystem relationships)
+- allow navigation both upward and downward
+- preserve inspectability of each subsystem as an analyzable entity
 
+Hierarchy confidence must be explicit and queryable.
 
-## v1.6: System neighbor graph (10 nearest systems)
-Goal: precompute nearest-neighbor relationships between systems for fast UI queries and navigation.
+## Planet Host Matching
 
-Success criteria:
-- For every core `systems` row, compute the 10 nearest *other* systems by 3D Euclidean distance (ly).
-- Store results in rich as a stable, reproducible derived artifact.
-- Deterministic ordering for ties (distance, then `neighbor_system_id` asc).
+Host matching must run against canonical Gaia-backed stars/systems.
 
-Storage model:
-- New rich table `system_neighbors`:
-  - `system_id` (core FK)
-  - `neighbor_rank` (1..10)
-  - `neighbor_system_id` (core FK)
-  - `distance_ly` (FLOAT)
-  - `method` (e.g., `knn_exact`, `knn_indexed`)
-  - `generator_version`, `build_id`, `created_at`
+Priority:
+
+1. Gaia source ID
+2. high-confidence catalog crosswalk IDs
+3. deterministic name fallback (flagged lower confidence)
+
+No hidden fuzzy merge into canonical rows.
+
+## Unit Policy
+
+- Preserve source-native units/fields in raw and cooked stages.
+- Canonical core should store parsec-native distance/position.
+- Store LY convenience columns for serving efficiency and UX.
+- Avoid repeated runtime unit conversion in hot paths.
+
+## Ingestion and Build Contract
+
+Pipeline:
+
+1. download (`raw/`)
+2. cook (`cooked/`)
+3. ingest (`out/<build_id>/core.duckdb` + parquet)
+4. promote (`served/current`)
+5. verify (QC + provenance + contract checks)
 
 Rules:
-- Use **core systems only** (exclude packs/lore).
-- Exclude self-matches; always 10 neighbors unless fewer than 11 systems exist.
-- Distances are computed from canonical core coordinates at the stored build reference epoch (current standard `J2016.0` xyz in ly).
-- Results must be exact (indexing acceleration is OK, but output must match exact kNN within numeric tolerance).
 
----
+- raw files are immutable snapshots
+- cooked outputs are deterministic and disposable
+- build outputs are immutable by build ID
+- promotion is atomic
 
-## v1.7: Operations dashboard and telemetry
-Goal: after rich content is working, add an at-a-glance operations view so service health and usage can be assessed in seconds.
+## Security and Transport Policy
 
-Success criteria:
-- Single dashboard view with clear green/yellow/red status.
-- Service/runtime status:
-  - nginx status and active config mode (container web vs static web).
-  - API and web process/container status, uptime, and restart counts.
-- Endpoint checks:
-  - `GET /` and `GET /api/v1/health` through nginx.
-  - Direct API health check.
-- Build state:
-  - current `build_id`, active DB path, and `served/current` pointer target.
-- Usage and reliability metrics:
-  - request rate and endpoint mix (especially search endpoints),
-  - error rate (4xx/5xx),
-  - basic latency percentiles (p50/p95) for key API endpoints.
-- Capacity snapshot:
-  - CPU, memory, and disk usage for host + containers.
+1. Insecure transport may be used only as an explicitly acknowledged exception.
+2. No production default build may require insecure transport.
+3. Each source must document:
+   - license
+   - retrieval integrity path (checksum/etag/signature)
+   - transport caveats
+4. Public-facing hosts must prefer mirrored/pinned upstreams when source reliability or geopolitical routing is risky.
 
-Implementation notes:
-- Start with a local terminal monitor (`scripts/spacegate_status.sh`).
-- Then expose metrics from API/nginx and add a dashboard stack (e.g., Prometheus + Grafana) with basic alerts.
+Current exception note:
 
----
+- MSC source transport history requires explicit caution; keep optional/default-off until robust mirror/transport policy is locked.
 
-## v2: 3D map (browser)
-This is the ultimate goal. An intuitive and inviting interface that makes it easy to explore space.
+## Runtime and Host-Specific Documentation
 
-Success criteria:
-- Lightweight browser-based 3D viewer (likely three.js; evaluate alternatives later).
-- Smooth controls: zoom/rotate/pan/recenter; selection; tooltips.
-- Filters (distance bubble, spectral class, magnitude, etc.)
-- Optional rendering toggles: planets, packs, lore layers, neighbor links, spacegate links.
-- Easy zoom and transition:
-    - Click a system, zoom to extents: furthest separation of stars or planets
-    - Smooth zoom from the starfield to the system
-    - Display the 3D system with labeled components, system card, description, and linked list of objects
-    - Click a system object, if it's a subsystem, smooth zoom to its extents
-    - Display a system card with scrollable cards for subobjects in the system ordered by coolness
-    - Continue navigating down hierarchies 
+Host-specific runtime config is documented outside git at `/srv/spacegate/RUNTIME.md`.
 
-## v2.1: System view and generators
-- The core reference epoch is `J2016.0`. Add a feature to select an arbitrary date/epoch and recompute/rerender stars from the stored reference epoch using proper motion (and radial velocity where available).
-- 3D Exoplanet render (plausible visualizations based on data)
-- World builder tools (procedural generation with sliders)
+Required runtime notes:
 
-## v2.2: Lore, engagement, and community ranking
-- Lore overlay tooling and UI affordances.
-- Privacy-safe engagement dataset and browsing signals.
-- Public-facing coolness profile selection so users can explore different ranking philosophies without altering the canonical scientific ranking.
-- Community-defined ranking presets / shared profile overlays ("bring coolness to the masses") with strict isolation from core science and admin canonical profiles.
-- add political maps from popular scifi franchises like Star Trek and BATTLETECH.
+- antiproton public-host specifics (TLS, nginx, auth, deployment)
+- proton development specifics
+  - OAuth redirect workaround (tunnel `:8080` to `:80` on proton for admin panel OAuth flow)
 
-## v3 Aspirational
-- procedural ground generation of a planet/moon surface based on known planet / exoplanet data
-- dark mode with a slider, a sun on one side and moon on the other side of the slider
-- simulate ecliptic slices of rotating gravity potentials in binary or more systems
+## Milestones (Gaia-First Program)
 
-# Status (as of 2026-02-28)
-- Core ingestion pipeline complete (AT-HYG + NASA exoplanets).
-- Morton indexing implemented (21 bits/axis, ±1000 ly), Parquet outputs sorted by spatial_index.
-- `$SPACEGATE_STATE_DIR/served/current` promoted to latest build.
-- CLI explorer available: `scripts/explore_core.py`.
-- Public deployment live at `coolstars.org`; `spacegates.org` currently redirects there and is reserved for project/community/backend use.
-- Published bootstrap metadata (`current.json`) includes artifact checksums and report references.
-- v0.1.5 Admin Control Plane checkpoints A-D implemented (OIDC auth, allowlist, action runner, audit).
-- v0.2 Coolness complete for the current admin-defined scope (scoring outputs, profile contract, CLI/admin tuning, report/audit provenance, rollback).
-- Additional catalog / pack ingestion is now prioritized ahead of enrichment because benchmark systems still expose known completeness gaps in the starter dataset mix.
+### Phase A: Gaia Backbone Pilot
 
+- implement deterministic Gaia backbone ingest (`<1000 ly`)
+- include quality tiers (`poe`, `ruwe`, astrometry solved flags)
+- emit `gaia_backbone_report.json`:
+  - counts by quality bands
+  - runtime/memory
+  - storage footprint
 
-# On completion, prune dependencies
+### Phase B: Product Slice
+
+- define deterministic slice policy over backbone
+- serve default UI/API from slice
+- add explicit deep-query mode against backbone
+
+### Phase C: Multiplicity Reintegration
+
+- attach NSS/MSC/WDS/ORB6 evidence against Gaia IDs
+- materialize hierarchy with confidence tiers
+- preserve benchmark system quality (Castor, etc.)
+
+### Phase D: Crosswalk and Naming
+
+- replace AT-HYG convenience naming/crosswalk dependency with dedicated crosswalk sources
+- maintain or improve user-facing name quality and lookup ergonomics
+
+### Phase E: Enrichment Expansion
+
+- coolness/factsheets/exposition/snapshots driven by Gaia-first core
+- confidence captions for derived animations/visualizations
+
+## AT-HYG Retirement Policy
+
+AT-HYG should be removed from canonical inventory once these pass:
+
+1. host-match quality is not worse than current production
+2. benchmark system hierarchy quality is not worse than current MSC-enabled baseline
+3. user-facing naming and alias coverage is preserved via replacement crosswalks
+4. no critical API fields regress
+
+AT-HYG may remain as an optional compatibility/crosswalk input during migration, but not as canonical star inventory.
+
+## Acceptance Gates for Gaia-First Default
+
+1. Determinism: repeated runs produce identical canonical outputs for pinned inputs.
+2. Performance: proton ingest/verify and API p95/p99 are within operational budget.
+3. Storage: backup/restore and retention policy validated for multi-million-row cadence.
+4. Data quality:
+   - boundary and astrometry confidence flags implemented
+   - multiplicity confidence tiers queryable
+5. Security:
+   - no required insecure transport in default build path
+   - provenance completeness gate enforced
+
+## What We Are Not Doing
+
+- no mutation of canonical astronomy rows by user edits
+- no lore mixed into core or rich scientific derivations
+- no hidden model inference of physical stellar parameters in core
+- no unbounded proximity-based grouping in default production builds
+
+## Documentation Map
+
+- `docs/SCHEMA_CORE.md`: canonical core schema contract
+- `docs/SCHEMA_RICH.md`: derived artifact contract
+- `docs/SCHEMA_LORE.md`: lore contract
+- `docs/DATA_SOURCES.md`: source inventory and retrieval policy
+- `docs/CHECKLIST.md`: executable delivery tracker
+
+## Immediate Next Actions
+
+1. Implement Phase A Gaia backbone pilot ingest and report.
+2. Define and commit `core_product_slice` policy.
+3. Re-run multiplicity comparison modes against Gaia backbone IDs.
+4. Build AT-HYG retirement test matrix and execute side-by-side runs.

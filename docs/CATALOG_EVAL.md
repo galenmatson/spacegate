@@ -1,6 +1,6 @@
-# Catalog Evaluation Workflow
+# Catalog Evaluation Workflow (Gaia-First)
 
-Use `scripts/catalog_eval.sh` to create deterministic sample sets and coverage summaries for candidate source catalogs before changing field precedence.
+Use `scripts/catalog_eval.sh` to create deterministic sample sets and coverage summaries before changing canonical source policy.
 
 Default behavior:
 
@@ -13,12 +13,12 @@ Default behavior:
   - per-catalog `*_random_sample.csv`
   - per-catalog `*_overlap_sample.csv`
 
-Current built-ins:
+Current built-ins include canonical and auxiliary candidates:
 
 - `gaia_dr3_non_single_sample`
 - `gaia_dr3_nss_two_body_sample`
 - `gaia_dr3_sample`
-- `athyg`
+- `athyg` (transitional only)
 - `msc`
 - `nasa_exoplanet_archive`
 - `orb6`
@@ -35,6 +35,7 @@ scripts/fetch_catalog_samples.sh --sample-size 100
 Current overlap target:
 
 - `served/current/core.duckdb` star identifiers and normalized names
+- when Gaia backbone pilots are available, comparisons should prefer Gaia-ID overlap first
 
 Example usage:
 
@@ -57,7 +58,7 @@ Recommended workflow:
 3. Review `summary.md` for coverage and key-overlap counts.
 4. Inspect the random and overlap CSV samples manually.
 5. For multiplicity sources, run `scripts/multiplicity_crossmatch.sh` to distinguish exact-ID overlap from confidence-scored coordinate matches.
-6. Update source precedence only after the comparison notes are written.
+6. Update source precedence only after comparison notes and acceptance rationale are written.
 
 Multiplicity crossmatch example:
 
@@ -69,13 +70,12 @@ scripts/multiplicity_crossmatch.sh --catalog wds --catalog msc --catalog orb6
 Interpretation notes:
 
 - Random sample is deterministic by `sample_key + seed`, so reruns stay comparable.
-- Overlap sample is biased toward rows that intersect current core star identifiers or normalized names.
+- Overlap sample is biased toward rows that intersect current core IDs or normalized names.
 - Lack of overlap does not necessarily mean low quality; it can also indicate missing identifier harmonization or a different object class.
 - `catalog_eval` overlap counts are exact-key only. Coordinate-led multiplicity catalogs such as `WDS` need the separate crossmatch report before they can be judged fairly.
-- As of the March 3, 2026 evaluation pass:
-  - `MSC` and `ORB6` showed strong `HIP/HD` overlap with current core.
-  - `SBX` samples showed strong `Gaia/HIP/HD` overlap and good astrometric coverage.
-  - `WDS` showed broad coverage, but only modest medium/high-confidence coordinate matches against current core.
-- Operational note:
-  - the official `MSC` host currently required an unverified-TLS fallback during sample fetch on proton; treat that as a source-access caveat until a cleaner verified path or mirror is pinned.
-  - current overlap/crossmatch reports were generated against the presently served core build; `scripts/ingest_core.py` now includes an AT-HYG RA-hours-to-degrees fix, so coordinate-led comparisons should be rerun after the next core rebuild.
+- For Gaia-first decisions, prioritize evidence in this order:
+  1. exact Gaia-ID overlap and quality coverage
+  2. deterministic crosswalk overlap (HIP/HD/other stable IDs)
+  3. confidence-scored coordinate overlap
+- Security reminder:
+  - if a source requires insecure transport or unstable routing, treat it as optional/deferred until a verified mirror or integrity path is established.

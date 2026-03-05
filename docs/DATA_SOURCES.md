@@ -1,521 +1,233 @@
-# Data Sources
+# Spacegate Data Sources (Gaia-First)
 
-This document defines **all external data sources** used by the Spacegate project, how they are retrieved, and how they move through the pipeline.
+This document defines active, optional, and transitional data sources for Spacegate.
 
-The goal is strict provenance, reproducibility, and clear separation between:
+It is normative for:
 
-- **what the universe gave us** (`$SPACEGATE_STATE_DIR/raw/`)
-- **what we assembled and normalized** (`$SPACEGATE_STATE_DIR/cooked/`)
-- **what we actively serve and query** (`$SPACEGATE_STATE_DIR/served/`)
-- **what we log and validate** (`$SPACEGATE_STATE_DIR/reports/`)
+- downloader/cooker behavior
+- source provenance requirements
+- security/transport policy
 
-Nothing in this file is aspirational. Everything here reflects current active pipeline behavior.
+## Directory Semantics
 
----
+Within `$SPACEGATE_STATE_DIR`:
 
-## Directory semantics (normative)
+- `raw/`: immutable upstream snapshots
+- `cooked/`: deterministic source-shaped typed outputs
+- `out/<build_id>/`: immutable build artifacts
+- `served/current`: promoted build pointer
+- `reports/manifests/`: source retrieval manifests
+- `reports/<build_id>/`: build QC/provenance reports
 
-### `$SPACEGATE_STATE_DIR/raw/` — immutable inputs
+## Source Classification
 
-**Purpose**: Preserve exact upstream artifacts.
+Each source is classified as one of:
 
-- Files are downloaded verbatim from authoritative sources
-- Never edited by hand
-- Only written by downloader scripts
-- Can always be re-fetched from source URLs
-- `$SPACEGATE_STATE_DIR/raw/` is runtime state and is not tracked in git
+1. `canonical`:
+   - defines canonical inventory fields
+2. `auxiliary`:
+   - enriches IDs, hierarchy, or confidence
+3. `transitional`:
+   - temporary migration support
+4. `deferred`:
+   - intentionally not in default ingest path
 
-```
-data/
-├── raw/
-│   ├── <catalog>/
-```
+## Mandatory Retrieval Metadata
 
-### `$SPACEGATE_STATE_DIR/cooked/` — assembled, normalized, file-based products
+All downloader-manifest entries must include:
 
-**Purpose**: Deterministic preparation for ingestion.
-
-- Built exclusively from `$SPACEGATE_STATE_DIR/raw/`
-- Still catalog-shaped (CSV, FITS-derived tables, etc.)
-- No joins across catalogs
-- No inference or enrichment
-
-Everything in `$SPACEGATE_STATE_DIR/cooked/` is disposable and regenerable.
-
-```
-data/
-├── cooked/
-│   ├── <catalog>/
-```
-
-### `$SPACEGATE_STATE_DIR/served/` — queryable data products
-
-**Purpose**: Efficient consumption.
-
-- Built exclusively from `$SPACEGATE_STATE_DIR/cooked/`
-- Optimized for querying, filtering, joining
-- Used by applications, analysis, visualization
-- `served/current` is a symlink to the promoted `$SPACEGATE_STATE_DIR/out/<build_id>/` directory
-
-Formats include DuckDB and Parquet.
-
-```
-data/
-├── served/
-│   ├── current -> ../out/<build_id>/
-```
-
-### `$SPACEGATE_STATE_DIR/reports/` — logs, QC, and download manifests
-
-**Purpose**: Record download provenance and QC outputs.
-
-- Build reports live under `$SPACEGATE_STATE_DIR/reports/<build_id>/`
-- Download manifests live under `$SPACEGATE_STATE_DIR/reports/manifests/`
-
----
-
-## Manifests
-
-Manifests live in:
-
-```
-$SPACEGATE_STATE_DIR/reports/manifests/
-```
-
-They record **provenance of raw inputs only**.
-
-Each manifest entry contains:
 - `source_name`
 - `url`
 - `dest_path`
 - `retrieved_at`
 - `checked_at`
-- `sha256`
 - `bytes_written`
+- `sha256` and/or integrity equivalent (etag/retrieval tag)
 
-`dest_path` is relative to `$SPACEGATE_STATE_DIR`.
+## Core Canonical Sources
 
-Manifests are rewritten when download scripts are re-run.
+## 1) Gaia DR3 (`gaia_source`)
 
-Manifests are generated locally and are not tracked in git.
+Classification: `canonical`
 
----
+Role:
 
-## Core catalogs (active)
+- canonical star inventory substrate
+- canonical astrometry and photometry fields
 
-These sources are required for active core ingestion unless explicitly disabled by feature flag.
+Required policy:
 
-### 1. AT-HYG (Astronexus HYG / AT-HYG)
+- `<1000 ly` boundary from parallax policy
+- explicit quality tiers (`parallax_over_error`, `ruwe`, etc.)
+- canonical epoch/frame metadata in `build_metadata`
 
-**Authority**: Astronexus / HYG Database
+Source endpoint:
 
-**Raw inputs**:
-- `$SPACEGATE_STATE_DIR/raw/athyg/athyg_v33-1.csv.gz`
-- `$SPACEGATE_STATE_DIR/raw/athyg/athyg_v33-2.csv.gz`
-
-**Source URL**:
-
-- `https://codeberg.org/astronexus/athyg`
-
-**Cooked outputs**:
-- `$SPACEGATE_STATE_DIR/cooked/athyg/athyg.csv.gz` (concatenated, column-normalized)
-
-**Notes**:
-- AT-HYG files are stored via Git LFS on Codeberg; the downloader resolves LFS pointers.
-
-**Format**: gzipped CSV
-
-**Contents**:
-- Stellar positions
-- Distances
-- Identifiers (HIP, HD, Gaia where available)
-- Photometry and spectral types
-
-**Download script**: `scripts/download_core.sh`
-
-**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/core_manifest.json`
-
----
-
-### 2. NASA Exoplanet Archive (TAP export)
-
-**Authority**: NASA Exoplanet Archive
-
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/nasa_exoplanet_archive/pscomppars.csv`
-
-**Source URL**:
-- `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+pscomppars&format=csv`
-
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/nasa_exoplanet_archive/pscomppars_clean.csv`
-
-**Format**: CSV
-
-**Contents**:
-- Confirmed exoplanets
-- Host star identifiers
-- Orbital parameters
-- Planetary mass/radius where available
-
-**Acquisition method**:
-- TAP synchronous query
-- Table: `pscomppars`
-
-**Download script**: `scripts/download_core.sh`
-
-**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/core_manifest.json`
-
----
-
-### 3. Washington Double Star Catalog (WDS)
-
-**Authority**: US Naval Observatory / WDS team
-
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/wds/wdsweb_summ2.txt`
-
-**Source URL**:
-- `https://astro.gsu.edu/wds/wdsweb_summ2.txt`
-
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/wds/wds_summary.csv`
-
-**Role in core**:
-- multiplicity/grouping support (`wds_id` evidence and grouping provenance)
-
-**Download script**: `scripts/download_core.sh`
-
-**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/wds_manifest.json`
-
----
-
-### 4. ORB6 (Sixth Catalog of Orbits of Visual Binary Stars)
-
-**Authority**: USNO / WDS orbit products
-
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/orb6/orb6orbits.sql`
-
-**Source URL**:
-- `https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql`
-
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/orb6/orb6_orbits.csv`
-
-**Role in core**:
-- orbit-quality support evidence for multiplicity confidence/provenance
-
-**Download script**: `scripts/download_core.sh`
-
-**Manifest**: `$SPACEGATE_STATE_DIR/reports/manifests/orb6_manifest.json`
-
----
-
-### 5. Gaia DR3 NSS support extracts (partitioned TAP pulls)
-
-**Authority**: ESA Gaia Archive
-
-**Raw inputs**:
-- `$SPACEGATE_STATE_DIR/raw/gaia_nss/gaia_dr3_non_single_star.csv`
-- `$SPACEGATE_STATE_DIR/raw/gaia_nss/gaia_dr3_nss_two_body_orbit.csv`
-
-**Source URL**:
+- ESA Gaia Archive TAP
 - `https://gea.esac.esa.int/tap-server/tap/sync`
 
-**Cooked outputs**:
-- `$SPACEGATE_STATE_DIR/cooked/gaia_nss/gaia_dr3_non_single_star.csv`
-- `$SPACEGATE_STATE_DIR/cooked/gaia_nss/gaia_dr3_nss_two_body_orbit.csv`
+## 2) NASA Exoplanet Archive (`pscomppars`)
 
-**Role in core**:
-- exact `gaia_id` star-level multiplicity evidence
-- does not directly create hierarchy/system grouping by itself in current pass
+Classification: `canonical` (for current confirmed exoplanet layer)
 
-**Acquisition method**:
-- partitioned TAP sync queries (`MOD(source_id, buckets)`)
-- default local-sphere filter: `parallax >= 3.26156` (about 1000 ly)
+Role:
 
-**Download script**:
-- `scripts/download_core.sh` -> `scripts/fetch_gaia_nss_core.py`
+- planet records and planetary parameters
+- host matching against canonical stars/systems
 
-**Manifest**:
-- `$SPACEGATE_STATE_DIR/reports/manifests/gaia_nss_manifest.json`
+Source endpoint:
 
----
+- `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?...`
 
-## Optional catalogs (packs, v1.2+)
+## Core Auxiliary Multiplicity Sources
 
-### WDS -> Gaia DR3 XMatch crosswalk (experimental)
+## 3) Gaia DR3 NSS support extracts
 
-**Authority**:
-- CDS XMatch service + VizieR catalogs
+Classification: `auxiliary`
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/wds_gaia_xmatch/wds_gaia_best.csv`
+Role:
 
-**Source URLs**:
-- `https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync`
-- cat1: `vizier:B/wds/wds`
-- cat2: `vizier:I/355/gaiadr3`
+- star-level multiplicity evidence
+- hierarchy confidence support
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/wds_gaia_xmatch/wds_gaia_matches.csv`
+Datasets:
 
-**Role in core**:
-- optional exact `gaia_id` -> `wds_id` bridge to enable WDS-linked grouping without MSC insertion
-- still default-off (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`) while quality tradeoffs are quantified
-- when enabled, ingest applies physical-consistency gates before WDS-linked grouping:
-  - `SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY` (default `10.0`)
-  - `SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR` (default `25.0`)
-  - `SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC` (default `2.0`)
+- `non_single_star`
+- `nss_two_body_orbit`
 
-**Download script**:
-- `scripts/download_core.sh` -> `scripts/fetch_wds_gaia_xmatch.py`
+Source endpoint:
 
-**Manifest**:
-- `$SPACEGATE_STATE_DIR/reports/manifests/wds_gaia_xmatch_manifest.json`
+- ESA Gaia Archive TAP
 
-**Quality note**:
-- WDS includes optical pairs and heterogeneous quality; naive grouping from WDS IDs can over-group physically unrelated stars unless parallax/proper-motion consistency gates are applied.
+## 4) WDS (Washington Double Star)
 
----
+Classification: `auxiliary`
 
-### MSC (Tokovinin Multiple Star Catalog)
+Role:
 
-**Status**:
-- approved optional
-- disabled by default (`SPACEGATE_ENABLE_MSC=0`)
-- enabled for comparative hierarchy runs with `SPACEGATE_ENABLE_MSC=1`
+- broad multiplicity evidence and grouping support
 
-**Security / transport note**:
-- historical sample retrieval required an unverified-TLS fallback from the source host.
-- do not make production core builds depend on insecure transport; use only with explicit operator acknowledgement until a verified transport or trusted mirror path is pinned.
+Policy:
 
----
----
+- WDS-based grouping from bridge paths is confidence-gated
+- default production path keeps conservative thresholds
 
-### Variable Stars — AAVSO International Variable Star Index (VSX)
+Source endpoint:
 
-**Authority**: AAVSO
+- USNO/GSU WDS published data
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/vsx/vsx.dat.gz`
+## 5) ORB6
 
-**Source URL**:
-- `ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz` (CDS Mirror)
+Classification: `auxiliary`
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/vsx/variables_classified.csv`
+Role:
 
-**Format**: CSV
+- orbit-quality support evidence for multiplicity confidence
 
-**Contents**:
-- Variability types (Flare stars, Cepheids, Eclipsing Binaries)
-- Periodicity and amplitude
-- "Hazard" metadata for systems
+Source endpoint:
 
----
+- USNO ORB6 export
 
-### Supernova Remnants — Green’s Catalogue of Galactic SNRs
+## Optional/Deferred Multiplicity Sources
 
-**Authority**: MRAO Cambridge (D.A. Green)
+## 6) MSC (Tokovinin Multiple Star Catalog)
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/snr/snrs.list`
+Classification: `auxiliary` (optional, default-off)
 
-**Source URL**:
-- `https://www.mrao.cam.ac.uk/surveys/snrs/snrs.list`
+Role:
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/snr/snr_boundaries.csv`
+- explicit hierarchy candidate source
 
-**Format**: Fixed-width text
+Policy:
 
-**Contents**:
-- Galactic coordinates of supernova remnants
-- Angular size (extent)
-- Type (Shell, Plerion, Composite)
+- keep optional (`SPACEGATE_ENABLE_MSC=1` to enable)
+- quantify contribution in comparison reports
 
----
+Security/transport note:
 
-### Pulsars — ATNF Pulsar Catalogue
+- historical retrieval context requires explicit caution
+- do not make default production path depend on insecure transport
 
-**Authority**: Australia Telescope National Facility (ATNF)
+## Transitional Sources
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/atnf/psrcat_pkg.tar.gz`
+## 7) AT-HYG
 
-**Source URL**:
-- `https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz`
+Classification: `transitional`
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/atnf/pulsars_clean.csv`
+Role:
 
-**Format**: tar.gz package
+- migration compatibility for names/legacy crosswalk ergonomics only
 
-**Contents**:
-- Pulsar positions
-- Periods, derivatives
-- Distance estimates where available
+Not allowed in target state:
 
----
+- AT-HYG defining canonical star inventory existence
 
-### Magnetars — McGill Online Magnetar Catalog
+Retirement condition:
 
-**Authority**: McGill University
+- remove when replacement crosswalk/naming coverage and benchmark quality gates are satisfied.
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/magnetar/TabO1.csv`
+## Deferred Sources
 
-**Source URL**:
-- `http://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv`
+Examples:
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/magnetar/magnetars_clean.csv`
+- BDB/ILB and other non-mirrored high-risk dependencies
 
-**Format**: CSV
+Policy:
 
-**Contents**:
-- Magnetar positions
-- Spin periods and Pdot
-- Distance estimates and references
+- no default dependency on sources lacking stable mirror/integrity strategy
 
----
+## Current Manifest Files
 
-### Ultracool dwarfs — UltracoolSheet
+Typical manifest files:
 
-**Authority**: UltracoolSheet Team
+- `reports/manifests/core_manifest.json`
+- `reports/manifests/gaia_nss_manifest.json`
+- `reports/manifests/wds_manifest.json`
+- `reports/manifests/orb6_manifest.json`
+- `reports/manifests/msc_manifest.json` (when enabled)
+- `reports/manifests/wds_gaia_xmatch_manifest.json` (when enabled)
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/ultracoolsheet/UltracoolSheet - Main.csv`
+## WDS-Gaia Bridge Policy
 
-**Source URL**:
-- `http://bit.ly/UltracoolSheet` (Redirects to Google Sheet export)
+Bridge source:
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/ultracoolsheet/ultracool_main_clean.csv`
+- CDS XMatch (`vizier:B/wds/wds` -> `vizier:I/355/gaiadr3`)
 
-**Format**: CSV
+Classification: `auxiliary` (optional/default-off)
 
-**Contents**:
-- Ultracool dwarf astrometry
-- Photometry
-- Spectral types
-- Binarity and references
+Grouping policy:
 
----
+- multi-member WDS groups must pass physical consistency gates before grouping:
+  - distance spread threshold
+  - proper-motion spread threshold
+  - angular distance threshold
 
-### Gaia ultracool dwarf sample (CDS / A&A)
+This path remains optional while false-positive/false-negative tradeoffs are actively tuned.
 
-**Authority**: CDS / Gaia Collaboration
+## Security Requirements
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/gaia_ucd/table4.dat.gz`
+1. Source integrity evidence must be recorded in manifests.
+2. If transport is insecure or unreliable, source must be optional or mirrored.
+3. Production default ingest must avoid fragile/insecure dependencies.
+4. License and redistribution constraints must be documented per source family.
 
-**Source URL**:
-- `ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/657/A69/table4.dat.gz`
+## Provenance Expectations by Build
 
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/gaia_ucd/gaia_ucd_clean.csv`
+Each served row in `core` must map back to source lineage:
 
-**Format**: fixed-width text table
+- source family
+- source version snapshot
+- retrieval metadata
+- transform version
 
-**Contents**:
-- Gaia DR3 ultracool dwarf sample
-- Gaia source identifiers
+Any missing required provenance is a build failure.
 
----
+## Notes on Storage Planning
 
-### White dwarfs — Gaia EDR3 WD Catalogue (Gentile Fusillo et al. 2021)
+Gaia-first builds at `<1000 ly` are multi-million-row scale.
 
-**Authority**: University of Warwick / MNRAS
+Operational expectations:
 
-**Raw input**:
-- `$SPACEGATE_STATE_DIR/raw/white_dwarf/gaiaedr3_wd_main.fits.gz`
-
-**Source URL**:
-- `https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz`
-
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/white_dwarf/white_dwarfs_clean.csv`
-
-**Format**: FITS
-
-**Contents**:
-- Gaia EDR3 white dwarf candidates
-- Astrometry and photometry
-
----
-
-### DwarfArchives (conditional)
-
-**Authority**: DwarfArchives.org
-
-**Raw input (when enabled)**:
-- `$SPACEGATE_STATE_DIR/raw/dwarfarchives/dwarfarchives.data`
-
-**Source URL**:
-- `http://dwarfarchives.org/` (Requires scraping)
-
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/dwarfarchives/dwarfarchives_parsed.csv`
-
-**Format**: upstream-defined
-
-**Notes**:
-- Download controlled by environment variable
-- Treated as opaque raw blob
-
----
-
-### CatWISE2020 full tiles (conditional, large)
-
-**Authority**: IPAC / IRSA
-
-**Raw inputs**:
-- `$SPACEGATE_STATE_DIR/raw/catwise_full/<tile>/*.tbl.gz`
-
-**Source URL**:
-- `https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/catwise_2020.html` (Base URL for file list)
-
-**Cooked output**:
-- `$SPACEGATE_STATE_DIR/cooked/catwise_full/catwise_detections.parquet` (Partitioned by tile)
-
-**Format**: gzipped IPAC tables
-
-**Contents**:
-- CatWISE2020 survey detections
-
-**Notes**:
-- Tile URLs provided via external list file
-- Not deduplicated into objects at raw stage
-
----
-
-## Download workflow
-
-### Catalog Script
-
-- Catalogs: `scripts/catalogs.sh`
-
-Scripts features:
-- Selection menu for catalogs to download or update
-- Use `aria2c` for resumable, parallel downloads
-- Show concurrent status
-- Display status with common catalog name, not URL
-- Verify byte counts
-- Compute SHA-256 hashes
-- Write manifest entries
-- Log begin/end, error, complete, totals, etc. to `$SPACEGATE_STATE_DIR/logs/catalogs.log`
-
----
-
-## Invariants (non-negotiable)
-
-- `$SPACEGATE_STATE_DIR/raw/` is immutable
-- `$SPACEGATE_STATE_DIR/cooked/` is fully disposable
-- `$SPACEGATE_STATE_DIR/served/` depends only on `$SPACEGATE_STATE_DIR/cooked/` (via promoted `$SPACEGATE_STATE_DIR/out/<build_id>/` builds)
-- No manual edits to `$SPACEGATE_STATE_DIR/raw/`
-- Download provenance manifests live in `$SPACEGATE_STATE_DIR/reports/manifests/`
-
-If a file violates these rules, it is in the wrong directory.
+- plan storage for backbone + product slice + reports + backups
+- avoid root-disk-bound state paths for large runs
+- keep retention policy explicit (build count, backup cadence, archive compression)
