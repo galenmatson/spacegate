@@ -1199,6 +1199,11 @@ Current working multiplicity stack for implementation planning:
 - Grouping provenance remains explicit and ordered:
   - grouping precedence is still `WDS -> name-root -> (optional) proximity`.
   - Gaia NSS currently contributes star-level multiplicity evidence and system-level evidence rollup (`has_gaia_nss_evidence`), not direct hierarchy grouping.
+- Optional experimental WDS->Gaia bridge now exists (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`):
+  - source is CDS XMatch (`vizier:B/wds/wds` -> `vizier:I/355/gaiadr3`) with best-match output cooked into `wds_gaia_matches.csv`.
+  - pilot all-sky run produced `140,365` best matches (`140,364` cooked unique rows).
+  - pilot ingest (`NSS on`, `MSC off`, `WDS_GAIA_XMATCH on`) mapped `31,941` stars to WDS IDs and raised WDS-grouped multi-star systems (`58 -> 473`).
+  - this remains nondefault because WDS still includes many optical/non-bound associations; additional parallax/proper-motion consistency gating is required before treating this as canonical hierarchy evidence.
 - `MSC` remains approved optional and default-off:
   - enabled only with `SPACEGATE_ENABLE_MSC=1`.
   - this keeps public/default builds conservative while preserving hierarchy enrichment paths for comparative runs.

@@ -245,6 +245,37 @@ These sources are required for active core ingestion unless explicitly disabled 
 
 ## Optional catalogs (packs, v1.2+)
 
+### WDS -> Gaia DR3 XMatch crosswalk (experimental)
+
+**Authority**:
+- CDS XMatch service + VizieR catalogs
+
+**Raw input**:
+- `$SPACEGATE_STATE_DIR/raw/wds_gaia_xmatch/wds_gaia_best.csv`
+
+**Source URLs**:
+- `https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync`
+- cat1: `vizier:B/wds/wds`
+- cat2: `vizier:I/355/gaiadr3`
+
+**Cooked output**:
+- `$SPACEGATE_STATE_DIR/cooked/wds_gaia_xmatch/wds_gaia_matches.csv`
+
+**Role in core**:
+- optional exact `gaia_id` -> `wds_id` bridge to enable WDS-linked grouping without MSC insertion
+- intentionally default-off until quality gates are tightened (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`)
+
+**Download script**:
+- `scripts/download_core.sh` -> `scripts/fetch_wds_gaia_xmatch.py`
+
+**Manifest**:
+- `$SPACEGATE_STATE_DIR/reports/manifests/wds_gaia_xmatch_manifest.json`
+
+**Quality note**:
+- WDS includes optical pairs and heterogeneous quality; naive grouping from WDS IDs can over-group physically unrelated stars unless parallax/proper-motion consistency gates are applied.
+
+---
+
 ### MSC (Tokovinin Multiple Star Catalog)
 
 **Status**:
@@ -257,7 +288,6 @@ These sources are required for active core ingestion unless explicitly disabled 
 - do not make production core builds depend on insecure transport; use only with explicit operator acknowledgement until a verified transport or trusted mirror path is pinned.
 
 ---
-
 ---
 
 ### Variable Stars — AAVSO International Variable Star Index (VSX)

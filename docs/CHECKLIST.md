@@ -121,6 +121,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Implement multiplicity grouping provenance scaffolding (`WDS`/`ORB6` active; `MSC` optional and disabled by default)
 - [x] Add Gaia NSS core ingest path (download manifest + cooked normalization + star-level merge)
 - [x] Add four-mode multiplicity contribution report (`baseline`, `NSS only`, `MSC only`, `NSS+MSC`)
+- [x] Add optional WDS->Gaia XMatch bridge scaffold (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`, default-off)
 - [ ] Implement additional catalog / pack ingestion pipelines
 - [ ] Produce pack QC reports + manifests
 - [ ] Reconcile grouping/host-matching for benchmark systems after catalog expansion
