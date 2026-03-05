@@ -21,6 +21,8 @@ COORDINATE_EPOCH = "J2016.0"
 COORDINATE_FRAME = "ICRS"
 GAIA_NSS_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 GAIA_NSS_VERSION = "dr3_tap_partitioned_parallax_gte_3.26156"
+WDS_GAIA_XMATCH_URL = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync"
+WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
 MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
 MSC_VERSION = "2024-01-01"
 PROX_MAX_DIST_LY = 0.25
@@ -352,6 +354,7 @@ def main() -> int:
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
     enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
+    enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
@@ -359,12 +362,14 @@ def main() -> int:
     cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
     cooked_gaia_nss_non_single = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_non_single_star.csv"
     cooked_gaia_nss_two_body = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv"
+    cooked_wds_gaia_xmatch = state_dir / "cooked" / "wds_gaia_xmatch" / "wds_gaia_matches.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     manifest_path = manifest_dir / "core_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     orb6_manifest_path = manifest_dir / "orb6_manifest.json"
     gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
+    wds_gaia_xmatch_manifest_path = manifest_dir / "wds_gaia_xmatch_manifest.json"
 
     if not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
@@ -380,6 +385,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked Gaia NSS non_single_star: {cooked_gaia_nss_non_single}")
     if enable_gaia_nss and not cooked_gaia_nss_two_body.exists():
         raise SystemExit(f"Missing cooked Gaia NSS two_body: {cooked_gaia_nss_two_body}")
+    if enable_wds_gaia_xmatch and not cooked_wds_gaia_xmatch.exists():
+        raise SystemExit(f"Missing cooked WDS-Gaia XMatch: {cooked_wds_gaia_xmatch}")
 
     log("Ingest core start")
     manifest: dict[str, dict] = {}
@@ -388,6 +395,8 @@ def main() -> int:
         manifest_paths.append(msc_manifest_path)
     if enable_gaia_nss:
         manifest_paths.append(gaia_nss_manifest_path)
+    if enable_wds_gaia_xmatch:
+        manifest_paths.append(wds_gaia_xmatch_manifest_path)
     for path in manifest_paths:
         manifest.update(load_manifest(path))
 
@@ -490,6 +499,11 @@ def main() -> int:
         if enable_gaia_nss
         else None
     )
+    wds_gaia_xmatch_manifest = (
+        require_manifest_entry(manifest, "wds_gaia_xmatch_best", "WDS Gaia XMatch best")
+        if enable_wds_gaia_xmatch
+        else None
+    )
 
     athyg_p1_url = athyg_p1.get("url", "https://codeberg.org/astronexus/athyg")
     athyg_p2_url = athyg_p2.get("url", "https://codeberg.org/astronexus/athyg")
@@ -527,6 +541,12 @@ def main() -> int:
     gaia_nss_two_body_retrieved = (
         gaia_nss_two_body_manifest.get("retrieved_at") if gaia_nss_two_body_manifest else None
     )
+    wds_gaia_xmatch_sha = (
+        wds_gaia_xmatch_manifest.get("sha256") if wds_gaia_xmatch_manifest else None
+    )
+    wds_gaia_xmatch_retrieved = (
+        wds_gaia_xmatch_manifest.get("retrieved_at") if wds_gaia_xmatch_manifest else None
+    )
 
     athyg_path = str(cooked_athyg).replace("'", "''")
     log("Loading cooked AT-HYG")
@@ -551,6 +571,7 @@ def main() -> int:
     orb6_path = str(cooked_orb6).replace("'", "''")
     gaia_nss_non_single_path = str(cooked_gaia_nss_non_single).replace("'", "''")
     gaia_nss_two_body_path = str(cooked_gaia_nss_two_body).replace("'", "''")
+    wds_gaia_xmatch_path = str(cooked_wds_gaia_xmatch).replace("'", "''")
 
     log("Loading cooked multiplicity catalogs")
     con.execute(
@@ -685,6 +706,43 @@ def main() -> int:
               source_id, nss_solution_type, ra_deg, dec_deg, parallax_mas, parallax_error_mas, pm_ra_mas_yr,
               pm_dec_mas_yr, period_days, eccentricity, center_of_mass_velocity_kms, semi_amplitude_primary_kms,
               mass_ratio, inclination_deg, flags, significance
+            )
+            where false
+            """
+        )
+    if enable_wds_gaia_xmatch:
+        con.execute(
+            f"""
+            create or replace temp view wds_gaia_xmatch_raw as
+            select * from read_csv_auto('{wds_gaia_xmatch_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view wds_gaia_xmatch_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              wds_id, component, gaia_id, ang_dist_arcsec, obs_last_year, pa_last_deg, sep_last_arcsec,
+              mag_primary, mag_secondary, wds_raj2000, wds_dej2000, gaia_dr3_name, gaia_ra_deg, gaia_dec_deg,
+              gaia_plx_mas, gaia_pmra_mas_yr, gaia_pmdec_mas_yr, gaia_ruwe, gaia_gmag
             )
             where false
             """
@@ -980,6 +1038,43 @@ def main() -> int:
         """
     )
     con.execute(
+        """
+        create or replace temp view wds_gaia_star_map as
+        with base as (
+          select
+            cast(nullif(gaia_id, '') as bigint) as gaia_id,
+            nullif(wds_id, '') as wds_id,
+            nullif(component, '') as component,
+            cast(nullif(ang_dist_arcsec, '') as double) as ang_dist_arcsec
+          from wds_gaia_xmatch_raw
+          where cast(nullif(gaia_id, '') as bigint) is not null
+            and nullif(wds_id, '') is not null
+            and cast(nullif(ang_dist_arcsec, '') as double) is not null
+            and cast(nullif(ang_dist_arcsec, '') as double) <= 2.0
+        ), agg as (
+          select gaia_id, count(distinct wds_id) as wds_count
+          from base
+          group by gaia_id
+        ), ranked as (
+          select
+            b.*,
+            row_number() over (
+              partition by b.gaia_id
+              order by b.ang_dist_arcsec asc, b.wds_id asc, coalesce(b.component, '') asc
+            ) as rn
+          from base b
+        )
+        select
+          r.gaia_id,
+          r.wds_id,
+          r.component as wds_component,
+          r.ang_dist_arcsec
+        from ranked r
+        join agg a using (gaia_id)
+        where r.rn = 1 and a.wds_count = 1
+        """
+    )
+    con.execute(
         f"""
         create or replace temp view final_star_rows as
         with athyg_final as (
@@ -989,7 +1084,7 @@ def main() -> int:
             a.stable_object_key,
             a.star_name,
             a.star_name_norm,
-            coalesce(a.component, m.msc_component) as component,
+            coalesce(a.component, m.msc_component, w.wds_component) as component,
             a.system_name_root,
             a.system_name_root_norm,
             a.ra_deg,
@@ -1015,16 +1110,24 @@ def main() -> int:
             a.gaia_id,
             a.hip_id,
             a.hd_id,
-            m.wds_id,
+            coalesce(m.wds_id, w.wds_id) as wds_id,
             case
               when n.gaia_id is not null and t.gaia_id is not null and m.wds_id is not null then 'gaia_nss_two_body+' || coalesce(m.match_method, 'msc')
+              when n.gaia_id is not null and t.gaia_id is not null and m.wds_id is null and w.wds_id is not null then 'gaia_nss_two_body+wds_gaia_xmatch'
               when n.gaia_id is not null and m.wds_id is not null then 'gaia_nss+' || coalesce(m.match_method, 'msc')
+              when n.gaia_id is not null and m.wds_id is null and w.wds_id is not null then 'gaia_nss+wds_gaia_xmatch'
+              when t.gaia_id is not null and m.wds_id is null and w.wds_id is not null then 'gaia_nss_two_body+wds_gaia_xmatch'
+              when m.wds_id is null and w.wds_id is not null then 'wds_gaia_xmatch'
               when t.gaia_id is not null then 'gaia_nss_two_body'
               when n.gaia_id is not null then 'gaia_nss'
               else coalesce(m.match_method, 'athyg_only')
             end as multiplicity_match_method,
             greatest(
               coalesce(m.match_confidence, 0.0),
+              case
+                when w.wds_id is not null then 0.90
+                else 0.0
+              end,
               case
                 when t.gaia_id is not null then 0.99
                 when n.gaia_id is not null then 0.96
@@ -1033,12 +1136,16 @@ def main() -> int:
             ) as multiplicity_match_confidence,
             case
               when n.gaia_id is not null and t.gaia_id is not null and m.wds_id is not null then '["gaia_nss","gaia_nss_two_body","msc"]'
+              when n.gaia_id is not null and t.gaia_id is not null and m.wds_id is null and w.wds_id is not null then '["gaia_nss","gaia_nss_two_body","wds_gaia_xmatch"]'
               when n.gaia_id is not null and t.gaia_id is not null then '["gaia_nss","gaia_nss_two_body"]'
               when n.gaia_id is not null and m.wds_id is not null then '["gaia_nss","msc"]'
+              when n.gaia_id is not null and m.wds_id is null and w.wds_id is not null then '["gaia_nss","wds_gaia_xmatch"]'
               when t.gaia_id is not null and m.wds_id is not null then '["gaia_nss_two_body","msc"]'
+              when t.gaia_id is not null and m.wds_id is null and w.wds_id is not null then '["gaia_nss_two_body","wds_gaia_xmatch"]'
               when t.gaia_id is not null then '["gaia_nss_two_body"]'
               when n.gaia_id is not null then '["gaia_nss"]'
               when m.wds_id is not null then '["msc"]'
+              when w.wds_id is not null then '["wds_gaia_xmatch"]'
               else '[]'
             end as multiplicity_source_catalogs_json,
             coalesce(n.gaia_id is not null, false) as gaia_non_single_star,
@@ -1053,8 +1160,8 @@ def main() -> int:
               'gl', a.gl_id,
               'tyc', a.tyc_id,
               'hyg', a.hyg_id,
-              'wds', m.wds_id,
-              'wds_component', m.msc_component
+              'wds', coalesce(m.wds_id, w.wds_id),
+              'wds_component', coalesce(m.msc_component, w.wds_component)
             ) as catalog_ids_json,
             'athyg' as source_catalog,
             'v3.3' as source_version,
@@ -1074,6 +1181,7 @@ def main() -> int:
             {sql_literal(transform_version)} as transform_version
           from athyg_stars_stage a
           left join msc_exact_matches m on m.athyg_row_id = a.athyg_row_id
+          left join wds_gaia_star_map w on w.gaia_id = a.gaia_id
           left join gaia_nss_non_single n on n.gaia_id = a.gaia_id
           left join gaia_nss_two_body_agg t on t.gaia_id = a.gaia_id
         ), msc_only as (
@@ -1750,12 +1858,16 @@ def main() -> int:
     gaia_nss_two_body_star_count = con.execute(
         "select count(*) from stars where coalesce(gaia_nss_solution_count, 0) > 0"
     ).fetchone()[0]
+    wds_gaia_xmatch_star_count = con.execute(
+        "select count(*) from stars where multiplicity_match_method like '%wds_gaia_xmatch%'"
+    ).fetchone()[0]
 
     system_grouping_report = {
         "build_id": build_id,
         "proximity_enabled": proximity_enabled,
         "msc_enabled": enable_msc,
         "gaia_nss_enabled": enable_gaia_nss,
+        "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "wds_group_count": wds_group_count,
         "name_group_count": name_group_count,
         "proximity_group_count": prox_group_count,
@@ -1766,9 +1878,15 @@ def main() -> int:
         "gaia_nss_star_count": gaia_nss_star_count,
         "gaia_nss_system_count": gaia_nss_system_count,
         "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
+        "wds_gaia_xmatch_star_count": wds_gaia_xmatch_star_count,
         "proximity_pairs_processed": pair_count,
         "notes": [
             "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
+            (
+                "WDS-Gaia XMatch evidence is enabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1)."
+                if enable_wds_gaia_xmatch
+                else "WDS-Gaia XMatch evidence is disabled by default (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
+            ),
             (
                 "Gaia NSS star-level multiplicity evidence is active in this build."
                 if enable_gaia_nss
@@ -2071,6 +2189,8 @@ def main() -> int:
         provenance_report["gaia_nss_non_single_star"] = gaia_nss_non_single_manifest
     if gaia_nss_two_body_manifest:
         provenance_report["gaia_nss_two_body_orbit"] = gaia_nss_two_body_manifest
+    if wds_gaia_xmatch_manifest:
+        provenance_report["wds_gaia_xmatch_best"] = wds_gaia_xmatch_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
@@ -2131,9 +2251,11 @@ def main() -> int:
         "build_id": build_id,
         "counts": {"stars": counts[0], "systems": counts[1], "planets": counts[2]},
         "gaia_nss_enabled": enable_gaia_nss,
+        "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "gaia_nss_star_count": gaia_nss_star_count,
         "gaia_nss_system_count": gaia_nss_system_count,
         "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
+        "wds_gaia_xmatch_star_count": wds_gaia_xmatch_star_count,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -2146,6 +2268,11 @@ def main() -> int:
         },
         "notes": [
             "System grouping uses WDS-linked multiplicity first, then name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
+            (
+                "WDS-Gaia XMatch evidence enabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1)."
+                if enable_wds_gaia_xmatch
+                else "WDS-Gaia XMatch evidence disabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
+            ),
             (
                 "Gaia NSS star-level multiplicity evidence enabled (SPACEGATE_ENABLE_GAIA_NSS!=0)."
                 if enable_gaia_nss

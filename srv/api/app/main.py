@@ -1572,7 +1572,7 @@ def admin_home(request: Request):
           <li><strong>Preview</strong>: auto-refreshed summary from the latest run output; no manual preview action needed.</li>
           <li><strong>Run</strong>: writes rich ranking outputs (`rich.duckdb`, Parquet, report) for the current build using your current sliders, but does not persist a new profile version.</li>
           <li><strong>Save Profile</strong>: stores the current slider mix as an immutable profile version, without activating it.</li>
-          <li><strong>Activate Profile</strong>: points the active profile to a saved immutable version.</li>
+          <li><strong>Activate Profile</strong>: saves current weights as an immutable version (auto-bumping version if needed) and then activates that saved version.</li>
           <li>Core astronomy data is not modified by coolness tuning.</li>
           <li>Profiles are immutable by version: changed weights require a new profile version.</li>
         </ul>
@@ -1583,7 +1583,7 @@ def admin_home(request: Request):
       </div>
       <div class="section">
         <h2>Tuning Preview</h2>
-        <p class="muted">Adjust weights with sliders, run read-only preview, use Run for ephemeral scoring, Save Profile when you want to persist, and Activate Profile when you want that version live.</p>
+        <p class="muted">Adjust weights with sliders, run read-only preview, use Run for ephemeral scoring, Save Profile when you want to persist, and Activate Profile to save current edits then switch that version live.</p>
         <div class="grid coolness-layout">
           <div class="action-card">
             <h3>Weight Controls</h3>
@@ -2014,18 +2014,19 @@ def admin_home(request: Request):
 	        setPreviewNotice(`Scoring job ${{jobId}} completed. Preview is temporarily busy; retry in a few seconds.`);
 	      }}
 
-	      async function followSaveProfileJob(jobId, profileId, profileVersion) {{
+	      async function followSaveProfileJob(jobId, profileId, profileVersion, options = undefined) {{
+	        const suppressSuccessNotice = !!(options && options.suppressSuccessNotice);
 	        const waitResult = await waitForJobTerminal(jobId);
 	        await loadJobs();
         if (!waitResult.ok) {{
           if (waitResult.reason === 'timeout') {{
             setRunStatus('running', `save job ${{jobId}} still in progress`);
             setPreviewNotice(`Save job ${{jobId}} is still running. Check Activity > Jobs.`);
-            return;
+            return {{ ok: false, reason: 'timeout' }};
           }}
           setRunStatus('error', `save job ${{jobId}} status unavailable`);
           setPreviewNotice(`Could not fetch status for save job ${{jobId}}. Check Activity > Jobs.`);
-          return;
+          return {{ ok: false, reason: 'status_unavailable' }};
         }}
 	        const finalJob = waitResult.job || {{}};
 	        const finalStatus = String(finalJob.status || '');
@@ -2061,7 +2062,7 @@ def admin_home(request: Request):
 	          }} else {{
 	            setPreviewNotice(`Save job ${{jobId}} finished with status '${{finalStatus}}'. Check Activity > Jobs log.`);
 	          }}
-	          return;
+	          return {{ ok: false, reason: 'job_failed', status: finalStatus, hint: failureHint }};
 	        }}
         await loadCoolnessState({{ preserveEditor: true, suppressNotice: true }});
         renderSavedProfilesOptions();
@@ -2069,13 +2070,16 @@ def admin_home(request: Request):
           coolSavedProfilesEl.value = profileOptionValue(profileId, profileVersion);
         }}
         setRunStatus('saved', `${{profileId}}@${{profileVersion}}`);
-	        setPreviewNotice(
-	          `Saved immutable profile ${{profileId}}@${{profileVersion}}. It is stored but not active; active profile remains ${{
-	            String((activeCoolnessPointer || {{}}).profile_id || (activeCoolnessProfile || {{}}).profile_id || 'n/a')
-          }}@${{
-            String((activeCoolnessPointer || {{}}).profile_version || (activeCoolnessProfile || {{}}).profile_version || 'n/a')
-          }}.`
-	        );
+	        if (!suppressSuccessNotice) {{
+	          setPreviewNotice(
+	            `Saved immutable profile ${{profileId}}@${{profileVersion}}. It is stored but not active; active profile remains ${{
+	              String((activeCoolnessPointer || {{}}).profile_id || (activeCoolnessProfile || {{}}).profile_id || 'n/a')
+            }}@${{
+              String((activeCoolnessPointer || {{}}).profile_version || (activeCoolnessProfile || {{}}).profile_version || 'n/a')
+            }}.`
+	          );
+	        }}
+	        return {{ ok: true, profileId, profileVersion }};
 	      }}
 
 	      async function followActivateProfileJob(jobId, profileId, profileVersion) {{
@@ -2755,7 +2759,9 @@ def admin_home(request: Request):
         void followActionJob(jobId, snapshotRunStatusEl, 'generate_snapshots');
       }}
 
-      async function saveCoolnessProfile() {{
+      async function saveCoolnessProfileInternal(options = undefined) {{
+        const forActivation = !!(options && options.forActivation);
+        const suppressSavedNotice = !!(options && options.suppressSavedNotice);
         setRunStatus('saving', 'persisting immutable profile');
         if (!Array.isArray(coolnessProfiles) || !coolnessProfiles.length) {{
           await loadCoolnessState({{ preserveEditor: true }});
@@ -2797,48 +2803,54 @@ def admin_home(request: Request):
           profile_id: profileId,
           profile_version: profileVersion,
           weights_json: JSON.stringify(currentCoolnessWeights),
-          notes: 'saved from admin coolness tuning',
+          notes: forActivation ? 'saved+activated from admin coolness tuning' : 'saved from admin coolness tuning',
         }});
         if (!saveResult || !saveResult.ok) {{
           setRunStatus('error', 'save failed');
           setPreviewNotice('Save failed. Pick a new profile version and retry.');
-          return;
+          return {{ ok: false, reason: 'save_start_failed' }};
         }}
         const job = (saveResult.data && saveResult.data.job) || {{}};
         const jobId = String(job.job_id || '');
         if (!jobId) {{
           setRunStatus('queued', 'save job created');
+          if (forActivation) {{
+            setPreviewNotice('Save job queued but no job ID was returned; cannot continue with activation automatically.');
+            return {{ ok: false, reason: 'save_job_id_missing' }};
+          }}
           setPreviewNotice('Save job queued. Check Activity > Jobs for completion.');
-          return;
+          return {{ ok: true, profileId, profileVersion, queued: true }};
         }}
         setRunStatus('queued', `save job ${{jobId}}`);
         setPreviewNotice(`Save job ${{jobId}} queued. Waiting for completion...`);
         await loadJobs();
-	        await followSaveProfileJob(jobId, profileId, profileVersion);
+	        return await followSaveProfileJob(jobId, profileId, profileVersion, {{
+            suppressSuccessNotice: suppressSavedNotice,
+          }});
+	      }}
+
+      async function saveCoolnessProfile() {{
+        await saveCoolnessProfileInternal({{
+          forActivation: false,
+          suppressSavedNotice: false,
+        }});
 	      }}
 
 	      async function activateCoolnessProfile() {{
-	        setRunStatus('activating', 'updating active profile');
-	        if (!Array.isArray(coolnessProfiles) || !coolnessProfiles.length) {{
-	          await loadCoolnessState({{ preserveEditor: true }});
-	        }}
-	        const normalized = normalizeProfileFields();
-	        let profileId = normalized.profileId;
-	        let profileVersion = normalized.profileVersion;
-	        if (!profileId || !profileVersion) {{
-	          const selected = splitProfileOptionValue(coolSavedProfilesEl ? coolSavedProfilesEl.value : '');
-	          if (!profileId) profileId = selected[0];
-	          if (!profileVersion) profileVersion = selected[1];
-	        }}
-	        if (!profileId || !profileVersion) {{
-	          setRunStatus('error', 'activate failed');
-	          setPreviewNotice('Activate failed: choose a saved profile (ID + version) first.');
+	        setRunStatus('activating', 'saving profile before activation');
+	        const saveOutcome = await saveCoolnessProfileInternal({{
+            forActivation: true,
+            suppressSavedNotice: true,
+          }});
+	        if (!saveOutcome || !saveOutcome.ok) {{
 	          return;
 	        }}
+	        const profileId = String(saveOutcome.profileId || '');
+	        const profileVersion = String(saveOutcome.profileVersion || '');
 	        const profile = findCoolnessProfile(profileId, profileVersion);
 	        if (!profile) {{
 	          setRunStatus('error', 'activate failed');
-	          setPreviewNotice(`Activate failed: saved profile ${{profileId}}@${{profileVersion}} was not found.`);
+	          setPreviewNotice(`Activate failed: saved profile ${{profileId}}@${{profileVersion}} is not visible yet. Refresh and retry.`);
 	          return;
 	        }}
 	        coolProfileIdEl.value = profileId;

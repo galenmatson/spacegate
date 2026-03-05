@@ -503,6 +503,76 @@ def cook_gaia_nss_two_body(raw_path: Path, cooked_path: Path) -> int:
     return line_count
 
 
+def cook_wds_gaia_xmatch(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    line_count = 0
+    seen: set[tuple[str, str, int]] = set()
+    with raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        reader = csv.DictReader(in_f)
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "wds_id",
+                "component",
+                "gaia_id",
+                "ang_dist_arcsec",
+                "obs_last_year",
+                "pa_last_deg",
+                "sep_last_arcsec",
+                "mag_primary",
+                "mag_secondary",
+                "wds_raj2000",
+                "wds_dej2000",
+                "gaia_dr3_name",
+                "gaia_ra_deg",
+                "gaia_dec_deg",
+                "gaia_plx_mas",
+                "gaia_pmra_mas_yr",
+                "gaia_pmdec_mas_yr",
+                "gaia_ruwe",
+                "gaia_gmag",
+            ],
+        )
+        writer.writeheader()
+        for row in reader:
+            wds_id = str(row.get("WDS", "")).strip()
+            component = str(row.get("Comp", "")).strip()
+            gaia_id = parse_int(row.get("Source", ""))
+            if not wds_id or gaia_id is None:
+                continue
+            key = (wds_id, component, gaia_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            writer.writerow(
+                {
+                    "wds_id": wds_id,
+                    "component": component,
+                    "gaia_id": gaia_id,
+                    "ang_dist_arcsec": parse_float(row.get("angDist", "")),
+                    "obs_last_year": parse_int(row.get("Obs2", "")),
+                    "pa_last_deg": parse_float(row.get("pa2", "")),
+                    "sep_last_arcsec": parse_float(row.get("sep2", "")),
+                    "mag_primary": parse_float(row.get("mag1", "")),
+                    "mag_secondary": parse_float(row.get("mag2", "")),
+                    "wds_raj2000": str(row.get("RAJ2000", "")).strip(),
+                    "wds_dej2000": str(row.get("DEJ2000", "")).strip(),
+                    "gaia_dr3_name": str(row.get("DR3Name", "")).strip(),
+                    "gaia_ra_deg": parse_float(row.get("RAdeg", "")),
+                    "gaia_dec_deg": parse_float(row.get("DEdeg", "")),
+                    "gaia_plx_mas": parse_float(row.get("Plx", "")),
+                    "gaia_pmra_mas_yr": parse_float(row.get("pmRA", "")),
+                    "gaia_pmdec_mas_yr": parse_float(row.get("pmDE", "")),
+                    "gaia_ruwe": parse_float(row.get("RUWE", "")),
+                    "gaia_gmag": parse_float(row.get("Gmag", "")),
+                }
+            )
+            line_count += 1
+    return line_count
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
@@ -524,6 +594,12 @@ def main() -> int:
             raw_dir / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv",
             cooked_dir / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv",
             cook_gaia_nss_two_body,
+        ),
+        (
+            "wds_gaia_xmatch",
+            raw_dir / "wds_gaia_xmatch" / "wds_gaia_best.csv",
+            cooked_dir / "wds_gaia_xmatch" / "wds_gaia_matches.csv",
+            cook_wds_gaia_xmatch,
         ),
     ]
 

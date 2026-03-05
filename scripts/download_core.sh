@@ -30,5 +30,13 @@ if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
 else
   echo "Skip Gaia NSS fetch (SPACEGATE_ENABLE_GAIA_NSS=0)."
 fi
+if [[ "${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}" == "1" ]]; then
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_wds_gaia_xmatch.py" \
+    --dist-max-arcsec "${SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC:-2.0}" \
+    --selection "${SPACEGATE_WDS_GAIA_XMATCH_SELECTION:-best}" \
+    --max-rec "${SPACEGATE_WDS_GAIA_XMATCH_MAX_REC:-2000000}"
+else
+  echo "Skip WDS Gaia XMatch fetch (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
+fi
 echo "Download complete."
 echo "Next: scripts/cook_core.sh to normalize catalogs."

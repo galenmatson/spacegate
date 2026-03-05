@@ -98,6 +98,14 @@ For multiplicity contribution analysis across four build modes (`baseline`, `NSS
 scripts/run_multiplicity_modes.sh
 ```
 
+Optional experimental WDS->Gaia crosswalk (for WDS-linked grouping without MSC):
+
+```bash
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/download_core.sh --non-interactive
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/cook_core.sh
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/ingest_core.sh
+```
+
 To fetch the currently published prebuilt DB manually:
 
 ```bash
@@ -227,11 +235,17 @@ export SPACEGATE_DUCKDB_THREADS=4
 export SPACEGATE_ENABLE_GAIA_NSS=1
 export SPACEGATE_ENABLE_MSC=0
 export SPACEGATE_ENABLE_PROXIMITY=0
+export SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 
 # Gaia NSS fetch tuning (download_core.sh)
 export SPACEGATE_GAIA_NSS_BUCKETS=7
 export SPACEGATE_GAIA_NSS_TIMEOUT_S=240
 export SPACEGATE_GAIA_NSS_RETRIES=4
+
+# Optional WDS->Gaia crosswalk via CDS XMatch (download_core.sh)
+export SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC=2.0
+export SPACEGATE_WDS_GAIA_XMATCH_SELECTION=best
+export SPACEGATE_WDS_GAIA_XMATCH_MAX_REC=2000000
 
 # Core DB bootstrap controls
 export SPACEGATE_BOOTSTRAP_DB=0
@@ -257,6 +271,7 @@ SPACEGATE_LOG_DIR=/data/spacegate/data/logs
 SPACEGATE_ENABLE_PROXIMITY=0
 SPACEGATE_ENABLE_GAIA_NSS=1
 SPACEGATE_ENABLE_MSC=0
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 SPACEGATE_GAIA_NSS_BUCKETS=7
 SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 SPACEGATE_DUCKDB_THREADS=12
