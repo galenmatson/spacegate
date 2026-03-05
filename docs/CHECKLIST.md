@@ -4,7 +4,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ## A) Platform Foundations
 
-- [x] Core/rich/lore schema split documented
+- [x] Core/bulge/disc/rim layer model documented (legacy aliases retained during transition)
 - [x] Immutable build output model (`out/<build_id>`, promoted `served/current`)
 - [x] Deterministic `download -> cook -> ingest -> promote -> verify` scripts
 - [x] Provenance gate and QC report emission
@@ -29,6 +29,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Core schema contract rewritten for Gaia-first canonical inventory
 - [x] Data source policy rewritten with canonical/auxiliary/transitional classes
 - [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
+- [ ] Bulge (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
 - [ ] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot
@@ -79,4 +80,4 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Factsheets + exposition generation with confidence metadata
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
 - [ ] 3D map runtime integration over Gaia-first slice
-- [ ] Lore/worldbuilding overlay expansion without core contamination
+- [ ] Rim/worldbuilding overlay expansion without core contamination

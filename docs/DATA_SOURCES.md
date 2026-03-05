@@ -19,6 +19,20 @@ Within `$SPACEGATE_STATE_DIR`:
 - `reports/manifests/`: source retrieval manifests
 - `reports/<build_id>/`: build QC/provenance reports
 
+## Layer Terminology
+
+Spacegate layer names:
+
+- `core`: canonical immutable astronomy inventory
+- `bulge`: immutable supplemental science artifacts (legacy alias: `aux`)
+- `disc`: reproducible derived artifacts (legacy alias: `rich`)
+- `rim`: editable worldbuilding overlays (legacy alias: `lore`)
+
+Compatibility note:
+
+- current runtime artifact names still use legacy `rich`/`lore` paths in several scripts.
+- naming migration should preserve backward compatibility until scripts/services are fully moved.
+
 ## Source Classification
 
 Each source is classified as one of:

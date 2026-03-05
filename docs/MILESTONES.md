@@ -6,8 +6,8 @@ Authoritative architecture and contracts remain in:
 
 - `docs/PROJECT.md`
 - `docs/SCHEMA_CORE.md`
-- `docs/SCHEMA_RICH.md`
-- `docs/SCHEMA_LORE.md`
+- `docs/SCHEMA_RICH.md` (disc contract; legacy filename)
+- `docs/SCHEMA_LORE.md` (rim contract; legacy filename)
 
 ## North-Star Product Intent
 
@@ -43,10 +43,10 @@ Fiction overlays are first-class product features, but must remain fully separat
 1. Gaia-first canonical core
 2. Deterministic product slice and API performance
 3. Multiplicity hierarchy reliability
-4. Rich factual layer (scores/facts/links)
+4. Disc factual layer (scores/facts/links)
 5. Visual storytelling (snapshots + generated imagery)
 6. 3D runtime and deep navigation
-7. Lore/worldbuilding tooling
+7. Rim/worldbuilding tooling
 8. Community/engagement overlays
 
 Downstream milestones must not bypass upstream quality gates.
@@ -178,7 +178,7 @@ Success criteria:
 - objective parity/improvement gates pass
 - no production dependency on AT-HYG for canonical rows
 
-### M6. External Links and Factual Rich Layer
+### M6. External Links and Factual Disc Layer
 
 Goal:
 
@@ -241,7 +241,7 @@ Success criteria:
 - interactive performance on mid-tier consumer hardware
 - stable object selection and context handoff to detail views
 
-### M9. Lore and Worldbuilding Tooling
+### M9. Rim and Worldbuilding Tooling
 
 Goal:
 
@@ -253,7 +253,7 @@ Dependencies:
 
 Deliverables:
 
-- lore namespace/entity tooling
+- rim namespace/entity tooling
 - map-editable overlay primitives:
   - trade lanes
   - spacegate links
@@ -263,7 +263,7 @@ Deliverables:
 Success criteria:
 
 - strict data-layer separation enforced
-- lore operations do not mutate core/rich canonical science rows
+- rim operations do not mutate core/disc canonical science rows
 
 ### M10. Engagement and Community Overlay
 
@@ -314,7 +314,7 @@ These are preserved product ideas from earlier planning notes, reordered by like
   - trade lanes
   - imperial borders/spheres
   - infrastructure/megaproject annotations
-- free-floating lore entities not anchored to real objects
+- free-floating rim entities not anchored to real objects
 
 ### Restored Concept Notes (Curated from Prior Backlog)
 
@@ -336,7 +336,7 @@ These are preserved product ideas from earlier planning notes, reordered by like
   - confidence/accuracy badge on every generated artifact
   - prompt/provenance tooltip visibility
   - optional popularity ranking in non-canonical experience layers
-- Worldbuilding object examples to retain in lore layer planning:
+- Worldbuilding object examples to retain in rim layer planning:
   - solar collectors
   - foundries
   - shipyards

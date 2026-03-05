@@ -10,8 +10,9 @@ Scope:
 
 Out of scope:
 
-- generated exposition/images (`SCHEMA_RICH.md`)
-- editable fiction/worldbuilding overlays (`SCHEMA_LORE.md`)
+- generated exposition/images (`SCHEMA_RICH.md`, disc layer)
+- editable fiction/worldbuilding overlays (`SCHEMA_LORE.md`, rim layer)
+- immutable supplemental science side tables (bulge layer)
 
 ## Artifact Contract
 
@@ -114,7 +115,7 @@ Hard constraints:
 
 ### Stable object keys
 
-Required for cross-dataset joins (`core`/`rich`/`lore`) and rebuild continuity.
+Required for cross-dataset joins (`core`/`disc`/`rim`) and rebuild continuity.
 
 Star key priority:
 

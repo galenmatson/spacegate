@@ -1,12 +1,13 @@
-# Spacegate Rich Schema
+# Spacegate Disc Schema (Legacy Filename: SCHEMA_RICH)
 
 This document is the source of truth for Spacegate's **derived astronomy artifacts**.
-Rich data is reproducible and regenerated from core/packs; it is not edited in place.
+Disc data is reproducible and regenerated from core/bulge/packs; it is not edited in place.
+The runtime still uses legacy `rich` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
-- `docs/SCHEMA_RICH.md`: derived artifacts for ranking, UX, and enrichment (this document)
-- `docs/SCHEMA_LORE.md`: editable fictional overlays
+- `docs/SCHEMA_RICH.md`: disc artifacts for ranking, UX, and enrichment (this document)
+- `docs/SCHEMA_LORE.md`: rim overlays
 
 ## Purpose and Boundaries
 
@@ -16,14 +17,14 @@ Purpose:
 - Provide references and generated content manifests (`snapshot_manifest`, `factsheets`, `expositions`)
 
 Hard constraints:
-- Rich must never overwrite or alter core rows.
-- Rich rows must be reproducible from explicit inputs and versions.
+- Disc must never overwrite or alter core rows.
+- Disc rows must be reproducible from explicit inputs and versions.
 - Cultural/fictional metadata must not alter scientific core values.
 
 ## Primary Artifacts
 
-- `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb`
-- `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb` (legacy path; disc layer artifact)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet` (legacy path; disc layer artifacts)
 - Snapshot/image assets under:
   - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/...`
   - `$SPACEGATE_STATE_DIR/out/<build_id>/images/...`
@@ -31,7 +32,7 @@ Hard constraints:
 ## Key Contracts and Type Normalization
 
 Required cross-dataset join key:
-- `stable_object_key TEXT` (required on all object-scoped rich rows)
+- `stable_object_key TEXT` (required on all object-scoped disc rows)
 
 Build/version keys:
 - `build_id TEXT` (required)
@@ -39,11 +40,11 @@ Build/version keys:
 
 ID normalization:
 - Core surrogate IDs (`system_id`, `star_id`, `planet_id`) are `BIGINT`.
-- If denormalized into rich, keep them `BIGINT`.
+- If denormalized into disc, keep them `BIGINT`.
 - For cross-build stability and cross-database joins, use `stable_object_key` as canonical.
 
 Rule:
-- If both `system_id` and `stable_object_key` are present in a rich row, they must refer to the same core object for that `build_id`.
+- If both `system_id` and `stable_object_key` are present in a disc row, they must refer to the same core object for that `build_id`.
 
 ## Implementation Status
 
@@ -199,6 +200,6 @@ Required columns:
 
 ## Invariants
 
-- Rich tables are append/regenerate artifacts, not manual-edit datasets.
+- Disc tables are append/regenerate artifacts, not manual-edit datasets.
 - Any logic change that affects outputs must bump `generator_version`.
-- Every rich row must be attributable to a build and generation method.
+- Every disc row must be attributable to a build and generation method.

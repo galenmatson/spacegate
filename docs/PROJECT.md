@@ -30,12 +30,13 @@ Reason:
 3. Deterministic builds and deterministic promotion.
 4. Clear layer boundaries:
    - `core`: immutable science
-   - `rich`: reproducible derivatives
-   - `lore`: editable fiction
+   - `bulge`: immutable supplemental science (observational side tables outside core hot paths)
+   - `disc`: reproducible derivatives
+   - `rim`: editable fiction
 5. Explicit confidence for joins/groupings; avoid silent inference.
 6. Security-first ingestion: no required insecure transport dependencies.
 
-## Data Layers
+## Data Layers (`core` / `bulge` / `disc` / `rim`)
 
 ### Core (immutable astronomy)
 Authoritative tables for search and API:
@@ -45,9 +46,16 @@ Authoritative tables for search and API:
 - `planets`
 - `build_metadata`
 
-Core must remain free of generated prose/images/lore.
+Core must remain free of generated prose/images/rim overlays.
 
-### Rich (rebuildable derived artifacts)
+### Bulge (immutable supplemental science)
+
+- observational/support datasets that are still scientific and provenance-bound
+- examples: variability families, dense diagnostics, and other non-hot-path science tables
+
+Bulge rows follow the same immutability and provenance rules as core, but are separated to keep core performant.
+
+### Disc (rebuildable derived artifacts)
 
 - coolness scoring
 - snapshots
@@ -55,10 +63,18 @@ Core must remain free of generated prose/images/lore.
 - external links
 - optional neighbor graph
 
-Rich is always regenerable from core plus pinned generators.
+Disc is always regenerable from core/bulge plus pinned generators.
 
-### Lore (editable overlays)
+### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
+
+### Compatibility aliases (transition period)
+
+- `aux` -> `bulge`
+- `rich` -> `disc`
+- `lore` -> `rim`
+
+Script/file names may continue using legacy `rich`/`lore` terms until runtime migration is complete.
 
 ## Gaia-First Architecture
 
@@ -254,15 +270,15 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 ## What We Are Not Doing
 
 - no mutation of canonical astronomy rows by user edits
-- no lore mixed into core or rich scientific derivations
+- no rim mixed into core or disc scientific derivations
 - no hidden model inference of physical stellar parameters in core
 - no unbounded proximity-based grouping in default production builds
 
 ## Documentation Map
 
 - `docs/SCHEMA_CORE.md`: canonical core schema contract
-- `docs/SCHEMA_RICH.md`: derived artifact contract
-- `docs/SCHEMA_LORE.md`: lore contract
+- `docs/SCHEMA_RICH.md`: disc contract (legacy filename retained)
+- `docs/SCHEMA_LORE.md`: rim contract (legacy filename retained)
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/CHECKLIST.md`: executable delivery tracker
 - `docs/MILESTONES.md`: dependency-ordered roadmap, restored ideation backlog, and long-range goals

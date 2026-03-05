@@ -1,12 +1,13 @@
-# Spacegate Lore Schema
+# Spacegate Rim Schema (Legacy Filename: SCHEMA_LORE)
 
 This document defines Spacegate's **editable fictional overlay schema**.
-Lore data is intentionally separate from core science and rich derived artifacts.
+Rim data is intentionally separate from core science and disc derived artifacts.
+The runtime still uses legacy `lore` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
-- `docs/SCHEMA_RICH.md`: reproducible derived artifacts
-- `docs/SCHEMA_LORE.md`: editable fictional/user-authored overlays (this document)
+- `docs/SCHEMA_RICH.md`: reproducible disc artifacts
+- `docs/SCHEMA_LORE.md`: editable fictional/user-authored rim overlays (this document)
 
 ## Purpose and Boundaries
 
@@ -16,30 +17,30 @@ Purpose:
 - Support optional cultural/franchise overlays
 
 Hard constraints:
-- Lore must never modify scientific values in core.
-- Lore may reference core objects, but core remains authoritative.
-- Lore must be optional to load/render.
+- Rim must never modify scientific values in core.
+- Rim may reference core objects, but core remains authoritative.
+- Rim must be optional to load/render.
 
 ## Primary Artifacts
 
 Recommended:
-- `$SPACEGATE_STATE_DIR/out/<build_id>/lore.duckdb`
-- Optional export: `$SPACEGATE_STATE_DIR/out/<build_id>/lore/*.parquet`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/lore.duckdb` (legacy path; rim layer artifact)
+- Optional export: `$SPACEGATE_STATE_DIR/out/<build_id>/lore/*.parquet` (legacy path; rim layer artifacts)
 
 ## Key Contracts and Type Normalization
 
 Canonical object reference key:
-- `stable_object_key TEXT` (matches core/rich exactly; no rewriting)
+- `stable_object_key TEXT` (matches core/disc exactly; no rewriting)
 
 Namespace isolation key:
-- `namespace TEXT` (required for all editable lore rows)
+- `namespace TEXT` (required for all editable rim rows)
 
 Version/build keys:
 - `build_id TEXT` for build-bound overlays
 - `updated_at TIMESTAMP` for edit history
 
 ID normalization:
-- Local lore entity IDs use `BIGINT` surrogate keys.
+- Local rim entity IDs use `BIGINT` surrogate keys.
 - Cross-database joins should use `stable_object_key`.
 
 ## Tables
@@ -95,7 +96,7 @@ Optional cultural/franchise references.
 |-------------------|-----------|-------------|
 | lore_reference_id | BIGINT    | Surrogate primary key |
 | namespace         | TEXT      | Namespace |
-| stable_object_key | TEXT      | Core/rich object reference |
+| stable_object_key | TEXT      | Core/disc object reference |
 | reference_type    | TEXT      | franchise, film, novel, game |
 | source_name       | TEXT      | Franchise/source name |
 | description       | TEXT      | Lore text |
@@ -110,6 +111,6 @@ Constraints:
 
 ## Invariants
 
-- Lore datasets are editable and namespace-scoped.
-- Lore rendering can be toggled off without impacting core or rich behavior.
-- Any lore import pipeline must preserve provenance (`source`, `pack_id`, `citation_url`).
+- Rim datasets are editable and namespace-scoped.
+- Rim rendering can be toggled off without impacting core or disc behavior.
+- Any rim import pipeline must preserve provenance (`source`, `pack_id`, `citation_url`).
