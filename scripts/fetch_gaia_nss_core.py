@@ -16,7 +16,7 @@ from pathlib import Path
 GAIA_TAP_SYNC_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 DEFAULT_MIN_PARALLAX_MAS = 3.26156
-DEFAULT_BUCKETS = 8
+DEFAULT_BUCKETS = 7
 DEFAULT_TIMEOUT_S = 240
 DEFAULT_RETRIES = 4
 

@@ -23,7 +23,7 @@ fi
 "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
 if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_nss_core.py" \
-    --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-8}" \
+    --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-7}" \
     --min-parallax-mas "${SPACEGATE_GAIA_NSS_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_NSS_TIMEOUT_S:-240}" \
     --retries "${SPACEGATE_GAIA_NSS_RETRIES:-4}"
