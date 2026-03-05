@@ -144,6 +144,7 @@ Fallback hash input (deterministic):
 Systems are logical groupings of stars. Aggregation is performed during ingestion:
 
 1. **WDS-linked Grouping:** Stars carrying the same `wds_id` are grouped first when approved multiplicity catalogs provide an explicit relationship key (for example MSC or optional WDS->Gaia bridge evidence).
+   - For WDS->Gaia bridge evidence, grouping is gated by physical-consistency thresholds on multi-member WDS groups (distance spread + proper-motion spread) before `wds_id` is accepted as a grouping key.
 2. **Name-based Grouping:** Remaining stars sharing a `proper_name` root (e.g., "Sirius A", "Sirius B") are grouped.
 3. **Proximity-based Grouping:** Remaining stars within **0.25 ly** (~3000 AU) are grouped if they do not already share an explicit multiplicity or name grouping.
    - This grouping is transitive (A near B, B near C ⇒ A/B/C grouped).

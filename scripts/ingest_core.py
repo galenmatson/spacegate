@@ -28,6 +28,9 @@ MSC_VERSION = "2024-01-01"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
+WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT = 2.0
+WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
+WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
 
 
 def log(message: str) -> None:
@@ -236,6 +239,19 @@ def sql_literal(value: str | None) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def parse_positive_float_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (expected positive float)") from exc
+    if value <= 0:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (must be > 0)")
+    return value
+
+
 class UnionFind:
     def __init__(self) -> None:
         self.parent: dict[int, int] = {}
@@ -355,6 +371,18 @@ def main() -> int:
     enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
     enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
+    wds_gaia_match_max_arcsec = parse_positive_float_env(
+        "SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC",
+        WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT,
+    )
+    wds_gaia_gate_max_dist_spread_ly = parse_positive_float_env(
+        "SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY",
+        WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT,
+    )
+    wds_gaia_gate_max_pm_delta_mas_yr = parse_positive_float_env(
+        "SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR",
+        WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT,
+    )
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
@@ -472,7 +500,10 @@ def main() -> int:
           ('morton_max_abs_ly', {sql_literal(str(MORTON_MAX_ABS_LY))}),
           ('morton_scale', {sql_literal(str(MORTON_SCALE))}),
           ('morton_quantization', {sql_literal('round((coord + max_abs) * scale), clamp to [0,N]')}),
-          ('morton_frame', {sql_literal('heliocentric_ly')})
+          ('morton_frame', {sql_literal('heliocentric_ly')}),
+          ('wds_gaia_match_max_arcsec', {sql_literal(str(wds_gaia_match_max_arcsec))}),
+          ('wds_gaia_gate_max_dist_spread_ly', {sql_literal(str(wds_gaia_gate_max_dist_spread_ly))}),
+          ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))})
         """
     )
 
@@ -1038,22 +1069,112 @@ def main() -> int:
         """
     )
     con.execute(
-        """
-        create or replace temp view wds_gaia_star_map as
+        f"""
+        create or replace temp view wds_gaia_candidates as
         with base as (
           select
             cast(nullif(gaia_id, '') as bigint) as gaia_id,
             nullif(wds_id, '') as wds_id,
             nullif(component, '') as component,
-            cast(nullif(ang_dist_arcsec, '') as double) as ang_dist_arcsec
+            cast(nullif(ang_dist_arcsec, '') as double) as ang_dist_arcsec,
+            cast(nullif(gaia_plx_mas, '') as double) as gaia_plx_mas,
+            cast(nullif(gaia_pmra_mas_yr, '') as double) as gaia_pmra_mas_yr,
+            cast(nullif(gaia_pmdec_mas_yr, '') as double) as gaia_pmdec_mas_yr
           from wds_gaia_xmatch_raw
           where cast(nullif(gaia_id, '') as bigint) is not null
             and nullif(wds_id, '') is not null
             and cast(nullif(ang_dist_arcsec, '') as double) is not null
-            and cast(nullif(ang_dist_arcsec, '') as double) <= 2.0
+            and cast(nullif(ang_dist_arcsec, '') as double) <= {wds_gaia_match_max_arcsec}
+        )
+        select * from base
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view wds_gaia_unique as
+        with ranked as (
+          select
+            c.*,
+            row_number() over (
+              partition by c.wds_id, c.gaia_id
+              order by c.ang_dist_arcsec asc, coalesce(c.component, '') asc
+            ) as rn
+          from wds_gaia_candidates c
+        )
+        select
+          gaia_id,
+          wds_id,
+          component,
+          ang_dist_arcsec,
+          gaia_plx_mas,
+          gaia_pmra_mas_yr,
+          gaia_pmdec_mas_yr
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
+        f"""
+        create or replace temp view wds_gaia_group_gate as
+        with ast as (
+          select
+            u.wds_id,
+            u.gaia_id,
+            case
+              when u.gaia_plx_mas is not null and u.gaia_plx_mas > 0
+                then (1000.0 / u.gaia_plx_mas) * {PC_TO_LY}
+              else null
+            end as dist_ly,
+            u.gaia_pmra_mas_yr as pmra_mas_yr,
+            u.gaia_pmdec_mas_yr as pmdec_mas_yr
+          from wds_gaia_unique u
         ), agg as (
+          select
+            wds_id,
+            count(*)::bigint as matched_member_count,
+            sum(case when dist_ly is not null then 1 else 0 end)::bigint as dist_member_count,
+            sum(case when pmra_mas_yr is not null and pmdec_mas_yr is not null then 1 else 0 end)::bigint as pm_member_count,
+            min(dist_ly) as dist_min_ly,
+            max(dist_ly) as dist_max_ly,
+            case
+              when min(dist_ly) is not null and max(dist_ly) is not null then max(dist_ly) - min(dist_ly)
+              else null
+            end as dist_spread_ly,
+            min(pmra_mas_yr) as pmra_min_mas_yr,
+            max(pmra_mas_yr) as pmra_max_mas_yr,
+            min(pmdec_mas_yr) as pmdec_min_mas_yr,
+            max(pmdec_mas_yr) as pmdec_max_mas_yr,
+            case
+              when min(pmra_mas_yr) is not null and max(pmra_mas_yr) is not null
+               and min(pmdec_mas_yr) is not null and max(pmdec_mas_yr) is not null
+              then sqrt(
+                (max(pmra_mas_yr) - min(pmra_mas_yr)) * (max(pmra_mas_yr) - min(pmra_mas_yr)) +
+                (max(pmdec_mas_yr) - min(pmdec_mas_yr)) * (max(pmdec_mas_yr) - min(pmdec_mas_yr))
+              )
+              else null
+            end as pm_vector_spread_mas_yr
+          from ast
+          group by wds_id
+        )
+        select
+          *,
+          case
+            when matched_member_count < 2 then true
+            when dist_member_count < 2 then false
+            when pm_member_count < 2 then false
+            when coalesce(dist_spread_ly, 1e18) > {wds_gaia_gate_max_dist_spread_ly} then false
+            when coalesce(pm_vector_spread_mas_yr, 1e18) > {wds_gaia_gate_max_pm_delta_mas_yr} then false
+            else true
+          end as physical_group_pass
+        from agg
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view wds_gaia_star_map_pregate as
+        with agg as (
           select gaia_id, count(distinct wds_id) as wds_count
-          from base
+          from wds_gaia_unique
           group by gaia_id
         ), ranked as (
           select
@@ -1062,7 +1183,7 @@ def main() -> int:
               partition by b.gaia_id
               order by b.ang_dist_arcsec asc, b.wds_id asc, coalesce(b.component, '') asc
             ) as rn
-          from base b
+          from wds_gaia_unique b
         )
         select
           r.gaia_id,
@@ -1072,6 +1193,19 @@ def main() -> int:
         from ranked r
         join agg a using (gaia_id)
         where r.rn = 1 and a.wds_count = 1
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view wds_gaia_star_map as
+        select
+          p.gaia_id,
+          p.wds_id,
+          p.wds_component,
+          p.ang_dist_arcsec
+        from wds_gaia_star_map_pregate p
+        left join wds_gaia_group_gate g using (wds_id)
+        where coalesce(g.physical_group_pass, true)
         """
     )
     con.execute(
@@ -1861,6 +1995,46 @@ def main() -> int:
     wds_gaia_xmatch_star_count = con.execute(
         "select count(*) from stars where multiplicity_match_method like '%wds_gaia_xmatch%'"
     ).fetchone()[0]
+    wds_gaia_xmatch_pregate_mapping_count = con.execute(
+        "select count(*) from wds_gaia_star_map_pregate"
+    ).fetchone()[0]
+    wds_gaia_xmatch_postgate_mapping_count = con.execute(
+        "select count(*) from wds_gaia_star_map"
+    ).fetchone()[0]
+    wds_gaia_xmatch_rejected_mapping_count = (
+        wds_gaia_xmatch_pregate_mapping_count - wds_gaia_xmatch_postgate_mapping_count
+    )
+    wds_gaia_gate_candidate_group_count = con.execute(
+        "select count(*) from wds_gaia_group_gate where matched_member_count >= 2"
+    ).fetchone()[0]
+    wds_gaia_gate_pass_group_count = con.execute(
+        "select count(*) from wds_gaia_group_gate where matched_member_count >= 2 and physical_group_pass"
+    ).fetchone()[0]
+    wds_gaia_gate_rejected_group_count = (
+        wds_gaia_gate_candidate_group_count - wds_gaia_gate_pass_group_count
+    )
+    wds_gaia_gate_dist_reject_group_count = con.execute(
+        f"""
+        select count(*)
+        from wds_gaia_group_gate
+        where matched_member_count >= 2
+          and (
+            dist_member_count < 2
+            or coalesce(dist_spread_ly, 1e18) > {wds_gaia_gate_max_dist_spread_ly}
+          )
+        """
+    ).fetchone()[0]
+    wds_gaia_gate_pm_reject_group_count = con.execute(
+        f"""
+        select count(*)
+        from wds_gaia_group_gate
+        where matched_member_count >= 2
+          and (
+            pm_member_count < 2
+            or coalesce(pm_vector_spread_mas_yr, 1e18) > {wds_gaia_gate_max_pm_delta_mas_yr}
+          )
+        """
+    ).fetchone()[0]
 
     system_grouping_report = {
         "build_id": build_id,
@@ -1868,6 +2042,9 @@ def main() -> int:
         "msc_enabled": enable_msc,
         "gaia_nss_enabled": enable_gaia_nss,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
+        "wds_gaia_match_max_arcsec": wds_gaia_match_max_arcsec,
+        "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
+        "wds_gaia_gate_max_pm_delta_mas_yr": wds_gaia_gate_max_pm_delta_mas_yr,
         "wds_group_count": wds_group_count,
         "name_group_count": name_group_count,
         "proximity_group_count": prox_group_count,
@@ -1879,11 +2056,19 @@ def main() -> int:
         "gaia_nss_system_count": gaia_nss_system_count,
         "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
         "wds_gaia_xmatch_star_count": wds_gaia_xmatch_star_count,
+        "wds_gaia_xmatch_pregate_mapping_count": wds_gaia_xmatch_pregate_mapping_count,
+        "wds_gaia_xmatch_postgate_mapping_count": wds_gaia_xmatch_postgate_mapping_count,
+        "wds_gaia_xmatch_rejected_mapping_count": wds_gaia_xmatch_rejected_mapping_count,
+        "wds_gaia_gate_candidate_group_count": wds_gaia_gate_candidate_group_count,
+        "wds_gaia_gate_pass_group_count": wds_gaia_gate_pass_group_count,
+        "wds_gaia_gate_rejected_group_count": wds_gaia_gate_rejected_group_count,
+        "wds_gaia_gate_dist_reject_group_count": wds_gaia_gate_dist_reject_group_count,
+        "wds_gaia_gate_pm_reject_group_count": wds_gaia_gate_pm_reject_group_count,
         "proximity_pairs_processed": pair_count,
         "notes": [
             "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
             (
-                "WDS-Gaia XMatch evidence is enabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1)."
+                "WDS-Gaia XMatch evidence is enabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1); grouping requires physical consistency gate pass for multi-member WDS groups."
                 if enable_wds_gaia_xmatch
                 else "WDS-Gaia XMatch evidence is disabled by default (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
             ),
@@ -2256,6 +2441,14 @@ def main() -> int:
         "gaia_nss_system_count": gaia_nss_system_count,
         "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
         "wds_gaia_xmatch_star_count": wds_gaia_xmatch_star_count,
+        "wds_gaia_xmatch_pregate_mapping_count": wds_gaia_xmatch_pregate_mapping_count,
+        "wds_gaia_xmatch_postgate_mapping_count": wds_gaia_xmatch_postgate_mapping_count,
+        "wds_gaia_xmatch_rejected_mapping_count": wds_gaia_xmatch_rejected_mapping_count,
+        "wds_gaia_gate_candidate_group_count": wds_gaia_gate_candidate_group_count,
+        "wds_gaia_gate_pass_group_count": wds_gaia_gate_pass_group_count,
+        "wds_gaia_gate_rejected_group_count": wds_gaia_gate_rejected_group_count,
+        "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
+        "wds_gaia_gate_max_pm_delta_mas_yr": wds_gaia_gate_max_pm_delta_mas_yr,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -2269,7 +2462,7 @@ def main() -> int:
         "notes": [
             "System grouping uses WDS-linked multiplicity first, then name-root, then optional proximity grouping for remaining stars (SPACEGATE_ENABLE_PROXIMITY=1).",
             (
-                "WDS-Gaia XMatch evidence enabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1)."
+                "WDS-Gaia XMatch evidence enabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1) with physical consistency gating on multi-member WDS groups."
                 if enable_wds_gaia_xmatch
                 else "WDS-Gaia XMatch evidence disabled (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
             ),

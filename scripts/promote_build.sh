@@ -18,6 +18,7 @@ Usage:
   scripts/promote_build.sh [BUILD_ID]
 
 If BUILD_ID is not provided, the latest $SPACEGATE_STATE_DIR/out/* directory (by name sort) is promoted.
+By default this also runs coolness scoring for the promoted build; set SPACEGATE_AUTO_SCORE_COOLNESS=0 to skip.
 USAGE
 }
 
@@ -72,6 +73,7 @@ require_artifacts() {
 }
 
 main() {
+  local auto_score_coolness="${SPACEGATE_AUTO_SCORE_COOLNESS:-1}"
   local build_id="${1:-}"
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
@@ -98,6 +100,12 @@ main() {
   ln -sfn "$rel_target" "$SERVED_DIR/current"
 
   printf 'Promoted build %s -> %s/current (%s)\n' "$build_id" "$SERVED_DIR" "$rel_target"
+  if [[ "$auto_score_coolness" == "1" ]]; then
+    echo "Running coolness scoring for promoted build: $build_id"
+    "$ROOT_DIR/scripts/score_coolness.sh" score --build-id "$build_id"
+  else
+    echo "Skipping auto coolness scoring (SPACEGATE_AUTO_SCORE_COOLNESS=$auto_score_coolness)"
+  fi
   echo "Next: scripts/verify_build.sh to validate the promoted build."
 }
 

@@ -1202,8 +1202,17 @@ Current working multiplicity stack for implementation planning:
 - Optional experimental WDS->Gaia bridge now exists (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`):
   - source is CDS XMatch (`vizier:B/wds/wds` -> `vizier:I/355/gaiadr3`) with best-match output cooked into `wds_gaia_matches.csv`.
   - pilot all-sky run produced `140,365` best matches (`140,364` cooked unique rows).
-  - pilot ingest (`NSS on`, `MSC off`, `WDS_GAIA_XMATCH on`) mapped `31,941` stars to WDS IDs and raised WDS-grouped multi-star systems (`58 -> 473`).
-  - this remains nondefault because WDS still includes many optical/non-bound associations; additional parallax/proper-motion consistency gating is required before treating this as canonical hierarchy evidence.
+  - pre-gate pilot ingest (`NSS on`, `MSC off`, `WDS_GAIA_XMATCH on`) mapped `31,941` stars to WDS IDs and raised multi-star systems (`58 -> 473`, `+415`).
+  - ingest now enforces physical-consistency gating on multi-member WDS groups before grouping:
+    - max group distance spread (default `10.0 ly`)
+    - max group proper-motion vector spread (default `25 mas/yr`)
+    - max accepted WDS->Gaia angular match distance (default `2.0 arcsec`)
+  - gate thresholds are configurable via:
+    - `SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY`
+    - `SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR`
+    - `SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC`
+  - current gated proton run (`2026-03-05T192500Z_nss_wdsgaia_gate`) maps `30,702` stars and yields multi-star systems `58 -> 230` (`+172`) while rejecting `2,813 / 3,264` candidate multi-member WDS groups at gate.
+  - this path remains nondefault while we continue quantifying residual false-positive/false-negative tradeoffs.
 - `MSC` remains approved optional and default-off:
   - enabled only with `SPACEGATE_ENABLE_MSC=1`.
   - this keeps public/default builds conservative while preserving hierarchy enrichment paths for comparative runs.

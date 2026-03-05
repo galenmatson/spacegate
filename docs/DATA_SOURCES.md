@@ -263,7 +263,11 @@ These sources are required for active core ingestion unless explicitly disabled 
 
 **Role in core**:
 - optional exact `gaia_id` -> `wds_id` bridge to enable WDS-linked grouping without MSC insertion
-- intentionally default-off until quality gates are tightened (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`)
+- still default-off (`SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1`) while quality tradeoffs are quantified
+- when enabled, ingest applies physical-consistency gates before WDS-linked grouping:
+  - `SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY` (default `10.0`)
+  - `SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR` (default `25.0`)
+  - `SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC` (default `2.0`)
 
 **Download script**:
 - `scripts/download_core.sh` -> `scripts/fetch_wds_gaia_xmatch.py`

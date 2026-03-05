@@ -34,6 +34,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] Provenance QC gate (hard-fail on missing required fields)
 - [x] Build metadata table recorded in core.duckdb
 - [x] System grouping: name-root + optional proximity (gated by `SPACEGATE_ENABLE_PROXIMITY=1`)
+- [x] WDS->Gaia grouping gate: enforce physical consistency thresholds (distance/proper-motion) before WDS-based grouping
 - [x] Lockfile to prevent concurrent ingest
 - [x] Atomic build output staging (`$SPACEGATE_STATE_DIR/out/<build_id>.tmp/` → `$SPACEGATE_STATE_DIR/out/<build_id>/`)
 
@@ -43,6 +44,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 - [x] `$SPACEGATE_STATE_DIR/reports/<build_id>/` generated (QC, provenance, match, grouping)
 - [x] Promotion script `scripts/promote_build.sh`
 - [x] `$SPACEGATE_STATE_DIR/served/current` points to promoted build
+- [x] Promote flow auto-refreshes coolness scores by default (opt-out: `SPACEGATE_AUTO_SCORE_COOLNESS=0`)
 
 ## Tooling & Exploration
 - [x] CLI explorer `scripts/explore_core.py`

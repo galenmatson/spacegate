@@ -106,6 +106,8 @@ SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/cook_core.sh
 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/ingest_core.sh
 ```
 
+When enabled, ingest applies physical-consistency gates to multi-member WDS groups before using them for system grouping.
+
 To fetch the currently published prebuilt DB manually:
 
 ```bash
@@ -237,6 +239,9 @@ export SPACEGATE_ENABLE_MSC=0
 export SPACEGATE_ENABLE_PROXIMITY=0
 export SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 
+# Auto-score coolness after promote_build.sh (default on)
+export SPACEGATE_AUTO_SCORE_COOLNESS=1
+
 # Gaia NSS fetch tuning (download_core.sh)
 export SPACEGATE_GAIA_NSS_BUCKETS=7
 export SPACEGATE_GAIA_NSS_TIMEOUT_S=240
@@ -246,6 +251,11 @@ export SPACEGATE_GAIA_NSS_RETRIES=4
 export SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC=2.0
 export SPACEGATE_WDS_GAIA_XMATCH_SELECTION=best
 export SPACEGATE_WDS_GAIA_XMATCH_MAX_REC=2000000
+
+# WDS->Gaia ingest-time gating (ingest_core.py)
+export SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC=2.0
+export SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY=10.0
+export SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR=25.0
 
 # Core DB bootstrap controls
 export SPACEGATE_BOOTSTRAP_DB=0
