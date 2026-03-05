@@ -1229,6 +1229,59 @@ Current working multiplicity stack for implementation planning:
 - Coordinate/proximity grouping is still available, but benchmark builds on proton keep `SPACEGATE_ENABLE_PROXIMITY=0` while v1.2 multiplicity hierarchy work is being tightened.
   
   
+### Gaia-first core architecture proposal (March 5, 2026)
+Decision intent: shift from an AT-HYG-anchored core to a Gaia-anchored backbone, while preserving Spacegate's deterministic build/report model and practical UI performance.
+
+Measured Gaia DR3 scope for `<1000 ly` (`parallax >= 3.26156 mas`, queried March 5, 2026):
+- raw candidate stars: `17,785,548`
+- `parallax_over_error >= 5`: `9,188,313`
+- `parallax_over_error >= 10`: `6,031,770`
+- `parallax_over_error >= 5` and `ruwe < 1.4`: `6,681,580`
+- brightness-gated working sets:
+  - `G <= 18`: `4,401,648`
+  - `G <= 19`: `5,939,410`
+  - `G <= 20`: `9,334,894`
+
+Implication: a Gaia-first `<1000 ly` core is a **multi-million object** architecture; this is not a small extension of the current AT-HYG path.
+
+Proposed architecture split:
+1. `gaia_backbone` (new canonical ingest substrate)
+   - all Gaia DR3 sources passing the active distance/quality contract
+   - source-native astrometry/photometry/quality fields retained
+   - deterministic sharded fetch/cook/manifest/QC pipeline
+2. `core_product_slice` (serving default for UI/API)
+   - deterministic subset policy over `gaia_backbone` (for example quality + brightness + science-interest gates)
+   - keeps UX latency and snapshot generation tractable
+   - explicitly versioned and reproducible from backbone
+3. `catalog_enrichment_links` (AT-HYG/HIP/HD/WDS/MSC/NSS joins)
+   - identifiers, aliases, multiplicity evidence, and hierarchy edges live here
+   - catalogs are no longer mistaken for canonical object inventory
+
+System-count expectation under Gaia-first:
+- with current evidence sources, system count remains close to star count (most stars are still singleton systems until higher-fidelity hierarchy/orbit evidence is added).
+- multiplicity catalogs then reduce/group this baseline; they should not be expected to collapse millions of stars into a small system count by themselves.
+
+Implementation phases:
+1. Phase A: backbone pilot
+   - ingest Gaia `<1000 ly` with strict quality floor and no catalog merges beyond Gaia-native fields
+   - emit `gaia_backbone_report.json` (counts, quality histograms, storage footprint, ingest runtime)
+2. Phase B: serving strategy
+   - define and materialize `core_product_slice` from backbone
+   - keep existing API contract against slice first, then add explicit deep/backbone query mode
+3. Phase C: multiplicity reintegration
+   - reattach NSS/MSC/WDS evidence against backbone IDs
+   - maintain explicit confidence tiers for grouping and hierarchy
+4. Phase D: migration
+   - promote Gaia-first build path to default once runtime + quality gates pass
+   - keep AT-HYG mode as fallback profile until deprecation criteria are met
+
+Go/no-go gates before default switch:
+- build determinism proven across reruns
+- ingest + verify runtime acceptable on proton
+- API p95/p99 latencies within current operational targets
+- benchmark systems (including Castor/Sol analog checks) are not worse than current MSC-enabled path
+- storage growth and backup/restore procedures validated for multi-million-row cadence
+
 
 ## v1.3: External reference links (curated web sources)
 Goal: augment rich with **high-quality, per-object reference links** to authoritative pages (e.g., Wikipedia, SIMBAD, NASA Exoplanet Archive) for deeper reading.
