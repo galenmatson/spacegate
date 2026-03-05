@@ -68,7 +68,10 @@ def write_partitioned_csv(
     retries: int,
 ) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    parts_dir = out_path.parent / f"{out_path.stem}.parts"
+    query_tag = hashlib.sha1(
+        f"{select_fields}|{where_clause}|{buckets}".encode("utf-8")
+    ).hexdigest()[:12]
+    parts_dir = out_path.parent / f"{out_path.stem}.parts.{query_tag}"
     parts_dir.mkdir(parents=True, exist_ok=True)
     expected_fields: list[str] | None = None
 
