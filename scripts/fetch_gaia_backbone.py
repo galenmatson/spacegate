@@ -84,7 +84,6 @@ def write_partitioned_csv(
             adql = (
                 f"select {select_fields} from gaiadr3.gaia_source "
                 f"where {where_clause} and mod(source_id, {buckets}) = {bucket} "
-                "order by source_id"
             )
             text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
             reader = csv.DictReader(StringIO(text))
