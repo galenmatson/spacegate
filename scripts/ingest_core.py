@@ -1586,7 +1586,7 @@ def main() -> int:
             (
                 "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
                 if enable_msc
-                else "MSC ingest is disabled pending usage terms; WDS/ORB6 remain loaded as support catalogs only."
+                else "MSC ingest is disabled by default; WDS/ORB6 remain loaded as support catalogs only."
             ),
         ],
     }
@@ -1950,7 +1950,7 @@ def main() -> int:
             (
                 "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
                 if enable_msc
-                else "MSC enrichment is disabled pending usage terms; current build does not insert MSC-derived component stars."
+                else "MSC enrichment is disabled by default; current build does not insert MSC-derived component stars."
             ),
         ],
     }

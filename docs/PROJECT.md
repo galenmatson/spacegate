@@ -1186,7 +1186,7 @@ Before promoting any new source family into canonical precedence:
 
 Current working multiplicity stack for implementation planning:
 1. Gaia NSS for exact star-level multiplicity evidence.
-2. MSC for hierarchy candidates and explicit subsystem structure, pending usage terms.
+2. MSC for hierarchy candidates and explicit subsystem structure (approved optional; default-off policy).
 3. ORB6 and SBX as orbit-quality support catalogs.
 4. WDS as broad visual coverage through confidence-scored crossmatch.
 5. BDB/ILB only if we can mirror it locally through a stable export/crawl path; otherwise disregard it.
@@ -1196,7 +1196,7 @@ Current working multiplicity stack for implementation planning:
   - `download_core.sh` / `catalogs.sh` treat `WDS` and `ORB6` as part of the active core build input set.
   - `cook_core.sh` deterministically cooks `WDS`, `MSC`, and `ORB6` into per-catalog typed CSV outputs.
   - `ingest_core.py` records grouping provenance via `wds_id`, `grouping_basis`, `grouping_confidence`, and `grouping_source_catalogs_json`.
-- `MSC` is currently disabled in active core builds pending usage terms from the catalog maintainer.
+- `MSC` is currently disabled by default in active core builds (approved optional source).
   - The code scaffold remains available behind `SPACEGATE_ENABLE_MSC=1` for local evaluation only.
   - Do not treat `MSC`-derived inserted stars as approved for proton/antiproton release until terms are confirmed.
 - Current approved active build state from `2026-03-04T154324Z_3612ffe`:

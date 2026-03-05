@@ -118,7 +118,7 @@ This checklist tracks deliverables against `docs/PROJECT.md`. Checked items refl
 
 ## v1.2 Additional Catalogs / Packs Foundation
 - [x] Approve candidate sources for the next ingestion wave
-- [x] Implement multiplicity grouping provenance scaffolding (`WDS`/`ORB6` active; `MSC` gated pending usage terms)
+- [x] Implement multiplicity grouping provenance scaffolding (`WDS`/`ORB6` active; `MSC` optional and disabled by default)
 - [ ] Implement additional catalog / pack ingestion pipelines
 - [ ] Produce pack QC reports + manifests
 - [ ] Reconcile grouping/host-matching for benchmark systems after catalog expansion
