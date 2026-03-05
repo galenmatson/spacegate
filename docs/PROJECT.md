@@ -265,6 +265,7 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 - `docs/SCHEMA_LORE.md`: lore contract
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/CHECKLIST.md`: executable delivery tracker
+- `docs/MILESTONES.md`: dependency-ordered roadmap, restored ideation backlog, and long-range goals
 
 ## Immediate Next Actions
 

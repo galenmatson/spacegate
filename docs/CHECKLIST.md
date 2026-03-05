@@ -28,6 +28,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Gaia-first architecture decision documented in `PROJECT.md`
 - [x] Core schema contract rewritten for Gaia-first canonical inventory
 - [x] Data source policy rewritten with canonical/auxiliary/transitional classes
+- [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
 - [ ] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot
