@@ -476,6 +476,17 @@ function parseRangeParam(searchParams, key, fallback, min, max, integer = false)
   return clampNumber(normalized, min, max);
 }
 
+function parseSpectralTokens(rawValue) {
+  return Array.from(
+    new Set(
+      String(rawValue || "")
+        .split(",")
+        .map((item) => item.trim().toUpperCase())
+        .filter((item) => spectralOptions.includes(item)),
+    ),
+  );
+}
+
 function spectralClassesForTemperatureRange(minTempK, maxTempK) {
   const low = Math.min(Number(minTempK), Number(maxTempK));
   const high = Math.max(Number(minTempK), Number(maxTempK));
@@ -1473,6 +1484,10 @@ function SearchPage({ buildId = "" }) {
   const { theme } = useThemeControls();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialSpectralClassTokens = parseSpectralTokens(searchParams.get("spectral_class") || "");
+  const initialSpectralIncludeTokens = parseSpectralTokens(searchParams.get("spectral_include") || "");
+  const initialSpectralExcludeTokens = parseSpectralTokens(searchParams.get("spectral_exclude") || "");
+  const hasExplicitSpectralOverrides = searchParams.has("spectral_include") || searchParams.has("spectral_exclude");
   const [query, setQuery] = useState(() => searchParams.get("q") || "");
   const [minDist, setMinDist] = useState(() => parseRangeParam(
     searchParams,
@@ -1543,8 +1558,19 @@ function SearchPage({ buildId = "" }) {
     return ["coolness", "name", "distance"].includes(value) ? value : "coolness";
   });
   const [spectral, setSpectral] = useState(() => {
-    const raw = searchParams.get("spectral_class") || "";
-    return raw.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean);
+    if (hasExplicitSpectralOverrides) {
+      return initialSpectralIncludeTokens;
+    }
+    return initialSpectralClassTokens;
+  });
+  const [spectralExclude, setSpectralExclude] = useState(() => {
+    if (hasExplicitSpectralOverrides) {
+      return initialSpectralExcludeTokens;
+    }
+    if (initialSpectralClassTokens.length > 0 && initialSpectralClassTokens.length < spectralOptions.length) {
+      return spectralOptions.filter((token) => !initialSpectralClassTokens.includes(token));
+    }
+    return [];
   });
   const [minTempK, setMinTempK] = useState(() => parseRangeParam(
     searchParams,
@@ -1607,12 +1633,24 @@ function SearchPage({ buildId = "" }) {
     [minTempK, maxTempK],
   );
   const eligibleSpectralSet = useMemo(() => new Set(eligibleSpectralClasses), [eligibleSpectralClasses]);
+  const spectralIncludeSet = useMemo(
+    () => new Set((spectral || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token))),
+    [spectral],
+  );
+  const spectralExcludeSet = useMemo(
+    () => new Set((spectralExclude || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token))),
+    [spectralExclude],
+  );
+  const explicitIncludeOutsideRangeSet = useMemo(
+    () => new Set(spectralOptions.filter((token) => spectralIncludeSet.has(token) && !eligibleSpectralSet.has(token))),
+    [spectralIncludeSet, eligibleSpectralSet],
+  );
   const effectiveSpectralClasses = useMemo(() => {
-    const manual = spectral
-      .map((token) => String(token || "").trim().toUpperCase())
-      .filter((token) => eligibleSpectralSet.has(token));
-    return manual.length > 0 ? manual : eligibleSpectralClasses;
-  }, [spectral, eligibleSpectralClasses, eligibleSpectralSet]);
+    return spectralOptions.filter((token) => (
+      (eligibleSpectralSet.has(token) && !spectralExcludeSet.has(token))
+      || explicitIncludeOutsideRangeSet.has(token)
+    ));
+  }, [eligibleSpectralSet, spectralExcludeSet, explicitIncludeOutsideRangeSet]);
   const effectiveSpectralSet = useMemo(() => new Set(effectiveSpectralClasses), [effectiveSpectralClasses]);
   const effectiveSpectralCount = useMemo(
     () => effectiveSpectralClasses.reduce((sum, token) => sum + (Number(spectralMixCountByClass.get(token) || 0)), 0),
@@ -1635,6 +1673,7 @@ function SearchPage({ buildId = "" }) {
     maxTempK: SPECTRAL_TEMP_MAX_K,
     sort: "coolness",
     spectral: [],
+    spectralExclude: [],
     hasHabitableMode: "",
     pageSize: "50",
   });
@@ -1652,6 +1691,7 @@ function SearchPage({ buildId = "" }) {
     maxTempK,
     sort,
     spectral,
+    spectralExclude,
     hasHabitableMode,
     pageSize,
   });
@@ -1669,6 +1709,7 @@ function SearchPage({ buildId = "" }) {
     setMaxTempK(next.maxTempK);
     setSort(next.sort);
     setSpectral(next.spectral);
+    setSpectralExclude(next.spectralExclude || []);
     setHasHabitableMode(next.hasHabitableMode);
     setPageSize(next.pageSize);
   };
@@ -1720,13 +1761,27 @@ function SearchPage({ buildId = "" }) {
     }
     const tempEligibleSpectral = spectralClassesForTemperatureRange(tempMin, tempMax);
     const tempEligibleSet = new Set(tempEligibleSpectral);
-    const normalizedSpectral = Array.from(
+    const normalizedInclude = Array.from(
       new Set((filters.spectral || []).map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)),
     ).filter((token) => spectralOptions.includes(token));
-    const manualEligible = normalizedSpectral.filter((token) => tempEligibleSet.has(token));
-    const effectiveSpectral = manualEligible.length > 0 ? manualEligible : tempEligibleSpectral;
+    const normalizedExclude = Array.from(
+      new Set((filters.spectralExclude || []).map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)),
+    ).filter((token) => spectralOptions.includes(token));
+    const includeOutsideRange = normalizedInclude.filter((token) => !tempEligibleSet.has(token));
+    const excludeSet = new Set(normalizedExclude);
+    const includeOutsideSet = new Set(includeOutsideRange);
+    const effectiveSpectral = spectralOptions.filter((token) => (
+      (tempEligibleSet.has(token) && !excludeSet.has(token))
+      || includeOutsideSet.has(token)
+    ));
     if (effectiveSpectral.length > 0 && effectiveSpectral.length < spectralOptions.length) {
       params.spectral_class = effectiveSpectral.join(",");
+    }
+    if (includeOutsideRange.length > 0) {
+      params.spectral_include = includeOutsideRange.join(",");
+    }
+    if (normalizedExclude.length > 0) {
+      params.spectral_exclude = normalizedExclude.join(",");
     }
     if (filters.hasHabitableMode) {
       params.has_habitable = filters.hasHabitableMode;
@@ -1868,27 +1923,34 @@ function SearchPage({ buildId = "" }) {
   };
 
   const toggleSpectral = (value) => {
-    if (!eligibleSpectralSet.has(value)) {
+    const inRange = eligibleSpectralSet.has(value);
+    if (inRange) {
+      setSpectralExclude((prev) => {
+        const nextSet = new Set(
+          (prev || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token)),
+        );
+        if (nextSet.has(value)) {
+          nextSet.delete(value);
+        } else {
+          nextSet.add(value);
+        }
+        return spectralOptions.filter((token) => nextSet.has(token));
+      });
+      setSpectral((prev) => (prev || []).filter((token) => String(token || "").toUpperCase() !== value));
       return;
     }
     setSpectral((prev) => {
-      const eligible = spectralOptions.filter((token) => eligibleSpectralSet.has(token));
-      const base = prev.length
-        ? prev.map((token) => String(token || "").toUpperCase()).filter((token) => eligibleSpectralSet.has(token))
-        : eligible;
-      const uniqueBase = Array.from(new Set(base));
-      const toggled = uniqueBase.includes(value)
-        ? uniqueBase.filter((token) => token !== value)
-        : [...uniqueBase, value];
-      if (toggled.length <= 0) {
-        return uniqueBase;
+      const nextSet = new Set(
+        (prev || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token)),
+      );
+      if (nextSet.has(value)) {
+        nextSet.delete(value);
+      } else {
+        nextSet.add(value);
       }
-      const ordered = spectralOptions.filter((token) => toggled.includes(token) && eligibleSpectralSet.has(token));
-      if (ordered.length === eligible.length) {
-        return [];
-      }
-      return ordered;
+      return spectralOptions.filter((token) => nextSet.has(token));
     });
+    setSpectralExclude((prev) => (prev || []).filter((token) => String(token || "").toUpperCase() !== value));
   };
 
   const resetFilters = () => {
@@ -2117,16 +2179,32 @@ function SearchPage({ buildId = "" }) {
               <span className="results-spectral-label">Spectral</span>
               <div className="results-spectral-chips">
                 {spectralOptions.map((option) => {
-                  const enabled = eligibleSpectralSet.has(option);
+                  const inRange = eligibleSpectralSet.has(option);
                   const active = effectiveSpectralSet.has(option);
+                  const explicitlyIncluded = explicitIncludeOutsideRangeSet.has(option);
+                  const explicitlyExcluded = inRange && spectralExcludeSet.has(option);
+                  const overrideHint = explicitlyIncluded
+                    ? "Explicit include override"
+                    : explicitlyExcluded
+                      ? "Explicit exclude override"
+                      : inRange
+                        ? "Included by temperature range"
+                        : "Excluded by temperature range";
                   return (
                   <button
                     type="button"
                     key={option}
-                    className={`chip spectral-chip spectral-${option.toLowerCase()} ${active ? "active" : ""} ${enabled ? "" : "disabled"}`.trim()}
+                    className={[
+                      "chip",
+                      "spectral-chip",
+                      `spectral-${option.toLowerCase()}`,
+                      active ? "active" : "",
+                      explicitlyIncluded ? "explicit-include" : "",
+                      explicitlyExcluded ? "explicit-exclude" : "",
+                      !inRange && !explicitlyIncluded ? "out-of-range" : "",
+                    ].filter(Boolean).join(" ")}
                     onClick={() => toggleSpectral(option)}
-                    title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"}`}
-                    disabled={!enabled}
+                    title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"} · ${overrideHint}`}
                   >
                     {option}
                   </button>

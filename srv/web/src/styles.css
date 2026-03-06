@@ -3343,6 +3343,19 @@ main {
   color: var(--spectral-active-ink, var(--ink));
 }
 
+.chip.spectral-chip.explicit-include {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+.chip.spectral-chip.explicit-exclude {
+  border-style: dashed;
+  opacity: 0.56;
+}
+
+.chip.spectral-chip.out-of-range {
+  opacity: 0.48;
+}
+
 .chip.spectral-chip.disabled,
 .chip.spectral-chip:disabled {
   opacity: 0.38;
