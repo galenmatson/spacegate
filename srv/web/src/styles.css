@@ -2858,11 +2858,24 @@ main {
 .results-spectral-slider-track {
   left: 0;
   right: 0;
-  background: rgba(23, 37, 47, 0.16);
+  background: linear-gradient(
+    90deg,
+    #cf6b57 0%,
+    #f06a55 16%,
+    #ffb36a 34%,
+    #ffd86b 51%,
+    #fff2b5 64%,
+    #d7e9ff 77%,
+    #8cc8ff 89%,
+    #6aa9ff 100%
+  );
+  opacity: 0.92;
 }
 
 .results-spectral-slider-fill {
-  background: var(--accent);
+  background: color-mix(in srgb, var(--panel) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 80%, var(--panel));
+  box-sizing: border-box;
 }
 
 .results-spectral-slider-input {
@@ -3315,6 +3328,14 @@ main {
   border-color: var(--spectral-border, var(--accent));
   background: var(--spectral-active-bg, rgba(211, 93, 46, 0.12));
   color: var(--spectral-active-ink, var(--ink));
+}
+
+.chip.spectral-chip.disabled,
+.chip.spectral-chip:disabled {
+  opacity: 0.38;
+  filter: grayscale(0.35);
+  cursor: not-allowed;
+  border-style: dashed;
 }
 
 .chip.spectral-o {

@@ -53,6 +53,18 @@ const SPECTRAL_CLASS_PIE_COLORS = {
   D: "#c8d2de",
   UNKNOWN: "#7f8ea3",
 };
+const SPECTRAL_CLASS_TEMP_RANGES = {
+  O: [30000, 50000],
+  B: [10000, 30000],
+  A: [7500, 10000],
+  F: [6000, 7500],
+  G: [5200, 6000],
+  K: [3700, 5200],
+  M: [2400, 3700],
+  L: [1300, 2400],
+};
+const SPECTRAL_TEMP_MIN_K = Math.min(...spectralOptions.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][0]));
+const SPECTRAL_TEMP_MAX_K = Math.max(...spectralOptions.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][1]));
 const SPECTRAL_CLASS_INFO = {
   O: { sentence: "Very hot blue stars with intense ultraviolet output and short lifetimes.", tempRangeK: [30000, 50000] },
   B: { sentence: "Hot blue-white stars that are luminous and relatively short-lived.", tempRangeK: [10000, 30000] },
@@ -461,26 +473,13 @@ function parseRangeParam(searchParams, key, fallback, min, max, integer = false)
   return clampNumber(normalized, min, max);
 }
 
-function spectralRangeFromSelection(selection) {
-  const selected = new Set((Array.isArray(selection) ? selection : []).map((token) => String(token || "").toUpperCase()));
-  const indices = spectralOptions
-    .map((token, idx) => (selected.has(token) ? idx : -1))
-    .filter((idx) => idx >= 0);
-  if (!indices.length) {
-    return { min: 0, max: spectralOptions.length - 1 };
-  }
-  return {
-    min: Math.min(...indices),
-    max: Math.max(...indices),
-  };
-}
-
-function spectralSelectionFromRange(minIdx, maxIdx) {
-  const safeMin = clampNumber(Math.trunc(minIdx), 0, spectralOptions.length - 1);
-  const safeMax = clampNumber(Math.trunc(maxIdx), 0, spectralOptions.length - 1);
-  const low = Math.min(safeMin, safeMax);
-  const high = Math.max(safeMin, safeMax);
-  return spectralOptions.slice(low, high + 1);
+function spectralClassesForTemperatureRange(minTempK, maxTempK) {
+  const low = Math.min(Number(minTempK), Number(maxTempK));
+  const high = Math.max(Number(minTempK), Number(maxTempK));
+  return spectralOptions.filter((token) => {
+    const [classMin, classMax] = SPECTRAL_CLASS_TEMP_RANGES[token] || [SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K];
+    return classMax >= low && classMin <= high;
+  });
 }
 
 function TriStateToggle({ label, value, onChange }) {
@@ -1530,12 +1529,22 @@ function SearchPage({ buildId = "" }) {
     const raw = searchParams.get("spectral_class") || "";
     return raw.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean);
   });
-  const [spectralRangeMin, setSpectralRangeMin] = useState(() => spectralRangeFromSelection(
-    (searchParams.get("spectral_class") || "").split(",").map((item) => item.trim().toUpperCase()).filter(Boolean),
-  ).min);
-  const [spectralRangeMax, setSpectralRangeMax] = useState(() => spectralRangeFromSelection(
-    (searchParams.get("spectral_class") || "").split(",").map((item) => item.trim().toUpperCase()).filter(Boolean),
-  ).max);
+  const [minTempK, setMinTempK] = useState(() => parseRangeParam(
+    searchParams,
+    "min_temp_k",
+    SPECTRAL_TEMP_MIN_K,
+    SPECTRAL_TEMP_MIN_K,
+    SPECTRAL_TEMP_MAX_K,
+    true,
+  ));
+  const [maxTempK, setMaxTempK] = useState(() => parseRangeParam(
+    searchParams,
+    "max_temp_k",
+    SPECTRAL_TEMP_MAX_K,
+    SPECTRAL_TEMP_MIN_K,
+    SPECTRAL_TEMP_MAX_K,
+    true,
+  ));
   const [hasHabitableMode, setHasHabitableMode] = useState(() => {
     const value = searchParams.get("has_habitable");
     return value === "true" || value === "false" ? value : "";
@@ -1563,7 +1572,6 @@ function SearchPage({ buildId = "" }) {
   const latestSearchTokenRef = useRef(0);
   const latestTotalTokenRef = useRef(0);
 
-  const spectralSet = useMemo(() => new Set(spectral), [spectral]);
   const spectralMixCountByClass = useMemo(() => {
     const map = new Map();
     const rows = Array.isArray(spectralMix?.rows) ? spectralMix.rows : [];
@@ -1576,16 +1584,24 @@ function SearchPage({ buildId = "" }) {
     });
     return map;
   }, [spectralMix]);
-  const spectralRangeClasses = useMemo(
-    () => spectralSelectionFromRange(spectralRangeMin, spectralRangeMax),
-    [spectralRangeMin, spectralRangeMax],
-  );
-  const spectralRangeCount = useMemo(
-    () => spectralRangeClasses.reduce((sum, token) => sum + (Number(spectralMixCountByClass.get(token) || 0)), 0),
-    [spectralRangeClasses, spectralMixCountByClass],
-  );
   const spectralMixTotalStars = Number(spectralMix?.total_stars || 0);
-  const spectralRangePct = spectralMixTotalStars > 0 ? (spectralRangeCount / spectralMixTotalStars) * 100 : 0;
+  const eligibleSpectralClasses = useMemo(
+    () => spectralClassesForTemperatureRange(minTempK, maxTempK),
+    [minTempK, maxTempK],
+  );
+  const eligibleSpectralSet = useMemo(() => new Set(eligibleSpectralClasses), [eligibleSpectralClasses]);
+  const effectiveSpectralClasses = useMemo(() => {
+    const manual = spectral
+      .map((token) => String(token || "").trim().toUpperCase())
+      .filter((token) => eligibleSpectralSet.has(token));
+    return manual.length > 0 ? manual : eligibleSpectralClasses;
+  }, [spectral, eligibleSpectralClasses, eligibleSpectralSet]);
+  const effectiveSpectralSet = useMemo(() => new Set(effectiveSpectralClasses), [effectiveSpectralClasses]);
+  const effectiveSpectralCount = useMemo(
+    () => effectiveSpectralClasses.reduce((sum, token) => sum + (Number(spectralMixCountByClass.get(token) || 0)), 0),
+    [effectiveSpectralClasses, spectralMixCountByClass],
+  );
+  const effectiveSpectralPct = spectralMixTotalStars > 0 ? (effectiveSpectralCount / spectralMixTotalStars) * 100 : 0;
   const defaultFilterState = () => ({
     query: "",
     minDist: filterLimits.distance.min,
@@ -1596,6 +1612,8 @@ function SearchPage({ buildId = "" }) {
     maxPlanetCount: filterLimits.planets.max,
     minCoolnessScore: filterLimits.coolness.min,
     maxCoolnessScore: filterLimits.coolness.max,
+    minTempK: SPECTRAL_TEMP_MIN_K,
+    maxTempK: SPECTRAL_TEMP_MAX_K,
     sort: "coolness",
     spectral: [],
     hasHabitableMode: "",
@@ -1611,6 +1629,8 @@ function SearchPage({ buildId = "" }) {
     maxPlanetCount,
     minCoolnessScore,
     maxCoolnessScore,
+    minTempK,
+    maxTempK,
     sort,
     spectral,
     hasHabitableMode,
@@ -1626,13 +1646,10 @@ function SearchPage({ buildId = "" }) {
     setMaxPlanetCount(next.maxPlanetCount);
     setMinCoolnessScore(next.minCoolnessScore);
     setMaxCoolnessScore(next.maxCoolnessScore);
+    setMinTempK(next.minTempK);
+    setMaxTempK(next.maxTempK);
     setSort(next.sort);
     setSpectral(next.spectral);
-    {
-      const range = spectralRangeFromSelection(next.spectral);
-      setSpectralRangeMin(range.min);
-      setSpectralRangeMax(range.max);
-    }
     setHasHabitableMode(next.hasHabitableMode);
     setPageSize(next.pageSize);
   };
@@ -1647,6 +1664,8 @@ function SearchPage({ buildId = "" }) {
     const planetsMax = Math.max(filters.minPlanetCount, filters.maxPlanetCount);
     const coolnessMin = Math.min(filters.minCoolnessScore, filters.maxCoolnessScore);
     const coolnessMax = Math.max(filters.minCoolnessScore, filters.maxCoolnessScore);
+    const tempMin = Math.min(filters.minTempK, filters.maxTempK);
+    const tempMax = Math.max(filters.minTempK, filters.maxTempK);
     if (filters.query.trim()) {
       params.q = filters.query.trim();
     }
@@ -1674,11 +1693,21 @@ function SearchPage({ buildId = "" }) {
     if (coolnessMax < filterLimits.coolness.max) {
       params.max_coolness_score = String(coolnessMax);
     }
+    if (tempMin > SPECTRAL_TEMP_MIN_K) {
+      params.min_temp_k = String(Math.round(tempMin));
+    }
+    if (tempMax < SPECTRAL_TEMP_MAX_K) {
+      params.max_temp_k = String(Math.round(tempMax));
+    }
+    const tempEligibleSpectral = spectralClassesForTemperatureRange(tempMin, tempMax);
+    const tempEligibleSet = new Set(tempEligibleSpectral);
     const normalizedSpectral = Array.from(
       new Set((filters.spectral || []).map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)),
     ).filter((token) => spectralOptions.includes(token));
-    if (normalizedSpectral.length > 0 && normalizedSpectral.length < spectralOptions.length) {
-      params.spectral_class = normalizedSpectral.join(",");
+    const manualEligible = normalizedSpectral.filter((token) => tempEligibleSet.has(token));
+    const effectiveSpectral = manualEligible.length > 0 ? manualEligible : tempEligibleSpectral;
+    if (effectiveSpectral.length > 0 && effectiveSpectral.length < spectralOptions.length) {
+      params.spectral_class = effectiveSpectral.join(",");
     }
     if (filters.hasHabitableMode) {
       params.has_habitable = filters.hasHabitableMode;
@@ -1812,29 +1841,21 @@ function SearchPage({ buildId = "" }) {
     };
   }, []);
 
-  const applySpectralRange = (rawMin, rawMax) => {
-    const safeMin = clampNumber(Math.trunc(Number(rawMin)), 0, spectralOptions.length - 1);
-    const safeMax = clampNumber(Math.trunc(Number(rawMax)), 0, spectralOptions.length - 1);
-    const low = Math.min(safeMin, safeMax);
-    const high = Math.max(safeMin, safeMax);
-    setSpectralRangeMin(low);
-    setSpectralRangeMax(high);
-    const rangeSelection = spectralSelectionFromRange(low, high);
-    if (low === 0 && high === spectralOptions.length - 1) {
-      setSpectral([]);
-      return;
-    }
-    setSpectral(rangeSelection);
+  const applyTemperatureRange = (rawMin, rawMax) => {
+    const safeMin = clampNumber(Math.round(Number(rawMin)), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
+    const safeMax = clampNumber(Math.round(Number(rawMax)), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
+    setMinTempK(safeMin);
+    setMaxTempK(safeMax);
   };
 
   const toggleSpectral = (value) => {
+    if (!eligibleSpectralSet.has(value)) {
+      return;
+    }
     setSpectral((prev) => {
       const next = prev.includes(value)
         ? prev.filter((item) => item !== value)
         : [...prev, value];
-      const range = spectralRangeFromSelection(next);
-      setSpectralRangeMin(range.min);
-      setSpectralRangeMax(range.max);
       return next;
     });
   };
@@ -2064,25 +2085,30 @@ function SearchPage({ buildId = "" }) {
             <div className="results-spectral-row">
               <span className="results-spectral-label">Spectral</span>
               <div className="results-spectral-chips">
-                {spectralOptions.map((option) => (
+                {spectralOptions.map((option) => {
+                  const enabled = eligibleSpectralSet.has(option);
+                  const active = effectiveSpectralSet.has(option);
+                  return (
                   <button
                     type="button"
                     key={option}
-                    className={`chip spectral-chip spectral-${option.toLowerCase()} ${spectralSet.has(option) ? "active" : ""}`}
+                    className={`chip spectral-chip spectral-${option.toLowerCase()} ${active ? "active" : ""} ${enabled ? "" : "disabled"}`.trim()}
                     onClick={() => toggleSpectral(option)}
                     title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"}`}
+                    disabled={!enabled}
                   >
                     {option}
                   </button>
-                ))}
+                  );
+                })}
               </div>
               <div className="results-spectral-range" role="group" aria-label="Spectral range selector">
                 <div className="results-spectral-range-head">
                   <span className="results-spectral-range-label">
-                    {spectralRangeClasses[0]} - {spectralRangeClasses[spectralRangeClasses.length - 1]}
+                    {formatKelvin(Math.min(minTempK, maxTempK), 0)} - {formatKelvin(Math.max(minTempK, maxTempK), 0)}
                   </span>
                   <span className="results-spectral-range-value">
-                    {formatNumber(spectralRangeCount, 0)} stars ({formatNumber(spectralRangePct, 1)}%)
+                    {formatNumber(effectiveSpectralCount, 0)} stars ({formatNumber(effectiveSpectralPct, 1)}%)
                   </span>
                 </div>
                 <div className="results-spectral-slider">
@@ -2090,30 +2116,30 @@ function SearchPage({ buildId = "" }) {
                   <div
                     className="results-spectral-slider-fill"
                     style={{
-                      left: `${(Math.min(spectralRangeMin, spectralRangeMax) / (spectralOptions.length - 1)) * 100}%`,
-                      width: `${((Math.max(spectralRangeMin, spectralRangeMax) - Math.min(spectralRangeMin, spectralRangeMax)) / (spectralOptions.length - 1)) * 100}%`,
+                      left: `${((Math.min(minTempK, maxTempK) - SPECTRAL_TEMP_MIN_K) / (SPECTRAL_TEMP_MAX_K - SPECTRAL_TEMP_MIN_K)) * 100}%`,
+                      width: `${((Math.max(minTempK, maxTempK) - Math.min(minTempK, maxTempK)) / (SPECTRAL_TEMP_MAX_K - SPECTRAL_TEMP_MIN_K)) * 100}%`,
                     }}
                     aria-hidden="true"
                   />
                   <input
                     type="range"
-                    min={0}
-                    max={spectralOptions.length - 1}
-                    step={1}
+                    min={SPECTRAL_TEMP_MIN_K}
+                    max={SPECTRAL_TEMP_MAX_K}
+                    step={50}
                     className="results-spectral-slider-input results-spectral-slider-input-min"
-                    value={spectralRangeMin}
-                    aria-label="Minimum spectral class"
-                    onChange={(event) => applySpectralRange(Number(event.target.value), spectralRangeMax)}
+                    value={minTempK}
+                    aria-label="Minimum temperature"
+                    onChange={(event) => applyTemperatureRange(Number(event.target.value), maxTempK)}
                   />
                   <input
                     type="range"
-                    min={0}
-                    max={spectralOptions.length - 1}
-                    step={1}
+                    min={SPECTRAL_TEMP_MIN_K}
+                    max={SPECTRAL_TEMP_MAX_K}
+                    step={50}
                     className="results-spectral-slider-input results-spectral-slider-input-max"
-                    value={spectralRangeMax}
-                    aria-label="Maximum spectral class"
-                    onChange={(event) => applySpectralRange(spectralRangeMin, Number(event.target.value))}
+                    value={maxTempK}
+                    aria-label="Maximum temperature"
+                    onChange={(event) => applyTemperatureRange(minTempK, Number(event.target.value))}
                   />
                 </div>
               </div>
