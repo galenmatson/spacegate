@@ -1193,6 +1193,62 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             ).fetchall(),
         )
 
+        spectral_standard_row = _timed(
+            "stars_by_spectral_standard",
+            lambda: con.execute(
+                """
+                SELECT
+                  SUM(CASE WHEN spectral_class = 'O' THEN 1 ELSE 0 END)::bigint AS class_o,
+                  SUM(CASE WHEN spectral_class = 'B' THEN 1 ELSE 0 END)::bigint AS class_b,
+                  SUM(CASE WHEN spectral_class = 'A' THEN 1 ELSE 0 END)::bigint AS class_a,
+                  SUM(CASE WHEN spectral_class = 'F' THEN 1 ELSE 0 END)::bigint AS class_f,
+                  SUM(CASE WHEN spectral_class = 'G' THEN 1 ELSE 0 END)::bigint AS class_g,
+                  SUM(CASE WHEN spectral_class = 'K' THEN 1 ELSE 0 END)::bigint AS class_k,
+                  SUM(CASE WHEN spectral_class = 'M' THEN 1 ELSE 0 END)::bigint AS class_m,
+                  SUM(CASE WHEN spectral_class = 'L' THEN 1 ELSE 0 END)::bigint AS class_l,
+                  SUM(CASE WHEN spectral_class = 'T' THEN 1 ELSE 0 END)::bigint AS class_t,
+                  SUM(CASE WHEN spectral_class = 'Y' THEN 1 ELSE 0 END)::bigint AS class_y,
+                  SUM(CASE WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 1 ELSE 0 END)::bigint AS class_d,
+                  SUM(CASE WHEN spectral_class IS NULL OR spectral_class = '' THEN 1 ELSE 0 END)::bigint AS class_unknown
+                FROM stars
+                """
+            ).fetchone(),
+        )
+
+        compact_row = _timed(
+            "compact_object_inferred_counts",
+            lambda: con.execute(
+                """
+                WITH tagged AS (
+                  SELECT
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE '%WHITE%DWARF%'
+                      THEN 'white_dwarf'
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%BLACK HOLE%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE 'BH%'
+                      THEN 'black_hole'
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%PULSAR%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE '%PSR%'
+                      THEN 'pulsar'
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%NEUTRON%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE 'NS%'
+                      THEN 'neutron_star'
+                      ELSE NULL
+                    END AS compact_type
+                  FROM stars
+                )
+                SELECT
+                  SUM(CASE WHEN compact_type = 'white_dwarf' THEN 1 ELSE 0 END)::bigint AS white_dwarf,
+                  SUM(CASE WHEN compact_type = 'black_hole' THEN 1 ELSE 0 END)::bigint AS black_hole,
+                  SUM(CASE WHEN compact_type = 'neutron_star' THEN 1 ELSE 0 END)::bigint AS neutron_star,
+                  SUM(CASE WHEN compact_type = 'pulsar' THEN 1 ELSE 0 END)::bigint AS pulsar,
+                  SUM(CASE WHEN compact_type IS NOT NULL THEN 1 ELSE 0 END)::bigint AS compact_total
+                FROM tagged
+                """
+            ).fetchone(),
+        )
+
         exotic_row = _timed(
             "exotic_star_counts",
             lambda: con.execute(
@@ -1357,6 +1413,27 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         "temperate_exoplanets": int(planet_row[1] or 0),
         "candidate_habitable_exoplanets": int(planet_row[2] or 0),
     }
+    spectral_standard_counts = {
+        "O": int(spectral_standard_row[0] or 0),
+        "B": int(spectral_standard_row[1] or 0),
+        "A": int(spectral_standard_row[2] or 0),
+        "F": int(spectral_standard_row[3] or 0),
+        "G": int(spectral_standard_row[4] or 0),
+        "K": int(spectral_standard_row[5] or 0),
+        "M": int(spectral_standard_row[6] or 0),
+        "L": int(spectral_standard_row[7] or 0),
+        "T": int(spectral_standard_row[8] or 0),
+        "Y": int(spectral_standard_row[9] or 0),
+        "D": int(spectral_standard_row[10] or 0),
+        "unknown": int(spectral_standard_row[11] or 0),
+    }
+    compact_object_counts = {
+        "white_dwarf": int(compact_row[0] or 0),
+        "black_hole": int(compact_row[1] or 0),
+        "neutron_star": int(compact_row[2] or 0),
+        "pulsar": int(compact_row[3] or 0),
+        "compact_total": int(compact_row[4] or 0),
+    }
 
     stars_count = int(((qc_report.get("counts") or {}).get("stars")) or 0)
     systems_count = int(((qc_report.get("counts") or {}).get("systems")) or 0)
@@ -1462,6 +1539,8 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         "breakdowns": {
             "stars_by_source_catalog": source_breakdown,
             "stars_by_spectral_class": spectral_breakdown,
+            "spectral_class_standard_counts": spectral_standard_counts,
+            "compact_object_counts": compact_object_counts,
             "star_multiplicity_evidence": star_mult_breakdown,
             "system_multiplicity_evidence": system_mult_breakdown,
             "exotic_star_counts": exotic_counts,
@@ -1945,8 +2024,113 @@ def admin_home(request: Request):
         --warn: #b45309;
         --err: #b91c1c;
         --brand: #0f766e;
+        --panel-soft: #eef2f7;
+        --code-bg: #0f172a;
+        --code-ink: #e2e8f0;
+        --font-body: ui-sans-serif, system-ui, sans-serif;
       }}
-      body {{ font-family: ui-sans-serif, system-ui, sans-serif; margin: 1.25rem; line-height: 1.4; background: var(--bg); color: var(--text); }}
+      :root[data-theme="simple_dark"] {{
+        --bg: #0f1820;
+        --text: #e4edf4;
+        --muted: #9eb2c0;
+        --card: #15242f;
+        --border: rgba(170, 196, 214, 0.24);
+        --ok: #6fd58f;
+        --warn: #f0bf55;
+        --err: #df736f;
+        --brand: #74c5ff;
+        --panel-soft: #1b2b37;
+        --code-bg: #08111a;
+        --code-ink: #dce8f6;
+      }}
+      :root[data-theme="cyberpunk"] {{
+        --bg: #090013;
+        --text: #ecfff7;
+        --muted: #9ad9ff;
+        --card: #121030;
+        --border: rgba(125, 251, 255, 0.45);
+        --ok: #63ff8f;
+        --warn: #ffd166;
+        --err: #ff6ba3;
+        --brand: #ff4fd8;
+        --panel-soft: #151a38;
+        --code-bg: #0a0f23;
+        --code-ink: #d9fff6;
+        --font-body: "IBM Plex Mono", "Spline Sans Mono", ui-monospace, monospace;
+      }}
+      :root[data-theme="lcars"] {{
+        --bg: #000000;
+        --text: #ffd9ba;
+        --muted: #d9b89f;
+        --card: #09080c;
+        --border: rgba(225, 156, 110, 0.42);
+        --ok: #9cf6a8;
+        --warn: #f6c94c;
+        --err: #f08a96;
+        --brand: #f5a22e;
+        --panel-soft: #171221;
+        --code-bg: #140f1b;
+        --code-ink: #ffe2c9;
+        --font-body: "Antonio", "Arial Narrow", "Space Grotesk", sans-serif;
+      }}
+      :root[data-theme="mission_control"] {{
+        --bg: #0b121b;
+        --text: #d9e6f4;
+        --muted: #9bacbf;
+        --card: #17212d;
+        --border: rgba(130, 156, 183, 0.45);
+        --ok: #6fd58f;
+        --warn: #f0bf55;
+        --err: #df736f;
+        --brand: #6fb9ff;
+        --panel-soft: #1c2734;
+        --code-bg: #0c1320;
+        --code-ink: #dce8f6;
+      }}
+      :root[data-theme="aurora"] {{
+        --bg: #0d1530;
+        --text: #edf3ff;
+        --muted: #c2cbf5;
+        --card: rgba(24, 33, 69, 0.72);
+        --border: rgba(176, 214, 255, 0.4);
+        --ok: #5dffd7;
+        --warn: #ffe08a;
+        --err: #ff88e7;
+        --brand: #8d7dff;
+        --panel-soft: rgba(27, 45, 84, 0.72);
+        --code-bg: #111b3a;
+        --code-ink: #e7efff;
+      }}
+      :root[data-theme="retro_90s"] {{
+        --bg: #c3c3c3;
+        --text: #101010;
+        --muted: #393939;
+        --card: #c0c0c0;
+        --border: #7c7c7c;
+        --ok: #008000;
+        --warn: #b45309;
+        --err: #b91c1c;
+        --brand: #0000aa;
+        --panel-soft: #d2d2d2;
+        --code-bg: #1b1b1b;
+        --code-ink: #ffff99;
+        --font-body: "Tahoma", "Verdana", "Arial", sans-serif;
+      }}
+      :root[data-theme="deep_space_minimal"] {{
+        --bg: #010109;
+        --text: #e9eeff;
+        --muted: #9da8c4;
+        --card: rgba(6, 8, 20, 0.8);
+        --border: rgba(155, 181, 239, 0.2);
+        --ok: #8ad58a;
+        --warn: #d8b96a;
+        --err: #d77988;
+        --brand: #8ab8ff;
+        --panel-soft: rgba(10, 14, 30, 0.9);
+        --code-bg: rgba(7, 10, 23, 0.96);
+        --code-ink: #d9e4ff;
+      }}
+      body {{ font-family: var(--font-body); margin: 1.25rem; line-height: 1.4; background: var(--bg); color: var(--text); }}
       h1, h2, h3 {{ margin: 0.5rem 0; }}
       .toolbar {{ display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }}
       .screen-nav {{ display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.9rem; }}
@@ -1960,10 +2144,11 @@ def admin_home(request: Request):
       .action-meta {{ color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }}
       .field {{ margin-bottom: 0.45rem; }}
       .field label {{ display: block; font-size: 0.86rem; color: var(--muted); margin-bottom: 0.15rem; }}
-      .field input[type=text], .field input[type=number], .field select {{ width: 100%; box-sizing: border-box; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; }}
+      .field input[type=text], .field input[type=number], .field select {{ width: 100%; box-sizing: border-box; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }}
       .small {{ font-size: 0.82rem; color: var(--muted); }}
-      code {{ background: #eef2f7; padding: 0.1rem 0.25rem; border-radius: 4px; }}
-      button {{ padding: 0.45rem 0.65rem; cursor: pointer; border: 1px solid var(--border); background: white; border-radius: 6px; }}
+      code {{ background: var(--panel-soft); padding: 0.1rem 0.25rem; border-radius: 4px; }}
+      button {{ padding: 0.45rem 0.65rem; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; }}
+      select {{ border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; padding: 0.35rem; }}
       button.primary {{ background: var(--brand); color: white; border-color: var(--brand); }}
       button.warn {{ border-color: var(--warn); color: var(--warn); }}
       button.danger {{ border-color: var(--err); color: var(--err); }}
@@ -1976,9 +2161,9 @@ def admin_home(request: Request):
       .status-cancelled {{ color: #6b7280; border-color: #d1d5db; }}
       .inline {{ display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }}
       .jobs-list, .audit-list, .backup-list {{ list-style: none; margin: 0; padding: 0; }}
-      .jobs-list li, .audit-list li, .backup-list li {{ border-bottom: 1px solid #eef2f7; padding: 0.35rem 0; }}
+      .jobs-list li, .audit-list li, .backup-list li {{ border-bottom: 1px solid var(--panel-soft); padding: 0.35rem 0; }}
       .jobs-list li:last-child, .audit-list li:last-child, .backup-list li:last-child {{ border-bottom: 0; }}
-      pre {{ background: #0f172a; color: #e2e8f0; padding: 0.6rem; border-radius: 8px; overflow: auto; max-height: 28rem; }}
+      pre {{ background: var(--code-bg); color: var(--code-ink); padding: 0.6rem; border-radius: 8px; overflow: auto; max-height: 28rem; }}
       .audit-presets button.active {{ border-color: var(--brand); color: var(--brand); }}
       .muted {{ color: var(--muted); }}
       .weight-grid {{ display: grid; gap: 0.45rem; }}
@@ -1988,10 +2173,10 @@ def admin_home(request: Request):
       .json-box {{ background: #0f172a; color: #e2e8f0; padding: 0.6rem; border-radius: 8px; overflow: auto; max-height: 16rem; }}
       .guidance {{ margin: 0.25rem 0 0.5rem 1.1rem; color: var(--muted); }}
       .guidance li {{ margin: 0.15rem 0; }}
-      .note-box {{ border: 1px dashed var(--border); border-radius: 8px; padding: 0.5rem; background: #fafafa; }}
+      .note-box {{ border: 1px dashed var(--border); border-radius: 8px; padding: 0.5rem; background: var(--panel-soft); }}
       .preview-grid {{ display: grid; gap: 0.6rem; }}
       .kpis {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 0.5rem; }}
-      .kpi {{ border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem; background: #fff; }}
+      .kpi {{ border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem; background: var(--card); }}
       .kpi .k {{ color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }}
       .kpi .v {{ font-size: 1rem; font-weight: 700; }}
       .changes-list {{ list-style: none; margin: 0; padding: 0; }}
@@ -1999,10 +2184,18 @@ def admin_home(request: Request):
       .changes-list li:last-child {{ border-bottom: 0; }}
       .bar-list {{ display: grid; gap: 0.35rem; }}
       .bar-row {{ display: grid; grid-template-columns: 100px 1fr 90px; gap: 0.45rem; align-items: center; }}
-      .bar-track {{ background: #eef2f7; border-radius: 999px; height: 10px; overflow: hidden; }}
+      .bar-track {{ background: var(--panel-soft); border-radius: 999px; height: 10px; overflow: hidden; }}
       .bar-fill {{ background: var(--brand); height: 100%; border-radius: 999px; }}
+      .bar-fill.warn {{ background: var(--warn); }}
+      .bar-fill.err {{ background: var(--err); }}
+      .metric-list {{ display: grid; gap: 0.35rem; }}
+      .metric-row {{ display: grid; grid-template-columns: minmax(130px, 1fr) minmax(180px, 1.1fr); gap: 0.5rem; align-items: baseline; border-bottom: 1px solid var(--panel-soft); padding-bottom: 0.28rem; }}
+      .metric-row:last-child {{ border-bottom: 0; padding-bottom: 0; }}
+      .metric-k {{ color: var(--muted); font-size: 0.82rem; }}
+      .metric-v {{ font-weight: 600; font-size: 0.88rem; word-break: break-word; }}
+      .metric-note {{ color: var(--muted); font-size: 0.78rem; grid-column: 1 / -1; }}
       .mini-table {{ width: 100%; border-collapse: collapse; font-size: 0.86rem; }}
-      .mini-table th, .mini-table td {{ border-bottom: 1px solid #eef2f7; padding: 0.28rem 0.2rem; text-align: left; }}
+      .mini-table th, .mini-table td {{ border-bottom: 1px solid var(--panel-soft); padding: 0.28rem 0.2rem; text-align: left; }}
       .mini-table th {{ color: var(--muted); font-weight: 600; }}
       @media (max-width: 1100px) {{
         .coolness-layout {{ grid-template-columns: 1fr; }}
@@ -2016,6 +2209,17 @@ def admin_home(request: Request):
 
     <div class="toolbar">
       <button id="logout" class="danger">Log out</button>
+      <label for="adminThemeSelect" class="small">Theme</label>
+      <select id="adminThemeSelect" style="min-width: 12rem;">
+        <option value="simple_light">Simple Light</option>
+        <option value="simple_dark">Simple Dark</option>
+        <option value="cyberpunk">Cyberpunk</option>
+        <option value="lcars">Enterprise</option>
+        <option value="mission_control">Mission Control</option>
+        <option value="aurora">Aurora</option>
+        <option value="retro_90s">Geocities</option>
+        <option value="deep_space_minimal">Deep Space Minimal</option>
+      </select>
       <button id="refreshStatus">Refresh Status</button>
       <button id="refreshDatasetStatus">Refresh Dataset Stats</button>
       <button id="refreshJobs">Refresh Jobs</button>
@@ -2024,13 +2228,13 @@ def admin_home(request: Request):
     </div>
 
     <div class="screen-nav">
-      <button id="screenTabOperations" class="active">Operations</button>
-      <button id="screenTabStatus">Status</button>
+      <button id="screenTabOperations">Operations</button>
+      <button id="screenTabStatus" class="active">Status</button>
       <button id="screenTabCoolness">Coolness</button>
       <button id="screenTabActivity">Activity</button>
     </div>
 
-    <div id="screenOperations" class="screen active">
+    <div id="screenOperations" class="screen">
       <div class="section">
         <h2>Operations</h2>
         <div id="actionsOps" class="grid"></div>
@@ -2041,7 +2245,7 @@ def admin_home(request: Request):
       </div>
     </div>
 
-    <div id="screenStatus" class="screen">
+    <div id="screenStatus" class="screen active">
       <div class="section">
         <h2>Dataset Status</h2>
         <p class="muted">Operational metrics for current served build: data scale, runtime memory, storage footprint, multiplicity/source coverage, and quality indicators.</p>
@@ -2057,12 +2261,16 @@ def admin_home(request: Request):
       <div class="section grid">
         <div>
           <h3>Storage Footprint</h3>
-          <pre id="datasetStorage"></pre>
+          <div id="datasetStorage" class="bar-list"></div>
         </div>
         <div>
           <h3>Runtime + Bottleneck Hints</h3>
-          <pre id="datasetRuntime"></pre>
+          <div id="datasetRuntime" class="bar-list"></div>
         </div>
+      </div>
+      <div class="section">
+        <h3>Capacity Usage</h3>
+        <div id="datasetUsageBars" class="bar-list"></div>
       </div>
       <div class="section grid">
         <div>
@@ -2096,8 +2304,28 @@ def admin_home(request: Request):
           </table>
         </div>
       </div>
+      <div class="section grid">
+        <div>
+          <h3>Spectral Class Standard</h3>
+          <table class="mini-table">
+            <thead><tr><th>Class</th><th>Stars</th></tr></thead>
+            <tbody id="datasetSpectralStandardRows"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Compact Objects (Inferred)</h3>
+          <table class="mini-table">
+            <thead><tr><th>Type</th><th>Stars</th></tr></thead>
+            <tbody id="datasetCompactRows"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="section">
         <h3>Detailed Payload</h3>
+        <details>
+          <summary>Show humanized runtime/storage summary</summary>
+          <pre id="datasetHumanSummary"></pre>
+        </details>
         <details>
           <summary>Show raw dataset status JSON</summary>
           <pre id="datasetStatusRaw"></pre>
@@ -2318,14 +2546,19 @@ def admin_home(request: Request):
       const out = document.getElementById('out');
       const actionsOpsEl = document.getElementById('actionsOps');
       const actionsCoolnessEl = document.getElementById('actionsCoolness');
+      const adminThemeSelectEl = document.getElementById('adminThemeSelect');
       const datasetStatusMetaEl = document.getElementById('datasetStatusMeta');
       const datasetKpisEl = document.getElementById('datasetKpis');
       const datasetStorageEl = document.getElementById('datasetStorage');
       const datasetRuntimeEl = document.getElementById('datasetRuntime');
+      const datasetUsageBarsEl = document.getElementById('datasetUsageBars');
       const datasetSourceRowsEl = document.getElementById('datasetSourceRows');
       const datasetSpectralRowsEl = document.getElementById('datasetSpectralRows');
+      const datasetSpectralStandardRowsEl = document.getElementById('datasetSpectralStandardRows');
+      const datasetCompactRowsEl = document.getElementById('datasetCompactRows');
       const datasetSystemMultRowsEl = document.getElementById('datasetSystemMultRows');
       const datasetStarMultRowsEl = document.getElementById('datasetStarMultRows');
+      const datasetHumanSummaryEl = document.getElementById('datasetHumanSummary');
       const datasetStatusRawEl = document.getElementById('datasetStatusRaw');
       const jobsEl = document.getElementById('jobs');
       const selectedJobEl = document.getElementById('selectedJob');
@@ -2379,7 +2612,7 @@ def admin_home(request: Request):
       let currentOffset = 0;
       let nextAuditBeforeId = null;
       let auditPreset = 'all';
-	      let currentScreen = 'operations';
+	      let currentScreen = 'status';
 	      let activeCoolnessProfile = null;
 	      let activeCoolnessPointer = null;
 	      let coolnessProfiles = [];
@@ -2476,6 +2709,53 @@ def admin_home(request: Request):
 	      function isRunningStatus(status) {{
 	        return status === 'queued' || status === 'running';
 	      }}
+
+      const adminThemeStorageKey = 'spacegate.theme';
+      const adminThemeIds = new Set([
+        'simple_light',
+        'simple_dark',
+        'cyberpunk',
+        'lcars',
+        'mission_control',
+        'aurora',
+        'retro_90s',
+        'deep_space_minimal',
+      ]);
+      const adminThemeAliases = {{
+        light: 'simple_light',
+        midnight: 'simple_dark',
+        mission: 'mission_control',
+        enterprise: 'lcars',
+      }};
+
+      function normalizeAdminTheme(raw) {{
+        const key = String(raw || '').trim().toLowerCase();
+        const mapped = adminThemeAliases[key] || key;
+        return adminThemeIds.has(mapped) ? mapped : 'simple_light';
+      }}
+
+      function resolveAdminTheme() {{
+        const attrTheme = normalizeAdminTheme(document.documentElement.getAttribute('data-theme'));
+        if (attrTheme) return attrTheme;
+        try {{
+          const stored = normalizeAdminTheme(window.localStorage.getItem(adminThemeStorageKey));
+          if (stored) return stored;
+        }} catch (_) {{
+          // ignore storage errors
+        }}
+        return 'simple_light';
+      }}
+
+      function applyAdminTheme(theme) {{
+        const normalized = normalizeAdminTheme(theme);
+        document.documentElement.setAttribute('data-theme', normalized);
+        if (adminThemeSelectEl) adminThemeSelectEl.value = normalized;
+        try {{
+          window.localStorage.setItem(adminThemeStorageKey, normalized);
+        }} catch (_) {{
+          // ignore storage errors
+        }}
+      }}
 
 	      const profileTokenRe = /^[A-Za-z0-9_.-]+$/;
 
@@ -3476,6 +3756,79 @@ def admin_home(request: Request):
         return `${{size.toLocaleString('en-US', {{ minimumFractionDigits: 0, maximumFractionDigits: digits }})}} ${{units[idx]}}`;
       }}
 
+      function clampPct(value) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return 0;
+        if (n < 0) return 0;
+        if (n > 100) return 100;
+        return n;
+      }}
+
+      function pctFromPart(part, whole) {{
+        const nPart = Number(part);
+        const nWhole = Number(whole);
+        if (!Number.isFinite(nPart) || !Number.isFinite(nWhole) || nWhole <= 0) return 0;
+        return clampPct((nPart / nWhole) * 100.0);
+      }}
+
+      function renderMetricRows(containerEl, rows) {{
+        if (!containerEl) return;
+        containerEl.innerHTML = '';
+        (rows || []).forEach((row) => {{
+          const wrap = document.createElement('div');
+          wrap.className = 'metric-row';
+
+          const keyEl = document.createElement('div');
+          keyEl.className = 'metric-k';
+          keyEl.textContent = String(row.key || '');
+          wrap.appendChild(keyEl);
+
+          const valueEl = document.createElement('div');
+          valueEl.className = 'metric-v';
+          valueEl.textContent = String(row.value || '');
+          wrap.appendChild(valueEl);
+
+          if (row.note) {{
+            const noteEl = document.createElement('div');
+            noteEl.className = 'metric-note';
+            noteEl.textContent = String(row.note);
+            wrap.appendChild(noteEl);
+          }}
+          containerEl.appendChild(wrap);
+        }});
+      }}
+
+      function renderUsageBars(containerEl, rows) {{
+        if (!containerEl) return;
+        containerEl.innerHTML = '';
+        (rows || []).forEach((row) => {{
+          const pct = clampPct(row.pct);
+          const severity = pct >= 90 ? ' err' : (pct >= 75 ? ' warn' : '');
+
+          const barRow = document.createElement('div');
+          barRow.className = 'bar-row';
+
+          const label = document.createElement('div');
+          label.textContent = String(row.label || '');
+          barRow.appendChild(label);
+
+          const track = document.createElement('div');
+          track.className = 'bar-track';
+          const fill = document.createElement('div');
+          fill.className = `bar-fill${{severity}}`;
+          fill.style.width = `${{pct}}%`;
+          track.appendChild(fill);
+          barRow.appendChild(track);
+
+          const value = document.createElement('div');
+          value.className = 'small';
+          value.textContent = String(row.value || formatPct(pct));
+          barRow.appendChild(value);
+
+          containerEl.appendChild(barRow);
+        }});
+      }}
+
       function renderKeyValueRows(tbodyEl, rows) {{
         if (!tbodyEl) return;
         tbodyEl.innerHTML = '';
@@ -3492,30 +3845,42 @@ def admin_home(request: Request):
       }}
 
       function renderDatasetStatus(data) {{
-        datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
+        if (datasetStatusRawEl) datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
         const counts = data.dataset_counts || {{}};
         const sizes = data.sizes_bytes || {{}};
         const disk = data.disk || {{}};
         const host = data.host_runtime || {{}};
         const api = data.api_process_runtime || {{}};
+        const duckdb = data.duckdb_runtime || {{}};
         const slice = data.slice_metrics || {{}};
         const cache = data.cache || {{}};
         const bottlenecks = data.bottleneck_hints || {{}};
+        const breakdowns = data.breakdowns || {{}};
 
         datasetStatusMetaEl.textContent = `build=${{data.build_id || 'unknown'}} | generated=${{data.generated_at_utc || ''}} | cache=${{cache.hit ? 'hit' : 'miss'}} age=${{formatFloat(cache.age_s || 0, 3)}}s`;
+
+        const hostMemTotal = Number(host.mem_total_bytes) || 0;
+        const hostMemAvailable = Number(host.mem_available_bytes) || 0;
+        const hostMemUsed = Math.max(hostMemTotal - hostMemAvailable, 0);
+        const apiRss = Number(api.rss_bytes) || 0;
+        const apiPeakRss = Number(api.peak_rss_bytes) || 0;
+        const duckMemUsage = Number(duckdb.memory_usage_bytes) || 0;
+        const duckMemLimit = Number(duckdb.memory_limit_bytes) || 0;
 
         const kpis = [
           {{ key: 'Stars', value: formatInt(counts.stars) }},
           {{ key: 'Systems', value: formatInt(counts.systems) }},
           {{ key: 'Planets', value: formatInt(counts.planets) }},
           {{ key: 'Multi-Star Systems', value: formatInt(counts.multi_star_systems) }},
+          {{ key: 'Exoplanets', value: formatInt(counts.exoplanets_total) }},
+          {{ key: 'Hab Zone Candidates', value: formatInt(counts.exoplanets_candidate_habitable) }},
           {{ key: 'Backbone Input', value: formatInt(slice.input_backbone_rows) }},
           {{ key: 'Sliced Out', value: `${{formatInt(slice.sliced_out_rows)}} (${{formatPct(slice.sliced_out_pct)}})` }},
           {{ key: 'Core DB', value: formatBytes(sizes.core_db) }},
           {{ key: 'State Dir', value: formatBytes(sizes.state_total) }},
-          {{ key: 'API RSS', value: formatBytes(api.rss_bytes) }},
-          {{ key: 'API Peak RSS', value: formatBytes(api.peak_rss_bytes) }},
-          {{ key: 'Host Mem Available', value: formatBytes(host.mem_available_bytes) }},
+          {{ key: 'API RSS', value: formatBytes(apiRss) }},
+          {{ key: 'API Peak RSS', value: formatBytes(apiPeakRss) }},
+          {{ key: 'Host Mem Available', value: formatBytes(hostMemAvailable) }},
           {{ key: '/data Used', value: `${{formatPct(disk.used_pct)}} (${{formatBytes(disk.used_bytes)}})` }},
         ];
         datasetKpisEl.innerHTML = '';
@@ -3533,64 +3898,124 @@ def admin_home(request: Request):
           datasetKpisEl.appendChild(card);
         }});
 
-        datasetStorageEl.textContent = JSON.stringify({{
-          project_total: formatBytes(sizes.project_total),
-          state_total: formatBytes(sizes.state_total),
-          build_total: formatBytes(sizes.build_total),
-          raw_total: formatBytes(sizes.raw_total),
-          cooked_total: formatBytes(sizes.cooked_total),
-          out_total: formatBytes(sizes.out_total),
-          parquet_total: formatBytes(sizes.parquet_total),
-          core_db: formatBytes(sizes.core_db),
-          rich_db: formatBytes(sizes.rich_db),
-          admin_db: formatBytes(sizes.admin_db),
-          disk_total: formatBytes(disk.total_bytes),
-          disk_used: formatBytes(disk.used_bytes),
-          disk_free: formatBytes(disk.free_bytes),
-          disk_used_pct: formatPct(disk.used_pct),
-        }}, null, 2);
+        renderMetricRows(datasetStorageEl, [
+          {{ key: 'Project footprint', value: formatBytes(sizes.project_total) }},
+          {{ key: 'State footprint', value: formatBytes(sizes.state_total) }},
+          {{ key: 'Served build footprint', value: formatBytes(sizes.build_total), note: String((data.paths || {{}}).build_dir || '') }},
+          {{ key: 'Raw / cooked / out', value: `${{formatBytes(sizes.raw_total)}} / ${{formatBytes(sizes.cooked_total)}} / ${{formatBytes(sizes.out_total)}}` }},
+          {{ key: 'Reports / served / parquet', value: `${{formatBytes(sizes.reports_total)}} / ${{formatBytes(sizes.served_total)}} / ${{formatBytes(sizes.parquet_total)}}` }},
+          {{ key: 'DB files', value: `core ${{formatBytes(sizes.core_db)}} | rich ${{formatBytes(sizes.rich_db)}} | admin ${{formatBytes(sizes.admin_db)}}` }},
+          {{ key: '/data partition', value: `${{formatBytes(disk.used_bytes)}} used of ${{formatBytes(disk.total_bytes)}}`, note: `${{formatBytes(disk.free_bytes)}} free (${{formatPct(disk.used_pct)}} used)` }},
+        ]);
 
-        datasetRuntimeEl.textContent = JSON.stringify({{
-          host: {{
-            cpu_count: host.cpu_count,
-            loadavg_1m: host.loadavg_1m,
-            loadavg_5m: host.loadavg_5m,
-            loadavg_15m: host.loadavg_15m,
-            mem_total: formatBytes(host.mem_total_bytes),
-            mem_available: formatBytes(host.mem_available_bytes),
-          }},
-          api_process: {{
-            pid: api.pid,
-            rss: formatBytes(api.rss_bytes),
-            peak_rss: formatBytes(api.peak_rss_bytes),
-            vm_size: formatBytes(api.vm_size_bytes),
-            threads: api.threads,
-            io_read_bytes: api.io_read_bytes,
-            io_write_bytes: api.io_write_bytes,
-          }},
-          duckdb_runtime: data.duckdb_runtime,
-          bottleneck_hints: bottlenecks,
-          timings_ms: data.timings_ms || {{}},
-        }}, null, 2);
+        const timingEntries = Object.entries(data.timings_ms || {{}})
+          .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+          .slice(0, 6)
+          .map(([name, ms]) => `${{name}}=${{formatFloat(ms, 2)}}ms`);
+        const loadLabel = `1m=${{formatFloat(host.loadavg_1m, 2)}} | 5m=${{formatFloat(host.loadavg_5m, 2)}} | 15m=${{formatFloat(host.loadavg_15m, 2)}}`;
+        const bottleneckNotes = [
+          bottlenecks.likely_memory_bound ? 'Memory-bound risk' : 'Memory headroom likely acceptable',
+          bottlenecks.likely_io_bound ? 'IO-bound risk' : 'IO-bound risk low',
+        ].join(' | ');
+        renderMetricRows(datasetRuntimeEl, [
+          {{ key: 'CPU', value: `${{formatInt(host.cpu_count)}} cores`, note: `load average: ${{loadLabel}}` }},
+          {{ key: 'Host memory', value: `${{formatBytes(hostMemUsed)}} used of ${{formatBytes(hostMemTotal)}}`, note: `${{formatBytes(hostMemAvailable)}} available` }},
+          {{ key: 'API process', value: `pid=${{api.pid || '?'}}, threads=${{formatInt(api.threads)}}`, note: `RSS=${{formatBytes(apiRss)}}, peak=${{formatBytes(apiPeakRss)}}, VM=${{formatBytes(api.vm_size_bytes)}}` }},
+          {{ key: 'Process IO', value: `read=${{formatBytes(api.io_read_bytes)}}, write=${{formatBytes(api.io_write_bytes)}}` }},
+          {{ key: 'DuckDB runtime', value: `db=${{formatBytes(duckdb.database_size_bytes)}}, wal=${{formatBytes(duckdb.wal_size_bytes)}}`, note: `memory=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}` }},
+          {{ key: 'Bottleneck hints', value: bottleneckNotes }},
+          {{ key: 'Top status query timings', value: timingEntries.length ? timingEntries.join(' | ') : 'n/a' }},
+        ]);
 
-        const sourceRows = (data.breakdowns && data.breakdowns.stars_by_source_catalog) || [];
+        renderUsageBars(datasetUsageBarsEl, [
+          {{
+            label: '/data used',
+            pct: disk.used_pct,
+            value: `${{formatPct(disk.used_pct)}} (${{formatBytes(disk.used_bytes)}} / ${{formatBytes(disk.total_bytes)}})`,
+          }},
+          {{
+            label: 'Host RAM used',
+            pct: pctFromPart(hostMemUsed, hostMemTotal),
+            value: `${{formatPct(pctFromPart(hostMemUsed, hostMemTotal))}} (${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}})`,
+          }},
+          {{
+            label: 'API RSS / host',
+            pct: pctFromPart(apiRss, hostMemTotal),
+            value: `${{formatPct(pctFromPart(apiRss, hostMemTotal))}} (${{formatBytes(apiRss)}} / ${{formatBytes(hostMemTotal)}})`,
+          }},
+          {{
+            label: 'API peak / host',
+            pct: pctFromPart(apiPeakRss, hostMemTotal),
+            value: `${{formatPct(pctFromPart(apiPeakRss, hostMemTotal))}} (${{formatBytes(apiPeakRss)}} / ${{formatBytes(hostMemTotal)}})`,
+          }},
+          {{
+            label: 'DuckDB memory',
+            pct: pctFromPart(duckMemUsage, duckMemLimit),
+            value: `${{formatPct(pctFromPart(duckMemUsage, duckMemLimit))}} (${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}})`,
+          }},
+          {{
+            label: 'Slice out',
+            pct: slice.sliced_out_pct,
+            value: `${{formatPct(slice.sliced_out_pct)}} (${{formatInt(slice.sliced_out_rows)}} rows)`,
+          }},
+        ]);
+
+        const sourceRows = breakdowns.stars_by_source_catalog || [];
         datasetSourceRowsEl.innerHTML = '';
         sourceRows.forEach((row) => {{
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${{String(row.source_catalog || '?')}}</td><td>${{formatInt(row.star_count)}}</td>`;
+          const sourceTd = document.createElement('td');
+          sourceTd.textContent = String(row.source_catalog || '?');
+          const countTd = document.createElement('td');
+          countTd.textContent = formatInt(row.star_count);
+          tr.appendChild(sourceTd);
+          tr.appendChild(countTd);
           datasetSourceRowsEl.appendChild(tr);
         }});
 
-        const spectralRows = ((data.breakdowns && data.breakdowns.stars_by_spectral_class) || []).slice(0, 16);
+        const spectralRows = (breakdowns.stars_by_spectral_class || []).slice(0, 16);
         datasetSpectralRowsEl.innerHTML = '';
         spectralRows.forEach((row) => {{
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${{String(row.spectral_class || '?')}}</td><td>${{formatInt(row.star_count)}}</td><td>${{formatPct(row.pct_of_stars)}}</td>`;
+          const classTd = document.createElement('td');
+          classTd.textContent = String(row.spectral_class || '?');
+          const countTd = document.createElement('td');
+          countTd.textContent = formatInt(row.star_count);
+          const pctTd = document.createElement('td');
+          pctTd.textContent = formatPct(row.pct_of_stars);
+          tr.appendChild(classTd);
+          tr.appendChild(countTd);
+          tr.appendChild(pctTd);
           datasetSpectralRowsEl.appendChild(tr);
         }});
 
-        const sysMult = (data.breakdowns && data.breakdowns.system_multiplicity_evidence) || {{}};
-        const starMult = (data.breakdowns && data.breakdowns.star_multiplicity_evidence) || {{}};
+        const spectralStandard = breakdowns.spectral_class_standard_counts || {{}};
+        renderKeyValueRows(datasetSpectralStandardRowsEl, [
+          {{ key: 'O', value: formatInt(spectralStandard.O) }},
+          {{ key: 'B', value: formatInt(spectralStandard.B) }},
+          {{ key: 'A', value: formatInt(spectralStandard.A) }},
+          {{ key: 'F', value: formatInt(spectralStandard.F) }},
+          {{ key: 'G', value: formatInt(spectralStandard.G) }},
+          {{ key: 'K', value: formatInt(spectralStandard.K) }},
+          {{ key: 'M', value: formatInt(spectralStandard.M) }},
+          {{ key: 'L', value: formatInt(spectralStandard.L) }},
+          {{ key: 'D', value: formatInt(spectralStandard.D) }},
+          {{ key: 'T', value: formatInt(spectralStandard.T) }},
+          {{ key: 'Y', value: formatInt(spectralStandard.Y) }},
+          {{ key: 'unknown', value: formatInt(spectralStandard.unknown) }},
+        ]);
+
+        const compact = breakdowns.compact_object_counts || {{}};
+        renderKeyValueRows(datasetCompactRowsEl, [
+          {{ key: 'white_dwarf', value: formatInt(compact.white_dwarf) }},
+          {{ key: 'neutron_star', value: formatInt(compact.neutron_star) }},
+          {{ key: 'pulsar', value: formatInt(compact.pulsar) }},
+          {{ key: 'black_hole', value: formatInt(compact.black_hole) }},
+          {{ key: 'all_compact', value: formatInt(compact.compact_total) }},
+        ]);
+
+        const sysMult = breakdowns.system_multiplicity_evidence || {{}};
+        const starMult = breakdowns.star_multiplicity_evidence || {{}};
         renderKeyValueRows(datasetSystemMultRowsEl, [
           {{ key: 'none', value: formatInt(sysMult.none) }},
           {{ key: 'nss_only', value: formatInt(sysMult.nss_only) }},
@@ -3611,6 +4036,19 @@ def admin_home(request: Request):
           {{ key: 'wds_msc', value: formatInt(starMult.wds_msc) }},
           {{ key: 'nss_wds_msc', value: formatInt(starMult.nss_wds_msc) }},
         ]);
+
+        const exotic = breakdowns.exotic_star_counts || {{}};
+        const summaryLines = [
+          `Build: ${{data.build_id || 'unknown'}}`,
+          `Total rows: ${{formatInt(counts.rows_total)}} (systems=${{formatInt(counts.systems)}}, stars=${{formatInt(counts.stars)}}, planets=${{formatInt(counts.planets)}})`,
+          `Multiplicity systems: ${{formatInt(counts.multi_star_systems)}} multi / ${{formatInt(counts.single_star_systems)}} single`,
+          `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slice.sliced_out_rows)}} sliced out (${{formatPct(slice.sliced_out_pct)}})`,
+          `Storage: core=${{formatBytes(sizes.core_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
+          `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
+          `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
+          `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,
+        ];
+        if (datasetHumanSummaryEl) datasetHumanSummaryEl.textContent = summaryLines.join('\\n');
       }}
 
       async function callDatasetStatus(forceRefresh = false) {{
@@ -4038,6 +4476,11 @@ def admin_home(request: Request):
       }}
 
       document.getElementById('logout').addEventListener('click', doLogout);
+      if (adminThemeSelectEl) {{
+        adminThemeSelectEl.addEventListener('change', (event) => {{
+          applyAdminTheme((event && event.target && event.target.value) || 'simple_light');
+        }});
+      }}
       document.getElementById('screenTabOperations').addEventListener('click', () => setScreen('operations'));
       document.getElementById('screenTabStatus').addEventListener('click', () => setScreen('status'));
       document.getElementById('screenTabCoolness').addEventListener('click', () => setScreen('coolness'));
@@ -4068,7 +4511,8 @@ def admin_home(request: Request):
       bindRangeNumberPair(snapshotMinPlanetCountEl, snapshotMinPlanetCountNumberEl, 0, {{ min: 0, max: 20, step: 1 }});
       bindRangeNumberPair(snapshotMinCoolnessScoreEl, snapshotMinCoolnessScoreNumberEl, 0, {{ min: 0, max: 40, step: 0.5 }});
       snapshotRunBtnEl.addEventListener('click', () => {{ void runSnapshotGeneration(); }});
-      setScreen('operations');
+      applyAdminTheme(resolveAdminTheme());
+      setScreen('status');
       renderCoolnessSliders();
       renderCoolnessPreview(null);
       setPreviewNotice('Preview is safe and read-only. Run updates ranking outputs ephemerally; Save Profile persists a chosen version; Activate Profile switches what is live.');

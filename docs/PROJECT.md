@@ -226,6 +226,8 @@ Panel purpose:
 - expose storage footprint by major data area
 - show multiplicity and source-combination coverage
 - surface spectral/exotic/object breadth indicators for quality review
+- keep admin diagnostics visually consistent with active site theme
+- make status interpretation fast under large builds (humanized rows, bars, concise summaries)
 
 Minimum metrics exposed:
 
@@ -233,15 +235,19 @@ Minimum metrics exposed:
 - slice metrics: backbone input rows, sliced-in stars, sliced-out rows/percent
 - source breakdowns: stars by source catalog; multiplicity evidence alone/in combination
 - object breakdowns: spectral class distribution; exotic-star heuristics; exoplanet + candidate habitable counts
+- astrophysical breakdowns: standard spectral buckets (`O/B/A/F/G/K/M/L/T/Y/D/unknown`) and inferred compact-object counts
 - runtime health: API RSS + peak RSS, host memory/load, DuckDB runtime memory/database figures
 - storage health: project/state/build/core/rich/parquet/raw/cooked/reports sizes and disk usage
 - query-timing probes for major status queries
+- percentage capacity bars where current vs maximum is known (disk, host memory, API RSS/peak vs host, DuckDB memory vs limit)
+- concise humanized status summary plus raw payload for deep debugging
 
 Implementation constraints:
 
 - status endpoint is admin-only
 - heavy aggregates are cached briefly in-process to avoid repeated full scans
 - status metrics are diagnostic, not canonical science tables
+- admin UI defaults to the Status subpage for immediate operational visibility
 
 ## Milestones (Gaia-First Program)
 
