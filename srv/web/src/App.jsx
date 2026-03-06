@@ -934,6 +934,47 @@ function groupingSourceLabel(groupingBasis, groupingSources) {
   }
 }
 
+function LazySnapshotImage({ src, alt, eager = false }) {
+  const imgRef = React.useRef(null);
+  const [shouldLoad, setShouldLoad] = useState(Boolean(eager));
+
+  useEffect(() => {
+    if (eager || shouldLoad) {
+      return;
+    }
+    const node = imgRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting || entry.intersectionRatio > 0) {
+            setShouldLoad(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { rootMargin: "280px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [eager, shouldLoad]);
+
+  return (
+    <img
+      ref={imgRef}
+      src={shouldLoad ? src : undefined}
+      alt={alt}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      fetchPriority={eager ? "high" : "low"}
+    />
+  );
+}
+
 function SnapshotVisual({ snapshot, systemName, compact = false }) {
   const hasImage = Boolean(snapshot?.url);
   if (!hasImage) {
@@ -955,7 +996,11 @@ function SnapshotVisual({ snapshot, systemName, compact = false }) {
 
   return (
     <figure className={`snapshot-frame ${compact ? "compact" : ""}`}>
-      <img src={snapshot.url} alt={`${formatText(systemName)} deterministic system snapshot`} loading="lazy" />
+      <LazySnapshotImage
+        src={snapshot.url}
+        alt={`${formatText(systemName)} deterministic system snapshot`}
+        eager={!compact}
+      />
       {labelBits.length > 0 && (
         <figcaption className="snapshot-caption">{labelBits.join(" · ")}</figcaption>
       )}
@@ -1366,6 +1411,7 @@ function SearchPage({ buildId = "" }) {
   const [searchStarted, setSearchStarted] = useState(false);
   const [activeParams, setActiveParams] = useState(null);
   const [totalCount, setTotalCount] = useState(null);
+  const [lastQueryStats, setLastQueryStats] = useState(null);
   const [filtersCollapsedY, setFiltersCollapsedY] = useState(false);
 
   const spectralSet = useMemo(() => new Set(spectral), [spectral]);
@@ -1465,6 +1511,7 @@ function SearchPage({ buildId = "" }) {
   const buildBaseParams = () => buildBaseParamsFromFilters(currentFilterState());
 
   const runSearch = async (cursorValue, reset = false, overrideBaseParams = null) => {
+    const startedAtMs = typeof performance !== "undefined" ? performance.now() : Date.now();
     const resolvedBase =
       (!reset && cursorValue && activeParams)
         ? activeParams
@@ -1482,6 +1529,8 @@ function SearchPage({ buildId = "" }) {
     setError("");
     try {
       const data = await fetchSystems(requestParams);
+      const endedAtMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const clientQueryMs = Math.max(0, endedAtMs - startedAtMs);
       setHasMore(Boolean(data.has_more));
       setCursor(data.next_cursor || null);
       setResults((prev) => (reset ? data.items : [...prev, ...data.items]));
@@ -1493,6 +1542,14 @@ function SearchPage({ buildId = "" }) {
       if (reset || !activeParams || overrideBaseParams) {
         setActiveParams(resolvedBase);
       }
+      setLastQueryStats({
+        mode: reset ? "search" : "load_more",
+        returnedCount: Array.isArray(data.items) ? data.items.length : 0,
+        serverMs: (typeof data.query_time_ms === "number" && Number.isFinite(data.query_time_ms))
+          ? Number(data.query_time_ms)
+          : null,
+        clientMs: clientQueryMs,
+      });
     } catch (err) {
       setError(err?.message || "Data temporarily unavailable.");
       if (reset) {
@@ -1919,6 +1976,16 @@ function SearchPage({ buildId = "" }) {
           )}
 
           <div className="pagination-row">
+            {lastQueryStats && (
+              <div className="results-query-note">
+                Query {formatNumber(lastQueryStats.serverMs ?? lastQueryStats.clientMs, 1)} ms
+                {lastQueryStats.serverMs !== null
+                  ? ` server · ${formatNumber(lastQueryStats.clientMs, 1)} ms end-to-end`
+                  : " end-to-end"}
+                {` · returned ${formatNumber(lastQueryStats.returnedCount, 0)} rows`}
+                {lastQueryStats.mode === "load_more" ? " (page append)" : ""}
+              </div>
+            )}
             {hasMore && (
               <button
                 className="button ghost load-more"

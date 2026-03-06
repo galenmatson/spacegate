@@ -3414,7 +3414,16 @@ main {
 .pagination-row {
   min-height: 42px;
   display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   justify-content: center;
+}
+
+.results-query-note {
+  color: var(--subtle-ink);
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
 }
 
 @media (prefers-reduced-motion: reduce) {

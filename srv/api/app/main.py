@@ -654,6 +654,8 @@ def systems_search(
                 }
             )
 
+    duration_ms = max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000))
+
     _audit_systems_search(
         request,
         q_raw=q,
@@ -676,7 +678,7 @@ def systems_search(
         has_more=has_more,
         total_count=total_count,
         outcome="success",
-        duration_ms=max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000)),
+        duration_ms=duration_ms,
     )
 
     return {
@@ -684,6 +686,7 @@ def systems_search(
         "next_cursor": next_cursor,
         "has_more": has_more,
         "total_count": total_count,
+        "query_time_ms": duration_ms,
     }
 
 
