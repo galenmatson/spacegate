@@ -2788,6 +2788,7 @@ main {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .results-spectral-label {
@@ -2808,6 +2809,119 @@ main {
 
 .results-spectral-chips .chip {
   flex: 0 0 auto;
+}
+
+.results-spectral-range {
+  margin-left: auto;
+  flex: 1 1 240px;
+  min-width: 220px;
+  display: grid;
+  gap: 5px;
+}
+
+.results-spectral-range-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.results-spectral-range-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--subtle-ink);
+}
+
+.results-spectral-range-value {
+  font-size: 0.72rem;
+  color: var(--subtle-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.results-spectral-slider {
+  position: relative;
+  height: 20px;
+  --thumb-size: 13px;
+  --thumb-half: calc(var(--thumb-size) / 2);
+}
+
+.results-spectral-slider-track,
+.results-spectral-slider-fill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 5px;
+  border-radius: 999px;
+}
+
+.results-spectral-slider-track {
+  left: 0;
+  right: 0;
+  background: rgba(23, 37, 47, 0.16);
+}
+
+.results-spectral-slider-fill {
+  background: var(--accent);
+}
+
+.results-spectral-slider-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.results-spectral-slider-input-min {
+  z-index: 2;
+}
+
+.results-spectral-slider-input-max {
+  z-index: 3;
+}
+
+.results-spectral-slider-input::-webkit-slider-runnable-track {
+  height: 5px;
+  background: transparent;
+}
+
+.results-spectral-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  margin-top: -4px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(20, 36, 48, 0.35);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.results-spectral-slider-input::-moz-range-track {
+  height: 5px;
+  background: transparent;
+  border: none;
+}
+
+.results-spectral-slider-input::-moz-range-thumb {
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(20, 36, 48, 0.35);
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .results-bottom-row {
