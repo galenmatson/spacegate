@@ -2417,6 +2417,15 @@ def admin_home(request: Request):
       .bar-fill {{ background: var(--brand); height: 100%; border-radius: 999px; }}
       .bar-fill.warn {{ background: var(--warn); }}
       .bar-fill.err {{ background: var(--err); }}
+      .chart-split {{ display: grid; gap: 0.6rem; grid-template-columns: minmax(220px, 0.95fr) minmax(220px, 1.05fr); align-items: start; }}
+      .pie-panel {{ border: 1px solid var(--panel-soft); border-radius: 8px; padding: 0.45rem; background: color-mix(in srgb, var(--panel-soft) 68%, transparent); }}
+      .pie-title {{ margin: 0 0 0.35rem 0; font-size: 0.84rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }}
+      .pie-wrap {{ display: grid; gap: 0.5rem; align-items: center; grid-template-columns: 116px 1fr; }}
+      .pie-plot {{ width: 108px; height: 108px; border-radius: 50%; position: relative; border: 1px solid var(--border); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 42%, transparent); }}
+      .pie-plot::after {{ content: ""; position: absolute; inset: 25%; border-radius: 50%; background: var(--card); border: 1px solid var(--panel-soft); }}
+      .pie-legend {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 0.22rem; }}
+      .pie-legend li {{ display: grid; grid-template-columns: 10px 1fr auto; gap: 0.38rem; align-items: center; font-size: 0.78rem; }}
+      .pie-dot {{ width: 10px; height: 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--bg) 45%, transparent); }}
       .metric-list {{ display: grid; gap: 0.35rem; }}
       .metric-row {{ display: grid; grid-template-columns: minmax(130px, 1fr) minmax(180px, 1.1fr); gap: 0.5rem; align-items: baseline; border-bottom: 1px solid var(--panel-soft); padding-bottom: 0.28rem; }}
       .metric-row:last-child {{ border-bottom: 0; padding-bottom: 0; }}
@@ -2428,6 +2437,9 @@ def admin_home(request: Request):
       .mini-table th {{ color: var(--muted); font-weight: 600; }}
       @media (max-width: 1100px) {{
         .coolness-layout {{ grid-template-columns: 1fr; }}
+      }}
+      @media (max-width: 880px) {{
+        .chart-split {{ grid-template-columns: 1fr; }}
       }}
     </style>
   </head>
@@ -2523,33 +2535,45 @@ def admin_home(request: Request):
       <div class="section grid">
         <div>
           <h3>Stars by Source</h3>
-          <table class="mini-table">
-            <thead><tr><th>Source</th><th>Stars</th></tr></thead>
-            <tbody id="datasetSourceRows"></tbody>
-          </table>
+          <div class="chart-split">
+            <div id="datasetSourcePie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Source</th><th>Stars</th></tr></thead>
+              <tbody id="datasetSourceRows"></tbody>
+            </table>
+          </div>
         </div>
         <div>
           <h3>Stars by Spectral Class</h3>
-          <table class="mini-table">
-            <thead><tr><th>Class</th><th>Stars</th><th>%</th></tr></thead>
-            <tbody id="datasetSpectralRows"></tbody>
-          </table>
+          <div class="chart-split">
+            <div id="datasetSpectralPie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Class</th><th>Stars</th><th>%</th></tr></thead>
+              <tbody id="datasetSpectralRows"></tbody>
+            </table>
+          </div>
         </div>
       </div>
       <div class="section grid">
         <div>
           <h3>Multiplicity Evidence (Systems)</h3>
-          <table class="mini-table">
-            <thead><tr><th>Bucket</th><th>Systems</th></tr></thead>
-            <tbody id="datasetSystemMultRows"></tbody>
-          </table>
+          <div class="chart-split">
+            <div id="datasetSystemMultPie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Bucket</th><th>Systems</th></tr></thead>
+              <tbody id="datasetSystemMultRows"></tbody>
+            </table>
+          </div>
         </div>
         <div>
           <h3>Multiplicity Evidence (Stars)</h3>
-          <table class="mini-table">
-            <thead><tr><th>Bucket</th><th>Stars</th></tr></thead>
-            <tbody id="datasetStarMultRows"></tbody>
-          </table>
+          <div class="chart-split">
+            <div id="datasetStarMultPie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Bucket</th><th>Stars</th></tr></thead>
+              <tbody id="datasetStarMultRows"></tbody>
+            </table>
+          </div>
         </div>
       </div>
       <div class="section grid">
@@ -2774,11 +2798,17 @@ def admin_home(request: Request):
               </div>
               <div>
                 <h4>Type Distribution</h4>
-                <div id="coolPreviewTypeDist" class="bar-list"></div>
+                <div class="chart-split">
+                  <div id="coolPreviewTypePie" class="pie-panel"></div>
+                  <div id="coolPreviewTypeDist" class="bar-list"></div>
+                </div>
               </div>
               <div>
                 <h4>Spectral Distribution</h4>
-                <div id="coolPreviewSpectralDist" class="bar-list"></div>
+                <div class="chart-split">
+                  <div id="coolPreviewSpectralPie" class="pie-panel"></div>
+                  <div id="coolPreviewSpectralDist" class="bar-list"></div>
+                </div>
               </div>
               <div>
                 <h4>Top Systems (Preview)</h4>
@@ -2859,11 +2889,15 @@ def admin_home(request: Request):
       const datasetRuntimeEl = document.getElementById('datasetRuntime');
       const datasetUsageBarsEl = document.getElementById('datasetUsageBars');
       const datasetSourceRowsEl = document.getElementById('datasetSourceRows');
+      const datasetSourcePieEl = document.getElementById('datasetSourcePie');
       const datasetSpectralRowsEl = document.getElementById('datasetSpectralRows');
+      const datasetSpectralPieEl = document.getElementById('datasetSpectralPie');
       const datasetSpectralStandardRowsEl = document.getElementById('datasetSpectralStandardRows');
       const datasetCompactRowsEl = document.getElementById('datasetCompactRows');
       const datasetSystemMultRowsEl = document.getElementById('datasetSystemMultRows');
+      const datasetSystemMultPieEl = document.getElementById('datasetSystemMultPie');
       const datasetStarMultRowsEl = document.getElementById('datasetStarMultRows');
+      const datasetStarMultPieEl = document.getElementById('datasetStarMultPie');
       const datasetHumanSummaryEl = document.getElementById('datasetHumanSummary');
       const datasetStatusRawEl = document.getElementById('datasetStatusRaw');
       const sliceMaxDistanceLyEl = document.getElementById('sliceMaxDistanceLy');
@@ -2903,7 +2937,9 @@ def admin_home(request: Request):
       const coolPreviewSummaryEl = document.getElementById('coolPreviewSummary');
       const coolPreviewChangesEl = document.getElementById('coolPreviewChanges');
       const coolPreviewTypeDistEl = document.getElementById('coolPreviewTypeDist');
+      const coolPreviewTypePieEl = document.getElementById('coolPreviewTypePie');
       const coolPreviewSpectralDistEl = document.getElementById('coolPreviewSpectralDist');
+      const coolPreviewSpectralPieEl = document.getElementById('coolPreviewSpectralPie');
       const coolPreviewTopSystemsEl = document.getElementById('coolPreviewTopSystems');
 	      const coolRunStatusEl = document.getElementById('coolRunStatus');
       const coolPreviewNoticeEl = document.getElementById('coolPreviewNotice');
@@ -3367,7 +3403,9 @@ def admin_home(request: Request):
         coolPreviewSummaryEl.innerHTML = '';
         coolPreviewChangesEl.innerHTML = '';
         coolPreviewTypeDistEl.innerHTML = '';
+        if (coolPreviewTypePieEl) coolPreviewTypePieEl.innerHTML = '';
         coolPreviewSpectralDistEl.innerHTML = '';
+        if (coolPreviewSpectralPieEl) coolPreviewSpectralPieEl.innerHTML = '';
         coolPreviewTopSystemsEl.innerHTML = '';
       }}
 
@@ -3473,6 +3511,98 @@ def admin_home(request: Request):
         }});
       }}
 
+      const PIE_COLORS = [
+        '#4f46e5',
+        '#0284c7',
+        '#0f766e',
+        '#16a34a',
+        '#ca8a04',
+        '#ea580c',
+        '#dc2626',
+        '#be185d',
+        '#7c3aed',
+        '#6b7280',
+      ];
+
+      function compactPieRows(rows, maxSlices = 8) {{
+        const norm = (Array.isArray(rows) ? rows : [])
+          .map((row) => ({{
+            label: String(row && row.label ? row.label : '?'),
+            value: Math.max(0, toNumber(row && row.value, 0)),
+          }}))
+          .filter((row) => row.value > 0)
+          .sort((a, b) => b.value - a.value);
+        if (norm.length <= maxSlices) return norm;
+        const keep = norm.slice(0, Math.max(1, maxSlices - 1));
+        const tail = norm.slice(Math.max(1, maxSlices - 1));
+        const other = tail.reduce((acc, row) => acc + toNumber(row.value, 0), 0);
+        if (other > 0) keep.push({{ label: 'Other', value: other }});
+        return keep;
+      }}
+
+      function renderPieChart(target, rows, total, title = '') {{
+        if (!target) return;
+        target.innerHTML = '';
+        const compactRows = compactPieRows(rows, 8);
+        const computedTotal = compactRows.reduce((acc, row) => acc + toNumber(row.value, 0), 0);
+        const denom = toNumber(total, 0) > 0 ? toNumber(total, 0) : computedTotal;
+        if (!compactRows.length || denom <= 0) {{
+          const empty = document.createElement('div');
+          empty.className = 'small muted';
+          empty.textContent = 'No data';
+          target.appendChild(empty);
+          return;
+        }}
+        if (title) {{
+          const titleEl = document.createElement('div');
+          titleEl.className = 'pie-title';
+          titleEl.textContent = String(title);
+          target.appendChild(titleEl);
+        }}
+
+        let cursorPct = 0;
+        const gradientParts = [];
+        const rowsWithColor = compactRows.map((row, idx) => {{
+          const color = PIE_COLORS[idx % PIE_COLORS.length];
+          const partPct = Math.max(0, Math.min(100, pct(row.value, denom)));
+          const nextPct = Math.max(cursorPct, Math.min(100, cursorPct + partPct));
+          gradientParts.push(`${{color}} ${{cursorPct.toFixed(2)}}% ${{nextPct.toFixed(2)}}%`);
+          cursorPct = nextPct;
+          return {{
+            ...row,
+            color,
+            sharePct: partPct,
+          }};
+        }});
+
+        const wrap = document.createElement('div');
+        wrap.className = 'pie-wrap';
+        const pie = document.createElement('div');
+        pie.className = 'pie-plot';
+        pie.style.background = `conic-gradient(${{gradientParts.join(', ')}})`;
+        wrap.appendChild(pie);
+
+        const legend = document.createElement('ul');
+        legend.className = 'pie-legend';
+        rowsWithColor.forEach((row) => {{
+          const li = document.createElement('li');
+          const dot = document.createElement('span');
+          dot.className = 'pie-dot';
+          dot.style.background = row.color;
+          const label = document.createElement('span');
+          label.textContent = row.label;
+          const value = document.createElement('span');
+          value.className = 'small';
+          value.textContent = `${{formatInt(row.value)}} (${{formatPct(row.sharePct)}})`;
+          li.appendChild(dot);
+          li.appendChild(label);
+          li.appendChild(value);
+          legend.appendChild(li);
+        }});
+        wrap.appendChild(legend);
+        target.appendChild(wrap);
+      }}
+
       function renderCoolnessPreview(data) {{
         clearPreviewVisuals();
         if (!data || typeof data !== 'object') {{
@@ -3521,27 +3651,31 @@ def admin_home(request: Request):
         }}
 
         const td = (diversity.type_distribution && typeof diversity.type_distribution === 'object') ? diversity.type_distribution : {{}};
+        const typeRows = [
+          {{ label: 'With planets', value: toNumber(td.with_planets, 0) }},
+          {{ label: 'Without planets', value: toNumber(td.without_planets, 0) }},
+          {{ label: 'Multi-star', value: toNumber(td.multi_star, 0) }},
+          {{ label: 'Single-star', value: toNumber(td.single_star, 0) }},
+          {{ label: 'Weird planets', value: toNumber(td.weird_planet_systems, 0) }},
+        ];
         renderBarList(
           coolPreviewTypeDistEl,
-          [
-            {{ label: 'With planets', value: toNumber(td.with_planets, 0) }},
-            {{ label: 'Without planets', value: toNumber(td.without_planets, 0) }},
-            {{ label: 'Multi-star', value: toNumber(td.multi_star, 0) }},
-            {{ label: 'Single-star', value: toNumber(td.single_star, 0) }},
-            {{ label: 'Weird planets', value: toNumber(td.weird_planet_systems, 0) }},
-          ],
+          typeRows,
           sampleSize
         );
+        renderPieChart(coolPreviewTypePieEl, typeRows, sampleSize, 'Type mix');
 
         const spectral = Array.isArray(diversity.spectral_distribution) ? diversity.spectral_distribution : [];
+        const spectralRows = spectral.slice(0, 12).map((row) => ({{
+          label: String(row.spectral_class || '?'),
+          value: toNumber(row.systems, 0),
+        }}));
         renderBarList(
           coolPreviewSpectralDistEl,
-          spectral.slice(0, 8).map((row) => ({{
-            label: String(row.spectral_class || '?'),
-            value: toNumber(row.systems, 0),
-          }})),
+          spectralRows.slice(0, 8),
           sampleSize
         );
+        renderPieChart(coolPreviewSpectralPieEl, spectralRows, sampleSize, 'Spectral mix');
 
         const topSystems = Array.isArray(diversity.top_systems) ? diversity.top_systems : [];
         if (!topSystems.length) {{
@@ -4186,6 +4320,13 @@ def admin_home(request: Request):
         const policyInputStars = Number(slice.policy_input_stars) || 0;
         const policySlicedOutStars = Number(slice.policy_sliced_out_stars) || 0;
         const policySlicedOutStarsPct = Number(slice.policy_sliced_out_stars_pct) || 0;
+        const slicedOutRows = Number(slice.sliced_out_rows) || 0;
+        const slicedOutPct = Number(slice.sliced_out_pct) || 0;
+        const sliceMetricsMatch = (
+          policyInputStars > 0
+          && policySlicedOutStars === slicedOutRows
+          && Math.abs(policySlicedOutStarsPct - slicedOutPct) < 0.0001
+        );
 
         datasetStatusMetaEl.textContent = `build=${{data.build_id || 'unknown'}} | generated=${{data.generated_at_utc || ''}} | cache=${{cache.hit ? 'hit' : 'miss'}} age=${{formatFloat(cache.age_s || 0, 3)}}s`;
 
@@ -4205,8 +4346,7 @@ def admin_home(request: Request):
           {{ key: 'Exoplanets', value: formatInt(counts.exoplanets_total) }},
           {{ key: 'Hab Zone Candidates', value: formatInt(counts.exoplanets_candidate_habitable) }},
           {{ key: 'Backbone Input', value: formatInt(slice.input_backbone_rows) }},
-          {{ key: 'Sliced Out', value: `${{formatInt(slice.sliced_out_rows)}} (${{formatPct(slice.sliced_out_pct)}})` }},
-          {{ key: 'Policy Slice Out', value: `${{formatInt(policySlicedOutStars)}} (${{formatPct(policySlicedOutStarsPct)}})` }},
+          {{ key: 'Sliced Out', value: `${{formatInt(slicedOutRows)}} (${{formatPct(slicedOutPct)}})` }},
           {{ key: 'Core DB', value: formatBytes(sizes.core_db) }},
           {{ key: 'State Dir', value: formatBytes(sizes.state_total) }},
           {{ key: 'API RSS', value: formatBytes(apiRss) }},
@@ -4214,6 +4354,12 @@ def admin_home(request: Request):
           {{ key: 'Host Mem Available', value: formatBytes(hostMemAvailable) }},
           {{ key: '/data Used', value: `${{formatPct(disk.used_pct)}} (${{formatBytes(disk.used_bytes)}})` }},
         ];
+        if (!sliceMetricsMatch && policyInputStars > 0) {{
+          kpis.splice(8, 0, {{
+            key: 'Policy Slice Out',
+            value: `${{formatInt(policySlicedOutStars)}} (${{formatPct(policySlicedOutStarsPct)}})`,
+          }});
+        }}
         datasetKpisEl.innerHTML = '';
         kpis.forEach((item) => {{
           const card = document.createElement('div');
@@ -4258,7 +4404,7 @@ def admin_home(request: Request):
           {{ key: 'Top status query timings', value: timingEntries.length ? timingEntries.join(' | ') : 'n/a' }},
         ]);
 
-        renderUsageBars(datasetUsageBarsEl, [
+        const usageRows = [
           {{
             label: '/data used',
             pct: disk.used_pct,
@@ -4286,15 +4432,18 @@ def admin_home(request: Request):
           }},
           {{
             label: 'Slice out',
-            pct: slice.sliced_out_pct,
-            value: `${{formatPct(slice.sliced_out_pct)}} (${{formatInt(slice.sliced_out_rows)}} rows)`,
+            pct: slicedOutPct,
+            value: `${{formatPct(slicedOutPct)}} (${{formatInt(slicedOutRows)}} rows)`,
           }},
-          {{
+        ];
+        if (!sliceMetricsMatch && policyInputStars > 0) {{
+          usageRows.push({{
             label: 'Policy out',
             pct: policySlicedOutStarsPct,
             value: `${{formatPct(policySlicedOutStarsPct)}} (${{formatInt(policySlicedOutStars)}} / ${{formatInt(policyInputStars || counts.stars)}} stars)`,
-          }},
-        ]);
+          }});
+        }}
+        renderUsageBars(datasetUsageBarsEl, usageRows);
 
         const sourceRows = breakdowns.stars_by_source_catalog || [];
         datasetSourceRowsEl.innerHTML = '';
@@ -4308,6 +4457,15 @@ def admin_home(request: Request):
           tr.appendChild(countTd);
           datasetSourceRowsEl.appendChild(tr);
         }});
+        renderPieChart(
+          datasetSourcePieEl,
+          sourceRows.map((row) => ({{
+            label: String(row.source_catalog || '?'),
+            value: toNumber(row.star_count, 0),
+          }})),
+          toNumber(counts.stars, 0),
+          'Star source share'
+        );
 
         const spectralRows = (breakdowns.stars_by_spectral_class || []).slice(0, 16);
         datasetSpectralRowsEl.innerHTML = '';
@@ -4324,6 +4482,15 @@ def admin_home(request: Request):
           tr.appendChild(pctTd);
           datasetSpectralRowsEl.appendChild(tr);
         }});
+        renderPieChart(
+          datasetSpectralPieEl,
+          spectralRows.map((row) => ({{
+            label: String(row.spectral_class || '?'),
+            value: toNumber(row.star_count, 0),
+          }})),
+          toNumber(counts.stars, 0),
+          'Spectral share'
+        );
 
         const spectralStandard = breakdowns.spectral_class_standard_counts || {{}};
         renderKeyValueRows(datasetSpectralStandardRowsEl, [
@@ -4362,6 +4529,21 @@ def admin_home(request: Request):
           {{ key: 'wds_msc', value: formatInt(sysMult.wds_msc) }},
           {{ key: 'nss_wds_msc', value: formatInt(sysMult.nss_wds_msc) }},
         ]);
+        renderPieChart(
+          datasetSystemMultPieEl,
+          [
+            {{ label: 'none', value: toNumber(sysMult.none, 0) }},
+            {{ label: 'nss_only', value: toNumber(sysMult.nss_only, 0) }},
+            {{ label: 'wds_only', value: toNumber(sysMult.wds_only, 0) }},
+            {{ label: 'msc_only', value: toNumber(sysMult.msc_only, 0) }},
+            {{ label: 'nss_wds', value: toNumber(sysMult.nss_wds, 0) }},
+            {{ label: 'nss_msc', value: toNumber(sysMult.nss_msc, 0) }},
+            {{ label: 'wds_msc', value: toNumber(sysMult.wds_msc, 0) }},
+            {{ label: 'nss_wds_msc', value: toNumber(sysMult.nss_wds_msc, 0) }},
+          ],
+          toNumber(counts.systems, 0),
+          'System evidence'
+        );
         renderKeyValueRows(datasetStarMultRowsEl, [
           {{ key: 'none', value: formatInt(starMult.none) }},
           {{ key: 'nss_only', value: formatInt(starMult.nss_only) }},
@@ -4372,19 +4554,40 @@ def admin_home(request: Request):
           {{ key: 'wds_msc', value: formatInt(starMult.wds_msc) }},
           {{ key: 'nss_wds_msc', value: formatInt(starMult.nss_wds_msc) }},
         ]);
+        renderPieChart(
+          datasetStarMultPieEl,
+          [
+            {{ label: 'none', value: toNumber(starMult.none, 0) }},
+            {{ label: 'nss_only', value: toNumber(starMult.nss_only, 0) }},
+            {{ label: 'wds_only', value: toNumber(starMult.wds_only, 0) }},
+            {{ label: 'msc_only', value: toNumber(starMult.msc_only, 0) }},
+            {{ label: 'nss_wds', value: toNumber(starMult.nss_wds, 0) }},
+            {{ label: 'nss_msc', value: toNumber(starMult.nss_msc, 0) }},
+            {{ label: 'wds_msc', value: toNumber(starMult.wds_msc, 0) }},
+            {{ label: 'nss_wds_msc', value: toNumber(starMult.nss_wds_msc, 0) }},
+          ],
+          toNumber(counts.stars, 0),
+          'Star evidence'
+        );
 
         const exotic = breakdowns.exotic_star_counts || {{}};
         const summaryLines = [
           `Build: ${{data.build_id || 'unknown'}}`,
           `Total rows: ${{formatInt(counts.rows_total)}} (systems=${{formatInt(counts.systems)}}, stars=${{formatInt(counts.stars)}}, planets=${{formatInt(counts.planets)}})`,
           `Multiplicity systems: ${{formatInt(counts.multi_star_systems)}} multi / ${{formatInt(counts.single_star_systems)}} single`,
-          `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slice.sliced_out_rows)}} sliced out (${{formatPct(slice.sliced_out_pct)}})`,
-          `Policy slice: ${{formatInt(policyInputStars || counts.stars)}} input stars, ${{formatInt(policySlicedOutStars)}} sliced out (${{formatPct(policySlicedOutStarsPct)}})`,
+          `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slicedOutRows)}} sliced out (${{formatPct(slicedOutPct)}})`,
           `Storage: core=${{formatBytes(sizes.core_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
           `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
           `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,
         ];
+        if (policyInputStars > 0) {{
+          if (sliceMetricsMatch) {{
+            summaryLines.push(`Policy slice matches sliced-out totals (${{formatInt(policySlicedOutStars)}} stars, ${{formatPct(policySlicedOutStarsPct)}}).`);
+          }} else {{
+            summaryLines.push(`Policy slice: ${{formatInt(policyInputStars)}} input stars, ${{formatInt(policySlicedOutStars)}} sliced out (${{formatPct(policySlicedOutStarsPct)}}).`);
+          }}
+        }}
         if (datasetHumanSummaryEl) datasetHumanSummaryEl.textContent = summaryLines.join('\\n');
       }}
 

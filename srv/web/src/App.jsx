@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -88,6 +88,7 @@ const LCARS_HISTORY_LIMIT = 32;
 const LCARS_LEFT_DECORATIVE_CHIP_COUNT = 2;
 const LCARS_RIGHT_CHIP_COUNT = 4;
 const LCARS_TEXT_SLOTS_PER_LINE = 5;
+const SEARCH_EAGER_SNAPSHOT_COUNT = 6;
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
@@ -785,9 +786,24 @@ function buildSystemCatalogIds(system) {
 }
 
 function MetricChip({ label, value, tooltipLines = [] }) {
-  const lines = tooltipLines.filter((line) => Boolean(line));
+  const isLazyTooltip = typeof tooltipLines === "function";
+  const [lazyTooltipLines, setLazyTooltipLines] = useState(null);
+  const lines = isLazyTooltip
+    ? (Array.isArray(lazyTooltipLines) ? lazyTooltipLines : [])
+    : (Array.isArray(tooltipLines) ? tooltipLines.filter((line) => Boolean(line)) : []);
+  const loadTooltip = () => {
+    if (!isLazyTooltip || lazyTooltipLines !== null) {
+      return;
+    }
+    const computed = tooltipLines();
+    if (!Array.isArray(computed)) {
+      setLazyTooltipLines([]);
+      return;
+    }
+    setLazyTooltipLines(computed.filter((line) => Boolean(line)));
+  };
   return (
-    <div className="metric-chip" tabIndex={0}>
+    <div className="metric-chip" tabIndex={0} onMouseEnter={loadTooltip} onFocus={loadTooltip} onTouchStart={loadTooltip}>
       <span>{label}</span>
       <strong>{value}</strong>
       {lines.length > 0 && (
@@ -975,7 +991,7 @@ function LazySnapshotImage({ src, alt, eager = false }) {
   );
 }
 
-function SnapshotVisual({ snapshot, systemName, compact = false }) {
+function SnapshotVisual({ snapshot, systemName, compact = false, eager = false }) {
   const hasImage = Boolean(snapshot?.url);
   if (!hasImage) {
     return (
@@ -999,7 +1015,7 @@ function SnapshotVisual({ snapshot, systemName, compact = false }) {
       <LazySnapshotImage
         src={snapshot.url}
         alt={`${formatText(systemName)} deterministic system snapshot`}
-        eager={!compact}
+        eager={eager}
       />
       {labelBits.length > 0 && (
         <figcaption className="snapshot-caption">{labelBits.join(" · ")}</figcaption>
@@ -1413,6 +1429,8 @@ function SearchPage({ buildId = "" }) {
   const [totalCount, setTotalCount] = useState(null);
   const [lastQueryStats, setLastQueryStats] = useState(null);
   const [filtersCollapsedY, setFiltersCollapsedY] = useState(false);
+  const latestSearchTokenRef = useRef(0);
+  const latestTotalTokenRef = useRef(0);
 
   const spectralSet = useMemo(() => new Set(spectral), [spectral]);
   const defaultFilterState = () => ({
@@ -1510,16 +1528,37 @@ function SearchPage({ buildId = "" }) {
   };
   const buildBaseParams = () => buildBaseParamsFromFilters(currentFilterState());
 
+  const fetchDeferredTotalCount = async (baseParams, searchToken) => {
+    const totalToken = latestTotalTokenRef.current + 1;
+    latestTotalTokenRef.current = totalToken;
+    try {
+      const totalData = await fetchSystems({
+        ...baseParams,
+        include_total: "true",
+        limit: "1",
+      });
+      if (latestSearchTokenRef.current !== searchToken || latestTotalTokenRef.current !== totalToken) {
+        return;
+      }
+      if (typeof totalData.total_count === "number" && Number.isFinite(totalData.total_count)) {
+        setTotalCount(totalData.total_count);
+      }
+    } catch (_) {
+      if (latestSearchTokenRef.current === searchToken && latestTotalTokenRef.current === totalToken) {
+        setTotalCount(null);
+      }
+    }
+  };
+
   const runSearch = async (cursorValue, reset = false, overrideBaseParams = null) => {
+    const searchToken = latestSearchTokenRef.current + 1;
+    latestSearchTokenRef.current = searchToken;
     const startedAtMs = typeof performance !== "undefined" ? performance.now() : Date.now();
     const resolvedBase =
       (!reset && cursorValue && activeParams)
         ? activeParams
         : (overrideBaseParams || buildBaseParams());
     const requestParams = { ...resolvedBase };
-    if (reset) {
-      requestParams.include_total = "true";
-    }
     if (cursorValue) {
       requestParams.cursor = cursorValue;
     }
@@ -1527,15 +1566,22 @@ function SearchPage({ buildId = "" }) {
     setLoading(true);
     setSearchStarted(true);
     setError("");
+    if (reset) {
+      setTotalCount(null);
+      latestTotalTokenRef.current += 1;
+    }
     try {
       const data = await fetchSystems(requestParams);
+      if (latestSearchTokenRef.current !== searchToken) {
+        return;
+      }
       const endedAtMs = typeof performance !== "undefined" ? performance.now() : Date.now();
       const clientQueryMs = Math.max(0, endedAtMs - startedAtMs);
       setHasMore(Boolean(data.has_more));
       setCursor(data.next_cursor || null);
       setResults((prev) => (reset ? data.items : [...prev, ...data.items]));
       if (reset) {
-        setTotalCount(typeof data.total_count === "number" ? data.total_count : null);
+        void fetchDeferredTotalCount(resolvedBase, searchToken);
       } else if (typeof data.total_count === "number") {
         setTotalCount(data.total_count);
       }
@@ -1551,12 +1597,16 @@ function SearchPage({ buildId = "" }) {
         clientMs: clientQueryMs,
       });
     } catch (err) {
-      setError(err?.message || "Data temporarily unavailable.");
-      if (reset) {
-        setTotalCount(null);
+      if (latestSearchTokenRef.current === searchToken) {
+        setError(err?.message || "Data temporarily unavailable.");
+        if (reset) {
+          setTotalCount(null);
+        }
       }
     } finally {
-      setLoading(false);
+      if (latestSearchTokenRef.current === searchToken) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1874,7 +1924,7 @@ function SearchPage({ buildId = "" }) {
 
           {results.length > 0 && (
             <div className="results-list">
-              {results.map((item) => (
+              {results.map((item, idx) => (
                 <article
                   key={item.system_id}
                   className="result-card"
@@ -1883,7 +1933,12 @@ function SearchPage({ buildId = "" }) {
                   <div className="result-shell">
                     <div className="result-left-rail">
                       <Link to={`/systems/${item.system_id}`} className="result-snapshot-link">
-                        <SnapshotVisual snapshot={item.snapshot} systemName={item.system_name} compact />
+                        <SnapshotVisual
+                          snapshot={item.snapshot}
+                          systemName={item.system_name}
+                          compact
+                          eager={idx < SEARCH_EAGER_SNAPSHOT_COUNT}
+                        />
                       </Link>
                     </div>
                     <div className="result-content">
@@ -1928,7 +1983,7 @@ function SearchPage({ buildId = "" }) {
                         <MetricChip
                           label="Coolness"
                           value={formatNumber(item.coolness_score, 2)}
-                          tooltipLines={buildCoolnessTooltipLines(item)}
+                          tooltipLines={() => buildCoolnessTooltipLines(item)}
                         />
                         <MetricChip
                           label="Habitable-like"
@@ -1940,7 +1995,7 @@ function SearchPage({ buildId = "" }) {
                         <MetricChip
                           label="Spectral"
                           value={item.spectral_classes?.length ? item.spectral_classes.join(", ") : formatText(item.coolness_dominant_spectral_class)}
-                          tooltipLines={buildSpectralTooltipLines(item)}
+                          tooltipLines={() => buildSpectralTooltipLines(item)}
                         />
                       </div>
                     </div>
@@ -2146,7 +2201,7 @@ function SystemDetailPage({ buildId = "" }) {
           <h3>System Snapshot</h3>
           <div className="snapshot-panel-layout">
             <SnapshotMetadata system={system} snapshot={system.snapshot} />
-            <SnapshotVisual snapshot={system.snapshot} systemName={system.system_name} />
+            <SnapshotVisual snapshot={system.snapshot} systemName={system.system_name} eager />
           </div>
         </section>
 
