@@ -5,7 +5,9 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -58,6 +60,9 @@ COOLNESS_WEIGHT_KEYS = [
     ("system_complexity", "system_complexity_feature"),
     ("exotic_star", "exotic_star_feature"),
 ]
+
+DATASET_STATUS_CACHE_TTL_S = 30.0
+_DATASET_STATUS_CACHE: Dict[str, Any] = {}
 
 
 def _state_dir() -> Path:
@@ -1016,6 +1021,476 @@ LIMIT ?
     }
 
 
+def _parse_human_bytes(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    match = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)$", text)
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit_raw = match.group(2).strip().lower()
+    unit = unit_raw.replace("ib", "i").replace("b", "")
+    scale = {
+        "bytes": 1,
+        "byte": 1,
+        "": 1,
+        "k": 10**3,
+        "m": 10**6,
+        "g": 10**9,
+        "t": 10**12,
+        "ki": 2**10,
+        "mi": 2**20,
+        "gi": 2**30,
+        "ti": 2**40,
+    }.get(unit)
+    if scale is None:
+        return None
+    return int(number * scale)
+
+
+def _path_size_bytes(path: Path) -> int:
+    try:
+        if not path.exists():
+            return 0
+        if path.is_symlink():
+            return 0
+        if path.is_file():
+            return int(path.stat().st_size)
+    except OSError:
+        return 0
+    total = 0
+    stack = [path]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    try:
+                        if entry.is_symlink():
+                            continue
+                        if entry.is_file(follow_symlinks=False):
+                            total += int(entry.stat(follow_symlinks=False).st_size)
+                        elif entry.is_dir(follow_symlinks=False):
+                            stack.append(Path(entry.path))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return int(total)
+
+
+def _read_json_file(path: Path) -> Dict[str, Any]:
+    if not path.exists() or not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _read_proc_key_values(path: Path, sep: str = ":") -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    if not path.exists():
+        return out
+    try:
+        for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if sep not in raw:
+                continue
+            key, value = raw.split(sep, 1)
+            out[key.strip()] = value.strip()
+    except Exception:
+        return out
+    return out
+
+
+def _proc_kib_value(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+    match = re.search(r"([0-9]+)", str(value))
+    if not match:
+        return None
+    return int(match.group(1)) * 1024
+
+
+def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
+    now = time.time()
+    with db.connection_scope() as con:
+        build_id = fetch_build_id(con) or "unknown"
+    cached = _DATASET_STATUS_CACHE.get(build_id)
+    if (
+        not force_refresh
+        and isinstance(cached, dict)
+        and (now - float(cached.get("cached_at_ts", 0.0))) < DATASET_STATUS_CACHE_TTL_S
+    ):
+        payload = dict(cached["payload"])
+        payload["cache"] = {
+            "hit": True,
+            "ttl_s": DATASET_STATUS_CACHE_TTL_S,
+            "age_s": round(now - float(cached.get("cached_at_ts", now)), 3),
+        }
+        return payload
+
+    state_dir = _state_dir().resolve()
+    db_path = Path(db.get_db_path()).resolve()
+    build_dir = db_path.parent if db_path.name == "core.duckdb" else db_path.parent
+    reports_dir = state_dir / "reports" / build_id
+    raw_dir = state_dir / "raw"
+    cooked_dir = state_dir / "cooked"
+    served_dir = state_dir / "served"
+    out_dir = state_dir / "out"
+    rich_db_path = db_path.with_name("rich.duckdb")
+    admin_db_path = admin_db.get_admin_db_path().resolve()
+
+    timings_ms: Dict[str, float] = {}
+
+    def _timed(name: str, fn):
+        start = time.perf_counter()
+        result = fn()
+        timings_ms[name] = round((time.perf_counter() - start) * 1000.0, 3)
+        return result
+
+    qc_report = _read_json_file(reports_dir / "qc_report.json")
+    system_grouping_report = _read_json_file(reports_dir / "system_grouping_report.json")
+    gaia_backbone_report = _read_json_file(reports_dir / "gaia_backbone_report.json")
+    match_report = _read_json_file(reports_dir / "match_report.json")
+    coolness_report = _read_json_file(reports_dir / "coolness_report.json")
+
+    with db.connection_scope() as con:
+        db_size_row = _timed("duckdb_database_size", lambda: con.execute("PRAGMA database_size").fetchone())
+        db_size_cols = [desc[0] for desc in con.description]
+        db_size = (
+            {db_size_cols[idx]: db_size_row[idx] for idx in range(len(db_size_cols))}
+            if db_size_row
+            else {}
+        )
+
+        source_breakdown_rows = _timed(
+            "stars_by_source_catalog",
+            lambda: con.execute(
+                """
+                SELECT source_catalog, COUNT(*)::bigint AS star_count
+                FROM stars
+                GROUP BY 1
+                ORDER BY star_count DESC, source_catalog ASC
+                """
+            ).fetchall(),
+        )
+
+        spectral_rows = _timed(
+            "stars_by_spectral_class",
+            lambda: con.execute(
+                """
+                SELECT COALESCE(NULLIF(spectral_class, ''), '?') AS spectral_class, COUNT(*)::bigint AS star_count
+                FROM stars
+                GROUP BY 1
+                ORDER BY star_count DESC, spectral_class ASC
+                """
+            ).fetchall(),
+        )
+
+        exotic_row = _timed(
+            "exotic_star_counts",
+            lambda: con.execute(
+                """
+                SELECT
+                  SUM(CASE WHEN spectral_class IN ('L','T','Y') THEN 1 ELSE 0 END)::bigint AS brown_dwarf_like,
+                  SUM(CASE WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 1 ELSE 0 END)::bigint AS white_dwarf_like,
+                  SUM(
+                    CASE
+                      WHEN sqrt(
+                        coalesce(pm_ra_mas_yr, 0.0) * coalesce(pm_ra_mas_yr, 0.0) +
+                        coalesce(pm_dec_mas_yr, 0.0) * coalesce(pm_dec_mas_yr, 0.0)
+                      ) >= 1000.0
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS high_proper_motion_ge_1000_mas_yr
+                FROM stars
+                """
+            ).fetchone(),
+        )
+
+        star_mult_row = _timed(
+            "star_multiplicity_breakdown",
+            lambda: con.execute(
+                """
+                WITH flags AS (
+                  SELECT
+                    CASE
+                      WHEN coalesce(gaia_non_single_star, false)
+                        OR coalesce(gaia_nss_solution_count, 0) > 0
+                        OR multiplicity_source_catalogs_json LIKE '%"gaia_nss"%'
+                        OR multiplicity_source_catalogs_json LIKE '%"gaia_nss_two_body"%'
+                      THEN 1 ELSE 0
+                    END AS has_nss,
+                    CASE
+                      WHEN wds_id IS NOT NULL
+                        OR multiplicity_source_catalogs_json LIKE '%"wds_gaia_xmatch"%'
+                      THEN 1 ELSE 0
+                    END AS has_wds,
+                    CASE
+                      WHEN source_catalog = 'msc'
+                        OR multiplicity_source_catalogs_json LIKE '%"msc"%'
+                      THEN 1 ELSE 0
+                    END AS has_msc
+                  FROM stars
+                )
+                SELECT
+                  COUNT(*)::bigint AS total_stars,
+                  SUM(CASE WHEN has_nss = 1 THEN 1 ELSE 0 END)::bigint AS nss_any,
+                  SUM(CASE WHEN has_wds = 1 THEN 1 ELSE 0 END)::bigint AS wds_any,
+                  SUM(CASE WHEN has_msc = 1 THEN 1 ELSE 0 END)::bigint AS msc_any,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS none,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS nss_only,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS wds_only,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS msc_only,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS nss_wds,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_msc,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS wds_msc,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_wds_msc
+                FROM flags
+                """
+            ).fetchone(),
+        )
+
+        system_mult_row = _timed(
+            "system_multiplicity_breakdown",
+            lambda: con.execute(
+                """
+                SELECT
+                  COUNT(*)::bigint AS total_systems,
+                  SUM(CASE WHEN has_gaia_nss_evidence THEN 1 ELSE 0 END)::bigint AS nss_any,
+                  SUM(CASE WHEN has_wds_evidence THEN 1 ELSE 0 END)::bigint AS wds_any,
+                  SUM(CASE WHEN has_msc_evidence THEN 1 ELSE 0 END)::bigint AS msc_any,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS none,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_only,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS wds_only,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS msc_only,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_msc,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS wds_msc,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds_msc
+                FROM systems
+                """
+            ).fetchone(),
+        )
+
+        planet_row = _timed(
+            "planet_habitable_breakdown",
+            lambda: con.execute(
+                """
+                SELECT
+                  COUNT(*)::bigint AS total_exoplanets,
+                  SUM(CASE WHEN eq_temp_k BETWEEN 180 AND 320 THEN 1 ELSE 0 END)::bigint AS temperate_exoplanets,
+                  SUM(
+                    CASE
+                      WHEN eq_temp_k BETWEEN 180 AND 320
+                       AND radius_earth BETWEEN 0.5 AND 2.5
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS candidate_habitable_exoplanets
+                FROM planets
+                """
+            ).fetchone(),
+        )
+
+    source_breakdown = [
+        {"source_catalog": row[0], "star_count": int(row[1])}
+        for row in source_breakdown_rows
+    ]
+    spectral_total = sum(int(row[1]) for row in spectral_rows) or 0
+    spectral_breakdown = [
+        {
+            "spectral_class": str(row[0]),
+            "star_count": int(row[1]),
+            "pct_of_stars": (float(row[1]) / float(spectral_total) * 100.0) if spectral_total else 0.0,
+        }
+        for row in spectral_rows
+    ]
+
+    star_mult_keys = [
+        "total_stars",
+        "nss_any",
+        "wds_any",
+        "msc_any",
+        "none",
+        "nss_only",
+        "wds_only",
+        "msc_only",
+        "nss_wds",
+        "nss_msc",
+        "wds_msc",
+        "nss_wds_msc",
+    ]
+    system_mult_keys = [
+        "total_systems",
+        "nss_any",
+        "wds_any",
+        "msc_any",
+        "none",
+        "nss_only",
+        "wds_only",
+        "msc_only",
+        "nss_wds",
+        "nss_msc",
+        "wds_msc",
+        "nss_wds_msc",
+    ]
+
+    star_mult_breakdown = {
+        key: int(star_mult_row[idx] or 0) for idx, key in enumerate(star_mult_keys)
+    }
+    system_mult_breakdown = {
+        key: int(system_mult_row[idx] or 0) for idx, key in enumerate(system_mult_keys)
+    }
+    exotic_counts = {
+        "brown_dwarf_like_lty": int(exotic_row[0] or 0),
+        "white_dwarf_like_d_prefix": int(exotic_row[1] or 0),
+        "high_proper_motion_ge_1000_mas_yr": int(exotic_row[2] or 0),
+    }
+    exoplanet_counts = {
+        "total_exoplanets": int(planet_row[0] or 0),
+        "temperate_exoplanets": int(planet_row[1] or 0),
+        "candidate_habitable_exoplanets": int(planet_row[2] or 0),
+    }
+
+    stars_count = int(((qc_report.get("counts") or {}).get("stars")) or 0)
+    systems_count = int(((qc_report.get("counts") or {}).get("systems")) or 0)
+    planets_count = int(((qc_report.get("counts") or {}).get("planets")) or 0)
+    multi_systems_count = int(system_grouping_report.get("multi_star_systems") or 0)
+    single_systems_count = max(systems_count - multi_systems_count, 0)
+
+    backbone_input_rows = int(gaia_backbone_report.get("raw_row_count") or 0)
+    sliced_in_stars = int(gaia_backbone_report.get("stars_from_backbone_count") or stars_count)
+    sliced_out_rows = int(gaia_backbone_report.get("rows_dropped_before_star_emit") or max(backbone_input_rows - sliced_in_stars, 0))
+    sliced_out_pct = (float(sliced_out_rows) / float(backbone_input_rows) * 100.0) if backbone_input_rows else 0.0
+
+    proc_status = _read_proc_key_values(Path("/proc/self/status"))
+    proc_io = _read_proc_key_values(Path("/proc/self/io"))
+    meminfo = _read_proc_key_values(Path("/proc/meminfo"))
+    disk_usage = shutil.disk_usage(state_dir)
+
+    core_db_bytes = db_path.stat().st_size if db_path.exists() else 0
+    rich_db_bytes = rich_db_path.stat().st_size if rich_db_path.exists() else 0
+    admin_db_bytes = admin_db_path.stat().st_size if admin_db_path.exists() else 0
+
+    payload = {
+        "status": "ok",
+        "build_id": build_id,
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "paths": {
+            "project_root": str(ROOT_DIR),
+            "state_dir": str(state_dir),
+            "build_dir": str(build_dir),
+            "db_path": str(db_path),
+            "rich_db_path": str(rich_db_path) if rich_db_path.exists() else None,
+            "admin_db_path": str(admin_db_path) if admin_db_path.exists() else None,
+            "reports_dir": str(reports_dir),
+        },
+        "sizes_bytes": {
+            "project_total": _path_size_bytes(ROOT_DIR),
+            "state_total": _path_size_bytes(state_dir),
+            "build_total": _path_size_bytes(build_dir),
+            "raw_total": _path_size_bytes(raw_dir),
+            "cooked_total": _path_size_bytes(cooked_dir),
+            "reports_total": _path_size_bytes(state_dir / "reports"),
+            "out_total": _path_size_bytes(out_dir),
+            "served_total": _path_size_bytes(served_dir),
+            "core_db": int(core_db_bytes),
+            "rich_db": int(rich_db_bytes),
+            "admin_db": int(admin_db_bytes),
+            "parquet_total": _path_size_bytes(build_dir / "parquet"),
+        },
+        "disk": {
+            "total_bytes": int(disk_usage.total),
+            "used_bytes": int(disk_usage.used),
+            "free_bytes": int(disk_usage.free),
+            "used_pct": (float(disk_usage.used) / float(disk_usage.total) * 100.0) if disk_usage.total else 0.0,
+        },
+        "host_runtime": {
+            "cpu_count": os.cpu_count(),
+            "loadavg_1m": os.getloadavg()[0] if hasattr(os, "getloadavg") else None,
+            "loadavg_5m": os.getloadavg()[1] if hasattr(os, "getloadavg") else None,
+            "loadavg_15m": os.getloadavg()[2] if hasattr(os, "getloadavg") else None,
+            "mem_total_bytes": _proc_kib_value(meminfo.get("MemTotal")),
+            "mem_available_bytes": _proc_kib_value(meminfo.get("MemAvailable")),
+            "mem_free_bytes": _proc_kib_value(meminfo.get("MemFree")),
+            "cached_bytes": _proc_kib_value(meminfo.get("Cached")),
+            "buffers_bytes": _proc_kib_value(meminfo.get("Buffers")),
+        },
+        "api_process_runtime": {
+            "pid": os.getpid(),
+            "rss_bytes": _proc_kib_value(proc_status.get("VmRSS")),
+            "peak_rss_bytes": _proc_kib_value(proc_status.get("VmHWM")),
+            "vm_size_bytes": _proc_kib_value(proc_status.get("VmSize")),
+            "threads": int(re.search(r"[0-9]+", proc_status.get("Threads", "0")).group(0)) if re.search(r"[0-9]+", proc_status.get("Threads", "0")) else 0,
+            "io_read_bytes": int(re.search(r"[0-9]+", proc_io.get("read_bytes", "0")).group(0)) if re.search(r"[0-9]+", proc_io.get("read_bytes", "0")) else 0,
+            "io_write_bytes": int(re.search(r"[0-9]+", proc_io.get("write_bytes", "0")).group(0)) if re.search(r"[0-9]+", proc_io.get("write_bytes", "0")) else 0,
+        },
+        "duckdb_runtime": {
+            "database_name": db_size.get("database_name"),
+            "database_size_bytes": _parse_human_bytes(db_size.get("database_size")),
+            "wal_size_bytes": _parse_human_bytes(db_size.get("wal_size")),
+            "memory_usage_bytes": _parse_human_bytes(db_size.get("memory_usage")),
+            "memory_limit_bytes": _parse_human_bytes(db_size.get("memory_limit")),
+            "block_size": int(db_size.get("block_size") or 0),
+            "total_blocks": int(db_size.get("total_blocks") or 0),
+            "used_blocks": int(db_size.get("used_blocks") or 0),
+            "free_blocks": int(db_size.get("free_blocks") or 0),
+        },
+        "dataset_counts": {
+            "rows_total": systems_count + stars_count + planets_count,
+            "systems": systems_count,
+            "stars": stars_count,
+            "planets": planets_count,
+            "multi_star_systems": multi_systems_count,
+            "single_star_systems": single_systems_count,
+            "exoplanets_total": exoplanet_counts["total_exoplanets"],
+            "exoplanets_temperate": exoplanet_counts["temperate_exoplanets"],
+            "exoplanets_candidate_habitable": exoplanet_counts["candidate_habitable_exoplanets"],
+        },
+        "slice_metrics": {
+            "input_backbone_rows": backbone_input_rows,
+            "sliced_in_stars": sliced_in_stars,
+            "sliced_out_rows": sliced_out_rows,
+            "sliced_out_pct": sliced_out_pct,
+        },
+        "breakdowns": {
+            "stars_by_source_catalog": source_breakdown,
+            "stars_by_spectral_class": spectral_breakdown,
+            "star_multiplicity_evidence": star_mult_breakdown,
+            "system_multiplicity_evidence": system_mult_breakdown,
+            "exotic_star_counts": exotic_counts,
+            "exoplanet_counts": exoplanet_counts,
+            "qc_report": qc_report,
+            "system_grouping_report": system_grouping_report,
+            "gaia_backbone_report": gaia_backbone_report,
+            "match_report": match_report,
+            "coolness_report": coolness_report,
+        },
+        "bottleneck_hints": {
+            "likely_memory_bound": (
+                (_parse_human_bytes(db_size.get("memory_usage")) or 0) > (8 * 1024 * 1024 * 1024)
+                or ((_proc_kib_value(proc_status.get("VmRSS")) or 0) > (8 * 1024 * 1024 * 1024))
+            ),
+            "likely_io_bound": ((_parse_human_bytes(db_size.get("database_size")) or 0) > (3 * 1024 * 1024 * 1024)),
+            "notes": [
+                "Rows and source/spectral breakdowns are measured from current served core.duckdb.",
+                "Peak memory uses process high-water mark (VmHWM) for this API process lifetime.",
+                "High load average with low process RSS growth often indicates CPU-bound query or scan work.",
+            ],
+        },
+        "timings_ms": timings_ms,
+    }
+    _DATASET_STATUS_CACHE[build_id] = {"cached_at_ts": now, "payload": payload}
+    payload["cache"] = {"hit": False, "ttl_s": DATASET_STATUS_CACHE_TTL_S, "age_s": 0.0}
+    return payload
+
+
 @admin_router.get("/status")
 def admin_status(request: Request):
     user = auth.require_admin(request)
@@ -1034,6 +1509,15 @@ def admin_status(request: Request):
         },
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
+
+
+@admin_router.get("/status/dataset")
+def admin_dataset_status(
+    request: Request,
+    refresh: bool = Query(default=False),
+):
+    auth.require_admin(request)
+    return _dataset_status_payload(force_refresh=bool(refresh))
 
 
 @admin_router.get("/coolness/state")
@@ -1533,6 +2017,7 @@ def admin_home(request: Request):
     <div class="toolbar">
       <button id="logout" class="danger">Log out</button>
       <button id="refreshStatus">Refresh Status</button>
+      <button id="refreshDatasetStatus">Refresh Dataset Stats</button>
       <button id="refreshJobs">Refresh Jobs</button>
       <button id="refreshBackups">Refresh Backups</button>
       <button id="refreshAudit">Refresh Audit</button>
@@ -1540,6 +2025,7 @@ def admin_home(request: Request):
 
     <div class="screen-nav">
       <button id="screenTabOperations" class="active">Operations</button>
+      <button id="screenTabStatus">Status</button>
       <button id="screenTabCoolness">Coolness</button>
       <button id="screenTabActivity">Activity</button>
     </div>
@@ -1552,6 +2038,70 @@ def admin_home(request: Request):
       <div class="section">
         <h2>Status</h2>
         <pre id="out"></pre>
+      </div>
+    </div>
+
+    <div id="screenStatus" class="screen">
+      <div class="section">
+        <h2>Dataset Status</h2>
+        <p class="muted">Operational metrics for current served build: data scale, runtime memory, storage footprint, multiplicity/source coverage, and quality indicators.</p>
+        <div class="inline">
+          <button id="refreshDatasetStatusInline">Refresh Dataset Stats</button>
+          <span id="datasetStatusMeta" class="small"></span>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Top KPIs</h3>
+        <div id="datasetKpis" class="kpis"></div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Storage Footprint</h3>
+          <pre id="datasetStorage"></pre>
+        </div>
+        <div>
+          <h3>Runtime + Bottleneck Hints</h3>
+          <pre id="datasetRuntime"></pre>
+        </div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Stars by Source</h3>
+          <table class="mini-table">
+            <thead><tr><th>Source</th><th>Stars</th></tr></thead>
+            <tbody id="datasetSourceRows"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Stars by Spectral Class</h3>
+          <table class="mini-table">
+            <thead><tr><th>Class</th><th>Stars</th><th>%</th></tr></thead>
+            <tbody id="datasetSpectralRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Multiplicity Evidence (Systems)</h3>
+          <table class="mini-table">
+            <thead><tr><th>Bucket</th><th>Systems</th></tr></thead>
+            <tbody id="datasetSystemMultRows"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Multiplicity Evidence (Stars)</h3>
+          <table class="mini-table">
+            <thead><tr><th>Bucket</th><th>Stars</th></tr></thead>
+            <tbody id="datasetStarMultRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Detailed Payload</h3>
+        <details>
+          <summary>Show raw dataset status JSON</summary>
+          <pre id="datasetStatusRaw"></pre>
+        </details>
       </div>
     </div>
 
@@ -1768,6 +2318,15 @@ def admin_home(request: Request):
       const out = document.getElementById('out');
       const actionsOpsEl = document.getElementById('actionsOps');
       const actionsCoolnessEl = document.getElementById('actionsCoolness');
+      const datasetStatusMetaEl = document.getElementById('datasetStatusMeta');
+      const datasetKpisEl = document.getElementById('datasetKpis');
+      const datasetStorageEl = document.getElementById('datasetStorage');
+      const datasetRuntimeEl = document.getElementById('datasetRuntime');
+      const datasetSourceRowsEl = document.getElementById('datasetSourceRows');
+      const datasetSpectralRowsEl = document.getElementById('datasetSpectralRows');
+      const datasetSystemMultRowsEl = document.getElementById('datasetSystemMultRows');
+      const datasetStarMultRowsEl = document.getElementById('datasetStarMultRows');
+      const datasetStatusRawEl = document.getElementById('datasetStatusRaw');
       const jobsEl = document.getElementById('jobs');
       const selectedJobEl = document.getElementById('selectedJob');
       const logEl = document.getElementById('log');
@@ -1876,9 +2435,11 @@ def admin_home(request: Request):
       function setScreen(screenName) {{
         currentScreen = screenName;
         document.getElementById('screenOperations').classList.toggle('active', screenName === 'operations');
+        document.getElementById('screenStatus').classList.toggle('active', screenName === 'status');
         document.getElementById('screenCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenActivity').classList.toggle('active', screenName === 'activity');
         document.getElementById('screenTabOperations').classList.toggle('active', screenName === 'operations');
+        document.getElementById('screenTabStatus').classList.toggle('active', screenName === 'status');
         document.getElementById('screenTabCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenTabActivity').classList.toggle('active', screenName === 'activity');
       }}
@@ -2883,6 +3444,186 @@ def admin_home(request: Request):
         out.textContent = JSON.stringify(data, null, 2);
       }}
 
+      function formatInt(value) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0';
+        return Math.round(n).toLocaleString('en-US');
+      }}
+
+      function formatFloat(value, digits = 2) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0';
+        return n.toLocaleString('en-US', {{ minimumFractionDigits: 0, maximumFractionDigits: digits }});
+      }}
+
+      function formatPct(value, digits = 2) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0%';
+        return `${{formatFloat(n, digits)}}%`;
+      }}
+
+      function formatBytes(value) {{
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return '0 B';
+        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+        let size = n;
+        let idx = 0;
+        while (size >= 1024 && idx < units.length - 1) {{
+          size /= 1024;
+          idx += 1;
+        }}
+        const digits = idx <= 1 ? 0 : 2;
+        return `${{size.toLocaleString('en-US', {{ minimumFractionDigits: 0, maximumFractionDigits: digits }})}} ${{units[idx]}}`;
+      }}
+
+      function renderKeyValueRows(tbodyEl, rows) {{
+        if (!tbodyEl) return;
+        tbodyEl.innerHTML = '';
+        (rows || []).forEach((row) => {{
+          const tr = document.createElement('tr');
+          const tdK = document.createElement('td');
+          tdK.textContent = String(row.key || '');
+          const tdV = document.createElement('td');
+          tdV.textContent = String(row.value || '');
+          tr.appendChild(tdK);
+          tr.appendChild(tdV);
+          tbodyEl.appendChild(tr);
+        }});
+      }}
+
+      function renderDatasetStatus(data) {{
+        datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
+        const counts = data.dataset_counts || {{}};
+        const sizes = data.sizes_bytes || {{}};
+        const disk = data.disk || {{}};
+        const host = data.host_runtime || {{}};
+        const api = data.api_process_runtime || {{}};
+        const slice = data.slice_metrics || {{}};
+        const cache = data.cache || {{}};
+        const bottlenecks = data.bottleneck_hints || {{}};
+
+        datasetStatusMetaEl.textContent = `build=${{data.build_id || 'unknown'}} | generated=${{data.generated_at_utc || ''}} | cache=${{cache.hit ? 'hit' : 'miss'}} age=${{formatFloat(cache.age_s || 0, 3)}}s`;
+
+        const kpis = [
+          {{ key: 'Stars', value: formatInt(counts.stars) }},
+          {{ key: 'Systems', value: formatInt(counts.systems) }},
+          {{ key: 'Planets', value: formatInt(counts.planets) }},
+          {{ key: 'Multi-Star Systems', value: formatInt(counts.multi_star_systems) }},
+          {{ key: 'Backbone Input', value: formatInt(slice.input_backbone_rows) }},
+          {{ key: 'Sliced Out', value: `${{formatInt(slice.sliced_out_rows)}} (${{formatPct(slice.sliced_out_pct)}})` }},
+          {{ key: 'Core DB', value: formatBytes(sizes.core_db) }},
+          {{ key: 'State Dir', value: formatBytes(sizes.state_total) }},
+          {{ key: 'API RSS', value: formatBytes(api.rss_bytes) }},
+          {{ key: 'API Peak RSS', value: formatBytes(api.peak_rss_bytes) }},
+          {{ key: 'Host Mem Available', value: formatBytes(host.mem_available_bytes) }},
+          {{ key: '/data Used', value: `${{formatPct(disk.used_pct)}} (${{formatBytes(disk.used_bytes)}})` }},
+        ];
+        datasetKpisEl.innerHTML = '';
+        kpis.forEach((item) => {{
+          const card = document.createElement('div');
+          card.className = 'kpi';
+          const k = document.createElement('div');
+          k.className = 'k';
+          k.textContent = item.key;
+          const v = document.createElement('div');
+          v.className = 'v';
+          v.textContent = item.value;
+          card.appendChild(k);
+          card.appendChild(v);
+          datasetKpisEl.appendChild(card);
+        }});
+
+        datasetStorageEl.textContent = JSON.stringify({{
+          project_total: formatBytes(sizes.project_total),
+          state_total: formatBytes(sizes.state_total),
+          build_total: formatBytes(sizes.build_total),
+          raw_total: formatBytes(sizes.raw_total),
+          cooked_total: formatBytes(sizes.cooked_total),
+          out_total: formatBytes(sizes.out_total),
+          parquet_total: formatBytes(sizes.parquet_total),
+          core_db: formatBytes(sizes.core_db),
+          rich_db: formatBytes(sizes.rich_db),
+          admin_db: formatBytes(sizes.admin_db),
+          disk_total: formatBytes(disk.total_bytes),
+          disk_used: formatBytes(disk.used_bytes),
+          disk_free: formatBytes(disk.free_bytes),
+          disk_used_pct: formatPct(disk.used_pct),
+        }}, null, 2);
+
+        datasetRuntimeEl.textContent = JSON.stringify({{
+          host: {{
+            cpu_count: host.cpu_count,
+            loadavg_1m: host.loadavg_1m,
+            loadavg_5m: host.loadavg_5m,
+            loadavg_15m: host.loadavg_15m,
+            mem_total: formatBytes(host.mem_total_bytes),
+            mem_available: formatBytes(host.mem_available_bytes),
+          }},
+          api_process: {{
+            pid: api.pid,
+            rss: formatBytes(api.rss_bytes),
+            peak_rss: formatBytes(api.peak_rss_bytes),
+            vm_size: formatBytes(api.vm_size_bytes),
+            threads: api.threads,
+            io_read_bytes: api.io_read_bytes,
+            io_write_bytes: api.io_write_bytes,
+          }},
+          duckdb_runtime: data.duckdb_runtime,
+          bottleneck_hints: bottlenecks,
+          timings_ms: data.timings_ms || {{}},
+        }}, null, 2);
+
+        const sourceRows = (data.breakdowns && data.breakdowns.stars_by_source_catalog) || [];
+        datasetSourceRowsEl.innerHTML = '';
+        sourceRows.forEach((row) => {{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${{String(row.source_catalog || '?')}}</td><td>${{formatInt(row.star_count)}}</td>`;
+          datasetSourceRowsEl.appendChild(tr);
+        }});
+
+        const spectralRows = ((data.breakdowns && data.breakdowns.stars_by_spectral_class) || []).slice(0, 16);
+        datasetSpectralRowsEl.innerHTML = '';
+        spectralRows.forEach((row) => {{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${{String(row.spectral_class || '?')}}</td><td>${{formatInt(row.star_count)}}</td><td>${{formatPct(row.pct_of_stars)}}</td>`;
+          datasetSpectralRowsEl.appendChild(tr);
+        }});
+
+        const sysMult = (data.breakdowns && data.breakdowns.system_multiplicity_evidence) || {{}};
+        const starMult = (data.breakdowns && data.breakdowns.star_multiplicity_evidence) || {{}};
+        renderKeyValueRows(datasetSystemMultRowsEl, [
+          {{ key: 'none', value: formatInt(sysMult.none) }},
+          {{ key: 'nss_only', value: formatInt(sysMult.nss_only) }},
+          {{ key: 'wds_only', value: formatInt(sysMult.wds_only) }},
+          {{ key: 'msc_only', value: formatInt(sysMult.msc_only) }},
+          {{ key: 'nss_wds', value: formatInt(sysMult.nss_wds) }},
+          {{ key: 'nss_msc', value: formatInt(sysMult.nss_msc) }},
+          {{ key: 'wds_msc', value: formatInt(sysMult.wds_msc) }},
+          {{ key: 'nss_wds_msc', value: formatInt(sysMult.nss_wds_msc) }},
+        ]);
+        renderKeyValueRows(datasetStarMultRowsEl, [
+          {{ key: 'none', value: formatInt(starMult.none) }},
+          {{ key: 'nss_only', value: formatInt(starMult.nss_only) }},
+          {{ key: 'wds_only', value: formatInt(starMult.wds_only) }},
+          {{ key: 'msc_only', value: formatInt(starMult.msc_only) }},
+          {{ key: 'nss_wds', value: formatInt(starMult.nss_wds) }},
+          {{ key: 'nss_msc', value: formatInt(starMult.nss_msc) }},
+          {{ key: 'wds_msc', value: formatInt(starMult.wds_msc) }},
+          {{ key: 'nss_wds_msc', value: formatInt(starMult.nss_wds_msc) }},
+        ]);
+      }}
+
+      async function callDatasetStatus(forceRefresh = false) {{
+        const query = forceRefresh ? '?refresh=1' : '';
+        const {{ res, data }} = await fetchJson(`/api/v1/admin/status/dataset${{query}}`, {{ credentials: 'include' }});
+        if (!res.ok) {{
+          datasetStatusMetaEl.textContent = `error loading dataset status (${{res.status}})`;
+          datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
+          return;
+        }}
+        renderDatasetStatus(data || {{}});
+      }}
+
       function parseFieldValue(type, input) {{
         if (type === 'boolean') {{
           return !!input.checked;
@@ -3298,9 +4039,12 @@ def admin_home(request: Request):
 
       document.getElementById('logout').addEventListener('click', doLogout);
       document.getElementById('screenTabOperations').addEventListener('click', () => setScreen('operations'));
+      document.getElementById('screenTabStatus').addEventListener('click', () => setScreen('status'));
       document.getElementById('screenTabCoolness').addEventListener('click', () => setScreen('coolness'));
       document.getElementById('screenTabActivity').addEventListener('click', () => setScreen('activity'));
       document.getElementById('refreshStatus').addEventListener('click', callStatus);
+      document.getElementById('refreshDatasetStatus').addEventListener('click', () => {{ void callDatasetStatus(true); }});
+      document.getElementById('refreshDatasetStatusInline').addEventListener('click', () => {{ void callDatasetStatus(true); }});
       document.getElementById('refreshJobs').addEventListener('click', loadJobs);
       document.getElementById('refreshBackups').addEventListener('click', loadBackups);
       document.getElementById('refreshAudit').addEventListener('click', () => loadAudit(false));
@@ -3331,6 +4075,7 @@ def admin_home(request: Request):
       setRunStatus('idle', 'ready');
       setSnapshotRunStatus('idle', 'top 100 coolness systems');
       callStatus();
+      callDatasetStatus(false);
       loadCatalog();
       loadCoolnessState();
       loadJobs();

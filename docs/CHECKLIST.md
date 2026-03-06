@@ -9,6 +9,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Deterministic `download -> cook -> ingest -> promote -> verify` scripts
 - [x] Provenance gate and QC report emission
 - [x] Admin control plane + audit trail baseline
+- [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
 - [x] Coolness scoring pipeline with versioned profiles
 - [x] Snapshot generation pipeline baseline
 

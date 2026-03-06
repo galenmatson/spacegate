@@ -211,6 +211,38 @@ Required runtime notes:
 - proton development specifics
   - OAuth redirect workaround (tunnel `:8080` to `:80` on proton for admin panel OAuth flow)
 
+## Operational Observability (Admin Status Panel)
+
+Spacegate now includes a dedicated admin status panel for build/runtime diagnostics and dataset governance.
+
+API endpoint:
+
+- `GET /api/v1/admin/status/dataset`
+
+Panel purpose:
+
+- quantify served dataset scale and slice behavior
+- identify likely bottlenecks (memory / CPU / IO signals)
+- expose storage footprint by major data area
+- show multiplicity and source-combination coverage
+- surface spectral/exotic/object breadth indicators for quality review
+
+Minimum metrics exposed:
+
+- counts: rows/systems/stars/planets/multi-star systems
+- slice metrics: backbone input rows, sliced-in stars, sliced-out rows/percent
+- source breakdowns: stars by source catalog; multiplicity evidence alone/in combination
+- object breakdowns: spectral class distribution; exotic-star heuristics; exoplanet + candidate habitable counts
+- runtime health: API RSS + peak RSS, host memory/load, DuckDB runtime memory/database figures
+- storage health: project/state/build/core/rich/parquet/raw/cooked/reports sizes and disk usage
+- query-timing probes for major status queries
+
+Implementation constraints:
+
+- status endpoint is admin-only
+- heavy aggregates are cached briefly in-process to avoid repeated full scans
+- status metrics are diagnostic, not canonical science tables
+
 ## Milestones (Gaia-First Program)
 
 ### Phase A: Gaia Backbone Pilot
