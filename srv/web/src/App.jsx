@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { fetchHealth, fetchSystemDetail, fetchSystems } from "./api.js";
+import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L"];
 const THEME_STORAGE_KEY = "spacegate.theme";
@@ -39,6 +39,20 @@ const FILTER_PRESETS = [
   { id: "habitable_like", label: "Habitability", filters: { sort: "coolness", hasHabitableMode: "true", maxDist: 200 } },
   { id: "high_coolness", label: "Cool", filters: { sort: "coolness", minCoolnessScore: 20 } },
 ];
+const SPECTRAL_CLASS_PIE_COLORS = {
+  O: "#6aa9ff",
+  B: "#8cc8ff",
+  A: "#d7e9ff",
+  F: "#fff2b5",
+  G: "#ffd86b",
+  K: "#ffb36a",
+  M: "#f06a55",
+  L: "#cf6b57",
+  T: "#8f6bc7",
+  Y: "#6fc7d8",
+  D: "#c8d2de",
+  UNKNOWN: "#7f8ea3",
+};
 const SPECTRAL_CLASS_INFO = {
   O: { sentence: "Very hot blue stars with intense ultraviolet output and short lifetimes.", tempRangeK: [30000, 50000] },
   B: { sentence: "Hot blue-white stars that are luminous and relatively short-lived.", tempRangeK: [10000, 30000] },
@@ -653,6 +667,92 @@ function parallaxMasFromDistanceLy(distanceLy) {
     return null;
   }
   return 1000 / distancePc;
+}
+
+function spectralPieColor(rawClass) {
+  const key = String(rawClass || "").trim().toUpperCase();
+  return SPECTRAL_CLASS_PIE_COLORS[key] || SPECTRAL_CLASS_PIE_COLORS.UNKNOWN;
+}
+
+function SidebarSpectralMixCard({
+  mix,
+  loading = false,
+  error = "",
+  collapsed = false,
+}) {
+  const rows = Array.isArray(mix?.rows)
+    ? mix.rows
+      .map((row) => ({
+        spectralClass: String(row?.spectral_class || "unknown").trim().toUpperCase(),
+        starCount: Number(row?.star_count || 0),
+      }))
+      .filter((row) => Number.isFinite(row.starCount) && row.starCount > 0)
+    : [];
+  const totalStars = Number(mix?.total_stars || 0) || rows.reduce((sum, row) => sum + row.starCount, 0);
+  const ringRows = rows
+    .slice()
+    .sort((a, b) => b.starCount - a.starCount)
+    .slice(0, 10);
+  const shownRows = rows
+    .slice()
+    .sort((a, b) => b.starCount - a.starCount)
+    .slice(0, 8);
+
+  let cursor = 0;
+  const gradientParts = ringRows.map((row) => {
+    const pct = totalStars > 0 ? (row.starCount / totalStars) * 100 : 0;
+    const next = Math.min(100, cursor + pct);
+    const part = `${spectralPieColor(row.spectralClass)} ${cursor.toFixed(2)}% ${next.toFixed(2)}%`;
+    cursor = next;
+    return part;
+  });
+  if (cursor < 100) {
+    gradientParts.push(`${SPECTRAL_CLASS_PIE_COLORS.UNKNOWN} ${cursor.toFixed(2)}% 100%`);
+  }
+
+  return (
+    <section className={`panel filters-spectrum-card ${collapsed ? "is-collapsed" : ""}`.trim()}>
+      <div className="filters-spectrum-head">
+        <h4>Local Stellar Mix</h4>
+        <small>{totalStars > 0 ? `${formatNumber(totalStars, 0)} stars` : "No spectral data"}</small>
+      </div>
+      {error && !rows.length && (
+        <p className="filters-spectrum-note">Spectral mix unavailable right now.</p>
+      )}
+      {loading && !rows.length && !error && (
+        <p className="filters-spectrum-note">Loading spectral mix…</p>
+      )}
+      {!loading && !rows.length && !error && (
+        <p className="filters-spectrum-note">No spectral mix rows returned.</p>
+      )}
+      {rows.length > 0 && (
+        <>
+          <div
+            className="filters-spectrum-pie"
+            style={{ background: `conic-gradient(${gradientParts.join(", ")})` }}
+            role="img"
+            aria-label="Spectral class composition pie chart"
+          />
+          <div className="filters-spectrum-legend">
+            {shownRows.map((row) => {
+              const pct = totalStars > 0 ? (row.starCount / totalStars) * 100 : 0;
+              return (
+                <div key={`mix-${row.spectralClass}`} className="filters-spectrum-legend-item">
+                  <span
+                    className="filters-spectrum-dot"
+                    style={{ backgroundColor: spectralPieColor(row.spectralClass) }}
+                    aria-hidden="true"
+                  />
+                  <span className="filters-spectrum-class">{row.spectralClass}</span>
+                  <span className="filters-spectrum-value">{formatNumber(pct, 1)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }
 
 async function copyTextToClipboard(rawValue) {
@@ -1429,6 +1529,9 @@ function SearchPage({ buildId = "" }) {
   const [totalCount, setTotalCount] = useState(null);
   const [lastQueryStats, setLastQueryStats] = useState(null);
   const [filtersCollapsedY, setFiltersCollapsedY] = useState(false);
+  const [spectralMix, setSpectralMix] = useState(null);
+  const [spectralMixLoading, setSpectralMixLoading] = useState(true);
+  const [spectralMixError, setSpectralMixError] = useState("");
   const latestSearchTokenRef = useRef(0);
   const latestTotalTokenRef = useRef(0);
 
@@ -1624,6 +1727,33 @@ function SearchPage({ buildId = "" }) {
     runSearch(null, true);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setSpectralMixLoading(true);
+    setSpectralMixError("");
+    fetchSpectralMix()
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setSpectralMix(data || null);
+      })
+      .catch((err) => {
+        if (!active) {
+          return;
+        }
+        setSpectralMixError(err?.message || "Unable to load spectral mix.");
+      })
+      .finally(() => {
+        if (active) {
+          setSpectralMixLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const toggleSpectral = (value) => {
     setSpectral((prev) => {
       if (prev.includes(value)) {
@@ -1689,140 +1819,148 @@ function SearchPage({ buildId = "" }) {
   return (
     <Layout showSearchLink={false} buildId={buildId}>
       <section className={searchLayoutClassName}>
-        <form
-          className={[
-            "panel",
-            "filters-panel",
-            filtersCollapsedY ? "filters-panel-collapsed-y" : "",
-          ].filter(Boolean).join(" ")}
-          onSubmit={onSubmit}
-        >
-          <div className="filters-head">
-            <h3>Filters</h3>
-            <div className="filters-head-actions">
-              {filtersCollapsedY && (
-                <div className="filters-head-presets">
-                  {FILTER_PRESETS.map((preset) => (
-                    <button
-                      key={`head-${preset.id}`}
-                      type="button"
-                      className="button ghost preset-button preset-button-inline"
-                      onClick={() => applyPreset(preset)}
-                      disabled={loading}
-                    >
-                      {presetLabelForTheme(preset, theme)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
-                onClick={() => setFiltersCollapsedY((prev) => !prev)}
-                aria-pressed={filtersCollapsedY}
-                title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
-              >
-                {filtersCollapsedY ? "Expand" : "Collapse"}
-              </button>
-            </div>
-          </div>
-
-          <div className={`filters-body ${filtersBodyCollapsed ? "is-collapsed" : ""}`}>
-            <div className="preset-row">
-              {FILTER_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className="button ghost preset-button"
-                  onClick={() => applyPreset(preset)}
-                  disabled={loading}
-                >
-                  {presetLabelForTheme(preset, theme)}
-                </button>
-              ))}
-            </div>
-
-            <CompactRangeControl
-              label="Distance Range"
-              unit="ly"
-              minValue={minDist}
-              maxValue={maxDist}
-              minLimit={filterLimits.distance.min}
-              maxLimit={filterLimits.distance.max}
-              step={filterLimits.distance.step}
-              integer={filterLimits.distance.integer}
-              onChangeMin={setMinDist}
-              onChangeMax={setMaxDist}
-            />
-
-            <CompactRangeControl
-              label="Star Count"
-              minValue={minStarCount}
-              maxValue={maxStarCount}
-              minLimit={filterLimits.stars.min}
-              maxLimit={filterLimits.stars.max}
-              step={filterLimits.stars.step}
-              integer={filterLimits.stars.integer}
-              onChangeMin={setMinStarCount}
-              onChangeMax={setMaxStarCount}
-            />
-
-            <CompactRangeControl
-              label="Planet Count"
-              minValue={minPlanetCount}
-              maxValue={maxPlanetCount}
-              minLimit={filterLimits.planets.min}
-              maxLimit={filterLimits.planets.max}
-              step={filterLimits.planets.step}
-              integer={filterLimits.planets.integer}
-              onChangeMin={setMinPlanetCount}
-              onChangeMax={setMaxPlanetCount}
-            />
-
-            <CompactRangeControl
-              label="Coolness Score"
-              minValue={minCoolnessScore}
-              maxValue={maxCoolnessScore}
-              minLimit={filterLimits.coolness.min}
-              maxLimit={filterLimits.coolness.max}
-              step={filterLimits.coolness.step}
-              integer={filterLimits.coolness.integer}
-              onChangeMin={setMinCoolnessScore}
-              onChangeMax={setMaxCoolnessScore}
-            />
-
-            <TriStateToggle
-              label="Habitable candidates"
-              value={hasHabitableMode}
-              onChange={setHasHabitableMode}
-            />
-
-            {error && (
-              <div className="error-box">
-                <div>{error}</div>
+        <div className="filters-stack">
+          <form
+            className={[
+              "panel",
+              "filters-panel",
+              filtersCollapsedY ? "filters-panel-collapsed-y" : "",
+            ].filter(Boolean).join(" ")}
+            onSubmit={onSubmit}
+          >
+            <div className="filters-head">
+              <h3>Filters</h3>
+              <div className="filters-head-actions">
+                {filtersCollapsedY && (
+                  <div className="filters-head-presets">
+                    {FILTER_PRESETS.map((preset) => (
+                      <button
+                        key={`head-${preset.id}`}
+                        type="button"
+                        className="button ghost preset-button preset-button-inline"
+                        onClick={() => applyPreset(preset)}
+                        disabled={loading}
+                      >
+                        {presetLabelForTheme(preset, theme)}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   type="button"
-                  className="button ghost retry"
-                  onClick={() => runSearch(null, true)}
-                  disabled={loading}
+                  className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
+                  onClick={() => setFiltersCollapsedY((prev) => !prev)}
+                  aria-pressed={filtersCollapsedY}
+                  title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
                 >
-                  Retry
+                  {filtersCollapsedY ? "Expand" : "Collapse"}
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+            <div className={`filters-body ${filtersBodyCollapsed ? "is-collapsed" : ""}`}>
+              <div className="preset-row">
+                {FILTER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className="button ghost preset-button"
+                    onClick={() => applyPreset(preset)}
+                    disabled={loading}
+                  >
+                    {presetLabelForTheme(preset, theme)}
+                  </button>
+                ))}
+              </div>
 
-          <div className="filters-footer">
-            <a
-              href="https://thelcars.com"
-              className="filters-footer-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              LCARS interface
-            </a>
-          </div>
-        </form>
+              <CompactRangeControl
+                label="Distance Range"
+                unit="ly"
+                minValue={minDist}
+                maxValue={maxDist}
+                minLimit={filterLimits.distance.min}
+                maxLimit={filterLimits.distance.max}
+                step={filterLimits.distance.step}
+                integer={filterLimits.distance.integer}
+                onChangeMin={setMinDist}
+                onChangeMax={setMaxDist}
+              />
+
+              <CompactRangeControl
+                label="Star Count"
+                minValue={minStarCount}
+                maxValue={maxStarCount}
+                minLimit={filterLimits.stars.min}
+                maxLimit={filterLimits.stars.max}
+                step={filterLimits.stars.step}
+                integer={filterLimits.stars.integer}
+                onChangeMin={setMinStarCount}
+                onChangeMax={setMaxStarCount}
+              />
+
+              <CompactRangeControl
+                label="Planet Count"
+                minValue={minPlanetCount}
+                maxValue={maxPlanetCount}
+                minLimit={filterLimits.planets.min}
+                maxLimit={filterLimits.planets.max}
+                step={filterLimits.planets.step}
+                integer={filterLimits.planets.integer}
+                onChangeMin={setMinPlanetCount}
+                onChangeMax={setMaxPlanetCount}
+              />
+
+              <CompactRangeControl
+                label="Coolness Score"
+                minValue={minCoolnessScore}
+                maxValue={maxCoolnessScore}
+                minLimit={filterLimits.coolness.min}
+                maxLimit={filterLimits.coolness.max}
+                step={filterLimits.coolness.step}
+                integer={filterLimits.coolness.integer}
+                onChangeMin={setMinCoolnessScore}
+                onChangeMax={setMaxCoolnessScore}
+              />
+
+              <TriStateToggle
+                label="Habitable candidates"
+                value={hasHabitableMode}
+                onChange={setHasHabitableMode}
+              />
+
+              {error && (
+                <div className="error-box">
+                  <div>{error}</div>
+                  <button
+                    type="button"
+                    className="button ghost retry"
+                    onClick={() => runSearch(null, true)}
+                    disabled={loading}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="filters-footer">
+              <a
+                href="https://thelcars.com"
+                className="filters-footer-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                LCARS interface
+              </a>
+            </div>
+          </form>
+
+          <SidebarSpectralMixCard
+            mix={spectralMix}
+            loading={spectralMixLoading}
+            error={spectralMixError}
+            collapsed={filtersBodyCollapsed}
+          />
+        </div>
 
         <section className="results">
           <div className="results-toolbar panel">

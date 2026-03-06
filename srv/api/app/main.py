@@ -28,6 +28,7 @@ from .queries import (
     fetch_build_id,
     fetch_counts_for_system,
     fetch_planets_for_system,
+    fetch_spectral_mix,
     fetch_snapshot_for_system,
     fetch_stars_for_system,
     fetch_system_by_id,
@@ -375,6 +376,20 @@ def health():
         "status": "ok",
         "build_id": build_id,
         "db_path": db.get_db_path(),
+        "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+
+
+@app.get("/api/v1/stats/spectral")
+def spectral_mix():
+    with db.connection_scope() as con:
+        mix = fetch_spectral_mix(con)
+        build_id = fetch_build_id(con)
+    return {
+        "status": "ok",
+        "build_id": build_id,
+        "total_stars": mix.get("total_stars", 0),
+        "rows": mix.get("rows", []),
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
 
@@ -3524,6 +3539,22 @@ def admin_home(request: Request):
         '#6b7280',
       ];
 
+      function spectralPieColor(label) {{
+        const key = String(label || '').trim().toUpperCase();
+        if (key === 'O') return '#6aa9ff';
+        if (key === 'B') return '#8cc8ff';
+        if (key === 'A') return '#d7e9ff';
+        if (key === 'F') return '#fff2b5';
+        if (key === 'G') return '#ffd86b';
+        if (key === 'K') return '#ffb36a';
+        if (key === 'M') return '#f06a55';
+        if (key === 'L') return '#cf6b57';
+        if (key === 'T') return '#8f6bc7';
+        if (key === 'Y') return '#6fc7d8';
+        if (key === 'D') return '#c8d2de';
+        return '#7f8ea3';
+      }}
+
       function compactPieRows(rows, maxSlices = 8) {{
         const norm = (Array.isArray(rows) ? rows : [])
           .map((row) => ({{
@@ -3563,7 +3594,7 @@ def admin_home(request: Request):
         let cursorPct = 0;
         const gradientParts = [];
         const rowsWithColor = compactRows.map((row, idx) => {{
-          const color = PIE_COLORS[idx % PIE_COLORS.length];
+          const color = (row && row.color) ? String(row.color) : PIE_COLORS[idx % PIE_COLORS.length];
           const partPct = Math.max(0, Math.min(100, pct(row.value, denom)));
           const nextPct = Math.max(cursorPct, Math.min(100, cursorPct + partPct));
           gradientParts.push(`${{color}} ${{cursorPct.toFixed(2)}}% ${{nextPct.toFixed(2)}}%`);
@@ -3669,6 +3700,7 @@ def admin_home(request: Request):
         const spectralRows = spectral.slice(0, 12).map((row) => ({{
           label: String(row.spectral_class || '?'),
           value: toNumber(row.systems, 0),
+          color: spectralPieColor(row.spectral_class),
         }}));
         renderBarList(
           coolPreviewSpectralDistEl,
@@ -4487,6 +4519,7 @@ def admin_home(request: Request):
           spectralRows.map((row) => ({{
             label: String(row.spectral_class || '?'),
             value: toNumber(row.star_count, 0),
+            color: spectralPieColor(row.spectral_class),
           }})),
           toNumber(counts.stars, 0),
           'Spectral share'

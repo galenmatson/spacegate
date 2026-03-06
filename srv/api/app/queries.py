@@ -100,6 +100,53 @@ def fetch_build_id(con: duckdb.DuckDBPyConnection) -> Optional[str]:
         return None
 
 
+def fetch_spectral_mix(con: duckdb.DuckDBPyConnection) -> Dict[str, Any]:
+    rows = con.execute(
+        """
+        WITH spectral_buckets AS (
+          SELECT
+            CASE
+              WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 'D'
+              WHEN spectral_class IN ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y') THEN spectral_class
+              ELSE 'unknown'
+            END AS spectral_bucket
+          FROM stars
+        )
+        SELECT spectral_bucket, COUNT(*)::BIGINT AS star_count
+        FROM spectral_buckets
+        GROUP BY spectral_bucket
+        ORDER BY
+          CASE spectral_bucket
+            WHEN 'O' THEN 1
+            WHEN 'B' THEN 2
+            WHEN 'A' THEN 3
+            WHEN 'F' THEN 4
+            WHEN 'G' THEN 5
+            WHEN 'K' THEN 6
+            WHEN 'M' THEN 7
+            WHEN 'L' THEN 8
+            WHEN 'T' THEN 9
+            WHEN 'Y' THEN 10
+            WHEN 'D' THEN 11
+            ELSE 12
+          END,
+          spectral_bucket
+        """
+    ).fetchall()
+    total = sum(int(row[1] or 0) for row in rows)
+    return {
+        "total_stars": int(total),
+        "rows": [
+            {
+                "spectral_class": str(row[0]),
+                "star_count": int(row[1] or 0),
+                "pct_of_stars": (float(row[1]) / float(total) * 100.0) if total else 0.0,
+            }
+            for row in rows
+        ],
+    }
+
+
 def fetch_system_by_id(con: duckdb.DuckDBPyConnection, system_id: int) -> Optional[Dict[str, Any]]:
     cursor = con.execute("SELECT * FROM systems WHERE system_id = ?", [system_id])
     row = cursor.fetchone()

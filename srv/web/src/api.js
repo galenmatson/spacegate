@@ -31,3 +31,13 @@ export async function fetchHealth() {
   }
   return res.json();
 }
+
+export async function fetchSpectralMix() {
+  const url = `${API_BASE}/api/v1/stats/spectral`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Spectral stats failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
