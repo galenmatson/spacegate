@@ -255,9 +255,16 @@ Required core columns:
   - `ruwe` (nullable)
   - `astrometry_quality`
 - spectral normalization note:
-  - Gaia DR3 backbone does not provide a discrete MK class in this pipeline stage.
-  - `spectral_class` is inferred from `teff_gspphot` with `bp_rp` fallback when explicit spectral type is absent.
+  - Gaia DR3 backbone does not provide a complete discrete MK class for all rows.
+  - `spectral_class` may be inferred from `teff_gspphot` with `bp_rp` fallback only when no stronger classification evidence exists.
   - keep `spectral_type_raw` as nullable provenance text; do not fabricate MK subtype/luminosity class beyond available evidence.
+- classification safety:
+  - required canonical field: `object_family` (`star`, `brown_dwarf`, `white_dwarf`, `neutron_star`, `black_hole`, `planetary_nebula`, `other`)
+  - recommended evidence fields:
+    - `classprob_dsc_combmod_whitedwarf` (nullable)
+    - `classprob_dsc_specmod_whitedwarf` (nullable)
+    - `classification_evidence_json` (source/value/confidence payload)
+  - if remnant evidence is positive, fallback spectral-temperature mapping must not force normal stellar family labels.
 - multiplicity evidence:
   - `wds_id` (nullable)
   - `multiplicity_match_method`
@@ -321,6 +328,10 @@ Build must fail on:
 2. coordinate invariant violation
 3. Morton-domain overflow
 4. invalid grouping cardinality (missing/duplicate star-to-system assignments)
+5. classification invariant violation:
+   - remnant-positive evidence with non-remnant emitted `object_family` and no explicit override
+6. silent classifier downgrade:
+   - source-native remnant marker (for example white-dwarf `D*` spectral evidence) overwritten by temperature fallback without override
 
 Reports must include:
 
@@ -328,6 +339,10 @@ Reports must include:
 - multiplicity summary and gate metrics
 - matching summary
 - provenance summary
+- classification safety summary:
+  - remnant evidence counts by source
+  - remnant vs emitted family mismatch counts
+  - explicit override counts and reasons
 
 ## Compatibility and Migration
 

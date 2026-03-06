@@ -40,8 +40,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Implement Gaia backbone downloader/cooker/ingest path (`gaia_backbone`)
 - [x] Emit `gaia_backbone_report.json` (counts, quality bands, runtime, storage)
+- [ ] Add Gaia TAP fetch completeness guard (detect and fail on sync truncation / partial bucket responses)
 - [ ] Add build metadata for astrometry quality policy and boundary strategy
 - [ ] Verify deterministic reruns for pinned Gaia inputs
+- [ ] Ingest Gaia DR3 astrophysical classification probabilities needed for remnant safety (`classprob_dsc_*_whitedwarf`, ESP-ELS families)
+- [ ] Implement remnant classification invariant gate (explicit remnant evidence must override temperature fallback)
 
 ### C3. Phase B - Core/Halo Product Slice
 
@@ -62,6 +65,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C5. Phase D - Crosswalk and Naming
 
 - [ ] Implement replacement crosswalks for names/aliases/legacy IDs
+- [ ] Restore broad cross-catalog identifier coverage in served rows (Gaia/HIP/HD/WDS and other selected major IDs)
+- [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Preserve or improve host matching quality for planets
 - [ ] Preserve or improve user-facing lookup ergonomics
 

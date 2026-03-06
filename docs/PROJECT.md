@@ -37,6 +37,7 @@ Reason:
    - `rim`: editable fiction
 5. Explicit confidence for joins/groupings; avoid silent inference.
 6. Security-first ingestion: no required insecure transport dependencies.
+7. Classification safety invariants: explicit remnant evidence must override temperature-derived stellar class labels.
 
 ## Data Layers (`galaxy` / `core` / `halo` / `bulge` / `disc` / `rim`)
 
@@ -121,6 +122,18 @@ Gaia DR3 query date: March 5, 2026 (`parallax >= 3.26156 mas`)
   - `G <= 20`: `9,334,894`
 
 Implication: this is a multi-million object architecture. Product slice and deep-query pathways must be deliberate.
+
+### Classification Coverage Reality Check (Gaia DR3, <=1000 ly)
+Gaia archive checks on March 6, 2026:
+
+- scope rows: `17,785,548`
+- `teff_gspphot` null: `13,786,856` (~77.5%)
+- `bp_rp` null: `2,439,891` (~13.7%)
+
+Implication:
+
+- temperature-only spectral inference cannot be the primary physical classifier
+- compact/remnant classification requires dedicated evidence columns and cross-catalog support
 
 ## Astrometry Standard
 
@@ -209,6 +222,28 @@ Rules:
 - cooked outputs are deterministic and disposable
 - build outputs are immutable by build ID
 - promotion is atomic
+
+## Classification Stewardship Rule (Core)
+
+Non-negotiable rule:
+
+- if explicit remnant evidence exists, Spacegate must not classify the object as a normal stellar spectral bucket by temperature fallback alone.
+
+Minimum remnant evidence sources:
+
+- Gaia DR3 astrophysical probabilities (`classprob_dsc_*_whitedwarf`)
+- source-native spectral remnant signatures (for example `D*` white-dwarf notation)
+- authoritative remnant catalogs (when integrated)
+
+Required behavior:
+
+1. classify by evidence-first precedence, not temperature-first fallback
+2. preserve raw evidence and confidence for auditability
+3. separate `object_family` from user-facing color/temperature rendering
+
+Hard QC gate:
+
+- build fails if a row has remnant-positive evidence but is emitted as a non-remnant stellar family without an explicit override record.
 
 ## Security and Transport Policy
 
@@ -362,6 +397,7 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 4. Data quality:
    - boundary and astrometry confidence flags implemented
    - multiplicity confidence tiers queryable
+   - remnant classification invariant enforced (no WD->A/B/F/... fallback mislabels)
 5. Security:
    - no required insecure transport in default build path
    - provenance completeness gate enforced
