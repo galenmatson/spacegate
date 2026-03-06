@@ -95,9 +95,22 @@ Source endpoint:
 
 - `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?...`
 
+## 3) Gaia DR3 astrophysical classifier probabilities
+
+Classification: `canonical` (classification safety support for canonical stars)
+
+Role:
+
+- remnant-safe classification support (`classprob_dsc_*_whitedwarf` and related families)
+- prevents temperature fallback from mislabeling remnant objects
+
+Source endpoint:
+
+- ESA Gaia Archive TAP (`gaiadr3.astrophysical_parameters`)
+
 ## Core Auxiliary Multiplicity Sources
 
-## 3) Gaia DR3 NSS support extracts
+## 4) Gaia DR3 NSS support extracts
 
 Classification: `auxiliary`
 
@@ -115,7 +128,7 @@ Source endpoint:
 
 - ESA Gaia Archive TAP
 
-## 4) WDS (Washington Double Star)
+## 5) WDS (Washington Double Star)
 
 Classification: `auxiliary`
 
@@ -132,7 +145,7 @@ Source endpoint:
 
 - USNO/GSU WDS published data
 
-## 5) ORB6
+## 6) ORB6
 
 Classification: `auxiliary`
 
@@ -146,7 +159,7 @@ Source endpoint:
 
 ## Optional/Deferred Multiplicity Sources
 
-## 6) MSC (Tokovinin Multiple Star Catalog)
+## 7) MSC (Tokovinin Multiple Star Catalog)
 
 Classification: `auxiliary` (optional, default-off)
 
@@ -166,7 +179,7 @@ Security/transport note:
 
 ## Transitional Sources
 
-## 7) AT-HYG
+## 8) AT-HYG
 
 Classification: `transitional`
 
@@ -187,6 +200,7 @@ Retirement condition:
 Examples:
 
 - BDB/ILB and other non-mirrored high-risk dependencies
+- Gaia EDR3 white dwarf FITS bulk catalog (downloaded for evaluation; parser/mirror strategy not yet finalized in default path)
 
 Policy:
 
@@ -197,11 +211,17 @@ Policy:
 Typical manifest files:
 
 - `reports/manifests/core_manifest.json`
+- `reports/manifests/gaia_backbone_manifest.json`
+- `reports/manifests/gaia_classprob_manifest.json`
 - `reports/manifests/gaia_nss_manifest.json`
 - `reports/manifests/wds_manifest.json`
 - `reports/manifests/orb6_manifest.json`
 - `reports/manifests/msc_manifest.json` (when enabled)
 - `reports/manifests/wds_gaia_xmatch_manifest.json` (when enabled)
+- `reports/manifests/atnf_manifest.json`
+- `reports/manifests/magnetar_manifest.json`
+- `reports/manifests/clusters_manifest.json`
+- `reports/manifests/snr_manifest.json`
 
 ## WDS-Gaia Bridge Policy
 

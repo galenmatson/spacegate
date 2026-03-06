@@ -30,11 +30,12 @@ NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
 MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
 ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
-CLUSTERS_URL="${CLUSTERS_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/640/A1/table1.dat.gz}"
+CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
+CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/nodup.dat.gz}"
 VSX_URL="${VSX_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz}"
-SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.list}"
+SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.data.html}"
 ATNF_URL="${ATNF_URL:-https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz}"
-MAGNETAR_URL="${MAGNETAR_URL:-http://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
+MAGNETAR_URL="${MAGNETAR_URL:-https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
 ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-http://bit.ly/UltracoolSheet}"
 GAIA_UCD_URL="${GAIA_UCD_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/657/A69/table4.dat.gz}"
 WHITE_DWARF_URL="${WHITE_DWARF_URL:-https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz}"
@@ -208,13 +209,14 @@ catalog_sources() {
       printf '%s\n' "orb6|orb6orbits|$ORB6_URL|raw/orb6/orb6orbits.sql"
       ;;
     clusters)
-      printf '%s\n' "clusters|cantat_gaudin_2020|$CLUSTERS_URL|raw/clusters/cantat_gaudin_2020.fits"
+      printf '%s\n' "clusters|cantat_gaudin_2020_table1|$CLUSTERS_URL|raw/clusters/table1.dat"
+      printf '%s\n' "clusters|cantat_gaudin_2020_members|$CLUSTERS_MEMBERS_URL|raw/clusters/nodup.dat.gz"
       ;;
     vsx)
       printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat.gz"
       ;;
     snr)
-      printf '%s\n' "snr|snrs_list|$SNR_URL|raw/snr/snrs.list"
+      printf '%s\n' "snr|snrs_data_html|$SNR_URL|raw/snr/snrs.data.html"
       ;;
     atnf)
       printf '%s\n' "atnf|psrcat_pkg|$ATNF_URL|raw/atnf/psrcat_pkg.tar.gz"

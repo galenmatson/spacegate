@@ -43,8 +43,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Add Gaia TAP fetch completeness guard (detect and fail on sync truncation / partial bucket responses)
 - [ ] Add build metadata for astrometry quality policy and boundary strategy
 - [ ] Verify deterministic reruns for pinned Gaia inputs
-- [ ] Ingest Gaia DR3 astrophysical classification probabilities needed for remnant safety (`classprob_dsc_*_whitedwarf`, ESP-ELS families)
-- [ ] Implement remnant classification invariant gate (explicit remnant evidence must override temperature fallback)
+- [x] Ingest Gaia DR3 astrophysical classification probabilities needed for remnant safety (`classprob_dsc_*_whitedwarf`, ESP-ELS families)
+- [x] Implement remnant classification invariant gate (explicit remnant evidence must override temperature fallback)
+- [x] Add compact/superstellar side catalogs (ATNF pulsars, McGill magnetars, open clusters, Galactic SNR)
+- [x] Tag Gaia stars with open-cluster memberships where catalog IDs overlap (probability thresholded)
 
 ### C3. Phase B - Core/Halo Product Slice
 

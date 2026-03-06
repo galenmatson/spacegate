@@ -27,12 +27,23 @@ WDS_GAIA_XMATCH_URL = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync"
 WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
 MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
 MSC_VERSION = "2024-01-01"
+GAIA_CLASSPROB_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
+GAIA_CLASSPROB_VERSION = "dr3_astrophysical_parameters_parallax_gte_3.26156"
+ATNF_URL = "https://www.atnf.csiro.au/research/pulsar/psrcat/"
+ATNF_VERSION = "psrcat_pkg"
+MAGNETAR_URL = "https://www.physics.mcgill.ca/~pulsar/magnetar/"
+MAGNETAR_VERSION = "TabO1"
+CLUSTERS_URL = "https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/"
+CLUSTERS_VERSION = "2020A&A...640A...1C"
+SNR_URL = "https://www.mrao.cam.ac.uk/surveys/snrs/"
+SNR_VERSION = "2024-10"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
 WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT = 2.0
 WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
 WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
+WHITE_DWARF_PROB_THRESHOLD = 0.5
 
 
 def log(message: str) -> None:
@@ -448,6 +459,14 @@ def main() -> int:
     enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
     enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
+    enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
+    enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
+    enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
+    open_cluster_member_min_probability = parse_optional_nonnegative_float_env(
+        "SPACEGATE_OPEN_CLUSTER_MEMBER_MIN_PROBABILITY"
+    )
+    if open_cluster_member_min_probability is None:
+        open_cluster_member_min_probability = 0.7
     wds_gaia_match_max_arcsec = parse_positive_float_env(
         "SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC",
         WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT,
@@ -484,6 +503,14 @@ def main() -> int:
     cooked_gaia_nss_non_single = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_non_single_star.csv"
     cooked_gaia_nss_two_body = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv"
     cooked_wds_gaia_xmatch = state_dir / "cooked" / "wds_gaia_xmatch" / "wds_gaia_matches.csv"
+    cooked_gaia_classprob = (
+        state_dir / "cooked" / "gaia_classprob" / "gaia_dr3_astrophysical_classprob.csv"
+    )
+    cooked_atnf = state_dir / "cooked" / "atnf" / "pulsars.csv"
+    cooked_magnetar = state_dir / "cooked" / "magnetar" / "magnetars.csv"
+    cooked_open_clusters = state_dir / "cooked" / "clusters" / "open_clusters.csv"
+    cooked_open_cluster_members = state_dir / "cooked" / "clusters" / "open_cluster_members.csv"
+    cooked_snr = state_dir / "cooked" / "snr" / "green_snr.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     manifest_path = manifest_dir / "core_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -492,6 +519,11 @@ def main() -> int:
     gaia_backbone_manifest_path = manifest_dir / "gaia_backbone_manifest.json"
     gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
     wds_gaia_xmatch_manifest_path = manifest_dir / "wds_gaia_xmatch_manifest.json"
+    gaia_classprob_manifest_path = manifest_dir / "gaia_classprob_manifest.json"
+    atnf_manifest_path = manifest_dir / "atnf_manifest.json"
+    magnetar_manifest_path = manifest_dir / "magnetar_manifest.json"
+    clusters_manifest_path = manifest_dir / "clusters_manifest.json"
+    snr_manifest_path = manifest_dir / "snr_manifest.json"
 
     if not enable_gaia_backbone and not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
@@ -511,6 +543,18 @@ def main() -> int:
         raise SystemExit(f"Missing cooked Gaia NSS two_body: {cooked_gaia_nss_two_body}")
     if enable_wds_gaia_xmatch and not cooked_wds_gaia_xmatch.exists():
         raise SystemExit(f"Missing cooked WDS-Gaia XMatch: {cooked_wds_gaia_xmatch}")
+    if enable_gaia_backbone and enable_gaia_classprob and not cooked_gaia_classprob.exists():
+        raise SystemExit(f"Missing cooked Gaia classifier probabilities: {cooked_gaia_classprob}")
+    if enable_compact_catalogs and not cooked_atnf.exists():
+        raise SystemExit(f"Missing cooked ATNF pulsars: {cooked_atnf}")
+    if enable_compact_catalogs and not cooked_magnetar.exists():
+        raise SystemExit(f"Missing cooked magnetars: {cooked_magnetar}")
+    if enable_superstellar_catalogs and not cooked_open_clusters.exists():
+        raise SystemExit(f"Missing cooked open clusters: {cooked_open_clusters}")
+    if enable_superstellar_catalogs and not cooked_open_cluster_members.exists():
+        raise SystemExit(f"Missing cooked open-cluster members: {cooked_open_cluster_members}")
+    if enable_superstellar_catalogs and not cooked_snr.exists():
+        raise SystemExit(f"Missing cooked SNR catalog: {cooked_snr}")
 
     log("Ingest core start")
     log(
@@ -530,6 +574,13 @@ def main() -> int:
         f"build_layer={build_layer} "
         f"source_galaxy_build_id={source_galaxy_build_id or '(unset)'}"
     )
+    log(
+        "Science catalogs: "
+        f"gaia_classprob={'1' if (enable_gaia_backbone and enable_gaia_classprob) else '0'} "
+        f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
+        f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
+        f"open_cluster_member_min_probability={open_cluster_member_min_probability}"
+    )
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
     if enable_gaia_backbone:
@@ -540,6 +591,12 @@ def main() -> int:
         manifest_paths.append(gaia_nss_manifest_path)
     if enable_wds_gaia_xmatch:
         manifest_paths.append(wds_gaia_xmatch_manifest_path)
+    if enable_gaia_backbone and enable_gaia_classprob:
+        manifest_paths.append(gaia_classprob_manifest_path)
+    if enable_compact_catalogs:
+        manifest_paths.extend([atnf_manifest_path, magnetar_manifest_path])
+    if enable_superstellar_catalogs:
+        manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
     for path in manifest_paths:
         manifest.update(load_manifest(path))
 
@@ -630,7 +687,11 @@ def main() -> int:
           ('source_galaxy_build_id', {sql_literal(source_galaxy_build_id)}),
           ('wds_gaia_match_max_arcsec', {sql_literal(str(wds_gaia_match_max_arcsec))}),
           ('wds_gaia_gate_max_dist_spread_ly', {sql_literal(str(wds_gaia_gate_max_dist_spread_ly))}),
-          ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))})
+          ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))}),
+          ('gaia_classprob_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_gaia_classprob) else "0")}),
+          ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
+          ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
+          ('open_cluster_member_min_probability', {sql_literal(str(open_cluster_member_min_probability))})
         """
     )
 
@@ -673,6 +734,42 @@ def main() -> int:
     wds_gaia_xmatch_manifest = (
         require_manifest_entry(manifest, "wds_gaia_xmatch_best", "WDS Gaia XMatch best")
         if enable_wds_gaia_xmatch
+        else None
+    )
+    gaia_classprob_manifest = (
+        require_manifest_entry(
+            manifest,
+            "gaia_dr3_astrophysical_classprob",
+            "Gaia DR3 astrophysical classifier probabilities",
+        )
+        if enable_gaia_backbone and enable_gaia_classprob
+        else None
+    )
+    atnf_manifest = (
+        require_manifest_entry(manifest, "psrcat_pkg", "ATNF pulsar catalog")
+        if enable_compact_catalogs
+        else None
+    )
+    magnetar_manifest = (
+        require_manifest_entry(manifest, "TabO1", "McGill magnetar catalog")
+        if enable_compact_catalogs
+        else None
+    )
+    clusters_table1_manifest = (
+        require_manifest_entry(manifest, "cantat_gaudin_2020_table1", "Open cluster summary catalog")
+        if enable_superstellar_catalogs
+        else None
+    )
+    clusters_members_manifest = (
+        require_manifest_entry(
+            manifest, "cantat_gaudin_2020_members", "Open cluster membership catalog"
+        )
+        if enable_superstellar_catalogs
+        else None
+    )
+    snr_manifest = (
+        require_manifest_entry(manifest, "snrs_data_html", "Galactic SNR catalog")
+        if enable_superstellar_catalogs
         else None
     )
 
@@ -760,6 +857,40 @@ def main() -> int:
     wds_gaia_xmatch_retrieved = (
         wds_gaia_xmatch_manifest.get("retrieved_at") if wds_gaia_xmatch_manifest else None
     )
+    gaia_classprob_sha = (
+        gaia_classprob_manifest.get("sha256") if gaia_classprob_manifest else None
+    )
+    gaia_classprob_retrieved = (
+        gaia_classprob_manifest.get("retrieved_at") if gaia_classprob_manifest else None
+    )
+    atnf_sha = atnf_manifest.get("sha256") if atnf_manifest else None
+    atnf_retrieved = atnf_manifest.get("retrieved_at") if atnf_manifest else None
+    magnetar_sha = magnetar_manifest.get("sha256") if magnetar_manifest else None
+    magnetar_retrieved = magnetar_manifest.get("retrieved_at") if magnetar_manifest else None
+    clusters_sha = (
+        ",".join(
+            [s for s in [clusters_table1_manifest.get("sha256"), clusters_members_manifest.get("sha256")] if s]
+        )
+        if clusters_table1_manifest and clusters_members_manifest
+        else None
+    )
+    clusters_retrieved = (
+        max(
+            [
+                t
+                for t in [
+                    clusters_table1_manifest.get("retrieved_at") if clusters_table1_manifest else None,
+                    clusters_members_manifest.get("retrieved_at") if clusters_members_manifest else None,
+                ]
+                if t
+            ],
+            default=None,
+        )
+        if clusters_table1_manifest or clusters_members_manifest
+        else None
+    )
+    snr_sha = snr_manifest.get("sha256") if snr_manifest else None
+    snr_retrieved = snr_manifest.get("retrieved_at") if snr_manifest else None
 
     if enable_gaia_backbone:
         gaia_backbone_path = str(cooked_gaia_backbone).replace("'", "''")
@@ -922,6 +1053,12 @@ def main() -> int:
     gaia_nss_non_single_path = str(cooked_gaia_nss_non_single).replace("'", "''")
     gaia_nss_two_body_path = str(cooked_gaia_nss_two_body).replace("'", "''")
     wds_gaia_xmatch_path = str(cooked_wds_gaia_xmatch).replace("'", "''")
+    gaia_classprob_path = str(cooked_gaia_classprob).replace("'", "''")
+    atnf_path = str(cooked_atnf).replace("'", "''")
+    magnetar_path = str(cooked_magnetar).replace("'", "''")
+    open_clusters_path = str(cooked_open_clusters).replace("'", "''")
+    open_cluster_members_path = str(cooked_open_cluster_members).replace("'", "''")
+    snr_path = str(cooked_snr).replace("'", "''")
 
     log("Loading cooked multiplicity catalogs")
     con.execute(
@@ -1111,6 +1248,233 @@ def main() -> int:
         select distinct nullif(wds_id, '') as wds_id
         from orb6_raw
         where nullif(wds_id, '') is not null
+        """
+    )
+    if enable_gaia_backbone and enable_gaia_classprob:
+        con.execute(
+            f"""
+            create or replace temp view gaia_classprob_raw as
+            select * from read_csv_auto('{gaia_classprob_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view gaia_classprob_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              source_id,
+              classprob_dsc_combmod_whitedwarf,
+              classprob_dsc_specmod_whitedwarf,
+              classprob_dsc_combmod_star,
+              classprob_dsc_specmod_star,
+              classprob_dsc_combmod_binarystar,
+              classprob_dsc_specmod_binarystar,
+              classprob_dsc_combmod_galaxy,
+              classprob_dsc_specmod_galaxy,
+              classprob_dsc_combmod_quasar,
+              classprob_dsc_specmod_quasar
+            )
+            where false
+            """
+        )
+    if enable_compact_catalogs:
+        con.execute(
+            f"""
+            create or replace temp view atnf_raw as
+            select * from read_csv_auto('{atnf_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view magnetar_raw as
+            select * from read_csv_auto('{magnetar_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view atnf_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              psrj, psrb, ra_deg, dec_deg, parallax_mas, distance_pc, type_raw, assoc_raw,
+              period_s, period_derivative, spin_frequency_hz, spin_frequency_derivative_hz_s, object_type
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view magnetar_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              name, ra_deg, dec_deg, distance_pc, period_s, period_dot, assoc_raw, activity_raw, bands_raw
+            )
+            where false
+            """
+        )
+    if enable_superstellar_catalogs:
+        con.execute(
+            f"""
+            create or replace temp view open_clusters_raw as
+            select * from read_csv_auto('{open_clusters_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view open_cluster_members_raw as
+            select * from read_csv_auto('{open_cluster_members_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view snr_raw as
+            select * from read_csv_auto('{snr_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view open_clusters_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              cluster_name, ra_deg, dec_deg, glon_deg, glat_deg, radius_r50_deg, member_count_prob_gt_0_7,
+              pm_ra_mas_yr, pm_ra_sigma_mas_yr, pm_dec_mas_yr, pm_dec_sigma_mas_yr, parallax_mas,
+              parallax_sigma_mas, flag, age_log_yr, av_mag, distance_modulus_mag, distance_pc, x_gal_pc,
+              y_gal_pc, z_gal_pc, rgc_pc
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view open_cluster_members_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(gaia_dr2_source_id, cluster_name, membership_probability, ra_deg, dec_deg)
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view snr_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              galactic_name, glon_deg, glat_deg, ra_deg, dec_deg, size_major_arcmin, size_minor_arcmin,
+              morphology_type, flux_1ghz_jy_raw, spectral_index_raw, other_names
+            )
+            where false
+            """
+        )
+    con.execute(
+        """
+        create or replace temp view gaia_classprob as
+        select
+          nullif(source_id, '')::bigint as gaia_id,
+          nullif(classprob_dsc_combmod_whitedwarf, '')::double as classprob_dsc_combmod_whitedwarf,
+          nullif(classprob_dsc_specmod_whitedwarf, '')::double as classprob_dsc_specmod_whitedwarf,
+          nullif(classprob_dsc_combmod_star, '')::double as classprob_dsc_combmod_star,
+          nullif(classprob_dsc_specmod_star, '')::double as classprob_dsc_specmod_star,
+          nullif(classprob_dsc_combmod_binarystar, '')::double as classprob_dsc_combmod_binarystar,
+          nullif(classprob_dsc_specmod_binarystar, '')::double as classprob_dsc_specmod_binarystar,
+          nullif(classprob_dsc_combmod_galaxy, '')::double as classprob_dsc_combmod_galaxy,
+          nullif(classprob_dsc_specmod_galaxy, '')::double as classprob_dsc_specmod_galaxy,
+          nullif(classprob_dsc_combmod_quasar, '')::double as classprob_dsc_combmod_quasar,
+          nullif(classprob_dsc_specmod_quasar, '')::double as classprob_dsc_specmod_quasar
+        from gaia_classprob_raw
+        where nullif(source_id, '') is not null
         """
     )
 
@@ -1832,6 +2196,64 @@ def main() -> int:
         "where_sql": slice_where_sql,
     }
     write_json(reports_dir / "slice_policy_report.json", slice_policy_report)
+
+    log("Applying compact/remnant classification enrichments")
+    con.execute("alter table stars add column object_family varchar")
+    con.execute("alter table stars add column object_type varchar")
+    con.execute("alter table stars add column classprob_dsc_combmod_whitedwarf double")
+    con.execute("alter table stars add column classprob_dsc_specmod_whitedwarf double")
+    con.execute("alter table stars add column classification_evidence_json varchar")
+    con.execute("alter table stars add column open_cluster_tags_json varchar")
+    con.execute(
+        """
+        update stars
+        set
+          object_family = case
+            when upper(coalesce(spectral_type_raw, '')) like 'D%' then 'white_dwarf'
+            when spectral_class in ('L', 'T', 'Y') then 'brown_dwarf'
+            else 'star'
+          end,
+          object_type = case
+            when upper(coalesce(spectral_type_raw, '')) like 'D%' then 'white_dwarf'
+            when spectral_class in ('L', 'T', 'Y') then 'brown_dwarf'
+            else 'star'
+          end,
+          classification_evidence_json = json_object(
+            'method', 'spectral_fallback',
+            'spectral_type_raw', spectral_type_raw,
+            'spectral_class', spectral_class
+          )
+        """
+    )
+    if enable_gaia_backbone and enable_gaia_classprob:
+        con.execute(
+            """
+            update stars
+            set
+              classprob_dsc_combmod_whitedwarf = g.classprob_dsc_combmod_whitedwarf,
+              classprob_dsc_specmod_whitedwarf = g.classprob_dsc_specmod_whitedwarf
+            from gaia_classprob g
+            where stars.gaia_id = g.gaia_id
+            """
+        )
+        con.execute(
+            f"""
+            update stars
+            set
+              object_family = 'white_dwarf',
+              object_type = 'white_dwarf',
+              classification_evidence_json = json_object(
+                'method', 'gaia_classprob',
+                'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
+                'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
+                'threshold', {WHITE_DWARF_PROB_THRESHOLD}
+              )
+            where greatest(
+              coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+              coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+            ) >= {WHITE_DWARF_PROB_THRESHOLD}
+            """
+        )
 
     # System grouping: WDS first, then name-root, then optional proximity for remaining stars.
     log("System grouping: WDS pass")
@@ -2677,6 +3099,403 @@ def main() -> int:
         """
     )
 
+    log("Building compact and superstellar side tables")
+    con.execute(
+        f"""
+        create or replace temp view compact_catalog_input as
+        with atnf_norm as (
+          select
+            'atnf' as source_catalog,
+            coalesce(nullif(psrj, ''), nullif(psrb, '')) as source_key,
+            coalesce(nullif(psrj, ''), nullif(psrb, '')) as object_name,
+            nullif(ra_deg, '')::double as ra_deg,
+            nullif(dec_deg, '')::double as dec_deg,
+            nullif(distance_pc, '')::double as distance_pc,
+            nullif(parallax_mas, '')::double as parallax_mas,
+            case
+              when lower(coalesce(object_type, '')) like '%magnetar%' then 'magnetar'
+              else 'pulsar'
+            end as object_type,
+            'neutron_star' as object_family,
+            json_object(
+              'psrj', nullif(psrj, ''),
+              'psrb', nullif(psrb, ''),
+              'type_raw', nullif(type_raw, ''),
+              'assoc_raw', nullif(assoc_raw, '')
+            ) as catalog_ids_json
+          from atnf_raw
+        ), magnetar_norm as (
+          select
+            'magnetar' as source_catalog,
+            nullif(name, '') as source_key,
+            nullif(name, '') as object_name,
+            nullif(ra_deg, '')::double as ra_deg,
+            nullif(dec_deg, '')::double as dec_deg,
+            nullif(distance_pc, '')::double as distance_pc,
+            null::double as parallax_mas,
+            'magnetar' as object_type,
+            'neutron_star' as object_family,
+            json_object(
+              'name', nullif(name, ''),
+              'assoc_raw', nullif(assoc_raw, ''),
+              'activity_raw', nullif(activity_raw, '')
+            ) as catalog_ids_json
+          from magnetar_raw
+        )
+        select
+          source_catalog,
+          source_key,
+          object_name,
+          ra_deg,
+          dec_deg,
+          distance_pc,
+          distance_pc * {PC_TO_LY} as distance_ly,
+          parallax_mas,
+          object_type,
+          object_family,
+          catalog_ids_json
+        from atnf_norm
+        where source_key is not null
+        union all
+        select
+          source_catalog,
+          source_key,
+          object_name,
+          ra_deg,
+          dec_deg,
+          distance_pc,
+          distance_pc * {PC_TO_LY} as distance_ly,
+          parallax_mas,
+          object_type,
+          object_family,
+          catalog_ids_json
+        from magnetar_norm
+        where source_key is not null
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view star_sky_bins as
+        select
+          star_id,
+          system_id,
+          ra_deg,
+          dec_deg,
+          dist_ly,
+          cast(floor(ra_deg * 2.0) as bigint) as ra_bin,
+          cast(floor((dec_deg + 90.0) * 2.0) as bigint) as dec_bin
+        from stars
+        where ra_deg is not null and dec_deg is not null
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view compact_catalog_bins as
+        select
+          *,
+          cast(floor(ra_deg * 2.0) as bigint) as ra_bin,
+          cast(floor((dec_deg + 90.0) * 2.0) as bigint) as dec_bin
+        from compact_catalog_input
+        where ra_deg is not null and dec_deg is not null
+        """
+    )
+    con.execute(
+        """
+        create temp table compact_best_match as
+        with candidates as (
+          select
+            c.source_catalog,
+            c.source_key,
+            s.star_id,
+            s.system_id,
+            degrees(acos(
+              greatest(
+                -1.0,
+                least(
+                  1.0,
+                  sin(radians(c.dec_deg)) * sin(radians(s.dec_deg)) +
+                  cos(radians(c.dec_deg)) * cos(radians(s.dec_deg)) * cos(radians(c.ra_deg - s.ra_deg))
+                )
+              )
+            )) * 3600.0 as ang_dist_arcsec,
+            case
+              when c.distance_ly is null or s.dist_ly is null then null
+              else abs(c.distance_ly - s.dist_ly)
+            end as dist_delta_ly
+          from compact_catalog_bins c
+          join star_sky_bins s
+            on s.ra_bin between c.ra_bin - 1 and c.ra_bin + 1
+           and s.dec_bin between c.dec_bin - 1 and c.dec_bin + 1
+           and s.dec_deg between c.dec_deg - 1.0 and c.dec_deg + 1.0
+           and (
+             abs(s.ra_deg - c.ra_deg) <= 1.0
+             or abs(abs(s.ra_deg - c.ra_deg) - 360.0) <= 1.0
+           )
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by source_catalog, source_key
+              order by ang_dist_arcsec asc, dist_delta_ly asc nulls last, star_id asc
+            ) as rn
+          from candidates
+          where ang_dist_arcsec <= 5.0
+            and (dist_delta_ly is null or dist_delta_ly <= 200.0)
+        )
+        select
+          source_catalog,
+          source_key,
+          star_id,
+          system_id,
+          ang_dist_arcsec,
+          dist_delta_ly
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
+        f"""
+        create table compact_objects as
+        select
+          row_number() over (order by c.source_catalog, c.source_key)::bigint as compact_object_id,
+          'compact:' || c.source_catalog || ':' || lower(regexp_replace(c.source_key, '[^0-9A-Za-z]+', '_', 'g')) as stable_object_key,
+          m.system_id,
+          m.star_id,
+          c.object_name,
+          c.object_family,
+          c.object_type,
+          c.ra_deg,
+          c.dec_deg,
+          c.distance_ly as dist_ly,
+          c.distance_pc as dist_pc,
+          c.parallax_mas,
+          case when m.star_id is not null then 'sky_position' else 'unmatched' end as match_method,
+          case
+            when m.star_id is null then 0.0
+            when m.ang_dist_arcsec <= 0.5 then 0.99
+            when m.ang_dist_arcsec <= 1.0 then 0.95
+            when m.ang_dist_arcsec <= 2.0 then 0.90
+            else 0.80
+          end as match_confidence,
+          m.ang_dist_arcsec as match_angular_distance_arcsec,
+          m.dist_delta_ly as match_distance_delta_ly,
+          c.catalog_ids_json,
+          c.source_catalog,
+          case
+            when c.source_catalog = 'atnf' then {sql_literal(ATNF_VERSION)}
+            else {sql_literal(MAGNETAR_VERSION)}
+          end as source_version,
+          case
+            when c.source_catalog = 'atnf' then {sql_literal(ATNF_URL)}
+            else {sql_literal(MAGNETAR_URL)}
+          end as source_url,
+          case
+            when c.source_catalog = 'atnf' then {sql_literal(ATNF_URL)}
+            else {sql_literal(MAGNETAR_URL)}
+          end as source_download_url,
+          null::varchar as source_doi,
+          row_number() over (order by c.source_catalog, c.source_key)::bigint as source_pk,
+          row_number() over (order by c.source_catalog, c.source_key)::bigint as source_row_id,
+          sha256(c.source_catalog || '|' || c.source_key) as source_row_hash,
+          'catalog-specific terms' as license,
+          true as redistribution_ok,
+          'See source catalog terms and acknowledgements.' as license_note,
+          null::varchar as retrieval_etag,
+          case
+            when c.source_catalog = 'atnf' then {sql_literal(atnf_sha)}
+            else {sql_literal(magnetar_sha)}
+          end as retrieval_checksum,
+          case
+            when c.source_catalog = 'atnf' then {sql_literal(atnf_retrieved)}
+            else {sql_literal(magnetar_retrieved)}
+          end as retrieved_at,
+          {sql_literal(ingested_at)} as ingested_at,
+          {sql_literal(transform_version)} as transform_version
+        from compact_catalog_input c
+        left join compact_best_match m
+          on m.source_catalog = c.source_catalog and m.source_key = c.source_key
+        """
+    )
+    con.execute(
+        """
+        update stars
+        set
+          object_family = 'neutron_star',
+          object_type = case
+            when c.object_type = 'magnetar' then 'magnetar'
+            else 'pulsar'
+          end,
+          classification_evidence_json = json_object(
+            'method', 'compact_catalog_crossmatch',
+            'catalog', c.source_catalog,
+            'source_name', c.object_name,
+            'match_angular_distance_arcsec', c.match_angular_distance_arcsec
+          )
+        from compact_objects c
+        where stars.star_id = c.star_id
+          and c.match_method = 'sky_position'
+          and c.match_angular_distance_arcsec is not null
+          and c.match_angular_distance_arcsec <= 1.0
+        """
+    )
+
+    con.execute(
+        f"""
+        create table open_clusters as
+        select
+          row_number() over (order by nullif(cluster_name, ''), nullif(ra_deg, '')::double)::bigint as cluster_id,
+          'cluster:' || lower(regexp_replace(coalesce(nullif(cluster_name, ''), 'unknown'), '[^0-9A-Za-z]+', '_', 'g')) as stable_object_key,
+          nullif(cluster_name, '') as cluster_name,
+          nullif(ra_deg, '')::double as ra_deg,
+          nullif(dec_deg, '')::double as dec_deg,
+          nullif(glon_deg, '')::double as glon_deg,
+          nullif(glat_deg, '')::double as glat_deg,
+          nullif(radius_r50_deg, '')::double as radius_r50_deg,
+          nullif(member_count_prob_gt_0_7, '')::bigint as member_count_prob_gt_0_7,
+          nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
+          nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
+          nullif(parallax_mas, '')::double as parallax_mas,
+          nullif(distance_pc, '')::double as dist_pc,
+          nullif(distance_pc, '')::double * {PC_TO_LY} as dist_ly,
+          nullif(flag, '') as source_flag,
+          {sql_literal("clusters")} as source_catalog,
+          {sql_literal(CLUSTERS_VERSION)} as source_version,
+          {sql_literal(CLUSTERS_URL)} as source_url,
+          {sql_literal(CLUSTERS_URL)} as source_download_url,
+          null::varchar as source_doi,
+          row_number() over (order by nullif(cluster_name, ''), nullif(ra_deg, '')::double)::bigint as source_pk,
+          row_number() over (order by nullif(cluster_name, ''), nullif(ra_deg, '')::double)::bigint as source_row_id,
+          sha256(coalesce(cluster_name, '') || '|' || coalesce(ra_deg, '') || '|' || coalesce(dec_deg, '')) as source_row_hash,
+          'CDS catalog terms' as license,
+          true as redistribution_ok,
+          'Cantat-Gaudin et al. 2020 catalog via CDS.' as license_note,
+          null::varchar as retrieval_etag,
+          {sql_literal(clusters_sha)} as retrieval_checksum,
+          {sql_literal(clusters_retrieved)} as retrieved_at,
+          {sql_literal(ingested_at)} as ingested_at,
+          {sql_literal(transform_version)} as transform_version
+        from open_clusters_raw
+        where nullif(cluster_name, '') is not null
+        """
+    )
+    con.execute(
+        f"""
+        create table open_cluster_memberships as
+        select
+          row_number() over (order by s.star_id, c.cluster_id)::bigint as cluster_membership_id,
+          c.cluster_id,
+          c.cluster_name,
+          s.system_id,
+          s.star_id,
+          s.gaia_id,
+          nullif(m.membership_probability, '')::double as membership_probability,
+          'gaia_dr2_id_direct' as match_method,
+          1.0 as match_confidence
+        from open_cluster_members_raw m
+        join stars s on s.gaia_id = nullif(m.gaia_dr2_source_id, '')::bigint
+        join open_clusters c on c.cluster_name = nullif(m.cluster_name, '')
+        where nullif(m.membership_probability, '')::double >= {open_cluster_member_min_probability}
+        """
+    )
+    con.execute(
+        """
+        create temp table star_cluster_tags as
+        select
+          star_id,
+          '[' || string_agg(distinct '"' || replace(cluster_name, '"', '\\"') || '"', ',') || ']' as tags_json
+        from open_cluster_memberships
+        group by star_id
+        """
+    )
+    con.execute(
+        """
+        update stars
+        set open_cluster_tags_json = t.tags_json
+        from star_cluster_tags t
+        where stars.star_id = t.star_id
+        """
+    )
+
+    con.execute(
+        f"""
+        create table superstellar_objects as
+        with clusters_as_objects as (
+          select
+            'open_cluster:' || cluster_id::varchar as stable_object_key,
+            'open_cluster' as object_family,
+            'open_cluster' as object_type,
+            cluster_name as object_name,
+            ra_deg,
+            dec_deg,
+            dist_pc,
+            dist_ly,
+            json_object('cluster_id', cluster_id, 'source_flag', source_flag) as object_meta_json,
+            source_catalog,
+            source_version,
+            source_url,
+            source_download_url,
+            source_doi,
+            source_pk,
+            source_row_id,
+            source_row_hash,
+            license,
+            redistribution_ok,
+            license_note,
+            retrieval_etag,
+            retrieval_checksum,
+            retrieved_at,
+            ingested_at,
+            transform_version
+          from open_clusters
+        ), snr_as_objects as (
+          select
+            'snr:' || lower(regexp_replace(coalesce(nullif(galactic_name, ''), 'unknown'), '[^0-9A-Za-z+\\-.]+', '_', 'g')) as stable_object_key,
+            'superstellar' as object_family,
+            'supernova_remnant' as object_type,
+            nullif(galactic_name, '') as object_name,
+            nullif(ra_deg, '')::double as ra_deg,
+            nullif(dec_deg, '')::double as dec_deg,
+            null::double as dist_pc,
+            null::double as dist_ly,
+            json_object(
+              'glon_deg', nullif(glon_deg, '')::double,
+              'glat_deg', nullif(glat_deg, '')::double,
+              'size_major_arcmin', nullif(size_major_arcmin, '')::double,
+              'size_minor_arcmin', nullif(size_minor_arcmin, '')::double,
+              'morphology_type', nullif(morphology_type, ''),
+              'spectral_index_raw', nullif(spectral_index_raw, ''),
+              'other_names', nullif(other_names, '')
+            ) as object_meta_json,
+            {sql_literal("snr")} as source_catalog,
+            {sql_literal(SNR_VERSION)} as source_version,
+            {sql_literal(SNR_URL)} as source_url,
+            {sql_literal(SNR_URL)} as source_download_url,
+            null::varchar as source_doi,
+            row_number() over (order by nullif(galactic_name, ''), nullif(ra_deg, '')::double)::bigint as source_pk,
+            row_number() over (order by nullif(galactic_name, ''), nullif(ra_deg, '')::double)::bigint as source_row_id,
+            sha256(coalesce(galactic_name, '') || '|' || coalesce(ra_deg, '') || '|' || coalesce(dec_deg, '')) as source_row_hash,
+            'Catalog-specific terms' as license,
+            true as redistribution_ok,
+            'Green Galactic SNR catalog.' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(snr_sha)} as retrieval_checksum,
+            {sql_literal(snr_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from snr_raw
+          where nullif(galactic_name, '') is not null
+        )
+        select
+          row_number() over (order by stable_object_key)::bigint as superstellar_object_id,
+          *
+        from (
+          select * from clusters_as_objects
+          union all
+          select * from snr_as_objects
+        ) u
+        """
+    )
+
     # Provenance QC gate
     required_text = [
         "source_catalog",
@@ -2795,6 +3614,8 @@ def main() -> int:
             "stars": table_provenance_report("stars", base_source_has_retrieval),
             "systems": table_provenance_report("systems", base_source_has_retrieval),
             "planets": table_provenance_report("planets", nasa_has_retrieval),
+            "compact_objects": table_provenance_report("compact_objects", True),
+            "superstellar_objects": table_provenance_report("superstellar_objects", True),
         },
     }
     if not enable_gaia_backbone:
@@ -2809,12 +3630,24 @@ def main() -> int:
         provenance_report["gaia_nss_two_body_orbit"] = gaia_nss_two_body_manifest
     if wds_gaia_xmatch_manifest:
         provenance_report["wds_gaia_xmatch_best"] = wds_gaia_xmatch_manifest
+    if gaia_classprob_manifest:
+        provenance_report["gaia_dr3_astrophysical_classprob"] = gaia_classprob_manifest
+    if atnf_manifest:
+        provenance_report["atnf"] = atnf_manifest
+    if magnetar_manifest:
+        provenance_report["magnetar"] = magnetar_manifest
+    if clusters_table1_manifest:
+        provenance_report["open_clusters_table1"] = clusters_table1_manifest
+    if clusters_members_manifest:
+        provenance_report["open_clusters_members"] = clusters_members_manifest
+    if snr_manifest:
+        provenance_report["snr"] = snr_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
     total_failures = sum(
         provenance_report["tables"][name]["failures"]
-        for name in ("stars", "systems", "planets")
+        for name in ("stars", "systems", "planets", "compact_objects", "superstellar_objects")
     )
     if total_failures > 0:
         raise SystemExit(
@@ -2829,9 +3662,22 @@ def main() -> int:
         select
           (select count(*) from stars) as stars,
           (select count(*) from systems) as systems,
-          (select count(*) from planets) as planets
+          (select count(*) from planets) as planets,
+          (select count(*) from compact_objects) as compact_objects,
+          (select count(*) from open_clusters) as open_clusters,
+          (select count(*) from open_cluster_memberships) as open_cluster_memberships,
+          (select count(*) from superstellar_objects) as superstellar_objects
         """
     ).fetchone()
+
+    object_family_counts = con.execute(
+        """
+        select coalesce(object_family, 'unknown') as object_family, count(*)::bigint as count
+        from stars
+        group by 1
+        order by count desc, object_family asc
+        """
+    ).fetchall()
 
     match_counts = con.execute(
         """
@@ -2865,11 +3711,61 @@ def main() -> int:
         """
     ).fetchone()[0]
 
+    wd_evidence_count = con.execute(
+        f"""
+        select count(*) from stars
+        where greatest(
+          coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+          coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+        ) >= {WHITE_DWARF_PROB_THRESHOLD}
+        """
+    ).fetchone()[0]
+    wd_emitted_count = con.execute(
+        "select count(*) from stars where object_family = 'white_dwarf'"
+    ).fetchone()[0]
+    wd_mismatch_count = con.execute(
+        f"""
+        select count(*) from stars
+        where greatest(
+          coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+          coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+        ) >= {WHITE_DWARF_PROB_THRESHOLD}
+          and coalesce(object_family, '') <> 'white_dwarf'
+        """
+    ).fetchone()[0]
+    classification_safety_report = {
+        "build_id": build_id,
+        "white_dwarf_probability_threshold": WHITE_DWARF_PROB_THRESHOLD,
+        "white_dwarf_evidence_count": wd_evidence_count,
+        "white_dwarf_emitted_count": wd_emitted_count,
+        "white_dwarf_mismatch_count": wd_mismatch_count,
+        "notes": [
+            "Invariant: rows with strong Gaia white-dwarf class probability must emit object_family=white_dwarf.",
+            "Compact-object catalog crossmatches may override object_family to neutron_star for high-confidence positional matches.",
+        ],
+    }
+    write_json(reports_dir / "classification_safety_report.json", classification_safety_report)
+
     qc_report = {
         "build_id": build_id,
-        "counts": {"stars": counts[0], "systems": counts[1], "planets": counts[2]},
+        "counts": {
+            "stars": counts[0],
+            "systems": counts[1],
+            "planets": counts[2],
+            "compact_objects": counts[3],
+            "open_clusters": counts[4],
+            "open_cluster_memberships": counts[5],
+            "superstellar_objects": counts[6],
+        },
+        "object_family_counts": [
+            {"object_family": row[0], "count": row[1]} for row in object_family_counts
+        ],
         "gaia_backbone_enabled": enable_gaia_backbone,
         "base_source_catalog": base_source_catalog,
+        "gaia_classprob_enabled": enable_gaia_backbone and enable_gaia_classprob,
+        "compact_catalogs_enabled": enable_compact_catalogs,
+        "superstellar_catalogs_enabled": enable_superstellar_catalogs,
+        "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "gaia_nss_star_count": gaia_nss_star_count,
@@ -2884,6 +3780,10 @@ def main() -> int:
         "wds_gaia_gate_rejected_group_count": wds_gaia_gate_rejected_group_count,
         "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
         "wds_gaia_gate_max_pm_delta_mas_yr": wds_gaia_gate_max_pm_delta_mas_yr,
+        "white_dwarf_probability_threshold": WHITE_DWARF_PROB_THRESHOLD,
+        "white_dwarf_evidence_count": wd_evidence_count,
+        "white_dwarf_emitted_count": wd_emitted_count,
+        "white_dwarf_mismatch_count": wd_mismatch_count,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -2917,6 +3817,18 @@ def main() -> int:
     match_report = {
         "build_id": build_id,
         "match_counts": [{"method": row[0], "count": row[1]} for row in match_counts],
+        "compact_match_counts": [
+            {"method": row[0], "count": row[1]}
+            for row in con.execute(
+                "select match_method, count(*)::bigint from compact_objects group by match_method order by count(*) desc, match_method asc"
+            ).fetchall()
+        ],
+        "superstellar_type_counts": [
+            {"object_type": row[0], "count": row[1]}
+            for row in con.execute(
+                "select object_type, count(*)::bigint from superstellar_objects group by object_type order by count(*) desc, object_type asc"
+            ).fetchall()
+        ],
     }
 
     write_json(reports_dir / "qc_report.json", qc_report)
@@ -2926,6 +3838,11 @@ def main() -> int:
         raise SystemExit(
             "QC failed: distance invariant violations detected. "
             f"See {reports_dir / 'qc_report.json'}"
+        )
+    if wd_mismatch_count > 0:
+        raise SystemExit(
+            "QC failed: white dwarf classification invariant violations detected. "
+            f"See {reports_dir / 'classification_safety_report.json'}"
         )
 
     # Parquet exports (sorted by spatial_index)

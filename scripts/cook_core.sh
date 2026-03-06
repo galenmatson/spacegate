@@ -287,6 +287,8 @@ main() {
   cook_nasa
   log "Cook: multiplicity catalogs (WDS/MSC/ORB6/Gaia NSS[/WDS-Gaia XMatch])"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
+  log "Cook: compact/superstellar support catalogs"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_science_catalogs.py"
   log "Cook core complete"
   echo "Next: scripts/ingest_core.sh to build the core database."
 }

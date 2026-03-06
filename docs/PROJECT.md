@@ -419,6 +419,29 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 - `docs/CHECKLIST.md`: executable delivery tracker
 - `docs/MILESTONES.md`: dependency-ordered roadmap, restored ideation backlog, and long-range goals
 
+## Scientific Coverage Expansion (March 6, 2026)
+
+Implemented in the ingest/cook pipeline:
+
+- Gaia DR3 classifier probability ingest path (`gaia_classprob`) wired for remnant safety (`classprob_dsc_*_whitedwarf`).
+- Compact-object side ingestion:
+  - ATNF pulsar catalog
+  - McGill magnetar catalog
+  - output table: `compact_objects`
+- Superstellar side ingestion:
+  - Cantat-Gaudin open clusters (`table1` + membership table)
+  - Green Galactic SNR catalog
+  - output tables: `open_clusters`, `open_cluster_memberships`, `superstellar_objects`
+- Core star enrichment:
+  - `stars.object_family` / `stars.object_type`
+  - `stars.classification_evidence_json`
+  - `stars.open_cluster_tags_json`
+
+Notes:
+
+- Open-cluster memberships currently use direct Gaia DR2 ID overlap against Gaia IDs in core (high precision where IDs align; cross-release completeness can be improved with explicit DR2<->DR3 crosswalk tables).
+- Compact catalog entries are preserved even when unmatched to core stars; matched rows can upgrade star object family to neutron-star classes with strict positional confidence.
+
 ## Immediate Next Actions
 
 1. Enforce SLO gating in promotion for active core profile.

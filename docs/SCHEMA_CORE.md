@@ -320,6 +320,96 @@ Required columns:
 - spatial fields inherited from matched host when matched
 - provenance contract fields
 
+## Supplementary Science Tables
+
+These immutable science tables are emitted alongside `stars/systems/planets` and are intended for enrichment, diagnostics, and future UI/query expansion.
+
+## `compact_objects`
+
+Catalog-native compact/remnant objects (currently ATNF pulsars and McGill magnetars), with optional positional match to core stars.
+
+Expected columns:
+
+- identity:
+  - `compact_object_id`
+  - `stable_object_key`
+- object semantics:
+  - `object_family` (currently `neutron_star`)
+  - `object_type` (`pulsar` / `magnetar`)
+  - `object_name`
+- coordinates/kinematics (source-native):
+  - `ra_deg`, `dec_deg`
+  - `dist_pc`, `dist_ly` (nullable)
+  - `parallax_mas` (nullable)
+- cross-linking:
+  - `star_id` (nullable)
+  - `system_id` (nullable)
+  - `match_method`
+  - `match_confidence`
+  - `match_angular_distance_arcsec`
+  - `match_distance_delta_ly`
+- catalog/source payload:
+  - `catalog_ids_json`
+  - provenance contract fields
+
+## `open_clusters`
+
+Open cluster catalog rows (Cantat-Gaudin 2020 summary table) as first-class supplemental science objects.
+
+Expected columns:
+
+- identity:
+  - `cluster_id`
+  - `stable_object_key`
+  - `cluster_name`
+- coordinates:
+  - `ra_deg`, `dec_deg`
+  - `glon_deg`, `glat_deg`
+  - `radius_r50_deg`
+  - `dist_pc`, `dist_ly` (nullable)
+- kinematics/summary:
+  - `pm_ra_mas_yr`, `pm_dec_mas_yr`
+  - `parallax_mas`
+  - `member_count_prob_gt_0_7`
+  - `source_flag`
+- provenance contract fields
+
+## `open_cluster_memberships`
+
+Star-to-open-cluster membership edges derived from the Cantat-Gaudin member table.
+
+Expected columns:
+
+- `cluster_membership_id`
+- `cluster_id`
+- `cluster_name`
+- `star_id`
+- `system_id`
+- `gaia_id`
+- `membership_probability`
+- `match_method`
+- `match_confidence`
+
+## `superstellar_objects`
+
+Supplementary large-scale/non-stellar objects (currently open clusters + Galactic SNR rows) for future map and exploration features.
+
+Expected columns:
+
+- identity:
+  - `superstellar_object_id`
+  - `stable_object_key`
+- semantics:
+  - `object_family`
+  - `object_type` (for example `open_cluster`, `supernova_remnant`)
+  - `object_name`
+- coordinates:
+  - `ra_deg`, `dec_deg`
+  - `dist_pc`, `dist_ly` (nullable)
+- payload:
+  - `object_meta_json`
+  - provenance contract fields
+
 ## QC Requirements
 
 Build must fail on:

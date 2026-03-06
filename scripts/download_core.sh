@@ -29,20 +29,36 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
   if [[ "${SPACEGATE_ENABLE_MSC:-0}" == "1" ]]; then
     catalog_args+=(--catalog msc)
   fi
+  if [[ "${SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS:-1}" != "0" ]]; then
+    catalog_args+=(--catalog atnf --catalog magnetar --catalog white_dwarf)
+  fi
+  if [[ "${SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS:-1}" != "0" ]]; then
+    catalog_args+=(--catalog clusters --catalog snr)
+  fi
   "$ROOT_DIR/scripts/catalogs.sh" \
     "${catalog_args[@]}" \
     "$@"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_backbone.py" \
-    --buckets "${SPACEGATE_GAIA_BACKBONE_BUCKETS:-53}" \
+    --buckets "${SPACEGATE_GAIA_BACKBONE_BUCKETS:-211}" \
     --min-parallax-mas "${SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_BACKBONE_TIMEOUT_S:-240}" \
     --retries "${SPACEGATE_GAIA_BACKBONE_RETRIES:-4}"
+  if [[ "${SPACEGATE_ENABLE_GAIA_CLASSPROB:-1}" != "0" ]]; then
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_classprob_core.py" \
+      --buckets "${SPACEGATE_GAIA_CLASSPROB_BUCKETS:-211}" \
+      --min-parallax-mas "${SPACEGATE_GAIA_CLASSPROB_MIN_PARALLAX_MAS:-3.26156}" \
+      --timeout-s "${SPACEGATE_GAIA_CLASSPROB_TIMEOUT_S:-360}" \
+      --retries "${SPACEGATE_GAIA_CLASSPROB_RETRIES:-6}" \
+      --max-rec "${SPACEGATE_GAIA_CLASSPROB_MAX_REC:-500000}"
+  else
+    echo "Skip Gaia classifier fetch (SPACEGATE_ENABLE_GAIA_CLASSPROB=0)."
+  fi
 else
   "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
 fi
 if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_nss_core.py" \
-    --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-53}" \
+    --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-211}" \
     --min-parallax-mas "${SPACEGATE_GAIA_NSS_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_NSS_TIMEOUT_S:-360}" \
     --retries "${SPACEGATE_GAIA_NSS_RETRIES:-6}"
