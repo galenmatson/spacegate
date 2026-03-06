@@ -2455,7 +2455,8 @@ def admin_home(request: Request):
 
     <div class="screen-nav">
       <button id="screenTabOperations">Operations</button>
-      <button id="screenTabStatus" class="active">Dataset</button>
+      <button id="screenTabStatus" class="active">Status</button>
+      <button id="screenTabDataset">Dataset</button>
       <button id="screenTabCoolness">Coolness</button>
       <button id="screenTabActivity">Activity</button>
     </div>
@@ -2473,8 +2474,8 @@ def admin_home(request: Request):
 
     <div id="screenStatus" class="screen active">
       <div class="section">
-        <h2>Dataset</h2>
-        <p class="muted">Operational metrics for current served build: data scale, runtime memory, storage footprint, multiplicity/source coverage, and quality indicators.</p>
+        <h2>Status</h2>
+        <p class="muted">Operational health metrics for current served build: runtime memory/IO hints, storage footprint, and capacity indicators.</p>
         <div class="inline">
           <button id="refreshDatasetStatusInline">Refresh Dataset Stats</button>
           <span id="datasetStatusMeta" class="small"></span>
@@ -2497,6 +2498,24 @@ def admin_home(request: Request):
       <div class="section">
         <h3>Capacity Usage</h3>
         <div id="datasetUsageBars" class="bar-list"></div>
+      </div>
+      <div class="section">
+        <h3>Detailed Payload</h3>
+        <details>
+          <summary>Show humanized runtime/storage summary</summary>
+          <pre id="datasetHumanSummary"></pre>
+        </details>
+        <details>
+          <summary>Show raw dataset status JSON</summary>
+          <pre id="datasetStatusRaw"></pre>
+        </details>
+      </div>
+    </div>
+
+    <div id="screenDataset" class="screen">
+      <div class="section">
+        <h2>Dataset</h2>
+        <p class="muted">Catalog composition, multiplicity evidence, spectral distribution, and slice policy controls.</p>
       </div>
       <div class="section grid">
         <div>
@@ -2614,17 +2633,6 @@ def admin_home(request: Request):
             </details>
           </div>
         </div>
-      </div>
-      <div class="section">
-        <h3>Detailed Payload</h3>
-        <details>
-          <summary>Show humanized runtime/storage summary</summary>
-          <pre id="datasetHumanSummary"></pre>
-        </details>
-        <details>
-          <summary>Show raw dataset status JSON</summary>
-          <pre id="datasetStatusRaw"></pre>
-        </details>
       </div>
     </div>
 
@@ -2979,10 +2987,12 @@ def admin_home(request: Request):
         currentScreen = screenName;
         document.getElementById('screenOperations').classList.toggle('active', screenName === 'operations');
         document.getElementById('screenStatus').classList.toggle('active', screenName === 'status');
+        document.getElementById('screenDataset').classList.toggle('active', screenName === 'dataset');
         document.getElementById('screenCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenActivity').classList.toggle('active', screenName === 'activity');
         document.getElementById('screenTabOperations').classList.toggle('active', screenName === 'operations');
         document.getElementById('screenTabStatus').classList.toggle('active', screenName === 'status');
+        document.getElementById('screenTabDataset').classList.toggle('active', screenName === 'dataset');
         document.getElementById('screenTabCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenTabActivity').classList.toggle('active', screenName === 'activity');
       }}
@@ -4942,6 +4952,7 @@ def admin_home(request: Request):
       }}
       document.getElementById('screenTabOperations').addEventListener('click', () => setScreen('operations'));
       document.getElementById('screenTabStatus').addEventListener('click', () => setScreen('status'));
+      document.getElementById('screenTabDataset').addEventListener('click', () => setScreen('dataset'));
       document.getElementById('screenTabCoolness').addEventListener('click', () => setScreen('coolness'));
       document.getElementById('screenTabActivity').addEventListener('click', () => setScreen('activity'));
       document.getElementById('refreshStatus').addEventListener('click', callStatus);

@@ -248,6 +248,7 @@ Implementation constraints:
 - heavy aggregates are cached briefly in-process to avoid repeated full scans
 - status metrics are diagnostic, not canonical science tables
 - admin UI defaults to the Status subpage for immediate operational visibility
+- admin IA split: `Status` (performance/health) and `Dataset` (composition/slice controls)
 
 ## Dataset Slice Policy (Admin Dataset Panel)
 
