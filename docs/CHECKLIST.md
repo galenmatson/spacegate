@@ -10,6 +10,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Provenance gate and QC report emission
 - [x] Admin control plane + audit trail baseline
 - [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
+- [x] Admin dataset slicer panel (preview + policy-driven sliced rebuild action)
 - [x] Coolness scoring pipeline with versioned profiles
 - [x] Snapshot generation pipeline baseline
 

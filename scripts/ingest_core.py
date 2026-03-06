@@ -254,6 +254,80 @@ def parse_positive_float_env(name: str, default: float) -> float:
     return value
 
 
+def parse_optional_nonnegative_float_env(name: str) -> float | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (expected number >= 0)") from exc
+    if value < 0:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (must be >= 0)")
+    return value
+
+
+def parse_optional_positive_float_env(name: str) -> float | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (expected number > 0)") from exc
+    if value <= 0:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (must be > 0)")
+    return value
+
+
+def parse_bool_env(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    text = raw.strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    raise SystemExit(f"Invalid {name} value: {raw!r} (expected boolean)")
+
+
+def parse_spectral_csv_env(name: str) -> list[str]:
+    raw = os.getenv(name)
+    if raw is None:
+        return []
+    text = raw.strip()
+    if not text:
+        return []
+    allowed = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D", "UNKNOWN"}
+    tokens: list[str] = []
+    for part in text.split(","):
+        token = part.strip().upper()
+        if not token:
+            continue
+        if token in {"?", "UNK", "UNSPECIFIED"}:
+            token = "UNKNOWN"
+        if token not in allowed:
+            raise SystemExit(
+                f"Invalid {name} token: {part!r} (allowed: {', '.join(sorted(allowed))})"
+            )
+        if token not in tokens:
+            tokens.append(token)
+    return tokens
+
+
+def format_float_or_empty(value: float | None) -> str:
+    if value is None:
+        return ""
+    return f"{value:g}"
+
+
 class UnionFind:
     def __init__(self) -> None:
         self.parent: dict[int, int] = {}
@@ -386,6 +460,17 @@ def main() -> int:
         "SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR",
         WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT,
     )
+    slice_max_distance_ly = parse_optional_positive_float_env("SPACEGATE_SLICE_MAX_DISTANCE_LY")
+    slice_min_parallax_over_error = parse_optional_nonnegative_float_env(
+        "SPACEGATE_SLICE_MIN_PARALLAX_OVER_ERROR"
+    )
+    slice_max_parallax_error_mas = parse_optional_nonnegative_float_env(
+        "SPACEGATE_SLICE_MAX_PARALLAX_ERROR_MAS"
+    )
+    slice_max_ruwe = parse_optional_nonnegative_float_env("SPACEGATE_SLICE_MAX_RUWE")
+    slice_require_spectral = parse_bool_env("SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS", False)
+    slice_require_color = parse_bool_env("SPACEGATE_SLICE_REQUIRE_COLOR_INDEX", False)
+    slice_allowed_spectral = parse_spectral_csv_env("SPACEGATE_SLICE_ALLOWED_SPECTRAL")
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_gaia_backbone = state_dir / "cooked" / "gaia_backbone" / "gaia_dr3_backbone.csv"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
@@ -424,6 +509,16 @@ def main() -> int:
         raise SystemExit(f"Missing cooked WDS-Gaia XMatch: {cooked_wds_gaia_xmatch}")
 
     log("Ingest core start")
+    log(
+        "Slice policy: "
+        f"max_distance_ly={format_float_or_empty(slice_max_distance_ly) or '(default)'} "
+        f"min_parallax_over_error={format_float_or_empty(slice_min_parallax_over_error) or '(off)'} "
+        f"max_parallax_error_mas={format_float_or_empty(slice_max_parallax_error_mas) or '(off)'} "
+        f"max_ruwe={format_float_or_empty(slice_max_ruwe) or '(off)'} "
+        f"require_spectral={'1' if slice_require_spectral else '0'} "
+        f"require_color={'1' if slice_require_color else '0'} "
+        f"allowed_spectral={','.join(slice_allowed_spectral) if slice_allowed_spectral else '(all)'}"
+    )
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
     if enable_gaia_backbone:
@@ -511,6 +606,13 @@ def main() -> int:
           ('morton_scale', {sql_literal(str(MORTON_SCALE))}),
           ('morton_quantization', {sql_literal('round((coord + max_abs) * scale), clamp to [0,N]')}),
           ('morton_frame', {sql_literal('heliocentric_ly')}),
+          ('slice_max_distance_ly', {sql_literal(format_float_or_empty(slice_max_distance_ly))}),
+          ('slice_min_parallax_over_error', {sql_literal(format_float_or_empty(slice_min_parallax_over_error))}),
+          ('slice_max_parallax_error_mas', {sql_literal(format_float_or_empty(slice_max_parallax_error_mas))}),
+          ('slice_max_ruwe', {sql_literal(format_float_or_empty(slice_max_ruwe))}),
+          ('slice_require_spectral_class', {sql_literal("1" if slice_require_spectral else "0")}),
+          ('slice_require_color_index', {sql_literal("1" if slice_require_color else "0")}),
+          ('slice_allowed_spectral', {sql_literal(",".join(slice_allowed_spectral))}),
           ('wds_gaia_match_max_arcsec', {sql_literal(str(wds_gaia_match_max_arcsec))}),
           ('wds_gaia_gate_max_dist_spread_ly', {sql_literal(str(wds_gaia_gate_max_dist_spread_ly))}),
           ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))})
@@ -670,11 +772,14 @@ def main() -> int:
                 nullif(ra_deg, '')::double as ra_deg,
                 nullif(dec_deg, '')::double as dec_deg,
                 nullif(parallax_mas, '')::double as parallax_mas,
+                nullif(parallax_error_mas, '')::double as parallax_error_mas,
+                nullif(parallax_over_error, '')::double as parallax_over_error,
                 nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
                 nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
                 nullif(radial_velocity_kms, '')::double as radial_velocity_kms,
                 nullif(phot_g_mag, '')::double as phot_g_mag,
-                nullif(bp_rp, '')::double as bp_rp
+                nullif(bp_rp, '')::double as bp_rp,
+                nullif(ruwe, '')::double as ruwe
               from gaia_backbone_raw
             ), coords as (
               select
@@ -702,6 +807,10 @@ def main() -> int:
               case when dec_deg is not null then dec_deg::varchar else null end as dec,
               'gaia_dr3' as pos_src,
               case when dist_pc is not null then dist_pc::varchar else null end as dist,
+              case when parallax_mas is not null then parallax_mas::varchar else null end as parallax_mas,
+              case when parallax_error_mas is not null then parallax_error_mas::varchar else null end as parallax_error_mas,
+              case when parallax_over_error is not null then parallax_over_error::varchar else null end as parallax_over_error,
+              case when ruwe is not null then ruwe::varchar else null end as ruwe,
               case
                 when dist_pc is not null and ra_deg is not null and dec_deg is not null
                   then (dist_pc * cos(dec_deg * pi() / 180.0) * cos(ra_deg * pi() / 180.0))::varchar
@@ -745,7 +854,7 @@ def main() -> int:
         log("Loading cooked AT-HYG")
         con.execute(
             f"""
-            create or replace temp view athyg_raw as
+            create or replace temp view athyg_raw_source as
             select * from read_csv_auto('{athyg_path}',
                 compression='gzip',
                 delim=',',
@@ -756,6 +865,18 @@ def main() -> int:
                 null_padding=true,
                 all_varchar=true
             )
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view athyg_raw as
+            select
+              *,
+              null::varchar as parallax_mas,
+              null::varchar as parallax_error_mas,
+              null::varchar as parallax_over_error,
+              null::varchar as ruwe
+            from athyg_raw_source
             """
         )
 
@@ -979,6 +1100,10 @@ def main() -> int:
             (nullif(ra,'')::double * 15.0) as ra_deg,
             nullif(dec,'')::double as dec_deg,
             nullif(dist,'')::double as dist_pc,
+            nullif(parallax_mas,'')::double as parallax_mas,
+            nullif(parallax_error_mas,'')::double as parallax_error_mas,
+            nullif(parallax_over_error,'')::double as parallax_over_error,
+            nullif(ruwe,'')::double as ruwe,
             nullif(x0,'')::double as x_pc,
             nullif(y0,'')::double as y_pc,
             nullif(z0,'')::double as z_pc,
@@ -1386,6 +1511,10 @@ def main() -> int:
             a.ra_deg,
             a.dec_deg,
             a.dist_ly,
+            a.parallax_mas,
+            a.parallax_error_mas,
+            a.parallax_over_error,
+            a.ruwe,
             a.x_helio_ly,
             a.y_helio_ly,
             a.z_helio_ly,
@@ -1503,6 +1632,10 @@ def main() -> int:
             m.ra_deg,
             m.dec_deg,
             m.dist_ly,
+            null::double as parallax_mas,
+            null::double as parallax_error_mas,
+            null::double as parallax_over_error,
+            null::double as ruwe,
             m.x_pc * {PC_TO_LY} as x_helio_ly,
             m.y_pc * {PC_TO_LY} as y_helio_ly,
             m.z_pc * {PC_TO_LY} as z_helio_ly,
@@ -1589,17 +1722,76 @@ def main() -> int:
             f"> {MORTON_MAX_ABS_LY} ly. Increase MORTON_MAX_ABS_LY or filter input."
         )
 
+    slice_conditions: list[str] = []
+    if slice_max_distance_ly is not None:
+        max_dist = min(slice_max_distance_ly, MORTON_MAX_ABS_LY)
+        slice_conditions.append(f"(dist_ly is not null and dist_ly <= {max_dist})")
+    if slice_min_parallax_over_error is not None:
+        slice_conditions.append(
+            f"(parallax_over_error is not null and parallax_over_error >= {slice_min_parallax_over_error})"
+        )
+    if slice_max_parallax_error_mas is not None:
+        slice_conditions.append(
+            f"(parallax_error_mas is not null and parallax_error_mas <= {slice_max_parallax_error_mas})"
+        )
+    if slice_max_ruwe is not None:
+        slice_conditions.append(f"(ruwe is not null and ruwe <= {slice_max_ruwe})")
+    if slice_require_spectral:
+        slice_conditions.append("(spectral_class is not null and spectral_class <> '')")
+    if slice_require_color:
+        slice_conditions.append("(color_index is not null)")
+    if slice_allowed_spectral:
+        allowed_list_sql = ", ".join(sql_literal(token) for token in slice_allowed_spectral)
+        slice_conditions.append(
+            f"(coalesce(upper(spectral_class), 'UNKNOWN') in ({allowed_list_sql}))"
+        )
+    slice_where_sql = " and ".join(slice_conditions) if slice_conditions else "true"
+
     con.execute(
-        """
+        f"""
         create table stars as
+        with sliced as (
+          select *
+          from final_star_rows
+          where {slice_where_sql}
+        )
         select
           row_number() over (
             order by stable_object_key, source_catalog, coalesce(wds_id, ''), coalesce(component, '')
           )::bigint as star_id,
           *
-        from final_star_rows
+        from sliced
         """
     )
+
+    slice_input_star_count = con.execute("select count(*) from final_star_rows").fetchone()[0]
+    slice_output_star_count = con.execute("select count(*) from stars").fetchone()[0]
+    slice_sliced_out_star_count = max(slice_input_star_count - slice_output_star_count, 0)
+    slice_sliced_out_star_pct = (
+        (float(slice_sliced_out_star_count) / float(slice_input_star_count) * 100.0)
+        if slice_input_star_count
+        else 0.0
+    )
+    slice_policy_report = {
+        "build_id": build_id,
+        "slice_policy": {
+            "max_distance_ly": slice_max_distance_ly,
+            "min_parallax_over_error": slice_min_parallax_over_error,
+            "max_parallax_error_mas": slice_max_parallax_error_mas,
+            "max_ruwe": slice_max_ruwe,
+            "require_spectral_class": slice_require_spectral,
+            "require_color_index": slice_require_color,
+            "allowed_spectral_classes": slice_allowed_spectral,
+        },
+        "counts": {
+            "input_star_rows": int(slice_input_star_count),
+            "retained_star_rows": int(slice_output_star_count),
+            "sliced_out_star_rows": int(slice_sliced_out_star_count),
+            "sliced_out_star_pct": slice_sliced_out_star_pct,
+        },
+        "where_sql": slice_where_sql,
+    }
+    write_json(reports_dir / "slice_policy_report.json", slice_policy_report)
 
     # System grouping: WDS first, then name-root, then optional proximity for remaining stars.
     log("System grouping: WDS pass")

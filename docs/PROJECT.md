@@ -249,6 +249,30 @@ Implementation constraints:
 - status metrics are diagnostic, not canonical science tables
 - admin UI defaults to the Status subpage for immediate operational visibility
 
+## Dataset Slice Policy (Admin Dataset Panel)
+
+Definition:
+
+- A **slice** is a deterministic row-selection policy applied at ingest to produce a smaller served `core.duckdb`.
+- Slice policy is recorded in `build_metadata` and emitted to `reports/<build_id>/slice_policy_report.json`.
+
+Current slice controls (admin):
+
+- distance (`max_distance_ly`)
+- astrometry quality (`min_parallax_over_error`, `max_parallax_error_mas`, `max_ruwe`)
+- completeness (`require_spectral_class`, `require_color_index`)
+- class selection (`allowed_spectral_classes`)
+
+Execution model:
+
+- Preview endpoint estimates retained/sliced counts against current served build.
+- Build action applies policy through `scripts/build_core_slice.sh` and publishes a new immutable build.
+
+Performance model:
+
+- To improve runtime latency, slicing should materialize a smaller served build.
+- Keeping all rows in the same served table and only adding query-time gating generally does not provide equivalent scan performance.
+
 ## Milestones (Gaia-First Program)
 
 ### Phase A: Gaia Backbone Pilot

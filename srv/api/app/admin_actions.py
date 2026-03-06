@@ -192,6 +192,36 @@ def _build_command_build_core(params: Dict[str, Any]) -> List[str]:
     return cmd
 
 
+def _build_command_build_core_slice(params: Dict[str, Any]) -> List[str]:
+    cmd = [str(ROOT_DIR / "scripts" / "build_core_slice.sh")]
+    from_cooked = _normalize_boolean(params.get("from_cooked", True))
+    if from_cooked:
+        cmd.append("--from-cooked")
+    else:
+        cmd.append("--full-pipeline")
+    if _normalize_boolean(params.get("overwrite", False)):
+        cmd.append("--overwrite")
+
+    for param_name, flag_name in (
+        ("max_distance_ly", "--max-distance-ly"),
+        ("min_parallax_over_error", "--min-parallax-over-error"),
+        ("max_parallax_error_mas", "--max-parallax-error-mas"),
+        ("max_ruwe", "--max-ruwe"),
+    ):
+        raw = str(params.get(param_name, "") or "").strip()
+        if raw:
+            cmd.extend([flag_name, raw])
+
+    if _normalize_boolean(params.get("require_spectral_class", False)):
+        cmd.append("--require-spectral-class")
+    if _normalize_boolean(params.get("require_color_index", False)):
+        cmd.append("--require-color-index")
+    allowed_spectral = str(params.get("allowed_spectral_classes", "") or "").strip()
+    if allowed_spectral:
+        cmd.extend(["--allowed-spectral-classes", allowed_spectral])
+    return cmd
+
+
 def _build_command_verify_build(params: Dict[str, Any]) -> List[str]:
     cmd = [str(ROOT_DIR / "scripts" / "verify_build.sh")]
     build_id = str(params.get("build_id", "") or "").strip()
@@ -714,6 +744,73 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         requires_confirmation=True,
         confirmation_phrase=_confirmation_for("build_core"),
         build_command=_build_command_build_core,
+    ),
+    "build_core_slice": ActionSpec(
+        name="build_core_slice",
+        display_name="Build Sliced Core",
+        description="Apply dataset slice policy filters and rebuild/publish a trimmed core build.",
+        hidden=True,
+        params_schema={
+            "from_cooked": {
+                "type": "boolean",
+                "default": True,
+                "label": "Reuse cooked catalogs (skip download/cook)",
+            },
+            "overwrite": {
+                "type": "boolean",
+                "default": False,
+                "label": "Overwrite cached inputs (full pipeline only)",
+            },
+            "max_distance_ly": {
+                "type": "string",
+                "required": False,
+                "default": "1000",
+                "allow_empty": True,
+                "label": "Max distance ly (optional)",
+            },
+            "min_parallax_over_error": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Min parallax_over_error (optional)",
+            },
+            "max_parallax_error_mas": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max parallax error mas (optional)",
+            },
+            "max_ruwe": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max RUWE (optional)",
+            },
+            "require_spectral_class": {
+                "type": "boolean",
+                "default": False,
+                "label": "Require spectral class",
+            },
+            "require_color_index": {
+                "type": "boolean",
+                "default": False,
+                "label": "Require color index",
+            },
+            "allowed_spectral_classes": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Allowed spectral classes CSV (optional)",
+            },
+        },
+        risk_level="high",
+        requires_confirmation=True,
+        confirmation_phrase=_confirmation_for("build_core_slice"),
+        build_command=_build_command_build_core_slice,
     ),
     "verify_build": ActionSpec(
         name="verify_build",

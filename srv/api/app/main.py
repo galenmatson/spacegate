@@ -10,7 +10,7 @@ import subprocess
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import duckdb
@@ -797,6 +797,16 @@ class CoolnessPreviewRequest(BaseModel):
     top_n: int = Field(default=200, ge=20, le=1000)
 
 
+class DatasetSlicePreviewRequest(BaseModel):
+    max_distance_ly: Optional[float] = Field(default=1000.0, gt=0.0)
+    min_parallax_over_error: Optional[float] = Field(default=None, ge=0.0)
+    max_parallax_error_mas: Optional[float] = Field(default=None, ge=0.0)
+    max_ruwe: Optional[float] = Field(default=None, ge=0.0)
+    require_spectral_class: bool = Field(default=False)
+    require_color_index: bool = Field(default=False)
+    allowed_spectral_classes: List[str] = Field(default_factory=list)
+
+
 def _run_score_coolness_json(args: list[str]) -> Dict[str, Any]:
     cmd = [str(SCORE_COOLNESS_SCRIPT), *args]
     try:
@@ -1157,6 +1167,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     qc_report = _read_json_file(reports_dir / "qc_report.json")
     system_grouping_report = _read_json_file(reports_dir / "system_grouping_report.json")
     gaia_backbone_report = _read_json_file(reports_dir / "gaia_backbone_report.json")
+    slice_policy_report = _read_json_file(reports_dir / "slice_policy_report.json")
     match_report = _read_json_file(reports_dir / "match_report.json")
     coolness_report = _read_json_file(reports_dir / "coolness_report.json")
 
@@ -1443,8 +1454,16 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
 
     backbone_input_rows = int(gaia_backbone_report.get("raw_row_count") or 0)
     sliced_in_stars = int(gaia_backbone_report.get("stars_from_backbone_count") or stars_count)
-    sliced_out_rows = int(gaia_backbone_report.get("rows_dropped_before_star_emit") or max(backbone_input_rows - sliced_in_stars, 0))
+    sliced_out_rows = int(
+        gaia_backbone_report.get("rows_dropped_before_star_emit")
+        or max(backbone_input_rows - sliced_in_stars, 0)
+    )
     sliced_out_pct = (float(sliced_out_rows) / float(backbone_input_rows) * 100.0) if backbone_input_rows else 0.0
+    slice_policy_counts = slice_policy_report.get("counts") or {}
+    policy_input_stars = int(slice_policy_counts.get("input_star_rows") or 0)
+    policy_retained_stars = int(slice_policy_counts.get("retained_star_rows") or 0)
+    policy_sliced_out_stars = int(slice_policy_counts.get("sliced_out_star_rows") or 0)
+    policy_sliced_out_stars_pct = float(slice_policy_counts.get("sliced_out_star_pct") or 0.0)
 
     proc_status = _read_proc_key_values(Path("/proc/self/status"))
     proc_io = _read_proc_key_values(Path("/proc/self/io"))
@@ -1535,6 +1554,10 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "sliced_in_stars": sliced_in_stars,
             "sliced_out_rows": sliced_out_rows,
             "sliced_out_pct": sliced_out_pct,
+            "policy_input_stars": policy_input_stars,
+            "policy_retained_stars": policy_retained_stars,
+            "policy_sliced_out_stars": policy_sliced_out_stars,
+            "policy_sliced_out_stars_pct": policy_sliced_out_stars_pct,
         },
         "breakdowns": {
             "stars_by_source_catalog": source_breakdown,
@@ -1548,6 +1571,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "qc_report": qc_report,
             "system_grouping_report": system_grouping_report,
             "gaia_backbone_report": gaia_backbone_report,
+            "slice_policy_report": slice_policy_report,
             "match_report": match_report,
             "coolness_report": coolness_report,
         },
@@ -1597,6 +1621,208 @@ def admin_dataset_status(
 ):
     auth.require_admin(request)
     return _dataset_status_payload(force_refresh=bool(refresh))
+
+
+@admin_router.post("/dataset/slice/preview")
+def admin_dataset_slice_preview(request: Request, payload: DatasetSlicePreviewRequest):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+
+    allowed_map = {
+        "O": "O",
+        "B": "B",
+        "A": "A",
+        "F": "F",
+        "G": "G",
+        "K": "K",
+        "M": "M",
+        "L": "L",
+        "T": "T",
+        "Y": "Y",
+        "D": "D",
+        "?": "UNKNOWN",
+        "UNK": "UNKNOWN",
+        "UNKNOWN": "UNKNOWN",
+    }
+    allowed_values: List[str] = []
+    for raw in payload.allowed_spectral_classes or []:
+        token = str(raw or "").strip().upper()
+        if not token:
+            continue
+        mapped = allowed_map.get(token)
+        if not mapped:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "bad_request",
+                    "message": f"Invalid spectral class token: {raw!r}",
+                    "details": {"allowed": sorted(set(allowed_map.keys()))},
+                },
+            )
+        if mapped not in allowed_values:
+            allowed_values.append(mapped)
+
+    warnings: List[str] = []
+    applied_filters: Dict[str, Any] = {}
+
+    with db.connection_scope() as con:
+        star_cols = {
+            str(row[1])
+            for row in con.execute("pragma_table_info('stars')").fetchall()
+        }
+
+        where_clauses: List[str] = []
+        where_params: List[Any] = []
+
+        def _apply_optional_threshold(
+            request_key: str,
+            column_name: str,
+            op: str,
+            value: Optional[float],
+            *,
+            require_non_null: bool = True,
+        ) -> None:
+            if value is None:
+                return
+            if column_name not in star_cols:
+                warnings.append(
+                    f"Filter '{request_key}' ignored: stars.{column_name} not present in this build."
+                )
+                return
+            if require_non_null:
+                where_clauses.append(f"({column_name} is not null and {column_name} {op} ?)")
+            else:
+                where_clauses.append(f"({column_name} {op} ?)")
+            where_params.append(float(value))
+            applied_filters[request_key] = float(value)
+
+        _apply_optional_threshold("max_distance_ly", "dist_ly", "<=", payload.max_distance_ly)
+        _apply_optional_threshold(
+            "min_parallax_over_error",
+            "parallax_over_error",
+            ">=",
+            payload.min_parallax_over_error,
+        )
+        _apply_optional_threshold(
+            "max_parallax_error_mas",
+            "parallax_error_mas",
+            "<=",
+            payload.max_parallax_error_mas,
+        )
+        _apply_optional_threshold("max_ruwe", "ruwe", "<=", payload.max_ruwe)
+
+        if payload.require_spectral_class:
+            if "spectral_class" in star_cols:
+                where_clauses.append("(spectral_class is not null and spectral_class <> '')")
+                applied_filters["require_spectral_class"] = True
+            else:
+                warnings.append("Filter 'require_spectral_class' ignored: stars.spectral_class not present.")
+
+        if payload.require_color_index:
+            if "color_index" in star_cols:
+                where_clauses.append("(color_index is not null)")
+                applied_filters["require_color_index"] = True
+            else:
+                warnings.append("Filter 'require_color_index' ignored: stars.color_index not present.")
+
+        if allowed_values:
+            if "spectral_class" in star_cols:
+                placeholders = ",".join(["?"] * len(allowed_values))
+                where_clauses.append(
+                    f"(coalesce(upper(spectral_class), 'UNKNOWN') in ({placeholders}))"
+                )
+                where_params.extend(allowed_values)
+                applied_filters["allowed_spectral_classes"] = allowed_values
+            else:
+                warnings.append(
+                    "Filter 'allowed_spectral_classes' ignored: stars.spectral_class not present."
+                )
+
+        where_sql = " and ".join(where_clauses) if where_clauses else "true"
+
+        counts_row = con.execute(
+            f"""
+            with candidate_stars as (
+              select star_id, system_id, spectral_class, color_index
+              from stars
+              where {where_sql}
+            ),
+            candidate_systems as (
+              select distinct system_id
+              from candidate_stars
+              where system_id is not null
+            ),
+            candidate_planets as (
+              select p.planet_id
+              from planets p
+              join candidate_systems s using (system_id)
+            )
+            select
+              (select count(*)::bigint from stars) as stars_total,
+              (select count(*)::bigint from candidate_stars) as stars_retained,
+              (select count(*)::bigint from systems) as systems_total,
+              (select count(*)::bigint from candidate_systems) as systems_retained,
+              (select count(*)::bigint from planets) as planets_total,
+              (select count(*)::bigint from candidate_planets) as planets_retained,
+              (select count(*)::bigint from candidate_stars where spectral_class is null or spectral_class = '') as retained_missing_spectral,
+              (select count(*)::bigint from candidate_stars where color_index is null) as retained_missing_color
+            """,
+            where_params,
+        ).fetchone()
+
+        spectral_rows = con.execute(
+            f"""
+            select
+              coalesce(nullif(spectral_class, ''), 'UNKNOWN') as spectral_class,
+              count(*)::bigint as star_count
+            from stars
+            where {where_sql}
+            group by 1
+            order by star_count desc, spectral_class asc
+            limit 16
+            """,
+            where_params,
+        ).fetchall()
+
+    stars_total = int(counts_row[0] or 0)
+    stars_retained = int(counts_row[1] or 0)
+    systems_total = int(counts_row[2] or 0)
+    systems_retained = int(counts_row[3] or 0)
+    planets_total = int(counts_row[4] or 0)
+    planets_retained = int(counts_row[5] or 0)
+
+    def _pct(part: int, whole: int) -> float:
+        if whole <= 0:
+            return 0.0
+        return (float(part) / float(whole)) * 100.0
+
+    return {
+        "status": "ok",
+        "build_id": _dataset_status_payload(force_refresh=False).get("build_id"),
+        "where_sql": where_sql,
+        "applied_filters": applied_filters,
+        "warnings": warnings,
+        "counts": {
+            "stars_total": stars_total,
+            "stars_retained": stars_retained,
+            "stars_sliced_out": max(stars_total - stars_retained, 0),
+            "stars_retained_pct": _pct(stars_retained, stars_total),
+            "systems_total": systems_total,
+            "systems_retained": systems_retained,
+            "systems_sliced_out": max(systems_total - systems_retained, 0),
+            "systems_retained_pct": _pct(systems_retained, systems_total),
+            "planets_total": planets_total,
+            "planets_retained": planets_retained,
+            "planets_sliced_out": max(planets_total - planets_retained, 0),
+            "planets_retained_pct": _pct(planets_retained, planets_total),
+            "retained_missing_spectral": int(counts_row[6] or 0),
+            "retained_missing_color": int(counts_row[7] or 0),
+        },
+        "retained_spectral_breakdown": [
+            {"spectral_class": str(row[0]), "star_count": int(row[1])}
+            for row in spectral_rows
+        ],
+    }
 
 
 @admin_router.get("/coolness/state")
@@ -2229,7 +2455,7 @@ def admin_home(request: Request):
 
     <div class="screen-nav">
       <button id="screenTabOperations">Operations</button>
-      <button id="screenTabStatus" class="active">Status</button>
+      <button id="screenTabStatus" class="active">Dataset</button>
       <button id="screenTabCoolness">Coolness</button>
       <button id="screenTabActivity">Activity</button>
     </div>
@@ -2247,7 +2473,7 @@ def admin_home(request: Request):
 
     <div id="screenStatus" class="screen active">
       <div class="section">
-        <h2>Dataset Status</h2>
+        <h2>Dataset</h2>
         <p class="muted">Operational metrics for current served build: data scale, runtime memory, storage footprint, multiplicity/source coverage, and quality indicators.</p>
         <div class="inline">
           <button id="refreshDatasetStatusInline">Refresh Dataset Stats</button>
@@ -2318,6 +2544,75 @@ def admin_home(request: Request):
             <thead><tr><th>Type</th><th>Stars</th></tr></thead>
             <tbody id="datasetCompactRows"></tbody>
           </table>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Slice Policy Controls</h3>
+        <p class="muted">Preview and launch a sliced rebuild. This trims the served dataset by policy and records the policy in build metadata.</p>
+        <div class="grid">
+          <div class="action-card">
+            <div class="field">
+              <label for="sliceMaxDistanceLy">Max distance (ly)</label>
+              <input id="sliceMaxDistanceLy" type="number" min="1" max="1000" step="1" value="1000" />
+            </div>
+            <div class="field">
+              <label for="sliceMinParallaxOverError">Min parallax_over_error (optional)</label>
+              <input id="sliceMinParallaxOverError" type="number" min="0" step="0.1" placeholder="e.g. 5" />
+            </div>
+            <div class="field">
+              <label for="sliceMaxParallaxErrorMas">Max parallax error mas (optional)</label>
+              <input id="sliceMaxParallaxErrorMas" type="number" min="0" step="0.01" placeholder="e.g. 0.2" />
+            </div>
+            <div class="field">
+              <label for="sliceMaxRuwe">Max RUWE (optional)</label>
+              <input id="sliceMaxRuwe" type="number" min="0" step="0.01" placeholder="e.g. 1.4" />
+            </div>
+            <div class="field">
+              <label>Allowed spectral classes (optional)</label>
+              <div id="sliceSpectralFilters" class="inline">
+                <label><input type="checkbox" value="O"> O</label>
+                <label><input type="checkbox" value="B"> B</label>
+                <label><input type="checkbox" value="A"> A</label>
+                <label><input type="checkbox" value="F"> F</label>
+                <label><input type="checkbox" value="G"> G</label>
+                <label><input type="checkbox" value="K"> K</label>
+                <label><input type="checkbox" value="M"> M</label>
+                <label><input type="checkbox" value="L"> L</label>
+                <label><input type="checkbox" value="T"> T</label>
+                <label><input type="checkbox" value="Y"> Y</label>
+                <label><input type="checkbox" value="D"> D</label>
+                <label><input type="checkbox" value="UNKNOWN"> UNKNOWN</label>
+              </div>
+            </div>
+            <div class="inline" style="margin-bottom:0.45rem;">
+              <label><input id="sliceRequireSpectral" type="checkbox" /> Require spectral class</label>
+              <label><input id="sliceRequireColor" type="checkbox" /> Require color index</label>
+            </div>
+            <div class="inline" style="margin-bottom:0.45rem;">
+              <label><input id="sliceFromCooked" type="checkbox" checked /> Rebuild from cooked catalogs</label>
+              <label><input id="sliceOverwrite" type="checkbox" /> Overwrite downloads (full pipeline only)</label>
+            </div>
+            <div class="inline">
+              <button id="slicePreviewBtn" type="button">Preview Slice</button>
+              <button id="sliceRunBtn" type="button" class="warn">Build Sliced Core</button>
+            </div>
+            <div id="sliceRunStatus" class="note-box small" style="margin-top:0.45rem;">Status: idle</div>
+          </div>
+          <div class="action-card">
+            <h4>Slice Preview Impact</h4>
+            <div id="slicePreviewKpis" class="kpis"></div>
+            <div>
+              <h4>Retained Spectral Mix</h4>
+              <table class="mini-table">
+                <thead><tr><th>Class</th><th>Stars</th></tr></thead>
+                <tbody id="slicePreviewSpectralRows"></tbody>
+              </table>
+            </div>
+            <details style="margin-top:0.45rem;">
+              <summary>Preview payload</summary>
+              <pre id="slicePreviewRaw" class="json-box"></pre>
+            </details>
+          </div>
         </div>
       </div>
       <div class="section">
@@ -2560,6 +2855,21 @@ def admin_home(request: Request):
       const datasetStarMultRowsEl = document.getElementById('datasetStarMultRows');
       const datasetHumanSummaryEl = document.getElementById('datasetHumanSummary');
       const datasetStatusRawEl = document.getElementById('datasetStatusRaw');
+      const sliceMaxDistanceLyEl = document.getElementById('sliceMaxDistanceLy');
+      const sliceMinParallaxOverErrorEl = document.getElementById('sliceMinParallaxOverError');
+      const sliceMaxParallaxErrorMasEl = document.getElementById('sliceMaxParallaxErrorMas');
+      const sliceMaxRuweEl = document.getElementById('sliceMaxRuwe');
+      const sliceSpectralFiltersEl = document.getElementById('sliceSpectralFilters');
+      const sliceRequireSpectralEl = document.getElementById('sliceRequireSpectral');
+      const sliceRequireColorEl = document.getElementById('sliceRequireColor');
+      const sliceFromCookedEl = document.getElementById('sliceFromCooked');
+      const sliceOverwriteEl = document.getElementById('sliceOverwrite');
+      const slicePreviewBtnEl = document.getElementById('slicePreviewBtn');
+      const sliceRunBtnEl = document.getElementById('sliceRunBtn');
+      const sliceRunStatusEl = document.getElementById('sliceRunStatus');
+      const slicePreviewKpisEl = document.getElementById('slicePreviewKpis');
+      const slicePreviewSpectralRowsEl = document.getElementById('slicePreviewSpectralRows');
+      const slicePreviewRawEl = document.getElementById('slicePreviewRaw');
       const jobsEl = document.getElementById('jobs');
       const selectedJobEl = document.getElementById('selectedJob');
       const logEl = document.getElementById('log');
@@ -3856,6 +4166,9 @@ def admin_home(request: Request):
         const cache = data.cache || {{}};
         const bottlenecks = data.bottleneck_hints || {{}};
         const breakdowns = data.breakdowns || {{}};
+        const policyInputStars = Number(slice.policy_input_stars) || 0;
+        const policySlicedOutStars = Number(slice.policy_sliced_out_stars) || 0;
+        const policySlicedOutStarsPct = Number(slice.policy_sliced_out_stars_pct) || 0;
 
         datasetStatusMetaEl.textContent = `build=${{data.build_id || 'unknown'}} | generated=${{data.generated_at_utc || ''}} | cache=${{cache.hit ? 'hit' : 'miss'}} age=${{formatFloat(cache.age_s || 0, 3)}}s`;
 
@@ -3876,6 +4189,7 @@ def admin_home(request: Request):
           {{ key: 'Hab Zone Candidates', value: formatInt(counts.exoplanets_candidate_habitable) }},
           {{ key: 'Backbone Input', value: formatInt(slice.input_backbone_rows) }},
           {{ key: 'Sliced Out', value: `${{formatInt(slice.sliced_out_rows)}} (${{formatPct(slice.sliced_out_pct)}})` }},
+          {{ key: 'Policy Slice Out', value: `${{formatInt(policySlicedOutStars)}} (${{formatPct(policySlicedOutStarsPct)}})` }},
           {{ key: 'Core DB', value: formatBytes(sizes.core_db) }},
           {{ key: 'State Dir', value: formatBytes(sizes.state_total) }},
           {{ key: 'API RSS', value: formatBytes(apiRss) }},
@@ -3957,6 +4271,11 @@ def admin_home(request: Request):
             label: 'Slice out',
             pct: slice.sliced_out_pct,
             value: `${{formatPct(slice.sliced_out_pct)}} (${{formatInt(slice.sliced_out_rows)}} rows)`,
+          }},
+          {{
+            label: 'Policy out',
+            pct: policySlicedOutStarsPct,
+            value: `${{formatPct(policySlicedOutStarsPct)}} (${{formatInt(policySlicedOutStars)}} / ${{formatInt(policyInputStars || counts.stars)}} stars)`,
           }},
         ]);
 
@@ -4043,6 +4362,7 @@ def admin_home(request: Request):
           `Total rows: ${{formatInt(counts.rows_total)}} (systems=${{formatInt(counts.systems)}}, stars=${{formatInt(counts.stars)}}, planets=${{formatInt(counts.planets)}})`,
           `Multiplicity systems: ${{formatInt(counts.multi_star_systems)}} multi / ${{formatInt(counts.single_star_systems)}} single`,
           `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slice.sliced_out_rows)}} sliced out (${{formatPct(slice.sliced_out_pct)}})`,
+          `Policy slice: ${{formatInt(policyInputStars || counts.stars)}} input stars, ${{formatInt(policySlicedOutStars)}} sliced out (${{formatPct(policySlicedOutStarsPct)}})`,
           `Storage: core=${{formatBytes(sizes.core_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
           `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
@@ -4060,6 +4380,141 @@ def admin_home(request: Request):
           return;
         }}
         renderDatasetStatus(data || {{}});
+      }}
+
+      function parseOptionalNumberInput(inputEl) {{
+        const raw = String((inputEl && inputEl.value) || '').trim();
+        if (!raw) return null;
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return null;
+        return n;
+      }}
+
+      function readSlicePayload() {{
+        const payload = {{
+          max_distance_ly: parseOptionalNumberInput(sliceMaxDistanceLyEl),
+          min_parallax_over_error: parseOptionalNumberInput(sliceMinParallaxOverErrorEl),
+          max_parallax_error_mas: parseOptionalNumberInput(sliceMaxParallaxErrorMasEl),
+          max_ruwe: parseOptionalNumberInput(sliceMaxRuweEl),
+          require_spectral_class: !!(sliceRequireSpectralEl && sliceRequireSpectralEl.checked),
+          require_color_index: !!(sliceRequireColorEl && sliceRequireColorEl.checked),
+          allowed_spectral_classes: [],
+        }};
+        if (sliceSpectralFiltersEl) {{
+          const checks = sliceSpectralFiltersEl.querySelectorAll('input[type=checkbox]');
+          checks.forEach((el) => {{
+            if (el.checked) payload.allowed_spectral_classes.push(String(el.value || '').trim().toUpperCase());
+          }});
+        }}
+        return payload;
+      }}
+
+      function setSliceStatus(state, message) {{
+        if (!sliceRunStatusEl) return;
+        const st = String(state || 'idle');
+        const msg = String(message || '');
+        sliceRunStatusEl.textContent = msg ? `Status: ${{st}} | ${{msg}}` : `Status: ${{st}}`;
+      }}
+
+      function renderSlicePreview(data) {{
+        if (slicePreviewRawEl) slicePreviewRawEl.textContent = JSON.stringify(data || {{}}, null, 2);
+        const counts = (data && data.counts) || {{}};
+        if (slicePreviewKpisEl) {{
+          slicePreviewKpisEl.innerHTML = '';
+          const starsSlicedOutPct = (Number(counts.stars_total) > 0)
+            ? (Number(counts.stars_sliced_out || 0) / Number(counts.stars_total)) * 100.0
+            : 0.0;
+          [
+            {{ key: 'Stars Retained', value: `${{formatInt(counts.stars_retained)}} / ${{formatInt(counts.stars_total)}}` }},
+            {{ key: 'Stars Sliced Out', value: `${{formatInt(counts.stars_sliced_out)}} (${{formatPct(starsSlicedOutPct)}})` }},
+            {{ key: 'Systems Retained', value: `${{formatInt(counts.systems_retained)}} / ${{formatInt(counts.systems_total)}}` }},
+            {{ key: 'Planets Retained', value: `${{formatInt(counts.planets_retained)}} / ${{formatInt(counts.planets_total)}}` }},
+            {{ key: 'Missing Spectral (retained)', value: formatInt(counts.retained_missing_spectral) }},
+            {{ key: 'Missing Color (retained)', value: formatInt(counts.retained_missing_color) }},
+          ].forEach((item) => {{
+            const card = document.createElement('div');
+            card.className = 'kpi';
+            const k = document.createElement('div');
+            k.className = 'k';
+            k.textContent = item.key;
+            const v = document.createElement('div');
+            v.className = 'v';
+            v.textContent = item.value;
+            card.appendChild(k);
+            card.appendChild(v);
+            slicePreviewKpisEl.appendChild(card);
+          }});
+        }}
+        if (slicePreviewSpectralRowsEl) {{
+          slicePreviewSpectralRowsEl.innerHTML = '';
+          const rows = (data && data.retained_spectral_breakdown) || [];
+          rows.forEach((row) => {{
+            const tr = document.createElement('tr');
+            const cls = document.createElement('td');
+            cls.textContent = String(row.spectral_class || 'UNKNOWN');
+            const cnt = document.createElement('td');
+            cnt.textContent = formatInt(row.star_count);
+            tr.appendChild(cls);
+            tr.appendChild(cnt);
+            slicePreviewSpectralRowsEl.appendChild(tr);
+          }});
+        }}
+        const warnings = (data && data.warnings) || [];
+        if (warnings.length > 0) {{
+          setSliceStatus('preview-warning', warnings.join(' | '));
+        }} else {{
+          setSliceStatus('preview-ready', 'slice preview loaded');
+        }}
+      }}
+
+      async function callSlicePreview() {{
+        const payload = readSlicePayload();
+        setSliceStatus('preview', 'computing impact...');
+        const {{ res, data }} = await fetchJson('/api/v1/admin/dataset/slice/preview', {{
+          method: 'POST',
+          credentials: 'include',
+          headers: {{
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
+          }},
+          body: JSON.stringify(payload),
+        }});
+        if (!res.ok) {{
+          if (slicePreviewRawEl) slicePreviewRawEl.textContent = JSON.stringify(data, null, 2);
+          setSliceStatus('error', `preview failed (${{res.status}})`);
+          return;
+        }}
+        renderSlicePreview(data || {{}});
+      }}
+
+      async function runSliceBuild() {{
+        const payload = readSlicePayload();
+        const params = {{
+          from_cooked: !!(sliceFromCookedEl && sliceFromCookedEl.checked),
+          overwrite: !!(sliceOverwriteEl && sliceOverwriteEl.checked),
+          max_distance_ly: payload.max_distance_ly === null ? '' : String(payload.max_distance_ly),
+          min_parallax_over_error: payload.min_parallax_over_error === null ? '' : String(payload.min_parallax_over_error),
+          max_parallax_error_mas: payload.max_parallax_error_mas === null ? '' : String(payload.max_parallax_error_mas),
+          max_ruwe: payload.max_ruwe === null ? '' : String(payload.max_ruwe),
+          require_spectral_class: !!payload.require_spectral_class,
+          require_color_index: !!payload.require_color_index,
+          allowed_spectral_classes: (payload.allowed_spectral_classes || []).join(','),
+        }};
+        setSliceStatus('submitting', 'starting sliced build...');
+        const result = await runAction('build_core_slice', params, 'RUN build_core_slice');
+        if (!result || !result.ok) {{
+          setSliceStatus('error', 'failed to start sliced build');
+          return;
+        }}
+        const job = (result.data && result.data.job) || {{}};
+        const jobId = String(job.job_id || '');
+        if (!jobId) {{
+          setSliceStatus('queued', 'job created; check Activity > Jobs');
+          return;
+        }}
+        setSliceStatus('queued', `job ${{jobId}} queued`);
+        await loadJobs();
+        void followActionJob(jobId, sliceRunStatusEl, 'build_core_slice');
       }}
 
       function parseFieldValue(type, input) {{
@@ -4500,6 +4955,8 @@ def admin_home(request: Request):
       document.getElementById('presetExotic').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.exotic, 'exotic'));
       document.getElementById('presetHabitable').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.habitable, 'habitable'));
       document.getElementById('presetNearby').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.nearby, 'nearby'));
+      if (slicePreviewBtnEl) slicePreviewBtnEl.addEventListener('click', () => {{ void callSlicePreview(); }});
+      if (sliceRunBtnEl) sliceRunBtnEl.addEventListener('click', () => {{ void runSliceBuild(); }});
       coolResetActiveEl.addEventListener('click', resetCoolnessToActive);
       coolApplyBtnEl.addEventListener('click', () => {{ void applyCoolness(); }});
       coolSaveBtnEl.addEventListener('click', () => {{ void saveCoolnessProfile(); }});
@@ -4518,8 +4975,10 @@ def admin_home(request: Request):
       setPreviewNotice('Preview is safe and read-only. Run updates ranking outputs ephemerally; Save Profile persists a chosen version; Activate Profile switches what is live.');
       setRunStatus('idle', 'ready');
       setSnapshotRunStatus('idle', 'top 100 coolness systems');
+      setSliceStatus('idle', 'configure and preview slice policy');
       callStatus();
       callDatasetStatus(false);
+      callSlicePreview();
       loadCatalog();
       loadCoolnessState();
       loadJobs();
