@@ -2799,6 +2799,12 @@ main {
   flex: 0 0 auto;
 }
 
+.results-temperature-label {
+  font-size: 0.78rem;
+  min-width: 88px;
+  text-align: right;
+}
+
 .results-spectral-chips {
   display: flex;
   gap: 8px;
@@ -2817,6 +2823,13 @@ main {
   min-width: 220px;
   display: grid;
   gap: 5px;
+}
+
+.results-spectral-slider-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
 }
 
 .results-spectral-range-head {

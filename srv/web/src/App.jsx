@@ -65,6 +65,9 @@ const SPECTRAL_CLASS_TEMP_RANGES = {
 };
 const SPECTRAL_TEMP_MIN_K = Math.min(...spectralOptions.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][0]));
 const SPECTRAL_TEMP_MAX_K = Math.max(...spectralOptions.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][1]));
+const SPECTRAL_TEMP_LOG_MIN = Math.log10(SPECTRAL_TEMP_MIN_K);
+const SPECTRAL_TEMP_LOG_MAX = Math.log10(SPECTRAL_TEMP_MAX_K);
+const SPECTRAL_TEMP_SLIDER_MAX = 1000;
 const SPECTRAL_CLASS_INFO = {
   O: { sentence: "Very hot blue stars with intense ultraviolet output and short lifetimes.", tempRangeK: [30000, 50000] },
   B: { sentence: "Hot blue-white stars that are luminous and relatively short-lived.", tempRangeK: [10000, 30000] },
@@ -480,6 +483,20 @@ function spectralClassesForTemperatureRange(minTempK, maxTempK) {
     const [classMin, classMax] = SPECTRAL_CLASS_TEMP_RANGES[token] || [SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K];
     return classMax >= low && classMin <= high;
   });
+}
+
+function spectralTempToSliderPosition(tempK) {
+  const safe = clampNumber(Number(tempK), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
+  const logValue = Math.log10(safe);
+  const ratio = (logValue - SPECTRAL_TEMP_LOG_MIN) / (SPECTRAL_TEMP_LOG_MAX - SPECTRAL_TEMP_LOG_MIN);
+  return clampNumber(Math.round(ratio * SPECTRAL_TEMP_SLIDER_MAX), 0, SPECTRAL_TEMP_SLIDER_MAX);
+}
+
+function sliderPositionToSpectralTemp(position) {
+  const safe = clampNumber(Number(position), 0, SPECTRAL_TEMP_SLIDER_MAX);
+  const ratio = safe / SPECTRAL_TEMP_SLIDER_MAX;
+  const exponent = SPECTRAL_TEMP_LOG_MIN + ratio * (SPECTRAL_TEMP_LOG_MAX - SPECTRAL_TEMP_LOG_MIN);
+  return clampNumber(Math.round(10 ** exponent), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
 }
 
 function TriStateToggle({ label, value, onChange }) {
@@ -1602,6 +1619,8 @@ function SearchPage({ buildId = "" }) {
     [effectiveSpectralClasses, spectralMixCountByClass],
   );
   const effectiveSpectralPct = spectralMixTotalStars > 0 ? (effectiveSpectralCount / spectralMixTotalStars) * 100 : 0;
+  const minTempSliderPos = spectralTempToSliderPosition(minTempK);
+  const maxTempSliderPos = spectralTempToSliderPosition(maxTempK);
   const defaultFilterState = () => ({
     query: "",
     minDist: filterLimits.distance.min,
@@ -1853,10 +1872,22 @@ function SearchPage({ buildId = "" }) {
       return;
     }
     setSpectral((prev) => {
-      const next = prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value];
-      return next;
+      const eligible = spectralOptions.filter((token) => eligibleSpectralSet.has(token));
+      const base = prev.length
+        ? prev.map((token) => String(token || "").toUpperCase()).filter((token) => eligibleSpectralSet.has(token))
+        : eligible;
+      const uniqueBase = Array.from(new Set(base));
+      const toggled = uniqueBase.includes(value)
+        ? uniqueBase.filter((token) => token !== value)
+        : [...uniqueBase, value];
+      if (toggled.length <= 0) {
+        return uniqueBase;
+      }
+      const ordered = spectralOptions.filter((token) => toggled.includes(token) && eligibleSpectralSet.has(token));
+      if (ordered.length === eligible.length) {
+        return [];
+      }
+      return ordered;
     });
   };
 
@@ -2111,36 +2142,45 @@ function SearchPage({ buildId = "" }) {
                     {formatNumber(effectiveSpectralCount, 0)} stars ({formatNumber(effectiveSpectralPct, 1)}%)
                   </span>
                 </div>
-                <div className="results-spectral-slider">
-                  <div className="results-spectral-slider-track" />
-                  <div
-                    className="results-spectral-slider-fill"
-                    style={{
-                      left: `${((Math.min(minTempK, maxTempK) - SPECTRAL_TEMP_MIN_K) / (SPECTRAL_TEMP_MAX_K - SPECTRAL_TEMP_MIN_K)) * 100}%`,
-                      width: `${((Math.max(minTempK, maxTempK) - Math.min(minTempK, maxTempK)) / (SPECTRAL_TEMP_MAX_K - SPECTRAL_TEMP_MIN_K)) * 100}%`,
-                    }}
-                    aria-hidden="true"
-                  />
-                  <input
-                    type="range"
-                    min={SPECTRAL_TEMP_MIN_K}
-                    max={SPECTRAL_TEMP_MAX_K}
-                    step={50}
-                    className="results-spectral-slider-input results-spectral-slider-input-min"
-                    value={minTempK}
-                    aria-label="Minimum temperature"
-                    onChange={(event) => applyTemperatureRange(Number(event.target.value), maxTempK)}
-                  />
-                  <input
-                    type="range"
-                    min={SPECTRAL_TEMP_MIN_K}
-                    max={SPECTRAL_TEMP_MAX_K}
-                    step={50}
-                    className="results-spectral-slider-input results-spectral-slider-input-max"
-                    value={maxTempK}
-                    aria-label="Maximum temperature"
-                    onChange={(event) => applyTemperatureRange(minTempK, Number(event.target.value))}
-                  />
+                <div className="results-spectral-slider-row">
+                  <span className="results-spectral-label results-temperature-label">Temperature</span>
+                  <div className="results-spectral-slider">
+                    <div className="results-spectral-slider-track" />
+                    <div
+                      className="results-spectral-slider-fill"
+                      style={{
+                        left: `${(Math.min(minTempSliderPos, maxTempSliderPos) / SPECTRAL_TEMP_SLIDER_MAX) * 100}%`,
+                        width: `${((Math.max(minTempSliderPos, maxTempSliderPos) - Math.min(minTempSliderPos, maxTempSliderPos)) / SPECTRAL_TEMP_SLIDER_MAX) * 100}%`,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={SPECTRAL_TEMP_SLIDER_MAX}
+                      step={1}
+                      className="results-spectral-slider-input results-spectral-slider-input-min"
+                      value={minTempSliderPos}
+                      aria-label="Minimum temperature"
+                      onChange={(event) => applyTemperatureRange(
+                        sliderPositionToSpectralTemp(Number(event.target.value)),
+                        maxTempK,
+                      )}
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={SPECTRAL_TEMP_SLIDER_MAX}
+                      step={1}
+                      className="results-spectral-slider-input results-spectral-slider-input-max"
+                      value={maxTempSliderPos}
+                      aria-label="Maximum temperature"
+                      onChange={(event) => applyTemperatureRange(
+                        minTempK,
+                        sliderPositionToSpectralTemp(Number(event.target.value)),
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
