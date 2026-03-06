@@ -471,6 +471,10 @@ def main() -> int:
     slice_require_spectral = parse_bool_env("SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS", False)
     slice_require_color = parse_bool_env("SPACEGATE_SLICE_REQUIRE_COLOR_INDEX", False)
     slice_allowed_spectral = parse_spectral_csv_env("SPACEGATE_SLICE_ALLOWED_SPECTRAL")
+    slice_profile_id = (os.getenv("SPACEGATE_SLICE_PROFILE_ID") or "").strip()
+    slice_profile_version = (os.getenv("SPACEGATE_SLICE_PROFILE_VERSION") or "").strip()
+    build_layer = (os.getenv("SPACEGATE_BUILD_LAYER") or "core").strip().lower()
+    source_galaxy_build_id = (os.getenv("SPACEGATE_SOURCE_GALAXY_BUILD_ID") or "").strip()
     cooked_athyg = state_dir / "cooked" / "athyg" / "athyg.csv.gz"
     cooked_gaia_backbone = state_dir / "cooked" / "gaia_backbone" / "gaia_dr3_backbone.csv"
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
@@ -518,6 +522,13 @@ def main() -> int:
         f"require_spectral={'1' if slice_require_spectral else '0'} "
         f"require_color={'1' if slice_require_color else '0'} "
         f"allowed_spectral={','.join(slice_allowed_spectral) if slice_allowed_spectral else '(all)'}"
+    )
+    log(
+        "Slice profile: "
+        f"id={slice_profile_id or '(unset)'} "
+        f"version={slice_profile_version or '(unset)'} "
+        f"build_layer={build_layer} "
+        f"source_galaxy_build_id={source_galaxy_build_id or '(unset)'}"
     )
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
@@ -613,6 +624,10 @@ def main() -> int:
           ('slice_require_spectral_class', {sql_literal("1" if slice_require_spectral else "0")}),
           ('slice_require_color_index', {sql_literal("1" if slice_require_color else "0")}),
           ('slice_allowed_spectral', {sql_literal(",".join(slice_allowed_spectral))}),
+          ('slice_profile_id', {sql_literal(slice_profile_id)}),
+          ('slice_profile_version', {sql_literal(slice_profile_version)}),
+          ('build_layer', {sql_literal(build_layer)}),
+          ('source_galaxy_build_id', {sql_literal(source_galaxy_build_id)}),
           ('wds_gaia_match_max_arcsec', {sql_literal(str(wds_gaia_match_max_arcsec))}),
           ('wds_gaia_gate_max_dist_spread_ly', {sql_literal(str(wds_gaia_gate_max_dist_spread_ly))}),
           ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))})
@@ -1803,6 +1818,10 @@ def main() -> int:
             "require_spectral_class": slice_require_spectral,
             "require_color_index": slice_require_color,
             "allowed_spectral_classes": slice_allowed_spectral,
+            "slice_profile_id": slice_profile_id,
+            "slice_profile_version": slice_profile_version,
+            "build_layer": build_layer,
+            "source_galaxy_build_id": source_galaxy_build_id,
         },
         "counts": {
             "input_star_rows": int(slice_input_star_count),

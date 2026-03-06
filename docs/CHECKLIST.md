@@ -32,7 +32,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Data source policy rewritten with canonical/auxiliary/transitional classes
 - [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
 - [x] Slice profile catalog + draft SLO targets documented in `SLICE_PROFILES.md`
-- [ ] Build metadata must persist `slice_profile_id` + `slice_profile_version` on sliced builds
+- [x] Build metadata persists `slice_profile_id` + `slice_profile_version` on sliced builds
 - [ ] Bulge (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
 - [ ] API contract review completed for Gaia-first field semantics
 
@@ -46,8 +46,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C3. Phase B - Core/Halo Product Slice
 
 - [x] Define deterministic `core_product_slice` policy over backbone
-- [ ] Materialize complementary `halo` artifacts and explicit deep-query plumbing
-- [ ] Add explicit deep-query mode against `halo`/`galaxy`
+- [x] Materialize complementary `halo` artifacts from `galaxy` + sliced `core` builds
+- [ ] Add explicit deep-query plumbing over `halo`/`galaxy` in API/UI
 - [ ] Enforce profile-specific SLO gates during promote
 - [ ] Validate p95/p99 search and detail latency on proton
 

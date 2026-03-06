@@ -201,6 +201,15 @@ Measurement tooling:
 5. Compare measured SLI values to profile SLO class.
 6. Promote only on pass; otherwise keep build immutable and unpromoted.
 
+## Execution Runbook (Current Scripts)
+
+1. Materialize existing full build as `galaxy`:
+   - `scripts/materialize_galaxy.sh <build_id>`
+2. Build/promote sliced core with explicit profile metadata:
+   - `scripts/build_core_slice.sh --from-cooked --profile-id <id> --profile-version <ver> --source-galaxy-build-id <build_id> ...slice knobs...`
+3. Build halo complement from the (`galaxy`, `core`) pair:
+   - `scripts/build_halo.sh --galaxy-build-id <galaxy_build_id> --core-build-id <core_build_id>`
+
 ## Known Constraint (Current Builds)
 
 Admin slice preview operates against currently served `stars` columns.

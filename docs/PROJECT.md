@@ -385,7 +385,26 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 
 ## Immediate Next Actions
 
-1. Implement `galaxy` artifact contract and paired `core`/`halo` projection materialization.
-2. Wire slice profile selection (`profile_id@version`) into build metadata and admin controls.
-3. Enforce SLO gating in promotion for active core profile.
-4. Re-run multiplicity comparison modes against Gaia-backed `galaxy` IDs.
+1. Enforce SLO gating in promotion for active core profile.
+2. Expose explicit deep-query routing over `halo`/`galaxy` in API/UI.
+3. Re-run multiplicity comparison modes against Gaia-backed `galaxy` IDs.
+
+## Layered Restabilization Status (March 6, 2026)
+
+Completed:
+
+- `galaxy` alias materialization script: `scripts/materialize_galaxy.sh`
+- sliced core profile metadata wiring in ingest:
+  - `slice_profile_id`
+  - `slice_profile_version`
+  - `build_layer`
+  - `source_galaxy_build_id`
+- `halo` complement materialization script pair:
+  - `scripts/build_halo.sh`
+  - `scripts/build_halo_from_galaxy.py`
+
+Current operational pattern:
+
+1. materialize current full build as `galaxy`
+2. rebuild/promote sliced `core` with explicit profile id/version
+3. build `halo` complement from (`galaxy`, `core`) pair

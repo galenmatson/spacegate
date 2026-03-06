@@ -20,6 +20,10 @@ Options:
   --from-cooked                     Reuse existing cooked catalogs (default).
   --full-pipeline                   Run full download->cook->ingest pipeline.
   --overwrite                       Overwrite cached downloads (full-pipeline only).
+  --build-id <id>                   Explicit ingest build id.
+  --profile-id <id>                 Slice profile id (e.g., core.default).
+  --profile-version <ver>           Slice profile version (e.g., v1).
+  --source-galaxy-build-id <id>     Galaxy build id this slice derives from.
   --max-distance-ly <float>         Keep stars with dist_ly <= value.
   --min-parallax-over-error <float> Keep stars with parallax_over_error >= value.
   --max-parallax-error-mas <float>  Keep stars with parallax_error_mas <= value.
@@ -33,6 +37,10 @@ USAGE
 
 from_cooked=1
 overwrite=0
+ingest_build_id=""
+profile_id=""
+profile_version=""
+source_galaxy_build_id=""
 max_distance_ly=""
 min_parallax_over_error=""
 max_parallax_error_mas=""
@@ -54,6 +62,22 @@ while [[ $# -gt 0 ]]; do
     --overwrite)
       overwrite=1
       shift 1
+      ;;
+    --build-id)
+      ingest_build_id="${2:-}"
+      shift 2
+      ;;
+    --profile-id)
+      profile_id="${2:-}"
+      shift 2
+      ;;
+    --profile-version)
+      profile_version="${2:-}"
+      shift 2
+      ;;
+    --source-galaxy-build-id)
+      source_galaxy_build_id="${2:-}"
+      shift 2
       ;;
     --max-distance-ly)
       max_distance_ly="${2:-}"
@@ -103,6 +127,10 @@ export SPACEGATE_SLICE_MAX_RUWE="$max_ruwe"
 export SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS="$require_spectral_class"
 export SPACEGATE_SLICE_REQUIRE_COLOR_INDEX="$require_color_index"
 export SPACEGATE_SLICE_ALLOWED_SPECTRAL="$allowed_spectral_classes"
+export SPACEGATE_SLICE_PROFILE_ID="$profile_id"
+export SPACEGATE_SLICE_PROFILE_VERSION="$profile_version"
+export SPACEGATE_SOURCE_GALAXY_BUILD_ID="$source_galaxy_build_id"
+export SPACEGATE_BUILD_LAYER="core"
 
 echo "Slice policy:"
 echo "  SPACEGATE_SLICE_MAX_DISTANCE_LY=${SPACEGATE_SLICE_MAX_DISTANCE_LY:-}"
@@ -112,10 +140,18 @@ echo "  SPACEGATE_SLICE_MAX_RUWE=${SPACEGATE_SLICE_MAX_RUWE:-}"
 echo "  SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS=${SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS:-0}"
 echo "  SPACEGATE_SLICE_REQUIRE_COLOR_INDEX=${SPACEGATE_SLICE_REQUIRE_COLOR_INDEX:-0}"
 echo "  SPACEGATE_SLICE_ALLOWED_SPECTRAL=${SPACEGATE_SLICE_ALLOWED_SPECTRAL:-}"
+echo "  SPACEGATE_SLICE_PROFILE_ID=${SPACEGATE_SLICE_PROFILE_ID:-}"
+echo "  SPACEGATE_SLICE_PROFILE_VERSION=${SPACEGATE_SLICE_PROFILE_VERSION:-}"
+echo "  SPACEGATE_SOURCE_GALAXY_BUILD_ID=${SPACEGATE_SOURCE_GALAXY_BUILD_ID:-}"
+echo "  SPACEGATE_BUILD_LAYER=${SPACEGATE_BUILD_LAYER:-core}"
 
 if [[ "$from_cooked" == "1" ]]; then
   echo "==> Rebuild from cooked catalogs"
-  "$ROOT_DIR/scripts/ingest_core.sh"
+  if [[ -n "$ingest_build_id" ]]; then
+    "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$ingest_build_id"
+  else
+    "$ROOT_DIR/scripts/ingest_core.sh"
+  fi
   "$ROOT_DIR/scripts/promote_build.sh"
   "$ROOT_DIR/scripts/verify_build.sh"
 else
