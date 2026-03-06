@@ -16,9 +16,9 @@ from pathlib import Path
 GAIA_TAP_SYNC_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 DEFAULT_MIN_PARALLAX_MAS = 3.26156
-DEFAULT_BUCKETS = 7
-DEFAULT_TIMEOUT_S = 240
-DEFAULT_RETRIES = 4
+DEFAULT_BUCKETS = 53
+DEFAULT_TIMEOUT_S = 360
+DEFAULT_RETRIES = 6
 
 
 def log(msg: str) -> None:
@@ -69,8 +69,82 @@ def write_partitioned_csv(
     retries: int,
 ) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    total_rows = 0
+    query_tag = hashlib.sha1(
+        f"{label}|{select_fields}|{table_name}|{where_clause}|{buckets}".encode("utf-8")
+    ).hexdigest()[:12]
+    parts_dir = out_path.parent / f"{out_path.stem}.parts.{query_tag}"
+    parts_dir.mkdir(parents=True, exist_ok=True)
     expected_fields: list[str] | None = None
+
+    def csv_header(path: Path) -> list[str]:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.reader(handle)
+            row = next(reader, [])
+            return [str(col) for col in row]
+
+    def csv_row_count(path: Path) -> int:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.reader(handle)
+            next(reader, None)
+            return sum(1 for _ in reader)
+
+    for bucket in range(buckets):
+        part_path = parts_dir / f"bucket_{bucket:04d}.csv"
+        if part_path.exists() and part_path.stat().st_size > 0:
+            part_header = csv_header(part_path)
+            if not part_header:
+                raise RuntimeError(f"{label}: empty header in {part_path}")
+            if expected_fields is None:
+                expected_fields = part_header
+            elif part_header != expected_fields:
+                raise RuntimeError(
+                    f"{label}: schema mismatch in existing part {part_path.name}: "
+                    f"{part_header} != {expected_fields}"
+                )
+            part_rows = csv_row_count(part_path)
+            log(f"{label}: bucket {bucket + 1}/{buckets} resume rows={part_rows:,}")
+            continue
+
+        adql = (
+            f"select {select_fields} from {table_name} "
+            f"where {where_clause} and mod(source_id, {buckets}) = {bucket} "
+        )
+        text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
+        reader = csv.DictReader(StringIO(text))
+        fieldnames = list(reader.fieldnames or [])
+        if not fieldnames:
+            log(f"{label}: bucket {bucket + 1}/{buckets} returned no header/rows")
+            continue
+        if expected_fields is None:
+            expected_fields = fieldnames
+        elif fieldnames != expected_fields:
+            raise RuntimeError(
+                f"{label}: schema mismatch in bucket {bucket + 1}: "
+                f"{fieldnames} != {expected_fields}"
+            )
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            newline="",
+            encoding="utf-8",
+            delete=False,
+            dir=str(parts_dir),
+            prefix=part_path.name + ".tmp.",
+        ) as tmp_part:
+            tmp_part_path = Path(tmp_part.name)
+            writer = csv.DictWriter(tmp_part, fieldnames=expected_fields)
+            writer.writeheader()
+            bucket_rows = 0
+            for row in reader:
+                writer.writerow(row)
+                bucket_rows += 1
+        tmp_part_path.replace(part_path)
+        log(f"{label}: bucket {bucket + 1}/{buckets} rows={bucket_rows:,}")
+
+    if expected_fields is None:
+        raise RuntimeError(f"{label}: no data returned from Gaia TAP")
+
+    total_rows = 0
     with tempfile.NamedTemporaryFile(
         mode="w",
         newline="",
@@ -78,42 +152,27 @@ def write_partitioned_csv(
         delete=False,
         dir=str(out_path.parent),
         prefix=out_path.name + ".tmp.",
-    ) as tmp_file:
-        tmp_path = Path(tmp_file.name)
-        writer: csv.DictWriter | None = None
+    ) as tmp_out:
+        tmp_out_path = Path(tmp_out.name)
+        writer = csv.DictWriter(tmp_out, fieldnames=expected_fields)
+        writer.writeheader()
         for bucket in range(buckets):
-            adql = (
-                f"select {select_fields} from {table_name} "
-                f"where {where_clause} and mod(source_id, {buckets}) = {bucket} "
-                "order by source_id"
-            )
-            text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
-            reader = csv.DictReader(StringIO(text))
-            fieldnames = list(reader.fieldnames or [])
-            if not fieldnames:
-                log(f"{label}: bucket {bucket + 1}/{buckets} returned no header/rows")
+            part_path = parts_dir / f"bucket_{bucket:04d}.csv"
+            if not part_path.exists() or part_path.stat().st_size == 0:
                 continue
-            if expected_fields is None:
-                expected_fields = fieldnames
-                writer = csv.DictWriter(tmp_file, fieldnames=expected_fields)
-                writer.writeheader()
-            elif fieldnames != expected_fields:
-                raise RuntimeError(
-                    f"{label}: schema mismatch in bucket {bucket + 1}: "
-                    f"{fieldnames} != {expected_fields}"
-                )
+            with part_path.open("r", encoding="utf-8", newline="") as part_file:
+                reader = csv.DictReader(part_file)
+                part_fields = list(reader.fieldnames or [])
+                if part_fields != expected_fields:
+                    raise RuntimeError(
+                        f"{label}: schema mismatch while stitching {part_path.name}: "
+                        f"{part_fields} != {expected_fields}"
+                    )
+                for row in reader:
+                    writer.writerow(row)
+                    total_rows += 1
 
-            bucket_rows = 0
-            for row in reader:
-                if writer is None:
-                    raise RuntimeError(f"{label}: writer not initialized")
-                writer.writerow(row)
-                total_rows += 1
-                bucket_rows += 1
-            log(
-                f"{label}: bucket {bucket + 1}/{buckets} rows={bucket_rows:,} total={total_rows:,}"
-            )
-    tmp_path.replace(out_path)
+    tmp_out_path.replace(out_path)
     return total_rows
 
 
