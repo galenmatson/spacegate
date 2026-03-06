@@ -779,7 +779,8 @@ def main() -> int:
                 nullif(radial_velocity_kms, '')::double as radial_velocity_kms,
                 nullif(phot_g_mag, '')::double as phot_g_mag,
                 nullif(bp_rp, '')::double as bp_rp,
-                nullif(ruwe, '')::double as ruwe
+                nullif(ruwe, '')::double as ruwe,
+                nullif(teff_gspphot, '')::double as teff_gspphot
               from gaia_backbone_raw
             ), coords as (
               select
@@ -843,8 +844,28 @@ def main() -> int:
               null::varchar as vx,
               null::varchar as vy,
               null::varchar as vz,
-              null::varchar as spect,
-              null::varchar as spect_src
+              case
+                when teff_gspphot is not null and teff_gspphot >= 30000 then 'O'
+                when teff_gspphot is not null and teff_gspphot >= 10000 then 'B'
+                when teff_gspphot is not null and teff_gspphot >= 7500 then 'A'
+                when teff_gspphot is not null and teff_gspphot >= 6000 then 'F'
+                when teff_gspphot is not null and teff_gspphot >= 5200 then 'G'
+                when teff_gspphot is not null and teff_gspphot >= 3700 then 'K'
+                when teff_gspphot is not null and teff_gspphot >= 2400 then 'M'
+                when teff_gspphot is not null and teff_gspphot >= 1300 then 'L'
+                when teff_gspphot is not null and teff_gspphot >= 700 then 'T'
+                when teff_gspphot is not null then 'Y'
+                when bp_rp is not null and bp_rp < -0.20 then 'O'
+                when bp_rp is not null and bp_rp < 0.00 then 'B'
+                when bp_rp is not null and bp_rp < 0.30 then 'A'
+                when bp_rp is not null and bp_rp < 0.58 then 'F'
+                when bp_rp is not null and bp_rp < 0.81 then 'G'
+                when bp_rp is not null and bp_rp < 1.40 then 'K'
+                when bp_rp is not null and bp_rp < 2.40 then 'M'
+                when bp_rp is not null then 'L'
+                else null
+              end as spect,
+              'gaia_inferred_teff_bp_rp' as spect_src
             from coords
             where dist_pc is not null
             """

@@ -3045,11 +3045,15 @@ def admin_home(request: Request):
       }}
 
       function resolveAdminTheme() {{
-        const attrTheme = normalizeAdminTheme(document.documentElement.getAttribute('data-theme'));
-        if (attrTheme) return attrTheme;
+        const attrRaw = document.documentElement.getAttribute('data-theme');
+        if (attrRaw && String(attrRaw).trim()) {{
+          return normalizeAdminTheme(attrRaw);
+        }}
         try {{
-          const stored = normalizeAdminTheme(window.localStorage.getItem(adminThemeStorageKey));
-          if (stored) return stored;
+          const storedRaw = window.localStorage.getItem(adminThemeStorageKey);
+          if (storedRaw && String(storedRaw).trim()) {{
+            return normalizeAdminTheme(storedRaw);
+          }}
         }} catch (_) {{
           // ignore storage errors
         }}

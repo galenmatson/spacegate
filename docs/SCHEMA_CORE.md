@@ -245,6 +245,10 @@ Required core columns:
 - quality:
   - `ruwe` (nullable)
   - `astrometry_quality`
+- spectral normalization note:
+  - Gaia DR3 backbone does not provide a discrete MK class in this pipeline stage.
+  - `spectral_class` is inferred from `teff_gspphot` with `bp_rp` fallback when explicit spectral type is absent.
+  - keep `spectral_type_raw` as nullable provenance text; do not fabricate MK subtype/luminosity class beyond available evidence.
 - multiplicity evidence:
   - `wds_id` (nullable)
   - `multiplicity_match_method`
