@@ -23,7 +23,9 @@ Within `$SPACEGATE_STATE_DIR`:
 
 Spacegate layer names:
 
-- `core`: canonical immutable astronomy inventory
+- `galaxy`: canonical immutable full astronomy inventory
+- `core`: canonical immutable fast astronomy projection
+- `halo`: canonical immutable opt-in astronomy projection (complement to core)
 - `bulge`: immutable supplemental science artifacts (legacy alias: `aux`)
 - `disc`: reproducible derived artifacts (legacy alias: `rich`)
 - `rim`: editable worldbuilding overlays (legacy alias: `lore`)

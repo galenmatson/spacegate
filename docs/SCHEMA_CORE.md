@@ -18,11 +18,17 @@ Out of scope:
 
 Per build:
 
-- `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb`
-- `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{stars,systems,planets}.parquet`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/galaxy.duckdb` (target-state full canonical astronomy corpus)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb` (default fast astronomy projection)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/halo.duckdb` (complementary opt-in astronomy projection)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{stars,systems,planets}.parquet` (projection-specific export set)
 - `$SPACEGATE_STATE_DIR/reports/<build_id>/*.json`
 
 Build IDs are immutable and deterministic for pinned inputs and transforms.
+
+Transition note:
+
+- current runtime may still emit only `core.duckdb` while `galaxy`/`halo` artifact materialization is finalized.
 
 ## Canonical Inventory Policy
 
@@ -212,6 +218,9 @@ Must include at minimum:
 - astrometry contract:
   - `coordinate_epoch`
   - `coordinate_frame`
+- slice contract:
+  - `slice_profile_id`
+  - `slice_profile_version`
 - spatial indexing parameters:
   - Morton config fields
 - active multiplicity gate parameters:

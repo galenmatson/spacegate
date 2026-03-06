@@ -4,7 +4,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ## A) Platform Foundations
 
-- [x] Core/bulge/disc/rim layer model documented (legacy aliases retained during transition)
+- [x] Galaxy/core/halo/bulge/disc/rim layer model documented (legacy aliases retained during transition)
 - [x] Immutable build output model (`out/<build_id>`, promoted `served/current`)
 - [x] Deterministic `download -> cook -> ingest -> promote -> verify` scripts
 - [x] Provenance gate and QC report emission
@@ -31,21 +31,24 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Core schema contract rewritten for Gaia-first canonical inventory
 - [x] Data source policy rewritten with canonical/auxiliary/transitional classes
 - [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
+- [x] Slice profile catalog + draft SLO targets documented in `SLICE_PROFILES.md`
+- [ ] Build metadata must persist `slice_profile_id` + `slice_profile_version` on sliced builds
 - [ ] Bulge (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
 - [ ] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot
 
-- [ ] Implement Gaia backbone downloader/cooker/ingest path (`gaia_backbone`)
-- [ ] Emit `gaia_backbone_report.json` (counts, quality bands, runtime, storage)
+- [x] Implement Gaia backbone downloader/cooker/ingest path (`gaia_backbone`)
+- [x] Emit `gaia_backbone_report.json` (counts, quality bands, runtime, storage)
 - [ ] Add build metadata for astrometry quality policy and boundary strategy
 - [ ] Verify deterministic reruns for pinned Gaia inputs
 
-### C3. Phase B - Core Product Slice
+### C3. Phase B - Core/Halo Product Slice
 
-- [ ] Define deterministic `core_product_slice` policy over backbone
-- [ ] Materialize slice artifacts and serve default API from slice
-- [ ] Add explicit deep-query mode against backbone
+- [x] Define deterministic `core_product_slice` policy over backbone
+- [ ] Materialize complementary `halo` artifacts and explicit deep-query plumbing
+- [ ] Add explicit deep-query mode against `halo`/`galaxy`
+- [ ] Enforce profile-specific SLO gates during promote
 - [ ] Validate p95/p99 search and detail latency on proton
 
 ### C4. Phase C - Multiplicity Reintegration on Gaia IDs

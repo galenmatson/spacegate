@@ -29,24 +29,46 @@ Reason:
 2. Provenance on every served row.
 3. Deterministic builds and deterministic promotion.
 4. Clear layer boundaries:
-   - `core`: immutable science
+   - `galaxy`: immutable canonical science corpus
+   - `core`: fast default science projection
+   - `halo`: explicit opt-in science projection (complement to core)
    - `bulge`: immutable supplemental science (observational side tables outside core hot paths)
    - `disc`: reproducible derivatives
    - `rim`: editable fiction
 5. Explicit confidence for joins/groupings; avoid silent inference.
 6. Security-first ingestion: no required insecure transport dependencies.
 
-## Data Layers (`core` / `bulge` / `disc` / `rim`)
+## Data Layers (`galaxy` / `core` / `halo` / `bulge` / `disc` / `rim`)
+
+### Galaxy (immutable canonical astronomy)
+Authoritative full-science inventory per build:
+
+- all scientific rows retained
+- full provenance contract enforced
+- not the default hot-path serving tier
 
 ### Core (immutable astronomy)
-Authoritative tables for search and API:
+Fast default serving projection for common browse/search/detail traffic.
+
+Core is generated deterministically from `galaxy` and a versioned slice profile.
+
+### Halo (immutable astronomy complement)
+Explicit opt-in serving projection containing scientific rows excluded from core by policy.
+
+Rules:
+
+- `core` and `halo` are complementary projections from the same `galaxy` build
+- no destructive row movement; projection rebuilds only
+- same `stable_object_key` identity across tiers
+
+### Core/Halo canonical tables
 
 - `systems`
 - `stars`
 - `planets`
 - `build_metadata`
 
-Core must remain free of generated prose/images/rim overlays.
+Core/halo must remain free of generated prose/images/rim overlays.
 
 ### Bulge (immutable supplemental science)
 
@@ -78,10 +100,11 @@ Script/file names may continue using legacy `rich`/`lore` terms until runtime mi
 
 ## Gaia-First Architecture
 
-Spacegate will use a two-tier astronomy runtime:
+Spacegate will use a three-tier astronomy runtime:
 
-1. `gaia_backbone` (canonical inventory substrate)
+1. `galaxy` (canonical inventory substrate; Gaia-first)
 2. `core_product_slice` (default served subset for UX/performance)
+3. `halo_complement` (opt-in long-tail subset)
 
 Catalog crosswalks and multiplicity catalogs attach to backbone IDs; they are not primary object inventory sources.
 
@@ -254,7 +277,7 @@ Implementation constraints:
 
 Definition:
 
-- A **slice** is a deterministic row-selection policy applied at ingest to produce a smaller served `core.duckdb`.
+- A **slice** is a deterministic row-selection policy applied at ingest to produce `core` and complementary `halo` from `galaxy`.
 - Slice policy is recorded in `build_metadata` and emitted to `reports/<build_id>/slice_policy_report.json`.
 
 Current slice controls (admin):
@@ -267,12 +290,25 @@ Current slice controls (admin):
 Execution model:
 
 - Preview endpoint estimates retained/sliced counts against current served build.
-- Build action applies policy through `scripts/build_core_slice.sh` and publishes a new immutable build.
+- Build action applies policy through `scripts/build_core_slice.sh` and publishes a new immutable build set.
+- Projection reversibility is handled by rebuilding from `galaxy` with a different slice profile, not by mutating rows.
 
 Performance model:
 
 - To improve runtime latency, slicing should materialize a smaller served build.
 - Keeping all rows in the same served table and only adding query-time gating generally does not provide equivalent scan performance.
+
+## Slice Profiles and SLO Targets
+
+Authoritative slice profile and performance gates are tracked in:
+
+- `docs/SLICE_PROFILES.md`
+
+Rules:
+
+- `core` profile must be selected by explicit name/version.
+- promotion gates require SLO pass for the active profile.
+- `halo` remains queryable only with explicit user intent.
 
 ## Milestones (Gaia-First Program)
 
@@ -342,13 +378,14 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 - `docs/SCHEMA_CORE.md`: canonical core schema contract
 - `docs/SCHEMA_RICH.md`: disc contract (legacy filename retained)
 - `docs/SCHEMA_LORE.md`: rim contract (legacy filename retained)
+- `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/CHECKLIST.md`: executable delivery tracker
 - `docs/MILESTONES.md`: dependency-ordered roadmap, restored ideation backlog, and long-range goals
 
 ## Immediate Next Actions
 
-1. Implement Phase A Gaia backbone pilot ingest and report.
-2. Define and commit `core_product_slice` policy.
-3. Re-run multiplicity comparison modes against Gaia backbone IDs.
-4. Build AT-HYG retirement test matrix and execute side-by-side runs.
+1. Implement `galaxy` artifact contract and paired `core`/`halo` projection materialization.
+2. Wire slice profile selection (`profile_id@version`) into build metadata and admin controls.
+3. Enforce SLO gating in promotion for active core profile.
+4. Re-run multiplicity comparison modes against Gaia-backed `galaxy` IDs.

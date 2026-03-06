@@ -6,6 +6,7 @@ Authoritative architecture and contracts remain in:
 
 - `docs/PROJECT.md`
 - `docs/SCHEMA_CORE.md`
+- `docs/SLICE_PROFILES.md`
 - `docs/SCHEMA_RICH.md` (disc contract; legacy filename)
 - `docs/SCHEMA_LORE.md` (rim contract; legacy filename)
 
@@ -40,8 +41,8 @@ Fiction overlays are first-class product features, but must remain fully separat
 
 ## Dependency Graph (High Level)
 
-1. Gaia-first canonical core
-2. Deterministic product slice and API performance
+1. Gaia-first canonical `galaxy`
+2. Deterministic `core` + `halo` projections and API performance
 3. Multiplicity hierarchy reliability
 4. Disc factual layer (scores/facts/links)
 5. Visual storytelling (snapshots + generated imagery)
@@ -70,11 +71,11 @@ Exit criteria:
 - provenance and QC gate enforcement
 - stable public serving path
 
-### M1. Gaia Backbone Pilot (Current Critical Path)
+### M1. Gaia Galaxy Backbone Pilot (Current Critical Path)
 
 Goal:
 
-- establish Gaia as canonical star inventory substrate for `<1000 ly`.
+- establish Gaia as canonical star inventory substrate for `<1000 ly` `galaxy`.
 
 Dependencies:
 
@@ -83,6 +84,7 @@ Dependencies:
 Deliverables:
 
 - `gaia_backbone` download/cook/ingest path
+- immutable `galaxy` artifact contract for build outputs
 - quality-tier metadata (`poe`, `ruwe`, astrometry flags)
 - `gaia_backbone_report.json` with counts/runtime/storage
 
@@ -92,11 +94,11 @@ Success criteria:
 - clear quality-band accounting
 - acceptable proton runtime/memory envelope
 
-### M2. Core Product Slice and API Transition
+### M2. Core/Halo Product Slice and API Transition
 
 Goal:
 
-- serve fast, stable UX from a deterministic subset of Gaia backbone.
+- serve fast, stable UX from deterministic `core` with opt-in `halo`.
 
 Dependencies:
 
@@ -104,15 +106,17 @@ Dependencies:
 
 Deliverables:
 
-- `core_product_slice` policy and materialization
+- `core_product_slice` policy and `halo_complement` materialization
+- versioned slice profile catalog and profile selection contract
+- profile-scoped SLO gates wired into promotion decisions
 - API compatibility review and migration notes
-- deep-query mode against full backbone
+- deep-query mode against `halo`/`galaxy`
 
 Success criteria:
 
 - default API latency targets met
 - no functional regressions in search/detail workflows
-- explicit documented slice policy
+- explicit documented slice/SLO policy and pass/fail evidence per promoted build
 
 ### M3. Multiplicity and Systems-of-Systems
 
@@ -170,7 +174,7 @@ Dependencies:
 Deliverables:
 
 - parallel-run comparison report (legacy vs Gaia-first)
-- removal of AT-HYG canonical inventory dependence
+- removal of AT-HYG canonical inventory dependence in `galaxy` build path
 - cleanup of deprecated code paths/docs
 
 Success criteria:
