@@ -677,6 +677,27 @@ function formatNumber(value, digits = 2) {
   return String(value);
 }
 
+function formatHumanLargeCount(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "Unknown";
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return "Unknown";
+  }
+  const abs = Math.abs(numeric);
+  if (abs >= 1_000_000_000) {
+    return `${formatNumber(numeric / 1_000_000_000, abs >= 10_000_000_000 ? 0 : 1)} billion`;
+  }
+  if (abs >= 1_000_000) {
+    return `${formatNumber(numeric / 1_000_000, abs >= 10_000_000 ? 0 : 1)} million`;
+  }
+  if (abs >= 1_000) {
+    return `${formatNumber(numeric / 1_000, abs >= 10_000 ? 0 : 1)} thousand`;
+  }
+  return formatNumber(numeric, 0);
+}
+
 function formatText(value) {
   if (value === null || value === undefined || value === "") {
     return "Unknown";
@@ -2502,7 +2523,9 @@ function SearchPage({ buildId = "" }) {
                 {lastQueryStats.serverMs !== null
                   ? ` server · ${formatNumber(lastQueryStats.clientMs, 1)} ms end-to-end`
                   : " end-to-end"}
-                {` · returned ${formatNumber(lastQueryStats.returnedCount, 0)} rows`}
+                {typeof totalCount === "number" && Number.isFinite(totalCount)
+                  ? ` · returned ${formatNumber(lastQueryStats.returnedCount, 0)} of ${formatHumanLargeCount(totalCount)} rows`
+                  : ` · returned ${formatNumber(lastQueryStats.returnedCount, 0)} rows`}
                 {lastQueryStats.mode === "load_more" ? " (page append)" : ""}
               </div>
             )}

@@ -526,6 +526,31 @@ def search_systems(
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
+        id_clause = None
+        id_params: List[Any] = []
+        if id_query:
+            column = {
+                "hd": "hd_id",
+                "hip": "hip_id",
+                "gaia": "gaia_id",
+            }.get(id_query.get("kind"))
+            if column:
+                id_clause = (
+                    f"(s.{column} = ? OR EXISTS (SELECT 1 FROM stars st "
+                    f"WHERE st.system_id = s.system_id AND st.{column} = ?))"
+                )
+                id_params = [id_query.get("value"), id_query.get("value")]
+            elif id_query.get("kind") == "catalog_numeric":
+                id_clause = (
+                    "(s.hip_id = ? OR EXISTS (SELECT 1 FROM stars st "
+                    "WHERE st.system_id = s.system_id AND st.hip_id = ?) "
+                    "OR s.hd_id = ? OR EXISTS (SELECT 1 FROM stars st "
+                    "WHERE st.system_id = s.system_id AND st.hd_id = ?))"
+                )
+                value = id_query.get("value")
+                id_params = [value, value, value, value]
+        identifier_mode = id_clause is not None
+
         exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
         match_params.extend([q_norm, q_raw])
         if has_aliases:
@@ -588,9 +613,20 @@ def search_systems(
             token_clauses.append("(" + " OR ".join(token_parts) + ")")
         token_and_clause = " AND ".join(token_clauses) if token_clauses else None
 
-        match_lines: List[str] = [f"WHEN {exact_clause} THEN 0", f"WHEN {prefix_clause} THEN 1"]
-        match_clauses.extend([exact_clause, prefix_clause])
-        if short_query_mode:
+        next_rank = 0
+        match_lines: List[str] = []
+        if id_clause:
+            match_lines.append(f"WHEN {id_clause} THEN {next_rank}")
+            match_clauses.append(id_clause)
+            match_params.extend(id_params)
+            next_rank += 1
+        match_lines.append(f"WHEN {exact_clause} THEN {next_rank}")
+        match_clauses.append(exact_clause)
+        next_rank += 1
+        match_lines.append(f"WHEN {prefix_clause} THEN {next_rank}")
+        match_clauses.append(prefix_clause)
+        next_rank += 1
+        if short_query_mode and not identifier_mode:
             contains_parts = ["s.system_name_norm LIKE ?"]
             contains_pattern = f"%{q_norm}%"
             if has_aliases:
@@ -607,38 +643,13 @@ def search_systems(
                 alias_cte_params.append(contains_pattern)
                 contains_parts.append("s.system_id IN (SELECT system_id FROM alias_match_contains)")
             contains_clause = "(" + " OR ".join(contains_parts) + ")"
-            match_lines.append(f"WHEN {contains_clause} THEN 2")
+            match_lines.append(f"WHEN {contains_clause} THEN {next_rank}")
             match_clauses.append(contains_clause)
             match_params.append(contains_pattern)
-        if token_and_clause:
-            match_lines.append(f"WHEN {token_and_clause} THEN 2")
+            next_rank += 1
+        if token_and_clause and not identifier_mode:
+            match_lines.append(f"WHEN {token_and_clause} THEN {next_rank}")
             match_clauses.append(f"({token_and_clause})")
-
-        if id_query:
-            column = {
-                "hd": "hd_id",
-                "hip": "hip_id",
-                "gaia": "gaia_id",
-            }.get(id_query.get("kind"))
-            if column:
-                id_clause = (
-                    f"(s.{column} = ? OR EXISTS (SELECT 1 FROM stars st "
-                    f"WHERE st.system_id = s.system_id AND st.{column} = ?))"
-                )
-                match_lines.append(f"WHEN {id_clause} THEN 3")
-                match_clauses.append(id_clause)
-                match_params.extend([id_query.get("value"), id_query.get("value")])
-            elif id_query.get("kind") == "catalog_numeric":
-                id_clause = (
-                    "(s.hip_id = ? OR EXISTS (SELECT 1 FROM stars st "
-                    "WHERE st.system_id = s.system_id AND st.hip_id = ?) "
-                    "OR s.hd_id = ? OR EXISTS (SELECT 1 FROM stars st "
-                    "WHERE st.system_id = s.system_id AND st.hd_id = ?))"
-                )
-                match_lines.append(f"WHEN {id_clause} THEN 3")
-                match_clauses.append(id_clause)
-                value = id_query.get("value")
-                match_params.extend([value, value, value, value])
 
         match_rank_expr = "CASE " + " ".join(match_lines) + " ELSE NULL END AS match_rank"
 
