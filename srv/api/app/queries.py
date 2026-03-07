@@ -106,7 +106,9 @@ def fetch_spectral_mix(con: duckdb.DuckDBPyConnection) -> Dict[str, Any]:
         WITH spectral_buckets AS (
           SELECT
             CASE
-              WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 'D'
+              WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                OR COALESCE(object_type, '') = 'white_dwarf'
+              THEN 'D'
               WHEN spectral_class IN ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y') THEN spectral_class
               ELSE 'unknown'
             END AS spectral_bucket
@@ -320,23 +322,11 @@ def search_systems(
         short_query_mode = len(q_norm) < 2
         exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
         match_params.extend([q_norm, q_raw])
-        if not short_query_mode:
-            exact_parts.append(
-                "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-                "AND st.star_name_norm = ?)"
-            )
-            match_params.append(q_norm)
         exact_clause = "(" + " OR ".join(exact_parts) + ")"
 
         prefix_parts = ["s.system_name_norm LIKE ?"]
         prefix_pattern = f"{q_norm}%"
         match_params.append(prefix_pattern)
-        if not short_query_mode:
-            prefix_parts.append(
-                "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-                "AND st.star_name_norm LIKE ?)"
-            )
-            match_params.append(prefix_pattern)
         prefix_clause = "(" + " OR ".join(prefix_parts) + ")"
 
         tokens = [token for token in q_norm.split(" ") if token]
@@ -344,13 +334,10 @@ def search_systems(
         for token in tokens:
             if short_query_mode or len(token) < 2:
                 continue
-            token_clause = (
-                "(s.system_name_norm LIKE ? OR EXISTS (SELECT 1 FROM stars st "
-                "WHERE st.system_id = s.system_id AND st.star_name_norm LIKE ?))"
-            )
+            token_clause = "s.system_name_norm LIKE ?"
             token_clauses.append(token_clause)
             token_pattern = f"%{token}%"
-            match_params.extend([token_pattern, token_pattern])
+            match_params.append(token_pattern)
         token_and_clause = " AND ".join(token_clauses) if token_clauses else None
 
         match_lines: List[str] = [f"WHEN {exact_clause} THEN 0", f"WHEN {prefix_clause} THEN 1"]
@@ -409,7 +396,11 @@ def search_systems(
         for token in spectral_classes:
             if token == "D":
                 spectral_filters.append(
-                    "(st.spectral_class = ? OR UPPER(COALESCE(st.spectral_type_raw, '')) LIKE 'D%')"
+                    "("
+                    "st.spectral_class = ? OR "
+                    "UPPER(COALESCE(st.spectral_type_raw, '')) LIKE 'D%' OR "
+                    "COALESCE(st.object_type, '') = 'white_dwarf'"
+                    ")"
                 )
                 params.append("D")
             else:

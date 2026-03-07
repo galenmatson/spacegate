@@ -1237,7 +1237,13 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
                   SUM(CASE WHEN spectral_class = 'L' THEN 1 ELSE 0 END)::bigint AS class_l,
                   SUM(CASE WHEN spectral_class = 'T' THEN 1 ELSE 0 END)::bigint AS class_t,
                   SUM(CASE WHEN spectral_class = 'Y' THEN 1 ELSE 0 END)::bigint AS class_y,
-                  SUM(CASE WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 1 ELSE 0 END)::bigint AS class_d,
+                  SUM(
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                        OR COALESCE(object_type, '') = 'white_dwarf'
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS class_d,
                   SUM(CASE WHEN spectral_class IS NULL OR spectral_class = '' THEN 1 ELSE 0 END)::bigint AS class_unknown
                 FROM stars
                 """
@@ -1253,15 +1259,19 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
                     CASE
                       WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
                         OR UPPER(COALESCE(spectral_type_raw, '')) LIKE '%WHITE%DWARF%'
+                        OR COALESCE(object_type, '') = 'white_dwarf'
                       THEN 'white_dwarf'
                       WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%BLACK HOLE%'
                         OR UPPER(COALESCE(spectral_type_raw, '')) LIKE 'BH%'
+                        OR COALESCE(object_type, '') = 'black_hole'
                       THEN 'black_hole'
                       WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%PULSAR%'
                         OR UPPER(COALESCE(spectral_type_raw, '')) LIKE '%PSR%'
+                        OR COALESCE(object_type, '') = 'pulsar'
                       THEN 'pulsar'
                       WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%NEUTRON%'
                         OR UPPER(COALESCE(spectral_type_raw, '')) LIKE 'NS%'
+                        OR COALESCE(object_type, '') = 'neutron_star'
                       THEN 'neutron_star'
                       ELSE NULL
                     END AS compact_type
@@ -1284,7 +1294,13 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
                 """
                 SELECT
                   SUM(CASE WHEN spectral_class IN ('L','T','Y') THEN 1 ELSE 0 END)::bigint AS brown_dwarf_like,
-                  SUM(CASE WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 1 ELSE 0 END)::bigint AS white_dwarf_like,
+                  SUM(
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                        OR COALESCE(object_type, '') = 'white_dwarf'
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS white_dwarf_like,
                   SUM(
                     CASE
                       WHEN sqrt(
