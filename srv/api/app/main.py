@@ -25,6 +25,7 @@ from . import auth
 from . import db
 from .db import DatabaseUnavailable
 from .queries import (
+    choose_display_name,
     fetch_aliases_for_stars,
     fetch_aliases_for_system,
     fetch_build_id,
@@ -740,12 +741,27 @@ def system_detail(system_id: int):
     system["planet_count"] = planet_count
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    system_display_name, system_display_aliases = choose_display_name(
+        system.get("system_name"),
+        aliases,
+    )
+    system["display_name"] = system_display_name
+    system["display_aliases"] = system_display_aliases
     for star in stars:
         sid = star.get("star_id")
         if sid is None:
             star["aliases"] = []
+            star["display_name"] = star.get("star_name")
+            star["display_aliases"] = []
             continue
-        star["aliases"] = star_aliases.get(int(sid), [])
+        aliases_for_star = star_aliases.get(int(sid), [])
+        star["aliases"] = aliases_for_star
+        star_display_name, star_display_aliases = choose_display_name(
+            star.get("star_name"),
+            aliases_for_star,
+        )
+        star["display_name"] = star_display_name
+        star["display_aliases"] = star_display_aliases
     _attach_snapshot_url(system)
     return {"system": system, "stars": stars, "planets": planets}
 
@@ -784,12 +800,27 @@ def system_detail_by_key(stable_object_key: str):
     system["planet_count"] = planet_count
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    system_display_name, system_display_aliases = choose_display_name(
+        system.get("system_name"),
+        aliases,
+    )
+    system["display_name"] = system_display_name
+    system["display_aliases"] = system_display_aliases
     for star in stars:
         sid = star.get("star_id")
         if sid is None:
             star["aliases"] = []
+            star["display_name"] = star.get("star_name")
+            star["display_aliases"] = []
             continue
-        star["aliases"] = star_aliases.get(int(sid), [])
+        aliases_for_star = star_aliases.get(int(sid), [])
+        star["aliases"] = aliases_for_star
+        star_display_name, star_display_aliases = choose_display_name(
+            star.get("star_name"),
+            aliases_for_star,
+        )
+        star["display_name"] = star_display_name
+        star["display_aliases"] = star_display_aliases
     _attach_snapshot_url(system)
     return {"system": system, "stars": stars, "planets": planets}
 

@@ -316,6 +316,8 @@ Response 200:
       "stable_object_key": "system:gaia:19316224572460416",
       "system_name": "268 G. Cet",
       "system_name_norm": "268 g cet",
+      "display_name": "268 G. Cet",
+      "display_aliases": ["HIP 12114", "HD 16160"],
       "match_rank": 1,
       "dist_ly": 23.5765,
       "ra_deg": 2.601357,
@@ -366,6 +368,8 @@ Response 200:
 {
   "system": {
     /* same fields as search result + full provenance */
+    "display_name": "Sirius",
+    "display_aliases": ["Alp CMa", "HIP 32349", "HD 48915"],
     "aliases": [
       {
         "alias_raw": "Sirius",
@@ -384,6 +388,8 @@ Response 200:
       "system_id": 1,
       "stable_object_key": "star:gaia:...",
       "star_name": "268 G. Cet",
+      "display_name": "268 G. Cet",
+      "display_aliases": ["HIP 12114", "HD 16160"],
       "component": "A",
       "spectral_type_raw": "G2V",
       "spectral_class": "G",
@@ -436,6 +442,10 @@ Response 200:
   ]
 }
 ```
+
+Display-name behavior:
+- `display_name` prefers human-friendly naming over Gaia placeholders.
+- Alias precedence is deterministic: proper/common name, Bayer, Flamsteed, then major catalog IDs (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

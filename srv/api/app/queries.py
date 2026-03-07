@@ -25,6 +25,33 @@ PROVENANCE_FIELDS = [
     "transform_version",
 ]
 
+GAIA_NAME_PREFIXES = ("gaia dr3 ", "gaia ")
+CATALOG_NAME_PREFIXES = ("gaia dr3 ", "gaia ", "hip ", "hd ", "hr ", "tyc ", "hyg ", "wds ")
+ALIAS_KIND_RANK = {
+    "proper_name": 0,
+    "member_proper_name": 1,
+    "bayer_name": 2,
+    "member_bayer_name": 3,
+    "flamsteed_name": 4,
+    "member_flamsteed_name": 5,
+    "gl_id": 6,
+    "member_gl_id": 7,
+    "hip_id": 8,
+    "member_hip_id": 9,
+    "hd_id": 10,
+    "member_hd_id": 11,
+    "hr_id": 12,
+    "member_hr_id": 13,
+    "tyc_id": 14,
+    "member_tyc_id": 15,
+    "hyg_id": 16,
+    "member_hyg_id": 17,
+    "wds_id": 18,
+    "member_wds_id": 19,
+    "gaia_id": 30,
+    "gaia_id_short": 31,
+}
+
 
 def split_provenance(row: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     provenance = {field: row.get(field) for field in PROVENANCE_FIELDS}
@@ -103,6 +130,84 @@ def _has_local_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
         return bool(row)
     except Exception:
         return False
+
+
+def _clean_name(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _name_norm(value: Any) -> str:
+    return _clean_name(value).lower()
+
+
+def _is_gaia_placeholder_name(value: Any) -> bool:
+    norm = _name_norm(value)
+    return any(norm.startswith(prefix) for prefix in GAIA_NAME_PREFIXES)
+
+
+def _is_catalog_style_name(value: Any) -> bool:
+    norm = _name_norm(value)
+    return any(norm.startswith(prefix) for prefix in CATALOG_NAME_PREFIXES)
+
+
+def _alias_rank(row: Dict[str, Any]) -> Tuple[int, int, int, str]:
+    kind = str(row.get("alias_kind") or "").strip()
+    kind_rank = ALIAS_KIND_RANK.get(kind, 99)
+    try:
+        priority = int(row.get("alias_priority"))
+    except Exception:
+        priority = 999
+    raw = _clean_name(row.get("alias_raw"))
+    return (kind_rank, priority, len(raw), raw.lower())
+
+
+def choose_display_name(
+    canonical_name: Any,
+    aliases: List[Dict[str, Any]],
+    *,
+    alt_limit: int = 8,
+) -> Tuple[str, List[str]]:
+    canonical = _clean_name(canonical_name)
+    alias_rows = [row for row in aliases if _clean_name(row.get("alias_raw"))]
+    alias_rows.sort(key=_alias_rank)
+
+    ordered_names: List[str] = []
+    seen_norm: set[str] = set()
+    for row in alias_rows:
+        raw = _clean_name(row.get("alias_raw"))
+        norm = raw.lower()
+        if norm in seen_norm:
+            continue
+        seen_norm.add(norm)
+        ordered_names.append(raw)
+
+    display_name = canonical
+    if not display_name or _is_gaia_placeholder_name(display_name):
+        for candidate in ordered_names:
+            if _is_gaia_placeholder_name(candidate):
+                continue
+            display_name = candidate
+            break
+        if not display_name and ordered_names:
+            display_name = ordered_names[0]
+
+    secondary: List[str] = []
+    secondary_seen: set[str] = set()
+    display_norm = _name_norm(display_name)
+    if canonical and canonical.lower() != display_norm and not _is_gaia_placeholder_name(canonical):
+        secondary.append(canonical)
+        secondary_seen.add(canonical.lower())
+    for candidate in ordered_names:
+        norm = candidate.lower()
+        if norm == display_norm or norm in secondary_seen:
+            continue
+        if _is_gaia_placeholder_name(candidate):
+            continue
+        secondary.append(candidate)
+        secondary_seen.add(norm)
+        if len(secondary) >= max(1, alt_limit):
+            break
+    return display_name, secondary
 
 
 def fetch_build_id(con: duckdb.DuckDBPyConnection) -> Optional[str]:
@@ -863,6 +968,44 @@ def search_systems(
     system_ids: List[int] = [int(item["system_id"]) for item in results if item.get("system_id") is not None]
     if system_ids:
         placeholders = ",".join(["?"] * len(system_ids))
+        if has_aliases:
+            alias_rows = con.execute(
+                f"""
+                SELECT
+                  system_id,
+                  alias_raw,
+                  alias_kind,
+                  alias_priority
+                FROM aliases
+                WHERE target_type = 'system'
+                  AND system_id IN ({placeholders})
+                ORDER BY system_id ASC, alias_priority ASC, alias_kind ASC, alias_raw ASC
+                """,
+                system_ids,
+            ).fetchall()
+            system_aliases: Dict[int, List[Dict[str, Any]]] = {}
+            for system_id, alias_raw, alias_kind, alias_priority in alias_rows:
+                sid = int(system_id)
+                system_aliases.setdefault(sid, []).append(
+                    {
+                        "alias_raw": alias_raw,
+                        "alias_kind": alias_kind,
+                        "alias_priority": alias_priority,
+                    }
+                )
+            for item in results:
+                sid = int(item.get("system_id") or 0)
+                display_name, display_aliases = choose_display_name(
+                    item.get("system_name"),
+                    system_aliases.get(sid, []),
+                )
+                item["display_name"] = display_name
+                item["display_aliases"] = display_aliases
+        else:
+            for item in results:
+                display_name = _clean_name(item.get("system_name"))
+                item["display_name"] = display_name
+                item["display_aliases"] = []
 
         star_rows = con.execute(
             f"""

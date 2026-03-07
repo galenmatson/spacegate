@@ -256,6 +256,24 @@ function formatBuildVersionLabel(buildId) {
   return `DB ${raw}`;
 }
 
+function systemDisplayName(system) {
+  const display = String(system?.display_name || "").trim();
+  if (display) {
+    return display;
+  }
+  const fallback = String(system?.system_name || "").trim();
+  return fallback || "";
+}
+
+function starDisplayName(star) {
+  const display = String(star?.display_name || "").trim();
+  if (display) {
+    return display;
+  }
+  const fallback = String(star?.star_name || "").trim();
+  return fallback || "";
+}
+
 function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels = null }) {
   const buildLabel = formatBuildVersionLabel(buildId);
   const allowed = Array.isArray(includeLabels) ? new Set(includeLabels) : null;
@@ -332,7 +350,7 @@ function pickRandomSystems(items, count) {
       (Array.isArray(items) ? items : [])
         .map((item) => ({
           system_id: item?.system_id,
-          system_name: String(item?.system_name || "").trim(),
+          system_name: systemDisplayName(item),
         }))
         .filter((entry) => entry.system_id !== null && entry.system_id !== undefined && entry.system_name)
         .map((entry) => [String(entry.system_id), entry]),
@@ -361,23 +379,23 @@ function pickRandomGaiaEntries(items, count) {
             return {
               gaia: String(item.gaia_id_text).trim(),
               system_id: item?.system_id,
-              system_name: String(item?.system_name || "").trim(),
+              system_name: systemDisplayName(item),
             };
           }
           if (item?.gaia_id !== null && item?.gaia_id !== undefined) {
             return {
               gaia: String(item.gaia_id).trim(),
               system_id: item?.system_id,
-              system_name: String(item?.system_name || "").trim(),
+              system_name: systemDisplayName(item),
             };
           }
           const stable = String(item?.stable_object_key || "");
           const match = stable.match(/(?:^|:)gaia:(\d+)/i);
           return match?.[1]
-            ? {
+              ? {
               gaia: String(match[1]).trim(),
               system_id: item?.system_id,
-              system_name: String(item?.system_name || "").trim(),
+              system_name: systemDisplayName(item),
             }
             : null;
         })
@@ -450,7 +468,7 @@ function saveLcarsHistory(entries) {
 
 function updateLcarsHistoryWithSystem(system) {
   const systemId = system?.system_id;
-  const systemName = String(system?.system_name || "").trim();
+  const systemName = systemDisplayName(system);
   if (systemId === null || systemId === undefined || !systemName) {
     return;
   }
@@ -960,9 +978,9 @@ function resolvedSystemGaiaId(system) {
 
 function buildSystemCatalogIds(system) {
   const entries = [
-    { label: "Gaia", value: resolvedSystemGaiaId(system) },
     { label: "HIP", value: system?.hip_id_text ?? system?.hip_id },
     { label: "HD", value: system?.hd_id_text ?? system?.hd_id },
+    { label: "Gaia", value: resolvedSystemGaiaId(system) },
   ];
   return entries
     .map((entry) => ({
@@ -1213,7 +1231,7 @@ function SnapshotVisual({ snapshot, systemName, compact = false, eager = false }
 
 function SnapshotMetadata({ system, snapshot }) {
   const rows = [
-    { label: "System", value: formatText(system?.system_name), copyValue: system?.system_name, copyLabel: "system name" },
+    { label: "System", value: formatText(systemDisplayName(system)), copyValue: systemDisplayName(system), copyLabel: "system name" },
     { label: "Stable key", value: formatText(system?.stable_object_key), copyValue: system?.stable_object_key, copyLabel: "stable key" },
     { label: "Gaia ID", value: formatText(resolvedSystemGaiaId(system)), copyValue: resolvedSystemGaiaId(system), copyLabel: "Gaia ID" },
     { label: "HIP ID", value: formatText(system?.hip_id_text ?? system?.hip_id), copyValue: system?.hip_id_text ?? system?.hip_id, copyLabel: "HIP ID" },
@@ -2361,7 +2379,10 @@ function SearchPage({ buildId = "" }) {
 
           {results.length > 0 && (
             <div className="results-list">
-              {results.map((item, idx) => (
+              {results.map((item, idx) => {
+                const displayName = systemDisplayName(item);
+                const canonicalName = String(item?.system_name || "").trim();
+                return (
                 <article
                   key={item.system_id}
                   className="result-card"
@@ -2372,7 +2393,7 @@ function SearchPage({ buildId = "" }) {
                       <Link to={`/systems/${item.system_id}`} className="result-snapshot-link">
                         <SnapshotVisual
                           snapshot={item.snapshot}
-                          systemName={item.system_name}
+                          systemName={displayName}
                           compact
                           eager={idx < SEARCH_EAGER_SNAPSHOT_COUNT}
                         />
@@ -2383,9 +2404,15 @@ function SearchPage({ buildId = "" }) {
                         <div>
                           <h3>
                             <Link to={`/systems/${item.system_id}`} className="result-title-link">
-                              {formatText(item.system_name)}
+                              {formatText(displayName)}
                             </Link>
                           </h3>
+                          {canonicalName && canonicalName !== displayName ? (
+                            <div className="muted">Catalog: {formatText(canonicalName)}</div>
+                          ) : null}
+                          {Array.isArray(item?.display_aliases) && item.display_aliases.length > 0 ? (
+                            <div className="muted">Aliases: {item.display_aliases.slice(0, 4).join(" · ")}</div>
+                          ) : null}
                         </div>
                         <div className="distance" title="Coolness rank">
                           {(item.coolness_rank !== null && item.coolness_rank !== undefined)
@@ -2463,7 +2490,8 @@ function SearchPage({ buildId = "" }) {
                     );
                   })()}
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -2621,8 +2649,9 @@ function SystemDetailPage({ buildId = "" }) {
   }
 
   const { system, stars, planets } = data;
+  const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
-    exclude: [system?.system_name],
+    exclude: [currentSystemDisplayName, system?.system_name],
     limit: 10,
   });
 
@@ -2630,11 +2659,11 @@ function SystemDetailPage({ buildId = "" }) {
     <Layout showSearchLink={false} buildId={buildId}>
       <section className="detail">
         <div className="system-identifiers-row">
-          <span className="system-identifiers-name">{formatText(system.system_name)}</span>
+          <span className="system-identifiers-name">{formatText(currentSystemDisplayName)}</span>
           <div className="id-line id-line-inline">
-            <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
             <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
             <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
+            <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
           </div>
         </div>
         {systemAliasSummary ? (
@@ -2645,7 +2674,7 @@ function SystemDetailPage({ buildId = "" }) {
           <h3>System Snapshot</h3>
           <div className="snapshot-panel-layout">
             <SnapshotMetadata system={system} snapshot={system.snapshot} />
-            <SnapshotVisual snapshot={system.snapshot} systemName={system.system_name} eager />
+            <SnapshotVisual snapshot={system.snapshot} systemName={currentSystemDisplayName} eager />
           </div>
         </section>
 
@@ -2683,14 +2712,15 @@ function SystemDetailPage({ buildId = "" }) {
                 <div className="row" key={star.star_id}>
                   {(() => {
                     const record = starCatalogRecordLink(star);
+                    const currentStarDisplayName = starDisplayName(star);
                     const starAliasSummary = formatAliasSummary(star?.aliases, {
-                      exclude: [star?.star_name],
+                      exclude: [currentStarDisplayName, star?.star_name],
                       limit: 6,
                     });
                     return (
                       <>
                         <div>
-                          <strong className="star-name">{formatText(star.star_name)}</strong>
+                          <strong className="star-name">{formatText(currentStarDisplayName)}</strong>
                           {star.component ? (
                             <div className="muted">Component {formatText(star.component)}</div>
                           ) : null}
