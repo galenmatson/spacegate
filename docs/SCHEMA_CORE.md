@@ -228,6 +228,12 @@ Must include at minimum:
 - alias/search contract flags:
   - `aliases_enabled`
   - `athyg_alias_crosswalk_enabled`
+  - `athyg_supplement_merge_enabled`
+- identifier stewardship gates:
+  - `identifier_ambiguous_limit`
+  - `identifier_gaia_collision_max`
+  - `identifier_hip_collision_max`
+  - `identifier_hd_collision_max`
 
 ## `stars`
 
@@ -332,6 +338,57 @@ Contract notes:
 - duplicate aliases must be deduplicated per `(target_type, target_id, alias_norm)` by deterministic precedence.
 - search must resolve against normalized aliases first-class alongside canonical names.
 - Gaia-first builds may use constrained positional matching for named AT-HYG rows without Gaia IDs to recover legacy/common aliases (with tight angular and distance gates).
+
+## `object_identifiers`
+
+Canonical and non-canonical identifier edge table for deterministic ID resolution and stewardship checks.
+
+Required columns:
+
+- identity:
+  - `identifier_id`
+  - `target_type` (currently `star`)
+  - `target_id` (row id in target table)
+- identifier payload:
+  - `namespace` (`gaia_dr3`, `gaia_legacy`, `hip`, `hd`, `hr`, `gl`, `tyc`, `hyg`, `wds`, ...)
+  - `id_value_raw`
+  - `id_value_norm`
+  - `is_canonical`
+- resolution traceability:
+  - `resolution_method` (`canonical_column`, `catalog_json`, `gaia_remap_*`, ...)
+  - `resolution_confidence`
+  - `source_catalog`
+  - `source_version`
+  - `source_pk`
+  - `evidence_json`
+
+Contract notes:
+
+- canonical IDs in this table must reflect `stars` canonical columns.
+- non-canonical IDs (for example legacy Gaia remaps) must preserve the original incoming identifier and resolution evidence.
+- collisions are evaluated by namespace against distinct targets and enforced through QC gates.
+
+## `identifier_quarantine`
+
+Rows withheld from automatic merge due to ambiguous or conflicting identifier evidence.
+
+Required columns:
+
+- `quarantine_id`
+- `source_catalog`
+- `source_version`
+- `source_pk`
+- `gaia_id` (nullable)
+- `hip_id` (nullable)
+- `hd_id` (nullable)
+- `reason` (for example `gaia_id_multi_match`, `hip_hd_conflict`, `positional_ambiguous`)
+- `details_json`
+- `created_at`
+
+Contract notes:
+
+- quarantined rows are excluded from automatic upsert/insert passes.
+- quarantine volume is bounded by QC gate thresholds and must fail build promotion when exceeded.
 
 ## `planets`
 

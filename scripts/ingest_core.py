@@ -2,6 +2,7 @@
 import argparse
 import atexit
 import datetime as dt
+import hashlib
 import json
 import os
 import shutil
@@ -51,6 +52,13 @@ ALIAS_POS_MAX_DELTA_RA_DEG = 0.12
 ALIAS_POS_MAX_DELTA_DEC_DEG = 0.12
 ALIAS_POS_MAX_DELTA_DIST_LY = 1.0
 ALIAS_POS_MAX_ANG_SEP_ARCSEC = 45.0
+ATHYG_MERGE_SKY_BIN_FACTOR = 4.0  # 0.25 degree bins
+ATHYG_MERGE_POSITIONAL_CONFIDENCE_NAMED = 0.90
+ATHYG_MERGE_POSITIONAL_CONFIDENCE_NUMERIC = 0.88
+ATHYG_MERGE_AMBIGUOUS_DEFAULT_LIMIT = 10_000
+ATHYG_MERGE_GAIA_COLLISION_MAX = 0
+ATHYG_MERGE_HIP_COLLISION_MAX = 0
+ATHYG_MERGE_HD_COLLISION_MAX = 2_000
 
 
 def log(message: str) -> None:
@@ -304,6 +312,20 @@ def parse_optional_positive_float_env(name: str) -> float | None:
     return value
 
 
+def parse_nonnegative_int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    text = raw.strip()
+    try:
+        value = int(text)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (expected integer >= 0)") from exc
+    if value < 0:
+        raise SystemExit(f"Invalid {name} value: {raw!r} (must be >= 0)")
+    return value
+
+
 def parse_bool_env(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -473,6 +495,22 @@ def has_retrieval(manifest_entry: dict) -> bool:
     )
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_mtime_utc(path: Path) -> str | None:
+    try:
+        ts = path.stat().st_mtime
+    except OSError:
+        return None
+    return dt.datetime.fromtimestamp(ts, dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 def require_manifest_entry(manifest: dict, source_name: str, label: str) -> dict:
     entry = manifest.get(source_name)
     if not entry:
@@ -510,6 +548,23 @@ def main() -> int:
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
+    enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", True)
+    athyg_merge_ambiguous_limit = parse_nonnegative_int_env(
+        "SPACEGATE_ATHYG_MERGE_AMBIGUOUS_LIMIT",
+        ATHYG_MERGE_AMBIGUOUS_DEFAULT_LIMIT,
+    )
+    athyg_merge_gaia_collision_max = parse_nonnegative_int_env(
+        "SPACEGATE_ATHYG_MERGE_GAIA_COLLISION_MAX",
+        ATHYG_MERGE_GAIA_COLLISION_MAX,
+    )
+    athyg_merge_hip_collision_max = parse_nonnegative_int_env(
+        "SPACEGATE_ATHYG_MERGE_HIP_COLLISION_MAX",
+        ATHYG_MERGE_HIP_COLLISION_MAX,
+    )
+    athyg_merge_hd_collision_max = parse_nonnegative_int_env(
+        "SPACEGATE_ATHYG_MERGE_HD_COLLISION_MAX",
+        ATHYG_MERGE_HD_COLLISION_MAX,
+    )
     open_cluster_member_min_probability = parse_optional_nonnegative_float_env(
         "SPACEGATE_OPEN_CLUSTER_MEMBER_MIN_PROBABILITY"
     )
@@ -577,6 +632,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
     if enable_gaia_backbone and not cooked_gaia_backbone.exists():
         raise SystemExit(f"Missing cooked Gaia backbone: {cooked_gaia_backbone}")
+    if enable_gaia_backbone and enable_athyg_supplement_merge and not cooked_athyg.exists():
+        raise SystemExit(f"Missing cooked AT-HYG supplement source: {cooked_athyg}")
     if enable_aliases and enable_athyg_alias_crosswalk and not cooked_athyg.exists():
         raise SystemExit(
             f"Missing cooked AT-HYG alias crosswalk source: {cooked_athyg}"
@@ -634,7 +691,15 @@ def main() -> int:
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
+        f"athyg_supplement_merge={'1' if (enable_gaia_backbone and enable_athyg_supplement_merge) else '0'} "
         f"open_cluster_member_min_probability={open_cluster_member_min_probability}"
+    )
+    log(
+        "Identifier stewardship: "
+        f"ambiguous_limit={athyg_merge_ambiguous_limit} "
+        f"gaia_collision_max={athyg_merge_gaia_collision_max} "
+        f"hip_collision_max={athyg_merge_hip_collision_max} "
+        f"hd_collision_max={athyg_merge_hd_collision_max}"
     )
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
@@ -749,21 +814,30 @@ def main() -> int:
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
           ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
           ('athyg_alias_crosswalk_enabled', {sql_literal("1" if (enable_aliases and enable_athyg_alias_crosswalk) else "0")}),
+          ('athyg_supplement_merge_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_athyg_supplement_merge) else "0")}),
+          ('identifier_ambiguous_limit', {sql_literal(str(athyg_merge_ambiguous_limit))}),
+          ('identifier_gaia_collision_max', {sql_literal(str(athyg_merge_gaia_collision_max))}),
+          ('identifier_hip_collision_max', {sql_literal(str(athyg_merge_hip_collision_max))}),
+          ('identifier_hd_collision_max', {sql_literal(str(athyg_merge_hd_collision_max))}),
           ('open_cluster_member_min_probability', {sql_literal(str(open_cluster_member_min_probability))})
         """
     )
 
     log("Loading manifest entries")
-    athyg_p1 = (
-        require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
-        if not enable_gaia_backbone
-        else None
-    )
-    athyg_p2 = (
-        require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
-        if not enable_gaia_backbone
-        else None
-    )
+    if not enable_gaia_backbone:
+        athyg_p1 = require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
+        athyg_p2 = require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
+    elif enable_athyg_supplement_merge:
+        athyg_p1 = manifest.get("athyg_v33-1")
+        athyg_p2 = manifest.get("athyg_v33-2")
+        if not athyg_p1 or not athyg_p2:
+            log(
+                "AT-HYG supplement manifest entries missing (athyg_v33-1/2); "
+                "continuing with cooked data and null retrieval metadata."
+            )
+    else:
+        athyg_p1 = None
+        athyg_p2 = None
     gaia_backbone_manifest = (
         require_manifest_entry(manifest, "gaia_dr3_backbone", "Gaia DR3 backbone")
         if enable_gaia_backbone
@@ -849,6 +923,12 @@ def main() -> int:
         if not athyg_download_url:
             athyg_download_url = None
         athyg_has_retrieval = has_retrieval(athyg_p1) or has_retrieval(athyg_p2)
+    elif enable_gaia_backbone and enable_athyg_supplement_merge and cooked_athyg.exists():
+        athyg_download_url = ATHYG_ALIAS_URL
+        athyg_checksum = sha256_file(cooked_athyg)
+        athyg_retrieved = file_mtime_utc(cooked_athyg)
+        athyg_has_retrieval = True
+        log("AT-HYG retrieval metadata synthesized from local cooked artifact checksum")
 
     gaia_backbone_checksum = (
         gaia_backbone_manifest.get("sha256") if gaia_backbone_manifest else None
@@ -1105,7 +1185,11 @@ def main() -> int:
             """
         )
 
-    if enable_aliases and enable_athyg_alias_crosswalk:
+    athyg_crosswalk_source_needed = (
+        (enable_aliases and enable_athyg_alias_crosswalk)
+        or (enable_gaia_backbone and enable_athyg_supplement_merge)
+    )
+    if athyg_crosswalk_source_needed:
         athyg_alias_path = str(cooked_athyg).replace("'", "''")
         log("Loading AT-HYG alias crosswalk source")
         con.execute(
@@ -2364,6 +2448,20 @@ def main() -> int:
     alias_crosswalk_candidate_count = 0
     alias_crosswalk_matched_star_count = 0
     alias_name_override_count = 0
+    athyg_merge_existing_match_count = 0
+    athyg_merge_insert_count = 0
+    athyg_merge_quarantine_count = 0
+    athyg_merge_unresolved_count = 0
+    athyg_merge_direct_gaia_count = 0
+    athyg_merge_remap_count = 0
+    athyg_merge_direct_legacy_id_count = 0
+    athyg_merge_positional_count = 0
+    athyg_merge_positional_ambiguous_count = 0
+    object_identifier_count = 0
+    identifier_gaia_collision_count = 0
+    identifier_hip_collision_count = 0
+    identifier_hd_collision_count = 0
+    identifier_quarantine_count = 0
     if enable_aliases and enable_athyg_alias_crosswalk:
         log("Alias enrichment: preparing AT-HYG crosswalk candidates")
         con.execute(
@@ -2667,6 +2765,982 @@ def main() -> int:
             """
         )
 
+    if enable_gaia_backbone and enable_athyg_supplement_merge:
+        log("Identifier merge: building AT-HYG merge source")
+        con.execute(
+            f"""
+            create temp table athyg_merge_source as
+            with base as (
+              select
+                cast(nullif(src.id, '') as bigint) as source_pk,
+                cast(nullif(src.gaia, '') as bigint) as gaia_id,
+                cast(nullif(nullif(src.hip, ''), '0') as bigint) as hip_id,
+                cast(nullif(nullif(src.hd, ''), '0') as bigint) as hd_id,
+                cast(nullif(nullif(src.hr, ''), '0') as bigint) as hr_id,
+                nullif(src.gl, '') as gl_id,
+                nullif(src.tyc, '') as tyc_id,
+                cast(nullif(nullif(src.hyg, ''), '0') as bigint) as hyg_id,
+                nullif(src.proper, '') as proper_name,
+                nullif(src.bayer, '') as bayer,
+                nullif(src.flam, '') as flam,
+                nullif(src.con, '') as constellation,
+                case
+                  when cast(nullif(src.ra, '') as double) between 0.0 and 24.0
+                    then cast(nullif(src.ra, '') as double) * 15.0
+                  else cast(nullif(src.ra, '') as double)
+                end as ra_deg,
+                cast(nullif(src.dec, '') as double) as dec_deg,
+                cast(nullif(src.dist, '') as double) as dist_pc,
+                null::double as parallax_mas,
+                null::double as parallax_error_mas,
+                null::double as parallax_over_error,
+                null::double as ruwe,
+                cast(nullif(src.pm_ra, '') as double) as pm_ra_mas_yr,
+                cast(nullif(src.pm_dec, '') as double) as pm_dec_mas_yr,
+                cast(nullif(src.rv, '') as double) as radial_velocity_kms,
+                cast(nullif(src.ci, '') as double) as color_index,
+                cast(nullif(src.mag, '') as double) as vmag,
+                cast(nullif(src.absmag, '') as double) as absmag,
+                cast(nullif(src.x0, '') as double) as x_pc,
+                cast(nullif(src.y0, '') as double) as y_pc,
+                cast(nullif(src.z0, '') as double) as z_pc,
+                nullif(src.spect, '') as spectral_type_raw
+              from athyg_alias_raw src
+              where cast(nullif(src.id, '') as bigint) is not null
+            ), coords as (
+              select
+                *,
+                case
+                  when x_pc is not null and y_pc is not null and z_pc is not null
+                    then sqrt(x_pc * x_pc + y_pc * y_pc + z_pc * z_pc)
+                  else dist_pc
+                end as dist_pc_final
+              from base
+            ), normalized as (
+              select
+                *,
+                dist_pc_final * {PC_TO_LY} as dist_ly,
+                coalesce(
+                  x_pc * {PC_TO_LY},
+                  (dist_pc_final * cos(dec_deg * pi() / 180.0) * cos(ra_deg * pi() / 180.0)) * {PC_TO_LY}
+                ) as x_helio_ly,
+                coalesce(
+                  y_pc * {PC_TO_LY},
+                  (dist_pc_final * cos(dec_deg * pi() / 180.0) * sin(ra_deg * pi() / 180.0)) * {PC_TO_LY}
+                ) as y_helio_ly,
+                coalesce(
+                  z_pc * {PC_TO_LY},
+                  (dist_pc_final * sin(dec_deg * pi() / 180.0)) * {PC_TO_LY}
+                ) as z_helio_ly,
+                case
+                  when proper_name is not null then proper_name
+                  when bayer is not null and constellation is not null then bayer || ' ' || constellation
+                  when flam is not null and constellation is not null then flam || ' ' || constellation
+                  when hip_id is not null then 'HIP ' || hip_id::varchar
+                  when hd_id is not null then 'HD ' || hd_id::varchar
+                  when gaia_id is not null then 'Gaia ' || gaia_id::varchar
+                  else null
+                end as preferred_name,
+                case
+                  when proper_name is not null then regexp_extract(proper_name, ' ([A-Za-z]{1,2})$', 1)
+                  else null
+                end as component,
+                case
+                  when proper_name is not null then regexp_replace(proper_name, '\\s+[A-Za-z]{1,2}$', '')
+                  else null
+                end as system_name_root,
+                regexp_extract(spectral_type_raw, '([OBAFGKMLTYD])', 1) as spectral_class,
+                regexp_extract(spectral_type_raw, '[OBAFGKMLTYD]([0-9](?:\\.[0-9])?)', 1) as spectral_subtype,
+                regexp_extract(spectral_type_raw, '(I{1,3}|IV|V|VI|VII)', 1) as luminosity_class,
+                (
+                  proper_name is not null
+                  or (bayer is not null and constellation is not null)
+                  or (flam is not null and constellation is not null)
+                ) as has_human_name
+              from coords
+            )
+            select
+              *,
+              lower(trim(regexp_replace(regexp_replace(preferred_name, '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g'))) as preferred_name_norm,
+              lower(trim(regexp_replace(regexp_replace(system_name_root, '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g'))) as system_name_root_norm,
+              cast(floor(ra_deg * {ATHYG_MERGE_SKY_BIN_FACTOR}) as integer) as ra_bin,
+              cast(floor((dec_deg + 90.0) * {ATHYG_MERGE_SKY_BIN_FACTOR}) as integer) as dec_bin
+            from normalized
+            """
+        )
+        athyg_merge_source_count = con.execute("select count(*) from athyg_merge_source").fetchone()[0]
+        log(f"Identifier merge: source rows={format_count(athyg_merge_source_count)}")
+
+        con.execute(
+            """
+            create temp table star_gaia_stats as
+            select gaia_id, count(*)::bigint as star_count, min(star_id)::bigint as star_id
+            from stars
+            where gaia_id is not null
+            group by gaia_id
+            """
+        )
+        con.execute(
+            """
+            create temp table star_hip_stats as
+            select hip_id, count(*)::bigint as star_count, min(star_id)::bigint as star_id
+            from stars
+            where hip_id is not null
+            group by hip_id
+            """
+        )
+        con.execute(
+            """
+            create temp table star_hd_stats as
+            select hd_id, count(*)::bigint as star_count, min(star_id)::bigint as star_id
+            from stars
+            where hd_id is not null
+            group by hd_id
+            """
+        )
+        con.execute(
+            """
+            create temp table athyg_merge_id_base as
+            select
+              a.*,
+              coalesce(g.star_count, 0) as gaia_star_count,
+              g.star_id as gaia_star_id,
+              coalesce(h.star_count, 0) as hip_star_count,
+              h.star_id as hip_star_id,
+              coalesce(d.star_count, 0) as hd_star_count,
+              d.star_id as hd_star_id
+            from athyg_merge_source a
+            left join star_gaia_stats g on a.gaia_id = g.gaia_id
+            left join star_hip_stats h on a.hip_id = h.hip_id
+            left join star_hd_stats d on a.hd_id = d.hd_id
+            """
+        )
+        con.execute(
+            """
+            create temp table athyg_merge_id_quarantine as
+            select * from (
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                'gaia_id_multi_match' as reason,
+                json_object('gaia_star_count', gaia_star_count) as details_json
+              from athyg_merge_id_base
+              where gaia_id is not null and gaia_star_count > 1
+              union all
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                'hip_id_multi_match' as reason,
+                json_object('hip_star_count', hip_star_count) as details_json
+              from athyg_merge_id_base
+              where hip_id is not null and hip_star_count > 1
+              union all
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                'hd_id_multi_match' as reason,
+                json_object('hd_star_count', hd_star_count) as details_json
+              from athyg_merge_id_base
+              where hd_id is not null and hd_star_count > 1
+              union all
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                'hip_hd_conflict' as reason,
+                json_object('hip_star_id', hip_star_id, 'hd_star_id', hd_star_id) as details_json
+              from athyg_merge_id_base
+              where hip_star_count = 1 and hd_star_count = 1 and hip_star_id <> hd_star_id
+            ) q
+            """
+        )
+        con.execute(
+            """
+            create temp table athyg_merge_id_resolution as
+            select
+              b.source_pk,
+              case
+                when b.gaia_star_count = 1 then b.gaia_star_id
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hip_star_count = 1 and b.hd_star_count = 1 and b.hip_star_id = b.hd_star_id then b.hip_star_id
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hip_star_count = 1 and coalesce(b.hd_star_count, 0) = 0 then b.hip_star_id
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hd_star_count = 1 and coalesce(b.hip_star_count, 0) = 0 then b.hd_star_id
+                when b.gaia_id is null and b.hip_star_count = 1 and (coalesce(b.hd_star_count, 0) = 0 or b.hd_star_id = b.hip_star_id) then b.hip_star_id
+                when b.gaia_id is null and b.hd_star_count = 1 and coalesce(b.hip_star_count, 0) = 0 then b.hd_star_id
+                else null
+              end as matched_star_id,
+              case
+                when b.gaia_star_count = 1 then 'gaia_exact'
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hip_star_count = 1 and b.hd_star_count = 1 and b.hip_star_id = b.hd_star_id then 'gaia_remap_hip_hd'
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hip_star_count = 1 and coalesce(b.hd_star_count, 0) = 0 then 'gaia_remap_hip'
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hd_star_count = 1 and coalesce(b.hip_star_count, 0) = 0 then 'gaia_remap_hd'
+                when b.gaia_id is null and b.hip_star_count = 1 and (coalesce(b.hd_star_count, 0) = 0 or b.hd_star_id = b.hip_star_id) then 'hip_exact'
+                when b.gaia_id is null and b.hd_star_count = 1 and coalesce(b.hip_star_count, 0) = 0 then 'hd_exact'
+                else null
+              end as resolution_method,
+              case
+                when b.gaia_star_count = 1 then 1.0
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hip_star_count = 1 and b.hd_star_count = 1 and b.hip_star_id = b.hd_star_id then 0.995
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hip_star_count = 1 and coalesce(b.hd_star_count, 0) = 0 then 0.99
+                when b.gaia_id is not null and b.gaia_star_count = 0 and b.hd_star_count = 1 and coalesce(b.hip_star_count, 0) = 0 then 0.99
+                when b.gaia_id is null and b.hip_star_count = 1 and (coalesce(b.hd_star_count, 0) = 0 or b.hd_star_id = b.hip_star_id) then 0.985
+                when b.gaia_id is null and b.hd_star_count = 1 and coalesce(b.hip_star_count, 0) = 0 then 0.98
+                else null
+              end as resolution_confidence
+            from athyg_merge_id_base b
+            where not exists (
+              select 1
+              from athyg_merge_id_quarantine q
+              where q.source_pk = b.source_pk
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create temp table athyg_merge_positional_unresolved as
+            select *
+            from athyg_merge_id_base b
+            where not exists (select 1 from athyg_merge_id_resolution r where r.source_pk = b.source_pk and r.matched_star_id is not null)
+              and not exists (select 1 from athyg_merge_id_quarantine q where q.source_pk = b.source_pk)
+              and b.dist_ly is not null
+              and b.dist_ly <= {MORTON_MAX_ABS_LY}
+              and b.ra_deg is not null
+              and b.dec_deg is not null
+              and (b.has_human_name or b.hip_id is not null or b.hd_id is not null)
+            """
+        )
+        con.execute(
+            f"""
+            create temp table stars_merge_binned as
+            select
+              star_id,
+              ra_deg,
+              dec_deg,
+              dist_ly,
+              cast(floor(ra_deg * {ATHYG_MERGE_SKY_BIN_FACTOR}) as integer) as ra_bin,
+              cast(floor((dec_deg + 90.0) * {ATHYG_MERGE_SKY_BIN_FACTOR}) as integer) as dec_bin
+            from stars
+            where ra_deg is not null
+              and dec_deg is not null
+              and dist_ly is not null
+              and dist_ly <= {MORTON_MAX_ABS_LY}
+            """
+        )
+        con.execute(
+            f"""
+            create temp table athyg_merge_positional_ranked as
+            with expanded as (
+              select distinct
+                u.source_pk,
+                u.ra_deg,
+                u.dec_deg,
+                u.dist_ly,
+                u.has_human_name,
+                ((u.ra_bin + ro.delta + {int(360 * ATHYG_MERGE_SKY_BIN_FACTOR)}) % {int(360 * ATHYG_MERGE_SKY_BIN_FACTOR)}) as ra_bin_n,
+                least(greatest(u.dec_bin + doff.delta, 0), {int(180 * ATHYG_MERGE_SKY_BIN_FACTOR) - 1}) as dec_bin_n
+              from athyg_merge_positional_unresolved u
+              cross join (values (-1), (0), (1)) as ro(delta)
+              cross join (values (-1), (0), (1)) as doff(delta)
+            ), candidates as (
+              select
+                e.source_pk,
+                s.star_id,
+                e.has_human_name,
+                abs(s.dist_ly - e.dist_ly) as dist_delta_ly,
+                degrees(acos(
+                  least(
+                    1.0,
+                    greatest(
+                      -1.0,
+                      sin(radians(s.dec_deg)) * sin(radians(e.dec_deg)) +
+                      cos(radians(s.dec_deg)) * cos(radians(e.dec_deg)) *
+                        cos(radians(least(abs(s.ra_deg - e.ra_deg), 360.0 - abs(s.ra_deg - e.ra_deg))))
+                    )
+                  )
+                )) * 3600.0 as ang_sep_arcsec
+              from expanded e
+              join stars_merge_binned s
+                on s.ra_bin = e.ra_bin_n
+               and s.dec_bin = e.dec_bin_n
+              where least(abs(s.ra_deg - e.ra_deg), 360.0 - abs(s.ra_deg - e.ra_deg)) <= {ALIAS_POS_MAX_DELTA_RA_DEG}
+                and abs(s.dec_deg - e.dec_deg) <= {ALIAS_POS_MAX_DELTA_DEC_DEG}
+                and abs(s.dist_ly - e.dist_ly) <= {ALIAS_POS_MAX_DELTA_DIST_LY}
+            )
+            select
+              *,
+              row_number() over (partition by source_pk order by dist_delta_ly asc, ang_sep_arcsec asc, star_id asc) as rn,
+              count(*) over (partition by source_pk) as candidate_count
+            from candidates
+            where ang_sep_arcsec <= {ALIAS_POS_MAX_ANG_SEP_ARCSEC}
+            """
+        )
+        con.execute(
+            """
+            create temp table athyg_merge_positional_quarantine as
+            select
+              p.source_pk,
+              b.gaia_id,
+              b.hip_id,
+              b.hd_id,
+              'positional_ambiguous' as reason,
+              json_object(
+                'candidate_count', p.candidate_count,
+                'best_dist_delta_ly', p.dist_delta_ly,
+                'best_ang_sep_arcsec', p.ang_sep_arcsec
+              ) as details_json
+            from athyg_merge_positional_ranked p
+            join athyg_merge_id_base b using (source_pk)
+            where p.rn = 1 and p.candidate_count > 1
+            """
+        )
+        con.execute(
+            f"""
+            create temp table athyg_merge_positional_resolution as
+            select
+              p.source_pk,
+              p.star_id as matched_star_id,
+              case when p.has_human_name then 'positional_named' else 'positional_numeric' end as resolution_method,
+              case
+                when p.has_human_name then {ATHYG_MERGE_POSITIONAL_CONFIDENCE_NAMED}
+                else {ATHYG_MERGE_POSITIONAL_CONFIDENCE_NUMERIC}
+              end as resolution_confidence
+            from athyg_merge_positional_ranked p
+            where p.rn = 1 and p.candidate_count = 1
+            """
+        )
+        con.execute(
+            """
+            create temp table athyg_merge_resolution as
+            select source_pk, matched_star_id, resolution_method, resolution_confidence
+            from athyg_merge_id_resolution
+            where matched_star_id is not null
+            union all
+            select source_pk, matched_star_id, resolution_method, resolution_confidence
+            from athyg_merge_positional_resolution
+            """
+        )
+        con.execute(
+            """
+            create temp table athyg_merge_quarantine as
+            select * from athyg_merge_id_quarantine
+            union all
+            select * from athyg_merge_positional_quarantine
+            """
+        )
+
+        con.execute(
+            """
+            update stars
+            set
+              hip_id = coalesce(stars.hip_id, a.hip_id),
+              hd_id = coalesce(stars.hd_id, a.hd_id),
+              star_name = case
+                when (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
+                  and a.preferred_name is not null
+                then a.preferred_name
+                else stars.star_name
+              end,
+              star_name_norm = case
+                when (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
+                  and a.preferred_name is not null
+                then a.preferred_name_norm
+                else stars.star_name_norm
+              end,
+              catalog_ids_json = json_object(
+                'gaia', coalesce(stars.gaia_id, a.gaia_id),
+                'hip', coalesce(stars.hip_id, a.hip_id),
+                'hd', coalesce(stars.hd_id, a.hd_id),
+                'hr', coalesce(a.hr_id, cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint)),
+                'gl', coalesce(a.gl_id, json_extract_string(stars.catalog_ids_json, '$.gl')),
+                'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
+                'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
+                'wds', coalesce(stars.wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
+                'wds_component', coalesce(stars.component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
+              )
+            from athyg_merge_resolution r
+            join athyg_merge_source a on a.source_pk = r.source_pk
+            where stars.star_id = r.matched_star_id
+            """
+        )
+        merge_slice_conditions: list[str] = []
+        if slice_max_distance_ly is not None:
+            max_dist = min(slice_max_distance_ly, MORTON_MAX_ABS_LY)
+            merge_slice_conditions.append(f"(b.dist_ly is not null and b.dist_ly <= {max_dist})")
+        if slice_min_parallax_over_error is not None:
+            merge_slice_conditions.append(
+                f"(b.parallax_over_error is not null and b.parallax_over_error >= {slice_min_parallax_over_error})"
+            )
+        if slice_max_parallax_error_mas is not None:
+            merge_slice_conditions.append(
+                f"(b.parallax_error_mas is not null and b.parallax_error_mas <= {slice_max_parallax_error_mas})"
+            )
+        if slice_max_ruwe is not None:
+            merge_slice_conditions.append(f"(b.ruwe is not null and b.ruwe <= {slice_max_ruwe})")
+        if slice_require_spectral:
+            merge_slice_conditions.append("(b.spectral_class is not null and b.spectral_class <> '')")
+        if slice_require_color:
+            merge_slice_conditions.append("(b.color_index is not null)")
+        if slice_allowed_spectral:
+            allowed_list_sql = ", ".join(sql_literal(token) for token in slice_allowed_spectral)
+            merge_slice_conditions.append(
+                f"(coalesce(upper(b.spectral_class), 'UNKNOWN') in ({allowed_list_sql}))"
+            )
+        merge_slice_where_sql = (
+            " and ".join(merge_slice_conditions) if merge_slice_conditions else "true"
+        )
+
+        con.execute(
+            f"""
+            create temp table athyg_merge_unmatched as
+            with base as (
+              select b.*
+              from athyg_merge_id_base b
+              where not exists (select 1 from athyg_merge_resolution r where r.source_pk = b.source_pk)
+                and not exists (select 1 from athyg_merge_quarantine q where q.source_pk = b.source_pk)
+                and b.dist_ly is not null
+                and b.dist_ly <= {MORTON_MAX_ABS_LY}
+                and b.ra_deg is not null
+                and b.dec_deg is not null
+                and b.x_helio_ly is not null
+                and b.y_helio_ly is not null
+                and b.z_helio_ly is not null
+                and ({merge_slice_where_sql})
+            ), deduped as (
+              select
+                *,
+                row_number() over (
+                  partition by gaia_id
+                  order by
+                    case when has_human_name then 0 else 1 end,
+                    case when hip_id is not null then 0 else 1 end,
+                    case when hd_id is not null then 0 else 1 end,
+                    source_pk asc
+                ) as rn_gaia,
+                row_number() over (
+                  partition by hip_id
+                  order by
+                    case when gaia_id is not null then 0 else 1 end,
+                    case when has_human_name then 0 else 1 end,
+                    source_pk asc
+                ) as rn_hip,
+                row_number() over (
+                  partition by hd_id
+                  order by
+                    case when gaia_id is not null then 0 else 1 end,
+                    case when has_human_name then 0 else 1 end,
+                    source_pk asc
+                ) as rn_hd
+              from base
+            )
+            select *
+            from deduped
+            where (gaia_id is null or rn_gaia = 1)
+              and (hip_id is null or rn_hip = 1)
+              and (hd_id is null or rn_hd = 1)
+            """
+        )
+        con.execute(
+            f"""
+            insert into stars (
+              star_id, spatial_index, system_id, stable_object_key, star_name, star_name_norm, component,
+              system_name_root, system_name_root_norm, ra_deg, dec_deg, dist_ly, parallax_mas, parallax_error_mas,
+              parallax_over_error, ruwe, x_helio_ly, y_helio_ly, z_helio_ly, x_gal_ly, y_gal_ly, z_gal_ly,
+              pm_ra_mas_yr, pm_dec_mas_yr, radial_velocity_kms, spectral_type_raw, spectral_class, spectral_subtype,
+              luminosity_class, spectral_peculiar, vmag, absmag, color_index, gaia_id, hip_id, hd_id, wds_id,
+              multiplicity_match_method, multiplicity_match_confidence, multiplicity_source_catalogs_json,
+              gaia_non_single_star, gaia_nss_solution_count, gaia_nss_solution_types_json, gaia_nss_significance_max,
+              catalog_ids_json, source_catalog, source_version, source_url, source_download_url, source_doi,
+              source_pk, source_row_id, source_row_hash, license, redistribution_ok, license_note, retrieval_etag,
+              retrieval_checksum, retrieved_at, ingested_at, transform_version
+            )
+            with seq as (
+              select coalesce(max(star_id), 0)::bigint as max_star_id from stars
+            ), ordered as (
+              select
+                *,
+                row_number() over (order by source_pk) as rn
+              from athyg_merge_unmatched
+            )
+            select
+              seq.max_star_id + ordered.rn::bigint as star_id,
+              cast(morton3d(ordered.x_helio_ly, ordered.y_helio_ly, ordered.z_helio_ly) as bigint) as spatial_index,
+              null::bigint as system_id,
+              'star:athyg:' || ordered.source_pk::varchar as stable_object_key,
+              ordered.preferred_name as star_name,
+              ordered.preferred_name_norm as star_name_norm,
+              ordered.component,
+              ordered.system_name_root,
+              ordered.system_name_root_norm,
+              ordered.ra_deg,
+              ordered.dec_deg,
+              ordered.dist_ly,
+              ordered.parallax_mas,
+              ordered.parallax_error_mas,
+              ordered.parallax_over_error,
+              ordered.ruwe,
+              ordered.x_helio_ly,
+              ordered.y_helio_ly,
+              ordered.z_helio_ly,
+              null::double as x_gal_ly,
+              null::double as y_gal_ly,
+              null::double as z_gal_ly,
+              ordered.pm_ra_mas_yr,
+              ordered.pm_dec_mas_yr,
+              ordered.radial_velocity_kms,
+              ordered.spectral_type_raw,
+              ordered.spectral_class,
+              ordered.spectral_subtype,
+              ordered.luminosity_class,
+              null::varchar as spectral_peculiar,
+              ordered.vmag,
+              ordered.absmag,
+              ordered.color_index,
+              ordered.gaia_id,
+              ordered.hip_id,
+              ordered.hd_id,
+              null::varchar as wds_id,
+              'athyg_supplement_insert' as multiplicity_match_method,
+              0.75 as multiplicity_match_confidence,
+              '[]' as multiplicity_source_catalogs_json,
+              false as gaia_non_single_star,
+              0::bigint as gaia_nss_solution_count,
+              '[]' as gaia_nss_solution_types_json,
+              null::double as gaia_nss_significance_max,
+              json_object(
+                'gaia', ordered.gaia_id,
+                'hip', ordered.hip_id,
+                'hd', ordered.hd_id,
+                'hr', ordered.hr_id,
+                'gl', ordered.gl_id,
+                'tyc', ordered.tyc_id,
+                'hyg', ordered.hyg_id,
+                'wds', null,
+                'wds_component', null
+              ) as catalog_ids_json,
+              'athyg' as source_catalog,
+              {sql_literal(ATHYG_ALIAS_VERSION)} as source_version,
+              {sql_literal(ATHYG_ALIAS_URL)} as source_url,
+              {sql_literal(athyg_download_url)} as source_download_url,
+              null::varchar as source_doi,
+              ordered.source_pk as source_pk,
+              ordered.source_pk as source_row_id,
+              null::varchar as source_row_hash,
+              'CC BY-SA 4.0' as license,
+              true as redistribution_ok,
+              {sql_literal(ATHYG_ALIAS_URL)} as license_note,
+              null::varchar as retrieval_etag,
+              {sql_literal(athyg_checksum)} as retrieval_checksum,
+              {sql_literal(athyg_retrieved)} as retrieved_at,
+              {sql_literal(ingested_at)} as ingested_at,
+              {sql_literal(transform_version)} as transform_version
+            from ordered
+            cross join seq
+            """
+        )
+
+        con.execute(
+            """
+            update stars
+            set
+              object_family = case
+                when upper(coalesce(spectral_type_raw, '')) like 'D%' then 'white_dwarf'
+                when spectral_class in ('L', 'T', 'Y') then 'brown_dwarf'
+                else coalesce(object_family, 'star')
+              end,
+              object_type = case
+                when upper(coalesce(spectral_type_raw, '')) like 'D%' then 'white_dwarf'
+                when spectral_class in ('L', 'T', 'Y') then 'brown_dwarf'
+                else coalesce(object_type, 'star')
+              end,
+              classification_evidence_json = coalesce(
+                classification_evidence_json,
+                json_object(
+                  'method', 'athyg_supplement_spectral_fallback',
+                  'spectral_type_raw', spectral_type_raw,
+                  'spectral_class', spectral_class
+                )
+              )
+            where source_catalog = 'athyg'
+              and source_version = ? and ingested_at = ? and transform_version = ?
+            """,
+            [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+        )
+        if enable_gaia_backbone and enable_gaia_classprob:
+            con.execute(
+                """
+                update stars
+                set
+                  classprob_dsc_combmod_whitedwarf = g.classprob_dsc_combmod_whitedwarf,
+                  classprob_dsc_specmod_whitedwarf = g.classprob_dsc_specmod_whitedwarf
+                from gaia_classprob g
+                where stars.source_catalog = 'athyg'
+                  and stars.source_version = ? and stars.ingested_at = ? and stars.transform_version = ?
+                  and stars.gaia_id = g.gaia_id
+                """,
+                [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+            )
+            con.execute(
+                f"""
+                update stars
+                set
+                  object_family = 'white_dwarf',
+                  object_type = 'white_dwarf',
+                  classification_evidence_json = json_object(
+                    'method', 'gaia_classprob',
+                    'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
+                    'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
+                    'threshold', {WHITE_DWARF_PROB_THRESHOLD}
+                  )
+                where source_catalog = 'athyg'
+                  and source_version = ? and ingested_at = ? and transform_version = ?
+                  and greatest(
+                    coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+                    coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+                  ) >= {WHITE_DWARF_PROB_THRESHOLD}
+                """,
+                [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+            )
+
+        con.execute(
+            f"""
+            create table identifier_quarantine as
+            select
+              row_number() over (order by source_pk, reason)::bigint as quarantine_id,
+              'athyg' as source_catalog,
+              {sql_literal(ATHYG_ALIAS_VERSION)} as source_version,
+              source_pk,
+              gaia_id,
+              hip_id,
+              hd_id,
+              reason,
+              details_json,
+              {sql_literal(ingested_at)} as created_at
+            from athyg_merge_quarantine
+            """
+        )
+        con.execute(
+            f"""
+            create table object_identifiers as
+            with canonical_seed as (
+              select
+                'star' as target_type,
+                s.star_id as target_id,
+                'gaia_dr3' as namespace,
+                s.gaia_id::varchar as id_value_raw,
+                true as is_canonical,
+                'canonical_column' as resolution_method,
+                1.0 as resolution_confidence,
+                s.source_catalog as source_catalog,
+                s.source_version as source_version,
+                s.source_pk as source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk) as evidence_json
+              from stars s
+              where s.gaia_id is not null
+              union all
+              select 'star', s.star_id, 'hip', s.hip_id::varchar, true, 'canonical_column', 1.0, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where s.hip_id is not null
+              union all
+              select 'star', s.star_id, 'hd', s.hd_id::varchar, true, 'canonical_column', 1.0, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where s.hd_id is not null
+              union all
+              select 'star', s.star_id, 'hr', cast(json_extract_string(s.catalog_ids_json, '$.hr') as varchar), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.hr') is not null
+              union all
+              select 'star', s.star_id, 'gl', json_extract_string(s.catalog_ids_json, '$.gl'), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.gl') is not null
+              union all
+              select 'star', s.star_id, 'tyc', json_extract_string(s.catalog_ids_json, '$.tyc'), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.tyc') is not null
+              union all
+              select 'star', s.star_id, 'hyg', cast(json_extract_string(s.catalog_ids_json, '$.hyg') as varchar), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.hyg') is not null
+              union all
+              select 'star', s.star_id, 'wds', s.wds_id, false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where s.wds_id is not null
+            ), remap_seed as (
+              select
+                'star' as target_type,
+                r.matched_star_id as target_id,
+                'gaia_legacy' as namespace,
+                a.gaia_id::varchar as id_value_raw,
+                false as is_canonical,
+                r.resolution_method as resolution_method,
+                r.resolution_confidence as resolution_confidence,
+                'athyg' as source_catalog,
+                {sql_literal(ATHYG_ALIAS_VERSION)} as source_version,
+                a.source_pk as source_pk,
+                json_object(
+                  'athyg_source_pk', a.source_pk,
+                  'resolution_method', r.resolution_method,
+                  'resolution_confidence', r.resolution_confidence
+                ) as evidence_json
+              from athyg_merge_resolution r
+              join athyg_merge_source a on a.source_pk = r.source_pk
+              join stars s on s.star_id = r.matched_star_id
+              where r.resolution_method like 'gaia_remap_%'
+                and a.gaia_id is not null
+                and (s.gaia_id is null or s.gaia_id <> a.gaia_id)
+            ), combined as (
+              select * from canonical_seed
+              union all
+              select * from remap_seed
+            ), normalized as (
+              select
+                *,
+                lower(trim(regexp_replace(regexp_replace(id_value_raw, '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g'))) as id_value_norm
+              from combined
+              where id_value_raw is not null and trim(id_value_raw) <> ''
+            ), ranked as (
+              select
+                *,
+                row_number() over (
+                  partition by target_type, target_id, namespace, id_value_norm
+                  order by is_canonical desc, resolution_confidence desc, source_pk asc
+                ) as rn
+              from normalized
+            )
+            select
+              row_number() over (order by target_type, target_id, namespace, id_value_norm)::bigint as identifier_id,
+              target_type,
+              target_id,
+              namespace,
+              id_value_raw,
+              id_value_norm,
+              is_canonical,
+              resolution_method,
+              resolution_confidence,
+              source_catalog,
+              source_version,
+              source_pk,
+              evidence_json
+            from ranked
+            where rn = 1
+            """
+        )
+
+        athyg_merge_existing_match_count = con.execute(
+            "select count(*) from athyg_merge_resolution"
+        ).fetchone()[0]
+        athyg_merge_insert_count = con.execute(
+            "select count(*) from athyg_merge_unmatched"
+        ).fetchone()[0]
+        athyg_merge_quarantine_count = con.execute(
+            "select count(*) from athyg_merge_quarantine"
+        ).fetchone()[0]
+        athyg_merge_unresolved_count = athyg_merge_insert_count
+        athyg_merge_direct_gaia_count = con.execute(
+            "select count(*) from athyg_merge_resolution where resolution_method = 'gaia_exact'"
+        ).fetchone()[0]
+        athyg_merge_remap_count = con.execute(
+            "select count(*) from athyg_merge_resolution where resolution_method like 'gaia_remap_%'"
+        ).fetchone()[0]
+        athyg_merge_direct_legacy_id_count = con.execute(
+            "select count(*) from athyg_merge_resolution where resolution_method in ('hip_exact', 'hd_exact')"
+        ).fetchone()[0]
+        athyg_merge_positional_count = con.execute(
+            "select count(*) from athyg_merge_resolution where resolution_method like 'positional_%'"
+        ).fetchone()[0]
+        athyg_merge_positional_ambiguous_count = con.execute(
+            "select count(*) from athyg_merge_positional_quarantine"
+        ).fetchone()[0]
+        object_identifier_count = con.execute("select count(*) from object_identifiers").fetchone()[0]
+        identifier_quarantine_count = con.execute("select count(*) from identifier_quarantine").fetchone()[0]
+        identifier_gaia_collision_count = con.execute(
+            """
+            select count(*)
+            from (
+              select id_value_norm
+              from object_identifiers
+              where namespace = 'gaia_dr3'
+              group by id_value_norm
+              having count(distinct target_id) > 1
+            ) t
+            """
+        ).fetchone()[0]
+        identifier_hip_collision_count = con.execute(
+            """
+            select count(*)
+            from (
+              select id_value_norm
+              from object_identifiers
+              where namespace = 'hip'
+              group by id_value_norm
+              having count(distinct target_id) > 1
+            ) t
+            """
+        ).fetchone()[0]
+        identifier_hd_collision_count = con.execute(
+            """
+            select count(*)
+            from (
+              select id_value_norm
+              from object_identifiers
+              where namespace = 'hd'
+              group by id_value_norm
+              having count(distinct target_id) > 1
+            ) t
+            """
+        ).fetchone()[0]
+        log(
+            "Identifier merge: "
+            f"resolved={format_count(athyg_merge_existing_match_count)} "
+            f"inserted={format_count(athyg_merge_insert_count)} "
+            f"quarantined={format_count(athyg_merge_quarantine_count)} "
+            f"identifiers={format_count(object_identifier_count)}"
+        )
+    else:
+        con.execute(
+            """
+            create table identifier_quarantine as
+            select *
+            from (
+              values
+                (
+                  cast(null as bigint), cast(null as varchar), cast(null as varchar), cast(null as bigint),
+                  cast(null as bigint), cast(null as bigint), cast(null as bigint), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              quarantine_id, source_catalog, source_version, source_pk, gaia_id, hip_id, hd_id, reason, details_json, created_at
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create table object_identifiers as
+            with canonical_seed as (
+              select
+                'star' as target_type,
+                s.star_id as target_id,
+                'gaia_dr3' as namespace,
+                s.gaia_id::varchar as id_value_raw,
+                true as is_canonical,
+                'canonical_column' as resolution_method,
+                1.0 as resolution_confidence,
+                s.source_catalog as source_catalog,
+                s.source_version as source_version,
+                s.source_pk as source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk) as evidence_json
+              from stars s
+              where s.gaia_id is not null
+              union all
+              select 'star', s.star_id, 'hip', s.hip_id::varchar, true, 'canonical_column', 1.0, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where s.hip_id is not null
+              union all
+              select 'star', s.star_id, 'hd', s.hd_id::varchar, true, 'canonical_column', 1.0, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where s.hd_id is not null
+            ), normalized as (
+              select
+                *,
+                lower(trim(regexp_replace(regexp_replace(id_value_raw, '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g'))) as id_value_norm
+              from canonical_seed
+              where id_value_raw is not null and trim(id_value_raw) <> ''
+            ), ranked as (
+              select
+                *,
+                row_number() over (
+                  partition by target_type, target_id, namespace, id_value_norm
+                  order by is_canonical desc, resolution_confidence desc, source_pk asc
+                ) as rn
+              from normalized
+            )
+            select
+              row_number() over (order by target_type, target_id, namespace, id_value_norm)::bigint as identifier_id,
+              target_type,
+              target_id,
+              namespace,
+              id_value_raw,
+              id_value_norm,
+              is_canonical,
+              resolution_method,
+              resolution_confidence,
+              source_catalog,
+              source_version,
+              source_pk,
+              evidence_json
+            from ranked
+            where rn = 1
+            """
+        )
+        object_identifier_count = con.execute("select count(*) from object_identifiers").fetchone()[0]
+        identifier_quarantine_count = con.execute("select count(*) from identifier_quarantine").fetchone()[0]
+        identifier_gaia_collision_count = con.execute(
+            """
+            select count(*)
+            from (
+              select id_value_norm
+              from object_identifiers
+              where namespace = 'gaia_dr3'
+              group by id_value_norm
+              having count(distinct target_id) > 1
+            ) t
+            """
+        ).fetchone()[0]
+        identifier_hip_collision_count = con.execute(
+            """
+            select count(*)
+            from (
+              select id_value_norm
+              from object_identifiers
+              where namespace = 'hip'
+              group by id_value_norm
+              having count(distinct target_id) > 1
+            ) t
+            """
+        ).fetchone()[0]
+        identifier_hd_collision_count = con.execute(
+            """
+            select count(*)
+            from (
+              select id_value_norm
+              from object_identifiers
+              where namespace = 'hd'
+              group by id_value_norm
+              having count(distinct target_id) > 1
+            ) t
+            """
+        ).fetchone()[0]
+
+    slice_output_post_merge_star_count = con.execute("select count(*) from stars").fetchone()[0]
+    if slice_output_post_merge_star_count != slice_output_star_count:
+        slice_policy_report["counts"]["retained_star_rows_post_merge"] = int(
+            slice_output_post_merge_star_count
+        )
+        slice_policy_report["counts"]["athyg_supplement_inserted_rows"] = int(
+            max(slice_output_post_merge_star_count - slice_output_star_count, 0)
+        )
+    else:
+        slice_policy_report["counts"]["retained_star_rows_post_merge"] = int(
+            slice_output_post_merge_star_count
+        )
+        slice_policy_report["counts"]["athyg_supplement_inserted_rows"] = 0
+    write_json(reports_dir / "slice_policy_report.json", slice_policy_report)
+
     alias_total_count = 0
     alias_system_count = 0
     alias_star_count = 0
@@ -2679,7 +3753,10 @@ def main() -> int:
         extra=(
             f"alias_crosswalk_candidates={format_count(alias_crosswalk_candidate_count)}, "
             f"alias_crosswalk_matched_stars={format_count(alias_crosswalk_matched_star_count)}, "
-            f"alias_name_overrides={format_count(alias_name_override_count)}"
+            f"alias_name_overrides={format_count(alias_name_override_count)}, "
+            f"athyg_merge_resolved={format_count(athyg_merge_existing_match_count)}, "
+            f"athyg_merge_inserted={format_count(athyg_merge_insert_count)}, "
+            f"athyg_merge_quarantined={format_count(athyg_merge_quarantine_count)}"
         ),
     )
 
@@ -4483,18 +5560,19 @@ def main() -> int:
         report["failures"] = failures
         return report
 
+    athyg_manifest_block = {
+        "source_catalog": "athyg",
+        "source_url": "https://codeberg.org/astronexus/athyg",
+        "part1": athyg_p1,
+        "part2": athyg_p2,
+    }
     base_source_manifest_block = (
         {
             "source_catalog": "gaia_dr3",
             "manifest": gaia_backbone_manifest,
         }
         if enable_gaia_backbone
-        else {
-            "source_catalog": "athyg",
-            "source_url": "https://codeberg.org/astronexus/athyg",
-            "part1": athyg_p1,
-            "part2": athyg_p2,
-        }
+        else athyg_manifest_block
     )
 
     provenance_report = {
@@ -4511,8 +5589,8 @@ def main() -> int:
             "superstellar_objects": table_provenance_report("superstellar_objects", True),
         },
     }
-    if not enable_gaia_backbone:
-        provenance_report["athyg"] = base_source_manifest_block
+    if (not enable_gaia_backbone) or (enable_gaia_backbone and enable_athyg_supplement_merge):
+        provenance_report["athyg"] = athyg_manifest_block
     if enable_gaia_backbone:
         provenance_report["gaia_dr3_backbone"] = gaia_backbone_manifest
     if msc_manifest:
@@ -4560,7 +5638,9 @@ def main() -> int:
           (select count(*) from compact_objects) as compact_objects,
           (select count(*) from open_clusters) as open_clusters,
           (select count(*) from open_cluster_memberships) as open_cluster_memberships,
-          (select count(*) from superstellar_objects) as superstellar_objects
+          (select count(*) from superstellar_objects) as superstellar_objects,
+          (select count(*) from object_identifiers) as object_identifiers,
+          (select count(*) from identifier_quarantine) as identifier_quarantine
         """
     ).fetchone()
 
@@ -4663,6 +5743,35 @@ def main() -> int:
         ],
     }
     write_json(reports_dir / "alias_report.json", alias_report)
+    identifier_report = {
+        "build_id": build_id,
+        "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "athyg_merge": {
+            "resolved_existing_rows": athyg_merge_existing_match_count,
+            "inserted_new_rows": athyg_merge_insert_count,
+            "quarantined_rows": athyg_merge_quarantine_count,
+            "unresolved_rows": athyg_merge_unresolved_count,
+            "direct_gaia_count": athyg_merge_direct_gaia_count,
+            "gaia_remap_count": athyg_merge_remap_count,
+            "direct_legacy_id_count": athyg_merge_direct_legacy_id_count,
+            "positional_match_count": athyg_merge_positional_count,
+            "positional_ambiguous_count": athyg_merge_positional_ambiguous_count,
+        },
+        "identifier_edges": {
+            "object_identifier_count": object_identifier_count,
+            "identifier_quarantine_count": identifier_quarantine_count,
+            "gaia_collision_count": identifier_gaia_collision_count,
+            "hip_collision_count": identifier_hip_collision_count,
+            "hd_collision_count": identifier_hd_collision_count,
+        },
+        "gates": {
+            "ambiguous_limit": athyg_merge_ambiguous_limit,
+            "gaia_collision_max": athyg_merge_gaia_collision_max,
+            "hip_collision_max": athyg_merge_hip_collision_max,
+            "hd_collision_max": athyg_merge_hd_collision_max,
+        },
+    }
+    write_json(reports_dir / "identifier_report.json", identifier_report)
 
     qc_report = {
         "build_id": build_id,
@@ -4674,6 +5783,8 @@ def main() -> int:
             "open_clusters": counts[4],
             "open_cluster_memberships": counts[5],
             "superstellar_objects": counts[6],
+            "object_identifiers": counts[7],
+            "identifier_quarantine": counts[8],
             "aliases": alias_total_count,
             "system_aliases": alias_system_count,
             "star_aliases": alias_star_count,
@@ -4710,6 +5821,25 @@ def main() -> int:
         "athyg_alias_candidate_count": alias_crosswalk_candidate_count,
         "athyg_alias_matched_star_count": alias_crosswalk_matched_star_count,
         "alias_name_override_count": alias_name_override_count,
+        "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "athyg_merge_resolved_existing_rows": athyg_merge_existing_match_count,
+        "athyg_merge_inserted_rows": athyg_merge_insert_count,
+        "athyg_merge_quarantined_rows": athyg_merge_quarantine_count,
+        "athyg_merge_unresolved_rows": athyg_merge_unresolved_count,
+        "athyg_merge_gaia_exact_rows": athyg_merge_direct_gaia_count,
+        "athyg_merge_gaia_remap_rows": athyg_merge_remap_count,
+        "athyg_merge_direct_legacy_rows": athyg_merge_direct_legacy_id_count,
+        "athyg_merge_positional_rows": athyg_merge_positional_count,
+        "athyg_merge_positional_ambiguous_rows": athyg_merge_positional_ambiguous_count,
+        "object_identifier_count": object_identifier_count,
+        "identifier_quarantine_count": identifier_quarantine_count,
+        "identifier_gaia_collision_count": identifier_gaia_collision_count,
+        "identifier_hip_collision_count": identifier_hip_collision_count,
+        "identifier_hd_collision_count": identifier_hd_collision_count,
+        "identifier_gate_ambiguous_limit": athyg_merge_ambiguous_limit,
+        "identifier_gate_gaia_collision_max": athyg_merge_gaia_collision_max,
+        "identifier_gate_hip_collision_max": athyg_merge_hip_collision_max,
+        "identifier_gate_hd_collision_max": athyg_merge_hd_collision_max,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -4737,12 +5867,23 @@ def main() -> int:
                 if enable_msc
                 else "MSC enrichment is disabled by default; current build does not insert MSC-derived component stars."
             ),
+            (
+                "AT-HYG supplement merge is enabled: deterministic ID precedence + strict positional fallback + quarantine for ambiguous mappings."
+                if (enable_gaia_backbone and enable_athyg_supplement_merge)
+                else "AT-HYG supplement merge is disabled for this build."
+            ),
         ],
     }
 
     match_report = {
         "build_id": build_id,
         "match_counts": [{"method": row[0], "count": row[1]} for row in match_counts],
+        "identifier_resolution_counts": [
+            {"method": row[0], "count": row[1]}
+            for row in con.execute(
+                "select resolution_method, count(*)::bigint from object_identifiers group by resolution_method order by count(*) desc, resolution_method asc"
+            ).fetchall()
+        ],
         "compact_match_counts": [
             {"method": row[0], "count": row[1]}
             for row in con.execute(
@@ -4765,7 +5906,8 @@ def main() -> int:
         stage_totals,
         extra=(
             f"dist_invariant_violations={format_count(dist_violations_stars + dist_violations_systems)}, "
-            f"provenance_missing_stars={format_count(provenance_missing)}"
+            f"provenance_missing_stars={format_count(provenance_missing)}, "
+            f"identifier_quarantine={format_count(identifier_quarantine_count)}"
         ),
     )
 
@@ -4778,6 +5920,30 @@ def main() -> int:
         raise SystemExit(
             "QC failed: white dwarf classification invariant violations detected. "
             f"See {reports_dir / 'classification_safety_report.json'}"
+        )
+    if identifier_quarantine_count > athyg_merge_ambiguous_limit:
+        raise SystemExit(
+            "QC failed: identifier ambiguity gate exceeded. "
+            f"quarantined={identifier_quarantine_count} limit={athyg_merge_ambiguous_limit}. "
+            f"See {reports_dir / 'identifier_report.json'}"
+        )
+    if identifier_gaia_collision_count > athyg_merge_gaia_collision_max:
+        raise SystemExit(
+            "QC failed: Gaia identifier collision gate exceeded. "
+            f"collisions={identifier_gaia_collision_count} limit={athyg_merge_gaia_collision_max}. "
+            f"See {reports_dir / 'identifier_report.json'}"
+        )
+    if identifier_hip_collision_count > athyg_merge_hip_collision_max:
+        raise SystemExit(
+            "QC failed: HIP identifier collision gate exceeded. "
+            f"collisions={identifier_hip_collision_count} limit={athyg_merge_hip_collision_max}. "
+            f"See {reports_dir / 'identifier_report.json'}"
+        )
+    if identifier_hd_collision_count > athyg_merge_hd_collision_max:
+        raise SystemExit(
+            "QC failed: HD identifier collision gate exceeded. "
+            f"collisions={identifier_hd_collision_count} limit={athyg_merge_hd_collision_max}. "
+            f"See {reports_dir / 'identifier_report.json'}"
         )
 
     # Parquet exports (sorted by spatial_index)
@@ -4794,6 +5960,12 @@ def main() -> int:
     )
     con.execute(
         f"COPY (SELECT * FROM aliases) TO '{parquet_dir / 'aliases.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM object_identifiers) TO '{parquet_dir / 'object_identifiers.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM identifier_quarantine) TO '{parquet_dir / 'identifier_quarantine.parquet'}' (FORMAT 'parquet')"
     )
     log_stage_complete("Parquet export stage", parquet_stage_started, stage_totals)
 

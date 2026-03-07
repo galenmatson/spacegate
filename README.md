@@ -135,7 +135,7 @@ By default this writes to `/srv/spacegate/dl` (override with `SPACEGATE_DL_ROOT`
 - archive: `db/<build_id>.7z` (or `.tar.zst` if `7z` is unavailable)
 - symlink: `current -> db/<archive>`
 - metadata: `current.json`
-- reports: `reports/<build_id>/{qc_report,match_report,provenance_report,system_grouping_report,core_manifest}.json` when present
+- reports: `reports/<build_id>/{qc_report,match_report,identifier_report,alias_report,provenance_report,system_grouping_report,core_manifest}.json` when present
 
 `current.json` includes artifact checksum/size plus report links and summary metadata used by bootstrap clients.
 

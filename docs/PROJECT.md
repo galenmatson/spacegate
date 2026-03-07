@@ -446,6 +446,14 @@ Notes:
   - system-level aliases (WDS/HIP/HD + member-derived naming aliases)
   - normalized alias keys (`alias_norm`) for deterministic search resolution
 - Gaia-first builds apply AT-HYG crosswalk enrichment against Gaia IDs, plus a constrained positional fallback for named AT-HYG rows missing Gaia IDs, to recover HIP/HD/common naming coverage without changing canonical star existence rules.
+- Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
+  - exact Gaia ID
+  - Gaia legacy remap via unique HIP/HD agreement
+  - direct unique HIP/HD
+  - constrained positional fallback (single-candidate only)
+- Ambiguous or conflicting rows are materialized in `identifier_quarantine` (not auto-merged).
+- Identifier edges are persisted in `object_identifiers` with method/confidence/source provenance.
+- QC gates now fail the build when identifier ambiguity or namespace-collision thresholds are exceeded.
 
 ## Immediate Next Actions
 
