@@ -88,6 +88,23 @@ def _has_table(
         return False
 
 
+def _has_local_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
+    try:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'main'
+              AND table_name = ?
+            LIMIT 1
+            """,
+            [table_name],
+        ).fetchone()
+        return bool(row)
+    except Exception:
+        return False
+
+
 def fetch_build_id(con: duckdb.DuckDBPyConnection) -> Optional[str]:
     try:
         row = con.execute(
@@ -237,6 +254,87 @@ def fetch_counts_for_system(
     return int(star_count), int(planet_count)
 
 
+def fetch_aliases_for_system(
+    con: duckdb.DuckDBPyConnection,
+    system_id: int,
+    *,
+    limit: int = 128,
+) -> List[Dict[str, Any]]:
+    if not _has_local_table(con, "aliases"):
+        return []
+    cursor = con.execute(
+        """
+        SELECT alias_raw, alias_norm, alias_kind, alias_priority, is_primary, source_catalog, source_version
+        FROM aliases
+        WHERE target_type = 'system'
+          AND system_id = ?
+        ORDER BY alias_priority ASC, alias_kind ASC, alias_raw ASC
+        LIMIT ?
+        """,
+        [system_id, limit],
+    )
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    return [row_to_dict(columns, row) for row in rows]
+
+
+def fetch_aliases_for_stars(
+    con: duckdb.DuckDBPyConnection,
+    star_ids: List[int],
+    *,
+    per_star_limit: int = 24,
+) -> Dict[int, List[Dict[str, Any]]]:
+    if not star_ids or not _has_local_table(con, "aliases"):
+        return {}
+    placeholders = ",".join(["?"] * len(star_ids))
+    cursor = con.execute(
+        f"""
+        WITH ranked AS (
+          SELECT
+            star_id,
+            alias_raw,
+            alias_norm,
+            alias_kind,
+            alias_priority,
+            is_primary,
+            source_catalog,
+            source_version,
+            row_number() OVER (
+              PARTITION BY star_id
+              ORDER BY alias_priority ASC, alias_kind ASC, alias_raw ASC
+            ) AS rn
+          FROM aliases
+          WHERE target_type = 'star'
+            AND star_id IN ({placeholders})
+        )
+        SELECT
+          star_id,
+          alias_raw,
+          alias_norm,
+          alias_kind,
+          alias_priority,
+          is_primary,
+          source_catalog,
+          source_version
+        FROM ranked
+        WHERE rn <= ?
+        ORDER BY star_id ASC, alias_priority ASC, alias_kind ASC, alias_raw ASC
+        """,
+        [*star_ids, per_star_limit],
+    )
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    grouped: Dict[int, List[Dict[str, Any]]] = {}
+    for row in rows:
+        item = row_to_dict(columns, row)
+        sid_raw = item.pop("star_id", None)
+        if sid_raw is None:
+            continue
+        sid = int(sid_raw)
+        grouped.setdefault(sid, []).append(item)
+    return grouped
+
+
 def fetch_snapshot_for_system(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -317,36 +415,96 @@ def search_systems(
     match_rank_expr = "0 AS match_rank"
     match_params: List[Any] = []
     match_clauses: List[str] = []
+    alias_cte_parts: List[str] = []
+    alias_cte_params: List[Any] = []
+    has_aliases = _has_local_table(con, "aliases")
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
         exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
         match_params.extend([q_norm, q_raw])
+        if has_aliases:
+            alias_cte_parts.append(
+                """
+                alias_match_exact AS (
+                    SELECT DISTINCT system_id
+                    FROM aliases
+                    WHERE target_type = 'system'
+                      AND alias_norm = ?
+                )
+                """
+            )
+            alias_cte_params.append(q_norm)
+            exact_parts.append("s.system_id IN (SELECT system_id FROM alias_match_exact)")
         exact_clause = "(" + " OR ".join(exact_parts) + ")"
 
         prefix_parts = ["s.system_name_norm LIKE ?"]
         prefix_pattern = f"{q_norm}%"
         match_params.append(prefix_pattern)
+        if has_aliases:
+            alias_cte_parts.append(
+                """
+                alias_match_prefix AS (
+                    SELECT DISTINCT system_id
+                    FROM aliases
+                    WHERE target_type = 'system'
+                      AND alias_norm LIKE ?
+                )
+                """
+            )
+            alias_cte_params.append(prefix_pattern)
+            prefix_parts.append("s.system_id IN (SELECT system_id FROM alias_match_prefix)")
         prefix_clause = "(" + " OR ".join(prefix_parts) + ")"
 
         tokens = [token for token in q_norm.split(" ") if token]
         token_clauses: List[str] = []
+        token_idx = 0
         for token in tokens:
             if short_query_mode or len(token) < 2:
                 continue
-            token_clause = "s.system_name_norm LIKE ?"
-            token_clauses.append(token_clause)
             token_pattern = f"%{token}%"
+            token_parts = ["s.system_name_norm LIKE ?"]
             match_params.append(token_pattern)
+            if has_aliases:
+                cte_name = f"alias_match_token_{token_idx}"
+                token_idx += 1
+                alias_cte_parts.append(
+                    f"""
+                    {cte_name} AS (
+                        SELECT DISTINCT system_id
+                        FROM aliases
+                        WHERE target_type = 'system'
+                          AND alias_norm LIKE ?
+                    )
+                    """
+                )
+                alias_cte_params.append(token_pattern)
+                token_parts.append(f"s.system_id IN (SELECT system_id FROM {cte_name})")
+            token_clauses.append("(" + " OR ".join(token_parts) + ")")
         token_and_clause = " AND ".join(token_clauses) if token_clauses else None
 
         match_lines: List[str] = [f"WHEN {exact_clause} THEN 0", f"WHEN {prefix_clause} THEN 1"]
         match_clauses.extend([exact_clause, prefix_clause])
         if short_query_mode:
-            contains_clause = "(s.system_name_norm LIKE ?)"
+            contains_parts = ["s.system_name_norm LIKE ?"]
+            contains_pattern = f"%{q_norm}%"
+            if has_aliases:
+                alias_cte_parts.append(
+                    """
+                    alias_match_contains AS (
+                        SELECT DISTINCT system_id
+                        FROM aliases
+                        WHERE target_type = 'system'
+                          AND alias_norm LIKE ?
+                    )
+                    """
+                )
+                alias_cte_params.append(contains_pattern)
+                contains_parts.append("s.system_id IN (SELECT system_id FROM alias_match_contains)")
+            contains_clause = "(" + " OR ".join(contains_parts) + ")"
             match_lines.append(f"WHEN {contains_clause} THEN 2")
             match_clauses.append(contains_clause)
-            match_params.append(f"%{q_norm}%")
+            match_params.append(contains_pattern)
         if token_and_clause:
             match_lines.append(f"WHEN {token_and_clause} THEN 2")
             match_clauses.append(f"({token_and_clause})")
@@ -625,7 +783,7 @@ def search_systems(
                 score_system_complexity AS coolness_score_system_complexity,
                 score_exotic_star AS coolness_score_exotic_star
             FROM rich_db.coolness_scores
-        ),
+        )
         """
         coolness_join = "LEFT JOIN coolness c ON c.system_id = s.system_id"
         coolness_select = (
@@ -644,9 +802,12 @@ def search_systems(
             "c.coolness_score_exotic_star,"
         )
 
-    base_cte = f"""
-        WITH
-        {coolness_cte}
+    cte_parts: List[str] = []
+    if coolness_cte.strip():
+        cte_parts.append(coolness_cte.strip())
+    cte_parts.extend([part.strip() for part in alias_cte_parts if part.strip()])
+    cte_parts.append(
+        f"""
         base AS (
             SELECT
                 s.*,
@@ -658,12 +819,18 @@ def search_systems(
             FROM systems s
             {coolness_join}
             {where_sql}
-        ),
+        )
+        """.strip()
+    )
+    cte_parts.append(
+        f"""
         filtered AS (
             SELECT * FROM base
             {filtered_clause}
         )
-    """
+        """.strip()
+    )
+    base_cte = "WITH\n" + ",\n".join(cte_parts)
 
     sql = f"""
         {base_cte}
@@ -673,7 +840,7 @@ def search_systems(
         ORDER BY {order_by}
         LIMIT ?
     """
-    all_params = match_params + params + cursor_params + [limit]
+    all_params = alias_cte_params + match_params + params + cursor_params + [limit]
     cursor = con.execute(sql, all_params)
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
@@ -849,7 +1016,7 @@ def search_systems(
             SELECT COUNT(*)::BIGINT
             FROM filtered
         """
-        count_row = con.execute(count_sql, match_params + params).fetchone()
+        count_row = con.execute(count_sql, alias_cte_params + match_params + params).fetchone()
         total_count = int(count_row[0] if count_row else 0)
 
     return results, total_count

@@ -370,7 +370,7 @@ Rules:
 
 ### Phase D: Crosswalk and Naming
 
-- replace AT-HYG convenience naming/crosswalk dependency with dedicated crosswalk sources
+- implement replacement alias/crosswalk layer on top of Gaia canonical IDs
 - maintain or improve user-facing name quality and lookup ergonomics
 
 ### Phase E: Enrichment Expansion
@@ -441,6 +441,11 @@ Notes:
 
 - Open-cluster memberships currently use direct Gaia DR2 ID overlap against Gaia IDs in core (high precision where IDs align; cross-release completeness can be improved with explicit DR2<->DR3 crosswalk tables).
 - Compact catalog entries are preserved even when unmatched to core stars; matched rows can upgrade star object family to neutron-star classes with strict positional confidence.
+- Alias/crosswalk layer now emitted as immutable `aliases` table:
+  - star-level aliases (common/Bayer/Flamsteed naming + major cross-catalog IDs)
+  - system-level aliases (WDS/HIP/HD + member-derived naming aliases)
+  - normalized alias keys (`alias_norm`) for deterministic search resolution
+- Gaia-first builds apply AT-HYG crosswalk enrichment against Gaia IDs, plus a constrained positional fallback for named AT-HYG rows missing Gaia IDs, to recover HIP/HD/common naming coverage without changing canonical star existence rules.
 
 ## Immediate Next Actions
 

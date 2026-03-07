@@ -66,11 +66,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### C5. Phase D - Crosswalk and Naming
 
-- [ ] Implement replacement crosswalks for names/aliases/legacy IDs
-- [ ] Restore broad cross-catalog identifier coverage in served rows (Gaia/HIP/HD/WDS and other selected major IDs)
+- [x] Implement replacement crosswalks for names/aliases/legacy IDs
+- [x] Restore broad cross-catalog identifier coverage in served rows (Gaia/HIP/HD/WDS and other selected major IDs)
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Preserve or improve host matching quality for planets
-- [ ] Preserve or improve user-facing lookup ergonomics
+- [x] Preserve or improve user-facing lookup ergonomics
 
 ### C6. Phase E - AT-HYG Retirement
 

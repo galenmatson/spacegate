@@ -37,6 +37,8 @@ CLUSTERS_URL = "https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/"
 CLUSTERS_VERSION = "2020A&A...640A...1C"
 SNR_URL = "https://www.mrao.cam.ac.uk/surveys/snrs/"
 SNR_VERSION = "2024-10"
+ATHYG_ALIAS_URL = "https://codeberg.org/astronexus/athyg"
+ATHYG_ALIAS_VERSION = "v3.3"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
@@ -44,6 +46,11 @@ WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT = 2.0
 WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
 WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
 WHITE_DWARF_PROB_THRESHOLD = 0.5
+ALIAS_NAME_OVERRIDE_LIMIT = 200000
+ALIAS_POS_MAX_DELTA_RA_DEG = 0.25
+ALIAS_POS_MAX_DELTA_DEC_DEG = 0.25
+ALIAS_POS_MAX_DELTA_DIST_LY = 1.5
+ALIAS_POS_MAX_ANG_SEP_ARCSEC = 120.0
 
 
 def log(message: str) -> None:
@@ -462,6 +469,8 @@ def main() -> int:
     enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
+    enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
+    enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     open_cluster_member_min_probability = parse_optional_nonnegative_float_env(
         "SPACEGATE_OPEN_CLUSTER_MEMBER_MIN_PROBABILITY"
     )
@@ -529,6 +538,10 @@ def main() -> int:
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
     if enable_gaia_backbone and not cooked_gaia_backbone.exists():
         raise SystemExit(f"Missing cooked Gaia backbone: {cooked_gaia_backbone}")
+    if enable_aliases and enable_athyg_alias_crosswalk and not cooked_athyg.exists():
+        raise SystemExit(
+            f"Missing cooked AT-HYG alias crosswalk source: {cooked_athyg}"
+        )
     if not cooked_nasa.exists():
         raise SystemExit(f"Missing cooked NASA: {cooked_nasa}")
     if not cooked_wds.exists():
@@ -579,6 +592,8 @@ def main() -> int:
         f"gaia_classprob={'1' if (enable_gaia_backbone and enable_gaia_classprob) else '0'} "
         f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
+        f"aliases={'1' if enable_aliases else '0'} "
+        f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
         f"open_cluster_member_min_probability={open_cluster_member_min_probability}"
     )
     manifest: dict[str, dict] = {}
@@ -647,6 +662,7 @@ def main() -> int:
         log(f"DuckDB memory_limit set to {memory_limit} ({mem_source})")
     else:
         log("DuckDB memory_limit not set (using DuckDB default)")
+    con.execute("SET preserve_insertion_order=false")
     con.execute(f"SET temp_directory='{str(tmp_work_dir).replace("'", "''")}'")
 
     ingested_at = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -691,6 +707,8 @@ def main() -> int:
           ('gaia_classprob_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_gaia_classprob) else "0")}),
           ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
+          ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
+          ('athyg_alias_crosswalk_enabled', {sql_literal("1" if (enable_aliases and enable_athyg_alias_crosswalk) else "0")}),
           ('open_cluster_member_min_probability', {sql_literal(str(open_cluster_member_min_probability))})
         """
     )
@@ -1044,6 +1062,44 @@ def main() -> int:
               null::varchar as parallax_over_error,
               null::varchar as ruwe
             from athyg_raw_source
+            """
+        )
+
+    if enable_aliases and enable_athyg_alias_crosswalk:
+        athyg_alias_path = str(cooked_athyg).replace("'", "''")
+        log("Loading AT-HYG alias crosswalk source")
+        con.execute(
+            f"""
+            create or replace temp view athyg_alias_raw as
+            select * from read_csv_auto('{athyg_alias_path}',
+                compression='gzip',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view athyg_alias_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              id, gaia, hip, hd, hr, gl, tyc, hyg, proper, bayer, flam, con, spect
+            )
+            where false
             """
         )
 
@@ -2255,6 +2311,312 @@ def main() -> int:
             """
         )
 
+    alias_crosswalk_candidate_count = 0
+    alias_crosswalk_matched_star_count = 0
+    alias_name_override_count = 0
+    if enable_aliases and enable_athyg_alias_crosswalk:
+        log("Alias enrichment: preparing AT-HYG crosswalk candidates")
+        con.execute(
+            f"""
+            create or replace temp view athyg_alias_candidates as
+            with gaia_base as (
+              select
+                cast(nullif(id, '') as bigint) as source_pk,
+                cast(nullif(gaia, '') as bigint) as gaia_id,
+                cast(nullif(nullif(hip, ''), '0') as bigint) as hip_id,
+                cast(nullif(nullif(hd, ''), '0') as bigint) as hd_id,
+                cast(nullif(nullif(hr, ''), '0') as bigint) as hr_id,
+                nullif(gl, '') as gl_id,
+                nullif(tyc, '') as tyc_id,
+                cast(nullif(nullif(hyg, ''), '0') as bigint) as hyg_id,
+                nullif(proper, '') as proper_name,
+                nullif(bayer, '') as bayer,
+                nullif(flam, '') as flam,
+                nullif(con, '') as constellation
+              from athyg_alias_raw
+              where cast(nullif(gaia, '') as bigint) is not null
+            ), gaia_named as (
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                hr_id,
+                gl_id,
+                tyc_id,
+                hyg_id,
+                proper_name,
+                case
+                  when bayer is not null and constellation is not null then bayer || ' ' || constellation
+                  else null
+                end as bayer_name,
+                case
+                  when flam is not null and constellation is not null then flam || ' ' || constellation
+                  else null
+                end as flam_name,
+                0 as source_priority
+              from gaia_base
+            ), nogaia_base as (
+              select
+                cast(nullif(id, '') as bigint) as source_pk,
+                cast(nullif(nullif(hip, ''), '0') as bigint) as hip_id,
+                cast(nullif(nullif(hd, ''), '0') as bigint) as hd_id,
+                cast(nullif(nullif(hr, ''), '0') as bigint) as hr_id,
+                nullif(gl, '') as gl_id,
+                nullif(tyc, '') as tyc_id,
+                cast(nullif(nullif(hyg, ''), '0') as bigint) as hyg_id,
+                nullif(proper, '') as proper_name,
+                nullif(bayer, '') as bayer,
+                nullif(flam, '') as flam,
+                nullif(con, '') as constellation,
+                case
+                  when cast(nullif(ra, '') as double) between 0.0 and 24.0 then cast(nullif(ra, '') as double) * 15.0
+                  else cast(nullif(ra, '') as double)
+                end as ra_deg,
+                cast(nullif(dec, '') as double) as dec_deg,
+                cast(nullif(dist, '') as double) * {PC_TO_LY} as dist_ly
+              from athyg_alias_raw
+              where cast(nullif(gaia, '') as bigint) is null
+                and (
+                  nullif(proper, '') is not null
+                  or (nullif(bayer, '') is not null and nullif(con, '') is not null)
+                  or (nullif(flam, '') is not null and nullif(con, '') is not null)
+                )
+            ), nogaia_named as (
+              select
+                source_pk,
+                hip_id,
+                hd_id,
+                hr_id,
+                gl_id,
+                tyc_id,
+                hyg_id,
+                proper_name,
+                case
+                  when bayer is not null and constellation is not null then bayer || ' ' || constellation
+                  else null
+                end as bayer_name,
+                case
+                  when flam is not null and constellation is not null then flam || ' ' || constellation
+                  else null
+                end as flam_name,
+                ra_deg,
+                dec_deg,
+                dist_ly
+              from nogaia_base
+              where source_pk is not null
+                and ra_deg is not null
+                and dec_deg is not null
+                and dist_ly is not null
+                and (
+                  proper_name is not null
+                  or (bayer is not null and constellation is not null)
+                  or (flam is not null and constellation is not null)
+                )
+            ), positional_candidates as (
+              select
+                n.source_pk,
+                s.gaia_id as gaia_id,
+                n.hip_id,
+                n.hd_id,
+                n.hr_id,
+                n.gl_id,
+                n.tyc_id,
+                n.hyg_id,
+                n.proper_name,
+                n.bayer_name,
+                n.flam_name,
+                abs(s.dist_ly - n.dist_ly) as dist_delta_ly,
+                degrees(acos(
+                  least(
+                    1.0,
+                    greatest(
+                      -1.0,
+                      sin(radians(s.dec_deg)) * sin(radians(n.dec_deg)) +
+                      cos(radians(s.dec_deg)) * cos(radians(n.dec_deg)) * cos(radians(s.ra_deg - n.ra_deg))
+                    )
+                  )
+                )) * 3600.0 as ang_sep_arcsec
+              from nogaia_named n
+              join stars s on s.gaia_id is not null
+              where abs(s.ra_deg - n.ra_deg) <= {ALIAS_POS_MAX_DELTA_RA_DEG}
+                and abs(s.dec_deg - n.dec_deg) <= {ALIAS_POS_MAX_DELTA_DEC_DEG}
+                and abs(s.dist_ly - n.dist_ly) <= {ALIAS_POS_MAX_DELTA_DIST_LY}
+            ), positional_best as (
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                hr_id,
+                gl_id,
+                tyc_id,
+                hyg_id,
+                proper_name,
+                bayer_name,
+                flam_name,
+                1 as source_priority,
+                row_number() over (
+                  partition by source_pk
+                  order by dist_delta_ly asc, ang_sep_arcsec asc, gaia_id asc
+                ) as rn
+              from positional_candidates
+              where ang_sep_arcsec <= {ALIAS_POS_MAX_ANG_SEP_ARCSEC}
+            ), combined as (
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                hr_id,
+                gl_id,
+                tyc_id,
+                hyg_id,
+                proper_name,
+                bayer_name,
+                flam_name,
+                source_priority
+              from gaia_named
+              union all
+              select
+                source_pk,
+                gaia_id,
+                hip_id,
+                hd_id,
+                hr_id,
+                gl_id,
+                tyc_id,
+                hyg_id,
+                proper_name,
+                bayer_name,
+                flam_name,
+                source_priority
+              from positional_best
+              where rn = 1
+            ), ranked as (
+              select
+                *,
+                row_number() over (
+                  partition by gaia_id
+                  order by
+                    source_priority asc,
+                    case when proper_name is not null then 0 else 1 end,
+                    case when bayer_name is not null then 0 else 1 end,
+                    case when flam_name is not null then 0 else 1 end,
+                    case when hip_id is not null then 0 else 1 end,
+                    case when hd_id is not null then 0 else 1 end,
+                    source_pk asc
+                ) as rn
+              from combined
+            )
+            select
+              source_pk,
+              gaia_id,
+              hip_id,
+              hd_id,
+              hr_id,
+              gl_id,
+              tyc_id,
+              hyg_id,
+              proper_name,
+              bayer_name,
+              flam_name,
+              coalesce(proper_name, bayer_name, flam_name) as preferred_name
+            from ranked
+            where rn = 1
+            """
+        )
+        alias_crosswalk_candidate_count = con.execute(
+            "select count(*) from athyg_alias_candidates"
+        ).fetchone()[0]
+        alias_crosswalk_matched_star_count = con.execute(
+            """
+            select count(*)
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            """
+        ).fetchone()[0]
+        alias_name_override_count = con.execute(
+            """
+            select count(*)
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.preferred_name is not null
+              and (s.star_name is null or s.star_name_norm like 'gaia dr3 %')
+            """
+        ).fetchone()[0]
+        con.execute(
+            """
+            update stars
+            set
+              hip_id = coalesce(stars.hip_id, a.hip_id),
+              hd_id = coalesce(stars.hd_id, a.hd_id),
+              star_name = case
+                when (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
+                  and a.preferred_name is not null
+                then a.preferred_name
+                else stars.star_name
+              end,
+              star_name_norm = case
+                when (
+                  (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
+                  and a.preferred_name is not null
+                ) then lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(a.preferred_name, '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                )
+                else stars.star_name_norm
+              end,
+              catalog_ids_json = json_object(
+                'gaia', coalesce(stars.gaia_id, a.gaia_id),
+                'hip', coalesce(stars.hip_id, a.hip_id),
+                'hd', coalesce(stars.hd_id, a.hd_id),
+                'hr', coalesce(a.hr_id, cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint)),
+                'gl', coalesce(a.gl_id, json_extract_string(stars.catalog_ids_json, '$.gl')),
+                'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
+                'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
+                'wds', coalesce(stars.wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
+                'wds_component', coalesce(stars.component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
+              )
+            from athyg_alias_candidates a
+            where stars.gaia_id = a.gaia_id
+            """
+        )
+        if alias_name_override_count > ALIAS_NAME_OVERRIDE_LIMIT:
+            log(
+                "Alias enrichment: high name override volume "
+                f"({alias_name_override_count} rows; limit hint={ALIAS_NAME_OVERRIDE_LIMIT})"
+            )
+    else:
+        con.execute(
+            """
+            create or replace temp view athyg_alias_candidates as
+            select *
+            from (
+              values
+                (
+                  cast(null as bigint), cast(null as bigint), cast(null as bigint), cast(null as bigint),
+                  cast(null as bigint), cast(null as varchar), cast(null as varchar), cast(null as bigint),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              source_pk, gaia_id, hip_id, hd_id, hr_id, gl_id, tyc_id, hyg_id,
+              proper_name, bayer_name, flam_name, preferred_name
+            )
+            where false
+            """
+        )
+
+    alias_total_count = 0
+    alias_system_count = 0
+    alias_star_count = 0
+
     # System grouping: WDS first, then name-root, then optional proximity for remaining stars.
     log("System grouping: WDS pass")
     con.execute(
@@ -3099,6 +3461,417 @@ def main() -> int:
         """
     )
 
+    log("Building alias tables")
+    if enable_aliases:
+        con.execute(
+            """
+            create or replace temp view star_alias_seed as
+            select
+              'star' as target_type,
+              s.star_id as target_id,
+              s.system_id,
+              s.star_id,
+              'HIP ' || s.hip_id::varchar as alias_raw,
+              'hip_id' as alias_kind,
+              5 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              null::varchar as source_version,
+              s.hip_id as source_pk
+            from stars s
+            where s.hip_id is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              'HD ' || s.hd_id::varchar as alias_raw,
+              'hd_id',
+              6,
+              'athyg_crosswalk',
+              null,
+              s.hd_id
+            from stars s
+            where s.hd_id is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              'WDS ' || s.wds_id as alias_raw,
+              'wds_id',
+              7,
+              'wds',
+              null,
+              null
+            from stars s
+            where s.wds_id is not null
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view star_alias_crosswalk_seed as
+            select
+              'star' as target_type,
+              s.star_id as target_id,
+              s.system_id,
+              s.star_id,
+              a.proper_name as alias_raw,
+              'proper_name' as alias_kind,
+              1 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.proper_name is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              a.bayer_name as alias_raw,
+              'bayer_name',
+              2,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.bayer_name is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              a.flam_name as alias_raw,
+              'flamsteed_name',
+              3,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.flam_name is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              'HR ' || a.hr_id::varchar as alias_raw,
+              'hr_id',
+              10,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.hr_id is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              a.gl_id as alias_raw,
+              'gl_id',
+              11,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.gl_id is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              'TYC ' || a.tyc_id as alias_raw,
+              'tyc_id',
+              12,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.tyc_id is not null
+
+            union all
+
+            select
+              'star',
+              s.star_id,
+              s.system_id,
+              s.star_id,
+              'HYG ' || a.hyg_id::varchar as alias_raw,
+              'hyg_id',
+              13,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from stars s
+            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            where a.hyg_id is not null
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view system_alias_seed as
+            select
+              'system' as target_type,
+              s.system_id as target_id,
+              s.system_id,
+              null::bigint as star_id,
+              'WDS ' || s.wds_id as alias_raw,
+              'wds_id' as alias_kind,
+              2 as alias_priority,
+              'wds' as source_catalog,
+              null::varchar as source_version,
+              null::bigint as source_pk
+            from systems s
+            where s.wds_id is not null
+
+            union all
+
+            select
+              'system',
+              sa.system_id,
+              sa.system_id,
+              null::bigint as star_id,
+              sa.alias_raw,
+              'member_' || sa.alias_kind as alias_kind,
+              sa.alias_priority + 20 as alias_priority,
+              sa.source_catalog,
+              sa.source_version,
+              sa.source_pk
+            from star_alias_crosswalk_seed sa
+            where sa.alias_kind in ('proper_name', 'bayer_name', 'flamsteed_name')
+              and sa.system_id is not null
+              and sa.alias_raw is not null
+
+            union all
+
+            select
+              'system',
+              s.system_id,
+              s.system_id,
+              null::bigint as star_id,
+              'HIP ' || s.hip_id::varchar as alias_raw,
+              'hip_id',
+              6,
+              'athyg_crosswalk',
+              null,
+              s.hip_id
+            from systems s
+            where s.hip_id is not null
+
+            union all
+
+            select
+              'system',
+              s.system_id,
+              s.system_id,
+              null::bigint as star_id,
+              'HD ' || s.hd_id::varchar as alias_raw,
+              'hd_id',
+              7,
+              'athyg_crosswalk',
+              null,
+              s.hd_id
+            from systems s
+            where s.hd_id is not null
+            """
+        )
+        con.execute(
+            """
+            create temp table aliases_star as
+            with seed as (
+              select * from star_alias_seed
+              union all select * from star_alias_crosswalk_seed
+            ), normalized as (
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                alias_raw,
+                lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(alias_raw, '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                ) as alias_norm,
+                alias_kind,
+                alias_priority,
+                source_catalog,
+                source_version,
+                source_pk
+              from seed
+              where alias_raw is not null
+            ), filtered as (
+              select *
+              from normalized
+              where alias_norm is not null and alias_norm <> ''
+            ), dedup as (
+              select
+                *,
+                row_number() over (
+                  partition by target_type, target_id, alias_norm
+                  order by alias_priority asc, alias_kind asc, alias_raw asc
+                ) as rn
+              from filtered
+            )
+            select
+              target_type,
+              target_id,
+              system_id,
+              star_id,
+              alias_raw,
+              alias_norm,
+              alias_kind,
+              alias_priority,
+              source_catalog,
+              source_version,
+              source_pk
+            from dedup
+            where rn = 1
+            """
+        )
+        con.execute(
+            """
+            create temp table aliases_system as
+            with seed as (
+              select * from system_alias_seed
+            ), normalized as (
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                alias_raw,
+                lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(alias_raw, '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                ) as alias_norm,
+                alias_kind,
+                alias_priority,
+                source_catalog,
+                source_version,
+                source_pk
+              from seed
+              where alias_raw is not null
+            ), filtered as (
+              select *
+              from normalized
+              where alias_norm is not null and alias_norm <> ''
+            ), dedup as (
+              select
+                *,
+                row_number() over (
+                  partition by target_type, target_id, alias_norm
+                  order by alias_priority asc, alias_kind asc, alias_raw asc
+                ) as rn
+              from filtered
+            )
+            select
+              target_type,
+              target_id,
+              system_id,
+              star_id,
+              alias_raw,
+              alias_norm,
+              alias_kind,
+              alias_priority,
+              source_catalog,
+              source_version,
+              source_pk
+            from dedup
+            where rn = 1
+            """
+        )
+        con.execute(
+            """
+            create table aliases as
+            with merged as (
+              select * from aliases_star
+              union all
+              select * from aliases_system
+            )
+            select
+              row_number() over ()::bigint as alias_id,
+              target_type,
+              target_id,
+              system_id,
+              star_id,
+              alias_raw,
+              alias_norm,
+              alias_kind,
+              alias_priority,
+              alias_priority = 0 as is_primary,
+              source_catalog,
+              source_version,
+              source_pk
+            from merged
+            """
+        )
+    else:
+        con.execute(
+            """
+            create table aliases as
+            select *
+            from (
+              values
+                (
+                  cast(null as bigint), cast(null as varchar), cast(null as bigint), cast(null as bigint),
+                  cast(null as bigint), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as integer), cast(null as boolean), cast(null as varchar), cast(null as varchar),
+                  cast(null as bigint)
+                )
+            ) as t(
+              alias_id, target_type, target_id, system_id, star_id, alias_raw, alias_norm, alias_kind,
+              alias_priority, is_primary, source_catalog, source_version, source_pk
+            )
+            where false
+            """
+        )
+    alias_total_count = con.execute("select count(*) from aliases").fetchone()[0]
+    alias_system_count = con.execute(
+        "select count(*) from aliases where target_type = 'system'"
+    ).fetchone()[0]
+    alias_star_count = con.execute(
+        "select count(*) from aliases where target_type = 'star'"
+    ).fetchone()[0]
+
     log("Building compact and superstellar side tables")
     con.execute(
         f"""
@@ -3685,6 +4458,15 @@ def main() -> int:
         """
     ).fetchall()
 
+    alias_kind_counts = con.execute(
+        """
+        select alias_kind, count(*)::bigint as count
+        from aliases
+        group by 1
+        order by count desc, alias_kind asc
+        """
+    ).fetchall()
+
     dist_violations_stars = con.execute(
         """
         select count(*) from stars
@@ -3745,6 +4527,21 @@ def main() -> int:
         ],
     }
     write_json(reports_dir / "classification_safety_report.json", classification_safety_report)
+    alias_report = {
+        "build_id": build_id,
+        "aliases_enabled": enable_aliases,
+        "athyg_alias_crosswalk_enabled": enable_aliases and enable_athyg_alias_crosswalk,
+        "alias_total_count": alias_total_count,
+        "alias_system_count": alias_system_count,
+        "alias_star_count": alias_star_count,
+        "athyg_alias_candidate_count": alias_crosswalk_candidate_count,
+        "athyg_alias_matched_star_count": alias_crosswalk_matched_star_count,
+        "name_override_count": alias_name_override_count,
+        "alias_kind_counts": [
+            {"alias_kind": row[0], "count": row[1]} for row in alias_kind_counts
+        ],
+    }
+    write_json(reports_dir / "alias_report.json", alias_report)
 
     qc_report = {
         "build_id": build_id,
@@ -3756,6 +4553,9 @@ def main() -> int:
             "open_clusters": counts[4],
             "open_cluster_memberships": counts[5],
             "superstellar_objects": counts[6],
+            "aliases": alias_total_count,
+            "system_aliases": alias_system_count,
+            "star_aliases": alias_star_count,
         },
         "object_family_counts": [
             {"object_family": row[0], "count": row[1]} for row in object_family_counts
@@ -3784,6 +4584,11 @@ def main() -> int:
         "white_dwarf_evidence_count": wd_evidence_count,
         "white_dwarf_emitted_count": wd_emitted_count,
         "white_dwarf_mismatch_count": wd_mismatch_count,
+        "aliases_enabled": enable_aliases,
+        "athyg_alias_crosswalk_enabled": enable_aliases and enable_athyg_alias_crosswalk,
+        "athyg_alias_candidate_count": alias_crosswalk_candidate_count,
+        "athyg_alias_matched_star_count": alias_crosswalk_matched_star_count,
+        "alias_name_override_count": alias_name_override_count,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -3855,6 +4660,9 @@ def main() -> int:
     )
     con.execute(
         f"COPY (SELECT * FROM planets ORDER BY spatial_index) TO '{parquet_dir / 'planets.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM aliases) TO '{parquet_dir / 'aliases.parquet'}' (FORMAT 'parquet')"
     )
 
     con.close()

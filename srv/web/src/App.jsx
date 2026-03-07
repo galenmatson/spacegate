@@ -666,6 +666,39 @@ function formatText(value) {
   return String(value);
 }
 
+function formatAliasSummary(aliases, { exclude = [], limit = 8 } = {}) {
+  if (!Array.isArray(aliases) || aliases.length === 0) {
+    return "";
+  }
+  const excluded = new Set(
+    (exclude || [])
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const items = [];
+  aliases.forEach((row) => {
+    const raw = String(row?.alias_raw || "").trim();
+    if (!raw) {
+      return;
+    }
+    if (excluded.has(raw.toLowerCase())) {
+      return;
+    }
+    if (items.includes(raw)) {
+      return;
+    }
+    items.push(raw);
+  });
+  if (items.length === 0) {
+    return "";
+  }
+  const shown = items.slice(0, Math.max(1, limit));
+  if (shown.length < items.length) {
+    shown.push(`+${items.length - shown.length} more`);
+  }
+  return shown.join(" · ");
+}
+
 function formatCoordinate(value) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "Unknown";
@@ -2588,6 +2621,10 @@ function SystemDetailPage({ buildId = "" }) {
   }
 
   const { system, stars, planets } = data;
+  const systemAliasSummary = formatAliasSummary(system?.aliases, {
+    exclude: [system?.system_name],
+    limit: 10,
+  });
 
   return (
     <Layout showSearchLink={false} buildId={buildId}>
@@ -2600,6 +2637,9 @@ function SystemDetailPage({ buildId = "" }) {
             <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
           </div>
         </div>
+        {systemAliasSummary ? (
+          <div className="muted">Aliases: {systemAliasSummary}</div>
+        ) : null}
 
         <section className="panel snapshot-panel">
           <h3>System Snapshot</h3>
@@ -2643,12 +2683,19 @@ function SystemDetailPage({ buildId = "" }) {
                 <div className="row" key={star.star_id}>
                   {(() => {
                     const record = starCatalogRecordLink(star);
+                    const starAliasSummary = formatAliasSummary(star?.aliases, {
+                      exclude: [star?.star_name],
+                      limit: 6,
+                    });
                     return (
                       <>
                         <div>
                           <strong className="star-name">{formatText(star.star_name)}</strong>
                           {star.component ? (
                             <div className="muted">Component {formatText(star.component)}</div>
+                          ) : null}
+                          {starAliasSummary ? (
+                            <div className="muted">Aliases: {starAliasSummary}</div>
                           ) : null}
                         </div>
                         <div>

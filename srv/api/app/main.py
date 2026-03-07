@@ -25,6 +25,8 @@ from . import auth
 from . import db
 from .db import DatabaseUnavailable
 from .queries import (
+    fetch_aliases_for_stars,
+    fetch_aliases_for_system,
     fetch_build_id,
     fetch_counts_for_system,
     fetch_planets_for_system,
@@ -722,6 +724,11 @@ def system_detail(system_id: int):
         stars = fetch_stars_for_system(con, system_id)
         planets = fetch_planets_for_system(con, system_id)
         star_count, planet_count = fetch_counts_for_system(con, system_id)
+        aliases = fetch_aliases_for_system(con, system_id)
+        star_aliases = fetch_aliases_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=system_id,
@@ -732,6 +739,13 @@ def system_detail(system_id: int):
     system["star_count"] = star_count
     system["planet_count"] = planet_count
     system["snapshot"] = snapshot
+    system["aliases"] = aliases
+    for star in stars:
+        sid = star.get("star_id")
+        if sid is None:
+            star["aliases"] = []
+            continue
+        star["aliases"] = star_aliases.get(int(sid), [])
     _attach_snapshot_url(system)
     return {"system": system, "stars": stars, "planets": planets}
 
@@ -754,6 +768,11 @@ def system_detail_by_key(stable_object_key: str):
         stars = fetch_stars_for_system(con, system_id)
         planets = fetch_planets_for_system(con, system_id)
         star_count, planet_count = fetch_counts_for_system(con, system_id)
+        aliases = fetch_aliases_for_system(con, int(system_id))
+        star_aliases = fetch_aliases_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=int(system_id),
@@ -764,6 +783,13 @@ def system_detail_by_key(stable_object_key: str):
     system["star_count"] = star_count
     system["planet_count"] = planet_count
     system["snapshot"] = snapshot
+    system["aliases"] = aliases
+    for star in stars:
+        sid = star.get("star_id")
+        if sid is None:
+            star["aliases"] = []
+            continue
+        star["aliases"] = star_aliases.get(int(sid), [])
     _attach_snapshot_url(system)
     return {"system": system, "stars": stars, "planets": planets}
 

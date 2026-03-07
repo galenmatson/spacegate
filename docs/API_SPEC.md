@@ -274,7 +274,7 @@ Query params:
 - `max_planet_count` (int, optional, `>= 0`)
 - `min_coolness_score` (float, optional)
 - `max_coolness_score` (float, optional)
-- `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y)
+- `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
 - `sort` (`name` | `distance` | `coolness`, default `name`)
@@ -283,9 +283,9 @@ Query params:
 - `cursor` (string, optional)
 
 Matching rules (when `q` is provided):
-1. Exact match on `system_name_norm` or star `star_name_norm`
-2. Prefix match
-3. Token-and match (all tokens present)
+1. Exact match on canonical system name/key and system aliases (`aliases.alias_norm`)
+2. Prefix match on canonical system name and aliases
+3. Token-and match (all tokens present) on canonical system names, with alias token support
 4. Identifier match (HD/HIP/Gaia patterns like `HD 10700`, `HIP 8102`, `Gaia 123`)
 5. Plain long numeric queries (`10+` digits) are treated as Gaia IDs
 
@@ -364,7 +364,20 @@ Path params:
 Response 200:
 ```json
 {
-  "system": { /* same fields as search result + full provenance */ },
+  "system": {
+    /* same fields as search result + full provenance */
+    "aliases": [
+      {
+        "alias_raw": "Sirius",
+        "alias_norm": "sirius",
+        "alias_kind": "member_proper_name",
+        "alias_priority": 21,
+        "is_primary": false,
+        "source_catalog": "athyg_crosswalk",
+        "source_version": "v3.3"
+      }
+    ]
+  },
   "stars": [
     {
       "star_id": 10,
@@ -383,6 +396,17 @@ Response 200:
       "hip_id": 12114,
       "hd_id": 16160,
       "catalog_ids": {"gaia":..., "hip":..., "hd":..., "tyc":"..."},
+      "aliases": [
+        {
+          "alias_raw": "Sirius A",
+          "alias_norm": "sirius a",
+          "alias_kind": "proper_name",
+          "alias_priority": 1,
+          "is_primary": false,
+          "source_catalog": "athyg_crosswalk",
+          "source_version": "v3.3"
+        }
+      ],
       "provenance": { /* full provenance */ }
     }
   ],

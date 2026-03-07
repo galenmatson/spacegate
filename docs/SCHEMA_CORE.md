@@ -225,6 +225,9 @@ Must include at minimum:
   - Morton config fields
 - active multiplicity gate parameters:
   - WDS-Gaia thresholds when applicable
+- alias/search contract flags:
+  - `aliases_enabled`
+  - `athyg_alias_crosswalk_enabled`
 
 ## `stars`
 
@@ -299,6 +302,36 @@ Required columns:
   - `grouping_source_catalogs_json`
   - evidence flags (`has_*_evidence`)
 - provenance contract fields
+
+## `aliases`
+
+Deterministic name and identifier lookup table spanning both system-level and star-level targets.
+
+Required columns:
+
+- identity:
+  - `alias_id`
+  - `target_type` (`system` or `star`)
+  - `target_id` (target row ID in its table)
+  - `system_id` (nullable for non-system targets)
+  - `star_id` (nullable for non-star targets)
+- alias payload:
+  - `alias_raw` (display form)
+  - `alias_norm` (normalized lookup key)
+  - `alias_kind` (for example: `proper_name`, `bayer_name`, `flamsteed_name`, `hip_id`, `hd_id`, `hr_id`, `wds_id`, `member_proper_name`)
+  - `alias_priority` (lower = stronger)
+  - `is_primary` (boolean)
+- source traceability:
+  - `source_catalog`
+  - `source_version` (nullable where source does not version aliases cleanly)
+  - `source_pk` (nullable where source row key is unavailable)
+
+Contract notes:
+
+- alias rows enrich lookup and UX only; they do not define canonical star existence.
+- duplicate aliases must be deduplicated per `(target_type, target_id, alias_norm)` by deterministic precedence.
+- search must resolve against normalized aliases first-class alongside canonical names.
+- Gaia-first builds may use constrained positional matching for named AT-HYG rows without Gaia IDs to recover legacy/common aliases (with tight angular and distance gates).
 
 ## `planets`
 
