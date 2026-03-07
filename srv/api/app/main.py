@@ -49,7 +49,7 @@ app = FastAPI(title="Spacegate API", version="0.1")
 ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
 SUPPORTED_SEARCH_SORTS = {"name", "distance", "coolness"}
-SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"}
+SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
 
 COOLNESS_WEIGHT_KEYS = [
     ("luminosity", "luminosity_feature"),

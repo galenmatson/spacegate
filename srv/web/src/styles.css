@@ -1543,6 +1543,14 @@ select:focus-visible {
   --spectral-active-ink: #213943;
 }
 
+:root[data-theme="lcars"] .chip.spectral-d {
+  --spectral-bg: #dfe4ea;
+  --spectral-border: #a8b3c1;
+  --spectral-ink: #334252;
+  --spectral-active-bg: #ced6df;
+  --spectral-active-ink: #263240;
+}
+
 :root[data-theme="lcars"] .result-source {
   border-top-color: rgba(201, 148, 213, 0.4);
 }
@@ -3442,6 +3450,14 @@ main {
   --spectral-ink: #204869;
   --spectral-active-bg: #bfdfff;
   --spectral-active-ink: #103651;
+}
+
+.chip.spectral-d {
+  --spectral-bg: #e6ebf1;
+  --spectral-border: #9aa7b8;
+  --spectral-ink: #2f3f53;
+  --spectral-active-bg: #d6dee8;
+  --spectral-active-ink: #1f2d3e;
 }
 
 .detail {

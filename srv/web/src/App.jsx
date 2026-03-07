@@ -4,7 +4,8 @@ import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 
-const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L"];
+const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "D"];
+const SPECTRAL_NON_TEMP_OPTIONS = new Set(["D"]);
 const THEME_STORAGE_KEY = "spacegate.theme";
 const THEME_OPTIONS = [
   { id: "simple_light", label: "Simple Light" },
@@ -63,8 +64,9 @@ const SPECTRAL_CLASS_TEMP_RANGES = {
   M: [2400, 3700],
   L: [1300, 2400],
 };
-const SPECTRAL_TEMP_MIN_K = Math.min(...spectralOptions.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][0]));
-const SPECTRAL_TEMP_MAX_K = Math.max(...spectralOptions.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][1]));
+const SPECTRAL_TEMP_CLASS_OPTIONS = spectralOptions.filter((token) => !SPECTRAL_NON_TEMP_OPTIONS.has(token));
+const SPECTRAL_TEMP_MIN_K = Math.min(...SPECTRAL_TEMP_CLASS_OPTIONS.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][0]));
+const SPECTRAL_TEMP_MAX_K = Math.max(...SPECTRAL_TEMP_CLASS_OPTIONS.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][1]));
 const SPECTRAL_TEMP_LOG_MIN = Math.log10(SPECTRAL_TEMP_MIN_K);
 const SPECTRAL_TEMP_LOG_MAX = Math.log10(SPECTRAL_TEMP_MAX_K);
 const SPECTRAL_TEMP_SLIDER_MAX = 1000;
@@ -77,6 +79,7 @@ const SPECTRAL_CLASS_INFO = {
   K: { sentence: "Orange stars that are cooler than the Sun and often long-lived.", tempRangeK: [3700, 5200] },
   M: { sentence: "Cool red dwarfs, the most common stellar class in the Milky Way.", tempRangeK: [2400, 3700] },
   L: { sentence: "Very cool red-brown objects at the star-brown dwarf boundary.", tempRangeK: [1300, 2400] },
+  D: { sentence: "Degenerate white dwarfs: compact stellar remnants with no active core fusion." },
   T: { sentence: "Cool methane-rich brown dwarfs with very low thermal emission.", tempRangeK: [700, 1300] },
   Y: { sentence: "Ultra-cool brown dwarfs approaching giant-planet temperatures.", tempRangeK: [250, 700] },
 };
@@ -490,10 +493,12 @@ function parseSpectralTokens(rawValue) {
 function spectralClassesForTemperatureRange(minTempK, maxTempK) {
   const low = Math.min(Number(minTempK), Number(maxTempK));
   const high = Math.max(Number(minTempK), Number(maxTempK));
-  return spectralOptions.filter((token) => {
+  const temperatureEligible = SPECTRAL_TEMP_CLASS_OPTIONS.filter((token) => {
     const [classMin, classMax] = SPECTRAL_CLASS_TEMP_RANGES[token] || [SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K];
     return classMax >= low && classMin <= high;
   });
+  const nonTempAlwaysEligible = spectralOptions.filter((token) => SPECTRAL_NON_TEMP_OPTIONS.has(token));
+  return [...temperatureEligible, ...nonTempAlwaysEligible];
 }
 
 function spectralTempToSliderPosition(tempK) {

@@ -405,12 +405,20 @@ def search_systems(
         params.append(min_dist_ly)
 
     if spectral_classes:
-        placeholders = ",".join(["?"] * len(spectral_classes))
+        spectral_filters: List[str] = []
+        for token in spectral_classes:
+            if token == "D":
+                spectral_filters.append(
+                    "(st.spectral_class = ? OR UPPER(COALESCE(st.spectral_type_raw, '')) LIKE 'D%')"
+                )
+                params.append("D")
+            else:
+                spectral_filters.append("st.spectral_class = ?")
+                params.append(token)
         conditions.append(
             "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-            f"AND st.spectral_class IN ({placeholders}))"
+            f"AND ({' OR '.join(spectral_filters)}))"
         )
-        params.extend(spectral_classes)
 
     if has_planets is True:
         conditions.append(
