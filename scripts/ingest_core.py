@@ -346,6 +346,45 @@ def format_float_or_empty(value: float | None) -> str:
     return f"{value:g}"
 
 
+def format_count(value: int | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{int(value):,}"
+
+
+def format_stage_totals(totals: dict[str, int | None]) -> str:
+    order = [
+        "stars",
+        "systems",
+        "planets",
+        "aliases",
+        "compact_objects",
+        "superstellar_objects",
+    ]
+    parts: list[str] = []
+    for key in order:
+        if key not in totals:
+            continue
+        parts.append(f"{key}={format_count(totals.get(key))}")
+    return ", ".join(parts)
+
+
+def log_stage_complete(
+    stage_label: str,
+    stage_started_monotonic: float,
+    totals: dict[str, int | None] | None = None,
+    *,
+    extra: str | None = None,
+) -> None:
+    elapsed_s = time.monotonic() - stage_started_monotonic
+    message = f"{stage_label} complete in {elapsed_s:.1f}s"
+    if totals:
+        message += f" | totals: {format_stage_totals(totals)}"
+    if extra:
+        message += f" | {extra}"
+    log(message)
+
+
 class UnionFind:
     def __init__(self) -> None:
         self.parent: dict[int, int] = {}
@@ -570,6 +609,7 @@ def main() -> int:
         raise SystemExit(f"Missing cooked SNR catalog: {cooked_snr}")
 
     log("Ingest core start")
+    ingest_started_monotonic = time.monotonic()
     log(
         "Slice policy: "
         f"max_distance_ly={format_float_or_empty(slice_max_distance_ly) or '(default)'} "
@@ -1534,7 +1574,17 @@ def main() -> int:
         """
     )
 
+    stage_totals: dict[str, int | None] = {
+        "stars": None,
+        "systems": None,
+        "planets": None,
+        "aliases": None,
+        "compact_objects": None,
+        "superstellar_objects": None,
+    }
+
     # Build stars table
+    stars_stage_started = time.monotonic()
     log("Building stars table")
     con.execute(
         f"""
@@ -2621,7 +2671,20 @@ def main() -> int:
     alias_system_count = 0
     alias_star_count = 0
 
+    stage_totals["stars"] = con.execute("select count(*) from stars").fetchone()[0]
+    log_stage_complete(
+        "Stars stage",
+        stars_stage_started,
+        stage_totals,
+        extra=(
+            f"alias_crosswalk_candidates={format_count(alias_crosswalk_candidate_count)}, "
+            f"alias_crosswalk_matched_stars={format_count(alias_crosswalk_matched_star_count)}, "
+            f"alias_name_overrides={format_count(alias_name_override_count)}"
+        ),
+    )
+
     # System grouping: WDS first, then name-root, then optional proximity for remaining stars.
+    system_grouping_stage_started = time.monotonic()
     log("System grouping: WDS pass")
     con.execute(
         """
@@ -3296,8 +3359,19 @@ def main() -> int:
     con.execute("drop table system_groups")
     con.execute("alter table stars drop column system_name_root")
     con.execute("alter table stars drop column system_name_root_norm")
+    stage_totals["systems"] = int(system_counts[0] or 0)
+    log_stage_complete(
+        "System grouping stage",
+        system_grouping_stage_started,
+        stage_totals,
+        extra=(
+            f"multi_star_systems={format_count(system_counts[1])}, "
+            f"max_component_size={format_count(system_counts[2])}"
+        ),
+    )
 
     # Planets
+    planets_stage_started = time.monotonic()
     log("Building planets table")
     nasa_path = str(cooked_nasa).replace("'", "''")
     con.execute(
@@ -3464,7 +3538,18 @@ def main() -> int:
           transform_version = {sql_literal(transform_version)}
         """
     )
+    stage_totals["planets"] = con.execute("select count(*) from planets").fetchone()[0]
+    matched_planet_count = con.execute(
+        "select count(*) from planets where match_method <> 'unmatched'"
+    ).fetchone()[0]
+    log_stage_complete(
+        "Planets stage",
+        planets_stage_started,
+        stage_totals,
+        extra=f"matched_planets={format_count(matched_planet_count)}",
+    )
 
+    aliases_stage_started = time.monotonic()
     log("Building alias tables")
     if enable_aliases:
         con.execute(
@@ -3875,7 +3960,18 @@ def main() -> int:
     alias_star_count = con.execute(
         "select count(*) from aliases where target_type = 'star'"
     ).fetchone()[0]
+    stage_totals["aliases"] = alias_total_count
+    log_stage_complete(
+        "Alias stage",
+        aliases_stage_started,
+        stage_totals,
+        extra=(
+            f"athyg_alias_candidates={format_count(alias_crosswalk_candidate_count)}, "
+            f"athyg_alias_matched_stars={format_count(alias_crosswalk_matched_star_count)}"
+        ),
+    )
 
+    science_side_stage_started = time.monotonic()
     log("Building compact and superstellar side tables")
     con.execute(
         f"""
@@ -4273,6 +4369,26 @@ def main() -> int:
         """
     )
 
+    compact_count = con.execute("select count(*) from compact_objects").fetchone()[0]
+    open_clusters_count = con.execute("select count(*) from open_clusters").fetchone()[0]
+    open_cluster_memberships_count = con.execute(
+        "select count(*) from open_cluster_memberships"
+    ).fetchone()[0]
+    superstellar_count = con.execute(
+        "select count(*) from superstellar_objects"
+    ).fetchone()[0]
+    stage_totals["compact_objects"] = compact_count
+    stage_totals["superstellar_objects"] = superstellar_count
+    log_stage_complete(
+        "Science side tables stage",
+        science_side_stage_started,
+        stage_totals,
+        extra=(
+            f"open_clusters={format_count(open_clusters_count)}, "
+            f"open_cluster_memberships={format_count(open_cluster_memberships_count)}"
+        ),
+    )
+
     # Provenance QC gate
     required_text = [
         "source_catalog",
@@ -4433,6 +4549,7 @@ def main() -> int:
         )
 
     # Reports
+    qc_stage_started = time.monotonic()
     log("QC checks")
     counts = con.execute(
         """
@@ -4642,6 +4759,15 @@ def main() -> int:
 
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
+    log_stage_complete(
+        "QC stage",
+        qc_stage_started,
+        stage_totals,
+        extra=(
+            f"dist_invariant_violations={format_count(dist_violations_stars + dist_violations_systems)}, "
+            f"provenance_missing_stars={format_count(provenance_missing)}"
+        ),
+    )
 
     if dist_violations_stars + dist_violations_systems > 0:
         raise SystemExit(
@@ -4655,6 +4781,7 @@ def main() -> int:
         )
 
     # Parquet exports (sorted by spatial_index)
+    parquet_stage_started = time.monotonic()
     log("Writing Parquet exports")
     con.execute(
         f"COPY (SELECT * FROM stars ORDER BY spatial_index) TO '{parquet_dir / 'stars.parquet'}' (FORMAT 'parquet')"
@@ -4668,11 +4795,16 @@ def main() -> int:
     con.execute(
         f"COPY (SELECT * FROM aliases) TO '{parquet_dir / 'aliases.parquet'}' (FORMAT 'parquet')"
     )
+    log_stage_complete("Parquet export stage", parquet_stage_started, stage_totals)
 
     con.close()
     tmp_out_dir.rename(final_out_dir)
     log(f"Promoted build output to {final_out_dir}")
-    log("Ingest core complete")
+    ingest_elapsed_s = time.monotonic() - ingest_started_monotonic
+    log(
+        "Ingest core complete "
+        f"in {ingest_elapsed_s:.1f}s | final totals: {format_stage_totals(stage_totals)}"
+    )
     return 0
 
 
