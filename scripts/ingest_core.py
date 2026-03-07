@@ -47,10 +47,10 @@ WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
 WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
 WHITE_DWARF_PROB_THRESHOLD = 0.5
 ALIAS_NAME_OVERRIDE_LIMIT = 200000
-ALIAS_POS_MAX_DELTA_RA_DEG = 0.25
-ALIAS_POS_MAX_DELTA_DEC_DEG = 0.25
-ALIAS_POS_MAX_DELTA_DIST_LY = 1.5
-ALIAS_POS_MAX_ANG_SEP_ARCSEC = 120.0
+ALIAS_POS_MAX_DELTA_RA_DEG = 0.12
+ALIAS_POS_MAX_DELTA_DEC_DEG = 0.12
+ALIAS_POS_MAX_DELTA_DIST_LY = 1.0
+ALIAS_POS_MAX_ANG_SEP_ARCSEC = 45.0
 
 
 def log(message: str) -> None:
@@ -2381,6 +2381,8 @@ def main() -> int:
                   nullif(proper, '') is not null
                   or (nullif(bayer, '') is not null and nullif(con, '') is not null)
                   or (nullif(flam, '') is not null and nullif(con, '') is not null)
+                  or cast(nullif(nullif(hip, ''), '0') as bigint) is not null
+                  or cast(nullif(nullif(hd, ''), '0') as bigint) is not null
                 )
             ), nogaia_named as (
               select
@@ -2412,6 +2414,8 @@ def main() -> int:
                   proper_name is not null
                   or (bayer is not null and constellation is not null)
                   or (flam is not null and constellation is not null)
+                  or hip_id is not null
+                  or hd_id is not null
                 )
             ), positional_candidates as (
               select
