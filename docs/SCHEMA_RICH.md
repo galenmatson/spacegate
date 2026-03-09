@@ -1,7 +1,7 @@
 # Spacegate Disc Schema (Legacy Filename: SCHEMA_RICH)
 
 This document is the source of truth for Spacegate's **derived astronomy artifacts**.
-Disc data is reproducible and regenerated from core/bulge/packs; it is not edited in place.
+Disc data is reproducible and regenerated from core/arm/packs; it is not edited in place.
 The runtime still uses legacy `rich` naming in some paths during transition.
 
 Schema family:

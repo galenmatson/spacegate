@@ -33,7 +33,7 @@
       - tuned for performance, scaled for resources
     - *halo*: explicit opt-in science projection (slow)
       - contains the other 10+ million objects outside the core database
-    - *bulge*: immutable supplemental science
+    - *arm*: immutable supplemental science
       - observational side tables outside core hot paths
       - Epoch transforms (for example J2000 -> J2016 propagated positions)
       - Derived kinematics and orbital parameters

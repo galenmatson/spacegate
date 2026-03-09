@@ -12,7 +12,7 @@ Out of scope:
 
 - generated exposition/images (`SCHEMA_RICH.md`, disc layer)
 - editable fiction/worldbuilding overlays (`SCHEMA_LORE.md`, rim layer)
-- immutable supplemental science side tables (bulge layer)
+- immutable supplemental science side tables (arm layer)
 
 ## Artifact Contract
 

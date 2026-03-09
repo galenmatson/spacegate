@@ -4,7 +4,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ## A) Platform Foundations
 
-- [x] Galaxy/core/halo/bulge/disc/rim layer model documented (legacy aliases retained during transition)
+- [x] Galaxy/core/halo/arm/disc/rim layer model documented (legacy aliases retained during transition)
 - [x] Immutable build output model (`out/<build_id>`, promoted `served/current`)
 - [x] Deterministic `download -> cook -> ingest -> promote -> verify` scripts
 - [x] Provenance gate and QC report emission
@@ -33,7 +33,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
 - [x] Slice profile catalog + draft SLO targets documented in `SLICE_PROFILES.md`
 - [x] Build metadata persists `slice_profile_id` + `slice_profile_version` on sliced builds
-- [ ] Bulge (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
+- [ ] Arm (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
 - [ ] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot

@@ -32,14 +32,14 @@ Reason:
    - `galaxy`: immutable canonical science corpus
    - `core`: fast default science projection
    - `halo`: explicit opt-in science projection (complement to core)
-   - `bulge`: immutable supplemental science (observational side tables outside core hot paths)
+   - `arm`: immutable supplemental science (observational side tables outside core hot paths)
    - `disc`: reproducible derivatives
    - `rim`: editable fiction
 5. Explicit confidence for joins/groupings; avoid silent inference.
 6. Security-first ingestion: no required insecure transport dependencies.
 7. Classification safety invariants: explicit remnant evidence must override temperature-derived stellar class labels.
 
-## Data Layers (`galaxy` / `core` / `halo` / `bulge` / `disc` / `rim`)
+## Data Layers (`galaxy` / `core` / `halo` / `arm` / `disc` / `rim`)
 
 ### Galaxy (immutable canonical astronomy)
 Authoritative full-science inventory per build:
@@ -71,12 +71,12 @@ Rules:
 
 Core/halo must remain free of generated prose/images/rim overlays.
 
-### Bulge (immutable supplemental science)
+### Arm (immutable supplemental science)
 
 - observational/support datasets that are still scientific and provenance-bound
 - examples: variability families, dense diagnostics, and other non-hot-path science tables
 
-Bulge rows follow the same immutability and provenance rules as core, but are separated to keep core performant.
+Arm rows follow the same immutability and provenance rules as core, but are separated to keep core performant.
 
 ### Disc (rebuildable derived artifacts)
 
@@ -86,14 +86,14 @@ Bulge rows follow the same immutability and provenance rules as core, but are se
 - external links
 - optional neighbor graph
 
-Disc is always regenerable from core/bulge plus pinned generators.
+Disc is always regenerable from core/arm plus pinned generators.
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
 
 ### Compatibility aliases (transition period)
 
-- `aux` -> `bulge`
+- `aux` -> `arm`
 - `rich` -> `disc`
 - `lore` -> `rim`
 
