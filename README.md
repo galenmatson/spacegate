@@ -23,7 +23,33 @@
   - Core artifacts: DuckDB + Parquet, sorted by Morton Z‑order spatial_index.
   - Stable object keys for systems/stars/planets; strict provenance fields required 100%.
   - Planet → host matching prioritized by Gaia DR3 ID, then HIP, HD, then hostname.
-
+  - Separate databases for layer boundaries:
+    - *galaxy*: immutable canonical science corpus
+      - a merged database of the major catalogs: ESA Gaia, AT-HYG, NASA exoplanets, NSS, WDS, ORB6, MSC)
+      - 18+ million records, an elephant to eat
+    - *core*: the Spacegate database (fast)
+      - astronomic objects within 1000 LY of Sol
+      - limited to around 5 million objects
+      - tuned for performance, scaled for resources
+    - *halo*: explicit opt-in science projection (slow)
+      - contains the other 10+ million objects outside the core database
+    - *bulge*: immutable supplemental science
+      - observational side tables outside core hot paths
+      - Epoch transforms (for example J2000 -> J2016 propagated positions)
+      - Derived kinematics and orbital parameters
+      - System hierarchy inferences with confidence
+      - Crossmatch confidence scores and physical-consistency flags
+      - Deterministic classifications computed from core fields
+    - *disc:* reproducible derivatives
+      - system animations
+      - factsheets
+      - AI narration
+      - generated imagery
+      - links to external catalogs, articles, and papers
+    - *rim:* editable fiction
+      - lore from popular scifi
+      - user creatable maps, links, economy, and narrative
+      
 ## Packs Contract
 
   - Pack schema requires stable_object_key, object type, coordinates, and full provenance.
