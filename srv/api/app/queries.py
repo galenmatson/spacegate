@@ -552,7 +552,7 @@ def search_systems(
         identifier_mode = id_clause is not None
 
         exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
-        match_params.extend([q_norm, q_raw])
+        exact_params: List[Any] = [q_norm, q_raw]
         if has_aliases:
             alias_cte_parts.append(
                 """
@@ -570,7 +570,7 @@ def search_systems(
 
         prefix_parts = ["s.system_name_norm LIKE ?"]
         prefix_pattern = f"{q_norm}%"
-        match_params.append(prefix_pattern)
+        prefix_params: List[Any] = [prefix_pattern]
         if has_aliases:
             alias_cte_parts.append(
                 """
@@ -588,13 +588,16 @@ def search_systems(
 
         tokens = [token for token in q_norm.split(" ") if token]
         token_clauses: List[str] = []
+        token_params: List[Any] = []
         token_idx = 0
         for token in tokens:
-            if short_query_mode or len(token) < 2:
+            # Identifier-mode queries (HIP/HD/Gaia numeric) don't include token_AND rank clauses.
+            # Skip token params here to keep SQL placeholders aligned with bound params.
+            if identifier_mode or short_query_mode or len(token) < 2:
                 continue
             token_pattern = f"%{token}%"
             token_parts = ["s.system_name_norm LIKE ?"]
-            match_params.append(token_pattern)
+            token_params.append(token_pattern)
             if has_aliases:
                 cte_name = f"alias_match_token_{token_idx}"
                 token_idx += 1
@@ -622,9 +625,11 @@ def search_systems(
             next_rank += 1
         match_lines.append(f"WHEN {exact_clause} THEN {next_rank}")
         match_clauses.append(exact_clause)
+        match_params.extend(exact_params)
         next_rank += 1
         match_lines.append(f"WHEN {prefix_clause} THEN {next_rank}")
         match_clauses.append(prefix_clause)
+        match_params.extend(prefix_params)
         next_rank += 1
         if short_query_mode and not identifier_mode:
             contains_parts = ["s.system_name_norm LIKE ?"]
@@ -650,6 +655,7 @@ def search_systems(
         if token_and_clause and not identifier_mode:
             match_lines.append(f"WHEN {token_and_clause} THEN {next_rank}")
             match_clauses.append(f"({token_and_clause})")
+            match_params.extend(token_params)
 
         match_rank_expr = "CASE " + " ".join(match_lines) + " ELSE NULL END AS match_rank"
 

@@ -266,6 +266,13 @@ export SPACEGATE_ENABLE_PROXIMITY=0
 export SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 export SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
 
+# MSC transport fallback (only if CTIO TLS chain fails in your environment)
+# Security note: HTTP is vulnerable to in-transit tampering; use SHA pin when enabled.
+export SPACEGATE_MSC_ALLOW_INSECURE_HTTP=0
+# export SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1
+# export SPACEGATE_MSC_FORCE_HTTP=1
+# export SPACEGATE_MSC_SHA256=<expected_sha256>
+
 # Auto-score coolness after promote_build.sh (default on)
 export SPACEGATE_AUTO_SCORE_COOLNESS=1
 

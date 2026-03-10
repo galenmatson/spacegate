@@ -29,6 +29,7 @@ NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.
 
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
 MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+MSC_HTTP_URL="${MSC_HTTP_URL:-http://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
 ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
 DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
 CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
@@ -66,6 +67,8 @@ Notes:
   - For CatWISE full tiles, provide a URL list file via CATWISE_TILES_LIST
     or configs/catwise_full_tiles.txt (one URL per line).
   - DwarfArchives download requires SPACEGATE_ENABLE_DWARFARCHIVES=1.
+  - MSC insecure HTTP fallback is opt-in: SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1.
+    Optional integrity pin: SPACEGATE_MSC_SHA256=<known sha256>.
   - Override any catalog URL via configs/catalog_urls.env.
   - --overwrite skips prompts and replaces existing files.
 USAGE
@@ -423,6 +426,7 @@ main() {
   tmp_input="$(mktemp)"
   local -a sources=()
   local -A skip_dest=()
+  local -A resolved_url_by_dest=()
   local catalog
 
   for catalog in "${selected[@]}"; do
@@ -445,10 +449,33 @@ main() {
 
   local entry
   for entry in "${sources[@]}"; do
-    local url dest
+    local source_name rest url dest
+    rest="${entry#*|}"
+    source_name="${rest%%|*}"
     url="${entry#*|*|}"
     url="${url%%|*}"
     dest="${entry##*|}"
+
+    if [[ "$source_name" == "newmsc_20240101" ]]; then
+      if [[ "$url" =~ ^http:// ]]; then
+        if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
+          echo "Error: MSC URL is insecure HTTP but SPACEGATE_MSC_ALLOW_INSECURE_HTTP is not enabled." >&2
+          echo "Set SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1 (and ideally SPACEGATE_MSC_SHA256) to proceed." >&2
+          exit 1
+        fi
+      elif [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" == "1" ]]; then
+        local tls_check_timeout
+        tls_check_timeout="${SPACEGATE_MSC_TLS_CHECK_TIMEOUT_S:-15}"
+        if [[ "${SPACEGATE_MSC_FORCE_HTTP:-0}" == "1" ]]; then
+          url="$MSC_HTTP_URL"
+          log "Warning: forcing MSC download over insecure HTTP (SPACEGATE_MSC_FORCE_HTTP=1)."
+        elif ! curl -fsSI --max-time "$tls_check_timeout" "$url" >/dev/null 2>&1; then
+          url="$MSC_HTTP_URL"
+          log "Warning: MSC HTTPS preflight failed; falling back to insecure HTTP."
+        fi
+      fi
+    fi
+    resolved_url_by_dest["$dest"]="$url"
 
     local dest_abs="$STATE_DIR/$dest"
     local dest_dir
@@ -509,6 +536,9 @@ main() {
     rest="${rest#*|}"
     url="${rest%%|*}"
     dest="${entry##*|}"
+    if [[ -n "${resolved_url_by_dest[$dest]:-}" ]]; then
+      url="${resolved_url_by_dest[$dest]}"
+    fi
 
     local dest_abs="$STATE_DIR/$dest"
     if [[ ! -f "$dest_abs" ]]; then
@@ -564,6 +594,24 @@ main() {
 
     local sha
     sha="$(sha256_file "$dest_abs")"
+    if [[ "$source_name" == "newmsc_20240101" && "$url" =~ ^http:// ]]; then
+      if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
+        log "Error: MSC was downloaded over insecure HTTP without explicit opt-in."
+        size_ok=0
+      elif [[ -n "${SPACEGATE_MSC_SHA256:-}" ]]; then
+        local expected_sha actual_sha
+        expected_sha="$(printf '%s' "${SPACEGATE_MSC_SHA256}" | tr '[:upper:]' '[:lower:]')"
+        actual_sha="$(printf '%s' "$sha" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$expected_sha" != "$actual_sha" ]]; then
+          log "Error: MSC SHA256 mismatch for insecure HTTP download (expected $expected_sha, got $actual_sha)."
+          size_ok=0
+        else
+          log "MSC insecure HTTP download verified against SPACEGATE_MSC_SHA256."
+        fi
+      else
+        log "Warning: MSC downloaded via insecure HTTP without SPACEGATE_MSC_SHA256 pin."
+      fi
+    fi
 
     local ts
     ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
