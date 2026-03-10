@@ -20,6 +20,8 @@ DEFAULT_BUCKETS = 211
 DEFAULT_TIMEOUT_S = 360
 DEFAULT_RETRIES = 6
 DEFAULT_MAX_REC = 500000
+DEFAULT_DELTA_MODE = "resume"
+DEFAULT_DELTA_MAX_AGE_HOURS = 24.0 * 30.0
 GAIA_CLASSPROB_VERSION = "dr3_astrophysical_parameters_parallax_gte_3.26156"
 
 
@@ -61,6 +63,16 @@ def tap_query_csv(adql: str, timeout_s: int, retries: int, max_rec: int) -> str:
     raise RuntimeError(f"Gaia TAP query failed after {retries} attempts: {last_exc}")
 
 
+def is_stale(path: Path, *, max_age_s: float) -> bool:
+    if max_age_s <= 0:
+        return False
+    try:
+        age_s = max(0.0, time.time() - path.stat().st_mtime)
+    except FileNotFoundError:
+        return True
+    return age_s > max_age_s
+
+
 def write_partitioned_csv(
     *,
     min_parallax_mas: float,
@@ -69,16 +81,26 @@ def write_partitioned_csv(
     timeout_s: int,
     retries: int,
     max_rec: int,
-) -> int:
+    delta_mode: str,
+    delta_max_age_hours: float,
+) -> tuple[int, dict[str, int]]:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     query_tag = hashlib.sha1(
         f"{min_parallax_mas}|{buckets}|{max_rec}".encode("utf-8")
     ).hexdigest()[:12]
     parts_dir = out_path.parent / f"{out_path.stem}.parts.{query_tag}"
     parts_dir.mkdir(parents=True, exist_ok=True)
+    max_age_s = delta_max_age_hours * 3600.0
 
     min_parallax = f"{min_parallax_mas:.8f}"
     expected_fields: list[str] | None = None
+    bucket_stats = {
+        "buckets_total": buckets,
+        "buckets_fetched": 0,
+        "buckets_reused": 0,
+        "buckets_reused_empty": 0,
+        "buckets_refreshed": 0,
+    }
 
     def csv_header(path: Path) -> list[str]:
         with path.open("r", encoding="utf-8", newline="") as handle:
@@ -94,7 +116,28 @@ def write_partitioned_csv(
 
     for bucket in range(buckets):
         part_path = parts_dir / f"bucket_{bucket:04d}.csv"
-        if part_path.exists() and part_path.stat().st_size > 0:
+        empty_marker_path = parts_dir / f"bucket_{bucket:04d}.empty"
+        should_fetch = True
+        refresh_reason = "missing"
+
+        if delta_mode != "refresh":
+            if part_path.exists() and part_path.stat().st_size > 0:
+                if delta_mode == "delta" and is_stale(part_path, max_age_s=max_age_s):
+                    refresh_reason = "stale"
+                else:
+                    should_fetch = False
+            elif empty_marker_path.exists():
+                if delta_mode == "delta" and is_stale(empty_marker_path, max_age_s=max_age_s):
+                    refresh_reason = "stale"
+                else:
+                    should_fetch = False
+                    bucket_stats["buckets_reused_empty"] += 1
+                    log(f"gaia_dr3_classprob: bucket {bucket + 1}/{buckets} reuse empty marker")
+                    continue
+        elif part_path.exists() or empty_marker_path.exists():
+            refresh_reason = "refresh"
+
+        if not should_fetch:
             part_header = csv_header(part_path)
             if not part_header:
                 raise RuntimeError(f"gaia_dr3_classprob: empty header in {part_path}")
@@ -107,7 +150,18 @@ def write_partitioned_csv(
                 )
             part_rows = csv_row_count(part_path)
             log(f"gaia_dr3_classprob: bucket {bucket + 1}/{buckets} resume rows={part_rows:,}")
+            bucket_stats["buckets_reused"] += 1
             continue
+
+        if part_path.exists():
+            part_path.unlink()
+        if empty_marker_path.exists():
+            empty_marker_path.unlink()
+        if refresh_reason != "missing":
+            bucket_stats["buckets_refreshed"] += 1
+            log(
+                f"gaia_dr3_classprob: bucket {bucket + 1}/{buckets} refreshing ({refresh_reason})"
+            )
 
         adql = f"""
         select
@@ -128,10 +182,15 @@ def write_partitioned_csv(
           and mod(gs.source_id, {buckets}) = {bucket}
         """
         text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries, max_rec=max_rec)
+        bucket_stats["buckets_fetched"] += 1
         reader = csv.DictReader(StringIO(text))
         fieldnames = list(reader.fieldnames or [])
         if not fieldnames:
             log(f"gaia_dr3_classprob: bucket {bucket + 1}/{buckets} returned no header/rows")
+            empty_marker_path.write_text(
+                f"bucket={bucket} empty=true checked_at={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n",
+                encoding="utf-8",
+            )
             continue
         if expected_fields is None:
             expected_fields = fieldnames
@@ -191,7 +250,7 @@ def write_partitioned_csv(
                     total_rows += 1
 
     tmp_out_path.replace(out_path)
-    return total_rows
+    return total_rows, bucket_stats
 
 
 def file_sha256(path: Path) -> str:
@@ -212,6 +271,7 @@ def write_manifest(
     out_path_rel: Path,
     query_signature: str,
     row_count: int,
+    delta_update: dict[str, object] | None = None,
 ) -> None:
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     entries = [
@@ -226,6 +286,7 @@ def write_manifest(
             "bytes_written": out_path_abs.stat().st_size,
             "row_count": row_count,
             "query_signature": query_signature,
+            "delta_update": delta_update or {},
         }
     ]
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -242,6 +303,18 @@ def main() -> int:
     parser.add_argument("--timeout-s", type=int, default=DEFAULT_TIMEOUT_S)
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
     parser.add_argument("--max-rec", type=int, default=DEFAULT_MAX_REC)
+    parser.add_argument(
+        "--delta-mode",
+        choices=["resume", "delta", "refresh"],
+        default=DEFAULT_DELTA_MODE,
+        help="resume=always reuse bucket parts, delta=refresh stale buckets only, refresh=refetch all buckets.",
+    )
+    parser.add_argument(
+        "--delta-max-age-hours",
+        type=float,
+        default=DEFAULT_DELTA_MAX_AGE_HOURS,
+        help="In delta mode, local bucket parts older than this are refreshed.",
+    )
     args = parser.parse_args()
 
     if args.buckets < 1:
@@ -250,6 +323,8 @@ def main() -> int:
         raise SystemExit("--min-parallax-mas must be > 0")
     if args.max_rec < 1:
         raise SystemExit("--max-rec must be >= 1")
+    if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
+        raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
 
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(
@@ -264,15 +339,18 @@ def main() -> int:
 
     log(
         "Gaia classifier fetch start "
-        f"(min_parallax_mas={args.min_parallax_mas}, buckets={args.buckets}, timeout_s={args.timeout_s})"
+        f"(min_parallax_mas={args.min_parallax_mas}, buckets={args.buckets}, timeout_s={args.timeout_s}, "
+        f"delta_mode={args.delta_mode}, delta_max_age_hours={args.delta_max_age_hours})"
     )
-    row_count = write_partitioned_csv(
+    row_count, bucket_stats = write_partitioned_csv(
         min_parallax_mas=args.min_parallax_mas,
         buckets=args.buckets,
         out_path=out_path,
         timeout_s=args.timeout_s,
         retries=args.retries,
         max_rec=args.max_rec,
+        delta_mode=args.delta_mode,
+        delta_max_age_hours=args.delta_max_age_hours,
     )
 
     write_manifest(
@@ -285,10 +363,17 @@ def main() -> int:
             f"WHERE gs.parallax >= {args.min_parallax_mas:.8f} AND MOD(gs.source_id, {args.buckets}) = <bucket>"
         ),
         row_count=row_count,
+        delta_update={
+            "mode": args.delta_mode,
+            "max_age_hours": args.delta_max_age_hours,
+            **bucket_stats,
+        },
     )
     log(
         "Gaia classifier fetch complete "
-        f"(rows={row_count:,}, bytes={out_path.stat().st_size:,}, manifest={manifest_path})"
+        f"(rows={row_count:,}, bytes={out_path.stat().st_size:,}, fetched={bucket_stats['buckets_fetched']}, "
+        f"reused={bucket_stats['buckets_reused']}, reused_empty={bucket_stats['buckets_reused_empty']}, "
+        f"refreshed={bucket_stats['buckets_refreshed']}, manifest={manifest_path})"
     )
     return 0
 

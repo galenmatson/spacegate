@@ -277,6 +277,17 @@ export SPACEGATE_GAIA_NSS_BUCKETS=7
 export SPACEGATE_GAIA_NSS_TIMEOUT_S=240
 export SPACEGATE_GAIA_NSS_RETRIES=4
 
+# Gaia differential fetch controls (download_core.sh)
+# resume: reuse local bucket parts whenever present (fastest, default behavior)
+# delta: refresh only stale/missing buckets
+# refresh: force full refetch of all buckets
+export SPACEGATE_GAIA_DELTA_MODE=delta
+export SPACEGATE_GAIA_DELTA_MAX_AGE_HOURS=720
+# Optional per-source overrides:
+# export SPACEGATE_GAIA_BACKBONE_DELTA_MODE=delta
+# export SPACEGATE_GAIA_CLASSPROB_DELTA_MODE=delta
+# export SPACEGATE_GAIA_NSS_DELTA_MODE=delta
+
 # Optional WDS->Gaia crosswalk via CDS XMatch (download_core.sh)
 export SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC=2.0
 export SPACEGATE_WDS_GAIA_XMATCH_SELECTION=best
@@ -314,6 +325,8 @@ SPACEGATE_ENABLE_MSC=1
 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
 SPACEGATE_GAIA_NSS_BUCKETS=7
+SPACEGATE_GAIA_DELTA_MODE=delta
+SPACEGATE_GAIA_DELTA_MAX_AGE_HOURS=720
 SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 SPACEGATE_DUCKDB_THREADS=12
 EOF
