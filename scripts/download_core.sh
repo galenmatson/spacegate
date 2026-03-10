@@ -93,7 +93,7 @@ else
 fi
 if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_nss_core.py" \
-    --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-211}" \
+    --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-53}" \
     --min-parallax-mas "${SPACEGATE_GAIA_NSS_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_NSS_TIMEOUT_S:-360}" \
     --retries "${SPACEGATE_GAIA_NSS_RETRIES:-6}" \

@@ -118,6 +118,18 @@ If you used `--skip-build`, used `--skip-db-download`, or want to rebuild:
 scripts/build_core.sh
 ```
 
+Before a forced full catalog refresh, run preflight:
+
+```bash
+scripts/preflight_full_refresh.sh
+```
+
+Then run a true full refresh (Gaia `delta_mode=refresh` + support catalog overwrite):
+
+```bash
+scripts/build_core.sh --full-refresh
+```
+
 For multiplicity contribution analysis with MSC fixed on (`nss_off`, `nss_on`, optional `nss_on_wds_xmatch`):
 
 ```bash
@@ -285,7 +297,7 @@ export SPACEGATE_AUTO_SCORE_COOLNESS=1
 # export SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS=0
 
 # Gaia NSS fetch tuning (download_core.sh)
-export SPACEGATE_GAIA_NSS_BUCKETS=7
+export SPACEGATE_GAIA_NSS_BUCKETS=53
 export SPACEGATE_GAIA_NSS_TIMEOUT_S=240
 export SPACEGATE_GAIA_NSS_RETRIES=4
 
@@ -332,11 +344,15 @@ SPACEGATE_LOG_DIR=/data/spacegate/data/logs
 
 # Optional source-build knobs
 SPACEGATE_ENABLE_PROXIMITY=0
+SPACEGATE_ENABLE_GAIA_BACKBONE=1
+SPACEGATE_ENABLE_GAIA_CLASSPROB=1
 SPACEGATE_ENABLE_GAIA_NSS=1
 SPACEGATE_ENABLE_MSC=1
 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
-SPACEGATE_GAIA_NSS_BUCKETS=7
+SPACEGATE_GAIA_BACKBONE_BUCKETS=211
+SPACEGATE_GAIA_CLASSPROB_BUCKETS=211
+SPACEGATE_GAIA_NSS_BUCKETS=53
 SPACEGATE_GAIA_DELTA_MODE=delta
 SPACEGATE_GAIA_DELTA_MAX_AGE_HOURS=720
 SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
