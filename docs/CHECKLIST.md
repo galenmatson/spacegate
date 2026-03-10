@@ -11,6 +11,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Admin control plane + audit trail baseline
 - [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
 - [x] Admin dataset slicer panel (preview + policy-driven sliced rebuild action)
+- [x] Catalog contribution + overlap report generation and Admin Dataset visualization
 - [x] Coolness scoring pipeline with versioned profiles
 - [x] Snapshot generation pipeline baseline
 

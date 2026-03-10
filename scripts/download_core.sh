@@ -93,5 +93,8 @@ if [[ "${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}" == "1" ]]; then
 else
   echo "Skip WDS Gaia XMatch fetch (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
 fi
+if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/update_catalog_pipeline_report.py" --stage download >/dev/null 2>&1; then
+  echo "Warning: failed to update catalog pipeline report (download stage)." >&2
+fi
 echo "Download complete."
 echo "Next: scripts/cook_core.sh to normalize catalogs."

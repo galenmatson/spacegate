@@ -8,6 +8,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -376,6 +377,17 @@ def format_count(value: int | None) -> str:
     if value is None:
         return "n/a"
     return f"{int(value):,}"
+
+
+def pct_value(part: int | float | None, whole: int | float | None) -> float:
+    try:
+        p = float(part or 0.0)
+        w = float(whole or 0.0)
+    except Exception:
+        return 0.0
+    if w <= 0.0:
+        return 0.0
+    return (p / w) * 100.0
 
 
 def format_stage_totals(totals: dict[str, int | None]) -> str:
@@ -6223,8 +6235,643 @@ def main() -> int:
         ],
     }
 
+    def manifest_row_count(entry: dict | None) -> int | None:
+        if not entry:
+            return None
+        value = entry.get("row_count")
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    def manifest_bytes(entry: dict | None) -> int | None:
+        if not entry:
+            return None
+        value = entry.get("bytes_written")
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    def safe_view_count(view_name: str) -> int | None:
+        try:
+            return int(con.execute(f"select count(*)::bigint from {view_name}").fetchone()[0])
+        except Exception:
+            return None
+
+    total_stars = int(counts[0] or 0)
+    total_systems = int(counts[1] or 0)
+    total_planets = int(counts[2] or 0)
+    total_compact = int(counts[3] or 0)
+    total_superstellar = int(counts[6] or 0)
+    total_eclipsing = int(counts[7] or 0)
+
+    star_source_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            "select coalesce(source_catalog, 'unknown'), count(*)::bigint from stars group by 1"
+        ).fetchall()
+    }
+    planet_source_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            "select coalesce(source_catalog, 'unknown'), count(*)::bigint from planets group by 1"
+        ).fetchall()
+    }
+    compact_source_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            "select coalesce(source_catalog, 'unknown'), count(*)::bigint from compact_objects group by 1"
+        ).fetchall()
+    }
+    superstellar_source_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            "select coalesce(source_catalog, 'unknown'), count(*)::bigint from superstellar_objects group by 1"
+        ).fetchall()
+    }
+    eclipsing_source_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            "select coalesce(source_catalog, 'unknown'), count(*)::bigint from eclipsing_binaries group by 1"
+        ).fetchall()
+    }
+
+    planet_linked_rows = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from planets
+            where match_method is not null
+              and lower(match_method) not in ('none', 'unmatched')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    compact_linked_rows = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from compact_objects
+            where match_method is not null
+              and lower(match_method) not in ('none', 'unmatched')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    eclipsing_linked_rows = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from eclipsing_binaries
+            where match_method is not null
+              and lower(match_method) not in ('none', 'unmatched')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+
+    star_evidence_row = con.execute(
+        """
+        with flags as (
+          select
+            case
+              when coalesce(gaia_non_single_star, false)
+                or coalesce(gaia_nss_solution_count, 0) > 0
+                or multiplicity_source_catalogs_json like '%"gaia_nss"%'
+                or multiplicity_source_catalogs_json like '%"gaia_nss_two_body"%'
+              then 1 else 0
+            end as has_nss,
+            case
+              when wds_id is not null
+                or multiplicity_source_catalogs_json like '%"wds_gaia_xmatch"%'
+              then 1 else 0
+            end as has_wds,
+            case
+              when source_catalog = 'msc'
+                or multiplicity_source_catalogs_json like '%"msc"%'
+              then 1 else 0
+            end as has_msc,
+            case
+              when classprob_dsc_combmod_whitedwarf is not null
+                or classprob_dsc_specmod_whitedwarf is not null
+              then 1 else 0
+            end as has_classprob,
+            case
+              when open_cluster_tags_json is not null
+                and trim(open_cluster_tags_json) <> ''
+                and trim(open_cluster_tags_json) <> '[]'
+              then 1 else 0
+            end as has_cluster_tag
+          from stars
+        )
+        select
+          count(*)::bigint as total_rows,
+          sum(has_nss)::bigint as nss_rows,
+          sum(has_wds)::bigint as wds_rows,
+          sum(has_msc)::bigint as msc_rows,
+          sum(has_classprob)::bigint as classprob_rows,
+          sum(has_cluster_tag)::bigint as cluster_tag_rows,
+          sum(case when has_nss = 1 and has_wds = 1 then 1 else 0 end)::bigint as nss_wds_rows,
+          sum(case when has_nss = 1 and has_msc = 1 then 1 else 0 end)::bigint as nss_msc_rows,
+          sum(case when has_wds = 1 and has_msc = 1 then 1 else 0 end)::bigint as wds_msc_rows,
+          sum(case when has_nss = 1 and has_wds = 1 and has_msc = 1 then 1 else 0 end)::bigint as nss_wds_msc_rows
+        from flags
+        """
+    ).fetchone()
+    system_evidence_row = con.execute(
+        """
+        select
+          count(*)::bigint as total_rows,
+          sum(case when has_gaia_nss_evidence then 1 else 0 end)::bigint as nss_rows,
+          sum(case when has_wds_evidence then 1 else 0 end)::bigint as wds_rows,
+          sum(case when has_msc_evidence then 1 else 0 end)::bigint as msc_rows,
+          sum(case when has_gaia_nss_evidence and has_wds_evidence then 1 else 0 end)::bigint as nss_wds_rows,
+          sum(case when has_gaia_nss_evidence and has_msc_evidence then 1 else 0 end)::bigint as nss_msc_rows,
+          sum(case when has_wds_evidence and has_msc_evidence then 1 else 0 end)::bigint as wds_msc_rows,
+          sum(case when has_gaia_nss_evidence and has_wds_evidence and has_msc_evidence then 1 else 0 end)::bigint as nss_wds_msc_rows
+        from systems
+        """
+    ).fetchone()
+
+    star_nss_rows = int(star_evidence_row[1] or 0)
+    star_wds_rows = int(star_evidence_row[2] or 0)
+    star_msc_rows = int(star_evidence_row[3] or 0)
+    system_nss_rows = int(system_evidence_row[1] or 0)
+    system_wds_rows = int(system_evidence_row[2] or 0)
+    system_msc_rows = int(system_evidence_row[3] or 0)
+
+    def pair_overlap_rows(
+        scope: str,
+        left: str,
+        right: str,
+        left_count: int,
+        right_count: int,
+        intersection_count: int,
+        total_count: int,
+    ) -> dict:
+        union_count = max(left_count + right_count - intersection_count, 0)
+        return {
+            "scope": scope,
+            "left_catalog": left,
+            "right_catalog": right,
+            "left_count": int(left_count),
+            "right_count": int(right_count),
+            "intersection_count": int(intersection_count),
+            "union_count": int(union_count),
+            "jaccard_pct": round(pct_value(intersection_count, union_count), 2),
+            "intersection_pct_of_scope": round(pct_value(intersection_count, total_count), 2),
+            "intersection_pct_of_left": round(pct_value(intersection_count, left_count), 2),
+            "intersection_pct_of_right": round(pct_value(intersection_count, right_count), 2),
+        }
+
+    star_pairwise = [
+        pair_overlap_rows(
+            "stars",
+            "gaia_nss",
+            "wds",
+            star_nss_rows,
+            star_wds_rows,
+            int(star_evidence_row[6] or 0),
+            total_stars,
+        ),
+        pair_overlap_rows(
+            "stars",
+            "gaia_nss",
+            "msc",
+            star_nss_rows,
+            star_msc_rows,
+            int(star_evidence_row[7] or 0),
+            total_stars,
+        ),
+        pair_overlap_rows(
+            "stars",
+            "wds",
+            "msc",
+            star_wds_rows,
+            star_msc_rows,
+            int(star_evidence_row[8] or 0),
+            total_stars,
+        ),
+    ]
+    system_pairwise = [
+        pair_overlap_rows(
+            "systems",
+            "gaia_nss",
+            "wds",
+            system_nss_rows,
+            system_wds_rows,
+            int(system_evidence_row[4] or 0),
+            total_systems,
+        ),
+        pair_overlap_rows(
+            "systems",
+            "gaia_nss",
+            "msc",
+            system_nss_rows,
+            system_msc_rows,
+            int(system_evidence_row[5] or 0),
+            total_systems,
+        ),
+        pair_overlap_rows(
+            "systems",
+            "wds",
+            "msc",
+            system_wds_rows,
+            system_msc_rows,
+            int(system_evidence_row[6] or 0),
+            total_systems,
+        ),
+    ]
+
+    def add_catalog_contribution(
+        rows: list[dict],
+        *,
+        catalog: str,
+        domain: str,
+        domain_total: int,
+        input_rows: int | None = None,
+        input_bytes: int | None = None,
+        direct_rows: int = 0,
+        evidence_rows: int = 0,
+        linked_rows: int = 0,
+        notes: str | None = None,
+    ) -> None:
+        direct_pct = round(pct_value(direct_rows, domain_total), 2)
+        evidence_pct = round(pct_value(evidence_rows, domain_total), 2)
+        linked_pct = round(pct_value(linked_rows, domain_total), 2)
+        utility_score = round((0.45 * direct_pct) + (0.35 * evidence_pct) + (0.20 * linked_pct), 2)
+        if max(direct_pct, evidence_pct, linked_pct) >= 20.0:
+            utility_tier = "indispensable"
+        elif max(direct_pct, evidence_pct, linked_pct) >= 5.0:
+            utility_tier = "strong"
+        elif max(direct_pct, evidence_pct, linked_pct) > 0.0:
+            utility_tier = "situational"
+        else:
+            utility_tier = "meh"
+        rows.append(
+            {
+                "catalog": catalog,
+                "domain": domain,
+                "domain_total": int(domain_total),
+                "input_rows": int(input_rows) if input_rows is not None else None,
+                "input_bytes": int(input_bytes) if input_bytes is not None else None,
+                "direct_rows": int(direct_rows),
+                "evidence_rows": int(evidence_rows),
+                "linked_rows": int(linked_rows),
+                "direct_pct_of_domain": direct_pct,
+                "evidence_pct_of_domain": evidence_pct,
+                "linked_pct_of_domain": linked_pct,
+                "utility_score": utility_score,
+                "utility_tier": utility_tier,
+                "notes": notes or "",
+            }
+        )
+
+    catalog_contributions: list[dict] = []
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog=("gaia_dr3" if enable_gaia_backbone else "athyg"),
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=(manifest_row_count(gaia_backbone_manifest) if enable_gaia_backbone else None),
+        input_bytes=(manifest_bytes(gaia_backbone_manifest) if enable_gaia_backbone else None),
+        direct_rows=int(star_source_counts.get("gaia_dr3" if enable_gaia_backbone else "athyg", 0)),
+        evidence_rows=0,
+        linked_rows=0,
+        notes=("canonical backbone inventory" if enable_gaia_backbone else "legacy canonical inventory"),
+    )
+    if enable_gaia_backbone and enable_athyg_supplement_merge:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="athyg",
+            domain="stars",
+            domain_total=total_stars,
+            input_rows=int(athyg_merge_existing_match_count + athyg_merge_insert_count + athyg_merge_quarantine_count),
+            input_bytes=manifest_bytes(athyg_p1) if athyg_p1 else None,
+            direct_rows=int(star_source_counts.get("athyg", 0)),
+            evidence_rows=0,
+            linked_rows=0,
+            notes="supplement merge source",
+        )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="gaia_nss_non_single_star",
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=manifest_row_count(gaia_nss_non_single_manifest),
+        input_bytes=manifest_bytes(gaia_nss_non_single_manifest),
+        direct_rows=0,
+        evidence_rows=star_nss_rows,
+        linked_rows=star_nss_rows,
+        notes="multiplicity evidence",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="gaia_nss_non_single_star",
+        domain="systems",
+        domain_total=total_systems,
+        input_rows=manifest_row_count(gaia_nss_non_single_manifest),
+        input_bytes=manifest_bytes(gaia_nss_non_single_manifest),
+        direct_rows=0,
+        evidence_rows=system_nss_rows,
+        linked_rows=system_nss_rows,
+        notes="system multiplicity evidence",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="wds",
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=safe_view_count("wds_raw"),
+        input_bytes=manifest_bytes(wds_manifest),
+        direct_rows=0,
+        evidence_rows=star_wds_rows,
+        linked_rows=star_wds_rows,
+        notes="double-star evidence",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="wds",
+        domain="systems",
+        domain_total=total_systems,
+        input_rows=safe_view_count("wds_raw"),
+        input_bytes=manifest_bytes(wds_manifest),
+        direct_rows=0,
+        evidence_rows=system_wds_rows,
+        linked_rows=system_wds_rows,
+        notes="double-star system evidence",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="msc",
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=safe_view_count("msc_raw"),
+        input_bytes=manifest_bytes(msc_manifest),
+        direct_rows=int(star_source_counts.get("msc", 0)),
+        evidence_rows=star_msc_rows,
+        linked_rows=star_msc_rows,
+        notes="hierarchical multiplicity source",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="msc",
+        domain="systems",
+        domain_total=total_systems,
+        input_rows=safe_view_count("msc_raw"),
+        input_bytes=manifest_bytes(msc_manifest),
+        direct_rows=0,
+        evidence_rows=system_msc_rows,
+        linked_rows=system_msc_rows,
+        notes="hierarchical system evidence",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="orb6",
+        domain="systems",
+        domain_total=total_systems,
+        input_rows=safe_view_count("orb6_raw"),
+        input_bytes=manifest_bytes(orb6_manifest),
+        direct_rows=0,
+        evidence_rows=0,
+        linked_rows=0,
+        notes="orbit support catalog",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="nasa_exoplanet_archive",
+        domain="planets",
+        domain_total=total_planets,
+        input_rows=safe_view_count("nasa_raw"),
+        input_bytes=manifest_bytes(nasa_manifest),
+        direct_rows=int(planet_source_counts.get("nasa_exoplanet_archive", 0)),
+        evidence_rows=0,
+        linked_rows=planet_linked_rows,
+        notes="exoplanet inventory",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="gaia_classprob",
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=manifest_row_count(gaia_classprob_manifest),
+        input_bytes=manifest_bytes(gaia_classprob_manifest),
+        direct_rows=0,
+        evidence_rows=int(star_evidence_row[4] or 0),
+        linked_rows=int(star_evidence_row[4] or 0),
+        notes="compact/remnant probability evidence",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="clusters",
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=safe_view_count("open_cluster_members_raw"),
+        input_bytes=manifest_bytes(clusters_members_manifest),
+        direct_rows=0,
+        evidence_rows=int(star_evidence_row[5] or 0),
+        linked_rows=int(star_evidence_row[5] or 0),
+        notes="open-cluster membership tags",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="atnf",
+        domain="compact_objects",
+        domain_total=total_compact,
+        input_rows=safe_view_count("atnf_raw"),
+        input_bytes=manifest_bytes(atnf_manifest),
+        direct_rows=int(compact_source_counts.get("atnf", 0)),
+        evidence_rows=0,
+        linked_rows=compact_linked_rows,
+        notes="pulsar compact-object support",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="magnetar",
+        domain="compact_objects",
+        domain_total=total_compact,
+        input_rows=safe_view_count("magnetar_raw"),
+        input_bytes=manifest_bytes(magnetar_manifest),
+        direct_rows=int(compact_source_counts.get("magnetar", 0)),
+        evidence_rows=0,
+        linked_rows=compact_linked_rows,
+        notes="magnetar compact-object support",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="clusters",
+        domain="superstellar_objects",
+        domain_total=total_superstellar,
+        input_rows=safe_view_count("open_clusters_raw"),
+        input_bytes=manifest_bytes(clusters_table1_manifest),
+        direct_rows=int(superstellar_source_counts.get("clusters", 0)),
+        evidence_rows=0,
+        linked_rows=0,
+        notes="open-cluster object inventory",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="snr",
+        domain="superstellar_objects",
+        domain_total=total_superstellar,
+        input_rows=safe_view_count("snr_raw"),
+        input_bytes=manifest_bytes(snr_manifest),
+        direct_rows=int(superstellar_source_counts.get("snr", 0)),
+        evidence_rows=0,
+        linked_rows=0,
+        notes="supernova remnant inventory",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="debcat",
+        domain="eclipsing_binaries",
+        domain_total=total_eclipsing,
+        input_rows=safe_view_count("debcat_raw"),
+        input_bytes=manifest_bytes(debcat_manifest),
+        direct_rows=int(eclipsing_source_counts.get("debcat", 0)),
+        evidence_rows=0,
+        linked_rows=eclipsing_linked_rows,
+        notes="detached eclipsing binaries",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="kepler_eb",
+        domain="eclipsing_binaries",
+        domain_total=total_eclipsing,
+        input_rows=safe_view_count("kepler_eb_raw"),
+        input_bytes=manifest_bytes(kepler_eb_manifest),
+        direct_rows=int(eclipsing_source_counts.get("kepler_eb", 0)),
+        evidence_rows=0,
+        linked_rows=eclipsing_linked_rows,
+        notes="Kepler eclipsing binaries",
+    )
+
+    source_inputs = []
+    for catalog_name, entry in [
+        ("gaia_dr3_backbone", gaia_backbone_manifest),
+        ("gaia_nss_non_single_star", gaia_nss_non_single_manifest),
+        ("gaia_nss_two_body_orbit", gaia_nss_two_body_manifest),
+        ("gaia_classprob", gaia_classprob_manifest),
+        ("wds", wds_manifest),
+        ("wds_gaia_xmatch_best", wds_gaia_xmatch_manifest),
+        ("msc", msc_manifest),
+        ("orb6", orb6_manifest),
+        ("nasa_exoplanet_archive", nasa_manifest),
+        ("atnf", atnf_manifest),
+        ("magnetar", magnetar_manifest),
+        ("clusters_table1", clusters_table1_manifest),
+        ("clusters_members", clusters_members_manifest),
+        ("snr", snr_manifest),
+        ("debcat", debcat_manifest),
+        ("kepler_eb", kepler_eb_manifest),
+        ("athyg_part1", athyg_p1),
+        ("athyg_part2", athyg_p2),
+    ]:
+        if not entry:
+            continue
+        source_inputs.append(
+            {
+                "catalog": catalog_name,
+                "source_name": entry.get("source_name"),
+                "source_version": entry.get("source_version"),
+                "dest_path": entry.get("dest_path"),
+                "url": entry.get("url"),
+                "retrieved_at": entry.get("retrieved_at"),
+                "row_count": manifest_row_count(entry),
+                "bytes_written": manifest_bytes(entry),
+                "sha256": entry.get("sha256"),
+            }
+        )
+
+    catalog_contribution_report = {
+        "build_id": build_id,
+        "generated_at": ingested_at,
+        "totals": {
+            "stars": total_stars,
+            "systems": total_systems,
+            "planets": total_planets,
+            "compact_objects": total_compact,
+            "superstellar_objects": total_superstellar,
+            "eclipsing_binaries": total_eclipsing,
+        },
+        "source_inputs": source_inputs,
+        "catalog_contributions": sorted(
+            catalog_contributions,
+            key=lambda row: (
+                float(row.get("utility_score") or 0.0),
+                int(row.get("direct_rows") or 0),
+                int(row.get("evidence_rows") or 0),
+            ),
+            reverse=True,
+        ),
+        "overlaps": {
+            "star_evidence": {
+                "set_sizes": {
+                    "gaia_nss": star_nss_rows,
+                    "wds": star_wds_rows,
+                    "msc": star_msc_rows,
+                },
+                "pairwise": star_pairwise,
+                "triple_overlap_count": int(star_evidence_row[9] or 0),
+                "triple_overlap_pct_of_stars": round(
+                    pct_value(int(star_evidence_row[9] or 0), total_stars),
+                    2,
+                ),
+            },
+            "system_evidence": {
+                "set_sizes": {
+                    "gaia_nss": system_nss_rows,
+                    "wds": system_wds_rows,
+                    "msc": system_msc_rows,
+                },
+                "pairwise": system_pairwise,
+                "triple_overlap_count": int(system_evidence_row[7] or 0),
+                "triple_overlap_pct_of_systems": round(
+                    pct_value(int(system_evidence_row[7] or 0), total_systems),
+                    2,
+                ),
+            },
+        },
+        "notes": [
+            "Utility rows are domain-scoped (stars/systems/planets/side tables) with percent-of-domain metrics.",
+            "Direct rows: objects emitted directly from a source_catalog.",
+            "Evidence rows: objects carrying catalog evidence but not necessarily emitted from that source_catalog.",
+            "Linked rows: rows with non-null/non-'unmatched' match_method for matchable side tables.",
+            "Pairwise overlap metrics report intersection/union and Jaccard percentages.",
+        ],
+    }
+
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
+    write_json(reports_dir / "catalog_contribution_report.json", catalog_contribution_report)
+    pipeline_report_script = root / "scripts" / "update_catalog_pipeline_report.py"
+    if pipeline_report_script.exists():
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(pipeline_report_script),
+                    "--stage",
+                    "ingest",
+                    "--build-id",
+                    build_id,
+                    "--catalog-contribution-report",
+                    str(reports_dir / "catalog_contribution_report.json"),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            stage_report_path = (result.stdout or "").strip()
+            if stage_report_path:
+                log(f"Updated catalog pipeline report: {stage_report_path}")
+        except Exception as exc:
+            log(f"Warning: failed to update catalog pipeline report at ingest stage ({exc})")
     log_stage_complete(
         "QC stage",
         qc_stage_started,

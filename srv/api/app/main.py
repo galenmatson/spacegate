@@ -1244,6 +1244,8 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     gaia_backbone_report = _read_json_file(reports_dir / "gaia_backbone_report.json")
     slice_policy_report = _read_json_file(reports_dir / "slice_policy_report.json")
     match_report = _read_json_file(reports_dir / "match_report.json")
+    catalog_contribution_report = _read_json_file(reports_dir / "catalog_contribution_report.json")
+    catalog_pipeline_report = _read_json_file(state_dir / "reports" / "catalog_pipeline_report.json")
     coolness_report = _read_json_file(reports_dir / "coolness_report.json")
 
     with db.connection_scope() as con:
@@ -1664,6 +1666,8 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "gaia_backbone_report": gaia_backbone_report,
             "slice_policy_report": slice_policy_report,
             "match_report": match_report,
+            "catalog_contribution_report": catalog_contribution_report,
+            "catalog_pipeline_report": catalog_pipeline_report,
             "coolness_report": coolness_report,
         },
         "bottleneck_hints": {
@@ -2680,6 +2684,38 @@ def admin_home(request: Request):
           </table>
         </div>
       </div>
+      <div class="section grid">
+        <div>
+          <h3>Catalog Utility (Ingest)</h3>
+          <div id="datasetCatalogContributionBars" class="bar-list"></div>
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Catalog</th>
+                <th>Domain</th>
+                <th>Input</th>
+                <th>Direct</th>
+                <th>Evidence</th>
+                <th>Linked</th>
+                <th>Tier</th>
+              </tr>
+            </thead>
+            <tbody id="datasetCatalogContributionRows"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Catalog Overlap + Pipeline Stages</h3>
+          <table class="mini-table">
+            <thead><tr><th>Scope</th><th>Pair</th><th>Intersection</th><th>Jaccard</th><th>% Scope</th></tr></thead>
+            <tbody id="datasetCatalogOverlapRows"></tbody>
+          </table>
+          <h4 style="margin-top:0.7rem;">Pipeline Stage Status</h4>
+          <table class="mini-table">
+            <thead><tr><th>Stage</th><th>Updated</th><th>Details</th></tr></thead>
+            <tbody id="datasetPipelineRows"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="section">
         <h3>Slice Policy Controls</h3>
         <p class="muted">Preview and launch a sliced rebuild. This trims the served dataset by policy and records the policy in build metadata.</p>
@@ -2986,6 +3022,10 @@ def admin_home(request: Request):
       const datasetSystemMultPieEl = document.getElementById('datasetSystemMultPie');
       const datasetStarMultRowsEl = document.getElementById('datasetStarMultRows');
       const datasetStarMultPieEl = document.getElementById('datasetStarMultPie');
+      const datasetCatalogContributionBarsEl = document.getElementById('datasetCatalogContributionBars');
+      const datasetCatalogContributionRowsEl = document.getElementById('datasetCatalogContributionRows');
+      const datasetCatalogOverlapRowsEl = document.getElementById('datasetCatalogOverlapRows');
+      const datasetPipelineRowsEl = document.getElementById('datasetPipelineRows');
       const datasetHumanSummaryEl = document.getElementById('datasetHumanSummary');
       const datasetStatusRawEl = document.getElementById('datasetStatusRaw');
       const sliceMaxDistanceLyEl = document.getElementById('sliceMaxDistanceLy');
@@ -4676,6 +4716,123 @@ def admin_home(request: Request):
           'Star evidence'
         );
 
+        const catalogContribution = breakdowns.catalog_contribution_report || {{}};
+        const catalogContributionRows = Array.isArray(catalogContribution.catalog_contributions)
+          ? catalogContribution.catalog_contributions.slice()
+          : [];
+        catalogContributionRows.sort((a, b) => {{
+          const scoreDelta = toNumber(b.utility_score, 0) - toNumber(a.utility_score, 0);
+          if (scoreDelta !== 0) return scoreDelta;
+          const directDelta = toNumber(b.direct_rows, 0) - toNumber(a.direct_rows, 0);
+          if (directDelta !== 0) return directDelta;
+          return String(a.catalog || '').localeCompare(String(b.catalog || ''));
+        }});
+
+        if (datasetCatalogContributionBarsEl) {{
+          const topUtilityRows = catalogContributionRows
+            .slice(0, 10)
+            .map((row) => ({{
+              label: `${{String(row.catalog || '?')}} (${{String(row.domain || '?')}})`,
+              value: toNumber(row.utility_score, 0),
+            }}));
+          renderBarList(datasetCatalogContributionBarsEl, topUtilityRows, 100);
+        }}
+
+        if (datasetCatalogContributionRowsEl) {{
+          datasetCatalogContributionRowsEl.innerHTML = '';
+          if (!catalogContributionRows.length) {{
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 7;
+            td.className = 'small muted';
+            td.textContent = 'No catalog contribution report found for this build.';
+            tr.appendChild(td);
+            datasetCatalogContributionRowsEl.appendChild(tr);
+          }} else {{
+            catalogContributionRows.slice(0, 30).forEach((row) => {{
+              const tr = document.createElement('tr');
+              const cells = [
+                String(row.catalog || '?'),
+                String(row.domain || '?'),
+                (row.input_rows === null || row.input_rows === undefined) ? 'n/a' : formatInt(row.input_rows),
+                formatInt(row.direct_rows),
+                formatInt(row.evidence_rows),
+                formatInt(row.linked_rows),
+                `${{String(row.utility_tier || 'n/a')}} (${{formatFloat(row.utility_score, 2)}})`,
+              ];
+              cells.forEach((value) => {{
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+              }});
+              datasetCatalogContributionRowsEl.appendChild(tr);
+            }});
+          }}
+        }}
+
+        if (datasetCatalogOverlapRowsEl) {{
+          datasetCatalogOverlapRowsEl.innerHTML = '';
+          const overlapStarRows = (((catalogContribution.overlaps || {{}}).star_evidence || {{}}).pairwise || [])
+            .map((row) => ({{ ...row, scope: 'stars' }}));
+          const overlapSystemRows = (((catalogContribution.overlaps || {{}}).system_evidence || {{}}).pairwise || [])
+            .map((row) => ({{ ...row, scope: 'systems' }}));
+          const overlapRows = overlapStarRows.concat(overlapSystemRows);
+          if (!overlapRows.length) {{
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.className = 'small muted';
+            td.textContent = 'No overlap metrics available.';
+            tr.appendChild(td);
+            datasetCatalogOverlapRowsEl.appendChild(tr);
+          }} else {{
+            overlapRows.forEach((row) => {{
+              const tr = document.createElement('tr');
+              const values = [
+                String(row.scope || '?'),
+                `${{String(row.left_catalog || '?')}} ∩ ${{String(row.right_catalog || '?')}}`,
+                formatInt(row.intersection_count),
+                formatPct(row.jaccard_pct),
+                formatPct(row.intersection_pct_of_scope),
+              ];
+              values.forEach((value) => {{
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+              }});
+              datasetCatalogOverlapRowsEl.appendChild(tr);
+            }});
+          }}
+        }}
+
+        if (datasetPipelineRowsEl) {{
+          datasetPipelineRowsEl.innerHTML = '';
+          const pipeline = breakdowns.catalog_pipeline_report || {{}};
+          const stages = pipeline.stages || {{}};
+          ['download', 'cook', 'ingest'].forEach((stageName) => {{
+            const stageData = stages[stageName] || null;
+            const tr = document.createElement('tr');
+            const stageTd = document.createElement('td');
+            stageTd.textContent = stageName;
+            tr.appendChild(stageTd);
+            const updatedTd = document.createElement('td');
+            updatedTd.textContent = stageData ? String(stageData.updated_at || 'n/a') : 'n/a';
+            tr.appendChild(updatedTd);
+            const detailTd = document.createElement('td');
+            if (!stageData) {{
+              detailTd.textContent = 'no stage report';
+            }} else if (stageName === 'download') {{
+              detailTd.textContent = `${{formatInt(stageData.source_count)}} sources | manifests=${{formatInt(stageData.manifest_files_count)}}`;
+            }} else if (stageName === 'cook') {{
+              detailTd.textContent = `${{formatInt(stageData.existing_catalog_count)}}/${{formatInt(stageData.catalog_count)}} cooked files`;
+            }} else {{
+              detailTd.textContent = `build=${{String(stageData.build_id || 'n/a')}} | entries=${{formatInt(stageData.catalog_contribution_entries)}}`;
+            }}
+            tr.appendChild(detailTd);
+            datasetPipelineRowsEl.appendChild(tr);
+          }});
+        }}
+
         const exotic = breakdowns.exotic_star_counts || {{}};
         const summaryLines = [
           `Build: ${{data.build_id || 'unknown'}}`,
@@ -4686,6 +4843,7 @@ def admin_home(request: Request):
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
           `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
           `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,
+          `Catalog contribution rows: ${{formatInt(catalogContributionRows.length)}}`,
         ];
         if (policyInputStars > 0) {{
           if (sliceMetricsMatch) {{

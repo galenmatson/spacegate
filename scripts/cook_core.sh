@@ -306,6 +306,9 @@ main() {
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
   log "Cook: compact/superstellar/eclipsing support catalogs"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_science_catalogs.py"
+  if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/update_catalog_pipeline_report.py" --stage cook >/dev/null 2>&1; then
+    log "Warning: failed to update catalog pipeline report (cook stage)."
+  fi
   log "Cook core complete"
   echo "Next: scripts/ingest_core.sh to build the core database."
 }
