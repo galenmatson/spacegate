@@ -82,6 +82,27 @@ class CatalogSpec:
         return state_dir.joinpath(*self.path_parts)
 
 
+CATALOG_RELIABILITY_SCORES: dict[str, float] = {
+    "gaia_dr3_sample": 0.98,
+    "gaia_dr3_non_single_sample": 0.98,
+    "gaia_dr3_nss_two_body_sample": 0.98,
+    "athyg": 0.55,
+    "nasa_exoplanet_archive": 0.92,
+    "wds": 0.95,
+    "msc": 0.90,
+    "orb6": 0.93,
+    "sbx_sample": 0.94,
+    "debcat": 0.90,
+    "kepler_eb": 0.89,
+}
+
+CATALOG_REQUIRES_CROSSMATCH: set[str] = {"wds", "msc", "orb6"}
+
+CATALOG_TIER_OVERRIDE: dict[str, str] = {
+    "athyg": "situational",
+}
+
+
 ATHYG_NORMALIZED_SQL = f"""
 select
   'athyg' as catalog_name,
@@ -558,6 +579,146 @@ CATALOGS: dict[str, CatalogSpec] = {
             OverlapField("host_name_norm", "star_name_norm", "host_name_norm"),
         ),
     ),
+    "debcat": CatalogSpec(
+        name="debcat",
+        entity_type="multiple_star",
+        path_parts=("cooked", "debcat", "debcat_binaries.csv"),
+        source_sql="""
+            select * from read_csv_auto(
+              {path},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+        """,
+        normalized_sql=f"""
+            select
+              'debcat' as catalog_name,
+              'multiple_star' as entity_type,
+              coalesce(
+                {normalize_name_sql("nullif(system_name, '')")},
+                md5(coalesce(nullif(system_name, ''), '') || '|' || coalesce(nullif(period_days, ''), ''))
+              ) as sample_key,
+              null::bigint as source_pk,
+              nullif(system_name, '') as system_name,
+              {normalize_name_sql("nullif(system_name, '')")} as system_name_norm,
+              nullif(spectral_type_primary, '') as spectral_type_primary,
+              nullif(spectral_type_secondary, '') as spectral_type_secondary,
+              try_cast(nullif(period_days, '') as double) as period_days,
+              try_cast(nullif(vmag, '') as double) as vmag,
+              try_cast(nullif(b_minus_v, '') as double) as b_minus_v,
+              try_cast(nullif(mass_primary_msun, '') as double) as mass_primary_msun,
+              try_cast(nullif(mass_secondary_msun, '') as double) as mass_secondary_msun,
+              try_cast(nullif(radius_primary_rsun, '') as double) as radius_primary_rsun,
+              try_cast(nullif(radius_secondary_rsun, '') as double) as radius_secondary_rsun,
+              try_cast(nullif(teff_primary_k, '') as double) as teff_primary_k,
+              try_cast(nullif(teff_secondary_k, '') as double) as teff_secondary_k,
+              try_cast(nullif(metallicity_dex, '') as double) as metallicity_dex
+            from catalog_source
+        """,
+        sample_columns=(
+            "system_name",
+            "system_name_norm",
+            "spectral_type_primary",
+            "spectral_type_secondary",
+            "period_days",
+            "vmag",
+            "b_minus_v",
+            "mass_primary_msun",
+            "mass_secondary_msun",
+            "radius_primary_rsun",
+            "radius_secondary_rsun",
+            "teff_primary_k",
+            "teff_secondary_k",
+            "metallicity_dex",
+        ),
+        coverage_columns=(
+            "system_name",
+            "period_days",
+            "vmag",
+            "b_minus_v",
+            "mass_primary_msun",
+            "mass_secondary_msun",
+            "radius_primary_rsun",
+            "radius_secondary_rsun",
+            "teff_primary_k",
+            "teff_secondary_k",
+            "metallicity_dex",
+            "spectral_type_primary",
+        ),
+        overlap_fields=(OverlapField("system_name_norm", "star_name_norm", "system_name_norm"),),
+    ),
+    "kepler_eb": CatalogSpec(
+        name="kepler_eb",
+        entity_type="multiple_star",
+        path_parts=("cooked", "kepler_eb", "kepler_eb_catalog.csv"),
+        source_sql="""
+            select * from read_csv_auto(
+              {path},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+        """,
+        normalized_sql="""
+            select
+              'kepler_eb' as catalog_name,
+              'multiple_star' as entity_type,
+              cast(nullif(kic_id, '') as varchar) as sample_key,
+              try_cast(nullif(kic_id, '') as bigint) as source_pk,
+              try_cast(nullif(kic_id, '') as bigint) as kic_id,
+              try_cast(nullif(period_days, '') as double) as period_days,
+              try_cast(nullif(period_error_days, '') as double) as period_error_days,
+              try_cast(nullif(bjd0, '') as double) as bjd0,
+              try_cast(nullif(bjd0_error, '') as double) as bjd0_error,
+              try_cast(nullif(morphology, '') as double) as morphology,
+              try_cast(nullif(glon_deg, '') as double) as glon_deg,
+              try_cast(nullif(glat_deg, '') as double) as glat_deg,
+              try_cast(nullif(kmag, '') as double) as kmag,
+              try_cast(nullif(teff_k, '') as double) as teff_k,
+              case
+                when lower(nullif(has_short_cadence, '')) in ('1', 'true', 't', 'yes', 'y') then true
+                when lower(nullif(has_short_cadence, '')) in ('0', 'false', 'f', 'no', 'n') then false
+                else null
+              end as has_short_cadence
+            from catalog_source
+        """,
+        sample_columns=(
+            "kic_id",
+            "period_days",
+            "period_error_days",
+            "bjd0",
+            "bjd0_error",
+            "morphology",
+            "glon_deg",
+            "glat_deg",
+            "kmag",
+            "teff_k",
+            "has_short_cadence",
+        ),
+        coverage_columns=(
+            "kic_id",
+            "period_days",
+            "period_error_days",
+            "bjd0",
+            "bjd0_error",
+            "morphology",
+            "glon_deg",
+            "glat_deg",
+            "kmag",
+            "teff_k",
+            "has_short_cadence",
+        ),
+        overlap_fields=(OverlapField("kic_id", "kic_id", "kic_id"),),
+    ),
     "wds": CatalogSpec(
         name="wds",
         entity_type="multiple_star",
@@ -913,6 +1074,7 @@ CATALOGS: dict[str, CatalogSpec] = {
             OverlapField("gaia_id", "gaia_id", "gaia_id"),
             OverlapField("hip_id", "hip_id", "hip_id"),
             OverlapField("hd_id", "hd_id", "hd_id"),
+            OverlapField("wds_id", "wds_id", "wds_id"),
         ),
     ),
 }
@@ -968,6 +1130,44 @@ def prepare_core_overlap_tables(con: duckdb.DuckDBPyConnection, core_db_attached
         where star_name_norm is not null and trim(star_name_norm) <> ''
         """
     )
+    con.execute(
+        """
+        create or replace temp table core_key_wds as
+        select distinct wds_id as key_value
+        from core.stars
+        where wds_id is not null and trim(wds_id) <> ''
+        """
+    )
+    has_object_identifiers = (
+        con.execute(
+            """
+            select count(*)
+            from information_schema.tables
+            where table_schema = 'core' and table_name = 'object_identifiers'
+            """
+        ).fetchone()[0]
+        > 0
+    )
+    if has_object_identifiers:
+        con.execute(
+            """
+            create or replace temp table core_key_kic as
+            select distinct try_cast(id_value_norm as bigint) as key_value
+            from core.object_identifiers
+            where lower(namespace) = 'kic'
+              and id_value_norm is not null
+              and trim(id_value_norm) <> ''
+              and try_cast(id_value_norm as bigint) is not null
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp table core_key_kic as
+            select cast(null as bigint) as key_value
+            where false
+            """
+        )
 
 
 def core_overlap_table(core_column: str) -> str:
@@ -979,6 +1179,10 @@ def core_overlap_table(core_column: str) -> str:
         return "core_key_hd"
     if core_column == "star_name_norm":
         return "core_key_name"
+    if core_column == "wds_id":
+        return "core_key_wds"
+    if core_column == "kic_id":
+        return "core_key_kic"
     raise ValueError(f"Unsupported core overlap column: {core_column}")
 
 
@@ -1087,6 +1291,71 @@ def overlap_summary(
     return summary
 
 
+def coverage_avg_pct(coverage: dict) -> float:
+    columns = coverage.get("columns", {})
+    if not columns:
+        return 0.0
+    values = [float(stats.get("coverage_pct", 0.0)) for stats in columns.values()]
+    return round(sum(values) / len(values), 2)
+
+
+def assess_catalog(spec: CatalogSpec, coverage: dict, overlap: dict) -> dict:
+    row_count = int(coverage.get("row_count", 0))
+    matched_rows = int(overlap.get("matched_rows", 0))
+    avg_coverage_pct = coverage_avg_pct(coverage)
+    overlap_pct = round((matched_rows / row_count) * 100.0, 2) if row_count else 0.0
+    estimated_novel_rows = max(row_count - matched_rows, 0)
+    novelty_pct = round((estimated_novel_rows / row_count) * 100.0, 2) if row_count else 0.0
+
+    reliability = float(CATALOG_RELIABILITY_SCORES.get(spec.name, 0.75))
+    coverage_score = avg_coverage_pct / 100.0
+    overlap_score = overlap_pct / 100.0
+    composite = round(
+        (
+            0.50 * coverage_score
+            + 0.30 * overlap_score
+            + 0.20 * reliability
+        )
+        * 100.0,
+        2,
+    )
+
+    if row_count == 0:
+        tier = "meh"
+        rationale = "no rows available"
+    elif spec.name in CATALOG_REQUIRES_CROSSMATCH:
+        tier = "needs_crossmatch"
+        rationale = "coordinate-led catalog; use multiplicity crossmatch report before policy decisions"
+    elif overlap_pct >= 20.0 and avg_coverage_pct >= 65.0:
+        tier = "indispensable"
+        rationale = "high overlap and high field coverage"
+    elif overlap_pct >= 8.0 and avg_coverage_pct >= 55.0:
+        tier = "strong"
+        rationale = "usable overlap with solid field coverage"
+    elif avg_coverage_pct >= 45.0:
+        tier = "situational"
+        rationale = "good intrinsic data but currently low linkage"
+    else:
+        tier = "meh"
+        rationale = "limited linkage and limited effective coverage"
+
+    override_tier = CATALOG_TIER_OVERRIDE.get(spec.name)
+    if override_tier:
+        tier = override_tier
+        rationale = "policy override"
+
+    return {
+        "avg_coverage_pct": avg_coverage_pct,
+        "overlap_pct": overlap_pct,
+        "estimated_novel_rows": int(estimated_novel_rows),
+        "novelty_pct": novelty_pct,
+        "reliability_score": round(reliability * 100.0, 1),
+        "composite_score": composite,
+        "tier": tier,
+        "tier_rationale": rationale,
+    }
+
+
 def pick_catalogs(catalog_names: list[str], state_dir: Path) -> list[CatalogSpec]:
     if catalog_names:
         specs = []
@@ -1106,14 +1375,61 @@ def pick_catalogs(catalog_names: list[str], state_dir: Path) -> list[CatalogSpec
 
 
 def render_markdown(run_id: str, catalog_reports: list[dict]) -> str:
+    tier_rank = {
+        "indispensable": 4,
+        "strong": 3,
+        "situational": 2,
+        "meh": 1,
+        "needs_crossmatch": 0,
+    }
+    ranked_reports = sorted(
+        catalog_reports,
+        key=lambda report: (
+            tier_rank.get(report["assessment"]["tier"], -1),
+            report["assessment"]["composite_score"],
+        ),
+        reverse=True,
+    )
     lines = [
         "# Catalog Evaluation Summary",
         "",
         f"- Run ID: `{run_id}`",
         f"- Generated at: `{iso_utc(utc_now())}`",
         "",
+        "## Catalog Contribution Ranking",
+        "",
+        "| Catalog | Tier | Composite | Avg Coverage | Overlap | Estimated Novel Rows | Reliability |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
     ]
-    for report in catalog_reports:
+    for report in ranked_reports:
+        assessment = report["assessment"]
+        lines.append(
+            "| {catalog} | {tier} | {composite:.2f} | {coverage:.2f}% | {overlap:.2f}% | {novel:,} | {reliability:.1f}% |".format(
+                catalog=report["catalog"],
+                tier=assessment["tier"],
+                composite=assessment["composite_score"],
+                coverage=assessment["avg_coverage_pct"],
+                overlap=assessment["overlap_pct"],
+                novel=assessment["estimated_novel_rows"],
+                reliability=assessment["reliability_score"],
+            )
+        )
+
+    lines.extend(
+        [
+            "",
+            "Legend:",
+            "- `indispensable`: keep by default",
+            "- `strong`: high-value support source",
+            "- `situational`: useful but currently limited linkage/coverage",
+            "- `meh`: low present value",
+            "- `needs_crossmatch`: coordinate-led; decide after multiplicity crossmatch",
+            "",
+        ]
+    )
+
+    for report in ranked_reports:
+        assessment = report["assessment"]
         lines.extend(
             [
                 f"## {report['catalog']}",
@@ -1122,6 +1438,12 @@ def render_markdown(run_id: str, catalog_reports: list[dict]) -> str:
                 f"- Source path: `{report['source_path']}`",
                 f"- Rows scanned: `{report['coverage']['row_count']}`",
                 f"- Core-overlap rows: `{report['overlap']['matched_rows']}`",
+                f"- Tier: `{assessment['tier']}` ({assessment['tier_rationale']})",
+                f"- Composite score: `{assessment['composite_score']}`",
+                f"- Avg coverage: `{assessment['avg_coverage_pct']}%`",
+                f"- Overlap: `{assessment['overlap_pct']}%`",
+                f"- Estimated novel rows: `{assessment['estimated_novel_rows']}` ({assessment['novelty_pct']}%)",
+                f"- Reliability score: `{assessment['reliability_score']}%`",
                 "",
                 "### Field Coverage",
                 "",
@@ -1223,12 +1545,14 @@ def main() -> int:
 
         coverage = coverage_summary(con, view_name, spec.coverage_columns)
         overlap = overlap_summary(con, spec, view_name, core_db_attached)
+        assessment = assess_catalog(spec, coverage, overlap)
         report = {
             "catalog": spec.name,
             "entity_type": spec.entity_type,
             "source_path": str(source_path),
             "coverage": coverage,
             "overlap": overlap,
+            "assessment": assessment,
             "random_sample_path": str(random_sample_path),
             "overlap_sample_path": str(overlap_sample_path),
         }
@@ -1239,7 +1563,29 @@ def main() -> int:
         con.execute(f"drop table {view_name}")
         con.execute("drop view catalog_source")
 
-    summary = {"run_id": run_id, "catalogs": reports}
+    tier_rank = {
+        "indispensable": 4,
+        "strong": 3,
+        "situational": 2,
+        "meh": 1,
+        "needs_crossmatch": 0,
+    }
+    ranking = sorted(
+        [
+            {
+                "catalog": report["catalog"],
+                "tier": report["assessment"]["tier"],
+                "composite_score": report["assessment"]["composite_score"],
+                "avg_coverage_pct": report["assessment"]["avg_coverage_pct"],
+                "overlap_pct": report["assessment"]["overlap_pct"],
+                "estimated_novel_rows": report["assessment"]["estimated_novel_rows"],
+            }
+            for report in reports
+        ],
+        key=lambda row: (tier_rank.get(row["tier"], -1), row["composite_score"]),
+        reverse=True,
+    )
+    summary = {"run_id": run_id, "catalogs": reports, "ranking": ranking}
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     (output_dir / "summary.md").write_text(render_markdown(run_id, reports))
     print(str(output_dir))

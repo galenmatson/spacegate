@@ -20,6 +20,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Promotion flow auto-scores coolness by default
 - [x] Multiplicity support catalogs wired (NSS, WDS, ORB6, MSC mandatory)
 - [x] Eclipsing support catalogs wired (DEBCat, Kepler EB supplemental side table)
+- [x] Catalog contribution evaluator emits ranked tiered report (`scripts/evaluate_catalog_contribution.sh` + `catalog_eval`)
 - [x] Optional WDS-Gaia bridge wired and default-off
 - [x] Physical consistency gating on WDS bridge grouping
 - [x] Proximity grouping remains nondefault for conservative production builds

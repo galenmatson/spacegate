@@ -237,13 +237,15 @@ These are credible orbital-parameter repositories not yet wired into default ing
 
 1. SBX (ULB): successor to SB9 with TAP service and active maintenance
    - role candidate: spectroscopic orbit enrichment and hierarchy support
-   - status: evaluate schema compatibility + mirror strategy
-2. SB9 mirror snapshots (HEASARC/CDS lineage)
-   - role candidate: fallback archival source for spectroscopic orbits
-   - status: secondary/fallback only; prefer SBX for active updates
-3. TESS eclipsing-binary products and follow-on mission catalogs
+   - status: evaluate schema compatibility + mirror strategy; preferred over SB9
+2. TESS eclipsing-binary products and follow-on mission catalogs
    - role candidate: post-Kepler coverage expansion and cadence-specific variability evidence
    - status: evaluate once deterministic bulk export + licensing path is pinned
+
+SB9 policy:
+
+- SB9 is superseded by SBX and is not targeted for default ingest/evaluation while SBX remains available.
+- SB9 may be referenced only for historical reproducibility checks.
 
 ## Current Manifest Files
 
