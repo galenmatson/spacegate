@@ -34,6 +34,7 @@ Fixture:
 Default behavior:
 - validates against promoted build unless explicit DB paths are passed
 - expects arm graph tables when `--require-arm` is used
+- `scripts/verify_build.sh` runs this exam by default and passes `--require-arm`
 
 Example:
 
@@ -66,4 +67,3 @@ Planned expansion set:
 - Alpha Centauri (A/B + Proxima relation handling)
 - 16 Cyg
 - selected Sol-neighborhood systems used in manual QA
-

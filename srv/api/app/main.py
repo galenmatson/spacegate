@@ -1229,6 +1229,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     served_dir = state_dir / "served"
     out_dir = state_dir / "out"
     rich_db_path = db_path.with_name("rich.duckdb")
+    arm_db_path = db_path.with_name("arm.duckdb")
     admin_db_path = admin_db.get_admin_db_path().resolve()
 
     timings_ms: Dict[str, float] = {}
@@ -1458,6 +1459,28 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             ).fetchone(),
         )
 
+    arm_counts = {
+        "component_entities": 0,
+        "system_hierarchy_edges": 0,
+        "orbit_edges": 0,
+    }
+    if arm_db_path.exists():
+        try:
+            arm_con = duckdb.connect(str(arm_db_path), read_only=True)
+            for table_name in arm_counts:
+                row = _timed(
+                    f"arm_count_{table_name}",
+                    lambda t=table_name: arm_con.execute(f"SELECT COUNT(*)::bigint FROM {t}").fetchone(),
+                )
+                arm_counts[table_name] = int((row or [0])[0] or 0)
+            arm_con.close()
+        except Exception:
+            arm_counts = {
+                "component_entities": 0,
+                "system_hierarchy_edges": 0,
+                "orbit_edges": 0,
+            }
+
     source_breakdown = [
         {"source_catalog": row[0], "star_count": int(row[1])}
         for row in source_breakdown_rows
@@ -1565,6 +1588,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
 
     core_db_bytes = db_path.stat().st_size if db_path.exists() else 0
     rich_db_bytes = rich_db_path.stat().st_size if rich_db_path.exists() else 0
+    arm_db_bytes = arm_db_path.stat().st_size if arm_db_path.exists() else 0
     admin_db_bytes = admin_db_path.stat().st_size if admin_db_path.exists() else 0
 
     payload = {
@@ -1577,6 +1601,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "build_dir": str(build_dir),
             "db_path": str(db_path),
             "rich_db_path": str(rich_db_path) if rich_db_path.exists() else None,
+            "arm_db_path": str(arm_db_path) if arm_db_path.exists() else None,
             "admin_db_path": str(admin_db_path) if admin_db_path.exists() else None,
             "reports_dir": str(reports_dir),
         },
@@ -1591,6 +1616,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "served_total": _path_size_bytes(served_dir),
             "core_db": int(core_db_bytes),
             "rich_db": int(rich_db_bytes),
+            "arm_db": int(arm_db_bytes),
             "admin_db": int(admin_db_bytes),
             "parquet_total": _path_size_bytes(build_dir / "parquet"),
         },
@@ -1636,6 +1662,9 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "systems": systems_count,
             "stars": stars_count,
             "planets": planets_count,
+            "arm_component_entities": int(arm_counts["component_entities"]),
+            "arm_hierarchy_edges": int(arm_counts["system_hierarchy_edges"]),
+            "arm_orbit_edges": int(arm_counts["orbit_edges"]),
             "multi_star_systems": multi_systems_count,
             "single_star_systems": single_systems_count,
             "exoplanets_total": exoplanet_counts["total_exoplanets"],
@@ -4487,6 +4516,8 @@ def admin_home(request: Request):
           {{ key: 'Stars', value: formatInt(counts.stars) }},
           {{ key: 'Systems', value: formatInt(counts.systems) }},
           {{ key: 'Planets', value: formatInt(counts.planets) }},
+          {{ key: 'Arm Components', value: formatInt(counts.arm_component_entities) }},
+          {{ key: 'Arm Orbit Edges', value: formatInt(counts.arm_orbit_edges) }},
           {{ key: 'Multi-Star Systems', value: formatInt(counts.multi_star_systems) }},
           {{ key: 'Exoplanets', value: formatInt(counts.exoplanets_total) }},
           {{ key: 'Hab Zone Candidates', value: formatInt(counts.exoplanets_candidate_habitable) }},
@@ -4526,7 +4557,7 @@ def admin_home(request: Request):
           {{ key: 'Served build footprint', value: formatBytes(sizes.build_total), note: String((data.paths || {{}}).build_dir || '') }},
           {{ key: 'Raw / cooked / out', value: `${{formatBytes(sizes.raw_total)}} / ${{formatBytes(sizes.cooked_total)}} / ${{formatBytes(sizes.out_total)}}` }},
           {{ key: 'Reports / served / parquet', value: `${{formatBytes(sizes.reports_total)}} / ${{formatBytes(sizes.served_total)}} / ${{formatBytes(sizes.parquet_total)}}` }},
-          {{ key: 'DB files', value: `core ${{formatBytes(sizes.core_db)}} | rich ${{formatBytes(sizes.rich_db)}} | admin ${{formatBytes(sizes.admin_db)}}` }},
+          {{ key: 'DB files', value: `core ${{formatBytes(sizes.core_db)}} | arm ${{formatBytes(sizes.arm_db)}} | rich ${{formatBytes(sizes.rich_db)}} | admin ${{formatBytes(sizes.admin_db)}}` }},
           {{ key: '/data partition', value: `${{formatBytes(disk.used_bytes)}} used of ${{formatBytes(disk.total_bytes)}}`, note: `${{formatBytes(disk.free_bytes)}} free (${{formatPct(disk.used_pct)}} used)` }},
         ]);
 
@@ -4838,8 +4869,9 @@ def admin_home(request: Request):
           `Build: ${{data.build_id || 'unknown'}}`,
           `Total rows: ${{formatInt(counts.rows_total)}} (systems=${{formatInt(counts.systems)}}, stars=${{formatInt(counts.stars)}}, planets=${{formatInt(counts.planets)}})`,
           `Multiplicity systems: ${{formatInt(counts.multi_star_systems)}} multi / ${{formatInt(counts.single_star_systems)}} single`,
+          `Arm graph: components=${{formatInt(counts.arm_component_entities)}}, hierarchy edges=${{formatInt(counts.arm_hierarchy_edges)}}, orbit edges=${{formatInt(counts.arm_orbit_edges)}}`,
           `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slicedOutRows)}} sliced out (${{formatPct(slicedOutPct)}})`,
-          `Storage: core=${{formatBytes(sizes.core_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
+          `Storage: core=${{formatBytes(sizes.core_db)}}, arm=${{formatBytes(sizes.arm_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
           `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
           `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,

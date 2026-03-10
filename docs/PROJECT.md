@@ -91,13 +91,12 @@ Disc is always regenerable from core/arm plus pinned generators.
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
 
-### Compatibility aliases (transition period)
+### Compatibility aliases (remaining transition)
 
-- `aux` -> `arm`
 - `rich` -> `disc`
 - `lore` -> `rim`
 
-Script/file names may continue using legacy `rich`/`lore` terms until runtime migration is complete.
+`arm` is now canonical (no `aux` compatibility artifact).
 
 ## Gaia-First Architecture
 
@@ -213,7 +212,7 @@ Pipeline:
 
 1. download (`raw/`)
 2. cook (`cooked/`)
-3. ingest (`out/<build_id>/core.duckdb` + parquet)
+3. ingest (`out/<build_id>/core.duckdb` + `out/<build_id>/arm.duckdb` + parquet)
 4. promote (`served/current`)
 5. verify (QC + provenance + contract checks)
 

@@ -94,6 +94,23 @@ def find_component_rows(
     return [(str(r[0]), str(r[1]), str(r[2])) for r in rows]
 
 
+def pick_component_row(
+    rows: list[tuple[str, str, str]],
+    name_aliases: list[str],
+) -> tuple[str, str, str] | None:
+    if not rows:
+        return None
+    normalized_aliases = [normalize_label(alias) for alias in name_aliases if normalize_label(alias)]
+    if not normalized_aliases:
+        return rows[0]
+    for row in rows:
+        display_norm = normalize_label(row[1])
+        for alias in normalized_aliases:
+            if alias and alias in display_norm:
+                return row
+    return rows[0]
+
+
 def check_system(
     arm: duckdb.DuckDBPyConnection,
     system_cfg: dict[str, Any],
@@ -102,6 +119,7 @@ def check_system(
     system_id = str(system_cfg.get("id") or "unknown")
     expected_components = [normalize_label(v) for v in system_cfg.get("expected_stellar_components", [])]
     expected_pairs = system_cfg.get("expected_inner_binary_pairs", [])
+    name_aliases = [str(v) for v in (system_cfg.get("name_aliases") or [])]
     expected_count = int(system_cfg.get("expected_stellar_component_count", len(expected_components)))
     min_tier = normalize_label(system_cfg.get("minimum_confidence_tier", "medium"))
     min_rank = TIER_RANK.get(min_tier, 2)
@@ -115,7 +133,11 @@ def check_system(
         if not rows:
             missing_labels.append(label)
             continue
-        component_keys[label] = rows[0][0]
+        chosen = pick_component_row(rows, name_aliases)
+        if chosen is None:
+            missing_labels.append(label)
+            continue
+        component_keys[label] = chosen[0]
 
     if missing_labels:
         fail(results, system_id, f"Missing expected components: {', '.join(sorted(missing_labels))}")

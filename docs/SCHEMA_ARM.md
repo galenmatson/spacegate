@@ -16,7 +16,6 @@ Out of scope:
 
 Per build:
 - `$SPACEGATE_STATE_DIR/out/<build_id>/arm.duckdb` (target-state artifact)
-- `$SPACEGATE_STATE_DIR/out/<build_id>/aux.duckdb` (compatibility alias during transition)
 
 Hard rules:
 - arm artifacts are immutable by `build_id`
@@ -204,4 +203,3 @@ MSC is mandatory in default science ingest and arm hierarchy/orbit derivation.
 If MSC retrieval/cook fails:
 - ingest must fail
 - promotion must not proceed
-

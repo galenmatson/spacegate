@@ -785,6 +785,7 @@ def main() -> int:
     atexit.register(cleanup_tmp)
 
     db_path = tmp_out_dir / "core.duckdb"
+    arm_db_path = tmp_out_dir / "arm.duckdb"
 
     con = duckdb.connect(str(db_path))
     con.create_function("morton3d", morton3d)
@@ -6942,6 +6943,48 @@ def main() -> int:
     log_stage_complete("Parquet export stage", parquet_stage_started, stage_totals)
 
     con.close()
+
+    arm_stage_started = time.monotonic()
+    log("Building arm database")
+    arm_builder = root / "scripts" / "build_arm.py"
+    if not arm_builder.exists():
+        raise SystemExit(f"Missing arm builder script: {arm_builder}")
+    try:
+        arm_proc = subprocess.run(
+            [
+                sys.executable,
+                str(arm_builder),
+                "--core-db",
+                str(db_path),
+                "--arm-db",
+                str(arm_db_path),
+                "--state-dir",
+                str(state_dir),
+                "--build-id",
+                build_id,
+                "--ingested-at",
+                ingested_at,
+                "--transform-version",
+                transform_version,
+                "--report-path",
+                str(reports_dir / "arm_report.json"),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        arm_stdout = (arm_proc.stdout or "").strip()
+        if arm_stdout:
+            for line in arm_stdout.splitlines():
+                log(f"arm: {line}")
+    except subprocess.CalledProcessError as exc:
+        err = (exc.stderr or exc.stdout or "").strip()
+        raise SystemExit(f"Arm build failed: {err}") from exc
+    log_stage_complete("Arm stage", arm_stage_started, stage_totals)
+
+    if not arm_db_path.exists():
+        raise SystemExit(f"Arm build failed: missing output {arm_db_path}")
+
     tmp_out_dir.rename(final_out_dir)
     log(f"Promoted build output to {final_out_dir}")
     ingest_elapsed_s = time.monotonic() - ingest_started_monotonic

@@ -26,7 +26,7 @@ Spacegate layer names:
 - `galaxy`: canonical immutable full astronomy inventory
 - `core`: canonical immutable fast astronomy projection
 - `halo`: canonical immutable opt-in astronomy projection (complement to core)
-- `arm`: immutable supplemental science artifacts (legacy alias: `aux`)
+- `arm`: immutable supplemental science artifacts
 - `disc`: reproducible derived artifacts (legacy alias: `rich`)
 - `rim`: editable worldbuilding overlays (legacy alias: `lore`)
 

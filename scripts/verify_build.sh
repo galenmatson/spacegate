@@ -14,7 +14,7 @@ OUT_DIR="$STATE_DIR/out"
 REPORTS_DIR="$STATE_DIR/reports"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
-VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-0}"
+VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -223,7 +223,7 @@ PY
     fi
     local arm_db="$build_dir/arm.duckdb"
     echo "Running multiplicity goldens exam..."
-    "$goldens_script" --core-db "$core_db" --arm-db "$arm_db" --require-arm
+    "$PYTHON_BIN" "$goldens_script" --core-db "$core_db" --arm-db "$arm_db" --require-arm
     echo "OK: multiplicity goldens"
   fi
 

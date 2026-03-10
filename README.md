@@ -280,8 +280,9 @@ export SPACEGATE_MSC_ALLOW_INSECURE_HTTP=0
 # Auto-score coolness after promote_build.sh (default on)
 export SPACEGATE_AUTO_SCORE_COOLNESS=1
 
-# Optional strict verify hook (requires arm.duckdb + golden fixture coverage)
-export SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS=0
+# Multiplicity golden exam is on by default in verify_build.sh.
+# Set to 0 only when intentionally bypassing this gate.
+# export SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS=0
 
 # Gaia NSS fetch tuning (download_core.sh)
 export SPACEGATE_GAIA_NSS_BUCKETS=7

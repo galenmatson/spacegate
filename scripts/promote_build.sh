@@ -49,11 +49,17 @@ select_latest_build() {
 require_artifacts() {
   local build_dir="$1"
   local core_db="$build_dir/core.duckdb"
+  local arm_db="$build_dir/arm.duckdb"
   local parquet_dir="$build_dir/parquet"
   local reports_dir="$STATE_DIR/reports/$(basename "$build_dir")"
 
   if [[ ! -f "$core_db" ]]; then
     echo "Error: missing $core_db" >&2
+    exit 1
+  fi
+
+  if [[ ! -f "$arm_db" ]]; then
+    echo "Error: missing $arm_db" >&2
     exit 1
   fi
 

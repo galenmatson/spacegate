@@ -7,6 +7,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Galaxy/core/halo/arm/disc/rim layer model documented (legacy aliases retained during transition)
 - [x] Immutable build output model (`out/<build_id>`, promoted `served/current`)
 - [x] Deterministic `download -> cook -> ingest -> promote -> verify` scripts
+- [x] Arm graph artifact emitted during ingest (`arm.duckdb`) with report (`arm_report.json`)
+- [x] Promote gate requires both `core.duckdb` and `arm.duckdb`
 - [x] Provenance gate and QC report emission
 - [x] Admin control plane + audit trail baseline
 - [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
@@ -36,7 +38,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
 - [x] Slice profile catalog + draft SLO targets documented in `SLICE_PROFILES.md`
 - [x] Build metadata persists `slice_profile_id` + `slice_profile_version` on sliced builds
-- [x] Arm (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
+- [x] Arm artifact contract and promotion rules documented (`arm.duckdb`)
 - [ ] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot
@@ -66,6 +68,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Reattach WDS/ORB6 evidence against Gaia backbone IDs
 - [ ] Implement/verify hierarchy confidence tiers
 - [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)
+- [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)
 - [ ] Benchmark system validation set passes (Castor, 16 Cyg, Sol-neighborhood checks)
 
 ### C5. Phase D - Crosswalk and Naming
