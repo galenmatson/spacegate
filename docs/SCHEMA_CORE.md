@@ -503,6 +503,36 @@ Expected columns:
   - `object_meta_json`
   - provenance contract fields
 
+## `eclipsing_binaries`
+
+Supplementary eclipsing-binary evidence table sourced from DEBCat and Kepler EB exports.
+
+Expected columns:
+
+- identity:
+  - `eclipsing_binary_id`
+  - `stable_object_key`
+  - `source_catalog_object_id`
+  - `object_name`
+- optional links into canonical inventory:
+  - `star_id` (nullable)
+  - `system_id` (nullable)
+  - `match_method`
+  - `match_confidence`
+- common orbital/phenomenology fields:
+  - `period_days`, `period_error_days`
+  - `bjd0`, `bjd0_error`
+  - `morphology`
+  - `glon_deg`, `glat_deg`
+  - `kmag`
+  - `teff_k`
+  - `has_short_cadence`
+- DEBCat physical parameters (nullable outside DEBCat rows):
+  - primary/secondary spectral types
+  - primary/secondary masses, radii, gravities, temperatures, luminosities
+  - metallicity with uncertainty
+- provenance contract fields
+
 ## QC Requirements
 
 Build must fail on:

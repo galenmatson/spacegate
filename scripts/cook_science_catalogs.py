@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import gzip
 import html
+import math
 import os
 import re
 import tarfile
@@ -35,6 +36,38 @@ def parse_int(value: str | None) -> int | None:
         return int(text)
     except ValueError:
         return None
+
+
+def parse_bool(value: str | None) -> bool | None:
+    text = str(value or "").strip().lower()
+    if not text:
+        return None
+    if text in {"true", "t", "1", "yes", "y"}:
+        return True
+    if text in {"false", "f", "0", "no", "n"}:
+        return False
+    return None
+
+
+def parse_log_quantity(value: str | None) -> float | None:
+    parsed = parse_float(value)
+    if parsed is None:
+        return None
+    if parsed <= -9.0:
+        return None
+    try:
+        return float(math.pow(10.0, parsed))
+    except (OverflowError, ValueError):
+        return None
+
+
+def parse_with_missing_sentinel(value: str | None) -> float | None:
+    parsed = parse_float(value)
+    if parsed is None:
+        return None
+    if parsed <= -9.0:
+        return None
+    return parsed
 
 
 def parse_hms_to_deg(value: str | None) -> float | None:
@@ -484,6 +517,154 @@ def cook_snr(raw_path: Path, cooked_path: Path) -> int:
     return row_count
 
 
+def cook_debcat(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    row_count = 0
+    with raw_path.open("r", encoding="utf-8", errors="replace") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "system_name",
+                "spectral_type_primary",
+                "spectral_type_secondary",
+                "period_days",
+                "vmag",
+                "b_minus_v",
+                "mass_primary_msun",
+                "mass_primary_err_msun",
+                "mass_secondary_msun",
+                "mass_secondary_err_msun",
+                "radius_primary_rsun",
+                "radius_primary_err_rsun",
+                "radius_secondary_rsun",
+                "radius_secondary_err_rsun",
+                "logg_primary_cgs",
+                "logg_primary_err_cgs",
+                "logg_secondary_cgs",
+                "logg_secondary_err_cgs",
+                "teff_primary_k",
+                "teff_primary_err_k",
+                "teff_secondary_k",
+                "teff_secondary_err_k",
+                "lum_primary_lsun",
+                "lum_primary_err_lsun",
+                "lum_secondary_lsun",
+                "lum_secondary_err_lsun",
+                "metallicity_dex",
+                "metallicity_err_dex",
+            ],
+        )
+        writer.writeheader()
+        for raw in in_f:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            tokens = line.split()
+            if len(tokens) < 28:
+                continue
+            writer.writerow(
+                {
+                    "system_name": tokens[0].replace("_", " "),
+                    "spectral_type_primary": tokens[1],
+                    "spectral_type_secondary": tokens[2],
+                    "period_days": parse_with_missing_sentinel(tokens[3]),
+                    "vmag": parse_with_missing_sentinel(tokens[4]),
+                    "b_minus_v": parse_with_missing_sentinel(tokens[5]),
+                    "mass_primary_msun": parse_log_quantity(tokens[6]),
+                    "mass_primary_err_msun": parse_with_missing_sentinel(tokens[7]),
+                    "mass_secondary_msun": parse_log_quantity(tokens[8]),
+                    "mass_secondary_err_msun": parse_with_missing_sentinel(tokens[9]),
+                    "radius_primary_rsun": parse_log_quantity(tokens[10]),
+                    "radius_primary_err_rsun": parse_with_missing_sentinel(tokens[11]),
+                    "radius_secondary_rsun": parse_log_quantity(tokens[12]),
+                    "radius_secondary_err_rsun": parse_with_missing_sentinel(tokens[13]),
+                    "logg_primary_cgs": parse_with_missing_sentinel(tokens[14]),
+                    "logg_primary_err_cgs": parse_with_missing_sentinel(tokens[15]),
+                    "logg_secondary_cgs": parse_with_missing_sentinel(tokens[16]),
+                    "logg_secondary_err_cgs": parse_with_missing_sentinel(tokens[17]),
+                    "teff_primary_k": parse_log_quantity(tokens[18]),
+                    "teff_primary_err_k": parse_with_missing_sentinel(tokens[19]),
+                    "teff_secondary_k": parse_log_quantity(tokens[20]),
+                    "teff_secondary_err_k": parse_with_missing_sentinel(tokens[21]),
+                    "lum_primary_lsun": parse_log_quantity(tokens[22]),
+                    "lum_primary_err_lsun": parse_with_missing_sentinel(tokens[23]),
+                    "lum_secondary_lsun": parse_log_quantity(tokens[24]),
+                    "lum_secondary_err_lsun": parse_with_missing_sentinel(tokens[25]),
+                    "metallicity_dex": parse_with_missing_sentinel(tokens[26]),
+                    "metallicity_err_dex": parse_with_missing_sentinel(tokens[27]),
+                }
+            )
+            row_count += 1
+    return row_count
+
+
+def cook_kepler_eb(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    text = raw_path.read_text(encoding="utf-8", errors="replace")
+    lines = [line for line in text.splitlines() if line.strip()]
+
+    header_line = None
+    for line in lines:
+        if line.startswith("#KIC,") or line.startswith("KIC,"):
+            header_line = line.lstrip("#")
+            break
+    if not header_line:
+        return 0
+
+    data_lines: list[str] = [header_line]
+    for line in lines:
+        if line.startswith("#"):
+            continue
+        if line == header_line or line == "#" + header_line:
+            continue
+        if "," in line:
+            data_lines.append(line)
+
+    reader = csv.DictReader(data_lines)
+    row_count = 0
+    with cooked_path.open("w", newline="", encoding="utf-8") as out_f:
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "kic_id",
+                "period_days",
+                "period_error_days",
+                "bjd0",
+                "bjd0_error",
+                "morphology",
+                "glon_deg",
+                "glat_deg",
+                "kmag",
+                "teff_k",
+                "has_short_cadence",
+            ],
+        )
+        writer.writeheader()
+        for row in reader:
+            kic_value = parse_int(row.get("KIC"))
+            if kic_value is None:
+                continue
+            writer.writerow(
+                {
+                    "kic_id": kic_value,
+                    "period_days": parse_with_missing_sentinel(row.get("period")),
+                    "period_error_days": parse_with_missing_sentinel(row.get("period_err")),
+                    "bjd0": parse_with_missing_sentinel(row.get("bjd0")),
+                    "bjd0_error": parse_with_missing_sentinel(row.get("bjd0_err")),
+                    "morphology": parse_with_missing_sentinel(row.get("morph")),
+                    "glon_deg": parse_with_missing_sentinel(row.get("GLon")),
+                    "glat_deg": parse_with_missing_sentinel(row.get("GLat")),
+                    "kmag": parse_with_missing_sentinel(row.get("kmag")),
+                    "teff_k": parse_with_missing_sentinel(row.get("Teff")),
+                    "has_short_cadence": parse_bool(row.get("SC")),
+                }
+            )
+            row_count += 1
+    return row_count
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
@@ -526,6 +707,18 @@ def main() -> int:
             raw_dir / "snr" / "snrs.data.html",
             cooked_dir / "snr" / "green_snr.csv",
             cook_snr,
+        ),
+        (
+            "debcat",
+            raw_dir / "debcat" / "debs.dat",
+            cooked_dir / "debcat" / "debcat_binaries.csv",
+            cook_debcat,
+        ),
+        (
+            "kepler_eb",
+            raw_dir / "kepler_eb" / "kepler_eb_catalog.csv",
+            cooked_dir / "kepler_eb" / "kepler_eb_catalog.csv",
+            cook_kepler_eb,
         ),
     ]
 

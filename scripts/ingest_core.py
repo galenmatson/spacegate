@@ -38,6 +38,10 @@ CLUSTERS_URL = "https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/"
 CLUSTERS_VERSION = "2020A&A...640A...1C"
 SNR_URL = "https://www.mrao.cam.ac.uk/surveys/snrs/"
 SNR_VERSION = "2024-10"
+DEBCAT_URL = "https://www.astro.keele.ac.uk/jkt/debcat/debs.dat"
+DEBCAT_VERSION = "debs_dat"
+KEPLER_EB_URL = "https://keplerebs.villanova.edu/"
+KEPLER_EB_VERSION = "third_revision_2019-08-08"
 ATHYG_ALIAS_URL = "https://codeberg.org/astronexus/athyg"
 ATHYG_ALIAS_VERSION = "v3.3"
 PROX_MAX_DIST_LY = 0.25
@@ -382,6 +386,7 @@ def format_stage_totals(totals: dict[str, int | None]) -> str:
         "aliases",
         "compact_objects",
         "superstellar_objects",
+        "eclipsing_binaries",
     ]
     parts: list[str] = []
     for key in order:
@@ -550,6 +555,7 @@ def main() -> int:
     enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
+    enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", True)
@@ -618,6 +624,8 @@ def main() -> int:
     cooked_open_clusters = state_dir / "cooked" / "clusters" / "open_clusters.csv"
     cooked_open_cluster_members = state_dir / "cooked" / "clusters" / "open_cluster_members.csv"
     cooked_snr = state_dir / "cooked" / "snr" / "green_snr.csv"
+    cooked_debcat = state_dir / "cooked" / "debcat" / "debcat_binaries.csv"
+    cooked_kepler_eb = state_dir / "cooked" / "kepler_eb" / "kepler_eb_catalog.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     manifest_path = manifest_dir / "core_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -631,6 +639,8 @@ def main() -> int:
     magnetar_manifest_path = manifest_dir / "magnetar_manifest.json"
     clusters_manifest_path = manifest_dir / "clusters_manifest.json"
     snr_manifest_path = manifest_dir / "snr_manifest.json"
+    debcat_manifest_path = manifest_dir / "debcat_manifest.json"
+    kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
 
     if not enable_gaia_backbone and not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
@@ -668,6 +678,10 @@ def main() -> int:
         raise SystemExit(f"Missing cooked open-cluster members: {cooked_open_cluster_members}")
     if enable_superstellar_catalogs and not cooked_snr.exists():
         raise SystemExit(f"Missing cooked SNR catalog: {cooked_snr}")
+    if enable_eclipsing_catalogs and not cooked_debcat.exists():
+        raise SystemExit(f"Missing cooked DEBCat catalog: {cooked_debcat}")
+    if enable_eclipsing_catalogs and not cooked_kepler_eb.exists():
+        raise SystemExit(f"Missing cooked Kepler EB catalog: {cooked_kepler_eb}")
 
     log("Ingest core start")
     ingest_started_monotonic = time.monotonic()
@@ -693,6 +707,7 @@ def main() -> int:
         f"gaia_classprob={'1' if (enable_gaia_backbone and enable_gaia_classprob) else '0'} "
         f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
+        f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
         f"athyg_supplement_merge={'1' if (enable_gaia_backbone and enable_athyg_supplement_merge) else '0'} "
@@ -720,6 +735,8 @@ def main() -> int:
         manifest_paths.extend([atnf_manifest_path, magnetar_manifest_path])
     if enable_superstellar_catalogs:
         manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
+    if enable_eclipsing_catalogs:
+        manifest_paths.extend([debcat_manifest_path, kepler_eb_manifest_path])
     for path in manifest_paths:
         manifest.update(load_manifest(path))
 
@@ -815,6 +832,7 @@ def main() -> int:
           ('gaia_classprob_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_gaia_classprob) else "0")}),
           ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
+          ('eclipsing_catalogs_enabled', {sql_literal("1" if enable_eclipsing_catalogs else "0")}),
           ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
           ('athyg_alias_crosswalk_enabled', {sql_literal("1" if (enable_aliases and enable_athyg_alias_crosswalk) else "0")}),
           ('athyg_supplement_merge_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_athyg_supplement_merge) else "0")}),
@@ -901,6 +919,16 @@ def main() -> int:
     snr_manifest = (
         require_manifest_entry(manifest, "snrs_data_html", "Galactic SNR catalog")
         if enable_superstellar_catalogs
+        else None
+    )
+    debcat_manifest = (
+        require_manifest_entry(manifest, "debs_dat", "DEBCat detached eclipsing binaries")
+        if enable_eclipsing_catalogs
+        else None
+    )
+    kepler_eb_manifest = (
+        require_manifest_entry(manifest, "kepler_eb_catalog", "Kepler Eclipsing Binary Catalog")
+        if enable_eclipsing_catalogs
         else None
     )
 
@@ -1028,6 +1056,12 @@ def main() -> int:
     )
     snr_sha = snr_manifest.get("sha256") if snr_manifest else None
     snr_retrieved = snr_manifest.get("retrieved_at") if snr_manifest else None
+    debcat_sha = debcat_manifest.get("sha256") if debcat_manifest else None
+    debcat_retrieved = debcat_manifest.get("retrieved_at") if debcat_manifest else None
+    kepler_eb_sha = kepler_eb_manifest.get("sha256") if kepler_eb_manifest else None
+    kepler_eb_retrieved = (
+        kepler_eb_manifest.get("retrieved_at") if kepler_eb_manifest else None
+    )
 
     if enable_gaia_backbone:
         gaia_backbone_path = str(cooked_gaia_backbone).replace("'", "''")
@@ -1238,6 +1272,8 @@ def main() -> int:
     open_clusters_path = str(cooked_open_clusters).replace("'", "''")
     open_cluster_members_path = str(cooked_open_cluster_members).replace("'", "''")
     snr_path = str(cooked_snr).replace("'", "''")
+    debcat_path = str(cooked_debcat).replace("'", "''")
+    kepler_eb_path = str(cooked_kepler_eb).replace("'", "''")
 
     log("Loading cooked multiplicity catalogs")
     con.execute(
@@ -1637,6 +1673,81 @@ def main() -> int:
             where false
             """
         )
+    if enable_eclipsing_catalogs:
+        con.execute(
+            f"""
+            create or replace temp view debcat_raw as
+            select * from read_csv_auto('{debcat_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view kepler_eb_raw as
+            select * from read_csv_auto('{kepler_eb_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view debcat_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              system_name, spectral_type_primary, spectral_type_secondary, period_days, vmag, b_minus_v,
+              mass_primary_msun, mass_primary_err_msun, mass_secondary_msun, mass_secondary_err_msun,
+              radius_primary_rsun, radius_primary_err_rsun, radius_secondary_rsun, radius_secondary_err_rsun,
+              logg_primary_cgs, logg_primary_err_cgs, logg_secondary_cgs, logg_secondary_err_cgs,
+              teff_primary_k, teff_primary_err_k, teff_secondary_k, teff_secondary_err_k, lum_primary_lsun,
+              lum_primary_err_lsun, lum_secondary_lsun, lum_secondary_err_lsun, metallicity_dex,
+              metallicity_err_dex
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view kepler_eb_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              kic_id, period_days, period_error_days, bjd0, bjd0_error, morphology, glon_deg, glat_deg,
+              kmag, teff_k, has_short_cadence
+            )
+            where false
+            """
+        )
     con.execute(
         """
         create or replace temp view gaia_classprob as
@@ -1664,6 +1775,7 @@ def main() -> int:
         "aliases": None,
         "compact_objects": None,
         "superstellar_objects": None,
+        "eclipsing_binaries": None,
     }
 
     # Build stars table
@@ -5440,6 +5552,196 @@ def main() -> int:
         ) u
         """
     )
+    con.execute(
+        f"""
+        create table eclipsing_binaries as
+        with debcat as (
+          select
+            'eb:debcat:' || lower(regexp_replace(coalesce(nullif(system_name, ''), 'unknown'), '[^0-9A-Za-z]+', '_', 'g')) as stable_object_key,
+            nullif(system_name, '') as source_catalog_object_id,
+            nullif(system_name, '') as object_name,
+            null::bigint as star_id,
+            null::bigint as system_id,
+            'unmatched' as match_method,
+            0.0 as match_confidence,
+            nullif(period_days, '')::double as period_days,
+            null::double as period_error_days,
+            null::double as bjd0,
+            null::double as bjd0_error,
+            null::double as morphology,
+            null::double as glon_deg,
+            null::double as glat_deg,
+            nullif(vmag, '')::double as kmag,
+            null::double as teff_k,
+            nullif(spectral_type_primary, '') as spectral_type_primary,
+            nullif(spectral_type_secondary, '') as spectral_type_secondary,
+            nullif(mass_primary_msun, '')::double as mass_primary_msun,
+            nullif(mass_primary_err_msun, '')::double as mass_primary_err_msun,
+            nullif(mass_secondary_msun, '')::double as mass_secondary_msun,
+            nullif(mass_secondary_err_msun, '')::double as mass_secondary_err_msun,
+            nullif(radius_primary_rsun, '')::double as radius_primary_rsun,
+            nullif(radius_primary_err_rsun, '')::double as radius_primary_err_rsun,
+            nullif(radius_secondary_rsun, '')::double as radius_secondary_rsun,
+            nullif(radius_secondary_err_rsun, '')::double as radius_secondary_err_rsun,
+            nullif(logg_primary_cgs, '')::double as logg_primary_cgs,
+            nullif(logg_primary_err_cgs, '')::double as logg_primary_err_cgs,
+            nullif(logg_secondary_cgs, '')::double as logg_secondary_cgs,
+            nullif(logg_secondary_err_cgs, '')::double as logg_secondary_err_cgs,
+            nullif(teff_primary_k, '')::double as teff_primary_k,
+            nullif(teff_primary_err_k, '')::double as teff_primary_err_k,
+            nullif(teff_secondary_k, '')::double as teff_secondary_k,
+            nullif(teff_secondary_err_k, '')::double as teff_secondary_err_k,
+            nullif(lum_primary_lsun, '')::double as lum_primary_lsun,
+            nullif(lum_primary_err_lsun, '')::double as lum_primary_err_lsun,
+            nullif(lum_secondary_lsun, '')::double as lum_secondary_lsun,
+            nullif(lum_secondary_err_lsun, '')::double as lum_secondary_err_lsun,
+            nullif(metallicity_dex, '')::double as metallicity_dex,
+            nullif(metallicity_err_dex, '')::double as metallicity_err_dex,
+            null::boolean as has_short_cadence,
+            {sql_literal('debcat')} as source_catalog,
+            {sql_literal(DEBCAT_VERSION)} as source_version,
+            {sql_literal(DEBCAT_URL)} as source_url,
+            {sql_literal(DEBCAT_URL)} as source_download_url,
+            null::varchar as source_doi,
+            'CC BY 4.0' as license,
+            true as redistribution_ok,
+            'DEBCat catalog terms and citation guidance apply.' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(debcat_sha)} as retrieval_checksum,
+            {sql_literal(debcat_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from debcat_raw
+          where nullif(system_name, '') is not null
+        ), kepler as (
+          select
+            'eb:kepler_eb:kic_' || trim(kic_id) as stable_object_key,
+            'KIC ' || trim(kic_id) as source_catalog_object_id,
+            'KIC ' || trim(kic_id) as object_name,
+            null::bigint as star_id,
+            null::bigint as system_id,
+            'unmatched' as match_method,
+            0.0 as match_confidence,
+            nullif(period_days, '')::double as period_days,
+            nullif(period_error_days, '')::double as period_error_days,
+            nullif(bjd0, '')::double as bjd0,
+            nullif(bjd0_error, '')::double as bjd0_error,
+            nullif(morphology, '')::double as morphology,
+            nullif(glon_deg, '')::double as glon_deg,
+            nullif(glat_deg, '')::double as glat_deg,
+            nullif(kmag, '')::double as kmag,
+            nullif(teff_k, '')::double as teff_k,
+            null::varchar as spectral_type_primary,
+            null::varchar as spectral_type_secondary,
+            null::double as mass_primary_msun,
+            null::double as mass_primary_err_msun,
+            null::double as mass_secondary_msun,
+            null::double as mass_secondary_err_msun,
+            null::double as radius_primary_rsun,
+            null::double as radius_primary_err_rsun,
+            null::double as radius_secondary_rsun,
+            null::double as radius_secondary_err_rsun,
+            null::double as logg_primary_cgs,
+            null::double as logg_primary_err_cgs,
+            null::double as logg_secondary_cgs,
+            null::double as logg_secondary_err_cgs,
+            null::double as teff_primary_k,
+            null::double as teff_primary_err_k,
+            null::double as teff_secondary_k,
+            null::double as teff_secondary_err_k,
+            null::double as lum_primary_lsun,
+            null::double as lum_primary_err_lsun,
+            null::double as lum_secondary_lsun,
+            null::double as lum_secondary_err_lsun,
+            null::double as metallicity_dex,
+            null::double as metallicity_err_dex,
+            case
+              when lower(nullif(has_short_cadence, '')) in ('true', '1', 'yes', 'y', 't') then true
+              when lower(nullif(has_short_cadence, '')) in ('false', '0', 'no', 'n', 'f') then false
+              else null
+            end as has_short_cadence,
+            {sql_literal('kepler_eb')} as source_catalog,
+            {sql_literal(KEPLER_EB_VERSION)} as source_version,
+            {sql_literal(KEPLER_EB_URL)} as source_url,
+            {sql_literal(KEPLER_EB_URL)} as source_download_url,
+            null::varchar as source_doi,
+            'Catalog-specific terms' as license,
+            true as redistribution_ok,
+            'Kepler Eclipsing Binary Catalog terms and citation guidance apply.' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(kepler_eb_sha)} as retrieval_checksum,
+            {sql_literal(kepler_eb_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from kepler_eb_raw
+          where nullif(kic_id, '') is not null
+        ), unioned as (
+          select * from debcat
+          union all
+          select * from kepler
+        )
+        select
+          row_number() over (order by source_catalog, source_catalog_object_id)::bigint as eclipsing_binary_id,
+          stable_object_key,
+          source_catalog_object_id,
+          object_name,
+          star_id,
+          system_id,
+          match_method,
+          match_confidence,
+          period_days,
+          period_error_days,
+          bjd0,
+          bjd0_error,
+          morphology,
+          glon_deg,
+          glat_deg,
+          kmag,
+          teff_k,
+          spectral_type_primary,
+          spectral_type_secondary,
+          mass_primary_msun,
+          mass_primary_err_msun,
+          mass_secondary_msun,
+          mass_secondary_err_msun,
+          radius_primary_rsun,
+          radius_primary_err_rsun,
+          radius_secondary_rsun,
+          radius_secondary_err_rsun,
+          logg_primary_cgs,
+          logg_primary_err_cgs,
+          logg_secondary_cgs,
+          logg_secondary_err_cgs,
+          teff_primary_k,
+          teff_primary_err_k,
+          teff_secondary_k,
+          teff_secondary_err_k,
+          lum_primary_lsun,
+          lum_primary_err_lsun,
+          lum_secondary_lsun,
+          lum_secondary_err_lsun,
+          metallicity_dex,
+          metallicity_err_dex,
+          has_short_cadence,
+          source_catalog,
+          source_version,
+          source_url,
+          source_download_url,
+          source_doi,
+          row_number() over (order by source_catalog, source_catalog_object_id)::bigint as source_pk,
+          row_number() over (order by source_catalog, source_catalog_object_id)::bigint as source_row_id,
+          sha256(source_catalog || '|' || coalesce(source_catalog_object_id, '')) as source_row_hash,
+          license,
+          redistribution_ok,
+          license_note,
+          retrieval_etag,
+          retrieval_checksum,
+          retrieved_at,
+          ingested_at,
+          transform_version
+        from unioned
+        """
+    )
 
     compact_count = con.execute("select count(*) from compact_objects").fetchone()[0]
     open_clusters_count = con.execute("select count(*) from open_clusters").fetchone()[0]
@@ -5449,15 +5751,20 @@ def main() -> int:
     superstellar_count = con.execute(
         "select count(*) from superstellar_objects"
     ).fetchone()[0]
+    eclipsing_count = con.execute(
+        "select count(*) from eclipsing_binaries"
+    ).fetchone()[0]
     stage_totals["compact_objects"] = compact_count
     stage_totals["superstellar_objects"] = superstellar_count
+    stage_totals["eclipsing_binaries"] = eclipsing_count
     log_stage_complete(
         "Science side tables stage",
         science_side_stage_started,
         stage_totals,
         extra=(
             f"open_clusters={format_count(open_clusters_count)}, "
-            f"open_cluster_memberships={format_count(open_cluster_memberships_count)}"
+            f"open_cluster_memberships={format_count(open_cluster_memberships_count)}, "
+            f"eclipsing_binaries={format_count(eclipsing_count)}"
         ),
     )
 
@@ -5582,6 +5889,7 @@ def main() -> int:
             "planets": table_provenance_report("planets", nasa_has_retrieval),
             "compact_objects": table_provenance_report("compact_objects", True),
             "superstellar_objects": table_provenance_report("superstellar_objects", True),
+            "eclipsing_binaries": table_provenance_report("eclipsing_binaries", True),
         },
     }
     if (not enable_gaia_backbone) or (enable_gaia_backbone and enable_athyg_supplement_merge):
@@ -5608,12 +5916,23 @@ def main() -> int:
         provenance_report["open_clusters_members"] = clusters_members_manifest
     if snr_manifest:
         provenance_report["snr"] = snr_manifest
+    if debcat_manifest:
+        provenance_report["debcat"] = debcat_manifest
+    if kepler_eb_manifest:
+        provenance_report["kepler_eb"] = kepler_eb_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
     total_failures = sum(
         provenance_report["tables"][name]["failures"]
-        for name in ("stars", "systems", "planets", "compact_objects", "superstellar_objects")
+        for name in (
+            "stars",
+            "systems",
+            "planets",
+            "compact_objects",
+            "superstellar_objects",
+            "eclipsing_binaries",
+        )
     )
     if total_failures > 0:
         raise SystemExit(
@@ -5634,6 +5953,7 @@ def main() -> int:
           (select count(*) from open_clusters) as open_clusters,
           (select count(*) from open_cluster_memberships) as open_cluster_memberships,
           (select count(*) from superstellar_objects) as superstellar_objects,
+          (select count(*) from eclipsing_binaries) as eclipsing_binaries,
           (select count(*) from object_identifiers) as object_identifiers,
           (select count(*) from identifier_quarantine) as identifier_quarantine
         """
@@ -5778,8 +6098,9 @@ def main() -> int:
             "open_clusters": counts[4],
             "open_cluster_memberships": counts[5],
             "superstellar_objects": counts[6],
-            "object_identifiers": counts[7],
-            "identifier_quarantine": counts[8],
+            "eclipsing_binaries": counts[7],
+            "object_identifiers": counts[8],
+            "identifier_quarantine": counts[9],
             "aliases": alias_total_count,
             "system_aliases": alias_system_count,
             "star_aliases": alias_star_count,
@@ -5792,6 +6113,7 @@ def main() -> int:
         "gaia_classprob_enabled": enable_gaia_backbone and enable_gaia_classprob,
         "compact_catalogs_enabled": enable_compact_catalogs,
         "superstellar_catalogs_enabled": enable_superstellar_catalogs,
+        "eclipsing_catalogs_enabled": enable_eclipsing_catalogs,
         "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
@@ -5885,6 +6207,18 @@ def main() -> int:
             {"object_type": row[0], "count": row[1]}
             for row in con.execute(
                 "select object_type, count(*)::bigint from superstellar_objects group by object_type order by count(*) desc, object_type asc"
+            ).fetchall()
+        ],
+        "eclipsing_source_counts": [
+            {"source_catalog": row[0], "count": row[1]}
+            for row in con.execute(
+                "select source_catalog, count(*)::bigint from eclipsing_binaries group by source_catalog order by count(*) desc, source_catalog asc"
+            ).fetchall()
+        ],
+        "eclipsing_match_counts": [
+            {"match_method": row[0], "count": row[1]}
+            for row in con.execute(
+                "select match_method, count(*)::bigint from eclipsing_binaries group by match_method order by count(*) desc, match_method asc"
             ).fetchall()
         ],
     }

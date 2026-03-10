@@ -30,6 +30,7 @@ NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
 MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
 ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
+DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
 CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
 CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/nodup.dat.gz}"
 VSX_URL="${VSX_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz}"
@@ -153,6 +154,7 @@ nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
 wds|Washington Double Star Catalog (WDS)
 msc|Multiple Star Catalog (MSC)
 orb6|Sixth Catalog of Orbits of Visual Binary Stars (ORB6)
+debcat|DEBCat detached eclipsing binaries
 clusters|Gaia DR2 clusters (Cantat-Gaudin 2020)
 vsx|AAVSO Variable Star Index (VSX)
 snr|Green's Galactic SNRs
@@ -207,6 +209,9 @@ catalog_sources() {
       ;;
     orb6)
       printf '%s\n' "orb6|orb6orbits|$ORB6_URL|raw/orb6/orb6orbits.sql"
+      ;;
+    debcat)
+      printf '%s\n' "debcat|debs_dat|$DEBCAT_URL|raw/debcat/debs.dat"
       ;;
     clusters)
       printf '%s\n' "clusters|cantat_gaudin_2020_table1|$CLUSTERS_URL|raw/clusters/table1.dat"
@@ -341,7 +346,7 @@ expand_catalogs() {
   for item in "${input[@]}"; do
     case "$item" in
       core)
-        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6")
+        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6" "debcat")
         ;;
       *)
         expanded+=("$item")

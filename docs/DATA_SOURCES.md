@@ -157,7 +157,33 @@ Source endpoint:
 
 - USNO ORB6 export
 
-## 7) MSC (Tokovinin Multiple Star Catalog)
+## 7) DEBCat (Detached Eclipsing Binary Catalogue)
+
+Classification: `auxiliary`
+
+Role:
+
+- high-quality detached eclipsing binary physical parameter table
+- benchmark and enrichment support for orbital/mass/radius validation
+
+Source endpoint:
+
+- https://www.astro.keele.ac.uk/jkt/debcat/debs.dat
+
+## 8) Kepler Eclipsing Binary Catalog
+
+Classification: `auxiliary`
+
+Role:
+
+- large eclipsing-binary candidate/phenomenology dataset (period, morphology, KIC IDs)
+- supplementary evidence set for binary behavior and follow-up crossmatching
+
+Source endpoint:
+
+- https://keplerebs.villanova.edu/ (CSV export workflow)
+
+## 9) MSC (Tokovinin Multiple Star Catalog)
 
 Classification: `auxiliary` (mandatory)
 
@@ -178,7 +204,7 @@ Security/transport note:
 
 ## Transitional Sources
 
-## 8) AT-HYG
+## 10) AT-HYG
 
 Classification: `transitional`
 
@@ -215,12 +241,9 @@ These are credible orbital-parameter repositories not yet wired into default ing
 2. SB9 mirror snapshots (HEASARC/CDS lineage)
    - role candidate: fallback archival source for spectroscopic orbits
    - status: secondary/fallback only; prefer SBX for active updates
-3. DEBCat (detached eclipsing binaries)
-   - role candidate: high-quality benchmark orbits/masses for validation and calibration
-   - status: candidate for benchmark/reference ingestion, not broad inventory backbone
-4. Kepler EB catalog (historical eclipsing-binary set)
-   - role candidate: benchmark and tertiary-event validation sets
-   - status: candidate for validation fixtures; not default nearby-space backbone
+3. TESS eclipsing-binary products and follow-on mission catalogs
+   - role candidate: post-Kepler coverage expansion and cadence-specific variability evidence
+   - status: evaluate once deterministic bulk export + licensing path is pinned
 
 ## Current Manifest Files
 
@@ -232,6 +255,8 @@ Typical manifest files:
 - `reports/manifests/gaia_nss_manifest.json`
 - `reports/manifests/wds_manifest.json`
 - `reports/manifests/orb6_manifest.json`
+- `reports/manifests/debcat_manifest.json`
+- `reports/manifests/kepler_eb_manifest.json`
 - `reports/manifests/msc_manifest.json` (required)
 - `reports/manifests/wds_gaia_xmatch_manifest.json` (when enabled)
 - `reports/manifests/atnf_manifest.json`

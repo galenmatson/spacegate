@@ -20,6 +20,8 @@ NASA_RAW="$RAW_DIR/nasa_exoplanet_archive/pscomppars.csv"
 WDS_RAW="$RAW_DIR/wds/wdsweb_summ2.txt"
 MSC_RAW="$RAW_DIR/msc/newmsc-20240101.tar.gz"
 ORB6_RAW="$RAW_DIR/orb6/orb6orbits.sql"
+DEBCAT_RAW="$RAW_DIR/debcat/debs.dat"
+KEPLER_EB_RAW="$RAW_DIR/kepler_eb/kepler_eb_catalog.csv"
 GAIA_BACKBONE_RAW="$RAW_DIR/gaia_backbone/gaia_dr3_backbone.csv"
 GAIA_NSS_NON_SINGLE_RAW="$RAW_DIR/gaia_nss/gaia_dr3_non_single_star.csv"
 GAIA_NSS_TWO_BODY_RAW="$RAW_DIR/gaia_nss/gaia_dr3_nss_two_body_orbit.csv"
@@ -60,6 +62,7 @@ ensure_inputs() {
   local enable_msc="${SPACEGATE_ENABLE_MSC:-1}"
   local enable_gaia_nss="${SPACEGATE_ENABLE_GAIA_NSS:-1}"
   local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}"
+  local enable_eclipsing_catalogs="${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}"
   local missing=0
   if [[ "$enable_msc" == "0" ]]; then
     echo "Error: MSC is mandatory for default science ingest (SPACEGATE_ENABLE_MSC=0 is not supported)." >&2
@@ -108,6 +111,16 @@ ensure_inputs() {
   if [[ "$enable_wds_gaia_xmatch" == "1" ]]; then
     if [[ ! -f "$WDS_GAIA_XMATCH_RAW" ]]; then
       echo "Missing: $WDS_GAIA_XMATCH_RAW" >&2
+      missing=1
+    fi
+  fi
+  if [[ "$enable_eclipsing_catalogs" != "0" ]]; then
+    if [[ ! -f "$DEBCAT_RAW" ]]; then
+      echo "Missing: $DEBCAT_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$KEPLER_EB_RAW" ]]; then
+      echo "Missing: $KEPLER_EB_RAW" >&2
       missing=1
     fi
   fi
@@ -291,7 +304,7 @@ main() {
   cook_nasa
   log "Cook: multiplicity catalogs (WDS/MSC/ORB6/Gaia NSS[/WDS-Gaia XMatch])"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
-  log "Cook: compact/superstellar support catalogs"
+  log "Cook: compact/superstellar/eclipsing support catalogs"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_science_catalogs.py"
   log "Cook core complete"
   echo "Next: scripts/ingest_core.sh to build the core database."

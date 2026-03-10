@@ -31,6 +31,9 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     --catalog msc
     --catalog orb6
   )
+  if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
+    catalog_args+=(--catalog debcat)
+  fi
   if [[ "${SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS:-1}" != "0" ]]; then
     catalog_args+=(--catalog atnf --catalog magnetar --catalog white_dwarf)
   fi
@@ -56,7 +59,22 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     echo "Skip Gaia classifier fetch (SPACEGATE_ENABLE_GAIA_CLASSPROB=0)."
   fi
 else
-  "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
+  if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
+    "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
+  else
+    "$ROOT_DIR/scripts/catalogs.sh" \
+      --catalog athyg \
+      --catalog nasa_exoplanet_archive \
+      --catalog wds \
+      --catalog msc \
+      --catalog orb6 \
+      "$@"
+  fi
+fi
+if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_kepler_eb_catalog.py"
+else
+  echo "Skip eclipsing support catalogs (SPACEGATE_ENABLE_ECLIPSING_CATALOGS=0)."
 fi
 if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_nss_core.py" \
