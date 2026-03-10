@@ -68,7 +68,7 @@ Notes:
     or configs/catwise_full_tiles.txt (one URL per line).
   - DwarfArchives download requires SPACEGATE_ENABLE_DWARFARCHIVES=1.
   - MSC insecure HTTP fallback is opt-in: SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1.
-    Optional integrity pin: SPACEGATE_MSC_SHA256=<known sha256>.
+    Integrity pin is required in HTTP mode: SPACEGATE_MSC_SHA256=<known sha256>.
   - Override any catalog URL via configs/catalog_urls.env.
   - --overwrite skips prompts and replaces existing files.
 USAGE
@@ -460,16 +460,36 @@ main() {
       if [[ "$url" =~ ^http:// ]]; then
         if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
           echo "Error: MSC URL is insecure HTTP but SPACEGATE_MSC_ALLOW_INSECURE_HTTP is not enabled." >&2
-          echo "Set SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1 (and ideally SPACEGATE_MSC_SHA256) to proceed." >&2
+          echo "Set SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1 and SPACEGATE_MSC_SHA256=<expected_sha256> to proceed." >&2
+          exit 1
+        fi
+        if [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+          echo "Error: MSC insecure HTTP mode requires SPACEGATE_MSC_SHA256." >&2
           exit 1
         fi
       elif [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" == "1" ]]; then
         local tls_check_timeout
         tls_check_timeout="${SPACEGATE_MSC_TLS_CHECK_TIMEOUT_S:-15}"
         if [[ "${SPACEGATE_MSC_FORCE_HTTP:-0}" == "1" ]]; then
+          if [[ "$MSC_HTTP_URL" != http://* ]]; then
+            echo "Error: MSC_HTTP_URL must use http:// when SPACEGATE_MSC_FORCE_HTTP=1." >&2
+            exit 1
+          fi
+          if [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+            echo "Error: SPACEGATE_MSC_SHA256 is required when forcing MSC HTTP mode." >&2
+            exit 1
+          fi
           url="$MSC_HTTP_URL"
           log "Warning: forcing MSC download over insecure HTTP (SPACEGATE_MSC_FORCE_HTTP=1)."
         elif ! curl -fsSI --max-time "$tls_check_timeout" "$url" >/dev/null 2>&1; then
+          if [[ "$MSC_HTTP_URL" != http://* ]]; then
+            echo "Error: MSC_HTTP_URL must use http:// for insecure fallback." >&2
+            exit 1
+          fi
+          if [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+            echo "Error: SPACEGATE_MSC_SHA256 is required for MSC HTTPS->HTTP fallback mode." >&2
+            exit 1
+          fi
           url="$MSC_HTTP_URL"
           log "Warning: MSC HTTPS preflight failed; falling back to insecure HTTP."
         fi
@@ -598,7 +618,10 @@ main() {
       if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
         log "Error: MSC was downloaded over insecure HTTP without explicit opt-in."
         size_ok=0
-      elif [[ -n "${SPACEGATE_MSC_SHA256:-}" ]]; then
+      elif [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+        log "Error: MSC insecure HTTP mode requires SPACEGATE_MSC_SHA256."
+        size_ok=0
+      else
         local expected_sha actual_sha
         expected_sha="$(printf '%s' "${SPACEGATE_MSC_SHA256}" | tr '[:upper:]' '[:lower:]')"
         actual_sha="$(printf '%s' "$sha" | tr '[:upper:]' '[:lower:]')"
@@ -608,8 +631,6 @@ main() {
         else
           log "MSC insecure HTTP download verified against SPACEGATE_MSC_SHA256."
         fi
-      else
-        log "Warning: MSC downloaded via insecure HTTP without SPACEGATE_MSC_SHA256 pin."
       fi
     fi
 

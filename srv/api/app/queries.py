@@ -522,12 +522,13 @@ def search_systems(
     match_clauses: List[str] = []
     alias_cte_parts: List[str] = []
     alias_cte_params: List[Any] = []
+    identifier_cte_parts: List[str] = []
+    identifier_cte_params: List[Any] = []
     has_aliases = _has_local_table(con, "aliases")
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
         id_clause = None
-        id_params: List[Any] = []
         if id_query:
             column = {
                 "hd": "hd_id",
@@ -535,25 +536,52 @@ def search_systems(
                 "gaia": "gaia_id",
             }.get(id_query.get("kind"))
             if column:
-                id_clause = (
-                    f"(s.{column} = ? OR EXISTS (SELECT 1 FROM stars st "
-                    f"WHERE st.system_id = s.system_id AND st.{column} = ?))"
+                id_clause = "s.system_id IN (SELECT system_id FROM id_match)"
+                identifier_cte_parts.append(
+                    f"""
+                    id_match AS (
+                        SELECT system_id
+                        FROM systems
+                        WHERE {column} = ?
+                        UNION
+                        SELECT system_id
+                        FROM stars
+                        WHERE {column} = ?
+                    )
+                    """
                 )
-                id_params = [id_query.get("value"), id_query.get("value")]
+                identifier_cte_params.extend([id_query.get("value"), id_query.get("value")])
             elif id_query.get("kind") == "catalog_numeric":
-                id_clause = (
-                    "(s.hip_id = ? OR EXISTS (SELECT 1 FROM stars st "
-                    "WHERE st.system_id = s.system_id AND st.hip_id = ?) "
-                    "OR s.hd_id = ? OR EXISTS (SELECT 1 FROM stars st "
-                    "WHERE st.system_id = s.system_id AND st.hd_id = ?))"
+                id_clause = "s.system_id IN (SELECT system_id FROM id_match)"
+                identifier_cte_parts.append(
+                    """
+                    id_match AS (
+                        SELECT system_id
+                        FROM systems
+                        WHERE hip_id = ?
+                        UNION
+                        SELECT system_id
+                        FROM stars
+                        WHERE hip_id = ?
+                        UNION
+                        SELECT system_id
+                        FROM systems
+                        WHERE hd_id = ?
+                        UNION
+                        SELECT system_id
+                        FROM stars
+                        WHERE hd_id = ?
+                    )
+                    """
                 )
                 value = id_query.get("value")
-                id_params = [value, value, value, value]
+                identifier_cte_params.extend([value, value, value, value])
         identifier_mode = id_clause is not None
+        enable_alias_match = has_aliases and not short_query_mode and not identifier_mode
 
         exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
         exact_params: List[Any] = [q_norm, q_raw]
-        if has_aliases:
+        if enable_alias_match:
             alias_cte_parts.append(
                 """
                 alias_match_exact AS (
@@ -571,7 +599,7 @@ def search_systems(
         prefix_parts = ["s.system_name_norm LIKE ?"]
         prefix_pattern = f"{q_norm}%"
         prefix_params: List[Any] = [prefix_pattern]
-        if has_aliases:
+        if enable_alias_match:
             alias_cte_parts.append(
                 """
                 alias_match_prefix AS (
@@ -598,7 +626,7 @@ def search_systems(
             token_pattern = f"%{token}%"
             token_parts = ["s.system_name_norm LIKE ?"]
             token_params.append(token_pattern)
-            if has_aliases:
+            if enable_alias_match:
                 cte_name = f"alias_match_token_{token_idx}"
                 token_idx += 1
                 alias_cte_parts.append(
@@ -621,41 +649,20 @@ def search_systems(
         if id_clause:
             match_lines.append(f"WHEN {id_clause} THEN {next_rank}")
             match_clauses.append(id_clause)
-            match_params.extend(id_params)
             next_rank += 1
-        match_lines.append(f"WHEN {exact_clause} THEN {next_rank}")
-        match_clauses.append(exact_clause)
-        match_params.extend(exact_params)
-        next_rank += 1
-        match_lines.append(f"WHEN {prefix_clause} THEN {next_rank}")
-        match_clauses.append(prefix_clause)
-        match_params.extend(prefix_params)
-        next_rank += 1
-        if short_query_mode and not identifier_mode:
-            contains_parts = ["s.system_name_norm LIKE ?"]
-            contains_pattern = f"%{q_norm}%"
-            if has_aliases:
-                alias_cte_parts.append(
-                    """
-                    alias_match_contains AS (
-                        SELECT DISTINCT system_id
-                        FROM aliases
-                        WHERE target_type = 'system'
-                          AND alias_norm LIKE ?
-                    )
-                    """
-                )
-                alias_cte_params.append(contains_pattern)
-                contains_parts.append("s.system_id IN (SELECT system_id FROM alias_match_contains)")
-            contains_clause = "(" + " OR ".join(contains_parts) + ")"
-            match_lines.append(f"WHEN {contains_clause} THEN {next_rank}")
-            match_clauses.append(contains_clause)
-            match_params.append(contains_pattern)
+        if not identifier_mode:
+            match_lines.append(f"WHEN {exact_clause} THEN {next_rank}")
+            match_clauses.append(exact_clause)
+            match_params.extend(exact_params)
             next_rank += 1
-        if token_and_clause and not identifier_mode:
-            match_lines.append(f"WHEN {token_and_clause} THEN {next_rank}")
-            match_clauses.append(f"({token_and_clause})")
-            match_params.extend(token_params)
+            match_lines.append(f"WHEN {prefix_clause} THEN {next_rank}")
+            match_clauses.append(prefix_clause)
+            match_params.extend(prefix_params)
+            next_rank += 1
+            if token_and_clause:
+                match_lines.append(f"WHEN {token_and_clause} THEN {next_rank}")
+                match_clauses.append(f"({token_and_clause})")
+                match_params.extend(token_params)
 
         match_rank_expr = "CASE " + " ".join(match_lines) + " ELSE NULL END AS match_rank"
 
@@ -928,6 +935,7 @@ def search_systems(
     if coolness_cte.strip():
         cte_parts.append(coolness_cte.strip())
     cte_parts.extend([part.strip() for part in alias_cte_parts if part.strip()])
+    cte_parts.extend([part.strip() for part in identifier_cte_parts if part.strip()])
     cte_parts.append(
         f"""
         base AS (
@@ -962,7 +970,7 @@ def search_systems(
         ORDER BY {order_by}
         LIMIT ?
     """
-    all_params = alias_cte_params + match_params + params + cursor_params + [limit]
+    all_params = alias_cte_params + identifier_cte_params + match_params + params + cursor_params + [limit]
     cursor = con.execute(sql, all_params)
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
@@ -1176,7 +1184,10 @@ def search_systems(
             SELECT COUNT(*)::BIGINT
             FROM filtered
         """
-        count_row = con.execute(count_sql, alias_cte_params + match_params + params).fetchone()
+        count_row = con.execute(
+            count_sql,
+            alias_cte_params + identifier_cte_params + match_params + params,
+        ).fetchone()
         total_count = int(count_row[0] if count_row else 0)
 
     return results, total_count

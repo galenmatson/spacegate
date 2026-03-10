@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import os
 import tarfile
 from pathlib import Path
@@ -199,15 +200,52 @@ def cook_wds(raw_path: Path, cooked_path: Path) -> int:
 
 def cook_msc(raw_path: Path, cooked_path: Path) -> int:
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    max_archive_bytes = int(os.getenv("SPACEGATE_MSC_MAX_ARCHIVE_BYTES", str(128 * 1024 * 1024)))
+    max_member_bytes = int(os.getenv("SPACEGATE_MSC_MAX_MEMBER_BYTES", str(64 * 1024 * 1024)))
+    expected_members = ("export/sys.tsv", "export/orb.tsv", "export/comp.tsv")
+    archive_bytes = raw_path.stat().st_size
+    if archive_bytes > max_archive_bytes:
+        raise SystemExit(
+            f"MSC archive too large: {archive_bytes} bytes exceeds limit {max_archive_bytes} "
+            "(SPACEGATE_MSC_MAX_ARCHIVE_BYTES)."
+        )
+
+    def require_member(archive: tarfile.TarFile, member_name: str) -> tarfile.TarInfo:
+        try:
+            member = archive.getmember(member_name)
+        except KeyError as exc:
+            raise SystemExit(f"MSC archive missing {member_name}") from exc
+        if not member.isfile():
+            raise SystemExit(f"MSC archive member is not a regular file: {member_name}")
+        if member.size > max_member_bytes:
+            raise SystemExit(
+                f"MSC archive member too large: {member_name} has {member.size} bytes "
+                f"(limit {max_member_bytes}, SPACEGATE_MSC_MAX_MEMBER_BYTES)."
+            )
+        return member
+
+    def iter_member_lines(binary_handle: tarfile.ExFileObject):
+        wrapper = io.TextIOWrapper(binary_handle, encoding="utf-8", errors="replace", newline="")
+        try:
+            for raw_line in wrapper:
+                yield raw_line.rstrip("\n")
+        finally:
+            wrapper.detach()
+
     subsystem_count: dict[str, int] = {}
     orbit_count: dict[str, int] = {}
     line_count = 0
     with tarfile.open(raw_path, "r:gz") as archive:
-        sys_member = archive.getmember("export/sys.tsv")
+        archive_member_names = {member.name for member in archive.getmembers()}
+        missing = [name for name in expected_members if name not in archive_member_names]
+        if missing:
+            raise SystemExit(f"MSC archive missing expected members: {', '.join(missing)}")
+
+        sys_member = require_member(archive, "export/sys.tsv")
         with archive.extractfile(sys_member) as sys_f:
             if sys_f is None:
                 raise SystemExit("MSC archive missing export/sys.tsv")
-            for raw_line in sys_f.read().decode("utf-8", "replace").splitlines():
+            for raw_line in iter_member_lines(sys_f):
                 if not raw_line.strip():
                     continue
                 fields = raw_line.split("|")
@@ -217,11 +255,11 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 if wds_id:
                     subsystem_count[wds_id] = subsystem_count.get(wds_id, 0) + 1
 
-        orb_member = archive.getmember("export/orb.tsv")
+        orb_member = require_member(archive, "export/orb.tsv")
         with archive.extractfile(orb_member) as orb_f:
             if orb_f is None:
                 raise SystemExit("MSC archive missing export/orb.tsv")
-            for raw_line in orb_f.read().decode("utf-8", "replace").splitlines():
+            for raw_line in iter_member_lines(orb_f):
                 if not raw_line.strip():
                     continue
                 fields = raw_line.split("|")
@@ -231,7 +269,7 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 if wds_id:
                     orbit_count[wds_id] = orbit_count.get(wds_id, 0) + 1
 
-        comp_member = archive.getmember("export/comp.tsv")
+        comp_member = require_member(archive, "export/comp.tsv")
         with archive.extractfile(comp_member) as comp_f, cooked_path.open(
             "w", newline="", encoding="utf-8"
         ) as out_f:
@@ -268,7 +306,7 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 ],
             )
             writer.writeheader()
-            for raw_line in comp_f.read().decode("utf-8", "replace").splitlines():
+            for raw_line in iter_member_lines(comp_f):
                 if not raw_line.strip():
                     continue
                 fields = raw_line.split("|")
