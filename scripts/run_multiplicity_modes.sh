@@ -20,28 +20,24 @@ else
 fi
 
 RUN_ID="$(date -u +%Y-%m-%dT%H%M%SZ)"
-BASELINE_BUILD="${RUN_ID}_baseline"
-NSS_ONLY_BUILD="${RUN_ID}_nss_only"
-MSC_ONLY_BUILD="${RUN_ID}_msc_only"
-NSS_MSC_BUILD="${RUN_ID}_nss_msc"
+NSS_OFF_BUILD="${RUN_ID}_nss_off"
+NSS_ON_BUILD="${RUN_ID}_nss_on"
+NSS_ON_WDS_XMATCH_BUILD="${RUN_ID}_nss_on_wds_xmatch"
 
-echo "==> ingest baseline (NSS=0 MSC=0)"
-SPACEGATE_ENABLE_GAIA_NSS=0 SPACEGATE_ENABLE_MSC=0 "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$BASELINE_BUILD"
+echo "==> ingest nss_off (NSS=0 MSC=1)"
+SPACEGATE_ENABLE_GAIA_NSS=0 SPACEGATE_ENABLE_MSC=1 "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$NSS_OFF_BUILD"
 
-echo "==> ingest nss_only (NSS=1 MSC=0)"
-SPACEGATE_ENABLE_GAIA_NSS=1 SPACEGATE_ENABLE_MSC=0 "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$NSS_ONLY_BUILD"
+echo "==> ingest nss_on (NSS=1 MSC=1)"
+SPACEGATE_ENABLE_GAIA_NSS=1 SPACEGATE_ENABLE_MSC=1 "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$NSS_ON_BUILD"
 
-echo "==> ingest msc_only (NSS=0 MSC=1)"
-SPACEGATE_ENABLE_GAIA_NSS=0 SPACEGATE_ENABLE_MSC=1 "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$MSC_ONLY_BUILD"
-
-echo "==> ingest nss_msc (NSS=1 MSC=1)"
-SPACEGATE_ENABLE_GAIA_NSS=1 SPACEGATE_ENABLE_MSC=1 "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$NSS_MSC_BUILD"
+echo "==> ingest nss_on_wds_xmatch (NSS=1 MSC=1 WDS_GAIA_XMATCH=1)"
+SPACEGATE_ENABLE_GAIA_NSS=1 SPACEGATE_ENABLE_MSC=1 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 \
+  "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$NSS_ON_WDS_XMATCH_BUILD"
 
 echo "==> multiplicity mode report"
 "$PYTHON_BIN" "$ROOT_DIR/scripts/multiplicity_mode_report.py" \
-  --baseline "$BASELINE_BUILD" \
-  --nss-only "$NSS_ONLY_BUILD" \
-  --msc-only "$MSC_ONLY_BUILD" \
-  --nss-msc "$NSS_MSC_BUILD"
+  --nss-off "$NSS_OFF_BUILD" \
+  --nss-on "$NSS_ON_BUILD" \
+  --nss-on-wds-xmatch "$NSS_ON_WDS_XMATCH_BUILD"
 
 echo "Done."

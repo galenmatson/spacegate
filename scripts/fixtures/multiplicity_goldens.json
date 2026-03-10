@@ -1,0 +1,17 @@
+{
+  "fixture_version": "2026-03-10",
+  "systems": [
+    {
+      "id": "castor",
+      "name_aliases": ["castor", "alpha gem", "yy gem"],
+      "expected_stellar_components": ["aa", "ab", "ba", "bb", "ca", "cb"],
+      "expected_stellar_component_count": 6,
+      "expected_inner_binary_pairs": [
+        ["aa", "ab"],
+        ["ba", "bb"],
+        ["ca", "cb"]
+      ],
+      "minimum_confidence_tier": "medium"
+    }
+  ]
+}

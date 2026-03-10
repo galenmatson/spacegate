@@ -27,7 +27,7 @@ The next ingestion wave is focused on improving astrometry, multiplicity, and cr
 - Gaia DR3 astrometry and Non-Single Star tables
 - WDS for broad visual-multiplicity coverage
 - ORB6 and SBX for orbital evidence
-- MSC as an approved optional hierarchy source that remains disabled by default in active builds
+- MSC as a mandatory hierarchy source in default science builds
 
 Spacegate targets `J2016.0 / ICRS` as the canonical coordinate epoch/frame for normalized core outputs. Source-native epochs and units are preserved in provenance-aware ingest logic wherever possible.
 

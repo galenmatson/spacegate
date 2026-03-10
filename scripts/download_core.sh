@@ -21,14 +21,16 @@ else
 fi
 
 if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
+  if [[ "${SPACEGATE_ENABLE_MSC:-1}" == "0" ]]; then
+    echo "Error: MSC is mandatory for default science ingest (SPACEGATE_ENABLE_MSC=0 is not supported)." >&2
+    exit 1
+  fi
   catalog_args=(
     --catalog nasa_exoplanet_archive
     --catalog wds
+    --catalog msc
     --catalog orb6
   )
-  if [[ "${SPACEGATE_ENABLE_MSC:-0}" == "1" ]]; then
-    catalog_args+=(--catalog msc)
-  fi
   if [[ "${SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS:-1}" != "0" ]]; then
     catalog_args+=(--catalog atnf --catalog magnetar --catalog white_dwarf)
   fi

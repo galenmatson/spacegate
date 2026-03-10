@@ -57,10 +57,14 @@ is_lfs_pointer() {
 
 ensure_inputs() {
   local enable_gaia_backbone="${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}"
-  local enable_msc="${SPACEGATE_ENABLE_MSC:-0}"
+  local enable_msc="${SPACEGATE_ENABLE_MSC:-1}"
   local enable_gaia_nss="${SPACEGATE_ENABLE_GAIA_NSS:-1}"
   local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}"
   local missing=0
+  if [[ "$enable_msc" == "0" ]]; then
+    echo "Error: MSC is mandatory for default science ingest (SPACEGATE_ENABLE_MSC=0 is not supported)." >&2
+    exit 1
+  fi
   if [[ "$enable_gaia_backbone" != "1" ]]; then
     if [[ ! -f "$ATHYG_PART1" ]]; then
       echo "Missing: $ATHYG_PART1" >&2
@@ -83,7 +87,7 @@ ensure_inputs() {
     echo "Missing: $ORB6_RAW" >&2
     missing=1
   fi
-  if [[ "$enable_msc" == "1" && ! -f "$MSC_RAW" ]]; then
+  if [[ ! -f "$MSC_RAW" ]]; then
     echo "Missing: $MSC_RAW" >&2
     missing=1
   fi

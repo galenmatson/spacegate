@@ -14,6 +14,7 @@ OUT_DIR="$STATE_DIR/out"
 REPORTS_DIR="$STATE_DIR/reports"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
+VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-0}"
 
 usage() {
   cat <<'USAGE'
@@ -213,6 +214,18 @@ print("| " + " | ".join("-" * w for w in widths) + " |")
 for row in values_rows:
     print(fmt_row(row))
 PY
+
+  if [[ "$VERIFY_MULTIPLICITY_GOLDENS" == "1" ]]; then
+    local goldens_script="$ROOT_DIR/scripts/verify_multiplicity_goldens.py"
+    if [[ ! -x "$goldens_script" ]]; then
+      echo "Error: missing executable $goldens_script" >&2
+      exit 1
+    fi
+    local arm_db="$build_dir/arm.duckdb"
+    echo "Running multiplicity goldens exam..."
+    "$goldens_script" --core-db "$core_db" --arm-db "$arm_db" --require-arm
+    echo "OK: multiplicity goldens"
+  fi
 
   echo "Verified build $build_id"
   echo "Next: scripts/run_spacegate.sh to start API + web."

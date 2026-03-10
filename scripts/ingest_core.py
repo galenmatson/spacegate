@@ -540,7 +540,11 @@ def main() -> int:
     root = Path(args.root)
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
     enable_gaia_backbone = os.getenv("SPACEGATE_ENABLE_GAIA_BACKBONE", "0") == "1"
-    enable_msc = os.getenv("SPACEGATE_ENABLE_MSC") == "1"
+    enable_msc = parse_bool_env("SPACEGATE_ENABLE_MSC", True)
+    if not enable_msc:
+        raise SystemExit(
+            "MSC is mandatory for default science ingest (SPACEGATE_ENABLE_MSC=0 is not supported)."
+        )
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
     enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
     enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
@@ -642,7 +646,7 @@ def main() -> int:
         raise SystemExit(f"Missing cooked NASA: {cooked_nasa}")
     if not cooked_wds.exists():
         raise SystemExit(f"Missing cooked WDS: {cooked_wds}")
-    if enable_msc and not cooked_msc.exists():
+    if not cooked_msc.exists():
         raise SystemExit(f"Missing cooked MSC: {cooked_msc}")
     if not cooked_orb6.exists():
         raise SystemExit(f"Missing cooked ORB6: {cooked_orb6}")
@@ -705,8 +709,7 @@ def main() -> int:
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
     if enable_gaia_backbone:
         manifest_paths.append(gaia_backbone_manifest_path)
-    if enable_msc:
-        manifest_paths.append(msc_manifest_path)
+    manifest_paths.append(msc_manifest_path)
     if enable_gaia_nss:
         manifest_paths.append(gaia_nss_manifest_path)
     if enable_wds_gaia_xmatch:
@@ -848,11 +851,7 @@ def main() -> int:
     )
     wds_manifest = require_manifest_entry(manifest, "wdsweb_summ2", "WDS")
     orb6_manifest = require_manifest_entry(manifest, "orb6orbits", "ORB6")
-    msc_manifest = (
-        require_manifest_entry(manifest, "newmsc_20240101", "MSC")
-        if enable_msc
-        else None
-    )
+    msc_manifest = require_manifest_entry(manifest, "newmsc_20240101", "MSC")
     gaia_nss_non_single_manifest = (
         require_manifest_entry(manifest, "gaia_dr3_non_single_star", "Gaia DR3 non_single_star")
         if enable_gaia_nss
@@ -4399,11 +4398,7 @@ def main() -> int:
                 if enable_gaia_nss
                 else "Gaia NSS star-level multiplicity evidence is disabled (SPACEGATE_ENABLE_GAIA_NSS=0)."
             ),
-            (
-                "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
-                if enable_msc
-                else "MSC ingest is disabled by default; WDS/ORB6 remain loaded as support catalogs only."
-            ),
+            "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
         ],
     }
     write_json(reports_dir / "system_grouping_report.json", system_grouping_report)
@@ -5862,11 +5857,7 @@ def main() -> int:
                 if enable_gaia_nss
                 else "Gaia NSS star-level multiplicity evidence disabled (SPACEGATE_ENABLE_GAIA_NSS=0)."
             ),
-            (
-                "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars."
-                if enable_msc
-                else "MSC enrichment is disabled by default; current build does not insert MSC-derived component stars."
-            ),
+            "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
             (
                 "AT-HYG supplement merge is enabled: deterministic ID precedence + strict positional fallback + quarantine for ambiguous mappings."
                 if (enable_gaia_backbone and enable_athyg_supplement_merge)

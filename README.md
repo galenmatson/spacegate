@@ -118,13 +118,13 @@ If you used `--skip-build`, used `--skip-db-download`, or want to rebuild:
 scripts/build_core.sh
 ```
 
-For multiplicity contribution analysis across four build modes (`baseline`, `NSS only`, `MSC only`, `NSS+MSC`):
+For multiplicity contribution analysis with MSC fixed on (`nss_off`, `nss_on`, optional `nss_on_wds_xmatch`):
 
 ```bash
 scripts/run_multiplicity_modes.sh
 ```
 
-Optional experimental WDS->Gaia crosswalk (for WDS-linked grouping without MSC):
+Optional experimental WDS->Gaia crosswalk (for WDS-linked grouping support alongside MSC):
 
 ```bash
 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/download_core.sh --non-interactive
@@ -261,12 +261,15 @@ export SPACEGATE_DUCKDB_THREADS=4
 
 # Multiplicity toggles
 export SPACEGATE_ENABLE_GAIA_NSS=1
-export SPACEGATE_ENABLE_MSC=0
+export SPACEGATE_ENABLE_MSC=1
 export SPACEGATE_ENABLE_PROXIMITY=0
 export SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 
 # Auto-score coolness after promote_build.sh (default on)
 export SPACEGATE_AUTO_SCORE_COOLNESS=1
+
+# Optional strict verify hook (requires arm.duckdb + golden fixture coverage)
+export SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS=0
 
 # Gaia NSS fetch tuning (download_core.sh)
 export SPACEGATE_GAIA_NSS_BUCKETS=7
@@ -306,7 +309,7 @@ SPACEGATE_LOG_DIR=/data/spacegate/data/logs
 # Optional source-build knobs
 SPACEGATE_ENABLE_PROXIMITY=0
 SPACEGATE_ENABLE_GAIA_NSS=1
-SPACEGATE_ENABLE_MSC=0
+SPACEGATE_ENABLE_MSC=1
 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 SPACEGATE_GAIA_NSS_BUCKETS=7
 SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB

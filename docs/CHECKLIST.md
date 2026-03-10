@@ -18,7 +18,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Public deployment path active and reproducible
 - [x] Promotion flow auto-scores coolness by default
-- [x] Multiplicity support catalogs wired (NSS, WDS, ORB6; MSC optional)
+- [x] Multiplicity support catalogs wired (NSS, WDS, ORB6, MSC mandatory)
 - [x] Optional WDS-Gaia bridge wired and default-off
 - [x] Physical consistency gating on WDS bridge grouping
 - [x] Proximity grouping remains nondefault for conservative production builds
@@ -33,7 +33,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Long-range milestone roadmap restored in `MILESTONES.md` and dependency-ordered
 - [x] Slice profile catalog + draft SLO targets documented in `SLICE_PROFILES.md`
 - [x] Build metadata persists `slice_profile_id` + `slice_profile_version` on sliced builds
-- [ ] Arm (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
+- [x] Arm (`aux`) artifact contract and promotion rules documented (`aux.duckdb` / compatibility aliasing)
 - [ ] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot
@@ -59,9 +59,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C4. Phase C - Multiplicity Reintegration on Gaia IDs
 
 - [ ] Reattach NSS evidence against Gaia backbone IDs
-- [ ] Reattach MSC (optional/default-off) against Gaia backbone IDs
+- [ ] Reattach MSC (mandatory) against Gaia backbone IDs
 - [ ] Reattach WDS/ORB6 evidence against Gaia backbone IDs
 - [ ] Implement/verify hierarchy confidence tiers
+- [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)
 - [ ] Benchmark system validation set passes (Castor, 16 Cyg, Sol-neighborhood checks)
 
 ### C5. Phase D - Crosswalk and Naming

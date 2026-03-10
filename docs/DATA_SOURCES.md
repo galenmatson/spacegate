@@ -157,11 +157,9 @@ Source endpoint:
 
 - USNO ORB6 export
 
-## Optional/Deferred Multiplicity Sources
-
 ## 7) MSC (Tokovinin Multiple Star Catalog)
 
-Classification: `auxiliary` (optional, default-off)
+Classification: `auxiliary` (mandatory)
 
 Role:
 
@@ -169,13 +167,14 @@ Role:
 
 Policy:
 
-- keep optional (`SPACEGATE_ENABLE_MSC=1` to enable)
-- quantify contribution in comparison reports
+- required in default science ingest and multiplicity derivation
+- ingest/promotion fail if MSC retrieval/cook/manifest lineage is missing
+- still quantify contribution in comparison reports for observability
 
 Security/transport note:
 
 - historical retrieval context requires explicit caution
-- do not make default production path depend on insecure transport
+- maintain mirrored/pinned retrieval strategy for production stability
 
 ## Transitional Sources
 
@@ -206,6 +205,23 @@ Policy:
 
 - no default dependency on sources lacking stable mirror/integrity strategy
 
+## Additional Orbital Repositories (Evaluation Queue)
+
+These are credible orbital-parameter repositories not yet wired into default ingest:
+
+1. SBX (ULB): successor to SB9 with TAP service and active maintenance
+   - role candidate: spectroscopic orbit enrichment and hierarchy support
+   - status: evaluate schema compatibility + mirror strategy
+2. SB9 mirror snapshots (HEASARC/CDS lineage)
+   - role candidate: fallback archival source for spectroscopic orbits
+   - status: secondary/fallback only; prefer SBX for active updates
+3. DEBCat (detached eclipsing binaries)
+   - role candidate: high-quality benchmark orbits/masses for validation and calibration
+   - status: candidate for benchmark/reference ingestion, not broad inventory backbone
+4. Kepler EB catalog (historical eclipsing-binary set)
+   - role candidate: benchmark and tertiary-event validation sets
+   - status: candidate for validation fixtures; not default nearby-space backbone
+
 ## Current Manifest Files
 
 Typical manifest files:
@@ -216,7 +232,7 @@ Typical manifest files:
 - `reports/manifests/gaia_nss_manifest.json`
 - `reports/manifests/wds_manifest.json`
 - `reports/manifests/orb6_manifest.json`
-- `reports/manifests/msc_manifest.json` (when enabled)
+- `reports/manifests/msc_manifest.json` (required)
 - `reports/manifests/wds_gaia_xmatch_manifest.json` (when enabled)
 - `reports/manifests/atnf_manifest.json`
 - `reports/manifests/magnetar_manifest.json`
@@ -243,7 +259,7 @@ This path remains optional while false-positive/false-negative tradeoffs are act
 ## Security Requirements
 
 1. Source integrity evidence must be recorded in manifests.
-2. If transport is insecure or unreliable, source must be optional or mirrored.
+2. If transport is insecure or unreliable, source must be mirrored/pinned before default dependency.
 3. Production default ingest must avoid fragile/insecure dependencies.
 4. License and redistribution constraints must be documented per source family.
 

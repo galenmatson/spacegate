@@ -6,6 +6,7 @@ The runtime still uses legacy `rich` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
+- `docs/SCHEMA_ARM.md`: immutable supplemental science graph/orbit derivatives
 - `docs/SCHEMA_RICH.md`: disc artifacts for ranking, UX, and enrichment (this document)
 - `docs/SCHEMA_LORE.md`: rim overlays
 

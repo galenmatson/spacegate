@@ -10,9 +10,9 @@ Scope:
 
 Out of scope:
 
+- immutable supplemental science side tables (`SCHEMA_ARM.md`, arm layer)
 - generated exposition/images (`SCHEMA_RICH.md`, disc layer)
 - editable fiction/worldbuilding overlays (`SCHEMA_LORE.md`, rim layer)
-- immutable supplemental science side tables (arm layer)
 
 ## Artifact Contract
 
@@ -144,7 +144,7 @@ Core must make multiplicity evidence explicit and queryable.
 Expected evidence families:
 
 - Gaia NSS
-- MSC (optional/default-off)
+- MSC (mandatory)
 - WDS/ORB6 (support evidence)
 
 Required system-level fields:
@@ -180,6 +180,9 @@ Core should evolve to support explicit hierarchy edges:
 - confidence and provenance on each edge
 
 Until explicit edge tables are fully implemented, grouping confidence fields must clearly indicate approximation level.
+
+Target state note:
+- explicit hierarchy/orbit/barycenter graph contracts are defined in `SCHEMA_ARM.md`
 
 ## Provenance Contract (Mandatory)
 

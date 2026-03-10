@@ -1,0 +1,69 @@
+# Multiplicity Golden-System Exam
+
+This document defines the post-ingest "exam" for multiplicity hierarchy quality.
+
+Goal:
+- detect regressions in hierarchical system reconstruction
+- verify orbit-edge coverage and animation readiness for known benchmark systems
+
+Primary benchmark:
+- Castor (alpha Gem) with six stellar components: `Aa`, `Ab`, `Ba`, `Bb`, `Ca`, `Cb`
+
+## Required Output Shape (Castor)
+
+Hierarchy expectation:
+- top-level Castor system
+- AB subsystem and C (YY Gem) subsystem
+- inner pairs: `Aa-Ab`, `Ba-Bb`, `Ca-Cb`
+
+Minimum exam checks:
+- component count: exactly 6 stellar leaf components
+- all component labels present
+- all three inner binary pair edges present
+- evidence/provenance populated on hierarchy and orbit edges
+- confidence tier not below configured floor
+
+## Validator Entry Point
+
+Script:
+- `scripts/verify_multiplicity_goldens.py`
+
+Fixture:
+- `scripts/fixtures/multiplicity_goldens.json`
+
+Default behavior:
+- validates against promoted build unless explicit DB paths are passed
+- expects arm graph tables when `--require-arm` is used
+
+Example:
+
+```bash
+scripts/verify_multiplicity_goldens.py --require-arm
+```
+
+Explicit build paths:
+
+```bash
+scripts/verify_multiplicity_goldens.py \
+  --core-db /data/spacegate/data/out/<build_id>/core.duckdb \
+  --arm-db /data/spacegate/data/out/<build_id>/arm.duckdb \
+  --fixture /srv/spacegate/app/scripts/fixtures/multiplicity_goldens.json \
+  --require-arm
+```
+
+## Pass/Fail Policy
+
+- Any failed golden system check fails the exam.
+- Missing arm tables fails when `--require-arm` is set.
+- Exam output is machine-readable JSON plus human-readable summary lines.
+
+## Current Scope
+
+Current fixture scope is intentionally small (Castor-first) to enforce correctness before broadening.
+
+Planned expansion set:
+- Sirius (A/B, remnant handling)
+- Alpha Centauri (A/B + Proxima relation handling)
+- 16 Cyg
+- selected Sol-neighborhood systems used in manual QA
+

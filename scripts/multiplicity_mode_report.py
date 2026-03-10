@@ -91,11 +91,11 @@ def fetch_metrics(db_path: Path) -> dict:
     return metrics
 
 
-def add_deltas(report: dict) -> dict:
-    baseline = report["modes"]["baseline"]["metrics"]
+def add_deltas(report: dict, baseline_mode: str) -> dict:
+    baseline = report["modes"][baseline_mode]["metrics"]
     for mode_name, mode in report["modes"].items():
         metrics = mode["metrics"]
-        if mode_name == "baseline":
+        if mode_name == baseline_mode:
             mode["delta_vs_baseline"] = {k: 0 for k in baseline.keys() if k != "benchmarks"}
             mode["benchmark_delta_vs_baseline"] = {
                 k: 0 for k in baseline["benchmarks"].keys()
@@ -113,8 +113,8 @@ def add_deltas(report: dict) -> dict:
     return report
 
 
-def write_markdown(path: Path, report: dict) -> None:
-    modes = ["baseline", "nss_only", "msc_only", "nss_msc"]
+def write_markdown(path: Path, report: dict, baseline_mode: str) -> None:
+    modes = report.get("mode_order") or list(report["modes"].keys())
     metric_keys = [
         "stars",
         "systems",
@@ -139,11 +139,13 @@ def write_markdown(path: Path, report: dict) -> None:
             f"| {mode} | `{entry['build_id']}` | {m['stars']} | {m['systems']} | {m['multi_star_systems']} | {m['gaia_nss_stars']} | {m['msc_insert_stars']} |"
         )
     lines.append("")
-    lines.append("## Delta vs baseline")
+    lines.append(f"## Delta vs {baseline_mode}")
     lines.append("")
     lines.append("| mode | " + " | ".join(metric_keys) + " |")
     lines.append("|---|" + "|".join(["---:"] * len(metric_keys)) + "|")
-    for mode in modes[1:]:
+    for mode in modes:
+        if mode == baseline_mode:
+            continue
         d = report["modes"][mode]["delta_vs_baseline"]
         lines.append(
             "| "
@@ -167,13 +169,16 @@ def write_markdown(path: Path, report: dict) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Compare four multiplicity ingest modes by build_id."
+        description="Compare multiplicity ingest modes by build_id (MSC mandatory baseline)."
     )
     parser.add_argument("--state-dir", default=None)
-    parser.add_argument("--baseline", required=True, help="Build id for baseline (NSS off, MSC off).")
-    parser.add_argument("--nss-only", required=True, help="Build id for NSS-only mode.")
-    parser.add_argument("--msc-only", required=True, help="Build id for MSC-only mode.")
-    parser.add_argument("--nss-msc", required=True, help="Build id for NSS+MSC mode.")
+    parser.add_argument("--nss-off", required=True, help="Build id for NSS off (MSC on).")
+    parser.add_argument("--nss-on", required=True, help="Build id for NSS on (MSC on).")
+    parser.add_argument(
+        "--nss-on-wds-xmatch",
+        default=None,
+        help="Optional build id for NSS on + WDS Gaia XMatch (MSC on).",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -188,15 +193,19 @@ def main() -> int:
 
     run_id = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H%M%SZ")
     modes = {
-        "baseline": args.baseline,
-        "nss_only": args.nss_only,
-        "msc_only": args.msc_only,
-        "nss_msc": args.nss_msc,
+        "nss_off": args.nss_off,
+        "nss_on": args.nss_on,
     }
+    if args.nss_on_wds_xmatch:
+        modes["nss_on_wds_xmatch"] = args.nss_on_wds_xmatch
+    mode_order = list(modes.keys())
+    baseline_mode = "nss_off"
 
     report = {
         "run_id": run_id,
         "state_dir": str(state_dir),
+        "baseline_mode": baseline_mode,
+        "mode_order": mode_order,
         "modes": {},
     }
     for mode_name, build_id in modes.items():
@@ -209,12 +218,12 @@ def main() -> int:
             "metrics": fetch_metrics(db_path),
         }
 
-    report = add_deltas(report)
+    report = add_deltas(report, baseline_mode)
 
     json_path = out_dir / f"{run_id}_multiplicity_mode_report.json"
     md_path = out_dir / f"{run_id}_multiplicity_mode_report.md"
     json_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    write_markdown(md_path, report)
+    write_markdown(md_path, report, baseline_mode)
     print(str(json_path))
     print(str(md_path))
     return 0

@@ -166,13 +166,14 @@ System keys must be deterministic and stable across identical rebuild inputs.
 Multiplicity evidence sources (current policy):
 
 1. Gaia NSS (exact Gaia-linked evidence)
-2. MSC (optional; default-off)
+2. MSC (mandatory)
 3. WDS/ORB6 (broad support evidence, confidence-gated)
 
 Current rules:
 
 - proximity grouping stays nondefault
 - WDS-Gaia path stays optional and confidence-gated
+- MSC is mandatory in default science ingest (missing MSC is a build/promotion blocker)
 - physical consistency gating is required for WDS-linked grouping via bridge:
   - distance spread threshold
   - proper-motion spread threshold
@@ -257,7 +258,7 @@ Hard QC gate:
 
 Current exception note:
 
-- MSC source transport history requires explicit caution; keep optional/default-off until robust mirror/transport policy is locked.
+- MSC source transport history requires explicit caution; maintain mirrored/pinned retrieval and integrity checks for production reliability.
 
 ## Runtime and Host-Specific Documentation
 
@@ -366,6 +367,7 @@ Rules:
 
 - attach NSS/MSC/WDS/ORB6 evidence against Gaia IDs
 - materialize hierarchy with confidence tiers
+- run golden-system multiplicity exam post-ingest (Castor-first)
 - preserve benchmark system quality (Castor, etc.)
 
 ### Phase D: Crosswalk and Naming
@@ -412,10 +414,12 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 ## Documentation Map
 
 - `docs/SCHEMA_CORE.md`: canonical core schema contract
+- `docs/SCHEMA_ARM.md`: supplemental science graph/orbit contract
 - `docs/SCHEMA_RICH.md`: disc contract (legacy filename retained)
 - `docs/SCHEMA_LORE.md`: rim contract (legacy filename retained)
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
+- `docs/MULTIPLICITY_GOLDENS.md`: post-ingest hierarchy/orbit exam contract
 - `docs/CHECKLIST.md`: executable delivery tracker
 - `docs/MILESTONES.md`: dependency-ordered roadmap, restored ideation backlog, and long-range goals
 
