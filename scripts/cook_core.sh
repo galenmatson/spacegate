@@ -26,6 +26,10 @@ GAIA_BACKBONE_RAW="$RAW_DIR/gaia_backbone/gaia_dr3_backbone.csv"
 GAIA_NSS_NON_SINGLE_RAW="$RAW_DIR/gaia_nss/gaia_dr3_non_single_star.csv"
 GAIA_NSS_TWO_BODY_RAW="$RAW_DIR/gaia_nss/gaia_dr3_nss_two_body_orbit.csv"
 WDS_GAIA_XMATCH_RAW="$RAW_DIR/wds_gaia_xmatch/wds_gaia_best.csv"
+EXOPLANET_EU_RAW="$RAW_DIR/exoplanet_eu/catalog.csv"
+OEC_RAW="$RAW_DIR/open_exoplanet_catalogue/open_exoplanet_catalogue.tar.gz"
+HWC_RAW="$RAW_DIR/hwc/hwc.csv"
+EMAC_TT9_RAW="$RAW_DIR/emac_tt9/tt9_source.html"
 
 COOKED_ATHYG_DIR="$COOKED_DIR/athyg"
 COOKED_NASA_DIR="$COOKED_DIR/nasa_exoplanet_archive"
@@ -121,6 +125,24 @@ ensure_inputs() {
     fi
     if [[ ! -f "$KEPLER_EB_RAW" ]]; then
       echo "Missing: $KEPLER_EB_RAW" >&2
+      missing=1
+    fi
+  fi
+  if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
+    if [[ ! -f "$EXOPLANET_EU_RAW" ]]; then
+      echo "Missing: $EXOPLANET_EU_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$OEC_RAW" ]]; then
+      echo "Missing: $OEC_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$HWC_RAW" ]]; then
+      echo "Missing: $HWC_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$EMAC_TT9_RAW" ]]; then
+      echo "Missing: $EMAC_TT9_RAW" >&2
       missing=1
     fi
   fi
@@ -306,6 +328,12 @@ main() {
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
   log "Cook: compact/superstellar/eclipsing support catalogs"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_science_catalogs.py"
+  if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
+    log "Cook: exoplanet lifecycle support catalogs"
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_exoplanet_lifecycle.py"
+  else
+    log "Cook: skip exoplanet lifecycle support catalogs (SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS=0)"
+  fi
   if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/update_catalog_pipeline_report.py" --stage cook >/dev/null 2>&1; then
     log "Warning: failed to update catalog pipeline report (cook stage)."
   fi

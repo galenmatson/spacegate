@@ -100,6 +100,8 @@ PY
   local qc_report="$reports_dir/qc_report.json"
   local match_report="$reports_dir/match_report.json"
   local prov_report="$reports_dir/provenance_report.json"
+  local planet_delta_report="$reports_dir/planet_catalog_delta_report.json"
+  local planet_reclass_report="$reports_dir/planet_reclassification_report.json"
 
   local have_reports=1
   if [[ ! -d "$reports_dir" ]]; then
@@ -141,6 +143,41 @@ if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
     raise SystemExit(f"Invalid counts in QC report: {counts}")
 
 print("OK: qc_report.json")
+PY
+
+    "$PYTHON_BIN" - <<'PY' "$qc_report" "$planet_delta_report" "$planet_reclass_report"
+import json
+import sys
+from pathlib import Path
+
+qc_path = Path(sys.argv[1])
+delta_path = Path(sys.argv[2])
+reclass_path = Path(sys.argv[3])
+
+qc = json.loads(qc_path.read_text())
+lifecycle_enabled = bool(qc.get("exoplanet_lifecycle_catalogs_enabled"))
+
+if not lifecycle_enabled:
+    print("OK: exoplanet lifecycle reports not required for this build")
+    raise SystemExit(0)
+
+if not delta_path.exists():
+    raise SystemExit(f"Missing lifecycle report: {delta_path}")
+if not reclass_path.exists():
+    raise SystemExit(f"Missing lifecycle report: {reclass_path}")
+
+delta = json.loads(delta_path.read_text())
+reclass = json.loads(reclass_path.read_text())
+if not delta.get("lifecycle_enabled"):
+    raise SystemExit("planet_catalog_delta_report lifecycle_enabled=false but QC indicates lifecycle enabled")
+if not reclass.get("lifecycle_enabled"):
+    raise SystemExit("planet_reclassification_report lifecycle_enabled=false but QC indicates lifecycle enabled")
+
+stale_rows = int(reclass.get("stale_classifier_rows") or 0)
+if stale_rows != 0:
+    raise SystemExit(f"Lifecycle stale classifier rows: {stale_rows}")
+
+print("OK: exoplanet lifecycle reports")
 PY
   fi
 

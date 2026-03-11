@@ -45,6 +45,14 @@ KEPLER_EB_URL = "https://keplerebs.villanova.edu/"
 KEPLER_EB_VERSION = "third_revision_2019-08-08"
 ATHYG_ALIAS_URL = "https://codeberg.org/astronexus/athyg"
 ATHYG_ALIAS_VERSION = "v3.3"
+EXOPLANET_EU_URL = "https://www.exoplanet.eu/catalog/"
+EXOPLANET_EU_VERSION = "catalog_csv"
+OPEN_EXOPLANET_CATALOGUE_URL = "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue"
+OPEN_EXOPLANET_CATALOGUE_VERSION = "tarball_master"
+HWC_URL = "https://phl.upr.edu/hwc/data"
+HWC_VERSION = "hwc_csv"
+EMAC_TT9_URL = "https://emac.gsfc.nasa.gov/?cid=2209-004"
+EMAC_TT9_VERSION = "tt9_source"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
@@ -64,6 +72,7 @@ ATHYG_MERGE_AMBIGUOUS_DEFAULT_LIMIT = 10_000
 ATHYG_MERGE_GAIA_COLLISION_MAX = 0
 ATHYG_MERGE_HIP_COLLISION_MAX = 3_000
 ATHYG_MERGE_HD_COLLISION_MAX = 3_000
+PLANET_CLASSIFIER_VERSION_DEFAULT = "planet_lifecycle_v1"
 
 
 def log(message: str) -> None:
@@ -528,6 +537,20 @@ def file_mtime_utc(path: Path) -> str | None:
     return dt.datetime.fromtimestamp(ts, dt.UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def resolve_served_current_core(state_dir: Path) -> tuple[str | None, Path | None]:
+    served_current = state_dir / "served" / "current"
+    if not served_current.exists():
+        return (None, None)
+    try:
+        resolved = served_current.resolve()
+    except Exception:
+        return (None, None)
+    core_path = resolved / "core.duckdb"
+    if not core_path.exists():
+        return (None, None)
+    return (resolved.name, core_path)
+
+
 def require_manifest_entry(manifest: dict, source_name: str, label: str) -> dict:
     entry = manifest.get(source_name)
     if not entry:
@@ -568,6 +591,9 @@ def main() -> int:
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
     enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
+    enable_exoplanet_lifecycle_catalogs = parse_bool_env(
+        "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS", False
+    )
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", True)
@@ -638,6 +664,9 @@ def main() -> int:
     cooked_snr = state_dir / "cooked" / "snr" / "green_snr.csv"
     cooked_debcat = state_dir / "cooked" / "debcat" / "debcat_binaries.csv"
     cooked_kepler_eb = state_dir / "cooked" / "kepler_eb" / "kepler_eb_catalog.csv"
+    cooked_exoplanet_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
+    cooked_exoplanet_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
+    cooked_exoplanet_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     manifest_path = manifest_dir / "core_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -653,6 +682,16 @@ def main() -> int:
     snr_manifest_path = manifest_dir / "snr_manifest.json"
     debcat_manifest_path = manifest_dir / "debcat_manifest.json"
     kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
+    exoplanet_eu_manifest_path = manifest_dir / "exoplanet_eu_manifest.json"
+    open_exoplanet_catalogue_manifest_path = (
+        manifest_dir / "open_exoplanet_catalogue_manifest.json"
+    )
+    hwc_manifest_path = manifest_dir / "hwc_manifest.json"
+    emac_tt9_manifest_path = manifest_dir / "emac_tt9_manifest.json"
+    planet_classifier_version = (
+        os.getenv("SPACEGATE_PLANET_CLASSIFIER_VERSION")
+        or PLANET_CLASSIFIER_VERSION_DEFAULT
+    ).strip()
 
     if not enable_gaia_backbone and not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
@@ -694,6 +733,18 @@ def main() -> int:
         raise SystemExit(f"Missing cooked DEBCat catalog: {cooked_debcat}")
     if enable_eclipsing_catalogs and not cooked_kepler_eb.exists():
         raise SystemExit(f"Missing cooked Kepler EB catalog: {cooked_kepler_eb}")
+    if enable_exoplanet_lifecycle_catalogs and not cooked_exoplanet_lifecycle_status.exists():
+        raise SystemExit(
+            f"Missing cooked exoplanet lifecycle status rows: {cooked_exoplanet_lifecycle_status}"
+        )
+    if enable_exoplanet_lifecycle_catalogs and not cooked_exoplanet_lifecycle_aliases.exists():
+        raise SystemExit(
+            f"Missing cooked exoplanet lifecycle alias rows: {cooked_exoplanet_lifecycle_aliases}"
+        )
+    if enable_exoplanet_lifecycle_catalogs and not cooked_exoplanet_lifecycle_features.exists():
+        raise SystemExit(
+            f"Missing cooked exoplanet lifecycle feature rows: {cooked_exoplanet_lifecycle_features}"
+        )
 
     log("Ingest core start")
     ingest_started_monotonic = time.monotonic()
@@ -720,6 +771,7 @@ def main() -> int:
         f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
         f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
+        f"exoplanet_lifecycle_catalogs={'1' if enable_exoplanet_lifecycle_catalogs else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
         f"athyg_supplement_merge={'1' if (enable_gaia_backbone and enable_athyg_supplement_merge) else '0'} "
@@ -749,6 +801,15 @@ def main() -> int:
         manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
     if enable_eclipsing_catalogs:
         manifest_paths.extend([debcat_manifest_path, kepler_eb_manifest_path])
+    if enable_exoplanet_lifecycle_catalogs:
+        manifest_paths.extend(
+            [
+                exoplanet_eu_manifest_path,
+                open_exoplanet_catalogue_manifest_path,
+                hwc_manifest_path,
+                emac_tt9_manifest_path,
+            ]
+        )
     for path in manifest_paths:
         manifest.update(load_manifest(path))
 
@@ -846,6 +907,8 @@ def main() -> int:
           ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
           ('eclipsing_catalogs_enabled', {sql_literal("1" if enable_eclipsing_catalogs else "0")}),
+          ('exoplanet_lifecycle_catalogs_enabled', {sql_literal("1" if enable_exoplanet_lifecycle_catalogs else "0")}),
+          ('planet_classifier_version', {sql_literal(planet_classifier_version)}),
           ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
           ('athyg_alias_crosswalk_enabled', {sql_literal("1" if (enable_aliases and enable_athyg_alias_crosswalk) else "0")}),
           ('athyg_supplement_merge_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_athyg_supplement_merge) else "0")}),
@@ -942,6 +1005,26 @@ def main() -> int:
     kepler_eb_manifest = (
         require_manifest_entry(manifest, "kepler_eb_catalog", "Kepler Eclipsing Binary Catalog")
         if enable_eclipsing_catalogs
+        else None
+    )
+    exoplanet_eu_manifest = (
+        require_manifest_entry(manifest, "catalog_csv", "Exoplanet.eu catalog export")
+        if enable_exoplanet_lifecycle_catalogs
+        else None
+    )
+    open_exoplanet_catalogue_manifest = (
+        require_manifest_entry(manifest, "catalog_tarball", "Open Exoplanet Catalogue tarball")
+        if enable_exoplanet_lifecycle_catalogs
+        else None
+    )
+    hwc_manifest = (
+        require_manifest_entry(manifest, "hwc_full_csv", "Habitable Worlds Catalog")
+        if enable_exoplanet_lifecycle_catalogs
+        else None
+    )
+    emac_tt9_manifest = (
+        require_manifest_entry(manifest, "tt9_source", "EMAC TT9 source")
+        if enable_exoplanet_lifecycle_catalogs
         else None
     )
 
@@ -4567,6 +4650,16 @@ def main() -> int:
         ),
     )
 
+    planet_catalog_delta_report: dict[str, object] = {
+        "build_id": build_id,
+        "lifecycle_enabled": bool(enable_exoplanet_lifecycle_catalogs),
+    }
+    planet_reclassification_report: dict[str, object] = {
+        "build_id": build_id,
+        "lifecycle_enabled": bool(enable_exoplanet_lifecycle_catalogs),
+        "planet_classifier_version": planet_classifier_version,
+    }
+
     # Planets
     planets_stage_started = time.monotonic()
     log("Building planets table")
@@ -4613,7 +4706,12 @@ def main() -> int:
             nullif(pl_massj,'')::double as mass_jup,
             nullif(pl_eqt,'')::double as eq_temp_k,
             nullif(pl_insol,'')::double as insol_earth,
-            nullif(sy_dist,'')::double as host_dist_pc
+            nullif(sy_dist,'')::double as host_dist_pc,
+            nullif(st_met,'')::double as host_metallicity_feh,
+            greatest(
+              abs(nullif(st_meterr1,'')::double),
+              abs(nullif(st_meterr2,'')::double)
+            ) as host_metallicity_feh_error
           from nasa_raw
         ), normalized as (
           select *,
@@ -4679,6 +4777,8 @@ def main() -> int:
           mass_jup,
           eq_temp_k,
           insol_earth,
+          host_metallicity_feh,
+          host_metallicity_feh_error,
           host_name_raw,
           host_name_norm,
           host_gaia_id,
@@ -4720,7 +4820,28 @@ def main() -> int:
           null::varchar as retrieval_checksum,
           null::varchar as retrieved_at,
           null::varchar as ingested_at,
-          null::varchar as transform_version
+          null::varchar as transform_version,
+          'confirmed'::varchar as planet_status,
+          true as is_default_visible,
+          false as is_tombstoned,
+          'nasa_exoplanet_archive'::varchar as status_source_catalog,
+          null::varchar as status_updated_at,
+          null::varchar as status_superseded_by,
+          null::varchar as planet_size_mass_class,
+          null::varchar as planet_insolation_class,
+          null::varchar as planet_orbit_class,
+          null::varchar as planet_composition_proxy_class,
+          null::varchar as planet_detection_tags_json,
+          null::varchar as planet_host_context_tags_json,
+          null::varchar as planet_classifier_version,
+          null::varchar as planet_classifier_updated_at,
+          null::double as spacegate_hab_score,
+          null::double as spacegate_hab_confidence,
+          null::varchar as spacegate_hab_reasons_json,
+          null::double as planet_element_richness_score,
+          null::varchar as planet_element_richness_class,
+          null::varchar as planet_element_richness_method,
+          null::varchar as planet_element_richness_notes
         from matches m
         left join stars s on s.star_id = coalesce(gaia_star_id, hip_star_id, hd_star_id, name_star_id)
         """,
@@ -4732,9 +4853,470 @@ def main() -> int:
           retrieval_checksum = {sql_literal(nasa_sha)},
           retrieved_at = {sql_literal(nasa_retrieved)},
           ingested_at = {sql_literal(ingested_at)},
-          transform_version = {sql_literal(transform_version)}
+          transform_version = {sql_literal(transform_version)},
+          status_updated_at = {sql_literal(ingested_at)},
+          planet_classifier_version = {sql_literal(planet_classifier_version)},
+          planet_classifier_updated_at = {sql_literal(ingested_at)},
+          planet_element_richness_score = case
+            when host_metallicity_feh is null then null
+            else least(greatest((least(greatest(host_metallicity_feh, -0.8), 0.6) + 0.8) / 1.4, 0.0), 1.0)
+          end,
+          planet_element_richness_class = case
+            when host_metallicity_feh is null then 'unknown'
+            when host_metallicity_feh < -0.4 then 'very_low'
+            when host_metallicity_feh < -0.2 then 'low'
+            when host_metallicity_feh < 0.1 then 'moderate'
+            when host_metallicity_feh < 0.3 then 'high'
+            else 'very_high'
+          end,
+          planet_element_richness_method = case
+            when host_metallicity_feh is null then 'unknown'
+            else 'host_spectroscopy_proxy'
+          end,
+          planet_element_richness_notes = case
+            when host_metallicity_feh is null then 'no host metallicity evidence'
+            else 'inferred from host stellar metallicity ([Fe/H])'
+          end
         """
     )
+
+    lifecycle_status_raw_rows = 0
+    lifecycle_status_matched_rows = 0
+    lifecycle_features_raw_rows = 0
+    lifecycle_stale_classifier_rows = 0
+    if enable_exoplanet_lifecycle_catalogs:
+        lifecycle_stage_started = time.monotonic()
+        log("Applying exoplanet lifecycle overlays")
+        lifecycle_status_path = str(cooked_exoplanet_lifecycle_status).replace("'", "''")
+        lifecycle_features_path = str(cooked_exoplanet_lifecycle_features).replace("'", "''")
+
+        con.execute(
+            f"""
+            create or replace temp view exoplanet_lifecycle_status_raw as
+            select * from read_csv_auto('{lifecycle_status_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view exoplanet_lifecycle_features_raw as
+            select * from read_csv_auto('{lifecycle_features_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+
+        lifecycle_status_raw_rows = int(
+            con.execute(
+                """
+                select count(*)::bigint
+                from exoplanet_lifecycle_status_raw
+                where lower(coalesce(observed_status, '')) in ('confirmed','candidate','controversial','retracted')
+                """
+            ).fetchone()[0]
+            or 0
+        )
+        lifecycle_features_raw_rows = int(
+            con.execute("select count(*)::bigint from exoplanet_lifecycle_features_raw").fetchone()[0]
+            or 0
+        )
+
+        con.execute(
+            """
+            create or replace temp table planet_status_matches as
+            select
+              p.planet_id,
+              p.stable_object_key,
+              p.planet_name,
+              p.planet_name_norm,
+              lower(trim(coalesce(s.source_catalog, 'unknown'))) as source_catalog,
+              coalesce(s.source_version, '') as source_version,
+              coalesce(s.source_pk, '') as source_pk,
+              lower(trim(coalesce(s.observed_status, ''))) as observed_status,
+              coalesce(s.source_row_hash, '') as source_row_hash,
+              coalesce(s.observed_at, '') as observed_at,
+              coalesce(s.notes, '') as notes
+            from planets p
+            join exoplanet_lifecycle_status_raw s
+              on p.planet_name_norm is not null
+             and p.planet_name_norm = lower(trim(coalesce(s.planet_name_norm, '')))
+            where lower(trim(coalesce(s.observed_status, ''))) in ('confirmed','candidate','controversial','retracted')
+            """
+        )
+
+        lifecycle_status_matched_rows = int(
+            con.execute("select count(*)::bigint from planet_status_matches").fetchone()[0]
+            or 0
+        )
+
+        con.execute(
+            f"""
+            create or replace table planet_catalog_observations as
+            select
+              {sql_literal(build_id)} as build_id,
+              stable_object_key,
+              source_catalog,
+              source_version,
+              source_pk,
+              source_row_hash,
+              observed_status,
+              observed_at,
+              notes as payload_json
+            from planet_status_matches
+            """
+        )
+
+        con.execute(
+            """
+            create or replace temp table planet_status_agg as
+            select
+              planet_id,
+              max(case when observed_status = 'retracted' then 1 else 0 end) as has_retracted,
+              max(case when observed_status = 'confirmed' then 1 else 0 end) as has_confirmed,
+              max(case when observed_status = 'candidate' then 1 else 0 end) as has_candidate,
+              max(case when observed_status = 'controversial' then 1 else 0 end) as has_controversial,
+              min(case when observed_status = 'retracted' then source_catalog end) as retracted_catalog,
+              min(case when observed_status = 'confirmed' then source_catalog end) as confirmed_catalog,
+              min(case when observed_status = 'candidate' then source_catalog end) as candidate_catalog,
+              min(case when observed_status = 'controversial' then source_catalog end) as controversial_catalog
+            from planet_status_matches
+            group by planet_id
+            """
+        )
+
+        con.execute(
+            f"""
+            update planets p
+            set
+              planet_status = case
+                when a.has_retracted = 1 then 'retracted'
+                when a.has_confirmed = 1 then 'confirmed'
+                when a.has_candidate = 1 then 'candidate'
+                when a.has_controversial = 1 then 'controversial'
+                else p.planet_status
+              end,
+              status_source_catalog = coalesce(
+                case
+                  when a.has_retracted = 1 then a.retracted_catalog
+                  when a.has_confirmed = 1 then a.confirmed_catalog
+                  when a.has_candidate = 1 then a.candidate_catalog
+                  when a.has_controversial = 1 then a.controversial_catalog
+                  else p.status_source_catalog
+                end,
+                p.status_source_catalog
+              ),
+              status_updated_at = {sql_literal(ingested_at)},
+              is_default_visible = case
+                when a.has_retracted = 1 then false
+                when a.has_controversial = 1 and a.has_confirmed = 0 and a.has_candidate = 0 then false
+                else true
+              end,
+              is_tombstoned = case when a.has_retracted = 1 then true else false end
+            from planet_status_agg a
+            where p.planet_id = a.planet_id
+            """
+        )
+
+        con.execute(
+            """
+            create or replace temp table hwc_feature_best as
+            select
+              lower(trim(coalesce(planet_name_norm, ''))) as planet_name_norm,
+              max(nullif(hwc_p_habitable, '')::double) as hwc_p_habitable,
+              max(nullif(hwc_esi, '')::double) as hwc_esi
+            from exoplanet_lifecycle_features_raw
+            where lower(trim(coalesce(source_catalog, ''))) = 'hwc'
+            group by 1
+            having planet_name_norm <> ''
+            """
+        )
+
+        con.execute(
+            f"""
+            update planets p
+            set
+              spacegate_hab_score = coalesce(
+                case when f.hwc_esi between 0.0 and 1.0 then f.hwc_esi else null end,
+                case
+                  when f.hwc_p_habitable >= 2.0 then 0.90
+                  when f.hwc_p_habitable >= 1.0 then 0.75
+                  else null
+                end,
+                p.spacegate_hab_score
+              ),
+              spacegate_hab_confidence = case
+                when f.hwc_p_habitable is not null or f.hwc_esi is not null then 0.75
+                else p.spacegate_hab_confidence
+              end,
+              spacegate_hab_reasons_json = case
+                when f.hwc_p_habitable is not null or f.hwc_esi is not null
+                  then '{{"source":"hwc","method":"reference_seed"}}'
+                else p.spacegate_hab_reasons_json
+              end,
+              planet_classifier_version = {sql_literal(planet_classifier_version)},
+              planet_classifier_updated_at = {sql_literal(ingested_at)}
+            from hwc_feature_best f
+            where p.planet_name_norm = f.planet_name_norm
+            """
+        )
+
+        previous_build_id, previous_core_db = resolve_served_current_core(state_dir)
+        prev_planet_status_expr = "'confirmed'"
+        prev_classifier_expr = "null::varchar"
+        if previous_core_db and previous_build_id != build_id:
+            previous_core_db_sql = str(previous_core_db).replace("'", "''")
+            con.execute(f"attach '{previous_core_db_sql}' as prev_build (read_only)")
+            prev_cols = {
+                str(row[1]).lower()
+                for row in con.execute("select * from pragma_table_info('prev_build.planets')").fetchall()
+            }
+            if "planet_status" in prev_cols:
+                prev_planet_status_expr = "coalesce(planet_status, 'confirmed')"
+            if "planet_classifier_version" in prev_cols:
+                prev_classifier_expr = "planet_classifier_version"
+            con.execute(
+                f"""
+                create or replace temp table prev_planet_state as
+                select
+                  stable_object_key,
+                  {prev_planet_status_expr} as previous_status,
+                  {prev_classifier_expr} as previous_classifier_version
+                from prev_build.planets
+                """
+            )
+            con.execute("detach prev_build")
+        else:
+            con.execute(
+                """
+                create or replace temp table prev_planet_state as
+                select
+                  cast(null as varchar) as stable_object_key,
+                  cast(null as varchar) as previous_status,
+                  cast(null as varchar) as previous_classifier_version
+                where false
+                """
+            )
+
+        con.execute(
+            f"""
+            create or replace table planet_status_history as
+            with joined as (
+              select
+                p.stable_object_key,
+                prev.previous_status,
+                p.planet_status as resolved_status,
+                p.status_source_catalog as resolved_by_catalog
+              from planets p
+              left join prev_planet_state prev using (stable_object_key)
+            )
+            select
+              {sql_literal(build_id)} as build_id,
+              stable_object_key,
+              previous_status,
+              resolved_status,
+              case
+                when previous_status is null then 'new'
+                when previous_status = resolved_status then 'unchanged'
+                when resolved_status = 'retracted' and coalesce(previous_status, '') <> 'retracted' then 'retracted'
+                when previous_status in ('candidate', 'controversial') and resolved_status = 'confirmed' then 'promoted'
+                when previous_status = 'confirmed' and resolved_status in ('candidate', 'controversial') then 'demoted'
+                else 'changed'
+              end as transition_type,
+              resolved_by_catalog,
+              {sql_literal(ingested_at)} as resolved_at,
+              null::varchar as details_json
+            from joined
+            """
+        )
+
+        con.execute(
+            f"""
+            create or replace table planet_reclassification_audit as
+            with joined as (
+              select
+                p.stable_object_key,
+                p.planet_classifier_version as classifier_version,
+                prev.previous_classifier_version
+              from planets p
+              left join prev_planet_state prev using (stable_object_key)
+            )
+            select
+              {sql_literal(build_id)} as build_id,
+              stable_object_key,
+              classifier_version,
+              previous_classifier_version,
+              case
+                when previous_classifier_version is null then 'new'
+                when previous_classifier_version = classifier_version then 'unchanged'
+                else 'source_delta'
+              end as reclass_reason,
+              '["lifecycle","taxonomy","habitability","element_richness"]'::varchar as fields_recomputed_json,
+              {sql_literal(ingested_at)} as recomputed_at
+            from joined
+            """
+        )
+
+        lifecycle_stale_classifier_rows = int(
+            con.execute(
+                f"""
+                select count(*)::bigint
+                from planets
+                where coalesce(planet_classifier_version, '') <> {sql_literal(planet_classifier_version)}
+                """
+            ).fetchone()[0]
+            or 0
+        )
+        if lifecycle_stale_classifier_rows > 0:
+            raise SystemExit(
+                "Planet lifecycle classifier gate failed: "
+                f"{lifecycle_stale_classifier_rows} rows are stale for classifier version {planet_classifier_version}."
+            )
+
+        transition_counts = [
+            {"transition_type": row[0], "count": int(row[1] or 0)}
+            for row in con.execute(
+                """
+                select transition_type, count(*)::bigint
+                from planet_status_history
+                group by 1
+                order by count(*) desc, transition_type asc
+                """
+            ).fetchall()
+        ]
+        resolved_status_counts = [
+            {"planet_status": row[0], "count": int(row[1] or 0)}
+            for row in con.execute(
+                """
+                select planet_status, count(*)::bigint
+                from planets
+                group by 1
+                order by count(*) desc, planet_status asc
+                """
+            ).fetchall()
+        ]
+        source_status_counts = [
+            {"source_catalog": row[0], "observed_status": row[1], "count": int(row[2] or 0)}
+            for row in con.execute(
+                """
+                select source_catalog, observed_status, count(*)::bigint
+                from planet_catalog_observations
+                group by 1,2
+                order by count(*) desc, source_catalog asc, observed_status asc
+                """
+            ).fetchall()
+        ]
+        reclassified_rows = int(
+            con.execute(
+                """
+                select count(*)::bigint
+                from planet_reclassification_audit
+                where reclass_reason <> 'unchanged'
+                """
+            ).fetchone()[0]
+            or 0
+        )
+        previous_build_id, _ = resolve_served_current_core(state_dir)
+        planet_catalog_delta_report = {
+            "build_id": build_id,
+            "lifecycle_enabled": True,
+            "previous_build_id": previous_build_id,
+            "status_raw_rows": lifecycle_status_raw_rows,
+            "status_matched_rows": lifecycle_status_matched_rows,
+            "feature_raw_rows": lifecycle_features_raw_rows,
+            "resolved_status_counts": resolved_status_counts,
+            "transition_counts": transition_counts,
+            "source_status_counts": source_status_counts,
+        }
+        planet_reclassification_report = {
+            "build_id": build_id,
+            "lifecycle_enabled": True,
+            "planet_classifier_version": planet_classifier_version,
+            "reclassified_rows": reclassified_rows,
+            "stale_classifier_rows": lifecycle_stale_classifier_rows,
+        }
+
+        log_stage_complete(
+            "Exoplanet lifecycle stage",
+            lifecycle_stage_started,
+            stage_totals,
+            extra=(
+                f"status_rows={format_count(lifecycle_status_raw_rows)}, "
+                f"matched={format_count(lifecycle_status_matched_rows)}, "
+                f"reclassified={format_count(reclassified_rows)}"
+            ),
+        )
+    else:
+        con.execute(
+            """
+            create or replace table planet_catalog_observations as
+            select
+              cast(null as varchar) as build_id,
+              cast(null as varchar) as stable_object_key,
+              cast(null as varchar) as source_catalog,
+              cast(null as varchar) as source_version,
+              cast(null as varchar) as source_pk,
+              cast(null as varchar) as source_row_hash,
+              cast(null as varchar) as observed_status,
+              cast(null as varchar) as observed_at,
+              cast(null as varchar) as payload_json
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace table planet_status_history as
+            select
+              cast(null as varchar) as build_id,
+              cast(null as varchar) as stable_object_key,
+              cast(null as varchar) as previous_status,
+              cast(null as varchar) as resolved_status,
+              cast(null as varchar) as transition_type,
+              cast(null as varchar) as resolved_by_catalog,
+              cast(null as varchar) as resolved_at,
+              cast(null as varchar) as details_json
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace table planet_reclassification_audit as
+            select
+              cast(null as varchar) as build_id,
+              cast(null as varchar) as stable_object_key,
+              cast(null as varchar) as classifier_version,
+              cast(null as varchar) as previous_classifier_version,
+              cast(null as varchar) as reclass_reason,
+              cast(null as varchar) as fields_recomputed_json,
+              cast(null as varchar) as recomputed_at
+            where false
+            """
+        )
+        planet_catalog_delta_report = {
+            "build_id": build_id,
+            "lifecycle_enabled": False,
+            "reason": "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS=0",
+        }
+        planet_reclassification_report = {
+            "build_id": build_id,
+            "lifecycle_enabled": False,
+            "planet_classifier_version": planet_classifier_version,
+            "reclassified_rows": 0,
+            "stale_classifier_rows": 0,
+        }
+
     stage_totals["planets"] = con.execute("select count(*) from planets").fetchone()[0]
     matched_planet_count = con.execute(
         "select count(*) from planets where match_method <> 'unmatched'"
@@ -5933,6 +6515,14 @@ def main() -> int:
         provenance_report["debcat"] = debcat_manifest
     if kepler_eb_manifest:
         provenance_report["kepler_eb"] = kepler_eb_manifest
+    if exoplanet_eu_manifest:
+        provenance_report["exoplanet_eu"] = exoplanet_eu_manifest
+    if open_exoplanet_catalogue_manifest:
+        provenance_report["open_exoplanet_catalogue"] = open_exoplanet_catalogue_manifest
+    if hwc_manifest:
+        provenance_report["hwc"] = hwc_manifest
+    if emac_tt9_manifest:
+        provenance_report["emac_tt9"] = emac_tt9_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
@@ -6127,6 +6717,16 @@ def main() -> int:
         "compact_catalogs_enabled": enable_compact_catalogs,
         "superstellar_catalogs_enabled": enable_superstellar_catalogs,
         "eclipsing_catalogs_enabled": enable_eclipsing_catalogs,
+        "exoplanet_lifecycle_catalogs_enabled": enable_exoplanet_lifecycle_catalogs,
+        "planet_classifier_version": planet_classifier_version,
+        "planet_lifecycle_status_raw_rows": lifecycle_status_raw_rows,
+        "planet_lifecycle_status_matched_rows": lifecycle_status_matched_rows,
+        "planet_lifecycle_feature_raw_rows": lifecycle_features_raw_rows,
+        "planet_lifecycle_stale_classifier_rows": lifecycle_stale_classifier_rows,
+        "planet_lifecycle_candidate_rows": planet_candidate_rows,
+        "planet_lifecycle_controversial_rows": planet_controversial_rows,
+        "planet_lifecycle_retracted_rows": planet_retracted_rows,
+        "planet_lifecycle_default_visible_rows": planet_default_visible_rows,
         "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
@@ -6311,6 +6911,32 @@ def main() -> int:
               and lower(match_method) not in ('none', 'unmatched')
             """
         ).fetchone()[0]
+        or 0
+    )
+    planet_lifecycle_observation_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            """
+            select coalesce(source_catalog, 'unknown'), count(*)::bigint
+            from planet_catalog_observations
+            group by 1
+            """
+        ).fetchall()
+    }
+    planet_retracted_rows = int(
+        con.execute("select count(*)::bigint from planets where planet_status = 'retracted'").fetchone()[0]
+        or 0
+    )
+    planet_controversial_rows = int(
+        con.execute("select count(*)::bigint from planets where planet_status = 'controversial'").fetchone()[0]
+        or 0
+    )
+    planet_candidate_rows = int(
+        con.execute("select count(*)::bigint from planets where planet_status = 'candidate'").fetchone()[0]
+        or 0
+    )
+    planet_default_visible_rows = int(
+        con.execute("select count(*)::bigint from planets where coalesce(is_default_visible, false)").fetchone()[0]
         or 0
     )
     compact_linked_rows = int(
@@ -6655,6 +7281,55 @@ def main() -> int:
         linked_rows=planet_linked_rows,
         notes="exoplanet inventory",
     )
+    if enable_exoplanet_lifecycle_catalogs:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="exoplanet_eu",
+            domain="planets",
+            domain_total=total_planets,
+            input_rows=manifest_row_count(exoplanet_eu_manifest),
+            input_bytes=manifest_bytes(exoplanet_eu_manifest),
+            direct_rows=0,
+            evidence_rows=int(planet_lifecycle_observation_counts.get("exoplanet_eu", 0)),
+            linked_rows=int(planet_lifecycle_observation_counts.get("exoplanet_eu", 0)),
+            notes="lifecycle status evidence",
+        )
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="hwc",
+            domain="planets",
+            domain_total=total_planets,
+            input_rows=manifest_row_count(hwc_manifest),
+            input_bytes=manifest_bytes(hwc_manifest),
+            direct_rows=0,
+            evidence_rows=int(planet_lifecycle_observation_counts.get("hwc", 0)),
+            linked_rows=int(planet_lifecycle_observation_counts.get("hwc", 0)),
+            notes="habitability reference features",
+        )
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="open_exoplanet_catalogue",
+            domain="planets",
+            domain_total=total_planets,
+            input_rows=manifest_row_count(open_exoplanet_catalogue_manifest),
+            input_bytes=manifest_bytes(open_exoplanet_catalogue_manifest),
+            direct_rows=0,
+            evidence_rows=int(planet_lifecycle_observation_counts.get("open_exoplanet_catalogue", 0)),
+            linked_rows=int(planet_lifecycle_observation_counts.get("open_exoplanet_catalogue", 0)),
+            notes="alias and architecture support",
+        )
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="emac_tt9",
+            domain="planets",
+            domain_total=total_planets,
+            input_rows=manifest_row_count(emac_tt9_manifest),
+            input_bytes=manifest_bytes(emac_tt9_manifest),
+            direct_rows=0,
+            evidence_rows=int(planet_lifecycle_observation_counts.get("emac_tt9", 0)),
+            linked_rows=int(planet_lifecycle_observation_counts.get("emac_tt9", 0)),
+            notes="candidate signal support",
+        )
     add_catalog_contribution(
         catalog_contributions,
         catalog="gaia_classprob",
@@ -6770,6 +7445,10 @@ def main() -> int:
         ("snr", snr_manifest),
         ("debcat", debcat_manifest),
         ("kepler_eb", kepler_eb_manifest),
+        ("exoplanet_eu", exoplanet_eu_manifest),
+        ("open_exoplanet_catalogue", open_exoplanet_catalogue_manifest),
+        ("hwc", hwc_manifest),
+        ("emac_tt9", emac_tt9_manifest),
         ("athyg_part1", athyg_p1),
         ("athyg_part2", athyg_p2),
     ]:
@@ -6849,6 +7528,8 @@ def main() -> int:
 
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
+    write_json(reports_dir / "planet_catalog_delta_report.json", planet_catalog_delta_report)
+    write_json(reports_dir / "planet_reclassification_report.json", planet_reclassification_report)
     write_json(reports_dir / "catalog_contribution_report.json", catalog_contribution_report)
     pipeline_report_script = root / "scripts" / "update_catalog_pipeline_report.py"
     if pipeline_report_script.exists():

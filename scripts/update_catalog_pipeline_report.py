@@ -184,6 +184,9 @@ def summarize_cook_stage(state_dir: Path) -> dict:
         ("snr", "cooked/snr/green_snr.csv"),
         ("debcat", "cooked/debcat/debcat_binaries.csv"),
         ("kepler_eb", "cooked/kepler_eb/kepler_eb_catalog.csv"),
+        ("exoplanet_lifecycle_status", "cooked/exoplanet_lifecycle/status_rows.csv"),
+        ("exoplanet_lifecycle_aliases", "cooked/exoplanet_lifecycle/alias_rows.csv"),
+        ("exoplanet_lifecycle_features", "cooked/exoplanet_lifecycle/features_rows.csv"),
     ]
 
     cooked_rows: list[dict] = []

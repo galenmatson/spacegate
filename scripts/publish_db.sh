@@ -76,6 +76,8 @@ main() {
     "match_report.json"
     "provenance_report.json"
     "system_grouping_report.json"
+    "planet_catalog_delta_report.json"
+    "planet_reclassification_report.json"
   )
   local report_name
   for report_name in "${report_files[@]}"; do

@@ -41,6 +41,9 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     --catalog msc
     --catalog orb6
   )
+  if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
+    catalog_args+=(--catalog exoplanet_eu --catalog open_exoplanet_catalogue --catalog hwc --catalog emac_tt9)
+  fi
   if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
     catalog_args+=(--catalog debcat)
   fi
@@ -77,13 +80,11 @@ else
   if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
     "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
   else
-    "$ROOT_DIR/scripts/catalogs.sh" \
-      --catalog athyg \
-      --catalog nasa_exoplanet_archive \
-      --catalog wds \
-      --catalog msc \
-      --catalog orb6 \
-      "$@"
+    catalog_args=(--catalog athyg --catalog nasa_exoplanet_archive --catalog wds --catalog msc --catalog orb6)
+    if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
+      catalog_args+=(--catalog exoplanet_eu --catalog open_exoplanet_catalogue --catalog hwc --catalog emac_tt9)
+    fi
+    "$ROOT_DIR/scripts/catalogs.sh" "${catalog_args[@]}" "$@"
   fi
 fi
 if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
