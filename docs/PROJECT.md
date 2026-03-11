@@ -203,6 +203,51 @@ Priority:
 
 No hidden fuzzy merge into canonical rows.
 
+## Exoplanet Lifecycle Policy
+
+Canonical policy:
+
+- NASA Exoplanet Archive remains the canonical confirmed baseline.
+- additional sources can contribute lifecycle state, alias/crosswalk support, and derived/diagnostic fields.
+
+Status handling:
+
+- `candidate`: included by default
+- `controversial`: stored and queryable, default-off in UI/API
+- `retracted`: excluded from default science views and retained as tombstoned lineage rows for audit and rim continuity
+
+Lifecycle transitions must be reversible and lineage-complete (no destructive hard-delete of identity history).
+
+## Derived Planet Classification Contract
+
+Derived planet fields are deterministic and versioned per build:
+
+- taxonomy tags (size/mass, insolation/temperature, orbit class, composition proxy, detection tags, host-context tags)
+- `spacegate_hab_score` and confidence/reason metadata
+- stellar-spectroscopy-informed element-richness proxy tags for lore/search use
+
+Element-richness policy:
+
+- inferred from host stellar spectroscopy/metallicity evidence unless direct planetary composition evidence exists
+- explicitly labeled as proxy/inferred when not directly measured
+- intended for ranking/filtering and lore context, not as a substitute for direct compositional measurement
+
+## Catalog Delta and Re-Evaluation (Exoplanets)
+
+Catalog refreshes must trigger deterministic delta analysis and selective recomputation.
+
+Required behavior:
+
+1. diff each source snapshot using deterministic source keys
+2. classify transitions (`new`, `changed`, `missing`, `promoted`, `demoted`, `retracted`)
+3. recompute lifecycle/taxonomy/habitability/resource-richness fields for impacted rows:
+   - changed rows
+   - rows whose host-star inputs changed (for example metallicity or luminosity inputs)
+   - rows impacted by cross-source precedence changes
+4. emit build reports for catalog deltas and reclassification coverage
+
+No promoted build may serve stale derived-tag versions.
+
 ## Unit Policy
 
 - Preserve source-native units/fields in raw and cooked stages.
@@ -377,6 +422,13 @@ Rules:
 
 - implement replacement alias/crosswalk layer on top of Gaia canonical IDs
 - maintain or improve user-facing name quality and lookup ergonomics
+
+### Phase D.5: Exoplanet Multi-Catalog Lifecycle
+
+- ingest exoplanet lifecycle/support layers from multiple catalogs with deterministic precedence
+- include `candidate` by default, keep `controversial` default-off, tombstone `retracted`
+- run per-source catalog diff and impacted-row reclassification on refresh
+- emit contribution/overlap and lifecycle transition reports per build
 
 ### Phase E: Enrichment Expansion
 

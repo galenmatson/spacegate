@@ -182,6 +182,42 @@ Success criteria:
 - objective parity/improvement gates pass
 - no production dependency on AT-HYG for canonical rows
 
+### M5.3 Exoplanet Multi-Catalog Lifecycle Ingest
+
+Goal:
+
+- ingest broader exoplanet source layers while preserving a single canonical policy for status and provenance.
+
+Dependencies:
+
+- M2 and M3 stable
+- M4 host/crosswalk quality accepted
+
+Deliverables:
+
+- multi-catalog exoplanet layer ingestion:
+  - NASA Exoplanet Archive remains canonical confirmed baseline
+  - exoplanet.eu status layer (`candidate`, `controversial`, `retracted` tracking)
+  - OEC supplemental alias/architecture layer
+  - EMAC/TT9 candidate-signal layer
+  - HWC comparison/feature layer (non-canonical score ownership)
+- deterministic lifecycle policy materialization:
+  - `candidate` included by default
+  - `controversial` stored and queryable but default-off
+  - `retracted` excluded from science defaults and retained as tombstoned lineage for audit/rim continuity
+- overlap/contribution accounting for each catalog source and source-combination
+- source-delta workflow:
+  - per-source snapshot diff
+  - impacted-row re-evaluation planning
+  - end-of-run lifecycle delta report
+
+Success criteria:
+
+- status precedence is deterministic and documented
+- lifecycle transitions are reversible and lineage-complete
+- catalog contribution reports are generated on every refresh
+- no canonical/provenance ambiguity introduced by multi-catalog overlap
+
 ### M5.5 Planet Taxonomy and Habitability
 
 Goal:
@@ -192,7 +228,7 @@ Dependencies:
 
 - M2 and M3 stable
 - M4 host/crosswalk quality accepted
-- exoplanet lifecycle ingestion policy active (`confirmed`, `candidate`, `controversial`, `retracted`)
+- M5.3 accepted
 
 Deliverables:
 
@@ -205,6 +241,7 @@ Deliverables:
   - insolation/temperature class (`hot`, `warm`, `cold`, inferno/ice thresholds)
   - orbital class (`USP`, short/long period, eccentric, circumbinary when evidenced)
   - detection-method tags and host-context tags
+  - stellar-spectroscopy-informed element-richness proxy tags for lore/search context
 - Spacegate habitability scorer (`spacegate_hab_score`) with confidence and reason flags
 - searchable score controls:
   - habitability slider

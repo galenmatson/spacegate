@@ -400,7 +400,7 @@ Contract notes:
 
 ## `planets`
 
-Confirmed exoplanet records matched to canonical hosts.
+Exoplanet records matched to canonical hosts, including lifecycle states that are not default-visible.
 
 Required columns:
 
@@ -414,9 +414,61 @@ Required columns:
   - `match_method`
   - `match_confidence`
   - `match_notes`
+- lifecycle/status:
+  - `planet_status` (`confirmed`, `candidate`, `controversial`, `retracted`)
+  - `is_default_visible` (bool; policy-materialized for default science queries)
+  - `is_tombstoned` (bool; for retained lineage rows that must not appear in default science views)
+  - `status_source_catalog`
+  - `status_updated_at`
+  - `status_superseded_by` (nullable stable key for replacement/merged objects)
+- taxonomy tags (deterministic, versioned):
+  - `planet_size_mass_class`
+  - `planet_insolation_class`
+  - `planet_orbit_class`
+  - `planet_composition_proxy_class`
+  - `planet_detection_tags_json`
+  - `planet_host_context_tags_json`
+  - `planet_classifier_version`
+  - `planet_classifier_updated_at`
 - planet parameters (source-native where available)
+- habitability and resource utility:
+  - `spacegate_hab_score` (`0..1`)
+  - `spacegate_hab_confidence`
+  - `spacegate_hab_reasons_json`
+  - `host_metallicity_feh` (nullable; source-native if available)
+  - `host_metallicity_feh_error` (nullable)
+  - `planet_element_richness_score` (`0..1`, nullable)
+  - `planet_element_richness_class` (`very_low`, `low`, `moderate`, `high`, `very_high`, `unknown`)
+  - `planet_element_richness_method` (`host_spectroscopy_proxy`, `direct_atmosphere_signal`, `mixed`, `unknown`)
+  - `planet_element_richness_notes`
 - spatial fields inherited from matched host when matched
 - provenance contract fields
+
+Contract notes:
+
+- `planet_element_richness_*` is a lore/search utility proxy and must not be presented as direct measured bulk composition unless direct spectral evidence exists.
+- `retracted` records may be retained only with `is_tombstoned=true` and `is_default_visible=false`.
+- status/taxonomy/habitability/resource tags are deterministic derived fields and must carry explicit versioning.
+
+## Planet Lifecycle and Re-Evaluation Contract
+
+Refresh behavior for exoplanet sources must be delta-aware:
+
+- run per-source snapshot diff keyed by deterministic source identity
+- materialize lifecycle transitions (`new`, `changed`, `unchanged`, `missing`, `retracted`, `promoted`, `demoted`)
+- recompute derived fields for all impacted rows:
+  - changed rows
+  - rows with changed host parameters used by classifiers (for example metallicity, luminosity, flux-dependent inputs)
+  - rows affected by status precedence changes across overlapping catalogs
+
+Required outputs:
+
+- `reports/<build_id>/planet_catalog_delta_report.json`
+- `reports/<build_id>/planet_reclassification_report.json`
+
+Hard gate:
+
+- build fails if any served planet row has stale derived-tag version relative to active classifier version for that build.
 
 ## Supplementary Science Tables
 
@@ -550,6 +602,8 @@ Build must fail on:
    - remnant-positive evidence with non-remnant emitted `object_family` and no explicit override
 6. silent classifier downgrade:
    - source-native remnant marker (for example white-dwarf `D*` spectral evidence) overwritten by temperature fallback without override
+7. stale planet derivation state:
+   - any `planets` row where lifecycle/taxonomy/habitability/resource-richness fields were not recomputed with the active classifier version for the build
 
 Reports must include:
 
@@ -561,6 +615,9 @@ Reports must include:
   - remnant evidence counts by source
   - remnant vs emitted family mismatch counts
   - explicit override counts and reasons
+- planet lifecycle/reclassification summary:
+  - status transitions by catalog and transition type
+  - derived-tag recompute counts and skipped-row counts (must be zero when served)
 
 ## Compatibility and Migration
 
