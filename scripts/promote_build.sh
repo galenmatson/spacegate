@@ -17,7 +17,7 @@ usage() {
 Usage:
   scripts/promote_build.sh [BUILD_ID]
 
-If BUILD_ID is not provided, the latest $SPACEGATE_STATE_DIR/out/* directory (by name sort) is promoted.
+If BUILD_ID is not provided, the latest promotable $SPACEGATE_STATE_DIR/out/* directory (by name sort) is promoted.
 By default this also runs coolness scoring for the promoted build; set SPACEGATE_AUTO_SCORE_COOLNESS=0 to skip.
 USAGE
 }
@@ -33,17 +33,32 @@ PY
 }
 
 select_latest_build() {
-  local -a builds=()
+  local -a promotable_builds=()
   while IFS= read -r name; do
-    builds+=("$name")
+    local build_dir="$OUT_DIR/$name"
+    if is_promotable_build "$build_dir"; then
+      promotable_builds+=("$name")
+    fi
   done < <(find "$OUT_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 
-  if [[ ${#builds[@]} -eq 0 ]]; then
-    echo "Error: no builds found in $OUT_DIR" >&2
+  if [[ ${#promotable_builds[@]} -eq 0 ]]; then
+    echo "Error: no promotable builds found in $OUT_DIR" >&2
     exit 1
   fi
 
-  printf '%s' "${builds[-1]}"
+  printf '%s' "${promotable_builds[-1]}"
+}
+
+is_promotable_build() {
+  local build_dir="$1"
+  local core_db="$build_dir/core.duckdb"
+  local arm_db="$build_dir/arm.duckdb"
+  local parquet_dir="$build_dir/parquet"
+
+  [[ -f "$core_db" ]] || return 1
+  [[ -f "$arm_db" ]] || return 1
+  [[ -d "$parquet_dir" ]] || return 1
+  find "$parquet_dir" -maxdepth 1 -type f -name '*.parquet' -print -quit | grep -q .
 }
 
 require_artifacts() {

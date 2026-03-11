@@ -59,3 +59,22 @@ Observed stable setting on Proton for the Gaia-first core:
 - `SPACEGATE_DUCKDB_MEMORY_LIMIT=26GB`
 
 If OOM appears during identifier merge or alias stage, reduce threads first, then adjust memory.
+
+## Benchmark Matrix Runner
+
+Use the matrix runner to measure ingest wall-clock and per-stage durations across thread/memory combinations:
+
+```bash
+scripts/benchmark_ingest_tuning.sh --threads 8,10,12 --memory 26GB,28GB,30GB
+```
+
+Outputs are written to:
+
+- `/data/spacegate/data/reports/benchmarks/<timestamp>/summary.csv`
+- `/data/spacegate/data/reports/benchmarks/<timestamp>/summary.md`
+- per-run logs in the same directory
+
+Notes:
+
+- benchmark runs set `SPACEGATE_KEEP_TMP=1` for resumable recovery.
+- benchmark script can auto-stop Folding@Home jobs before running (`--stop-fah 1`, default on).
