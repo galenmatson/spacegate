@@ -475,6 +475,7 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/MULTIPLICITY_GOLDENS.md`: post-ingest hierarchy/orbit exam contract
+- `docs/EXOPLANET_LIFECYCLE_IMPLEMENTATION.md`: concrete DDL and execution plan for lifecycle/taxonomy/habitability
 - `docs/CHECKLIST.md`: executable delivery tracker
 - `docs/MILESTONES.md`: dependency-ordered roadmap, restored ideation backlog, and long-range goals
 

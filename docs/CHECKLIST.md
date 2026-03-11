@@ -80,6 +80,26 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Preserve or improve host matching quality for planets
 - [x] Preserve or improve user-facing lookup ergonomics
 
+### C5.3 Phase D.5 - Exoplanet Multi-Catalog Lifecycle
+
+- [ ] Add lifecycle source downloads/manifests (exoplanet.eu, OEC, EMAC TT9, HWC)
+- [ ] Add cooked lifecycle normalization outputs (status/alias/feature rows)
+- [ ] Resolve per-planet lifecycle status with deterministic precedence (`confirmed/candidate/controversial/retracted`)
+- [ ] Materialize policy flags (`is_default_visible`, `is_tombstoned`) in `planets`
+- [ ] Persist lifecycle observations/history/reclassification audit tables in `arm.duckdb`
+- [ ] Emit `planet_catalog_delta_report.json` and `planet_reclassification_report.json`
+- [ ] Add verify gate for stale lifecycle/taxonomy/habitability classifier versions
+
+### C5.5 Phase D.6 - Planet Taxonomy and Habitability
+
+- [ ] Implement deterministic taxonomy tags from observational data (size/mass, insolation, orbit, composition proxy, detection/host context)
+- [ ] Implement `spacegate_hab_score` + confidence/reasons metadata
+- [ ] Implement element-richness proxy tags from stellar spectroscopy/metallicity inputs
+- [ ] Add API filters/toggles for controversial lifecycle state and habitability range
+- [ ] Add UI habitability slider + top-N shortcut
+- [ ] Add optional filter/display for element-richness class
+- [ ] Add classifier drift/regression checks in build verification
+
 ### C6. Phase E - AT-HYG Retirement
 
 - [ ] Parallel-run comparison (legacy vs Gaia-first) report generated
