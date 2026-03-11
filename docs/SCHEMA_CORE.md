@@ -237,6 +237,11 @@ Must include at minimum:
   - `identifier_gaia_collision_max`
   - `identifier_hip_collision_max`
   - `identifier_hd_collision_max`
+  - default gates (overridable by env at ingest time):
+    - ambiguous: `10000`
+    - gaia collisions: `0`
+    - hip collisions: `3000`
+    - hd collisions: `3000`
 
 ## `stars`
 

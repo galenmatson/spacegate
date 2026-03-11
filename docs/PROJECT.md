@@ -39,6 +39,10 @@ Reason:
 6. Security-first ingestion: no required insecure transport dependencies.
 7. Classification safety invariants: explicit remnant evidence must override temperature-derived stellar class labels.
 
+Operational runbook:
+
+- ingest failure recovery + runtime tuning: `docs/INGEST_RECOVERY.md`
+
 ## Data Layers (`galaxy` / `core` / `halo` / `arm` / `disc` / `rim`)
 
 ### Galaxy (immutable canonical astronomy)

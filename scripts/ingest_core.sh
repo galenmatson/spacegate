@@ -31,6 +31,20 @@ parse_bool_env() {
   esac
 }
 
+format_duration() {
+  local total_s="$1"
+  local h=$(( total_s / 3600 ))
+  local m=$(( (total_s % 3600) / 60 ))
+  local s=$(( total_s % 60 ))
+  if (( h > 0 )); then
+    printf '%dh%02dm%02ds' "$h" "$m" "$s"
+  elif (( m > 0 )); then
+    printf '%dm%02ds' "$m" "$s"
+  else
+    printf '%ds' "$s"
+  fi
+}
+
 PYTHON_BIN=""
 if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
   PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
@@ -152,6 +166,43 @@ PY
   echo "Tip: run scripts/setup_spacegate.sh (or install requirements.txt in the root venv)." >&2
   exit 1
 }
-"$PYTHON_BIN" "$ROOT_DIR/scripts/ingest_core.py" "$@" | tee -a "$LOG_FILE"
+
+if [[ -z "${SPACEGATE_KEEP_TMP:-}" ]] && [[ "$(parse_bool_env "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}")" == "1" ]]; then
+  export SPACEGATE_KEEP_TMP=1
+  log "SPACEGATE_KEEP_TMP not set; defaulting to 1 for Gaia ingest so failed temp builds remain resumable."
+fi
+
+HEARTBEAT_S="${SPACEGATE_INGEST_HEARTBEAT_S:-120}"
+if ! [[ "$HEARTBEAT_S" =~ ^[0-9]+$ ]] || (( HEARTBEAT_S < 15 )); then
+  HEARTBEAT_S=120
+fi
+
+start_epoch="$(date +%s)"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/ingest_core.py" "$@" > >(tee -a "$LOG_FILE") 2>&1 &
+ingest_pid=$!
+
+while kill -0 "$ingest_pid" >/dev/null 2>&1; do
+  sleep "$HEARTBEAT_S"
+  if ! kill -0 "$ingest_pid" >/dev/null 2>&1; then
+    break
+  fi
+  now_epoch="$(date +%s)"
+  elapsed_s=$(( now_epoch - start_epoch ))
+  last_stage="$(awk '!/Ingest heartbeat:/{line=$0} END{print line}' "$LOG_FILE")"
+  last_stage="${last_stage#*Z }"
+  last_stage="${last_stage//\'/}"
+  log "Ingest heartbeat: elapsed=$(format_duration "$elapsed_s") last_stage='${last_stage}'"
+done
+
+wait "$ingest_pid"
+ingest_status=$?
+if (( ingest_status != 0 )); then
+  log "Ingest core failed (exit=${ingest_status})."
+  if [[ "${SPACEGATE_KEEP_TMP:-0}" == "1" ]]; then
+    log "Temp output retained (SPACEGATE_KEEP_TMP=1). Recovery option: scripts/finalize_ingest_tmp.sh --build-id <failed_build_id> after adjusting gates."
+  fi
+  exit "$ingest_status"
+fi
+
 log "Ingest core complete"
 echo "Next: scripts/promote_build.sh to activate the new build."
