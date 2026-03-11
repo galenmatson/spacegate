@@ -182,6 +182,42 @@ Success criteria:
 - objective parity/improvement gates pass
 - no production dependency on AT-HYG for canonical rows
 
+### M5.5 Planet Taxonomy and Habitability
+
+Goal:
+
+- classify planets with observation-grounded tags and expose a deterministic habitability ranking/search surface.
+
+Dependencies:
+
+- M2 and M3 stable
+- M4 host/crosswalk quality accepted
+- exoplanet lifecycle ingestion policy active (`confirmed`, `candidate`, `controversial`, `retracted`)
+
+Deliverables:
+
+- lifecycle materialization and pruning policy:
+  - `candidate` included by default
+  - `controversial` stored but default-off via UI/API toggle
+  - `retracted` excluded from science defaults, retained as tombstoned provenance for audit and rim references
+- planet taxonomy tagger using observational/derived science fields (for example):
+  - size/mass class (`sub-Earth`, `super-Earth`, `mini-Neptune`, `Neptune`, `Jovian`, `super-Jovian`)
+  - insolation/temperature class (`hot`, `warm`, `cold`, inferno/ice thresholds)
+  - orbital class (`USP`, short/long period, eccentric, circumbinary when evidenced)
+  - detection-method tags and host-context tags
+- Spacegate habitability scorer (`spacegate_hab_score`) with confidence and reason flags
+- searchable score controls:
+  - habitability slider
+  - quick query for top-N most habitable planets
+- comparison report against external habitability references (for example HWC) without delegating canonical score ownership
+
+Success criteria:
+
+- taxonomy tags are deterministic and reproducible across rebuilds
+- lifecycle toggles and pruning behavior are auditable and reversible via lineage
+- default product views match policy (`candidate` on, `controversial` off, `retracted` hidden)
+- habitability ranking query latency remains within core slice SLO targets
+
 ### M6. External Links and Factual Disc Layer
 
 Goal:
