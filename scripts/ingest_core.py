@@ -6691,6 +6691,23 @@ def main() -> int:
     }
     write_json(reports_dir / "identifier_report.json", identifier_report)
 
+    planet_retracted_rows = int(
+        con.execute("select count(*)::bigint from planets where planet_status = 'retracted'").fetchone()[0]
+        or 0
+    )
+    planet_controversial_rows = int(
+        con.execute("select count(*)::bigint from planets where planet_status = 'controversial'").fetchone()[0]
+        or 0
+    )
+    planet_candidate_rows = int(
+        con.execute("select count(*)::bigint from planets where planet_status = 'candidate'").fetchone()[0]
+        or 0
+    )
+    planet_default_visible_rows = int(
+        con.execute("select count(*)::bigint from planets where coalesce(is_default_visible, false)").fetchone()[0]
+        or 0
+    )
+
     qc_report = {
         "build_id": build_id,
         "counts": {
@@ -6923,22 +6940,6 @@ def main() -> int:
             """
         ).fetchall()
     }
-    planet_retracted_rows = int(
-        con.execute("select count(*)::bigint from planets where planet_status = 'retracted'").fetchone()[0]
-        or 0
-    )
-    planet_controversial_rows = int(
-        con.execute("select count(*)::bigint from planets where planet_status = 'controversial'").fetchone()[0]
-        or 0
-    )
-    planet_candidate_rows = int(
-        con.execute("select count(*)::bigint from planets where planet_status = 'candidate'").fetchone()[0]
-        or 0
-    )
-    planet_default_visible_rows = int(
-        con.execute("select count(*)::bigint from planets where coalesce(is_default_visible, false)").fetchone()[0]
-        or 0
-    )
     compact_linked_rows = int(
         con.execute(
             """
