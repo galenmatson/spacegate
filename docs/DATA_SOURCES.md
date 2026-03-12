@@ -266,6 +266,12 @@ Typical manifest files:
 - `reports/manifests/clusters_manifest.json`
 - `reports/manifests/snr_manifest.json`
 
+Source-delta tracking files:
+
+- `reports/source_delta_report.json` (latest per-source delta summary)
+- `reports/source_delta_snapshot.json` (current baseline signatures)
+- `reports/source_delta_history/*.json` (run history)
+
 ## WDS-Gaia Bridge Policy
 
 Bridge source:

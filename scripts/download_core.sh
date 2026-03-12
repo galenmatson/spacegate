@@ -114,5 +114,12 @@ fi
 if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/update_catalog_pipeline_report.py" --stage download >/dev/null 2>&1; then
   echo "Warning: failed to update catalog pipeline report (download stage)." >&2
 fi
+if source_delta_report="$("$PYTHON_BIN" "$ROOT_DIR/scripts/scan_source_deltas.py" --root "$ROOT_DIR" 2>/dev/null)"; then
+  if [[ -n "$source_delta_report" ]]; then
+    echo "Updated source delta report: $source_delta_report"
+  fi
+else
+  echo "Warning: failed to update source delta report." >&2
+fi
 echo "Download complete."
 echo "Next: scripts/cook_core.sh to normalize catalogs."

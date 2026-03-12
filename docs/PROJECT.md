@@ -248,6 +248,15 @@ Required behavior:
 
 No promoted build may serve stale derived-tag versions.
 
+Current implementation status:
+
+- per-source snapshot diff is now emitted at download stage:
+  - report: `reports/source_delta_report.json`
+  - baseline snapshot: `reports/source_delta_snapshot.json`
+  - history: `reports/source_delta_history/*.json`
+- this stage detects source-level `new` / `changed` / `missing` / `unchanged` transitions from manifest signatures.
+- impacted-row recomputation planning remains a subsequent step (not yet auto-targeted in ingest).
+
 ## Unit Policy
 
 - Preserve source-native units/fields in raw and cooked stages.

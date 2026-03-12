@@ -84,6 +84,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C5.3 Phase D.5 - Exoplanet Multi-Catalog Lifecycle
 
 - [x] Add lifecycle source downloads/manifests (exoplanet.eu, OEC, EMAC TT9, HWC)
+- [x] Add per-source manifest snapshot diff report (`reports/source_delta_report.json`) with persisted baseline snapshot/history
 - [x] Add cooked lifecycle normalization outputs (status/alias/feature rows)
 - [x] Resolve per-planet lifecycle status with deterministic precedence (`confirmed/candidate/controversial/retracted`)
 - [x] Materialize policy flags (`is_default_visible`, `is_tombstoned`) in `planets`
