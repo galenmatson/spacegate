@@ -85,12 +85,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Add lifecycle source downloads/manifests (exoplanet.eu, OEC, EMAC TT9, HWC)
 - [x] Add per-source manifest snapshot diff report (`reports/source_delta_report.json`) with persisted baseline snapshot/history
+- [x] Add impacted-row planner report (`reports/impacted_rows_plan.json`) with mode routing
 - [x] Add cooked lifecycle normalization outputs (status/alias/feature rows)
 - [x] Resolve per-planet lifecycle status with deterministic precedence (`confirmed/candidate/controversial/retracted`)
 - [x] Materialize policy flags (`is_default_visible`, `is_tombstoned`) in `planets`
 - [ ] Persist lifecycle observations/history/reclassification audit tables in `arm.duckdb`
 - [x] Emit `planet_catalog_delta_report.json` and `planet_reclassification_report.json`
 - [x] Add verify gate for stale lifecycle/taxonomy/habitability classifier versions
+- [x] Add selective cook + incremental planet ingest path for planet/lifecycle-only source deltas
+- [x] Add one-command orchestrator for differential/full refresh routing (`scripts/refresh_core.sh`)
 
 ### C5.5 Phase D.6 - Planet Taxonomy and Habitability
 

@@ -271,6 +271,15 @@ Source-delta tracking files:
 - `reports/source_delta_report.json` (latest per-source delta summary)
 - `reports/source_delta_snapshot.json` (current baseline signatures)
 - `reports/source_delta_history/*.json` (run history)
+- `reports/impacted_rows_plan.json` (domain/row impact plan + execution mode)
+
+Differential refresh scripts:
+
+- `scripts/scan_source_deltas.py` (manifest snapshot diff)
+- `scripts/plan_impacted_rows.py` (impact planner + mode routing)
+- `scripts/cook_delta.sh` (selective cook for planet/lifecycle-only deltas)
+- `scripts/ingest_incremental_planets.py` (incremental rebuild of planets + lifecycle side tables)
+- `scripts/refresh_core.sh` (end-to-end orchestrator: differential or full path + promote + verify)
 
 ## WDS-Gaia Bridge Policy
 

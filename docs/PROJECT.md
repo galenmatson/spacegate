@@ -255,7 +255,16 @@ Current implementation status:
   - baseline snapshot: `reports/source_delta_snapshot.json`
   - history: `reports/source_delta_history/*.json`
 - this stage detects source-level `new` / `changed` / `missing` / `unchanged` transitions from manifest signatures.
-- impacted-row recomputation planning remains a subsequent step (not yet auto-targeted in ingest).
+- impacted-row planning is now emitted after download/cook planning:
+  - planner output: `reports/impacted_rows_plan.json`
+  - planner script: `scripts/plan_impacted_rows.py`
+- selective differential execution path is now available:
+  - selective cook: `scripts/cook_delta.sh`
+  - incremental planet/lifecycle ingest: `scripts/ingest_incremental_planets.py`
+  - orchestrator: `scripts/refresh_core.sh`
+- routing contract:
+  - if only planet/lifecycle sources changed, execute selective cook + incremental planet refresh
+  - otherwise execute full cook + full ingest
 
 ## Unit Policy
 

@@ -1,5 +1,28 @@
 # Ingest Recovery + Runtime Tuning
 
+## Differential Refresh Entry Point
+
+Use `scripts/refresh_core.sh` for normal refresh operations.
+
+Default behavior:
+
+1. run download + source-delta scan
+2. run impacted-row planner
+3. route automatically:
+   - `planet_incremental_eligible`: selective cook + incremental planet ingest
+   - otherwise: full cook + full ingest
+4. promote + verify resulting build
+
+Common flags:
+
+- `--skip-download`: reuse existing manifests/delta report
+- `--full`: force full rebuild path
+- `--download-overwrite`: force source redownloads
+
+Generated planning artifact:
+
+- `reports/impacted_rows_plan.json`
+
 ## Identifier Collision Gates
 
 `ingest_core.py` enforces identifier stewardship QC gates after table construction:
@@ -30,6 +53,13 @@ For Gaia-heavy ingest, `scripts/ingest_core.sh` defaults `SPACEGATE_KEEP_TMP=1` 
 - reports path: `/data/spacegate/data/reports/<build_id>/...`
 
 This avoids losing expensive intermediate artifacts.
+
+Incremental checkpoint behavior:
+
+- planet/lifecycle-only refreshes clone the current build into `out/<build_id>.tmp`
+- only `planets` and lifecycle side tables are rebuilt
+- unchanged star/system artifacts remain inherited from parent build
+- successful finalize promotes `out/<build_id>.tmp` to `out/<build_id>`
 
 ## Finalize From Temp Build
 
