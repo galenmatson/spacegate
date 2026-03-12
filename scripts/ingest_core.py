@@ -73,6 +73,13 @@ ATHYG_MERGE_GAIA_COLLISION_MAX = 0
 ATHYG_MERGE_HIP_COLLISION_MAX = 3_000
 ATHYG_MERGE_HD_COLLISION_MAX = 3_000
 PLANET_CLASSIFIER_VERSION_DEFAULT = "planet_lifecycle_v1"
+DUPLICATE_PAIR_MAX_ANG_ARCSEC_DEFAULT = 3.0
+DUPLICATE_PAIR_MAX_DIST_DELTA_LY_DEFAULT = 1.0
+DUPLICATE_PAIR_MAX_PM_DELTA_MASYR_DEFAULT = 20.0
+DUPLICATE_PAIR_HIGH_MAX_ANG_ARCSEC_DEFAULT = 1.0
+DUPLICATE_PAIR_HIGH_MAX_DIST_DELTA_LY_DEFAULT = 0.5
+DUPLICATE_PAIR_HIGH_MAX_PM_DELTA_MASYR_DEFAULT = 10.0
+DUPLICATE_HIGH_PAIR_MAX_DEFAULT = 0
 
 
 def log(message: str) -> None:
@@ -630,6 +637,44 @@ def main() -> int:
         "SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR",
         WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT,
     )
+    duplicate_pair_max_ang_arcsec = parse_positive_float_env(
+        "SPACEGATE_DUPLICATE_PAIR_MAX_ANG_ARCSEC",
+        DUPLICATE_PAIR_MAX_ANG_ARCSEC_DEFAULT,
+    )
+    duplicate_pair_max_dist_delta_ly = parse_positive_float_env(
+        "SPACEGATE_DUPLICATE_PAIR_MAX_DIST_DELTA_LY",
+        DUPLICATE_PAIR_MAX_DIST_DELTA_LY_DEFAULT,
+    )
+    duplicate_pair_max_pm_delta_mas_yr = parse_positive_float_env(
+        "SPACEGATE_DUPLICATE_PAIR_MAX_PM_DELTA_MASYR",
+        DUPLICATE_PAIR_MAX_PM_DELTA_MASYR_DEFAULT,
+    )
+    duplicate_pair_high_max_ang_arcsec = min(
+        parse_positive_float_env(
+            "SPACEGATE_DUPLICATE_PAIR_HIGH_MAX_ANG_ARCSEC",
+            DUPLICATE_PAIR_HIGH_MAX_ANG_ARCSEC_DEFAULT,
+        ),
+        duplicate_pair_max_ang_arcsec,
+    )
+    duplicate_pair_high_max_dist_delta_ly = min(
+        parse_positive_float_env(
+            "SPACEGATE_DUPLICATE_PAIR_HIGH_MAX_DIST_DELTA_LY",
+            DUPLICATE_PAIR_HIGH_MAX_DIST_DELTA_LY_DEFAULT,
+        ),
+        duplicate_pair_max_dist_delta_ly,
+    )
+    duplicate_pair_high_max_pm_delta_mas_yr = min(
+        parse_positive_float_env(
+            "SPACEGATE_DUPLICATE_PAIR_HIGH_MAX_PM_DELTA_MASYR",
+            DUPLICATE_PAIR_HIGH_MAX_PM_DELTA_MASYR_DEFAULT,
+        ),
+        duplicate_pair_max_pm_delta_mas_yr,
+    )
+    duplicate_fail_on_high = parse_bool_env("SPACEGATE_DUPLICATE_FAIL_ON_HIGH", False)
+    duplicate_high_pair_max = parse_nonnegative_int_env(
+        "SPACEGATE_DUPLICATE_HIGH_PAIR_MAX",
+        DUPLICATE_HIGH_PAIR_MAX_DEFAULT,
+    )
     slice_max_distance_ly = parse_optional_positive_float_env("SPACEGATE_SLICE_MAX_DISTANCE_LY")
     slice_min_parallax_over_error = parse_optional_nonnegative_float_env(
         "SPACEGATE_SLICE_MIN_PARALLAX_OVER_ERROR"
@@ -783,6 +828,17 @@ def main() -> int:
         f"gaia_collision_max={athyg_merge_gaia_collision_max} "
         f"hip_collision_max={athyg_merge_hip_collision_max} "
         f"hd_collision_max={athyg_merge_hd_collision_max}"
+    )
+    log(
+        "Duplicate trap: "
+        f"pair_max_ang_arcsec={duplicate_pair_max_ang_arcsec} "
+        f"pair_max_dist_delta_ly={duplicate_pair_max_dist_delta_ly} "
+        f"pair_max_pm_delta_mas_yr={duplicate_pair_max_pm_delta_mas_yr} "
+        f"high_max_ang_arcsec={duplicate_pair_high_max_ang_arcsec} "
+        f"high_max_dist_delta_ly={duplicate_pair_high_max_dist_delta_ly} "
+        f"high_max_pm_delta_mas_yr={duplicate_pair_high_max_pm_delta_mas_yr} "
+        f"fail_on_high={'1' if duplicate_fail_on_high else '0'} "
+        f"high_pair_max={duplicate_high_pair_max}"
     )
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
@@ -6764,6 +6820,280 @@ def main() -> int:
     }
     write_json(reports_dir / "identifier_report.json", identifier_report)
 
+    def duplicate_exact_counts(key_expr_sql: str, where_sql: str) -> tuple[int, int]:
+        groups, extra_rows = con.execute(
+            f"""
+            with dup as (
+              select {key_expr_sql} as duplicate_key, count(*)::bigint as row_count
+              from stars
+              where {where_sql}
+              group by 1
+              having count(*) > 1
+            )
+            select count(*)::bigint as duplicate_groups, coalesce(sum(row_count - 1), 0)::bigint as extra_rows
+            from dup
+            """
+        ).fetchone()
+        return int(groups or 0), int(extra_rows or 0)
+
+    duplicate_exact_checks: list[dict] = []
+    for duplicate_key_name, key_expr_sql, where_sql in [
+        ("gaia_id", "gaia_id::varchar", "gaia_id is not null"),
+        ("hip_id", "hip_id::varchar", "hip_id is not null"),
+        ("hd_id", "hd_id::varchar", "hd_id is not null"),
+        (
+            "wds_component",
+            "wds_id || '|' || lower(regexp_replace(coalesce(component, ''), '[^0-9A-Za-z]+', '', 'g'))",
+            "wds_id is not null and coalesce(component, '') <> ''",
+        ),
+        (
+            "source_catalog_source_pk",
+            "coalesce(source_catalog, '') || '|' || source_pk::varchar",
+            "source_catalog is not null and source_pk is not null",
+        ),
+        ("stable_object_key", "stable_object_key", "stable_object_key is not null"),
+    ]:
+        groups, extra_rows = duplicate_exact_counts(key_expr_sql, where_sql)
+        duplicate_exact_checks.append(
+            {
+                "key": duplicate_key_name,
+                "duplicate_groups": groups,
+                "extra_rows": extra_rows,
+            }
+        )
+
+    duplicate_exact_total_groups = sum(
+        int(row.get("duplicate_groups") or 0) for row in duplicate_exact_checks
+    )
+    duplicate_exact_total_extra_rows = sum(
+        int(row.get("extra_rows") or 0) for row in duplicate_exact_checks
+    )
+
+    duplicate_exact_examples = [
+        {
+            "key": "wds_component",
+            "rows": [
+                {
+                    "wds_id": row[0],
+                    "component": row[1],
+                    "row_count": int(row[2] or 0),
+                    "source_catalogs": row[3] or "",
+                }
+                for row in con.execute(
+                    """
+                    with dup as (
+                      select
+                        wds_id,
+                        component,
+                        count(*)::bigint as row_count,
+                        string_agg(distinct coalesce(source_catalog, 'unknown'), ',' order by coalesce(source_catalog, 'unknown')) as source_catalogs
+                      from stars
+                      where wds_id is not null and coalesce(component, '') <> ''
+                      group by 1, 2
+                      having count(*) > 1
+                    )
+                    select wds_id, component, row_count, source_catalogs
+                    from dup
+                    order by row_count desc, wds_id asc, component asc
+                    limit 20
+                    """
+                ).fetchall()
+            ],
+        },
+        {
+            "key": "gaia_id",
+            "rows": [
+                {
+                    "gaia_id": str(row[0]),
+                    "row_count": int(row[1] or 0),
+                }
+                for row in con.execute(
+                    """
+                    select gaia_id, count(*)::bigint as row_count
+                    from stars
+                    where gaia_id is not null
+                    group by 1
+                    having count(*) > 1
+                    order by row_count desc, gaia_id asc
+                    limit 20
+                    """
+                ).fetchall()
+            ],
+        },
+    ]
+
+    con.execute(
+        f"""
+        create or replace temp view duplicate_pair_candidates as
+        with multi_systems as (
+          select system_id
+          from stars
+          where system_id is not null
+          group by 1
+          having count(*) > 1
+        ), pairs as (
+          select
+            a.system_id,
+            a.star_id as left_star_id,
+            b.star_id as right_star_id,
+            a.star_name as left_star_name,
+            b.star_name as right_star_name,
+            a.source_catalog as left_source_catalog,
+            b.source_catalog as right_source_catalog,
+            a.wds_id as left_wds_id,
+            b.wds_id as right_wds_id,
+            a.component as left_component,
+            b.component as right_component,
+            a.gaia_id as left_gaia_id,
+            b.gaia_id as right_gaia_id,
+            3600.0 * sqrt(
+              power(
+                (a.ra_deg - b.ra_deg) * cos(((a.dec_deg + b.dec_deg) / 2.0) * pi() / 180.0),
+                2
+              ) +
+              power(a.dec_deg - b.dec_deg, 2)
+            ) as ang_sep_arcsec,
+            abs(a.dist_ly - b.dist_ly) as dist_delta_ly,
+            case
+              when a.pm_ra_mas_yr is not null and a.pm_dec_mas_yr is not null
+               and b.pm_ra_mas_yr is not null and b.pm_dec_mas_yr is not null
+              then sqrt(
+                power(a.pm_ra_mas_yr - b.pm_ra_mas_yr, 2) +
+                power(a.pm_dec_mas_yr - b.pm_dec_mas_yr, 2)
+              )
+              else null
+            end as pm_delta_mas_yr,
+            coalesce(a.star_name_norm, '') = coalesce(b.star_name_norm, '')
+              and coalesce(a.star_name_norm, '') <> '' as same_name_norm,
+            a.wds_id is not null and b.wds_id is not null
+              and a.wds_id = b.wds_id
+              and coalesce(a.component, '') <> ''
+              and lower(regexp_replace(coalesce(a.component, ''), '[^0-9A-Za-z]+', '', 'g'))
+                = lower(regexp_replace(coalesce(b.component, ''), '[^0-9A-Za-z]+', '', 'g')) as same_wds_component,
+            a.gaia_id is not null and b.gaia_id is not null and a.gaia_id = b.gaia_id as same_gaia_id
+          from stars a
+          join stars b
+            on a.system_id = b.system_id
+           and a.star_id < b.star_id
+          join multi_systems ms
+            on ms.system_id = a.system_id
+        )
+        select
+          *,
+          (same_gaia_id or same_wds_component or same_name_norm) as likely_duplicate
+        from pairs
+        where ang_sep_arcsec <= {duplicate_pair_max_ang_arcsec}
+          and (dist_delta_ly is null or dist_delta_ly <= {duplicate_pair_max_dist_delta_ly})
+          and (pm_delta_mas_yr is null or pm_delta_mas_yr <= {duplicate_pair_max_pm_delta_mas_yr})
+        """
+    )
+
+    duplicate_near_pair_count = int(
+        con.execute("select count(*)::bigint from duplicate_pair_candidates").fetchone()[0] or 0
+    )
+    duplicate_likely_pair_count = int(
+        con.execute(
+            "select count(*)::bigint from duplicate_pair_candidates where likely_duplicate"
+        ).fetchone()[0]
+        or 0
+    )
+    duplicate_high_confidence_pair_count = int(
+        con.execute(
+            f"""
+            select count(*)::bigint
+            from duplicate_pair_candidates
+            where likely_duplicate
+              and ang_sep_arcsec <= {duplicate_pair_high_max_ang_arcsec}
+              and (dist_delta_ly is null or dist_delta_ly <= {duplicate_pair_high_max_dist_delta_ly})
+              and (pm_delta_mas_yr is null or pm_delta_mas_yr <= {duplicate_pair_high_max_pm_delta_mas_yr})
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    duplicate_likely_examples = [
+        {
+            "system_id": int(row[0]),
+            "left_star_id": int(row[1]),
+            "right_star_id": int(row[2]),
+            "left_star_name": row[3] or "",
+            "right_star_name": row[4] or "",
+            "left_source_catalog": row[5] or "",
+            "right_source_catalog": row[6] or "",
+            "wds_id": row[7] or row[8] or "",
+            "left_component": row[9] or "",
+            "right_component": row[10] or "",
+            "same_gaia_id": bool(row[11]),
+            "same_wds_component": bool(row[12]),
+            "same_name_norm": bool(row[13]),
+            "ang_sep_arcsec": round(float(row[14] or 0.0), 4),
+            "dist_delta_ly": (round(float(row[15]), 4) if row[15] is not None else None),
+            "pm_delta_mas_yr": (round(float(row[16]), 4) if row[16] is not None else None),
+        }
+        for row in con.execute(
+            f"""
+            select
+              system_id,
+              left_star_id,
+              right_star_id,
+              left_star_name,
+              right_star_name,
+              left_source_catalog,
+              right_source_catalog,
+              left_wds_id,
+              right_wds_id,
+              left_component,
+              right_component,
+              same_gaia_id,
+              same_wds_component,
+              same_name_norm,
+              ang_sep_arcsec,
+              dist_delta_ly,
+              pm_delta_mas_yr
+            from duplicate_pair_candidates
+            where likely_duplicate
+            order by
+              case when same_gaia_id then 0 when same_wds_component then 1 when same_name_norm then 2 else 3 end asc,
+              ang_sep_arcsec asc,
+              coalesce(dist_delta_ly, 0.0) asc,
+              coalesce(pm_delta_mas_yr, 0.0) asc,
+              system_id asc
+            limit 50
+            """
+        ).fetchall()
+    ]
+    duplicate_trap_report = {
+        "build_id": build_id,
+        "thresholds": {
+            "pair_max_ang_arcsec": duplicate_pair_max_ang_arcsec,
+            "pair_max_dist_delta_ly": duplicate_pair_max_dist_delta_ly,
+            "pair_max_pm_delta_mas_yr": duplicate_pair_max_pm_delta_mas_yr,
+            "high_max_ang_arcsec": duplicate_pair_high_max_ang_arcsec,
+            "high_max_dist_delta_ly": duplicate_pair_high_max_dist_delta_ly,
+            "high_max_pm_delta_mas_yr": duplicate_pair_high_max_pm_delta_mas_yr,
+            "fail_on_high": duplicate_fail_on_high,
+            "high_pair_max": duplicate_high_pair_max,
+        },
+        "exact_key_checks": duplicate_exact_checks,
+        "exact_key_totals": {
+            "duplicate_groups": duplicate_exact_total_groups,
+            "extra_rows": duplicate_exact_total_extra_rows,
+        },
+        "near_pair_totals": {
+            "candidate_pairs": duplicate_near_pair_count,
+            "likely_duplicate_pairs": duplicate_likely_pair_count,
+            "high_confidence_pairs": duplicate_high_confidence_pair_count,
+        },
+        "exact_key_examples": duplicate_exact_examples,
+        "likely_pair_examples": duplicate_likely_examples,
+        "notes": [
+            "Exact-key checks catch deterministic collisions by identifier/component namespaces.",
+            "Exact-key totals are per-key sums; the same physical row can contribute to multiple key checks.",
+            "Near-pair checks run within multi-star systems to avoid quadratic whole-catalog scans.",
+            "High-confidence pairs are optional QC-gated via SPACEGATE_DUPLICATE_FAIL_ON_HIGH.",
+        ],
+    }
+    write_json(reports_dir / "duplicate_trap_report.json", duplicate_trap_report)
+
     planet_retracted_rows = int(
         con.execute("select count(*)::bigint from planets where planet_status = 'retracted'").fetchone()[0]
         or 0
@@ -6864,6 +7194,13 @@ def main() -> int:
         "identifier_gate_gaia_collision_max": athyg_merge_gaia_collision_max,
         "identifier_gate_hip_collision_max": athyg_merge_hip_collision_max,
         "identifier_gate_hd_collision_max": athyg_merge_hd_collision_max,
+        "duplicate_exact_groups": duplicate_exact_total_groups,
+        "duplicate_exact_extra_rows": duplicate_exact_total_extra_rows,
+        "duplicate_near_pair_count": duplicate_near_pair_count,
+        "duplicate_likely_pair_count": duplicate_likely_pair_count,
+        "duplicate_high_confidence_pair_count": duplicate_high_confidence_pair_count,
+        "duplicate_gate_fail_on_high": duplicate_fail_on_high,
+        "duplicate_gate_high_pair_max": duplicate_high_pair_max,
         "dist_invariant_violations": dist_violations_stars + dist_violations_systems,
         "dist_invariant_violations_stars": dist_violations_stars,
         "dist_invariant_violations_systems": dist_violations_systems,
@@ -6897,6 +7234,12 @@ def main() -> int:
                 f"across {msc_component_dedup_group_count} duplicate WDS component groups."
                 if msc_component_dedup_dropped_count > 0
                 else "MSC component dedupe found no duplicate WDS component groups."
+            ),
+            (
+                f"Duplicate trap: exact_groups={duplicate_exact_total_groups}, "
+                f"near_pairs={duplicate_near_pair_count}, "
+                f"likely_pairs={duplicate_likely_pair_count}, "
+                f"high_confidence_pairs={duplicate_high_confidence_pair_count}."
             ),
         ],
     }
@@ -7615,6 +7958,7 @@ def main() -> int:
 
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
+    write_json(reports_dir / "duplicate_trap_report.json", duplicate_trap_report)
     write_json(reports_dir / "planet_catalog_delta_report.json", planet_catalog_delta_report)
     write_json(reports_dir / "planet_reclassification_report.json", planet_reclassification_report)
     write_json(reports_dir / "catalog_contribution_report.json", catalog_contribution_report)
@@ -7648,10 +7992,17 @@ def main() -> int:
         extra=(
             f"dist_invariant_violations={format_count(dist_violations_stars + dist_violations_systems)}, "
             f"provenance_missing_stars={format_count(provenance_missing)}, "
-            f"identifier_quarantine={format_count(identifier_quarantine_count)}"
+            f"identifier_quarantine={format_count(identifier_quarantine_count)}, "
+            f"duplicate_high_confidence_pairs={format_count(duplicate_high_confidence_pair_count)}"
         ),
     )
 
+    if duplicate_fail_on_high and duplicate_high_confidence_pair_count > duplicate_high_pair_max:
+        raise SystemExit(
+            "QC failed: high-confidence duplicate pair gate exceeded. "
+            f"pairs={duplicate_high_confidence_pair_count} limit={duplicate_high_pair_max}. "
+            f"See {reports_dir / 'duplicate_trap_report.json'}"
+        )
     if dist_violations_stars + dist_violations_systems > 0:
         raise SystemExit(
             "QC failed: distance invariant violations detected. "

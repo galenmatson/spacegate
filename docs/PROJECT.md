@@ -514,6 +514,11 @@ Notes:
 - Ambiguous or conflicting rows are materialized in `identifier_quarantine` (not auto-merged).
 - Identifier edges are persisted in `object_identifiers` with method/confidence/source provenance.
 - QC gates now fail the build when identifier ambiguity or namespace-collision thresholds are exceeded.
+- Duplicate stewardship now includes a dedicated duplicate-trap pass:
+  - exact-key duplicate checks (`gaia_id`, `hip_id`, `hd_id`, `wds_id+component`, `source_catalog+source_pk`, `stable_object_key`)
+  - near-duplicate pair detection within multi-star systems using configurable angular/distance/proper-motion thresholds
+  - emitted audit report: `duplicate_trap_report.json`
+  - optional hard gate: `SPACEGATE_DUPLICATE_FAIL_ON_HIGH=1` with `SPACEGATE_DUPLICATE_HIGH_PAIR_MAX`
 
 ## Immediate Next Actions
 

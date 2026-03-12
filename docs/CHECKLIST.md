@@ -76,6 +76,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Implement replacement crosswalks for names/aliases/legacy IDs
 - [x] Restore broad cross-catalog identifier coverage in served rows (Gaia/HIP/HD/WDS and other selected major IDs)
 - [x] Add deterministic identifier reconciliation with ambiguity quarantine + QC collision gates
+- [x] Add duplicate-trap stewardship report (exact-key + near-pair checks) with optional QC high-confidence gate
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Preserve or improve host matching quality for planets
 - [x] Preserve or improve user-facing lookup ergonomics

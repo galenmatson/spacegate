@@ -99,6 +99,7 @@ PY
 
   local qc_report="$reports_dir/qc_report.json"
   local match_report="$reports_dir/match_report.json"
+  local duplicate_report="$reports_dir/duplicate_trap_report.json"
   local prov_report="$reports_dir/provenance_report.json"
   local planet_delta_report="$reports_dir/planet_catalog_delta_report.json"
   local planet_reclass_report="$reports_dir/planet_reclassification_report.json"
@@ -142,8 +143,32 @@ counts = data.get("counts") or {}
 if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
     raise SystemExit(f"Invalid counts in QC report: {counts}")
 
-print("OK: qc_report.json")
+    print("OK: qc_report.json")
 PY
+
+    if [[ -f "$duplicate_report" ]]; then
+      "$PYTHON_BIN" - <<'PY' "$duplicate_report" "$build_id"
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+build_id = sys.argv[2]
+data = json.loads(path.read_text())
+if data.get("build_id") != build_id:
+    raise SystemExit(f"duplicate_trap_report build_id mismatch: {data.get('build_id')} != {build_id}")
+near = (data.get("near_pair_totals") or {})
+for key in ("candidate_pairs", "likely_duplicate_pairs", "high_confidence_pairs"):
+    if key not in near:
+        raise SystemExit(f"duplicate_trap_report missing near_pair_totals.{key}")
+print("OK: duplicate_trap_report.json")
+PY
+    elif [[ "$REQUIRE_REPORTS" == "1" ]]; then
+      echo "Error: missing duplicate trap report: $duplicate_report" >&2
+      exit 1
+    else
+      echo "Warning: duplicate trap report missing: $duplicate_report" >&2
+    fi
 
     "$PYTHON_BIN" - <<'PY' "$qc_report" "$planet_delta_report" "$planet_reclass_report"
 import json

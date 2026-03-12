@@ -74,6 +74,7 @@ main() {
   local -a report_files=(
     "qc_report.json"
     "match_report.json"
+    "duplicate_trap_report.json"
     "provenance_report.json"
     "system_grouping_report.json"
     "planet_catalog_delta_report.json"
