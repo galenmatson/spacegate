@@ -1988,7 +1988,7 @@ def main() -> int:
     )
     con.execute(
         f"""
-        create or replace temp view msc_components as
+        create or replace temp view msc_components_pre_dedupe as
         with base as (
           select
             row_number() over (
@@ -2007,6 +2007,7 @@ def main() -> int:
             nullif(ra_deg, '')::double as ra_deg,
             nullif(dec_deg, '')::double as dec_deg,
             nullif(parallax_mas, '')::double as parallax_mas,
+            nullif(parallax_ref, '') as parallax_ref,
             nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
             nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
             nullif(radial_velocity_kms, '')::double as radial_velocity_kms,
@@ -2071,6 +2072,72 @@ def main() -> int:
         where dist_ly is not null and dist_ly <= {MORTON_MAX_ABS_LY}
         """
     )
+    con.execute(
+        """
+        create or replace temp view msc_components_ranked as
+        with scored as (
+          select
+            *,
+            case
+              when wds_id is not null and component_norm <> '' then 'wds_component:' || wds_id || ':' || component_norm
+              else 'row:' || msc_row_num::varchar
+            end as msc_dedupe_key,
+            (
+              case when coalesce(abs(pm_ra_mas_yr), 0.0) + coalesce(abs(pm_dec_mas_yr), 0.0) > 0.001 then 32 else 0 end +
+              case
+                when upper(coalesce(parallax_ref, '')) like 'DR3%' then 16
+                when upper(coalesce(parallax_ref, '')) like 'DR2%' then 12
+                when coalesce(parallax_ref, '') <> '' then 8
+                else 0
+              end +
+              case when hip_id is not null then 4 else 0 end +
+              case when hd_id is not null then 2 else 0 end +
+              case when coalesce(other_identifiers, '') <> '' then 1 else 0 end
+            ) as msc_quality_score
+          from msc_components_pre_dedupe
+        )
+        select
+          *,
+          count(*) over (partition by msc_dedupe_key) as msc_dedupe_group_size,
+          row_number() over (
+            partition by msc_dedupe_key
+            order by
+              msc_quality_score desc,
+              coalesce(abs(pm_ra_mas_yr), 0.0) + coalesce(abs(pm_dec_mas_yr), 0.0) desc,
+              coalesce(parallax_mas, -1.0) desc,
+              coalesce(ra_deg, 0.0) asc,
+              coalesce(dec_deg, 0.0) asc,
+              msc_row_num asc
+          ) as msc_dedupe_rank
+        from scored
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view msc_components as
+        select *
+        from msc_components_ranked
+        where msc_dedupe_rank = 1
+        """
+    )
+    msc_component_raw_count = con.execute(
+        "select count(*) from msc_components_pre_dedupe"
+    ).fetchone()[0]
+    msc_component_retained_count = con.execute("select count(*) from msc_components").fetchone()[0]
+    msc_component_dedup_dropped_count = max(
+        msc_component_raw_count - msc_component_retained_count, 0
+    )
+    msc_component_dedup_group_count = con.execute(
+        "select count(*) from (select msc_dedupe_key from msc_components_ranked group by 1 having count(*) > 1)"
+    ).fetchone()[0]
+    if msc_component_dedup_dropped_count > 0:
+        log(
+            "MSC component dedupe: "
+            f"raw={format_count(msc_component_raw_count)}, "
+            f"retained={format_count(msc_component_retained_count)}, "
+            f"dropped={format_count(msc_component_dedup_dropped_count)}, "
+            f"duplicate_groups={format_count(msc_component_dedup_group_count)}"
+        )
     con.execute(
         """
         create temp table msc_exact_matches as
@@ -6664,6 +6731,12 @@ def main() -> int:
     identifier_report = {
         "build_id": build_id,
         "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "msc_component_dedupe": {
+            "raw_rows": msc_component_raw_count,
+            "retained_rows": msc_component_retained_count,
+            "dropped_rows": msc_component_dedup_dropped_count,
+            "duplicate_groups": msc_component_dedup_group_count,
+        },
         "athyg_merge": {
             "resolved_existing_rows": athyg_merge_existing_match_count,
             "inserted_new_rows": athyg_merge_insert_count,
@@ -6744,6 +6817,10 @@ def main() -> int:
         "planet_lifecycle_controversial_rows": planet_controversial_rows,
         "planet_lifecycle_retracted_rows": planet_retracted_rows,
         "planet_lifecycle_default_visible_rows": planet_default_visible_rows,
+        "msc_component_raw_rows": msc_component_raw_count,
+        "msc_component_retained_rows": msc_component_retained_count,
+        "msc_component_dedup_dropped_rows": msc_component_dedup_dropped_count,
+        "msc_component_duplicate_groups": msc_component_dedup_group_count,
         "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
@@ -6814,6 +6891,12 @@ def main() -> int:
                 "AT-HYG supplement merge is enabled: deterministic ID precedence + strict positional fallback + quarantine for ambiguous mappings."
                 if (enable_gaia_backbone and enable_athyg_supplement_merge)
                 else "AT-HYG supplement merge is disabled for this build."
+            ),
+            (
+                f"MSC component dedupe enabled: dropped {msc_component_dedup_dropped_count} duplicate rows "
+                f"across {msc_component_dedup_group_count} duplicate WDS component groups."
+                if msc_component_dedup_dropped_count > 0
+                else "MSC component dedupe found no duplicate WDS component groups."
             ),
         ],
     }
@@ -7244,7 +7327,10 @@ def main() -> int:
         direct_rows=int(star_source_counts.get("msc", 0)),
         evidence_rows=star_msc_rows,
         linked_rows=star_msc_rows,
-        notes="hierarchical multiplicity source",
+        notes=(
+            "hierarchical multiplicity source; "
+            f"component dedupe dropped {msc_component_dedup_dropped_count} duplicate rows"
+        ),
     )
     add_catalog_contribution(
         catalog_contributions,
