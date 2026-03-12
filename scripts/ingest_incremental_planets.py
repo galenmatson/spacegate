@@ -223,7 +223,7 @@ def build_planets(
     cooked_lifecycle_status: Path,
     cooked_lifecycle_features: Path,
     build_id: str,
-) -> tuple[dict, dict, int]:
+) -> tuple[dict, dict, int, dict[str, int]]:
     # Capture previous lifecycle state before replacing planets table.
     con.execute(
         """
@@ -838,16 +838,280 @@ def build_planets(
             "stale_classifier_rows": 0,
         }
 
+    con.execute(
+        """
+        create or replace temp table planet_host_name_star_best as
+        with base as (
+          select
+            p.star_id,
+            p.system_id,
+            trim(p.host_name_raw) as display_name,
+            p.host_name_norm,
+            count(*)::bigint as obs_count,
+            case
+              when p.host_name_norm is null or p.host_name_norm = '' then 99
+              when p.host_name_norm like 'gaia dr3 %' or p.host_name_norm like 'gaia %' then 98
+              when regexp_matches(p.host_name_norm, '^(trappist|kepler|k2|toi|wasp|hat|corot|ogle|moa|kmt|tic)\\b') then 10
+              when regexp_matches(p.host_name_norm, '^(hd|hip|hr|gj|gl|wolf|lhs|lp|bd|cd|cpd|tyc|2mass|wise|sdss)\\b') then 20
+              else 0
+            end as name_rank
+          from planets p
+          where p.star_id is not null
+            and p.host_name_raw is not null
+            and p.host_name_norm is not null
+            and p.host_name_norm <> ''
+          group by 1,2,3,4
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by star_id
+              order by name_rank asc, obs_count desc, length(display_name) asc, host_name_norm asc
+            ) as rn
+          from base
+          where name_rank < 90
+        )
+        select
+          star_id,
+          system_id,
+          display_name,
+          host_name_norm,
+          name_rank,
+          obs_count
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
+        """
+        create or replace temp table planet_host_name_system_best as
+        with grouped as (
+          select
+            system_id,
+            display_name,
+            host_name_norm,
+            min(name_rank) as name_rank,
+            sum(obs_count)::bigint as obs_count
+          from planet_host_name_star_best
+          where system_id is not null
+          group by 1,2,3
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by system_id
+              order by name_rank asc, obs_count desc, length(display_name) asc, host_name_norm asc
+            ) as rn
+          from grouped
+        )
+        select
+          system_id,
+          display_name,
+          host_name_norm,
+          name_rank,
+          obs_count
+        from ranked
+        where rn = 1
+        """
+    )
+
+    host_name_star_promotions = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from stars s
+            join planet_host_name_star_best b on b.star_id = s.star_id
+            where b.display_name is not null
+              and b.display_name <> ''
+              and (s.star_name is null or s.star_name_norm like 'gaia dr3 %' or s.star_name_norm like 'gaia %')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    con.execute(
+        """
+        update stars s
+        set
+          star_name = b.display_name,
+          star_name_norm = b.host_name_norm
+        from planet_host_name_star_best b
+        where s.star_id = b.star_id
+          and b.display_name is not null
+          and b.display_name <> ''
+          and (s.star_name is null or s.star_name_norm like 'gaia dr3 %' or s.star_name_norm like 'gaia %')
+        """
+    )
+    host_name_system_promotions = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from systems s
+            join planet_host_name_system_best b on b.system_id = s.system_id
+            where b.display_name is not null
+              and b.display_name <> ''
+              and (s.system_name is null or s.system_name_norm like 'gaia dr3 %' or s.system_name_norm like 'gaia %')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    con.execute(
+        """
+        update systems s
+        set
+          system_name = b.display_name,
+          system_name_norm = b.host_name_norm
+        from planet_host_name_system_best b
+        where s.system_id = b.system_id
+          and b.display_name is not null
+          and b.display_name <> ''
+          and (s.system_name is null or s.system_name_norm like 'gaia dr3 %' or s.system_name_norm like 'gaia %')
+        """
+    )
+
+    host_name_alias_inserted = int(
+        con.execute(
+            """
+            with seed as (
+              select
+                'star'::varchar as target_type,
+                b.star_id as target_id,
+                b.system_id as system_id,
+                b.star_id as star_id,
+                b.display_name as alias_raw,
+                b.host_name_norm as alias_norm
+              from planet_host_name_star_best b
+              where b.display_name is not null and b.display_name <> ''
+              union all
+              select
+                'system'::varchar as target_type,
+                b.system_id as target_id,
+                b.system_id as system_id,
+                null::bigint as star_id,
+                b.display_name as alias_raw,
+                b.host_name_norm as alias_norm
+              from planet_host_name_system_best b
+              where b.display_name is not null and b.display_name <> ''
+            ), filtered as (
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                alias_raw,
+                alias_norm
+              from seed
+              where target_id is not null and alias_norm is not null and alias_norm <> ''
+            )
+            select count(*)::bigint
+            from filtered f
+            where not exists (
+              select 1
+              from aliases a
+              where a.target_type = f.target_type
+                and a.target_id = f.target_id
+                and a.alias_norm = f.alias_norm
+            )
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if host_name_alias_inserted > 0:
+        con.execute(
+            """
+            insert into aliases (
+              alias_id,
+              target_type,
+              target_id,
+              system_id,
+              star_id,
+              alias_raw,
+              alias_norm,
+              alias_kind,
+              alias_priority,
+              is_primary,
+              source_catalog,
+              source_version,
+              source_pk
+            )
+            with seed as (
+              select
+                'star'::varchar as target_type,
+                b.star_id as target_id,
+                b.system_id as system_id,
+                b.star_id as star_id,
+                b.display_name as alias_raw,
+                b.host_name_norm as alias_norm
+              from planet_host_name_star_best b
+              where b.display_name is not null and b.display_name <> ''
+              union all
+              select
+                'system'::varchar as target_type,
+                b.system_id as target_id,
+                b.system_id as system_id,
+                null::bigint as star_id,
+                b.display_name as alias_raw,
+                b.host_name_norm as alias_norm
+              from planet_host_name_system_best b
+              where b.display_name is not null and b.display_name <> ''
+            ), filtered as (
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                alias_raw,
+                alias_norm
+              from seed
+              where target_id is not null and alias_norm is not null and alias_norm <> ''
+            ), missing as (
+              select f.*
+              from filtered f
+              where not exists (
+                select 1
+                from aliases a
+                where a.target_type = f.target_type
+                  and a.target_id = f.target_id
+                  and a.alias_norm = f.alias_norm
+              )
+            ), seq as (
+              select coalesce(max(alias_id), 0)::bigint as max_alias_id
+              from aliases
+            )
+            select
+              seq.max_alias_id + row_number() over (order by m.target_type, m.target_id, m.alias_norm)::bigint as alias_id,
+              m.target_type,
+              m.target_id,
+              m.system_id,
+              m.star_id,
+              m.alias_raw,
+              m.alias_norm,
+              'planet_host_name'::varchar as alias_kind,
+              4::int as alias_priority,
+              false as is_primary,
+              'nasa_exoplanet_archive'::varchar as source_catalog,
+              'pscomppars'::varchar as source_version,
+              null::bigint as source_pk
+            from missing m
+            cross join seq
+            """
+        )
+
     matched_planet_count = int(
         con.execute(
             "select count(*)::bigint from planets where lower(coalesce(match_method,'')) not in ('unmatched','none','')"
         ).fetchone()[0]
         or 0
     )
+    host_name_stats = {
+        "host_name_star_promotions": host_name_star_promotions,
+        "host_name_system_promotions": host_name_system_promotions,
+        "host_name_alias_inserted": host_name_alias_inserted,
+    }
     return (
         planet_catalog_delta_report,
         planet_reclassification_report,
         matched_planet_count,
+        host_name_stats,
     )
 
 
@@ -946,7 +1210,12 @@ def main() -> int:
         )
 
     ingested_at = now_utc()
-    planet_catalog_delta_report, planet_reclassification_report, matched_planet_count = build_planets(
+    (
+        planet_catalog_delta_report,
+        planet_reclassification_report,
+        matched_planet_count,
+        host_name_stats,
+    ) = build_planets(
         con,
         cooked_nasa=cooked_nasa,
         nasa_url=nasa_url,
@@ -1054,6 +1323,12 @@ def main() -> int:
             f"Incremental planet refresh from parent build {parent_build_id}.",
             "Stars/systems/object identifiers retained from parent build.",
             "Planets and lifecycle side tables fully rebuilt from cooked inputs.",
+            (
+                "Host-name promotions from planet hosts: "
+                f"stars={host_name_stats.get('host_name_star_promotions', 0)}, "
+                f"systems={host_name_stats.get('host_name_system_promotions', 0)}, "
+                f"aliases={host_name_stats.get('host_name_alias_inserted', 0)}."
+            ),
         ],
     }
     match_report = {
@@ -1103,6 +1378,29 @@ def main() -> int:
     con.execute(
         f"COPY (SELECT * FROM planets ORDER BY spatial_index) TO '{planets_parquet_sql}' (FORMAT 'parquet')"
     )
+    if int(host_name_stats.get("host_name_star_promotions") or 0) > 0:
+        stars_parquet = parquet_dir / "stars.parquet"
+        systems_parquet = parquet_dir / "systems.parquet"
+        if stars_parquet.exists() or stars_parquet.is_symlink():
+            stars_parquet.unlink()
+        if systems_parquet.exists() or systems_parquet.is_symlink():
+            systems_parquet.unlink()
+        stars_parquet_sql = str(stars_parquet).replace("'", "''")
+        systems_parquet_sql = str(systems_parquet).replace("'", "''")
+        con.execute(
+            f"COPY (SELECT * FROM stars ORDER BY spatial_index) TO '{stars_parquet_sql}' (FORMAT 'parquet')"
+        )
+        con.execute(
+            f"COPY (SELECT * FROM systems ORDER BY spatial_index) TO '{systems_parquet_sql}' (FORMAT 'parquet')"
+        )
+    if int(host_name_stats.get("host_name_alias_inserted") or 0) > 0:
+        aliases_parquet = parquet_dir / "aliases.parquet"
+        if aliases_parquet.exists() or aliases_parquet.is_symlink():
+            aliases_parquet.unlink()
+        aliases_parquet_sql = str(aliases_parquet).replace("'", "''")
+        con.execute(
+            f"COPY (SELECT * FROM aliases ORDER BY target_type, target_id, alias_priority, alias_norm) TO '{aliases_parquet_sql}' (FORMAT 'parquet')"
+        )
     con.close()
 
     # Rebuild arm for consistency.
@@ -1137,7 +1435,9 @@ def main() -> int:
     tmp_out_dir.rename(final_out_dir)
     log(
         "Incremental planet ingest complete "
-        f"(build={build_id}, parent={parent_build_id}, planets={planets_count}, matched={matched_planet_count})"
+        f"(build={build_id}, parent={parent_build_id}, planets={planets_count}, matched={matched_planet_count}, "
+        f"host_star_promotions={host_name_stats.get('host_name_star_promotions', 0)}, "
+        f"host_system_promotions={host_name_stats.get('host_name_system_promotions', 0)})"
     )
     print(str(final_out_dir))
     return 0

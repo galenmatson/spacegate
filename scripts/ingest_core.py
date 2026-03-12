@@ -5440,6 +5440,137 @@ def main() -> int:
             "stale_classifier_rows": 0,
         }
 
+    host_name_star_promotions = 0
+    host_name_system_promotions = 0
+    con.execute(
+        """
+        create or replace temp table planet_host_name_star_best as
+        with base as (
+          select
+            p.star_id,
+            p.system_id,
+            trim(p.host_name_raw) as display_name,
+            p.host_name_norm,
+            count(*)::bigint as obs_count,
+            case
+              when p.host_name_norm is null or p.host_name_norm = '' then 99
+              when p.host_name_norm like 'gaia dr3 %' or p.host_name_norm like 'gaia %' then 98
+              when regexp_matches(p.host_name_norm, '^(trappist|kepler|k2|toi|wasp|hat|corot|ogle|moa|kmt|tic)\\b') then 10
+              when regexp_matches(p.host_name_norm, '^(hd|hip|hr|gj|gl|wolf|lhs|lp|bd|cd|cpd|tyc|2mass|wise|sdss)\\b') then 20
+              else 0
+            end as name_rank
+          from planets p
+          where p.star_id is not null
+            and p.host_name_raw is not null
+            and p.host_name_norm is not null
+            and p.host_name_norm <> ''
+          group by 1,2,3,4
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by star_id
+              order by name_rank asc, obs_count desc, length(display_name) asc, host_name_norm asc
+            ) as rn
+          from base
+          where name_rank < 90
+        )
+        select
+          star_id,
+          system_id,
+          display_name,
+          host_name_norm,
+          name_rank,
+          obs_count
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
+        """
+        create or replace temp table planet_host_name_system_best as
+        with grouped as (
+          select
+            system_id,
+            display_name,
+            host_name_norm,
+            min(name_rank) as name_rank,
+            sum(obs_count)::bigint as obs_count
+          from planet_host_name_star_best
+          where system_id is not null
+          group by 1,2,3
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by system_id
+              order by name_rank asc, obs_count desc, length(display_name) asc, host_name_norm asc
+            ) as rn
+          from grouped
+        )
+        select
+          system_id,
+          display_name,
+          host_name_norm,
+          name_rank,
+          obs_count
+        from ranked
+        where rn = 1
+        """
+    )
+    host_name_star_promotions = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from stars s
+            join planet_host_name_star_best b on b.star_id = s.star_id
+            where b.display_name is not null
+              and b.display_name <> ''
+              and (s.star_name is null or s.star_name_norm like 'gaia dr3 %' or s.star_name_norm like 'gaia %')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    con.execute(
+        """
+        update stars s
+        set
+          star_name = b.display_name,
+          star_name_norm = b.host_name_norm
+        from planet_host_name_star_best b
+        where s.star_id = b.star_id
+          and b.display_name is not null
+          and b.display_name <> ''
+          and (s.star_name is null or s.star_name_norm like 'gaia dr3 %' or s.star_name_norm like 'gaia %')
+        """
+    )
+    host_name_system_promotions = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from systems s
+            join planet_host_name_system_best b on b.system_id = s.system_id
+            where b.display_name is not null
+              and b.display_name <> ''
+              and (s.system_name is null or s.system_name_norm like 'gaia dr3 %' or s.system_name_norm like 'gaia %')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    con.execute(
+        """
+        update systems s
+        set
+          system_name = b.display_name,
+          system_name_norm = b.host_name_norm
+        from planet_host_name_system_best b
+        where s.system_id = b.system_id
+          and b.display_name is not null
+          and b.display_name <> ''
+          and (s.system_name is null or s.system_name_norm like 'gaia dr3 %' or s.system_name_norm like 'gaia %')
+        """
+    )
+
     stage_totals["planets"] = con.execute("select count(*) from planets").fetchone()[0]
     matched_planet_count = con.execute(
         "select count(*) from planets where match_method <> 'unmatched'"
@@ -5448,7 +5579,11 @@ def main() -> int:
         "Planets stage",
         planets_stage_started,
         stage_totals,
-        extra=f"matched_planets={format_count(matched_planet_count)}",
+        extra=(
+            f"matched_planets={format_count(matched_planet_count)}, "
+            f"host_star_promotions={format_count(host_name_star_promotions)}, "
+            f"host_system_promotions={format_count(host_name_system_promotions)}"
+        ),
     )
 
     aliases_stage_started = time.monotonic()
@@ -5457,6 +5592,24 @@ def main() -> int:
         con.execute(
             """
             create or replace temp view star_alias_seed as
+            select
+              'star' as target_type,
+              s.star_id as target_id,
+              s.system_id,
+              s.star_id,
+              b.display_name as alias_raw,
+              'planet_host_name' as alias_kind,
+              4 as alias_priority,
+              'nasa_exoplanet_archive' as source_catalog,
+              'pscomppars'::varchar as source_version,
+              null::bigint as source_pk
+            from stars s
+            join planet_host_name_star_best b on b.star_id = s.star_id
+            where b.display_name is not null
+              and b.display_name <> ''
+
+            union all
+
             select
               'star' as target_type,
               s.star_id as target_id,
@@ -5628,6 +5781,24 @@ def main() -> int:
         con.execute(
             """
             create or replace temp view system_alias_seed as
+            select
+              'system' as target_type,
+              s.system_id as target_id,
+              s.system_id,
+              null::bigint as star_id,
+              b.display_name as alias_raw,
+              'planet_host_name' as alias_kind,
+              4 as alias_priority,
+              'nasa_exoplanet_archive' as source_catalog,
+              'pscomppars'::varchar as source_version,
+              null::bigint as source_pk
+            from systems s
+            join planet_host_name_system_best b on b.system_id = s.system_id
+            where b.display_name is not null
+              and b.display_name <> ''
+
+            union all
+
             select
               'system' as target_type,
               s.system_id as target_id,

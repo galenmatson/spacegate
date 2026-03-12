@@ -79,6 +79,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add duplicate-trap stewardship report (exact-key + near-pair checks) with optional QC high-confidence gate
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Preserve or improve host matching quality for planets
+- [x] Promote exoplanet host labels for Gaia-fallback star/system display names (TRAPPIST/Kepler/TOI/WASP family and peers)
 - [x] Preserve or improve user-facing lookup ergonomics
 
 ### C5.3 Phase D.5 - Exoplanet Multi-Catalog Lifecycle

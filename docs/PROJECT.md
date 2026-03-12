@@ -523,6 +523,10 @@ Notes:
   - star-level aliases (common/Bayer/Flamsteed naming + major cross-catalog IDs)
   - system-level aliases (WDS/HIP/HD + member-derived naming aliases)
   - normalized alias keys (`alias_norm`) for deterministic search resolution
+- Exoplanet host-designation promotion now applies for Gaia-fallback rows:
+  - when a star/system would otherwise display as Gaia ID, promoted host labels from NASA hostnames are applied
+  - precedence for promoted host labels favors human/common labels, then survey/mission-style labels (for example `TRAPPIST`, `Kepler`, `TOI`, `WASP`), then legacy catalog labels
+  - Gaia ID remains last-resort fallback only
 - Gaia-first builds apply AT-HYG crosswalk enrichment against Gaia IDs, plus a constrained positional fallback for named AT-HYG rows missing Gaia IDs, to recover HIP/HD/common naming coverage without changing canonical star existence rules.
 - Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
   - exact Gaia ID
