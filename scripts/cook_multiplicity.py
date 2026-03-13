@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import os
+import re
 import tarfile
 from pathlib import Path
 
@@ -26,6 +27,38 @@ def parse_int(value: str) -> int | None:
         return int(text)
     except ValueError:
         return None
+
+
+def parse_catalog_int(value: str) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    direct = parse_int(text)
+    if direct is not None:
+        return direct
+    match = re.search(r"([0-9]+)", text)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def normalize_wds_identifier(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    token = raw.split(",")[0].strip()
+    token = token.replace(" ", "")
+    if token.startswith("J") and len(token) >= 10:
+        token = token[1:]
+    match = re.search(r"([0-9]{5}[+-][0-9]{4})", token)
+    if match:
+        return match.group(1)
+    if len(token) >= 10 and token[5] in {"+", "-"}:
+        return token[:10]
+    return ""
 
 
 def choose_preferred_name(raw_value: str) -> str:
@@ -611,6 +644,157 @@ def cook_wds_gaia_xmatch(raw_path: Path, cooked_path: Path) -> int:
     return line_count
 
 
+def cook_sbx(
+    systems_raw_path: Path,
+    alias_raw_path: Path,
+    configurations_raw_path: Path,
+    orbits_raw_path: Path,
+    cooked_path: Path,
+) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+
+    systems: dict[int, dict[str, object]] = {}
+    with systems_raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f:
+        reader = csv.DictReader(in_f)
+        for row in reader:
+            sn = parse_int(row.get("sn", ""))
+            if sn is None:
+                continue
+            systems[sn] = {
+                "sn": sn,
+                "ra_deg": parse_float(row.get("ra", "")),
+                "dec_deg": parse_float(row.get("dec", "")),
+                "parallax_mas": parse_float(row.get("parallax", "")),
+                "pm_ra_mas_yr": parse_float(row.get("pmra", "")),
+                "pm_dec_mas_yr": parse_float(row.get("pmdec", "")),
+                "mag_primary": parse_float(row.get("mag1", "")),
+                "position_epoch": parse_float(row.get("position_epoch", "")),
+                "position_source": str(row.get("position_source", "")).strip(),
+                "spectral_type_raw": str(row.get("st1", "")).strip(),
+            }
+
+    aliases: dict[int, dict[str, object]] = {}
+    with alias_raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f:
+        reader = csv.DictReader(in_f)
+        for row in reader:
+            sn = parse_int(row.get("sn", ""))
+            if sn is None:
+                continue
+            rec = aliases.setdefault(
+                sn,
+                {
+                    "gaia_id": None,
+                    "hip_id": None,
+                    "hd_id": None,
+                    "wds_id": "",
+                    "ads_id": "",
+                },
+            )
+            catalog = str(row.get("catalog", "")).strip()
+            version = str(row.get("version", "")).strip()
+            identifier = str(row.get("identifier", "")).strip()
+            if not catalog or not identifier:
+                continue
+            if catalog == "Gaia" and version == "DR3":
+                if rec["gaia_id"] is None:
+                    rec["gaia_id"] = parse_catalog_int(identifier)
+            elif catalog == "HIP":
+                if rec["hip_id"] is None:
+                    rec["hip_id"] = parse_catalog_int(identifier)
+            elif catalog == "HD":
+                if rec["hd_id"] is None:
+                    rec["hd_id"] = parse_catalog_int(identifier)
+            elif catalog == "WDS" and not rec["wds_id"]:
+                rec["wds_id"] = normalize_wds_identifier(identifier)
+            elif catalog == "ADS" and not rec["ads_id"]:
+                rec["ads_id"] = identifier
+
+    configurations: dict[int, dict[str, str]] = {}
+    with configurations_raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f:
+        reader = csv.DictReader(in_f)
+        for row in reader:
+            sn = parse_int(row.get("sn", ""))
+            if sn is None:
+                continue
+            configurations[sn] = {
+                "family": str(row.get("family", "")).strip(),
+                "parent": str(row.get("parent", "")).strip(),
+                "child1": str(row.get("child1", "")).strip(),
+                "child2": str(row.get("child2", "")).strip(),
+                "in_triple": str(row.get("in_triple", "")).strip(),
+            }
+
+    orbit_counts: dict[int, int] = {}
+    with orbits_raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f:
+        reader = csv.DictReader(in_f)
+        for row in reader:
+            sn = parse_int(row.get("sn", ""))
+            if sn is None:
+                continue
+            orbit_counts[sn] = parse_int(row.get("orbit_count", "")) or 0
+
+    line_count = 0
+    with cooked_path.open("w", newline="", encoding="utf-8") as out_f:
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "sn",
+                "gaia_id",
+                "hip_id",
+                "hd_id",
+                "wds_id",
+                "ads_id",
+                "ra_deg",
+                "dec_deg",
+                "parallax_mas",
+                "pm_ra_mas_yr",
+                "pm_dec_mas_yr",
+                "mag_primary",
+                "position_epoch",
+                "position_source",
+                "spectral_type_raw",
+                "family",
+                "parent",
+                "child1",
+                "child2",
+                "in_triple",
+                "orbit_count",
+            ],
+        )
+        writer.writeheader()
+        for sn in sorted(systems.keys()):
+            system = systems[sn]
+            alias = aliases.get(sn, {})
+            config = configurations.get(sn, {})
+            writer.writerow(
+                {
+                    "sn": sn,
+                    "gaia_id": alias.get("gaia_id"),
+                    "hip_id": alias.get("hip_id"),
+                    "hd_id": alias.get("hd_id"),
+                    "wds_id": alias.get("wds_id", ""),
+                    "ads_id": alias.get("ads_id", ""),
+                    "ra_deg": system["ra_deg"],
+                    "dec_deg": system["dec_deg"],
+                    "parallax_mas": system["parallax_mas"],
+                    "pm_ra_mas_yr": system["pm_ra_mas_yr"],
+                    "pm_dec_mas_yr": system["pm_dec_mas_yr"],
+                    "mag_primary": system["mag_primary"],
+                    "position_epoch": system["position_epoch"],
+                    "position_source": system["position_source"],
+                    "spectral_type_raw": system["spectral_type_raw"],
+                    "family": config.get("family", ""),
+                    "parent": config.get("parent", ""),
+                    "child1": config.get("child1", ""),
+                    "child2": config.get("child2", ""),
+                    "in_triple": config.get("in_triple", ""),
+                    "orbit_count": orbit_counts.get(sn, 0),
+                }
+            )
+            line_count += 1
+    return line_count
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
@@ -647,6 +831,31 @@ def main() -> int:
             continue
         count = handler(raw_path, cooked_path)
         print(f"cooked {label}: {count} rows -> {cooked_path}")
+
+    sbx_systems_raw = raw_dir / "sbx" / "sbx_systems.csv"
+    sbx_alias_raw = raw_dir / "sbx" / "sbx_alias.csv"
+    sbx_config_raw = raw_dir / "sbx" / "sbx_configurations.csv"
+    sbx_orbits_raw = raw_dir / "sbx" / "sbx_orbits.csv"
+    sbx_cooked = cooked_dir / "sbx" / "sbx_catalog.csv"
+    if all(
+        path.exists()
+        for path in (sbx_systems_raw, sbx_alias_raw, sbx_config_raw, sbx_orbits_raw)
+    ):
+        count = cook_sbx(
+            sbx_systems_raw,
+            sbx_alias_raw,
+            sbx_config_raw,
+            sbx_orbits_raw,
+            sbx_cooked,
+        )
+        print(f"cooked sbx: {count} rows -> {sbx_cooked}")
+    else:
+        missing = [
+            str(path)
+            for path in (sbx_systems_raw, sbx_alias_raw, sbx_config_raw, sbx_orbits_raw)
+            if not path.exists()
+        ]
+        print(f"skip sbx: missing {', '.join(missing)}")
 
     return 0
 

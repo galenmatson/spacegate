@@ -27,7 +27,7 @@
   - Display naming precedence: common/human names first, then survey/mission host labels (TRAPPIST/Kepler/TOI/WASP family), Gaia ID last fallback.
   - Separate databases for layer boundaries:
     - *galaxy*: immutable canonical science corpus
-      - Gaia-first inventory with merged auxiliary science evidence (NSS/WDS/ORB6/MSC and side catalogs)
+      - Gaia-first inventory with merged auxiliary science evidence (NSS/WDS/ORB6/MSC/SBX and side catalogs)
       - AT-HYG contributes transitional crosswalk enrichment only
     - *core*: the Spacegate database (fast)
       - deterministic science slice (typically <=1000 LY of Sol)
@@ -282,6 +282,7 @@ export SPACEGATE_DUCKDB_THREADS=4
 # Multiplicity toggles
 export SPACEGATE_ENABLE_GAIA_NSS=1
 export SPACEGATE_ENABLE_MSC=1
+export SPACEGATE_ENABLE_SBX=1
 export SPACEGATE_ENABLE_PROXIMITY=0
 export SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 export SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
@@ -319,6 +320,7 @@ export SPACEGATE_GAIA_DELTA_MAX_AGE_HOURS=720
 # export SPACEGATE_GAIA_BACKBONE_DELTA_MODE=delta
 # export SPACEGATE_GAIA_CLASSPROB_DELTA_MODE=delta
 # export SPACEGATE_GAIA_NSS_DELTA_MODE=delta
+# export SPACEGATE_SBX_DELTA_MODE=delta
 
 # Optional WDS->Gaia crosswalk via CDS XMatch (download_core.sh)
 export SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC=2.0
@@ -356,6 +358,7 @@ SPACEGATE_ENABLE_GAIA_BACKBONE=1
 SPACEGATE_ENABLE_GAIA_CLASSPROB=1
 SPACEGATE_ENABLE_GAIA_NSS=1
 SPACEGATE_ENABLE_MSC=1
+SPACEGATE_ENABLE_SBX=1
 SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
 SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
 SPACEGATE_GAIA_BACKBONE_BUCKETS=211

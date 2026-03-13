@@ -85,5 +85,6 @@ Interpretation notes:
   3. confidence-scored coordinate overlap
 - SB9 policy:
   - SB9 is superseded by SBX and is not part of default evaluation or ingest policy.
+  - SBX is now the default spectroscopic-binary ingest source; keep SB9 for historical reproducibility only.
 - Security reminder:
   - if a source requires insecure transport or unstable routing, treat it as optional/deferred until a verified mirror or integrity path is established.

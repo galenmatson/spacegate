@@ -67,6 +67,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Reattach NSS evidence against Gaia backbone IDs
 - [ ] Reattach MSC (mandatory) against Gaia backbone IDs
 - [ ] Reattach WDS/ORB6 evidence against Gaia backbone IDs
+- [x] Reattach SBX spectroscopic-binary evidence against Gaia/HIP/HD IDs (default-on toggle: `SPACEGATE_ENABLE_SBX`)
 - [ ] Implement/verify hierarchy confidence tiers
 - [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)
 - [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)

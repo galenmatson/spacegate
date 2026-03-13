@@ -91,7 +91,8 @@ Representative commits:
 ### 7) Source Governance and Evaluation Discipline
 
 - Added catalog contribution/evaluation workflow with overlap reporting.
-- Documented deferred/disregarded source policy (BDB-risk, SB9 superseded, SBX evaluation queue).
+- Documented deferred/disregarded source policy (BDB-risk, SB9 superseded).
+- Promoted SBX from evaluation queue into default multiplicity ingest path (toggleable via `SPACEGATE_ENABLE_SBX`).
 - Added production stance on insecure transport exceptions and integrity pinning.
 
 Representative commits:

@@ -1257,6 +1257,10 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             if db_size_row
             else {}
         )
+        star_cols = {str(row[1]) for row in con.execute("pragma_table_info('stars')").fetchall()}
+        system_cols = {str(row[1]) for row in con.execute("pragma_table_info('systems')").fetchall()}
+        star_has_sbx = "sbx_sn" in star_cols
+        system_has_sbx = "has_sbx_evidence" in system_cols
 
         source_breakdown_rows = _timed(
             "stars_by_source_catalog",
@@ -1378,7 +1382,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         star_mult_row = _timed(
             "star_multiplicity_breakdown",
             lambda: con.execute(
-                """
+                f"""
                 WITH flags AS (
                   SELECT
                     CASE
@@ -1398,6 +1402,8 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
                         OR multiplicity_source_catalogs_json LIKE '%"msc"%'
                       THEN 1 ELSE 0
                     END AS has_msc
+                    ,
+                    {("CASE WHEN sbx_sn IS NOT NULL THEN 1 ELSE 0 END" if star_has_sbx else "0")} AS has_sbx
                   FROM stars
                 )
                 SELECT
@@ -1405,14 +1411,20 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
                   SUM(CASE WHEN has_nss = 1 THEN 1 ELSE 0 END)::bigint AS nss_any,
                   SUM(CASE WHEN has_wds = 1 THEN 1 ELSE 0 END)::bigint AS wds_any,
                   SUM(CASE WHEN has_msc = 1 THEN 1 ELSE 0 END)::bigint AS msc_any,
-                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS none,
+                  SUM(CASE WHEN has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS sbx_any,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 0 AND has_sbx = 0 THEN 1 ELSE 0 END)::bigint AS none,
                   SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS nss_only,
                   SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS wds_only,
                   SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS msc_only,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 0 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS sbx_only,
                   SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS nss_wds,
                   SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_msc,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 0 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS nss_sbx,
                   SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS wds_msc,
-                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_wds_msc
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 0 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS wds_sbx,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 1 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS msc_sbx,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_wds_msc,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 1 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS nss_wds_msc_sbx
                 FROM flags
                 """
             ).fetchone(),
@@ -1421,20 +1433,26 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         system_mult_row = _timed(
             "system_multiplicity_breakdown",
             lambda: con.execute(
-                """
+                f"""
                 SELECT
                   COUNT(*)::bigint AS total_systems,
                   SUM(CASE WHEN has_gaia_nss_evidence THEN 1 ELSE 0 END)::bigint AS nss_any,
                   SUM(CASE WHEN has_wds_evidence THEN 1 ELSE 0 END)::bigint AS wds_any,
                   SUM(CASE WHEN has_msc_evidence THEN 1 ELSE 0 END)::bigint AS msc_any,
-                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS none,
+                  SUM(CASE WHEN {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS sbx_any,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence AND NOT {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS none,
                   SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_only,
                   SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS wds_only,
                   SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS msc_only,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS sbx_only,
                   SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds,
                   SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_msc,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS nss_sbx,
                   SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS wds_msc,
-                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds_msc
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS wds_sbx,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS msc_sbx,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds_msc,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS nss_wds_msc_sbx
                 FROM systems
                 """
             ).fetchone(),
@@ -1500,28 +1518,40 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         "nss_any",
         "wds_any",
         "msc_any",
+        "sbx_any",
         "none",
         "nss_only",
         "wds_only",
         "msc_only",
+        "sbx_only",
         "nss_wds",
         "nss_msc",
+        "nss_sbx",
         "wds_msc",
+        "wds_sbx",
+        "msc_sbx",
         "nss_wds_msc",
+        "nss_wds_msc_sbx",
     ]
     system_mult_keys = [
         "total_systems",
         "nss_any",
         "wds_any",
         "msc_any",
+        "sbx_any",
         "none",
         "nss_only",
         "wds_only",
         "msc_only",
+        "sbx_only",
         "nss_wds",
         "nss_msc",
+        "nss_sbx",
         "wds_msc",
+        "wds_sbx",
+        "msc_sbx",
         "nss_wds_msc",
+        "nss_wds_msc_sbx",
     ]
 
     star_mult_breakdown = {
@@ -4701,10 +4731,15 @@ def admin_home(request: Request):
           {{ key: 'nss_only', value: formatInt(sysMult.nss_only) }},
           {{ key: 'wds_only', value: formatInt(sysMult.wds_only) }},
           {{ key: 'msc_only', value: formatInt(sysMult.msc_only) }},
+          {{ key: 'sbx_only', value: formatInt(sysMult.sbx_only) }},
           {{ key: 'nss_wds', value: formatInt(sysMult.nss_wds) }},
           {{ key: 'nss_msc', value: formatInt(sysMult.nss_msc) }},
+          {{ key: 'nss_sbx', value: formatInt(sysMult.nss_sbx) }},
           {{ key: 'wds_msc', value: formatInt(sysMult.wds_msc) }},
+          {{ key: 'wds_sbx', value: formatInt(sysMult.wds_sbx) }},
+          {{ key: 'msc_sbx', value: formatInt(sysMult.msc_sbx) }},
           {{ key: 'nss_wds_msc', value: formatInt(sysMult.nss_wds_msc) }},
+          {{ key: 'nss_wds_msc_sbx', value: formatInt(sysMult.nss_wds_msc_sbx) }},
         ]);
         renderPieChart(
           datasetSystemMultPieEl,
@@ -4713,10 +4748,15 @@ def admin_home(request: Request):
             {{ label: 'nss_only', value: toNumber(sysMult.nss_only, 0) }},
             {{ label: 'wds_only', value: toNumber(sysMult.wds_only, 0) }},
             {{ label: 'msc_only', value: toNumber(sysMult.msc_only, 0) }},
+            {{ label: 'sbx_only', value: toNumber(sysMult.sbx_only, 0) }},
             {{ label: 'nss_wds', value: toNumber(sysMult.nss_wds, 0) }},
             {{ label: 'nss_msc', value: toNumber(sysMult.nss_msc, 0) }},
+            {{ label: 'nss_sbx', value: toNumber(sysMult.nss_sbx, 0) }},
             {{ label: 'wds_msc', value: toNumber(sysMult.wds_msc, 0) }},
+            {{ label: 'wds_sbx', value: toNumber(sysMult.wds_sbx, 0) }},
+            {{ label: 'msc_sbx', value: toNumber(sysMult.msc_sbx, 0) }},
             {{ label: 'nss_wds_msc', value: toNumber(sysMult.nss_wds_msc, 0) }},
+            {{ label: 'nss_wds_msc_sbx', value: toNumber(sysMult.nss_wds_msc_sbx, 0) }},
           ],
           toNumber(counts.systems, 0),
           'System evidence'
@@ -4726,10 +4766,15 @@ def admin_home(request: Request):
           {{ key: 'nss_only', value: formatInt(starMult.nss_only) }},
           {{ key: 'wds_only', value: formatInt(starMult.wds_only) }},
           {{ key: 'msc_only', value: formatInt(starMult.msc_only) }},
+          {{ key: 'sbx_only', value: formatInt(starMult.sbx_only) }},
           {{ key: 'nss_wds', value: formatInt(starMult.nss_wds) }},
           {{ key: 'nss_msc', value: formatInt(starMult.nss_msc) }},
+          {{ key: 'nss_sbx', value: formatInt(starMult.nss_sbx) }},
           {{ key: 'wds_msc', value: formatInt(starMult.wds_msc) }},
+          {{ key: 'wds_sbx', value: formatInt(starMult.wds_sbx) }},
+          {{ key: 'msc_sbx', value: formatInt(starMult.msc_sbx) }},
           {{ key: 'nss_wds_msc', value: formatInt(starMult.nss_wds_msc) }},
+          {{ key: 'nss_wds_msc_sbx', value: formatInt(starMult.nss_wds_msc_sbx) }},
         ]);
         renderPieChart(
           datasetStarMultPieEl,
@@ -4738,10 +4783,15 @@ def admin_home(request: Request):
             {{ label: 'nss_only', value: toNumber(starMult.nss_only, 0) }},
             {{ label: 'wds_only', value: toNumber(starMult.wds_only, 0) }},
             {{ label: 'msc_only', value: toNumber(starMult.msc_only, 0) }},
+            {{ label: 'sbx_only', value: toNumber(starMult.sbx_only, 0) }},
             {{ label: 'nss_wds', value: toNumber(starMult.nss_wds, 0) }},
             {{ label: 'nss_msc', value: toNumber(starMult.nss_msc, 0) }},
+            {{ label: 'nss_sbx', value: toNumber(starMult.nss_sbx, 0) }},
             {{ label: 'wds_msc', value: toNumber(starMult.wds_msc, 0) }},
+            {{ label: 'wds_sbx', value: toNumber(starMult.wds_sbx, 0) }},
+            {{ label: 'msc_sbx', value: toNumber(starMult.msc_sbx, 0) }},
             {{ label: 'nss_wds_msc', value: toNumber(starMult.nss_wds_msc, 0) }},
+            {{ label: 'nss_wds_msc_sbx', value: toNumber(starMult.nss_wds_msc_sbx, 0) }},
           ],
           toNumber(counts.stars, 0),
           'Star evidence'

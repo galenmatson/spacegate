@@ -175,6 +175,7 @@ def summarize_cook_stage(state_dir: Path) -> dict:
         ("orb6", "cooked/orb6/orb6_orbits.csv"),
         ("gaia_nss_non_single_star", "cooked/gaia_nss/gaia_dr3_non_single_star.csv"),
         ("gaia_nss_two_body_orbit", "cooked/gaia_nss/gaia_dr3_nss_two_body_orbit.csv"),
+        ("sbx", "cooked/sbx/sbx_catalog.csv"),
         ("wds_gaia_xmatch", "cooked/wds_gaia_xmatch/wds_gaia_matches.csv"),
         ("gaia_classprob", "cooked/gaia_classprob/gaia_dr3_astrophysical_classprob.csv"),
         ("atnf", "cooked/atnf/pulsars.csv"),

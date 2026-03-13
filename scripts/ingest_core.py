@@ -27,6 +27,8 @@ GAIA_BACKBONE_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 GAIA_BACKBONE_VERSION = "dr3_gaia_source_parallax_gte_3.26156"
 WDS_GAIA_XMATCH_URL = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync"
 WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
+SBX_URL = "https://astro.ulb.ac.be/sbx/tap/sync"
+SBX_VERSION = "sbx_tap_parallax_gte_3.26156"
 MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
 MSC_VERSION = "2024-01-01"
 GAIA_CLASSPROB_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
@@ -593,6 +595,7 @@ def main() -> int:
             "MSC is mandatory for default science ingest (SPACEGATE_ENABLE_MSC=0 is not supported)."
         )
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
+    enable_sbx = parse_bool_env("SPACEGATE_ENABLE_SBX", True)
     enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
     enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
@@ -698,6 +701,7 @@ def main() -> int:
     cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
     cooked_gaia_nss_non_single = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_non_single_star.csv"
     cooked_gaia_nss_two_body = state_dir / "cooked" / "gaia_nss" / "gaia_dr3_nss_two_body_orbit.csv"
+    cooked_sbx = state_dir / "cooked" / "sbx" / "sbx_catalog.csv"
     cooked_wds_gaia_xmatch = state_dir / "cooked" / "wds_gaia_xmatch" / "wds_gaia_matches.csv"
     cooked_gaia_classprob = (
         state_dir / "cooked" / "gaia_classprob" / "gaia_dr3_astrophysical_classprob.csv"
@@ -719,6 +723,7 @@ def main() -> int:
     orb6_manifest_path = manifest_dir / "orb6_manifest.json"
     gaia_backbone_manifest_path = manifest_dir / "gaia_backbone_manifest.json"
     gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
+    sbx_manifest_path = manifest_dir / "sbx_manifest.json"
     wds_gaia_xmatch_manifest_path = manifest_dir / "wds_gaia_xmatch_manifest.json"
     gaia_classprob_manifest_path = manifest_dir / "gaia_classprob_manifest.json"
     atnf_manifest_path = manifest_dir / "atnf_manifest.json"
@@ -760,6 +765,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked Gaia NSS non_single_star: {cooked_gaia_nss_non_single}")
     if enable_gaia_nss and not cooked_gaia_nss_two_body.exists():
         raise SystemExit(f"Missing cooked Gaia NSS two_body: {cooked_gaia_nss_two_body}")
+    if enable_sbx and not cooked_sbx.exists():
+        raise SystemExit(f"Missing cooked SBX catalog: {cooked_sbx}")
     if enable_wds_gaia_xmatch and not cooked_wds_gaia_xmatch.exists():
         raise SystemExit(f"Missing cooked WDS-Gaia XMatch: {cooked_wds_gaia_xmatch}")
     if enable_gaia_backbone and enable_gaia_classprob and not cooked_gaia_classprob.exists():
@@ -817,6 +824,7 @@ def main() -> int:
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
         f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
         f"exoplanet_lifecycle_catalogs={'1' if enable_exoplanet_lifecycle_catalogs else '0'} "
+        f"sbx={'1' if enable_sbx else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
         f"athyg_supplement_merge={'1' if (enable_gaia_backbone and enable_athyg_supplement_merge) else '0'} "
@@ -847,6 +855,8 @@ def main() -> int:
     manifest_paths.append(msc_manifest_path)
     if enable_gaia_nss:
         manifest_paths.append(gaia_nss_manifest_path)
+    if enable_sbx:
+        manifest_paths.append(sbx_manifest_path)
     if enable_wds_gaia_xmatch:
         manifest_paths.append(wds_gaia_xmatch_manifest_path)
     if enable_gaia_backbone and enable_gaia_classprob:
@@ -960,6 +970,7 @@ def main() -> int:
           ('wds_gaia_gate_max_dist_spread_ly', {sql_literal(str(wds_gaia_gate_max_dist_spread_ly))}),
           ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))}),
           ('gaia_classprob_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_gaia_classprob) else "0")}),
+          ('sbx_enabled', {sql_literal("1" if enable_sbx else "0")}),
           ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
           ('eclipsing_catalogs_enabled', {sql_literal("1" if enable_eclipsing_catalogs else "0")}),
@@ -1010,6 +1021,26 @@ def main() -> int:
     gaia_nss_two_body_manifest = (
         require_manifest_entry(manifest, "gaia_dr3_nss_two_body_orbit", "Gaia DR3 nss_two_body_orbit")
         if enable_gaia_nss
+        else None
+    )
+    sbx_systems_manifest = (
+        require_manifest_entry(manifest, "sbx_systems", "SBX systems")
+        if enable_sbx
+        else None
+    )
+    sbx_alias_manifest = (
+        require_manifest_entry(manifest, "sbx_alias", "SBX aliases")
+        if enable_sbx
+        else None
+    )
+    sbx_config_manifest = (
+        require_manifest_entry(manifest, "sbx_configurations", "SBX configurations")
+        if enable_sbx
+        else None
+    )
+    sbx_orbits_manifest = (
+        require_manifest_entry(manifest, "sbx_orbits", "SBX orbits")
+        if enable_sbx
         else None
     )
     wds_gaia_xmatch_manifest = (
@@ -1167,6 +1198,34 @@ def main() -> int:
     )
     gaia_nss_two_body_retrieved = (
         gaia_nss_two_body_manifest.get("retrieved_at") if gaia_nss_two_body_manifest else None
+    )
+    sbx_sha_parts = [
+        s
+        for s in [
+            sbx_systems_manifest.get("sha256") if sbx_systems_manifest else None,
+            sbx_alias_manifest.get("sha256") if sbx_alias_manifest else None,
+            sbx_config_manifest.get("sha256") if sbx_config_manifest else None,
+            sbx_orbits_manifest.get("sha256") if sbx_orbits_manifest else None,
+        ]
+        if s
+    ]
+    sbx_sha = ",".join(sbx_sha_parts) if sbx_sha_parts else None
+    sbx_retrieved = (
+        max(
+            [
+                t
+                for t in [
+                    sbx_systems_manifest.get("retrieved_at") if sbx_systems_manifest else None,
+                    sbx_alias_manifest.get("retrieved_at") if sbx_alias_manifest else None,
+                    sbx_config_manifest.get("retrieved_at") if sbx_config_manifest else None,
+                    sbx_orbits_manifest.get("retrieved_at") if sbx_orbits_manifest else None,
+                ]
+                if t
+            ],
+            default=None,
+        )
+        if enable_sbx
+        else None
     )
     wds_gaia_xmatch_sha = (
         wds_gaia_xmatch_manifest.get("sha256") if wds_gaia_xmatch_manifest else None
@@ -1417,6 +1476,7 @@ def main() -> int:
     orb6_path = str(cooked_orb6).replace("'", "''")
     gaia_nss_non_single_path = str(cooked_gaia_nss_non_single).replace("'", "''")
     gaia_nss_two_body_path = str(cooked_gaia_nss_two_body).replace("'", "''")
+    sbx_path = str(cooked_sbx).replace("'", "''")
     wds_gaia_xmatch_path = str(cooked_wds_gaia_xmatch).replace("'", "''")
     gaia_classprob_path = str(cooked_gaia_classprob).replace("'", "''")
     atnf_path = str(cooked_atnf).replace("'", "''")
@@ -1560,6 +1620,44 @@ def main() -> int:
               source_id, nss_solution_type, ra_deg, dec_deg, parallax_mas, parallax_error_mas, pm_ra_mas_yr,
               pm_dec_mas_yr, period_days, eccentricity, center_of_mass_velocity_kms, semi_amplitude_primary_kms,
               mass_ratio, inclination_deg, flags, significance
+            )
+            where false
+            """
+        )
+    if enable_sbx:
+        con.execute(
+            f"""
+            create or replace temp view sbx_raw as
+            select * from read_csv_auto('{sbx_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view sbx_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              sn, gaia_id, hip_id, hd_id, wds_id, ads_id, ra_deg, dec_deg, parallax_mas, pm_ra_mas_yr,
+              pm_dec_mas_yr, mag_primary, position_epoch, position_source, spectral_type_raw, family, parent,
+              child1, child2, in_triple, orbit_count
             )
             where false
             """
@@ -2276,6 +2374,121 @@ def main() -> int:
         """
     )
     con.execute(
+        """
+        create or replace temp view sbx_catalog as
+        select
+          nullif(sn, '')::bigint as sbx_sn,
+          nullif(gaia_id, '')::bigint as gaia_id,
+          nullif(hip_id, '')::bigint as hip_id,
+          nullif(hd_id, '')::bigint as hd_id,
+          nullif(wds_id, '') as wds_id,
+          nullif(ads_id, '') as ads_id,
+          nullif(ra_deg, '')::double as ra_deg,
+          nullif(dec_deg, '')::double as dec_deg,
+          nullif(parallax_mas, '')::double as parallax_mas,
+          nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
+          nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
+          nullif(mag_primary, '')::double as mag_primary,
+          nullif(position_epoch, '')::double as position_epoch,
+          nullif(position_source, '') as position_source,
+          nullif(spectral_type_raw, '') as spectral_type_raw,
+          nullif(family, '') as family,
+          nullif(parent, '') as parent,
+          nullif(child1, '') as child1,
+          nullif(child2, '') as child2,
+          nullif(in_triple, '') as in_triple,
+          nullif(orbit_count, '')::bigint as orbit_count
+        from sbx_raw
+        where nullif(sn, '') is not null
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view sbx_athyg_matches as
+        with candidates as (
+          select
+            a.athyg_row_id,
+            s.sbx_sn,
+            s.orbit_count,
+            s.family,
+            s.position_epoch,
+            s.position_source,
+            case
+              when s.gaia_id is not null and a.gaia_id = s.gaia_id then 5
+              when s.hip_id is not null and a.hip_id = s.hip_id and s.hd_id is not null and a.hd_id = s.hd_id then 4
+              when s.hip_id is not null and a.hip_id = s.hip_id then 3
+              when s.hd_id is not null and a.hd_id = s.hd_id then 2
+              else 0
+            end as match_score
+          from athyg_stars_stage a
+          join sbx_catalog s
+            on (s.gaia_id is not null and a.gaia_id = s.gaia_id)
+            or (s.hip_id is not null and a.hip_id = s.hip_id)
+            or (s.hd_id is not null and a.hd_id = s.hd_id)
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by athyg_row_id
+              order by match_score desc, coalesce(orbit_count, 0) desc, sbx_sn asc
+            ) as rn
+          from candidates
+          where match_score > 0
+        )
+        select
+          athyg_row_id,
+          sbx_sn,
+          orbit_count,
+          family,
+          position_epoch,
+          position_source
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view sbx_msc_matches as
+        with candidates as (
+          select
+            m.msc_row_num,
+            s.sbx_sn,
+            s.orbit_count,
+            s.family,
+            s.position_epoch,
+            s.position_source,
+            case
+              when s.hip_id is not null and m.hip_id = s.hip_id and s.hd_id is not null and m.hd_id = s.hd_id then 4
+              when s.hip_id is not null and m.hip_id = s.hip_id then 3
+              when s.hd_id is not null and m.hd_id = s.hd_id then 2
+              else 0
+            end as match_score
+          from msc_components m
+          join sbx_catalog s
+            on (s.hip_id is not null and m.hip_id = s.hip_id)
+            or (s.hd_id is not null and m.hd_id = s.hd_id)
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by msc_row_num
+              order by match_score desc, coalesce(orbit_count, 0) desc, sbx_sn asc
+            ) as rn
+          from candidates
+          where match_score > 0
+        )
+        select
+          msc_row_num,
+          sbx_sn,
+          orbit_count,
+          family,
+          position_epoch,
+          position_source
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
         f"""
         create or replace temp view wds_gaia_candidates as
         with base as (
@@ -2497,6 +2710,11 @@ def main() -> int:
             coalesce(t.nss_solution_count, 0) as gaia_nss_solution_count,
             coalesce(t.nss_solution_types_json, '[]') as gaia_nss_solution_types_json,
             t.nss_significance_max as gaia_nss_significance_max,
+            sbx.sbx_sn as sbx_sn,
+            sbx.orbit_count as sbx_orbit_count,
+            sbx.family as sbx_family,
+            sbx.position_epoch as sbx_position_epoch,
+            sbx.position_source as sbx_position_source,
             json_object(
               'gaia', a.gaia_id,
               'hip', a.hip_id,
@@ -2506,7 +2724,8 @@ def main() -> int:
               'tyc', a.tyc_id,
               'hyg', a.hyg_id,
               'wds', coalesce(m.wds_id, w.wds_id),
-              'wds_component', coalesce(m.msc_component, w.wds_component)
+              'wds_component', coalesce(m.msc_component, w.wds_component),
+              'sbx_sn', sbx.sbx_sn
             ) as catalog_ids_json,
             {sql_literal(base_source_catalog)} as source_catalog,
             {sql_literal(base_source_version)} as source_version,
@@ -2529,6 +2748,7 @@ def main() -> int:
           left join wds_gaia_star_map w on w.gaia_id = a.gaia_id
           left join gaia_nss_non_single n on n.gaia_id = a.gaia_id
           left join gaia_nss_two_body_agg t on t.gaia_id = a.gaia_id
+          left join sbx_athyg_matches sbx on sbx.athyg_row_id = a.athyg_row_id
         ), msc_only as (
           select
             cast(morton3d(m.x_pc * {PC_TO_LY}, m.y_pc * {PC_TO_LY}, m.z_pc * {PC_TO_LY}) as bigint) as spatial_index,
@@ -2591,12 +2811,18 @@ def main() -> int:
             0::bigint as gaia_nss_solution_count,
             '[]' as gaia_nss_solution_types_json,
             null::double as gaia_nss_significance_max,
+            sbx.sbx_sn as sbx_sn,
+            sbx.orbit_count as sbx_orbit_count,
+            sbx.family as sbx_family,
+            sbx.position_epoch as sbx_position_epoch,
+            sbx.position_source as sbx_position_source,
             json_object(
               'gaia', null,
               'hip', m.hip_id,
               'hd', m.hd_id,
               'wds', m.wds_id,
-              'wds_component', m.msc_component
+              'wds_component', m.msc_component,
+              'sbx_sn', sbx.sbx_sn
             ) as catalog_ids_json,
             'msc' as source_catalog,
             {sql_literal(MSC_VERSION)} as source_version,
@@ -2621,6 +2847,7 @@ def main() -> int:
             {sql_literal(transform_version)} as transform_version
           from msc_components m
           left join msc_exact_matches x on x.msc_row_num = m.msc_row_num
+          left join sbx_msc_matches sbx on sbx.msc_row_num = m.msc_row_num
           where x.msc_row_num is null
         )
         select * from athyg_final
@@ -3064,7 +3291,8 @@ def main() -> int:
                 'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
                 'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
                 'wds', coalesce(stars.wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
-                'wds_component', coalesce(stars.component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
+                'wds_component', coalesce(stars.component, json_extract_string(stars.catalog_ids_json, '$.wds_component')),
+                'sbx_sn', stars.sbx_sn
               )
             from athyg_alias_candidates a
             where stars.gaia_id = a.gaia_id
@@ -3585,6 +3813,7 @@ def main() -> int:
               luminosity_class, spectral_peculiar, vmag, absmag, color_index, gaia_id, hip_id, hd_id, wds_id,
               multiplicity_match_method, multiplicity_match_confidence, multiplicity_source_catalogs_json,
               gaia_non_single_star, gaia_nss_solution_count, gaia_nss_solution_types_json, gaia_nss_significance_max,
+              sbx_sn, sbx_orbit_count, sbx_family, sbx_position_epoch, sbx_position_source,
               catalog_ids_json, source_catalog, source_version, source_url, source_download_url, source_doi,
               source_pk, source_row_id, source_row_hash, license, redistribution_ok, license_note, retrieval_etag,
               retrieval_checksum, retrieved_at, ingested_at, transform_version
@@ -3642,6 +3871,11 @@ def main() -> int:
               0::bigint as gaia_nss_solution_count,
               '[]' as gaia_nss_solution_types_json,
               null::double as gaia_nss_significance_max,
+              null::bigint as sbx_sn,
+              0::bigint as sbx_orbit_count,
+              null::varchar as sbx_family,
+              null::double as sbx_position_epoch,
+              null::varchar as sbx_position_source,
               json_object(
                 'gaia', ordered.gaia_id,
                 'hip', ordered.hip_id,
@@ -3651,7 +3885,8 @@ def main() -> int:
                 'tyc', ordered.tyc_id,
                 'hyg', ordered.hyg_id,
                 'wds', null,
-                'wds_component', null
+                'wds_component', null,
+                'sbx_sn', null
               ) as catalog_ids_json,
               'athyg' as source_catalog,
               {sql_literal(ATHYG_ALIAS_VERSION)} as source_version,
@@ -4481,7 +4716,7 @@ def main() -> int:
         """
         create temp view system_group_support as
         with grouped as (
-          select g.system_group_key, s.wds_id, s.source_catalog, s.gaia_non_single_star
+          select g.system_group_key, s.wds_id, s.source_catalog, s.gaia_non_single_star, s.sbx_sn
           from system_groups g
           join stars s using (star_id)
         ), aggregated as (
@@ -4490,6 +4725,7 @@ def main() -> int:
             max(g.wds_id) as wds_id,
             max(case when source_catalog = 'msc' then 1 else 0 end) as has_msc_insert,
             max(case when gaia_non_single_star then 1 else 0 end) as has_gaia_nss,
+            max(case when sbx_sn is not null then 1 else 0 end) as has_sbx_evidence,
             max(case when w.wds_id is not null then 1 else 0 end) as has_wds_evidence,
             max(case when o.wds_id is not null then 1 else 0 end) as has_orb6_evidence
           from grouped g
@@ -4508,6 +4744,7 @@ def main() -> int:
           end as grouping_basis,
           has_gaia_nss = 1 as has_gaia_nss_evidence,
           has_msc_insert = 1 as has_msc_evidence,
+          has_sbx_evidence = 1 as has_sbx_evidence,
           has_wds_evidence = 1 as has_wds_evidence,
           has_orb6_evidence = 1 as has_orb6_evidence,
           case
@@ -4538,6 +4775,7 @@ def main() -> int:
         with grouped as (
           select s.*, g.system_group_key, sg.wds_id as group_wds_id, sg.grouping_basis, sg.grouping_confidence,
                  sg.has_gaia_nss_evidence, sg.has_msc_evidence, sg.has_wds_evidence, sg.has_orb6_evidence, sg.grouping_source_catalogs_json
+                 , sg.has_sbx_evidence
           from stars s
           join system_groups g using (star_id)
           join system_group_support sg using (system_group_key)
@@ -4569,6 +4807,7 @@ def main() -> int:
           grouping_source_catalogs_json,
           has_gaia_nss_evidence,
           has_msc_evidence,
+          has_sbx_evidence,
           has_wds_evidence,
           has_orb6_evidence,
           ra_deg,
@@ -4644,6 +4883,12 @@ def main() -> int:
     gaia_nss_two_body_star_count = con.execute(
         "select count(*) from stars where coalesce(gaia_nss_solution_count, 0) > 0"
     ).fetchone()[0]
+    sbx_star_count = con.execute(
+        "select count(*) from stars where sbx_sn is not null"
+    ).fetchone()[0]
+    sbx_system_count = con.execute(
+        "select count(distinct system_id) from stars where sbx_sn is not null"
+    ).fetchone()[0]
     wds_gaia_xmatch_star_count = con.execute(
         "select count(*) from stars where multiplicity_match_method like '%wds_gaia_xmatch%'"
     ).fetchone()[0]
@@ -4693,6 +4938,7 @@ def main() -> int:
         "proximity_enabled": proximity_enabled,
         "msc_enabled": enable_msc,
         "gaia_nss_enabled": enable_gaia_nss,
+        "sbx_enabled": enable_sbx,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "wds_gaia_match_max_arcsec": wds_gaia_match_max_arcsec,
         "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
@@ -4707,6 +4953,8 @@ def main() -> int:
         "gaia_nss_star_count": gaia_nss_star_count,
         "gaia_nss_system_count": gaia_nss_system_count,
         "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
+        "sbx_star_count": sbx_star_count,
+        "sbx_system_count": sbx_system_count,
         "wds_gaia_xmatch_star_count": wds_gaia_xmatch_star_count,
         "wds_gaia_xmatch_pregate_mapping_count": wds_gaia_xmatch_pregate_mapping_count,
         "wds_gaia_xmatch_postgate_mapping_count": wds_gaia_xmatch_postgate_mapping_count,
@@ -4728,6 +4976,11 @@ def main() -> int:
                 "Gaia NSS star-level multiplicity evidence is active in this build."
                 if enable_gaia_nss
                 else "Gaia NSS star-level multiplicity evidence is disabled (SPACEGATE_ENABLE_GAIA_NSS=0)."
+            ),
+            (
+                "SBX spectroscopic-binary evidence is active in this build."
+                if enable_sbx
+                else "SBX spectroscopic-binary evidence is disabled (SPACEGATE_ENABLE_SBX=0)."
             ),
             "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
         ],
@@ -6791,6 +7044,14 @@ def main() -> int:
         provenance_report["gaia_nss_non_single_star"] = gaia_nss_non_single_manifest
     if gaia_nss_two_body_manifest:
         provenance_report["gaia_nss_two_body_orbit"] = gaia_nss_two_body_manifest
+    if sbx_systems_manifest:
+        provenance_report["sbx_systems"] = sbx_systems_manifest
+    if sbx_alias_manifest:
+        provenance_report["sbx_alias"] = sbx_alias_manifest
+    if sbx_config_manifest:
+        provenance_report["sbx_configurations"] = sbx_config_manifest
+    if sbx_orbits_manifest:
+        provenance_report["sbx_orbits"] = sbx_orbits_manifest
     if wds_gaia_xmatch_manifest:
         provenance_report["wds_gaia_xmatch_best"] = wds_gaia_xmatch_manifest
     if gaia_classprob_manifest:
@@ -7324,10 +7585,13 @@ def main() -> int:
         "msc_component_duplicate_groups": msc_component_dedup_group_count,
         "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
+        "sbx_enabled": enable_sbx,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "gaia_nss_star_count": gaia_nss_star_count,
         "gaia_nss_system_count": gaia_nss_system_count,
         "gaia_nss_two_body_star_count": gaia_nss_two_body_star_count,
+        "sbx_star_count": sbx_star_count,
+        "sbx_system_count": sbx_system_count,
         "wds_gaia_xmatch_star_count": wds_gaia_xmatch_star_count,
         "wds_gaia_xmatch_pregate_mapping_count": wds_gaia_xmatch_pregate_mapping_count,
         "wds_gaia_xmatch_postgate_mapping_count": wds_gaia_xmatch_postgate_mapping_count,
@@ -7393,6 +7657,11 @@ def main() -> int:
                 "Gaia NSS star-level multiplicity evidence enabled (SPACEGATE_ENABLE_GAIA_NSS!=0)."
                 if enable_gaia_nss
                 else "Gaia NSS star-level multiplicity evidence disabled (SPACEGATE_ENABLE_GAIA_NSS=0)."
+            ),
+            (
+                "SBX spectroscopic-binary evidence enabled (SPACEGATE_ENABLE_SBX!=0)."
+                if enable_sbx
+                else "SBX spectroscopic-binary evidence disabled (SPACEGATE_ENABLE_SBX=0)."
             ),
             "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
             (
@@ -7582,6 +7851,10 @@ def main() -> int:
               then 1 else 0
             end as has_msc,
             case
+              when sbx_sn is not null
+              then 1 else 0
+            end as has_sbx,
+            case
               when classprob_dsc_combmod_whitedwarf is not null
                 or classprob_dsc_specmod_whitedwarf is not null
               then 1 else 0
@@ -7599,12 +7872,17 @@ def main() -> int:
           sum(has_nss)::bigint as nss_rows,
           sum(has_wds)::bigint as wds_rows,
           sum(has_msc)::bigint as msc_rows,
+          sum(has_sbx)::bigint as sbx_rows,
           sum(has_classprob)::bigint as classprob_rows,
           sum(has_cluster_tag)::bigint as cluster_tag_rows,
           sum(case when has_nss = 1 and has_wds = 1 then 1 else 0 end)::bigint as nss_wds_rows,
           sum(case when has_nss = 1 and has_msc = 1 then 1 else 0 end)::bigint as nss_msc_rows,
+          sum(case when has_nss = 1 and has_sbx = 1 then 1 else 0 end)::bigint as nss_sbx_rows,
           sum(case when has_wds = 1 and has_msc = 1 then 1 else 0 end)::bigint as wds_msc_rows,
-          sum(case when has_nss = 1 and has_wds = 1 and has_msc = 1 then 1 else 0 end)::bigint as nss_wds_msc_rows
+          sum(case when has_wds = 1 and has_sbx = 1 then 1 else 0 end)::bigint as wds_sbx_rows,
+          sum(case when has_msc = 1 and has_sbx = 1 then 1 else 0 end)::bigint as msc_sbx_rows,
+          sum(case when has_nss = 1 and has_wds = 1 and has_msc = 1 then 1 else 0 end)::bigint as nss_wds_msc_rows,
+          sum(case when has_nss = 1 and has_wds = 1 and has_msc = 1 and has_sbx = 1 then 1 else 0 end)::bigint as nss_wds_msc_sbx_rows
         from flags
         """
     ).fetchone()
@@ -7615,10 +7893,15 @@ def main() -> int:
           sum(case when has_gaia_nss_evidence then 1 else 0 end)::bigint as nss_rows,
           sum(case when has_wds_evidence then 1 else 0 end)::bigint as wds_rows,
           sum(case when has_msc_evidence then 1 else 0 end)::bigint as msc_rows,
+          sum(case when has_sbx_evidence then 1 else 0 end)::bigint as sbx_rows,
           sum(case when has_gaia_nss_evidence and has_wds_evidence then 1 else 0 end)::bigint as nss_wds_rows,
           sum(case when has_gaia_nss_evidence and has_msc_evidence then 1 else 0 end)::bigint as nss_msc_rows,
+          sum(case when has_gaia_nss_evidence and has_sbx_evidence then 1 else 0 end)::bigint as nss_sbx_rows,
           sum(case when has_wds_evidence and has_msc_evidence then 1 else 0 end)::bigint as wds_msc_rows,
-          sum(case when has_gaia_nss_evidence and has_wds_evidence and has_msc_evidence then 1 else 0 end)::bigint as nss_wds_msc_rows
+          sum(case when has_wds_evidence and has_sbx_evidence then 1 else 0 end)::bigint as wds_sbx_rows,
+          sum(case when has_msc_evidence and has_sbx_evidence then 1 else 0 end)::bigint as msc_sbx_rows,
+          sum(case when has_gaia_nss_evidence and has_wds_evidence and has_msc_evidence then 1 else 0 end)::bigint as nss_wds_msc_rows,
+          sum(case when has_gaia_nss_evidence and has_wds_evidence and has_msc_evidence and has_sbx_evidence then 1 else 0 end)::bigint as nss_wds_msc_sbx_rows
         from systems
         """
     ).fetchone()
@@ -7626,9 +7909,11 @@ def main() -> int:
     star_nss_rows = int(star_evidence_row[1] or 0)
     star_wds_rows = int(star_evidence_row[2] or 0)
     star_msc_rows = int(star_evidence_row[3] or 0)
+    star_sbx_rows = int(star_evidence_row[4] or 0)
     system_nss_rows = int(system_evidence_row[1] or 0)
     system_wds_rows = int(system_evidence_row[2] or 0)
     system_msc_rows = int(system_evidence_row[3] or 0)
+    system_sbx_rows = int(system_evidence_row[4] or 0)
 
     def pair_overlap_rows(
         scope: str,
@@ -7661,7 +7946,7 @@ def main() -> int:
             "wds",
             star_nss_rows,
             star_wds_rows,
-            int(star_evidence_row[6] or 0),
+            int(star_evidence_row[7] or 0),
             total_stars,
         ),
         pair_overlap_rows(
@@ -7670,7 +7955,16 @@ def main() -> int:
             "msc",
             star_nss_rows,
             star_msc_rows,
-            int(star_evidence_row[7] or 0),
+            int(star_evidence_row[8] or 0),
+            total_stars,
+        ),
+        pair_overlap_rows(
+            "stars",
+            "gaia_nss",
+            "sbx",
+            star_nss_rows,
+            star_sbx_rows,
+            int(star_evidence_row[9] or 0),
             total_stars,
         ),
         pair_overlap_rows(
@@ -7679,7 +7973,25 @@ def main() -> int:
             "msc",
             star_wds_rows,
             star_msc_rows,
-            int(star_evidence_row[8] or 0),
+            int(star_evidence_row[10] or 0),
+            total_stars,
+        ),
+        pair_overlap_rows(
+            "stars",
+            "wds",
+            "sbx",
+            star_wds_rows,
+            star_sbx_rows,
+            int(star_evidence_row[11] or 0),
+            total_stars,
+        ),
+        pair_overlap_rows(
+            "stars",
+            "msc",
+            "sbx",
+            star_msc_rows,
+            star_sbx_rows,
+            int(star_evidence_row[12] or 0),
             total_stars,
         ),
     ]
@@ -7690,7 +8002,7 @@ def main() -> int:
             "wds",
             system_nss_rows,
             system_wds_rows,
-            int(system_evidence_row[4] or 0),
+            int(system_evidence_row[5] or 0),
             total_systems,
         ),
         pair_overlap_rows(
@@ -7699,7 +8011,16 @@ def main() -> int:
             "msc",
             system_nss_rows,
             system_msc_rows,
-            int(system_evidence_row[5] or 0),
+            int(system_evidence_row[6] or 0),
+            total_systems,
+        ),
+        pair_overlap_rows(
+            "systems",
+            "gaia_nss",
+            "sbx",
+            system_nss_rows,
+            system_sbx_rows,
+            int(system_evidence_row[7] or 0),
             total_systems,
         ),
         pair_overlap_rows(
@@ -7708,7 +8029,25 @@ def main() -> int:
             "msc",
             system_wds_rows,
             system_msc_rows,
-            int(system_evidence_row[6] or 0),
+            int(system_evidence_row[8] or 0),
+            total_systems,
+        ),
+        pair_overlap_rows(
+            "systems",
+            "wds",
+            "sbx",
+            system_wds_rows,
+            system_sbx_rows,
+            int(system_evidence_row[9] or 0),
+            total_systems,
+        ),
+        pair_overlap_rows(
+            "systems",
+            "msc",
+            "sbx",
+            system_msc_rows,
+            system_sbx_rows,
+            int(system_evidence_row[10] or 0),
             total_systems,
         ),
     ]
@@ -7756,6 +8095,18 @@ def main() -> int:
                 "notes": notes or "",
             }
         )
+
+    sbx_input_bytes = sum(
+        int(manifest_bytes(entry) or 0)
+        for entry in (
+            sbx_systems_manifest,
+            sbx_alias_manifest,
+            sbx_config_manifest,
+            sbx_orbits_manifest,
+        )
+    )
+    if sbx_input_bytes == 0:
+        sbx_input_bytes = None
 
     catalog_contributions: list[dict] = []
     add_catalog_contribution(
@@ -7858,6 +8209,31 @@ def main() -> int:
         linked_rows=system_msc_rows,
         notes="hierarchical system evidence",
     )
+    if enable_sbx:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="sbx",
+            domain="stars",
+            domain_total=total_stars,
+            input_rows=safe_view_count("sbx_raw"),
+            input_bytes=sbx_input_bytes,
+            direct_rows=0,
+            evidence_rows=star_sbx_rows,
+            linked_rows=star_sbx_rows,
+            notes="spectroscopic-binary evidence via exact Gaia/HIP/HD identifier joins",
+        )
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="sbx",
+            domain="systems",
+            domain_total=total_systems,
+            input_rows=safe_view_count("sbx_raw"),
+            input_bytes=sbx_input_bytes,
+            direct_rows=0,
+            evidence_rows=system_sbx_rows,
+            linked_rows=system_sbx_rows,
+            notes="spectroscopic-binary system evidence",
+        )
     add_catalog_contribution(
         catalog_contributions,
         catalog="orb6",
@@ -7939,8 +8315,8 @@ def main() -> int:
         input_rows=manifest_row_count(gaia_classprob_manifest),
         input_bytes=manifest_bytes(gaia_classprob_manifest),
         direct_rows=0,
-        evidence_rows=int(star_evidence_row[4] or 0),
-        linked_rows=int(star_evidence_row[4] or 0),
+        evidence_rows=int(star_evidence_row[5] or 0),
+        linked_rows=int(star_evidence_row[5] or 0),
         notes="compact/remnant probability evidence",
     )
     add_catalog_contribution(
@@ -7951,8 +8327,8 @@ def main() -> int:
         input_rows=safe_view_count("open_cluster_members_raw"),
         input_bytes=manifest_bytes(clusters_members_manifest),
         direct_rows=0,
-        evidence_rows=int(star_evidence_row[5] or 0),
-        linked_rows=int(star_evidence_row[5] or 0),
+        evidence_rows=int(star_evidence_row[6] or 0),
+        linked_rows=int(star_evidence_row[6] or 0),
         notes="open-cluster membership tags",
     )
     add_catalog_contribution(
@@ -8033,6 +8409,10 @@ def main() -> int:
         ("gaia_dr3_backbone", gaia_backbone_manifest),
         ("gaia_nss_non_single_star", gaia_nss_non_single_manifest),
         ("gaia_nss_two_body_orbit", gaia_nss_two_body_manifest),
+        ("sbx_systems", sbx_systems_manifest),
+        ("sbx_alias", sbx_alias_manifest),
+        ("sbx_configurations", sbx_config_manifest),
+        ("sbx_orbits", sbx_orbits_manifest),
         ("gaia_classprob", gaia_classprob_manifest),
         ("wds", wds_manifest),
         ("wds_gaia_xmatch_best", wds_gaia_xmatch_manifest),
@@ -8096,11 +8476,17 @@ def main() -> int:
                     "gaia_nss": star_nss_rows,
                     "wds": star_wds_rows,
                     "msc": star_msc_rows,
+                    "sbx": star_sbx_rows,
                 },
                 "pairwise": star_pairwise,
-                "triple_overlap_count": int(star_evidence_row[9] or 0),
+                "triple_overlap_count": int(star_evidence_row[13] or 0),
                 "triple_overlap_pct_of_stars": round(
-                    pct_value(int(star_evidence_row[9] or 0), total_stars),
+                    pct_value(int(star_evidence_row[13] or 0), total_stars),
+                    2,
+                ),
+                "quadruple_overlap_count": int(star_evidence_row[14] or 0),
+                "quadruple_overlap_pct_of_stars": round(
+                    pct_value(int(star_evidence_row[14] or 0), total_stars),
                     2,
                 ),
             },
@@ -8109,11 +8495,17 @@ def main() -> int:
                     "gaia_nss": system_nss_rows,
                     "wds": system_wds_rows,
                     "msc": system_msc_rows,
+                    "sbx": system_sbx_rows,
                 },
                 "pairwise": system_pairwise,
-                "triple_overlap_count": int(system_evidence_row[7] or 0),
+                "triple_overlap_count": int(system_evidence_row[11] or 0),
                 "triple_overlap_pct_of_systems": round(
-                    pct_value(int(system_evidence_row[7] or 0), total_systems),
+                    pct_value(int(system_evidence_row[11] or 0), total_systems),
+                    2,
+                ),
+                "quadruple_overlap_count": int(system_evidence_row[12] or 0),
+                "quadruple_overlap_pct_of_systems": round(
+                    pct_value(int(system_evidence_row[12] or 0), total_systems),
                     2,
                 ),
             },

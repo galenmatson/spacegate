@@ -170,13 +170,14 @@ Multiplicity evidence sources (current policy):
 
 1. Gaia NSS (exact Gaia-linked evidence)
 2. MSC (mandatory)
-3. WDS/ORB6 (broad support evidence, confidence-gated)
+3. WDS/ORB6/SBX (broad support evidence, confidence-gated)
 
 Current rules:
 
 - proximity grouping stays nondefault
 - WDS-Gaia path stays optional and confidence-gated
 - MSC is mandatory in default science ingest (missing MSC is a build/promotion blocker)
+- SBX is default-on support evidence (`SPACEGATE_ENABLE_SBX`) for spectroscopic-binary coverage
 - physical consistency gating is required for WDS-linked grouping via bridge:
   - distance spread threshold
   - proper-motion spread threshold
@@ -431,7 +432,7 @@ Rules:
 
 ### Phase C: Multiplicity Reintegration
 
-- attach NSS/MSC/WDS/ORB6 evidence against Gaia IDs
+- attach NSS/MSC/WDS/ORB6/SBX evidence against Gaia IDs
 - materialize hierarchy with confidence tiers
 - run golden-system multiplicity exam post-ingest (Castor-first)
 - preserve benchmark system quality (Castor, etc.)

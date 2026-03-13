@@ -26,6 +26,10 @@ GAIA_BACKBONE_RAW="$RAW_DIR/gaia_backbone/gaia_dr3_backbone.csv"
 GAIA_NSS_NON_SINGLE_RAW="$RAW_DIR/gaia_nss/gaia_dr3_non_single_star.csv"
 GAIA_NSS_TWO_BODY_RAW="$RAW_DIR/gaia_nss/gaia_dr3_nss_two_body_orbit.csv"
 WDS_GAIA_XMATCH_RAW="$RAW_DIR/wds_gaia_xmatch/wds_gaia_best.csv"
+SBX_SYSTEMS_RAW="$RAW_DIR/sbx/sbx_systems.csv"
+SBX_ALIAS_RAW="$RAW_DIR/sbx/sbx_alias.csv"
+SBX_CONFIG_RAW="$RAW_DIR/sbx/sbx_configurations.csv"
+SBX_ORBITS_RAW="$RAW_DIR/sbx/sbx_orbits.csv"
 EXOPLANET_EU_RAW="$RAW_DIR/exoplanet_eu/catalog.csv"
 OEC_RAW="$RAW_DIR/open_exoplanet_catalogue/open_exoplanet_catalogue.tar.gz"
 HWC_RAW="$RAW_DIR/hwc/hwc.csv"
@@ -65,6 +69,7 @@ ensure_inputs() {
   local enable_gaia_backbone="${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}"
   local enable_msc="${SPACEGATE_ENABLE_MSC:-1}"
   local enable_gaia_nss="${SPACEGATE_ENABLE_GAIA_NSS:-1}"
+  local enable_sbx="${SPACEGATE_ENABLE_SBX:-1}"
   local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}"
   local enable_eclipsing_catalogs="${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}"
   local missing=0
@@ -109,6 +114,24 @@ ensure_inputs() {
     fi
     if [[ ! -f "$GAIA_NSS_TWO_BODY_RAW" ]]; then
       echo "Missing: $GAIA_NSS_TWO_BODY_RAW" >&2
+      missing=1
+    fi
+  fi
+  if [[ "$enable_sbx" != "0" ]]; then
+    if [[ ! -f "$SBX_SYSTEMS_RAW" ]]; then
+      echo "Missing: $SBX_SYSTEMS_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$SBX_ALIAS_RAW" ]]; then
+      echo "Missing: $SBX_ALIAS_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$SBX_CONFIG_RAW" ]]; then
+      echo "Missing: $SBX_CONFIG_RAW" >&2
+      missing=1
+    fi
+    if [[ ! -f "$SBX_ORBITS_RAW" ]]; then
+      echo "Missing: $SBX_ORBITS_RAW" >&2
       missing=1
     fi
   fi
@@ -324,7 +347,7 @@ main() {
     cook_athyg
   fi
   cook_nasa
-  log "Cook: multiplicity catalogs (WDS/MSC/ORB6/Gaia NSS[/WDS-Gaia XMatch])"
+  log "Cook: multiplicity catalogs (WDS/MSC/ORB6/Gaia NSS/SBX[/WDS-Gaia XMatch])"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"
   log "Cook: compact/superstellar/eclipsing support catalogs"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_science_catalogs.py"

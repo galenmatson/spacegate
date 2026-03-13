@@ -16,19 +16,13 @@ Where relevant, this document explains:
 
 ## Current Spacegate Build Focus
 
-Today the published Spacegate core is still built from a conservative baseline:
+The current Spacegate core is Gaia-first:
 
-- `AT-HYG` for the initial nearby-star stellar backbone
-- NASA Exoplanet Archive `pscomppars` for planet and host-star linkage
-- Derived rich outputs such as coolness rankings and deterministic snapshots
-
-The next ingestion wave is focused on improving astrometry, multiplicity, and cross-identification quality without losing provenance. The current evaluation stack is:
-
-- Gaia DR3 astrometry and Non-Single Star tables
-- WDS for broad visual-multiplicity coverage
-- ORB6 for orbital evidence
-- DEBCat and Kepler Eclipsing Binary catalogs for eclipsing-system support data
-- MSC as a mandatory hierarchy source in default science builds
+- Gaia DR3 backbone for canonical nearby-star inventory
+- NASA Exoplanet Archive `pscomppars` for canonical planet layer
+- Multiplicity evidence from Gaia NSS + WDS + MSC (mandatory) + ORB6 + SBX
+- Eclipsing support from DEBCat + Kepler EB
+- Derived outputs such as coolness rankings and deterministic snapshots
 
 Spacegate targets `J2016.0 / ICRS` as the canonical coordinate epoch/frame for normalized core outputs. Source-native epochs and units are preserved in provenance-aware ingest logic wherever possible.
 
@@ -378,11 +372,7 @@ Curated “best values” are computed in resolver layers, not by overwriting or
 # Future Additions
 
 Planned survey integrations:
-- Gaia Non-Single Star solutions
 - Gaia variability
-- Multiple Star Catalog (MSC)
-- Sixth Orbit Catalog (ORB6)
-- SBX spectroscopic binary orbits
 - APOGEE abundance vectors
 - LAMOST DR11 expanded catalogs
 - Spectral feature embeddings for AI enrichment

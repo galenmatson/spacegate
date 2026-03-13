@@ -146,6 +146,7 @@ Expected evidence families:
 - Gaia NSS
 - MSC (mandatory)
 - WDS/ORB6 (support evidence)
+- SBX spectroscopic binaries (default-on support evidence)
 
 Required system-level fields:
 
@@ -154,6 +155,7 @@ Required system-level fields:
 - `grouping_source_catalogs_json`
 - `has_gaia_nss_evidence`
 - `has_msc_evidence`
+- `has_sbx_evidence`
 - `has_wds_evidence`
 - `has_orb6_evidence`
 
@@ -288,6 +290,7 @@ Required core columns:
   - `multiplicity_match_confidence`
   - `multiplicity_source_catalogs_json`
   - Gaia NSS evidence fields
+  - SBX evidence fields: `sbx_sn`, `sbx_orbit_count`, `sbx_family`, `sbx_position_epoch`, `sbx_position_source`
 - provenance contract fields
 
 ## `systems`

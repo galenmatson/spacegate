@@ -63,6 +63,7 @@ Interpretation note:
 | ORB6 | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | orbit-quality support evidence |
 | Gaia class probabilities | default-on | on | `SPACEGATE_ENABLE_GAIA_CLASSPROB` | remnant-safe classification guardrails |
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
+| SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
 | DEBCat + Kepler EB | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
 | Compact-object bundle (`ATNF`, `magnetar`, `white_dwarf` raw) | default-on | on | `SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS` | compact/remnant support evidence (white-dwarf FITS remains evaluation-path; not yet a default cooked table) |
 | Superstellar bundle (`clusters`, `snr`) | default-on | on | `SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS` | open-cluster and remnant-nebula context |
@@ -72,7 +73,7 @@ Interpretation note:
 | AT-HYG | transitional | on today (via crosswalk/supplement toggles) | `SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK`, `SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE` | migration compatibility for names/legacy IDs; not canonical inventory authority |
 | BDB/ILB-like non-mirrored sources | deferred/disregarded for default ingest | off | n/a | high-risk dependency until mirrored + integrity-pinned |
 | SB9 | disregarded for default ingest/eval | off | n/a | superseded by SBX policy |
-| SBX / TESS follow-on EB catalogs | deferred evaluation queue | off | n/a | candidates for future ingest after schema/mirror/licensing acceptance |
+| TESS follow-on EB catalogs | deferred evaluation queue | off | n/a | candidate eclipsing/variability expansion after deterministic export policy |
 
 ## Mandatory Retrieval Metadata
 
@@ -261,10 +262,7 @@ Policy:
 
 These are credible orbital-parameter repositories not yet wired into default ingest:
 
-1. SBX (ULB): successor to SB9 with TAP service and active maintenance
-   - role candidate: spectroscopic orbit enrichment and hierarchy support
-   - status: evaluate schema compatibility + mirror strategy; preferred over SB9
-2. TESS eclipsing-binary products and follow-on mission catalogs
+1. TESS eclipsing-binary products and follow-on mission catalogs
    - role candidate: post-Kepler coverage expansion and cadence-specific variability evidence
    - status: evaluate once deterministic bulk export + licensing path is pinned
 
@@ -281,6 +279,7 @@ Typical manifest files:
 - `reports/manifests/gaia_backbone_manifest.json`
 - `reports/manifests/gaia_classprob_manifest.json`
 - `reports/manifests/gaia_nss_manifest.json`
+- `reports/manifests/sbx_manifest.json`
 - `reports/manifests/wds_manifest.json`
 - `reports/manifests/orb6_manifest.json`
 - `reports/manifests/debcat_manifest.json`
