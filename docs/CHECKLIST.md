@@ -10,6 +10,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Arm graph artifact emitted during ingest (`arm.duckdb`) with report (`arm_report.json`)
 - [x] Promote gate requires both `core.duckdb` and `arm.duckdb`
 - [x] Provenance gate and QC report emission
+- [x] Dataset iteration history documented (`docs/DATASET_ITERATION_HISTORY.md`)
 - [x] Admin control plane + audit trail baseline
 - [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
 - [x] Admin dataset slicer panel (preview + policy-driven sliced rebuild action)

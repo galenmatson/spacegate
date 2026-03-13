@@ -48,6 +48,32 @@ Each source is classified as one of:
 4. `deferred`:
    - intentionally not in default ingest path
 
+## Operational Source Policy Matrix
+
+Interpretation note:
+
+- this matrix reflects the Gaia-first production profile (`SPACEGATE_ENABLE_GAIA_BACKBONE=1`), not every legacy code path.
+
+| Source family | Policy status | Default state | Primary toggle(s) | Why |
+| --- | --- | --- | --- | --- |
+| Gaia DR3 backbone (`gaia_source`) | mandatory | on in Gaia-first profile | `SPACEGATE_ENABLE_GAIA_BACKBONE=1` | canonical star inventory substrate |
+| NASA Exoplanet Archive (`pscomppars`) | mandatory | on | (always in core catalog set) | canonical planet baseline |
+| MSC | mandatory | on | `SPACEGATE_ENABLE_MSC` (must remain `1`) | required multiplicity hierarchy evidence; ingest blocks when off |
+| WDS | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | broad multiplicity support evidence |
+| ORB6 | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | orbit-quality support evidence |
+| Gaia class probabilities | default-on | on | `SPACEGATE_ENABLE_GAIA_CLASSPROB` | remnant-safe classification guardrails |
+| Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
+| DEBCat + Kepler EB | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
+| Compact-object bundle (`ATNF`, `magnetar`, `white_dwarf` raw) | default-on | on | `SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS` | compact/remnant support evidence (white-dwarf FITS remains evaluation-path; not yet a default cooked table) |
+| Superstellar bundle (`clusters`, `snr`) | default-on | on | `SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS` | open-cluster and remnant-nebula context |
+| Exoplanet lifecycle support (`exoplanet.eu`, OEC, HWC, EMAC TT9) | optional | off | `SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS` | status overlays and derived-tag support; canonical planets stay NASA-rooted |
+| WDS↔Gaia bridge (`wds_gaia_xmatch`) | optional | off | `SPACEGATE_ENABLE_WDS_GAIA_XMATCH` | useful for bridge experiments, but confidence-gated and conservative by default |
+| Proximity grouping | optional runtime behavior | off | `SPACEGATE_ENABLE_PROXIMITY` | nondefault to avoid weak/inexact grouping in production |
+| AT-HYG | transitional | on today (via crosswalk/supplement toggles) | `SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK`, `SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE` | migration compatibility for names/legacy IDs; not canonical inventory authority |
+| BDB/ILB-like non-mirrored sources | deferred/disregarded for default ingest | off | n/a | high-risk dependency until mirrored + integrity-pinned |
+| SB9 | disregarded for default ingest/eval | off | n/a | superseded by SBX policy |
+| SBX / TESS follow-on EB catalogs | deferred evaluation queue | off | n/a | candidates for future ingest after schema/mirror/licensing acceptance |
+
 ## Mandatory Retrieval Metadata
 
 All downloader-manifest entries must include:
