@@ -346,6 +346,12 @@ Contract notes:
 - duplicate aliases must be deduplicated per `(target_type, target_id, alias_norm)` by deterministic precedence.
 - search must resolve against normalized aliases first-class alongside canonical names.
 - Gaia-first builds may use constrained positional matching for named AT-HYG rows without Gaia IDs to recover legacy/common aliases (with tight angular and distance gates).
+- Gaia-fallback display names may be promoted from matched exoplanet host labels when canonical/common stellar labels are absent.
+- host-label precedence in Gaia-fallback promotion should prefer:
+  - human/common labels
+  - survey/mission-style host labels (for example `TRAPPIST`, `Kepler`, `TOI`, `WASP`, ...)
+  - legacy catalog-style labels
+  - Gaia IDs last
 
 ## `object_identifiers`
 
