@@ -77,7 +77,8 @@ main() {
   echo "==> Verify build"
   "$ROOT_DIR/scripts/verify_build.sh"
   echo "Build complete."
-  echo "Next: scripts/run_spacegate.sh to start API + web."
+  echo "Next (Docker default): scripts/compose_spacegate.sh up -d --build api web"
+  echo "Host mode (no Docker): scripts/run_spacegate.sh"
 }
 
 main "$@"

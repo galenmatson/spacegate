@@ -126,7 +126,8 @@ main() {
   fi
   echo "Setup complete."
   echo "Next: scripts/build_core.sh to download and build the core database."
-  echo "Then: scripts/run_spacegate.sh to start API (or add --web-dev for Vite)."
+  echo "Then (Docker default): scripts/compose_spacegate.sh up -d --build api web"
+  echo "Then (host mode, no Docker): scripts/run_spacegate.sh (or add --web-dev for Vite)."
 }
 
 main "$@"
