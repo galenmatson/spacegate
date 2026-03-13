@@ -5,9 +5,10 @@
 
 #  Scope and Deliverables
 
-  - Core datasets: systems, stars, planets (AT‑HYG + NASA Exoplanet Archive).
-  - Optional “packs” (v1.2+): substellar, compact, superstellar, etc., as separate, read‑only artifacts.
-  - Rich (v1.1+): derived artifacts like expositions, reference links, snapshots.
+  - Gaia-first canonical datasets: systems, stars, planets (Gaia DR3 backbone + NASA Exoplanet Archive), with multiplicity and science side catalogs.
+  - AT-HYG is transitional crosswalk support for naming/identifier recovery, not canonical inventory authority.
+  - Optional packs and side catalogs (v1.2+): compact/remnant, superstellar, eclipsing, and lifecycle support artifacts.
+  - Disc layer derivatives (legacy runtime alias: `rich`): expositions, reference links, snapshots, scores.
   - A browser 3D map (v2) with filters and overlays.
 
 # Data & Pipeline Model
@@ -23,16 +24,17 @@
   - Core artifacts: DuckDB + Parquet, sorted by Morton Z‑order spatial_index.
   - Stable object keys for systems/stars/planets; strict provenance fields required 100%.
   - Planet → host matching prioritized by Gaia DR3 ID, then HIP, HD, then hostname.
+  - Display naming precedence: common/human names first, then survey/mission host labels (TRAPPIST/Kepler/TOI/WASP family), Gaia ID last fallback.
   - Separate databases for layer boundaries:
     - *galaxy*: immutable canonical science corpus
-      - a merged database of the major catalogs: ESA Gaia, AT-HYG, NASA exoplanets, NSS, WDS, ORB6, MSC)
-      - 18+ million records, an elephant to eat
+      - Gaia-first inventory with merged auxiliary science evidence (NSS/WDS/ORB6/MSC and side catalogs)
+      - AT-HYG contributes transitional crosswalk enrichment only
     - *core*: the Spacegate database (fast)
-      - astronomic objects within 1000 LY of Sol
-      - limited to around 5 million objects
+      - deterministic science slice (typically <=1000 LY of Sol)
+      - million-scale object counts tuned for interactive performance
       - tuned for performance, scaled for resources
     - *halo*: explicit opt-in science projection (slow)
-      - contains the other 10+ million objects outside the core database
+      - complementary science rows excluded from `core` by slice policy
     - *arm*: immutable supplemental science
       - observational side tables outside core hot paths
       - Epoch transforms (for example J2000 -> J2016 propagated positions)
@@ -40,13 +42,13 @@
       - System hierarchy inferences with confidence
       - Crossmatch confidence scores and physical-consistency flags
       - Deterministic classifications computed from core fields
-    - *disc:* reproducible derivatives
+    - *disc*: reproducible derivatives
       - system animations
       - factsheets
       - AI narration
       - generated imagery
       - links to external catalogs, articles, and papers
-    - *rim:* editable fiction
+    - *rim*: editable fiction
       - lore from popular scifi
       - user creatable maps, links, economy, and narrative
       
@@ -128,6 +130,12 @@ Then run a true full refresh (Gaia `delta_mode=refresh` + support catalog overwr
 
 ```bash
 scripts/build_core.sh --full-refresh
+```
+
+For routine update runs with automatic differential/full routing, use:
+
+```bash
+scripts/refresh_core.sh
 ```
 
 For multiplicity contribution analysis with MSC fixed on (`nss_off`, `nss_on`, optional `nss_on_wds_xmatch`):
