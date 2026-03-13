@@ -1158,9 +1158,108 @@ function parseJsonArray(raw) {
   }
 }
 
+function normalizeEvidenceToken(raw) {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function evidenceLabel(raw) {
+  const token = normalizeEvidenceToken(raw);
+  if (!token) {
+    return "";
+  }
+  const known = {
+    gaia_nss: "Gaia NSS",
+    gaia_nss_two_body: "Gaia NSS Two-Body",
+    wds: "WDS",
+    wds_gaia_xmatch: "WDS-Gaia XMatch",
+    msc: "MSC",
+    orb6: "ORB6",
+    sbx: "SBX",
+  };
+  if (known[token]) {
+    return known[token];
+  }
+  return token
+    .split("_")
+    .filter(Boolean)
+    .map((part) => {
+      if (part.length <= 4) {
+        return part.toUpperCase();
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
+function truthyEvidenceFlag(value) {
+  return value === true || value === 1 || value === "1";
+}
+
+function collectEvidenceFromFlags(record) {
+  if (!record || typeof record !== "object") {
+    return [];
+  }
+  const tokens = [];
+  Object.entries(record).forEach(([key, value]) => {
+    const match = key.match(/^has_([a-z0-9_]+)_evidence$/i);
+    if (!match || !truthyEvidenceFlag(value)) {
+      return;
+    }
+    const normalized = normalizeEvidenceToken(match[1]);
+    if (normalized) {
+      tokens.push(normalized);
+    }
+  });
+  return tokens;
+}
+
+function collectSystemEvidenceCatalogs(system) {
+  const tokens = new Set();
+  parseJsonArray(system?.grouping_source_catalogs_json).forEach((raw) => {
+    const normalized = normalizeEvidenceToken(raw);
+    if (normalized) {
+      tokens.add(normalized);
+    }
+  });
+  collectEvidenceFromFlags(system).forEach((token) => tokens.add(token));
+  return Array.from(tokens).sort((a, b) => evidenceLabel(a).localeCompare(evidenceLabel(b)));
+}
+
+function collectStarEvidenceCatalogs(star) {
+  const tokens = new Set();
+  parseJsonArray(star?.multiplicity_source_catalogs_json).forEach((raw) => {
+    const normalized = normalizeEvidenceToken(raw);
+    if (normalized) {
+      tokens.add(normalized);
+    }
+  });
+  collectEvidenceFromFlags(star).forEach((token) => tokens.add(token));
+  if (truthyEvidenceFlag(star?.gaia_non_single_star)) {
+    tokens.add("gaia_nss");
+  }
+  if (star?.sbx_sn !== null && star?.sbx_sn !== undefined && String(star.sbx_sn).trim() !== "") {
+    tokens.add("sbx");
+  }
+  if (star?.wds_id) {
+    tokens.add("wds");
+  }
+  return Array.from(tokens).sort((a, b) => evidenceLabel(a).localeCompare(evidenceLabel(b)));
+}
+
+function formatEvidenceSummary(tokens) {
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    return "None recorded";
+  }
+  return tokens.map((token) => evidenceLabel(token)).filter(Boolean).join(" · ");
+}
+
 function groupingSourceLabel(groupingBasis, groupingSources) {
   if (groupingSources.length > 0) {
-    return groupingSources.join(" · ");
+    return groupingSources.map((source) => evidenceLabel(source)).filter(Boolean).join(" · ");
   }
   switch (String(groupingBasis || "").toLowerCase()) {
     case "wds":
@@ -2557,6 +2656,8 @@ function ProvenanceBlock({ provenance, grouping = null }) {
         : "Unknown";
   const groupingSources = parseJsonArray(grouping?.grouping_source_catalogs_json);
   const groupingSourceText = groupingSourceLabel(grouping?.grouping_basis, groupingSources);
+  const evidenceCatalogs = collectSystemEvidenceCatalogs(grouping);
+  const evidenceText = formatEvidenceSummary(evidenceCatalogs);
   return (
     <div className="provenance">
       {grouping?.grouping_basis ? (
@@ -2568,6 +2669,10 @@ function ProvenanceBlock({ provenance, grouping = null }) {
           <div>
             <strong>Grouping source</strong>
             <span>{groupingSourceText}</span>
+          </div>
+          <div>
+            <strong>Evidence catalogs</strong>
+            <span>{evidenceText}</span>
           </div>
           {grouping?.wds_id ? (
             <div>
@@ -2734,11 +2839,12 @@ function SystemDetailPage({ buildId = "" }) {
               {stars.map((star) => (
                 <div className="row" key={star.star_id}>
                   {(() => {
-                    const record = starCatalogRecordLink(star);
-                    const currentStarDisplayName = starDisplayName(star);
-                    const starAliasSummary = formatAliasSummary(star?.aliases, {
-                      exclude: [currentStarDisplayName, star?.star_name],
-                      limit: 6,
+	                    const record = starCatalogRecordLink(star);
+	                    const currentStarDisplayName = starDisplayName(star);
+	                    const starEvidence = collectStarEvidenceCatalogs(star);
+	                    const starAliasSummary = formatAliasSummary(star?.aliases, {
+	                      exclude: [currentStarDisplayName, star?.star_name],
+	                      limit: 6,
                     });
                     return (
                       <>
@@ -2765,17 +2871,21 @@ function SystemDetailPage({ buildId = "" }) {
                         </div>
                         <div className="muted">
                           IDs
-                          <div className="id-line">
-                            <CatalogIdChip label="Gaia" value={resolvedEntityGaiaId(star)} />
-                            <CatalogIdChip label="HIP" value={star.hip_id_text ?? star.hip_id} />
-                            <CatalogIdChip label="HD" value={star.hd_id_text ?? star.hd_id} />
-                          </div>
-                        </div>
-                        <div className="muted">
-                          Source {formatText(star.provenance?.source_catalog)} · {formatText(star.provenance?.source_version)}
-                        </div>
-                        <div className="muted">
-                          Catalog record{" "}
+	                          <div className="id-line">
+	                            <CatalogIdChip label="Gaia" value={resolvedEntityGaiaId(star)} />
+	                            <CatalogIdChip label="HIP" value={star.hip_id_text ?? star.hip_id} />
+	                            <CatalogIdChip label="HD" value={star.hd_id_text ?? star.hd_id} />
+	                            <CatalogIdChip label="SBX" value={star.sbx_sn} />
+	                          </div>
+	                        </div>
+	                        <div className="muted">
+	                          Source {formatText(star.provenance?.source_catalog)} · {formatText(star.provenance?.source_version)}
+	                        </div>
+	                        <div className="muted">
+	                          Evidence {formatEvidenceSummary(starEvidence)}
+	                        </div>
+	                        <div className="muted">
+	                          Catalog record{" "}
                           {record ? (
                             <a href={record.url} target="_blank" rel="noreferrer">{record.label}</a>
                           ) : (
