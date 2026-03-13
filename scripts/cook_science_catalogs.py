@@ -665,6 +665,71 @@ def cook_kepler_eb(raw_path: Path, cooked_path: Path) -> int:
     return row_count
 
 
+def cook_tess_eb(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    row_count = 0
+    with raw_path.open("r", newline="", encoding="utf-8", errors="replace") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        reader = csv.DictReader(in_f)
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "tic_id",
+                "in_catalog",
+                "sectors",
+                "ra_deg",
+                "dec_deg",
+                "glon_deg",
+                "glat_deg",
+                "pm_ra_mas_yr",
+                "pm_dec_mas_yr",
+                "tmag",
+                "teff_k",
+                "logg_cgs",
+                "metallicity_dex",
+                "bjd0",
+                "bjd0_error",
+                "period_days",
+                "period_error_days",
+                "morphology",
+                "source",
+                "flags",
+            ],
+        )
+        writer.writeheader()
+        for row in reader:
+            tic_id = parse_int(row.get("tic_id"))
+            if tic_id is None:
+                continue
+            writer.writerow(
+                {
+                    "tic_id": tic_id,
+                    "in_catalog": parse_bool(row.get("in_catalog")),
+                    "sectors": (row.get("sectors") or "").strip(),
+                    "ra_deg": parse_with_missing_sentinel(row.get("ra_deg")),
+                    "dec_deg": parse_with_missing_sentinel(row.get("dec_deg")),
+                    "glon_deg": parse_with_missing_sentinel(row.get("glon_deg")),
+                    "glat_deg": parse_with_missing_sentinel(row.get("glat_deg")),
+                    "pm_ra_mas_yr": parse_with_missing_sentinel(row.get("pm_ra_mas_yr")),
+                    "pm_dec_mas_yr": parse_with_missing_sentinel(row.get("pm_dec_mas_yr")),
+                    "tmag": parse_with_missing_sentinel(row.get("tmag")),
+                    "teff_k": parse_with_missing_sentinel(row.get("teff_k")),
+                    "logg_cgs": parse_with_missing_sentinel(row.get("logg_cgs")),
+                    "metallicity_dex": parse_with_missing_sentinel(row.get("metallicity_dex")),
+                    "bjd0": parse_with_missing_sentinel(row.get("bjd0")),
+                    "bjd0_error": parse_with_missing_sentinel(row.get("bjd0_error")),
+                    "period_days": parse_with_missing_sentinel(row.get("period_days")),
+                    "period_error_days": parse_with_missing_sentinel(row.get("period_error_days")),
+                    "morphology": parse_with_missing_sentinel(row.get("morphology")),
+                    "source": (row.get("source") or "").strip(),
+                    "flags": (row.get("flags") or "").strip(),
+                }
+            )
+            row_count += 1
+    return row_count
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
@@ -719,6 +784,12 @@ def main() -> int:
             raw_dir / "kepler_eb" / "kepler_eb_catalog.csv",
             cooked_dir / "kepler_eb" / "kepler_eb_catalog.csv",
             cook_kepler_eb,
+        ),
+        (
+            "tess_eb",
+            raw_dir / "tess_eb" / "tess_eb_catalog.csv",
+            cooked_dir / "tess_eb" / "tess_eb_catalog.csv",
+            cook_tess_eb,
         ),
     ]
 

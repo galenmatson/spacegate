@@ -91,6 +91,14 @@ else
 fi
 if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_kepler_eb_catalog.py"
+  if [[ "${SPACEGATE_ENABLE_TESS_EB:-1}" != "0" ]]; then
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_tess_eb_catalog.py" \
+      --timeout-s "${SPACEGATE_TESS_EB_TIMEOUT_S:-90}" \
+      --retries "${SPACEGATE_TESS_EB_RETRIES:-5}" \
+      --max-pages "${SPACEGATE_TESS_EB_MAX_PAGES:-0}"
+  else
+    echo "Skip TESS EB fetch (SPACEGATE_ENABLE_TESS_EB=0)."
+  fi
 else
   echo "Skip eclipsing support catalogs (SPACEGATE_ENABLE_ECLIPSING_CATALOGS=0)."
 fi

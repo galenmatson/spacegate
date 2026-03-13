@@ -45,6 +45,8 @@ DEBCAT_URL = "https://www.astro.keele.ac.uk/jkt/debcat/debs.dat"
 DEBCAT_VERSION = "debs_dat"
 KEPLER_EB_URL = "https://keplerebs.villanova.edu/"
 KEPLER_EB_VERSION = "third_revision_2019-08-08"
+TESS_EB_URL = "https://tessebs.villanova.edu/search_results"
+TESS_EB_VERSION = "search_results_in_catalog_v1"
 ATHYG_ALIAS_URL = "https://codeberg.org/astronexus/athyg"
 ATHYG_ALIAS_VERSION = "v3.3"
 EXOPLANET_EU_URL = "https://www.exoplanet.eu/catalog/"
@@ -601,6 +603,7 @@ def main() -> int:
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
     enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
+    enable_tess_eb = parse_bool_env("SPACEGATE_ENABLE_TESS_EB", True)
     enable_exoplanet_lifecycle_catalogs = parse_bool_env(
         "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS", False
     )
@@ -713,6 +716,7 @@ def main() -> int:
     cooked_snr = state_dir / "cooked" / "snr" / "green_snr.csv"
     cooked_debcat = state_dir / "cooked" / "debcat" / "debcat_binaries.csv"
     cooked_kepler_eb = state_dir / "cooked" / "kepler_eb" / "kepler_eb_catalog.csv"
+    cooked_tess_eb = state_dir / "cooked" / "tess_eb" / "tess_eb_catalog.csv"
     cooked_exoplanet_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
     cooked_exoplanet_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
     cooked_exoplanet_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
@@ -732,6 +736,7 @@ def main() -> int:
     snr_manifest_path = manifest_dir / "snr_manifest.json"
     debcat_manifest_path = manifest_dir / "debcat_manifest.json"
     kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
+    tess_eb_manifest_path = manifest_dir / "tess_eb_manifest.json"
     exoplanet_eu_manifest_path = manifest_dir / "exoplanet_eu_manifest.json"
     open_exoplanet_catalogue_manifest_path = (
         manifest_dir / "open_exoplanet_catalogue_manifest.json"
@@ -785,6 +790,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked DEBCat catalog: {cooked_debcat}")
     if enable_eclipsing_catalogs and not cooked_kepler_eb.exists():
         raise SystemExit(f"Missing cooked Kepler EB catalog: {cooked_kepler_eb}")
+    if enable_eclipsing_catalogs and enable_tess_eb and not cooked_tess_eb.exists():
+        raise SystemExit(f"Missing cooked TESS EB catalog: {cooked_tess_eb}")
     if enable_exoplanet_lifecycle_catalogs and not cooked_exoplanet_lifecycle_status.exists():
         raise SystemExit(
             f"Missing cooked exoplanet lifecycle status rows: {cooked_exoplanet_lifecycle_status}"
@@ -823,6 +830,7 @@ def main() -> int:
         f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
         f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
+        f"tess_eb={'1' if (enable_eclipsing_catalogs and enable_tess_eb) else '0'} "
         f"exoplanet_lifecycle_catalogs={'1' if enable_exoplanet_lifecycle_catalogs else '0'} "
         f"sbx={'1' if enable_sbx else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
@@ -867,6 +875,8 @@ def main() -> int:
         manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
     if enable_eclipsing_catalogs:
         manifest_paths.extend([debcat_manifest_path, kepler_eb_manifest_path])
+        if enable_tess_eb:
+            manifest_paths.append(tess_eb_manifest_path)
     if enable_exoplanet_lifecycle_catalogs:
         manifest_paths.extend(
             [
@@ -1094,6 +1104,11 @@ def main() -> int:
         if enable_eclipsing_catalogs
         else None
     )
+    tess_eb_manifest = (
+        require_manifest_entry(manifest, "tess_eb_catalog", "TESS Eclipsing Binary Catalog")
+        if enable_eclipsing_catalogs and enable_tess_eb
+        else None
+    )
     exoplanet_eu_manifest = (
         require_manifest_entry(manifest, "catalog_csv", "Exoplanet.eu catalog export")
         if enable_exoplanet_lifecycle_catalogs
@@ -1273,6 +1288,8 @@ def main() -> int:
     kepler_eb_retrieved = (
         kepler_eb_manifest.get("retrieved_at") if kepler_eb_manifest else None
     )
+    tess_eb_sha = tess_eb_manifest.get("sha256") if tess_eb_manifest else None
+    tess_eb_retrieved = tess_eb_manifest.get("retrieved_at") if tess_eb_manifest else None
 
     if enable_gaia_backbone:
         gaia_backbone_path = str(cooked_gaia_backbone).replace("'", "''")
@@ -1486,6 +1503,7 @@ def main() -> int:
     snr_path = str(cooked_snr).replace("'", "''")
     debcat_path = str(cooked_debcat).replace("'", "''")
     kepler_eb_path = str(cooked_kepler_eb).replace("'", "''")
+    tess_eb_path = str(cooked_tess_eb).replace("'", "''")
 
     log("Loading cooked multiplicity catalogs")
     con.execute(
@@ -1952,6 +1970,43 @@ def main() -> int:
             )
             """
         )
+        if enable_tess_eb:
+            con.execute(
+                f"""
+                create or replace temp view tess_eb_raw as
+                select * from read_csv_auto('{tess_eb_path}',
+                    delim=',',
+                    quote='\"',
+                    escape='\"',
+                    header=true,
+                    strict_mode=false,
+                    null_padding=true,
+                    all_varchar=true
+                )
+                """
+            )
+        else:
+            con.execute(
+                """
+                create or replace temp view tess_eb_raw as
+                select *
+                from (
+                  values
+                    (
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                    )
+                ) as t(
+                  tic_id, in_catalog, sectors, ra_deg, dec_deg, glon_deg, glat_deg, pm_ra_mas_yr, pm_dec_mas_yr,
+                  tmag, teff_k, logg_cgs, metallicity_dex, bjd0, bjd0_error, period_days, period_error_days,
+                  morphology, source, flags
+                )
+                where false
+                """
+            )
     else:
         con.execute(
             """
@@ -1994,6 +2049,27 @@ def main() -> int:
             ) as t(
               kic_id, period_days, period_error_days, bjd0, bjd0_error, morphology, glon_deg, glat_deg,
               kmag, teff_k, has_short_cadence
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view tess_eb_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              tic_id, in_catalog, sectors, ra_deg, dec_deg, glon_deg, glat_deg, pm_ra_mas_yr, pm_dec_mas_yr,
+              tmag, teff_k, logg_cgs, metallicity_dex, bjd0, bjd0_error, period_days, period_error_days,
+              morphology, source, flags
             )
             where false
             """
@@ -6817,10 +6893,70 @@ def main() -> int:
             {sql_literal(transform_version)} as transform_version
           from kepler_eb_raw
           where nullif(kic_id, '') is not null
+        ), tess as (
+          select
+            'eb:tess_eb:tic_' || trim(tic_id) as stable_object_key,
+            'TIC ' || trim(tic_id) as source_catalog_object_id,
+            'TIC ' || trim(tic_id) as object_name,
+            null::bigint as star_id,
+            null::bigint as system_id,
+            'unmatched' as match_method,
+            0.0 as match_confidence,
+            nullif(period_days, '')::double as period_days,
+            nullif(period_error_days, '')::double as period_error_days,
+            nullif(bjd0, '')::double as bjd0,
+            nullif(bjd0_error, '')::double as bjd0_error,
+            nullif(morphology, '')::double as morphology,
+            nullif(glon_deg, '')::double as glon_deg,
+            nullif(glat_deg, '')::double as glat_deg,
+            nullif(tmag, '')::double as kmag,
+            nullif(teff_k, '')::double as teff_k,
+            null::varchar as spectral_type_primary,
+            null::varchar as spectral_type_secondary,
+            null::double as mass_primary_msun,
+            null::double as mass_primary_err_msun,
+            null::double as mass_secondary_msun,
+            null::double as mass_secondary_err_msun,
+            null::double as radius_primary_rsun,
+            null::double as radius_primary_err_rsun,
+            null::double as radius_secondary_rsun,
+            null::double as radius_secondary_err_rsun,
+            null::double as logg_primary_cgs,
+            null::double as logg_primary_err_cgs,
+            null::double as logg_secondary_cgs,
+            null::double as logg_secondary_err_cgs,
+            null::double as teff_primary_k,
+            null::double as teff_primary_err_k,
+            null::double as teff_secondary_k,
+            null::double as teff_secondary_err_k,
+            null::double as lum_primary_lsun,
+            null::double as lum_primary_err_lsun,
+            null::double as lum_secondary_lsun,
+            null::double as lum_secondary_err_lsun,
+            nullif(metallicity_dex, '')::double as metallicity_dex,
+            null::double as metallicity_err_dex,
+            null::boolean as has_short_cadence,
+            {sql_literal('tess_eb')} as source_catalog,
+            {sql_literal(TESS_EB_VERSION)} as source_version,
+            {sql_literal(TESS_EB_URL)} as source_url,
+            {sql_literal(TESS_EB_URL)} as source_download_url,
+            null::varchar as source_doi,
+            'Catalog-specific terms' as license,
+            true as redistribution_ok,
+            'TESS EB catalog terms and citation guidance apply.' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(tess_eb_sha)} as retrieval_checksum,
+            {sql_literal(tess_eb_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from tess_eb_raw
+          where nullif(tic_id, '') is not null
         ), unioned as (
           select * from debcat
           union all
           select * from kepler
+          union all
+          select * from tess
         )
         select
           row_number() over (order by source_catalog, source_catalog_object_id)::bigint as eclipsing_binary_id,
@@ -7070,6 +7206,8 @@ def main() -> int:
         provenance_report["debcat"] = debcat_manifest
     if kepler_eb_manifest:
         provenance_report["kepler_eb"] = kepler_eb_manifest
+    if tess_eb_manifest:
+        provenance_report["tess_eb"] = tess_eb_manifest
     if exoplanet_eu_manifest:
         provenance_report["exoplanet_eu"] = exoplanet_eu_manifest
     if open_exoplanet_catalogue_manifest:
@@ -7569,6 +7707,7 @@ def main() -> int:
         "compact_catalogs_enabled": enable_compact_catalogs,
         "superstellar_catalogs_enabled": enable_superstellar_catalogs,
         "eclipsing_catalogs_enabled": enable_eclipsing_catalogs,
+        "tess_eb_enabled": enable_eclipsing_catalogs and enable_tess_eb,
         "exoplanet_lifecycle_catalogs_enabled": enable_exoplanet_lifecycle_catalogs,
         "planet_classifier_version": planet_classifier_version,
         "planet_lifecycle_status_raw_rows": lifecycle_status_raw_rows,
@@ -8403,6 +8542,18 @@ def main() -> int:
         linked_rows=eclipsing_linked_rows,
         notes="Kepler eclipsing binaries",
     )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="tess_eb",
+        domain="eclipsing_binaries",
+        domain_total=total_eclipsing,
+        input_rows=safe_view_count("tess_eb_raw"),
+        input_bytes=manifest_bytes(tess_eb_manifest),
+        direct_rows=int(eclipsing_source_counts.get("tess_eb", 0)),
+        evidence_rows=0,
+        linked_rows=eclipsing_linked_rows,
+        notes="TESS eclipsing binaries",
+    )
 
     source_inputs = []
     for catalog_name, entry in [
@@ -8426,6 +8577,7 @@ def main() -> int:
         ("snr", snr_manifest),
         ("debcat", debcat_manifest),
         ("kepler_eb", kepler_eb_manifest),
+        ("tess_eb", tess_eb_manifest),
         ("exoplanet_eu", exoplanet_eu_manifest),
         ("open_exoplanet_catalogue", open_exoplanet_catalogue_manifest),
         ("hwc", hwc_manifest),

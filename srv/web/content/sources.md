@@ -320,6 +320,11 @@ It provides:
 TIC data is treated as:
 - Supporting evidence, not ground truth
 
+TESS EB catalog status in Spacegate:
+- Default-on eclipsing support catalog (`tess_eb`)
+- Captured from deterministic paginated search export snapshots
+- Used as supplemental eclipsing-binary evidence alongside DEBCat and Kepler EB
+
 ---
 
 # Washington Double Star Catalog (WDS)

@@ -73,7 +73,7 @@ Interpretation note:
 | AT-HYG | transitional | on today (via crosswalk/supplement toggles) | `SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK`, `SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE` | migration compatibility for names/legacy IDs; not canonical inventory authority |
 | BDB/ILB-like non-mirrored sources | deferred/disregarded for default ingest | off | n/a | high-risk dependency until mirrored + integrity-pinned |
 | SB9 | disregarded for default ingest/eval | off | n/a | superseded by SBX policy |
-| TESS follow-on EB catalogs | deferred evaluation queue | off | n/a | candidate eclipsing/variability expansion after deterministic export policy |
+| TESS EB catalog (Villanova) | default-on | on | `SPACEGATE_ENABLE_TESS_EB` | eclipsing/variability expansion beyond Kepler with deterministic paginated export capture |
 
 ## Mandatory Retrieval Metadata
 
@@ -262,8 +262,8 @@ Policy:
 
 These are credible orbital-parameter repositories not yet wired into default ingest:
 
-1. TESS eclipsing-binary products and follow-on mission catalogs
-   - role candidate: post-Kepler coverage expansion and cadence-specific variability evidence
+1. Additional TESS follow-on mission catalogs (beyond current TESS EB search export)
+   - role candidate: post-Kepler variability and cadence expansion
    - status: evaluate once deterministic bulk export + licensing path is pinned
 
 SB9 policy:
@@ -284,6 +284,7 @@ Typical manifest files:
 - `reports/manifests/orb6_manifest.json`
 - `reports/manifests/debcat_manifest.json`
 - `reports/manifests/kepler_eb_manifest.json`
+- `reports/manifests/tess_eb_manifest.json`
 - `reports/manifests/msc_manifest.json` (required)
 - `reports/manifests/wds_gaia_xmatch_manifest.json` (when enabled)
 - `reports/manifests/atnf_manifest.json`
