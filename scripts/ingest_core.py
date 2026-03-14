@@ -7941,7 +7941,7 @@ def main() -> int:
           ) >= {WHITE_DWARF_PROB_THRESHOLD}
           or coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
         )
-          and coalesce(object_family, '') <> 'white_dwarf'
+          and coalesce(object_family, '') not in ('white_dwarf', 'neutron_star')
         """
     ).fetchone()[0]
     classification_safety_report = {
