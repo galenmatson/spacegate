@@ -965,8 +965,11 @@ function CopyButton({
   );
 }
 
-function CatalogIdChip({ label, value }) {
+function CatalogIdChip({ label, value, hideWhenMissing = false }) {
   const normalized = value === null || value === undefined ? "" : String(value).trim();
+  if (hideWhenMissing && !normalized) {
+    return null;
+  }
   const display = normalized || "Unknown";
 
   return (
@@ -1135,6 +1138,29 @@ function planetCatalogRecordLink(planet) {
     return {
       label: "NASA Exoplanet Archive record",
       url: `https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(String(planet.planet_name))}`,
+    };
+  }
+  return null;
+}
+
+function eclipsingCatalogRecordLink(entry) {
+  const sourceCatalog = String(entry?.provenance?.source_catalog || "").toLowerCase();
+  if (sourceCatalog === "tess_eb") {
+    return {
+      label: "TESS EB Catalog",
+      url: "https://tessebs.villanova.edu/",
+    };
+  }
+  if (sourceCatalog === "kepler_eb") {
+    return {
+      label: "Kepler EB Catalog",
+      url: "https://keplerebs.villanova.edu/",
+    };
+  }
+  if (sourceCatalog === "debcat") {
+    return {
+      label: "DEBCat",
+      url: "https://www.astro.keele.ac.uk/jkt/debcat/",
     };
   }
   return null;
@@ -2776,7 +2802,7 @@ function SystemDetailPage({ buildId = "" }) {
     );
   }
 
-  const { system, stars, planets } = data;
+  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [] } = data;
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
     exclude: [currentSystemDisplayName, system?.system_name],
@@ -2875,7 +2901,7 @@ function SystemDetailPage({ buildId = "" }) {
 	                            <CatalogIdChip label="Gaia" value={resolvedEntityGaiaId(star)} />
 	                            <CatalogIdChip label="HIP" value={star.hip_id_text ?? star.hip_id} />
 	                            <CatalogIdChip label="HD" value={star.hd_id_text ?? star.hd_id} />
-	                            <CatalogIdChip label="SBX" value={star.sbx_sn} />
+	                            <CatalogIdChip label="SBX" value={star.sbx_sn} hideWhenMissing />
 	                          </div>
 	                        </div>
 	                        <div className="muted">
@@ -2964,6 +2990,49 @@ function SystemDetailPage({ buildId = "" }) {
                   })()}
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        <section className="panel">
+          <h3>Eclipsing Evidence</h3>
+          {eclipsingBinaries.length === 0 && <p className="muted">No eclipsing-binary catalog evidence linked to this system.</p>}
+          {eclipsingBinaries.length > 0 && (
+            <div className="table">
+              {eclipsingBinaries.map((entry) => {
+                const record = eclipsingCatalogRecordLink(entry);
+                return (
+                  <div className="row" key={entry.eclipsing_binary_id}>
+                    <div>
+                      <strong>{formatText(entry.object_name || entry.source_catalog_object_id)}</strong>
+                      <div className="muted">{formatText(entry.source_catalog_object_id)}</div>
+                    </div>
+                    <div>
+                      <span>Period {formatPeriodDaysWithYears(entry.period_days)}</span>
+                      <span className="muted">
+                        Morphology {formatNumber(entry.morphology, 3)} · Kmag {formatNumber(entry.kmag, 2)}
+                      </span>
+                    </div>
+                    <div className="muted">
+                      Match {formatText(entry.match_method)} · {formatConfidence(entry.match_confidence)}
+                      {(entry.match_confidence ?? 1) < 0.8 && (
+                        <span className="warning-chip">Low confidence</span>
+                      )}
+                    </div>
+                    <div className="muted">
+                      Source {formatText(entry.provenance?.source_catalog)} · {formatText(entry.provenance?.source_version)}
+                    </div>
+                    <div className="muted">
+                      Catalog record{" "}
+                      {record ? (
+                        <a href={record.url} target="_blank" rel="noreferrer">{record.label}</a>
+                      ) : (
+                        "Unavailable for this source"
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

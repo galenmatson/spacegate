@@ -26,6 +26,7 @@ from . import db
 from .db import DatabaseUnavailable
 from .queries import (
     choose_display_name,
+    fetch_eclipsing_for_system,
     fetch_aliases_for_stars,
     fetch_aliases_for_system,
     fetch_build_id,
@@ -724,6 +725,7 @@ def system_detail(system_id: int):
             )
         stars = fetch_stars_for_system(con, system_id)
         planets = fetch_planets_for_system(con, system_id)
+        eclipsing_binaries = fetch_eclipsing_for_system(con, system_id)
         star_count, planet_count = fetch_counts_for_system(con, system_id)
         aliases = fetch_aliases_for_system(con, system_id)
         star_aliases = fetch_aliases_for_stars(
@@ -763,7 +765,12 @@ def system_detail(system_id: int):
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases
     _attach_snapshot_url(system)
-    return {"system": system, "stars": stars, "planets": planets}
+    return {
+        "system": system,
+        "stars": stars,
+        "planets": planets,
+        "eclipsing_binaries": eclipsing_binaries,
+    }
 
 
 @app.get("/api/v1/systems/by-key/{stable_object_key}")
@@ -783,6 +790,7 @@ def system_detail_by_key(stable_object_key: str):
         system_id = system.get("system_id")
         stars = fetch_stars_for_system(con, system_id)
         planets = fetch_planets_for_system(con, system_id)
+        eclipsing_binaries = fetch_eclipsing_for_system(con, system_id)
         star_count, planet_count = fetch_counts_for_system(con, system_id)
         aliases = fetch_aliases_for_system(con, int(system_id))
         star_aliases = fetch_aliases_for_stars(
@@ -822,7 +830,12 @@ def system_detail_by_key(stable_object_key: str):
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases
     _attach_snapshot_url(system)
-    return {"system": system, "stars": stars, "planets": planets}
+    return {
+        "system": system,
+        "stars": stars,
+        "planets": planets,
+        "eclipsing_binaries": eclipsing_binaries,
+    }
 
 
 @app.get("/api/v1/snapshots/{build_id}/{artifact_path:path}")

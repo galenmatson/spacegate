@@ -347,6 +347,31 @@ def fetch_planets_for_system(
     return results
 
 
+def fetch_eclipsing_for_system(
+    con: duckdb.DuckDBPyConnection, system_id: int
+) -> List[Dict[str, Any]]:
+    if not _has_local_table(con, "eclipsing_binaries"):
+        return []
+    cursor = con.execute(
+        """
+        SELECT *
+        FROM eclipsing_binaries
+        WHERE system_id = ?
+        ORDER BY source_catalog ASC, source_catalog_object_id ASC, eclipsing_binary_id ASC
+        """,
+        [system_id],
+    )
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    results: List[Dict[str, Any]] = []
+    for row in rows:
+        data = row_to_dict(columns, row)
+        payload, provenance = split_provenance(data)
+        payload["provenance"] = provenance
+        results.append(payload)
+    return results
+
+
 def fetch_counts_for_system(
     con: duckdb.DuckDBPyConnection, system_id: int
 ) -> Tuple[int, int]:

@@ -571,7 +571,7 @@ Expected columns:
 
 ## `eclipsing_binaries`
 
-Supplementary eclipsing-binary evidence table sourced from DEBCat and Kepler EB exports.
+Supplementary eclipsing-binary evidence table sourced from DEBCat, Kepler EB, and TESS EB exports.
 
 Expected columns:
 
@@ -583,8 +583,12 @@ Expected columns:
 - optional links into canonical inventory:
   - `star_id` (nullable)
   - `system_id` (nullable)
-  - `match_method`
+  - `match_method` (`catalog_id_alias`, `catalog_id_system_alias`, `debcat_name_alias`, `debcat_star_name`, `tess_radec_1arcsec`, `tess_radec_2arcsec`, `unmatched`)
   - `match_confidence`
+- linkage policy:
+  - ID-first deterministic joins via existing alias namespaces (`TIC`, `KIC`, DEBCat names) where uniquely resolvable
+  - positional fallback for TESS EB using Gaia-side sky coordinates with conservative radius/confidence bands
+  - unmatched rows remain in `eclipsing_binaries` with explicit `match_method='unmatched'` for auditability
 - common orbital/phenomenology fields:
   - `period_days`, `period_error_days`
   - `bjd0`, `bjd0_error`

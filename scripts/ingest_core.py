@@ -7020,6 +7020,309 @@ def main() -> int:
         from unioned
         """
     )
+    # Attach eclipsing catalogs to known stars/systems so they are inspectable in system detail.
+    con.execute(
+        """
+        create or replace temp table eclipsing_id_match_candidates as
+        with eb_norm as (
+          select
+            eclipsing_binary_id,
+            source_catalog,
+            lower(regexp_replace(coalesce(source_catalog_object_id, ''), '[^0-9A-Za-z]+', '', 'g')) as source_id_key,
+            lower(regexp_replace(coalesce(object_name, ''), '[^0-9A-Za-z]+', '', 'g')) as object_name_key
+          from eclipsing_binaries
+        ), alias_star_unique as (
+          select
+            lower(regexp_replace(coalesce(alias_norm, alias_raw, ''), '[^0-9A-Za-z]+', '', 'g')) as alias_key,
+            min(star_id)::bigint as star_id,
+            min(system_id)::bigint as system_id
+          from aliases
+          where target_type = 'star'
+            and star_id is not null
+            and coalesce(alias_norm, alias_raw, '') <> ''
+          group by 1
+          having count(distinct star_id) = 1
+        ), alias_system_unique as (
+          select
+            lower(regexp_replace(coalesce(alias_norm, alias_raw, ''), '[^0-9A-Za-z]+', '', 'g')) as alias_key,
+            min(system_id)::bigint as system_id
+          from aliases
+          where target_type = 'system'
+            and system_id is not null
+            and coalesce(alias_norm, alias_raw, '') <> ''
+          group by 1
+          having count(distinct system_id) = 1
+        ), star_name_unique as (
+          select
+            lower(regexp_replace(coalesce(star_name_norm, ''), '[^0-9A-Za-z]+', '', 'g')) as name_key,
+            min(star_id)::bigint as star_id,
+            min(system_id)::bigint as system_id
+          from stars
+          where coalesce(star_name_norm, '') <> ''
+          group by 1
+          having count(*) = 1
+        ), cands as (
+          select
+            eb.eclipsing_binary_id,
+            a.star_id,
+            a.system_id,
+            'catalog_id_alias'::varchar as match_method,
+            0.985::double as match_confidence,
+            null::double as match_sep_arcsec
+          from eb_norm eb
+          join alias_star_unique a on a.alias_key = eb.source_id_key
+          where eb.source_id_key <> ''
+
+          union all
+
+          select
+            eb.eclipsing_binary_id,
+            null::bigint as star_id,
+            a.system_id,
+            'catalog_id_system_alias'::varchar as match_method,
+            0.95::double as match_confidence,
+            null::double as match_sep_arcsec
+          from eb_norm eb
+          join alias_system_unique a on a.alias_key = eb.source_id_key
+          where eb.source_id_key <> ''
+
+          union all
+
+          select
+            eb.eclipsing_binary_id,
+            a.star_id,
+            a.system_id,
+            'debcat_name_alias'::varchar as match_method,
+            0.955::double as match_confidence,
+            null::double as match_sep_arcsec
+          from eb_norm eb
+          join alias_star_unique a on a.alias_key = eb.object_name_key
+          where eb.source_catalog = 'debcat'
+            and eb.object_name_key <> ''
+
+          union all
+
+          select
+            eb.eclipsing_binary_id,
+            s.star_id,
+            s.system_id,
+            'debcat_star_name'::varchar as match_method,
+            0.94::double as match_confidence,
+            null::double as match_sep_arcsec
+          from eb_norm eb
+          join star_name_unique s on s.name_key = eb.object_name_key
+          where eb.source_catalog = 'debcat'
+            and eb.object_name_key <> ''
+        )
+        select * from cands
+        """
+    )
+    con.execute(
+        """
+        create or replace temp table eclipsing_positional_match_candidates as
+        with tess_keys as (
+          select
+            eclipsing_binary_id,
+            try_cast(regexp_extract(source_catalog_object_id, '([0-9]+)', 1) as bigint) as tic_id
+          from eclipsing_binaries
+          where source_catalog = 'tess_eb'
+        ), tess_coords as (
+          select
+            tk.eclipsing_binary_id,
+            nullif(t.ra_deg, '')::double as ra_deg,
+            nullif(t.dec_deg, '')::double as dec_deg
+          from tess_keys tk
+          join tess_eb_raw t on try_cast(nullif(t.tic_id, '') as bigint) = tk.tic_id
+          where nullif(t.ra_deg, '') is not null
+            and nullif(t.dec_deg, '') is not null
+        ), star_bins as (
+          select
+            star_id,
+            system_id,
+            ra_deg,
+            dec_deg,
+            floor(ra_deg * 100.0)::bigint as ra_bin,
+            floor((dec_deg + 90.0) * 100.0)::bigint as dec_bin
+          from stars
+          where ra_deg is not null and dec_deg is not null
+        ), tess_bins as (
+          select
+            eclipsing_binary_id,
+            ra_deg,
+            dec_deg,
+            floor(ra_deg * 100.0)::bigint as ra_bin,
+            floor((dec_deg + 90.0) * 100.0)::bigint as dec_bin
+          from tess_coords
+        ), candidates as (
+          select
+            t.eclipsing_binary_id,
+            s.star_id,
+            s.system_id,
+            sqrt(
+              power((s.ra_deg - t.ra_deg) * cos(radians((s.dec_deg + t.dec_deg) / 2.0)), 2) +
+              power(s.dec_deg - t.dec_deg, 2)
+            ) * 3600.0 as sep_arcsec,
+            row_number() over (
+              partition by t.eclipsing_binary_id
+              order by
+                sqrt(
+                  power((s.ra_deg - t.ra_deg) * cos(radians((s.dec_deg + t.dec_deg) / 2.0)), 2) +
+                  power(s.dec_deg - t.dec_deg, 2)
+                ) * 3600.0 asc,
+                s.star_id asc
+            ) as rn
+          from tess_bins t
+          join star_bins s
+            on s.ra_bin between t.ra_bin - 1 and t.ra_bin + 1
+           and s.dec_bin between t.dec_bin - 1 and t.dec_bin + 1
+           and abs(s.ra_deg - t.ra_deg) <= 0.01
+           and abs(s.dec_deg - t.dec_deg) <= 0.01
+        )
+        select
+          eclipsing_binary_id,
+          star_id,
+          system_id,
+          case
+            when sep_arcsec <= 1.0 then 'tess_radec_1arcsec'
+            else 'tess_radec_2arcsec'
+          end as match_method,
+          case
+            when sep_arcsec <= 1.0 then 0.96
+            else 0.90
+          end as match_confidence,
+          sep_arcsec as match_sep_arcsec
+        from candidates
+        where rn = 1
+          and sep_arcsec <= 2.0
+        """
+    )
+    con.execute(
+        """
+        create or replace temp table eclipsing_match_best as
+        with all_candidates as (
+          select * from eclipsing_id_match_candidates
+          union all
+          select * from eclipsing_positional_match_candidates
+        ), ranked as (
+          select
+            eclipsing_binary_id,
+            star_id,
+            system_id,
+            match_method,
+            match_confidence,
+            match_sep_arcsec,
+            row_number() over (
+              partition by eclipsing_binary_id
+              order by
+                match_confidence desc,
+                case when star_id is null then 1 else 0 end asc,
+                coalesce(match_sep_arcsec, 1e12) asc,
+                coalesce(star_id, 9223372036854775807) asc
+            ) as rn
+          from all_candidates
+        )
+        select
+          eclipsing_binary_id,
+          star_id,
+          system_id,
+          match_method,
+          match_confidence,
+          match_sep_arcsec
+        from ranked
+        where rn = 1
+        """
+    )
+    con.execute(
+        """
+        update eclipsing_binaries eb
+        set
+          star_id = m.star_id,
+          system_id = m.system_id,
+          match_method = m.match_method,
+          match_confidence = m.match_confidence
+        from eclipsing_match_best m
+        where eb.eclipsing_binary_id = m.eclipsing_binary_id
+        """
+    )
+    con.execute(
+        """
+        insert into aliases (
+          alias_id,
+          target_type,
+          target_id,
+          system_id,
+          star_id,
+          alias_raw,
+          alias_norm,
+          alias_kind,
+          alias_priority,
+          is_primary,
+          source_catalog,
+          source_version,
+          source_pk
+        )
+        with base as (
+          select coalesce(max(alias_id), 0)::bigint as base_id from aliases
+        ), candidates as (
+          select
+            eb.source_catalog,
+            eb.source_version,
+            eb.source_pk,
+            eb.system_id,
+            eb.star_id,
+            eb.source_catalog_object_id as alias_raw,
+            lower(regexp_replace(coalesce(eb.source_catalog_object_id, ''), '[^0-9A-Za-z]+', '', 'g')) as alias_key,
+            case
+              when eb.source_catalog = 'tess_eb' then 'tic_id'
+              when eb.source_catalog = 'kepler_eb' then 'kic_id'
+              when eb.source_catalog = 'debcat' then 'debcat_name'
+              else 'catalog_object_id'
+            end as alias_kind
+          from eclipsing_binaries eb
+          where eb.system_id is not null
+            and eb.source_catalog_object_id is not null
+            and trim(eb.source_catalog_object_id) <> ''
+            and (
+              eb.source_catalog in ('tess_eb', 'kepler_eb')
+              or (eb.source_catalog = 'debcat' and eb.match_confidence >= 0.95)
+            )
+        ), ranked as (
+          select
+            c.*,
+            row_number() over (
+              partition by c.star_id, c.alias_key
+              order by c.source_catalog asc, c.source_pk asc
+            ) as rn
+          from candidates c
+          where c.star_id is not null
+            and c.alias_key <> ''
+            and not exists (
+              select 1
+              from aliases a
+              where a.target_type = 'star'
+                and a.star_id = c.star_id
+                and lower(regexp_replace(coalesce(a.alias_raw, ''), '[^0-9A-Za-z]+', '', 'g')) = c.alias_key
+            )
+        )
+        select
+          base.base_id + row_number() over (order by ranked.star_id, ranked.alias_key, ranked.source_catalog, ranked.source_pk)::bigint as alias_id,
+          'star' as target_type,
+          ranked.star_id as target_id,
+          ranked.system_id,
+          ranked.star_id,
+          ranked.alias_raw,
+          ranked.alias_key as alias_norm,
+          ranked.alias_kind,
+          28 as alias_priority,
+          false as is_primary,
+          ranked.source_catalog,
+          ranked.source_version,
+          ranked.source_pk
+        from ranked
+        cross join base
+        where ranked.rn = 1
+        """
+    )
 
     compact_count = con.execute("select count(*) from compact_objects").fetchone()[0]
     open_clusters_count = con.execute("select count(*) from open_clusters").fetchone()[0]
@@ -7032,6 +7335,12 @@ def main() -> int:
     eclipsing_count = con.execute(
         "select count(*) from eclipsing_binaries"
     ).fetchone()[0]
+    eclipsing_linked_count = con.execute(
+        "select count(*) from eclipsing_binaries where system_id is not null"
+    ).fetchone()[0]
+    eclipsing_high_conf_count = con.execute(
+        "select count(*) from eclipsing_binaries where system_id is not null and coalesce(match_confidence, 0.0) >= 0.95"
+    ).fetchone()[0]
     stage_totals["compact_objects"] = compact_count
     stage_totals["superstellar_objects"] = superstellar_count
     stage_totals["eclipsing_binaries"] = eclipsing_count
@@ -7042,7 +7351,9 @@ def main() -> int:
         extra=(
             f"open_clusters={format_count(open_clusters_count)}, "
             f"open_cluster_memberships={format_count(open_cluster_memberships_count)}, "
-            f"eclipsing_binaries={format_count(eclipsing_count)}"
+            f"eclipsing_binaries={format_count(eclipsing_count)}, "
+            f"eclipsing_linked={format_count(eclipsing_linked_count)}, "
+            f"eclipsing_high_conf={format_count(eclipsing_high_conf_count)}"
         ),
     )
 
