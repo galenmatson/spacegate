@@ -6897,6 +6897,22 @@ def main() -> int:
           and c.match_angular_distance_arcsec <= 1.0
         """
     )
+    con.execute(
+        """
+        update stars
+        set
+          spectral_class = 'D',
+          spectral_type_raw = case
+            when upper(coalesce(wd_catalog_fit_model, '')) = 'H' then 'DA'
+            when upper(coalesce(wd_catalog_fit_model, '')) = 'HE' then 'DB'
+            when upper(coalesce(spectral_type_raw, '')) like 'D%' then spectral_type_raw
+            else 'D'
+          end,
+          spectral_subtype = null,
+          luminosity_class = null
+        where object_family = 'white_dwarf'
+        """
+    )
 
     con.execute(
         f"""
