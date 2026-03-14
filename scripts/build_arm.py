@@ -5,6 +5,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +75,21 @@ def main() -> int:
     con = duckdb.connect(str(arm_db))
     con.execute(f"ATTACH {sql_literal(str(core_db))} AS core (READ_ONLY)")
     con.execute("SET preserve_insertion_order=false")
+    threads_env = (os.getenv("SPACEGATE_DUCKDB_THREADS") or "").strip()
+    if threads_env:
+        try:
+            threads = max(1, int(threads_env))
+            con.execute(f"SET threads TO {threads}")
+            log(f"Arm build: DuckDB threads set to {threads}")
+        except Exception:
+            log(f"Arm build: ignored invalid SPACEGATE_DUCKDB_THREADS={threads_env!r}")
+    memory_limit_env = (os.getenv("SPACEGATE_DUCKDB_MEMORY_LIMIT") or "").strip()
+    if memory_limit_env:
+        try:
+            con.execute(f"SET memory_limit={sql_literal(memory_limit_env)}")
+            log(f"Arm build: DuckDB memory_limit set to {memory_limit_env}")
+        except Exception:
+            log(f"Arm build: ignored invalid SPACEGATE_DUCKDB_MEMORY_LIMIT={memory_limit_env!r}")
 
     if cooked_msc.exists():
         con.execute(
@@ -129,6 +145,8 @@ def main() -> int:
         """
     )
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating msc_system_roots")
     con.execute(
         """
         create temp table msc_system_roots as
@@ -166,7 +184,10 @@ def main() -> int:
         where g.subsystem_count >= 2
         """
     )
+    log(f"Arm stage complete: msc_system_roots ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating msc_inferred_leaves")
     con.execute(
         """
         create temp table msc_inferred_leaves as
@@ -187,7 +208,10 @@ def main() -> int:
         from expanded
         """
     )
+    log(f"Arm stage complete: msc_inferred_leaves ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating component_entities")
     con.execute(
         f"""
         create table component_entities as
@@ -279,23 +303,9 @@ def main() -> int:
           select * from msc_system_components
           union all
           select * from msc_leaf_components
-        ), deduped as (
-          select *
-          from (
-            select *,
-              row_number() over (
-                partition by stable_component_key
-                order by
-                  case when core_object_type is not null then 0 else 1 end,
-                  source_catalog asc,
-                  source_pk asc
-              ) as rn
-            from unioned
-          ) q
-          where rn = 1
         )
         select
-          row_number() over (order by stable_component_key)::bigint as component_entity_id,
+          row_number() over ()::bigint as component_entity_id,
           stable_component_key,
           component_type,
           core_object_type,
@@ -313,10 +323,13 @@ def main() -> int:
           retrieved_at,
           ingested_at,
           transform_version
-        from deduped
+        from unioned
         """
     )
+    log(f"Arm stage complete: component_entities ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating system_hierarchy_edges")
     con.execute(
         f"""
         create table system_hierarchy_edges as
@@ -372,21 +385,9 @@ def main() -> int:
           select * from core_edges
           union all
           select * from msc_edges
-        ), deduped as (
-          select *
-          from (
-            select *,
-              row_number() over (
-                partition by parent_component_key, child_component_key, edge_kind
-                order by confidence_score desc, source_catalog asc, source_pk asc
-              ) as rn
-            from unioned
-            where parent_component_key <> child_component_key
-          ) q
-          where rn = 1
         )
         select
-          row_number() over (order by parent_component_key, child_component_key, edge_kind)::bigint as hierarchy_edge_id,
+          row_number() over ()::bigint as hierarchy_edge_id,
           parent_component_key,
           child_component_key,
           edge_kind,
@@ -405,10 +406,14 @@ def main() -> int:
           retrieved_at,
           ingested_at,
           transform_version
-        from deduped
+        from unioned
+        where parent_component_key <> child_component_key
         """
     )
+    log(f"Arm stage complete: system_hierarchy_edges ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating orbit_edges")
     con.execute(
         f"""
         create table orbit_edges as
@@ -524,7 +529,10 @@ def main() -> int:
         from deduped
         """
     )
+    log(f"Arm stage complete: orbit_edges ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating orbital_solutions")
     con.execute(
         """
         create table orbital_solutions as
@@ -555,7 +563,10 @@ def main() -> int:
         where false
         """
     )
+    log(f"Arm stage complete: orbital_solutions ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating barycenters")
     con.execute(
         """
         create table barycenters as
@@ -579,7 +590,10 @@ def main() -> int:
         where false
         """
     )
+    log(f"Arm stage complete: barycenters ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating animation_readiness")
     con.execute(
         """
         create table animation_readiness as
@@ -599,7 +613,10 @@ def main() -> int:
         where false
         """
     )
+    log(f"Arm stage complete: animation_readiness ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating system_neighbors")
     con.execute(
         """
         create table system_neighbors as
@@ -618,6 +635,7 @@ def main() -> int:
         where false
         """
     )
+    log(f"Arm stage complete: system_neighbors ({time.monotonic() - stage_started:.1f}s)")
 
     component_count = int(con.execute("select count(*) from component_entities").fetchone()[0] or 0)
     hierarchy_count = int(con.execute("select count(*) from system_hierarchy_edges").fetchone()[0] or 0)
