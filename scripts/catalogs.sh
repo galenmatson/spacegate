@@ -43,7 +43,7 @@ SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.data.html}"
 ATNF_URL="${ATNF_URL:-https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz}"
 MAGNETAR_URL="${MAGNETAR_URL:-https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
 ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-http://bit.ly/UltracoolSheet}"
-GAIA_UCD_URL="${GAIA_UCD_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/657/A69/table4.dat.gz}"
+GAIA_UCD_URL="${GAIA_UCD_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/669/A139/table4.dat}"
 WHITE_DWARF_URL="${WHITE_DWARF_URL:-https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz}"
 DWARFARCHIVES_URL="${DWARFARCHIVES_URL:-http://dwarfarchives.org/}"
 CATWISE_BASE_URL="${CATWISE_BASE_URL:-https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/catwise_2020.html}"
@@ -258,7 +258,7 @@ catalog_sources() {
       printf '%s\n' "ultracoolsheet|UltracoolSheet_Main|$ULTRACOOLSHEET_URL|raw/ultracoolsheet/UltracoolSheet - Main.csv"
       ;;
     gaia_ucd)
-      printf '%s\n' "gaia_ucd|table4|$GAIA_UCD_URL|raw/gaia_ucd/table4.dat.gz"
+      printf '%s\n' "gaia_ucd|table4|$GAIA_UCD_URL|raw/gaia_ucd/table4.dat"
       ;;
     white_dwarf)
       printf '%s\n' "white_dwarf|gaiaedr3_wd_main|$WHITE_DWARF_URL|raw/white_dwarf/gaiaedr3_wd_main.fits.gz"

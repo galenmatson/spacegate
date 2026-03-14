@@ -35,6 +35,9 @@ PY
 select_latest_build() {
   local -a promotable_builds=()
   while IFS= read -r name; do
+    if [[ "$name" == *.tmp ]]; then
+      continue
+    fi
     local build_dir="$OUT_DIR/$name"
     if is_promotable_build "$build_dir"; then
       promotable_builds+=("$name")

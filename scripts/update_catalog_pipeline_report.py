@@ -181,6 +181,7 @@ def summarize_cook_stage(state_dir: Path) -> dict:
         ("atnf", "cooked/atnf/pulsars.csv"),
         ("magnetar", "cooked/magnetar/magnetars.csv"),
         ("white_dwarf", "cooked/white_dwarf/gaiaedr3_white_dwarf.csv"),
+        ("gaia_ucd", "cooked/gaia_ucd/gaia_ucd_memberships.csv"),
         ("clusters", "cooked/clusters/open_clusters.csv"),
         ("cluster_members", "cooked/clusters/open_cluster_members.csv"),
         ("snr", "cooked/snr/green_snr.csv"),

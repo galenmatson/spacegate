@@ -39,6 +39,8 @@ MAGNETAR_URL = "https://www.physics.mcgill.ca/~pulsar/magnetar/"
 MAGNETAR_VERSION = "TabO1"
 WHITE_DWARF_URL = "https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz"
 WHITE_DWARF_VERSION = "gaiaedr3_wd_main"
+GAIA_UCD_URL = "ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/669/A139/table4.dat"
+GAIA_UCD_VERSION = "2023A&A...669A.139S"
 CLUSTERS_URL = "https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/"
 CLUSTERS_VERSION = "2020A&A...640A...1C"
 SNR_URL = "https://www.mrao.cam.ac.uk/surveys/snrs/"
@@ -603,6 +605,7 @@ def main() -> int:
     enable_sbx = parse_bool_env("SPACEGATE_ENABLE_SBX", True)
     enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
     enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
+    enable_gaia_ucd = parse_bool_env("SPACEGATE_ENABLE_GAIA_UCD", True)
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
     enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
@@ -717,6 +720,7 @@ def main() -> int:
     cooked_gaia_classprob = (
         state_dir / "cooked" / "gaia_classprob" / "gaia_dr3_astrophysical_classprob.csv"
     )
+    cooked_gaia_ucd = state_dir / "cooked" / "gaia_ucd" / "gaia_ucd_memberships.csv"
     cooked_atnf = state_dir / "cooked" / "atnf" / "pulsars.csv"
     cooked_magnetar = state_dir / "cooked" / "magnetar" / "magnetars.csv"
     cooked_white_dwarf = state_dir / "cooked" / "white_dwarf" / "gaiaedr3_white_dwarf.csv"
@@ -739,6 +743,7 @@ def main() -> int:
     sbx_manifest_path = manifest_dir / "sbx_manifest.json"
     wds_gaia_xmatch_manifest_path = manifest_dir / "wds_gaia_xmatch_manifest.json"
     gaia_classprob_manifest_path = manifest_dir / "gaia_classprob_manifest.json"
+    gaia_ucd_manifest_path = manifest_dir / "gaia_ucd_manifest.json"
     atnf_manifest_path = manifest_dir / "atnf_manifest.json"
     magnetar_manifest_path = manifest_dir / "magnetar_manifest.json"
     white_dwarf_manifest_path = manifest_dir / "white_dwarf_manifest.json"
@@ -786,6 +791,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked WDS-Gaia XMatch: {cooked_wds_gaia_xmatch}")
     if enable_gaia_backbone and enable_gaia_classprob and not cooked_gaia_classprob.exists():
         raise SystemExit(f"Missing cooked Gaia classifier probabilities: {cooked_gaia_classprob}")
+    if enable_gaia_ucd and not cooked_gaia_ucd.exists():
+        raise SystemExit(f"Missing cooked Gaia UCD memberships: {cooked_gaia_ucd}")
     if enable_compact_catalogs and not cooked_atnf.exists():
         raise SystemExit(f"Missing cooked ATNF pulsars: {cooked_atnf}")
     if enable_compact_catalogs and not cooked_magnetar.exists():
@@ -839,6 +846,7 @@ def main() -> int:
     log(
         "Science catalogs: "
         f"gaia_classprob={'1' if (enable_gaia_backbone and enable_gaia_classprob) else '0'} "
+        f"gaia_ucd={'1' if enable_gaia_ucd else '0'} "
         f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
         f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
@@ -882,6 +890,8 @@ def main() -> int:
         manifest_paths.append(wds_gaia_xmatch_manifest_path)
     if enable_gaia_backbone and enable_gaia_classprob:
         manifest_paths.append(gaia_classprob_manifest_path)
+    if enable_gaia_ucd:
+        manifest_paths.append(gaia_ucd_manifest_path)
     if enable_compact_catalogs:
         manifest_paths.extend([atnf_manifest_path, magnetar_manifest_path, white_dwarf_manifest_path])
     if enable_superstellar_catalogs:
@@ -993,6 +1003,7 @@ def main() -> int:
           ('wds_gaia_gate_max_dist_spread_ly', {sql_literal(str(wds_gaia_gate_max_dist_spread_ly))}),
           ('wds_gaia_gate_max_pm_delta_mas_yr', {sql_literal(str(wds_gaia_gate_max_pm_delta_mas_yr))}),
           ('gaia_classprob_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_gaia_classprob) else "0")}),
+          ('gaia_ucd_enabled', {sql_literal("1" if enable_gaia_ucd else "0")}),
           ('sbx_enabled', {sql_literal("1" if enable_sbx else "0")}),
           ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
@@ -1080,6 +1091,11 @@ def main() -> int:
             "Gaia DR3 astrophysical classifier probabilities",
         )
         if enable_gaia_backbone and enable_gaia_classprob
+        else None
+    )
+    gaia_ucd_manifest = (
+        require_manifest_entry(manifest, "table4", "Gaia UCD catalog")
+        if enable_gaia_ucd
         else None
     )
     atnf_manifest = (
@@ -1520,6 +1536,7 @@ def main() -> int:
     sbx_path = str(cooked_sbx).replace("'", "''")
     wds_gaia_xmatch_path = str(cooked_wds_gaia_xmatch).replace("'", "''")
     gaia_classprob_path = str(cooked_gaia_classprob).replace("'", "''")
+    gaia_ucd_path = str(cooked_gaia_ucd).replace("'", "''")
     atnf_path = str(cooked_atnf).replace("'", "''")
     magnetar_path = str(cooked_magnetar).replace("'", "''")
     white_dwarf_path = str(cooked_white_dwarf).replace("'", "''")
@@ -1798,6 +1815,35 @@ def main() -> int:
               classprob_dsc_combmod_quasar,
               classprob_dsc_specmod_quasar
             )
+            where false
+            """
+        )
+    if enable_gaia_ucd:
+        con.execute(
+            f"""
+            create or replace temp view gaia_ucd_raw as
+            select * from read_csv_auto('{gaia_ucd_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view gaia_ucd_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(source_id, hmac_cluster_id, banyan_cluster, banyan_probability)
             where false
             """
         )
@@ -2152,6 +2198,18 @@ def main() -> int:
           nullif(classprob_dsc_combmod_quasar, '')::double as classprob_dsc_combmod_quasar,
           nullif(classprob_dsc_specmod_quasar, '')::double as classprob_dsc_specmod_quasar
         from gaia_classprob_raw
+        where nullif(source_id, '') is not null
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view gaia_ucd_catalog as
+        select
+          nullif(source_id, '')::bigint as gaia_id,
+          nullif(hmac_cluster_id, '')::integer as hmac_cluster_id,
+          nullif(banyan_cluster, '') as banyan_cluster,
+          nullif(banyan_probability, '')::double as banyan_probability
+        from gaia_ucd_raw
         where nullif(source_id, '') is not null
         """
     )
@@ -2820,6 +2878,9 @@ def main() -> int:
             a.parallax_error_mas,
             a.parallax_over_error,
             a.ruwe,
+            u.hmac_cluster_id as gaia_ucd_hmac_cluster_id,
+            u.banyan_cluster as gaia_ucd_banyan_cluster,
+            u.banyan_probability as gaia_ucd_banyan_probability,
             a.x_helio_ly,
             a.y_helio_ly,
             a.z_helio_ly,
@@ -2920,6 +2981,7 @@ def main() -> int:
           left join wds_gaia_star_map w on w.gaia_id = a.gaia_id
           left join gaia_nss_non_single n on n.gaia_id = a.gaia_id
           left join gaia_nss_two_body_agg t on t.gaia_id = a.gaia_id
+          left join gaia_ucd_catalog u on u.gaia_id = a.gaia_id
           left join sbx_athyg_matches sbx on sbx.athyg_row_id = a.athyg_row_id
         ), msc_only as (
           select
@@ -2948,6 +3010,9 @@ def main() -> int:
             null::double as parallax_error_mas,
             null::double as parallax_over_error,
             null::double as ruwe,
+            null::integer as gaia_ucd_hmac_cluster_id,
+            null::varchar as gaia_ucd_banyan_cluster,
+            null::double as gaia_ucd_banyan_probability,
             m.x_pc * {PC_TO_LY} as x_helio_ly,
             m.y_pc * {PC_TO_LY} as y_helio_ly,
             m.z_pc * {PC_TO_LY} as z_helio_ly,
@@ -4027,7 +4092,8 @@ def main() -> int:
             insert into stars (
               star_id, spatial_index, system_id, stable_object_key, star_name, star_name_norm, component,
               system_name_root, system_name_root_norm, ra_deg, dec_deg, dist_ly, parallax_mas, parallax_error_mas,
-              parallax_over_error, ruwe, x_helio_ly, y_helio_ly, z_helio_ly, x_gal_ly, y_gal_ly, z_gal_ly,
+              parallax_over_error, ruwe, gaia_ucd_hmac_cluster_id, gaia_ucd_banyan_cluster, gaia_ucd_banyan_probability,
+              x_helio_ly, y_helio_ly, z_helio_ly, x_gal_ly, y_gal_ly, z_gal_ly,
               pm_ra_mas_yr, pm_dec_mas_yr, radial_velocity_kms, spectral_type_raw, spectral_class, spectral_subtype,
               luminosity_class, spectral_peculiar, vmag, absmag, color_index, gaia_id, hip_id, hd_id, wds_id,
               multiplicity_match_method, multiplicity_match_confidence, multiplicity_source_catalogs_json,
@@ -4062,6 +4128,9 @@ def main() -> int:
               ordered.parallax_error_mas,
               ordered.parallax_over_error,
               ordered.ruwe,
+              null::integer as gaia_ucd_hmac_cluster_id,
+              null::varchar as gaia_ucd_banyan_cluster,
+              null::double as gaia_ucd_banyan_probability,
               ordered.x_helio_ly,
               ordered.y_helio_ly,
               ordered.z_helio_ly,
@@ -7803,6 +7872,8 @@ def main() -> int:
         provenance_report["wds_gaia_xmatch_best"] = wds_gaia_xmatch_manifest
     if gaia_classprob_manifest:
         provenance_report["gaia_dr3_astrophysical_classprob"] = gaia_classprob_manifest
+    if gaia_ucd_manifest:
+        provenance_report["gaia_ucd"] = gaia_ucd_manifest
     if atnf_manifest:
         provenance_report["atnf"] = atnf_manifest
     if magnetar_manifest:
@@ -8340,6 +8411,7 @@ def main() -> int:
         "gaia_backbone_enabled": enable_gaia_backbone,
         "base_source_catalog": base_source_catalog,
         "gaia_classprob_enabled": enable_gaia_backbone and enable_gaia_classprob,
+        "gaia_ucd_enabled": enable_gaia_ucd,
         "compact_catalogs_enabled": enable_compact_catalogs,
         "superstellar_catalogs_enabled": enable_superstellar_catalogs,
         "eclipsing_catalogs_enabled": enable_eclipsing_catalogs,
@@ -8383,6 +8455,18 @@ def main() -> int:
         "white_dwarf_evidence_count": wd_evidence_count,
         "white_dwarf_emitted_count": wd_emitted_count,
         "white_dwarf_mismatch_count": wd_mismatch_count,
+        "gaia_ucd_tagged_star_count": int(
+            con.execute(
+                """
+                select count(*)::bigint
+                from stars
+                where gaia_ucd_hmac_cluster_id is not null
+                   or (gaia_ucd_banyan_cluster is not null and trim(gaia_ucd_banyan_cluster) <> '')
+                   or gaia_ucd_banyan_probability is not null
+                """
+            ).fetchone()[0]
+            or 0
+        ),
         "aliases_enabled": enable_aliases,
         "athyg_alias_crosswalk_enabled": enable_aliases and enable_athyg_alias_crosswalk,
         "athyg_alias_candidate_count": alias_crosswalk_candidate_count,
@@ -8611,6 +8695,18 @@ def main() -> int:
             select count(*)::bigint
             from stars
             where coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    gaia_ucd_tagged_rows = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from stars
+            where gaia_ucd_hmac_cluster_id is not null
+               or (gaia_ucd_banyan_cluster is not null and trim(gaia_ucd_banyan_cluster) <> '')
+               or gaia_ucd_banyan_probability is not null
             """
         ).fetchone()[0]
         or 0
@@ -9117,6 +9213,19 @@ def main() -> int:
         linked_rows=int(star_evidence_row[5] or 0),
         notes="compact/remnant probability evidence",
     )
+    if enable_gaia_ucd:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="gaia_ucd",
+            domain="stars",
+            domain_total=total_stars,
+            input_rows=manifest_row_count(gaia_ucd_manifest),
+            input_bytes=manifest_bytes(gaia_ucd_manifest),
+            direct_rows=0,
+            evidence_rows=gaia_ucd_tagged_rows,
+            linked_rows=gaia_ucd_tagged_rows,
+            notes="Gaia ultracool dwarf membership/classification tags (HMAC/BANYAN)",
+        )
     add_catalog_contribution(
         catalog_contributions,
         catalog="white_dwarf",
@@ -9248,6 +9357,7 @@ def main() -> int:
         ("sbx_configurations", sbx_config_manifest),
         ("sbx_orbits", sbx_orbits_manifest),
         ("gaia_classprob", gaia_classprob_manifest),
+        ("gaia_ucd", gaia_ucd_manifest),
         ("wds", wds_manifest),
         ("wds_gaia_xmatch_best", wds_gaia_xmatch_manifest),
         ("msc", msc_manifest),

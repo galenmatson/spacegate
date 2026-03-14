@@ -62,6 +62,7 @@ Interpretation note:
 | WDS | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | broad multiplicity support evidence |
 | ORB6 | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | orbit-quality support evidence |
 | Gaia class probabilities | default-on | on | `SPACEGATE_ENABLE_GAIA_CLASSPROB` | remnant-safe classification guardrails |
+| Gaia UCD memberships (`J/A+A/669/A139 table4`) | default-on | on | `SPACEGATE_ENABLE_GAIA_UCD` | ultracool dwarf cluster/membership tags (HMAC/BANYAN) for star enrichment |
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
 | SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
 | DEBCat + Kepler EB | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
@@ -134,6 +135,20 @@ Role:
 Source endpoint:
 
 - ESA Gaia Archive TAP (`gaiadr3.astrophysical_parameters`)
+
+## 3b) Gaia ultracool dwarf memberships (`J/A+A/669/A139`, `table4`)
+
+Classification: `auxiliary`
+
+Role:
+
+- Gaia DR3 source-level ultracool dwarf support tags
+- cluster/membership enrichment fields (`HMACcl`, `BANYANcl`, `BANYANprob`)
+- evidence-only enrichment; does not define canonical star existence
+
+Source endpoint:
+
+- CDS FTP mirror (`ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/669/A139/table4.dat`)
 
 ## Core Auxiliary Multiplicity Sources
 

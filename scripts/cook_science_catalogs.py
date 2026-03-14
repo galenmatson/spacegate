@@ -599,6 +599,45 @@ def cook_magnetar(raw_path: Path, cooked_path: Path) -> int:
     return row_count
 
 
+def cook_gaia_ucd(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    row_count = 0
+    with raw_path.open("r", encoding="utf-8", errors="replace") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "source_id",
+                "hmac_cluster_id",
+                "banyan_cluster",
+                "banyan_probability",
+            ],
+        )
+        writer.writeheader()
+        for line in in_f:
+            raw = line.rstrip("\n")
+            if not raw.strip():
+                continue
+            source_id = parse_int(raw[0:19])
+            if source_id is None:
+                continue
+            hmac_cluster_id = parse_int(raw[22:24])
+            banyan_cluster = raw[28:35].strip()
+            if banyan_cluster in {"--", "-", ""}:
+                banyan_cluster = ""
+            writer.writerow(
+                {
+                    "source_id": source_id,
+                    "hmac_cluster_id": hmac_cluster_id,
+                    "banyan_cluster": banyan_cluster or None,
+                    "banyan_probability": parse_float(raw[36:40]),
+                }
+            )
+            row_count += 1
+    return row_count
+
+
 def cook_open_clusters_table1(raw_path: Path, cooked_path: Path) -> int:
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
     row_count = 0
@@ -1027,6 +1066,12 @@ def main() -> int:
             raw_dir / "white_dwarf" / "gaiaedr3_wd_main.fits.gz",
             cooked_dir / "white_dwarf" / "gaiaedr3_white_dwarf.csv",
             cook_white_dwarf,
+        ),
+        (
+            "gaia_ucd",
+            raw_dir / "gaia_ucd" / "table4.dat",
+            cooked_dir / "gaia_ucd" / "gaia_ucd_memberships.csv",
+            cook_gaia_ucd,
         ),
         (
             "clusters",
