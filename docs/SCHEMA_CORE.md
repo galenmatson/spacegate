@@ -282,6 +282,12 @@ Required core columns:
   - recommended evidence fields:
     - `classprob_dsc_combmod_whitedwarf` (nullable)
     - `classprob_dsc_specmod_whitedwarf` (nullable)
+    - `wd_catalog_pwd` (nullable)
+    - `wd_catalog_name` (nullable)
+    - `wd_catalog_fit_model` (nullable)
+    - `wd_catalog_teff_k` (nullable)
+    - `wd_catalog_logg_cgs` (nullable)
+    - `wd_catalog_mass_msun` (nullable)
     - `classification_evidence_json` (source/value/confidence payload)
   - if remnant evidence is positive, fallback spectral-temperature mapping must not force normal stellar family labels.
 - multiplicity evidence:
@@ -485,7 +491,7 @@ These immutable science tables are emitted alongside `stars/systems/planets` and
 
 ## `compact_objects`
 
-Catalog-native compact/remnant objects (currently ATNF pulsars and McGill magnetars), with optional positional match to core stars.
+Catalog-native compact/remnant objects (currently ATNF pulsars, McGill magnetars, and Gaia EDR3 white dwarfs), with optional positional match to core stars.
 
 Expected columns:
 
@@ -493,8 +499,8 @@ Expected columns:
   - `compact_object_id`
   - `stable_object_key`
 - object semantics:
-  - `object_family` (currently `neutron_star`)
-  - `object_type` (`pulsar` / `magnetar`)
+  - `object_family` (`neutron_star` / `white_dwarf`)
+  - `object_type` (`pulsar` / `magnetar` / `white_dwarf`)
   - `object_name`
 - coordinates/kinematics (source-native):
   - `ra_deg`, `dec_deg`

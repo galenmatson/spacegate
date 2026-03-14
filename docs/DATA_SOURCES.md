@@ -65,7 +65,7 @@ Interpretation note:
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
 | SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
 | DEBCat + Kepler EB | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
-| Compact-object bundle (`ATNF`, `magnetar`, `white_dwarf` raw) | default-on | on | `SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS` | compact/remnant support evidence (white-dwarf FITS remains evaluation-path; not yet a default cooked table) |
+| Compact-object bundle (`ATNF`, `magnetar`, `white_dwarf`) | default-on | on | `SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS` | compact/remnant support evidence (includes cooked+ingested Gaia EDR3 white-dwarf catalog) |
 | Superstellar bundle (`clusters`, `snr`) | default-on | on | `SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS` | open-cluster and remnant-nebula context |
 | Exoplanet lifecycle support (`exoplanet.eu`, OEC, HWC, EMAC TT9) | optional | off | `SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS` | status overlays and derived-tag support; canonical planets stay NASA-rooted |
 | WDS↔Gaia bridge (`wds_gaia_xmatch`) | optional | off | `SPACEGATE_ENABLE_WDS_GAIA_XMATCH` | useful for bridge experiments, but confidence-gated and conservative by default |
@@ -252,7 +252,6 @@ Retirement condition:
 Examples:
 
 - BDB/ILB and other non-mirrored high-risk dependencies
-- Gaia EDR3 white dwarf FITS bulk catalog (downloaded for evaluation; parser/mirror strategy not yet finalized in default path)
 
 Policy:
 

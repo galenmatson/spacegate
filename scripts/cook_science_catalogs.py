@@ -7,8 +7,12 @@ import html
 import math
 import os
 import re
+import struct
 import tarfile
 from pathlib import Path
+
+FITS_CARD_BYTES = 80
+FITS_BLOCK_BYTES = 2880
 
 
 def parse_float(value: str | None) -> float | None:
@@ -118,6 +122,268 @@ def open_text(path: Path):
     if path.suffix == ".gz":
         return gzip.open(path, "rt", encoding="utf-8", errors="replace")
     return path.open("r", encoding="utf-8", errors="replace")
+
+
+def _read_fits_header(handle) -> tuple[list[str], bool]:
+    cards: list[str] = []
+    while True:
+        block = handle.read(FITS_BLOCK_BYTES)
+        if not block or len(block) < FITS_BLOCK_BYTES:
+            return cards, False
+        for offset in range(0, FITS_BLOCK_BYTES, FITS_CARD_BYTES):
+            card = block[offset : offset + FITS_CARD_BYTES].decode("ascii", "replace")
+            cards.append(card)
+            if card.startswith("END"):
+                return cards, True
+
+
+def _fits_card_value(card: str) -> str | None:
+    if "=" not in card[:10]:
+        return None
+    raw = card[10:]
+    return raw.split("/", 1)[0].strip().strip("'").strip()
+
+
+def _fits_tform_width(tform: str) -> tuple[int, str, int]:
+    text = (tform or "").strip()
+    m = re.fullmatch(r"(\d*)([A-Z])", text)
+    if not m:
+        raise ValueError(f"Unsupported FITS TFORM: {tform!r}")
+    repeat = int(m.group(1) or "1")
+    code = m.group(2)
+    item_size = {
+        "L": 1,
+        "X": 0,
+        "B": 1,
+        "I": 2,
+        "J": 4,
+        "K": 8,
+        "A": 1,
+        "E": 4,
+        "D": 8,
+        "C": 8,
+        "M": 16,
+    }.get(code)
+    if item_size is None:
+        raise ValueError(f"Unsupported FITS TFORM code: {code}")
+    width = (repeat + 7) // 8 if code == "X" else repeat * item_size
+    return width, code, repeat
+
+
+def _fits_scalar_from_row(
+    row: bytes, offset: int, width: int, code: str, repeat: int
+) -> str | float | int | bool | None:
+    chunk = row[offset : offset + width]
+    if len(chunk) == 0:
+        return None
+    if code == "A":
+        return chunk.decode("ascii", "replace").strip() or None
+    if code == "L":
+        value = chunk[0:1].decode("ascii", "replace").strip().upper()
+        if value == "T":
+            return True
+        if value == "F":
+            return False
+        return None
+    if code == "B":
+        return int(chunk[0]) if repeat == 1 else None
+    if code == "I":
+        return struct.unpack(">h", chunk[:2])[0] if repeat == 1 else None
+    if code == "J":
+        return struct.unpack(">i", chunk[:4])[0] if repeat == 1 else None
+    if code == "K":
+        return struct.unpack(">q", chunk[:8])[0] if repeat == 1 else None
+    if code == "E":
+        value = struct.unpack(">f", chunk[:4])[0] if repeat == 1 else None
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        return value
+    if code == "D":
+        value = struct.unpack(">d", chunk[:8])[0] if repeat == 1 else None
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        return value
+    return None
+
+
+def cook_white_dwarf(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    row_count = 0
+    with gzip.open(raw_path, "rb") as in_f, cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        _, ok = _read_fits_header(in_f)
+        if not ok:
+            raise SystemExit(f"Invalid FITS primary header: {raw_path}")
+        extension_cards, ok = _read_fits_header(in_f)
+        if not ok:
+            raise SystemExit(f"Invalid FITS extension header: {raw_path}")
+        card_map: dict[str, str] = {}
+        for card in extension_cards:
+            key = card[:8].strip()
+            value = _fits_card_value(card)
+            if key and value is not None:
+                card_map[key] = value
+        if card_map.get("XTENSION", "").strip().strip("'") != "BINTABLE":
+            raise SystemExit(f"White dwarf FITS missing BINTABLE extension: {raw_path}")
+        naxis1 = int(card_map.get("NAXIS1", "0"))
+        naxis2 = int(card_map.get("NAXIS2", "0"))
+        tfields = int(card_map.get("TFIELDS", "0"))
+        if naxis1 <= 0 or naxis2 <= 0 or tfields <= 0:
+            raise SystemExit(f"White dwarf FITS missing table dimensions: {raw_path}")
+
+        column_offsets: dict[str, tuple[int, int, str, int]] = {}
+        running_offset = 0
+        for idx in range(1, tfields + 1):
+            name = (card_map.get(f"TTYPE{idx}") or "").strip()
+            tform = (card_map.get(f"TFORM{idx}") or "").strip()
+            if not name or not tform:
+                continue
+            width, code, repeat = _fits_tform_width(tform)
+            column_offsets[name] = (running_offset, width, code, repeat)
+            running_offset += width
+        if running_offset != naxis1:
+            raise SystemExit(
+                f"White dwarf FITS row width mismatch: header={naxis1} parsed={running_offset}"
+            )
+        required_columns = [
+            "source_id",
+            "WDJ_name",
+            "designation",
+            "ra",
+            "dec",
+            "parallax",
+            "parallax_error",
+            "parallax_over_error",
+            "Pwd",
+            "ruwe",
+            "teff_H",
+            "logg_H",
+            "mass_H",
+            "chisq_H",
+            "teff_He",
+            "logg_He",
+            "mass_He",
+            "chisq_He",
+            "phot_g_mean_mag",
+            "phot_bp_mean_mag",
+            "phot_rp_mean_mag",
+            "bp_rp",
+        ]
+        missing = [name for name in required_columns if name not in column_offsets]
+        if missing:
+            raise SystemExit(
+                f"White dwarf FITS missing required columns: {', '.join(sorted(missing))}"
+            )
+
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "source_id",
+                "wdj_name",
+                "designation",
+                "ra_deg",
+                "dec_deg",
+                "parallax_mas",
+                "parallax_error_mas",
+                "parallax_over_error",
+                "pwd",
+                "ruwe",
+                "fit_model",
+                "teff_best_k",
+                "logg_best_cgs",
+                "mass_best_msun",
+                "teff_h_k",
+                "logg_h_cgs",
+                "mass_h_msun",
+                "chisq_h",
+                "teff_he_k",
+                "logg_he_cgs",
+                "mass_he_msun",
+                "chisq_he",
+                "phot_g_mag",
+                "phot_bp_mag",
+                "phot_rp_mag",
+                "bp_rp",
+            ],
+        )
+        writer.writeheader()
+
+        chunk_rows = 25000
+        for base in range(0, naxis2, chunk_rows):
+            take = min(chunk_rows, naxis2 - base)
+            payload = in_f.read(take * naxis1)
+            if len(payload) != take * naxis1:
+                raise SystemExit(f"Unexpected EOF while reading {raw_path} at row {base}")
+            for row_idx in range(take):
+                row = payload[row_idx * naxis1 : (row_idx + 1) * naxis1]
+
+                def scalar(name: str):
+                    offset, width, code, repeat = column_offsets[name]
+                    return _fits_scalar_from_row(row, offset, width, code, repeat)
+
+                source_id = scalar("source_id")
+                if not isinstance(source_id, int) or source_id <= 0:
+                    continue
+                pwd = scalar("Pwd")
+                teff_h = scalar("teff_H")
+                teff_he = scalar("teff_He")
+                logg_h = scalar("logg_H")
+                logg_he = scalar("logg_He")
+                mass_h = scalar("mass_H")
+                mass_he = scalar("mass_He")
+                chisq_h = scalar("chisq_H")
+                chisq_he = scalar("chisq_He")
+                fit_model = ""
+                use_h = isinstance(chisq_h, float)
+                use_he = isinstance(chisq_he, float)
+                if use_h and use_he:
+                    fit_model = "H" if chisq_h <= chisq_he else "He"
+                elif use_h:
+                    fit_model = "H"
+                elif use_he:
+                    fit_model = "He"
+                teff_best = teff_h if fit_model == "H" else teff_he if fit_model == "He" else None
+                logg_best = logg_h if fit_model == "H" else logg_he if fit_model == "He" else None
+                mass_best = mass_h if fit_model == "H" else mass_he if fit_model == "He" else None
+                writer.writerow(
+                    {
+                        "source_id": source_id,
+                        "wdj_name": scalar("WDJ_name"),
+                        "designation": scalar("designation"),
+                        "ra_deg": scalar("ra"),
+                        "dec_deg": scalar("dec"),
+                        "parallax_mas": scalar("parallax"),
+                        "parallax_error_mas": scalar("parallax_error"),
+                        "parallax_over_error": scalar("parallax_over_error"),
+                        "pwd": pwd if isinstance(pwd, float) and math.isfinite(pwd) else None,
+                        "ruwe": scalar("ruwe"),
+                        "fit_model": fit_model or None,
+                        "teff_best_k": teff_best,
+                        "logg_best_cgs": logg_best,
+                        "mass_best_msun": mass_best,
+                        "teff_h_k": teff_h,
+                        "logg_h_cgs": logg_h,
+                        "mass_h_msun": mass_h,
+                        "chisq_h": chisq_h,
+                        "teff_he_k": teff_he,
+                        "logg_he_cgs": logg_he,
+                        "mass_he_msun": mass_he,
+                        "chisq_he": chisq_he,
+                        "phot_g_mag": scalar("phot_g_mean_mag"),
+                        "phot_bp_mag": scalar("phot_bp_mean_mag"),
+                        "phot_rp_mag": scalar("phot_rp_mean_mag"),
+                        "bp_rp": scalar("bp_rp"),
+                    }
+                )
+                row_count += 1
+
+        # Consume extension padding if present.
+        data_len = naxis1 * naxis2
+        pad = (FITS_BLOCK_BYTES - (data_len % FITS_BLOCK_BYTES)) % FITS_BLOCK_BYTES
+        if pad:
+            in_f.read(pad)
+    return row_count
 
 
 def cook_gaia_classprob(raw_path: Path, cooked_path: Path) -> int:
@@ -755,6 +1021,12 @@ def main() -> int:
             raw_dir / "magnetar" / "TabO1.csv",
             cooked_dir / "magnetar" / "magnetars.csv",
             cook_magnetar,
+        ),
+        (
+            "white_dwarf",
+            raw_dir / "white_dwarf" / "gaiaedr3_wd_main.fits.gz",
+            cooked_dir / "white_dwarf" / "gaiaedr3_white_dwarf.csv",
+            cook_white_dwarf,
         ),
         (
             "clusters",

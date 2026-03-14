@@ -37,6 +37,8 @@ ATNF_URL = "https://www.atnf.csiro.au/research/pulsar/psrcat/"
 ATNF_VERSION = "psrcat_pkg"
 MAGNETAR_URL = "https://www.physics.mcgill.ca/~pulsar/magnetar/"
 MAGNETAR_VERSION = "TabO1"
+WHITE_DWARF_URL = "https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz"
+WHITE_DWARF_VERSION = "gaiaedr3_wd_main"
 CLUSTERS_URL = "https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/"
 CLUSTERS_VERSION = "2020A&A...640A...1C"
 SNR_URL = "https://www.mrao.cam.ac.uk/surveys/snrs/"
@@ -64,6 +66,7 @@ WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT = 2.0
 WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
 WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
 WHITE_DWARF_PROB_THRESHOLD = 0.5
+WHITE_DWARF_CATALOG_PWD_THRESHOLD_DEFAULT = 0.8
 ALIAS_NAME_OVERRIDE_LIMIT = 200000
 ALIAS_POS_MAX_DELTA_RA_DEG = 0.12
 ALIAS_POS_MAX_DELTA_DEC_DEG = 0.12
@@ -631,6 +634,11 @@ def main() -> int:
     )
     if open_cluster_member_min_probability is None:
         open_cluster_member_min_probability = 0.7
+    white_dwarf_catalog_pwd_threshold = parse_optional_nonnegative_float_env(
+        "SPACEGATE_WHITE_DWARF_CATALOG_PWD_THRESHOLD"
+    )
+    if white_dwarf_catalog_pwd_threshold is None:
+        white_dwarf_catalog_pwd_threshold = WHITE_DWARF_CATALOG_PWD_THRESHOLD_DEFAULT
     wds_gaia_match_max_arcsec = parse_positive_float_env(
         "SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC",
         WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT,
@@ -711,6 +719,7 @@ def main() -> int:
     )
     cooked_atnf = state_dir / "cooked" / "atnf" / "pulsars.csv"
     cooked_magnetar = state_dir / "cooked" / "magnetar" / "magnetars.csv"
+    cooked_white_dwarf = state_dir / "cooked" / "white_dwarf" / "gaiaedr3_white_dwarf.csv"
     cooked_open_clusters = state_dir / "cooked" / "clusters" / "open_clusters.csv"
     cooked_open_cluster_members = state_dir / "cooked" / "clusters" / "open_cluster_members.csv"
     cooked_snr = state_dir / "cooked" / "snr" / "green_snr.csv"
@@ -732,6 +741,7 @@ def main() -> int:
     gaia_classprob_manifest_path = manifest_dir / "gaia_classprob_manifest.json"
     atnf_manifest_path = manifest_dir / "atnf_manifest.json"
     magnetar_manifest_path = manifest_dir / "magnetar_manifest.json"
+    white_dwarf_manifest_path = manifest_dir / "white_dwarf_manifest.json"
     clusters_manifest_path = manifest_dir / "clusters_manifest.json"
     snr_manifest_path = manifest_dir / "snr_manifest.json"
     debcat_manifest_path = manifest_dir / "debcat_manifest.json"
@@ -780,6 +790,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked ATNF pulsars: {cooked_atnf}")
     if enable_compact_catalogs and not cooked_magnetar.exists():
         raise SystemExit(f"Missing cooked magnetars: {cooked_magnetar}")
+    if enable_compact_catalogs and not cooked_white_dwarf.exists():
+        raise SystemExit(f"Missing cooked white dwarf catalog: {cooked_white_dwarf}")
     if enable_superstellar_catalogs and not cooked_open_clusters.exists():
         raise SystemExit(f"Missing cooked open clusters: {cooked_open_clusters}")
     if enable_superstellar_catalogs and not cooked_open_cluster_members.exists():
@@ -836,7 +848,8 @@ def main() -> int:
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
         f"athyg_supplement_merge={'1' if (enable_gaia_backbone and enable_athyg_supplement_merge) else '0'} "
-        f"open_cluster_member_min_probability={open_cluster_member_min_probability}"
+        f"open_cluster_member_min_probability={open_cluster_member_min_probability} "
+        f"white_dwarf_catalog_pwd_threshold={white_dwarf_catalog_pwd_threshold}"
     )
     log(
         "Identifier stewardship: "
@@ -870,7 +883,7 @@ def main() -> int:
     if enable_gaia_backbone and enable_gaia_classprob:
         manifest_paths.append(gaia_classprob_manifest_path)
     if enable_compact_catalogs:
-        manifest_paths.extend([atnf_manifest_path, magnetar_manifest_path])
+        manifest_paths.extend([atnf_manifest_path, magnetar_manifest_path, white_dwarf_manifest_path])
     if enable_superstellar_catalogs:
         manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
     if enable_eclipsing_catalogs:
@@ -993,7 +1006,9 @@ def main() -> int:
           ('identifier_gaia_collision_max', {sql_literal(str(athyg_merge_gaia_collision_max))}),
           ('identifier_hip_collision_max', {sql_literal(str(athyg_merge_hip_collision_max))}),
           ('identifier_hd_collision_max', {sql_literal(str(athyg_merge_hd_collision_max))}),
-          ('open_cluster_member_min_probability', {sql_literal(str(open_cluster_member_min_probability))})
+          ('open_cluster_member_min_probability', {sql_literal(str(open_cluster_member_min_probability))}),
+          ('white_dwarf_prob_threshold', {sql_literal(str(WHITE_DWARF_PROB_THRESHOLD))}),
+          ('white_dwarf_catalog_pwd_threshold', {sql_literal(str(white_dwarf_catalog_pwd_threshold))})
         """
     )
 
@@ -1074,6 +1089,11 @@ def main() -> int:
     )
     magnetar_manifest = (
         require_manifest_entry(manifest, "TabO1", "McGill magnetar catalog")
+        if enable_compact_catalogs
+        else None
+    )
+    white_dwarf_manifest = (
+        require_manifest_entry(manifest, "gaiaedr3_wd_main", "Gaia EDR3 white dwarf catalog")
         if enable_compact_catalogs
         else None
     )
@@ -1258,6 +1278,10 @@ def main() -> int:
     atnf_retrieved = atnf_manifest.get("retrieved_at") if atnf_manifest else None
     magnetar_sha = magnetar_manifest.get("sha256") if magnetar_manifest else None
     magnetar_retrieved = magnetar_manifest.get("retrieved_at") if magnetar_manifest else None
+    white_dwarf_sha = white_dwarf_manifest.get("sha256") if white_dwarf_manifest else None
+    white_dwarf_retrieved = (
+        white_dwarf_manifest.get("retrieved_at") if white_dwarf_manifest else None
+    )
     clusters_sha = (
         ",".join(
             [s for s in [clusters_table1_manifest.get("sha256"), clusters_members_manifest.get("sha256")] if s]
@@ -1498,6 +1522,7 @@ def main() -> int:
     gaia_classprob_path = str(cooked_gaia_classprob).replace("'", "''")
     atnf_path = str(cooked_atnf).replace("'", "''")
     magnetar_path = str(cooked_magnetar).replace("'", "''")
+    white_dwarf_path = str(cooked_white_dwarf).replace("'", "''")
     open_clusters_path = str(cooked_open_clusters).replace("'", "''")
     open_cluster_members_path = str(cooked_open_cluster_members).replace("'", "''")
     snr_path = str(cooked_snr).replace("'", "''")
@@ -1805,6 +1830,20 @@ def main() -> int:
             )
             """
         )
+        con.execute(
+            f"""
+            create or replace temp view white_dwarf_raw as
+            select * from read_csv_auto('{white_dwarf_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
     else:
         con.execute(
             """
@@ -1838,6 +1877,29 @@ def main() -> int:
                 )
             ) as t(
               name, ra_deg, dec_deg, distance_pc, period_s, period_dot, assoc_raw, activity_raw, bands_raw
+            )
+            where false
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view white_dwarf_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              source_id, wdj_name, designation, ra_deg, dec_deg, parallax_mas, parallax_error_mas, parallax_over_error,
+              pwd, ruwe, fit_model, teff_best_k, logg_best_cgs, mass_best_msun, teff_h_k, logg_h_cgs, mass_h_msun,
+              chisq_h, teff_he_k, logg_he_cgs, mass_he_msun, chisq_he, phot_g_mag, phot_bp_mag, phot_rp_mag, bp_rp
             )
             where false
             """
@@ -2090,6 +2152,40 @@ def main() -> int:
           nullif(classprob_dsc_combmod_quasar, '')::double as classprob_dsc_combmod_quasar,
           nullif(classprob_dsc_specmod_quasar, '')::double as classprob_dsc_specmod_quasar
         from gaia_classprob_raw
+        where nullif(source_id, '') is not null
+        """
+    )
+    con.execute(
+        """
+        create or replace temp view white_dwarf_catalog as
+        select
+          nullif(source_id, '')::bigint as gaia_id,
+          nullif(wdj_name, '') as wdj_name,
+          nullif(designation, '') as designation,
+          nullif(ra_deg, '')::double as ra_deg,
+          nullif(dec_deg, '')::double as dec_deg,
+          nullif(parallax_mas, '')::double as parallax_mas,
+          nullif(parallax_error_mas, '')::double as parallax_error_mas,
+          nullif(parallax_over_error, '')::double as parallax_over_error,
+          nullif(pwd, '')::double as pwd,
+          nullif(ruwe, '')::double as ruwe,
+          nullif(fit_model, '') as fit_model,
+          nullif(teff_best_k, '')::double as teff_best_k,
+          nullif(logg_best_cgs, '')::double as logg_best_cgs,
+          nullif(mass_best_msun, '')::double as mass_best_msun,
+          nullif(teff_h_k, '')::double as teff_h_k,
+          nullif(logg_h_cgs, '')::double as logg_h_cgs,
+          nullif(mass_h_msun, '')::double as mass_h_msun,
+          nullif(chisq_h, '')::double as chisq_h,
+          nullif(teff_he_k, '')::double as teff_he_k,
+          nullif(logg_he_cgs, '')::double as logg_he_cgs,
+          nullif(mass_he_msun, '')::double as mass_he_msun,
+          nullif(chisq_he, '')::double as chisq_he,
+          nullif(phot_g_mag, '')::double as phot_g_mag,
+          nullif(phot_bp_mag, '')::double as phot_bp_mag,
+          nullif(phot_rp_mag, '')::double as phot_rp_mag,
+          nullif(bp_rp, '')::double as bp_rp
+        from white_dwarf_raw
         where nullif(source_id, '') is not null
         """
     )
@@ -3025,6 +3121,12 @@ def main() -> int:
     con.execute("alter table stars add column object_type varchar")
     con.execute("alter table stars add column classprob_dsc_combmod_whitedwarf double")
     con.execute("alter table stars add column classprob_dsc_specmod_whitedwarf double")
+    con.execute("alter table stars add column wd_catalog_name varchar")
+    con.execute("alter table stars add column wd_catalog_pwd double")
+    con.execute("alter table stars add column wd_catalog_fit_model varchar")
+    con.execute("alter table stars add column wd_catalog_teff_k double")
+    con.execute("alter table stars add column wd_catalog_logg_cgs double")
+    con.execute("alter table stars add column wd_catalog_mass_msun double")
     con.execute("alter table stars add column classification_evidence_json varchar")
     con.execute("alter table stars add column open_cluster_tags_json varchar")
     con.execute(
@@ -3059,24 +3161,65 @@ def main() -> int:
             where stars.gaia_id = g.gaia_id
             """
         )
-        con.execute(
-            f"""
-            update stars
-            set
-              object_family = 'white_dwarf',
-              object_type = 'white_dwarf',
-              classification_evidence_json = json_object(
-                'method', 'gaia_classprob',
-                'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
-                'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
-                'threshold', {WHITE_DWARF_PROB_THRESHOLD}
-              )
-            where greatest(
+    con.execute(
+        """
+        update stars
+        set
+          wd_catalog_name = coalesce(w.wdj_name, w.designation),
+          wd_catalog_pwd = w.pwd,
+          wd_catalog_fit_model = w.fit_model,
+          wd_catalog_teff_k = w.teff_best_k,
+          wd_catalog_logg_cgs = w.logg_best_cgs,
+          wd_catalog_mass_msun = w.mass_best_msun
+        from white_dwarf_catalog w
+        where stars.gaia_id = w.gaia_id
+        """
+    )
+    con.execute(
+        f"""
+        update stars
+        set
+          object_family = 'white_dwarf',
+          object_type = 'white_dwarf',
+          classification_evidence_json = case
+            when greatest(
               coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
               coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
             ) >= {WHITE_DWARF_PROB_THRESHOLD}
-            """
-        )
+              and coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+              then json_object(
+                'method', 'gaia_classprob+gaia_edr3_white_dwarf',
+                'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
+                'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
+                'gaia_classprob_threshold', {WHITE_DWARF_PROB_THRESHOLD},
+                'wd_catalog_pwd', wd_catalog_pwd,
+                'wd_catalog_pwd_threshold', {white_dwarf_catalog_pwd_threshold},
+                'wd_catalog_name', wd_catalog_name
+              )
+            when greatest(
+              coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+              coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+            ) >= {WHITE_DWARF_PROB_THRESHOLD}
+              then json_object(
+                'method', 'gaia_classprob',
+                'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
+                'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
+                'gaia_classprob_threshold', {WHITE_DWARF_PROB_THRESHOLD}
+              )
+            else json_object(
+              'method', 'gaia_edr3_white_dwarf',
+              'wd_catalog_pwd', wd_catalog_pwd,
+              'wd_catalog_pwd_threshold', {white_dwarf_catalog_pwd_threshold},
+              'wd_catalog_name', wd_catalog_name
+            )
+          end
+        where greatest(
+          coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+          coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+        ) >= {WHITE_DWARF_PROB_THRESHOLD}
+          or coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+        """
+    )
 
     alias_crosswalk_candidate_count = 0
     alias_crosswalk_matched_star_count = 0
@@ -4026,27 +4169,73 @@ def main() -> int:
                 """,
                 [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
             )
-            con.execute(
-                f"""
-                update stars
-                set
-                  object_family = 'white_dwarf',
-                  object_type = 'white_dwarf',
-                  classification_evidence_json = json_object(
+        con.execute(
+            """
+            update stars
+            set
+              wd_catalog_name = coalesce(w.wdj_name, w.designation),
+              wd_catalog_pwd = w.pwd,
+              wd_catalog_fit_model = w.fit_model,
+              wd_catalog_teff_k = w.teff_best_k,
+              wd_catalog_logg_cgs = w.logg_best_cgs,
+              wd_catalog_mass_msun = w.mass_best_msun
+            from white_dwarf_catalog w
+            where stars.source_catalog = 'athyg'
+              and stars.source_version = ? and stars.ingested_at = ? and stars.transform_version = ?
+              and stars.gaia_id = w.gaia_id
+            """,
+            [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+        )
+        con.execute(
+            f"""
+            update stars
+            set
+              object_family = 'white_dwarf',
+              object_type = 'white_dwarf',
+              classification_evidence_json = case
+                when greatest(
+                  coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+                  coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+                ) >= {WHITE_DWARF_PROB_THRESHOLD}
+                  and coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+                  then json_object(
+                    'method', 'gaia_classprob+gaia_edr3_white_dwarf',
+                    'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
+                    'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
+                    'gaia_classprob_threshold', {WHITE_DWARF_PROB_THRESHOLD},
+                    'wd_catalog_pwd', wd_catalog_pwd,
+                    'wd_catalog_pwd_threshold', {white_dwarf_catalog_pwd_threshold},
+                    'wd_catalog_name', wd_catalog_name
+                  )
+                when greatest(
+                  coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+                  coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+                ) >= {WHITE_DWARF_PROB_THRESHOLD}
+                  then json_object(
                     'method', 'gaia_classprob',
                     'classprob_dsc_combmod_whitedwarf', classprob_dsc_combmod_whitedwarf,
                     'classprob_dsc_specmod_whitedwarf', classprob_dsc_specmod_whitedwarf,
-                    'threshold', {WHITE_DWARF_PROB_THRESHOLD}
+                    'gaia_classprob_threshold', {WHITE_DWARF_PROB_THRESHOLD}
                   )
-                where source_catalog = 'athyg'
-                  and source_version = ? and ingested_at = ? and transform_version = ?
-                  and greatest(
-                    coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
-                    coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
-                  ) >= {WHITE_DWARF_PROB_THRESHOLD}
-                """,
-                [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
-            )
+                else json_object(
+                  'method', 'gaia_edr3_white_dwarf',
+                  'wd_catalog_pwd', wd_catalog_pwd,
+                  'wd_catalog_pwd_threshold', {white_dwarf_catalog_pwd_threshold},
+                  'wd_catalog_name', wd_catalog_name
+                )
+              end
+            where source_catalog = 'athyg'
+              and source_version = ? and ingested_at = ? and transform_version = ?
+              and (
+                greatest(
+                  coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+                  coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+                ) >= {WHITE_DWARF_PROB_THRESHOLD}
+                or coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+              )
+            """,
+            [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+        )
 
         con.execute(
             f"""
@@ -6387,6 +6576,7 @@ def main() -> int:
             nullif(dec_deg, '')::double as dec_deg,
             nullif(distance_pc, '')::double as distance_pc,
             nullif(parallax_mas, '')::double as parallax_mas,
+            null::bigint as gaia_id,
             case
               when lower(coalesce(object_type, '')) like '%magnetar%' then 'magnetar'
               else 'pulsar'
@@ -6408,6 +6598,7 @@ def main() -> int:
             nullif(dec_deg, '')::double as dec_deg,
             nullif(distance_pc, '')::double as distance_pc,
             null::double as parallax_mas,
+            null::bigint as gaia_id,
             'magnetar' as object_type,
             'neutron_star' as object_family,
             json_object(
@@ -6416,6 +6607,40 @@ def main() -> int:
               'activity_raw', nullif(activity_raw, '')
             ) as catalog_ids_json
           from magnetar_raw
+        ), white_dwarf_norm as (
+          select
+            'white_dwarf' as source_catalog,
+            cast(w.gaia_id as varchar) as source_key,
+            coalesce(
+              nullif(w.wdj_name, ''),
+              nullif(w.designation, ''),
+              'Gaia DR3 ' || cast(w.gaia_id as varchar)
+            ) as object_name,
+            w.ra_deg as ra_deg,
+            w.dec_deg as dec_deg,
+            case
+              when w.parallax_mas is not null and w.parallax_mas > 0.0 then 1000.0 / w.parallax_mas
+              else null
+            end as distance_pc,
+            w.parallax_mas as parallax_mas,
+            cast(w.gaia_id as bigint) as gaia_id,
+            'white_dwarf' as object_type,
+            'white_dwarf' as object_family,
+            json_object(
+              'gaia_id', cast(w.gaia_id as varchar),
+              'wdj_name', nullif(w.wdj_name, ''),
+              'designation', nullif(w.designation, ''),
+              'pwd', w.pwd,
+              'fit_model', nullif(w.fit_model, ''),
+              'teff_best_k', w.teff_best_k,
+              'logg_best_cgs', w.logg_best_cgs,
+              'mass_best_msun', w.mass_best_msun
+            ) as catalog_ids_json
+          from white_dwarf_catalog w
+          join stars s
+            on s.gaia_id = w.gaia_id
+          where w.gaia_id is not null
+            and coalesce(w.pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
         )
         select
           source_catalog,
@@ -6426,6 +6651,7 @@ def main() -> int:
           distance_pc,
           distance_pc * {PC_TO_LY} as distance_ly,
           parallax_mas,
+          gaia_id,
           object_type,
           object_family,
           catalog_ids_json
@@ -6441,10 +6667,27 @@ def main() -> int:
           distance_pc,
           distance_pc * {PC_TO_LY} as distance_ly,
           parallax_mas,
+          gaia_id,
           object_type,
           object_family,
           catalog_ids_json
         from magnetar_norm
+        where source_key is not null
+        union all
+        select
+          source_catalog,
+          source_key,
+          object_name,
+          ra_deg,
+          dec_deg,
+          distance_pc,
+          distance_pc * {PC_TO_LY} as distance_ly,
+          parallax_mas,
+          gaia_id,
+          object_type,
+          object_family,
+          catalog_ids_json
+        from white_dwarf_norm
         where source_key is not null
         """
     )
@@ -6477,7 +6720,23 @@ def main() -> int:
     con.execute(
         """
         create temp table compact_best_match as
-        with candidates as (
+        with id_candidates as (
+          select
+            c.source_catalog,
+            c.source_key,
+            s.star_id,
+            s.system_id,
+            0.0::double as ang_dist_arcsec,
+            case
+              when c.distance_ly is null or s.dist_ly is null then null
+              else abs(c.distance_ly - s.dist_ly)
+            end as dist_delta_ly,
+            'gaia_id' as candidate_match_method
+          from compact_catalog_input c
+          join stars s
+            on c.gaia_id is not null
+           and s.gaia_id = c.gaia_id
+        ), sky_candidates as (
           select
             c.source_catalog,
             c.source_key,
@@ -6496,7 +6755,8 @@ def main() -> int:
             case
               when c.distance_ly is null or s.dist_ly is null then null
               else abs(c.distance_ly - s.dist_ly)
-            end as dist_delta_ly
+            end as dist_delta_ly,
+            'sky_position' as candidate_match_method
           from compact_catalog_bins c
           join star_sky_bins s
             on s.ra_bin between c.ra_bin - 1 and c.ra_bin + 1
@@ -6506,16 +6766,32 @@ def main() -> int:
              abs(s.ra_deg - c.ra_deg) <= 1.0
              or abs(abs(s.ra_deg - c.ra_deg) - 360.0) <= 1.0
            )
+          where c.gaia_id is null
+        ), candidates as (
+          select * from id_candidates
+          union all
+          select * from sky_candidates
         ), ranked as (
           select
             *,
             row_number() over (
               partition by source_catalog, source_key
-              order by ang_dist_arcsec asc, dist_delta_ly asc nulls last, star_id asc
+              order by
+                case candidate_match_method when 'gaia_id' then 0 else 1 end asc,
+                ang_dist_arcsec asc,
+                dist_delta_ly asc nulls last,
+                star_id asc
             ) as rn
           from candidates
-          where ang_dist_arcsec <= 5.0
-            and (dist_delta_ly is null or dist_delta_ly <= 200.0)
+          where
+            (
+              candidate_match_method = 'gaia_id'
+            )
+            or (
+              candidate_match_method = 'sky_position'
+              and ang_dist_arcsec <= 5.0
+              and (dist_delta_ly is null or dist_delta_ly <= 200.0)
+            )
         )
         select
           source_catalog,
@@ -6523,7 +6799,8 @@ def main() -> int:
           star_id,
           system_id,
           ang_dist_arcsec,
-          dist_delta_ly
+          dist_delta_ly,
+          candidate_match_method as match_method
         from ranked
         where rn = 1
         """
@@ -6544,9 +6821,10 @@ def main() -> int:
           c.distance_ly as dist_ly,
           c.distance_pc as dist_pc,
           c.parallax_mas,
-          case when m.star_id is not null then 'sky_position' else 'unmatched' end as match_method,
+          case when m.star_id is not null then coalesce(m.match_method, 'sky_position') else 'unmatched' end as match_method,
           case
             when m.star_id is null then 0.0
+            when coalesce(m.match_method, '') = 'gaia_id' then 1.0
             when m.ang_dist_arcsec <= 0.5 then 0.99
             when m.ang_dist_arcsec <= 1.0 then 0.95
             when m.ang_dist_arcsec <= 2.0 then 0.90
@@ -6558,14 +6836,17 @@ def main() -> int:
           c.source_catalog,
           case
             when c.source_catalog = 'atnf' then {sql_literal(ATNF_VERSION)}
+            when c.source_catalog = 'white_dwarf' then {sql_literal(WHITE_DWARF_VERSION)}
             else {sql_literal(MAGNETAR_VERSION)}
           end as source_version,
           case
             when c.source_catalog = 'atnf' then {sql_literal(ATNF_URL)}
+            when c.source_catalog = 'white_dwarf' then {sql_literal(WHITE_DWARF_URL)}
             else {sql_literal(MAGNETAR_URL)}
           end as source_url,
           case
             when c.source_catalog = 'atnf' then {sql_literal(ATNF_URL)}
+            when c.source_catalog = 'white_dwarf' then {sql_literal(WHITE_DWARF_URL)}
             else {sql_literal(MAGNETAR_URL)}
           end as source_download_url,
           null::varchar as source_doi,
@@ -6578,10 +6859,12 @@ def main() -> int:
           null::varchar as retrieval_etag,
           case
             when c.source_catalog = 'atnf' then {sql_literal(atnf_sha)}
+            when c.source_catalog = 'white_dwarf' then {sql_literal(white_dwarf_sha)}
             else {sql_literal(magnetar_sha)}
           end as retrieval_checksum,
           case
             when c.source_catalog = 'atnf' then {sql_literal(atnf_retrieved)}
+            when c.source_catalog = 'white_dwarf' then {sql_literal(white_dwarf_retrieved)}
             else {sql_literal(magnetar_retrieved)}
           end as retrieved_at,
           {sql_literal(ingested_at)} as ingested_at,
@@ -6608,6 +6891,7 @@ def main() -> int:
           )
         from compact_objects c
         where stars.star_id = c.star_id
+          and c.source_catalog in ('atnf', 'magnetar')
           and c.match_method = 'sky_position'
           and c.match_angular_distance_arcsec is not null
           and c.match_angular_distance_arcsec <= 1.0
@@ -7507,6 +7791,8 @@ def main() -> int:
         provenance_report["atnf"] = atnf_manifest
     if magnetar_manifest:
         provenance_report["magnetar"] = magnetar_manifest
+    if white_dwarf_manifest:
+        provenance_report["white_dwarf"] = white_dwarf_manifest
     if clusters_table1_manifest:
         provenance_report["open_clusters_table1"] = clusters_table1_manifest
     if clusters_members_manifest:
@@ -7616,13 +7902,30 @@ def main() -> int:
         """
     ).fetchone()[0]
 
-    wd_evidence_count = con.execute(
+    wd_classprob_evidence_count = con.execute(
         f"""
         select count(*) from stars
         where greatest(
           coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
           coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
         ) >= {WHITE_DWARF_PROB_THRESHOLD}
+        """
+    ).fetchone()[0]
+    wd_catalog_evidence_count = con.execute(
+        f"""
+        select count(*) from stars
+        where coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+        """
+    ).fetchone()[0]
+    wd_evidence_count = con.execute(
+        f"""
+        select count(*) from stars
+        where
+          greatest(
+            coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+            coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+          ) >= {WHITE_DWARF_PROB_THRESHOLD}
+          or coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
         """
     ).fetchone()[0]
     wd_emitted_count = con.execute(
@@ -7631,21 +7934,27 @@ def main() -> int:
     wd_mismatch_count = con.execute(
         f"""
         select count(*) from stars
-        where greatest(
-          coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
-          coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
-        ) >= {WHITE_DWARF_PROB_THRESHOLD}
+        where (
+          greatest(
+            coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
+            coalesce(classprob_dsc_specmod_whitedwarf, 0.0)
+          ) >= {WHITE_DWARF_PROB_THRESHOLD}
+          or coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
+        )
           and coalesce(object_family, '') <> 'white_dwarf'
         """
     ).fetchone()[0]
     classification_safety_report = {
         "build_id": build_id,
         "white_dwarf_probability_threshold": WHITE_DWARF_PROB_THRESHOLD,
+        "white_dwarf_catalog_pwd_threshold": white_dwarf_catalog_pwd_threshold,
+        "white_dwarf_classprob_evidence_count": wd_classprob_evidence_count,
+        "white_dwarf_catalog_evidence_count": wd_catalog_evidence_count,
         "white_dwarf_evidence_count": wd_evidence_count,
         "white_dwarf_emitted_count": wd_emitted_count,
         "white_dwarf_mismatch_count": wd_mismatch_count,
         "notes": [
-            "Invariant: rows with strong Gaia white-dwarf class probability must emit object_family=white_dwarf.",
+            "Invariant: rows with strong white-dwarf evidence (Gaia classprob or Gaia EDR3 white-dwarf catalog) must emit object_family=white_dwarf.",
             "Compact-object catalog crossmatches may override object_family to neutron_star for high-confidence positional matches.",
         ],
     }
@@ -8052,6 +8361,9 @@ def main() -> int:
         "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
         "wds_gaia_gate_max_pm_delta_mas_yr": wds_gaia_gate_max_pm_delta_mas_yr,
         "white_dwarf_probability_threshold": WHITE_DWARF_PROB_THRESHOLD,
+        "white_dwarf_catalog_pwd_threshold": white_dwarf_catalog_pwd_threshold,
+        "white_dwarf_classprob_evidence_count": wd_classprob_evidence_count,
+        "white_dwarf_catalog_evidence_count": wd_catalog_evidence_count,
         "white_dwarf_evidence_count": wd_evidence_count,
         "white_dwarf_emitted_count": wd_emitted_count,
         "white_dwarf_mismatch_count": wd_mismatch_count,
@@ -8263,6 +8575,26 @@ def main() -> int:
             from compact_objects
             where match_method is not null
               and lower(match_method) not in ('none', 'unmatched')
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    white_dwarf_catalog_star_rows = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from stars
+            where wd_catalog_pwd is not null
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    white_dwarf_catalog_evidence_rows = int(
+        con.execute(
+            f"""
+            select count(*)::bigint
+            from stars
+            where coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
             """
         ).fetchone()[0]
         or 0
@@ -8771,6 +9103,18 @@ def main() -> int:
     )
     add_catalog_contribution(
         catalog_contributions,
+        catalog="white_dwarf",
+        domain="stars",
+        domain_total=total_stars,
+        input_rows=safe_view_count("white_dwarf_raw"),
+        input_bytes=manifest_bytes(white_dwarf_manifest),
+        direct_rows=0,
+        evidence_rows=white_dwarf_catalog_evidence_rows,
+        linked_rows=white_dwarf_catalog_star_rows,
+        notes="Gaia EDR3 white dwarf catalog evidence and model metadata",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
         catalog="clusters",
         domain="stars",
         domain_total=total_stars,
@@ -8804,6 +9148,18 @@ def main() -> int:
         evidence_rows=0,
         linked_rows=compact_linked_rows,
         notes="magnetar compact-object support",
+    )
+    add_catalog_contribution(
+        catalog_contributions,
+        catalog="white_dwarf",
+        domain="compact_objects",
+        domain_total=total_compact,
+        input_rows=safe_view_count("white_dwarf_raw"),
+        input_bytes=manifest_bytes(white_dwarf_manifest),
+        direct_rows=int(compact_source_counts.get("white_dwarf", 0)),
+        evidence_rows=0,
+        linked_rows=int(compact_source_counts.get("white_dwarf", 0)),
+        notes="white-dwarf compact-object inventory (Gaia ID exact joins)",
     )
     add_catalog_contribution(
         catalog_contributions,
@@ -8883,6 +9239,7 @@ def main() -> int:
         ("nasa_exoplanet_archive", nasa_manifest),
         ("atnf", atnf_manifest),
         ("magnetar", magnetar_manifest),
+        ("white_dwarf", white_dwarf_manifest),
         ("clusters_table1", clusters_table1_manifest),
         ("clusters_members", clusters_members_manifest),
         ("snr", snr_manifest),
