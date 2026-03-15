@@ -8619,6 +8619,21 @@ def main() -> int:
         or 0
     )
 
+    def manifest_row_count_match(entry: dict | None) -> bool | None:
+        if not entry:
+            return None
+        value = entry.get("row_count_match")
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return None
+        text = str(value).strip().lower()
+        if text in {"1", "true", "yes", "on"}:
+            return True
+        if text in {"0", "false", "no", "off"}:
+            return False
+        return None
+
     qc_report = {
         "build_id": build_id,
         "counts": {
@@ -8848,21 +8863,6 @@ def main() -> int:
             return int(value)
         except Exception:
             return None
-
-    def manifest_row_count_match(entry: dict | None) -> bool | None:
-        if not entry:
-            return None
-        value = entry.get("row_count_match")
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return None
-        text = str(value).strip().lower()
-        if text in {"1", "true", "yes", "on"}:
-            return True
-        if text in {"0", "false", "no", "off"}:
-            return False
-        return None
 
     def safe_view_count(view_name: str) -> int | None:
         try:
@@ -9740,8 +9740,8 @@ def main() -> int:
         "coalesce(cast(hip_id as varchar),''),"
         "coalesce(cast(hd_id as varchar),''),"
         "coalesce(spectral_class,''),"
-        "coalesce(spectral_subclass,''),"
-        "coalesce(spectral_luminosity_class,''),"
+        "coalesce(spectral_subtype,''),"
+        "coalesce(luminosity_class,''),"
         "coalesce(cast(round(dist_ly, 6) as varchar),''),"
         "coalesce(multiplicity_match_method,'')"
         ")",
@@ -9751,10 +9751,10 @@ def main() -> int:
         "hash("
         "coalesce(stable_object_key,''),"
         "coalesce(system_name_norm,''),"
-        "coalesce(cast(primary_star_id as varchar),''),"
+        "coalesce(cast(gaia_id as varchar),''),"
         "coalesce(wds_id,''),"
         "coalesce(cast(round(dist_ly, 6) as varchar),''),"
-        "coalesce(grouping_method,''),"
+        "coalesce(grouping_basis,''),"
         "coalesce(cast(has_wds_evidence as varchar),''),"
         "coalesce(cast(has_msc_evidence as varchar),'')"
         ")",

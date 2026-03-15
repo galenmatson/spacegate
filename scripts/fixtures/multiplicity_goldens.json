@@ -1,8 +1,11 @@
 {
-  "fixture_version": "2026-03-10",
+  "fixture_version": "2026-03-15",
   "systems": [
     {
       "id": "castor",
+      "mode": "hierarchy",
+      "scope": "core",
+      "required": true,
       "name_aliases": ["castor", "alpha gem", "yy gem"],
       "expected_stellar_components": ["aa", "ab", "ba", "bb", "ca", "cb"],
       "expected_stellar_component_count": 6,
@@ -12,6 +15,56 @@
         ["ca", "cb"]
       ],
       "minimum_confidence_tier": "medium"
+    },
+    {
+      "id": "55_cancri",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["55 cnc", "copernicus", "hd 75732", "hip 43587"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 5
+    },
+    {
+      "id": "gliese_667",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["gj 667 c"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 2
+    },
+    {
+      "id": "trappist_1",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["trappist 1"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 7
+    },
+    {
+      "id": "psr_b1620_26",
+      "mode": "presence",
+      "scope": "galaxy_or_halo",
+      "required": false,
+      "alias_queries": ["psr b1620 26"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 1
+    },
+    {
+      "id": "tyc_7037_89_1",
+      "mode": "presence",
+      "scope": "galaxy_or_halo",
+      "required": false,
+      "alias_queries": ["tyc 7037-89-1"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 0
     }
   ]
 }

@@ -399,6 +399,34 @@ This path remains optional while false-positive/false-negative tradeoffs are act
 3. Production default ingest must avoid fragile/insecure dependencies.
 4. License and redistribution constraints must be documented per source family.
 
+## Catalog Mirror Workflow (spacegates bootstrap)
+
+Mirror target:
+
+- `/srv/spacegate/dl/catalogs`
+
+Snapshot publisher:
+
+- `scripts/publish_catalog_mirror.py`
+
+Recommended run sequence after successful ingest/promote/verify:
+
+```bash
+scripts/publish_catalog_mirror.py
+scripts/publish_db.sh
+```
+
+Behavior:
+
+- publishes immutable snapshot at `dl/catalogs/snapshots/<snapshot_id>/`
+- updates `dl/catalogs/current` symlink and `dl/catalogs/current.json`
+- preserves **original raw upstream artifacts** exactly as downloaded
+- publishes **cooked Spacegate-normalized artifacts** as convenience layer for downstream bootstrap users
+
+Operational rule:
+
+- never replace raw artifacts with cooked variants; raw remains canonical provenance evidence.
+
 ## Provenance Expectations by Build
 
 Each served row in `core` must map back to source lineage:

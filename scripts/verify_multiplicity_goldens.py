@@ -68,6 +68,16 @@ def fail(results: dict[str, Any], system_id: str, message: str) -> None:
     )
 
 
+def skip_result(results: dict[str, Any], system_id: str, message: str) -> None:
+    results["systems"].append(
+        {
+            "id": system_id,
+            "status": "skipped",
+            "message": message,
+        }
+    )
+
+
 def pass_result(results: dict[str, Any], system_id: str, details: dict[str, Any]) -> None:
     payload = {"id": system_id, "status": "pass"}
     payload.update(details)
@@ -111,12 +121,126 @@ def pick_component_row(
     return rows[0]
 
 
+def find_system_ids_from_aliases(
+    core: duckdb.DuckDBPyConnection,
+    alias_queries: list[str],
+) -> list[int]:
+    system_ids: set[int] = set()
+    for alias in alias_queries:
+        token = normalize_label(alias)
+        if not token:
+            continue
+        rows = core.execute(
+            """
+            with alias_hits as (
+              select target_type, target_id
+              from aliases
+              where alias_norm = ?
+            )
+            select distinct
+              case
+                when h.target_type = 'system' then h.target_id
+                when h.target_type = 'star' then s.system_id
+                else null
+              end as system_id
+            from alias_hits h
+            left join stars s on h.target_type = 'star' and s.star_id = h.target_id
+            where (
+              (h.target_type = 'system' and h.target_id is not null)
+              or
+              (h.target_type = 'star' and s.system_id is not null)
+            )
+            """,
+            [token],
+        ).fetchall()
+        for row in rows:
+            if row and row[0] is not None:
+                system_ids.add(int(row[0]))
+    return sorted(system_ids)
+
+
+def check_presence_mode(
+    core: duckdb.DuckDBPyConnection,
+    system_cfg: dict[str, Any],
+    results: dict[str, Any],
+) -> None:
+    system_id = str(system_cfg.get("id") or "unknown")
+    required = bool(system_cfg.get("required", True))
+    scope = str(system_cfg.get("scope") or "core")
+    alias_queries = [str(v) for v in (system_cfg.get("alias_queries") or system_cfg.get("name_aliases") or [])]
+    if not alias_queries:
+        fail(results, system_id, "presence mode requires alias_queries or name_aliases")
+        return
+    matched_system_ids = find_system_ids_from_aliases(core, alias_queries)
+    if not matched_system_ids:
+        if required:
+            fail(results, system_id, "No system match from aliases")
+        else:
+            skip_result(results, system_id, "No system match from aliases (optional golden)")
+        return
+
+    star_count = int(
+        core.execute(
+            "select count(*) from stars where system_id in (select unnest(?))",
+            [matched_system_ids],
+        ).fetchone()[0]
+        or 0
+    )
+    planet_count = int(
+        core.execute(
+            "select count(*) from planets where system_id in (select unnest(?))",
+            [matched_system_ids],
+        ).fetchone()[0]
+        or 0
+    )
+    min_system_matches = int(system_cfg.get("min_system_matches", 1))
+    min_star_rows = int(system_cfg.get("min_star_rows", 1))
+    min_planet_rows = int(system_cfg.get("min_planet_rows", 0))
+
+    if len(matched_system_ids) < min_system_matches:
+        fail(
+            results,
+            system_id,
+            f"Matched systems {len(matched_system_ids)} < required {min_system_matches}",
+        )
+        return
+    if star_count < min_star_rows:
+        fail(results, system_id, f"Matched stars {star_count} < required {min_star_rows}")
+        return
+    if planet_count < min_planet_rows:
+        fail(results, system_id, f"Matched planets {planet_count} < required {min_planet_rows}")
+        return
+
+    pass_result(
+        results,
+        system_id,
+        {
+            "mode": "presence",
+            "scope": scope,
+            "required": required,
+            "matched_systems": len(matched_system_ids),
+            "matched_stars": star_count,
+            "matched_planets": planet_count,
+            "aliases_checked": alias_queries,
+        },
+    )
+
+
 def check_system(
+    core: duckdb.DuckDBPyConnection,
     arm: duckdb.DuckDBPyConnection,
     system_cfg: dict[str, Any],
     results: dict[str, Any],
 ) -> None:
     system_id = str(system_cfg.get("id") or "unknown")
+    if not bool(system_cfg.get("enabled", True)):
+        skip_result(results, system_id, "disabled fixture entry")
+        return
+    mode = normalize_label(system_cfg.get("mode") or "hierarchy")
+    if mode == "presence":
+        check_presence_mode(core, system_cfg, results)
+        return
+
     expected_components = [normalize_label(v) for v in system_cfg.get("expected_stellar_components", [])]
     expected_pairs = system_cfg.get("expected_inner_binary_pairs", [])
     name_aliases = [str(v) for v in (system_cfg.get("name_aliases") or [])]
@@ -230,6 +354,8 @@ def check_system(
         results,
         system_id,
         {
+            "mode": "hierarchy",
+            "scope": str(system_cfg.get("scope") or "core"),
             "component_count": len(component_keys),
             "pairs_checked": len(expected_pairs),
             "minimum_tier_rank": min(ranks),
@@ -277,33 +403,52 @@ def main() -> int:
         "systems": [],
     }
 
-    if not arm_db.exists():
-        if args.require_arm:
-            raise SystemExit(f"Arm DB not found: {arm_db}")
-        results["status"] = "skipped"
-        results["reason"] = "arm DB missing"
-        print(json.dumps(results, indent=2, sort_keys=True))
-        return 0
+    core = duckdb.connect(str(core_db), read_only=True)
+    hierarchy_required = any(
+        bool(cfg.get("enabled", True))
+        and normalize_label(cfg.get("mode") or "hierarchy") == "hierarchy"
+        for cfg in systems
+    )
 
-    arm = duckdb.connect(str(arm_db), read_only=True)
-    required_tables = ["component_entities", "system_hierarchy_edges", "orbit_edges"]
-    missing_tables = [t for t in required_tables if not table_exists(arm, t)]
-    if missing_tables:
-        if args.require_arm:
-            raise SystemExit(f"Arm DB missing required tables: {', '.join(missing_tables)}")
-        results["status"] = "skipped"
-        results["reason"] = f"missing arm tables: {', '.join(missing_tables)}"
-        print(json.dumps(results, indent=2, sort_keys=True))
-        return 0
+    if not arm_db.exists():
+        if args.require_arm and hierarchy_required:
+            raise SystemExit(f"Arm DB not found: {arm_db}")
+        arm = None
+    else:
+        arm = duckdb.connect(str(arm_db), read_only=True)
+
+    if arm is not None:
+        required_tables = ["component_entities", "system_hierarchy_edges", "orbit_edges"]
+        missing_tables = [t for t in required_tables if not table_exists(arm, t)]
+        if missing_tables:
+            if args.require_arm and hierarchy_required:
+                raise SystemExit(f"Arm DB missing required tables: {', '.join(missing_tables)}")
+            arm.close()
+            arm = None
 
     for system_cfg in systems:
-        check_system(arm, system_cfg, results)
+        mode = normalize_label(system_cfg.get("mode") or "hierarchy")
+        if mode == "hierarchy" and arm is None:
+            system_id = str(system_cfg.get("id") or "unknown")
+            if bool(system_cfg.get("required", True)):
+                fail(results, system_id, "Hierarchy check requested but arm DB/tables unavailable")
+            else:
+                skip_result(results, system_id, "Hierarchy check skipped (arm DB/tables unavailable)")
+            continue
+        check_system(core, arm, system_cfg, results)
 
-    failures = [s for s in results["systems"] if s.get("status") != "pass"]
+    failures = [s for s in results["systems"] if s.get("status") == "fail"]
     if failures:
         results["status"] = "fail"
+    else:
+        skips = [s for s in results["systems"] if s.get("status") == "skipped"]
+        if skips:
+            results["status"] = "pass_with_skips"
 
     print(json.dumps(results, indent=2, sort_keys=True))
+    core.close()
+    if arm is not None:
+        arm.close()
     if failures:
         return 1
     return 0

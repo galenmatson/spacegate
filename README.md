@@ -185,6 +185,24 @@ By default this writes to `/srv/spacegate/dl` (override with `SPACEGATE_DL_ROOT`
 
 `current.json` includes artifact checksum/size plus report links and summary metadata used by bootstrap clients.
 
+### 3.1a) Publish catalog mirror snapshots for bootstrap clients
+
+To mirror catalog artifacts (raw + cooked) into `/srv/spacegate/dl/catalogs`:
+
+```bash
+scripts/publish_catalog_mirror.py
+```
+
+Outputs:
+
+- `catalogs/snapshots/<snapshot_id>/raw/...` (upstream raw format, unchanged)
+- `catalogs/snapshots/<snapshot_id>/cooked/...` (Spacegate-normalized artifacts)
+- `catalogs/snapshots/<snapshot_id>/index.json`
+- `catalogs/current -> snapshots/<snapshot_id>`
+- `catalogs/current.json`
+
+Use `--catalog <name>` repeatedly to mirror a subset, or `--raw-only` to skip cooked artifacts.
+
 ### 3.2) Push published artifacts to a remote host
 
 To copy the published DB archive, `current.json`, and referenced reports to a remote `/dl` tree:

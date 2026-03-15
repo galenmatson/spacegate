@@ -118,7 +118,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ## D) Security and Data Hygiene
 
 - [ ] No default production dependency on insecure transport sources
-- [ ] Source mirror strategy documented for fragile external dependencies
+- [x] Source mirror strategy documented for fragile external dependencies
 - [x] Retention policy documented (builds, reports, backups, large catalogs)
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
 
