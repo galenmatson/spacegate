@@ -221,6 +221,7 @@ def build_planets(
     planet_classifier_version: str,
     enable_lifecycle: bool,
     cooked_lifecycle_status: Path,
+    cooked_lifecycle_aliases: Path,
     cooked_lifecycle_features: Path,
     build_id: str,
 ) -> tuple[dict, dict, int, dict[str, int]]:
@@ -459,6 +460,9 @@ def build_planets(
 
     lifecycle_status_raw_rows = 0
     lifecycle_status_matched_rows = 0
+    lifecycle_alias_rows = 0
+    lifecycle_alias_matched_rows = 0
+    lifecycle_alias_matched_planets = 0
     lifecycle_features_raw_rows = 0
     lifecycle_stale_classifier_rows = 0
     planet_catalog_delta_report: dict[str, object] = {
@@ -473,11 +477,26 @@ def build_planets(
 
     if enable_lifecycle:
         lifecycle_status_path = str(cooked_lifecycle_status).replace("'", "''")
+        lifecycle_alias_path = str(cooked_lifecycle_aliases).replace("'", "''")
         lifecycle_features_path = str(cooked_lifecycle_features).replace("'", "''")
         con.execute(
             f"""
             create or replace temp view exoplanet_lifecycle_status_raw as
             select * from read_csv_auto('{lifecycle_status_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+        con.execute(
+            f"""
+            create or replace temp view exoplanet_lifecycle_alias_raw as
+            select * from read_csv_auto('{lifecycle_alias_path}',
                 delim=',',
                 quote='\"',
                 escape='\"',
@@ -515,30 +534,139 @@ def build_planets(
         lifecycle_features_raw_rows = int(
             con.execute("select count(*)::bigint from exoplanet_lifecycle_features_raw").fetchone()[0] or 0
         )
+        lifecycle_alias_rows = int(
+            con.execute("select count(*)::bigint from exoplanet_lifecycle_alias_raw").fetchone()[0] or 0
+        )
+        con.execute(
+            """
+            create or replace temp table lifecycle_alias_bridge as
+            with alias_norm as (
+              select
+                lower(trim(regexp_replace(regexp_replace(coalesce(planet_name, ''), '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g'))) as primary_norm,
+                lower(trim(regexp_replace(regexp_replace(coalesce(alias_name, ''), '[^0-9A-Za-z]+', ' ', 'g'), '\\s+', ' ', 'g'))) as alias_norm
+              from exoplanet_lifecycle_alias_raw
+            ), pairs as (
+              select alias_norm as source_name_norm, primary_norm as target_name_norm, 2 as match_rank, 'oec_alias_to_primary' as match_strategy
+              from alias_norm
+              where alias_norm <> '' and primary_norm <> '' and alias_norm <> primary_norm
+              union all
+              select primary_norm as source_name_norm, alias_norm as target_name_norm, 3 as match_rank, 'oec_primary_to_alias' as match_strategy
+              from alias_norm
+              where alias_norm <> '' and primary_norm <> '' and alias_norm <> primary_norm
+            )
+            select source_name_norm, target_name_norm, match_rank, match_strategy
+            from pairs
+            qualify row_number() over (
+              partition by source_name_norm, target_name_norm
+              order by match_rank asc, match_strategy asc
+            ) = 1
+            """
+        )
         con.execute(
             """
             create or replace temp table planet_status_matches as
+            with status_norm as (
+              select
+                row_number() over () as status_row_id,
+                lower(trim(coalesce(source_catalog, 'unknown'))) as source_catalog,
+                coalesce(source_version, '') as source_version,
+                coalesce(source_pk, '') as source_pk,
+                lower(trim(coalesce(observed_status, ''))) as observed_status,
+                coalesce(source_row_hash, '') as source_row_hash,
+                coalesce(observed_at, '') as observed_at,
+                coalesce(notes, '') as notes,
+                lower(trim(coalesce(planet_name_norm, ''))) as source_name_norm
+              from exoplanet_lifecycle_status_raw
+              where lower(trim(coalesce(observed_status, ''))) in ('confirmed','candidate','controversial','retracted')
+            ), status_names as (
+              select distinct source_name_norm
+              from status_norm
+              where source_name_norm <> ''
+            ), status_name_targets as (
+              select
+                n.source_name_norm,
+                n.source_name_norm as target_name_norm,
+                1 as match_rank,
+                'direct' as match_strategy
+              from status_names n
+              union all
+              select
+                n.source_name_norm,
+                b.target_name_norm,
+                b.match_rank,
+                b.match_strategy
+              from status_names n
+              join lifecycle_alias_bridge b
+                on b.source_name_norm = n.source_name_norm
+            ), matches_raw as (
+              select
+                p.planet_id,
+                p.stable_object_key,
+                p.planet_name,
+                p.planet_name_norm,
+                s.status_row_id,
+                s.source_catalog,
+                s.source_version,
+                s.source_pk,
+                s.observed_status,
+                s.source_row_hash,
+                s.observed_at,
+                case
+                  when t.match_strategy = 'direct' then s.notes
+                  when s.notes = '' then 'match=' || t.match_strategy
+                  else s.notes || '; match=' || t.match_strategy
+                end as notes,
+                t.match_strategy,
+                row_number() over (
+                  partition by s.status_row_id, p.planet_id
+                  order by t.match_rank asc
+                ) as rn
+              from status_norm s
+              join status_name_targets t
+                on t.source_name_norm = s.source_name_norm
+              join planets p
+                on p.planet_name_norm is not null
+               and p.planet_name_norm = t.target_name_norm
+            )
             select
-              p.planet_id,
-              p.stable_object_key,
-              p.planet_name,
-              p.planet_name_norm,
-              lower(trim(coalesce(s.source_catalog, 'unknown'))) as source_catalog,
-              coalesce(s.source_version, '') as source_version,
-              coalesce(s.source_pk, '') as source_pk,
-              lower(trim(coalesce(s.observed_status, ''))) as observed_status,
-              coalesce(s.source_row_hash, '') as source_row_hash,
-              coalesce(s.observed_at, '') as observed_at,
-              coalesce(s.notes, '') as notes
-            from planets p
-            join exoplanet_lifecycle_status_raw s
-              on p.planet_name_norm is not null
-             and p.planet_name_norm = lower(trim(coalesce(s.planet_name_norm, '')))
-            where lower(trim(coalesce(s.observed_status, ''))) in ('confirmed','candidate','controversial','retracted')
+              planet_id,
+              stable_object_key,
+              planet_name,
+              planet_name_norm,
+              source_catalog,
+              source_version,
+              source_pk,
+              observed_status,
+              source_row_hash,
+              observed_at,
+              notes,
+              match_strategy
+            from matches_raw
+            where rn = 1
             """
         )
         lifecycle_status_matched_rows = int(
             con.execute("select count(*)::bigint from planet_status_matches").fetchone()[0] or 0
+        )
+        lifecycle_alias_matched_rows = int(
+            con.execute(
+                """
+                select count(*)::bigint
+                from planet_status_matches
+                where match_strategy <> 'direct'
+                """
+            ).fetchone()[0]
+            or 0
+        )
+        lifecycle_alias_matched_planets = int(
+            con.execute(
+                """
+                select count(distinct stable_object_key)::bigint
+                from planet_status_matches
+                where match_strategy <> 'direct'
+                """
+            ).fetchone()[0]
+            or 0
         )
         con.execute(
             f"""
@@ -608,12 +736,34 @@ def build_planets(
         con.execute(
             """
             create or replace temp table hwc_feature_best as
+            with hwc_feature_norm as (
+              select
+                lower(trim(coalesce(planet_name_norm, ''))) as source_name_norm,
+                nullif(hwc_p_habitable, '')::double as hwc_p_habitable,
+                nullif(hwc_esi, '')::double as hwc_esi
+              from exoplanet_lifecycle_features_raw
+              where lower(trim(coalesce(source_catalog, ''))) = 'hwc'
+            ), hwc_feature_targets as (
+              select
+                source_name_norm as planet_name_norm,
+                hwc_p_habitable,
+                hwc_esi
+              from hwc_feature_norm
+              where source_name_norm <> ''
+              union all
+              select
+                b.target_name_norm as planet_name_norm,
+                f.hwc_p_habitable,
+                f.hwc_esi
+              from hwc_feature_norm f
+              join lifecycle_alias_bridge b
+                on b.source_name_norm = f.source_name_norm
+            )
             select
-              lower(trim(coalesce(planet_name_norm, ''))) as planet_name_norm,
-              max(nullif(hwc_p_habitable, '')::double) as hwc_p_habitable,
-              max(nullif(hwc_esi, '')::double) as hwc_esi
-            from exoplanet_lifecycle_features_raw
-            where lower(trim(coalesce(source_catalog, ''))) = 'hwc'
+              planet_name_norm,
+              max(hwc_p_habitable) as hwc_p_habitable,
+              max(hwc_esi) as hwc_esi
+            from hwc_feature_targets
             group by 1
             having planet_name_norm <> ''
             """
@@ -767,6 +917,9 @@ def build_planets(
             "previous_build_id": None,
             "status_raw_rows": lifecycle_status_raw_rows,
             "status_matched_rows": lifecycle_status_matched_rows,
+            "alias_raw_rows": lifecycle_alias_rows,
+            "alias_matched_rows": lifecycle_alias_matched_rows,
+            "alias_matched_planets": lifecycle_alias_matched_planets,
             "feature_raw_rows": lifecycle_features_raw_rows,
             "resolved_status_counts": resolved_status_counts,
             "transition_counts": transition_counts,
@@ -1167,6 +1320,7 @@ def main() -> int:
 
     cooked_nasa = state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     cooked_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
+    cooked_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
     cooked_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
     if not cooked_nasa.exists():
         raise SystemExit(f"Missing cooked NASA file: {cooked_nasa}")
@@ -1203,7 +1357,11 @@ def main() -> int:
         "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS",
         metadata.get("exoplanet_lifecycle_catalogs_enabled", "0") == "1",
     )
-    if enable_lifecycle and (not cooked_lifecycle_status.exists() or not cooked_lifecycle_features.exists()):
+    if enable_lifecycle and (
+        not cooked_lifecycle_status.exists()
+        or not cooked_lifecycle_aliases.exists()
+        or not cooked_lifecycle_features.exists()
+    ):
         raise SystemExit(
             "Incremental lifecycle mode enabled but cooked lifecycle files are missing. "
             "Run scripts/cook_delta.sh or scripts/cook_core.sh first."
@@ -1226,6 +1384,7 @@ def main() -> int:
         planet_classifier_version=planet_classifier_version,
         enable_lifecycle=enable_lifecycle,
         cooked_lifecycle_status=cooked_lifecycle_status,
+        cooked_lifecycle_aliases=cooked_lifecycle_aliases,
         cooked_lifecycle_features=cooked_lifecycle_features,
         build_id=build_id,
     )
