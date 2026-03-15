@@ -86,7 +86,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### C5.3 Phase D.5 - Exoplanet Multi-Catalog Lifecycle
 
-- [x] Add lifecycle source downloads/manifests (exoplanet.eu, OEC, EMAC TT9, HWC)
+- [x] Add lifecycle source downloads/manifests (exoplanet.eu, OEC, HWC)
 - [x] Add per-source manifest snapshot diff report (`reports/source_delta_report.json`) with persisted baseline snapshot/history
 - [x] Add impacted-row planner report (`reports/impacted_rows_plan.json`) with mode routing
 - [x] Add cooked lifecycle normalization outputs (status/alias/feature rows)

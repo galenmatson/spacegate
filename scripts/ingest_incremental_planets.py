@@ -1311,7 +1311,6 @@ def main() -> int:
     exoplanet_eu_manifest = read_json(manifests_dir / "exoplanet_eu_manifest.json", default=[])
     oec_manifest = read_json(manifests_dir / "open_exoplanet_catalogue_manifest.json", default=[])
     hwc_manifest = read_json(manifests_dir / "hwc_manifest.json", default=[])
-    emac_manifest = read_json(manifests_dir / "emac_tt9_manifest.json", default=[])
 
     nasa_manifest = select_manifest_entry(core_manifest, "pscomppars") or {}
     nasa_url = str(nasa_manifest.get("url") or NASA_SOURCE_URL_DEFAULT)
@@ -1513,7 +1512,6 @@ def main() -> int:
             "exoplanet_eu": select_manifest_entry(exoplanet_eu_manifest, "catalog_csv"),
             "open_exoplanet_catalogue": select_manifest_entry(oec_manifest, "catalog_tarball"),
             "hwc": select_manifest_entry(hwc_manifest, "hwc_full_csv"),
-            "emac_tt9": select_manifest_entry(emac_manifest, "tt9_source"),
         },
     }
 

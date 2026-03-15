@@ -154,7 +154,7 @@ PY
   fi
 
   local lifecycle_changed=0
-  for src in exoplanet_eu open_exoplanet_catalogue hwc emac_tt9; do
+  for src in exoplanet_eu open_exoplanet_catalogue hwc; do
     if [[ "$(contains_source "$plan_path" "$src")" == "1" ]]; then
       lifecycle_changed=1
       break

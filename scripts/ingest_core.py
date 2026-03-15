@@ -59,8 +59,6 @@ OPEN_EXOPLANET_CATALOGUE_URL = "https://github.com/OpenExoplanetCatalogue/open_e
 OPEN_EXOPLANET_CATALOGUE_VERSION = "tarball_master"
 HWC_URL = "https://phl.upr.edu/hwc/data"
 HWC_VERSION = "hwc_csv"
-EMAC_TT9_URL = "https://emac.gsfc.nasa.gov/?cid=2209-004"
-EMAC_TT9_VERSION = "tt9_source"
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
@@ -767,7 +765,6 @@ def main() -> int:
         manifest_dir / "open_exoplanet_catalogue_manifest.json"
     )
     hwc_manifest_path = manifest_dir / "hwc_manifest.json"
-    emac_tt9_manifest_path = manifest_dir / "emac_tt9_manifest.json"
     planet_classifier_version = (
         os.getenv("SPACEGATE_PLANET_CLASSIFIER_VERSION")
         or PLANET_CLASSIFIER_VERSION_DEFAULT
@@ -918,7 +915,6 @@ def main() -> int:
                 exoplanet_eu_manifest_path,
                 open_exoplanet_catalogue_manifest_path,
                 hwc_manifest_path,
-                emac_tt9_manifest_path,
             ]
         )
     for path in manifest_paths:
@@ -1169,11 +1165,6 @@ def main() -> int:
     )
     hwc_manifest = (
         require_manifest_entry(manifest, "hwc_full_csv", "Habitable Worlds Catalog")
-        if enable_exoplanet_lifecycle_catalogs
-        else None
-    )
-    emac_tt9_manifest = (
-        require_manifest_entry(manifest, "tt9_source", "EMAC TT9 source")
         if enable_exoplanet_lifecycle_catalogs
         else None
     )
@@ -8064,8 +8055,6 @@ def main() -> int:
         provenance_report["open_exoplanet_catalogue"] = open_exoplanet_catalogue_manifest
     if hwc_manifest:
         provenance_report["hwc"] = hwc_manifest
-    if emac_tt9_manifest:
-        provenance_report["emac_tt9"] = emac_tt9_manifest
 
     write_json(reports_dir / "provenance_report.json", provenance_report)
 
@@ -9415,18 +9404,6 @@ def main() -> int:
                 f"(distinct planets={planet_lifecycle_oec_alias_linked_planets})"
             ),
         )
-        add_catalog_contribution(
-            catalog_contributions,
-            catalog="emac_tt9",
-            domain="planets",
-            domain_total=total_planets,
-            input_rows=manifest_row_count(emac_tt9_manifest),
-            input_bytes=manifest_bytes(emac_tt9_manifest),
-            direct_rows=0,
-            evidence_rows=int(planet_lifecycle_observation_counts.get("emac_tt9", 0)),
-            linked_rows=int(planet_lifecycle_observation_counts.get("emac_tt9", 0)),
-            notes="candidate signal support",
-        )
     add_catalog_contribution(
         catalog_contributions,
         catalog="gaia_classprob",
@@ -9601,7 +9578,6 @@ def main() -> int:
         ("exoplanet_eu", exoplanet_eu_manifest),
         ("open_exoplanet_catalogue", open_exoplanet_catalogue_manifest),
         ("hwc", hwc_manifest),
-        ("emac_tt9", emac_tt9_manifest),
         ("athyg_part1", athyg_p1),
         ("athyg_part2", athyg_p2),
     ]:

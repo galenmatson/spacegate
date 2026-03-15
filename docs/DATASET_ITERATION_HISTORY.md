@@ -70,7 +70,7 @@ Representative commits:
 
 ### 5) Exoplanet Lifecycle + Differential Refresh
 
-- Added lifecycle source ingest (exoplanet.eu, OEC, HWC, EMAC TT9).
+- Added lifecycle source ingest (exoplanet.eu, OEC, HWC); EMAC TT9 was later removed from active ingest because no deterministic bulk row feed is exposed at the endpoint.
 - Added lifecycle policy fields (`is_default_visible`, `is_tombstoned`) and reports.
 - Added per-source delta snapshots and impacted-row planner.
 - Added selective cook + incremental planet refresh orchestration.

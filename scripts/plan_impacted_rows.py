@@ -12,7 +12,6 @@ PLANET_SOURCE_SET = {
     "exoplanet_eu",
     "open_exoplanet_catalogue",
     "hwc",
-    "emac_tt9",
 }
 
 

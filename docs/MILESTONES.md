@@ -199,7 +199,6 @@ Deliverables:
   - NASA Exoplanet Archive remains canonical confirmed baseline
   - exoplanet.eu status layer (`candidate`, `controversial`, `retracted` tracking)
   - OEC supplemental alias/architecture layer
-  - EMAC/TT9 candidate-signal layer
   - HWC comparison/feature layer (non-canonical score ownership)
 - deterministic lifecycle policy materialization:
   - `candidate` included by default

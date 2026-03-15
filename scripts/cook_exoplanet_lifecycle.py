@@ -204,42 +204,6 @@ def cook_oec_aliases(raw_path: Path, alias_writer: csv.DictWriter) -> int:
     return count
 
 
-def cook_emac_tt9(
-    raw_path: Path,
-    status_writer: csv.DictWriter,
-    observed_at: str,
-) -> int:
-    if not raw_path.exists():
-        return 0
-    count = 0
-    reader = open_csv_reader(raw_path)
-    for i, row in enumerate(reader, start=1):
-        planet_name = first_value(
-            row,
-            ["planet_name", "name", "target_name", "toi_name", "candidate_name"],
-        )
-        if not planet_name:
-            continue
-        observed_status = map_status(first_value(row, ["disposition", "status", "class"]))
-        if not observed_status:
-            observed_status = "candidate"
-        source_pk = first_value(row, ["id", "signal_id", "toi"]) or str(i)
-        payload = {
-            "source_catalog": "emac_tt9",
-            "source_version": "tt9_csv",
-            "source_pk": source_pk,
-            "planet_name": planet_name,
-            "planet_name_norm": normalize_name(planet_name),
-            "observed_status": observed_status,
-            "observed_at": observed_at,
-            "notes": "EMAC TT9 candidate signal ingest",
-        }
-        payload["source_row_hash"] = row_hash(payload)
-        status_writer.writerow(payload)
-        count += 1
-    return count
-
-
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(
@@ -322,13 +286,8 @@ def main() -> int:
             raw_dir / "open_exoplanet_catalogue" / "open_exoplanet_catalogue.tar.gz",
             alias_writer,
         )
-        emac_status = cook_emac_tt9(
-            raw_dir / "emac_tt9" / "tt9_source.html",
-            status_writer,
-            observed_at,
-        )
 
-    print(f"cooked exoplanet_lifecycle_status: {exoplanet_eu_status + hwc_status + emac_status} rows -> {status_path}")
+    print(f"cooked exoplanet_lifecycle_status: {exoplanet_eu_status + hwc_status} rows -> {status_path}")
     print(f"cooked exoplanet_lifecycle_aliases: {oec_aliases} rows -> {alias_path}")
     print(f"cooked exoplanet_lifecycle_features: {hwc_features} rows -> {features_path}")
     return 0

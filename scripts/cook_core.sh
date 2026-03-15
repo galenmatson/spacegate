@@ -33,7 +33,6 @@ SBX_ORBITS_RAW="$RAW_DIR/sbx/sbx_orbits.csv"
 EXOPLANET_EU_RAW="$RAW_DIR/exoplanet_eu/catalog.csv"
 OEC_RAW="$RAW_DIR/open_exoplanet_catalogue/open_exoplanet_catalogue.tar.gz"
 HWC_RAW="$RAW_DIR/hwc/hwc.csv"
-EMAC_TT9_RAW="$RAW_DIR/emac_tt9/tt9_source.html"
 
 COOKED_ATHYG_DIR="$COOKED_DIR/athyg"
 COOKED_NASA_DIR="$COOKED_DIR/nasa_exoplanet_archive"
@@ -162,10 +161,6 @@ ensure_inputs() {
     fi
     if [[ ! -f "$HWC_RAW" ]]; then
       echo "Missing: $HWC_RAW" >&2
-      missing=1
-    fi
-    if [[ ! -f "$EMAC_TT9_RAW" ]]; then
-      echo "Missing: $EMAC_TT9_RAW" >&2
       missing=1
     fi
   fi

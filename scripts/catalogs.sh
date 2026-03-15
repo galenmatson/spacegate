@@ -29,7 +29,6 @@ NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.
 EXOPLANET_EU_URL="${EXOPLANET_EU_URL:-https://www.exoplanet.eu/catalog/csv/}"
 OPEN_EXOPLANET_CATALOGUE_URL="${OPEN_EXOPLANET_CATALOGUE_URL:-https://codeload.github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue/tar.gz/refs/heads/master}"
 HWC_URL="${HWC_URL:-https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv}"
-EMAC_TT9_URL="${EMAC_TT9_URL:-https://emac.gsfc.nasa.gov/?cid=2209-004}"
 
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
 MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
@@ -71,7 +70,7 @@ Notes:
   - For CatWISE full tiles, provide a URL list file via CATWISE_TILES_LIST
     or configs/catwise_full_tiles.txt (one URL per line).
   - Set SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS=1 to include
-    exoplanet.eu, OEC, HWC, and EMAC TT9 fetch targets in --core mode.
+    exoplanet.eu, OEC, and HWC fetch targets in --core mode.
   - DwarfArchives download requires SPACEGATE_ENABLE_DWARFARCHIVES=1.
   - MSC insecure HTTP fallback is opt-in: SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1.
     Integrity pin is required in HTTP mode: SPACEGATE_MSC_SHA256=<known sha256>.
@@ -163,7 +162,6 @@ nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
 exoplanet_eu|Exoplanet.eu catalog export (status layer)
 open_exoplanet_catalogue|Open Exoplanet Catalogue (tarball)
 hwc|Habitable Worlds Catalog (full CSV)
-emac_tt9|EMAC TT9 page/data source (candidate-signal support)
 wds|Washington Double Star Catalog (WDS)
 msc|Multiple Star Catalog (MSC)
 orb6|Sixth Catalog of Orbits of Visual Binary Stars (ORB6)
@@ -222,9 +220,6 @@ catalog_sources() {
       ;;
     hwc)
       printf '%s\n' "hwc|hwc_full_csv|$HWC_URL|raw/hwc/hwc.csv"
-      ;;
-    emac_tt9)
-      printf '%s\n' "emac_tt9|tt9_source|$EMAC_TT9_URL|raw/emac_tt9/tt9_source.html"
       ;;
     wds)
       printf '%s\n' "wds|wdsweb_summ2|$WDS_URL|raw/wds/wdsweb_summ2.txt"
@@ -373,7 +368,7 @@ expand_catalogs() {
       core)
         expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6" "debcat")
         if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
-          expanded+=("exoplanet_eu" "open_exoplanet_catalogue" "hwc" "emac_tt9")
+          expanded+=("exoplanet_eu" "open_exoplanet_catalogue" "hwc")
         fi
         ;;
       *)

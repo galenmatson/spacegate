@@ -124,7 +124,6 @@ Visibility/tombstone policy:
 1. Add source entries/manifests in `scripts/catalogs.sh`:
    - `exoplanet_eu`
    - `open_exoplanet_catalogue`
-   - `emac_tt9`
    - `hwc`
 2. Wire to `scripts/download_core.sh` with environment flags and mandatory manifest checks.
 3. Emit manifests under `reports/manifests/` for each new source.
