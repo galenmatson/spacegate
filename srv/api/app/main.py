@@ -1494,23 +1494,47 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         "component_entities": 0,
         "system_hierarchy_edges": 0,
         "orbit_edges": 0,
+        "vsx_variability": 0,
+        "variability_summary": 0,
+        "ultracoolsheet_objects": 0,
     }
+    arm_high_variability = 0
     if arm_db_path.exists():
+        arm_con = None
         try:
             arm_con = duckdb.connect(str(arm_db_path), read_only=True)
             for table_name in arm_counts:
+                try:
+                    row = _timed(
+                        f"arm_count_{table_name}",
+                        lambda t=table_name: arm_con.execute(f"SELECT COUNT(*)::bigint FROM {t}").fetchone(),
+                    )
+                    arm_counts[table_name] = int((row or [0])[0] or 0)
+                except Exception:
+                    arm_counts[table_name] = 0
+            try:
                 row = _timed(
-                    f"arm_count_{table_name}",
-                    lambda t=table_name: arm_con.execute(f"SELECT COUNT(*)::bigint FROM {t}").fetchone(),
+                    "arm_count_variability_summary_high_variability",
+                    lambda: arm_con.execute(
+                        "SELECT COUNT(*)::bigint FROM variability_summary WHERE any_high_variability"
+                    ).fetchone(),
                 )
-                arm_counts[table_name] = int((row or [0])[0] or 0)
-            arm_con.close()
+                arm_high_variability = int((row or [0])[0] or 0)
+            except Exception:
+                arm_high_variability = 0
         except Exception:
             arm_counts = {
                 "component_entities": 0,
                 "system_hierarchy_edges": 0,
                 "orbit_edges": 0,
+                "vsx_variability": 0,
+                "variability_summary": 0,
+                "ultracoolsheet_objects": 0,
             }
+            arm_high_variability = 0
+        finally:
+            if arm_con is not None:
+                arm_con.close()
 
     source_breakdown = [
         {"source_catalog": row[0], "star_count": int(row[1])}
@@ -1708,6 +1732,10 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "arm_component_entities": int(arm_counts["component_entities"]),
             "arm_hierarchy_edges": int(arm_counts["system_hierarchy_edges"]),
             "arm_orbit_edges": int(arm_counts["orbit_edges"]),
+            "arm_vsx_variability": int(arm_counts["vsx_variability"]),
+            "arm_variability_summary": int(arm_counts["variability_summary"]),
+            "arm_variability_high": int(arm_high_variability),
+            "arm_ultracoolsheet_objects": int(arm_counts["ultracoolsheet_objects"]),
             "multi_star_systems": multi_systems_count,
             "single_star_systems": single_systems_count,
             "exoplanets_total": exoplanet_counts["total_exoplanets"],
@@ -4561,6 +4589,9 @@ def admin_home(request: Request):
           {{ key: 'Planets', value: formatInt(counts.planets) }},
           {{ key: 'Arm Components', value: formatInt(counts.arm_component_entities) }},
           {{ key: 'Arm Orbit Edges', value: formatInt(counts.arm_orbit_edges) }},
+          {{ key: 'VSX Overlay Rows', value: formatInt(counts.arm_vsx_variability) }},
+          {{ key: 'High Variability', value: formatInt(counts.arm_variability_high) }},
+          {{ key: 'Ultracool Overlay Rows', value: formatInt(counts.arm_ultracoolsheet_objects) }},
           {{ key: 'Multi-Star Systems', value: formatInt(counts.multi_star_systems) }},
           {{ key: 'Exoplanets', value: formatInt(counts.exoplanets_total) }},
           {{ key: 'Hab Zone Candidates', value: formatInt(counts.exoplanets_candidate_habitable) }},
@@ -4933,6 +4964,7 @@ def admin_home(request: Request):
           `Total rows: ${{formatInt(counts.rows_total)}} (systems=${{formatInt(counts.systems)}}, stars=${{formatInt(counts.stars)}}, planets=${{formatInt(counts.planets)}})`,
           `Multiplicity systems: ${{formatInt(counts.multi_star_systems)}} multi / ${{formatInt(counts.single_star_systems)}} single`,
           `Arm graph: components=${{formatInt(counts.arm_component_entities)}}, hierarchy edges=${{formatInt(counts.arm_hierarchy_edges)}}, orbit edges=${{formatInt(counts.arm_orbit_edges)}}`,
+          `Arm overlays: VSX rows=${{formatInt(counts.arm_vsx_variability)}}, variability summary=${{formatInt(counts.arm_variability_summary)}}, high variability=${{formatInt(counts.arm_variability_high)}}, ultracool rows=${{formatInt(counts.arm_ultracoolsheet_objects)}}`,
           `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slicedOutRows)}} sliced out (${{formatPct(slicedOutPct)}})`,
           `Storage: core=${{formatBytes(sizes.core_db)}}, arm=${{formatBytes(sizes.arm_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,

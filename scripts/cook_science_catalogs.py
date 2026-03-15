@@ -53,6 +53,22 @@ def parse_bool(value: str | None) -> bool | None:
     return None
 
 
+def is_missing_text(value: str | None) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return True
+    return text.lower() in {"null", "nan", "none", "n/a", "na", "--"}
+
+
+def clean_text(value: str | None) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.lower() in {"null", "nan", "none", "n/a", "na", "--"}:
+        return None
+    return text
+
+
 def parse_log_quantity(value: str | None) -> float | None:
     parsed = parse_float(value)
     if parsed is None:
@@ -638,6 +654,187 @@ def cook_gaia_ucd(raw_path: Path, cooked_path: Path) -> int:
     return row_count
 
 
+def extract_gaia_source_id(value: str | None) -> tuple[int | None, str | None]:
+    text = str(value or "").strip()
+    if not text:
+        return (None, None)
+    match = re.search(r"Gaia\s+DR([23])\s+([0-9]{8,20})", text, flags=re.IGNORECASE)
+    if not match:
+        return (None, None)
+    release = f"DR{match.group(1)}"
+    source_id = parse_int(match.group(2))
+    return (source_id, release)
+
+
+def normalize_variability_family(var_type_raw: str | None) -> str:
+    token = (var_type_raw or "").strip().upper()
+    if not token:
+        return "unknown"
+    if token.startswith(("EA", "EB", "EW", "ELL")):
+        return "eclipsing"
+    if token.startswith(
+        (
+            "RR",
+            "CEP",
+            "DCEP",
+            "MIRA",
+            "SR",
+            "DSCT",
+            "SXPHE",
+            "GDOR",
+            "BCEP",
+            "SPB",
+        )
+    ):
+        return "pulsating"
+    if token.startswith(("ROT", "BY", "ACV", "SXARI")):
+        return "rotational"
+    if token.startswith(("UG", "UV", "N", "SN", "CV", "AM", "DQ", "ZAND", "RCB")):
+        return "eruptive"
+    if token.startswith(("L", "QSO", "AGN")):
+        return "extragalactic_or_lensing"
+    return "other"
+
+
+def cook_vsx(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    row_count = 0
+    with open_text(raw_path) as in_f, cooked_path.open("w", newline="", encoding="utf-8") as out_f:
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "vsx_oid",
+                "name",
+                "variability_flag",
+                "ra_deg",
+                "dec_deg",
+                "variability_type_raw",
+                "variability_family",
+                "max_mag",
+                "max_passband",
+                "min_is_amplitude_flag",
+                "min_mag_or_amplitude",
+                "min_passband",
+                "epoch_hjd",
+                "period_days",
+                "spectral_type",
+                "gaia_source_id",
+                "gaia_release",
+            ],
+        )
+        writer.writeheader()
+        for line in in_f:
+            raw = line.rstrip("\n")
+            if not raw.strip():
+                continue
+            # VSX is fixed-width 209 chars in CDS ReadMe; tolerate short lines.
+            fixed = raw.ljust(209)
+            name = clean_text(fixed[9:39])
+            gaia_source_id, gaia_release = extract_gaia_source_id(name)
+            var_type = clean_text(fixed[62:92])
+            writer.writerow(
+                {
+                    "vsx_oid": parse_int(fixed[0:8]),
+                    "name": name,
+                    "variability_flag": parse_int(fixed[40:41]),
+                    "ra_deg": parse_float(fixed[42:51]),
+                    "dec_deg": parse_float(fixed[52:61]),
+                    "variability_type_raw": var_type,
+                    "variability_family": normalize_variability_family(var_type),
+                    "max_mag": parse_float(fixed[95:102]),
+                    "max_passband": clean_text(fixed[105:115]),
+                    "min_is_amplitude_flag": clean_text(fixed[116:117]),
+                    "min_mag_or_amplitude": parse_float(fixed[120:127]),
+                    "min_passband": clean_text(fixed[130:138]),
+                    "epoch_hjd": parse_float(fixed[139:153]),
+                    "period_days": parse_float(fixed[158:177]),
+                    "spectral_type": clean_text(fixed[180:209]),
+                    "gaia_source_id": gaia_source_id,
+                    "gaia_release": gaia_release,
+                }
+            )
+            row_count += 1
+    return row_count
+
+
+def cook_ultracoolsheet(raw_path: Path, cooked_path: Path) -> int:
+    cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    row_count = 0
+    with open_text(raw_path) as in_f, cooked_path.open("w", newline="", encoding="utf-8") as out_f:
+        reader = csv.DictReader(in_f)
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=[
+                "source_row_num",
+                "object_name",
+                "name_simbadable",
+                "gaia_dr3_source_id",
+                "gaia_dr2_source_id",
+                "ra_j2000_deg",
+                "dec_j2000_deg",
+                "plx_mas",
+                "pmra_mas_yr",
+                "pmdec_mas_yr",
+                "rv_kms",
+                "dist_pc",
+                "dist_source",
+                "spectral_type_opt",
+                "spectral_type_ir",
+                "spectral_numeric",
+                "gravity_opt",
+                "gravity_ir",
+                "age_category",
+                "youth_evidence",
+                "banyan_hypothesis_young",
+                "banyan_prob_young",
+                "is_exoplanet_host_flag",
+                "multiple_unresolved_flag",
+                "multiple_resolved_flag",
+                "has_higher_mass_companion_flag",
+                "ref_discovery",
+                "source_url",
+            ],
+        )
+        writer.writeheader()
+        for idx, row in enumerate(reader, start=1):
+            gaia_dr3 = parse_int(clean_text(row.get("sourceID_Gaia_DR3")))
+            gaia_dr2 = parse_int(clean_text(row.get("sourceID_Gaia_DR2")))
+            writer.writerow(
+                {
+                    "source_row_num": idx,
+                    "object_name": clean_text(row.get("name")),
+                    "name_simbadable": clean_text(row.get("name_simbadable")),
+                    "gaia_dr3_source_id": gaia_dr3,
+                    "gaia_dr2_source_id": gaia_dr2,
+                    "ra_j2000_deg": parse_float(clean_text(row.get("ra_j2000_formula"))),
+                    "dec_j2000_deg": parse_float(clean_text(row.get("dec_j2000_formula"))),
+                    "plx_mas": parse_float(clean_text(row.get("plx_formula"))),
+                    "pmra_mas_yr": parse_float(clean_text(row.get("pmra_formula"))),
+                    "pmdec_mas_yr": parse_float(clean_text(row.get("pmdec_formula"))),
+                    "rv_kms": parse_float(clean_text(row.get("rv_formula"))),
+                    "dist_pc": parse_float(clean_text(row.get("dist_formula"))),
+                    "dist_source": clean_text(row.get("dist_formula_source")),
+                    "spectral_type_opt": clean_text(row.get("spt_opt")),
+                    "spectral_type_ir": clean_text(row.get("spt_ir")),
+                    "spectral_numeric": parse_float(clean_text(row.get("sptnum_formula"))),
+                    "gravity_opt": clean_text(row.get("grav_opt")),
+                    "gravity_ir": clean_text(row.get("grav_ir")),
+                    "age_category": clean_text(row.get("age_category")),
+                    "youth_evidence": clean_text(row.get("youth_evidence")),
+                    "banyan_hypothesis_young": clean_text(row.get("banyan_sigma_max_hypo_young")),
+                    "banyan_prob_young": parse_float(clean_text(row.get("banyan_sigma_max_prob_young"))),
+                    "is_exoplanet_host_flag": clean_text(row.get("exoplanet")),
+                    "multiple_unresolved_flag": clean_text(row.get("multiplesystem_unresolved_in_this_table")),
+                    "multiple_resolved_flag": clean_text(row.get("multiplesystem_resolved_in_this_table")),
+                    "has_higher_mass_companion_flag": clean_text(row.get("has_higher_mass_companion")),
+                    "ref_discovery": clean_text(row.get("ref_discovery")),
+                    "source_url": clean_text(row.get("url_simpleDB")),
+                }
+            )
+            row_count += 1
+    return row_count
+
+
 def cook_open_clusters_table1(raw_path: Path, cooked_path: Path) -> int:
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
     row_count = 0
@@ -1072,6 +1269,18 @@ def main() -> int:
             raw_dir / "gaia_ucd" / "table4.dat",
             cooked_dir / "gaia_ucd" / "gaia_ucd_memberships.csv",
             cook_gaia_ucd,
+        ),
+        (
+            "vsx",
+            raw_dir / "vsx" / "vsx.dat",
+            cooked_dir / "vsx" / "vsx_variability.csv",
+            cook_vsx,
+        ),
+        (
+            "ultracoolsheet",
+            raw_dir / "ultracoolsheet" / "ultracoolsheet_main.csv",
+            cooked_dir / "ultracoolsheet" / "ultracoolsheet_objects.csv",
+            cook_ultracoolsheet,
         ),
         (
             "clusters",

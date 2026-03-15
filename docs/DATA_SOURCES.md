@@ -63,6 +63,8 @@ Interpretation note:
 | ORB6 | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | orbit-quality support evidence |
 | Gaia class probabilities | default-on | on | `SPACEGATE_ENABLE_GAIA_CLASSPROB` | remnant-safe classification guardrails |
 | Gaia UCD memberships (`J/A+A/669/A139 table4`) | default-on | on | `SPACEGATE_ENABLE_GAIA_UCD` | ultracool dwarf cluster/membership tags (HMAC/BANYAN) for star enrichment |
+| VSX variability index | default-on | on | `SPACEGATE_ENABLE_VSX` | variable-star evidence overlay in `arm` (exact Gaia joins only) |
+| UltracoolSheet | default-on | on | `SPACEGATE_ENABLE_ULTRACOOLSHEET` | ultracool/youth/kinematics overlay in `arm` (Gaia DR3/DR2 linked) |
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
 | SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
 | DEBCat + Kepler EB | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
@@ -244,9 +246,37 @@ Security/transport note:
 - historical retrieval context requires explicit caution
 - maintain mirrored/pinned retrieval strategy for production stability
 
+## 10) VSX (AAVSO Variable Star Index)
+
+Classification: `auxiliary`
+
+Role:
+
+- variable-star observational overlay (type/family/amplitude/period)
+- confidence-tiered variability summaries for narrative and query filtering
+- stored in `arm` to preserve core query performance
+
+Source endpoint:
+
+- CDS mirror (`ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat`)
+
+## 11) UltracoolSheet
+
+Classification: `auxiliary`
+
+Role:
+
+- ultracool object metadata and youth indicators
+- Gaia DR3/DR2-linked arm overlay for detailed UCD context
+- supports later disc enrichment without widening core hot-path tables
+
+Source endpoint:
+
+- Google Sheets published CSV endpoint (pinned URL in `scripts/catalogs.sh`)
+
 ## Transitional Sources
 
-## 10) AT-HYG
+## 12) AT-HYG
 
 Classification: `transitional`
 
@@ -305,6 +335,8 @@ Typical manifest files:
 - `reports/manifests/magnetar_manifest.json`
 - `reports/manifests/clusters_manifest.json`
 - `reports/manifests/snr_manifest.json`
+- `reports/manifests/vsx_manifest.json`
+- `reports/manifests/ultracoolsheet_manifest.json`
 
 Source-delta tracking files:
 

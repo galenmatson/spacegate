@@ -38,11 +38,11 @@ ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbit
 DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
 CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
 CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/nodup.dat.gz}"
-VSX_URL="${VSX_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz}"
+VSX_URL="${VSX_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat}"
 SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.data.html}"
 ATNF_URL="${ATNF_URL:-https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz}"
 MAGNETAR_URL="${MAGNETAR_URL:-https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
-ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-http://bit.ly/UltracoolSheet}"
+ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-https://docs.google.com/spreadsheets/d/1i98ft8g5mzPp2DNno0kcz4B9nzMxdpyz5UquAVhz-U8/gviz/tq?tqx=out:csv&sheet=Main}"
 GAIA_UCD_URL="${GAIA_UCD_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/669/A139/table4.dat}"
 WHITE_DWARF_URL="${WHITE_DWARF_URL:-https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz}"
 DWARFARCHIVES_URL="${DWARFARCHIVES_URL:-http://dwarfarchives.org/}"
@@ -243,7 +243,7 @@ catalog_sources() {
       printf '%s\n' "clusters|cantat_gaudin_2020_members|$CLUSTERS_MEMBERS_URL|raw/clusters/nodup.dat.gz"
       ;;
     vsx)
-      printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat.gz"
+      printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat"
       ;;
     snr)
       printf '%s\n' "snr|snrs_data_html|$SNR_URL|raw/snr/snrs.data.html"
@@ -255,7 +255,7 @@ catalog_sources() {
       printf '%s\n' "magnetar|TabO1|$MAGNETAR_URL|raw/magnetar/TabO1.csv"
       ;;
     ultracoolsheet)
-      printf '%s\n' "ultracoolsheet|UltracoolSheet_Main|$ULTRACOOLSHEET_URL|raw/ultracoolsheet/UltracoolSheet - Main.csv"
+      printf '%s\n' "ultracoolsheet|UltracoolSheet_Main|$ULTRACOOLSHEET_URL|raw/ultracoolsheet/ultracoolsheet_main.csv"
       ;;
     gaia_ucd)
       printf '%s\n' "gaia_ucd|table4|$GAIA_UCD_URL|raw/gaia_ucd/table4.dat"

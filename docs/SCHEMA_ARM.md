@@ -187,6 +187,98 @@ Columns:
 - `computed_at TIMESTAMP`
 - `transform_version TEXT`
 
+## `vsx_variability`
+
+Per-observation variability overlay rows linked to `core.stars` via exact Gaia source ID.
+
+Columns:
+- `vsx_variability_id BIGINT`
+- `stable_object_key TEXT`
+- `star_id BIGINT`
+- `gaia_id BIGINT`
+- `vsx_oid BIGINT`
+- `vsx_name TEXT`
+- `variability_flag INTEGER`
+- `variability_flag_label TEXT` (`variable|suspected|constant_or_nonexisting|possible_duplicate|unknown`)
+- `variability_type_raw TEXT`
+- `variability_family TEXT` (`eclipsing|pulsating|rotational|eruptive|extragalactic_or_lensing|other|unknown`)
+- `max_mag DOUBLE`
+- `max_passband TEXT`
+- `min_is_amplitude_flag TEXT`
+- `min_mag_or_amplitude DOUBLE`
+- `min_passband TEXT`
+- `amplitude_mag DOUBLE` (derived from VSX min/max semantics)
+- `epoch_hjd DOUBLE`
+- `period_days DOUBLE`
+- `spectral_type TEXT`
+- `confidence_score DOUBLE`
+- `confidence_tier TEXT` (`high|medium|low|illustrative`)
+- `is_default_usable BOOLEAN`
+- `is_high_variability BOOLEAN`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
+## `variability_summary`
+
+One canonical variability row per `stable_object_key`, ranked from `vsx_variability`.
+
+Columns:
+- `variability_summary_id BIGINT`
+- `stable_object_key TEXT`
+- `star_id BIGINT`
+- `gaia_id BIGINT`
+- `vsx_match_count BIGINT`
+- `primary_variability_flag INTEGER`
+- `primary_variability_flag_label TEXT`
+- `primary_variability_type_raw TEXT`
+- `primary_variability_family TEXT`
+- `primary_amplitude_mag DOUBLE`
+- `primary_period_days DOUBLE`
+- `primary_epoch_hjd DOUBLE`
+- `primary_is_default_usable BOOLEAN`
+- `any_high_variability BOOLEAN`
+- `confidence_score DOUBLE`
+- `confidence_tier TEXT`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
+## `ultracoolsheet_objects`
+
+UltracoolSheet overlay rows and youth/kinematics metadata, linked to core via Gaia DR3/DR2 IDs.
+
+Columns:
+- `ultracoolsheet_object_id BIGINT`
+- `stable_object_key TEXT` (nullable when unmatched)
+- `star_id BIGINT` (nullable when unmatched)
+- `gaia_id BIGINT` (matched core Gaia ID when present)
+- `gaia_dr3_source_id BIGINT`
+- `gaia_dr2_source_id BIGINT`
+- `object_name TEXT`
+- `name_simbadable TEXT`
+- `ra_deg DOUBLE`
+- `dec_deg DOUBLE`
+- `plx_mas DOUBLE`
+- `pmra_mas_yr DOUBLE`
+- `pmdec_mas_yr DOUBLE`
+- `rv_kms DOUBLE`
+- `dist_pc DOUBLE`
+- `dist_source TEXT`
+- `spectral_type_opt TEXT`
+- `spectral_type_ir TEXT`
+- `spectral_numeric DOUBLE`
+- `gravity_opt TEXT`
+- `gravity_ir TEXT`
+- `age_category TEXT`
+- `youth_evidence TEXT`
+- `banyan_hypothesis_young TEXT`
+- `banyan_prob_young DOUBLE`
+- `is_exoplanet_host BOOLEAN`
+- `has_unresolved_multiplicity BOOLEAN`
+- `has_resolved_multiplicity BOOLEAN`
+- `has_higher_mass_companion BOOLEAN`
+- `match_confidence DOUBLE`
+- `confidence_tier TEXT`
+- `ref_discovery TEXT`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
 ## Quality Gates (Arm)
 
 Build fails when:
