@@ -403,7 +403,7 @@ This path remains optional while false-positive/false-negative tradeoffs are act
 
 Mirror target:
 
-- `/srv/spacegate/dl/catalogs`
+- `$SPACEGATE_DL_ROOT/catalogs` (auto-default: `/data/spacegate/dl` when `/data/spacegate` exists, else `/srv/spacegate/dl`)
 
 Snapshot publisher:
 

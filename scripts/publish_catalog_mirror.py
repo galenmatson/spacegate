@@ -27,21 +27,35 @@ def detect_state_dir(root: Path) -> Path:
     return (root / "data").resolve()
 
 
+def detect_dl_root() -> Path:
+    raw = (os.getenv("SPACEGATE_DL_ROOT") or "").strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    if Path("/data/spacegate").exists():
+        return Path("/data/spacegate/dl")
+    return Path("/srv/spacegate/dl")
+
+
 def detect_build_id(state_dir: Path) -> str:
     core_db = state_dir / "served" / "current" / "core.duckdb"
-    if duckdb is None or not core_db.exists():
-        return ""
+    if duckdb is not None and core_db.exists():
+        try:
+            con = duckdb.connect(str(core_db), read_only=True)
+            row = con.execute(
+                "select value from build_metadata where key='build_id' limit 1"
+            ).fetchone()
+            con.close()
+            if row and str(row[0] or "").strip():
+                return str(row[0]).strip()
+        except Exception:
+            pass
+    served_link = state_dir / "served" / "current"
     try:
-        con = duckdb.connect(str(core_db), read_only=True)
-        row = con.execute(
-            "select value from build_metadata where key='build_id' limit 1"
-        ).fetchone()
-        con.close()
+        if served_link.exists():
+            return served_link.resolve().name
     except Exception:
         return ""
-    if not row:
-        return ""
-    return str(row[0] or "").strip()
+    return ""
 
 
 def json_load(path: Path) -> Any:
@@ -113,7 +127,7 @@ def main() -> int:
     )
     parser.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
     parser.add_argument("--state-dir", default=None)
-    parser.add_argument("--dl-root", default=os.getenv("SPACEGATE_DL_ROOT") or "/srv/spacegate/dl")
+    parser.add_argument("--dl-root", default=str(detect_dl_root()))
     parser.add_argument("--snapshot-id", default="")
     parser.add_argument(
         "--catalog",

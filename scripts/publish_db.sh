@@ -2,13 +2,6 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# Server publish locations
-DL_ROOT="${SPACEGATE_DL_ROOT:-/srv/spacegate/dl}"
-DL_DB_DIR="$DL_ROOT/db"
-DL_REPORTS_DIR="$DL_ROOT/reports"
-DL_CURRENT_LINK="$DL_ROOT/current"         # symlink to db/<build>.7z
-DL_CURRENT_JSON="$DL_ROOT/current.json"    # metadata file (optional but recommended)
-
 # Spacegate state
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -19,6 +12,13 @@ fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 SERVED_CURRENT="$STATE_DIR/served/current"
+
+# Server publish locations
+DL_ROOT="${SPACEGATE_DL_ROOT:-/srv/spacegate/dl}"
+DL_DB_DIR="$DL_ROOT/db"
+DL_REPORTS_DIR="$DL_ROOT/reports"
+DL_CURRENT_LINK="$DL_ROOT/current"         # symlink to db/<build>.7z
+DL_CURRENT_JSON="$DL_ROOT/current.json"    # metadata file (optional but recommended)
 
 require_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1" >&2; exit 1; }; }
 

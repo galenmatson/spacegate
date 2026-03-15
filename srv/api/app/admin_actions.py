@@ -97,6 +97,8 @@ def _dl_root() -> Path:
     raw = os.getenv("SPACEGATE_DL_ROOT", "").strip()
     if raw:
         return Path(raw).expanduser()
+    if Path("/data/spacegate").exists():
+        return Path("/data/spacegate/dl")
     return Path("/srv/spacegate/dl")
 
 

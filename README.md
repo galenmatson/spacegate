@@ -176,7 +176,7 @@ To package the currently promoted build and update download metadata:
 scripts/publish_db.sh
 ```
 
-By default this writes to `/srv/spacegate/dl` (override with `SPACEGATE_DL_ROOT`):
+By default this writes to `SPACEGATE_DL_ROOT` (auto-detected as `/data/spacegate/dl` when `/data/spacegate` exists, otherwise `/srv/spacegate/dl`):
 
 - archive: `db/<build_id>.7z` (or `.tar.zst` if `7z` is unavailable)
 - symlink: `current -> db/<archive>`
@@ -187,7 +187,7 @@ By default this writes to `/srv/spacegate/dl` (override with `SPACEGATE_DL_ROOT`
 
 ### 3.1a) Publish catalog mirror snapshots for bootstrap clients
 
-To mirror catalog artifacts (raw + cooked) into `/srv/spacegate/dl/catalogs`:
+To mirror catalog artifacts (raw + cooked) into `$SPACEGATE_DL_ROOT/catalogs`:
 
 ```bash
 scripts/publish_catalog_mirror.py
@@ -426,7 +426,7 @@ Behavior:
 - Proxies web UI to container upstream `http://127.0.0.1:8081` by default.
 - Applies API abuse controls by default: per-IP rate limit, burst limit, and connection limit.
 - Applies proxy timeouts on API upstream connections.
-- Serves `/dl/` from `/srv/spacegate/dl` by default (`SPACEGATE_DL_ENABLE=0` to disable).
+- Serves `/dl/` from `SPACEGATE_DL_ALIAS_DIR` (defaults to `SPACEGATE_DL_ROOT`; `SPACEGATE_DL_ENABLE=0` disables `/dl/`).
 - Runs `nginx -t` before reload/start.
 
 If you prefer host-served static files from `srv/web/dist`, use:
