@@ -17,6 +17,35 @@ Use this as the historical ledger for:
 - exoplanet lifecycle overlay pipeline + differential refresh path
 - host-name promotion for Gaia-fallback display names (for example TRAPPIST/Kepler/TOI/WASP)
 
+## Catalog Attempt Ledger (v1.2 Closeout)
+
+### Active in default Gaia-first ingest
+
+- Gaia DR3 backbone: canonical star inventory.
+- NASA Exoplanet Archive (`pscomppars`): canonical planet inventory.
+- Multiplicity core: MSC (mandatory), WDS, ORB6, Gaia NSS (default-on), SBX (default-on).
+- Compact/superstellar support: ATNF, McGill magnetar, Gaia EDR3 white dwarf, open clusters, Galactic SNR.
+- Eclipsing support defaults: DEBCat + TESS EB (Kepler EB is no longer default).
+- Naming/crosswalk support: alias pipeline + controlled AT-HYG supplement/crosswalk path.
+
+### Implemented but default-off / optional
+
+- Kepler EB: retained as optional evidence source (`SPACEGATE_ENABLE_KEPLER_EB=1`) because current Gaia-slice linkage is low relative to ingest cost.
+- WDS↔Gaia bridge (`wds_gaia_xmatch`): optional due confidence-gated behavior and conservative production stance.
+- Exoplanet lifecycle overlays (`exoplanet.eu`, OEC, HWC): optional support layer; canonical planet rows remain NASA-rooted.
+- Proximity grouping: optional/nondefault due inexact grouping risk.
+
+### Evaluated and deferred/disregarded
+
+- BDB / non-mirrored binary metadatabases: deferred pending stable mirror + integrity-pinned bulk path (no default dependency on fragile/insecure routing).
+- SB9: disregarded for default ingest/evaluation after SBX adoption.
+- EMAC TT9 endpoint: removed from active ingest (resource/tooling page, no deterministic bulk row feed).
+
+### Pending evaluation queue
+
+- Additional deterministic TESS-era eclipsing/variability bulk feeds beyond current TESS EB export.
+- Large survey overlays requiring separate performance/retention planning (for example CatWISE full integration).
+
 ## Iteration Timeline
 
 ### 0) Bootstrap Core (AT-HYG-centered)
@@ -98,6 +127,15 @@ Representative commits:
 Representative commits:
 - `423afc5`, `d9990aa`, `3a31f32`, `7e51436`
 
+### 8) Eclipsing Policy Rebalance
+
+- Kepler EB moved from default-on to default-off optional.
+- Rationale codified: low in-slice Gaia linkage did not justify default ingest/runtime footprint.
+- Ingest/report metadata now explicitly tracks `kepler_eb_enabled` state.
+
+Representative commits:
+- `ea194cf`
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
@@ -114,6 +152,9 @@ Representative commits:
 
 5. Transport/integrity risk for fragile upstreams:
 - Mitigated with explicit insecure-transport controls, checksum pin requirements, and deferred-source policy.
+
+6. Low-yield default catalogs increasing ingest/runtime cost:
+- Mitigated by shifting low-linkage sources to explicit opt-in while preserving full pipeline support.
 
 ## Related Documents
 

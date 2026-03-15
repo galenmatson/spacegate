@@ -23,7 +23,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Public deployment path active and reproducible
 - [x] Promotion flow auto-scores coolness by default
 - [x] Multiplicity support catalogs wired (NSS, WDS, ORB6, MSC mandatory)
-- [x] Eclipsing support catalogs wired (DEBCat, Kepler EB, TESS EB supplemental side table)
+- [x] Eclipsing support catalogs wired (DEBCat + TESS EB default-on; Kepler EB optional default-off)
 - [x] Catalog contribution evaluator emits ranked tiered report (`scripts/evaluate_catalog_contribution.sh` + `catalog_eval`)
 - [x] Optional WDS-Gaia bridge wired and default-off
 - [x] Physical consistency gating on WDS bridge grouping
