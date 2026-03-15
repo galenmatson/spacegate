@@ -370,6 +370,12 @@ Response 200:
     /* same fields as search result + full provenance */
     "display_name": "Sirius",
     "display_aliases": ["Alp CMa", "HIP 32349", "HD 48915"],
+    "arm_evidence_summary": {
+      "stars_with_arm_evidence": 1,
+      "catalog_counts": {"vsx": 1},
+      "high_variability_stars": 0,
+      "ultracool_overlay_stars": 0
+    },
     "aliases": [
       {
         "alias_raw": "Sirius",
@@ -402,6 +408,27 @@ Response 200:
       "hip_id": 12114,
       "hd_id": 16160,
       "catalog_ids": {"gaia":..., "hip":..., "hd":..., "tyc":"..."},
+      "arm_catalogs": ["vsx", "ultracoolsheet"],
+      "arm_evidence": {
+        "catalogs": ["vsx", "ultracoolsheet"],
+        "vsx": {
+          "vsx_match_count": 2,
+          "primary_variability_type_raw": "EA",
+          "primary_variability_family": "eclipsing",
+          "primary_amplitude_mag": 0.22,
+          "primary_period_days": 1.23,
+          "any_high_variability": false,
+          "confidence_tier": "high"
+        },
+        "ultracoolsheet": {
+          "match_count": 1,
+          "object_name": "TRAPPIST-1",
+          "age_category": "field",
+          "youth_evidence": null,
+          "spectral_type_opt": "M8",
+          "match_confidence": 1.0
+        }
+      },
       "aliases": [
         {
           "alias_raw": "Sirius A",
@@ -446,6 +473,7 @@ Response 200:
 Display-name behavior:
 - `display_name` prefers human-friendly naming over Gaia placeholders.
 - Alias precedence is deterministic: proper/common name, Bayer, Flamsteed, then major catalog IDs (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
+- `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

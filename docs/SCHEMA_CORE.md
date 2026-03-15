@@ -230,6 +230,9 @@ Must include at minimum:
   - Morton config fields
 - active multiplicity gate parameters:
   - WDS-Gaia thresholds when applicable
+  - multiplicity exact-duplicate gates:
+    - `SPACEGATE_MULTIPLICITY_GAIA_DUPLICATE_MAX` (default `0`)
+    - `SPACEGATE_MULTIPLICITY_WDS_COMPONENT_DUPLICATE_MAX` (default `0`)
 - alias/search contract flags:
   - `aliases_enabled`
   - `athyg_alias_crosswalk_enabled`

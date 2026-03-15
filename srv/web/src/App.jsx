@@ -1205,6 +1205,8 @@ function evidenceLabel(raw) {
     msc: "MSC",
     orb6: "ORB6",
     sbx: "SBX",
+    vsx: "VSX",
+    ultracoolsheet: "UltracoolSheet",
   };
   if (known[token]) {
     return known[token];
@@ -1263,6 +1265,12 @@ function collectStarEvidenceCatalogs(star) {
       tokens.add(normalized);
     }
   });
+  parseJsonArray(star?.arm_catalogs).forEach((raw) => {
+    const normalized = normalizeEvidenceToken(raw);
+    if (normalized) {
+      tokens.add(normalized);
+    }
+  });
   collectEvidenceFromFlags(star).forEach((token) => tokens.add(token));
   if (truthyEvidenceFlag(star?.gaia_non_single_star)) {
     tokens.add("gaia_nss");
@@ -1281,6 +1289,60 @@ function formatEvidenceSummary(tokens) {
     return "None recorded";
   }
   return tokens.map((token) => evidenceLabel(token)).filter(Boolean).join(" · ");
+}
+
+function formatArmEvidenceDetails(armEvidence) {
+  if (!armEvidence || typeof armEvidence !== "object") {
+    return "";
+  }
+  const details = [];
+  if (armEvidence?.vsx && typeof armEvidence.vsx === "object") {
+    const vsx = armEvidence.vsx;
+    const parts = [];
+    if (vsx.primary_variability_type_raw) {
+      parts.push(String(vsx.primary_variability_type_raw));
+    } else if (vsx.primary_variability_family) {
+      parts.push(String(vsx.primary_variability_family));
+    }
+    if (vsx.primary_period_days !== null && vsx.primary_period_days !== undefined) {
+      parts.push(`P ${formatNumber(vsx.primary_period_days, 3)} d`);
+    }
+    if (vsx.primary_amplitude_mag !== null && vsx.primary_amplitude_mag !== undefined) {
+      parts.push(`Δmag ${formatNumber(vsx.primary_amplitude_mag, 2)}`);
+    }
+    if (vsx.any_high_variability === true) {
+      parts.push("high variability");
+    }
+    if (parts.length > 0) {
+      details.push(`VSX ${parts.join(" · ")}`);
+    } else {
+      details.push("VSX");
+    }
+  }
+  if (armEvidence?.ultracoolsheet && typeof armEvidence.ultracoolsheet === "object") {
+    const ucd = armEvidence.ultracoolsheet;
+    const parts = [];
+    if (ucd.object_name) {
+      parts.push(String(ucd.object_name));
+    }
+    if (ucd.age_category) {
+      parts.push(String(ucd.age_category));
+    }
+    if (ucd.youth_evidence) {
+      parts.push(String(ucd.youth_evidence));
+    }
+    if (ucd.spectral_type_opt) {
+      parts.push(`opt ${ucd.spectral_type_opt}`);
+    } else if (ucd.spectral_type_ir) {
+      parts.push(`ir ${ucd.spectral_type_ir}`);
+    }
+    if (parts.length > 0) {
+      details.push(`UltracoolSheet ${parts.join(" · ")}`);
+    } else {
+      details.push("UltracoolSheet");
+    }
+  }
+  return details.join(" | ");
 }
 
 function groupingSourceLabel(groupingBasis, groupingSources) {
@@ -2808,6 +2870,7 @@ function SystemDetailPage({ buildId = "" }) {
     exclude: [currentSystemDisplayName, system?.system_name],
     limit: 10,
   });
+  const armSummary = system?.arm_evidence_summary || {};
 
   return (
     <Layout showSearchLink={false} buildId={buildId}>
@@ -2855,6 +2918,13 @@ function SystemDetailPage({ buildId = "" }) {
             <strong>Planets</strong>
             <span>{formatNumber(system.planet_count, 0)}</span>
           </div>
+          <div>
+            <strong>Arm Evidence</strong>
+            <span>
+              {formatNumber(armSummary.stars_with_arm_evidence ?? 0, 0)} stars
+              {armSummary.high_variability_stars ? ` · ${formatNumber(armSummary.high_variability_stars, 0)} high variability` : ""}
+            </span>
+          </div>
         </div>
 
         <section className="panel">
@@ -2868,6 +2938,7 @@ function SystemDetailPage({ buildId = "" }) {
 	                    const record = starCatalogRecordLink(star);
 	                    const currentStarDisplayName = starDisplayName(star);
 	                    const starEvidence = collectStarEvidenceCatalogs(star);
+	                    const armEvidenceDetails = formatArmEvidenceDetails(star?.arm_evidence);
 	                    const starAliasSummary = formatAliasSummary(star?.aliases, {
 	                      exclude: [currentStarDisplayName, star?.star_name],
 	                      limit: 6,
@@ -2907,11 +2978,16 @@ function SystemDetailPage({ buildId = "" }) {
 	                        <div className="muted">
 	                          Source {formatText(star.provenance?.source_catalog)} · {formatText(star.provenance?.source_version)}
 	                        </div>
-	                        <div className="muted">
-	                          Evidence {formatEvidenceSummary(starEvidence)}
-	                        </div>
-	                        <div className="muted">
-	                          Catalog record{" "}
+		                        <div className="muted">
+		                          Evidence {formatEvidenceSummary(starEvidence)}
+		                        </div>
+		                        {armEvidenceDetails ? (
+		                          <div className="muted">
+		                            Arm {armEvidenceDetails}
+		                          </div>
+		                        ) : null}
+		                        <div className="muted">
+		                          Catalog record{" "}
                           {record ? (
                             <a href={record.url} target="_blank" rel="noreferrer">{record.label}</a>
                           ) : (

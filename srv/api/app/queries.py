@@ -465,6 +465,175 @@ def fetch_aliases_for_stars(
     return grouped
 
 
+def fetch_arm_evidence_for_stars(
+    con: duckdb.DuckDBPyConnection,
+    star_ids: List[int],
+    *,
+    arm_db_path: Optional[str],
+) -> Dict[int, Dict[str, Any]]:
+    if not star_ids or not arm_db_path:
+        return {}
+    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+        return {}
+    has_variability_summary = _has_table(con, alias="arm_db", table_name="variability_summary")
+    has_ultracoolsheet = _has_table(con, alias="arm_db", table_name="ultracoolsheet_objects")
+    if not has_variability_summary and not has_ultracoolsheet:
+        return {}
+
+    placeholders = ",".join(["?"] * len(star_ids))
+    grouped: Dict[int, Dict[str, Any]] = {}
+
+    def ensure(star_id: int) -> Dict[str, Any]:
+        payload = grouped.setdefault(star_id, {"catalogs": []})
+        catalogs = payload.setdefault("catalogs", [])
+        if not isinstance(catalogs, list):
+            payload["catalogs"] = []
+        return payload
+
+    def add_catalog(star_payload: Dict[str, Any], catalog: str) -> None:
+        catalogs = star_payload.setdefault("catalogs", [])
+        if catalog not in catalogs:
+            catalogs.append(catalog)
+
+    if has_variability_summary:
+        rows = con.execute(
+            f"""
+            SELECT
+              star_id,
+              vsx_match_count,
+              primary_variability_type_raw,
+              primary_variability_family,
+              primary_amplitude_mag,
+              primary_period_days,
+              any_high_variability,
+              confidence_tier
+            FROM arm_db.variability_summary
+            WHERE star_id IN ({placeholders})
+            """,
+            star_ids,
+        ).fetchall()
+        for (
+            star_id,
+            vsx_match_count,
+            primary_variability_type_raw,
+            primary_variability_family,
+            primary_amplitude_mag,
+            primary_period_days,
+            any_high_variability,
+            confidence_tier,
+        ) in rows:
+            sid = int(star_id)
+            payload = ensure(sid)
+            add_catalog(payload, "vsx")
+            payload["vsx"] = {
+                "vsx_match_count": int(vsx_match_count or 0),
+                "primary_variability_type_raw": primary_variability_type_raw,
+                "primary_variability_family": primary_variability_family,
+                "primary_amplitude_mag": (
+                    float(primary_amplitude_mag) if primary_amplitude_mag is not None else None
+                ),
+                "primary_period_days": (
+                    float(primary_period_days) if primary_period_days is not None else None
+                ),
+                "any_high_variability": bool(any_high_variability),
+                "confidence_tier": confidence_tier,
+            }
+
+    if has_ultracoolsheet:
+        rows = con.execute(
+            f"""
+            WITH ranked AS (
+              SELECT
+                star_id,
+                object_name,
+                name_simbadable,
+                age_category,
+                youth_evidence,
+                banyan_hypothesis_young,
+                banyan_prob_young,
+                is_exoplanet_host,
+                has_unresolved_multiplicity,
+                has_resolved_multiplicity,
+                has_higher_mass_companion,
+                spectral_type_opt,
+                spectral_type_ir,
+                match_confidence,
+                count(*) OVER (PARTITION BY star_id) AS match_count,
+                row_number() OVER (
+                  PARTITION BY star_id
+                  ORDER BY coalesce(match_confidence, 0.0) DESC, ultracoolsheet_object_id ASC
+                ) AS rn
+              FROM arm_db.ultracoolsheet_objects
+              WHERE star_id IN ({placeholders})
+            )
+            SELECT
+              star_id,
+              object_name,
+              name_simbadable,
+              age_category,
+              youth_evidence,
+              banyan_hypothesis_young,
+              banyan_prob_young,
+              is_exoplanet_host,
+              has_unresolved_multiplicity,
+              has_resolved_multiplicity,
+              has_higher_mass_companion,
+              spectral_type_opt,
+              spectral_type_ir,
+              match_confidence,
+              match_count
+            FROM ranked
+            WHERE rn = 1
+            """,
+            star_ids,
+        ).fetchall()
+        for (
+            star_id,
+            object_name,
+            name_simbadable,
+            age_category,
+            youth_evidence,
+            banyan_hypothesis_young,
+            banyan_prob_young,
+            is_exoplanet_host,
+            has_unresolved_multiplicity,
+            has_resolved_multiplicity,
+            has_higher_mass_companion,
+            spectral_type_opt,
+            spectral_type_ir,
+            match_confidence,
+            match_count,
+        ) in rows:
+            sid = int(star_id)
+            payload = ensure(sid)
+            add_catalog(payload, "ultracoolsheet")
+            payload["ultracoolsheet"] = {
+                "match_count": int(match_count or 0),
+                "object_name": object_name,
+                "name_simbadable": name_simbadable,
+                "age_category": age_category,
+                "youth_evidence": youth_evidence,
+                "banyan_hypothesis_young": banyan_hypothesis_young,
+                "banyan_prob_young": (
+                    float(banyan_prob_young) if banyan_prob_young is not None else None
+                ),
+                "is_exoplanet_host": bool(is_exoplanet_host),
+                "has_unresolved_multiplicity": bool(has_unresolved_multiplicity),
+                "has_resolved_multiplicity": bool(has_resolved_multiplicity),
+                "has_higher_mass_companion": bool(has_higher_mass_companion),
+                "spectral_type_opt": spectral_type_opt,
+                "spectral_type_ir": spectral_type_ir,
+                "match_confidence": float(match_confidence) if match_confidence is not None else None,
+            }
+
+    for payload in grouped.values():
+        catalogs = payload.get("catalogs")
+        if isinstance(catalogs, list):
+            payload["catalogs"] = sorted({str(token) for token in catalogs if str(token).strip()})
+
+    return grouped
+
+
 def fetch_snapshot_for_system(
     con: duckdb.DuckDBPyConnection,
     *,

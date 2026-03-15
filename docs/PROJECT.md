@@ -354,6 +354,7 @@ Panel purpose:
 - surface spectral/exotic/object breadth indicators for quality review
 - keep admin diagnostics visually consistent with active site theme
 - make status interpretation fast under large builds (humanized rows, bars, concise summaries)
+- expose star-level `arm` evidence overlays in system detail (currently VSX + UltracoolSheet)
 
 Minimum metrics exposed:
 
@@ -543,6 +544,12 @@ Notes:
   - near-duplicate pair detection within multi-star systems using configurable angular/distance/proper-motion thresholds
   - emitted audit report: `duplicate_trap_report.json`
   - optional hard gate: `SPACEGATE_DUPLICATE_FAIL_ON_HIGH=1` with `SPACEGATE_DUPLICATE_HIGH_PAIR_MAX`
+  - multiplicity hard gate (default strict): `SPACEGATE_MULTIPLICITY_GAIA_DUPLICATE_MAX` and `SPACEGATE_MULTIPLICITY_WDS_COMPONENT_DUPLICATE_MAX` (default `0`)
+- Retention hygiene:
+  - `scripts/prune_state_retention.sh` provides dry-run/apply cleanup for stale `out/<build_id>` and `reports/<build_id>` paths
+  - policy reference: `docs/RETENTION.md`
+  - current served build is always retained
+  - raw/cooked catalog caches are intentionally untouched by retention prune
 
 ## Immediate Next Actions
 

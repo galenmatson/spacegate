@@ -119,8 +119,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [ ] No default production dependency on insecure transport sources
 - [ ] Source mirror strategy documented for fragile external dependencies
-- [ ] Retention policy documented (builds, reports, backups, large catalogs)
-- [ ] Automated stale build cleanup policy scripted and tested
+- [x] Retention policy documented (builds, reports, backups, large catalogs)
+- [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
 
 ## E) Product Roadmap (Post-Core Migration)
 

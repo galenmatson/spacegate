@@ -89,6 +89,8 @@ DUPLICATE_PAIR_HIGH_MAX_ANG_ARCSEC_DEFAULT = 1.0
 DUPLICATE_PAIR_HIGH_MAX_DIST_DELTA_LY_DEFAULT = 0.5
 DUPLICATE_PAIR_HIGH_MAX_PM_DELTA_MASYR_DEFAULT = 10.0
 DUPLICATE_HIGH_PAIR_MAX_DEFAULT = 0
+MULTIPLICITY_GAIA_DUPLICATE_MAX_DEFAULT = 0
+MULTIPLICITY_WDS_COMPONENT_DUPLICATE_MAX_DEFAULT = 0
 
 
 def log(message: str) -> None:
@@ -692,6 +694,14 @@ def main() -> int:
         "SPACEGATE_DUPLICATE_HIGH_PAIR_MAX",
         DUPLICATE_HIGH_PAIR_MAX_DEFAULT,
     )
+    multiplicity_gaia_duplicate_max = parse_nonnegative_int_env(
+        "SPACEGATE_MULTIPLICITY_GAIA_DUPLICATE_MAX",
+        MULTIPLICITY_GAIA_DUPLICATE_MAX_DEFAULT,
+    )
+    multiplicity_wds_component_duplicate_max = parse_nonnegative_int_env(
+        "SPACEGATE_MULTIPLICITY_WDS_COMPONENT_DUPLICATE_MAX",
+        MULTIPLICITY_WDS_COMPONENT_DUPLICATE_MAX_DEFAULT,
+    )
     slice_max_distance_ly = parse_optional_positive_float_env("SPACEGATE_SLICE_MAX_DISTANCE_LY")
     slice_min_parallax_over_error = parse_optional_nonnegative_float_env(
         "SPACEGATE_SLICE_MIN_PARALLAX_OVER_ERROR"
@@ -875,7 +885,9 @@ def main() -> int:
         f"high_max_dist_delta_ly={duplicate_pair_high_max_dist_delta_ly} "
         f"high_max_pm_delta_mas_yr={duplicate_pair_high_max_pm_delta_mas_yr} "
         f"fail_on_high={'1' if duplicate_fail_on_high else '0'} "
-        f"high_pair_max={duplicate_high_pair_max}"
+        f"high_pair_max={duplicate_high_pair_max} "
+        f"multiplicity_gaia_duplicate_max={multiplicity_gaia_duplicate_max} "
+        f"multiplicity_wds_component_duplicate_max={multiplicity_wds_component_duplicate_max}"
     )
     manifest: dict[str, dict] = {}
     manifest_paths = [manifest_path, wds_manifest_path, orb6_manifest_path]
@@ -8145,6 +8157,19 @@ def main() -> int:
     duplicate_exact_total_extra_rows = sum(
         int(row.get("extra_rows") or 0) for row in duplicate_exact_checks
     )
+    duplicate_exact_by_key = {
+        str(row.get("key") or ""): {
+            "duplicate_groups": int(row.get("duplicate_groups") or 0),
+            "extra_rows": int(row.get("extra_rows") or 0),
+        }
+        for row in duplicate_exact_checks
+    }
+    multiplicity_gaia_duplicate_extra_rows = int(
+        duplicate_exact_by_key.get("gaia_id", {}).get("extra_rows", 0)
+    )
+    multiplicity_wds_component_duplicate_extra_rows = int(
+        duplicate_exact_by_key.get("wds_component", {}).get("extra_rows", 0)
+    )
 
     duplicate_exact_examples = [
         {
@@ -8349,11 +8374,15 @@ def main() -> int:
             "high_max_pm_delta_mas_yr": duplicate_pair_high_max_pm_delta_mas_yr,
             "fail_on_high": duplicate_fail_on_high,
             "high_pair_max": duplicate_high_pair_max,
+            "multiplicity_gaia_duplicate_max": multiplicity_gaia_duplicate_max,
+            "multiplicity_wds_component_duplicate_max": multiplicity_wds_component_duplicate_max,
         },
         "exact_key_checks": duplicate_exact_checks,
         "exact_key_totals": {
             "duplicate_groups": duplicate_exact_total_groups,
             "extra_rows": duplicate_exact_total_extra_rows,
+            "multiplicity_gaia_duplicate_extra_rows": multiplicity_gaia_duplicate_extra_rows,
+            "multiplicity_wds_component_duplicate_extra_rows": multiplicity_wds_component_duplicate_extra_rows,
         },
         "near_pair_totals": {
             "candidate_pairs": duplicate_near_pair_count,
@@ -8365,6 +8394,7 @@ def main() -> int:
         "notes": [
             "Exact-key checks catch deterministic collisions by identifier/component namespaces.",
             "Exact-key totals are per-key sums; the same physical row can contribute to multiple key checks.",
+            "Multiplicity hardening gate enforces exact-duplicate maxima on Gaia ID and WDS component key collisions.",
             "Near-pair checks run within multi-star systems to avoid quadratic whole-catalog scans.",
             "High-confidence pairs are optional QC-gated via SPACEGATE_DUPLICATE_FAIL_ON_HIGH.",
         ],
@@ -8493,6 +8523,10 @@ def main() -> int:
         "identifier_gate_hd_collision_max": athyg_merge_hd_collision_max,
         "duplicate_exact_groups": duplicate_exact_total_groups,
         "duplicate_exact_extra_rows": duplicate_exact_total_extra_rows,
+        "multiplicity_gaia_duplicate_extra_rows": multiplicity_gaia_duplicate_extra_rows,
+        "multiplicity_wds_component_duplicate_extra_rows": multiplicity_wds_component_duplicate_extra_rows,
+        "multiplicity_gaia_duplicate_max": multiplicity_gaia_duplicate_max,
+        "multiplicity_wds_component_duplicate_max": multiplicity_wds_component_duplicate_max,
         "duplicate_near_pair_count": duplicate_near_pair_count,
         "duplicate_likely_pair_count": duplicate_likely_pair_count,
         "duplicate_high_confidence_pair_count": duplicate_high_confidence_pair_count,
@@ -8541,7 +8575,9 @@ def main() -> int:
                 f"Duplicate trap: exact_groups={duplicate_exact_total_groups}, "
                 f"near_pairs={duplicate_near_pair_count}, "
                 f"likely_pairs={duplicate_likely_pair_count}, "
-                f"high_confidence_pairs={duplicate_high_confidence_pair_count}."
+                f"high_confidence_pairs={duplicate_high_confidence_pair_count}, "
+                f"gaia_exact_extra={multiplicity_gaia_duplicate_extra_rows}/{multiplicity_gaia_duplicate_max}, "
+                f"wds_component_exact_extra={multiplicity_wds_component_duplicate_extra_rows}/{multiplicity_wds_component_duplicate_max}."
             ),
         ],
     }
@@ -9510,6 +9546,23 @@ def main() -> int:
         raise SystemExit(
             "QC failed: high-confidence duplicate pair gate exceeded. "
             f"pairs={duplicate_high_confidence_pair_count} limit={duplicate_high_pair_max}. "
+            f"See {reports_dir / 'duplicate_trap_report.json'}"
+        )
+    if multiplicity_gaia_duplicate_extra_rows > multiplicity_gaia_duplicate_max:
+        raise SystemExit(
+            "QC failed: multiplicity Gaia exact-duplicate gate exceeded. "
+            f"extra_rows={multiplicity_gaia_duplicate_extra_rows} "
+            f"limit={multiplicity_gaia_duplicate_max}. "
+            f"See {reports_dir / 'duplicate_trap_report.json'}"
+        )
+    if (
+        multiplicity_wds_component_duplicate_extra_rows
+        > multiplicity_wds_component_duplicate_max
+    ):
+        raise SystemExit(
+            "QC failed: multiplicity WDS-component exact-duplicate gate exceeded. "
+            f"extra_rows={multiplicity_wds_component_duplicate_extra_rows} "
+            f"limit={multiplicity_wds_component_duplicate_max}. "
             f"See {reports_dir / 'duplicate_trap_report.json'}"
         )
     if dist_violations_stars + dist_violations_systems > 0:

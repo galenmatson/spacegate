@@ -26,6 +26,7 @@ from . import db
 from .db import DatabaseUnavailable
 from .queries import (
     choose_display_name,
+    fetch_arm_evidence_for_stars,
     fetch_eclipsing_for_system,
     fetch_aliases_for_stars,
     fetch_aliases_for_system,
@@ -86,6 +87,40 @@ def _resolve_rich_db_path() -> Optional[str]:
     if candidate.exists():
         return str(candidate)
     return None
+
+
+def _resolve_arm_db_path() -> Optional[str]:
+    candidate = Path(db.get_db_path()).with_name("arm.duckdb")
+    if candidate.exists():
+        return str(candidate)
+    return None
+
+
+def _summarize_arm_star_evidence(star_evidence: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
+    catalog_counts: Dict[str, int] = {}
+    high_variability_count = 0
+    ultracool_count = 0
+    stars_with_arm_evidence = 0
+    for payload in star_evidence.values():
+        catalogs = payload.get("catalogs") or []
+        if catalogs:
+            stars_with_arm_evidence += 1
+        for token in catalogs:
+            key = str(token or "").strip().lower()
+            if not key:
+                continue
+            catalog_counts[key] = int(catalog_counts.get(key, 0)) + 1
+        vsx = payload.get("vsx")
+        if isinstance(vsx, dict) and bool(vsx.get("any_high_variability")):
+            high_variability_count += 1
+        if isinstance(payload.get("ultracoolsheet"), dict):
+            ultracool_count += 1
+    return {
+        "stars_with_arm_evidence": int(stars_with_arm_evidence),
+        "catalog_counts": catalog_counts,
+        "high_variability_stars": int(high_variability_count),
+        "ultracool_overlay_stars": int(ultracool_count),
+    }
 
 
 def _snapshot_asset_url(build_id: str, artifact_path: str) -> str:
@@ -712,6 +747,7 @@ def systems_search(
 @app.get("/api/v1/systems/{system_id}")
 def system_detail(system_id: int):
     rich_db_path = _resolve_rich_db_path()
+    arm_db_path = _resolve_arm_db_path()
     with db.connection_scope() as con:
         system = fetch_system_by_id(con, system_id)
         if not system:
@@ -732,6 +768,11 @@ def system_detail(system_id: int):
             con,
             [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
         )
+        arm_star_evidence = fetch_arm_evidence_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=system_id,
@@ -743,6 +784,7 @@ def system_detail(system_id: int):
     system["planet_count"] = planet_count
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
     system_display_name, system_display_aliases = choose_display_name(
         system.get("system_name"),
         aliases,
@@ -764,6 +806,9 @@ def system_detail(system_id: int):
         )
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases
+        star_arm_evidence = arm_star_evidence.get(int(sid), {})
+        star["arm_evidence"] = star_arm_evidence
+        star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
     return {
         "system": system,
@@ -776,6 +821,7 @@ def system_detail(system_id: int):
 @app.get("/api/v1/systems/by-key/{stable_object_key}")
 def system_detail_by_key(stable_object_key: str):
     rich_db_path = _resolve_rich_db_path()
+    arm_db_path = _resolve_arm_db_path()
     with db.connection_scope() as con:
         system = fetch_system_by_key(con, stable_object_key)
         if not system:
@@ -797,6 +843,11 @@ def system_detail_by_key(stable_object_key: str):
             con,
             [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
         )
+        arm_star_evidence = fetch_arm_evidence_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=int(system_id),
@@ -808,6 +859,7 @@ def system_detail_by_key(stable_object_key: str):
     system["planet_count"] = planet_count
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
     system_display_name, system_display_aliases = choose_display_name(
         system.get("system_name"),
         aliases,
@@ -829,6 +881,9 @@ def system_detail_by_key(stable_object_key: str):
         )
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases
+        star_arm_evidence = arm_star_evidence.get(int(sid), {})
+        star["arm_evidence"] = star_arm_evidence
+        star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
     return {
         "system": system,
