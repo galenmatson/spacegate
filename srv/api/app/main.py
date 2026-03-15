@@ -1270,6 +1270,122 @@ def _proc_kib_value(value: Optional[str]) -> Optional[int]:
     return int(match.group(1)) * 1024
 
 
+def _determinism_key(payload: Dict[str, Any]) -> tuple[str, str, str, str, str]:
+    return (
+        str(payload.get("source_inputs_fingerprint") or ""),
+        str(payload.get("transform_version") or ""),
+        str(payload.get("build_layer") or ""),
+        str(payload.get("slice_profile_id") or ""),
+        str(payload.get("slice_profile_version") or ""),
+    )
+
+
+def _determinism_compare_tables(current: Dict[str, Any], baseline: Dict[str, Any]) -> Dict[str, Any]:
+    fields = ("row_count", "xor_hash_hex", "min_hash_uint64", "max_hash_uint64")
+    result: Dict[str, Any] = {"matches": True, "mismatches": [], "tables": {}}
+    current_tables = current.get("table_fingerprints") or {}
+    baseline_tables = baseline.get("table_fingerprints") or {}
+    for table in ("stars", "systems", "planets"):
+        c = current_tables.get(table) or {}
+        b = baseline_tables.get(table) or {}
+        field_matches: Dict[str, Any] = {}
+        table_ok = True
+        for field in fields:
+            c_val = c.get(field)
+            b_val = b.get(field)
+            is_match = c_val == b_val
+            field_matches[field] = {
+                "match": bool(is_match),
+                "current": c_val,
+                "baseline": b_val,
+            }
+            if not is_match:
+                table_ok = False
+                result["mismatches"].append(
+                    {
+                        "table": table,
+                        "field": field,
+                        "current": c_val,
+                        "baseline": b_val,
+                    }
+                )
+        result["tables"][table] = {"match": bool(table_ok), "fields": field_matches}
+        if not table_ok:
+            result["matches"] = False
+    return result
+
+
+def _determinism_status_payload(
+    *,
+    state_dir: Path,
+    reports_dir: Path,
+    build_id: str,
+) -> Dict[str, Any]:
+    output: Dict[str, Any] = {
+        "status": "missing_current_report",
+        "current_report_exists": False,
+        "current_build_id": build_id,
+        "current_report_path": str(reports_dir / "determinism_report.json"),
+        "baseline_build_id": None,
+        "baseline_report_path": None,
+        "baseline_generated_at": None,
+        "comparable_baselines": 0,
+        "comparison": {},
+        "source_inputs_fingerprint": None,
+        "transform_version": None,
+        "build_layer": None,
+        "slice_profile_id": None,
+        "slice_profile_version": None,
+    }
+    current = _read_json_file(reports_dir / "determinism_report.json")
+    if not current:
+        return output
+
+    output["current_report_exists"] = True
+    output["status"] = "no_baseline"
+    output["source_inputs_fingerprint"] = str(current.get("source_inputs_fingerprint") or "")
+    output["transform_version"] = str(current.get("transform_version") or "")
+    output["build_layer"] = str(current.get("build_layer") or "")
+    output["slice_profile_id"] = str(current.get("slice_profile_id") or "")
+    output["slice_profile_version"] = str(current.get("slice_profile_version") or "")
+
+    current_key = _determinism_key(current)
+    all_reports_dir = state_dir / "reports"
+    candidates: List[tuple[str, Dict[str, Any]]] = []
+    if all_reports_dir.exists() and all_reports_dir.is_dir():
+        for child in all_reports_dir.iterdir():
+            if not child.is_dir():
+                continue
+            baseline_build_id = child.name
+            if baseline_build_id == build_id:
+                continue
+            report = _read_json_file(child / "determinism_report.json")
+            if not report:
+                continue
+            if _determinism_key(report) != current_key:
+                continue
+            candidates.append((baseline_build_id, report))
+
+    output["comparable_baselines"] = len(candidates)
+    if not candidates:
+        return output
+
+    candidates.sort(
+        key=lambda row: (
+            str((row[1] or {}).get("generated_at") or ""),
+            str(row[0]),
+        )
+    )
+    baseline_build_id, baseline_report = candidates[-1]
+    compare = _determinism_compare_tables(current, baseline_report)
+    output["baseline_build_id"] = baseline_build_id
+    output["baseline_report_path"] = str(all_reports_dir / baseline_build_id / "determinism_report.json")
+    output["baseline_generated_at"] = str(baseline_report.get("generated_at") or "")
+    output["comparison"] = compare
+    output["status"] = "match" if bool(compare.get("matches")) else "mismatch"
+    return output
+
+
 def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     now = time.time()
     with db.connection_scope() as con:
@@ -1316,6 +1432,11 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     catalog_contribution_report = _read_json_file(reports_dir / "catalog_contribution_report.json")
     catalog_pipeline_report = _read_json_file(state_dir / "reports" / "catalog_pipeline_report.json")
     coolness_report = _read_json_file(reports_dir / "coolness_report.json")
+    determinism_status = _determinism_status_payload(
+        state_dir=state_dir,
+        reports_dir=reports_dir,
+        build_id=str(build_id),
+    )
 
     with db.connection_scope() as con:
         db_size_row = _timed("duckdb_database_size", lambda: con.execute("PRAGMA database_size").fetchone())
@@ -1325,8 +1446,14 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             if db_size_row
             else {}
         )
-        star_cols = {str(row[1]) for row in con.execute("pragma_table_info('stars')").fetchall()}
-        system_cols = {str(row[1]) for row in con.execute("pragma_table_info('systems')").fetchall()}
+        star_cols = {
+            str(row[1])
+            for row in con.execute("select * from pragma_table_info('stars')").fetchall()
+        }
+        system_cols = {
+            str(row[1])
+            for row in con.execute("select * from pragma_table_info('systems')").fetchall()
+        }
         star_has_sbx = "sbx_sn" in star_cols
         system_has_sbx = "has_sbx_evidence" in system_cols
 
@@ -1825,6 +1952,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "catalog_pipeline_report": catalog_pipeline_report,
             "coolness_report": coolness_report,
         },
+        "determinism": determinism_status,
         "bottleneck_hints": {
             "likely_memory_bound": (
                 (_parse_human_bytes(db_size.get("memory_usage")) or 0) > (8 * 1024 * 1024 * 1024)
@@ -1918,7 +2046,7 @@ def admin_dataset_slice_preview(request: Request, payload: DatasetSlicePreviewRe
     with db.connection_scope() as con:
         star_cols = {
             str(row[1])
-            for row in con.execute("pragma_table_info('stars')").fetchall()
+            for row in con.execute("select * from pragma_table_info('stars')").fetchall()
         }
 
         where_clauses: List[str] = []
@@ -2761,6 +2889,19 @@ def admin_home(request: Request):
         <h3>Capacity Usage</h3>
         <div id="datasetUsageBars" class="bar-list"></div>
       </div>
+      <div class="section grid">
+        <div>
+          <h3>Deterministic Compare</h3>
+          <div id="datasetDeterminism" class="bar-list"></div>
+        </div>
+        <div>
+          <h3>Determinism Table Checks</h3>
+          <table class="mini-table">
+            <thead><tr><th>Table</th><th>Status</th></tr></thead>
+            <tbody id="datasetDeterminismRows"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="section">
         <h3>Detailed Payload</h3>
         <details>
@@ -3167,6 +3308,8 @@ def admin_home(request: Request):
       const datasetStorageEl = document.getElementById('datasetStorage');
       const datasetRuntimeEl = document.getElementById('datasetRuntime');
       const datasetUsageBarsEl = document.getElementById('datasetUsageBars');
+      const datasetDeterminismEl = document.getElementById('datasetDeterminism');
+      const datasetDeterminismRowsEl = document.getElementById('datasetDeterminismRows');
       const datasetSourceRowsEl = document.getElementById('datasetSourceRows');
       const datasetSourcePieEl = document.getElementById('datasetSourcePie');
       const datasetSpectralRowsEl = document.getElementById('datasetSpectralRows');
@@ -4617,6 +4760,7 @@ def admin_home(request: Request):
         const cache = data.cache || {{}};
         const bottlenecks = data.bottleneck_hints || {{}};
         const breakdowns = data.breakdowns || {{}};
+        const determinism = data.determinism || {{}};
         const policyInputStars = Number(slice.policy_input_stars) || 0;
         const policySlicedOutStars = Number(slice.policy_sliced_out_stars) || 0;
         const policySlicedOutStarsPct = Number(slice.policy_sliced_out_stars_pct) || 0;
@@ -4749,6 +4893,53 @@ def admin_home(request: Request):
           }});
         }}
         renderUsageBars(datasetUsageBarsEl, usageRows);
+
+        const detStatusRaw = String(determinism.status || '');
+        const detStatusMap = {{
+          match: 'match',
+          mismatch: 'mismatch',
+          no_baseline: 'no baseline',
+          missing_current_report: 'missing report',
+        }};
+        const detStatusLabel = detStatusMap[detStatusRaw] || (detStatusRaw || 'unknown');
+        const detComparison = determinism.comparison || {{}};
+        const detMismatches = Array.isArray(detComparison.mismatches) ? detComparison.mismatches : [];
+        renderMetricRows(datasetDeterminismEl, [
+          {{
+            key: 'Status',
+            value: detStatusLabel,
+            note: detStatusRaw === 'mismatch'
+              ? `${{formatInt(detMismatches.length)}} mismatched fingerprint fields`
+              : (detStatusRaw === 'match' ? 'fingerprints match baseline build' : ''),
+          }},
+          {{
+            key: 'Current build',
+            value: String(determinism.current_build_id || data.build_id || 'unknown'),
+            note: String(determinism.current_report_exists ? 'determinism_report.json present' : 'determinism_report.json not found'),
+          }},
+          {{
+            key: 'Baseline build',
+            value: String(determinism.baseline_build_id || 'n/a'),
+            note: `comparable baselines=${{formatInt(determinism.comparable_baselines)}}`,
+          }},
+          {{
+            key: 'Input fingerprint',
+            value: String(determinism.source_inputs_fingerprint || 'n/a'),
+          }},
+          {{
+            key: 'Transform / layer',
+            value: `${{String(determinism.transform_version || 'n/a')}} / ${{String(determinism.build_layer || 'n/a')}}`,
+            note: `slice=${{String(determinism.slice_profile_id || 'n/a')}}@${{String(determinism.slice_profile_version || 'n/a')}}`,
+          }},
+        ]);
+        const detTables = (detComparison.tables && typeof detComparison.tables === 'object')
+          ? detComparison.tables
+          : {{}};
+        renderKeyValueRows(datasetDeterminismRowsEl, [
+          {{ key: 'stars', value: detTables.stars ? (detTables.stars.match ? 'match' : 'mismatch') : 'n/a' }},
+          {{ key: 'systems', value: detTables.systems ? (detTables.systems.match ? 'match' : 'mismatch') : 'n/a' }},
+          {{ key: 'planets', value: detTables.planets ? (detTables.planets.match ? 'match' : 'mismatch') : 'n/a' }},
+        ]);
 
         const sourceRows = breakdowns.stars_by_source_catalog || [];
         datasetSourceRowsEl.innerHTML = '';
@@ -5025,6 +5216,7 @@ def admin_home(request: Request):
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
           `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
           `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,
+          `Determinism: status=${{detStatusLabel}}, baseline=${{String(determinism.baseline_build_id || 'n/a')}}, comparable=${{formatInt(determinism.comparable_baselines)}}`,
           `Catalog contribution rows: ${{formatInt(catalogContributionRows.length)}}`,
         ];
         if (policyInputStars > 0) {{

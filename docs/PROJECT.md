@@ -367,6 +367,7 @@ Minimum metrics exposed:
 - storage health: project/state/build/core/rich/parquet/raw/cooked/reports sizes and disk usage
 - query-timing probes for major status queries
 - percentage capacity bars where current vs maximum is known (disk, host memory, API RSS/peak vs host, DuckDB memory vs limit)
+- deterministic rerun compare status (`match` / `mismatch` / `no baseline`) against prior comparable build fingerprints
 - concise humanized status summary plus raw payload for deep debugging
 
 Implementation constraints:
