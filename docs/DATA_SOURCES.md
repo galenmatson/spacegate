@@ -67,7 +67,8 @@ Interpretation note:
 | UltracoolSheet | default-on | on | `SPACEGATE_ENABLE_ULTRACOOLSHEET` | ultracool/youth/kinematics overlay in `arm` (Gaia DR3/DR2 linked) |
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
 | SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
-| DEBCat + Kepler EB | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
+| DEBCat | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
+| Kepler EB catalog | deferred (optional) | off | `SPACEGATE_ENABLE_KEPLER_EB` (with `SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1`) | Kepler-era eclipsing support with low in-slice linkage in Gaia-first core |
 | Compact-object bundle (`ATNF`, `magnetar`, `white_dwarf`) | default-on | on | `SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS` | compact/remnant support evidence (includes cooked+ingested Gaia EDR3 white-dwarf catalog) |
 | Superstellar bundle (`clusters`, `snr`) | default-on | on | `SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS` | open-cluster and remnant-nebula context |
 | Exoplanet lifecycle support (`exoplanet.eu`, OEC, HWC) | optional | off | `SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS` | status overlays and derived-tag support; OEC alias bridge improves lifecycle matching; canonical planets stay NASA-rooted |
@@ -223,12 +224,18 @@ Source endpoint:
 
 ## 8) Kepler Eclipsing Binary Catalog
 
-Classification: `auxiliary`
+Classification: `deferred` (optional)
 
 Role:
 
 - large eclipsing-binary candidate/phenomenology dataset (period, morphology, KIC IDs)
 - supplementary evidence set for binary behavior and follow-up crossmatching
+
+Policy:
+
+- default-off in Gaia-first production profile
+- opt-in only when explicit Kepler-focused analysis is needed (`SPACEGATE_ENABLE_KEPLER_EB=1`)
+- rationale: current Gaia-slice overlap/linkage is low, so default ingest cost is not justified
 
 Source endpoint:
 

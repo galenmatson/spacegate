@@ -105,7 +105,11 @@ else
   fi
 fi
 if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
-  "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_kepler_eb_catalog.py"
+  if [[ "${SPACEGATE_ENABLE_KEPLER_EB:-0}" != "0" ]]; then
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_kepler_eb_catalog.py"
+  else
+    echo "Skip Kepler EB fetch (SPACEGATE_ENABLE_KEPLER_EB=0)."
+  fi
   if [[ "${SPACEGATE_ENABLE_TESS_EB:-1}" != "0" ]]; then
     "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_tess_eb_catalog.py" \
       --timeout-s "${SPACEGATE_TESS_EB_TIMEOUT_S:-90}" \

@@ -609,6 +609,7 @@ def main() -> int:
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
     enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
+    enable_kepler_eb = parse_bool_env("SPACEGATE_ENABLE_KEPLER_EB", False)
     enable_tess_eb = parse_bool_env("SPACEGATE_ENABLE_TESS_EB", True)
     enable_exoplanet_lifecycle_catalogs = parse_bool_env(
         "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS", False
@@ -814,7 +815,7 @@ def main() -> int:
         raise SystemExit(f"Missing cooked SNR catalog: {cooked_snr}")
     if enable_eclipsing_catalogs and not cooked_debcat.exists():
         raise SystemExit(f"Missing cooked DEBCat catalog: {cooked_debcat}")
-    if enable_eclipsing_catalogs and not cooked_kepler_eb.exists():
+    if enable_eclipsing_catalogs and enable_kepler_eb and not cooked_kepler_eb.exists():
         raise SystemExit(f"Missing cooked Kepler EB catalog: {cooked_kepler_eb}")
     if enable_eclipsing_catalogs and enable_tess_eb and not cooked_tess_eb.exists():
         raise SystemExit(f"Missing cooked TESS EB catalog: {cooked_tess_eb}")
@@ -857,6 +858,7 @@ def main() -> int:
         f"compact_catalogs={'1' if enable_compact_catalogs else '0'} "
         f"superstellar_catalogs={'1' if enable_superstellar_catalogs else '0'} "
         f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
+        f"kepler_eb={'1' if (enable_eclipsing_catalogs and enable_kepler_eb) else '0'} "
         f"tess_eb={'1' if (enable_eclipsing_catalogs and enable_tess_eb) else '0'} "
         f"exoplanet_lifecycle_catalogs={'1' if enable_exoplanet_lifecycle_catalogs else '0'} "
         f"sbx={'1' if enable_sbx else '0'} "
@@ -906,7 +908,9 @@ def main() -> int:
     if enable_superstellar_catalogs:
         manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
     if enable_eclipsing_catalogs:
-        manifest_paths.extend([debcat_manifest_path, kepler_eb_manifest_path])
+        manifest_paths.append(debcat_manifest_path)
+        if enable_kepler_eb:
+            manifest_paths.append(kepler_eb_manifest_path)
         if enable_tess_eb:
             manifest_paths.append(tess_eb_manifest_path)
     if enable_exoplanet_lifecycle_catalogs:
@@ -1016,6 +1020,7 @@ def main() -> int:
           ('compact_catalogs_enabled', {sql_literal("1" if enable_compact_catalogs else "0")}),
           ('superstellar_catalogs_enabled', {sql_literal("1" if enable_superstellar_catalogs else "0")}),
           ('eclipsing_catalogs_enabled', {sql_literal("1" if enable_eclipsing_catalogs else "0")}),
+          ('kepler_eb_enabled', {sql_literal("1" if (enable_eclipsing_catalogs and enable_kepler_eb) else "0")}),
           ('exoplanet_lifecycle_catalogs_enabled', {sql_literal("1" if enable_exoplanet_lifecycle_catalogs else "0")}),
           ('planet_classifier_version', {sql_literal(planet_classifier_version)}),
           ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
@@ -1145,7 +1150,7 @@ def main() -> int:
     )
     kepler_eb_manifest = (
         require_manifest_entry(manifest, "kepler_eb_catalog", "Kepler Eclipsing Binary Catalog")
-        if enable_eclipsing_catalogs
+        if enable_eclipsing_catalogs and enable_kepler_eb
         else None
     )
     tess_eb_manifest = (
@@ -2067,20 +2072,40 @@ def main() -> int:
             )
             """
         )
-        con.execute(
-            f"""
-            create or replace temp view kepler_eb_raw as
-            select * from read_csv_auto('{kepler_eb_path}',
-                delim=',',
-                quote='\"',
-                escape='\"',
-                header=true,
-                strict_mode=false,
-                null_padding=true,
-                all_varchar=true
+        if enable_kepler_eb:
+            con.execute(
+                f"""
+                create or replace temp view kepler_eb_raw as
+                select * from read_csv_auto('{kepler_eb_path}',
+                    delim=',',
+                    quote='\"',
+                    escape='\"',
+                    header=true,
+                    strict_mode=false,
+                    null_padding=true,
+                    all_varchar=true
+                )
+                """
             )
-            """
-        )
+        else:
+            con.execute(
+                """
+                create or replace temp view kepler_eb_raw as
+                select *
+                from (
+                  values
+                    (
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                      cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                    )
+                ) as t(
+                  kic_id, period_days, period_error_days, bjd0, bjd0_error, morphology, glon_deg, glat_deg,
+                  kmag, teff_k, has_short_cadence
+                )
+                where false
+                """
+            )
         if enable_tess_eb:
             con.execute(
                 f"""
@@ -8588,6 +8613,7 @@ def main() -> int:
         "compact_catalogs_enabled": enable_compact_catalogs,
         "superstellar_catalogs_enabled": enable_superstellar_catalogs,
         "eclipsing_catalogs_enabled": enable_eclipsing_catalogs,
+        "kepler_eb_enabled": enable_eclipsing_catalogs and enable_kepler_eb,
         "tess_eb_enabled": enable_eclipsing_catalogs and enable_tess_eb,
         "exoplanet_lifecycle_catalogs_enabled": enable_exoplanet_lifecycle_catalogs,
         "planet_classifier_version": planet_classifier_version,
@@ -9525,30 +9551,32 @@ def main() -> int:
         linked_rows=eclipsing_linked_rows,
         notes="detached eclipsing binaries",
     )
-    add_catalog_contribution(
-        catalog_contributions,
-        catalog="kepler_eb",
-        domain="eclipsing_binaries",
-        domain_total=total_eclipsing,
-        input_rows=safe_view_count("kepler_eb_raw"),
-        input_bytes=manifest_bytes(kepler_eb_manifest),
-        direct_rows=int(eclipsing_source_counts.get("kepler_eb", 0)),
-        evidence_rows=0,
-        linked_rows=eclipsing_linked_rows,
-        notes="Kepler eclipsing binaries",
-    )
-    add_catalog_contribution(
-        catalog_contributions,
-        catalog="tess_eb",
-        domain="eclipsing_binaries",
-        domain_total=total_eclipsing,
-        input_rows=safe_view_count("tess_eb_raw"),
-        input_bytes=manifest_bytes(tess_eb_manifest),
-        direct_rows=int(eclipsing_source_counts.get("tess_eb", 0)),
-        evidence_rows=0,
-        linked_rows=eclipsing_linked_rows,
-        notes="TESS eclipsing binaries",
-    )
+    if enable_eclipsing_catalogs and enable_kepler_eb:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="kepler_eb",
+            domain="eclipsing_binaries",
+            domain_total=total_eclipsing,
+            input_rows=safe_view_count("kepler_eb_raw"),
+            input_bytes=manifest_bytes(kepler_eb_manifest),
+            direct_rows=int(eclipsing_source_counts.get("kepler_eb", 0)),
+            evidence_rows=0,
+            linked_rows=eclipsing_linked_rows,
+            notes="Kepler eclipsing binaries",
+        )
+    if enable_eclipsing_catalogs and enable_tess_eb:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="tess_eb",
+            domain="eclipsing_binaries",
+            domain_total=total_eclipsing,
+            input_rows=safe_view_count("tess_eb_raw"),
+            input_bytes=manifest_bytes(tess_eb_manifest),
+            direct_rows=int(eclipsing_source_counts.get("tess_eb", 0)),
+            evidence_rows=0,
+            linked_rows=eclipsing_linked_rows,
+            notes="TESS eclipsing binaries",
+        )
 
     source_inputs = []
     for catalog_name, entry in [

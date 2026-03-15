@@ -71,6 +71,7 @@ ensure_inputs() {
   local enable_sbx="${SPACEGATE_ENABLE_SBX:-1}"
   local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}"
   local enable_eclipsing_catalogs="${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}"
+  local enable_kepler_eb="${SPACEGATE_ENABLE_KEPLER_EB:-0}"
   local missing=0
   if [[ "$enable_msc" == "0" ]]; then
     echo "Error: MSC is mandatory for default science ingest (SPACEGATE_ENABLE_MSC=0 is not supported)." >&2
@@ -145,7 +146,7 @@ ensure_inputs() {
       echo "Missing: $DEBCAT_RAW" >&2
       missing=1
     fi
-    if [[ ! -f "$KEPLER_EB_RAW" ]]; then
+    if [[ "$enable_kepler_eb" != "0" && ! -f "$KEPLER_EB_RAW" ]]; then
       echo "Missing: $KEPLER_EB_RAW" >&2
       missing=1
     fi
