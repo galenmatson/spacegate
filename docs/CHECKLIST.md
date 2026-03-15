@@ -46,9 +46,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Implement Gaia backbone downloader/cooker/ingest path (`gaia_backbone`)
 - [x] Emit `gaia_backbone_report.json` (counts, quality bands, runtime, storage)
-- [ ] Add Gaia TAP fetch completeness guard (detect and fail on sync truncation / partial bucket responses)
-- [ ] Add build metadata for astrometry quality policy and boundary strategy
-- [ ] Verify deterministic reruns for pinned Gaia inputs
+- [x] Add Gaia TAP fetch completeness guard (detect and fail on sync truncation / partial bucket responses)
+- [x] Add build metadata for astrometry quality policy and boundary strategy
+- [x] Verify deterministic reruns for pinned Gaia inputs
 - [x] Ingest Gaia DR3 astrophysical classification probabilities needed for remnant safety (`classprob_dsc_*_whitedwarf`, ESP-ELS families)
 - [x] Implement remnant classification invariant gate (explicit remnant evidence must override temperature fallback)
 - [x] Add compact/superstellar side catalogs (ATNF pulsars, McGill magnetars, open clusters, Galactic SNR)
@@ -92,7 +92,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add cooked lifecycle normalization outputs (status/alias/feature rows)
 - [x] Resolve per-planet lifecycle status with deterministic precedence (`confirmed/candidate/controversial/retracted`)
 - [x] Materialize policy flags (`is_default_visible`, `is_tombstoned`) in `planets`
-- [ ] Persist lifecycle observations/history/reclassification audit tables in `arm.duckdb`
+- [x] Persist lifecycle observations/history/reclassification audit tables in `arm.duckdb`
 - [x] Emit `planet_catalog_delta_report.json` and `planet_reclassification_report.json`
 - [x] Add verify gate for stale lifecycle/taxonomy/habitability classifier versions
 - [x] Add selective cook + incremental planet ingest path for planet/lifecycle-only source deltas
@@ -110,10 +110,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### C6. Phase E - AT-HYG Retirement
 
-- [ ] Parallel-run comparison (legacy vs Gaia-first) report generated
-- [ ] AT-HYG removed from canonical inventory path
-- [ ] AT-HYG remaining usage limited to optional compatibility tooling or removed entirely
-- [ ] Deprecation cleanup (unused code/data/docs paths) completed
+- [x] AT-HYG retirement comparison report generated (`reports/<build_id>/athyg_retirement_report.json`)
+- [x] AT-HYG removed from canonical inventory path
+- [x] AT-HYG remaining usage limited to optional compatibility tooling or removed entirely
+- [x] Deprecation cleanup completed for default Gaia-first path (compatibility tooling retained behind explicit toggles)
 
 ## D) Security and Data Hygiene
 

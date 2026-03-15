@@ -136,6 +136,17 @@ Representative commits:
 Representative commits:
 - `ea194cf`
 
+### 9) Reproducibility + Retirement Closeout
+
+- Added Gaia TAP completeness guards (expected-row count checks for backbone/classprob/NSS).
+- Added deterministic rerun fingerprints and verify-time comparable-build checks.
+- Added explicit astrometry boundary/quality policy metadata in build metadata and QC.
+- Persisted lifecycle audit tables into `arm.duckdb`.
+- Switched AT-HYG compatibility toggles to default-off and added `athyg_retirement_report.json`.
+
+Representative commits:
+- `0050ade`, `ea194cf` and follow-up closeout commits
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

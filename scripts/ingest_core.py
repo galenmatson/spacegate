@@ -15,6 +15,7 @@ from pathlib import Path
 import duckdb
 
 PC_TO_LY = 3.26156
+GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT = 3.26156
 BITS_PER_AXIS = 21
 MORTON_MAX_ABS_LY = 1000.0
 MORTON_N = (1 << BITS_PER_AXIS) - 1
@@ -615,8 +616,20 @@ def main() -> int:
         "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS", False
     )
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
-    enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
-    enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", True)
+    enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", False)
+    enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
+    gaia_backbone_min_parallax_mas = parse_positive_float_env(
+        "SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS",
+        GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT,
+    )
+    gaia_nss_min_parallax_mas = parse_positive_float_env(
+        "SPACEGATE_GAIA_NSS_MIN_PARALLAX_MAS",
+        GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT,
+    )
+    gaia_classprob_min_parallax_mas = parse_positive_float_env(
+        "SPACEGATE_GAIA_CLASSPROB_MIN_PARALLAX_MAS",
+        GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT,
+    )
     athyg_merge_ambiguous_limit = parse_nonnegative_int_env(
         "SPACEGATE_ATHYG_MERGE_AMBIGUOUS_LIMIT",
         ATHYG_MERGE_AMBIGUOUS_DEFAULT_LIMIT,
@@ -977,6 +990,17 @@ def main() -> int:
 
     ingested_at = dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     transform_version = get_git_sha(root)
+    astrometry_boundary_strategy = (
+        "gaia_parallax_floor" if enable_gaia_backbone else "athyg_legacy_backbone"
+    )
+    astrometry_boundary_min_parallax = (
+        str(gaia_backbone_min_parallax_mas) if enable_gaia_backbone else ""
+    )
+    astrometry_boundary_distance_ly_approx = (
+        str(round((1000.0 / gaia_backbone_min_parallax_mas) * PC_TO_LY, 6))
+        if enable_gaia_backbone
+        else ""
+    )
 
     log("Writing build_metadata")
     con.execute(
@@ -995,6 +1019,15 @@ def main() -> int:
           ('gaia_backbone_enabled', {sql_literal("1" if enable_gaia_backbone else "0")}),
           ('coordinate_epoch', {sql_literal(COORDINATE_EPOCH)}),
           ('coordinate_frame', {sql_literal(COORDINATE_FRAME)}),
+          ('astrometry_boundary_strategy', {sql_literal(astrometry_boundary_strategy)}),
+          ('astrometry_boundary_min_parallax_mas', {sql_literal(astrometry_boundary_min_parallax)}),
+          ('astrometry_boundary_distance_ly_approx', {sql_literal(astrometry_boundary_distance_ly_approx)}),
+          ('astrometry_quality_policy_source', {sql_literal('slice_policy_and_gaia_fields')}),
+          ('astrometry_quality_min_parallax_over_error', {sql_literal(format_float_or_empty(slice_min_parallax_over_error))}),
+          ('astrometry_quality_max_parallax_error_mas', {sql_literal(format_float_or_empty(slice_max_parallax_error_mas))}),
+          ('astrometry_quality_max_ruwe', {sql_literal(format_float_or_empty(slice_max_ruwe))}),
+          ('gaia_nss_min_parallax_mas', {sql_literal(str(gaia_nss_min_parallax_mas))}),
+          ('gaia_classprob_min_parallax_mas', {sql_literal(str(gaia_classprob_min_parallax_mas))}),
           ('morton_bits_per_axis', {sql_literal(str(BITS_PER_AXIS))}),
           ('morton_max_abs_ly', {sql_literal(str(MORTON_MAX_ABS_LY))}),
           ('morton_scale', {sql_literal(str(MORTON_SCALE))}),
@@ -8608,7 +8641,9 @@ def main() -> int:
         ],
         "gaia_backbone_enabled": enable_gaia_backbone,
         "base_source_catalog": base_source_catalog,
+        "gaia_backbone_row_count_check_match": manifest_row_count_match(gaia_backbone_manifest),
         "gaia_classprob_enabled": enable_gaia_backbone and enable_gaia_classprob,
+        "gaia_classprob_row_count_check_match": manifest_row_count_match(gaia_classprob_manifest),
         "gaia_ucd_enabled": enable_gaia_ucd,
         "compact_catalogs_enabled": enable_compact_catalogs,
         "superstellar_catalogs_enabled": enable_superstellar_catalogs,
@@ -8631,6 +8666,12 @@ def main() -> int:
         "msc_component_duplicate_groups": msc_component_dedup_group_count,
         "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
+        "gaia_nss_non_single_row_count_check_match": manifest_row_count_match(
+            gaia_nss_non_single_manifest
+        ),
+        "gaia_nss_two_body_row_count_check_match": manifest_row_count_match(
+            gaia_nss_two_body_manifest
+        ),
         "sbx_enabled": enable_sbx,
         "wds_gaia_xmatch_enabled": enable_wds_gaia_xmatch,
         "gaia_nss_star_count": gaia_nss_star_count,
@@ -8807,6 +8848,21 @@ def main() -> int:
             return int(value)
         except Exception:
             return None
+
+    def manifest_row_count_match(entry: dict | None) -> bool | None:
+        if not entry:
+            return None
+        value = entry.get("row_count_match")
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return None
+        text = str(value).strip().lower()
+        if text in {"1", "true", "yes", "on"}:
+            return True
+        if text in {"0", "false", "no", "off"}:
+            return False
+        return None
 
     def safe_view_count(view_name: str) -> int | None:
         try:
@@ -9624,10 +9680,104 @@ def main() -> int:
                 "sha256": entry.get("sha256"),
             }
         )
+    source_inputs_fingerprint = hashlib.sha256(
+        json.dumps(
+            sorted(
+                source_inputs,
+                key=lambda row: (
+                    str(row.get("catalog") or ""),
+                    str(row.get("source_name") or ""),
+                    str(row.get("dest_path") or ""),
+                ),
+            ),
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    qc_report["source_inputs_fingerprint"] = source_inputs_fingerprint
+    qc_report["astrometry_boundary_strategy"] = astrometry_boundary_strategy
+    qc_report["astrometry_boundary_min_parallax_mas"] = (
+        float(gaia_backbone_min_parallax_mas) if enable_gaia_backbone else None
+    )
+    qc_report["astrometry_quality_policy"] = {
+        "slice_min_parallax_over_error": slice_min_parallax_over_error,
+        "slice_max_parallax_error_mas": slice_max_parallax_error_mas,
+        "slice_max_ruwe": slice_max_ruwe,
+    }
+
+    def table_fingerprint(
+        table_name: str,
+        hash_expr_sql: str,
+    ) -> dict[str, int | str]:
+        row = con.execute(
+            f"""
+            select
+              count(*)::bigint as row_count,
+              coalesce(bit_xor({hash_expr_sql}), 0)::ubigint as xor_hash,
+              coalesce(min({hash_expr_sql}), 0)::ubigint as min_hash,
+              coalesce(max({hash_expr_sql}), 0)::ubigint as max_hash
+            from {table_name}
+            """
+        ).fetchone()
+        row_count = int(row[0] or 0)
+        xor_hash = int(row[1] or 0)
+        min_hash = int(row[2] or 0)
+        max_hash = int(row[3] or 0)
+        return {
+            "row_count": row_count,
+            "xor_hash_uint64": xor_hash,
+            "xor_hash_hex": f"{xor_hash:016x}",
+            "min_hash_uint64": min_hash,
+            "max_hash_uint64": max_hash,
+        }
+
+    stars_fingerprint = table_fingerprint(
+        "stars",
+        "hash("
+        "coalesce(stable_object_key,''),"
+        "coalesce(source_catalog,''),"
+        "coalesce(cast(gaia_id as varchar),''),"
+        "coalesce(cast(hip_id as varchar),''),"
+        "coalesce(cast(hd_id as varchar),''),"
+        "coalesce(spectral_class,''),"
+        "coalesce(spectral_subclass,''),"
+        "coalesce(spectral_luminosity_class,''),"
+        "coalesce(cast(round(dist_ly, 6) as varchar),''),"
+        "coalesce(multiplicity_match_method,'')"
+        ")",
+    )
+    systems_fingerprint = table_fingerprint(
+        "systems",
+        "hash("
+        "coalesce(stable_object_key,''),"
+        "coalesce(system_name_norm,''),"
+        "coalesce(cast(primary_star_id as varchar),''),"
+        "coalesce(wds_id,''),"
+        "coalesce(cast(round(dist_ly, 6) as varchar),''),"
+        "coalesce(grouping_method,''),"
+        "coalesce(cast(has_wds_evidence as varchar),''),"
+        "coalesce(cast(has_msc_evidence as varchar),'')"
+        ")",
+    )
+    planets_fingerprint = table_fingerprint(
+        "planets",
+        "hash("
+        "coalesce(stable_object_key,''),"
+        "coalesce(source_catalog,''),"
+        "coalesce(cast(system_id as varchar),''),"
+        "coalesce(cast(star_id as varchar),''),"
+        "coalesce(planet_status,''),"
+        "coalesce(cast(is_default_visible as varchar),''),"
+        "coalesce(cast(is_tombstoned as varchar),''),"
+        "coalesce(cast(round(insol_earth, 6) as varchar),''),"
+        "coalesce(cast(round(spacegate_hab_score, 6) as varchar),'')"
+        ")",
+    )
 
     catalog_contribution_report = {
         "build_id": build_id,
         "generated_at": ingested_at,
+        "source_inputs_fingerprint": source_inputs_fingerprint,
         "totals": {
             "stars": total_stars,
             "systems": total_systems,
@@ -9695,12 +9845,77 @@ def main() -> int:
         ],
     }
 
+    athyg_retirement_report = {
+        "build_id": build_id,
+        "generated_at": ingested_at,
+        "gaia_backbone_enabled": enable_gaia_backbone,
+        "athyg_alias_crosswalk_enabled": enable_aliases and enable_athyg_alias_crosswalk,
+        "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "source_inputs_fingerprint": source_inputs_fingerprint,
+        "athyg_metrics": {
+            "athyg_source_star_rows": int(star_source_counts.get("athyg", 0)),
+            "athyg_merge_resolved_existing_rows": int(athyg_merge_existing_match_count),
+            "athyg_merge_inserted_rows": int(athyg_merge_insert_count),
+            "athyg_merge_quarantined_rows": int(athyg_merge_quarantine_count),
+            "athyg_merge_unresolved_rows": int(athyg_merge_unresolved_count),
+            "athyg_merge_gaia_exact_rows": int(athyg_merge_direct_gaia_count),
+            "athyg_merge_gaia_remap_rows": int(athyg_merge_remap_count),
+            "athyg_merge_direct_legacy_rows": int(athyg_merge_direct_legacy_id_count),
+            "athyg_merge_positional_rows": int(athyg_merge_positional_count),
+            "athyg_merge_positional_ambiguous_rows": int(athyg_merge_positional_ambiguous_count),
+            "athyg_alias_candidates": int(alias_crosswalk_candidate_count),
+            "athyg_alias_matched_stars": int(alias_crosswalk_matched_star_count),
+        },
+        "retirement_readiness": {
+            "default_path_has_no_athyg_dependency": not (
+                (enable_aliases and enable_athyg_alias_crosswalk)
+                or (enable_gaia_backbone and enable_athyg_supplement_merge)
+            ),
+            "athyg_rows_present_in_core": int(star_source_counts.get("athyg", 0)) > 0,
+        },
+        "notes": [
+            "AT-HYG is transitional compatibility input only; canonical inventory is Gaia-first.",
+            "Use this report when deciding whether compatibility toggles can stay disabled in production defaults.",
+        ],
+    }
+
+    determinism_report = {
+        "build_id": build_id,
+        "generated_at": ingested_at,
+        "transform_version": transform_version,
+        "build_layer": build_layer,
+        "slice_profile_id": slice_profile_id,
+        "slice_profile_version": slice_profile_version,
+        "source_inputs_fingerprint": source_inputs_fingerprint,
+        "table_fingerprints": {
+            "stars": stars_fingerprint,
+            "systems": systems_fingerprint,
+            "planets": planets_fingerprint,
+        },
+        "notes": [
+            "Fingerprints are deterministic for identical inputs/transforms and are used for rerun-proof checks.",
+            "Comparison key: source_inputs_fingerprint + transform_version + build_layer + slice profile.",
+        ],
+    }
+
+    con.execute(
+        f"""
+        insert into build_metadata values
+          ('source_inputs_fingerprint', {sql_literal(source_inputs_fingerprint)}),
+          ('determinism_stars_xor_hash', {sql_literal(stars_fingerprint['xor_hash_hex'])}),
+          ('determinism_systems_xor_hash', {sql_literal(systems_fingerprint['xor_hash_hex'])}),
+          ('determinism_planets_xor_hash', {sql_literal(planets_fingerprint['xor_hash_hex'])})
+        """
+    )
+
     write_json(reports_dir / "qc_report.json", qc_report)
     write_json(reports_dir / "match_report.json", match_report)
     write_json(reports_dir / "duplicate_trap_report.json", duplicate_trap_report)
     write_json(reports_dir / "planet_catalog_delta_report.json", planet_catalog_delta_report)
     write_json(reports_dir / "planet_reclassification_report.json", planet_reclassification_report)
     write_json(reports_dir / "catalog_contribution_report.json", catalog_contribution_report)
+    write_json(reports_dir / "athyg_retirement_report.json", athyg_retirement_report)
+    write_json(reports_dir / "determinism_report.json", determinism_report)
     pipeline_report_script = root / "scripts" / "update_catalog_pipeline_report.py"
     if pipeline_report_script.exists():
         try:

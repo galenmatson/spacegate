@@ -279,6 +279,34 @@ Columns:
 - `ref_discovery TEXT`
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
 
+## Lifecycle Audit Mirrors
+
+Arm mirrors lifecycle lineage tables from core so lifecycle diffs/audits remain available even when hot-path core tables are optimized for serving.
+
+## `planet_catalog_observations`
+
+Per-catalog observation snapshots used for lifecycle resolution.
+
+Columns:
+- mirrored 1:1 from `core.planet_catalog_observations`
+- includes source identity (`source_catalog`, `source_catalog_object_id`), payload fields, retrieval lineage, and transform lineage
+
+## `planet_status_history`
+
+Deterministic status-resolution history per planet.
+
+Columns:
+- mirrored 1:1 from `core.planet_status_history`
+- includes previous/new status, resolution reasons, classifier versions, and timestamps
+
+## `planet_reclassification_audit`
+
+Derived change log for lifecycle/taxonomy/habitability classifier transitions.
+
+Columns:
+- mirrored 1:1 from `core.planet_reclassification_audit`
+- includes transition type, impacted flags, and classifier version lineage
+
 ## Quality Gates (Arm)
 
 Build fails when:

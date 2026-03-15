@@ -2,6 +2,12 @@
 
 This document translates the roadmap/schema decisions into concrete DDL and execution steps.
 
+Implementation status (2026-03-15):
+
+- lifecycle/status materialization in `core` is implemented
+- lifecycle reports (`planet_catalog_delta_report.json`, `planet_reclassification_report.json`) are emitted
+- lifecycle audit lineage tables are now mirrored into `arm.duckdb` each build
+
 Scope:
 
 - multi-catalog exoplanet lifecycle ingestion before taxonomy/habitability scoring

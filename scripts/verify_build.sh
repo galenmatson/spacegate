@@ -15,6 +15,7 @@ REPORTS_DIR="$STATE_DIR/reports"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
 VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
+VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -143,7 +144,17 @@ counts = data.get("counts") or {}
 if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
     raise SystemExit(f"Invalid counts in QC report: {counts}")
 
-    print("OK: qc_report.json")
+for key in (
+    "gaia_backbone_row_count_check_match",
+    "gaia_classprob_row_count_check_match",
+    "gaia_nss_non_single_row_count_check_match",
+    "gaia_nss_two_body_row_count_check_match",
+):
+    value = data.get(key)
+    if value is False:
+        raise SystemExit(f"Gaia TAP completeness check failed ({key}=false)")
+
+print("OK: qc_report.json")
 PY
 
     if [[ -f "$duplicate_report" ]]; then
@@ -287,6 +298,28 @@ PY
     echo "Running multiplicity goldens exam..."
     "$PYTHON_BIN" "$goldens_script" --core-db "$core_db" --arm-db "$arm_db" --require-arm
     echo "OK: multiplicity goldens"
+  fi
+
+  if [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" && $have_reports -eq 1 ]]; then
+    local deterministic_script="$ROOT_DIR/scripts/verify_deterministic_rerun.py"
+    local determinism_report="$reports_dir/determinism_report.json"
+    if [[ -f "$deterministic_script" ]]; then
+      if [[ -f "$determinism_report" ]]; then
+        "$PYTHON_BIN" "$deterministic_script" \
+          --state-dir "$STATE_DIR" \
+          --build-id "$build_id"
+        echo "OK: deterministic rerun check"
+      elif [[ "$REQUIRE_REPORTS" == "1" ]]; then
+        echo "Error: missing determinism report: $determinism_report" >&2
+        exit 1
+      else
+        echo "Warning: skipping deterministic rerun check (missing $determinism_report)." >&2
+      fi
+    else
+      echo "Warning: missing deterministic rerun checker: $deterministic_script" >&2
+    fi
+  elif [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" ]]; then
+    echo "Warning: skipping deterministic rerun check (reports missing)." >&2
   fi
 
   echo "Verified build $build_id"

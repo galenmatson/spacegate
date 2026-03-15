@@ -466,6 +466,11 @@ AT-HYG should be removed from canonical inventory once these pass:
 
 AT-HYG may remain as an optional compatibility/crosswalk input during migration, but not as canonical star inventory.
 
+Operational status:
+
+- default Gaia-first builds keep AT-HYG compatibility toggles off unless explicitly enabled.
+- ingest emits `reports/<build_id>/athyg_retirement_report.json` to track residual AT-HYG contribution and retirement readiness.
+
 ## Acceptance Gates for Gaia-First Default
 
 1. Determinism: repeated runs produce identical canonical outputs for pinned inputs.
@@ -478,6 +483,8 @@ AT-HYG may remain as an optional compatibility/crosswalk input during migration,
 5. Security:
    - no required insecure transport in default build path
    - provenance completeness gate enforced
+6. Reproducibility diagnostics:
+   - `reports/<build_id>/determinism_report.json` emitted and compared against prior comparable builds during verify
 
 ## What We Are Not Doing
 

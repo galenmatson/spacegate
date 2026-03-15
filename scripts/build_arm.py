@@ -279,6 +279,28 @@ def main() -> int:
     )
 
     stage_started = time.monotonic()
+    log("Arm stage: copying exoplanet lifecycle audit tables from core")
+    con.execute(
+        """
+        create table planet_catalog_observations as
+        select * from core.planet_catalog_observations
+        """
+    )
+    con.execute(
+        """
+        create table planet_status_history as
+        select * from core.planet_status_history
+        """
+    )
+    con.execute(
+        """
+        create table planet_reclassification_audit as
+        select * from core.planet_reclassification_audit
+        """
+    )
+    log(f"Arm stage complete: lifecycle audit copy ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating msc_system_roots")
     con.execute(
         """
@@ -1073,6 +1095,15 @@ def main() -> int:
         ).fetchone()[0]
         or 0
     )
+    lifecycle_observation_count = int(
+        con.execute("select count(*) from planet_catalog_observations").fetchone()[0] or 0
+    )
+    lifecycle_status_history_count = int(
+        con.execute("select count(*) from planet_status_history").fetchone()[0] or 0
+    )
+    lifecycle_reclass_count = int(
+        con.execute("select count(*) from planet_reclassification_audit").fetchone()[0] or 0
+    )
     inferred_leaf_count = int(con.execute("select count(*) from msc_inferred_leaves").fetchone()[0] or 0)
     inferred_root_count = int(con.execute("select count(*) from msc_system_roots").fetchone()[0] or 0)
     castor_leaf_count = int(
@@ -1121,6 +1152,9 @@ def main() -> int:
             "variability_summary_high_variability_rows": vsx_high_variability_count,
             "ultracoolsheet_rows": ultracoolsheet_count,
             "ultracoolsheet_matched_rows": ultracoolsheet_matched_count,
+            "planet_catalog_observations_rows": lifecycle_observation_count,
+            "planet_status_history_rows": lifecycle_status_history_count,
+            "planet_reclassification_audit_rows": lifecycle_reclass_count,
             "msc_inferred_system_roots": inferred_root_count,
             "msc_inferred_leaf_components": inferred_leaf_count,
             "castor_expected_leaf_matches": castor_leaf_count,
@@ -1132,6 +1166,7 @@ def main() -> int:
             "Orbit edges currently include core two-letter component pairs and inferred MSC leaf pairs.",
             "VSX variability is stored as arm overlay rows keyed by core stable_object_key via Gaia-ID exact joins.",
             "UltracoolSheet rows are stored in arm and linked to core stars when Gaia IDs align.",
+            "Exoplanet lifecycle audit tables are mirrored from core into arm for lineage/diff workflows.",
         ],
     }
 
@@ -1146,6 +1181,7 @@ def main() -> int:
         "Arm build complete "
         f"(components={component_count:,}, hierarchy_edges={hierarchy_count:,}, orbit_edges={orbit_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "
+        f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
         f"msc_inferred_leaves={inferred_leaf_count:,})"
     )
     return 0

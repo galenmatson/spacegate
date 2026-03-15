@@ -19,6 +19,7 @@ DEFAULT_MIN_PARALLAX_MAS = 3.26156
 DEFAULT_BUCKETS = 53
 DEFAULT_TIMEOUT_S = 360
 DEFAULT_RETRIES = 6
+DEFAULT_COUNT_TIMEOUT_S = 900
 DEFAULT_DELTA_MODE = "resume"
 DEFAULT_DELTA_MAX_AGE_HOURS = 24.0 * 30.0
 
@@ -57,6 +58,25 @@ def tap_query_csv(adql: str, timeout_s: int, retries: int) -> str:
             )
             time.sleep(sleep_s)
     raise RuntimeError(f"Gaia TAP query failed after {retries} attempts: {last_exc}")
+
+
+def tap_query_count(adql: str, timeout_s: int, retries: int) -> int:
+    text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
+    reader = csv.DictReader(StringIO(text))
+    row = next(reader, None)
+    if row is None:
+        raise RuntimeError("Gaia TAP count query returned no rows")
+    value = None
+    if "row_count" in row:
+        value = row.get("row_count")
+    elif row:
+        value = next(iter(row.values()))
+    if value is None:
+        raise RuntimeError("Gaia TAP count query returned empty value")
+    try:
+        return int(float(str(value).strip()))
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid Gaia TAP count value: {value!r}") from exc
 
 
 def is_stale(path: Path, *, max_age_s: float) -> bool:
@@ -250,11 +270,17 @@ def write_manifest(
     non_single_path_abs: Path,
     non_single_path_rel: Path,
     non_single_query: str,
+    non_single_count_query: str | None,
+    non_single_expected_rows: int | None,
+    non_single_row_count_match: bool | None,
     non_single_rows: int,
     non_single_delta: dict[str, object] | None,
     two_body_path_abs: Path,
     two_body_path_rel: Path,
     two_body_query: str,
+    two_body_count_query: str | None,
+    two_body_expected_rows: int | None,
+    two_body_row_count_match: bool | None,
     two_body_rows: int,
     two_body_delta: dict[str, object] | None,
 ) -> None:
@@ -270,6 +296,9 @@ def write_manifest(
             "bytes_written": non_single_path_abs.stat().st_size,
             "row_count": non_single_rows,
             "query_signature": non_single_query,
+            "count_query": non_single_count_query,
+            "expected_row_count": non_single_expected_rows,
+            "row_count_match": non_single_row_count_match,
             "delta_update": non_single_delta or {},
         },
         {
@@ -282,6 +311,9 @@ def write_manifest(
             "bytes_written": two_body_path_abs.stat().st_size,
             "row_count": two_body_rows,
             "query_signature": two_body_query,
+            "count_query": two_body_count_query,
+            "expected_row_count": two_body_expected_rows,
+            "row_count_match": two_body_row_count_match,
             "delta_update": two_body_delta or {},
         },
     ]
@@ -297,7 +329,13 @@ def main() -> int:
     parser.add_argument("--min-parallax-mas", type=float, default=DEFAULT_MIN_PARALLAX_MAS)
     parser.add_argument("--buckets", type=int, default=DEFAULT_BUCKETS)
     parser.add_argument("--timeout-s", type=int, default=DEFAULT_TIMEOUT_S)
+    parser.add_argument("--count-timeout-s", type=int, default=DEFAULT_COUNT_TIMEOUT_S)
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
+    parser.add_argument(
+        "--skip-count-check",
+        action="store_true",
+        help="Skip Gaia TAP expected-row count verification (not recommended).",
+    )
     parser.add_argument(
         "--delta-mode",
         choices=["resume", "delta", "refresh"],
@@ -316,6 +354,8 @@ def main() -> int:
         raise SystemExit("--buckets must be >= 1")
     if args.min_parallax_mas <= 0:
         raise SystemExit("--min-parallax-mas must be > 0")
+    if args.count_timeout_s < 1:
+        raise SystemExit("--count-timeout-s must be >= 1")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
         raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
 
@@ -341,6 +381,14 @@ def main() -> int:
         "center_of_mass_velocity,semi_amplitude_primary,mass_ratio,inclination,flags,significance"
     )
     two_body_where = f"parallax >= {min_parallax}"
+    non_single_count_query = (
+        "select count(*) as row_count from gaiadr3.gaia_source "
+        f"where {non_single_where}"
+    )
+    two_body_count_query = (
+        "select count(*) as row_count from gaiadr3.nss_two_body_orbit "
+        f"where {two_body_where}"
+    )
 
     log(
         "Gaia NSS fetch start "
@@ -372,6 +420,34 @@ def main() -> int:
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
+    non_single_expected_rows: int | None = None
+    non_single_row_count_match: bool | None = None
+    two_body_expected_rows: int | None = None
+    two_body_row_count_match: bool | None = None
+    if not args.skip_count_check:
+        non_single_expected_rows = tap_query_count(
+            non_single_count_query, timeout_s=args.count_timeout_s, retries=args.retries
+        )
+        non_single_row_count_match = non_single_rows == non_single_expected_rows
+        if not non_single_row_count_match:
+            raise SystemExit(
+                "Gaia NSS completeness check failed for non_single_star: "
+                f"expected_rows={non_single_expected_rows:,} actual_rows={non_single_rows:,}."
+            )
+        two_body_expected_rows = tap_query_count(
+            two_body_count_query, timeout_s=args.count_timeout_s, retries=args.retries
+        )
+        two_body_row_count_match = two_body_rows == two_body_expected_rows
+        if not two_body_row_count_match:
+            raise SystemExit(
+                "Gaia NSS completeness check failed for nss_two_body_orbit: "
+                f"expected_rows={two_body_expected_rows:,} actual_rows={two_body_rows:,}."
+            )
+        log(
+            "Gaia NSS completeness check passed "
+            f"(non_single expected={non_single_expected_rows:,} actual={non_single_rows:,}; "
+            f"two_body expected={two_body_expected_rows:,} actual={two_body_rows:,})"
+        )
 
     write_manifest(
         manifest_path,
@@ -381,6 +457,9 @@ def main() -> int:
             f"SELECT {non_single_fields} FROM gaiadr3.gaia_source "
             f"WHERE {non_single_where} AND MOD(source_id, {args.buckets}) = <bucket>"
         ),
+        non_single_count_query=non_single_count_query if not args.skip_count_check else None,
+        non_single_expected_rows=non_single_expected_rows,
+        non_single_row_count_match=non_single_row_count_match,
         non_single_rows=non_single_rows,
         non_single_delta={
             "mode": args.delta_mode,
@@ -393,6 +472,9 @@ def main() -> int:
             f"SELECT {two_body_fields} FROM gaiadr3.nss_two_body_orbit "
             f"WHERE {two_body_where} AND MOD(source_id, {args.buckets}) = <bucket>"
         ),
+        two_body_count_query=two_body_count_query if not args.skip_count_check else None,
+        two_body_expected_rows=two_body_expected_rows,
+        two_body_row_count_match=two_body_row_count_match,
         two_body_rows=two_body_rows,
         two_body_delta={
             "mode": args.delta_mode,

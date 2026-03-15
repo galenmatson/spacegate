@@ -223,9 +223,21 @@ Must include at minimum:
 - astrometry contract:
   - `coordinate_epoch`
   - `coordinate_frame`
+  - `astrometry_boundary_strategy`
+  - `astrometry_boundary_min_parallax_mas` (Gaia-first builds)
+  - `astrometry_boundary_distance_ly_approx` (Gaia-first builds)
+  - `astrometry_quality_policy_source`
+  - `astrometry_quality_min_parallax_over_error`
+  - `astrometry_quality_max_parallax_error_mas`
+  - `astrometry_quality_max_ruwe`
 - slice contract:
   - `slice_profile_id`
   - `slice_profile_version`
+- determinism contract:
+  - `source_inputs_fingerprint`
+  - `determinism_stars_xor_hash`
+  - `determinism_systems_xor_hash`
+  - `determinism_planets_xor_hash`
 - spatial indexing parameters:
   - Morton config fields
 - active multiplicity gate parameters:

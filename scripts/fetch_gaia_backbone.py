@@ -19,6 +19,7 @@ DEFAULT_MIN_PARALLAX_MAS = 3.26156
 DEFAULT_BUCKETS = 53
 DEFAULT_TIMEOUT_S = 240
 DEFAULT_RETRIES = 4
+DEFAULT_COUNT_TIMEOUT_S = 600
 DEFAULT_DELTA_MODE = "resume"
 DEFAULT_DELTA_MAX_AGE_HOURS = 24.0 * 30.0
 GAIA_BACKBONE_VERSION = "dr3_gaia_source_parallax_gte_3.26156"
@@ -58,6 +59,25 @@ def tap_query_csv(adql: str, timeout_s: int, retries: int) -> str:
             )
             time.sleep(sleep_s)
     raise RuntimeError(f"Gaia TAP query failed after {retries} attempts: {last_exc}")
+
+
+def tap_query_count(adql: str, timeout_s: int, retries: int) -> int:
+    text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
+    reader = csv.DictReader(StringIO(text))
+    row = next(reader, None)
+    if row is None:
+        raise RuntimeError("Gaia TAP count query returned no rows")
+    value = None
+    if "row_count" in row:
+        value = row.get("row_count")
+    elif row:
+        value = next(iter(row.values()))
+    if value is None:
+        raise RuntimeError("Gaia TAP count query returned empty value")
+    try:
+        return int(float(str(value).strip()))
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid Gaia TAP count value: {value!r}") from exc
 
 
 def is_stale(path: Path, *, max_age_s: float) -> bool:
@@ -257,6 +277,9 @@ def write_manifest(
     out_path_abs: Path,
     out_path_rel: Path,
     query_signature: str,
+    count_query: str | None,
+    expected_row_count: int | None,
+    row_count_match: bool | None,
     row_count: int,
     delta_update: dict[str, object] | None = None,
 ) -> None:
@@ -273,6 +296,9 @@ def write_manifest(
             "bytes_written": out_path_abs.stat().st_size,
             "row_count": row_count,
             "query_signature": query_signature,
+            "count_query": count_query,
+            "expected_row_count": expected_row_count,
+            "row_count_match": row_count_match,
             "delta_update": delta_update or {},
         }
     ]
@@ -288,7 +314,13 @@ def main() -> int:
     parser.add_argument("--min-parallax-mas", type=float, default=DEFAULT_MIN_PARALLAX_MAS)
     parser.add_argument("--buckets", type=int, default=DEFAULT_BUCKETS)
     parser.add_argument("--timeout-s", type=int, default=DEFAULT_TIMEOUT_S)
+    parser.add_argument("--count-timeout-s", type=int, default=DEFAULT_COUNT_TIMEOUT_S)
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
+    parser.add_argument(
+        "--skip-count-check",
+        action="store_true",
+        help="Skip Gaia TAP expected-row count verification (not recommended).",
+    )
     parser.add_argument(
         "--delta-mode",
         choices=["resume", "delta", "refresh"],
@@ -309,6 +341,8 @@ def main() -> int:
         raise SystemExit("--min-parallax-mas must be > 0")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
         raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
+    if args.count_timeout_s < 1:
+        raise SystemExit("--count-timeout-s must be >= 1")
 
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(
@@ -368,6 +402,7 @@ def main() -> int:
         ]
     )
     where_clause = f"parallax >= {min_parallax}"
+    count_query = f"select count(*) as row_count from gaiadr3.gaia_source where {where_clause}"
 
     log(
         "Gaia backbone fetch start "
@@ -384,6 +419,23 @@ def main() -> int:
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
+    expected_row_count: int | None = None
+    row_count_match: bool | None = None
+    if not args.skip_count_check:
+        expected_row_count = tap_query_count(
+            count_query, timeout_s=args.count_timeout_s, retries=args.retries
+        )
+        row_count_match = row_count == expected_row_count
+        if not row_count_match:
+            raise SystemExit(
+                "Gaia backbone completeness check failed: "
+                f"expected_rows={expected_row_count:,} actual_rows={row_count:,}. "
+                "This suggests partial/truncated retrieval; rerun with --delta-mode refresh or increase buckets/timeouts."
+            )
+        log(
+            "Gaia backbone completeness check passed "
+            f"(expected_rows={expected_row_count:,}, actual_rows={row_count:,})"
+        )
 
     write_manifest(
         manifest_path,
@@ -393,6 +445,9 @@ def main() -> int:
             f"SELECT {select_fields} FROM gaiadr3.gaia_source "
             f"WHERE {where_clause} AND MOD(source_id, {args.buckets}) = <bucket>"
         ),
+        count_query=count_query if not args.skip_count_check else None,
+        expected_row_count=expected_row_count,
+        row_count_match=row_count_match,
         row_count=row_count,
         delta_update={
             "mode": args.delta_mode,

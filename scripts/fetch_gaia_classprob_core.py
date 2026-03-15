@@ -20,6 +20,7 @@ DEFAULT_BUCKETS = 211
 DEFAULT_TIMEOUT_S = 360
 DEFAULT_RETRIES = 6
 DEFAULT_MAX_REC = 500000
+DEFAULT_COUNT_TIMEOUT_S = 900
 DEFAULT_DELTA_MODE = "resume"
 DEFAULT_DELTA_MAX_AGE_HOURS = 24.0 * 30.0
 GAIA_CLASSPROB_VERSION = "dr3_astrophysical_parameters_parallax_gte_3.26156"
@@ -61,6 +62,26 @@ def tap_query_csv(adql: str, timeout_s: int, retries: int, max_rec: int) -> str:
             )
             time.sleep(sleep_s)
     raise RuntimeError(f"Gaia TAP query failed after {retries} attempts: {last_exc}")
+
+
+def tap_query_count(adql: str, timeout_s: int, retries: int) -> int:
+    # Count queries are scalar and do not require large MAXREC values.
+    text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries, max_rec=10_000)
+    reader = csv.DictReader(StringIO(text))
+    row = next(reader, None)
+    if row is None:
+        raise RuntimeError("Gaia TAP count query returned no rows")
+    value = None
+    if "row_count" in row:
+        value = row.get("row_count")
+    elif row:
+        value = next(iter(row.values()))
+    if value is None:
+        raise RuntimeError("Gaia TAP count query returned empty value")
+    try:
+        return int(float(str(value).strip()))
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid Gaia TAP count value: {value!r}") from exc
 
 
 def is_stale(path: Path, *, max_age_s: float) -> bool:
@@ -215,6 +236,12 @@ def write_partitioned_csv(
             for row in reader:
                 writer.writerow(row)
                 bucket_rows += 1
+        if bucket_rows >= max_rec:
+            raise RuntimeError(
+                "gaia_dr3_classprob: bucket reached MAXREC guard "
+                f"(bucket={bucket + 1}/{buckets}, rows={bucket_rows:,}, max_rec={max_rec:,}). "
+                "Increase --max-rec and/or --buckets to avoid truncation."
+            )
         tmp_part_path.replace(part_path)
         log(f"gaia_dr3_classprob: bucket {bucket + 1}/{buckets} rows={bucket_rows:,}")
 
@@ -270,6 +297,9 @@ def write_manifest(
     out_path_abs: Path,
     out_path_rel: Path,
     query_signature: str,
+    count_query: str | None,
+    expected_row_count: int | None,
+    row_count_match: bool | None,
     row_count: int,
     delta_update: dict[str, object] | None = None,
 ) -> None:
@@ -286,6 +316,9 @@ def write_manifest(
             "bytes_written": out_path_abs.stat().st_size,
             "row_count": row_count,
             "query_signature": query_signature,
+            "count_query": count_query,
+            "expected_row_count": expected_row_count,
+            "row_count_match": row_count_match,
             "delta_update": delta_update or {},
         }
     ]
@@ -301,8 +334,14 @@ def main() -> int:
     parser.add_argument("--min-parallax-mas", type=float, default=DEFAULT_MIN_PARALLAX_MAS)
     parser.add_argument("--buckets", type=int, default=DEFAULT_BUCKETS)
     parser.add_argument("--timeout-s", type=int, default=DEFAULT_TIMEOUT_S)
+    parser.add_argument("--count-timeout-s", type=int, default=DEFAULT_COUNT_TIMEOUT_S)
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
     parser.add_argument("--max-rec", type=int, default=DEFAULT_MAX_REC)
+    parser.add_argument(
+        "--skip-count-check",
+        action="store_true",
+        help="Skip Gaia TAP expected-row count verification (not recommended).",
+    )
     parser.add_argument(
         "--delta-mode",
         choices=["resume", "delta", "refresh"],
@@ -323,6 +362,8 @@ def main() -> int:
         raise SystemExit("--min-parallax-mas must be > 0")
     if args.max_rec < 1:
         raise SystemExit("--max-rec must be >= 1")
+    if args.count_timeout_s < 1:
+        raise SystemExit("--count-timeout-s must be >= 1")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
         raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
 
@@ -352,6 +393,29 @@ def main() -> int:
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
+    count_query = (
+        "select count(*) as row_count "
+        "from gaiadr3.astrophysical_parameters ap "
+        "join gaiadr3.gaia_source gs on gs.source_id = ap.source_id "
+        f"where gs.parallax >= {args.min_parallax_mas:.8f}"
+    )
+    expected_row_count: int | None = None
+    row_count_match: bool | None = None
+    if not args.skip_count_check:
+        expected_row_count = tap_query_count(
+            count_query, timeout_s=args.count_timeout_s, retries=args.retries
+        )
+        row_count_match = row_count == expected_row_count
+        if not row_count_match:
+            raise SystemExit(
+                "Gaia classifier completeness check failed: "
+                f"expected_rows={expected_row_count:,} actual_rows={row_count:,}. "
+                "This suggests partial/truncated retrieval; rerun with --delta-mode refresh."
+            )
+        log(
+            "Gaia classifier completeness check passed "
+            f"(expected_rows={expected_row_count:,}, actual_rows={row_count:,})"
+        )
 
     write_manifest(
         manifest_path,
@@ -362,6 +426,9 @@ def main() -> int:
             "JOIN gaiadr3.gaia_source gs ON gs.source_id = ap.source_id "
             f"WHERE gs.parallax >= {args.min_parallax_mas:.8f} AND MOD(gs.source_id, {args.buckets}) = <bucket>"
         ),
+        count_query=count_query if not args.skip_count_check else None,
+        expected_row_count=expected_row_count,
+        row_count_match=row_count_match,
         row_count=row_count,
         delta_update={
             "mode": args.delta_mode,
