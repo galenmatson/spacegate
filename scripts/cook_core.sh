@@ -69,7 +69,7 @@ ensure_inputs() {
   local enable_msc="${SPACEGATE_ENABLE_MSC:-1}"
   local enable_gaia_nss="${SPACEGATE_ENABLE_GAIA_NSS:-1}"
   local enable_sbx="${SPACEGATE_ENABLE_SBX:-1}"
-  local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}"
+  local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-1}"
   local enable_eclipsing_catalogs="${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}"
   local enable_kepler_eb="${SPACEGATE_ENABLE_KEPLER_EB:-0}"
   local missing=0

@@ -143,13 +143,13 @@ if [[ "${SPACEGATE_ENABLE_SBX:-1}" != "0" ]]; then
 else
   echo "Skip SBX fetch (SPACEGATE_ENABLE_SBX=0)."
 fi
-if [[ "${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-0}" == "1" ]]; then
+if [[ "${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-1}" == "1" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_wds_gaia_xmatch.py" \
     --dist-max-arcsec "${SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC:-2.0}" \
     --selection "${SPACEGATE_WDS_GAIA_XMATCH_SELECTION:-best}" \
     --max-rec "${SPACEGATE_WDS_GAIA_XMATCH_MAX_REC:-2000000}"
 else
-  echo "Skip WDS Gaia XMatch fetch (SPACEGATE_ENABLE_WDS_GAIA_XMATCH!=1)."
+  echo "Skip WDS Gaia XMatch fetch (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0)."
 fi
 if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/update_catalog_pipeline_report.py" --stage download >/dev/null 2>&1; then
   echo "Warning: failed to update catalog pipeline report (download stage)." >&2

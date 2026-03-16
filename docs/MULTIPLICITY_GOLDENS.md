@@ -63,11 +63,11 @@ scripts/verify_multiplicity_goldens.py \
 Current fixture scope:
 
 - required hierarchy exam: Castor
-- required presence/regression checks (core): 55 Cnc, GJ 667 C, TRAPPIST-1
+- required presence/regression checks (core): 55 Cnc, GJ 667 C, TRAPPIST-1, 16 Cyg B
+- required quantitative neighborhood check (core): minimum nearby-system count within 10 ly
 - optional presence checks (galaxy/halo scope): PSR B1620-26, TYC 7037-89-1
 
 Planned expansion set:
 - Sirius (A/B, remnant handling)
 - Alpha Centauri (A/B + Proxima relation handling)
-- 16 Cyg
 - selected Sol-neighborhood systems used in manual QA

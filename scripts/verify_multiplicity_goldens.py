@@ -226,6 +226,52 @@ def check_presence_mode(
     )
 
 
+def check_query_mode(
+    core: duckdb.DuckDBPyConnection,
+    system_cfg: dict[str, Any],
+    results: dict[str, Any],
+) -> None:
+    system_id = str(system_cfg.get("id") or "unknown")
+    required = bool(system_cfg.get("required", True))
+    scope = str(system_cfg.get("scope") or "core")
+    sql_count = str(system_cfg.get("sql_count") or "").strip()
+    if not sql_count:
+        fail(results, system_id, "query mode requires sql_count")
+        return
+    try:
+        row = core.execute(sql_count).fetchone()
+        value = int((row[0] if row else 0) or 0)
+    except Exception as exc:
+        if required:
+            fail(results, system_id, f"query execution failed: {exc}")
+        else:
+            skip_result(results, system_id, f"optional query failed: {exc}")
+        return
+
+    min_value = system_cfg.get("min_value")
+    max_value = system_cfg.get("max_value")
+    if min_value is not None and value < int(min_value):
+        fail(results, system_id, f"query value {value} < required min {int(min_value)}")
+        return
+    if max_value is not None and value > int(max_value):
+        fail(results, system_id, f"query value {value} > required max {int(max_value)}")
+        return
+
+    pass_result(
+        results,
+        system_id,
+        {
+            "mode": "query",
+            "scope": scope,
+            "required": required,
+            "value": value,
+            "min_value": int(min_value) if min_value is not None else None,
+            "max_value": int(max_value) if max_value is not None else None,
+            "label": str(system_cfg.get("label") or ""),
+        },
+    )
+
+
 def check_system(
     core: duckdb.DuckDBPyConnection,
     arm: duckdb.DuckDBPyConnection,
@@ -239,6 +285,9 @@ def check_system(
     mode = normalize_label(system_cfg.get("mode") or "hierarchy")
     if mode == "presence":
         check_presence_mode(core, system_cfg, results)
+        return
+    if mode == "query":
+        check_query_mode(core, system_cfg, results)
         return
 
     expected_components = [normalize_label(v) for v in system_cfg.get("expected_stellar_components", [])]

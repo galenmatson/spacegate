@@ -604,7 +604,7 @@ def main() -> int:
         )
     enable_gaia_nss = os.getenv("SPACEGATE_ENABLE_GAIA_NSS", "1") != "0"
     enable_sbx = parse_bool_env("SPACEGATE_ENABLE_SBX", True)
-    enable_wds_gaia_xmatch = os.getenv("SPACEGATE_ENABLE_WDS_GAIA_XMATCH") == "1"
+    enable_wds_gaia_xmatch = parse_bool_env("SPACEGATE_ENABLE_WDS_GAIA_XMATCH", True)
     enable_gaia_classprob = parse_bool_env("SPACEGATE_ENABLE_GAIA_CLASSPROB", True)
     enable_gaia_ucd = parse_bool_env("SPACEGATE_ENABLE_GAIA_UCD", True)
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
@@ -3004,6 +3004,10 @@ def main() -> int:
             coalesce(t.nss_solution_count, 0) as gaia_nss_solution_count,
             coalesce(t.nss_solution_types_json, '[]') as gaia_nss_solution_types_json,
             t.nss_significance_max as gaia_nss_significance_max,
+            coalesce(n.gaia_id is not null or t.gaia_id is not null, false) as has_gaia_nss_evidence,
+            coalesce(m.wds_id is not null, false) as has_msc_evidence,
+            coalesce(ws.wds_id is not null, false) as has_wds_evidence,
+            coalesce(os.wds_id is not null, false) as has_orb6_evidence,
             sbx.sbx_sn as sbx_sn,
             sbx.orbit_count as sbx_orbit_count,
             sbx.family as sbx_family,
@@ -3042,6 +3046,8 @@ def main() -> int:
           left join wds_gaia_star_map w on w.gaia_id = a.gaia_id
           left join gaia_nss_non_single n on n.gaia_id = a.gaia_id
           left join gaia_nss_two_body_agg t on t.gaia_id = a.gaia_id
+          left join wds_support ws on ws.wds_id = coalesce(m.wds_id, w.wds_id)
+          left join orb6_support os on os.wds_id = coalesce(m.wds_id, w.wds_id)
           left join gaia_ucd_catalog u on u.gaia_id = a.gaia_id
           left join sbx_athyg_matches sbx on sbx.athyg_row_id = a.athyg_row_id
         ), msc_only as (
@@ -3109,6 +3115,10 @@ def main() -> int:
             0::bigint as gaia_nss_solution_count,
             '[]' as gaia_nss_solution_types_json,
             null::double as gaia_nss_significance_max,
+            false as has_gaia_nss_evidence,
+            true as has_msc_evidence,
+            coalesce(ws.wds_id is not null, false) as has_wds_evidence,
+            coalesce(os.wds_id is not null, false) as has_orb6_evidence,
             sbx.sbx_sn as sbx_sn,
             sbx.orbit_count as sbx_orbit_count,
             sbx.family as sbx_family,
@@ -3145,6 +3155,8 @@ def main() -> int:
             {sql_literal(transform_version)} as transform_version
           from msc_components m
           left join msc_exact_matches x on x.msc_row_num = m.msc_row_num
+          left join wds_support ws on ws.wds_id = m.wds_id
+          left join orb6_support os on os.wds_id = m.wds_id
           left join sbx_msc_matches sbx on sbx.msc_row_num = m.msc_row_num
           where x.msc_row_num is null
         )
@@ -4159,6 +4171,7 @@ def main() -> int:
               luminosity_class, spectral_peculiar, vmag, absmag, color_index, gaia_id, hip_id, hd_id, wds_id,
               multiplicity_match_method, multiplicity_match_confidence, multiplicity_source_catalogs_json,
               gaia_non_single_star, gaia_nss_solution_count, gaia_nss_solution_types_json, gaia_nss_significance_max,
+              has_gaia_nss_evidence, has_msc_evidence, has_wds_evidence, has_orb6_evidence,
               sbx_sn, sbx_orbit_count, sbx_family, sbx_position_epoch, sbx_position_source,
               catalog_ids_json, source_catalog, source_version, source_url, source_download_url, source_doi,
               source_pk, source_row_id, source_row_hash, license, redistribution_ok, license_note, retrieval_etag,
@@ -4220,6 +4233,10 @@ def main() -> int:
               0::bigint as gaia_nss_solution_count,
               '[]' as gaia_nss_solution_types_json,
               null::double as gaia_nss_significance_max,
+              false as has_gaia_nss_evidence,
+              false as has_msc_evidence,
+              false as has_wds_evidence,
+              false as has_orb6_evidence,
               null::bigint as sbx_sn,
               0::bigint as sbx_orbit_count,
               null::varchar as sbx_family,
@@ -5111,21 +5128,26 @@ def main() -> int:
         """
         create temp view system_group_support as
         with grouped as (
-          select g.system_group_key, s.wds_id, s.source_catalog, s.gaia_non_single_star, s.sbx_sn
+          select
+            g.system_group_key,
+            s.wds_id,
+            coalesce(s.has_gaia_nss_evidence, false) as has_gaia_nss_evidence,
+            coalesce(s.has_msc_evidence, false) as has_msc_evidence,
+            coalesce(s.has_wds_evidence, false) as has_wds_evidence,
+            coalesce(s.has_orb6_evidence, false) as has_orb6_evidence,
+            s.sbx_sn
           from system_groups g
           join stars s using (star_id)
         ), aggregated as (
           select
             system_group_key,
             max(g.wds_id) as wds_id,
-            max(case when source_catalog = 'msc' then 1 else 0 end) as has_msc_insert,
-            max(case when gaia_non_single_star then 1 else 0 end) as has_gaia_nss,
+            max(case when g.has_msc_evidence then 1 else 0 end) as has_msc_insert,
+            max(case when g.has_gaia_nss_evidence then 1 else 0 end) as has_gaia_nss,
             max(case when sbx_sn is not null then 1 else 0 end) as has_sbx_evidence,
-            max(case when w.wds_id is not null then 1 else 0 end) as has_wds_evidence,
-            max(case when o.wds_id is not null then 1 else 0 end) as has_orb6_evidence
+            max(case when g.has_wds_evidence then 1 else 0 end) as has_wds_evidence,
+            max(case when g.has_orb6_evidence then 1 else 0 end) as has_orb6_evidence
           from grouped g
-          left join wds_support w on w.wds_id = g.wds_id
-          left join orb6_support o on o.wds_id = g.wds_id
           group by system_group_key
         )
         select
@@ -5152,6 +5174,42 @@ def main() -> int:
             else 1.0
           end as grouping_confidence,
           case
+            when (
+              case
+                when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 and has_orb6_evidence = 1 then 0.99
+                when system_group_key like 'wds:%' and has_msc_insert = 1 and (has_wds_evidence = 1 or has_orb6_evidence = 1) then 0.97
+                when system_group_key like 'wds:%' and has_msc_insert = 1 then 0.95
+                when system_group_key like 'wds:%' then 0.90
+                when system_group_key like 'name:%' then 0.80
+                when system_group_key like 'prox:%' then 0.65
+                else 1.0
+              end
+            ) >= 0.95 then 'high'
+            when (
+              case
+                when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 and has_orb6_evidence = 1 then 0.99
+                when system_group_key like 'wds:%' and has_msc_insert = 1 and (has_wds_evidence = 1 or has_orb6_evidence = 1) then 0.97
+                when system_group_key like 'wds:%' and has_msc_insert = 1 then 0.95
+                when system_group_key like 'wds:%' then 0.90
+                when system_group_key like 'name:%' then 0.80
+                when system_group_key like 'prox:%' then 0.65
+                else 1.0
+              end
+            ) >= 0.80 then 'medium'
+            when (
+              case
+                when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 and has_orb6_evidence = 1 then 0.99
+                when system_group_key like 'wds:%' and has_msc_insert = 1 and (has_wds_evidence = 1 or has_orb6_evidence = 1) then 0.97
+                when system_group_key like 'wds:%' and has_msc_insert = 1 then 0.95
+                when system_group_key like 'wds:%' then 0.90
+                when system_group_key like 'name:%' then 0.80
+                when system_group_key like 'prox:%' then 0.65
+                else 1.0
+              end
+            ) >= 0.60 then 'low'
+            else 'illustrative'
+          end as grouping_confidence_tier,
+          case
             when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 and has_orb6_evidence = 1 then '["msc","wds","orb6"]'
             when system_group_key like 'wds:%' and has_msc_insert = 1 and has_wds_evidence = 1 then '["msc","wds"]'
             when system_group_key like 'wds:%' and has_msc_insert = 1 and has_orb6_evidence = 1 then '["msc","orb6"]'
@@ -5169,6 +5227,7 @@ def main() -> int:
         create table systems as
         with grouped as (
           select s.*, g.system_group_key, sg.wds_id as group_wds_id, sg.grouping_basis, sg.grouping_confidence,
+                 sg.grouping_confidence_tier,
                  sg.has_gaia_nss_evidence, sg.has_msc_evidence, sg.has_wds_evidence, sg.has_orb6_evidence, sg.grouping_source_catalogs_json
                  , sg.has_sbx_evidence
           from stars s
@@ -5199,12 +5258,16 @@ def main() -> int:
           group_wds_id as wds_id,
           grouping_basis,
           grouping_confidence,
+          grouping_confidence_tier,
           grouping_source_catalogs_json,
           has_gaia_nss_evidence,
           has_msc_evidence,
           has_sbx_evidence,
           has_wds_evidence,
           has_orb6_evidence,
+          0::bigint as star_count,
+          0::bigint as planet_count,
+          '[]'::varchar as spectral_classes_json,
           ra_deg,
           dec_deg,
           dist_ly,
@@ -5249,6 +5312,26 @@ def main() -> int:
     )
 
     con.execute("alter table systems drop column system_group_key")
+    con.execute(
+        """
+        update systems s
+        set
+          star_count = a.star_count,
+          spectral_classes_json = a.spectral_classes_json
+        from (
+          select
+            system_id,
+            count(*)::bigint as star_count,
+            coalesce(
+              to_json(list_sort(list_distinct(list(spectral_class) filter (where spectral_class is not null)))),
+              '[]'
+            ) as spectral_classes_json
+          from stars
+          group by system_id
+        ) a
+        where s.system_id = a.system_id
+        """
+    )
 
     system_counts = con.execute(
         """
@@ -6370,6 +6453,27 @@ def main() -> int:
           and b.display_name is not null
           and b.display_name <> ''
           and (s.system_name is null or s.system_name_norm like 'gaia dr3 %' or s.system_name_norm like 'gaia %')
+        """
+    )
+    con.execute(
+        """
+        update systems
+        set planet_count = 0
+        """
+    )
+    con.execute(
+        """
+        update systems s
+        set planet_count = p.planet_count
+        from (
+          select
+            system_id,
+            count(*)::bigint as planet_count
+          from planets
+          where system_id is not null
+          group by system_id
+        ) p
+        where s.system_id = p.system_id
         """
     )
 

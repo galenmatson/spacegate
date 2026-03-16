@@ -2055,6 +2055,11 @@ function SearchPage({ buildId = "" }) {
     return params;
   };
   const buildBaseParams = () => buildBaseParamsFromFilters(currentFilterState());
+  const shouldFetchDeferredTotal = (baseParams) => {
+    const ignored = new Set(["sort", "limit"]);
+    const activeKeys = Object.keys(baseParams || {}).filter((key) => !ignored.has(key));
+    return activeKeys.length === 0;
+  };
 
   const fetchDeferredTotalCount = async (baseParams, searchToken) => {
     const totalToken = latestTotalTokenRef.current + 1;
@@ -2108,7 +2113,7 @@ function SearchPage({ buildId = "" }) {
       setHasMore(Boolean(data.has_more));
       setCursor(data.next_cursor || null);
       setResults((prev) => (reset ? data.items : [...prev, ...data.items]));
-      if (reset) {
+      if (reset && shouldFetchDeferredTotal(resolvedBase)) {
         void fetchDeferredTotalCount(resolvedBase, searchToken);
       } else if (typeof data.total_count === "number") {
         setTotalCount(data.total_count);

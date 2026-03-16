@@ -132,6 +132,28 @@ def _has_local_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
         return False
 
 
+def _has_local_column(
+    con: duckdb.DuckDBPyConnection,
+    table_name: str,
+    column_name: str,
+) -> bool:
+    try:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'main'
+              AND table_name = ?
+              AND column_name = ?
+            LIMIT 1
+            """,
+            [table_name, column_name],
+        ).fetchone()
+        return bool(row)
+    except Exception:
+        return False
+
+
 def _clean_name(value: Any) -> str:
     return str(value or "").strip()
 
@@ -719,6 +741,9 @@ def search_systems(
     identifier_cte_parts: List[str] = []
     identifier_cte_params: List[Any] = []
     has_aliases = _has_local_table(con, "aliases")
+    has_system_star_count = _has_local_column(con, "systems", "star_count")
+    has_system_planet_count = _has_local_column(con, "systems", "planet_count")
+    has_system_spectral_classes_json = _has_local_column(con, "systems", "spectral_classes_json")
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
@@ -893,36 +918,54 @@ def search_systems(
         )
 
     if has_planets is True:
-        conditions.append(
-            "EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
-        )
+        if has_system_planet_count:
+            conditions.append("COALESCE(s.planet_count, 0) > 0")
+        else:
+            conditions.append(
+                "EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
+            )
     elif has_planets is False:
-        conditions.append(
-            "NOT EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
-        )
+        if has_system_planet_count:
+            conditions.append("COALESCE(s.planet_count, 0) = 0")
+        else:
+            conditions.append(
+                "NOT EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id)"
+            )
 
     if min_star_count is not None:
-        conditions.append(
-            "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) >= ?"
-        )
+        if has_system_star_count:
+            conditions.append("COALESCE(s.star_count, 0) >= ?")
+        else:
+            conditions.append(
+                "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) >= ?"
+            )
         params.append(min_star_count)
 
     if max_star_count is not None:
-        conditions.append(
-            "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) <= ?"
-        )
+        if has_system_star_count:
+            conditions.append("COALESCE(s.star_count, 0) <= ?")
+        else:
+            conditions.append(
+                "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) <= ?"
+            )
         params.append(max_star_count)
 
     if min_planet_count is not None:
-        conditions.append(
-            "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) >= ?"
-        )
+        if has_system_planet_count:
+            conditions.append("COALESCE(s.planet_count, 0) >= ?")
+        else:
+            conditions.append(
+                "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) >= ?"
+            )
         params.append(min_planet_count)
 
     if max_planet_count is not None:
-        conditions.append(
-            "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) <= ?"
-        )
+        if has_system_planet_count:
+            conditions.append("COALESCE(s.planet_count, 0) <= ?")
+        else:
+            conditions.append(
+                "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) <= ?"
+            )
         params.append(max_planet_count)
 
     habitability_clause = (
@@ -1173,9 +1216,22 @@ def search_systems(
     for row in rows:
         data = row_to_dict(columns, row)
         payload, provenance = split_provenance(data)
-        payload["spectral_classes"] = []
-        payload["star_count"] = 0
-        payload["planet_count"] = 0
+        raw_spectral_json = payload.pop("spectral_classes_json", None)
+        spectral_classes: List[str] = []
+        if isinstance(raw_spectral_json, str) and raw_spectral_json.strip():
+            try:
+                parsed = json.loads(raw_spectral_json)
+                if isinstance(parsed, list):
+                    spectral_classes = [
+                        str(token).strip()
+                        for token in parsed
+                        if str(token).strip()
+                    ]
+            except Exception:
+                spectral_classes = []
+        payload["spectral_classes"] = spectral_classes
+        payload["star_count"] = int(payload.get("star_count") or 0)
+        payload["planet_count"] = int(payload.get("planet_count") or 0)
         if payload.get("coolness_nice_planet_count") is not None:
             payload["coolness_nice_planet_count"] = int(payload["coolness_nice_planet_count"])
         if payload.get("coolness_weird_planet_count") is not None:
@@ -1226,42 +1282,43 @@ def search_systems(
                 item["display_name"] = display_name
                 item["display_aliases"] = []
 
-        star_rows = con.execute(
-            f"""
-            SELECT
-              system_id,
-              COUNT(*)::BIGINT AS star_count,
-              ARRAY_AGG(DISTINCT spectral_class) FILTER (WHERE spectral_class IS NOT NULL) AS spectral_classes
-            FROM stars
-            WHERE system_id IN ({placeholders})
-            GROUP BY system_id
-            """,
-            system_ids,
-        ).fetchall()
-        star_map: Dict[int, Tuple[int, List[str]]] = {}
-        for sid, count, spectral in star_rows:
-            star_map[int(sid)] = (
-                int(count or 0),
-                [token for token in (spectral or []) if token],
-            )
+        if not (has_system_star_count and has_system_planet_count and has_system_spectral_classes_json):
+            star_rows = con.execute(
+                f"""
+                SELECT
+                  system_id,
+                  COUNT(*)::BIGINT AS star_count,
+                  ARRAY_AGG(DISTINCT spectral_class) FILTER (WHERE spectral_class IS NOT NULL) AS spectral_classes
+                FROM stars
+                WHERE system_id IN ({placeholders})
+                GROUP BY system_id
+                """,
+                system_ids,
+            ).fetchall()
+            star_map: Dict[int, Tuple[int, List[str]]] = {}
+            for sid, count, spectral in star_rows:
+                star_map[int(sid)] = (
+                    int(count or 0),
+                    [token for token in (spectral or []) if token],
+                )
 
-        planet_rows = con.execute(
-            f"""
-            SELECT system_id, COUNT(*)::BIGINT AS planet_count
-            FROM planets
-            WHERE system_id IN ({placeholders})
-            GROUP BY system_id
-            """,
-            system_ids,
-        ).fetchall()
-        planet_map: Dict[int, int] = {int(sid): int(count or 0) for sid, count in planet_rows}
+            planet_rows = con.execute(
+                f"""
+                SELECT system_id, COUNT(*)::BIGINT AS planet_count
+                FROM planets
+                WHERE system_id IN ({placeholders})
+                GROUP BY system_id
+                """,
+                system_ids,
+            ).fetchall()
+            planet_map: Dict[int, int] = {int(sid): int(count or 0) for sid, count in planet_rows}
 
-        for item in results:
-            sid = int(item.get("system_id") or 0)
-            star_count, spectral_classes = star_map.get(sid, (0, []))
-            item["star_count"] = star_count
-            item["spectral_classes"] = spectral_classes
-            item["planet_count"] = planet_map.get(sid, 0)
+            for item in results:
+                sid = int(item.get("system_id") or 0)
+                star_count, spectral_classes = star_map.get(sid, (0, []))
+                item["star_count"] = star_count
+                item["spectral_classes"] = spectral_classes
+                item["planet_count"] = planet_map.get(sid, 0)
 
         if has_coolness_scores and not use_coolness_in_sql:
             coolness_rows = con.execute(

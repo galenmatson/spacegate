@@ -47,6 +47,25 @@
       "min_planet_rows": 7
     },
     {
+      "id": "16_cygni_b",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["16 cyg b"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 1
+    },
+    {
+      "id": "sol_neighborhood",
+      "mode": "query",
+      "scope": "core",
+      "required": true,
+      "label": "systems within 10 ly",
+      "sql_count": "select count(*)::bigint from systems where dist_ly is not null and dist_ly <= 10.0",
+      "min_value": 5
+    },
+    {
       "id": "psr_b1620_26",
       "mode": "presence",
       "scope": "galaxy_or_halo",
