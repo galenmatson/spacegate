@@ -153,6 +153,7 @@ Dependencies:
 Deliverables:
 
 - replacement alias/ID crosswalk ingestion
+- authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets + canonical names/IDs) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
 
