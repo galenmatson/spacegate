@@ -57,6 +57,7 @@ Interpretation note:
 | Source family | Policy status | Default state | Primary toggle(s) | Why |
 | --- | --- | --- | --- | --- |
 | Gaia DR3 backbone (`gaia_source`) | mandatory | on in Gaia-first profile | `SPACEGATE_ENABLE_GAIA_BACKBONE=1` | canonical star inventory substrate |
+| Sol authority bootstrap (`sol_authority`) | mandatory (S1 release gate) | on | `SPACEGATE_ENABLE_SOL_AUTHORITY` | guarantees Sol/Sun/major-planet coverage from authoritative JPL source |
 | NASA Exoplanet Archive (`pscomppars`) | mandatory | on | (always in core catalog set) | canonical planet baseline |
 | MSC | mandatory | on | `SPACEGATE_ENABLE_MSC` (must remain `1`) | required multiplicity hierarchy evidence; ingest blocks when off |
 | WDS | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | broad multiplicity support evidence |
@@ -140,6 +141,25 @@ Role:
 Source endpoint:
 
 - `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?...`
+
+## 2b) Sol authority bootstrap (`sol_authority`)
+
+Classification: `canonical` (Sol-specific authoritative override layer)
+
+Role:
+
+- ensure Sol and Sun are always present and linked
+- ensure required Sol major-planet coverage independent of exoplanet catalogs
+- provide deterministic Sol provenance for release gating
+
+Source endpoint:
+
+- JPL Horizons API: `https://ssd.jpl.nasa.gov/api/horizons.api`
+
+Implementation:
+
+- downloader: `scripts/fetch_sol_authority.py`
+- contract doc: `docs/SOL_AUTHORITY.md`
 
 ## 3) Gaia DR3 astrophysical classifier probabilities
 

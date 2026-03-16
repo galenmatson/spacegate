@@ -151,6 +151,15 @@ if [[ "${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-1}" == "1" ]]; then
 else
   echo "Skip WDS Gaia XMatch fetch (SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0)."
 fi
+if [[ "${SPACEGATE_ENABLE_SOL_AUTHORITY:-1}" != "0" ]]; then
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_sol_authority.py" \
+    --start-time "${SPACEGATE_SOL_AUTHORITY_START_TIME:-2016-01-01}" \
+    --stop-time "${SPACEGATE_SOL_AUTHORITY_STOP_TIME:-2016-01-02}" \
+    --timeout-s "${SPACEGATE_SOL_AUTHORITY_TIMEOUT_S:-120}" \
+    --retries "${SPACEGATE_SOL_AUTHORITY_RETRIES:-4}"
+else
+  echo "Skip Sol authority fetch (SPACEGATE_ENABLE_SOL_AUTHORITY=0)."
+fi
 if ! "$PYTHON_BIN" "$ROOT_DIR/scripts/update_catalog_pipeline_report.py" --stage download >/dev/null 2>&1; then
   echo "Warning: failed to update catalog pipeline report (download stage)." >&2
 fi

@@ -288,6 +288,71 @@ for row in values_rows:
     print(fmt_row(row))
 PY
 
+  "$PYTHON_BIN" - <<'PY' "$core_db"
+import sys
+import duckdb
+
+db_path = sys.argv[1]
+con = duckdb.connect(db_path, read_only=True)
+
+sol = con.execute(
+    """
+    select system_id
+    from systems
+    where lower(coalesce(system_name_norm, '')) = 'sol'
+       or lower(coalesce(stable_object_key, '')) = 'system:sol'
+    order by system_id
+    limit 1
+    """
+).fetchone()
+if not sol:
+    raise SystemExit("Sol gate failed: missing Sol system row")
+sol_system_id = int(sol[0])
+
+sun_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from stars
+        where system_id = ?
+          and lower(coalesce(star_name_norm, '')) = 'sun'
+        """,
+        [sol_system_id],
+    ).fetchone()[0]
+    or 0
+)
+if sun_count < 1:
+    raise SystemExit("Sol gate failed: missing Sun star row linked to Sol system")
+
+major_required = {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"}
+sol_planets = {
+    str(row[0] or "").strip().lower()
+    for row in con.execute(
+        """
+        select planet_name_norm
+        from planets
+        where system_id = ?
+        """,
+        [sol_system_id],
+    ).fetchall()
+}
+missing = sorted(name for name in major_required if name not in sol_planets)
+if missing:
+    raise SystemExit(f"Sol gate failed: missing required major planets: {', '.join(missing)}")
+
+sol_planet_count = int(
+    con.execute(
+        "select count(*)::bigint from planets where system_id = ?",
+        [sol_system_id],
+    ).fetchone()[0]
+    or 0
+)
+if sol_planet_count < 8:
+    raise SystemExit(f"Sol gate failed: expected >=8 planets linked to Sol; got {sol_planet_count}")
+
+print(f"OK: Sol gate (system_id={sol_system_id}, planets={sol_planet_count}, sun_rows={sun_count})")
+PY
+
   if [[ "$VERIFY_MULTIPLICITY_GOLDENS" == "1" ]]; then
     local goldens_script="$ROOT_DIR/scripts/verify_multiplicity_goldens.py"
     if [[ ! -x "$goldens_script" ]]; then

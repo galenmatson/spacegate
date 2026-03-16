@@ -80,7 +80,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add deterministic identifier reconciliation with ambiguity quarantine + QC collision gates
 - [x] Add duplicate-trap stewardship report (exact-key + near-pair checks) with optional QC high-confidence gate
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
-- [ ] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
+- [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [ ] Preserve or improve host matching quality for planets
 - [x] Promote exoplanet host labels for Gaia-fallback star/system display names (TRAPPIST/Kepler/TOI/WASP family and peers)
 - [x] Preserve or improve user-facing lookup ergonomics

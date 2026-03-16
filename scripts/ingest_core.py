@@ -60,6 +60,10 @@ OPEN_EXOPLANET_CATALOGUE_URL = "https://github.com/OpenExoplanetCatalogue/open_e
 OPEN_EXOPLANET_CATALOGUE_VERSION = "tarball_master"
 HWC_URL = "https://phl.upr.edu/hwc/data"
 HWC_VERSION = "hwc_csv"
+SOL_AUTHORITY_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
+SOL_AUTHORITY_VERSION = "horizons_s1_j2016"
+EARTH_RADIUS_KM = 6371.0088
+EARTH_MASS_KG = 5.9722e24
 PROX_MAX_DIST_LY = 0.25
 PROX_CELL_SIZE_LY = 0.25
 PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
@@ -615,6 +619,7 @@ def main() -> int:
     enable_exoplanet_lifecycle_catalogs = parse_bool_env(
         "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS", False
     )
+    enable_sol_authority = parse_bool_env("SPACEGATE_ENABLE_SOL_AUTHORITY", True)
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", False)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
@@ -752,6 +757,7 @@ def main() -> int:
     cooked_debcat = state_dir / "cooked" / "debcat" / "debcat_binaries.csv"
     cooked_kepler_eb = state_dir / "cooked" / "kepler_eb" / "kepler_eb_catalog.csv"
     cooked_tess_eb = state_dir / "cooked" / "tess_eb" / "tess_eb_catalog.csv"
+    cooked_sol_authority = state_dir / "cooked" / "sol_authority" / "sol_system_objects.csv"
     cooked_exoplanet_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
     cooked_exoplanet_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
     cooked_exoplanet_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
@@ -774,6 +780,7 @@ def main() -> int:
     debcat_manifest_path = manifest_dir / "debcat_manifest.json"
     kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
     tess_eb_manifest_path = manifest_dir / "tess_eb_manifest.json"
+    sol_authority_manifest_path = manifest_dir / "sol_authority_manifest.json"
     exoplanet_eu_manifest_path = manifest_dir / "exoplanet_eu_manifest.json"
     open_exoplanet_catalogue_manifest_path = (
         manifest_dir / "open_exoplanet_catalogue_manifest.json"
@@ -832,6 +839,8 @@ def main() -> int:
         raise SystemExit(f"Missing cooked Kepler EB catalog: {cooked_kepler_eb}")
     if enable_eclipsing_catalogs and enable_tess_eb and not cooked_tess_eb.exists():
         raise SystemExit(f"Missing cooked TESS EB catalog: {cooked_tess_eb}")
+    if enable_sol_authority and not cooked_sol_authority.exists():
+        raise SystemExit(f"Missing cooked Sol authority catalog: {cooked_sol_authority}")
     if enable_exoplanet_lifecycle_catalogs and not cooked_exoplanet_lifecycle_status.exists():
         raise SystemExit(
             f"Missing cooked exoplanet lifecycle status rows: {cooked_exoplanet_lifecycle_status}"
@@ -874,6 +883,7 @@ def main() -> int:
         f"kepler_eb={'1' if (enable_eclipsing_catalogs and enable_kepler_eb) else '0'} "
         f"tess_eb={'1' if (enable_eclipsing_catalogs and enable_tess_eb) else '0'} "
         f"exoplanet_lifecycle_catalogs={'1' if enable_exoplanet_lifecycle_catalogs else '0'} "
+        f"sol_authority={'1' if enable_sol_authority else '0'} "
         f"sbx={'1' if enable_sbx else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
@@ -926,6 +936,8 @@ def main() -> int:
             manifest_paths.append(kepler_eb_manifest_path)
         if enable_tess_eb:
             manifest_paths.append(tess_eb_manifest_path)
+    if enable_sol_authority:
+        manifest_paths.append(sol_authority_manifest_path)
     if enable_exoplanet_lifecycle_catalogs:
         manifest_paths.extend(
             [
@@ -1191,6 +1203,11 @@ def main() -> int:
         if enable_eclipsing_catalogs and enable_tess_eb
         else None
     )
+    sol_authority_manifest = (
+        require_manifest_entry(manifest, "sol_system_objects", "Sol authority objects")
+        if enable_sol_authority
+        else None
+    )
     exoplanet_eu_manifest = (
         require_manifest_entry(manifest, "catalog_csv", "Exoplanet.eu catalog export")
         if enable_exoplanet_lifecycle_catalogs
@@ -1277,6 +1294,22 @@ def main() -> int:
     nasa_sha = nasa_manifest.get("sha256")
     nasa_retrieved = nasa_manifest.get("retrieved_at")
     nasa_has_retrieval = has_retrieval(nasa_manifest)
+    sol_authority_url = (
+        sol_authority_manifest.get("url", SOL_AUTHORITY_URL) if sol_authority_manifest else SOL_AUTHORITY_URL
+    )
+    sol_authority_download_url = (
+        sol_authority_manifest.get("url", SOL_AUTHORITY_URL) if sol_authority_manifest else SOL_AUTHORITY_URL
+    )
+    sol_authority_version = (
+        sol_authority_manifest.get("source_version", SOL_AUTHORITY_VERSION)
+        if sol_authority_manifest
+        else SOL_AUTHORITY_VERSION
+    )
+    sol_authority_sha = sol_authority_manifest.get("sha256") if sol_authority_manifest else None
+    sol_authority_retrieved = (
+        sol_authority_manifest.get("retrieved_at") if sol_authority_manifest else None
+    )
+    sol_authority_has_retrieval = has_retrieval(sol_authority_manifest or {})
     msc_sha = msc_manifest.get("sha256") if msc_manifest else None
     msc_retrieved = msc_manifest.get("retrieved_at") if msc_manifest else None
     gaia_nss_non_single_sha = (
@@ -5504,6 +5537,220 @@ def main() -> int:
         ),
     )
 
+    sol_system_id: int | None = None
+    sol_star_id: int | None = None
+    if enable_sol_authority:
+        sol_path = str(cooked_sol_authority).replace("'", "''")
+        con.execute(
+            f"""
+            create or replace temp view sol_authority_raw as
+            select * from read_csv_auto('{sol_path}',
+                delim=',',
+                quote='\"',
+                escape='\"',
+                header=true,
+                strict_mode=false,
+                null_padding=true,
+                all_varchar=true
+            )
+            """
+        )
+
+        row = con.execute(
+            """
+            select system_id
+            from systems
+            where system_name_norm = 'sol'
+            order by system_id
+            limit 1
+            """
+        ).fetchone()
+        if row:
+            sol_system_id = int(row[0])
+        else:
+            sol_system_id = int(
+                con.execute("select coalesce(max(system_id), 0) + 1::bigint from systems").fetchone()[0]
+            )
+            sol_system_hash = hashlib.sha256(
+                f"system:sol|{sol_authority_version}|{transform_version}".encode("utf-8")
+            ).hexdigest()
+            con.execute(
+                """
+                insert into systems by name
+                select
+                  ?::bigint as system_id,
+                  morton3d(0.0, 0.0, 0.0) as spatial_index,
+                  'system:sol' as stable_object_key,
+                  'Sol' as system_name,
+                  'sol' as system_name_norm,
+                  null::varchar as wds_id,
+                  'authoritative' as grouping_basis,
+                  1.0::double as grouping_confidence,
+                  'high'::varchar as grouping_confidence_tier,
+                  '["sol_authority"]'::varchar as grouping_source_catalogs_json,
+                  false as has_gaia_nss_evidence,
+                  false as has_msc_evidence,
+                  false as has_sbx_evidence,
+                  false as has_wds_evidence,
+                  false as has_orb6_evidence,
+                  1::bigint as star_count,
+                  0::bigint as planet_count,
+                  '["G"]'::varchar as spectral_classes_json,
+                  null::double as ra_deg,
+                  null::double as dec_deg,
+                  0.0::double as dist_ly,
+                  0.0::double as x_helio_ly,
+                  0.0::double as y_helio_ly,
+                  0.0::double as z_helio_ly,
+                  null::double as x_gal_ly,
+                  null::double as y_gal_ly,
+                  null::double as z_gal_ly,
+                  null::bigint as gaia_id,
+                  null::bigint as hip_id,
+                  null::bigint as hd_id,
+                  'sol_authority'::varchar as source_catalog,
+                  ?::varchar as source_version,
+                  ?::varchar as source_url,
+                  ?::varchar as source_download_url,
+                  null::varchar as source_doi,
+                  990000000001::bigint as source_pk,
+                  990000000001::bigint as source_row_id,
+                  ?::varchar as source_row_hash,
+                  'NASA/JPL public domain'::varchar as license,
+                  true as redistribution_ok,
+                  'JPL Horizons authoritative Sol-system bootstrap'::varchar as license_note,
+                  null::varchar as retrieval_etag,
+                  ?::varchar as retrieval_checksum,
+                  ?::varchar as retrieved_at,
+                  ?::varchar as ingested_at,
+                  ?::varchar as transform_version
+                """,
+                [
+                    sol_system_id,
+                    sol_authority_version,
+                    sol_authority_url,
+                    sol_authority_download_url,
+                    sol_system_hash,
+                    sol_authority_sha,
+                    sol_authority_retrieved,
+                    ingested_at,
+                    transform_version,
+                ],
+            )
+
+        row = con.execute(
+            """
+            select star_id
+            from stars
+            where star_name_norm = 'sun'
+              and system_id = ?
+            order by star_id
+            limit 1
+            """,
+            [sol_system_id],
+        ).fetchone()
+        if row:
+            sol_star_id = int(row[0])
+        else:
+            sol_star_id = int(
+                con.execute("select coalesce(max(star_id), 0) + 1::bigint from stars").fetchone()[0]
+            )
+            sol_star_hash = hashlib.sha256(
+                f"star:sol:sun|{sol_authority_version}|{transform_version}".encode("utf-8")
+            ).hexdigest()
+            con.execute(
+                """
+                insert into stars by name
+                select
+                  ?::bigint as star_id,
+                  morton3d(0.0, 0.0, 0.0) as spatial_index,
+                  ?::bigint as system_id,
+                  'star:sol:sun' as stable_object_key,
+                  'Sun' as star_name,
+                  'sun' as star_name_norm,
+                  'A'::varchar as component,
+                  null::double as ra_deg,
+                  null::double as dec_deg,
+                  0.0::double as dist_ly,
+                  null::double as parallax_mas,
+                  null::double as parallax_error_mas,
+                  null::double as parallax_over_error,
+                  null::double as ruwe,
+                  0.0::double as x_helio_ly,
+                  0.0::double as y_helio_ly,
+                  0.0::double as z_helio_ly,
+                  null::double as x_gal_ly,
+                  null::double as y_gal_ly,
+                  null::double as z_gal_ly,
+                  null::double as pm_ra_mas_yr,
+                  null::double as pm_dec_mas_yr,
+                  null::double as radial_velocity_kms,
+                  'G2V'::varchar as spectral_type_raw,
+                  'G'::varchar as spectral_class,
+                  '2'::varchar as spectral_subtype,
+                  'V'::varchar as luminosity_class,
+                  null::varchar as spectral_peculiar,
+                  null::double as vmag,
+                  null::double as absmag,
+                  null::double as color_index,
+                  null::bigint as gaia_id,
+                  null::bigint as hip_id,
+                  null::bigint as hd_id,
+                  null::varchar as wds_id,
+                  'sol_authority'::varchar as multiplicity_match_method,
+                  1.0::double as multiplicity_match_confidence,
+                  '["sol_authority"]'::varchar as multiplicity_source_catalogs_json,
+                  false as gaia_non_single_star,
+                  0::bigint as gaia_nss_solution_count,
+                  '[]'::varchar as gaia_nss_solution_types_json,
+                  null::double as gaia_nss_significance_max,
+                  false as has_gaia_nss_evidence,
+                  false as has_msc_evidence,
+                  false as has_wds_evidence,
+                  false as has_orb6_evidence,
+                  null::bigint as sbx_sn,
+                  0::bigint as sbx_orbit_count,
+                  null::varchar as sbx_family,
+                  null::varchar as sbx_position_epoch,
+                  null::varchar as sbx_position_source,
+                  '{"iau_name":"Sun","jpl_horizons_command":"10"}'::varchar as catalog_ids_json,
+                  'sol_authority'::varchar as source_catalog,
+                  ?::varchar as source_version,
+                  ?::varchar as source_url,
+                  ?::varchar as source_download_url,
+                  null::varchar as source_doi,
+                  990000000002::bigint as source_pk,
+                  990000000002::bigint as source_row_id,
+                  ?::varchar as source_row_hash,
+                  'NASA/JPL public domain'::varchar as license,
+                  true as redistribution_ok,
+                  'JPL Horizons authoritative Sol-system bootstrap'::varchar as license_note,
+                  null::varchar as retrieval_etag,
+                  ?::varchar as retrieval_checksum,
+                  ?::varchar as retrieved_at,
+                  ?::varchar as ingested_at,
+                  ?::varchar as transform_version,
+                  'star'::varchar as object_family,
+                  'main_sequence'::varchar as object_type,
+                  '{"sol_authority":true}'::varchar as classification_evidence_json
+                """,
+                [
+                    sol_star_id,
+                    sol_system_id,
+                    sol_authority_version,
+                    sol_authority_url,
+                    sol_authority_download_url,
+                    sol_star_hash,
+                    sol_authority_sha,
+                    sol_authority_retrieved,
+                    ingested_at,
+                    transform_version,
+                ],
+            )
+        log(
+            f"Sol authority bootstrap: system_id={sol_system_id} star_id={sol_star_id}"
+        )
+
     planet_catalog_delta_report: dict[str, object] = {
         "build_id": build_id,
         "lifecycle_enabled": bool(enable_exoplanet_lifecycle_catalogs),
@@ -5733,6 +5980,170 @@ def main() -> int:
           end
         """
     )
+    if enable_sol_authority and sol_system_id is not None and sol_star_id is not None:
+        con.execute(
+            """
+            create or replace temp table sol_planet_input as
+            with base as (
+              select
+                source_pk::bigint as source_pk,
+                nullif(trim(object_name), '') as planet_name,
+                lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(coalesce(object_name, ''), '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                ) as planet_name_norm,
+                lower(trim(coalesce(object_class, ''))) as object_class_norm,
+                nullif(trim(orbital_period_days), '')::double as orbital_period_days,
+                nullif(trim(semi_major_axis_au), '')::double as semi_major_axis_au,
+                nullif(trim(eccentricity), '')::double as eccentricity,
+                nullif(trim(inclination_deg), '')::double as inclination_deg,
+                nullif(trim(radius_km), '')::double as radius_km,
+                nullif(trim(mass_kg), '')::double as mass_kg,
+                nullif(trim(horizons_query_url), '') as source_download_url,
+                nullif(trim(source_row_hash), '') as source_row_hash
+              from sol_authority_raw
+            )
+            select
+              source_pk,
+              planet_name,
+              planet_name_norm,
+              object_class_norm,
+              orbital_period_days,
+              semi_major_axis_au,
+              eccentricity,
+              inclination_deg,
+              radius_km,
+              mass_kg,
+              source_download_url,
+              source_row_hash
+            from base
+            where object_class_norm in ('planet', 'dwarf_planet')
+              and planet_name is not null
+              and planet_name_norm is not null
+              and planet_name_norm <> ''
+            """
+        )
+        con.execute(
+            """
+            delete from planets p
+            using sol_planet_input s
+            where p.stable_object_key = 'planet:sol:' || s.planet_name_norm
+            """
+        )
+        sol_planet_base_id = int(
+            con.execute("select coalesce(max(planet_id), 0)::bigint from planets").fetchone()[0]
+        )
+        con.execute(
+            f"""
+            insert into planets by name
+            select
+              {sol_planet_base_id} + row_number() over (
+                order by
+                  case when s.object_class_norm = 'planet' then 0 else 1 end,
+                  s.source_pk
+              )::bigint as planet_id,
+              morton3d(0.0, 0.0, 0.0) as spatial_index,
+              'planet:sol:' || s.planet_name_norm as stable_object_key,
+              {int(sol_system_id)}::bigint as system_id,
+              {int(sol_star_id)}::bigint as star_id,
+              s.planet_name as planet_name,
+              s.planet_name_norm as planet_name_norm,
+              null::int as disc_year,
+              'historical_observation'::varchar as discovery_method,
+              'Solar System'::varchar as discovery_facility,
+              null::varchar as discovery_telescope,
+              null::varchar as discovery_instrument,
+              s.orbital_period_days,
+              s.semi_major_axis_au,
+              s.eccentricity,
+              s.inclination_deg,
+              case
+                when s.radius_km is not null then s.radius_km / 71492.0
+                else null
+              end as radius_jup,
+              case
+                when s.radius_km is not null then s.radius_km / {EARTH_RADIUS_KM}
+                else null
+              end as radius_earth,
+              case
+                when s.mass_kg is not null then s.mass_kg / {EARTH_MASS_KG}
+                else null
+              end as mass_earth,
+              case
+                when s.mass_kg is not null then s.mass_kg / (317.8 * {EARTH_MASS_KG})
+                else null
+              end as mass_jup,
+              null::double as eq_temp_k,
+              null::double as insol_earth,
+              0.0::double as host_metallicity_feh,
+              null::double as host_metallicity_feh_error,
+              'Sun'::varchar as host_name_raw,
+              'sun'::varchar as host_name_norm,
+              null::bigint as host_gaia_id,
+              null::bigint as host_hip_id,
+              null::bigint as host_hd_id,
+              'sol_authority'::varchar as match_method,
+              1.0::double as match_confidence,
+              'authoritative Sol-system bootstrap'::varchar as match_notes,
+              0.0::double as x_helio_ly,
+              0.0::double as y_helio_ly,
+              0.0::double as z_helio_ly,
+              'sol_authority'::varchar as source_catalog,
+              {sql_literal(sol_authority_version)}::varchar as source_version,
+              {sql_literal(sol_authority_url)}::varchar as source_url,
+              coalesce(s.source_download_url, {sql_literal(sol_authority_download_url)}::varchar) as source_download_url,
+              null::varchar as source_doi,
+              s.source_pk::bigint as source_pk,
+              s.source_pk::bigint as source_row_id,
+              s.source_row_hash::varchar as source_row_hash,
+              'NASA/JPL public domain'::varchar as license,
+              true as redistribution_ok,
+              'JPL Horizons authoritative Sol-system bootstrap'::varchar as license_note,
+              null::varchar as retrieval_etag,
+              {sql_literal(sol_authority_sha)}::varchar as retrieval_checksum,
+              {sql_literal(sol_authority_retrieved)}::varchar as retrieved_at,
+              {sql_literal(ingested_at)}::varchar as ingested_at,
+              {sql_literal(transform_version)}::varchar as transform_version,
+              'confirmed'::varchar as planet_status,
+              true as is_default_visible,
+              false as is_tombstoned,
+              'sol_authority'::varchar as status_source_catalog,
+              {sql_literal(ingested_at)}::varchar as status_updated_at,
+              null::varchar as status_superseded_by,
+              case
+                when s.object_class_norm = 'dwarf_planet' then 'subplanet'
+                else 'major_planet'
+              end as planet_size_mass_class,
+              null::varchar as planet_insolation_class,
+              case
+                when s.object_class_norm = 'dwarf_planet' then 'solar_subplanet'
+                else 'solar_planet'
+              end as planet_orbit_class,
+              null::varchar as planet_composition_proxy_class,
+              '[]'::varchar as planet_detection_tags_json,
+              case
+                when s.object_class_norm = 'dwarf_planet' then '["solar_system","subplanet"]'
+                else '["solar_system","major_planet"]'
+              end::varchar as planet_host_context_tags_json,
+              {sql_literal(planet_classifier_version)}::varchar as planet_classifier_version,
+              {sql_literal(ingested_at)}::varchar as planet_classifier_updated_at,
+              null::double as spacegate_hab_score,
+              null::double as spacegate_hab_confidence,
+              null::varchar as spacegate_hab_reasons_json,
+              0.5::double as planet_element_richness_score,
+              'moderate'::varchar as planet_element_richness_class,
+              'sol_authority_default'::varchar as planet_element_richness_method,
+              'solar-system bootstrap default'::varchar as planet_element_richness_notes
+            from sol_planet_input s
+            """
+        )
+        log("Sol authority planets injected into planets table")
 
     lifecycle_status_raw_rows = 0
     lifecycle_status_matched_rows = 0
@@ -6932,6 +7343,54 @@ def main() -> int:
             where false
             """
         )
+    if enable_aliases and sol_system_id is not None:
+        sol_alias_rows = [
+            ("Sol", "sol_name", 0, "sol_authority"),
+            ("Solar System", "solar_system", 1, "sol_authority"),
+            ("Sun", "sun_name", 2, "sol_authority"),
+        ]
+        for alias_raw, alias_kind, alias_priority, source_catalog in sol_alias_rows:
+            alias_norm = " ".join(
+                "".join(ch if ch.isalnum() else " " for ch in alias_raw).lower().split()
+            )
+            exists = con.execute(
+                """
+                select 1
+                from aliases
+                where target_type = 'system'
+                  and target_id = ?
+                  and alias_norm = ?
+                limit 1
+                """,
+                [sol_system_id, alias_norm],
+            ).fetchone()
+            if exists:
+                continue
+            next_alias_id = int(
+                con.execute("select coalesce(max(alias_id), 0) + 1::bigint from aliases").fetchone()[0]
+            )
+            con.execute(
+                """
+                insert into aliases (
+                  alias_id, target_type, target_id, system_id, star_id, alias_raw, alias_norm,
+                  alias_kind, alias_priority, is_primary, source_catalog, source_version, source_pk
+                )
+                values (?, 'system', ?, ?, null, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    next_alias_id,
+                    sol_system_id,
+                    sol_system_id,
+                    alias_raw,
+                    alias_norm,
+                    alias_kind,
+                    alias_priority,
+                    alias_priority == 0,
+                    source_catalog,
+                    sol_authority_version,
+                    990000010000 + next_alias_id,
+                ],
+            )
     alias_total_count = con.execute("select count(*) from aliases").fetchone()[0]
     alias_system_count = con.execute(
         "select count(*) from aliases where target_type = 'system'"
@@ -8158,6 +8617,7 @@ def main() -> int:
         "build_id": build_id,
         "base_source": base_source_manifest_block,
         "nasa_exoplanet_archive": nasa_manifest,
+        "sol_authority": sol_authority_manifest,
         "wds": wds_manifest,
         "orb6": orb6_manifest,
         "tables": {
@@ -8722,6 +9182,24 @@ def main() -> int:
         con.execute("select count(*)::bigint from planets where coalesce(is_default_visible, false)").fetchone()[0]
         or 0
     )
+    sol_system_rows = int(
+        con.execute(
+            "select count(*)::bigint from systems where lower(coalesce(source_catalog, '')) = 'sol_authority'"
+        ).fetchone()[0]
+        or 0
+    )
+    sol_star_rows = int(
+        con.execute(
+            "select count(*)::bigint from stars where lower(coalesce(source_catalog, '')) = 'sol_authority'"
+        ).fetchone()[0]
+        or 0
+    )
+    sol_planet_rows = int(
+        con.execute(
+            "select count(*)::bigint from planets where lower(coalesce(source_catalog, '')) = 'sol_authority'"
+        ).fetchone()[0]
+        or 0
+    )
 
     def manifest_row_count_match(entry: dict | None) -> bool | None:
         if not entry:
@@ -8770,6 +9248,10 @@ def main() -> int:
         "kepler_eb_enabled": enable_eclipsing_catalogs and enable_kepler_eb,
         "tess_eb_enabled": enable_eclipsing_catalogs and enable_tess_eb,
         "exoplanet_lifecycle_catalogs_enabled": enable_exoplanet_lifecycle_catalogs,
+        "sol_authority_enabled": enable_sol_authority,
+        "sol_authority_system_rows": sol_system_rows,
+        "sol_authority_star_rows": sol_star_rows,
+        "sol_authority_planet_rows": sol_planet_rows,
         "planet_classifier_version": planet_classifier_version,
         "planet_lifecycle_status_raw_rows": lifecycle_status_raw_rows,
         "planet_lifecycle_status_matched_rows": lifecycle_status_matched_rows,
@@ -8985,6 +9467,12 @@ def main() -> int:
         str(row[0] or "unknown"): int(row[1] or 0)
         for row in con.execute(
             "select coalesce(source_catalog, 'unknown'), count(*)::bigint from stars group by 1"
+        ).fetchall()
+    }
+    system_source_counts = {
+        str(row[0] or "unknown"): int(row[1] or 0)
+        for row in con.execute(
+            "select coalesce(source_catalog, 'unknown'), count(*)::bigint from systems group by 1"
         ).fetchall()
     }
     planet_source_counts = {
@@ -9537,6 +10025,43 @@ def main() -> int:
         linked_rows=planet_linked_rows,
         notes="exoplanet inventory",
     )
+    if enable_sol_authority:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="sol_authority",
+            domain="systems",
+            domain_total=total_systems,
+            input_rows=manifest_row_count(sol_authority_manifest),
+            input_bytes=manifest_bytes(sol_authority_manifest),
+            direct_rows=int(system_source_counts.get("sol_authority", 0)),
+            evidence_rows=0,
+            linked_rows=0,
+            notes="authoritative Sol-system root record",
+        )
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="sol_authority",
+            domain="stars",
+            domain_total=total_stars,
+            input_rows=manifest_row_count(sol_authority_manifest),
+            input_bytes=manifest_bytes(sol_authority_manifest),
+            direct_rows=int(star_source_counts.get("sol_authority", 0)),
+            evidence_rows=0,
+            linked_rows=0,
+            notes="authoritative solar host record (Sun)",
+        )
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="sol_authority",
+            domain="planets",
+            domain_total=total_planets,
+            input_rows=manifest_row_count(sol_authority_manifest),
+            input_bytes=manifest_bytes(sol_authority_manifest),
+            direct_rows=int(planet_source_counts.get("sol_authority", 0)),
+            evidence_rows=0,
+            linked_rows=int(planet_source_counts.get("sol_authority", 0)),
+            notes="authoritative major and dwarf Sol-system body records",
+        )
     if enable_exoplanet_lifecycle_catalogs:
         oec_direct_rows = int(planet_lifecycle_observation_counts.get("open_exoplanet_catalogue", 0))
         oec_linked_rows = int(
@@ -9754,6 +10279,7 @@ def main() -> int:
         ("msc", msc_manifest),
         ("orb6", orb6_manifest),
         ("nasa_exoplanet_archive", nasa_manifest),
+        ("sol_authority", sol_authority_manifest),
         ("atnf", atnf_manifest),
         ("magnetar", magnetar_manifest),
         ("white_dwarf", white_dwarf_manifest),

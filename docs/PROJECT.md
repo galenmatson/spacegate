@@ -502,6 +502,7 @@ Operational status:
 - `docs/SCHEMA_LORE.md`: rim contract (legacy filename retained)
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
+- `docs/SOL_AUTHORITY.md`: Sol-system authoritative ingest contract and release gates
 - `docs/DATASET_ITERATION_HISTORY.md`: dataset iteration timeline (changes, fixes, and mitigation history)
 - `docs/MULTIPLICITY_GOLDENS.md`: post-ingest hierarchy/orbit exam contract
 - `docs/EXOPLANET_LIFECYCLE_IMPLEMENTATION.md`: concrete DDL and execution plan for lifecycle/taxonomy/habitability
