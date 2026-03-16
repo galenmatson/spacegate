@@ -43,7 +43,7 @@ Canonical component registry for hierarchy assembly.
 Columns:
 - `component_entity_id BIGINT`
 - `stable_component_key TEXT` (deterministic, cross-build stable where possible)
-- `component_type TEXT` (`system|star|planet|brown_dwarf|compact|cluster_member|unresolved_component`)
+- `component_type TEXT` (`system|star|planet|subplanet|moon|brown_dwarf|compact|cluster_member|unresolved_component`)
 - `core_object_type TEXT` (`system|star|planet|NULL`)
 - `core_object_id BIGINT` (nullable; links to core if present)
 - `display_name TEXT`
@@ -91,7 +91,7 @@ Columns:
 - `host_component_key TEXT` (often subsystem or barycenter-hosting group)
 - `primary_component_key TEXT`
 - `secondary_component_key TEXT`
-- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion`)
+- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|satellite`)
 - `barycenter_key TEXT` (nullable)
 - `preferred_solution_id BIGINT` (nullable FK to `orbital_solutions`)
 - `confidence_score DOUBLE`

@@ -15,10 +15,11 @@ from pathlib import Path
 HORIZONS_API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 
-# S1 bootstrap scope:
+# Sol authority scope:
 # - Sun
 # - 8 major planets
-# - 5 commonly accepted dwarf planets (Pluto, Ceres, Eris, Haumea, Makemake)
+# - 5 commonly accepted subplanets (dwarf-planet class; interoperable alias retained)
+# - S2 bootstrap moons for hierarchy/orbit graphing in arm
 OBJECTS = [
     {"source_pk": 1, "name": "Sun", "object_class": "star", "command": "10", "center": "500@0"},
     {"source_pk": 2, "name": "Mercury", "object_class": "planet", "command": "199", "center": "500@10"},
@@ -29,12 +30,41 @@ OBJECTS = [
     {"source_pk": 7, "name": "Saturn", "object_class": "planet", "command": "699", "center": "500@10"},
     {"source_pk": 8, "name": "Uranus", "object_class": "planet", "command": "799", "center": "500@10"},
     {"source_pk": 9, "name": "Neptune", "object_class": "planet", "command": "899", "center": "500@10"},
-    {"source_pk": 10, "name": "Pluto", "object_class": "dwarf_planet", "command": "999", "center": "500@10"},
-    {"source_pk": 11, "name": "Ceres", "object_class": "dwarf_planet", "command": "1", "center": "500@10"},
-    {"source_pk": 12, "name": "Eris", "object_class": "dwarf_planet", "command": "136199", "center": "500@10"},
-    {"source_pk": 13, "name": "Haumea", "object_class": "dwarf_planet", "command": "136108", "center": "500@10"},
-    {"source_pk": 14, "name": "Makemake", "object_class": "dwarf_planet", "command": "136472", "center": "500@10"},
+    {"source_pk": 10, "name": "Pluto", "object_class": "subplanet", "command": "999", "center": "500@10"},
+    {"source_pk": 11, "name": "Ceres", "object_class": "subplanet", "command": "1", "center": "500@10"},
+    {"source_pk": 12, "name": "Eris", "object_class": "subplanet", "command": "136199", "center": "500@10"},
+    {"source_pk": 13, "name": "Haumea", "object_class": "subplanet", "command": "136108", "center": "500@10"},
+    {"source_pk": 14, "name": "Makemake", "object_class": "subplanet", "command": "136472", "center": "500@10"},
+    {"source_pk": 15, "name": "Moon", "object_class": "moon", "command": "301", "center": "500@399"},
+    {"source_pk": 16, "name": "Phobos", "object_class": "moon", "command": "401", "center": "500@499"},
+    {"source_pk": 17, "name": "Deimos", "object_class": "moon", "command": "402", "center": "500@499"},
+    {"source_pk": 18, "name": "Io", "object_class": "moon", "command": "501", "center": "500@599"},
+    {"source_pk": 19, "name": "Europa", "object_class": "moon", "command": "502", "center": "500@599"},
+    {"source_pk": 20, "name": "Ganymede", "object_class": "moon", "command": "503", "center": "500@599"},
+    {"source_pk": 21, "name": "Callisto", "object_class": "moon", "command": "504", "center": "500@599"},
+    {"source_pk": 22, "name": "Titan", "object_class": "moon", "command": "606", "center": "500@699"},
+    {"source_pk": 23, "name": "Enceladus", "object_class": "moon", "command": "602", "center": "500@699"},
+    {"source_pk": 24, "name": "Triton", "object_class": "moon", "command": "801", "center": "500@899"},
+    {"source_pk": 25, "name": "Charon", "object_class": "moon", "command": "901", "center": "500@999"},
 ]
+
+PARENT_BY_NAME = {
+    "moon": "Earth",
+    "phobos": "Mars",
+    "deimos": "Mars",
+    "io": "Jupiter",
+    "europa": "Jupiter",
+    "ganymede": "Jupiter",
+    "callisto": "Jupiter",
+    "titan": "Saturn",
+    "enceladus": "Saturn",
+    "triton": "Neptune",
+    "charon": "Pluto",
+}
+
+OBJECT_CLASS_ALIASES = {
+    "subplanet": '["dwarf_planet"]',
+}
 
 
 def log(msg: str) -> None:
@@ -221,11 +251,25 @@ def main() -> int:
         )
         payload, query_url = api_get_text(params, timeout_s=args.timeout_s, retries=args.retries)
         elements = parse_elements(payload)
+        if "$$SOE" not in payload:
+            raise RuntimeError(
+                f"Horizons response for {obj['name']} ({obj['command']}) missing ephemeris block."
+            )
+        object_name_norm = str(obj["name"]).strip().lower()
+        object_class = str(obj["object_class"]).strip().lower()
+        parent_object_name = ""
+        if object_class in {"planet", "subplanet"}:
+            parent_object_name = "Sun"
+        elif object_class == "moon":
+            parent_object_name = PARENT_BY_NAME.get(object_name_norm, "")
+            if not parent_object_name:
+                raise RuntimeError(f"Missing moon parent mapping for {obj['name']}")
         row: dict[str, object] = {
             "source_pk": int(obj["source_pk"]),
             "object_name": str(obj["name"]),
-            "object_class": str(obj["object_class"]),
-            "parent_object_name": ("" if str(obj["object_class"]) == "star" else "Sun"),
+            "object_class": object_class,
+            "object_class_aliases_json": OBJECT_CLASS_ALIASES.get(object_class, "[]"),
+            "parent_object_name": parent_object_name,
             "horizons_command": str(obj["command"]),
             "epoch_tdb_jd": elements.get("epoch_tdb_jd"),
             "eccentricity": elements.get("eccentricity"),
@@ -245,6 +289,7 @@ def main() -> int:
         "source_pk",
         "object_name",
         "object_class",
+        "object_class_aliases_json",
         "parent_object_name",
         "horizons_command",
         "epoch_tdb_jd",
@@ -279,7 +324,7 @@ def main() -> int:
                 "start_time": args.start_time,
                 "stop_time": args.stop_time,
                 "ephem_type": "ELEMENTS",
-                "center_policy": "500@10 for planets/dwarf_planets, 500@0 for Sun",
+                "center_policy": "500@0 for Sun, heliocentric for planets/subplanets, host-centered for moons",
                 "objects": ",".join(str(obj["command"]) for obj in OBJECTS),
             },
         }

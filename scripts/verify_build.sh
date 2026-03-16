@@ -353,13 +353,107 @@ if sol_planet_count < 8:
 print(f"OK: Sol gate (system_id={sol_system_id}, planets={sol_planet_count}, sun_rows={sun_count})")
 PY
 
+  local arm_db="$build_dir/arm.duckdb"
+  if [[ -f "$arm_db" ]]; then
+    "$PYTHON_BIN" - <<'PY' "$arm_db"
+import sys
+import duckdb
+
+db_path = sys.argv[1]
+con = duckdb.connect(db_path, read_only=True)
+
+required_tables = {
+    "component_entities",
+    "system_hierarchy_edges",
+    "orbit_edges",
+    "orbital_solutions",
+    "barycenters",
+}
+present = {
+    row[0]
+    for row in con.execute(
+        "select table_name from information_schema.tables where table_schema='main'"
+    ).fetchall()
+}
+missing_tables = sorted(required_tables - present)
+if missing_tables:
+    raise SystemExit(f"Sol S2 gate failed: missing arm tables: {', '.join(missing_tables)}")
+
+moon_component_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from component_entities
+        where component_type = 'moon'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if moon_component_count < 5:
+    raise SystemExit(f"Sol S2 gate failed: expected >=5 moon components, got {moon_component_count}")
+
+earth_moon_edge_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from system_hierarchy_edges
+        where parent_component_key = 'comp:planet:planet:sol:earth'
+          and child_component_key = 'comp:moon:sol:moon'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if earth_moon_edge_count < 1:
+    raise SystemExit("Sol S2 gate failed: missing Earth->Moon hierarchy edge")
+
+satellite_orbit_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from orbit_edges
+        where relation_kind = 'satellite'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if satellite_orbit_count < 5:
+    raise SystemExit(
+        f"Sol S2 gate failed: expected >=5 sol_authority satellite orbit edges, got {satellite_orbit_count}"
+    )
+
+barycenter_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from barycenters
+        where barycenter_key in ('bary:center:sol:earth-moon', 'bary:center:sol:pluto-charon')
+        """
+    ).fetchone()[0]
+    or 0
+)
+if barycenter_count < 2:
+    raise SystemExit(
+        "Sol S2 gate failed: missing expected Earth-Moon and Pluto-Charon barycenter rows"
+    )
+
+print(
+    f"OK: Sol S2 gate (moon_components={moon_component_count}, "
+    f"satellite_orbits={satellite_orbit_count}, barycenters={barycenter_count})"
+)
+PY
+  else
+    echo "Warning: skipping Sol S2 arm gate (missing $arm_db)." >&2
+  fi
+
   if [[ "$VERIFY_MULTIPLICITY_GOLDENS" == "1" ]]; then
     local goldens_script="$ROOT_DIR/scripts/verify_multiplicity_goldens.py"
     if [[ ! -x "$goldens_script" ]]; then
       echo "Error: missing executable $goldens_script" >&2
       exit 1
     fi
-    local arm_db="$build_dir/arm.duckdb"
     echo "Running multiplicity goldens exam..."
     "$PYTHON_BIN" "$goldens_script" --core-db "$core_db" --arm-db "$arm_db" --require-arm
     echo "OK: multiplicity goldens"

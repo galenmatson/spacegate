@@ -57,7 +57,7 @@ Interpretation note:
 | Source family | Policy status | Default state | Primary toggle(s) | Why |
 | --- | --- | --- | --- | --- |
 | Gaia DR3 backbone (`gaia_source`) | mandatory | on in Gaia-first profile | `SPACEGATE_ENABLE_GAIA_BACKBONE=1` | canonical star inventory substrate |
-| Sol authority bootstrap (`sol_authority`) | mandatory (S1 release gate) | on | `SPACEGATE_ENABLE_SOL_AUTHORITY` | guarantees Sol/Sun/major-planet coverage from authoritative JPL source |
+| Sol authority bootstrap (`sol_authority`) | mandatory (S1/S2 release gate) | on | `SPACEGATE_ENABLE_SOL_AUTHORITY` | guarantees Sol/Sun/major-planet coverage plus arm moon/barycenter hierarchy from authoritative JPL source |
 | NASA Exoplanet Archive (`pscomppars`) | mandatory | on | (always in core catalog set) | canonical planet baseline |
 | MSC | mandatory | on | `SPACEGATE_ENABLE_MSC` (must remain `1`) | required multiplicity hierarchy evidence; ingest blocks when off |
 | WDS | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | broad multiplicity support evidence |
@@ -150,6 +150,7 @@ Role:
 
 - ensure Sol and Sun are always present and linked
 - ensure required Sol major-planet coverage independent of exoplanet catalogs
+- provide S2 moon hierarchy/orbit/barycenter evidence in `arm`
 - provide deterministic Sol provenance for release gating
 
 Source endpoint:

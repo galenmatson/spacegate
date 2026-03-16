@@ -18,6 +18,7 @@ Use this as the historical ledger for:
 - host-name promotion for Gaia-fallback display names (for example TRAPPIST/Kepler/TOI/WASP)
 - profile-scoped SLO verification path and promote-time rollback gate for sliced builds
 - default catalog transport hardened to HTTPS for default-on sources
+- Sol authority S1+S2: canonical Sol/subplanet bootstrap in core plus moon/orbit/barycenter hierarchy in arm
 
 ## Catalog Attempt Ledger (v1.2 Closeout)
 
@@ -158,6 +159,16 @@ Representative commits:
 
 Representative commits:
 - `30906b9` and follow-up hardening commits
+
+### 11) Sol Authority S2 Hierarchy Expansion
+
+- Canonicalized Sol terminology to `subplanet` with `dwarf_planet` interoperability retained.
+- Expanded Sol authority extraction to include deterministic S2 moon rows from JPL Horizons.
+- Materialized moon nodes, satellite hierarchy/orbit edges, orbital-solution rows, and Earth-Moon/Pluto-Charon barycenters into `arm.duckdb`.
+- Added verify-time Sol S2 arm gate checks to block promotion if hierarchy rows are missing.
+
+Representative commits:
+- `281f173` and follow-up S2 commit(s)
 
 ## Recurrent Defect Classes and Mitigations
 

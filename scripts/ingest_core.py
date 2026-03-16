@@ -6023,7 +6023,7 @@ def main() -> int:
               source_download_url,
               source_row_hash
             from base
-            where object_class_norm in ('planet', 'dwarf_planet')
+            where object_class_norm in ('planet', 'subplanet', 'dwarf_planet')
               and planet_name is not null
               and planet_name_norm is not null
               and planet_name_norm <> ''
@@ -6117,18 +6117,18 @@ def main() -> int:
               {sql_literal(ingested_at)}::varchar as status_updated_at,
               null::varchar as status_superseded_by,
               case
-                when s.object_class_norm = 'dwarf_planet' then 'subplanet'
+                when s.object_class_norm in ('subplanet', 'dwarf_planet') then 'subplanet'
                 else 'major_planet'
               end as planet_size_mass_class,
               null::varchar as planet_insolation_class,
               case
-                when s.object_class_norm = 'dwarf_planet' then 'solar_subplanet'
+                when s.object_class_norm in ('subplanet', 'dwarf_planet') then 'solar_subplanet'
                 else 'solar_planet'
               end as planet_orbit_class,
               null::varchar as planet_composition_proxy_class,
               '[]'::varchar as planet_detection_tags_json,
               case
-                when s.object_class_norm = 'dwarf_planet' then '["solar_system","subplanet"]'
+                when s.object_class_norm in ('subplanet', 'dwarf_planet') then '["solar_system","subplanet","dwarf_planet"]'
                 else '["solar_system","major_planet"]'
               end::varchar as planet_host_context_tags_json,
               {sql_literal(planet_classifier_version)}::varchar as planet_classifier_version,

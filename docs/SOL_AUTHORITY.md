@@ -10,22 +10,28 @@ Goals:
 
 ## Scope and Phasing
 
-## S1 (implemented now): canonical Sol bootstrap for core UX
+## S1 (implemented): canonical Sol bootstrap for core UX
 
 S1 includes:
 
 - Sol system root
 - Sun host star
 - major planets (Mercury..Neptune)
-- dwarf planets (Pluto, Ceres, Eris, Haumea, Makemake)
+- subplanets (Pluto, Ceres, Eris, Haumea, Makemake)
 - Sol aliases (`Sol`, `Solar System`, `Sun`)
 
-S1 does not yet include moons/comets/spacecraft as first-class rows in `core`.
+Terminology:
 
-## S2: natural satellite hierarchy in arm
+- canonical label in Spacegate: `subplanet`
+- interoperable alias: `dwarf_planet` (retained in tags/interop)
+
+S1 does not include moons/comets/spacecraft as first-class rows in `core`.
+
+## S2 (implemented): natural satellite hierarchy in arm
 
 - add moon nodes and orbit edges in `arm`
 - add barycenter nodes where needed for stable animation graph composition
+- keep these rows out of core hot paths
 
 ## S3: small-body expansion
 
@@ -37,25 +43,25 @@ S1 does not yet include moons/comets/spacecraft as first-class rows in `core`.
 
 ## Source Policy
 
-S1 authoritative source:
+S1/S2 authoritative source:
 
 - JPL Horizons API (`https://ssd.jpl.nasa.gov/api/horizons.api`)
 
-S1 extractor:
+S1/S2 extractor:
 
 - `scripts/fetch_sol_authority.py`
 - writes `raw/sol_authority/sol_system_objects.csv`
 - writes manifest `reports/manifests/sol_authority_manifest.json`
 
-S1 retrieval policy:
+S1/S2 retrieval policy:
 
 - deterministic object list and epoch window
 - retrieval checksum + timestamp required
 - build fails if S1 source is enabled and cooked Sol data is missing
 
-## Ingest Contract (S1)
+## Ingest Contract
 
-S1 is wired into:
+S1/S2 are wired into:
 
 - `scripts/download_core.sh`
 - `scripts/cook_core.sh`
@@ -69,10 +75,11 @@ Ingest behavior:
 - preserves full provenance fields (`source_*`, checksum, retrieved time)
 - adds Sol aliases for search ergonomics
 - emits Sol contribution in `catalog_contribution_report.json`
+- materializes S2 moon hierarchy/orbit/barycenter rows into `arm.duckdb`
 
 ## Release Gate
 
-`scripts/verify_build.sh` now enforces Sol gate checks:
+`scripts/verify_build.sh` enforces Sol gates:
 
 - Sol system row exists
 - Sun star row exists and is linked to Sol system
@@ -81,14 +88,20 @@ Ingest behavior:
 
 If any Sol gate check fails, verification fails and promotion should be blocked.
 
+S2 arm checks:
+
+- `sol_authority` moon component rows exist in `component_entities`
+- Earth->Moon containment edge exists in `system_hierarchy_edges`
+- `satellite` orbit edges exist in `orbit_edges`
+- Earth-Moon and Pluto-Charon barycenter rows exist in `barycenters`
+
 ## Modeling Notes
 
 S1 intentionally prioritizes canonical discoverability over full Solar-System object breadth.
 
-S2+ should move toward the generic hierarchy model:
+S2+ use the generic hierarchy model:
 
-- node types: star, planet, dwarf_planet, moon, asteroid, comet, spacecraft, barycenter
+- node types: star, planet, subplanet, moon, asteroid, comet, spacecraft, barycenter
 - edge types: contains, orbits, belongs_to
 
 This allows Castor-like hierarchy handling and Sol-like deep object diversity under one consistent graph model.
-
