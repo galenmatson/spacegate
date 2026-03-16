@@ -194,12 +194,9 @@ Measurement tooling:
 1. Build `galaxy`.
 2. Build `core` with explicit `profile_id@profile_version`.
 3. Build complementary `halo`.
-4. Run:
-   - `scripts/spacegate_stress.sh --profile smoke`
-   - `scripts/spacegate_stress.sh --profile mixed`
-   - `scripts/spacegate_stress.sh --profile search-heavy`
-5. Compare measured SLI values to profile SLO class.
-6. Promote only on pass; otherwise keep build immutable and unpromoted.
+4. Run `scripts/check_profile_slo.py` against the promoted candidate build endpoint.
+5. Compare measured SLI values to profile SLO class (search/detail p95/p99, error rate, API memory).
+6. Promote only on pass; otherwise rollback `served/current` to the previous build.
 
 ## Execution Runbook (Current Scripts)
 
@@ -207,6 +204,7 @@ Measurement tooling:
    - `scripts/materialize_galaxy.sh <build_id>`
 2. Build/promote sliced core with explicit profile metadata:
    - `scripts/build_core_slice.sh --from-cooked --profile-id <id> --profile-version <ver> --source-galaxy-build-id <build_id> ...slice knobs...`
+   - promotion now runs `scripts/check_profile_slo.py` by default for profile-tagged builds (`SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO=1`)
 3. Build halo complement from the (`galaxy`, `core`) pair:
    - `scripts/build_halo.sh --galaxy-build-id <galaxy_build_id> --core-build-id <core_build_id>`
 

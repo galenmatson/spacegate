@@ -1,4 +1,4 @@
-# Spacegate v0.1 API Spec (Read-only)
+# Spacegate API Spec (Gaia-first)
 
 Base URL: `http://<host>:8000/api/v1`
 
@@ -8,20 +8,25 @@ Base URL: `http://<host>:8000/api/v1`
 - Pagination uses cursor-based keyset pagination.
 - Responses include provenance and match confidence fields.
 
+## Gaia-First Contract Review (2026-03-16)
+- canonical star/system provenance examples now reflect Gaia DR3-first inventory.
+- alias examples now reflect authority/cross-catalog alias ingestion (not AT-HYG-origin placeholders).
+- search/detail field semantics remain backward-compatible for the public UI and admin tooling.
+
 ## Common Types
 
 ### Provenance
 ```json
 {
-  "source_catalog": "athyg",
-  "source_version": "v3.3",
+  "source_catalog": "gaia_dr3",
+  "source_version": "dr3_gaia_source_parallax_gte_3.26156",
   "source_url": "https://...",
   "source_download_url": "https://...",
   "source_doi": null,
-  "source_pk": 196694,
-  "source_row_id": 196694,
+  "source_pk": 19316224572460416,
+  "source_row_id": 19316224572460416,
   "source_row_hash": null,
-  "license": "CC BY-SA 4.0",
+  "license": "ESA Gaia Archive terms",
   "redistribution_ok": true,
   "license_note": "https://...",
   "retrieval_etag": null,
@@ -348,7 +353,7 @@ Response 200:
         "height_px": 560,
         "url": "/api/v1/snapshots/2026-02-19T221543Z_2774126/snapshots/system_card/system_gaia_19316224572460416/ea9f1d1a15216a90.svg"
       },
-      "provenance": {"source_catalog":"athyg", "source_version":"v3.3", "license":"CC BY-SA 4.0", "redistribution_ok":true, "retrieved_at":"...", "transform_version":"...", "source_url":"...", "source_download_url":"...", "source_pk":196694, "source_row_id":196694, "source_row_hash":null, "license_note":"...", "retrieval_etag":null, "retrieval_checksum":"...", "ingested_at":"...", "source_doi":null}
+      "provenance": {"source_catalog":"gaia_dr3", "source_version":"dr3_gaia_source_parallax_gte_3.26156", "license":"ESA Gaia Archive terms", "redistribution_ok":true, "retrieved_at":"...", "transform_version":"...", "source_url":"...", "source_download_url":"...", "source_pk":19316224572460416, "source_row_id":19316224572460416, "source_row_hash":null, "license_note":"...", "retrieval_etag":null, "retrieval_checksum":"...", "ingested_at":"...", "source_doi":null}
     }
   ],
   "next_cursor": "<opaque>",
@@ -383,8 +388,8 @@ Response 200:
         "alias_kind": "member_proper_name",
         "alias_priority": 21,
         "is_primary": false,
-        "source_catalog": "athyg_crosswalk",
-        "source_version": "v3.3"
+        "source_catalog": "name_authority",
+        "source_version": "2026-03"
       }
     ]
   },
@@ -436,8 +441,8 @@ Response 200:
           "alias_kind": "proper_name",
           "alias_priority": 1,
           "is_primary": false,
-          "source_catalog": "athyg_crosswalk",
-          "source_version": "v3.3"
+          "source_catalog": "name_authority",
+          "source_version": "2026-03"
         }
       ],
       "provenance": { /* full provenance */ }

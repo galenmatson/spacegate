@@ -13,7 +13,7 @@ import duckdb
 
 MSC_VERSION_FALLBACK = "2024-01-01"
 VSX_VERSION_FALLBACK = "vsx_dat"
-VSX_URL_FALLBACK = "ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat"
+VSX_URL_FALLBACK = "https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat"
 ULTRACOOLSHEET_VERSION_FALLBACK = "UltracoolSheet_Main"
 ULTRACOOLSHEET_URL_FALLBACK = (
     "https://docs.google.com/spreadsheets/d/1i98ft8g5mzPp2DNno0kcz4B9nzMxdpyz5UquAVhz-U8/"

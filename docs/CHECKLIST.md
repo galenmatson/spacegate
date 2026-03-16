@@ -40,7 +40,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Slice profile catalog + draft SLO targets documented in `SLICE_PROFILES.md`
 - [x] Build metadata persists `slice_profile_id` + `slice_profile_version` on sliced builds
 - [x] Arm artifact contract and promotion rules documented (`arm.duckdb`)
-- [ ] API contract review completed for Gaia-first field semantics
+- [x] API contract review completed for Gaia-first field semantics
 
 ### C2. Phase A - Gaia Backbone Pilot
 
@@ -59,8 +59,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Define deterministic `core_product_slice` policy over backbone
 - [x] Materialize complementary `halo` artifacts from `galaxy` + sliced `core` builds
 - [ ] Add explicit deep-query plumbing over `halo`/`galaxy` in API/UI
-- [ ] Enforce profile-specific SLO gates during promote
-- [ ] Validate p95/p99 search and detail latency on proton
+- [x] Enforce profile-specific SLO gates during promote
+- [x] Validate p95/p99 search and detail latency on proton
 
 ### C4. Phase C - Multiplicity Reintegration on Gaia IDs
 
@@ -117,7 +117,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ## D) Security and Data Hygiene
 
-- [ ] No default production dependency on insecure transport sources
+- [x] No default production dependency on insecure transport sources
 - [x] Source mirror strategy documented for fragile external dependencies
 - [x] Retention policy documented (builds, reports, backups, large catalogs)
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)

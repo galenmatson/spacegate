@@ -16,6 +16,8 @@ Use this as the historical ledger for:
 - deterministic alias and identifier reconciliation with quarantine and duplicate-trap QC gates
 - exoplanet lifecycle overlay pipeline + differential refresh path
 - host-name promotion for Gaia-fallback display names (for example TRAPPIST/Kepler/TOI/WASP)
+- profile-scoped SLO verification path and promote-time rollback gate for sliced builds
+- default catalog transport hardened to HTTPS for default-on sources
 
 ## Catalog Attempt Ledger (v1.2 Closeout)
 
@@ -146,6 +148,16 @@ Representative commits:
 
 Representative commits:
 - `0050ade`, `ea194cf` and follow-up closeout commits
+
+### 10) Promote Gating + Transport Hardening
+
+- Added profile SLO evaluator (`scripts/check_profile_slo.py`) capturing search/detail p95/p99, error rate, and API memory.
+- Wired promote-time SLO gate with rollback-on-failure for profile-tagged builds (`scripts/promote_build.sh`).
+- Recorded proton latency evidence in per-build report (`reports/<build_id>/slo_profile_report.json`).
+- Removed default FTP transport for default-on CDS feeds (Gaia UCD, VSX) by switching defaults to HTTPS mirrors.
+
+Representative commits:
+- `30906b9` and follow-up hardening commits
 
 ## Recurrent Defect Classes and Mitigations
 

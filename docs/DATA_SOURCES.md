@@ -166,7 +166,7 @@ Role:
 
 Source endpoint:
 
-- CDS FTP mirror (`ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/669/A139/table4.dat`)
+- CDS HTTPS mirror (`https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/table4.dat`)
 
 ## Core Auxiliary Multiplicity Sources
 
@@ -280,7 +280,7 @@ Role:
 
 Source endpoint:
 
-- CDS mirror (`ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat`)
+- CDS HTTPS mirror (`https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat`)
 
 ## 11) UltracoolSheet
 
