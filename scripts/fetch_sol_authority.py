@@ -20,32 +20,48 @@ USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 # - 8 major planets
 # - 5 commonly accepted dwarf planets (UI supergroup alias retained)
 # - S2 bootstrap moons for hierarchy/orbit graphing in arm
+# - S3 named small-body bootstrap (minor bodies with deterministic family tags)
 OBJECTS = [
-    {"source_pk": 1, "name": "Sun", "object_class": "star", "command": "10", "center": "500@0"},
-    {"source_pk": 2, "name": "Mercury", "object_class": "planet", "command": "199", "center": "500@10"},
-    {"source_pk": 3, "name": "Venus", "object_class": "planet", "command": "299", "center": "500@10"},
-    {"source_pk": 4, "name": "Earth", "object_class": "planet", "command": "399", "center": "500@10"},
-    {"source_pk": 5, "name": "Mars", "object_class": "planet", "command": "499", "center": "500@10"},
-    {"source_pk": 6, "name": "Jupiter", "object_class": "planet", "command": "599", "center": "500@10"},
-    {"source_pk": 7, "name": "Saturn", "object_class": "planet", "command": "699", "center": "500@10"},
-    {"source_pk": 8, "name": "Uranus", "object_class": "planet", "command": "799", "center": "500@10"},
-    {"source_pk": 9, "name": "Neptune", "object_class": "planet", "command": "899", "center": "500@10"},
-    {"source_pk": 10, "name": "Pluto", "object_class": "dwarf_planet", "command": "999", "center": "500@10"},
-    {"source_pk": 11, "name": "Ceres", "object_class": "dwarf_planet", "command": "1", "center": "500@10"},
-    {"source_pk": 12, "name": "Eris", "object_class": "dwarf_planet", "command": "136199", "center": "500@10"},
-    {"source_pk": 13, "name": "Haumea", "object_class": "dwarf_planet", "command": "136108", "center": "500@10"},
-    {"source_pk": 14, "name": "Makemake", "object_class": "dwarf_planet", "command": "136472", "center": "500@10"},
-    {"source_pk": 15, "name": "Moon", "object_class": "moon", "command": "301", "center": "500@399"},
-    {"source_pk": 16, "name": "Phobos", "object_class": "moon", "command": "401", "center": "500@499"},
-    {"source_pk": 17, "name": "Deimos", "object_class": "moon", "command": "402", "center": "500@499"},
-    {"source_pk": 18, "name": "Io", "object_class": "moon", "command": "501", "center": "500@599"},
-    {"source_pk": 19, "name": "Europa", "object_class": "moon", "command": "502", "center": "500@599"},
-    {"source_pk": 20, "name": "Ganymede", "object_class": "moon", "command": "503", "center": "500@599"},
-    {"source_pk": 21, "name": "Callisto", "object_class": "moon", "command": "504", "center": "500@599"},
-    {"source_pk": 22, "name": "Titan", "object_class": "moon", "command": "606", "center": "500@699"},
-    {"source_pk": 23, "name": "Enceladus", "object_class": "moon", "command": "602", "center": "500@699"},
-    {"source_pk": 24, "name": "Triton", "object_class": "moon", "command": "801", "center": "500@899"},
-    {"source_pk": 25, "name": "Charon", "object_class": "moon", "command": "901", "center": "500@999"},
+    {"source_pk": 1, "name": "Sun", "object_class": "star", "object_kind": "star", "command": "10", "center": "500@0"},
+    {"source_pk": 2, "name": "Mercury", "object_class": "planet", "object_kind": "planet", "command": "199", "center": "500@10"},
+    {"source_pk": 3, "name": "Venus", "object_class": "planet", "object_kind": "planet", "command": "299", "center": "500@10"},
+    {"source_pk": 4, "name": "Earth", "object_class": "planet", "object_kind": "planet", "command": "399", "center": "500@10"},
+    {"source_pk": 5, "name": "Mars", "object_class": "planet", "object_kind": "planet", "command": "499", "center": "500@10"},
+    {"source_pk": 6, "name": "Jupiter", "object_class": "planet", "object_kind": "planet", "command": "599", "center": "500@10"},
+    {"source_pk": 7, "name": "Saturn", "object_class": "planet", "object_kind": "planet", "command": "699", "center": "500@10"},
+    {"source_pk": 8, "name": "Uranus", "object_class": "planet", "object_kind": "planet", "command": "799", "center": "500@10"},
+    {"source_pk": 9, "name": "Neptune", "object_class": "planet", "object_kind": "planet", "command": "899", "center": "500@10"},
+    {"source_pk": 10, "name": "Pluto", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "999", "center": "500@10"},
+    {"source_pk": 11, "name": "Ceres", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "1", "center": "500@10"},
+    {"source_pk": 12, "name": "Eris", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136199", "center": "500@10"},
+    {"source_pk": 13, "name": "Haumea", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136108", "center": "500@10"},
+    {"source_pk": 14, "name": "Makemake", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136472", "center": "500@10"},
+    {"source_pk": 15, "name": "Moon", "object_class": "moon", "object_kind": "moon", "command": "301", "center": "500@399"},
+    {"source_pk": 16, "name": "Phobos", "object_class": "moon", "object_kind": "moon", "command": "401", "center": "500@499"},
+    {"source_pk": 17, "name": "Deimos", "object_class": "moon", "object_kind": "moon", "command": "402", "center": "500@499"},
+    {"source_pk": 18, "name": "Io", "object_class": "moon", "object_kind": "moon", "command": "501", "center": "500@599"},
+    {"source_pk": 19, "name": "Europa", "object_class": "moon", "object_kind": "moon", "command": "502", "center": "500@599"},
+    {"source_pk": 20, "name": "Ganymede", "object_class": "moon", "object_kind": "moon", "command": "503", "center": "500@599"},
+    {"source_pk": 21, "name": "Callisto", "object_class": "moon", "object_kind": "moon", "command": "504", "center": "500@599"},
+    {"source_pk": 22, "name": "Titan", "object_class": "moon", "object_kind": "moon", "command": "606", "center": "500@699"},
+    {"source_pk": 23, "name": "Enceladus", "object_class": "moon", "object_kind": "moon", "command": "602", "center": "500@699"},
+    {"source_pk": 24, "name": "Triton", "object_class": "moon", "object_kind": "moon", "command": "801", "center": "500@899"},
+    {"source_pk": 25, "name": "Charon", "object_class": "moon", "object_kind": "moon", "command": "901", "center": "500@999"},
+    {"source_pk": 101, "name": "Vesta", "object_class": "minor_body", "object_kind": "asteroid", "command": "4", "center": "500@10"},
+    {"source_pk": 102, "name": "Pallas", "object_class": "minor_body", "object_kind": "asteroid", "command": "2", "center": "500@10"},
+    {"source_pk": 103, "name": "Juno", "object_class": "minor_body", "object_kind": "asteroid", "command": "3", "center": "500@10"},
+    {"source_pk": 104, "name": "Hygiea", "object_class": "minor_body", "object_kind": "asteroid", "command": "10;", "center": "500@10"},
+    {"source_pk": 105, "name": "Psyche", "object_class": "minor_body", "object_kind": "asteroid", "command": "16", "center": "500@10"},
+    {"source_pk": 106, "name": "Eros", "object_class": "minor_body", "object_kind": "asteroid", "command": "433", "center": "500@10"},
+    {"source_pk": 107, "name": "Bennu", "object_class": "minor_body", "object_kind": "asteroid", "command": "101955", "center": "500@10"},
+    {"source_pk": 108, "name": "Ryugu", "object_class": "minor_body", "object_kind": "asteroid", "command": "162173", "center": "500@10"},
+    {"source_pk": 109, "name": "Itokawa", "object_class": "minor_body", "object_kind": "asteroid", "command": "25143", "center": "500@10"},
+    {"source_pk": 201, "name": "Sedna", "object_class": "minor_body", "object_kind": "tno", "command": "90377", "center": "500@10"},
+    {"source_pk": 202, "name": "Quaoar", "object_class": "minor_body", "object_kind": "tno", "command": "50000", "center": "500@10"},
+    {"source_pk": 203, "name": "Orcus", "object_class": "minor_body", "object_kind": "tno", "command": "90482", "center": "500@10"},
+    {"source_pk": 204, "name": "Gonggong", "object_class": "minor_body", "object_kind": "tno", "command": "225088", "center": "500@10"},
+    {"source_pk": 205, "name": "Varuna", "object_class": "minor_body", "object_kind": "tno", "command": "20000", "center": "500@10"},
+    {"source_pk": 301, "name": "67P/Churyumov-Gerasimenko", "object_class": "minor_body", "object_kind": "comet", "command": "1000012", "center": "500@10"},
 ]
 
 PARENT_BY_NAME = {
@@ -257,8 +273,9 @@ def main() -> int:
             )
         object_name_norm = str(obj["name"]).strip().lower()
         object_class = str(obj["object_class"]).strip().lower()
+        object_kind = str(obj.get("object_kind") or object_class).strip().lower()
         parent_object_name = ""
-        if object_class in {"planet", "dwarf_planet", "subplanet"}:
+        if object_class in {"planet", "dwarf_planet", "subplanet", "minor_body"}:
             parent_object_name = "Sun"
         elif object_class == "moon":
             parent_object_name = PARENT_BY_NAME.get(object_name_norm, "")
@@ -268,6 +285,7 @@ def main() -> int:
             "source_pk": int(obj["source_pk"]),
             "object_name": str(obj["name"]),
             "object_class": object_class,
+            "object_kind": object_kind,
             "object_class_aliases_json": OBJECT_CLASS_ALIASES.get(object_class, "[]"),
             "parent_object_name": parent_object_name,
             "horizons_command": str(obj["command"]),
@@ -289,6 +307,7 @@ def main() -> int:
         "source_pk",
         "object_name",
         "object_class",
+        "object_kind",
         "object_class_aliases_json",
         "parent_object_name",
         "horizons_command",
@@ -324,7 +343,7 @@ def main() -> int:
                 "start_time": args.start_time,
                 "stop_time": args.stop_time,
                 "ephem_type": "ELEMENTS",
-                "center_policy": "500@0 for Sun, heliocentric for planets/dwarf_planets, host-centered for moons",
+                "center_policy": "500@0 for Sun, heliocentric for planets/dwarf_planets/minor_bodies, host-centered for moons",
                 "objects": ",".join(str(obj["command"]) for obj in OBJECTS),
             },
         }

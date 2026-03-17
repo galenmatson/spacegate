@@ -368,6 +368,7 @@ required_tables = {
     "orbit_edges",
     "orbital_solutions",
     "barycenters",
+    "sol_small_body_objects",
 }
 present = {
     row[0]
@@ -442,6 +443,61 @@ if barycenter_count < 2:
 print(
     f"OK: Sol S2 gate (moon_components={moon_component_count}, "
     f"satellite_orbits={satellite_orbit_count}, barycenters={barycenter_count})"
+)
+
+small_body_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from sol_small_body_objects
+        where source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if small_body_count < 10:
+    raise SystemExit(
+        f"Sol S3 gate failed: expected >=10 named minor bodies in sol_small_body_objects, got {small_body_count}"
+    )
+
+asteroid_count = int(
+    con.execute("select count(*)::bigint from sol_small_body_objects where body_kind = 'asteroid'").fetchone()[0]
+    or 0
+)
+tno_count = int(
+    con.execute("select count(*)::bigint from sol_small_body_objects where body_kind = 'tno'").fetchone()[0]
+    or 0
+)
+comet_count = int(
+    con.execute("select count(*)::bigint from sol_small_body_objects where body_kind = 'comet'").fetchone()[0]
+    or 0
+)
+if asteroid_count < 5 or tno_count < 3 or comet_count < 1:
+    raise SystemExit(
+        "Sol S3 gate failed: expected asteroid/tno/comet coverage "
+        f"(got asteroids={asteroid_count}, tnos={tno_count}, comets={comet_count})"
+    )
+
+small_body_orbit_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from orbit_edges
+        where relation_kind = 'orbits'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if small_body_orbit_count < small_body_count:
+    raise SystemExit(
+        "Sol S3 gate failed: missing orbit edges for one or more small bodies "
+        f"(objects={small_body_count}, orbit_edges={small_body_orbit_count})"
+    )
+
+print(
+    f"OK: Sol S3 gate (minor_bodies={small_body_count}, "
+    f"asteroids={asteroid_count}, tnos={tno_count}, comets={comet_count})"
 )
 PY
   else

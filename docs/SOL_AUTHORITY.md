@@ -33,9 +33,17 @@ S1 does not include moons/comets/spacecraft as first-class rows in `core`.
 - add barycenter nodes where needed for stable animation graph composition
 - keep these rows out of core hot paths
 
-## S3: small-body expansion
+## S3 (implemented initial set): small-body expansion
 
-- add asteroids/comets/TNO support into `arm`/`halo` with confidence and staleness metadata
+- add named asteroids/comets/TNO support into `arm` with confidence and staleness metadata
+- keep canonical core hot paths unchanged
+- current deterministic bootstrap includes:
+  - asteroids: Vesta, Pallas, Juno, Hygiea, Psyche, Eros, Bennu, Ryugu, Itokawa
+  - TNOs: Sedna, Quaoar, Orcus, Gonggong, Varuna
+  - comet: 67P/Churyumov-Gerasimenko
+
+Note:
+- S3 currently materializes in `arm`; `halo` projection integration is pending `halo` artifact materialization completion.
 
 ## S4: artificial satellites/spacecraft layer
 
@@ -94,6 +102,12 @@ S2 arm checks:
 - Earth->Moon containment edge exists in `system_hierarchy_edges`
 - `satellite` orbit edges exist in `orbit_edges`
 - Earth-Moon and Pluto-Charon barycenter rows exist in `barycenters`
+
+S3 arm checks:
+
+- `sol_small_body_objects` exists and contains deterministic named-body rows
+- asteroid/TNO/comet family coverage is present
+- each S3 small body has corresponding `orbit_edges` relation rows (`relation_kind='orbits'`)
 
 ## Modeling Notes
 

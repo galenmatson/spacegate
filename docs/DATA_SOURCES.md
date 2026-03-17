@@ -151,6 +151,7 @@ Role:
 - ensure Sol and Sun are always present and linked
 - ensure required Sol major-planet coverage independent of exoplanet catalogs
 - provide S2 moon hierarchy/orbit/barycenter evidence in `arm`
+- provide S3 named small-body evidence in `arm` (asteroid/TNO/comet families with staleness metadata)
 - provide deterministic Sol provenance for release gating
 
 Source endpoint:

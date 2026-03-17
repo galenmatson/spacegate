@@ -94,7 +94,7 @@ Columns:
 - `host_component_key TEXT` (often subsystem or barycenter-hosting group)
 - `primary_component_key TEXT`
 - `secondary_component_key TEXT`
-- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|satellite|co_orbit`)
+- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|satellite|orbits|co_orbit`)
 - `barycenter_key TEXT` (nullable)
 - `preferred_solution_id BIGINT` (nullable FK to `orbital_solutions`)
 - `confidence_score DOUBLE`
@@ -189,6 +189,35 @@ Columns:
 - `confidence_score DOUBLE`
 - `computed_at TIMESTAMP`
 - `transform_version TEXT`
+
+## `sol_small_body_objects`
+
+Named Sol-system S3 small-body rows (science layer, default kept out of core hot path).
+
+Columns:
+- `sol_small_body_id BIGINT`
+- `stable_component_key TEXT`
+- `body_name TEXT`
+- `body_name_norm TEXT`
+- `body_kind TEXT` (`asteroid|tno|comet|unknown`)
+- `host_component_key TEXT`
+- `primary_component_key TEXT`
+- `secondary_component_key TEXT`
+- `parent_name TEXT`
+- `parent_name_norm TEXT`
+- `orbital_period_days DOUBLE` (nullable)
+- `semi_major_axis_au DOUBLE` (nullable)
+- `eccentricity DOUBLE` (nullable)
+- `inclination_deg DOUBLE` (nullable)
+- `epoch_tdb_jd DOUBLE` (nullable)
+- `body_mass_kg DOUBLE` (nullable)
+- `body_radius_km DOUBLE` (nullable)
+- `freshness_window_days INTEGER`
+- `staleness_days INTEGER`
+- `is_stale BOOLEAN`
+- `confidence_score DOUBLE`
+- `confidence_tier TEXT`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`, `source_url`)
 
 ## `vsx_variability`
 
