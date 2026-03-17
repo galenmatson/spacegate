@@ -18,7 +18,7 @@ USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
 # Sol authority scope:
 # - Sun
 # - 8 major planets
-# - 5 commonly accepted subplanets (dwarf-planet class; interoperable alias retained)
+# - 5 commonly accepted dwarf planets (UI supergroup alias retained)
 # - S2 bootstrap moons for hierarchy/orbit graphing in arm
 OBJECTS = [
     {"source_pk": 1, "name": "Sun", "object_class": "star", "command": "10", "center": "500@0"},
@@ -30,11 +30,11 @@ OBJECTS = [
     {"source_pk": 7, "name": "Saturn", "object_class": "planet", "command": "699", "center": "500@10"},
     {"source_pk": 8, "name": "Uranus", "object_class": "planet", "command": "799", "center": "500@10"},
     {"source_pk": 9, "name": "Neptune", "object_class": "planet", "command": "899", "center": "500@10"},
-    {"source_pk": 10, "name": "Pluto", "object_class": "subplanet", "command": "999", "center": "500@10"},
-    {"source_pk": 11, "name": "Ceres", "object_class": "subplanet", "command": "1", "center": "500@10"},
-    {"source_pk": 12, "name": "Eris", "object_class": "subplanet", "command": "136199", "center": "500@10"},
-    {"source_pk": 13, "name": "Haumea", "object_class": "subplanet", "command": "136108", "center": "500@10"},
-    {"source_pk": 14, "name": "Makemake", "object_class": "subplanet", "command": "136472", "center": "500@10"},
+    {"source_pk": 10, "name": "Pluto", "object_class": "dwarf_planet", "command": "999", "center": "500@10"},
+    {"source_pk": 11, "name": "Ceres", "object_class": "dwarf_planet", "command": "1", "center": "500@10"},
+    {"source_pk": 12, "name": "Eris", "object_class": "dwarf_planet", "command": "136199", "center": "500@10"},
+    {"source_pk": 13, "name": "Haumea", "object_class": "dwarf_planet", "command": "136108", "center": "500@10"},
+    {"source_pk": 14, "name": "Makemake", "object_class": "dwarf_planet", "command": "136472", "center": "500@10"},
     {"source_pk": 15, "name": "Moon", "object_class": "moon", "command": "301", "center": "500@399"},
     {"source_pk": 16, "name": "Phobos", "object_class": "moon", "command": "401", "center": "500@499"},
     {"source_pk": 17, "name": "Deimos", "object_class": "moon", "command": "402", "center": "500@499"},
@@ -63,7 +63,7 @@ PARENT_BY_NAME = {
 }
 
 OBJECT_CLASS_ALIASES = {
-    "subplanet": '["dwarf_planet"]',
+    "dwarf_planet": '["subplanet"]',
 }
 
 
@@ -258,7 +258,7 @@ def main() -> int:
         object_name_norm = str(obj["name"]).strip().lower()
         object_class = str(obj["object_class"]).strip().lower()
         parent_object_name = ""
-        if object_class in {"planet", "subplanet"}:
+        if object_class in {"planet", "dwarf_planet", "subplanet"}:
             parent_object_name = "Sun"
         elif object_class == "moon":
             parent_object_name = PARENT_BY_NAME.get(object_name_norm, "")
@@ -324,7 +324,7 @@ def main() -> int:
                 "start_time": args.start_time,
                 "stop_time": args.stop_time,
                 "ephem_type": "ELEMENTS",
-                "center_policy": "500@0 for Sun, heliocentric for planets/subplanets, host-centered for moons",
+                "center_policy": "500@0 for Sun, heliocentric for planets/dwarf_planets, host-centered for moons",
                 "objects": ",".join(str(obj["command"]) for obj in OBJECTS),
             },
         }
