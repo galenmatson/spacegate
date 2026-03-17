@@ -759,6 +759,26 @@ function formatPeriodDaysWithYears(periodDays) {
   return `${dayLabel} (${formatNumber(years, yearDigits)} y)`;
 }
 
+function formatOrbitSummary({ periodDays, semiMajorAxisAu, eccentricity, inclinationDeg }) {
+  const bits = [];
+  if (periodDays !== null && periodDays !== undefined && Number.isFinite(Number(periodDays))) {
+    bits.push(`P ${formatPeriodDaysWithYears(periodDays)}`);
+  }
+  if (semiMajorAxisAu !== null && semiMajorAxisAu !== undefined && Number.isFinite(Number(semiMajorAxisAu))) {
+    bits.push(`a ${formatNumber(semiMajorAxisAu, 4)} AU`);
+  }
+  if (eccentricity !== null && eccentricity !== undefined && Number.isFinite(Number(eccentricity))) {
+    bits.push(`e ${formatNumber(eccentricity, 4)}`);
+  }
+  if (inclinationDeg !== null && inclinationDeg !== undefined && Number.isFinite(Number(inclinationDeg))) {
+    bits.push(`i ${formatNumber(inclinationDeg, 3)} deg`);
+  }
+  if (bits.length === 0) {
+    return "Orbit parameters unavailable";
+  }
+  return bits.join(" · ");
+}
+
 function formatConfidence(value) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "Unknown";
@@ -1470,6 +1490,119 @@ function SnapshotMetadata({ system, snapshot }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function SolHierarchyPanel({ hierarchy }) {
+  if (!hierarchy || hierarchy.is_sol !== true) {
+    return null;
+  }
+  const counts = hierarchy.counts || {};
+  const moons = Array.isArray(hierarchy.moons) ? hierarchy.moons : [];
+  const smallBodies = Array.isArray(hierarchy.small_bodies) ? hierarchy.small_bodies : [];
+  const artificialObjects = Array.isArray(hierarchy.artificial_objects) ? hierarchy.artificial_objects : [];
+
+  const smallBodiesPreview = smallBodies.slice(0, 24);
+  const artificialPreview = artificialObjects.slice(0, 24);
+
+  return (
+    <section className="panel">
+      <h3>Sol Arm Hierarchy</h3>
+      <p className="muted">
+        Extended Sol hierarchy lives in the arm overlay for analysis/animation and can be refreshed independently from core slices.
+      </p>
+      <div className="sol-hierarchy-kpis">
+        <div><strong>Moons</strong><span>{formatNumber(counts.moons, 0)}</span></div>
+        <div><strong>Minor Bodies</strong><span>{formatNumber(counts.small_bodies, 0)}</span></div>
+        <div><strong>Artificial Objects</strong><span>{formatNumber(counts.artificial_objects, 0)}</span></div>
+        <div>
+          <strong>Stale Rows</strong>
+          <span>
+            {formatNumber((counts.stale_small_bodies || 0) + (counts.stale_artificial_objects || 0), 0)}
+          </span>
+        </div>
+      </div>
+
+      <h4>Moons</h4>
+      {moons.length === 0 ? <p className="muted">No arm moon hierarchy rows are present.</p> : (
+        <div className="table">
+          {moons.map((row) => (
+            <div className="row" key={row.stable_component_key}>
+              <div>
+                <strong>{formatText(row.display_name)}</strong>
+                <div className="muted">Parent {formatText(row.parent_name)}</div>
+              </div>
+              <div className="muted">{formatOrbitSummary({
+                periodDays: row.period_days,
+                semiMajorAxisAu: row.semi_major_axis_au,
+                eccentricity: row.eccentricity,
+                inclinationDeg: row.inclination_deg,
+              })}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h4>Minor Bodies</h4>
+      {smallBodies.length === 0 ? <p className="muted">No Sol small-body overlay rows are present.</p> : (
+        <>
+          <div className="table">
+            {smallBodiesPreview.map((row) => (
+              <div className="row" key={row.stable_component_key}>
+                <div>
+                  <strong>{formatText(row.body_name)}</strong>
+                  <div className="muted">Kind {formatText(row.body_kind)} · Parent {formatText(row.parent_name)}</div>
+                </div>
+                <div className="muted">
+                  {formatOrbitSummary({
+                    periodDays: row.orbital_period_days,
+                    semiMajorAxisAu: row.semi_major_axis_au,
+                    eccentricity: row.eccentricity,
+                    inclinationDeg: row.inclination_deg,
+                  })}
+                  {row.is_stale ? <span className="warning-chip">Stale {formatNumber(row.staleness_days, 0)} d</span> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+          {smallBodies.length > smallBodiesPreview.length ? (
+            <p className="muted">
+              Showing {formatNumber(smallBodiesPreview.length, 0)} of {formatNumber(smallBodies.length, 0)} minor-body rows.
+            </p>
+          ) : null}
+        </>
+      )}
+
+      <h4>Artificial Objects</h4>
+      {artificialObjects.length === 0 ? <p className="muted">No Sol artificial-object overlay rows are present.</p> : (
+        <>
+          <div className="table">
+            {artificialPreview.map((row) => (
+              <div className="row" key={row.stable_component_key}>
+                <div>
+                  <strong>{formatText(row.artifact_name)}</strong>
+                  <div className="muted">Kind {formatText(row.artifact_kind)} · Parent {formatText(row.parent_name)}</div>
+                </div>
+                <div className="muted">
+                  {formatOrbitSummary({
+                    periodDays: row.orbital_period_days,
+                    semiMajorAxisAu: row.semi_major_axis_au,
+                    eccentricity: row.eccentricity,
+                    inclinationDeg: row.inclination_deg,
+                  })}
+                  {row.is_stale ? <span className="warning-chip">Stale {formatNumber(row.staleness_days, 0)} d</span> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+          {artificialObjects.length > artificialPreview.length ? (
+            <p className="muted">
+              Showing {formatNumber(artificialPreview.length, 0)} of {formatNumber(artificialObjects.length, 0)} artificial rows.
+            </p>
+          ) : null}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -2869,7 +3002,7 @@ function SystemDetailPage({ buildId = "" }) {
     );
   }
 
-  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [] } = data;
+  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], sol_hierarchy: solHierarchy = null } = data;
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
     exclude: [currentSystemDisplayName, system?.system_name],
@@ -3074,6 +3207,8 @@ function SystemDetailPage({ buildId = "" }) {
             </div>
           )}
         </section>
+
+        <SolHierarchyPanel hierarchy={solHierarchy} />
 
         <section className="panel">
           <h3>Eclipsing Evidence</h3>

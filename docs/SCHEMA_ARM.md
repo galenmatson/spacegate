@@ -43,7 +43,7 @@ Canonical component registry for hierarchy assembly.
 Columns:
 - `component_entity_id BIGINT`
 - `stable_component_key TEXT` (deterministic, cross-build stable where possible)
-- `component_type TEXT` (`system|star|planet|subplanet|moon|minor_body|region|brown_dwarf|compact|cluster_member|unresolved_component`)
+- `component_type TEXT` (`system|star|planet|subplanet|moon|minor_body|artificial|region|brown_dwarf|compact|cluster_member|unresolved_component`)
 - `core_object_type TEXT` (`system|star|planet|NULL`)
 - `core_object_id BIGINT` (nullable; links to core if present)
 - `display_name TEXT`
@@ -94,7 +94,7 @@ Columns:
 - `host_component_key TEXT` (often subsystem or barycenter-hosting group)
 - `primary_component_key TEXT`
 - `secondary_component_key TEXT`
-- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|satellite|orbits|co_orbit`)
+- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|satellite|orbits|artificial_orbit|co_orbit`)
 - `barycenter_key TEXT` (nullable)
 - `preferred_solution_id BIGINT` (nullable FK to `orbital_solutions`)
 - `confidence_score DOUBLE`
@@ -212,6 +212,37 @@ Columns:
 - `epoch_tdb_jd DOUBLE` (nullable)
 - `body_mass_kg DOUBLE` (nullable)
 - `body_radius_km DOUBLE` (nullable)
+- `freshness_window_days INTEGER`
+- `staleness_days INTEGER`
+- `is_stale BOOLEAN`
+- `confidence_score DOUBLE`
+- `confidence_tier TEXT`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`, `source_url`)
+
+## `sol_artificial_objects`
+
+Named Sol-system S4 artificial rows (stations/probes/orbiters; science overlay kept out of core hot path).
+
+Columns:
+- `sol_artificial_id BIGINT`
+- `stable_component_key TEXT`
+- `artifact_name TEXT`
+- `artifact_name_norm TEXT`
+- `artifact_kind TEXT` (`station|space_telescope|deep_space_probe|planetary_orbiter|artificial`)
+- `host_component_key TEXT`
+- `primary_component_key TEXT`
+- `secondary_component_key TEXT`
+- `parent_name TEXT`
+- `parent_name_norm TEXT`
+- `center_code TEXT`
+- `target_body_name TEXT` (raw Horizons target body label)
+- `orbital_period_days DOUBLE` (nullable)
+- `semi_major_axis_au DOUBLE` (nullable)
+- `eccentricity DOUBLE` (nullable)
+- `inclination_deg DOUBLE` (nullable)
+- `epoch_tdb_jd DOUBLE` (nullable)
+- `artifact_mass_kg DOUBLE` (nullable)
+- `artifact_radius_km DOUBLE` (nullable)
 - `freshness_window_days INTEGER`
 - `staleness_days INTEGER`
 - `is_stale BOOLEAN`

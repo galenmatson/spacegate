@@ -18,7 +18,8 @@ Use this as the historical ledger for:
 - host-name promotion for Gaia-fallback display names (for example TRAPPIST/Kepler/TOI/WASP)
 - profile-scoped SLO verification path and promote-time rollback gate for sliced builds
 - default catalog transport hardened to HTTPS for default-on sources
-- Sol authority S1+S2: canonical Sol/subplanet bootstrap in core plus moon/orbit/barycenter hierarchy in arm
+- Sol authority S1+S4: canonical Sol/subplanet bootstrap in core plus moon/minor-body/artificial hierarchy+orbit overlays in arm
+- Sol volatile-feed refresh runbook and staleness monitoring report
 
 ## Catalog Attempt Ledger (v1.2 Closeout)
 
@@ -169,6 +170,17 @@ Representative commits:
 
 Representative commits:
 - `281f173` and follow-up S2 commit(s)
+
+### 12) Sol S3 Broadening + S4 Artificial Overlay
+
+- Expanded deterministic Sol S3 small-body coverage (broader asteroid/TNO set, including Ixion-class objects).
+- Added S4 curated artificial-object feed from JPL Horizons with freshness windows.
+- Materialized `sol_artificial_objects` plus hierarchy/orbit/solution rows in `arm`.
+- Added halo-arm projection support for Sol overlays and verify gates for S4.
+- Added volatile refresh/staleness scripts (`refresh_sol_volatile.sh`, `report_sol_volatile.py`).
+
+Representative commits:
+- pending (feature/v1-2-packs-foundation working set)
 
 ## Recurrent Defect Classes and Mitigations
 

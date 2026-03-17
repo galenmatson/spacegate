@@ -3497,6 +3497,30 @@ main {
   font-size: 0.95rem;
 }
 
+.sol-hierarchy-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sol-hierarchy-kpis > div {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.sol-hierarchy-kpis > div > strong {
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
 .system-identifiers-row {
   display: flex;
   align-items: center;

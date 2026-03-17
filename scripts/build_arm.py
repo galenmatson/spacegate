@@ -21,6 +21,8 @@ ULTRACOOLSHEET_URL_FALLBACK = (
 )
 SOL_AUTHORITY_VERSION_FALLBACK = "horizons_s1"
 SOL_AUTHORITY_URL_FALLBACK = "https://ssd.jpl.nasa.gov/api/horizons.api"
+SOL_ARTIFICIAL_VERSION_FALLBACK = "horizons_s4"
+SOL_ARTIFICIAL_URL_FALLBACK = "https://ssd.jpl.nasa.gov/api/horizons.api"
 
 
 def log(message: str) -> None:
@@ -81,15 +83,18 @@ def main() -> int:
     cooked_vsx = state_dir / "cooked" / "vsx" / "vsx_variability.csv"
     cooked_ultracoolsheet = state_dir / "cooked" / "ultracoolsheet" / "ultracoolsheet_objects.csv"
     cooked_sol_authority = state_dir / "cooked" / "sol_authority" / "sol_system_objects.csv"
+    cooked_sol_artificial = state_dir / "cooked" / "sol_artificial" / "sol_artificial_objects.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     vsx_manifest_path = manifest_dir / "vsx_manifest.json"
     ultracoolsheet_manifest_path = manifest_dir / "ultracoolsheet_manifest.json"
     sol_authority_manifest_path = manifest_dir / "sol_authority_manifest.json"
+    sol_artificial_manifest_path = manifest_dir / "sol_artificial_manifest.json"
     core_manifest_path = manifest_dir / "core_manifest.json"
     enable_vsx = parse_bool_env("SPACEGATE_ENABLE_VSX", True)
     enable_ultracoolsheet = parse_bool_env("SPACEGATE_ENABLE_ULTRACOOLSHEET", True)
     enable_sol_authority = parse_bool_env("SPACEGATE_ENABLE_SOL_AUTHORITY", True)
+    enable_sol_artificial = parse_bool_env("SPACEGATE_ENABLE_SOL_ARTIFICIAL", True)
 
     if not core_db.exists():
         raise SystemExit(f"Core DB not found: {core_db}")
@@ -106,6 +111,9 @@ def main() -> int:
         ultracoolsheet_manifest_path, "UltracoolSheet_Main"
     )
     sol_authority_manifest = load_manifest_entry(sol_authority_manifest_path, "sol_system_objects")
+    sol_artificial_manifest = load_manifest_entry(
+        sol_artificial_manifest_path, "sol_artificial_objects"
+    )
     msc_version = str(msc_manifest.get("source_version") or MSC_VERSION_FALLBACK)
     msc_checksum = str(msc_manifest.get("sha256") or "")
     msc_retrieved = str(msc_manifest.get("retrieved_at") or "")
@@ -125,6 +133,12 @@ def main() -> int:
     sol_authority_checksum = str(sol_authority_manifest.get("sha256") or "")
     sol_authority_retrieved = str(sol_authority_manifest.get("retrieved_at") or "")
     sol_authority_url = str(sol_authority_manifest.get("url") or SOL_AUTHORITY_URL_FALLBACK)
+    sol_artificial_version = str(
+        sol_artificial_manifest.get("source_version") or SOL_ARTIFICIAL_VERSION_FALLBACK
+    )
+    sol_artificial_checksum = str(sol_artificial_manifest.get("sha256") or "")
+    sol_artificial_retrieved = str(sol_artificial_manifest.get("retrieved_at") or "")
+    sol_artificial_url = str(sol_artificial_manifest.get("url") or SOL_ARTIFICIAL_URL_FALLBACK)
 
     log(f"Arm build start (build_id={args.build_id}, core_db={core_db}, arm_db={arm_db})")
     con = duckdb.connect(str(arm_db))
@@ -311,6 +325,46 @@ def main() -> int:
             """
         )
 
+    if enable_sol_artificial and cooked_sol_artificial.exists():
+        con.execute(
+            f"""
+            create or replace temp view sol_artificial_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_sol_artificial))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view sol_artificial_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              source_pk, object_name, object_class, object_kind, parent_object_name, horizons_command, center_code,
+              epoch_tdb_jd, eccentricity, inclination_deg, semi_major_axis_au, orbital_period_days, radius_km,
+              mass_kg, freshness_window_days, target_body_name, horizons_query_url, retrieved_at, source_row_hash
+            )
+            where false
+            """
+        )
+
     con.execute("create table build_metadata as select * from core.build_metadata")
     con.execute(
         f"""
@@ -329,7 +383,10 @@ def main() -> int:
           ('arm_source_ultracoolsheet_enabled', {sql_literal("1" if enable_ultracoolsheet else "0")}),
           ('arm_source_sol_authority_csv', {sql_literal(str(cooked_sol_authority) if cooked_sol_authority.exists() else '')}),
           ('arm_source_sol_authority_version', {sql_literal(sol_authority_version)}),
-          ('arm_source_sol_authority_enabled', {sql_literal("1" if enable_sol_authority else "0")})
+          ('arm_source_sol_authority_enabled', {sql_literal("1" if enable_sol_authority else "0")}),
+          ('arm_source_sol_artificial_csv', {sql_literal(str(cooked_sol_artificial) if cooked_sol_artificial.exists() else '')}),
+          ('arm_source_sol_artificial_version', {sql_literal(sol_artificial_version)}),
+          ('arm_source_sol_artificial_enabled', {sql_literal("1" if enable_sol_artificial else "0")})
         """
     )
 
@@ -551,6 +608,112 @@ def main() -> int:
     log(f"Arm stage complete: sol_small_body_orbits ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
+    log("Arm stage: creating sol_artificial_typed")
+    con.execute(
+        """
+        create temp table sol_artificial_typed as
+        with typed as (
+          select
+            cast(nullif(source_pk, '') as bigint) as source_pk,
+            nullif(trim(object_name), '') as object_name,
+            lower(
+              trim(
+                regexp_replace(
+                  regexp_replace(coalesce(object_name, ''), '[^0-9A-Za-z]+', ' ', 'g'),
+                  '\\s+',
+                  ' ',
+                  'g'
+                )
+              )
+            ) as object_name_norm,
+            lower(trim(coalesce(object_kind, 'artificial'))) as object_kind_norm,
+            nullif(trim(parent_object_name), '') as parent_object_name,
+            lower(trim(coalesce(parent_object_name, ''))) as parent_object_name_norm,
+            nullif(trim(center_code), '') as center_code,
+            nullif(trim(orbital_period_days), '')::double as orbital_period_days,
+            nullif(trim(semi_major_axis_au), '')::double as semi_major_axis_au,
+            nullif(trim(eccentricity), '')::double as eccentricity,
+            nullif(trim(inclination_deg), '')::double as inclination_deg,
+            nullif(trim(epoch_tdb_jd), '')::double as epoch_tdb_jd,
+            nullif(trim(radius_km), '')::double as radius_km,
+            nullif(trim(mass_kg), '')::double as mass_kg,
+            cast(coalesce(nullif(trim(freshness_window_days), ''), '45') as int) as freshness_window_days,
+            nullif(trim(target_body_name), '') as target_body_name,
+            nullif(trim(horizons_query_url), '') as source_url,
+            nullif(trim(source_row_hash), '') as source_row_hash
+          from sol_artificial_raw
+        )
+        select *
+        from typed
+        where source_pk is not null
+          and object_name is not null
+          and object_name_norm <> ''
+        """
+    )
+    log(f"Arm stage complete: sol_artificial_typed ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: creating sol_artificial_orbits")
+    con.execute(
+        """
+        create temp table sol_artificial_orbits as
+        with sol_system as (
+          select system_id, stable_object_key as system_key
+          from core.systems
+          where lower(coalesce(system_name_norm, '')) = 'sol'
+             or lower(coalesce(stable_object_key, '')) = 'system:sol'
+          order by system_id
+          limit 1
+        ), sol_planets as (
+          select
+            p.planet_id,
+            p.stable_object_key as planet_key,
+            lower(trim(coalesce(p.planet_name_norm, ''))) as planet_name_norm
+          from core.planets p
+          join sol_system s on s.system_id = p.system_id
+        )
+        select
+          a.source_pk as artifact_source_pk,
+          a.object_name as artifact_name,
+          a.object_name_norm as artifact_name_norm,
+          a.object_kind_norm as artifact_kind_norm,
+          coalesce(nullif(a.parent_object_name, ''), 'Sun') as parent_name,
+          coalesce(nullif(a.parent_object_name_norm, ''), 'sun') as parent_name_norm,
+          a.center_code,
+          a.orbital_period_days,
+          a.semi_major_axis_au,
+          a.eccentricity,
+          a.inclination_deg,
+          a.epoch_tdb_jd,
+          a.mass_kg as artifact_mass_kg,
+          a.radius_km as artifact_radius_km,
+          greatest(coalesce(a.freshness_window_days, 45), 1)::int as freshness_window_days,
+          a.target_body_name,
+          a.source_row_hash,
+          a.source_url,
+          case
+            when coalesce(nullif(a.parent_object_name_norm, ''), 'sun') = 'sun' then 'comp:system:system:sol'
+            when p.planet_key is not null then 'comp:planet:' || p.planet_key
+            else 'comp:system:system:sol'
+          end as parent_component_key,
+          case
+            when coalesce(nullif(a.parent_object_name_norm, ''), 'sun') = 'sun' then 'comp:system:system:sol'
+            when p.planet_key is not null then 'comp:planet:' || p.planet_key
+            else 'comp:system:system:sol'
+          end as host_component_key,
+          case
+            when coalesce(nullif(a.parent_object_name_norm, ''), 'sun') = 'sun' then 'comp:star:star:sol:sun'
+            when p.planet_key is not null then 'comp:planet:' || p.planet_key
+            else 'comp:star:star:sol:sun'
+          end as primary_component_key
+        from sol_artificial_typed a
+        left join sol_planets p
+          on p.planet_name_norm = coalesce(nullif(a.parent_object_name_norm, ''), 'sun')
+        """
+    )
+    log(f"Arm stage complete: sol_artificial_orbits ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating component_entities")
     con.execute(
         f"""
@@ -658,6 +821,26 @@ def main() -> int:
             {sql_literal(args.ingested_at)} as ingested_at,
             {sql_literal(args.transform_version)} as transform_version
           from sol_small_body_orbits s
+        ), sol_artificial_components as (
+          select
+            'comp:artifact:sol:' || s.artifact_name_norm as stable_component_key,
+            'artificial'::varchar as component_type,
+            cast(null as varchar) as core_object_type,
+            cast(null as bigint) as core_object_id,
+            s.artifact_name as display_name,
+            cast(null as varchar) as catalog_component_label,
+            cast(null as double) as ra_deg,
+            cast(null as double) as dec_deg,
+            cast(null as double) as dist_pc,
+            'sol_artificial'::varchar as source_catalog,
+            {sql_literal(sol_artificial_version)} as source_version,
+            cast(s.artifact_source_pk as varchar) as source_pk,
+            s.source_row_hash as source_row_hash,
+            {sql_literal(sol_artificial_checksum)} as retrieval_checksum,
+            {sql_literal(sol_artificial_retrieved)} as retrieved_at,
+            {sql_literal(args.ingested_at)} as ingested_at,
+            {sql_literal(args.transform_version)} as transform_version
+          from sol_artificial_orbits s
         ), msc_system_components as (
           select
             'comp:msc_system:wds:' || r.wds_id as stable_component_key,
@@ -708,6 +891,8 @@ def main() -> int:
           select * from sol_moon_components
           union all
           select * from sol_small_body_components
+          union all
+          select * from sol_artificial_components
           union all
           select * from msc_system_components
           union all
@@ -846,6 +1031,35 @@ def main() -> int:
             {sql_literal(args.ingested_at)} as ingested_at,
             {sql_literal(args.transform_version)} as transform_version
           from sol_small_body_orbits s
+        ), sol_artificial_edges as (
+          select
+            s.parent_component_key as parent_component_key,
+            'comp:artifact:sol:' || s.artifact_name_norm as child_component_key,
+            'contains'::varchar as edge_kind,
+            'artificial'::varchar as member_role,
+            'sol_artificial_object'::varchar as catalog_relation_label,
+            case
+              when s.parent_component_key = 'comp:system:system:sol' then 1
+              else 2
+            end::int as depth_hint,
+            0.98::double as confidence_score,
+            'high'::varchar as confidence_tier,
+            '["sol_artificial"]'::varchar as evidence_catalogs_json,
+            json_object(
+              'artifact_source_pk', s.artifact_source_pk,
+              'artifact_name', s.artifact_name,
+              'artifact_kind', s.artifact_kind_norm,
+              'parent_name', s.parent_name
+            ) as evidence_ids_json,
+            'sol_artificial'::varchar as source_catalog,
+            {sql_literal(sol_artificial_version)} as source_version,
+            cast(s.artifact_source_pk as varchar) as source_pk,
+            s.source_row_hash as source_row_hash,
+            {sql_literal(sol_artificial_checksum)} as retrieval_checksum,
+            {sql_literal(sol_artificial_retrieved)} as retrieved_at,
+            {sql_literal(args.ingested_at)} as ingested_at,
+            {sql_literal(args.transform_version)} as transform_version
+          from sol_artificial_orbits s
         ), msc_edges as (
           select
             'comp:msc_system:wds:' || l.wds_id as parent_component_key,
@@ -875,6 +1089,8 @@ def main() -> int:
           select * from sol_moon_edges
           union all
           select * from sol_small_body_edges
+          union all
+          select * from sol_artificial_edges
           union all
           select * from msc_edges
         )
@@ -1032,6 +1248,30 @@ def main() -> int:
             {sql_literal(sol_authority_checksum)} as retrieval_checksum,
             {sql_literal(sol_authority_retrieved)} as retrieved_at
           from sol_small_body_orbits s
+        ), sol_artificial_orbit_edges as (
+          select
+            s.host_component_key as host_component_key,
+            s.primary_component_key as primary_component_key,
+            'comp:artifact:sol:' || s.artifact_name_norm as secondary_component_key,
+            'artificial_orbit'::varchar as relation_kind,
+            cast(null as varchar) as barycenter_key,
+            cast(null as bigint) as preferred_solution_id,
+            0.98::double as confidence_score,
+            'high'::varchar as confidence_tier,
+            '["sol_artificial"]'::varchar as evidence_catalogs_json,
+            json_object(
+              'artifact_source_pk', s.artifact_source_pk,
+              'artifact_name', s.artifact_name,
+              'artifact_kind', s.artifact_kind_norm,
+              'center_code', s.center_code
+            ) as evidence_ids_json,
+            'sol_artificial'::varchar as source_catalog,
+            {sql_literal(sol_artificial_version)} as source_version,
+            cast(s.artifact_source_pk as varchar) as source_pk,
+            s.source_row_hash as source_row_hash,
+            {sql_literal(sol_artificial_checksum)} as retrieval_checksum,
+            {sql_literal(sol_artificial_retrieved)} as retrieved_at
+          from sol_artificial_orbits s
         ), unioned as (
           select * from core_pairs
           union all
@@ -1040,6 +1280,8 @@ def main() -> int:
           select * from sol_satellite_pairs
           union all
           select * from sol_small_body_orbit_edges
+          union all
+          select * from sol_artificial_orbit_edges
         ), deduped as (
           select *
           from (
@@ -1093,7 +1335,12 @@ def main() -> int:
             s.inclination_deg,
             s.source_row_hash,
             'horizons_elements_s2'::varchar as solver,
-            'host_centered'::varchar as frame
+            'host_centered'::varchar as frame,
+            0.995::double as confidence_score,
+            'sol_authority'::varchar as source_catalog,
+            {sql_literal(sol_authority_version)}::varchar as source_version,
+            {sql_literal(sol_authority_checksum)}::varchar as retrieval_checksum,
+            {sql_literal(sol_authority_retrieved)}::varchar as retrieved_at
           from sol_moon_orbits s
           join orbit_edges e
             on e.relation_kind = 'satellite'
@@ -1110,21 +1357,53 @@ def main() -> int:
             s.inclination_deg,
             s.source_row_hash,
             'horizons_elements_s3'::varchar as solver,
-            'heliocentric'::varchar as frame
+            'heliocentric'::varchar as frame,
+            0.995::double as confidence_score,
+            'sol_authority'::varchar as source_catalog,
+            {sql_literal(sol_authority_version)}::varchar as source_version,
+            {sql_literal(sol_authority_checksum)}::varchar as retrieval_checksum,
+            {sql_literal(sol_authority_retrieved)}::varchar as retrieved_at
           from sol_small_body_orbits s
           join orbit_edges e
             on e.relation_kind = 'orbits'
            and e.source_catalog = 'sol_authority'
            and cast(e.source_pk as bigint) = s.body_source_pk
+        ), sol_artificial_rows as (
+          select
+            e.orbit_edge_id,
+            s.artifact_source_pk as source_pk,
+            s.epoch_tdb_jd,
+            s.orbital_period_days,
+            s.semi_major_axis_au,
+            s.eccentricity,
+            s.inclination_deg,
+            s.source_row_hash,
+            'horizons_elements_s4'::varchar as solver,
+            case
+              when s.host_component_key = 'comp:system:system:sol' then 'heliocentric'
+              else 'host_centered'
+            end::varchar as frame,
+            0.985::double as confidence_score,
+            'sol_artificial'::varchar as source_catalog,
+            {sql_literal(sol_artificial_version)}::varchar as source_version,
+            {sql_literal(sol_artificial_checksum)}::varchar as retrieval_checksum,
+            {sql_literal(sol_artificial_retrieved)}::varchar as retrieved_at
+          from sol_artificial_orbits s
+          join orbit_edges e
+            on e.relation_kind = 'artificial_orbit'
+           and e.source_catalog = 'sol_artificial'
+           and cast(e.source_pk as bigint) = s.artifact_source_pk
         ), sol_rows as (
           select * from sol_satellite_rows
           union all
           select * from sol_small_body_rows
+          union all
+          select * from sol_artificial_rows
         )
         select
           row_number() over (order by orbit_edge_id)::bigint as orbital_solution_id,
           orbit_edge_id,
-          'sol_authority'::varchar as solution_source_catalog,
+          source_catalog as solution_source_catalog,
           1::int as solution_rank,
           case
             when epoch_tdb_jd is not null then 2000.0 + ((epoch_tdb_jd - 2451545.0) / 365.25)
@@ -1145,16 +1424,21 @@ def main() -> int:
           cast(null as double) as secondary_mass_msun,
           cast(null as double) as rv_semiamplitude_primary_kms,
           cast(null as double) as rv_semiamplitude_secondary_kms,
-          0.995::double as confidence_score,
+          confidence_score,
           json_object('solver', solver, 'frame', frame) as fit_quality_json,
           'source_native'::varchar as normalization_method,
-          'high'::varchar as confidence_tier,
-          'sol_authority'::varchar as source_catalog,
-          {sql_literal(sol_authority_version)}::varchar as source_version,
+          case
+            when confidence_score >= 0.95 then 'high'
+            when confidence_score >= 0.80 then 'medium'
+            when confidence_score >= 0.60 then 'low'
+            else 'illustrative'
+          end as confidence_tier,
+          source_catalog as source_catalog,
+          source_version as source_version,
           cast(source_pk as varchar) as source_pk,
           source_row_hash as source_row_hash,
-          {sql_literal(sol_authority_checksum)}::varchar as retrieval_checksum,
-          {sql_literal(sol_authority_retrieved)}::varchar as retrieved_at,
+          retrieval_checksum,
+          retrieved_at,
           {sql_literal(args.ingested_at)}::varchar as ingested_at,
           {sql_literal(args.transform_version)}::varchar as transform_version
         from sol_rows
@@ -1327,6 +1611,90 @@ def main() -> int:
     log(f"Arm stage complete: sol_small_body_objects ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
+    log("Arm stage: creating sol_artificial_objects")
+    con.execute(
+        f"""
+        create table sol_artificial_objects as
+        with typed as (
+          select
+            s.artifact_source_pk,
+            s.artifact_name,
+            s.artifact_name_norm,
+            s.artifact_kind_norm,
+            s.parent_name,
+            s.parent_name_norm,
+            s.center_code,
+            s.orbital_period_days,
+            s.semi_major_axis_au,
+            s.eccentricity,
+            s.inclination_deg,
+            s.epoch_tdb_jd,
+            s.artifact_mass_kg,
+            s.artifact_radius_km,
+            s.freshness_window_days,
+            s.target_body_name,
+            s.host_component_key,
+            s.primary_component_key,
+            s.source_row_hash,
+            s.source_url
+          from sol_artificial_orbits s
+        )
+        select
+          row_number() over (order by artifact_source_pk)::bigint as sol_artificial_id,
+          'comp:artifact:sol:' || artifact_name_norm as stable_component_key,
+          artifact_name,
+          artifact_name_norm,
+          coalesce(artifact_kind_norm, 'artificial') as artifact_kind,
+          host_component_key,
+          primary_component_key,
+          'comp:artifact:sol:' || artifact_name_norm as secondary_component_key,
+          parent_name,
+          parent_name_norm,
+          center_code,
+          target_body_name,
+          orbital_period_days,
+          semi_major_axis_au,
+          eccentricity,
+          inclination_deg,
+          epoch_tdb_jd,
+          artifact_mass_kg,
+          artifact_radius_km,
+          freshness_window_days,
+          greatest(
+            datediff(
+              'day',
+              cast({sql_literal(sol_artificial_retrieved)} as timestamp),
+              cast({sql_literal(args.ingested_at)} as timestamp)
+            ),
+            0
+          )::int as staleness_days,
+          (
+            greatest(
+              datediff(
+                'day',
+                cast({sql_literal(sol_artificial_retrieved)} as timestamp),
+                cast({sql_literal(args.ingested_at)} as timestamp)
+              ),
+              0
+            )::int > freshness_window_days
+          ) as is_stale,
+          0.985::double as confidence_score,
+          'high'::varchar as confidence_tier,
+          'sol_artificial'::varchar as source_catalog,
+          {sql_literal(sol_artificial_version)}::varchar as source_version,
+          cast(artifact_source_pk as varchar) as source_pk,
+          source_row_hash,
+          {sql_literal(sol_artificial_checksum)}::varchar as retrieval_checksum,
+          {sql_literal(sol_artificial_retrieved)}::varchar as retrieved_at,
+          {sql_literal(args.ingested_at)}::varchar as ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version,
+          coalesce(source_url, {sql_literal(sol_artificial_url)}) as source_url
+        from typed
+        """
+    )
+    log(f"Arm stage complete: sol_artificial_objects ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating animation_readiness")
     con.execute(
         f"""
@@ -1350,8 +1718,8 @@ def main() -> int:
           from orbit_edges e
           join sol_system s on true
           left join orbital_solutions o on o.orbit_edge_id = e.orbit_edge_id
-          where e.relation_kind in ('satellite', 'orbits')
-            and e.source_catalog = 'sol_authority'
+          where e.relation_kind in ('satellite', 'orbits', 'artificial_orbit')
+            and e.source_catalog in ('sol_authority', 'sol_artificial')
         )
         select
           row_number() over (order by orbit_edge_id)::bigint as animation_readiness_id,
@@ -1373,7 +1741,13 @@ def main() -> int:
           ) as missing_parameters_json,
           '[]'::varchar as inferred_parameters_json,
           true as disallowed_fabrication,
-          json_object('program', 'sol_authority_s2') as notes_json,
+          json_object(
+            'program',
+            case
+              when component_key like 'comp:artifact:sol:%' then 'sol_artificial_s4'
+              else 'sol_authority_s2s3'
+            end
+          ) as notes_json,
           {sql_literal(args.ingested_at)}::varchar as computed_at,
           {sql_literal(args.transform_version)}::varchar as transform_version
         from sol_dynamic
@@ -1877,6 +2251,57 @@ def main() -> int:
         ).fetchone()[0]
         or 0
     )
+    sol_artificial_component_count = int(
+        con.execute(
+            """
+            select count(*)
+            from component_entities
+            where source_catalog = 'sol_artificial'
+              and component_type = 'artificial'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    sol_artificial_hierarchy_edge_count = int(
+        con.execute(
+            """
+            select count(*)
+            from system_hierarchy_edges
+            where source_catalog = 'sol_artificial'
+              and member_role = 'artificial'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    sol_artificial_orbit_edge_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbit_edges
+            where source_catalog = 'sol_artificial'
+              and relation_kind = 'artificial_orbit'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    sol_artificial_solution_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbital_solutions o
+            join orbit_edges e on e.orbit_edge_id = o.orbit_edge_id
+            where o.source_catalog = 'sol_artificial'
+              and e.relation_kind = 'artificial_orbit'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    sol_artificial_table_count = int(
+        con.execute("select count(*) from sol_artificial_objects").fetchone()[0] or 0
+    )
+    sol_artificial_stale_count = int(
+        con.execute("select count(*) from sol_artificial_objects where is_stale").fetchone()[0] or 0
+    )
 
     report = {
         "build_id": args.build_id,
@@ -1915,6 +2340,12 @@ def main() -> int:
             "sol_small_body_stale_rows": sol_small_body_stale_count,
             "sol_barycenters": sol_barycenter_count,
             "sol_animation_readiness_rows": sol_animation_readiness_count,
+            "sol_artificial_components": sol_artificial_component_count,
+            "sol_artificial_hierarchy_edges": sol_artificial_hierarchy_edge_count,
+            "sol_artificial_orbit_edges": sol_artificial_orbit_edge_count,
+            "sol_artificial_orbital_solutions": sol_artificial_solution_count,
+            "sol_artificial_rows": sol_artificial_table_count,
+            "sol_artificial_stale_rows": sol_artificial_stale_count,
         },
         "notes": [
             "Arm graph includes core system->star containment edges.",
@@ -1925,6 +2356,7 @@ def main() -> int:
             "Exoplanet lifecycle audit tables are mirrored from core into arm for lineage/diff workflows.",
             "Sol S2 moon hierarchy/orbit rows are sourced from JPL Horizons sol_authority and remain outside core hot paths.",
             "Sol S3 named minor bodies are materialized in arm with deterministic staleness metadata by body family.",
+            "Sol S4 artificial stations/probes/orbiters are materialized in arm with parent linkage and staleness metadata.",
         ],
     }
 
@@ -1942,7 +2374,7 @@ def main() -> int:
         f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
         f"msc_inferred_leaves={inferred_leaf_count:,}, sol_moons={sol_moon_component_count:,}, "
         f"sol_satellite_orbits={sol_satellite_orbit_edge_count:,}, sol_small_bodies={sol_small_body_table_count:,}, "
-        f"sol_barycenters={sol_barycenter_count:,})"
+        f"sol_artificial={sol_artificial_table_count:,}, sol_barycenters={sol_barycenter_count:,})"
     )
     return 0
 

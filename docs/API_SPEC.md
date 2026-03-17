@@ -471,7 +471,22 @@ Response 200:
       "match_notes": null,
       "provenance": { /* full provenance */ }
     }
-  ]
+  ],
+  "sol_hierarchy": {
+    "is_sol": true,
+    "counts": {
+      "moons": 11,
+      "small_bodies": 25,
+      "artificial_objects": 11,
+      "small_body_kind_counts": {"asteroid": 18, "tno": 6, "comet": 1},
+      "artificial_kind_counts": {"station": 1, "space_telescope": 3, "deep_space_probe": 4, "planetary_orbiter": 3},
+      "stale_small_bodies": 0,
+      "stale_artificial_objects": 0
+    },
+    "moons": [/* arm S2 rows */],
+    "small_bodies": [/* arm S3 rows */],
+    "artificial_objects": [/* arm S4 rows */]
+  }
 }
 ```
 
@@ -479,6 +494,7 @@ Display-name behavior:
 - `display_name` prefers human-friendly naming over Gaia placeholders.
 - Alias precedence is deterministic: proper/common name, Bayer, Flamsteed, then major catalog IDs (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
 - `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
+- `sol_hierarchy` is only populated for Sol (`system:sol`); non-Sol systems return `null`.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

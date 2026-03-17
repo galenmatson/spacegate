@@ -170,6 +170,8 @@ def summarize_cook_stage(state_dir: Path) -> dict:
         ("athyg", "cooked/athyg/athyg.csv.gz"),
         ("gaia_backbone", "cooked/gaia_backbone/gaia_dr3_backbone.csv"),
         ("nasa_exoplanet_archive", "cooked/nasa_exoplanet_archive/pscomppars_clean.csv"),
+        ("sol_authority", "cooked/sol_authority/sol_system_objects.csv"),
+        ("sol_artificial", "cooked/sol_artificial/sol_artificial_objects.csv"),
         ("wds", "cooked/wds/wds_summary.csv"),
         ("msc", "cooked/msc/msc_components.csv"),
         ("orb6", "cooked/orb6/orb6_orbits.csv"),

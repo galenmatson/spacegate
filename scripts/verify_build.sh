@@ -355,11 +355,12 @@ PY
 
   local arm_db="$build_dir/arm.duckdb"
   if [[ -f "$arm_db" ]]; then
-    "$PYTHON_BIN" - <<'PY' "$arm_db"
+    "$PYTHON_BIN" - <<'PY' "$arm_db" "${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"
 import sys
 import duckdb
 
 db_path = sys.argv[1]
+enable_sol_artificial = str(sys.argv[2]).strip().lower() not in {"0", "false", "no", "off"}
 con = duckdb.connect(db_path, read_only=True)
 
 required_tables = {
@@ -370,6 +371,8 @@ required_tables = {
     "barycenters",
     "sol_small_body_objects",
 }
+if enable_sol_artificial:
+    required_tables.add("sol_artificial_objects")
 present = {
     row[0]
     for row in con.execute(
@@ -455,9 +458,9 @@ small_body_count = int(
     ).fetchone()[0]
     or 0
 )
-if small_body_count < 10:
+if small_body_count < 20:
     raise SystemExit(
-        f"Sol S3 gate failed: expected >=10 named minor bodies in sol_small_body_objects, got {small_body_count}"
+        f"Sol S3 gate failed: expected >=20 named minor bodies in sol_small_body_objects, got {small_body_count}"
     )
 
 asteroid_count = int(
@@ -499,6 +502,61 @@ print(
     f"OK: Sol S3 gate (minor_bodies={small_body_count}, "
     f"asteroids={asteroid_count}, tnos={tno_count}, comets={comet_count})"
 )
+
+if enable_sol_artificial:
+    artificial_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from sol_artificial_objects
+            where source_catalog = 'sol_artificial'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if artificial_count < 6:
+        raise SystemExit(
+            f"Sol S4 gate failed: expected >=6 artificial objects in sol_artificial_objects, got {artificial_count}"
+        )
+
+    artificial_orbit_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from orbit_edges
+            where relation_kind = 'artificial_orbit'
+              and source_catalog = 'sol_artificial'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if artificial_orbit_count < artificial_count:
+        raise SystemExit(
+            "Sol S4 gate failed: missing orbit edges for one or more artificial objects "
+            f"(objects={artificial_count}, orbit_edges={artificial_orbit_count})"
+        )
+
+    deep_space_probe_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from sol_artificial_objects
+            where coalesce(artifact_kind, '') = 'deep_space_probe'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if deep_space_probe_count < 3:
+        raise SystemExit(
+            f"Sol S4 gate failed: expected >=3 deep-space probes, got {deep_space_probe_count}"
+        )
+
+    print(
+        f"OK: Sol S4 gate (artificial_objects={artificial_count}, "
+        f"deep_space_probes={deep_space_probe_count})"
+    )
+else:
+    print("SKIP: Sol S4 gate (SPACEGATE_ENABLE_SOL_ARTIFICIAL=0)")
 PY
   else
     echo "Warning: skipping Sol S2 arm gate (missing $arm_db)." >&2

@@ -280,6 +280,30 @@ Current implementation status:
   - if only planet/lifecycle sources changed, execute selective cook + incremental planet refresh
   - otherwise execute full cook + full ingest
 
+## Sol Volatile Overlay Refresh
+
+Sol has two authoritative tracks:
+
+- `sol_authority` (S1/S2/S3 canonical bootstrap + natural bodies)
+- `sol_artificial` (S4 curated artificial probes/stations/orbiters)
+
+Operational policy:
+
+1. Refresh volatile Sol feeds on a regular cadence independent of full Gaia refresh.
+2. Track freshness/staleness in report form before promotion decisions.
+3. Keep Sol volatile overlays in `arm`; never bypass canonical `core` provenance rules.
+
+Runbook:
+
+- refresh + normalize + report:
+  - `scripts/refresh_sol_volatile.sh`
+- report-only (for monitoring/cron checks):
+  - `scripts/report_sol_volatile.py`
+
+Output:
+
+- `reports/sol_volatile_report.json`
+
 ## Unit Policy
 
 - Preserve source-native units/fields in raw and cooked stages.

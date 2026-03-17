@@ -656,6 +656,246 @@ def fetch_arm_evidence_for_stars(
     return grouped
 
 
+def fetch_sol_hierarchy_for_system(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    stable_object_key: Optional[str],
+    arm_db_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    is_sol = bool(
+        con.execute(
+            """
+            SELECT 1
+            FROM systems
+            WHERE system_id = ?
+              AND (
+                lower(coalesce(system_name_norm, '')) = 'sol'
+                OR lower(coalesce(stable_object_key, '')) = 'system:sol'
+                OR lower(coalesce(?::varchar, '')) = 'system:sol'
+              )
+            LIMIT 1
+            """,
+            [system_id, stable_object_key or ""],
+        ).fetchone()
+    )
+    if not is_sol or not arm_db_path:
+        return None
+    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+        return None
+    if not _has_table(con, alias="arm_db", table_name="component_entities"):
+        return None
+
+    moons: List[Dict[str, Any]] = []
+    if (
+        _has_table(con, alias="arm_db", table_name="system_hierarchy_edges")
+        and _has_table(con, alias="arm_db", table_name="orbit_edges")
+        and _has_table(con, alias="arm_db", table_name="orbital_solutions")
+    ):
+        moon_rows = con.execute(
+            """
+            SELECT
+              c.stable_component_key,
+              c.display_name,
+              c.catalog_component_label,
+              parent.display_name AS parent_name,
+              os.period_days,
+              os.semi_major_axis_au,
+              os.eccentricity,
+              os.inclination_deg
+            FROM arm_db.component_entities c
+            LEFT JOIN arm_db.system_hierarchy_edges h
+              ON h.child_component_key = c.stable_component_key
+             AND h.source_catalog = 'sol_authority'
+             AND h.member_role = 'satellite'
+            LEFT JOIN arm_db.component_entities parent
+              ON parent.stable_component_key = h.parent_component_key
+            LEFT JOIN arm_db.orbit_edges oe
+              ON oe.secondary_component_key = c.stable_component_key
+             AND oe.relation_kind = 'satellite'
+            LEFT JOIN arm_db.orbital_solutions os
+              ON os.orbit_edge_id = oe.orbit_edge_id
+            WHERE c.component_type = 'moon'
+              AND c.source_catalog = 'sol_authority'
+            ORDER BY lower(coalesce(parent.display_name, '')), lower(coalesce(c.display_name, ''))
+            """
+        ).fetchall()
+        for (
+            stable_component_key,
+            display_name,
+            catalog_component_label,
+            parent_name,
+            period_days,
+            semi_major_axis_au,
+            eccentricity,
+            inclination_deg,
+        ) in moon_rows:
+            moons.append(
+                {
+                    "stable_component_key": stable_component_key,
+                    "display_name": display_name,
+                    "catalog_component_label": catalog_component_label,
+                    "parent_name": parent_name,
+                    "period_days": float(period_days) if period_days is not None else None,
+                    "semi_major_axis_au": (
+                        float(semi_major_axis_au) if semi_major_axis_au is not None else None
+                    ),
+                    "eccentricity": float(eccentricity) if eccentricity is not None else None,
+                    "inclination_deg": float(inclination_deg) if inclination_deg is not None else None,
+                }
+            )
+
+    small_bodies: List[Dict[str, Any]] = []
+    if _has_table(con, alias="arm_db", table_name="sol_small_body_objects"):
+        rows = con.execute(
+            """
+            SELECT
+              stable_component_key,
+              body_name,
+              body_kind,
+              parent_name,
+              orbital_period_days,
+              semi_major_axis_au,
+              eccentricity,
+              inclination_deg,
+              staleness_days,
+              freshness_window_days,
+              is_stale
+            FROM arm_db.sol_small_body_objects
+            ORDER BY
+              CASE body_kind
+                WHEN 'asteroid' THEN 1
+                WHEN 'tno' THEN 2
+                WHEN 'comet' THEN 3
+                ELSE 9
+              END,
+              lower(coalesce(body_name, ''))
+            """
+        ).fetchall()
+        for (
+            stable_component_key,
+            body_name,
+            body_kind,
+            parent_name,
+            orbital_period_days,
+            semi_major_axis_au,
+            eccentricity,
+            inclination_deg,
+            staleness_days,
+            freshness_window_days,
+            is_stale,
+        ) in rows:
+            small_bodies.append(
+                {
+                    "stable_component_key": stable_component_key,
+                    "body_name": body_name,
+                    "body_kind": body_kind,
+                    "parent_name": parent_name,
+                    "orbital_period_days": (
+                        float(orbital_period_days) if orbital_period_days is not None else None
+                    ),
+                    "semi_major_axis_au": (
+                        float(semi_major_axis_au) if semi_major_axis_au is not None else None
+                    ),
+                    "eccentricity": float(eccentricity) if eccentricity is not None else None,
+                    "inclination_deg": float(inclination_deg) if inclination_deg is not None else None,
+                    "staleness_days": int(staleness_days or 0),
+                    "freshness_window_days": int(freshness_window_days or 0),
+                    "is_stale": bool(is_stale),
+                }
+            )
+
+    artificial_objects: List[Dict[str, Any]] = []
+    if _has_table(con, alias="arm_db", table_name="sol_artificial_objects"):
+        rows = con.execute(
+            """
+            SELECT
+              stable_component_key,
+              artifact_name,
+              artifact_kind,
+              parent_name,
+              center_code,
+              target_body_name,
+              orbital_period_days,
+              semi_major_axis_au,
+              eccentricity,
+              inclination_deg,
+              staleness_days,
+              freshness_window_days,
+              is_stale
+            FROM arm_db.sol_artificial_objects
+            ORDER BY
+              lower(coalesce(parent_name, '')),
+              lower(coalesce(artifact_kind, '')),
+              lower(coalesce(artifact_name, ''))
+            """
+        ).fetchall()
+        for (
+            stable_component_key,
+            artifact_name,
+            artifact_kind,
+            parent_name,
+            center_code,
+            target_body_name,
+            orbital_period_days,
+            semi_major_axis_au,
+            eccentricity,
+            inclination_deg,
+            staleness_days,
+            freshness_window_days,
+            is_stale,
+        ) in rows:
+            artificial_objects.append(
+                {
+                    "stable_component_key": stable_component_key,
+                    "artifact_name": artifact_name,
+                    "artifact_kind": artifact_kind,
+                    "parent_name": parent_name,
+                    "center_code": center_code,
+                    "target_body_name": target_body_name,
+                    "orbital_period_days": (
+                        float(orbital_period_days) if orbital_period_days is not None else None
+                    ),
+                    "semi_major_axis_au": (
+                        float(semi_major_axis_au) if semi_major_axis_au is not None else None
+                    ),
+                    "eccentricity": float(eccentricity) if eccentricity is not None else None,
+                    "inclination_deg": float(inclination_deg) if inclination_deg is not None else None,
+                    "staleness_days": int(staleness_days or 0),
+                    "freshness_window_days": int(freshness_window_days or 0),
+                    "is_stale": bool(is_stale),
+                }
+            )
+
+    small_body_kind_counts: Dict[str, int] = {}
+    for row in small_bodies:
+        kind = str(row.get("body_kind") or "unknown")
+        small_body_kind_counts[kind] = int(small_body_kind_counts.get(kind, 0)) + 1
+
+    artificial_kind_counts: Dict[str, int] = {}
+    for row in artificial_objects:
+        kind = str(row.get("artifact_kind") or "unknown")
+        artificial_kind_counts[kind] = int(artificial_kind_counts.get(kind, 0)) + 1
+
+    return {
+        "is_sol": True,
+        "counts": {
+            "moons": len(moons),
+            "small_bodies": len(small_bodies),
+            "artificial_objects": len(artificial_objects),
+            "small_body_kind_counts": small_body_kind_counts,
+            "artificial_kind_counts": artificial_kind_counts,
+            "stale_small_bodies": sum(1 for row in small_bodies if row.get("is_stale")),
+            "stale_artificial_objects": sum(
+                1 for row in artificial_objects if row.get("is_stale")
+            ),
+        },
+        "moons": moons,
+        "small_bodies": small_bodies,
+        "artificial_objects": artificial_objects,
+    }
+
+
 def fetch_snapshot_for_system(
     con: duckdb.DuckDBPyConnection,
     *,

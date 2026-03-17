@@ -58,6 +58,7 @@ Interpretation note:
 | --- | --- | --- | --- | --- |
 | Gaia DR3 backbone (`gaia_source`) | mandatory | on in Gaia-first profile | `SPACEGATE_ENABLE_GAIA_BACKBONE=1` | canonical star inventory substrate |
 | Sol authority bootstrap (`sol_authority`) | mandatory (S1/S2 release gate) | on | `SPACEGATE_ENABLE_SOL_AUTHORITY` | guarantees Sol/Sun/major-planet coverage plus arm moon/barycenter hierarchy from authoritative JPL source |
+| Sol artificial overlay (`sol_artificial`) | default-on (`arm` overlay) | on | `SPACEGATE_ENABLE_SOL_ARTIFICIAL` | curated Sol stations/probes/orbiters with freshness windows for arm/UI overlays |
 | NASA Exoplanet Archive (`pscomppars`) | mandatory | on | (always in core catalog set) | canonical planet baseline |
 | MSC | mandatory | on | `SPACEGATE_ENABLE_MSC` (must remain `1`) | required multiplicity hierarchy evidence; ingest blocks when off |
 | WDS | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | broad multiplicity support evidence |
@@ -162,6 +163,26 @@ Implementation:
 
 - downloader: `scripts/fetch_sol_authority.py`
 - contract doc: `docs/SOL_AUTHORITY.md`
+
+## 2c) Sol artificial overlay (`sol_artificial`)
+
+Classification: `auxiliary` (`arm` supplemental science overlay)
+
+Role:
+
+- provide curated Sol artificial-object rows (station/probe/orbiter classes) in `arm`
+- support Sol hierarchy/UI evidence without polluting `core` canonical inventory tables
+- attach explicit freshness windows + staleness fields for volatile-feed monitoring
+
+Source endpoint:
+
+- JPL Horizons API: `https://ssd.jpl.nasa.gov/api/horizons.api`
+
+Implementation:
+
+- downloader: `scripts/fetch_sol_artificial.py`
+- volatile refresh runbook: `scripts/refresh_sol_volatile.sh`
+- freshness monitor: `scripts/report_sol_volatile.py`
 
 ## 3) Gaia DR3 astrophysical classifier probabilities
 

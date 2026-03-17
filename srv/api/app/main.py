@@ -35,6 +35,7 @@ from .queries import (
     fetch_planets_for_system,
     fetch_spectral_mix,
     fetch_snapshot_for_system,
+    fetch_sol_hierarchy_for_system,
     fetch_stars_for_system,
     fetch_system_by_id,
     fetch_system_by_key,
@@ -779,6 +780,12 @@ def system_detail(system_id: int):
             stable_object_key=system.get("stable_object_key"),
             rich_db_path=rich_db_path,
         )
+        sol_hierarchy = fetch_sol_hierarchy_for_system(
+            con,
+            system_id=system_id,
+            stable_object_key=system.get("stable_object_key"),
+            arm_db_path=arm_db_path,
+        )
 
     system["star_count"] = star_count
     system["planet_count"] = planet_count
@@ -815,6 +822,7 @@ def system_detail(system_id: int):
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
+        "sol_hierarchy": sol_hierarchy,
     }
 
 
@@ -854,6 +862,12 @@ def system_detail_by_key(stable_object_key: str):
             stable_object_key=stable_object_key,
             rich_db_path=rich_db_path,
         )
+        sol_hierarchy = fetch_sol_hierarchy_for_system(
+            con,
+            system_id=int(system_id),
+            stable_object_key=stable_object_key,
+            arm_db_path=arm_db_path,
+        )
 
     system["star_count"] = star_count
     system["planet_count"] = planet_count
@@ -890,6 +904,7 @@ def system_detail_by_key(stable_object_key: str):
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
+        "sol_hierarchy": sol_hierarchy,
     }
 
 

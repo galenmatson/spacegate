@@ -34,15 +34,18 @@ EXOPLANET_EU_RAW="$RAW_DIR/exoplanet_eu/catalog.csv"
 OEC_RAW="$RAW_DIR/open_exoplanet_catalogue/open_exoplanet_catalogue.tar.gz"
 HWC_RAW="$RAW_DIR/hwc/hwc.csv"
 SOL_AUTHORITY_RAW="$RAW_DIR/sol_authority/sol_system_objects.csv"
+SOL_ARTIFICIAL_RAW="$RAW_DIR/sol_artificial/sol_artificial_objects.csv"
 
 COOKED_ATHYG_DIR="$COOKED_DIR/athyg"
 COOKED_NASA_DIR="$COOKED_DIR/nasa_exoplanet_archive"
 COOKED_GAIA_BACKBONE_DIR="$COOKED_DIR/gaia_backbone"
 COOKED_SOL_AUTHORITY_DIR="$COOKED_DIR/sol_authority"
+COOKED_SOL_ARTIFICIAL_DIR="$COOKED_DIR/sol_artificial"
 COOKED_ATHYG="$COOKED_ATHYG_DIR/athyg.csv.gz"
 COOKED_NASA="$COOKED_NASA_DIR/pscomppars_clean.csv"
 COOKED_GAIA_BACKBONE="$COOKED_GAIA_BACKBONE_DIR/gaia_dr3_backbone.csv"
 COOKED_SOL_AUTHORITY="$COOKED_SOL_AUTHORITY_DIR/sol_system_objects.csv"
+COOKED_SOL_ARTIFICIAL="$COOKED_SOL_ARTIFICIAL_DIR/sol_artificial_objects.csv"
 
 LOG_FILE="$LOG_DIR/cook_core.log"
 
@@ -74,6 +77,7 @@ ensure_inputs() {
   local enable_sbx="${SPACEGATE_ENABLE_SBX:-1}"
   local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-1}"
   local enable_sol_authority="${SPACEGATE_ENABLE_SOL_AUTHORITY:-1}"
+  local enable_sol_artificial="${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"
   local enable_eclipsing_catalogs="${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}"
   local enable_kepler_eb="${SPACEGATE_ENABLE_KEPLER_EB:-0}"
   local missing=0
@@ -147,6 +151,10 @@ ensure_inputs() {
   fi
   if [[ "$enable_sol_authority" != "0" && ! -f "$SOL_AUTHORITY_RAW" ]]; then
     echo "Missing: $SOL_AUTHORITY_RAW" >&2
+    missing=1
+  fi
+  if [[ "$enable_sol_artificial" != "0" && ! -f "$SOL_ARTIFICIAL_RAW" ]]; then
+    echo "Missing: $SOL_ARTIFICIAL_RAW" >&2
     missing=1
   fi
   if [[ "$enable_eclipsing_catalogs" != "0" ]]; then
@@ -368,6 +376,52 @@ PY
   rm -rf "$tmp_dir"
 }
 
+cook_sol_artificial() {
+  mkdir -p "$COOKED_SOL_ARTIFICIAL_DIR"
+
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  local tmp_out="$tmp_dir/sol_artificial_objects.csv"
+
+  log "Cook: Sol artificial normalize"
+
+  "$PYTHON_BIN" - "$SOL_ARTIFICIAL_RAW" "$tmp_out" <<'PY'
+import sys
+
+in_path = sys.argv[1]
+out_path = sys.argv[2]
+
+bom = b"\xef\xbb\xbf"
+
+with open(in_path, "rb") as f, open(out_path, "wb") as out:
+    first = f.read(3)
+    if first != bom:
+        f.seek(0)
+    prev_cr = False
+    while True:
+        chunk = f.read(1024 * 1024)
+        if not chunk:
+            break
+        if prev_cr:
+            if chunk.startswith(b"\n"):
+                chunk = chunk[1:]
+            else:
+                out.write(b"\n")
+            prev_cr = False
+        if chunk.endswith(b"\r"):
+            prev_cr = True
+            chunk = chunk[:-1]
+        chunk = chunk.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        out.write(chunk)
+    if prev_cr:
+        out.write(b"\n")
+PY
+
+  mv "$tmp_out" "$COOKED_SOL_ARTIFICIAL"
+  rm -rf "$tmp_dir"
+}
+
 main() {
   require_command gzip
   if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
@@ -401,6 +455,11 @@ main() {
     cook_sol_authority
   else
     log "Cook: skip Sol authority (SPACEGATE_ENABLE_SOL_AUTHORITY=0)"
+  fi
+  if [[ "${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}" != "0" ]]; then
+    cook_sol_artificial
+  else
+    log "Cook: skip Sol artificial (SPACEGATE_ENABLE_SOL_ARTIFICIAL=0)"
   fi
   log "Cook: multiplicity catalogs (WDS/MSC/ORB6/Gaia NSS/SBX[/WDS-Gaia XMatch])"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/cook_multiplicity.py"

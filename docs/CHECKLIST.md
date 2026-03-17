@@ -84,6 +84,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates
 - [x] Align Sol canonical class storage to source-faithful `dwarf_planet` semantics while preserving UI structural supergroup `subplanet`
 - [x] Implement Sol S3 initial named small-body arm layer (asteroid/TNO/comet families) with staleness metadata + verify gate
+- [x] Expand Sol S3 deterministic small-body coverage (broader asteroid/TNO families, including Ixion-class objects)
+- [x] Implement Sol S3 arm-to-halo projection path for sliced builds
+- [x] Implement Sol S4 arm layer for curated artificial stations/probes/orbiters with verify gates
+- [x] Surface Sol arm hierarchy overlays (moons, small bodies, artificial objects) in system detail API/UI
+- [x] Add scheduled volatile Sol refresh + staleness monitoring scripts (`refresh_sol_volatile.sh`, `report_sol_volatile.py`)
 - [ ] Preserve or improve host matching quality for planets
 - [x] Promote exoplanet host labels for Gaia-fallback star/system display names (TRAPPIST/Kepler/TOI/WASP family and peers)
 - [x] Preserve or improve user-facing lookup ergonomics
