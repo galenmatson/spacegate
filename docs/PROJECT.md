@@ -38,6 +38,13 @@ Reason:
 5. Explicit confidence for joins/groupings; avoid silent inference.
 6. Security-first ingestion: no required insecure transport dependencies.
 7. Classification safety invariants: explicit remnant evidence must override temperature-derived stellar class labels.
+8. Graph discipline:
+   - one acyclic containment spine for navigation
+   - additional typed relation edges for cross-links and dynamic relationships
+   - no requirement that all node/edge vocabulary lives in `core`
+9. Classification discipline:
+   - scientific classifications in `galaxy/core/halo` must remain source-faithful
+   - UX supergroups (for example `subplanet`) are allowed but may not overwrite canonical science fields
 
 Operational runbook:
 
@@ -191,6 +198,12 @@ Architecture target:
 - preserve inspectability of each subsystem as an analyzable entity
 
 Hierarchy confidence must be explicit and queryable.
+
+Implementation pattern:
+
+- containment edges (`contains`) form a tree for stable traversal
+- loops and bridges are represented as non-containment typed edges (for example `anchored_to`, `gateway_to`)
+- structural node/edge vocabulary is shared across layers; storage location depends on layer policy (`arm` science graph vs `rim` editable overlays)
 
 ## Planet Host Matching
 
@@ -503,6 +516,7 @@ Operational status:
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/SOL_AUTHORITY.md`: Sol-system authoritative ingest contract and release gates
+- `docs/SYSTEM_GRAPH_ARCHITECTURE.md`: cross-layer node/edge model, containment-vs-relation rules, and generator compatibility
 - `docs/DATASET_ITERATION_HISTORY.md`: dataset iteration timeline (changes, fixes, and mitigation history)
 - `docs/MULTIPLICITY_GOLDENS.md`: post-ingest hierarchy/orbit exam contract
 - `docs/EXOPLANET_LIFECYCLE_IMPLEMENTATION.md`: concrete DDL and execution plan for lifecycle/taxonomy/habitability

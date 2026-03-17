@@ -20,6 +20,7 @@ Hard constraints:
 - Rim must never modify scientific values in core.
 - Rim may reference core objects, but core remains authoritative.
 - Rim must be optional to load/render.
+- Rim should reuse shared graph vocabulary from `docs/SYSTEM_GRAPH_ARCHITECTURE.md` where possible.
 
 ## Primary Artifacts
 
@@ -87,6 +88,15 @@ Graph edges between lore entities and/or anchored objects.
 
 Constraints:
 - `namespace + from_entity_key + to_entity_key + relation_type` unique.
+
+Recommended relation families:
+- placement/anchor: `anchored_to`, `located_in`
+- transit/infrastructure: `gateway_to`, `route_to`, `stabilized_by`
+- governance/social: `controls`, `allied_with`, `hostile_to`
+
+Note:
+- cyclical lore graphs are allowed.
+- any canonical navigation tree behavior should be implemented with explicit primary-parent metadata, not inferred from arbitrary lore edges.
 
 ## lore_references
 

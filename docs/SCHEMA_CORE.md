@@ -479,6 +479,7 @@ Contract notes:
 - `planet_element_richness_*` is a lore/search utility proxy and must not be presented as direct measured bulk composition unless direct spectral evidence exists.
 - `retracted` records may be retained only with `is_tombstoned=true` and `is_default_visible=false`.
 - status/taxonomy/habitability/resource tags are deterministic derived fields and must carry explicit versioning.
+- canonical science classifications must remain source-faithful; any UI/navigation supergrouping (for example `subplanet`) belongs in derived/structural tags and must not overwrite authoritative class semantics.
 
 ## Planet Lifecycle and Re-Evaluation Contract
 

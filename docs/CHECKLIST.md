@@ -82,6 +82,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates
+- [ ] Align Sol canonical class storage to source-faithful `dwarf_planet` semantics while preserving UI structural supergroup `subplanet`
 - [ ] Preserve or improve host matching quality for planets
 - [x] Promote exoplanet host labels for Gaia-fallback star/system display names (TRAPPIST/Kepler/TOI/WASP family and peers)
 - [x] Preserve or improve user-facing lookup ergonomics
@@ -131,3 +132,5 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
 - [ ] 3D map runtime integration over Gaia-first slice
 - [ ] Rim/worldbuilding overlay expansion without core contamination
+- [x] Cross-layer system graph contract documented (containment spine + relation graph, layer ownership, generator compatibility)
+- [ ] Procedural system generator (rim-authored, seed/versioned, graph-safe) after M6/M7/M8/M9

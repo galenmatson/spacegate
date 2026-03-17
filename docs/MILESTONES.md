@@ -48,7 +48,8 @@ Fiction overlays are first-class product features, but must remain fully separat
 5. Visual storytelling (snapshots + generated imagery)
 6. 3D runtime and deep navigation
 7. Rim/worldbuilding tooling
-8. Community/engagement overlays
+8. Procedural system generation tools
+9. Community/engagement overlays
 
 Downstream milestones must not bypass upstream quality gates.
 
@@ -153,7 +154,7 @@ Dependencies:
 Deliverables:
 
 - replacement alias/ID crosswalk ingestion
-- authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key subplanets [dwarf-planet alias interoperable] + canonical names/IDs) with fixed high-confidence provenance
+- authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
 
@@ -342,7 +343,35 @@ Success criteria:
 - strict data-layer separation enforced
 - rim operations do not mutate core/disc canonical science rows
 
-### M10. Engagement and Community Overlay
+### M10. Procedural System Generator (God Tools)
+
+Goal:
+
+- allow users to generate/alter full system scaffolding while preserving scientific-layer immutability.
+
+Dependencies:
+
+- M6 factual disc layer
+- M7 visual storytelling baseline
+- M8 3D map/runtime baseline
+- M9 rim overlay/entity tooling
+
+Deliverables:
+
+- generator contract for rim-authored structures anchored to canonical system nodes
+- deterministic generator metadata (`seed`, `model_version`, `parameter_json`, provenance)
+- generated object/edge families:
+  - planets, moons, belts/cloud regions, infrastructure scaffolds
+  - containment spine + relation-edge overlays (no containment cycles)
+- policy controls to prevent scientific-row mutation and preserve canonical references
+
+Success criteria:
+
+- generated systems remain queryable/navigable through the same graph model as canonical systems
+- containment tree integrity holds (`contains` acyclic, one canonical parent)
+- generated overlays can be fully disabled without impacting canonical science behavior
+
+### M11. Engagement and Community Overlay
 
 Goal:
 

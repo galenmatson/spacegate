@@ -17,13 +17,13 @@ S1 includes:
 - Sol system root
 - Sun host star
 - major planets (Mercury..Neptune)
-- subplanets (Pluto, Ceres, Eris, Haumea, Makemake)
+- dwarf planets (Pluto, Ceres, Eris, Haumea, Makemake)
 - Sol aliases (`Sol`, `Solar System`, `Sun`)
 
 Terminology:
 
-- canonical label in Spacegate: `subplanet`
-- interoperable alias: `dwarf_planet` (retained in tags/interop)
+- scientific classification in canonical science layers remains source-faithful (`dwarf_planet` per source conventions)
+- structural/UI supergrouping may expose `subplanet` for navigation and usability
 
 S1 does not include moons/comets/spacecraft as first-class rows in `core`.
 
@@ -101,7 +101,7 @@ S1 intentionally prioritizes canonical discoverability over full Solar-System ob
 
 S2+ use the generic hierarchy model:
 
-- node types: star, planet, subplanet, moon, asteroid, comet, spacecraft, barycenter
+- node types: star, planet, subplanet, moon, minor_body, asteroid, comet, spacecraft, barycenter
 - edge types: contains, orbits, belongs_to
 
 This allows Castor-like hierarchy handling and Sol-like deep object diversity under one consistent graph model.
