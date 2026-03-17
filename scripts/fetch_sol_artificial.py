@@ -5,6 +5,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 import re
 import time
@@ -14,6 +15,7 @@ from pathlib import Path
 
 HORIZONS_API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
 USER_AGENT = "Spacegate/0.1 (+https://github.com/galenmatson/spacegate)"
+ORBITAL_PERIOD_SENTINEL_DAYS = 1e20
 
 ARTIFICIAL_OBJECTS = [
     {
@@ -236,13 +238,40 @@ def parse_elements(payload: str) -> dict[str, float | None]:
             "semi_major_axis_au": None,
             "orbital_period_days": None,
         }
-    return {
+    elements = {
         "epoch_tdb_jd": parse_float_token(parts[0]),
         "eccentricity": parse_float_token(parts[2]),
         "inclination_deg": parse_float_token(parts[4]),
         "semi_major_axis_au": parse_float_token(parts[11]),
         "orbital_period_days": parse_float_token(parts[13]),
     }
+    eccentricity = elements.get("eccentricity")
+    semi_major_axis_au = elements.get("semi_major_axis_au")
+    orbital_period_days = elements.get("orbital_period_days")
+
+    if eccentricity is not None and not math.isfinite(eccentricity):
+        eccentricity = None
+    if semi_major_axis_au is not None and not math.isfinite(semi_major_axis_au):
+        semi_major_axis_au = None
+    if orbital_period_days is not None:
+        if (
+            not math.isfinite(orbital_period_days)
+            or abs(orbital_period_days) >= ORBITAL_PERIOD_SENTINEL_DAYS
+            or orbital_period_days <= 0.0
+        ):
+            orbital_period_days = None
+
+    # Horizons can emit sentinel/degenerate values for escape trajectories.
+    if (
+        orbital_period_days is not None
+        and ((eccentricity is not None and eccentricity >= 1.0) or (semi_major_axis_au is not None and semi_major_axis_au <= 0.0))
+    ):
+        orbital_period_days = None
+
+    elements["eccentricity"] = eccentricity
+    elements["semi_major_axis_au"] = semi_major_axis_au
+    elements["orbital_period_days"] = orbital_period_days
+    return elements
 
 
 def build_query_params(

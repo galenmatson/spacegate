@@ -612,7 +612,7 @@ def main() -> int:
     con.execute(
         """
         create temp table sol_artificial_typed as
-        with typed as (
+        with typed_raw as (
           select
             cast(nullif(source_pk, '') as bigint) as source_pk,
             nullif(trim(object_name), '') as object_name,
@@ -630,9 +630,9 @@ def main() -> int:
             nullif(trim(parent_object_name), '') as parent_object_name,
             lower(trim(coalesce(parent_object_name, ''))) as parent_object_name_norm,
             nullif(trim(center_code), '') as center_code,
-            nullif(trim(orbital_period_days), '')::double as orbital_period_days,
-            nullif(trim(semi_major_axis_au), '')::double as semi_major_axis_au,
-            nullif(trim(eccentricity), '')::double as eccentricity,
+            nullif(trim(orbital_period_days), '')::double as orbital_period_days_raw,
+            nullif(trim(semi_major_axis_au), '')::double as semi_major_axis_au_raw,
+            nullif(trim(eccentricity), '')::double as eccentricity_raw,
             nullif(trim(inclination_deg), '')::double as inclination_deg,
             nullif(trim(epoch_tdb_jd), '')::double as epoch_tdb_jd,
             nullif(trim(radius_km), '')::double as radius_km,
@@ -642,6 +642,45 @@ def main() -> int:
             nullif(trim(horizons_query_url), '') as source_url,
             nullif(trim(source_row_hash), '') as source_row_hash
           from sol_artificial_raw
+        ), typed as (
+          select
+            source_pk,
+            object_name,
+            object_name_norm,
+            object_kind_norm,
+            parent_object_name,
+            parent_object_name_norm,
+            center_code,
+            case
+              when orbital_period_days_raw is null then null
+              when not isfinite(orbital_period_days_raw) then null
+              when abs(orbital_period_days_raw) >= 1e20 then null
+              when orbital_period_days_raw <= 0.0 then null
+              when coalesce(eccentricity_raw, 0.0) >= 1.0 then null
+              when coalesce(semi_major_axis_au_raw, 1.0) <= 0.0 then null
+              else orbital_period_days_raw
+            end as orbital_period_days,
+            case
+              when semi_major_axis_au_raw is null then null
+              when not isfinite(semi_major_axis_au_raw) then null
+              when abs(semi_major_axis_au_raw) >= 1e9 then null
+              else semi_major_axis_au_raw
+            end as semi_major_axis_au,
+            case
+              when eccentricity_raw is null then null
+              when not isfinite(eccentricity_raw) then null
+              when abs(eccentricity_raw) >= 1e6 then null
+              else eccentricity_raw
+            end as eccentricity,
+            inclination_deg,
+            epoch_tdb_jd,
+            radius_km,
+            mass_kg,
+            freshness_window_days,
+            target_body_name,
+            source_url,
+            source_row_hash
+          from typed_raw
         )
         select *
         from typed

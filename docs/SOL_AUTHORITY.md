@@ -47,6 +47,7 @@ S1 does not include moons/comets/spacecraft as first-class rows in `core`.
 
 - ingest curated Sol artificial objects from JPL Horizons with explicit freshness windows
 - materialize `sol_artificial_objects` + hierarchy/orbit/solution rows in `arm`
+- treat unbound/escape trajectories as non-periodic (`orbital_period_days=NULL`) to avoid sentinel period artifacts
 - keep artificial rows out of `core` canonical hot paths
 - surface S4 evidence in system detail API/UI for Sol
 - include S4 stale-row checks in volatile-feed monitoring report

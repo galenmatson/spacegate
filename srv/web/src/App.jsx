@@ -750,8 +750,11 @@ function formatPeriodDaysWithYears(periodDays) {
     return "Unknown";
   }
   const days = Number(periodDays);
+  if (!Number.isFinite(days) || days <= 0 || Math.abs(days) >= 1e20) {
+    return "Unknown";
+  }
   const dayLabel = `${formatNumber(days, 2)} d`;
-  if (!Number.isFinite(days) || days <= 365.25) {
+  if (days <= 365.25) {
     return dayLabel;
   }
   const years = days / 365.25;
@@ -760,18 +763,35 @@ function formatPeriodDaysWithYears(periodDays) {
 }
 
 function formatOrbitSummary({ periodDays, semiMajorAxisAu, eccentricity, inclinationDeg }) {
+  const numericPeriod = Number(periodDays);
+  const numericSemiMajorAxis = Number(semiMajorAxisAu);
+  const numericEccentricity = Number(eccentricity);
+  const numericInclination = Number(inclinationDeg);
+  const hasPeriod = Number.isFinite(numericPeriod);
+  const hasSemiMajorAxis = Number.isFinite(numericSemiMajorAxis);
+  const hasEccentricity = Number.isFinite(numericEccentricity);
+  const hasInclination = Number.isFinite(numericInclination);
+  const unboundTrajectory =
+    (hasEccentricity && numericEccentricity >= 1.0) || (hasSemiMajorAxis && numericSemiMajorAxis <= 0.0);
+
   const bits = [];
-  if (periodDays !== null && periodDays !== undefined && Number.isFinite(Number(periodDays))) {
-    bits.push(`P ${formatPeriodDaysWithYears(periodDays)}`);
+  if (unboundTrajectory) {
+    bits.push("Trajectory unbound");
   }
-  if (semiMajorAxisAu !== null && semiMajorAxisAu !== undefined && Number.isFinite(Number(semiMajorAxisAu))) {
-    bits.push(`a ${formatNumber(semiMajorAxisAu, 4)} AU`);
+  if (!unboundTrajectory && hasPeriod) {
+    const periodLabel = formatPeriodDaysWithYears(numericPeriod);
+    if (periodLabel !== "Unknown") {
+      bits.push(`P ${periodLabel}`);
+    }
   }
-  if (eccentricity !== null && eccentricity !== undefined && Number.isFinite(Number(eccentricity))) {
-    bits.push(`e ${formatNumber(eccentricity, 4)}`);
+  if (!unboundTrajectory && hasSemiMajorAxis) {
+    bits.push(`a ${formatNumber(numericSemiMajorAxis, 4)} AU`);
   }
-  if (inclinationDeg !== null && inclinationDeg !== undefined && Number.isFinite(Number(inclinationDeg))) {
-    bits.push(`i ${formatNumber(inclinationDeg, 3)} deg`);
+  if (hasEccentricity) {
+    bits.push(`e ${formatNumber(numericEccentricity, 4)}`);
+  }
+  if (hasInclination) {
+    bits.push(`i ${formatNumber(numericInclination, 3)} deg`);
   }
   if (bits.length === 0) {
     return "Orbit parameters unavailable";
