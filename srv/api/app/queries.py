@@ -1282,43 +1282,59 @@ def search_systems(
                 item["display_name"] = display_name
                 item["display_aliases"] = []
 
-        if not (has_system_star_count and has_system_planet_count and has_system_spectral_classes_json):
-            star_rows = con.execute(
-                f"""
-                SELECT
-                  system_id,
-                  COUNT(*)::BIGINT AS star_count,
-                  ARRAY_AGG(DISTINCT spectral_class) FILTER (WHERE spectral_class IS NOT NULL) AS spectral_classes
-                FROM stars
-                WHERE system_id IN ({placeholders})
-                GROUP BY system_id
-                """,
-                system_ids,
-            ).fetchall()
-            star_map: Dict[int, Tuple[int, List[str]]] = {}
-            for sid, count, spectral in star_rows:
-                star_map[int(sid)] = (
-                    int(count or 0),
-                    [token for token in (spectral or []) if token],
-                )
+        star_rows = con.execute(
+            f"""
+            WITH star_buckets AS (
+              SELECT
+                system_id,
+                CASE
+                  WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 'D'
+                  WHEN spectral_class IN ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y', 'D') THEN spectral_class
+                  ELSE NULL
+                END AS spectral_bucket
+              FROM stars
+              WHERE system_id IN ({placeholders})
+            )
+            SELECT
+              system_id,
+              COUNT(*)::BIGINT AS star_count,
+              LIST(DISTINCT spectral_bucket) FILTER (WHERE spectral_bucket IS NOT NULL) AS spectral_classes
+            FROM star_buckets
+            GROUP BY system_id
+            """,
+            system_ids,
+        ).fetchall()
+        star_map: Dict[int, Tuple[int, List[str]]] = {}
+        for sid, count, spectral in star_rows:
+            normalized = sorted(
+                {
+                    str(token).strip()
+                    for token in (spectral or [])
+                    if str(token).strip()
+                }
+            )
+            star_map[int(sid)] = (
+                int(count or 0),
+                normalized,
+            )
 
-            planet_rows = con.execute(
-                f"""
-                SELECT system_id, COUNT(*)::BIGINT AS planet_count
-                FROM planets
-                WHERE system_id IN ({placeholders})
-                GROUP BY system_id
-                """,
-                system_ids,
-            ).fetchall()
-            planet_map: Dict[int, int] = {int(sid): int(count or 0) for sid, count in planet_rows}
+        planet_rows = con.execute(
+            f"""
+            SELECT system_id, COUNT(*)::BIGINT AS planet_count
+            FROM planets
+            WHERE system_id IN ({placeholders})
+            GROUP BY system_id
+            """,
+            system_ids,
+        ).fetchall()
+        planet_map: Dict[int, int] = {int(sid): int(count or 0) for sid, count in planet_rows}
 
-            for item in results:
-                sid = int(item.get("system_id") or 0)
-                star_count, spectral_classes = star_map.get(sid, (0, []))
-                item["star_count"] = star_count
-                item["spectral_classes"] = spectral_classes
-                item["planet_count"] = planet_map.get(sid, 0)
+        for item in results:
+            sid = int(item.get("system_id") or 0)
+            star_count, spectral_classes = star_map.get(sid, (0, []))
+            item["star_count"] = star_count
+            item["spectral_classes"] = spectral_classes
+            item["planet_count"] = planet_map.get(sid, 0)
 
         if has_coolness_scores and not use_coolness_in_sql:
             coolness_rows = con.execute(
