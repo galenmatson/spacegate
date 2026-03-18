@@ -68,6 +68,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Reattach MSC (mandatory) against Gaia backbone IDs
 - [ ] Reattach WDS/ORB6 evidence against Gaia backbone IDs
 - [x] Materialize Gaia NSS unresolved-companion orbital evidence in `arm.orbital_solutions`
+- [x] Materialize WDS/MSC observational detail tables in `arm` for narration/context
+- [x] Materialize safely-mapped ORB6 rows in `arm.orbital_solutions`
 - [x] Reattach SBX spectroscopic-binary evidence against Gaia/HIP/HD IDs (default-on toggle: `SPACEGATE_ENABLE_SBX`)
 - [ ] Implement/verify hierarchy confidence tiers
 - [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)

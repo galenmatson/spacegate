@@ -12,6 +12,8 @@ from typing import Any
 import duckdb
 
 MSC_VERSION_FALLBACK = "2024-01-01"
+WDS_VERSION_FALLBACK = "wdsweb_summ2"
+ORB6_VERSION_FALLBACK = "orb6orbits"
 VSX_VERSION_FALLBACK = "vsx_dat"
 VSX_URL_FALLBACK = "https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat"
 ULTRACOOLSHEET_VERSION_FALLBACK = "UltracoolSheet_Main"
@@ -88,6 +90,8 @@ def main() -> int:
     arm_db = Path(args.arm_db).resolve()
     state_dir = Path(args.state_dir).resolve()
     cooked_msc = state_dir / "cooked" / "msc" / "msc_components.csv"
+    cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
+    cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
     cooked_vsx = state_dir / "cooked" / "vsx" / "vsx_variability.csv"
     cooked_ultracoolsheet = state_dir / "cooked" / "ultracoolsheet" / "ultracoolsheet_objects.csv"
     cooked_sol_authority = state_dir / "cooked" / "sol_authority" / "sol_system_objects.csv"
@@ -102,6 +106,8 @@ def main() -> int:
     )
     manifest_dir = state_dir / "reports" / "manifests"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
+    wds_manifest_path = manifest_dir / "wds_manifest.json"
+    orb6_manifest_path = manifest_dir / "orb6_manifest.json"
     vsx_manifest_path = manifest_dir / "vsx_manifest.json"
     ultracoolsheet_manifest_path = manifest_dir / "ultracoolsheet_manifest.json"
     sol_authority_manifest_path = manifest_dir / "sol_authority_manifest.json"
@@ -125,6 +131,8 @@ def main() -> int:
     msc_manifest = load_manifest_entry(msc_manifest_path, "newmsc_20240101")
     if not msc_manifest:
         msc_manifest = load_manifest_entry(core_manifest_path, "msc")
+    wds_manifest = load_manifest_entry(wds_manifest_path, "wdsweb_summ2")
+    orb6_manifest = load_manifest_entry(orb6_manifest_path, "orb6orbits")
     vsx_manifest = load_manifest_entry(vsx_manifest_path, "vsx_dat")
     ultracoolsheet_manifest = load_manifest_entry(
         ultracoolsheet_manifest_path, "UltracoolSheet_Main"
@@ -143,6 +151,12 @@ def main() -> int:
     msc_version = str(msc_manifest.get("source_version") or MSC_VERSION_FALLBACK)
     msc_checksum = str(msc_manifest.get("sha256") or "")
     msc_retrieved = str(msc_manifest.get("retrieved_at") or "")
+    wds_version = str(wds_manifest.get("source_version") or WDS_VERSION_FALLBACK)
+    wds_checksum = str(wds_manifest.get("sha256") or "")
+    wds_retrieved = str(wds_manifest.get("retrieved_at") or "")
+    orb6_version = str(orb6_manifest.get("source_version") or ORB6_VERSION_FALLBACK)
+    orb6_checksum = str(orb6_manifest.get("sha256") or "")
+    orb6_retrieved = str(orb6_manifest.get("retrieved_at") or "")
     vsx_version = str(vsx_manifest.get("source_version") or VSX_VERSION_FALLBACK)
     vsx_checksum = str(vsx_manifest.get("sha256") or "")
     vsx_retrieved = str(vsx_manifest.get("retrieved_at") or "")
@@ -244,6 +258,93 @@ def main() -> int:
               wds_id, ra_deg, dec_deg, parallax_mas, parallax_ref, pm_ra_mas_yr, pm_dec_mas_yr,
               radial_velocity_kms, component, sep_arcsec, spectral_type_raw, hip_id, hd_id, bmag, vmag, imag,
               jmag, hmag, kmag, ncomp, grade, other_identifiers, subsystem_count, orbit_count
+            )
+            where false
+            """
+        )
+
+    if cooked_wds.exists():
+        con.execute(
+            f"""
+            create or replace temp view wds_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_wds))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view wds_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              wds_id, discoverer, component, first_year, last_year, obs_count, theta_first_deg, theta_last_deg,
+              rho_first_arcsec, rho_last_arcsec, mag_primary, mag_secondary, spectral_type_raw, pm_primary_ra,
+              pm_primary_dec, pm_secondary_ra, pm_secondary_dec, dm_designation, note, precise_coordinate,
+              ra_deg, dec_deg
+            )
+            where false
+            """
+        )
+
+    if cooked_orb6.exists():
+        con.execute(
+            f"""
+            create or replace temp view orb6_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_orb6))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view orb6_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              wds_id, discoverer, ads_id, hd_id, hip_id, ra_deg, dec_deg, mag_primary, mag_secondary,
+              period_value, period_unit, period_error, semi_major_axis_arcsec, axis_qualifier, axis_error,
+              inclination_deg, inclination_error, node_deg, node_error, periastron_epoch, epoch_unit,
+              eccentricity, eccentricity_error, long_periastron_deg, long_periastron_error, equinox,
+              last_observed_year, grade, notes_flag, reference_code, png_file
             )
             where false
             """
@@ -599,6 +700,10 @@ def main() -> int:
           ('arm_source_core_db', {sql_literal(str(core_db))}),
           ('arm_source_msc_csv', {sql_literal(str(cooked_msc) if cooked_msc.exists() else '')}),
           ('arm_source_msc_version', {sql_literal(msc_version)}),
+          ('arm_source_wds_csv', {sql_literal(str(cooked_wds) if cooked_wds.exists() else '')}),
+          ('arm_source_wds_version', {sql_literal(wds_version)}),
+          ('arm_source_orb6_csv', {sql_literal(str(cooked_orb6) if cooked_orb6.exists() else '')}),
+          ('arm_source_orb6_version', {sql_literal(orb6_version)}),
           ('arm_source_vsx_csv', {sql_literal(str(cooked_vsx) if cooked_vsx.exists() else '')}),
           ('arm_source_vsx_version', {sql_literal(vsx_version)}),
           ('arm_source_vsx_enabled', {sql_literal("1" if enable_vsx else "0")}),
@@ -1811,6 +1916,176 @@ def main() -> int:
     log(f"Arm stage complete: component_entities ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
+    log("Arm stage: creating msc_component_details")
+    con.execute(
+        f"""
+        create table msc_component_details as
+        with core_component_match as (
+          select
+            st.system_id,
+            st.star_id,
+            st.stable_object_key,
+            'comp:star:' || st.stable_object_key as stable_component_key,
+            st.wds_id,
+            lower(regexp_replace(coalesce(st.component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_label
+          from core.stars st
+          where st.wds_id is not null
+            and trim(coalesce(st.component, '')) <> ''
+        ), typed as (
+          select
+            nullif(wds_id, '') as wds_id,
+            lower(regexp_replace(coalesce(component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_label,
+            nullif(preferred_name, '') as preferred_name,
+            nullif(sep_arcsec, '')::double as sep_arcsec,
+            nullif(spectral_type_raw, '') as spectral_type_raw,
+            nullif(parallax_mas, '')::double as parallax_mas,
+            nullif(pm_ra_mas_yr, '')::double as pm_ra_mas_yr,
+            nullif(pm_dec_mas_yr, '')::double as pm_dec_mas_yr,
+            nullif(radial_velocity_kms, '')::double as radial_velocity_kms,
+            nullif(bmag, '')::double as bmag,
+            nullif(vmag, '')::double as vmag,
+            nullif(imag, '')::double as imag,
+            nullif(jmag, '')::double as jmag,
+            nullif(hmag, '')::double as hmag,
+            nullif(kmag, '')::double as kmag,
+            nullif(grade, '') as grade,
+            nullif(other_identifiers, '') as other_identifiers,
+            cast(nullif(subsystem_count, '') as bigint) as subsystem_count,
+            cast(nullif(orbit_count, '') as bigint) as orbit_count
+          from msc_raw
+          where nullif(wds_id, '') is not null
+        )
+        select
+          row_number() over (order by t.wds_id, t.component_label, coalesce(m.star_id, -1))::bigint as msc_component_detail_id,
+          s.system_id,
+          m.star_id,
+          s.stable_object_key,
+          coalesce(m.stable_component_key, 'comp:msc:wds:' || t.wds_id || ':' || t.component_label) as stable_component_key,
+          t.wds_id,
+          t.component_label,
+          t.preferred_name,
+          t.sep_arcsec,
+          t.spectral_type_raw,
+          t.parallax_mas,
+          t.pm_ra_mas_yr,
+          t.pm_dec_mas_yr,
+          t.radial_velocity_kms,
+          t.bmag,
+          t.vmag,
+          t.imag,
+          t.jmag,
+          t.hmag,
+          t.kmag,
+          t.grade,
+          t.other_identifiers,
+          t.subsystem_count,
+          t.orbit_count,
+          'msc'::varchar as source_catalog,
+          {sql_literal(msc_version)}::varchar as source_version,
+          t.wds_id || ':' || t.component_label as source_pk,
+          cast(null as varchar) as source_row_hash,
+          {sql_literal(msc_checksum)}::varchar as retrieval_checksum,
+          {sql_literal(msc_retrieved)}::varchar as retrieved_at,
+          {sql_literal(args.ingested_at)}::varchar as ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version
+        from typed t
+        left join core_component_match m
+          on m.wds_id = t.wds_id
+         and m.component_label = t.component_label
+        left join core.systems s on s.wds_id = t.wds_id
+        """
+    )
+    log(f"Arm stage complete: msc_component_details ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: creating wds_component_observations")
+    con.execute(
+        f"""
+        create table wds_component_observations as
+        with core_component_match as (
+          select
+            st.system_id,
+            st.star_id,
+            st.stable_object_key,
+            'comp:star:' || st.stable_object_key as stable_component_key,
+            st.wds_id,
+            lower(regexp_replace(coalesce(st.component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_label
+          from core.stars st
+          where st.wds_id is not null
+            and trim(coalesce(st.component, '')) <> ''
+        ), typed as (
+          select
+            nullif(wds_id, '') as wds_id,
+            nullif(discoverer, '') as discoverer,
+            lower(regexp_replace(coalesce(component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_label,
+            try_cast(nullif(first_year, '') as bigint) as first_year,
+            try_cast(nullif(last_year, '') as bigint) as last_year,
+            try_cast(nullif(obs_count, '') as bigint) as obs_count,
+            try_cast(nullif(theta_first_deg, '') as double) as theta_first_deg,
+            try_cast(nullif(theta_last_deg, '') as double) as theta_last_deg,
+            try_cast(nullif(rho_first_arcsec, '') as double) as rho_first_arcsec,
+            try_cast(nullif(rho_last_arcsec, '') as double) as rho_last_arcsec,
+            try_cast(nullif(mag_primary, '') as double) as mag_primary,
+            try_cast(nullif(mag_secondary, '') as double) as mag_secondary,
+            nullif(spectral_type_raw, '') as spectral_type_raw,
+            try_cast(nullif(pm_primary_ra, '') as double) as pm_primary_ra,
+            try_cast(nullif(pm_primary_dec, '') as double) as pm_primary_dec,
+            try_cast(nullif(pm_secondary_ra, '') as double) as pm_secondary_ra,
+            try_cast(nullif(pm_secondary_dec, '') as double) as pm_secondary_dec,
+            nullif(dm_designation, '') as dm_designation,
+            nullif(note, '') as note,
+            nullif(precise_coordinate, '') as precise_coordinate,
+            try_cast(nullif(ra_deg, '') as double) as ra_deg,
+            try_cast(nullif(dec_deg, '') as double) as dec_deg
+          from wds_raw
+          where nullif(wds_id, '') is not null
+        )
+        select
+          row_number() over (order by t.wds_id, t.component_label, coalesce(m.star_id, -1))::bigint as wds_component_observation_id,
+          s.system_id,
+          m.star_id,
+          s.stable_object_key,
+          coalesce(m.stable_component_key, 'comp:wds:' || t.wds_id || ':' || t.component_label) as stable_component_key,
+          t.wds_id,
+          t.discoverer,
+          t.component_label,
+          t.first_year,
+          t.last_year,
+          t.obs_count,
+          t.theta_first_deg,
+          t.theta_last_deg,
+          t.rho_first_arcsec,
+          t.rho_last_arcsec,
+          t.mag_primary,
+          t.mag_secondary,
+          t.spectral_type_raw,
+          t.pm_primary_ra,
+          t.pm_primary_dec,
+          t.pm_secondary_ra,
+          t.pm_secondary_dec,
+          t.dm_designation,
+          t.note,
+          t.precise_coordinate,
+          t.ra_deg,
+          t.dec_deg,
+          'wds'::varchar as source_catalog,
+          {sql_literal(wds_version)}::varchar as source_version,
+          t.wds_id || ':' || t.component_label as source_pk,
+          cast(null as varchar) as source_row_hash,
+          {sql_literal(wds_checksum)}::varchar as retrieval_checksum,
+          {sql_literal(wds_retrieved)}::varchar as retrieved_at,
+          {sql_literal(args.ingested_at)}::varchar as ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version
+        from typed t
+        left join core_component_match m
+          on m.wds_id = t.wds_id
+         and m.component_label = t.component_label
+        left join core.systems s on s.wds_id = t.wds_id
+        """
+    )
+    log(f"Arm stage complete: wds_component_observations ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating system_hierarchy_edges")
     con.execute(
         f"""
@@ -2272,7 +2547,30 @@ def main() -> int:
             cast(null as double) as mass_ratio,
             cast(null as bigint) as flags,
             cast(null as double) as significance,
-            1::int as solution_rank
+            1::int as solution_rank,
+            cast(null as double) as semi_major_axis_arcsec,
+            cast(null as double) as node_deg,
+            cast(null as double) as long_periastron_deg,
+            cast(null as double) as time_periastron_jd,
+            cast(null as double) as reference_epoch_jyear,
+            cast(null as double) as reference_epoch_mjd,
+            cast(null as double) as period_value,
+            cast(null as varchar) as period_unit,
+            cast(null as double) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            cast(null as double) as axis_error,
+            cast(null as double) as inclination_error,
+            cast(null as double) as node_error,
+            cast(null as double) as periastron_epoch,
+            cast(null as varchar) as epoch_unit,
+            cast(null as double) as eccentricity_error,
+            cast(null as double) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            cast(null as varchar) as notes_flag,
+            cast(null as varchar) as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
           from sol_moon_orbits s
           join orbit_edges e
             on e.relation_kind = 'satellite'
@@ -2300,7 +2598,30 @@ def main() -> int:
             cast(null as double) as mass_ratio,
             cast(null as bigint) as flags,
             cast(null as double) as significance,
-            1::int as solution_rank
+            1::int as solution_rank,
+            cast(null as double) as semi_major_axis_arcsec,
+            cast(null as double) as node_deg,
+            cast(null as double) as long_periastron_deg,
+            cast(null as double) as time_periastron_jd,
+            cast(null as double) as reference_epoch_jyear,
+            cast(null as double) as reference_epoch_mjd,
+            cast(null as double) as period_value,
+            cast(null as varchar) as period_unit,
+            cast(null as double) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            cast(null as double) as axis_error,
+            cast(null as double) as inclination_error,
+            cast(null as double) as node_error,
+            cast(null as double) as periastron_epoch,
+            cast(null as varchar) as epoch_unit,
+            cast(null as double) as eccentricity_error,
+            cast(null as double) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            cast(null as varchar) as notes_flag,
+            cast(null as varchar) as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
           from sol_small_body_orbits s
           join orbit_edges e
             on e.relation_kind = 'orbits'
@@ -2331,7 +2652,30 @@ def main() -> int:
             cast(null as double) as mass_ratio,
             cast(null as bigint) as flags,
             cast(null as double) as significance,
-            1::int as solution_rank
+            1::int as solution_rank,
+            cast(null as double) as semi_major_axis_arcsec,
+            cast(null as double) as node_deg,
+            cast(null as double) as long_periastron_deg,
+            cast(null as double) as time_periastron_jd,
+            cast(null as double) as reference_epoch_jyear,
+            cast(null as double) as reference_epoch_mjd,
+            cast(null as double) as period_value,
+            cast(null as varchar) as period_unit,
+            cast(null as double) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            cast(null as double) as axis_error,
+            cast(null as double) as inclination_error,
+            cast(null as double) as node_error,
+            cast(null as double) as periastron_epoch,
+            cast(null as varchar) as epoch_unit,
+            cast(null as double) as eccentricity_error,
+            cast(null as double) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            cast(null as varchar) as notes_flag,
+            cast(null as varchar) as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
           from sol_artificial_orbits s
           join orbit_edges e
             on e.relation_kind = 'artificial_orbit'
@@ -2368,7 +2712,30 @@ def main() -> int:
             row_number() over (
               partition by n.gaia_id
               order by coalesce(n.significance, -1.0) desc, coalesce(n.period_days, 1.0e18) asc
-            ) as solution_rank
+            ) as solution_rank,
+            cast(null as double) as semi_major_axis_arcsec,
+            cast(null as double) as node_deg,
+            cast(null as double) as long_periastron_deg,
+            cast(null as double) as time_periastron_jd,
+            cast(null as double) as reference_epoch_jyear,
+            cast(null as double) as reference_epoch_mjd,
+            cast(null as double) as period_value,
+            cast(null as varchar) as period_unit,
+            cast(null as double) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            cast(null as double) as axis_error,
+            cast(null as double) as inclination_error,
+            cast(null as double) as node_error,
+            cast(null as double) as periastron_epoch,
+            cast(null as varchar) as epoch_unit,
+            cast(null as double) as eccentricity_error,
+            cast(null as double) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            cast(null as varchar) as notes_flag,
+            cast(null as varchar) as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
           from (
             select
               cast(nullif(source_id, '') as bigint) as gaia_id,
@@ -2387,6 +2754,119 @@ def main() -> int:
           join orbit_edges e
             on e.source_catalog = 'gaia_nss'
            and cast(e.source_pk as bigint) = n.gaia_id
+        ), orb6_system_edge_match as (
+          select
+            s.wds_id,
+            case when count(*) = 1 then min(e.orbit_edge_id) else null end as orbit_edge_id,
+            min(s.system_id) as system_id,
+            min(s.stable_object_key) as system_key
+          from core.systems s
+          join orbit_edges e
+            on e.host_component_key = 'comp:system:' || s.stable_object_key
+           and e.relation_kind = 'binary'
+          where s.wds_id is not null
+          group by s.wds_id
+        ), orb6_rows as (
+          select
+            m.orbit_edge_id,
+            coalesce(o.ads_id, o.hip_id, o.hd_id, o.wds_id) as source_pk,
+            cast(null as double) as epoch_tdb_jd,
+            case lower(coalesce(o.period_unit, ''))
+              when 'd' then o.period_value
+              when 'y' then o.period_value * 365.25
+              when 'c' then o.period_value * 36525.0
+              when 'h' then o.period_value / 24.0
+              else null
+            end as orbital_period_days,
+            cast(null as double) as semi_major_axis_au,
+            o.eccentricity,
+            o.inclination_deg,
+            cast(null as varchar) as source_row_hash,
+            'orb6'::varchar as solver,
+            'relative_visual_binary'::varchar as frame,
+            case
+              when cast(nullif(o.grade, '') as int) <= 1 then 0.99
+              when cast(nullif(o.grade, '') as int) = 2 then 0.95
+              when cast(nullif(o.grade, '') as int) = 3 then 0.88
+              when cast(nullif(o.grade, '') as int) = 4 then 0.75
+              when cast(nullif(o.grade, '') as int) >= 5 then 0.62
+              else 0.70
+            end::double as confidence_score,
+            'orb6'::varchar as source_catalog,
+            {sql_literal(orb6_version)}::varchar as source_version,
+            {sql_literal(orb6_checksum)}::varchar as retrieval_checksum,
+            {sql_literal(orb6_retrieved)}::varchar as retrieved_at,
+            cast(null as double) as center_of_mass_velocity_kms,
+            cast(null as double) as semi_amplitude_primary_kms,
+            cast(null as double) as mass_ratio,
+            cast(null as bigint) as flags,
+            cast(null as double) as significance,
+            1::int as solution_rank,
+            o.semi_major_axis_arcsec,
+            o.node_deg,
+            o.long_periastron_deg,
+            case
+              when lower(coalesce(o.epoch_unit, '')) = 'j' then o.periastron_epoch
+              else null
+            end as time_periastron_jd,
+            case
+              when lower(coalesce(o.epoch_unit, '')) = 'y' then o.periastron_epoch
+              else null
+            end as reference_epoch_jyear,
+            case
+              when lower(coalesce(o.epoch_unit, '')) = 'd' then o.periastron_epoch
+              else null
+            end as reference_epoch_mjd,
+            o.period_value,
+            o.period_unit,
+            o.period_error,
+            o.axis_qualifier,
+            o.axis_error,
+            o.inclination_error,
+            o.node_error,
+            o.periastron_epoch,
+            o.epoch_unit,
+            o.eccentricity_error,
+            o.long_periastron_error,
+            o.discoverer,
+            o.grade,
+            o.notes_flag,
+            o.reference_code,
+            o.png_file,
+            o.last_observed_year
+          from (
+            select
+              nullif(wds_id, '') as wds_id,
+              nullif(discoverer, '') as discoverer,
+              nullif(ads_id, '') as ads_id,
+              nullif(hd_id, '') as hd_id,
+              nullif(hip_id, '') as hip_id,
+              try_cast(nullif(period_value, '') as double) as period_value,
+              nullif(period_unit, '') as period_unit,
+              try_cast(nullif(period_error, '') as double) as period_error,
+              try_cast(nullif(semi_major_axis_arcsec, '') as double) as semi_major_axis_arcsec,
+              nullif(axis_qualifier, '') as axis_qualifier,
+              try_cast(nullif(axis_error, '') as double) as axis_error,
+              try_cast(nullif(inclination_deg, '') as double) as inclination_deg,
+              try_cast(nullif(inclination_error, '') as double) as inclination_error,
+              try_cast(nullif(node_deg, '') as double) as node_deg,
+              try_cast(nullif(node_error, '') as double) as node_error,
+              try_cast(nullif(periastron_epoch, '') as double) as periastron_epoch,
+              nullif(epoch_unit, '') as epoch_unit,
+              try_cast(nullif(eccentricity, '') as double) as eccentricity,
+              try_cast(nullif(eccentricity_error, '') as double) as eccentricity_error,
+              try_cast(nullif(long_periastron_deg, '') as double) as long_periastron_deg,
+              try_cast(nullif(long_periastron_error, '') as double) as long_periastron_error,
+              try_cast(nullif(last_observed_year, '') as double) as last_observed_year,
+              nullif(grade, '') as grade,
+              nullif(notes_flag, '') as notes_flag,
+              nullif(reference_code, '') as reference_code,
+              nullif(png_file, '') as png_file
+            from orb6_raw
+            where nullif(wds_id, '') is not null
+          ) o
+          join orb6_system_edge_match m on m.wds_id = o.wds_id
+          where m.orbit_edge_id is not null
         ), sol_rows as (
           select * from sol_satellite_rows
           union all
@@ -2395,6 +2875,8 @@ def main() -> int:
           select * from sol_artificial_rows
           union all
           select * from gaia_nss_rows
+          union all
+          select * from orb6_rows
         )
         select
           row_number() over (
@@ -2403,19 +2885,22 @@ def main() -> int:
           orbit_edge_id,
           source_catalog as solution_source_catalog,
           coalesce(solution_rank, 1)::int as solution_rank,
-          case
-            when epoch_tdb_jd is not null then 2000.0 + ((epoch_tdb_jd - 2451545.0) / 365.25)
-            else null
-          end as reference_epoch_jyear,
-          cast(null as double) as reference_epoch_mjd,
+          coalesce(
+            reference_epoch_jyear,
+            case
+              when epoch_tdb_jd is not null then 2000.0 + ((epoch_tdb_jd - 2451545.0) / 365.25)
+              else null
+            end
+          ) as reference_epoch_jyear,
+          reference_epoch_mjd as reference_epoch_mjd,
           orbital_period_days as period_days,
           semi_major_axis_au,
-          cast(null as double) as semi_major_axis_arcsec,
+          semi_major_axis_arcsec as semi_major_axis_arcsec,
           eccentricity,
           inclination_deg,
-          cast(null as double) as longitude_ascending_node_deg,
-          cast(null as double) as argument_periastron_deg,
-          cast(null as double) as time_periastron_jd,
+          node_deg as longitude_ascending_node_deg,
+          long_periastron_deg as argument_periastron_deg,
+          time_periastron_jd as time_periastron_jd,
           cast(null as double) as mean_anomaly_deg,
           mass_ratio as mass_ratio_q,
           cast(null as double) as primary_mass_msun,
@@ -2428,7 +2913,24 @@ def main() -> int:
             'frame', frame,
             'center_of_mass_velocity_kms', center_of_mass_velocity_kms,
             'flags', flags,
-            'significance', significance
+            'significance', significance,
+            'period_value', period_value,
+            'period_unit', period_unit,
+            'period_error', period_error,
+            'axis_qualifier', axis_qualifier,
+            'axis_error', axis_error,
+            'inclination_error', inclination_error,
+            'node_error', node_error,
+            'periastron_epoch', periastron_epoch,
+            'epoch_unit', epoch_unit,
+            'eccentricity_error', eccentricity_error,
+            'long_periastron_error', long_periastron_error,
+            'discoverer', discoverer,
+            'grade', grade,
+            'notes_flag', notes_flag,
+            'reference_code', reference_code,
+            'png_file', png_file,
+            'last_observed_year', last_observed_year
           ) as fit_quality_json,
           'source_native'::varchar as normalization_method,
           case
@@ -3069,6 +3571,12 @@ def main() -> int:
     component_count = int(con.execute("select count(*) from component_entities").fetchone()[0] or 0)
     hierarchy_count = int(con.execute("select count(*) from system_hierarchy_edges").fetchone()[0] or 0)
     orbit_count = int(con.execute("select count(*) from orbit_edges").fetchone()[0] or 0)
+    msc_component_detail_count = int(
+        con.execute("select count(*) from msc_component_details").fetchone()[0] or 0
+    )
+    wds_component_observation_count = int(
+        con.execute("select count(*) from wds_component_observations").fetchone()[0] or 0
+    )
     stellar_parameter_count = int(
         con.execute("select count(*) from stellar_parameters").fetchone()[0] or 0
     )
@@ -3268,6 +3776,16 @@ def main() -> int:
         ).fetchone()[0]
         or 0
     )
+    orb6_solution_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbital_solutions
+            where source_catalog = 'orb6'
+            """
+        ).fetchone()[0]
+        or 0
+    )
     sol_small_body_table_count = int(
         con.execute("select count(*) from sol_small_body_objects").fetchone()[0] or 0
     )
@@ -3370,6 +3888,8 @@ def main() -> int:
             "component_entities": component_count,
             "system_hierarchy_edges": hierarchy_count,
             "orbit_edges": orbit_count,
+            "msc_component_details": msc_component_detail_count,
+            "wds_component_observations": wds_component_observation_count,
             "stellar_parameters_rows": stellar_parameter_count,
             "stellar_parameters_gaia_rows": gaia_stellar_parameter_count,
             "stellar_parameters_nasa_rows": nasa_stellar_parameter_count,
@@ -3403,6 +3923,7 @@ def main() -> int:
             "gaia_nss_companion_components": gaia_nss_companion_count,
             "gaia_nss_orbit_edges": gaia_nss_orbit_edge_count,
             "gaia_nss_orbital_solutions": gaia_nss_solution_count,
+            "orb6_orbital_solutions": orb6_solution_count,
             "sol_artificial_components": sol_artificial_component_count,
             "sol_artificial_hierarchy_edges": sol_artificial_hierarchy_edge_count,
             "sol_artificial_orbit_edges": sol_artificial_orbit_edge_count,
@@ -3416,6 +3937,8 @@ def main() -> int:
             "Orbit edges currently include core two-letter component pairs and inferred MSC leaf pairs.",
             "Arm stellar_parameters materializes source-native Gaia DR3 and NASA host-star values for narration/filtering workflows.",
             "Gaia NSS rows materialize inferred unresolved companions plus source-native orbital summaries in arm.orbital_solutions.",
+            "WDS and MSC catalog detail tables preserve observation history, component photometry, grades, and notes outside core hot paths.",
+            "ORB6 rows are folded into arm.orbital_solutions when they can be mapped safely to a unique binary edge for a WDS-linked system.",
             "VSX variability is stored as arm overlay rows keyed by core stable_object_key via Gaia-ID exact joins.",
             "UltracoolSheet rows are stored in arm and linked to core stars when Gaia IDs align.",
             "Exoplanet lifecycle audit tables are mirrored from core into arm for lineage/diff workflows.",
@@ -3435,7 +3958,8 @@ def main() -> int:
     log(
         "Arm build complete "
         f"(components={component_count:,}, hierarchy_edges={hierarchy_count:,}, orbit_edges={orbit_count:,}, "
-        f"stellar_parameters={stellar_parameter_count:,}, gaia_nss_orbits={gaia_nss_solution_count:,}, "
+        f"msc_details={msc_component_detail_count:,}, wds_obs={wds_component_observation_count:,}, "
+        f"stellar_parameters={stellar_parameter_count:,}, gaia_nss_orbits={gaia_nss_solution_count:,}, orb6_orbits={orb6_solution_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "
         f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
         f"msc_inferred_leaves={inferred_leaf_count:,}, sol_moons={sol_moon_component_count:,}, "

@@ -139,6 +139,7 @@ Columns:
 
 Rule:
 - never overwrite source-native measurements; normalized columns are additive transforms with lineage.
+- ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
 
 ## `stellar_parameters`
 
@@ -171,6 +172,53 @@ Columns:
 Rules:
 - keep source-native values and uncertainty bounds; do not collapse them into inferred prose fields here
 - one star may legitimately have multiple rows from different source catalogs
+
+## `msc_component_details`
+
+MSC component/context rows for subsystem narration and photometry support.
+
+Columns:
+- `msc_component_detail_id BIGINT`
+- `system_id BIGINT` (nullable)
+- `star_id BIGINT` (nullable)
+- `stable_object_key TEXT` (nullable system key)
+- `stable_component_key TEXT`
+- `wds_id TEXT`
+- `component_label TEXT`
+- `preferred_name TEXT` (nullable)
+- `sep_arcsec DOUBLE` (nullable)
+- `spectral_type_raw TEXT` (nullable)
+- astrometric/kinematic context: `parallax_mas`, `pm_ra_mas_yr`, `pm_dec_mas_yr`, `radial_velocity_kms`
+- photometry: `bmag`, `vmag`, `imag`, `jmag`, `hmag`, `kmag`
+- `grade TEXT` (nullable)
+- `other_identifiers TEXT` (nullable)
+- `subsystem_count BIGINT` (nullable)
+- `orbit_count BIGINT` (nullable)
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
+## `wds_component_observations`
+
+WDS summary observations and pair-history context for narrated binaries/multiples.
+
+Columns:
+- `wds_component_observation_id BIGINT`
+- `system_id BIGINT` (nullable)
+- `star_id BIGINT` (nullable)
+- `stable_object_key TEXT` (nullable system key)
+- `stable_component_key TEXT`
+- `wds_id TEXT`
+- `discoverer TEXT` (nullable)
+- `component_label TEXT`
+- observation window: `first_year`, `last_year`, `obs_count`
+- position history: `theta_first_deg`, `theta_last_deg`, `rho_first_arcsec`, `rho_last_arcsec`
+- `mag_primary DOUBLE`, `mag_secondary DOUBLE` (nullable)
+- `spectral_type_raw TEXT` (nullable)
+- motion context: `pm_primary_ra`, `pm_primary_dec`, `pm_secondary_ra`, `pm_secondary_dec`
+- `dm_designation TEXT` (nullable)
+- `note TEXT` (nullable)
+- `precise_coordinate TEXT` (nullable)
+- `ra_deg DOUBLE`, `dec_deg DOUBLE` (nullable)
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
 
 ## `barycenters`
 
