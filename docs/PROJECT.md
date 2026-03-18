@@ -451,6 +451,7 @@ Rules:
 - `core` profile must be selected by explicit name/version.
 - promotion gates require SLO pass for the active profile.
 - `halo` remains queryable only with explicit user intent.
+- constrained public hosts may use a documented public slice profile that keeps a `parallax_over_error` floor but avoids a hard RUWE gate when that gate removes important multiplicity/remnant companions.
 
 ## Milestones (Gaia-First Program)
 

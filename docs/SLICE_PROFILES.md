@@ -66,6 +66,28 @@ Expected scale band:
 
 - approximately 40-50% of current `<1000 ly` `galaxy` stars (based on March 2026 Gaia counts)
 
+### `core.public@v2`
+
+Intent:
+
+- public-host slice for constrained hardware where a strict RUWE gate removes too many scientifically important companions/remnants
+- preserve broad nearby coverage while cutting the worst long-tail scan cost of the full served build
+
+Filters:
+
+- `max_distance_ly=600`
+- `min_parallax_over_error=5`
+- `max_ruwe` unset
+- `max_parallax_error_mas` unset
+- `require_spectral_class=false`
+- `require_color_index=false`
+- `allowed_spectral_classes=[]`
+
+Expected scale band:
+
+- approximately 16-22% of the current full `<1000 ly` served star set
+- intended as the first public-host fallback when `core.default@v1` is too slow and a hard RUWE gate would cut important companions/remnants
+
 ### `core.performance@v1`
 
 Intent:
@@ -163,6 +185,11 @@ Measurement tooling:
 - `error_rate_pct <= 1.0`
 - steady `api_rss_bytes <= 3.5 GiB`
 - peak `api_peak_rss_bytes <= 8.0 GiB`
+
+`core.public@v2`:
+
+- uses the same SLO gates as `core.default@v1`
+- reason: it is still a public browse/search profile, just one that trades a modest distance trim for keeping RUWE-sensitive companions in-slice
 
 `core.performance@v1`:
 

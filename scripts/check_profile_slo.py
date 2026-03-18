@@ -34,6 +34,14 @@ PROFILE_SLO: Dict[str, Dict[str, float]] = {
         "api_steady_mem_mib": 3584.0,
         "api_peak_mem_mib": 8192.0,
     },
+    "core.public": {
+        "search_p95_ms": 1200.0,
+        "search_p99_ms": 2500.0,
+        "detail_p95_ms": 900.0,
+        "error_rate_pct": 1.0,
+        "api_steady_mem_mib": 3584.0,
+        "api_peak_mem_mib": 8192.0,
+    },
     "core.performance": {
         "search_p95_ms": 800.0,
         "search_p99_ms": 1600.0,
@@ -104,6 +112,8 @@ def normalize_profile_class(profile_id: str) -> str:
     normalized = (profile_id or "").strip().lower()
     if normalized.startswith("core.default"):
         return "core.default"
+    if normalized.startswith("core.public"):
+        return "core.public"
     if normalized.startswith("core.performance"):
         return "core.performance"
     if normalized.startswith("core.precision"):

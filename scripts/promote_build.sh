@@ -37,23 +37,33 @@ PY
 }
 
 select_latest_build() {
-  local -a promotable_builds=()
+  local best_name=""
+  local best_mtime="-1"
   while IFS= read -r name; do
     if [[ "$name" == *.tmp ]]; then
       continue
     fi
     local build_dir="$OUT_DIR/$name"
     if is_promotable_build "$build_dir"; then
-      promotable_builds+=("$name")
+      local core_db="$build_dir/core.duckdb"
+      local mtime=""
+      mtime="$(stat -c '%Y' "$core_db" 2>/dev/null || echo "")"
+      if [[ -z "$mtime" ]]; then
+        continue
+      fi
+      if (( mtime > best_mtime )); then
+        best_mtime="$mtime"
+        best_name="$name"
+      fi
     fi
   done < <(find "$OUT_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
 
-  if [[ ${#promotable_builds[@]} -eq 0 ]]; then
+  if [[ -z "$best_name" ]]; then
     echo "Error: no promotable builds found in $OUT_DIR" >&2
     exit 1
   fi
 
-  printf '%s' "${promotable_builds[-1]}"
+  printf '%s' "$best_name"
 }
 
 is_promotable_build() {
