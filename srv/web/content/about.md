@@ -14,11 +14,11 @@ Spacegate is an open source project, you can clone or contribute at https://gith
 
 Spacegate currently provides:
 
-- A versioned database of stars and exoplanets within ~1000 light-years  
-- Searchable systems with Gaia, HIP, and HD identifiers  
-- Structured spectral classifications and spatial coordinates  
-- Exoplanet host matching with documented confidence levels  
-- Provenance metadata for every derived record  
+- A versioned nearby-space database centered on Gaia DR3
+- Searchable systems with strong alias coverage (Gaia, HIP, HD, Bayer/Flamsteed, mission and catalog names)
+- Multiplicity evidence from Gaia NSS, WDS, MSC, ORB6, and SBX
+- Exoplanets from NASA plus lifecycle overlays from additional planet catalogs
+- Provenance metadata and retrieval lineage for derived records
 
 The data is real. Nothing is fabricated. All values trace back to public astronomical catalogs.
 
@@ -26,29 +26,31 @@ The data is real. Nothing is fabricated. All values trace back to public astrono
 
 ## The Data Backbone
 
-Spacegate currently builds from:
+Spacegate is now Gaia-first:
 
-- **AT-HYG** stellar catalog  
-- **NASA Exoplanet Archive (pscomppars)**  
+- **Gaia DR3 backbone** for canonical stellar inventory
+- **NASA Exoplanet Archive (pscomppars)** for canonical exoplanets
+- **Multiplicity overlays** (Gaia NSS, WDS, MSC, ORB6, SBX)
+- **Science overlays** in arm (compact objects, variability, cluster context, Sol authority overlays)
 
-Raw source files are preserved in an immutable layer. From there, deterministic scripts:
+Raw source files are preserved in immutable snapshots. From there, deterministic scripts:
 
-- Normalize identifiers  
-- Parse spectral types  
-- Join exoplanets to host stars using a documented priority system  
-- Attach full provenance metadata  
+- Normalize identifiers and aliases
+- Resolve star/system joins with confidence gates
+- Build canonical `core` plus opt-in `halo` and supplemental `arm` science overlays
+- Attach provenance and retrieval metadata for each transformed record
 
 Each build produces:
 
-- A versioned DuckDB database  
-- Parquet exports for sharing and interoperability  
-- Match and quality control reports  
+- A versioned served build (DuckDB + Parquet exports)
+- QC, contribution, and lineage reports
+- Deterministic artifacts suitable for reproducible deployment
 
 Spatial indexing uses a 63-bit Morton (Z-order) index over heliocentric light-year coordinates to enable efficient 3D queries and future visualization work.
 
 If invariants fail (missing provenance, coordinate inconsistencies, etc.), the build fails.
 
-The database is designed to be reproducible and inspectable.
+The database is reproducible, inspectable, and designed for long-lived data stewardship.
 
 ---
 
