@@ -154,6 +154,10 @@ Dependencies:
 Deliverables:
 
 - replacement alias/ID crosswalk ingestion
+- common-name authority ingestion and merge policy:
+  - bright-star/common-name authority source with explicit provenance
+  - deterministic precedence, dedupe, and conflict handling across proper/common names, Bayer/Flamsteed, and catalog IDs
+  - fuzzy/common-name lookup acceptance set for benchmark objects (for example Aldebaran-class misses)
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
@@ -161,6 +165,7 @@ Deliverables:
 Success criteria:
 
 - no critical identifier regressions
+- benchmark common-name lookups resolve reliably with fuzzy matching and alias-aware ranking
 - benchmark lookup ergonomics maintained or improved
 
 ### M5. AT-HYG Retirement

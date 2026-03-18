@@ -80,6 +80,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add deterministic identifier reconciliation with ambiguity quarantine + QC collision gates
 - [x] Add duplicate-trap stewardship report (exact-key + near-pair checks) with optional QC high-confidence gate
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
+- [ ] Add benchmarked common-name fuzzy matching for bright/common objects (for example Aldebaran-class lookups) with alias-aware ranking
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates
 - [x] Align Sol canonical class storage to source-faithful `dwarf_planet` semantics while preserving UI structural supergroup `subplanet`
