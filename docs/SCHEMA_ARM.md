@@ -27,6 +27,7 @@ Hard rules:
 Arm uses graph primitives:
 - containment graph: `system_hierarchy_edges`
 - dynamic graph: `orbit_edges` + `orbital_solutions`
+- source-native stellar payload: `stellar_parameters`
 
 Every edge/derived record includes:
 - `build_id`
@@ -103,6 +104,9 @@ Columns:
 - `evidence_ids_json TEXT`
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
 
+Notes:
+- Gaia NSS unresolved binaries may emit synthetic companion component keys so source-native orbital evidence can be narrated without fabricating canonical core stars.
+
 ## `orbital_solutions`
 
 Catalog-normalized orbital element records.
@@ -135,6 +139,38 @@ Columns:
 
 Rule:
 - never overwrite source-native measurements; normalized columns are additive transforms with lineage.
+
+## `stellar_parameters`
+
+Narration-oriented, source-native stellar-parameter rows keyed to core stars.
+
+Columns:
+- `stellar_parameter_id BIGINT`
+- `star_id BIGINT`
+- `system_id BIGINT`
+- `stable_object_key TEXT`
+- `parameter_source TEXT` (`gaia_dr3_backbone|nasa_pscomppars_host|...`)
+- `teff_k DOUBLE` with `teff_lo_k DOUBLE`, `teff_hi_k DOUBLE`
+- `logg_cgs DOUBLE` with `logg_lo_cgs DOUBLE`, `logg_hi_cgs DOUBLE`
+- `metallicity_feh DOUBLE` with `metallicity_lo_feh DOUBLE`, `metallicity_hi_feh DOUBLE`
+- `distance_pc DOUBLE` with `distance_lo_pc DOUBLE`, `distance_hi_pc DOUBLE`
+- `radius_rsun DOUBLE` with `radius_err_plus_rsun DOUBLE`, `radius_err_minus_rsun DOUBLE`
+- `mass_msun DOUBLE` with `mass_err_plus_msun DOUBLE`, `mass_err_minus_msun DOUBLE`
+- `luminosity_log10_lsun DOUBLE` with `luminosity_err_plus_log10_lsun DOUBLE`, `luminosity_err_minus_log10_lsun DOUBLE`
+- `density_g_cm3 DOUBLE` with `density_err_plus_g_cm3 DOUBLE`, `density_err_minus_g_cm3 DOUBLE`
+- `age_gyr DOUBLE` with `age_err_plus_gyr DOUBLE`, `age_err_minus_gyr DOUBLE`
+- `rotation_period_days DOUBLE`
+- `radial_velocity_kms DOUBLE` with `radial_velocity_error_kms DOUBLE`
+- Gaia photometry/color: `phot_g_mag`, `phot_bp_mag`, `phot_rp_mag`, `bp_rp`, `bp_g`, `g_rp`
+- Gaia quality/fit context: `ra_error_mas`, `dec_error_mas`, `pm_ra_error_mas_yr`, `pm_dec_error_mas_yr`, `visibility_periods_used`, `astrometric_params_solved`, `non_single_star`, `duplicated_source`, `has_xp_continuous`, `has_xp_sampled`, `has_rvs`
+- `spectral_type_raw TEXT`
+- classifier support: `classprob_star`, `classprob_binarystar`, `classprob_galaxy`, `classprob_quasar`, `classprob_whitedwarf_combmod`, `classprob_whitedwarf_specmod`
+- `context_json TEXT` (source-specific auxiliary context such as WD specialist payload or NASA host multiplicity counts)
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
+Rules:
+- keep source-native values and uncertainty bounds; do not collapse them into inferred prose fields here
+- one star may legitimately have multiple rows from different source catalogs
 
 ## `barycenters`
 

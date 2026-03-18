@@ -621,7 +621,7 @@ def main() -> int:
     )
     enable_sol_authority = parse_bool_env("SPACEGATE_ENABLE_SOL_AUTHORITY", True)
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
-    enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", False)
+    enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
     gaia_backbone_min_parallax_mas = parse_positive_float_env(
         "SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS",
@@ -3531,6 +3531,40 @@ def main() -> int:
                 n.proper_name,
                 n.bayer_name,
                 n.flam_name,
+                1 as source_priority,
+                case
+                  when n.hip_id is not null and s.hip_id = n.hip_id then 0
+                  when n.hd_id is not null and s.hd_id = n.hd_id then 1
+                  else 9
+                end as identifier_match_rank,
+                0.0::double as dist_delta_ly,
+                0.0::double as ang_sep_arcsec
+              from nogaia_named n
+              join stars s on s.gaia_id is not null
+              where (
+                n.hip_id is not null
+                and s.hip_id = n.hip_id
+              ) or (
+                n.hd_id is not null
+                and s.hd_id = n.hd_id
+              )
+
+              union all
+
+              select
+                n.source_pk,
+                s.gaia_id as gaia_id,
+                n.hip_id,
+                n.hd_id,
+                n.hr_id,
+                n.gl_id,
+                n.tyc_id,
+                n.hyg_id,
+                n.proper_name,
+                n.bayer_name,
+                n.flam_name,
+                2 as source_priority,
+                9 as identifier_match_rank,
                 abs(s.dist_ly - n.dist_ly) as dist_delta_ly,
                 degrees(acos(
                   least(
@@ -3560,13 +3594,14 @@ def main() -> int:
                 proper_name,
                 bayer_name,
                 flam_name,
-                1 as source_priority,
+                source_priority,
                 row_number() over (
                   partition by source_pk
-                  order by dist_delta_ly asc, ang_sep_arcsec asc, gaia_id asc
+                  order by source_priority asc, identifier_match_rank asc, dist_delta_ly asc, ang_sep_arcsec asc, gaia_id asc
                 ) as rn
               from positional_candidates
-              where ang_sep_arcsec <= {ALIAS_POS_MAX_ANG_SEP_ARCSEC}
+              where source_priority = 1
+                 or ang_sep_arcsec <= {ALIAS_POS_MAX_ANG_SEP_ARCSEC}
             ), combined as (
               select
                 source_pk,

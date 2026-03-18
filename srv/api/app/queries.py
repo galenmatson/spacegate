@@ -1060,6 +1060,7 @@ def search_systems(
                 identifier_cte_params.extend([value, value, value, value])
         identifier_mode = id_clause is not None
         enable_alias_match = has_aliases and not short_query_mode and not identifier_mode
+        fuzzy_alias_distance = 1 if len(q_norm) <= 5 else 2 if len(q_norm) <= 10 else 3
 
         exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
         exact_params: List[Any] = [q_norm, q_raw]
@@ -1069,7 +1070,7 @@ def search_systems(
                 alias_match_exact AS (
                     SELECT DISTINCT system_id
                     FROM aliases
-                    WHERE target_type = 'system'
+                    WHERE system_id IS NOT NULL
                       AND alias_norm = ?
                 )
                 """
@@ -1087,7 +1088,7 @@ def search_systems(
                 alias_match_prefix AS (
                     SELECT DISTINCT system_id
                     FROM aliases
-                    WHERE target_type = 'system'
+                    WHERE system_id IS NOT NULL
                       AND alias_norm LIKE ?
                 )
                 """
@@ -1116,7 +1117,7 @@ def search_systems(
                     {cte_name} AS (
                         SELECT DISTINCT system_id
                         FROM aliases
-                        WHERE target_type = 'system'
+                        WHERE system_id IS NOT NULL
                           AND alias_norm LIKE ?
                     )
                     """
@@ -1125,6 +1126,24 @@ def search_systems(
                 token_parts.append(f"s.system_id IN (SELECT system_id FROM {cte_name})")
             token_clauses.append("(" + " OR ".join(token_parts) + ")")
         token_and_clause = " AND ".join(token_clauses) if token_clauses else None
+        fuzzy_clause = None
+        if enable_alias_match and len(q_norm) >= 4:
+            alias_cte_parts.append(
+                f"""
+                alias_match_fuzzy AS (
+                    SELECT DISTINCT system_id
+                    FROM aliases
+                    WHERE system_id IS NOT NULL
+                      AND alias_norm IS NOT NULL
+                      AND alias_norm <> ''
+                      AND abs(length(alias_norm) - {len(q_norm)}) <= {fuzzy_alias_distance}
+                      AND left(alias_norm, 1) = left(?, 1)
+                      AND levenshtein(alias_norm, ?) <= {fuzzy_alias_distance}
+                )
+                """
+            )
+            alias_cte_params.extend([q_norm, q_norm])
+            fuzzy_clause = "s.system_id IN (SELECT system_id FROM alias_match_fuzzy)"
 
         next_rank = 0
         match_lines: List[str] = []
@@ -1145,6 +1164,10 @@ def search_systems(
                 match_lines.append(f"WHEN {token_and_clause} THEN {next_rank}")
                 match_clauses.append(f"({token_and_clause})")
                 match_params.extend(token_params)
+                next_rank += 1
+            if fuzzy_clause:
+                match_lines.append(f"WHEN {fuzzy_clause} THEN {next_rank}")
+                match_clauses.append(fuzzy_clause)
 
         match_rank_expr = "CASE " + " ".join(match_lines) + " ELSE NULL END AS match_rank"
 

@@ -32,7 +32,7 @@ Reason:
    - `galaxy`: immutable canonical science corpus
    - `core`: fast default science projection
    - `halo`: explicit opt-in science projection (complement to core)
-   - `arm`: immutable supplemental science (observational side tables outside core hot paths)
+   - `arm`: immutable supplemental science (observational side tables outside core hot paths, including narration-oriented stellar parameters and orbital evidence)
    - `disc`: reproducible derivatives
    - `rim`: editable fiction
 5. Explicit confidence for joins/groupings; avoid silent inference.
@@ -391,7 +391,7 @@ Panel purpose:
 - surface spectral/exotic/object breadth indicators for quality review
 - keep admin diagnostics visually consistent with active site theme
 - make status interpretation fast under large builds (humanized rows, bars, concise summaries)
-- expose star-level `arm` evidence overlays in system detail (currently VSX + UltracoolSheet)
+- expose star-level `arm` evidence overlays in system detail (currently VSX + UltracoolSheet, with stellar-parameter/orbital overlays as the next narration-facing payload)
 
 Minimum metrics exposed:
 
