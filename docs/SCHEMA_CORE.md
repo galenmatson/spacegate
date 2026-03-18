@@ -292,6 +292,7 @@ Required core columns:
   - Gaia DR3 backbone does not provide a complete discrete MK class for all rows.
   - `spectral_class` may be inferred from `teff_gspphot` with `bp_rp` fallback only when no stronger classification evidence exists.
   - keep `spectral_type_raw` as nullable provenance text; do not fabricate MK subtype/luminosity class beyond available evidence.
+  - persist a single canonical `teff_k` in `core.stars` for search/detail UX. Prefer specialist remnant temperatures when available (for example Gaia EDR3 white-dwarf catalog), otherwise use Gaia `teff_gspphot`.
 - classification safety:
   - required canonical field: `object_family` (`star`, `brown_dwarf`, `white_dwarf`, `neutron_star`, `black_hole`, `planetary_nebula`, `other`)
   - recommended evidence fields:

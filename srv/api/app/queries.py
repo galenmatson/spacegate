@@ -406,6 +406,25 @@ def fetch_counts_for_system(
     return int(star_count), int(planet_count)
 
 
+def summarize_star_temperatures(stars: List[Dict[str, Any]]) -> Dict[str, Any]:
+    temps = [
+        float(star["teff_k"])
+        for star in stars
+        if star.get("teff_k") is not None
+    ]
+    if not temps:
+        return {
+            "star_teff_count": 0,
+            "min_star_teff_k": None,
+            "max_star_teff_k": None,
+        }
+    return {
+        "star_teff_count": len(temps),
+        "min_star_teff_k": min(temps),
+        "max_star_teff_k": max(temps),
+    }
+
+
 def fetch_aliases_for_system(
     con: duckdb.DuckDBPyConnection,
     system_id: int,
@@ -958,6 +977,8 @@ def search_systems(
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
     max_planet_count: Optional[int],
+    min_temp_k: Optional[float],
+    max_temp_k: Optional[float],
     spectral_classes: List[str],
     has_planets: Optional[bool],
     has_habitable: Optional[bool],
@@ -984,6 +1005,8 @@ def search_systems(
     has_system_star_count = _has_local_column(con, "systems", "star_count")
     has_system_planet_count = _has_local_column(con, "systems", "planet_count")
     has_system_spectral_classes_json = _has_local_column(con, "systems", "spectral_classes_json")
+    has_star_teff_k = _has_local_column(con, "stars", "teff_k")
+    star_teff_select = "teff_k" if has_star_teff_k else "NULL::DOUBLE AS teff_k"
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
@@ -1136,6 +1159,23 @@ def search_systems(
     if min_dist_ly is not None:
         conditions.append("s.dist_ly >= ?")
         params.append(min_dist_ly)
+
+    if min_temp_k is not None or max_temp_k is not None:
+        if not has_star_teff_k:
+            raise ValueError(
+                "Temperature filters are unavailable for this build; rebuild with core.stars.teff_k."
+            )
+        teff_terms = ["st.teff_k is not null"]
+        if min_temp_k is not None:
+            teff_terms.append("st.teff_k >= ?")
+            params.append(min_temp_k)
+        if max_temp_k is not None:
+            teff_terms.append("st.teff_k <= ?")
+            params.append(max_temp_k)
+        conditions.append(
+            "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
+            f"AND ({' AND '.join(teff_terms)}))"
+        )
 
     if spectral_classes:
         spectral_filters: List[str] = []
@@ -1527,6 +1567,7 @@ def search_systems(
             WITH star_buckets AS (
               SELECT
                 system_id,
+                {star_teff_select},
                 CASE
                   WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 'D'
                   WHEN spectral_class IN ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y', 'D') THEN spectral_class
@@ -1538,14 +1579,17 @@ def search_systems(
             SELECT
               system_id,
               COUNT(*)::BIGINT AS star_count,
+              COUNT(teff_k)::BIGINT AS star_teff_count,
+              MIN(teff_k) AS min_star_teff_k,
+              MAX(teff_k) AS max_star_teff_k,
               LIST(DISTINCT spectral_bucket) FILTER (WHERE spectral_bucket IS NOT NULL) AS spectral_classes
             FROM star_buckets
             GROUP BY system_id
             """,
             system_ids,
         ).fetchall()
-        star_map: Dict[int, Tuple[int, List[str]]] = {}
-        for sid, count, spectral in star_rows:
+        star_map: Dict[int, Tuple[int, int, Optional[float], Optional[float], List[str]]] = {}
+        for sid, count, teff_count, min_teff_k, max_teff_k, spectral in star_rows:
             normalized = sorted(
                 {
                     str(token).strip()
@@ -1555,6 +1599,9 @@ def search_systems(
             )
             star_map[int(sid)] = (
                 int(count or 0),
+                int(teff_count or 0),
+                float(min_teff_k) if min_teff_k is not None else None,
+                float(max_teff_k) if max_teff_k is not None else None,
                 normalized,
             )
 
@@ -1571,8 +1618,14 @@ def search_systems(
 
         for item in results:
             sid = int(item.get("system_id") or 0)
-            star_count, spectral_classes = star_map.get(sid, (0, []))
+            star_count, teff_count, min_teff_k, max_teff_k, spectral_classes = star_map.get(
+                sid,
+                (0, 0, None, None, []),
+            )
             item["star_count"] = star_count
+            item["star_teff_count"] = teff_count
+            item["min_star_teff_k"] = min_teff_k
+            item["max_star_teff_k"] = max_teff_k
             item["spectral_classes"] = spectral_classes
             item["planet_count"] = planet_map.get(sid, 0)
 

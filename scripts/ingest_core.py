@@ -1494,6 +1494,7 @@ def main() -> int:
                 else null
               end as absmag,
               case when bp_rp is not null then bp_rp::varchar else null end as ci,
+              case when teff_gspphot is not null then teff_gspphot::varchar else null end as teff_k,
               'gaia_g_bp_rp' as mag_src,
               case when radial_velocity_kms is not null then radial_velocity_kms::varchar else null end as rv,
               'gaia_dr3' as rv_src,
@@ -1555,7 +1556,8 @@ def main() -> int:
               null::varchar as parallax_mas,
               null::varchar as parallax_error_mas,
               null::varchar as parallax_over_error,
-              null::varchar as ruwe
+              null::varchar as ruwe,
+              null::varchar as teff_k
             from athyg_raw_source
             """
         )
@@ -2385,6 +2387,7 @@ def main() -> int:
             nullif(mag,'')::double as vmag,
             nullif(absmag,'')::double as absmag,
             nullif(ci,'')::double as color_index,
+            nullif(teff_k,'')::double as teff_k,
             nullif(rv,'')::double as radial_velocity_kms,
             nullif(pm_ra,'')::double as pm_ra_mas_yr,
             nullif(pm_dec,'')::double as pm_dec_mas_yr,
@@ -2992,6 +2995,7 @@ def main() -> int:
             a.vmag,
             a.absmag,
             a.color_index,
+            a.teff_k,
             a.gaia_id,
             a.hip_id,
             a.hd_id,
@@ -3137,6 +3141,7 @@ def main() -> int:
               when m.bmag is not null and m.vmag is not null then m.bmag - m.vmag
               else null
             end as color_index,
+            null::double as teff_k,
             null::bigint as gaia_id,
             m.hip_id,
             m.hd_id,
@@ -3339,6 +3344,7 @@ def main() -> int:
           wd_catalog_name = coalesce(w.wdj_name, w.designation),
           wd_catalog_pwd = w.pwd,
           wd_catalog_fit_model = w.fit_model,
+          teff_k = coalesce(w.teff_best_k, stars.teff_k),
           wd_catalog_teff_k = w.teff_best_k,
           wd_catalog_logg_cgs = w.logg_best_cgs,
           wd_catalog_mass_msun = w.mass_best_msun
@@ -5693,6 +5699,7 @@ def main() -> int:
                   null::double as vmag,
                   null::double as absmag,
                   null::double as color_index,
+                  5772.0::double as teff_k,
                   null::bigint as gaia_id,
                   null::bigint as hip_id,
                   null::bigint as hd_id,

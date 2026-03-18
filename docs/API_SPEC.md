@@ -277,6 +277,8 @@ Query params:
 - `max_star_count` (int, optional, `>= 0`)
 - `min_planet_count` (int, optional, `>= 0`)
 - `max_planet_count` (int, optional, `>= 0`)
+- `min_temp_k` (float, optional, `>= 0`; matches systems having at least one star with `teff_k >= value`)
+- `max_temp_k` (float, optional, `>= 0`; matches systems having at least one star with `teff_k <= value`)
 - `min_coolness_score` (float, optional)
 - `max_coolness_score` (float, optional)
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
@@ -305,6 +307,7 @@ When `q` is not provided:
 Validation and availability behavior:
 - Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.
 - Invalid enum/filter values (for example `sort=foo`, `has_planets=maybe`, `spectral_class=ZZ`) return `400 bad_request`.
+- Requesting temperature filters when the current build does not expose `core.stars.teff_k` returns `409 conflict`.
 - Requesting coolness sort/score filters when `disc` coolness data (legacy table path `rich.coolness_scores`) is unavailable returns `409 conflict`.
 - Framework-level bound checks (for example negative `min_dist_ly`, `limit > 200`) return `422`.
 
@@ -338,6 +341,9 @@ Response 200:
       "hd_id_text": "16160",
       "star_count": 1,
       "planet_count": 0,
+      "star_teff_count": 1,
+      "min_star_teff_k": 5772.0,
+      "max_star_teff_k": 5772.0,
       "spectral_classes": ["G"],
       "coolness_rank": 97,
       "coolness_score": 18.4412,
@@ -409,6 +415,7 @@ Response 200:
       "spectral_peculiar": null,
       "dist_ly": 23.5765,
       "vmag": 6.12,
+      "teff_k": 5772.0,
       "gaia_id": 19316224572460416,
       "hip_id": 12114,
       "hd_id": 16160,

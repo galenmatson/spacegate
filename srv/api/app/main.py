@@ -40,6 +40,7 @@ from .queries import (
     fetch_system_by_id,
     fetch_system_by_key,
     search_systems,
+    summarize_star_temperatures,
 )
 from .utils import (
     decode_cursor,
@@ -165,6 +166,8 @@ def _should_audit_systems_search(
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
     max_planet_count: Optional[int],
+    min_temp_k: Optional[float],
+    max_temp_k: Optional[float],
     has_habitable: Optional[bool],
     has_planets: Optional[bool],
     min_coolness_score: Optional[float],
@@ -185,6 +188,8 @@ def _should_audit_systems_search(
             max_star_count,
             min_planet_count,
             max_planet_count,
+            min_temp_k,
+            max_temp_k,
             has_habitable,
             has_planets,
             min_coolness_score,
@@ -207,6 +212,8 @@ def _audit_systems_search(
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
     max_planet_count: Optional[int],
+    min_temp_k: Optional[float],
+    max_temp_k: Optional[float],
     has_habitable: Optional[bool],
     has_planets: Optional[bool],
     min_coolness_score: Optional[float],
@@ -227,6 +234,8 @@ def _audit_systems_search(
         max_star_count=max_star_count,
         min_planet_count=min_planet_count,
         max_planet_count=max_planet_count,
+        min_temp_k=min_temp_k,
+        max_temp_k=max_temp_k,
         has_habitable=has_habitable,
         has_planets=has_planets,
         min_coolness_score=min_coolness_score,
@@ -249,6 +258,8 @@ def _audit_systems_search(
         filters["star_count"] = {"min": min_star_count, "max": max_star_count}
     if min_planet_count is not None or max_planet_count is not None:
         filters["planet_count"] = {"min": min_planet_count, "max": max_planet_count}
+    if min_temp_k is not None or max_temp_k is not None:
+        filters["temperature_k"] = {"min": min_temp_k, "max": max_temp_k}
     if min_coolness_score is not None or max_coolness_score is not None:
         filters["coolness_score"] = {"min": min_coolness_score, "max": max_coolness_score}
     if spectral_classes:
@@ -444,6 +455,8 @@ def systems_search(
     max_star_count: Optional[int] = Query(default=None, ge=0),
     min_planet_count: Optional[int] = Query(default=None, ge=0),
     max_planet_count: Optional[int] = Query(default=None, ge=0),
+    min_temp_k: Optional[float] = Query(default=None, ge=0),
+    max_temp_k: Optional[float] = Query(default=None, ge=0),
     has_habitable: Optional[str] = Query(default=None),
     min_coolness_score: Optional[float] = Query(default=None),
     max_coolness_score: Optional[float] = Query(default=None),
@@ -478,6 +491,15 @@ def systems_search(
             detail={
                 "code": "bad_request",
                 "message": "Invalid planet-count range",
+                "details": {},
+            },
+        )
+    if max_temp_k is not None and min_temp_k is not None and min_temp_k > max_temp_k:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid temperature range",
                 "details": {},
             },
         )
@@ -610,6 +632,8 @@ def systems_search(
                 max_star_count=max_star_count,
                 min_planet_count=min_planet_count,
                 max_planet_count=max_planet_count,
+                min_temp_k=min_temp_k,
+                max_temp_k=max_temp_k,
                 spectral_classes=spectral_classes,
                 has_planets=has_planets_bool,
                 has_habitable=has_habitable_bool,
@@ -636,6 +660,8 @@ def systems_search(
             max_star_count=max_star_count,
             min_planet_count=min_planet_count,
             max_planet_count=max_planet_count,
+            min_temp_k=min_temp_k,
+            max_temp_k=max_temp_k,
             has_habitable=has_habitable_bool,
             has_planets=has_planets_bool,
             min_coolness_score=min_coolness_score,
@@ -724,6 +750,8 @@ def systems_search(
         max_star_count=max_star_count,
         min_planet_count=min_planet_count,
         max_planet_count=max_planet_count,
+        min_temp_k=min_temp_k,
+        max_temp_k=max_temp_k,
         has_habitable=has_habitable_bool,
         has_planets=has_planets_bool,
         min_coolness_score=min_coolness_score,
@@ -789,6 +817,7 @@ def system_detail(system_id: int):
 
     system["star_count"] = star_count
     system["planet_count"] = planet_count
+    system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
@@ -871,6 +900,7 @@ def system_detail_by_key(stable_object_key: str):
 
     system["star_count"] = star_count
     system["planet_count"] = planet_count
+    system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)

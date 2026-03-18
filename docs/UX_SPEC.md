@@ -133,6 +133,7 @@ Star fields:
 - Star name: `stars.star_name`
 - Component: `stars.component`
 - Spectral raw/parsed: `stars.spectral_type_raw`, `stars.spectral_class`, `stars.spectral_subtype`, `stars.luminosity_class`, `stars.spectral_peculiar`
+- Surface temperature: `stars.teff_k`
 - Distance (ly): `stars.dist_ly`
 - Apparent magnitude: `stars.vmag`
 - IDs: `stars.gaia_id`, `stars.hip_id`, `stars.hd_id`
