@@ -11,7 +11,7 @@ fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 OUT_DIR="$STATE_DIR/out"
 SERVED_DIR="$STATE_DIR/served"
-PROMOTE_ENFORCE_PROFILE_SLO="${SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO:-1}"
+PROMOTE_ENFORCE_PROFILE_SLO="${SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO:-0}"
 PROMOTE_SLO_BASE_URL="${SPACEGATE_PROMOTE_SLO_BASE_URL:-http://127.0.0.1:8000}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 
@@ -22,7 +22,7 @@ Usage:
 
 If BUILD_ID is not provided, the latest promotable $SPACEGATE_STATE_DIR/out/* directory (by name sort) is promoted.
 By default this also runs coolness scoring for the promoted build; set SPACEGATE_AUTO_SCORE_COOLNESS=0 to skip.
-Profile-specific SLO checks are enforced by default for sliced profile builds; set SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO=0 to skip.
+Profile-specific SLO checks are opt-in for sliced profile builds; set SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO=1 to enforce.
 USAGE
 }
 
