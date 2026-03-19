@@ -23,6 +23,19 @@ Status:
 
 ## Pipeline Shape
 
+Current bootstrap artifacts on `feature/ingest-v2-canonicalization`:
+
+- `out/<build_id>/ingest_v2/normalized_sources.duckdb`
+- `out/<build_id>/ingest_v2/identity_graph.duckdb`
+- `reports/<build_id>/normalized_sources_report.json`
+- `reports/<build_id>/identity_graph_report.json`
+
+Bootstrap note:
+
+- the initial graph uses a clearly-labeled `legacy_core_crosswalk` bridge from the current deterministic build
+- that bridge is transitional and exists only to connect Gaia rows to HIP/HD/WDS-oriented catalogs while ingest v2 crosswalk rules are still being rebuilt source-natively
+- canonical reduction must be designed so this bridge can be removed later without changing the public contract
+
 ### Stage 1: Source Normalization
 
 Each source gets its own normalization pass:
