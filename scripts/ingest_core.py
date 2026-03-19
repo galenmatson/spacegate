@@ -2464,7 +2464,7 @@ def main() -> int:
         """
         create temp table athyg_stars_stage as
         select
-          row_number() over (order by stable_object_key, source_pk)::bigint as athyg_row_id,
+          row_number() over (order by source_pk asc)::bigint as athyg_row_id,
           *
         from athyg_stage_base
         """
