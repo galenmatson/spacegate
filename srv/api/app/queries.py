@@ -1200,6 +1200,155 @@ def _build_hierarchy_node_payload(
     return node
 
 
+def _enrich_hierarchy_star_nodes(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    node_map: Dict[str, Dict[str, Any]],
+    arm_attached: bool,
+) -> None:
+    star_nodes = {
+        key: node
+        for key, node in node_map.items()
+        if _clean_name(node.get("component_family")).lower() == "star"
+    }
+    if not star_nodes:
+        return
+
+    core_star_refs = [
+        (key, int(node["core_object_id"]))
+        for key, node in star_nodes.items()
+        if _clean_name(node.get("core_object_type")).lower() == "star"
+        and node.get("core_object_id") is not None
+    ]
+    star_facts: Dict[str, Dict[str, Any]] = {}
+
+    if core_star_refs:
+        star_ids = [star_id for _, star_id in core_star_refs]
+        placeholders = ",".join(["?"] * len(star_ids))
+        core_rows = con.execute(
+            f"""
+            SELECT
+              star_id,
+              spectral_type_raw,
+              spectral_class,
+              teff_k,
+              vmag,
+              dist_ly
+            FROM stars
+            WHERE star_id IN ({placeholders})
+            """,
+            star_ids,
+        ).fetchall()
+        core_by_star_id = {
+            int(star_id): {
+                "spectral_type_raw": _clean_name(spectral_type_raw) or None,
+                "spectral_class": _clean_name(spectral_class) or None,
+                "teff_k": float(teff_k) if teff_k is not None else None,
+                "vmag": float(vmag) if vmag is not None else None,
+                "dist_ly": float(dist_ly) if dist_ly is not None else None,
+            }
+            for star_id, spectral_type_raw, spectral_class, teff_k, vmag, dist_ly in core_rows
+        }
+        for node_key, star_id in core_star_refs:
+            if star_id in core_by_star_id:
+                star_facts[node_key] = dict(core_by_star_id[star_id])
+
+        if arm_attached and _has_table(con, alias="arm_db", table_name="stellar_parameters"):
+            param_rows = con.execute(
+                f"""
+                WITH ranked AS (
+                  SELECT
+                    star_id,
+                    mass_msun,
+                    radius_rsun,
+                    luminosity_log10_lsun,
+                    row_number() OVER (
+                      PARTITION BY star_id
+                      ORDER BY
+                        CASE parameter_source
+                          WHEN 'nasa_pscomppars_host' THEN 0
+                          WHEN 'gaia_dr3_backbone' THEN 1
+                          ELSE 9
+                        END ASC,
+                        (
+                          CASE WHEN mass_msun IS NOT NULL THEN 1 ELSE 0 END +
+                          CASE WHEN radius_rsun IS NOT NULL THEN 1 ELSE 0 END +
+                          CASE WHEN luminosity_log10_lsun IS NOT NULL THEN 1 ELSE 0 END +
+                          CASE WHEN teff_k IS NOT NULL THEN 1 ELSE 0 END
+                        ) DESC,
+                        stellar_parameter_id ASC
+                    ) AS rn
+                  FROM arm_db.stellar_parameters
+                  WHERE star_id IN ({placeholders})
+                )
+                SELECT
+                  star_id,
+                  mass_msun,
+                  radius_rsun,
+                  luminosity_log10_lsun
+                FROM ranked
+                WHERE rn = 1
+                """,
+                star_ids,
+            ).fetchall()
+            params_by_star_id = {
+                int(star_id): {
+                    "mass_msun": float(mass_msun) if mass_msun is not None else None,
+                    "radius_rsun": float(radius_rsun) if radius_rsun is not None else None,
+                    "luminosity_log10_lsun": (
+                        float(luminosity_log10_lsun)
+                        if luminosity_log10_lsun is not None
+                        else None
+                    ),
+                }
+                for star_id, mass_msun, radius_rsun, luminosity_log10_lsun in param_rows
+            }
+            for node_key, star_id in core_star_refs:
+                if star_id not in params_by_star_id:
+                    continue
+                star_facts.setdefault(node_key, {}).update(params_by_star_id[star_id])
+
+    msc_keys = [key for key in star_nodes if key.startswith("comp:msc:")]
+    if msc_keys and arm_attached and _has_table(con, alias="arm_db", table_name="msc_component_details"):
+        placeholders = ",".join(["?"] * len(msc_keys))
+        msc_rows = con.execute(
+            f"""
+            SELECT
+              stable_component_key,
+              spectral_type_raw,
+              vmag,
+              sep_arcsec
+            FROM arm_db.msc_component_details
+            WHERE stable_component_key IN ({placeholders})
+            """,
+            msc_keys,
+        ).fetchall()
+        for stable_component_key, spectral_type_raw, vmag, sep_arcsec in msc_rows:
+            node_key = str(stable_component_key)
+            facts = star_facts.setdefault(node_key, {})
+            if not facts.get("spectral_type_raw"):
+                facts["spectral_type_raw"] = _clean_name(spectral_type_raw) or None
+            if facts.get("vmag") is None and vmag is not None:
+                facts["vmag"] = float(vmag)
+            if sep_arcsec is not None:
+                facts["sep_arcsec"] = float(sep_arcsec)
+
+    for node_key, facts in star_facts.items():
+        if node_key not in node_map:
+            continue
+        node_map[node_key]["quick_facts"] = {
+            "spectral_type_raw": facts.get("spectral_type_raw"),
+            "spectral_class": facts.get("spectral_class"),
+            "teff_k": facts.get("teff_k"),
+            "mass_msun": facts.get("mass_msun"),
+            "radius_rsun": facts.get("radius_rsun"),
+            "luminosity_log10_lsun": facts.get("luminosity_log10_lsun"),
+            "vmag": facts.get("vmag"),
+            "dist_ly": facts.get("dist_ly"),
+            "sep_arcsec": facts.get("sep_arcsec"),
+        }
+
+
 def fetch_system_hierarchy_for_system(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -1210,7 +1359,8 @@ def fetch_system_hierarchy_for_system(
 ) -> Optional[Dict[str, Any]]:
     if not arm_db_path:
         return None
-    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+    arm_attached = _attach_rich_db(con, arm_db_path, alias="arm_db")
+    if not arm_attached:
         return None
     if not _has_table(con, alias="arm_db", table_name="component_entities"):
         return None
@@ -1316,6 +1466,7 @@ def fetch_system_hierarchy_for_system(
             "source_catalog": _clean_name(source_catalog) or None,
             "synthetic": False,
             "orbit": None,
+            "quick_facts": None,
         }
     if preferred_root_key not in node_map:
         return None
@@ -1453,6 +1604,12 @@ def fetch_system_hierarchy_for_system(
             if secondary_node is not None:
                 secondary_node["orbit"] = orbit_payload
                 secondary_node["orbit_relation_kind"] = relation or None
+
+    _enrich_hierarchy_star_nodes(
+        con,
+        node_map=node_map,
+        arm_attached=arm_attached,
+    )
 
     root_payload = _build_hierarchy_node_payload(
         preferred_root_key,

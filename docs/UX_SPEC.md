@@ -95,6 +95,7 @@ Sorting rules:
 ### Hierarchy Section
 - Uses one generic hierarchy renderer for Sol, multi-star systems, and ordinary planet-host systems.
 - Each node shows the object name, type badge, descendant summary, optional orbit summary, and nested child cards.
+- Star nodes should expose compact fact chips when available, prioritizing spectral type, temperature, mass, radius, visual magnitude, distance, and separation/context values from authoritative overlays.
 - Deeper layers collapse by default so large systems stay navigable.
 - This section is the primary structural explanation of the system; the flat stars/planets tables remain below it as source-facing catalog views.
 

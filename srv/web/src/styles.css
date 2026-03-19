@@ -3648,6 +3648,32 @@ main {
   line-height: 1.45;
 }
 
+.hierarchy-fact-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.hierarchy-fact-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.hierarchy-fact-chip strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.hierarchy-fact-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--subtle-ink);
+}
+
 .hierarchy-toggle {
   color: var(--accent);
   font-size: 0.8rem;

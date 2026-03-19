@@ -1553,6 +1553,75 @@ function hierarchyCountSummary(node) {
   return bits.join(" · ");
 }
 
+function formatMsun(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `${formatNumber(value, 2)} Msun`;
+}
+
+function formatRsun(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `${formatNumber(value, 2)} Rsun`;
+}
+
+function formatVmag(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `V ${formatNumber(value, 2)}`;
+}
+
+function formatArcsec(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `${formatNumber(value, 2)} arcsec`;
+}
+
+function HierarchyFactChips({ node }) {
+  const facts = node?.quick_facts || {};
+  const chips = [];
+  if (facts.spectral_type_raw) {
+    chips.push({ label: "Spectral", value: String(facts.spectral_type_raw) });
+  } else if (facts.spectral_class) {
+    chips.push({ label: "Class", value: String(facts.spectral_class) });
+  }
+  if (facts.teff_k !== null && facts.teff_k !== undefined) {
+    chips.push({ label: "Temp", value: formatKelvin(facts.teff_k, 0) });
+  }
+  if (facts.mass_msun !== null && facts.mass_msun !== undefined) {
+    chips.push({ label: "Mass", value: formatMsun(facts.mass_msun) });
+  }
+  if (facts.radius_rsun !== null && facts.radius_rsun !== undefined) {
+    chips.push({ label: "Radius", value: formatRsun(facts.radius_rsun) });
+  }
+  if (facts.vmag !== null && facts.vmag !== undefined) {
+    chips.push({ label: "Vmag", value: formatVmag(facts.vmag) });
+  }
+  if (facts.dist_ly !== null && facts.dist_ly !== undefined) {
+    chips.push({ label: "Dist", value: `${formatNumber(facts.dist_ly, 2)} ly` });
+  }
+  if (facts.sep_arcsec !== null && facts.sep_arcsec !== undefined) {
+    chips.push({ label: "Sep", value: formatArcsec(facts.sep_arcsec) });
+  }
+  if (chips.length === 0) {
+    return null;
+  }
+  return (
+    <div className="hierarchy-fact-chips" role="list" aria-label="Star quick facts">
+      {chips.map((chip) => (
+        <span key={`${chip.label}-${chip.value}`} className="chip hierarchy-fact-chip" role="listitem">
+          <span className="hierarchy-fact-label">{chip.label}</span>
+          <strong>{chip.value}</strong>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function HierarchyNodeCard({ node, depth = 0 }) {
   const children = Array.isArray(node?.children) ? node.children : [];
   const initialExpanded = depth < 2 && !node?.collapsed_by_default;
@@ -1594,6 +1663,9 @@ function HierarchyNodeCard({ node, depth = 0 }) {
                   inclinationDeg: node.orbit.inclination_deg,
                 })}
               </div>
+            ) : null}
+            {(node?.component_family || node?.component_type) === "star" ? (
+              <HierarchyFactChips node={node} />
             ) : null}
           </div>
           {children.length ? (
