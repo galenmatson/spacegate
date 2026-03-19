@@ -1879,9 +1879,76 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
   );
 }
 
+function HeaderSearchBar({
+  query,
+  setQuery,
+  onSubmit,
+  onClear,
+  loading = false,
+  autoFocus = false,
+}) {
+  return (
+    <form className="results-search-row header-search-row" onSubmit={onSubmit}>
+      <button className="button compact search-submit-button" type="submit" disabled={loading}>
+        {loading ? "Searching..." : "Search"}
+      </button>
+      <label className="results-search-field">
+        <span className="sr-only">Search systems</span>
+        <input
+          type="text"
+          data-global-search-input="true"
+          className="results-search-input"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search systems by name, ID, or catalog key..."
+          autoFocus={autoFocus}
+        />
+      </label>
+      <button type="button" className="button ghost compact" onClick={onClear} disabled={loading}>
+        Clear
+      </button>
+    </form>
+  );
+}
+
+function RouteHeaderSearchBar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (location.pathname === "/") {
+      const params = new URLSearchParams(location.search);
+      setQuery(params.get("q") || "");
+      return;
+    }
+    setQuery("");
+  }, [location.pathname, location.search]);
+
+  const onSubmit = (event) => {
+    event.preventDefault();
+    const nextQuery = query.trim();
+    navigate(nextQuery ? `/?q=${encodeURIComponent(nextQuery)}` : "/");
+  };
+
+  const onClear = () => {
+    setQuery("");
+    navigate("/");
+  };
+
+  return (
+    <HeaderSearchBar
+      query={query}
+      setQuery={setQuery}
+      onSubmit={onSubmit}
+      onClear={onClear}
+    />
+  );
+}
+
 function AboutPage({ buildId = "" }) {
   return (
-    <Layout buildId={buildId}>
+    <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={ABOUT_MARKDOWN} />
@@ -1893,7 +1960,7 @@ function AboutPage({ buildId = "" }) {
 
 function DataPage({ buildId = "" }) {
   return (
-    <Layout buildId={buildId}>
+    <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={DATA_MARKDOWN} />
@@ -2434,26 +2501,14 @@ function SearchPage({ buildId = "" }) {
     filtersCollapsedY ? "filters-collapsed-y" : "",
   ].filter(Boolean).join(" ");
   const headerSearchBar = (
-    <form className="results-search-row header-search-row" onSubmit={onSubmit}>
-      <button className="button compact search-submit-button" type="submit" disabled={loading}>
-        {loading ? "Searching..." : "Search"}
-      </button>
-      <label className="results-search-field">
-        <span className="sr-only">Search systems</span>
-        <input
-          type="text"
-          data-global-search-input="true"
-          className="results-search-input"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search systems by name, ID, or catalog key..."
-          autoFocus
-        />
-      </label>
-      <button type="button" className="button ghost compact" onClick={resetFilters} disabled={loading}>
-        Clear
-      </button>
-    </form>
+    <HeaderSearchBar
+      query={query}
+      setQuery={setQuery}
+      onSubmit={onSubmit}
+      onClear={resetFilters}
+      loading={loading}
+      autoFocus
+    />
   );
 
   return (
@@ -3015,7 +3070,7 @@ function SystemDetailPage({ buildId = "" }) {
 
   if (loading) {
     return (
-      <Layout buildId={buildId}>
+      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
         <div className="panel">Loading system details...</div>
       </Layout>
     );
@@ -3023,7 +3078,7 @@ function SystemDetailPage({ buildId = "" }) {
 
   if (error || !data) {
     return (
-      <Layout buildId={buildId}>
+      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
         <div className="panel">
           <h2>System not found</h2>
           <p>{error || "No data returned."}</p>
@@ -3042,7 +3097,7 @@ function SystemDetailPage({ buildId = "" }) {
   const armSummary = system?.arm_evidence_summary || {};
 
   return (
-    <Layout showSearchLink={false} buildId={buildId}>
+    <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail">
         <div className="system-identifiers-row">
           <span className="system-identifiers-name">{formatText(currentSystemDisplayName)}</span>
