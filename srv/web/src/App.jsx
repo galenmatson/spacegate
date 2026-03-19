@@ -1513,115 +1513,127 @@ function SnapshotMetadata({ system, snapshot }) {
   );
 }
 
-function SolHierarchyPanel({ hierarchy }) {
-  if (!hierarchy || hierarchy.is_sol !== true) {
-    return null;
-  }
-  const counts = hierarchy.counts || {};
-  const moons = Array.isArray(hierarchy.moons) ? hierarchy.moons : [];
-  const smallBodies = Array.isArray(hierarchy.small_bodies) ? hierarchy.small_bodies : [];
-  const artificialObjects = Array.isArray(hierarchy.artificial_objects) ? hierarchy.artificial_objects : [];
+function hierarchyTypeLabel(componentType) {
+  const key = String(componentType || "").trim().toLowerCase();
+  const labels = {
+    system: "System",
+    subsystem: "Subsystem",
+    star: "Star",
+    planet: "Planet",
+    moon: "Moon",
+    minor_body: "Minor Body",
+    artificial: "Artificial",
+  };
+  return labels[key] || (key ? key.replace(/_/g, " ") : "Node");
+}
 
-  const smallBodiesPreview = smallBodies.slice(0, 24);
-  const artificialPreview = artificialObjects.slice(0, 24);
+function hierarchyCountSummary(node) {
+  const totalTypeCounts = node?.total_type_counts || {};
+  const bits = [];
+  const stars = Number(node?.total_star_count || 0);
+  const planets = Number(totalTypeCounts.planet || 0);
+  const moons = Number(totalTypeCounts.moon || 0);
+  const minorBodies = Number(totalTypeCounts.minor_body || 0);
+  const artificial = Number(totalTypeCounts.artificial || 0);
+  if (stars > 0) {
+    bits.push(`${formatNumber(stars, 0)} star${stars === 1 ? "" : "s"}`);
+  }
+  if (planets > 0) {
+    bits.push(`${formatNumber(planets, 0)} planet${planets === 1 ? "" : "s"}`);
+  }
+  if (moons > 0) {
+    bits.push(`${formatNumber(moons, 0)} moon${moons === 1 ? "" : "s"}`);
+  }
+  if (minorBodies > 0) {
+    bits.push(`${formatNumber(minorBodies, 0)} minor bod${minorBodies === 1 ? "y" : "ies"}`);
+  }
+  if (artificial > 0) {
+    bits.push(`${formatNumber(artificial, 0)} artificial`);
+  }
+  return bits.join(" · ");
+}
+
+function HierarchyNodeCard({ node, depth = 0 }) {
+  const children = Array.isArray(node?.children) ? node.children : [];
+  const initialExpanded = depth < 2 && !node?.collapsed_by_default;
+  const [expanded, setExpanded] = useState(initialExpanded || depth === 0);
+  const displayName = formatText(node?.display_name);
+  const countSummary = hierarchyCountSummary(node);
 
   return (
-    <section className="panel">
-      <h3>Sol Arm Hierarchy</h3>
-      <p className="muted">
-        Extended Sol hierarchy lives in the arm overlay for analysis/animation and can be refreshed independently from core slices.
-      </p>
-      <div className="sol-hierarchy-kpis">
-        <div><strong>Moons</strong><span>{formatNumber(counts.moons, 0)}</span></div>
-        <div><strong>Minor Bodies</strong><span>{formatNumber(counts.small_bodies, 0)}</span></div>
-        <div><strong>Artificial Objects</strong><span>{formatNumber(counts.artificial_objects, 0)}</span></div>
-        <div>
-          <strong>Stale Rows</strong>
-          <span>
-            {formatNumber((counts.stale_small_bodies || 0) + (counts.stale_artificial_objects || 0), 0)}
-          </span>
-        </div>
-      </div>
-
-      <h4>Moons</h4>
-      {moons.length === 0 ? <p className="muted">No arm moon hierarchy rows are present.</p> : (
-        <div className="table">
-          {moons.map((row) => (
-            <div className="row" key={row.stable_component_key}>
-              <div>
-                <strong>{formatText(row.display_name)}</strong>
-                <div className="muted">Parent {formatText(row.parent_name)}</div>
-              </div>
-              <div className="muted">{formatOrbitSummary({
-                periodDays: row.period_days,
-                semiMajorAxisAu: row.semi_major_axis_au,
-                eccentricity: row.eccentricity,
-                inclinationDeg: row.inclination_deg,
-              })}</div>
+    <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
+      <div className="hierarchy-node-card">
+        <button
+          type="button"
+          className={`hierarchy-node-head ${children.length ? "is-clickable" : "is-static"}`}
+          onClick={() => {
+            if (children.length) {
+              setExpanded((value) => !value);
+            }
+          }}
+          disabled={!children.length}
+          aria-expanded={children.length ? expanded : undefined}
+        >
+          <div className="hierarchy-node-title-wrap">
+            <div className="hierarchy-node-title-row">
+              <strong>{displayName}</strong>
+              <span className="hierarchy-node-kind">{hierarchyTypeLabel(node?.component_family || node?.component_type)}</span>
+              {node?.synthetic ? <span className="warning-chip">Derived</span> : null}
             </div>
-          ))}
-        </div>
-      )}
-
-      <h4>Minor Bodies</h4>
-      {smallBodies.length === 0 ? <p className="muted">No Sol small-body overlay rows are present.</p> : (
-        <>
-          <div className="table">
-            {smallBodiesPreview.map((row) => (
-              <div className="row" key={row.stable_component_key}>
-                <div>
-                  <strong>{formatText(row.body_name)}</strong>
-                  <div className="muted">Kind {formatText(row.body_kind)} · Parent {formatText(row.parent_name)}</div>
-                </div>
-                <div className="muted">
-                  {formatOrbitSummary({
-                    periodDays: row.orbital_period_days,
-                    semiMajorAxisAu: row.semi_major_axis_au,
-                    eccentricity: row.eccentricity,
-                    inclinationDeg: row.inclination_deg,
-                  })}
-                  {row.is_stale ? <span className="warning-chip">Stale {formatNumber(row.staleness_days, 0)} d</span> : null}
-                </div>
+            <div className="muted hierarchy-node-meta">
+              {countSummary || "No descendants recorded"}
+              {node?.catalog_component_label ? ` · Label ${node.catalog_component_label}` : ""}
+              {children.length ? ` · ${formatNumber(children.length, 0)} child node${children.length === 1 ? "" : "s"}` : ""}
+            </div>
+            {node?.orbit ? (
+              <div className="muted hierarchy-node-orbit">
+                {formatOrbitSummary({
+                  periodDays: node.orbit.period_days,
+                  semiMajorAxisAu: node.orbit.semi_major_axis_au,
+                  eccentricity: node.orbit.eccentricity,
+                  inclinationDeg: node.orbit.inclination_deg,
+                })}
               </div>
+            ) : null}
+          </div>
+          {children.length ? (
+            <span className="hierarchy-toggle" aria-hidden="true">
+              {expanded ? "Collapse" : "Expand"}
+            </span>
+          ) : null}
+        </button>
+        {children.length > 0 && expanded ? (
+          <div className="hierarchy-children">
+            {children.map((child) => (
+              <HierarchyNodeCard key={child.stable_component_key} node={child} depth={depth + 1} />
             ))}
           </div>
-          {smallBodies.length > smallBodiesPreview.length ? (
-            <p className="muted">
-              Showing {formatNumber(smallBodiesPreview.length, 0)} of {formatNumber(smallBodies.length, 0)} minor-body rows.
-            </p>
-          ) : null}
-        </>
-      )}
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
-      <h4>Artificial Objects</h4>
-      {artificialObjects.length === 0 ? <p className="muted">No Sol artificial-object overlay rows are present.</p> : (
-        <>
-          <div className="table">
-            {artificialPreview.map((row) => (
-              <div className="row" key={row.stable_component_key}>
-                <div>
-                  <strong>{formatText(row.artifact_name)}</strong>
-                  <div className="muted">Kind {formatText(row.artifact_kind)} · Parent {formatText(row.parent_name)}</div>
-                </div>
-                <div className="muted">
-                  {formatOrbitSummary({
-                    periodDays: row.orbital_period_days,
-                    semiMajorAxisAu: row.semi_major_axis_au,
-                    eccentricity: row.eccentricity,
-                    inclinationDeg: row.inclination_deg,
-                  })}
-                  {row.is_stale ? <span className="warning-chip">Stale {formatNumber(row.staleness_days, 0)} d</span> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-          {artificialObjects.length > artificialPreview.length ? (
-            <p className="muted">
-              Showing {formatNumber(artificialPreview.length, 0)} of {formatNumber(artificialObjects.length, 0)} artificial rows.
-            </p>
-          ) : null}
-        </>
-      )}
+function SystemHierarchyPanel({ hierarchy }) {
+  const root = hierarchy?.root;
+  const counts = hierarchy?.counts || {};
+  if (!root) {
+    return null;
+  }
+  return (
+    <section className="panel hierarchy-panel">
+      <h3>System Hierarchy</h3>
+      <p className="muted">
+        This view reconstructs the nested structure from the arm graph so multi-level systems, orbiting bodies, and synthetic subsystems appear in one consistent layout.
+      </p>
+      <div className="hierarchy-kpis">
+        <div><strong>Total Stars</strong><span>{formatNumber(counts.stars, 0)}</span></div>
+        <div><strong>Total Nodes</strong><span>{formatNumber(counts.nodes, 0)}</span></div>
+        <div><strong>Direct Children</strong><span>{formatNumber(counts.direct_children, 0)}</span></div>
+      </div>
+      <div className="hierarchy-tree">
+        <HierarchyNodeCard node={root} depth={0} />
+      </div>
     </section>
   );
 }
@@ -3088,7 +3100,7 @@ function SystemDetailPage({ buildId = "" }) {
     );
   }
 
-  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], sol_hierarchy: solHierarchy = null } = data;
+  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], hierarchy = null } = data;
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
     exclude: [currentSystemDisplayName, system?.system_name],
@@ -3151,8 +3163,10 @@ function SystemDetailPage({ buildId = "" }) {
           </div>
         </div>
 
+        <SystemHierarchyPanel hierarchy={hierarchy} />
+
         <section className="panel">
-          <h3>Stars</h3>
+          <h3>Catalog Star Rows</h3>
           {stars.length === 0 && <p className="muted">No star members recorded.</p>}
           {stars.length > 0 && (
             <div className="table">
@@ -3293,8 +3307,6 @@ function SystemDetailPage({ buildId = "" }) {
             </div>
           )}
         </section>
-
-        <SolHierarchyPanel hierarchy={solHierarchy} />
 
         <section className="panel">
           <h3>Eclipsing Evidence</h3>

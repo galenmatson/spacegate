@@ -578,6 +578,10 @@ Notes:
   - `system_search_terms` denormalizes canonical system names plus every alias already resolved to a `system_id`
   - `systems` carries hot-path browse/search facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`)
   - public/API search should prefer these system-side artifacts before falling back to row-level scans
+- Public/detail hierarchy semantics now prefer the generic `arm` graph:
+  - system detail consumes a generic nested `hierarchy` payload assembled from `component_entities`, `system_hierarchy_edges`, and `orbit_edges`
+  - Sol and non-Sol systems should use the same recursive hierarchy UI instead of special-case structural views
+  - effective public `star_count` should reflect the richer descendant count when `arm` exposes more stars than the flat `core.stars` membership rows
 - Exoplanet host-designation promotion now applies for Gaia-fallback rows:
   - when a star/system would otherwise display as Gaia ID, promoted host labels from NASA hostnames are applied
   - precedence for promoted host labels favors human/common labels, then survey/mission-style labels (for example `TRAPPIST`, `Kepler`, `TOI`, `WASP`), then legacy catalog labels

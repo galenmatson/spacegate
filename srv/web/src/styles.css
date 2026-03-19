@@ -3545,14 +3545,14 @@ main {
   font-size: 0.95rem;
 }
 
-.sol-hierarchy-kpis {
+.hierarchy-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
   margin-bottom: 14px;
 }
 
-.sol-hierarchy-kpis > div {
+.hierarchy-kpis > div {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface-muted);
@@ -3564,9 +3564,102 @@ main {
   font-size: 0.84rem;
 }
 
-.sol-hierarchy-kpis > div > strong {
+.hierarchy-kpis > div > strong {
   color: var(--ink);
   font-size: 0.88rem;
+}
+
+.hierarchy-tree {
+  display: grid;
+  gap: 10px;
+}
+
+.hierarchy-node {
+  display: grid;
+  gap: 10px;
+}
+
+.hierarchy-node.depth-1,
+.hierarchy-node.depth-2,
+.hierarchy-node.depth-3,
+.hierarchy-node.depth-4 {
+  margin-left: 18px;
+}
+
+.hierarchy-node-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.hierarchy-node-head {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.hierarchy-node-head.is-clickable {
+  cursor: pointer;
+}
+
+.hierarchy-node-head.is-static {
+  cursor: default;
+}
+
+.hierarchy-node-title-wrap {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hierarchy-node-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hierarchy-node-title-row strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.hierarchy-node-kind {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft));
+  color: var(--subtle-ink);
+  padding: 2px 8px;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hierarchy-node-meta,
+.hierarchy-node-orbit {
+  line-height: 1.45;
+}
+
+.hierarchy-toggle {
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hierarchy-children {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
 }
 
 .system-identifiers-row {
@@ -3942,6 +4035,17 @@ main {
 
   .header-search-row {
     width: 100%;
+  }
+
+  .hierarchy-node.depth-1,
+  .hierarchy-node.depth-2,
+  .hierarchy-node.depth-3,
+  .hierarchy-node.depth-4 {
+    margin-left: 10px;
+  }
+
+  .hierarchy-node-head {
+    flex-direction: column;
   }
 
   .compact-range-inputs {

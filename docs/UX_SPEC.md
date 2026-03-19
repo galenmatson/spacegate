@@ -46,7 +46,7 @@ Sorting rules:
 - System name
 - Distance (ly)
 - RA/Dec (deg)
-- Star count
+- Star count (effective descendant count when the hierarchy overlay exposes more stars than the flat core membership rows)
 - Planet count
 - Spectral classes present (from member stars)
 - IDs: Gaia/HIP/HD where present
@@ -64,7 +64,7 @@ Sorting rules:
 - XYZ (helio, ly): `systems.x_helio_ly`, `systems.y_helio_ly`, `systems.z_helio_ly` (optional in UI)
 - IDs: `systems.gaia_id`, `systems.hip_id`, `systems.hd_id`
 - Stable key: `systems.stable_object_key`
-- Star count: `COUNT(stars.star_id)` grouped by `stars.system_id`
+- Star count: `systems.star_count` when materialized; effective value may be upgraded by `arm` hierarchy overlays (for example MSC/WDS synthetic roots) when that yields a truer total member count than direct `core.stars`
 - Planet count: `COUNT(planets.planet_id)` grouped by `planets.system_id`
 - Spectral classes: `DISTINCT stars.spectral_class` per `stars.system_id`
 - Provenance badge: `systems.source_catalog`, `systems.source_version`
@@ -75,6 +75,7 @@ Sorting rules:
 - Header section with system name and identifiers.
 - Deterministic snapshot panel near top of page.
 - Quick facts grid (distance, coordinates, counts).
+- Hierarchy section: recursive nested cards from the generic `arm` graph payload, with deeper layers collapsed by default.
 - Stars section: table/list of member stars.
 - Planets section: table/list of known exoplanets.
 - Provenance & Trust section with full provenance details.
@@ -88,8 +89,14 @@ Sorting rules:
 - Distance (ly)
 - RA/Dec (deg)
 - XYZ (helio, ly)
-- Star count
+- Star count (effective total stars represented by the hierarchy, not only direct core star rows)
 - Planet count
+
+### Hierarchy Section
+- Uses one generic hierarchy renderer for Sol, multi-star systems, and ordinary planet-host systems.
+- Each node shows the object name, type badge, descendant summary, optional orbit summary, and nested child cards.
+- Deeper layers collapse by default so large systems stay navigable.
+- This section is the primary structural explanation of the system; the flat stars/planets tables remain below it as source-facing catalog views.
 
 ### Snapshot Panel
 - Show deterministic snapshot image when present.
@@ -138,6 +145,11 @@ Star fields:
 - Apparent magnitude: `stars.vmag`
 - IDs: `stars.gaia_id`, `stars.hip_id`, `stars.hd_id`
 - Provenance: all required provenance fields from `stars`
+
+Hierarchy fields:
+- Root/count summary: derived from `arm.component_entities`, `arm.system_hierarchy_edges`, and `arm.orbit_edges`
+- Synthetic subsystem cards: derived from binary/orbit relationships in `arm.orbit_edges`
+- Orbit summaries: preferred `arm.orbital_solutions` rows when present
 
 Planet fields:
 - Planet name: `planets.planet_name`

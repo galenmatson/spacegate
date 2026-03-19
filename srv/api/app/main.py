@@ -35,7 +35,7 @@ from .queries import (
     fetch_planets_for_system,
     fetch_spectral_mix,
     fetch_snapshot_for_system,
-    fetch_sol_hierarchy_for_system,
+    fetch_system_hierarchy_for_system,
     fetch_stars_for_system,
     fetch_system_by_id,
     fetch_system_by_key,
@@ -542,6 +542,7 @@ def systems_search(
         )
 
     rich_db_path = _resolve_rich_db_path()
+    arm_db_path = _resolve_arm_db_path()
 
     match_mode = bool(q_norm) or bool(id_query)
 
@@ -645,6 +646,7 @@ def systems_search(
                 include_total=bool(include_total_bool),
                 cursor_values=cursor_values,
                 rich_db_path=rich_db_path,
+                arm_db_path=arm_db_path,
             )
     except ValueError as exc:
         _audit_systems_search(
@@ -808,14 +810,19 @@ def system_detail(system_id: int):
             stable_object_key=system.get("stable_object_key"),
             rich_db_path=rich_db_path,
         )
-        sol_hierarchy = fetch_sol_hierarchy_for_system(
+        hierarchy = fetch_system_hierarchy_for_system(
             con,
             system_id=system_id,
             stable_object_key=system.get("stable_object_key"),
+            wds_id=system.get("wds_id"),
             arm_db_path=arm_db_path,
         )
 
-    system["star_count"] = star_count
+    effective_star_count = max(
+        int(star_count or 0),
+        int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
+    )
+    system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
@@ -851,7 +858,7 @@ def system_detail(system_id: int):
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
-        "sol_hierarchy": sol_hierarchy,
+        "hierarchy": hierarchy,
     }
 
 
@@ -891,14 +898,19 @@ def system_detail_by_key(stable_object_key: str):
             stable_object_key=stable_object_key,
             rich_db_path=rich_db_path,
         )
-        sol_hierarchy = fetch_sol_hierarchy_for_system(
+        hierarchy = fetch_system_hierarchy_for_system(
             con,
             system_id=int(system_id),
             stable_object_key=stable_object_key,
+            wds_id=system.get("wds_id"),
             arm_db_path=arm_db_path,
         )
 
-    system["star_count"] = star_count
+    effective_star_count = max(
+        int(star_count or 0),
+        int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
+    )
+    system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
@@ -934,7 +946,7 @@ def system_detail_by_key(stable_object_key: str):
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
-        "sol_hierarchy": sol_hierarchy,
+        "hierarchy": hierarchy,
     }
 
 

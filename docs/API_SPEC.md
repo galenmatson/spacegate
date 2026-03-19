@@ -300,6 +300,7 @@ Implementation notes:
 - rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
 - rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
+- when `arm` exposes a richer multiplicity root (for example WDS/MSC synthetic system roots), star-count filters and returned `star_count` values use the larger effective descendant-star count instead of only counting direct `core.stars` rows.
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.
@@ -484,20 +485,43 @@ Response 200:
       "provenance": { /* full provenance */ }
     }
   ],
-  "sol_hierarchy": {
-    "is_sol": true,
+  "hierarchy": {
+    "preferred_root_key": "comp:msc_system:wds:07346+3153",
+    "root_keys_considered": ["comp:system:system:wds:07346+3153", "comp:msc_system:wds:07346+3153"],
     "counts": {
-      "moons": 11,
-      "small_bodies": 25,
-      "artificial_objects": 11,
-      "small_body_kind_counts": {"asteroid": 18, "tno": 6, "comet": 1},
-      "artificial_kind_counts": {"station": 1, "space_telescope": 3, "deep_space_probe": 4, "planetary_orbiter": 3},
-      "stale_small_bodies": 0,
-      "stale_artificial_objects": 0
+      "stars": 6,
+      "nodes": 10,
+      "direct_children": 3,
+      "type_counts": {"system": 1, "subsystem": 3, "star": 6}
     },
-    "moons": [/* arm S2 rows */],
-    "small_bodies": [/* arm S3 rows */],
-    "artificial_objects": [/* arm S4 rows */]
+    "root": {
+      "stable_component_key": "comp:msc_system:wds:07346+3153",
+      "component_type": "system",
+      "display_name": "Castor",
+      "total_star_count": 6,
+      "collapsed_by_default": false,
+      "children": [
+        {
+          "stable_component_key": "synthetic:orbit:12345",
+          "component_type": "subsystem",
+          "display_name": "Castor A",
+          "total_star_count": 2,
+          "collapsed_by_default": false,
+          "orbit": {
+            "period_days": 342.5,
+            "semi_major_axis_au": 5.1,
+            "eccentricity": 0.12,
+            "inclination_deg": 71.0,
+            "confidence_tier": "high",
+            "source_catalog": "msc"
+          },
+          "children": [
+            {"stable_component_key": "comp:msc:wds:07346+3153:aa", "component_type": "star", "display_name": "Castor AA"},
+            {"stable_component_key": "comp:msc:wds:07346+3153:ab", "component_type": "star", "display_name": "Castor AB"}
+          ]
+        }
+      ]
+    }
   }
 }
 ```
@@ -506,7 +530,9 @@ Display-name behavior:
 - `display_name` prefers human-friendly naming over Gaia placeholders.
 - Alias precedence is deterministic: proper/common name, Bayer, Flamsteed, then major catalog IDs (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
 - `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
-- `sol_hierarchy` is only populated for Sol (`system:sol`); non-Sol systems return `null`.
+- `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
+- `system.star_count` and search `star_count` filters are descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list.
+- the flat `stars` array remains the canonical direct core membership list; it is not guaranteed to enumerate every nested scientific leaf shown in `hierarchy`.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

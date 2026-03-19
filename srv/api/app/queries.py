@@ -1,5 +1,6 @@
 import json
 import re
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 import duckdb
@@ -1010,6 +1011,469 @@ def fetch_sol_hierarchy_for_system(
     }
 
 
+def _arm_star_overlay_expr(system_alias: str = "s") -> str:
+    return (
+        "COALESCE(("
+        "SELECT COUNT(*)::BIGINT "
+        "FROM arm_db.system_hierarchy_edges h "
+        "JOIN arm_db.component_entities ce "
+        "  ON ce.stable_component_key = h.child_component_key "
+        "WHERE "
+        f"{system_alias}.wds_id IS NOT NULL "
+        f"AND h.parent_component_key = ('comp:msc_system:wds:' || {system_alias}.wds_id) "
+        "AND ce.component_type = 'star'"
+        "), 0)"
+    )
+
+
+def _fetch_arm_star_overlay_counts_for_systems(
+    con: duckdb.DuckDBPyConnection,
+    systems: List[Dict[str, Any]],
+    *,
+    arm_db_path: Optional[str],
+) -> Dict[int, int]:
+    if not systems or not arm_db_path:
+        return {}
+    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+        return {}
+    if not _has_table(con, alias="arm_db", table_name="component_entities"):
+        return {}
+    if not _has_table(con, alias="arm_db", table_name="system_hierarchy_edges"):
+        return {}
+
+    refs: List[Tuple[int, str]] = []
+    for row in systems:
+        system_id = row.get("system_id")
+        wds_id = _clean_name(row.get("wds_id"))
+        if system_id is None or not wds_id:
+            continue
+        refs.append((int(system_id), wds_id))
+    if not refs:
+        return {}
+
+    values_sql = ",".join(["(?, ?)"] * len(refs))
+    bind_params: List[Any] = []
+    for system_id, wds_id in refs:
+        bind_params.extend([system_id, wds_id])
+    rows = con.execute(
+        f"""
+        WITH ref(system_id, wds_id) AS (
+          VALUES {values_sql}
+        )
+        SELECT
+          ref.system_id,
+          COUNT(*)::BIGINT AS overlay_star_count
+        FROM ref
+        JOIN arm_db.system_hierarchy_edges h
+          ON h.parent_component_key = ('comp:msc_system:wds:' || ref.wds_id)
+        JOIN arm_db.component_entities ce
+          ON ce.stable_component_key = h.child_component_key
+         AND ce.component_type = 'star'
+        GROUP BY ref.system_id
+        """,
+        bind_params,
+    ).fetchall()
+    return {int(system_id): int(count or 0) for system_id, count in rows}
+
+
+def _orbit_solution_payload(
+    period_days: Any,
+    semi_major_axis_au: Any,
+    eccentricity: Any,
+    inclination_deg: Any,
+    confidence_tier: Any,
+    source_catalog: Any,
+) -> Optional[Dict[str, Any]]:
+    has_values = any(
+        value is not None
+        for value in (period_days, semi_major_axis_au, eccentricity, inclination_deg)
+    )
+    if not has_values:
+        return None
+    return {
+        "period_days": float(period_days) if period_days is not None else None,
+        "semi_major_axis_au": float(semi_major_axis_au) if semi_major_axis_au is not None else None,
+        "eccentricity": float(eccentricity) if eccentricity is not None else None,
+        "inclination_deg": float(inclination_deg) if inclination_deg is not None else None,
+        "confidence_tier": _clean_name(confidence_tier) or None,
+        "source_catalog": _clean_name(source_catalog) or None,
+    }
+
+
+def _label_from_component_stem(
+    host_name: str,
+    primary_node: Dict[str, Any],
+    secondary_node: Dict[str, Any],
+) -> str:
+    labels = [
+        _clean_name(primary_node.get("catalog_component_label")).lower(),
+        _clean_name(secondary_node.get("catalog_component_label")).lower(),
+    ]
+    if labels[0] and labels[1]:
+        shared = ""
+        for left, right in zip(labels[0], labels[1]):
+            if left != right:
+                break
+            shared += left
+        if shared:
+            return f"{host_name} {shared.upper()}".strip()
+    return f"{host_name} Pair".strip()
+
+
+def _hierarchy_type_rank(component_type: Any) -> int:
+    return {
+        "system": 0,
+        "subsystem": 1,
+        "star": 2,
+        "planet": 3,
+        "moon": 4,
+        "minor_body": 5,
+        "artificial": 6,
+    }.get(_clean_name(component_type).lower(), 99)
+
+
+def _hierarchy_family(component_type: Any, core_object_type: Any) -> str:
+    return {
+        "star": "star",
+        "planet": "planet",
+    }.get(_clean_name(core_object_type).lower(), {
+        "system": "system",
+        "subsystem": "subsystem",
+        "star": "star",
+        "main_sequence": "star",
+        "brown_dwarf": "star",
+        "compact": "star",
+        "planet": "planet",
+        "subplanet": "planet",
+        "moon": "moon",
+        "minor_body": "minor_body",
+        "artificial": "artificial",
+    }.get(_clean_name(component_type).lower(), _clean_name(component_type).lower() or "unknown"))
+
+
+def _build_hierarchy_node_payload(
+    node_key: str,
+    *,
+    node_map: Dict[str, Dict[str, Any]],
+    children_map: Dict[str, List[str]],
+    depth: int,
+) -> Dict[str, Any]:
+    node = dict(node_map[node_key])
+    child_keys = sorted(
+        children_map.get(node_key, []),
+        key=lambda key: (
+            _hierarchy_type_rank(node_map.get(key, {}).get("component_family")),
+            _clean_name(node_map.get(key, {}).get("display_name")).lower(),
+            key,
+        ),
+    )
+    children = [
+        _build_hierarchy_node_payload(
+            child_key,
+            node_map=node_map,
+            children_map=children_map,
+            depth=depth + 1,
+        )
+        for child_key in child_keys
+    ]
+    direct_type_counts: Dict[str, int] = {}
+    total_type_counts: Dict[str, int] = {
+        _clean_name(node.get("component_family")).lower() or "unknown": 1,
+    }
+    total_star_count = 1 if _clean_name(node.get("component_family")).lower() == "star" else 0
+    for child in children:
+        child_type = _clean_name(child.get("component_family")).lower() or "unknown"
+        direct_type_counts[child_type] = int(direct_type_counts.get(child_type, 0)) + 1
+        total_star_count += int(child.get("total_star_count") or 0)
+        for token, count in (child.get("total_type_counts") or {}).items():
+            if not token:
+                continue
+            total_type_counts[token] = int(total_type_counts.get(token, 0)) + int(count or 0)
+    node["depth"] = int(depth)
+    node["children"] = children
+    node["child_count"] = len(children)
+    node["descendant_count"] = sum(int(child.get("descendant_count") or 0) + 1 for child in children)
+    node["direct_type_counts"] = direct_type_counts
+    node["total_type_counts"] = total_type_counts
+    node["total_star_count"] = int(total_star_count)
+    node["collapsed_by_default"] = bool(depth >= 2 or len(children) >= 6)
+    return node
+
+
+def fetch_system_hierarchy_for_system(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    stable_object_key: Optional[str],
+    wds_id: Optional[str],
+    arm_db_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not arm_db_path:
+        return None
+    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+        return None
+    if not _has_table(con, alias="arm_db", table_name="component_entities"):
+        return None
+    if not _has_table(con, alias="arm_db", table_name="system_hierarchy_edges"):
+        return None
+
+    candidate_keys: List[str] = []
+    if stable_object_key:
+        candidate_keys.append(f"comp:system:{stable_object_key}")
+    if wds_id:
+        candidate_keys.append(f"comp:msc_system:wds:{wds_id}")
+    candidate_keys = [key for key in candidate_keys if key]
+    if not candidate_keys:
+        return None
+
+    placeholders = ",".join(["?"] * len(candidate_keys))
+    candidate_rows = con.execute(
+        f"""
+        SELECT
+          ce.stable_component_key,
+          ce.display_name,
+          ce.component_type,
+          COUNT(*) FILTER (WHERE child.component_type = 'star')::BIGINT AS direct_star_count,
+          COUNT(h.child_component_key)::BIGINT AS direct_child_count
+        FROM arm_db.component_entities ce
+        LEFT JOIN arm_db.system_hierarchy_edges h
+          ON h.parent_component_key = ce.stable_component_key
+        LEFT JOIN arm_db.component_entities child
+          ON child.stable_component_key = h.child_component_key
+        WHERE ce.stable_component_key IN ({placeholders})
+        GROUP BY ce.stable_component_key, ce.display_name, ce.component_type
+        """,
+        candidate_keys,
+    ).fetchall()
+    if not candidate_rows:
+        return None
+
+    preferred_root_key = sorted(
+        candidate_rows,
+        key=lambda row: (
+            -int(row[3] or 0),
+            -int(row[4] or 0),
+            0 if str(row[0]).startswith("comp:msc_system:") else 1,
+            _clean_name(row[1]).lower(),
+        ),
+    )[0][0]
+
+    hierarchy_rows = con.execute(
+        """
+        WITH RECURSIVE tree(component_key, depth) AS (
+          SELECT ? AS component_key, 0 AS depth
+          UNION ALL
+          SELECT h.child_component_key, tree.depth + 1
+          FROM tree
+          JOIN arm_db.system_hierarchy_edges h
+            ON h.parent_component_key = tree.component_key
+          WHERE tree.depth < 12
+        )
+        SELECT DISTINCT component_key, depth
+        FROM tree
+        """,
+        [preferred_root_key],
+    ).fetchall()
+    if not hierarchy_rows:
+        return None
+
+    component_keys = [str(row[0]) for row in hierarchy_rows if row and row[0]]
+    key_placeholders = ",".join(["?"] * len(component_keys))
+
+    entity_rows = con.execute(
+        f"""
+        SELECT
+          stable_component_key,
+          component_type,
+          core_object_type,
+          core_object_id,
+          display_name,
+          catalog_component_label,
+          source_catalog
+        FROM arm_db.component_entities
+        WHERE stable_component_key IN ({key_placeholders})
+        """,
+        component_keys,
+    ).fetchall()
+    node_map: Dict[str, Dict[str, Any]] = {}
+    for (
+        component_key,
+        component_type,
+        core_object_type,
+        core_object_id,
+        display_name,
+        catalog_component_label,
+        source_catalog,
+    ) in entity_rows:
+        node_map[str(component_key)] = {
+            "stable_component_key": str(component_key),
+            "component_type": _clean_name(component_type) or "unknown",
+            "component_family": _hierarchy_family(component_type, core_object_type),
+            "core_object_type": _clean_name(core_object_type) or None,
+            "core_object_id": int(core_object_id) if core_object_id is not None else None,
+            "display_name": _clean_name(display_name),
+            "catalog_component_label": _clean_name(catalog_component_label) or None,
+            "source_catalog": _clean_name(source_catalog) or None,
+            "synthetic": False,
+            "orbit": None,
+        }
+    if preferred_root_key not in node_map:
+        return None
+
+    edge_rows = con.execute(
+        f"""
+        SELECT
+          parent_component_key,
+          child_component_key,
+          edge_kind,
+          member_role,
+          catalog_relation_label
+        FROM arm_db.system_hierarchy_edges
+        WHERE parent_component_key IN ({key_placeholders})
+        """,
+        component_keys,
+    ).fetchall()
+    parent_by_child: Dict[str, str] = {}
+    children_map: Dict[str, List[str]] = defaultdict(list)
+    for parent_key, child_key, edge_kind, member_role, catalog_relation_label in edge_rows:
+        parent = str(parent_key)
+        child = str(child_key)
+        if parent not in node_map or child not in node_map:
+            continue
+        if child in parent_by_child:
+            continue
+        parent_by_child[child] = parent
+        children_map[parent].append(child)
+        child_node = node_map.get(child)
+        if child_node is not None:
+            child_node["member_role"] = _clean_name(member_role) or None
+            child_node["catalog_relation_label"] = _clean_name(catalog_relation_label) or None
+            child_node["edge_kind"] = _clean_name(edge_kind) or None
+
+    orbit_rows = []
+    if _has_table(con, alias="arm_db", table_name="orbit_edges"):
+        orbit_rows = con.execute(
+            f"""
+            SELECT
+              oe.host_component_key,
+              oe.primary_component_key,
+              oe.secondary_component_key,
+              oe.relation_kind,
+              oe.orbit_edge_id,
+              os.period_days,
+              os.semi_major_axis_au,
+              os.eccentricity,
+              os.inclination_deg,
+              COALESCE(os.confidence_tier, oe.confidence_tier) AS confidence_tier,
+              COALESCE(os.source_catalog, oe.source_catalog) AS solution_source_catalog
+            FROM arm_db.orbit_edges oe
+            LEFT JOIN arm_db.orbital_solutions os
+              ON os.orbit_edge_id = oe.orbit_edge_id
+             AND (
+               oe.preferred_solution_id IS NULL
+               OR os.orbital_solution_id = oe.preferred_solution_id
+             )
+            WHERE oe.host_component_key IN ({key_placeholders})
+            ORDER BY oe.host_component_key, oe.primary_component_key, oe.secondary_component_key
+            """,
+            component_keys,
+        ).fetchall()
+
+    for (
+        host_component_key,
+        primary_component_key,
+        secondary_component_key,
+        relation_kind,
+        orbit_edge_id,
+        period_days,
+        semi_major_axis_au,
+        eccentricity,
+        inclination_deg,
+        confidence_tier,
+        solution_source_catalog,
+    ) in orbit_rows:
+        host_key = str(host_component_key)
+        primary_key = str(primary_component_key)
+        secondary_key = str(secondary_component_key)
+        if host_key not in node_map or primary_key not in node_map or secondary_key not in node_map:
+            continue
+        relation = _clean_name(relation_kind).lower()
+        orbit_payload = _orbit_solution_payload(
+            period_days,
+            semi_major_axis_au,
+            eccentricity,
+            inclination_deg,
+            confidence_tier,
+            solution_source_catalog,
+        )
+        if relation == "binary":
+            synthetic_key = f"synthetic:orbit:{int(orbit_edge_id or 0)}"
+            if synthetic_key not in node_map:
+                host_name = _clean_name(node_map.get(host_key, {}).get("display_name"))
+                display_name = _label_from_component_stem(
+                    host_name or "Subsystem",
+                    node_map[primary_key],
+                    node_map[secondary_key],
+                )
+                node_map[synthetic_key] = {
+                    "stable_component_key": synthetic_key,
+                    "component_type": "subsystem",
+                    "component_family": "subsystem",
+                    "core_object_type": None,
+                    "core_object_id": None,
+                    "display_name": display_name,
+                    "catalog_component_label": None,
+                    "source_catalog": node_map.get(host_key, {}).get("source_catalog"),
+                    "synthetic": True,
+                    "orbit": orbit_payload,
+                    "orbit_relation_kind": relation or None,
+                }
+                if primary_key in parent_by_child:
+                    previous = parent_by_child[primary_key]
+                    if primary_key in children_map.get(previous, []):
+                        children_map[previous].remove(primary_key)
+                if secondary_key in parent_by_child:
+                    previous = parent_by_child[secondary_key]
+                    if secondary_key in children_map.get(previous, []):
+                        children_map[previous].remove(secondary_key)
+                parent_by_child[synthetic_key] = host_key
+                children_map[host_key].append(synthetic_key)
+                parent_by_child[primary_key] = synthetic_key
+                parent_by_child[secondary_key] = synthetic_key
+                children_map[synthetic_key] = [primary_key, secondary_key]
+            continue
+        if parent_by_child.get(secondary_key) in (host_key, None):
+            if secondary_key in parent_by_child:
+                previous = parent_by_child[secondary_key]
+                if secondary_key in children_map.get(previous, []):
+                    children_map[previous].remove(secondary_key)
+            parent_by_child[secondary_key] = primary_key
+            children_map[primary_key].append(secondary_key)
+            secondary_node = node_map.get(secondary_key)
+            if secondary_node is not None:
+                secondary_node["orbit"] = orbit_payload
+                secondary_node["orbit_relation_kind"] = relation or None
+
+    root_payload = _build_hierarchy_node_payload(
+        preferred_root_key,
+        node_map=node_map,
+        children_map=children_map,
+        depth=0,
+    )
+    counts = {
+        "stars": int(root_payload.get("total_star_count") or 0),
+        "nodes": int(root_payload.get("descendant_count") or 0) + 1,
+        "direct_children": int(root_payload.get("child_count") or 0),
+        "type_counts": dict(root_payload.get("total_type_counts") or {}),
+    }
+    return {
+        "root": root_payload,
+        "counts": counts,
+        "preferred_root_key": preferred_root_key,
+        "root_keys_considered": candidate_keys,
+    }
+
+
 def fetch_snapshot_for_system(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -1085,6 +1549,7 @@ def search_systems(
     include_total: bool,
     cursor_values: Optional[Dict[str, Any]],
     rich_db_path: Optional[str] = None,
+    arm_db_path: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
     conditions: List[str] = []
     params: List[Any] = []
@@ -1107,6 +1572,19 @@ def search_systems(
     has_system_spectral_class_mask = _has_local_column(con, "systems", "spectral_class_mask")
     has_star_teff_k = _has_local_column(con, "stars", "teff_k")
     star_teff_select = "teff_k" if has_star_teff_k else "NULL::DOUBLE AS teff_k"
+    arm_attached = bool(arm_db_path and _attach_rich_db(con, arm_db_path, alias="arm_db"))
+    has_arm_star_overlay = (
+        arm_attached
+        and _has_table(con, alias="arm_db", table_name="component_entities")
+        and _has_table(con, alias="arm_db", table_name="system_hierarchy_edges")
+    )
+    effective_star_count_expr = (
+        f"GREATEST(COALESCE(s.star_count, 0), {_arm_star_overlay_expr('s')})"
+        if has_arm_star_overlay and has_system_star_count
+        else "COALESCE(s.star_count, 0)"
+        if has_system_star_count
+        else "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id)"
+    )
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
@@ -1420,21 +1898,11 @@ def search_systems(
             )
 
     if min_star_count is not None:
-        if has_system_star_count:
-            conditions.append("COALESCE(s.star_count, 0) >= ?")
-        else:
-            conditions.append(
-                "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) >= ?"
-            )
+        conditions.append(f"{effective_star_count_expr} >= ?")
         params.append(min_star_count)
 
     if max_star_count is not None:
-        if has_system_star_count:
-            conditions.append("COALESCE(s.star_count, 0) <= ?")
-        else:
-            conditions.append(
-                "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) <= ?"
-            )
+        conditions.append(f"{effective_star_count_expr} <= ?")
         params.append(max_star_count)
 
     if min_planet_count is not None:
@@ -1729,6 +2197,11 @@ def search_systems(
 
     system_ids: List[int] = [int(item["system_id"]) for item in results if item.get("system_id") is not None]
     if system_ids:
+        arm_star_overlay_counts = _fetch_arm_star_overlay_counts_for_systems(
+            con,
+            results,
+            arm_db_path=arm_db_path,
+        )
         placeholders = ",".join(["?"] * len(system_ids))
         needs_star_rollup = not (
             has_system_star_count
@@ -1861,6 +2334,11 @@ def search_systems(
                     for token in item.get("spectral_classes", [])
                     if str(token).strip()
                 ]
+            if arm_star_overlay_counts:
+                item["star_count"] = max(
+                    int(item.get("star_count") or 0),
+                    int(arm_star_overlay_counts.get(sid, 0)),
+                )
             if needs_planet_rollup:
                 item["planet_count"] = planet_map.get(sid, 0)
             else:
