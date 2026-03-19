@@ -52,6 +52,19 @@ ALIAS_KIND_RANK = {
     "gaia_id": 30,
     "gaia_id_short": 31,
 }
+SPECTRAL_CLASS_MASKS = {
+    "O": 1,
+    "B": 2,
+    "A": 4,
+    "F": 8,
+    "G": 16,
+    "K": 32,
+    "M": 64,
+    "L": 128,
+    "T": 256,
+    "Y": 512,
+    "D": 1024,
+}
 
 
 def split_provenance(row: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -226,6 +239,13 @@ def _alias_rank(row: Dict[str, Any]) -> Tuple[int, int, int, str]:
         priority = 999
     raw = _clean_name(row.get("alias_raw"))
     return (kind_rank, priority, len(raw), raw.lower())
+
+
+def _spectral_filter_mask(tokens: List[str]) -> int:
+    mask = 0
+    for token in tokens:
+        mask |= SPECTRAL_CLASS_MASKS.get(str(token).strip().upper(), 0)
+    return mask
 
 
 def choose_display_name(
@@ -1077,9 +1097,14 @@ def search_systems(
     identifier_cte_parts: List[str] = []
     identifier_cte_params: List[Any] = []
     has_aliases = _has_local_table(con, "aliases")
+    has_system_search_terms = _has_local_table(con, "system_search_terms")
     has_system_star_count = _has_local_column(con, "systems", "star_count")
     has_system_planet_count = _has_local_column(con, "systems", "planet_count")
+    has_system_star_teff_count = _has_local_column(con, "systems", "star_teff_count")
+    has_system_min_star_teff_k = _has_local_column(con, "systems", "min_star_teff_k")
+    has_system_max_star_teff_k = _has_local_column(con, "systems", "max_star_teff_k")
     has_system_spectral_classes_json = _has_local_column(con, "systems", "spectral_classes_json")
+    has_system_spectral_class_mask = _has_local_column(con, "systems", "spectral_class_mask")
     has_star_teff_k = _has_local_column(con, "stars", "teff_k")
     star_teff_select = "teff_k" if has_star_teff_k else "NULL::DOUBLE AS teff_k"
 
@@ -1134,11 +1159,29 @@ def search_systems(
                 value = id_query.get("value")
                 identifier_cte_params.extend([value, value, value, value])
         identifier_mode = id_clause is not None
-        enable_alias_match = has_aliases and not short_query_mode and not identifier_mode
+        enable_search_terms = has_system_search_terms and not identifier_mode
+        enable_alias_match = (
+            not has_system_search_terms and has_aliases and not short_query_mode and not identifier_mode
+        )
         fuzzy_alias_distance = 1 if len(q_norm) <= 5 else 2 if len(q_norm) <= 10 else 3
 
-        exact_parts = ["s.system_name_norm = ?", "s.stable_object_key = ?"]
-        exact_params: List[Any] = [q_norm, q_raw]
+        exact_parts = ["s.stable_object_key = ?"]
+        exact_params: List[Any] = [q_raw]
+        if enable_search_terms:
+            alias_cte_parts.append(
+                """
+                search_term_match_exact AS (
+                    SELECT DISTINCT system_id
+                    FROM system_search_terms
+                    WHERE term_norm = ?
+                )
+                """
+            )
+            alias_cte_params.append(q_norm)
+            exact_parts.append("s.system_id IN (SELECT system_id FROM search_term_match_exact)")
+        else:
+            exact_parts.insert(0, "s.system_name_norm = ?")
+            exact_params.insert(0, q_norm)
         if enable_alias_match:
             alias_cte_parts.append(
                 """
@@ -1154,9 +1197,24 @@ def search_systems(
             exact_parts.append("s.system_id IN (SELECT system_id FROM alias_match_exact)")
         exact_clause = "(" + " OR ".join(exact_parts) + ")"
 
-        prefix_parts = ["s.system_name_norm LIKE ?"]
+        prefix_parts: List[str] = []
         prefix_pattern = f"{q_norm}%"
-        prefix_params: List[Any] = [prefix_pattern]
+        prefix_params: List[Any] = []
+        if enable_search_terms and not short_query_mode:
+            alias_cte_parts.append(
+                """
+                search_term_match_prefix AS (
+                    SELECT DISTINCT system_id
+                    FROM system_search_terms
+                    WHERE term_norm LIKE ?
+                )
+                """
+            )
+            alias_cte_params.append(prefix_pattern)
+            prefix_parts.append("s.system_id IN (SELECT system_id FROM search_term_match_prefix)")
+        else:
+            prefix_parts.append("s.system_name_norm LIKE ?")
+            prefix_params.append(prefix_pattern)
         if enable_alias_match:
             alias_cte_parts.append(
                 """
@@ -1182,8 +1240,24 @@ def search_systems(
             if identifier_mode or short_query_mode or len(token) < 2:
                 continue
             token_pattern = f"%{token}%"
-            token_parts = ["s.system_name_norm LIKE ?"]
-            token_params.append(token_pattern)
+            token_parts: List[str] = []
+            if enable_search_terms:
+                cte_name = f"search_term_match_token_{token_idx}"
+                token_idx += 1
+                alias_cte_parts.append(
+                    f"""
+                    {cte_name} AS (
+                        SELECT DISTINCT system_id
+                        FROM system_search_terms
+                        WHERE term_norm LIKE ?
+                    )
+                    """
+                )
+                alias_cte_params.append(token_pattern)
+                token_parts.append(f"s.system_id IN (SELECT system_id FROM {cte_name})")
+            else:
+                token_parts.append("s.system_name_norm LIKE ?")
+                token_params.append(token_pattern)
             if enable_alias_match:
                 cte_name = f"alias_match_token_{token_idx}"
                 token_idx += 1
@@ -1202,7 +1276,23 @@ def search_systems(
             token_clauses.append("(" + " OR ".join(token_parts) + ")")
         token_and_clause = " AND ".join(token_clauses) if token_clauses else None
         fuzzy_clause = None
-        if enable_alias_match and len(q_norm) >= 4:
+        if enable_search_terms and len(q_norm) >= 4:
+            alias_cte_parts.append(
+                f"""
+                search_term_match_fuzzy AS (
+                    SELECT DISTINCT system_id
+                    FROM system_search_terms
+                    WHERE term_norm IS NOT NULL
+                      AND term_norm <> ''
+                      AND abs(length(term_norm) - {len(q_norm)}) <= {fuzzy_alias_distance}
+                      AND left(term_norm, 1) = left(?, 1)
+                      AND levenshtein(term_norm, ?) <= {fuzzy_alias_distance}
+                )
+                """
+            )
+            alias_cte_params.extend([q_norm, q_norm])
+            fuzzy_clause = "s.system_id IN (SELECT system_id FROM search_term_match_fuzzy)"
+        elif enable_alias_match and len(q_norm) >= 4:
             alias_cte_parts.append(
                 f"""
                 alias_match_fuzzy AS (
@@ -1259,10 +1349,23 @@ def search_systems(
         params.append(min_dist_ly)
 
     if min_temp_k is not None or max_temp_k is not None:
-        if not has_star_teff_k:
+        has_system_temperature_facets = (
+            has_system_star_teff_count
+            and has_system_min_star_teff_k
+            and has_system_max_star_teff_k
+        )
+        if not has_star_teff_k and not has_system_temperature_facets:
             raise ValueError(
                 "Temperature filters are unavailable for this build; rebuild with core.stars.teff_k."
             )
+        if has_system_temperature_facets:
+            conditions.append("COALESCE(s.star_teff_count, 0) > 0")
+            if min_temp_k is not None:
+                conditions.append("COALESCE(s.max_star_teff_k, -1e18) >= ?")
+                params.append(min_temp_k)
+            if max_temp_k is not None:
+                conditions.append("COALESCE(s.min_star_teff_k, 1e18) <= ?")
+                params.append(max_temp_k)
         teff_terms = ["st.teff_k is not null"]
         if min_temp_k is not None:
             teff_terms.append("st.teff_k >= ?")
@@ -1270,30 +1373,36 @@ def search_systems(
         if max_temp_k is not None:
             teff_terms.append("st.teff_k <= ?")
             params.append(max_temp_k)
-        conditions.append(
-            "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-            f"AND ({' AND '.join(teff_terms)}))"
-        )
+        if has_star_teff_k:
+            conditions.append(
+                "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
+                f"AND ({' AND '.join(teff_terms)}))"
+            )
 
     if spectral_classes:
-        spectral_filters: List[str] = []
-        for token in spectral_classes:
-            if token == "D":
-                spectral_filters.append(
-                    "("
-                    "st.spectral_class = ? OR "
-                    "UPPER(COALESCE(st.spectral_type_raw, '')) LIKE 'D%' OR "
-                    "COALESCE(st.object_type, '') = 'white_dwarf'"
-                    ")"
-                )
-                params.append("D")
-            else:
-                spectral_filters.append("st.spectral_class = ?")
-                params.append(token)
-        conditions.append(
-            "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
-            f"AND ({' OR '.join(spectral_filters)}))"
-        )
+        if has_system_spectral_class_mask:
+            spectral_mask = _spectral_filter_mask(spectral_classes)
+            conditions.append("(COALESCE(s.spectral_class_mask, 0) & ?) <> 0")
+            params.append(spectral_mask)
+        else:
+            spectral_filters: List[str] = []
+            for token in spectral_classes:
+                if token == "D":
+                    spectral_filters.append(
+                        "("
+                        "st.spectral_class = ? OR "
+                        "UPPER(COALESCE(st.spectral_type_raw, '')) LIKE 'D%' OR "
+                        "COALESCE(st.object_type, '') = 'white_dwarf'"
+                        ")"
+                    )
+                    params.append("D")
+                else:
+                    spectral_filters.append("st.spectral_class = ?")
+                    params.append(token)
+            conditions.append(
+                "EXISTS (SELECT 1 FROM stars st WHERE st.system_id = s.system_id "
+                f"AND ({' OR '.join(spectral_filters)}))"
+            )
 
     if has_planets is True:
         if has_system_planet_count:
@@ -1621,6 +1730,14 @@ def search_systems(
     system_ids: List[int] = [int(item["system_id"]) for item in results if item.get("system_id") is not None]
     if system_ids:
         placeholders = ",".join(["?"] * len(system_ids))
+        needs_star_rollup = not (
+            has_system_star_count
+            and has_system_star_teff_count
+            and has_system_min_star_teff_k
+            and has_system_max_star_teff_k
+            and has_system_spectral_classes_json
+        )
+        needs_planet_rollup = not has_system_planet_count
         if has_aliases:
             alias_rows = con.execute(
                 f"""
@@ -1661,72 +1778,93 @@ def search_systems(
                 item["display_name"] = display_name
                 item["display_aliases"] = []
 
-        star_rows = con.execute(
-            f"""
-            WITH star_buckets AS (
-              SELECT
-                system_id,
-                {star_teff_select},
-                CASE
-                  WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 'D'
-                  WHEN spectral_class IN ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y', 'D') THEN spectral_class
-                  ELSE NULL
-                END AS spectral_bucket
-              FROM stars
-              WHERE system_id IN ({placeholders})
-            )
-            SELECT
-              system_id,
-              COUNT(*)::BIGINT AS star_count,
-              COUNT(teff_k)::BIGINT AS star_teff_count,
-              MIN(teff_k) AS min_star_teff_k,
-              MAX(teff_k) AS max_star_teff_k,
-              LIST(DISTINCT spectral_bucket) FILTER (WHERE spectral_bucket IS NOT NULL) AS spectral_classes
-            FROM star_buckets
-            GROUP BY system_id
-            """,
-            system_ids,
-        ).fetchall()
         star_map: Dict[int, Tuple[int, int, Optional[float], Optional[float], List[str]]] = {}
-        for sid, count, teff_count, min_teff_k, max_teff_k, spectral in star_rows:
-            normalized = sorted(
-                {
-                    str(token).strip()
-                    for token in (spectral or [])
-                    if str(token).strip()
-                }
-            )
-            star_map[int(sid)] = (
-                int(count or 0),
-                int(teff_count or 0),
-                float(min_teff_k) if min_teff_k is not None else None,
-                float(max_teff_k) if max_teff_k is not None else None,
-                normalized,
-            )
+        if needs_star_rollup:
+            star_rows = con.execute(
+                f"""
+                WITH star_buckets AS (
+                  SELECT
+                    system_id,
+                    {star_teff_select},
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%' THEN 'D'
+                      WHEN spectral_class IN ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y', 'D') THEN spectral_class
+                      ELSE NULL
+                    END AS spectral_bucket
+                  FROM stars
+                  WHERE system_id IN ({placeholders})
+                )
+                SELECT
+                  system_id,
+                  COUNT(*)::BIGINT AS star_count,
+                  COUNT(teff_k)::BIGINT AS star_teff_count,
+                  MIN(teff_k) AS min_star_teff_k,
+                  MAX(teff_k) AS max_star_teff_k,
+                  LIST(DISTINCT spectral_bucket) FILTER (WHERE spectral_bucket IS NOT NULL) AS spectral_classes
+                FROM star_buckets
+                GROUP BY system_id
+                """,
+                system_ids,
+            ).fetchall()
+            for sid, count, teff_count, min_teff_k, max_teff_k, spectral in star_rows:
+                normalized = sorted(
+                    {
+                        str(token).strip()
+                        for token in (spectral or [])
+                        if str(token).strip()
+                    }
+                )
+                star_map[int(sid)] = (
+                    int(count or 0),
+                    int(teff_count or 0),
+                    float(min_teff_k) if min_teff_k is not None else None,
+                    float(max_teff_k) if max_teff_k is not None else None,
+                    normalized,
+                )
 
-        planet_rows = con.execute(
-            f"""
-            SELECT system_id, COUNT(*)::BIGINT AS planet_count
-            FROM planets
-            WHERE system_id IN ({placeholders})
-            GROUP BY system_id
-            """,
-            system_ids,
-        ).fetchall()
-        planet_map: Dict[int, int] = {int(sid): int(count or 0) for sid, count in planet_rows}
+        planet_map: Dict[int, int] = {}
+        if needs_planet_rollup:
+            planet_rows = con.execute(
+                f"""
+                SELECT system_id, COUNT(*)::BIGINT AS planet_count
+                FROM planets
+                WHERE system_id IN ({placeholders})
+                GROUP BY system_id
+                """,
+                system_ids,
+            ).fetchall()
+            planet_map = {int(sid): int(count or 0) for sid, count in planet_rows}
 
         for item in results:
             sid = int(item.get("system_id") or 0)
-            star_count, teff_count, min_teff_k, max_teff_k, spectral_classes = star_map.get(
-                sid,
-                (0, 0, None, None, []),
-            )
-            item["star_count"] = star_count
-            item["star_teff_count"] = teff_count
-            item["min_star_teff_k"] = min_teff_k
-            item["max_star_teff_k"] = max_teff_k
-            item["spectral_classes"] = spectral_classes
-            item["planet_count"] = planet_map.get(sid, 0)
+            if needs_star_rollup:
+                star_count, teff_count, min_teff_k, max_teff_k, spectral_classes = star_map.get(
+                    sid,
+                    (0, 0, None, None, []),
+                )
+                item["star_count"] = star_count
+                item["star_teff_count"] = teff_count
+                item["min_star_teff_k"] = min_teff_k
+                item["max_star_teff_k"] = max_teff_k
+                item["spectral_classes"] = spectral_classes
+            else:
+                item["star_count"] = int(item.get("star_count") or 0)
+                item["star_teff_count"] = int(item.get("star_teff_count") or 0)
+                item["min_star_teff_k"] = (
+                    float(item["min_star_teff_k"]) if item.get("min_star_teff_k") is not None else None
+                )
+                item["max_star_teff_k"] = (
+                    float(item["max_star_teff_k"]) if item.get("max_star_teff_k") is not None else None
+                )
+                item["spectral_classes"] = [
+                    str(token).strip()
+                    for token in item.get("spectral_classes", [])
+                    if str(token).strip()
+                ]
+            if needs_planet_rollup:
+                item["planet_count"] = planet_map.get(sid, 0)
+            else:
+                item["planet_count"] = int(item.get("planet_count") or 0)
 
         if has_coolness_scores and not use_coolness_in_sql:
             coolness_rows = con.execute(

@@ -574,6 +574,10 @@ Notes:
   - star-level aliases (common/Bayer/Flamsteed naming + major cross-catalog IDs)
   - system-level aliases (WDS/HIP/HD + member-derived naming aliases)
   - normalized alias keys (`alias_norm`) for deterministic search resolution
+- Search acceleration now materialized explicitly in `core`:
+  - `system_search_terms` denormalizes canonical system names plus every alias already resolved to a `system_id`
+  - `systems` carries hot-path browse/search facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`)
+  - public/API search should prefer these system-side artifacts before falling back to row-level scans
 - Exoplanet host-designation promotion now applies for Gaia-fallback rows:
   - when a star/system would otherwise display as Gaia ID, promoted host labels from NASA hostnames are applied
   - precedence for promoted host labels favors human/common labels, then survey/mission-style labels (for example `TRAPPIST`, `Kepler`, `TOI`, `WASP`), then legacy catalog labels

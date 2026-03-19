@@ -5449,7 +5449,11 @@ def main() -> int:
           has_orb6_evidence,
           0::bigint as star_count,
           0::bigint as planet_count,
+          0::bigint as star_teff_count,
+          null::double as min_star_teff_k,
+          null::double as max_star_teff_k,
           '[]'::varchar as spectral_classes_json,
+          0::bigint as spectral_class_mask,
           ra_deg,
           dec_deg,
           dist_ly,
@@ -5499,16 +5503,52 @@ def main() -> int:
         update systems s
         set
           star_count = a.star_count,
-          spectral_classes_json = a.spectral_classes_json
+          star_teff_count = a.star_teff_count,
+          min_star_teff_k = a.min_star_teff_k,
+          max_star_teff_k = a.max_star_teff_k,
+          spectral_classes_json = a.spectral_classes_json,
+          spectral_class_mask = a.spectral_class_mask
         from (
+          with star_buckets as (
+            select
+              system_id,
+              teff_k,
+              case
+                when upper(coalesce(spectral_type_raw, '')) like 'D%' or coalesce(object_type, '') = 'white_dwarf'
+                  then 'D'
+                when spectral_class in ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y', 'D')
+                  then spectral_class
+                else null
+              end as spectral_bucket
+            from stars
+          )
           select
             system_id,
             count(*)::bigint as star_count,
+            count(teff_k)::bigint as star_teff_count,
+            min(teff_k) as min_star_teff_k,
+            max(teff_k) as max_star_teff_k,
             coalesce(
-              to_json(list_sort(list_distinct(list(spectral_class) filter (where spectral_class is not null)))),
+              to_json(list_sort(list_distinct(list(spectral_bucket) filter (where spectral_bucket is not null)))),
               '[]'
-            ) as spectral_classes_json
-          from stars
+            ) as spectral_classes_json,
+            coalesce(sum(distinct
+              case spectral_bucket
+                when 'O' then 1
+                when 'B' then 2
+                when 'A' then 4
+                when 'F' then 8
+                when 'G' then 16
+                when 'K' then 32
+                when 'M' then 64
+                when 'L' then 128
+                when 'T' then 256
+                when 'Y' then 512
+                when 'D' then 1024
+                else 0
+              end
+            ), 0)::bigint as spectral_class_mask
+          from star_buckets
           group by system_id
         ) a
         where s.system_id = a.system_id
@@ -5744,7 +5784,11 @@ def main() -> int:
                   false as has_orb6_evidence,
                   1::bigint as star_count,
                   0::bigint as planet_count,
+                  1::bigint as star_teff_count,
+                  5772.0::double as min_star_teff_k,
+                  5772.0::double as max_star_teff_k,
                   '["G"]'::varchar as spectral_classes_json,
+                  16::bigint as spectral_class_mask,
                   null::double as ra_deg,
                   null::double as dec_deg,
                   0.0::double as dist_ly,
@@ -8786,6 +8830,88 @@ def main() -> int:
         """
     )
 
+    search_terms_stage_started = time.monotonic()
+    log("Materializing system search terms")
+    con.execute(
+        """
+        create table system_search_terms as
+        with canonical as (
+          select
+            system_id,
+            system_name as term_raw,
+            system_name_norm as term_norm,
+            'canonical_name'::varchar as term_kind,
+            0::integer as term_priority,
+            true as is_primary,
+            source_catalog,
+            source_version,
+            source_pk
+          from systems
+          where system_name_norm is not null
+            and trim(system_name_norm) <> ''
+        ), alias_terms as (
+          select
+            system_id,
+            alias_raw as term_raw,
+            alias_norm as term_norm,
+            alias_kind as term_kind,
+            coalesce(alias_priority, 999)::integer as term_priority,
+            coalesce(is_primary, false) as is_primary,
+            source_catalog,
+            source_version,
+            source_pk
+          from aliases
+          where system_id is not null
+            and alias_norm is not null
+            and trim(alias_norm) <> ''
+        ), merged as (
+          select * from canonical
+          union all
+          select * from alias_terms
+        ), dedup as (
+          select
+            *,
+            row_number() over (
+              partition by system_id, term_norm
+              order by
+                term_priority asc,
+                case when term_kind = 'canonical_name' then 0 else 1 end asc,
+                length(coalesce(term_raw, '')) asc,
+                coalesce(term_raw, '') asc,
+                coalesce(source_catalog, '') asc,
+                coalesce(source_pk, 0) asc
+            ) as rn
+          from merged
+          where term_raw is not null
+            and trim(term_raw) <> ''
+        )
+        select
+          row_number() over (
+            order by system_id asc, term_priority asc, term_kind asc, term_norm asc, term_raw asc
+          )::bigint as search_term_id,
+          system_id,
+          term_raw,
+          term_norm,
+          term_kind,
+          term_priority,
+          is_primary,
+          source_catalog,
+          source_version,
+          source_pk
+        from dedup
+        where rn = 1
+        """
+    )
+    system_search_term_count = con.execute(
+        "select count(*) from system_search_terms"
+    ).fetchone()[0]
+    stage_totals["system_search_terms"] = system_search_term_count
+    log_stage_complete(
+        "System search term stage",
+        search_terms_stage_started,
+        stage_totals,
+    )
+
     compact_count = con.execute("select count(*) from compact_objects").fetchone()[0]
     open_clusters_count = con.execute("select count(*) from open_clusters").fetchone()[0]
     open_cluster_memberships_count = con.execute(
@@ -10968,6 +11094,9 @@ def main() -> int:
     )
     con.execute(
         f"COPY (SELECT * FROM aliases) TO '{parquet_dir / 'aliases.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM system_search_terms) TO '{parquet_dir / 'system_search_terms.parquet'}' (FORMAT 'parquet')"
     )
     con.execute(
         f"COPY (SELECT * FROM object_identifiers) TO '{parquet_dir / 'object_identifiers.parquet'}' (FORMAT 'parquet')"

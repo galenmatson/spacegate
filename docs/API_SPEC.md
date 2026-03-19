@@ -290,11 +290,16 @@ Query params:
 - `cursor` (string, optional)
 
 Matching rules (when `q` is provided):
-1. Exact match on canonical system name/key and system aliases (`aliases.alias_norm`)
-2. Prefix match on canonical system name and aliases
-3. Token-and match (all tokens present) on canonical system names, with alias token support
+1. Exact match on canonical system name / stable key and materialized search terms (`system_search_terms.term_norm` when present; fallback to canonical name + `aliases.alias_norm`)
+2. Prefix match on materialized system search terms (or canonical name + aliases on legacy builds)
+3. Token-and match (all tokens present) on materialized system search terms (or canonical name + aliases on legacy builds)
 4. Identifier match (HD/HIP/Gaia patterns like `HD 10700`, `HIP 8102`, `Gaia 123`)
 5. Plain long numeric queries (`10+` digits) are treated as Gaia IDs
+
+Implementation notes:
+- rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
+- rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
+- temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.

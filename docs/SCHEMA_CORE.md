@@ -327,6 +327,14 @@ Required columns:
 - naming:
   - `system_name`
   - `system_name_norm`
+  - system-side search acceleration may materialize:
+    - `star_count`
+    - `planet_count`
+    - `star_teff_count`
+    - `min_star_teff_k`
+    - `max_star_teff_k`
+    - `spectral_classes_json`
+    - `spectral_class_mask`
 - position/anchor:
   - `ra_deg`, `dec_deg`
   - `dist_pc`
@@ -341,6 +349,24 @@ Required columns:
   - `grouping_source_catalogs_json`
   - evidence flags (`has_*_evidence`)
 - provenance contract fields
+
+Contract notes:
+
+- `systems` is the hot-path serving table for browse/search/detail traffic.
+- Search/filter UX should prefer precomputed system-side summary fields over runtime scans of `stars` whenever exact system semantics can be preserved.
+- `spectral_class_mask` is a deterministic OR-mask over normalized system member spectral buckets using:
+  - `O=1`
+  - `B=2`
+  - `A=4`
+  - `F=8`
+  - `G=16`
+  - `K=32`
+  - `M=64`
+  - `L=128`
+  - `T=256`
+  - `Y=512`
+  - `D=1024`
+- `min_star_teff_k` / `max_star_teff_k` are pruning facets for temperature search and detail summaries; exact per-star temperature filtering may still require row-level confirmation against `stars` when a query asks whether any member falls inside a narrow interval.
 
 ## `aliases`
 
@@ -377,6 +403,36 @@ Contract notes:
   - survey/mission-style host labels (for example `TRAPPIST`, `Kepler`, `TOI`, `WASP`, ...)
   - legacy catalog-style labels
   - Gaia IDs last
+
+## `system_search_terms`
+
+Derived immutable search-acceleration table for system lookup.
+
+This table denormalizes canonical system names plus all aliases already resolved to a `system_id`, including star-target aliases that point into a system. It exists to keep hot-path search off the full `aliases` and `stars` tables on constrained public hosts.
+
+Required columns:
+
+- identity:
+  - `search_term_id`
+  - `system_id`
+- search payload:
+  - `term_raw`
+  - `term_norm`
+  - `term_kind`
+  - `term_priority`
+  - `is_primary`
+- source traceability:
+  - `source_catalog`
+  - `source_version`
+  - `source_pk`
+
+Contract notes:
+
+- `system_search_terms` is an acceleration artifact, not an authority layer.
+- rows must be deterministically deduplicated per `(system_id, term_norm)`.
+- canonical `systems.system_name_norm` must always be represented.
+- any alias with a resolved `system_id` may be included, even when the source alias row targets a `star`.
+- search may use this table for exact/prefix/token/fuzzy candidate generation, while detail UX still reads authoritative aliases from `aliases`.
 
 ## `object_identifiers`
 
