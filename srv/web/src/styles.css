@@ -346,15 +346,41 @@ body {
   --header-utility-top: 10px;
   --header-utility-height: 18px;
   position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
+  display: block;
   background: var(--header-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 42px 32px 28px;
   box-shadow: var(--shadow);
+}
+
+.header-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px 32px;
+}
+
+.header-brand {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.header-side {
+  flex: 1 1 720px;
+  min-width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.header-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px 18px;
+  flex-wrap: wrap;
 }
 
 .header-topline {
@@ -447,7 +473,7 @@ body {
 }
 
 .site-header p {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--muted);
   max-width: 720px;
 }
@@ -468,7 +494,9 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .header-search-tools {
@@ -490,6 +518,16 @@ body {
 .theme-picker {
   display: inline-flex;
   align-items: center;
+}
+
+.header-lower {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.header-search-row {
+  width: min(100%, 760px);
 }
 
 .markdown-panel {
@@ -2737,6 +2775,11 @@ main {
   padding: 14px 16px;
 }
 
+.results-toolbar-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .results-search-row {
   display: flex;
   align-items: center;
@@ -3836,7 +3879,7 @@ main {
 
   :root[data-theme="lcars"] .header-actions {
     width: 100%;
-    grid-template-columns: 1fr;
+    justify-content: flex-start;
     gap: 8px;
   }
 
@@ -3856,8 +3899,17 @@ main {
     grid-template-columns: 1fr;
   }
 
-  .site-header {
+  .header-main {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-side {
+    min-width: 0;
+  }
+
+  .header-meta-row {
+    align-items: flex-start;
   }
 
   .title-row {
@@ -3878,13 +3930,13 @@ main {
     justify-content: flex-end;
   }
 
-  .header-search input {
-    width: 100%;
+  .header-actions,
+  .header-meta-row {
+    justify-content: space-between;
   }
 
-  .header-search-tools {
+  .header-search-row {
     width: 100%;
-    flex-wrap: wrap;
   }
 
   .compact-range-inputs {

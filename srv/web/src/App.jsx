@@ -1841,31 +1841,37 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
             <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" buildId={buildId} />
           </div>
         )}
-        <div>
-          <div className="eyebrow">Stellar Data Explorer</div>
-          <div className="title-row">
-            <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
-            <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
+        <div className="header-main">
+          <div className="header-brand">
+            <div className="eyebrow">Stellar Data Explorer</div>
+            <div className="title-row">
+              <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
+            </div>
           </div>
-        </div>
-        <div className="header-actions">
-          <div className="theme-picker">
-            <label htmlFor="theme-select" className="sr-only">Theme</label>
-            <select
-              id="theme-select"
-              className="theme-select"
-              value={theme}
-              onChange={(event) => setTheme(event.target.value)}
-            >
-              {options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <div className="header-side">
+            <div className="header-meta-row">
+              <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
+              <div className="header-actions">
+                <div className="theme-picker">
+                  <label htmlFor="theme-select" className="sr-only">Theme</label>
+                  <select
+                    id="theme-select"
+                    className="theme-select"
+                    value={theme}
+                    onChange={(event) => setTheme(event.target.value)}
+                  >
+                    {options.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
+              </div>
+            </div>
+            {headerExtra && <div className="header-lower">{headerExtra}</div>}
           </div>
-          {headerExtra}
-          {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
         </div>
       </header>
       <main>{children}</main>
@@ -2427,9 +2433,31 @@ function SearchPage({ buildId = "" }) {
     "search-layout",
     filtersCollapsedY ? "filters-collapsed-y" : "",
   ].filter(Boolean).join(" ");
+  const headerSearchBar = (
+    <form className="results-search-row header-search-row" onSubmit={onSubmit}>
+      <button className="button compact search-submit-button" type="submit" disabled={loading}>
+        {loading ? "Searching..." : "Search"}
+      </button>
+      <label className="results-search-field">
+        <span className="sr-only">Search systems</span>
+        <input
+          type="text"
+          data-global-search-input="true"
+          className="results-search-input"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search systems by name, ID, or catalog key..."
+          autoFocus
+        />
+      </label>
+      <button type="button" className="button ghost compact" onClick={resetFilters} disabled={loading}>
+        Clear
+      </button>
+    </form>
+  );
 
   return (
-    <Layout showSearchLink={false} buildId={buildId}>
+    <Layout showSearchLink={false} buildId={buildId} headerExtra={headerSearchBar}>
       <section className={searchLayoutClassName}>
         <div className="filters-stack">
           <form
@@ -2576,26 +2604,9 @@ function SearchPage({ buildId = "" }) {
 
         <section className="results">
           <div className="results-toolbar panel">
-            <form className="results-search-row" onSubmit={onSubmit}>
-              <button className="button compact search-submit-button" type="submit" disabled={loading}>
-                {loading ? "Searching..." : "Search"}
-              </button>
-              <label className="results-search-field">
-                <span className="sr-only">Search systems</span>
-                <input
-                  type="text"
-                  data-global-search-input="true"
-                  className="results-search-input"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search systems by name, ID, or catalog key..."
-                  autoFocus
-                />
-              </label>
-              <button type="button" className="button ghost compact" onClick={resetFilters} disabled={loading}>
-                Clear
-              </button>
-            </form>
+            <div className="results-toolbar-head">
+              <h3>Star Selector</h3>
+            </div>
 
             <div className="results-spectral-row">
               <span className="results-spectral-label">Spectral</span>
