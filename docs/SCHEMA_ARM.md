@@ -454,6 +454,58 @@ Columns:
 - mirrored 1:1 from `core.planet_reclassification_audit`
 - includes transition type, impacted flags, and classifier version lineage
 
+## Planned Agent-Assisted Adjudication Tables
+
+Agent-derived scientific proposals belong in `arm`, never directly in `core`.
+
+## `adjudication_candidates` (planned)
+
+Machine-assisted identity/hierarchy/host-resolution proposals for review or later deterministic promotion.
+
+Columns:
+- `adjudication_candidate_id BIGINT`
+- `stable_object_key TEXT` (nullable when the object is not yet canonicalized)
+- `object_type TEXT` (`system|star|planet|pair|subsystem`)
+- `proposal_kind TEXT` (`identity_merge|hierarchy_fix|planet_host_fix|missing_field_fill|source_conflict`)
+- `proposal_status TEXT` (`proposed|accepted|rejected|superseded`)
+- `target_ids_json TEXT`
+- `candidate_values_json TEXT`
+- `confidence_score DOUBLE`
+- `confidence_tier TEXT`
+- `reasoning_summary TEXT`
+- `source_citation_ids_json TEXT`
+- `generator_version TEXT`
+- `model_id TEXT`
+- `prompt_version TEXT`
+- provenance fields (`source_*` when applicable, `retrieval_*`, `ingested_at`, `transform_version`)
+
+Rules:
+- rows are advisory/proposed science support, not canonical truth
+- acceptance into deterministic canonical rules must be explicit and auditable
+
+## `missing_field_proposals` (planned)
+
+Agent-proposed fills for scientific fields absent from canonical sources but supported by cited public evidence.
+
+Columns:
+- `missing_field_proposal_id BIGINT`
+- `stable_object_key TEXT`
+- `object_type TEXT`
+- `field_name TEXT`
+- `proposed_value_json TEXT`
+- `units TEXT` (nullable)
+- `confidence_score DOUBLE`
+- `confidence_tier TEXT`
+- `source_citation_ids_json TEXT`
+- `generator_version TEXT`
+- `model_id TEXT`
+- `prompt_version TEXT`
+- `created_at TIMESTAMP`
+
+Rules:
+- proposals remain in `arm` until separately accepted by deterministic policy
+- no agent-filled value may silently overwrite source-native `core` fields
+
 ## Quality Gates (Arm)
 
 Build fails when:

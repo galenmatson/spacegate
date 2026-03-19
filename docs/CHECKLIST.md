@@ -142,6 +142,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [ ] External reference link pipeline (curated authority sources)
 - [ ] Factsheets + exposition generation with confidence metadata
+- [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues
+- [ ] Agent evidence-link pipeline in `disc` (citations/source manifests backing factsheets and narratives)
+- [ ] Agent adjudication tables in `arm` for ambiguity resolution and missing-field proposals
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
 - [ ] 3D map runtime integration over Gaia-first slice
 - [ ] Rim/worldbuilding overlay expansion without core contamination

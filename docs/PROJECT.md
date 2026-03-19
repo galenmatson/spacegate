@@ -92,12 +92,43 @@ Arm rows follow the same immutability and provenance rules as core, but are sepa
 ### Disc (rebuildable derived artifacts)
 
 - coolness scoring
+- object-scoped coolness prioritization (systems first, then stars and planets)
 - snapshots
 - factsheets / expositions
 - external links
 - optional neighbor graph
 
 Disc is always regenerable from core/arm plus pinned generators.
+
+## Agent-Assisted Enrichment Policy
+
+Agent outputs must not mutate `core` directly.
+
+Allowed destinations:
+
+- `disc` for citations, source manifests, factsheets, narratives, and other reproducible generated artifacts
+- `arm` for agent-proposed missing-field fills, ambiguity dossiers, and adjudication candidates
+
+Required behavior:
+
+- prioritize work by coolness and scientific/narrative value
+  - systems first
+  - then stars
+  - then planets
+- maintain a separate ambiguity-resolution queue so problematic systems are not starved by pure popularity/coolness ordering
+- prefer primary and high-rigor public sources
+  - mission/archive pages
+  - peer-reviewed papers
+  - reputable catalog documentation
+- persist source links/citation context in `disc` so generated narratives and factsheets remain auditable
+- persist agent-proposed resolutions and missing-field candidates in `arm` with confidence and provenance
+- abstain when evidence is conflicting or weak; uncertain cases must remain proposals, not canonical truth
+
+Design implication:
+
+- `core` remains deterministic and conservative
+- `arm` becomes the staging area for machine-assisted scientific adjudication
+- `disc` becomes the reproducible presentation layer for source-linked enrichment
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.

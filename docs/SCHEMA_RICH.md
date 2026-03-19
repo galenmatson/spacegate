@@ -55,10 +55,12 @@ Status labels:
 
 Current status snapshot:
 - `coolness_scores`: implemented (`scripts/score_coolness.py`)
+- `object_coolness_scores`: planned
 - `system_neighbors`: planned
 - `system_tags`: planned
 - `snapshot_manifest`: implemented (`scripts/generate_snapshots.py`)
 - `external_reference_links`: planned
+- `source_evidence_links`: planned
 - `factsheets`: planned
 - `expositions`: planned
 - `generated_images`: planned
@@ -86,6 +88,30 @@ Planned extension columns:
 
 Note:
 - The two planned columns above are not currently emitted by `scripts/score_coolness.py`.
+
+## object_coolness_scores (planned)
+
+Object-scoped prioritization output for enrichment/adjudication queues.
+
+Required columns:
+- `object_type TEXT` (`system|star|planet`)
+- object ID fields:
+  - `system_id BIGINT` (nullable)
+  - `star_id BIGINT` (nullable)
+  - `planet_id BIGINT` (nullable)
+- `stable_object_key TEXT`
+- `build_id TEXT`
+- `profile_id TEXT`
+- `profile_version TEXT`
+- `rank BIGINT`
+- `score_total DOUBLE`
+- `queue_priority TEXT` (`enrichment|adjudication|review`)
+- feature and score breakdown columns from scoring pipeline
+
+Rules:
+- object coolness is derived/prioritization metadata only
+- it does not change canonical scientific truth
+- default enrichment order should prefer systems, then stars, then planets unless the queue policy explicitly overrides it
 
 ## system_tags
 
@@ -162,6 +188,31 @@ Required columns:
 - `build_id TEXT`
 - `created_at TIMESTAMP`
 
+## source_evidence_links (planned)
+
+Structured citation rows backing factsheets, narratives, and agent dossiers.
+
+Required columns:
+- `stable_object_key TEXT`
+- `citation_id TEXT`
+- `url TEXT`
+- `domain TEXT`
+- `source_kind TEXT` (`paper|catalog_doc|archive|mission|encyclopedia|other`)
+- `title TEXT`
+- `publisher TEXT`
+- `published_at TIMESTAMP` (nullable)
+- `accessed_at TIMESTAMP`
+- `authority_score DOUBLE`
+- `relevance_score DOUBLE`
+- `evidence_scope TEXT` (`identity|hierarchy|planet_host|physical_params|narrative|image_context`)
+- `build_id TEXT`
+- `generator_version TEXT`
+- `created_at TIMESTAMP`
+
+Rules:
+- citations must point to the external source; disc stores links and metadata, not copied article bodies
+- generated factsheets/expositions should reference `citation_id` values rather than embedding uncited claims
+
 ## factsheets (v1.4+)
 
 Structured factual summaries used as source-of-truth inputs for exposition.
@@ -170,9 +221,14 @@ Required columns:
 - `stable_object_key TEXT`
 - `facts_json TEXT`
 - `facts_hash TEXT`
+- `citation_ids_json TEXT`
 - `build_id TEXT`
 - `generator_version TEXT`
 - `created_at TIMESTAMP`
+
+Rules:
+- factsheets must be derivable from explicit evidence rows and generator logic
+- any claim that is not directly sourced from `core`/`arm` should point to supporting `source_evidence_links`
 
 ## expositions (v1.4+)
 
@@ -182,6 +238,7 @@ Required columns:
 - `stable_object_key TEXT`
 - `facts_hash TEXT`
 - `text_markdown TEXT`
+- `citation_ids_json TEXT`
 - `model_id TEXT`
 - `prompt_version TEXT`
 - `build_id TEXT`
