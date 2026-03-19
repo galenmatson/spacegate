@@ -7063,21 +7063,50 @@ def main() -> int:
               a.source_pk,
               s.system_id,
               s.star_id,
-              case
-                when a.gaia_id is not null and s.gaia_id = a.gaia_id then 0
-                when a.hip_id is not null and s.hip_id = a.hip_id and a.hd_id is not null and s.hd_id = a.hd_id then 1
-                when a.hip_id is not null and s.hip_id = a.hip_id then 2
-                when a.hd_id is not null and s.hd_id = a.hd_id then 3
-                else 9
-              end as match_rank
+              0 as match_rank
+            from athyg_alias_candidates a
+            join stars s on s.gaia_id = a.gaia_id
+            where a.source_pk is not null
+              and a.gaia_id is not null
+
+            union all
+
+            select
+              a.source_pk,
+              s.system_id,
+              s.star_id,
+              1 as match_rank
             from athyg_alias_candidates a
             join stars s
-              on (
-                (a.gaia_id is not null and s.gaia_id = a.gaia_id)
-                or (a.hip_id is not null and s.hip_id = a.hip_id)
-                or (a.hd_id is not null and s.hd_id = a.hd_id)
-              )
+              on s.hip_id = a.hip_id
+             and s.hd_id = a.hd_id
             where a.source_pk is not null
+              and a.hip_id is not null
+              and a.hd_id is not null
+
+            union all
+
+            select
+              a.source_pk,
+              s.system_id,
+              s.star_id,
+              2 as match_rank
+            from athyg_alias_candidates a
+            join stars s on s.hip_id = a.hip_id
+            where a.source_pk is not null
+              and a.hip_id is not null
+
+            union all
+
+            select
+              a.source_pk,
+              s.system_id,
+              s.star_id,
+              3 as match_rank
+            from athyg_alias_candidates a
+            join stars s on s.hd_id = a.hd_id
+            where a.source_pk is not null
+              and a.hd_id is not null
             """
         )
         con.execute(
