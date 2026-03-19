@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import duckdb
@@ -36,10 +37,10 @@ ALIAS_KIND_RANK = {
     "member_flamsteed_name": 5,
     "gl_id": 6,
     "member_gl_id": 7,
-    "hip_id": 8,
-    "member_hip_id": 9,
-    "hd_id": 10,
-    "member_hd_id": 11,
+    "hd_id": 8,
+    "member_hd_id": 9,
+    "hip_id": 10,
+    "member_hip_id": 11,
     "hr_id": 12,
     "member_hr_id": 13,
     "tyc_id": 14,
@@ -172,6 +173,50 @@ def _is_catalog_style_name(value: Any) -> bool:
     return any(norm.startswith(prefix) for prefix in CATALOG_NAME_PREFIXES)
 
 
+def _canonical_name_rank(value: Any) -> int:
+    norm = _name_norm(value)
+    if not norm:
+        return 99
+    if _is_gaia_placeholder_name(norm):
+        return 99
+    if norm.startswith("hd "):
+        return 8
+    if norm.startswith("hip "):
+        return 10
+    if norm.startswith("hr "):
+        return 12
+    if norm.startswith("tyc "):
+        return 14
+    if norm.startswith("hyg "):
+        return 16
+    if norm.startswith("wds "):
+        return 18
+    if norm.startswith("gj ") or norm.startswith("gl "):
+        return 20
+    if re.match(r"^[a-z]{3}\s+[a-z]{3}$", norm):
+        return 2
+    if re.match(r"^\d+\s+[a-z]{3}$", norm):
+        return 4
+    if re.match(r"^\d+[a-z]{3}\s+[a-z]{3}$", norm):
+        return 6
+    return 0
+
+
+def _query_name_match_rank(name: Any, preferred_query_norm: Optional[str]) -> Optional[Tuple[int, int, str]]:
+    query_norm = _name_norm(preferred_query_norm)
+    name_norm = _name_norm(name)
+    if not query_norm or not name_norm:
+        return None
+    if name_norm == query_norm:
+        return (0, len(name_norm), name_norm)
+    if name_norm.startswith(query_norm):
+        return (1, len(name_norm), name_norm)
+    tokens = [token for token in query_norm.split(" ") if token]
+    if tokens and all(token in name_norm for token in tokens):
+        return (2, len(name_norm), name_norm)
+    return None
+
+
 def _alias_rank(row: Dict[str, Any]) -> Tuple[int, int, int, str]:
     kind = str(row.get("alias_kind") or "").strip()
     kind_rank = ALIAS_KIND_RANK.get(kind, 99)
@@ -188,12 +233,14 @@ def choose_display_name(
     aliases: List[Dict[str, Any]],
     *,
     alt_limit: int = 8,
+    preferred_query_norm: Optional[str] = None,
 ) -> Tuple[str, List[str]]:
     canonical = _clean_name(canonical_name)
     alias_rows = [row for row in aliases if _clean_name(row.get("alias_raw"))]
     alias_rows.sort(key=_alias_rank)
 
     ordered_names: List[str] = []
+    ordered_name_rows: List[Dict[str, Any]] = []
     seen_norm: set[str] = set()
     for row in alias_rows:
         raw = _clean_name(row.get("alias_raw"))
@@ -202,15 +249,43 @@ def choose_display_name(
             continue
         seen_norm.add(norm)
         ordered_names.append(raw)
+        ordered_name_rows.append(row)
 
     display_name = canonical
-    if not display_name or _is_gaia_placeholder_name(display_name):
-        for candidate in ordered_names:
+    best_match_name: Optional[str] = None
+    best_match_key: Optional[Tuple[int, int, str, int]] = None
+    canonical_match = _query_name_match_rank(canonical, preferred_query_norm)
+    if canonical_match is not None:
+        best_match_name = canonical
+        best_match_key = canonical_match + (_canonical_name_rank(canonical),)
+    for row in alias_rows:
+        candidate = _clean_name(row.get("alias_raw"))
+        candidate_match = _query_name_match_rank(candidate, preferred_query_norm)
+        if candidate_match is None:
+            continue
+        candidate_key = candidate_match + (_alias_rank(row)[0],)
+        if best_match_key is None or candidate_key < best_match_key:
+            best_match_name = candidate
+            best_match_key = candidate_key
+    if best_match_name:
+        display_name = best_match_name
+    else:
+        best_alias_name: Optional[str] = None
+        best_alias_rank = 99
+        for row, candidate in zip(ordered_name_rows, ordered_names):
             if _is_gaia_placeholder_name(candidate):
                 continue
-            display_name = candidate
+            best_alias_name = candidate
+            best_alias_rank = _alias_rank(row)[0]
             break
-        if not display_name and ordered_names:
+        canonical_rank = _canonical_name_rank(canonical)
+        if best_alias_name and (
+            not display_name
+            or _is_gaia_placeholder_name(display_name)
+            or best_alias_rank < canonical_rank
+        ):
+            display_name = best_alias_name
+        elif (not display_name) and ordered_names:
             display_name = ordered_names[0]
 
     secondary: List[str] = []
@@ -1576,6 +1651,7 @@ def search_systems(
                 display_name, display_aliases = choose_display_name(
                     item.get("system_name"),
                     system_aliases.get(sid, []),
+                    preferred_query_norm=q_norm if match_mode else None,
                 )
                 item["display_name"] = display_name
                 item["display_aliases"] = display_aliases
