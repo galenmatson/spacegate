@@ -70,6 +70,8 @@ PROX_PAIR_ESTIMATE_LIMIT = 50_000_000
 WDS_GAIA_MATCH_MAX_ARCSEC_DEFAULT = 2.0
 WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
 WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
+WDS_IDENTIFIER_BRIDGE_MAX_ANG_ARCSEC = 3.0
+WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY = 1.0
 WHITE_DWARF_PROB_THRESHOLD = 0.5
 WHITE_DWARF_CATALOG_PWD_THRESHOLD_DEFAULT = 0.8
 ALIAS_NAME_OVERRIDE_LIMIT = 200000
@@ -4815,11 +4817,94 @@ def main() -> int:
     system_grouping_stage_started = time.monotonic()
     log("System grouping: WDS pass")
     con.execute(
+        f"""
+        create temp table wds_identifier_bridge as
+        with raw_candidates as (
+          select
+            s.star_id,
+            w.wds_id,
+            case
+              when s.hip_id is not null and s.hip_id = w.hip_id and s.hd_id is not null and s.hd_id = w.hd_id then 0
+              when s.hip_id is not null and s.hip_id = w.hip_id then 1
+              when s.hd_id is not null and s.hd_id = w.hd_id then 2
+              else 9
+            end as match_rank,
+            abs(s.dist_ly - w.dist_ly) as dist_delta_ly,
+            degrees(acos(
+              least(
+                1.0,
+                greatest(
+                  -1.0,
+                  sin(radians(s.dec_deg)) * sin(radians(w.dec_deg)) +
+                  cos(radians(s.dec_deg)) * cos(radians(w.dec_deg)) *
+                    cos(radians(least(abs(s.ra_deg - w.ra_deg), 360.0 - abs(s.ra_deg - w.ra_deg))))
+                )
+              )
+            )) * 3600.0 as ang_sep_arcsec
+          from stars s
+          join stars w
+            on w.wds_id is not null
+           and s.wds_id is null
+           and (
+             (s.hip_id is not null and w.hip_id = s.hip_id)
+             or (s.hd_id is not null and w.hd_id = s.hd_id)
+           )
+        ), per_wds as (
+          select
+            star_id,
+            wds_id,
+            min(match_rank) as match_rank,
+            min(coalesce(dist_delta_ly, 1e18)) as dist_delta_ly,
+            min(coalesce(ang_sep_arcsec, 1e18)) as ang_sep_arcsec
+          from raw_candidates
+          where match_rank < 9
+          group by star_id, wds_id
+        ), filtered as (
+          select *
+          from per_wds
+          where match_rank = 0
+             or (
+               match_rank in (1, 2)
+               and ang_sep_arcsec <= {WDS_IDENTIFIER_BRIDGE_MAX_ANG_ARCSEC}
+               and dist_delta_ly <= {WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY}
+             )
+        ), ranked as (
+          select
+            star_id,
+            wds_id,
+            match_rank,
+            dist_delta_ly,
+            ang_sep_arcsec,
+            row_number() over (
+              partition by star_id
+              order by match_rank asc, dist_delta_ly asc, ang_sep_arcsec asc, wds_id asc
+            ) as rn,
+            count(*) over (
+              partition by star_id, match_rank
+            ) as best_rank_count
+          from filtered
+        )
+        select
+          star_id,
+          'wds:' || wds_id as system_group_key
+        from ranked
+        where rn = 1 and best_rank_count = 1
+        """
+    )
+    wds_identifier_bridge_count = con.execute(
+        "select count(*) from wds_identifier_bridge"
+    ).fetchone()[0]
+    con.execute(
         """
         create temp table wds_groups as
         select star_id, 'wds:' || wds_id as system_group_key
         from stars
         where wds_id is not null
+
+        union all
+
+        select star_id, system_group_key
+        from wds_identifier_bridge
         """
     )
     wds_group_count = con.execute(
@@ -4834,7 +4919,13 @@ def main() -> int:
         create temp table name_groups as
         select star_id, 'name:' || system_name_root_norm as system_group_key
         from stars
-        where wds_id is null and system_name_root_norm is not null
+        where wds_id is null
+          and system_name_root_norm is not null
+          and not exists (
+            select 1
+            from wds_identifier_bridge b
+            where b.star_id = stars.star_id
+          )
         """
     )
     name_group_count = con.execute(
@@ -4846,7 +4937,8 @@ def main() -> int:
     log(f"System grouping: name pass complete in {time.monotonic() - name_stage_start:.1f}s")
     log(
         "System grouping: counts "
-        f"(total={total_stars}, wds_grouped={wds_grouped}, name_grouped={name_grouped}, proximity_eligible={prox_eligible})"
+        f"(total={total_stars}, wds_grouped={wds_grouped}, wds_bridged={wds_identifier_bridge_count}, "
+        f"name_grouped={name_grouped}, proximity_eligible={prox_eligible})"
     )
 
     proximity_enabled = os.getenv("SPACEGATE_ENABLE_PROXIMITY") == "1"
@@ -4871,7 +4963,13 @@ def main() -> int:
               cast(floor(y_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_y,
               cast(floor(z_helio_ly / {PROX_CELL_SIZE_LY}) as bigint) as cell_z
             from stars
-            where wds_id is null and system_name_root_norm is null
+            where wds_id is null
+              and system_name_root_norm is null
+              and not exists (
+                select 1
+                from wds_identifier_bridge b
+                where b.star_id = stars.star_id
+              )
             """
         )
 
@@ -5111,7 +5209,17 @@ def main() -> int:
             create temp view prox_roots_full as
             select u.star_id,
                    coalesce(p.root_id, u.star_id) as root_id
-            from (select star_id from stars where wds_id is null and system_name_root_norm is null) u
+            from (
+              select star_id
+              from stars
+              where wds_id is null
+                and system_name_root_norm is null
+                and not exists (
+                  select 1
+                  from wds_identifier_bridge b
+                  where b.star_id = stars.star_id
+                )
+            ) u
             left join prox_roots p using (star_id)
             """
         )
@@ -6950,6 +7058,91 @@ def main() -> int:
     if enable_aliases:
         con.execute(
             """
+            create or replace temp table athyg_alias_match_candidates as
+            select
+              a.source_pk,
+              s.system_id,
+              s.star_id,
+              case
+                when a.gaia_id is not null and s.gaia_id = a.gaia_id then 0
+                when a.hip_id is not null and s.hip_id = a.hip_id and a.hd_id is not null and s.hd_id = a.hd_id then 1
+                when a.hip_id is not null and s.hip_id = a.hip_id then 2
+                when a.hd_id is not null and s.hd_id = a.hd_id then 3
+                else 9
+              end as match_rank
+            from athyg_alias_candidates a
+            join stars s
+              on (
+                (a.gaia_id is not null and s.gaia_id = a.gaia_id)
+                or (a.hip_id is not null and s.hip_id = a.hip_id)
+                or (a.hd_id is not null and s.hd_id = a.hd_id)
+              )
+            where a.source_pk is not null
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view athyg_alias_star_resolution as
+            with ranked as (
+              select
+                source_pk,
+                system_id,
+                star_id,
+                match_rank,
+                row_number() over (
+                  partition by source_pk
+                  order by match_rank asc, system_id asc, star_id asc
+                ) as rn,
+                count(*) over (
+                  partition by source_pk, match_rank
+                ) as best_rank_count
+              from athyg_alias_match_candidates
+              where match_rank < 9
+            )
+            select
+              source_pk,
+              system_id,
+              star_id,
+              match_rank
+            from ranked
+            where rn = 1 and best_rank_count = 1
+            """
+        )
+        con.execute(
+            """
+            create or replace temp view athyg_alias_system_resolution as
+            with per_system as (
+              select
+                source_pk,
+                system_id,
+                min(match_rank) as match_rank
+              from athyg_alias_match_candidates
+              where match_rank < 9
+              group by source_pk, system_id
+            ), ranked as (
+              select
+                source_pk,
+                system_id,
+                match_rank,
+                row_number() over (
+                  partition by source_pk
+                  order by match_rank asc, system_id asc
+                ) as rn,
+                count(*) over (
+                  partition by source_pk, match_rank
+                ) as best_rank_count
+              from per_system
+            )
+            select
+              source_pk,
+              system_id,
+              match_rank
+            from ranked
+            where rn = 1 and best_rank_count = 1
+            """
+        )
+        con.execute(
+            """
             create or replace temp view star_alias_seed as
             select
               'star' as target_type,
@@ -7021,119 +7214,119 @@ def main() -> int:
             create or replace temp view star_alias_crosswalk_seed as
             select
               'star' as target_type,
-              s.star_id as target_id,
-              s.system_id,
-              s.star_id,
+              r.star_id as target_id,
+              r.system_id,
+              r.star_id,
               a.proper_name as alias_raw,
               'proper_name' as alias_kind,
               1 as alias_priority,
               'athyg_crosswalk' as source_catalog,
               'v3.3' as source_version,
               a.source_pk as source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.proper_name is not null
 
             union all
 
             select
               'star',
-              s.star_id,
-              s.system_id,
-              s.star_id,
+              r.star_id,
+              r.system_id,
+              r.star_id,
               a.bayer_name as alias_raw,
               'bayer_name',
               2,
               'athyg_crosswalk',
               'v3.3',
               a.source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.bayer_name is not null
 
             union all
 
             select
               'star',
-              s.star_id,
-              s.system_id,
-              s.star_id,
+              r.star_id,
+              r.system_id,
+              r.star_id,
               a.flam_name as alias_raw,
               'flamsteed_name',
               3,
               'athyg_crosswalk',
               'v3.3',
               a.source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.flam_name is not null
 
             union all
 
             select
               'star',
-              s.star_id,
-              s.system_id,
-              s.star_id,
+              r.star_id,
+              r.system_id,
+              r.star_id,
               'HR ' || a.hr_id::varchar as alias_raw,
               'hr_id',
               10,
               'athyg_crosswalk',
               'v3.3',
               a.source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.hr_id is not null
 
             union all
 
             select
               'star',
-              s.star_id,
-              s.system_id,
-              s.star_id,
+              r.star_id,
+              r.system_id,
+              r.star_id,
               a.gl_id as alias_raw,
               'gl_id',
               11,
               'athyg_crosswalk',
               'v3.3',
               a.source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.gl_id is not null
 
             union all
 
             select
               'star',
-              s.star_id,
-              s.system_id,
-              s.star_id,
+              r.star_id,
+              r.system_id,
+              r.star_id,
               'TYC ' || a.tyc_id as alias_raw,
               'tyc_id',
               12,
               'athyg_crosswalk',
               'v3.3',
               a.source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.tyc_id is not null
 
             union all
 
             select
               'star',
-              s.star_id,
-              s.system_id,
-              s.star_id,
+              r.star_id,
+              r.system_id,
+              r.star_id,
               'HYG ' || a.hyg_id::varchar as alias_raw,
               'hyg_id',
               13,
               'athyg_crosswalk',
               'v3.3',
               a.source_pk
-            from stars s
-            join athyg_alias_candidates a on a.gaia_id = s.gaia_id
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.hyg_id is not null
             """
         )
@@ -7171,6 +7364,57 @@ def main() -> int:
               null::bigint as source_pk
             from systems s
             where s.wds_id is not null
+
+            union all
+
+            select
+              'system',
+              r.system_id,
+              r.system_id,
+              null::bigint as star_id,
+              a.proper_name as alias_raw,
+              'member_proper_name' as alias_kind,
+              21 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_system_resolution r on r.source_pk = a.source_pk
+            where a.proper_name is not null
+
+            union all
+
+            select
+              'system',
+              r.system_id,
+              r.system_id,
+              null::bigint as star_id,
+              a.bayer_name as alias_raw,
+              'member_bayer_name' as alias_kind,
+              22 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_system_resolution r on r.source_pk = a.source_pk
+            where a.bayer_name is not null
+
+            union all
+
+            select
+              'system',
+              r.system_id,
+              r.system_id,
+              null::bigint as star_id,
+              a.flam_name as alias_raw,
+              'member_flamsteed_name' as alias_kind,
+              23 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_system_resolution r on r.source_pk = a.source_pk
+            where a.flam_name is not null
 
             union all
 
