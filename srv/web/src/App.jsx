@@ -1843,7 +1843,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
         )}
         <div className="header-main">
           <div className="header-brand">
-            <div className="eyebrow">Stellar Data Explorer</div>
+            <div className="eyebrow">Interstellar Explorer</div>
             <div className="title-row">
               <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
             </div>

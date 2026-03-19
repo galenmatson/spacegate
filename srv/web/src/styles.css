@@ -350,7 +350,7 @@ body {
   background: var(--header-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 42px 32px 28px;
+  padding: 42px 32px 18px;
   box-shadow: var(--shadow);
 }
 
@@ -364,6 +364,10 @@ body {
 .header-brand {
   flex: 0 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .header-side {
@@ -458,6 +462,7 @@ body {
 .title-row {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 14px;
   flex-wrap: wrap;
 }
