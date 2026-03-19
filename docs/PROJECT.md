@@ -130,6 +130,11 @@ Design implication:
 - `arm` becomes the staging area for machine-assisted scientific adjudication
 - `disc` becomes the reproducible presentation layer for source-linked enrichment
 
+Implementation note:
+
+- ingest v2 canonicalization is being built in parallel and documented in `docs/INGEST_V2.md`
+- the first deterministic sloppy-system queue baseline is emitted by `scripts/ingest_v2/build_adjudication_queue.py`
+
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
 
