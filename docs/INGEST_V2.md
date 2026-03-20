@@ -27,8 +27,10 @@ Current bootstrap artifacts on `feature/ingest-v2-canonicalization`:
 
 - `out/<build_id>/ingest_v2/normalized_sources.duckdb`
 - `out/<build_id>/ingest_v2/identity_graph.duckdb`
+- `out/<build_id>/ingest_v2/canonical_reduction.duckdb`
 - `reports/<build_id>/normalized_sources_report.json`
 - `reports/<build_id>/identity_graph_report.json`
+- `reports/<build_id>/canonical_reduction_report.json`
 
 Bootstrap note:
 
@@ -101,6 +103,12 @@ Rules:
 - one canonical public object per accepted identity class
 - all rejected/ambiguous alternatives remain visible in `arm`/reports
 - duplicate stable keys are hard failures
+
+Bootstrap status:
+
+- current reducer emits canonical star/system/planet mapping tables plus explicit quarantine tables
+- duplicate bundles from the current legacy build are surfaced intentionally instead of being hidden
+- the reducer still depends on the transitional `legacy_core_crosswalk` bridge for some Gaia/HIP/HD propagation
 
 ### Stage 4: Hierarchy Build
 

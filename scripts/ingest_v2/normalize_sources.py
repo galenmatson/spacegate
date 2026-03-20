@@ -571,6 +571,28 @@ def create_legacy_crosswalk_sources(con: duckdb.DuckDBPyConnection) -> None:
         from core.systems
         """
     )
+    con.execute(
+        """
+        create table legacy_crosswalk_planet_sources as
+        select
+          row_number() over (order by planet_id)::bigint as source_row_id,
+          'src:legacy_core_planet:' || planet_id::varchar as node_key,
+          case when star_id is null then null else 'src:legacy_core_star:' || star_id::varchar end as host_node_key,
+          case when system_id is null then null else 'src:legacy_core_system:' || system_id::varchar end as system_node_key,
+          'legacy_core_crosswalk'::varchar as source_catalog,
+          'planet'::varchar as entity_type,
+          planet_id::varchar as source_pk,
+          planet_name as display_name,
+          planet_name,
+          planet_name_norm,
+          stable_object_key,
+          source_catalog as upstream_source_catalog,
+          source_pk::varchar as upstream_source_pk,
+          system_id,
+          star_id
+        from core.planets
+        """
+    )
 
 
 def create_source_nodes(con: duckdb.DuckDBPyConnection) -> None:
@@ -741,6 +763,21 @@ def create_source_nodes(con: duckdb.DuckDBPyConnection) -> None:
           hd_id,
           wds_id
         from legacy_crosswalk_system_sources
+        union all
+        select
+          node_key,
+          source_catalog,
+          entity_type,
+          source_pk::varchar as source_pk,
+          display_name,
+          cast(null as varchar) as parent_node_key,
+          host_node_key,
+          system_node_key,
+          cast(null as bigint) as gaia_id,
+          cast(null as bigint) as hip_id,
+          cast(null as bigint) as hd_id,
+          cast(null as varchar) as wds_id
+        from legacy_crosswalk_planet_sources
         """
     )
 
@@ -827,6 +864,7 @@ def build_normalized_sources(*, build_id: str, build_dir: Path, state: Path, rep
             "sol_object_sources": count_table(con, "sol_object_sources"),
             "legacy_crosswalk_star_sources": count_table(con, "legacy_crosswalk_star_sources"),
             "legacy_crosswalk_system_sources": count_table(con, "legacy_crosswalk_system_sources"),
+            "legacy_crosswalk_planet_sources": count_table(con, "legacy_crosswalk_planet_sources"),
             "source_nodes": count_table(con, "source_nodes"),
         }
     finally:

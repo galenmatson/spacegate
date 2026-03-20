@@ -183,70 +183,70 @@ def build_identity_graph(*, build_id: str, build_dir: Path, reports_dir: Path) -
             legacy_hip_unique as (
               select hip_id, min(node_key) as node_key
               from norm.legacy_crosswalk_star_sources
-              where hip_id is not null
+              where hip_id is not null and hip_id > 0
               group by hip_id
               having count(*) = 1
             ),
             legacy_hd_unique as (
               select hd_id, min(node_key) as node_key
               from norm.legacy_crosswalk_star_sources
-              where hd_id is not null
+              where hd_id is not null and hd_id > 0
               group by hd_id
               having count(*) = 1
             ),
             msc_hip_unique as (
               select hip_id, min(node_key) as node_key
               from norm.msc_component_sources
-              where hip_id is not null
+              where hip_id is not null and hip_id > 0
               group by hip_id
               having count(*) = 1
             ),
             msc_hd_unique as (
               select hd_id, min(node_key) as node_key
               from norm.msc_component_sources
-              where hd_id is not null
+              where hd_id is not null and hd_id > 0
               group by hd_id
               having count(*) = 1
             ),
             nasa_hip_unique as (
               select hip_id, min(node_key) as node_key
               from norm.nasa_host_sources
-              where hip_id is not null
+              where hip_id is not null and hip_id > 0
               group by hip_id
               having count(*) = 1
             ),
             nasa_hd_unique as (
               select hd_id, min(node_key) as node_key
               from norm.nasa_host_sources
-              where hd_id is not null
+              where hd_id is not null and hd_id > 0
               group by hd_id
               having count(*) = 1
             ),
             orb6_hip_unique as (
               select hip_id, min(node_key) as node_key
               from norm.orb6_orbit_sources
-              where hip_id is not null
+              where hip_id is not null and hip_id > 0
               group by hip_id
               having count(*) = 1
             ),
             orb6_hd_unique as (
               select hd_id, min(node_key) as node_key
               from norm.orb6_orbit_sources
-              where hd_id is not null
+              where hd_id is not null and hd_id > 0
               group by hd_id
               having count(*) = 1
             ),
             sbx_hip_unique as (
               select hip_id, min(node_key) as node_key
               from norm.sbx_star_sources
-              where hip_id is not null
+              where hip_id is not null and hip_id > 0
               group by hip_id
               having count(*) = 1
             ),
             sbx_hd_unique as (
               select hd_id, min(node_key) as node_key
               from norm.sbx_star_sources
-              where hd_id is not null
+              where hd_id is not null and hd_id > 0
               group by hd_id
               having count(*) = 1
             ),
@@ -452,6 +452,39 @@ def build_identity_graph(*, build_id: str, build_dir: Path, reports_dir: Path) -
               from norm.nasa_planet_sources
               where host_node_key is not null
             ),
+            exact_nasa_planet_legacy as (
+              select
+                least(n.node_key, l.node_key) as left_node_key,
+                greatest(n.node_key, l.node_key) as right_node_key,
+                'same_planet'::varchar as relation_type,
+                'exact_planet_name_norm_nasa_lineage'::varchar as match_method,
+                0.97::double as confidence_score,
+                'high'::varchar as confidence_tier,
+                '["nasa_exoplanet_archive","legacy_core_crosswalk"]'::varchar as source_catalogs_json,
+                'planet_name_norm=' || n.planet_name_norm as evidence_summary,
+                json_object('planet_name_norm', n.planet_name_norm) as evidence_json,
+                false as ambiguous
+              from norm.nasa_planet_sources n
+              join norm.legacy_crosswalk_planet_sources l
+                on l.upstream_source_catalog = 'nasa_exoplanet_archive'
+               and n.planet_name_norm is not null
+               and n.planet_name_norm = l.planet_name_norm
+            ),
+            legacy_planet_hosts_legacy_star as (
+              select
+                node_key as left_node_key,
+                host_node_key as right_node_key,
+                'planet_hosts_star'::varchar as relation_type,
+                'legacy_core_star_id'::varchar as match_method,
+                0.99::double as confidence_score,
+                'high'::varchar as confidence_tier,
+                '["legacy_core_crosswalk"]'::varchar as source_catalogs_json,
+                'legacy star host link'::varchar as evidence_summary,
+                json_object('host_node_key', host_node_key) as evidence_json,
+                false as ambiguous
+              from norm.legacy_crosswalk_planet_sources
+              where host_node_key is not null
+            ),
             orb6_orbit_of_wds_system as (
               select
                 node_key as left_node_key,
@@ -501,6 +534,8 @@ def build_identity_graph(*, build_id: str, build_dir: Path, reports_dir: Path) -
             union all select * from exact_wds_orb6_system
             union all select * from msc_component_of_system
             union all select * from nasa_planet_hosts_nasa_star
+            union all select * from exact_nasa_planet_legacy
+            union all select * from legacy_planet_hosts_legacy_star
             union all select * from orb6_orbit_of_wds_system
             union all select * from sol_parent_edges
             """

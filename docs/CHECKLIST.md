@@ -145,6 +145,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues
 - [ ] Fold stellar gigantism into coolness/search ranking so giants and supergiants are not buried with ordinary stars
 - [x] Ingest v2 design doc + deterministic adjudication queue baseline for sloppy-system triage
+- [x] Ingest v2 bootstrap artifacts for normalized sources, identity graph, and canonical reduction
 - [ ] Agent evidence-link pipeline in `disc` (citations/source manifests backing factsheets and narratives)
 - [ ] Agent adjudication tables in `arm` for ambiguity resolution and missing-field proposals
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
