@@ -223,7 +223,8 @@ def build_slice(
             create table stars as
             select *
             from src.stars
-            where system_id not in (select system_id from slice_trim_systems)
+            where system_id is null
+               or system_id not in (select system_id from slice_trim_systems)
             """
         )
         con.execute(
@@ -231,7 +232,8 @@ def build_slice(
             create table planets as
             select *
             from src.planets
-            where system_id not in (select system_id from slice_trim_systems)
+            where system_id is null
+               or system_id not in (select system_id from slice_trim_systems)
             """
         )
         con.execute(
@@ -239,7 +241,7 @@ def build_slice(
             create table aliases as
             select *
             from src.aliases
-            where system_id not in (select system_id from slice_trim_systems)
+            where (system_id is null or system_id not in (select system_id from slice_trim_systems))
               and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
               and not (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
               and not (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
@@ -251,7 +253,8 @@ def build_slice(
             create table system_search_terms as
             select *
             from src.system_search_terms
-            where system_id not in (select system_id from slice_trim_systems)
+            where system_id is null
+               or system_id not in (select system_id from slice_trim_systems)
             """
         )
         con.execute(
@@ -270,7 +273,7 @@ def build_slice(
             create table compact_objects as
             select *
             from src.compact_objects
-            where system_id not in (select system_id from slice_trim_systems)
+            where (system_id is null or system_id not in (select system_id from slice_trim_systems))
               and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
             """
         )
@@ -279,7 +282,7 @@ def build_slice(
             create table eclipsing_binaries as
             select *
             from src.eclipsing_binaries
-            where system_id not in (select system_id from slice_trim_systems)
+            where (system_id is null or system_id not in (select system_id from slice_trim_systems))
               and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
             """
         )
@@ -288,7 +291,7 @@ def build_slice(
             create table open_cluster_memberships as
             select *
             from src.open_cluster_memberships
-            where system_id not in (select system_id from slice_trim_systems)
+            where (system_id is null or system_id not in (select system_id from slice_trim_systems))
               and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
             """
         )
