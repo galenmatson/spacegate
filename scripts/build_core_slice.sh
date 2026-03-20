@@ -31,6 +31,14 @@ Options:
   --require-spectral-class          Drop stars without spectral_class.
   --require-color-index             Drop stars without color_index.
   --allowed-spectral-classes <csv>  Keep only listed classes (e.g. O,B,A,F,G,K,M,L,T,Y,D,UNKNOWN).
+  --distant-single-trim-beyond-ly <float>
+                                    Post-materialization trim for single-star systems beyond this distance.
+  --distant-single-trim-spectral-classes <csv>
+                                    Spectral buckets eligible for distant single trim (e.g. M,L,UNKNOWN).
+  --distant-single-trim-require-planetless
+                                    Only trim distant singles with zero planets.
+  --distant-single-trim-require-unnamed
+                                    Only trim distant singles without meaningful/common names.
   -h, --help                        Show this help.
 USAGE
 }
@@ -48,6 +56,10 @@ max_ruwe=""
 require_spectral_class=0
 require_color_index=0
 allowed_spectral_classes=""
+distant_single_trim_beyond_ly=""
+distant_single_trim_spectral_classes=""
+distant_single_trim_require_planetless=0
+distant_single_trim_require_unnamed=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -107,6 +119,22 @@ while [[ $# -gt 0 ]]; do
       allowed_spectral_classes="${2:-}"
       shift 2
       ;;
+    --distant-single-trim-beyond-ly)
+      distant_single_trim_beyond_ly="${2:-}"
+      shift 2
+      ;;
+    --distant-single-trim-spectral-classes)
+      distant_single_trim_spectral_classes="${2:-}"
+      shift 2
+      ;;
+    --distant-single-trim-require-planetless)
+      distant_single_trim_require_planetless=1
+      shift 1
+      ;;
+    --distant-single-trim-require-unnamed)
+      distant_single_trim_require_unnamed=1
+      shift 1
+      ;;
     -h|--help)
       usage
       exit 0
@@ -127,6 +155,10 @@ export SPACEGATE_SLICE_MAX_RUWE="$max_ruwe"
 export SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS="$require_spectral_class"
 export SPACEGATE_SLICE_REQUIRE_COLOR_INDEX="$require_color_index"
 export SPACEGATE_SLICE_ALLOWED_SPECTRAL="$allowed_spectral_classes"
+export SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_BEYOND_LY="$distant_single_trim_beyond_ly"
+export SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_SPECTRAL="$distant_single_trim_spectral_classes"
+export SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_PLANETLESS="$distant_single_trim_require_planetless"
+export SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_UNNAMED="$distant_single_trim_require_unnamed"
 export SPACEGATE_SLICE_PROFILE_ID="$profile_id"
 export SPACEGATE_SLICE_PROFILE_VERSION="$profile_version"
 export SPACEGATE_SOURCE_GALAXY_BUILD_ID="$source_galaxy_build_id"
@@ -140,6 +172,10 @@ echo "  SPACEGATE_SLICE_MAX_RUWE=${SPACEGATE_SLICE_MAX_RUWE:-}"
 echo "  SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS=${SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS:-0}"
 echo "  SPACEGATE_SLICE_REQUIRE_COLOR_INDEX=${SPACEGATE_SLICE_REQUIRE_COLOR_INDEX:-0}"
 echo "  SPACEGATE_SLICE_ALLOWED_SPECTRAL=${SPACEGATE_SLICE_ALLOWED_SPECTRAL:-}"
+echo "  SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_BEYOND_LY=${SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_BEYOND_LY:-}"
+echo "  SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_SPECTRAL=${SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_SPECTRAL:-}"
+echo "  SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_PLANETLESS=${SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_PLANETLESS:-0}"
+echo "  SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_UNNAMED=${SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_UNNAMED:-0}"
 echo "  SPACEGATE_SLICE_PROFILE_ID=${SPACEGATE_SLICE_PROFILE_ID:-}"
 echo "  SPACEGATE_SLICE_PROFILE_VERSION=${SPACEGATE_SLICE_PROFILE_VERSION:-}"
 echo "  SPACEGATE_SOURCE_GALAXY_BUILD_ID=${SPACEGATE_SOURCE_GALAXY_BUILD_ID:-}"

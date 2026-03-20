@@ -732,6 +732,20 @@ def main() -> int:
     slice_require_spectral = parse_bool_env("SPACEGATE_SLICE_REQUIRE_SPECTRAL_CLASS", False)
     slice_require_color = parse_bool_env("SPACEGATE_SLICE_REQUIRE_COLOR_INDEX", False)
     slice_allowed_spectral = parse_spectral_csv_env("SPACEGATE_SLICE_ALLOWED_SPECTRAL")
+    slice_distant_single_trim_beyond_ly = parse_optional_positive_float_env(
+        "SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_BEYOND_LY"
+    )
+    slice_distant_single_trim_spectral = parse_spectral_csv_env(
+        "SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_SPECTRAL"
+    )
+    slice_distant_single_trim_require_planetless = parse_bool_env(
+        "SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_PLANETLESS",
+        True,
+    )
+    slice_distant_single_trim_require_unnamed = parse_bool_env(
+        "SPACEGATE_SLICE_DISTANT_SINGLE_TRIM_REQUIRE_UNNAMED",
+        True,
+    )
     slice_profile_id = (os.getenv("SPACEGATE_SLICE_PROFILE_ID") or "").strip()
     slice_profile_version = (os.getenv("SPACEGATE_SLICE_PROFILE_VERSION") or "").strip()
     build_layer = (os.getenv("SPACEGATE_BUILD_LAYER") or "core").strip().lower()
@@ -866,7 +880,11 @@ def main() -> int:
         f"max_ruwe={format_float_or_empty(slice_max_ruwe) or '(off)'} "
         f"require_spectral={'1' if slice_require_spectral else '0'} "
         f"require_color={'1' if slice_require_color else '0'} "
-        f"allowed_spectral={','.join(slice_allowed_spectral) if slice_allowed_spectral else '(all)'}"
+        f"allowed_spectral={','.join(slice_allowed_spectral) if slice_allowed_spectral else '(all)'} "
+        f"distant_single_trim_beyond_ly={format_float_or_empty(slice_distant_single_trim_beyond_ly) or '(off)'} "
+        f"distant_single_trim_spectral={','.join(slice_distant_single_trim_spectral) if slice_distant_single_trim_spectral else '(off)'} "
+        f"distant_single_trim_require_planetless={'1' if slice_distant_single_trim_require_planetless else '0'} "
+        f"distant_single_trim_require_unnamed={'1' if slice_distant_single_trim_require_unnamed else '0'}"
     )
     log(
         "Slice profile: "
@@ -1054,6 +1072,10 @@ def main() -> int:
           ('slice_require_spectral_class', {sql_literal("1" if slice_require_spectral else "0")}),
           ('slice_require_color_index', {sql_literal("1" if slice_require_color else "0")}),
           ('slice_allowed_spectral', {sql_literal(",".join(slice_allowed_spectral))}),
+          ('slice_distant_single_trim_beyond_ly', {sql_literal(format_float_or_empty(slice_distant_single_trim_beyond_ly))}),
+          ('slice_distant_single_trim_spectral', {sql_literal(",".join(slice_distant_single_trim_spectral))}),
+          ('slice_distant_single_trim_require_planetless', {sql_literal("1" if slice_distant_single_trim_require_planetless else "0")}),
+          ('slice_distant_single_trim_require_unnamed', {sql_literal("1" if slice_distant_single_trim_require_unnamed else "0")}),
           ('slice_profile_id', {sql_literal(slice_profile_id)}),
           ('slice_profile_version', {sql_literal(slice_profile_version)}),
           ('build_layer', {sql_literal(build_layer)}),
@@ -3279,6 +3301,10 @@ def main() -> int:
             "require_spectral_class": slice_require_spectral,
             "require_color_index": slice_require_color,
             "allowed_spectral_classes": slice_allowed_spectral,
+            "distant_single_trim_beyond_ly": slice_distant_single_trim_beyond_ly,
+            "distant_single_trim_spectral_classes": slice_distant_single_trim_spectral,
+            "distant_single_trim_require_planetless": slice_distant_single_trim_require_planetless,
+            "distant_single_trim_require_unnamed": slice_distant_single_trim_require_unnamed,
             "slice_profile_id": slice_profile_id,
             "slice_profile_version": slice_profile_version,
             "build_layer": build_layer,
@@ -7767,6 +7793,193 @@ def main() -> int:
             f"athyg_alias_matched_stars={format_count(alias_crosswalk_matched_star_count)}"
         ),
     )
+
+    if (
+        slice_distant_single_trim_beyond_ly is not None
+        and slice_distant_single_trim_spectral
+    ):
+        trim_stage_started = time.monotonic()
+        trim_spectral_sql = ", ".join(
+            sql_literal(token) for token in slice_distant_single_trim_spectral
+        )
+        trim_conditions = [
+            "coalesce(s.star_count, 0) = 1",
+            f"coalesce(s.dist_ly, 0) > {slice_distant_single_trim_beyond_ly}",
+            f"""exists (
+              select 1
+              from stars st
+              where st.system_id = s.system_id
+                and (
+                  case
+                    when upper(coalesce(st.spectral_type_raw, '')) like 'D%' or coalesce(st.object_type, '') = 'white_dwarf'
+                      then 'D'
+                    when st.spectral_class in ('O', 'B', 'A', 'F', 'G', 'K', 'M', 'L', 'T', 'Y', 'D')
+                      then st.spectral_class
+                    else 'UNKNOWN'
+                  end
+                ) in ({trim_spectral_sql})
+            )""",
+        ]
+        if slice_distant_single_trim_require_planetless:
+            trim_conditions.append("coalesce(s.planet_count, 0) = 0")
+        unnamed_clause = ""
+        if slice_distant_single_trim_require_unnamed:
+            unnamed_clause = """
+              and not exists (
+                select 1
+                from aliases a
+                where a.system_id = s.system_id
+                  and a.alias_kind in (
+                    'proper_name', 'member_proper_name',
+                    'bayer_name', 'member_bayer_name',
+                    'flamsteed_name', 'member_flamsteed_name'
+                  )
+              )
+              and not exists (
+                select 1
+                from systems sn
+                where sn.system_id = s.system_id
+                  and sn.system_name_norm is not null
+                  and trim(sn.system_name_norm) <> ''
+                  and sn.system_name_norm not like 'gaia dr3 %'
+                  and sn.system_name_norm not like 'gaia %'
+                  and sn.system_name_norm not like 'hd %'
+                  and sn.system_name_norm not like 'hip %'
+                  and sn.system_name_norm not like 'hr %'
+                  and sn.system_name_norm not like 'tyc %'
+                  and sn.system_name_norm not like 'hyg %'
+                  and sn.system_name_norm not like 'wds %'
+                  and sn.system_name_norm not like 'gl %'
+                  and sn.system_name_norm not like 'gj %'
+              )
+              and not exists (
+                select 1
+                from stars stn
+                where stn.system_id = s.system_id
+                  and stn.star_name_norm is not null
+                  and trim(stn.star_name_norm) <> ''
+                  and stn.star_name_norm not like 'gaia dr3 %'
+                  and stn.star_name_norm not like 'gaia %'
+                  and stn.star_name_norm not like 'hd %'
+                  and stn.star_name_norm not like 'hip %'
+                  and stn.star_name_norm not like 'hr %'
+                  and stn.star_name_norm not like 'tyc %'
+                  and stn.star_name_norm not like 'hyg %'
+                  and stn.star_name_norm not like 'wds %'
+                  and stn.star_name_norm not like 'gl %'
+                  and stn.star_name_norm not like 'gj %'
+              )
+            """
+        con.execute(
+            f"""
+            create temp table slice_trim_systems as
+            select s.system_id
+            from systems s
+            where {' and '.join(trim_conditions)}
+            {unnamed_clause}
+            """
+        )
+        con.execute(
+            """
+            create temp table slice_trim_stars as
+            select star_id, system_id
+            from stars
+            where system_id in (select system_id from slice_trim_systems)
+            """
+        )
+        con.execute(
+            """
+            create temp table slice_trim_planets as
+            select planet_id, system_id
+            from planets
+            where system_id in (select system_id from slice_trim_systems)
+            """
+        )
+        trim_system_count = int(
+            con.execute("select count(*) from slice_trim_systems").fetchone()[0]
+        )
+        trim_star_count = int(
+            con.execute("select count(*) from slice_trim_stars").fetchone()[0]
+        )
+        trim_planet_count = int(
+            con.execute("select count(*) from slice_trim_planets").fetchone()[0]
+        )
+        trim_alias_count = int(
+            con.execute(
+                """
+                select count(*)
+                from aliases
+                where system_id in (select system_id from slice_trim_systems)
+                   or star_id in (select star_id from slice_trim_stars)
+                """
+            ).fetchone()[0]
+        )
+        trim_identifier_count = int(
+            con.execute(
+                """
+                select count(*)
+                from object_identifiers
+                where (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
+                   or (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
+                   or (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
+                """
+            ).fetchone()[0]
+        )
+        con.execute(
+            """
+            delete from object_identifiers
+            where (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
+               or (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
+               or (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
+            """
+        )
+        con.execute(
+            """
+            delete from aliases
+            where system_id in (select system_id from slice_trim_systems)
+               or star_id in (select star_id from slice_trim_stars)
+               or (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
+               or (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
+               or (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
+            """
+        )
+        con.execute(
+            "delete from planets where system_id in (select system_id from slice_trim_systems)"
+        )
+        con.execute(
+            "delete from stars where system_id in (select system_id from slice_trim_systems)"
+        )
+        con.execute(
+            "delete from systems where system_id in (select system_id from slice_trim_systems)"
+        )
+        slice_policy_report["counts"]["post_system_trim_removed_system_rows"] = trim_system_count
+        slice_policy_report["counts"]["post_system_trim_removed_star_rows"] = trim_star_count
+        slice_policy_report["counts"]["post_system_trim_removed_planet_rows"] = trim_planet_count
+        slice_policy_report["counts"]["post_system_trim_removed_alias_rows"] = trim_alias_count
+        slice_policy_report["counts"]["post_system_trim_removed_identifier_rows"] = trim_identifier_count
+        slice_policy_report["counts"]["retained_system_rows_post_trim"] = int(
+            con.execute("select count(*) from systems").fetchone()[0]
+        )
+        slice_policy_report["counts"]["retained_star_rows_post_trim"] = int(
+            con.execute("select count(*) from stars").fetchone()[0]
+        )
+        slice_policy_report["counts"]["retained_planet_rows_post_trim"] = int(
+            con.execute("select count(*) from planets").fetchone()[0]
+        )
+        write_json(reports_dir / "slice_policy_report.json", slice_policy_report)
+        stage_totals["systems"] = int(con.execute("select count(*) from systems").fetchone()[0])
+        stage_totals["stars"] = int(con.execute("select count(*) from stars").fetchone()[0])
+        stage_totals["planets"] = int(con.execute("select count(*) from planets").fetchone()[0])
+        log_stage_complete(
+            "Post-materialization slice trim",
+            trim_stage_started,
+            stage_totals,
+            extra=(
+                f"removed_systems={format_count(trim_system_count)}, "
+                f"removed_stars={format_count(trim_star_count)}, "
+                f"removed_planets={format_count(trim_planet_count)}"
+            ),
+        )
 
     science_side_stage_started = time.monotonic()
     log("Building compact and superstellar side tables")

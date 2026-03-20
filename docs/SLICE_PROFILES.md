@@ -26,6 +26,10 @@ Current profile knobs (must map directly to ingest/runtime flags):
 - `require_spectral_class`
 - `require_color_index`
 - `allowed_spectral_classes`
+- `distant_single_trim_beyond_ly`
+- `distant_single_trim_spectral_classes`
+- `distant_single_trim_require_planetless`
+- `distant_single_trim_require_unnamed`
 
 Execution contract:
 
@@ -87,6 +91,32 @@ Expected scale band:
 
 - approximately 16-22% of the current full `<1000 ly` served star set
 - intended as the first public-host fallback when `core.default@v1` is too slow and a hard RUWE gate would cut important companions/remnants
+
+### `core.public@v3`
+
+Intent:
+
+- public-host slice for constrained hardware that keeps interesting named systems, multiples, and planet-host systems visible out to `1000 ly`
+- cut the anonymous long-tail of distant single red/faint/underspecified stars that dominate scan cost
+
+Filters:
+
+- `max_distance_ly=1000`
+- `min_parallax_over_error=5`
+- `max_ruwe` unset
+- `max_parallax_error_mas` unset
+- `require_spectral_class=false`
+- `require_color_index=false`
+- `allowed_spectral_classes=[]`
+- `distant_single_trim_beyond_ly=500`
+- `distant_single_trim_spectral_classes=M,L,UNKNOWN`
+- `distant_single_trim_require_planetless=true`
+- `distant_single_trim_require_unnamed=true`
+
+Expected scale band:
+
+- approximately one third of the current full `<1000 ly` served star set
+- designed to keep named/common objects out to `1000 ly` while removing the largest low-interest public-host scan burden
 
 ### `core.performance@v1`
 
