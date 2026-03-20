@@ -49,21 +49,6 @@ def sql_literal(value: str | None) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
-def symlink_or_copy(src: Path, dst: Path) -> None:
-    if dst.exists() or dst.is_symlink():
-        if dst.is_dir() and not dst.is_symlink():
-            shutil.rmtree(dst)
-        else:
-            dst.unlink()
-    try:
-        dst.symlink_to(src)
-    except Exception:
-        if src.is_dir():
-            shutil.copytree(src, dst)
-        else:
-            shutil.copy2(src, dst)
-
-
 def build_slice(
     *,
     root: Path,
@@ -90,30 +75,19 @@ def build_slice(
         raise SystemExit(f"Target build already exists: {final_dir}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
     (tmp_dir / "ingest_v2").mkdir(parents=True, exist_ok=True)
+    (tmp_dir / "parquet").mkdir(parents=True, exist_ok=True)
 
     core_dst = tmp_dir / "core.duckdb"
-    shutil.copy2(source_core, core_dst)
-
-    for rel_path in [
-        Path("arm.duckdb"),
-        Path("rich.duckdb"),
-        Path("rich"),
-        Path("parquet"),
-        Path("ingest_v2") / "canonical_hierarchy.duckdb",
-    ]:
-        src = source_build_dir / rel_path
-        if src.exists():
-            symlink_or_copy(src, tmp_dir / rel_path)
-
     con = duckdb.connect(str(core_dst))
     try:
+        con.execute(f"ATTACH {sql_literal(str(source_core))} AS src (READ_ONLY)")
         trim_spectral_sql = ", ".join(sql_literal(token.upper()) for token in trim_spectral)
         con.execute(
             f"""
             create temp table slice_trim_systems as
             with alias_named_systems as (
               select distinct system_id
-              from aliases
+              from src.aliases
               where system_id is not null
                 and alias_kind in (
                   'proper_name', 'member_proper_name',
@@ -122,7 +96,7 @@ def build_slice(
                 )
             ), text_named_systems as (
               select system_id
-              from systems
+              from src.systems
               where system_name_norm is not null
                 and trim(system_name_norm) <> ''
                 and system_name_norm not like 'gaia dr3 %'
@@ -137,7 +111,7 @@ def build_slice(
                 and system_name_norm not like 'gj %'
               union
               select system_id
-              from stars
+              from src.stars
               where system_id is not null
                 and star_name_norm is not null
                 and trim(star_name_norm) <> ''
@@ -157,7 +131,7 @@ def build_slice(
               select system_id from text_named_systems
             )
             select s.system_id
-            from systems s
+            from src.systems s
             left join named_systems ns using (system_id)
             where coalesce(s.dist_ly, 0) <= {max_distance_ly}
               and coalesce(s.star_count, 0) = 1
@@ -166,7 +140,7 @@ def build_slice(
               and ns.system_id is null
               and exists (
                 select 1
-                from stars st
+                from src.stars st
                 where st.system_id = s.system_id
                   and (
                     case
@@ -184,7 +158,7 @@ def build_slice(
             """
             create temp table slice_trim_stars as
             select star_id, system_id
-            from stars
+            from src.stars
             where system_id in (select system_id from slice_trim_systems)
             """
         )
@@ -192,7 +166,7 @@ def build_slice(
             """
             create temp table slice_trim_planets as
             select planet_id, system_id
-            from planets
+            from src.planets
             where system_id in (select system_id from slice_trim_systems)
             """
         )
@@ -200,11 +174,11 @@ def build_slice(
         counts_before = con.execute(
             """
             select
-              (select count(*) from systems),
-              (select count(*) from stars),
-              (select count(*) from planets),
-              (select count(*) from aliases),
-              (select count(*) from system_search_terms)
+              (select count(*) from src.systems),
+              (select count(*) from src.stars),
+              (select count(*) from src.planets),
+              (select count(*) from src.aliases),
+              (select count(*) from src.system_search_terms)
             """
         ).fetchone()
         trim_counts = con.execute(
@@ -213,73 +187,18 @@ def build_slice(
               (select count(*) from slice_trim_systems),
               (select count(*) from slice_trim_stars),
               (select count(*) from slice_trim_planets),
-              (select count(*) from aliases where system_id in (select system_id from slice_trim_systems)),
-              (select count(*) from system_search_terms where system_id in (select system_id from slice_trim_systems))
+              (select count(*) from src.aliases where system_id in (select system_id from slice_trim_systems)),
+              (select count(*) from src.system_search_terms where system_id in (select system_id from slice_trim_systems))
             """
         ).fetchone()
 
-        con.execute(
-            """
-            delete from object_identifiers
-            where (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
-               or (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
-               or (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
-            """
-        )
-        for table_name in [
-            "compact_objects",
-            "eclipsing_binaries",
-            "open_cluster_memberships",
-        ]:
-            exists = con.execute(
-                """
-                select 1
-                from information_schema.tables
-                where table_schema='main' and table_name=?
-                """,
-                [table_name],
-            ).fetchone()
-            if not exists:
-                continue
-            cols = {
-                row[0]
-                for row in con.execute(
-                    """
-                    select column_name
-                    from information_schema.columns
-                    where table_schema='main' and table_name=?
-                    """,
-                    [table_name],
-                ).fetchall()
-            }
-            clauses: list[str] = []
-            if "system_id" in cols:
-                clauses.append("system_id in (select system_id from slice_trim_systems)")
-            if "star_id" in cols:
-                clauses.append("star_id in (select star_id from slice_trim_stars)")
-            if clauses:
-                con.execute(f"delete from {table_name} where {' or '.join(clauses)}")
-
-        con.execute(
-            """
-            delete from aliases
-            where system_id in (select system_id from slice_trim_systems)
-               or star_id in (select star_id from slice_trim_stars)
-               or (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
-               or (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
-               or (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
-            """
-        )
-        con.execute("delete from system_search_terms where system_id in (select system_id from slice_trim_systems)")
-        con.execute("delete from planets where system_id in (select system_id from slice_trim_systems)")
-        con.execute("delete from stars where system_id in (select system_id from slice_trim_systems)")
-        con.execute("delete from systems where system_id in (select system_id from slice_trim_systems)")
-
+        con.execute("create table build_metadata as select * from src.build_metadata")
         con.execute(
             """
             delete from build_metadata
             where key in (
               'build_id',
+              'preview_source_build_id',
               'slice_profile_id',
               'slice_profile_version',
               'slice_max_distance_ly',
@@ -287,11 +206,104 @@ def build_slice(
               'slice_distant_single_trim_beyond_ly',
               'slice_distant_single_trim_spectral',
               'slice_distant_single_trim_require_planetless',
-              'slice_distant_single_trim_require_unnamed',
-              'preview_source_build_id'
+              'slice_distant_single_trim_require_unnamed'
             )
             """
         )
+        con.execute(
+            """
+            create table systems as
+            select *
+            from src.systems
+            where system_id not in (select system_id from slice_trim_systems)
+            """
+        )
+        con.execute(
+            """
+            create table stars as
+            select *
+            from src.stars
+            where system_id not in (select system_id from slice_trim_systems)
+            """
+        )
+        con.execute(
+            """
+            create table planets as
+            select *
+            from src.planets
+            where system_id not in (select system_id from slice_trim_systems)
+            """
+        )
+        con.execute(
+            """
+            create table aliases as
+            select *
+            from src.aliases
+            where system_id not in (select system_id from slice_trim_systems)
+              and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
+              and not (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
+              and not (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
+              and not (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
+            """
+        )
+        con.execute(
+            """
+            create table system_search_terms as
+            select *
+            from src.system_search_terms
+            where system_id not in (select system_id from slice_trim_systems)
+            """
+        )
+        con.execute(
+            """
+            create table object_identifiers as
+            select *
+            from src.object_identifiers
+            where not (target_type = 'star' and target_id in (select star_id from slice_trim_stars))
+              and not (target_type = 'system' and target_id in (select system_id from slice_trim_systems))
+              and not (target_type = 'planet' and target_id in (select planet_id from slice_trim_planets))
+            """
+        )
+        con.execute("create table identifier_quarantine as select * from src.identifier_quarantine")
+        con.execute(
+            """
+            create table compact_objects as
+            select *
+            from src.compact_objects
+            where system_id not in (select system_id from slice_trim_systems)
+              and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
+            """
+        )
+        con.execute(
+            """
+            create table eclipsing_binaries as
+            select *
+            from src.eclipsing_binaries
+            where system_id not in (select system_id from slice_trim_systems)
+              and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
+            """
+        )
+        con.execute(
+            """
+            create table open_cluster_memberships as
+            select *
+            from src.open_cluster_memberships
+            where system_id not in (select system_id from slice_trim_systems)
+              and coalesce(star_id, -1) not in (select star_id from slice_trim_stars)
+            """
+        )
+        con.execute("create table open_clusters as select * from src.open_clusters")
+        con.execute(
+            "create table planet_catalog_observations as select * from src.planet_catalog_observations"
+        )
+        con.execute(
+            "create table planet_reclassification_audit as select * from src.planet_reclassification_audit"
+        )
+        con.execute(
+            "create table planet_status_history as select * from src.planet_status_history"
+        )
+        con.execute("create table superstellar_objects as select * from src.superstellar_objects")
+
         con.executemany(
             "insert into build_metadata values (?, ?)",
             [
@@ -310,6 +322,29 @@ def build_slice(
         con.execute("checkpoint")
         con.execute("vacuum")
 
+        parquet_dir = tmp_dir / "parquet"
+        con.execute(
+            f"copy (select * from stars order by spatial_index) to {sql_literal(str(parquet_dir / 'stars.parquet'))} (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from systems order by spatial_index) to {sql_literal(str(parquet_dir / 'systems.parquet'))} (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from planets order by spatial_index) to {sql_literal(str(parquet_dir / 'planets.parquet'))} (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from aliases) to {sql_literal(str(parquet_dir / 'aliases.parquet'))} (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from system_search_terms) to {sql_literal(str(parquet_dir / 'system_search_terms.parquet'))} (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from object_identifiers) to {sql_literal(str(parquet_dir / 'object_identifiers.parquet'))} (format parquet)"
+        )
+        con.execute(
+            f"copy (select * from identifier_quarantine) to {sql_literal(str(parquet_dir / 'identifier_quarantine.parquet'))} (format parquet)"
+        )
+
         counts_after = con.execute(
             """
             select
@@ -322,6 +357,22 @@ def build_slice(
         ).fetchone()
     finally:
         con.close()
+
+    for rel_path in [
+        Path("arm.duckdb"),
+        Path("rich.duckdb"),
+        Path("rich"),
+        Path("canonical_hierarchy.duckdb"),
+    ]:
+        src = source_build_dir / rel_path
+        dst = tmp_dir / rel_path
+        if not src.exists():
+            continue
+        if src.is_dir():
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        else:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
 
     report = {
         "generated_at": utc_now(),
