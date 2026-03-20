@@ -29,10 +29,13 @@ Current bootstrap artifacts on `feature/ingest-v2-canonicalization`:
 - `out/<build_id>/ingest_v2/identity_graph.duckdb`
 - `out/<build_id>/ingest_v2/canonical_reduction.duckdb`
 - `out/<build_id>/ingest_v2/canonical_hierarchy.duckdb`
+- `out/<preview_build_id>/core.duckdb` emitted by `scripts/ingest_v2/emit_preview_build.py`
+- `out/<preview_build_id>/canonical_hierarchy.duckdb` copied beside preview `core.duckdb`
 - `reports/<build_id>/normalized_sources_report.json`
 - `reports/<build_id>/identity_graph_report.json`
 - `reports/<build_id>/canonical_reduction_report.json`
 - `reports/<build_id>/canonical_hierarchy_report.json`
+- `reports/<preview_build_id>/canonical_preview_report.json`
 
 Bootstrap note:
 
@@ -136,6 +139,13 @@ Emit:
 - `arm`: scientific side tables plus adjudication candidates and missing-field proposals
 - `disc`: citations, factsheets, narratives, and reproducible enrichment artifacts
 - `reports`: deterministic quality and queue outputs
+
+Preview-emission note:
+
+- during transition, ingest v2 may emit a full preview build before it becomes the default production emitter
+- preview builds keep representative legacy row ids where practical, but replace `stable_object_key` with canonical ingest_v2 keys
+- preview builds ship a sibling `canonical_hierarchy.duckdb`; the API should prefer that hierarchy when present and fall back to legacy `arm` hierarchy otherwise
+- preview builds are for local proton validation and golden testing, not proof that ingest v2 is ready to replace the main build path
 
 ## Adjudication Queue
 

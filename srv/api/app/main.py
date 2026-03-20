@@ -98,6 +98,13 @@ def _resolve_arm_db_path() -> Optional[str]:
     return None
 
 
+def _resolve_canonical_hierarchy_db_path() -> Optional[str]:
+    candidate = Path(db.get_db_path()).with_name("canonical_hierarchy.duckdb")
+    if candidate.exists():
+        return str(candidate)
+    return None
+
+
 def _summarize_arm_star_evidence(star_evidence: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
     catalog_counts: Dict[str, int] = {}
     high_variability_count = 0
@@ -779,6 +786,7 @@ def systems_search(
 def system_detail(system_id: int):
     rich_db_path = _resolve_rich_db_path()
     arm_db_path = _resolve_arm_db_path()
+    canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
     with db.connection_scope() as con:
         system = fetch_system_by_id(con, system_id)
         if not system:
@@ -815,6 +823,7 @@ def system_detail(system_id: int):
             system_id=system_id,
             stable_object_key=system.get("stable_object_key"),
             wds_id=system.get("wds_id"),
+            canonical_hierarchy_db_path=canonical_hierarchy_db_path,
             arm_db_path=arm_db_path,
         )
 
@@ -866,6 +875,7 @@ def system_detail(system_id: int):
 def system_detail_by_key(stable_object_key: str):
     rich_db_path = _resolve_rich_db_path()
     arm_db_path = _resolve_arm_db_path()
+    canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
     with db.connection_scope() as con:
         system = fetch_system_by_key(con, stable_object_key)
         if not system:
@@ -903,6 +913,7 @@ def system_detail_by_key(stable_object_key: str):
             system_id=int(system_id),
             stable_object_key=stable_object_key,
             wds_id=system.get("wds_id"),
+            canonical_hierarchy_db_path=canonical_hierarchy_db_path,
             arm_db_path=arm_db_path,
         )
 

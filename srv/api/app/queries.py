@@ -1180,7 +1180,10 @@ def _build_hierarchy_node_payload(
     total_type_counts: Dict[str, int] = {
         _clean_name(node.get("component_family")).lower() or "unknown": 1,
     }
-    total_star_count = 1 if _clean_name(node.get("component_family")).lower() == "star" else 0
+    self_star_count = node.get("self_star_count")
+    if self_star_count is None:
+        self_star_count = 1 if _clean_name(node.get("component_family")).lower() == "star" else 0
+    total_star_count = int(self_star_count or 0)
     for child in children:
         child_type = _clean_name(child.get("component_family")).lower() or "unknown"
         direct_type_counts[child_type] = int(direct_type_counts.get(child_type, 0)) + 1
@@ -1308,7 +1311,15 @@ def _enrich_hierarchy_star_nodes(
                     continue
                 star_facts.setdefault(node_key, {}).update(params_by_star_id[star_id])
 
-    msc_keys = [key for key in star_nodes if key.startswith("comp:msc:")]
+    msc_lookup_by_node_key = {
+        key: key
+        for key in star_nodes
+        if key.startswith("comp:msc:")
+    }
+    for key in star_nodes:
+        if key.startswith("canon:leaf:msc:"):
+            msc_lookup_by_node_key[key] = key.replace("canon:leaf:msc:", "comp:msc:wds:", 1)
+    msc_keys = sorted(set(msc_lookup_by_node_key.values()))
     if msc_keys and arm_attached and _has_table(con, alias="arm_db", table_name="msc_component_details"):
         placeholders = ",".join(["?"] * len(msc_keys))
         msc_rows = con.execute(
@@ -1323,15 +1334,19 @@ def _enrich_hierarchy_star_nodes(
             """,
             msc_keys,
         ).fetchall()
+        node_keys_by_component_key: Dict[str, List[str]] = defaultdict(list)
+        for node_key, component_key in msc_lookup_by_node_key.items():
+            node_keys_by_component_key[component_key].append(node_key)
         for stable_component_key, spectral_type_raw, vmag, sep_arcsec in msc_rows:
-            node_key = str(stable_component_key)
-            facts = star_facts.setdefault(node_key, {})
-            if not facts.get("spectral_type_raw"):
-                facts["spectral_type_raw"] = _clean_name(spectral_type_raw) or None
-            if facts.get("vmag") is None and vmag is not None:
-                facts["vmag"] = float(vmag)
-            if sep_arcsec is not None:
-                facts["sep_arcsec"] = float(sep_arcsec)
+            component_key = str(stable_component_key)
+            for node_key in node_keys_by_component_key.get(component_key, []):
+                facts = star_facts.setdefault(node_key, {})
+                if not facts.get("spectral_type_raw"):
+                    facts["spectral_type_raw"] = _clean_name(spectral_type_raw) or None
+                if facts.get("vmag") is None and vmag is not None:
+                    facts["vmag"] = float(vmag)
+                if sep_arcsec is not None:
+                    facts["sep_arcsec"] = float(sep_arcsec)
 
     for node_key, facts in star_facts.items():
         if node_key not in node_map:
@@ -1349,14 +1364,248 @@ def _enrich_hierarchy_star_nodes(
         }
 
 
+def _fetch_canonical_hierarchy_for_system(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    stable_object_key: Optional[str],
+    canonical_hierarchy_db_path: Optional[str],
+    arm_db_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not _attach_rich_db(con, canonical_hierarchy_db_path, alias="canon_hier"):
+        return None
+    if not _has_table(con, alias="canon_hier", table_name="hierarchy_nodes"):
+        return None
+    if not _has_table(con, alias="canon_hier", table_name="hierarchy_edges"):
+        return None
+
+    root_key = _clean_name(stable_object_key) or None
+    if not root_key:
+        row = con.execute(
+            """
+            SELECT stable_object_key
+            FROM systems
+            WHERE system_id = ?
+            LIMIT 1
+            """,
+            [system_id],
+        ).fetchone()
+        root_key = _clean_name(row[0]) if row else None
+    if not root_key:
+        return None
+
+    root_exists = con.execute(
+        """
+        SELECT 1
+        FROM canon_hier.hierarchy_nodes
+        WHERE hierarchy_node_key = ?
+          AND node_kind = 'system'
+        LIMIT 1
+        """,
+        [root_key],
+    ).fetchone()
+    if not root_exists:
+        return None
+
+    hierarchy_rows = con.execute(
+        """
+        WITH RECURSIVE tree(node_key, depth) AS (
+          SELECT ? AS node_key, 0 AS depth
+          UNION ALL
+          SELECT e.child_node_key, tree.depth + 1
+          FROM tree
+          JOIN canon_hier.hierarchy_edges e
+            ON e.parent_node_key = tree.node_key
+          WHERE tree.depth < 12
+        )
+        SELECT DISTINCT node_key, depth
+        FROM tree
+        """,
+        [root_key],
+    ).fetchall()
+    if not hierarchy_rows:
+        return None
+
+    hierarchy_node_keys = [str(row[0]) for row in hierarchy_rows if row and row[0]]
+    key_placeholders = ",".join(["?"] * len(hierarchy_node_keys))
+    entity_rows = con.execute(
+        f"""
+        SELECT
+          hierarchy_node_key,
+          node_kind,
+          canonical_key,
+          display_name,
+          wds_id,
+          member_role,
+          source_basis
+        FROM canon_hier.hierarchy_nodes
+        WHERE hierarchy_node_key IN ({key_placeholders})
+        """,
+        hierarchy_node_keys,
+    ).fetchall()
+
+    node_kind_to_family = {
+        "system": "system",
+        "subsystem": "subsystem",
+        "star": "star",
+        "inferred_star_leaf": "star",
+        "planet": "planet",
+    }
+    node_map: Dict[str, Dict[str, Any]] = {}
+    canonical_keys_by_type: Dict[str, List[str]] = defaultdict(list)
+    for (
+        hierarchy_node_key,
+        node_kind,
+        canonical_key,
+        display_name,
+        node_wds_id,
+        member_role,
+        source_basis,
+    ) in entity_rows:
+        clean_kind = _clean_name(node_kind).lower() or "unknown"
+        canonical = _clean_name(canonical_key) or None
+        component_family = node_kind_to_family.get(clean_kind, clean_kind)
+        component_type = "star" if clean_kind == "inferred_star_leaf" else component_family
+        key = str(hierarchy_node_key)
+        node_map[key] = {
+            "stable_component_key": key,
+            "component_type": component_type,
+            "component_family": component_family,
+            "core_object_type": component_family if canonical else None,
+            "core_object_id": None,
+            "display_name": _clean_name(display_name) or canonical or key,
+            "catalog_component_label": _clean_name(member_role) or None,
+            "member_role": _clean_name(member_role) or None,
+            "source_catalog": _clean_name(source_basis) or "canonical_hierarchy",
+            "synthetic": clean_kind == "inferred_star_leaf",
+            "orbit": None,
+            "quick_facts": None,
+            "canonical_key": canonical,
+            "node_kind": clean_kind,
+            "self_star_count": 1 if clean_kind == "inferred_star_leaf" else None,
+            "wds_id": _clean_name(node_wds_id) or None,
+        }
+        if canonical:
+            canonical_keys_by_type[component_family].append(canonical)
+
+    edge_rows = con.execute(
+        f"""
+        SELECT
+          parent_node_key,
+          child_node_key,
+          edge_kind,
+          member_role,
+          source_basis
+        FROM canon_hier.hierarchy_edges
+        WHERE parent_node_key IN ({key_placeholders})
+        """,
+        hierarchy_node_keys,
+    ).fetchall()
+    parent_by_child: Dict[str, str] = {}
+    children_map: Dict[str, List[str]] = defaultdict(list)
+    for parent_node_key, child_node_key, edge_kind, member_role, source_basis in edge_rows:
+        parent = str(parent_node_key)
+        child = str(child_node_key)
+        if parent not in node_map or child not in node_map:
+            continue
+        if child in parent_by_child:
+            continue
+        parent_by_child[child] = parent
+        children_map[parent].append(child)
+        child_node = node_map.get(child)
+        if child_node is not None:
+            child_node["catalog_relation_label"] = _clean_name(source_basis) or None
+            child_node["edge_kind"] = _clean_name(edge_kind) or None
+            if not child_node.get("member_role"):
+                child_node["member_role"] = _clean_name(member_role) or None
+            if not child_node.get("catalog_component_label"):
+                child_node["catalog_component_label"] = _clean_name(member_role) or None
+
+    for object_type, table_name, id_column in (
+        ("system", "systems", "system_id"),
+        ("star", "stars", "star_id"),
+        ("planet", "planets", "planet_id"),
+    ):
+        canonical_keys = sorted(set(canonical_keys_by_type.get(object_type) or []))
+        if not canonical_keys:
+            continue
+        placeholders = ",".join(["?"] * len(canonical_keys))
+        rows = con.execute(
+            f"""
+            SELECT stable_object_key, {id_column}
+            FROM {table_name}
+            WHERE stable_object_key IN ({placeholders})
+            """,
+            canonical_keys,
+        ).fetchall()
+        id_by_key = {str(stable_key): int(object_id) for stable_key, object_id in rows if stable_key}
+        for node in node_map.values():
+            if node.get("component_family") != object_type:
+                continue
+            canonical_key = node.get("canonical_key")
+            if canonical_key in id_by_key:
+                node["core_object_type"] = object_type
+                node["core_object_id"] = id_by_key[canonical_key]
+
+    for node_key, node in node_map.items():
+        if _clean_name(node.get("component_family")).lower() != "star":
+            node["self_star_count"] = 0
+            continue
+        if node.get("node_kind") == "inferred_star_leaf":
+            node["self_star_count"] = 1
+            continue
+        child_keys = children_map.get(node_key, [])
+        has_leaf_children = any(
+            _clean_name(node_map.get(child_key, {}).get("node_kind")).lower() == "inferred_star_leaf"
+            for child_key in child_keys
+        )
+        node["self_star_count"] = 0 if has_leaf_children else 1
+
+    arm_attached = _attach_rich_db(con, arm_db_path, alias="arm_db")
+    _enrich_hierarchy_star_nodes(
+        con,
+        node_map=node_map,
+        arm_attached=arm_attached,
+    )
+
+    root_payload = _build_hierarchy_node_payload(
+        root_key,
+        node_map=node_map,
+        children_map=children_map,
+        depth=0,
+    )
+    counts = {
+        "stars": int(root_payload.get("total_star_count") or 0),
+        "nodes": int(root_payload.get("descendant_count") or 0) + 1,
+        "direct_children": int(root_payload.get("child_count") or 0),
+        "type_counts": dict(root_payload.get("total_type_counts") or {}),
+    }
+    return {
+        "root": root_payload,
+        "counts": counts,
+        "preferred_root_key": root_key,
+        "root_keys_considered": [root_key],
+    }
+
+
 def fetch_system_hierarchy_for_system(
     con: duckdb.DuckDBPyConnection,
     *,
     system_id: int,
     stable_object_key: Optional[str],
     wds_id: Optional[str],
+    canonical_hierarchy_db_path: Optional[str],
     arm_db_path: Optional[str],
 ) -> Optional[Dict[str, Any]]:
+    canonical_payload = _fetch_canonical_hierarchy_for_system(
+        con,
+        system_id=system_id,
+        stable_object_key=stable_object_key,
+        canonical_hierarchy_db_path=canonical_hierarchy_db_path,
+        arm_db_path=arm_db_path,
+    )
+    if canonical_payload is not None:
+        return canonical_payload
     if not arm_db_path:
         return None
     arm_attached = _attach_rich_db(con, arm_db_path, alias="arm_db")
