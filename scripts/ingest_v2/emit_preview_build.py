@@ -311,24 +311,39 @@ def emit_preview_build(
             ),
             source_fallback as (
               select
-                coalesce(psys.system_id, osp.system_id) as system_id,
-                pstar.star_id as star_id,
+                coalesce(host_psys.system_id, psys.system_id, osp.system_id) as system_id,
+                coalesce(host_star.star_id, pstar.star_id) as star_id,
                 ppm.planet_id,
                 ppm.canonical_planet_key
               from preview_planet_map ppm
+              join red.canonical_planet_groups cpg on cpg.canonical_planet_key = ppm.canonical_planet_key
               join src_core.planets p on p.planet_id = ppm.planet_id
               left join preview_planet_host ph on ph.canonical_planet_key = ppm.canonical_planet_key
+              left join preview_star_map host_star on host_star.canonical_star_key = cpg.canonical_host_star_key
+              left join preview_star_system host_psys on host_psys.star_id = host_star.star_id
               left join source_system_to_preview osp on osp.original_system_id = p.system_id
               left join source_star_to_preview pstar on pstar.original_star_id = p.star_id
               left join preview_star_system psys on psys.star_id = pstar.star_id
               where ph.canonical_planet_key is null
-                and coalesce(psys.system_id, osp.system_id) is not null
+                and coalesce(host_psys.system_id, psys.system_id, osp.system_id) is not null
+            ),
+            combined as (
+              select * from hosted
+              union all
+              select * from root_fallback
+              union all
+              select * from source_fallback
             )
-            select * from hosted
-            union all
-            select * from root_fallback
-            union all
-            select * from source_fallback
+            select system_id, star_id, planet_id, canonical_planet_key
+            from combined
+            qualify row_number() over (
+              partition by canonical_planet_key
+              order by
+                case when star_id is not null then 0 else 1 end asc,
+                system_id asc,
+                coalesce(star_id, 9223372036854775807) asc,
+                planet_id asc
+            ) = 1
             """
         )
         con.execute(
@@ -417,7 +432,7 @@ def emit_preview_build(
                   )
                 from src_core.planets p
                 join preview_planet_map ppm on ppm.planet_id = p.planet_id
-                join preview_planet_system pps on pps.planet_id = ppm.planet_id
+                left join preview_planet_system pps on pps.planet_id = ppm.planet_id
                 join red.canonical_planet_groups cpg on cpg.canonical_planet_key = ppm.canonical_planet_key
                 """
             )
