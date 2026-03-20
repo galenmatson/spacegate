@@ -75,6 +75,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)
 - [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)
 - [ ] Benchmark system validation set passes (Castor, 16 Cyg, Sol-neighborhood checks)
+- [ ] Expand multiplicity goldens with AR Cas / HD 221253 and Nu Scorpii / HD 145502; keep HD 235299 and Gamma Cas as adjudication/watchlist systems until evidence policy is explicit
 
 ### C5. Phase D - Crosswalk and Naming
 
@@ -99,6 +100,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Preserve or improve host matching quality for planets
 - [x] Promote exoplanet host labels for Gaia-fallback star/system display names (TRAPPIST/Kepler/TOI/WASP family and peers)
 - [x] Preserve or improve user-facing lookup ergonomics
+- [ ] Evaluate CCDM as a secondary alias/component-evidence source for Hipparcos-era identifiers and historical subsystem labels (not a primary multiplicity authority)
+- [ ] Ingest ADS identifiers as historical aliases/cross-references only, not as a primary structure source
 
 ### C5.3 Phase D.5 - Exoplanet Multi-Catalog Lifecycle
 

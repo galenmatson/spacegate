@@ -70,4 +70,10 @@ Current fixture scope:
 Planned expansion set:
 - Sirius (A/B, remnant handling)
 - Alpha Centauri (A/B + Proxima relation handling)
+- AR Cassiopeiae / HD 221253 as a septuple-confidence benchmark with one excluded background component (`E`)
+- Nu Scorpii / HD 145502 as a septuple benchmark with explicit subsystem-label validation
 - selected Sol-neighborhood systems used in manual QA
+
+Adjudication/watchlist set:
+- HD 235299 / WDS 20379+5106 as a catalog-backed high-multiplicity candidate that currently lacks strong literature/name authority
+- Gamma Cassiopeiae / HD 5394 as a literature-ahead-of-catalog case where WDS/MSC support only a conservative core multiplicity while broader common-proper-motion claims remain soft
