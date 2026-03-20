@@ -94,9 +94,9 @@ def maybe_set_duckdb_env(con: duckdb.DuckDBPyConnection) -> None:
 
 def normalize_expr(expr: str) -> str:
     return (
-        "trim(regexp_replace(lower(regexp_replace(coalesce("
+        "trim(regexp_replace(regexp_replace(lower(coalesce("
         + expr
-        + ", ''), '[^0-9a-z]+', ' ', 'g')), '\\\\s+', ' ', 'g'))"
+        + ", '')), '[^0-9a-z]+', ' ', 'g'), '\\\\s+', ' ', 'g'))"
     )
 
 

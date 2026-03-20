@@ -36,6 +36,7 @@ ALIAS_KIND_RANK = {
     "member_bayer_name": 3,
     "flamsteed_name": 4,
     "member_flamsteed_name": 5,
+    "member_star_name": 6,
     "gl_id": 6,
     "member_gl_id": 7,
     "hd_id": 8,
@@ -87,9 +88,9 @@ def _parse_catalog_ids(raw: Optional[str]) -> Optional[Dict[str, Any]]:
 
 def normalize_sql_expr(expr: str) -> str:
     return (
-        "trim(regexp_replace(lower(regexp_replace(coalesce("
+        "trim(regexp_replace(regexp_replace(lower(coalesce("
         + expr
-        + ", ''), '[^0-9a-z]+', ' ', 'g')), '\\\\s+', ' ', 'g'))"
+        + ", '')), '[^0-9a-z]+', ' ', 'g'), '\\\\s+', ' ', 'g'))"
     )
 
 
@@ -2697,6 +2698,18 @@ def search_systems(
                 """,
                 system_ids,
             ).fetchall()
+            star_name_rows = con.execute(
+                f"""
+                SELECT
+                  system_id,
+                  star_name
+                FROM stars
+                WHERE system_id IN ({placeholders})
+                  AND nullif(star_name, '') IS NOT NULL
+                ORDER BY system_id ASC, star_name ASC
+                """,
+                system_ids,
+            ).fetchall()
             system_aliases: Dict[int, List[Dict[str, Any]]] = {}
             for system_id, alias_raw, alias_kind, alias_priority in alias_rows:
                 sid = int(system_id)
@@ -2705,6 +2718,15 @@ def search_systems(
                         "alias_raw": alias_raw,
                         "alias_kind": alias_kind,
                         "alias_priority": alias_priority,
+                    }
+                )
+            for system_id, star_name in star_name_rows:
+                sid = int(system_id)
+                system_aliases.setdefault(sid, []).append(
+                    {
+                        "alias_raw": star_name,
+                        "alias_kind": "member_star_name",
+                        "alias_priority": 500,
                     }
                 )
             for item in results:

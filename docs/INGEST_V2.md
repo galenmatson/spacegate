@@ -131,6 +131,7 @@ Bootstrap status:
 - top-level canonical stars attach beneath canonical systems
 - canonical planets attach beneath canonical host stars when host mapping is resolved
 - MSC inferred leaves attach beneath top-level stars only when the arm `member_role` mapping is unique
+- singleton MSC subdivisions are suppressed in the preview hierarchy so sparse role evidence does not masquerade as a resolved pair
 
 ### Stage 5: Artifact Emission
 

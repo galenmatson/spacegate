@@ -79,3 +79,7 @@ Adjudication/watchlist set:
 - HD 235299 / WDS 20379+5106 as a catalog-backed high-multiplicity candidate that currently lacks strong literature/name authority
 - Gamma Cassiopeiae / HD 5394 as a literature-ahead-of-catalog case where WDS/MSC support only a conservative core multiplicity while broader common-proper-motion claims remain soft
 - Beta Monocerotis / HD 45725 as an over-inference risk: public descriptions consistently treat it as a triple while current WDS/MSC reconstruction expands it to six
+
+Current guardrails:
+- preview hierarchy suppresses singleton MSC subdivisions, so systems like Beta Monocerotis no longer invent one-off `BA`-style child leaves from a lone role label
+- search/display should prefer matched member-star names when no system-level common-name alias exists, so variable-star lookups like `AR Cas` still surface the correct system card cleanly

@@ -76,6 +76,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)
 - [ ] Benchmark system validation set passes (Castor, 16 Cyg, Sol-neighborhood checks)
 - [ ] Expand multiplicity goldens with AR Cas / HD 221253 and Nu Scorpii / HD 145502; keep HD 235299 and Gamma Cas as adjudication/watchlist systems until evidence policy is explicit
+- [x] Suppress singleton MSC leaf inference in preview hierarchy to avoid Bet Mon-style overfit
 
 ### C5. Phase D - Crosswalk and Naming
 
@@ -88,6 +89,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Use generic `arm` hierarchy payloads in detail/search paths and descendant-aware star counts for multiplicity-heavy systems
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Add benchmarked common-name fuzzy matching for bright/common objects (for example Aldebaran-class lookups) with alias-aware ranking
+- [x] Let member-star names participate in search result display/ranking so variable-star lookups like `AR Cas` title the correct system card
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates
 - [x] Align Sol canonical class storage to source-faithful `dwarf_planet` semantics while preserving UI structural supergroup `subplanet`

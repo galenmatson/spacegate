@@ -373,6 +373,19 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
         con.execute(
             """
+            create temp table msc_role_leaf_counts as
+            select
+              canonical_system_key,
+              member_role,
+              count(*)::bigint as leaf_count
+            from msc_leaf_nodes
+            where member_role is not null
+            group by 1, 2
+            """
+        )
+
+        con.execute(
+            """
             create temp table msc_leaf_edges as
             select
               role_map.canonical_star_key as parent_canonical_star_key,
@@ -387,6 +400,10 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             join root_role_map role_map
               on role_map.canonical_system_key = leaf.canonical_system_key
              and role_map.member_role = leaf.member_role
+            join msc_role_leaf_counts leaf_counts
+              on leaf_counts.canonical_system_key = leaf.canonical_system_key
+             and leaf_counts.member_role = leaf.member_role
+            where leaf_counts.leaf_count >= 2
             """
         )
 
@@ -598,6 +615,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
         "notes": [
             "This bootstrap hierarchy prefers canonical root system -> canonical star -> canonical planet containment.",
             "MSC inferred leaf components are attached beneath top-level stars only when the root member_role mapping is unique.",
+            "Singleton MSC subdivisions are suppressed in the preview hierarchy to avoid overfitting sparse role evidence.",
         ],
     }
     report_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
