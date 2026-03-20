@@ -152,7 +152,6 @@ Hierarchy fields:
 - Synthetic subsystem cards: derived from binary/orbit relationships in `arm.orbit_edges`
 - Orbit summaries: preferred `arm.orbital_solutions` rows when present
 - Presentation rule: a canonical star node that anchors child star nodes should render as a `Subsystem` in the UI even though its underlying core object remains a star
-- Presentation rule: hierarchy nodes should expose a structural-status chip (`Direct`, `Composite`, `Inferred`) with hover text explaining whether the displayed structure is directly matched or inferred from multiplicity evidence
 
 Planet fields:
 - Planet name: `planets.planet_name`

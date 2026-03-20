@@ -1536,26 +1536,6 @@ function hierarchyDisplayType(node, children) {
   return family || String(node?.component_type || "").trim().toLowerCase();
 }
 
-function hierarchyStructureChip(node, children) {
-  const hasSyntheticChildren = Array.isArray(children) && children.some((child) => child?.synthetic);
-  if (node?.synthetic) {
-    return {
-      label: "Inferred",
-      title: node?.derived_explanation || "Derived from supporting hierarchy evidence.",
-    };
-  }
-  if (hasSyntheticChildren) {
-    return {
-      label: "Composite",
-      title: "This matched object is currently acting as the anchor for inferred subcomponents. The child subdivision is not fully resolved as separate core objects.",
-    };
-  }
-  return {
-    label: "Direct",
-    title: "This node is represented directly by a matched object in the current build.",
-  };
-}
-
 function hierarchyCountSummary(node) {
   const totalTypeCounts = node?.total_type_counts || {};
   const bits = [];
@@ -1657,9 +1637,7 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   const [expanded, setExpanded] = useState(initialExpanded || depth === 0);
   const displayName = formatText(node?.display_name);
   const countSummary = hierarchyCountSummary(node);
-  const derivedTooltip = node?.derived_explanation || "Derived from supporting hierarchy evidence.";
   const displayType = hierarchyDisplayType(node, children);
-  const structureChip = hierarchyStructureChip(node, children);
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -1679,13 +1657,6 @@ function HierarchyNodeCard({ node, depth = 0 }) {
             <div className="hierarchy-node-title-row">
               <strong>{displayName}</strong>
               <span className="hierarchy-node-kind">{hierarchyTypeLabel(displayType)}</span>
-              <span
-                className={node?.synthetic ? "warning-chip" : "chip hierarchy-structure-chip"}
-                title={node?.synthetic ? derivedTooltip : structureChip.title}
-                aria-label={`${structureChip.label}: ${node?.synthetic ? derivedTooltip : structureChip.title}`}
-              >
-                {structureChip.label}
-              </span>
             </div>
             <div className="muted hierarchy-node-meta">
               {countSummary || "No descendants recorded"}
