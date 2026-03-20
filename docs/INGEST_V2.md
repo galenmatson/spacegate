@@ -146,6 +146,7 @@ Preview-emission note:
 - during transition, ingest v2 may emit a full preview build before it becomes the default production emitter
 - preview builds keep representative legacy row ids where practical, but replace `stable_object_key` with canonical ingest_v2 keys
 - preview builds ship a sibling `canonical_hierarchy.duckdb`; the API should prefer that hierarchy when present and fall back to legacy `arm` hierarchy otherwise
+- preview builds should also materialize compact `system_search_terms` so proton validation exercises the fast search path instead of the alias/star fallback scans
 - preview builds are for local proton validation and golden testing, not proof that ingest v2 is ready to replace the main build path
 
 ## Adjudication Queue

@@ -628,6 +628,94 @@ def emit_preview_build(
             )
 
             con.execute("drop table if exists system_search_terms")
+            con.execute(
+                """
+                create table system_search_terms as
+                with canonical as (
+                  select
+                    system_id,
+                    system_name as term_raw,
+                    system_name_norm as term_norm,
+                    'canonical_name'::varchar as term_kind,
+                    0::integer as term_priority,
+                    true as is_primary,
+                    source_catalog,
+                    source_version,
+                    source_pk
+                  from systems
+                  where system_name_norm is not null
+                    and trim(system_name_norm) <> ''
+                ), alias_terms as (
+                  select
+                    system_id,
+                    alias_raw as term_raw,
+                    alias_norm as term_norm,
+                    alias_kind as term_kind,
+                    coalesce(alias_priority, 999)::integer as term_priority,
+                    false as is_primary,
+                    source_catalog,
+                    source_version,
+                    source_pk
+                  from aliases
+                  where system_id is not null
+                    and alias_norm is not null
+                    and trim(alias_norm) <> ''
+                ), member_star_terms as (
+                  select
+                    system_id,
+                    star_name as term_raw,
+                    star_name_norm as term_norm,
+                    'member_star_name'::varchar as term_kind,
+                    500::integer as term_priority,
+                    false as is_primary,
+                    source_catalog,
+                    source_version,
+                    source_pk
+                  from stars
+                  where star_name_norm is not null
+                    and trim(star_name_norm) <> ''
+                    and star_name_norm not like 'gaia dr3 %'
+                    and star_name_norm not like 'gaia %'
+                ), merged as (
+                  select * from canonical
+                  union all
+                  select * from alias_terms
+                  union all
+                  select * from member_star_terms
+                ), dedup as (
+                  select
+                    *,
+                    row_number() over (
+                      partition by system_id, term_norm
+                      order by
+                        term_priority asc,
+                        case when term_kind = 'canonical_name' then 0 else 1 end asc,
+                        length(coalesce(term_raw, '')) asc,
+                        coalesce(term_raw, '') asc,
+                        coalesce(source_catalog, '') asc,
+                        coalesce(source_pk, 0) asc
+                    ) as rn
+                  from merged
+                  where term_raw is not null
+                    and trim(term_raw) <> ''
+                )
+                select
+                  row_number() over (
+                    order by system_id asc, term_priority asc, term_kind asc, term_norm asc, term_raw asc
+                  )::bigint as search_term_id,
+                  system_id,
+                  term_raw,
+                  term_norm,
+                  term_kind,
+                  term_priority,
+                  is_primary,
+                  source_catalog,
+                  source_version,
+                  source_pk
+                from dedup
+                where rn = 1
+                """
+            )
 
             con.execute(
                 """
@@ -674,6 +762,13 @@ def emit_preview_build(
                 (format parquet, compression zstd)
                 """
             )
+            con.execute(
+                f"""
+                copy (select * from system_search_terms order by search_term_id asc)
+                to {sql_literal(str(parquet_dir / 'system_search_terms.parquet'))}
+                (format parquet, compression zstd)
+                """
+            )
             con.execute("commit")
         except Exception:
             con.execute("rollback")
@@ -691,7 +786,7 @@ def emit_preview_build(
                 "stars": count_table(con, "stars"),
                 "planets": count_table(con, "planets"),
                 "aliases": count_table(con, "aliases"),
-                "system_search_terms": 0,
+                "system_search_terms": count_table(con, "system_search_terms"),
                 "object_identifiers": count_table(con, "object_identifiers"),
             },
             "samples": {
@@ -713,7 +808,8 @@ def emit_preview_build(
             "notes": [
                 "Preview build keeps representative legacy row ids where possible, but replaces stable_object_key with ingest_v2 canonical keys.",
                 "Canonical hierarchy lives beside the preview core build and is preferred by the API when present.",
-                "system_search_terms is intentionally omitted in the preview so the API exercises alias fallback instead of spending preview runtime on a second giant materialization pass.",
+                "Preview builds materialize compact system_search_terms so the API exercises the fast search path during proton validation.",
+                "Member-star names are included in preview search terms when they are not Gaia-style placeholders, so lookups like AR Cas resolve without relying on fallback scans.",
                 "Auxiliary tables not needed for search/detail remain copied from the source build; only key browse/detail tables are canonicalized here.",
             ],
         }
