@@ -85,6 +85,14 @@ def _parse_catalog_ids(raw: Optional[str]) -> Optional[Dict[str, Any]]:
         return None
 
 
+def normalize_sql_expr(expr: str) -> str:
+    return (
+        "trim(regexp_replace(lower(regexp_replace(coalesce("
+        + expr
+        + ", ''), '[^0-9a-z]+', ' ', 'g')), '\\\\s+', ' ', 'g'))"
+    )
+
+
 def _attach_rich_db(
     con: duckdb.DuckDBPyConnection,
     rich_db_path: Optional[str],
@@ -2108,7 +2116,11 @@ def search_systems(
             exact_parts.insert(0, "s.system_name_norm = ?")
             exact_params.insert(0, q_norm)
             exact_parts.append(
-                "s.system_id IN (SELECT DISTINCT st.system_id FROM stars st WHERE st.system_id IS NOT NULL AND st.star_name_norm = ?)"
+                "s.system_id IN ("
+                "SELECT DISTINCT st.system_id FROM stars st "
+                "WHERE st.system_id IS NOT NULL AND "
+                + normalize_sql_expr("st.star_name")
+                + " = ?)"
             )
             exact_params.append(q_norm)
         if enable_alias_match:
@@ -2145,7 +2157,11 @@ def search_systems(
             prefix_parts.append("s.system_name_norm LIKE ?")
             prefix_params.append(prefix_pattern)
             prefix_parts.append(
-                "s.system_id IN (SELECT DISTINCT st.system_id FROM stars st WHERE st.system_id IS NOT NULL AND st.star_name_norm LIKE ?)"
+                "s.system_id IN ("
+                "SELECT DISTINCT st.system_id FROM stars st "
+                "WHERE st.system_id IS NOT NULL AND "
+                + normalize_sql_expr("st.star_name")
+                + " LIKE ?)"
             )
             prefix_params.append(prefix_pattern)
         if enable_alias_match:
