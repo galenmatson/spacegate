@@ -28,9 +28,11 @@ Current bootstrap artifacts on `feature/ingest-v2-canonicalization`:
 - `out/<build_id>/ingest_v2/normalized_sources.duckdb`
 - `out/<build_id>/ingest_v2/identity_graph.duckdb`
 - `out/<build_id>/ingest_v2/canonical_reduction.duckdb`
+- `out/<build_id>/ingest_v2/canonical_hierarchy.duckdb`
 - `reports/<build_id>/normalized_sources_report.json`
 - `reports/<build_id>/identity_graph_report.json`
 - `reports/<build_id>/canonical_reduction_report.json`
+- `reports/<build_id>/canonical_hierarchy_report.json`
 
 Bootstrap note:
 
@@ -119,6 +121,13 @@ Rules:
 - typed non-containment relation edges for cross-links
 - planets attach to resolved host stars when host confidence is high
 - unresolved host attachment remains explicit and flagged
+
+Bootstrap status:
+
+- current hierarchy artifact emits a canonical system-rooted containment spine
+- top-level canonical stars attach beneath canonical systems
+- canonical planets attach beneath canonical host stars when host mapping is resolved
+- MSC inferred leaves attach beneath top-level stars only when the arm `member_role` mapping is unique
 
 ### Stage 5: Artifact Emission
 
