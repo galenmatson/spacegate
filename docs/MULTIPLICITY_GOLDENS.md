@@ -78,3 +78,4 @@ Planned expansion set:
 Adjudication/watchlist set:
 - HD 235299 / WDS 20379+5106 as a catalog-backed high-multiplicity candidate that currently lacks strong literature/name authority
 - Gamma Cassiopeiae / HD 5394 as a literature-ahead-of-catalog case where WDS/MSC support only a conservative core multiplicity while broader common-proper-motion claims remain soft
+- Beta Monocerotis / HD 45725 as an over-inference risk: public descriptions consistently treat it as a triple while current WDS/MSC reconstruction expands it to six
