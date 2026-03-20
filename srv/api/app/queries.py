@@ -2107,6 +2107,10 @@ def search_systems(
         else:
             exact_parts.insert(0, "s.system_name_norm = ?")
             exact_params.insert(0, q_norm)
+            exact_parts.append(
+                "s.system_id IN (SELECT DISTINCT st.system_id FROM stars st WHERE st.system_id IS NOT NULL AND st.star_name_norm = ?)"
+            )
+            exact_params.append(q_norm)
         if enable_alias_match:
             alias_cte_parts.append(
                 """
@@ -2139,6 +2143,10 @@ def search_systems(
             prefix_parts.append("s.system_id IN (SELECT system_id FROM search_term_match_prefix)")
         else:
             prefix_parts.append("s.system_name_norm LIKE ?")
+            prefix_params.append(prefix_pattern)
+            prefix_parts.append(
+                "s.system_id IN (SELECT DISTINCT st.system_id FROM stars st WHERE st.system_id IS NOT NULL AND st.star_name_norm LIKE ?)"
+            )
             prefix_params.append(prefix_pattern)
         if enable_alias_match:
             alias_cte_parts.append(
