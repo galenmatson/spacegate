@@ -258,6 +258,44 @@ def _spectral_filter_mask(tokens: List[str]) -> int:
     return mask
 
 
+def _has_fast_search_hit(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    q_norm: str,
+    has_system_search_terms: bool,
+    has_aliases: bool,
+) -> bool:
+    if not q_norm:
+        return False
+    prefix_pattern = f"{q_norm}%"
+    if has_system_search_terms:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM system_search_terms
+            WHERE term_norm = ?
+               OR term_norm LIKE ?
+            LIMIT 1
+            """,
+            [q_norm, prefix_pattern],
+        ).fetchone()
+        return bool(row)
+    if has_aliases:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM aliases
+            WHERE system_id IS NOT NULL
+              AND alias_norm IS NOT NULL
+              AND (alias_norm = ? OR alias_norm LIKE ?)
+            LIMIT 1
+            """,
+            [q_norm, prefix_pattern],
+        ).fetchone()
+        return bool(row)
+    return False
+
+
 def choose_display_name(
     canonical_name: Any,
     aliases: List[Dict[str, Any]],
@@ -2098,6 +2136,12 @@ def search_systems(
             not has_system_search_terms and has_aliases and not short_query_mode and not identifier_mode
         )
         fuzzy_alias_distance = 1 if len(q_norm) <= 5 else 2 if len(q_norm) <= 10 else 3
+        enable_fuzzy_match = len(q_norm) >= 4 and not _has_fast_search_hit(
+            con,
+            q_norm=q_norm,
+            has_system_search_terms=enable_search_terms,
+            has_aliases=enable_alias_match,
+        )
 
         exact_parts = ["s.stable_object_key = ?"]
         exact_params: List[Any] = [q_raw]
@@ -2226,7 +2270,7 @@ def search_systems(
             token_clauses.append("(" + " OR ".join(token_parts) + ")")
         token_and_clause = " AND ".join(token_clauses) if token_clauses else None
         fuzzy_clause = None
-        if enable_search_terms and len(q_norm) >= 4:
+        if enable_search_terms and enable_fuzzy_match:
             alias_cte_parts.append(
                 f"""
                 search_term_match_fuzzy AS (
@@ -2242,7 +2286,7 @@ def search_systems(
             )
             alias_cte_params.extend([q_norm, q_norm])
             fuzzy_clause = "s.system_id IN (SELECT system_id FROM search_term_match_fuzzy)"
-        elif enable_alias_match and len(q_norm) >= 4:
+        elif enable_alias_match and enable_fuzzy_match:
             alias_cte_parts.append(
                 f"""
                 alias_match_fuzzy AS (
