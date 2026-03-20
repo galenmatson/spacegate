@@ -1132,6 +1132,35 @@ def _hierarchy_type_rank(component_type: Any) -> int:
     }.get(_clean_name(component_type).lower(), 99)
 
 
+def _hierarchy_derived_explanation(
+    *,
+    source_basis: Any,
+    member_role: Any,
+    catalog_component_label: Any,
+    orbit_relation_kind: Any = None,
+) -> str | None:
+    basis = _clean_name(source_basis).lower()
+    role = (_clean_name(member_role) or _clean_name(catalog_component_label) or "").upper()
+    relation = _clean_name(orbit_relation_kind).lower()
+    if basis == "msc_inferred_leaf":
+        if role:
+            return (
+                f"Derived from MSC subsystem role {role}. "
+                "This leaf is inferred from multiplicity evidence and is not a separately matched core star row."
+            )
+        return (
+            "Derived from MSC subsystem evidence. "
+            "This leaf is inferred from multiplicity evidence and is not a separately matched core star row."
+        )
+    if relation == "binary":
+        return (
+            "Derived subsystem created from orbital evidence so the paired components can be shown under a shared binary node."
+        )
+    if basis in {"msc_role_leaf", "canonical_host_planet", "fallback_root_planet"}:
+        return f"Derived from {basis.replace('_', ' ')}."
+    return "Derived from supporting hierarchy or orbital evidence."
+
+
 def _hierarchy_family(component_type: Any, core_object_type: Any) -> str:
     return {
         "star": "star",
@@ -1485,6 +1514,12 @@ def _fetch_canonical_hierarchy_for_system(
             "self_star_count": 1 if clean_kind == "inferred_star_leaf" else None,
             "wds_id": _clean_name(node_wds_id) or None,
         }
+        if node_map[key]["synthetic"]:
+            node_map[key]["derived_explanation"] = _hierarchy_derived_explanation(
+                source_basis=source_basis,
+                member_role=member_role,
+                catalog_component_label=member_role,
+            )
         if canonical:
             canonical_keys_by_type[component_family].append(canonical)
 
@@ -1827,6 +1862,12 @@ def fetch_system_hierarchy_for_system(
                     "synthetic": True,
                     "orbit": orbit_payload,
                     "orbit_relation_kind": relation or None,
+                    "derived_explanation": _hierarchy_derived_explanation(
+                        source_basis="orbit_binary_subsystem",
+                        member_role=None,
+                        catalog_component_label=None,
+                        orbit_relation_kind=relation,
+                    ),
                 }
                 if primary_key in parent_by_child:
                     previous = parent_by_child[primary_key]

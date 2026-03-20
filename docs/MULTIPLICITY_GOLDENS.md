@@ -64,6 +64,7 @@ Current fixture scope:
 
 - required hierarchy exam: Castor
 - required presence/regression checks (core): 55 Cnc, GJ 667 C, TRAPPIST-1, 16 Cyg B
+- required quantitative regression check (core): Nu Scorpii total star count
 - required quantitative neighborhood check (core): minimum nearby-system count within 10 ly
 - optional presence checks (galaxy/halo scope): PSR B1620-26, TYC 7037-89-1
 

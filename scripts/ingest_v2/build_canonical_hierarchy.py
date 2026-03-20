@@ -202,7 +202,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
         con.execute(
             """
-            create temp table root_role_map as
+            create temp table explicit_root_role_map as
             select
               canonical_system_key,
               member_role,
@@ -211,6 +211,72 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             where member_role is not null and member_role not in ('planet')
             group by canonical_system_key, member_role
             having count(distinct canonical_star_key) = 1
+            """
+        )
+
+        con.execute(
+            """
+            create temp table msc_role_candidates as
+            select
+              sys_map.canonical_system_key,
+              nullif(lower(trim(e.member_role)), '') as member_role
+            from arm.system_hierarchy_edges e
+            join arm.component_entities parent_ce on parent_ce.stable_component_key = e.parent_component_key
+            join arm.component_entities child_ce on child_ce.stable_component_key = e.child_component_key
+            join red.canonical_system_groups sys_map
+              on sys_map.wds_id = replace(parent_ce.stable_component_key, 'comp:msc_system:wds:', '')
+            where parent_ce.stable_component_key like 'comp:msc_system:wds:%'
+              and child_ce.stable_component_key like 'comp:msc:wds:%'
+              and e.edge_kind = 'contains'
+              and nullif(lower(trim(e.member_role)), '') is not null
+            group by 1, 2
+            """
+        )
+
+        con.execute(
+            """
+            create temp table inferred_root_role_map as
+            with unlabeled_root_star as (
+              select
+                canonical_system_key,
+                min(canonical_star_key) as canonical_star_key
+              from root_star_edges
+              where member_role is null
+              group by canonical_system_key
+              having count(distinct canonical_star_key) = 1
+            ),
+            missing_role as (
+              select
+                candidate.canonical_system_key,
+                min(candidate.member_role) as member_role
+              from msc_role_candidates candidate
+              join unlabeled_root_star unlabeled
+                on unlabeled.canonical_system_key = candidate.canonical_system_key
+              left join explicit_root_role_map explicit
+                on explicit.canonical_system_key = candidate.canonical_system_key
+               and explicit.member_role = candidate.member_role
+              where explicit.member_role is null
+                and length(candidate.member_role) = 1
+                and candidate.member_role between 'a' and 'z'
+              group by 1
+              having count(distinct candidate.member_role) = 1
+            )
+            select
+              unlabeled.canonical_system_key,
+              missing.member_role,
+              unlabeled.canonical_star_key
+            from unlabeled_root_star unlabeled
+            join missing_role missing
+              on missing.canonical_system_key = unlabeled.canonical_system_key
+            """
+        )
+
+        con.execute(
+            """
+            create temp table root_role_map as
+            select * from explicit_root_role_map
+            union all
+            select * from inferred_root_role_map
             """
         )
 

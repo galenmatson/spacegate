@@ -57,6 +57,16 @@
       "min_planet_rows": 1
     },
     {
+      "id": "nu_scorpii_star_count",
+      "mode": "query",
+      "scope": "core",
+      "required": true,
+      "label": "Nu Sco total star count",
+      "sql_count": "select coalesce(max(s.star_count), 0)::bigint from systems s left join aliases a on a.system_id = s.system_id where lower(coalesce(s.system_name, '')) in ('14nu sco') or lower(coalesce(a.alias_norm, '')) in ('nu sco', 'jabbah', 'hd 145502')",
+      "min_value": 7,
+      "max_value": 7
+    },
+    {
       "id": "sol_neighborhood",
       "mode": "query",
       "scope": "core",

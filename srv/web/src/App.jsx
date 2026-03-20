@@ -1628,6 +1628,7 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   const [expanded, setExpanded] = useState(initialExpanded || depth === 0);
   const displayName = formatText(node?.display_name);
   const countSummary = hierarchyCountSummary(node);
+  const derivedTooltip = node?.derived_explanation || "Derived from supporting hierarchy evidence.";
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -1647,7 +1648,11 @@ function HierarchyNodeCard({ node, depth = 0 }) {
             <div className="hierarchy-node-title-row">
               <strong>{displayName}</strong>
               <span className="hierarchy-node-kind">{hierarchyTypeLabel(node?.component_family || node?.component_type)}</span>
-              {node?.synthetic ? <span className="warning-chip">Derived</span> : null}
+              {node?.synthetic ? (
+                <span className="warning-chip" title={derivedTooltip} aria-label={`Derived: ${derivedTooltip}`}>
+                  Derived
+                </span>
+              ) : null}
             </div>
             <div className="muted hierarchy-node-meta">
               {countSummary || "No descendants recorded"}
