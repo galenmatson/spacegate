@@ -271,6 +271,9 @@ Useful options:
 - `--ssh-cooldown 3` space out fresh SSH sessions for hosts protected by `ufw limit`
 - `--dry-run` preview sync/restart steps without changing remote files
 
+Real deploy runs print phase timestamps plus aggregate rsync progress/stats so
+large app syncs do not look stalled.
+
 ### 4) Run Spacegate API (default mode)
 The launcher verifies the database, then starts the API service:
 

@@ -61,6 +61,14 @@ require_cmd() {
   fi
 }
 
+timestamp_utc() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+log_step() {
+  echo "[$(timestamp_utc)] $*"
+}
+
 assert_nonnegative_decimal() {
   local value="$1"
   local label="$2"
@@ -244,12 +252,13 @@ main() {
   done
 
   local -a rsync_args=(
-    -rz
+    -azh
     --delete
     --omit-dir-times
     --no-perms
     --no-owner
     --no-group
+    --info=progress2,stats2
     --exclude=.git/
     --exclude=data/
     --exclude=.venv/
@@ -262,7 +271,7 @@ main() {
   )
 
   if [[ "$DRY_RUN" == "1" ]]; then
-    rsync_args+=(-n -v)
+    rsync_args+=(-n)
   fi
 
   echo "Deploy target:    $REMOTE:$REMOTE_APP_DIR"
@@ -282,14 +291,17 @@ main() {
     echo "SSH key:          (ssh default auth)"
   fi
 
+  log_step "Running SSH preflight checks..."
   if ! ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "test -d '$REMOTE_APP_DIR' && command -v docker >/dev/null && command -v curl >/dev/null"; then
     echo "Error: SSH preflight failed for $REMOTE." >&2
     exit 1
   fi
+  log_step "SSH preflight checks passed."
 
-  echo "Syncing app tree (env files excluded)..."
+  log_step "Syncing app tree (env files excluded)..."
   cooldown_before_ssh_connect
   rsync -e "$ssh_rsh" "${rsync_args[@]}" "$ROOT_DIR/" "$REMOTE:$REMOTE_APP_DIR/"
+  log_step "App sync finished."
 
   if [[ "$DRY_RUN" == "1" ]]; then
     echo "Dry run complete. Skipping remote restart/checks."
@@ -303,14 +315,15 @@ main() {
     compose_cmd="scripts/compose_spacegate.sh up -d api web"
   fi
 
-  echo "Restarting remote services..."
+  log_step "Restarting remote services..."
   if ! ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "cd '$REMOTE_APP_DIR' && $compose_cmd && scripts/compose_spacegate.sh ps"; then
     echo "Error: remote compose restart failed on $REMOTE." >&2
     exit 1
   fi
+  log_step "Remote services restarted."
 
   if [[ "$AUTO_SCORE_COOLNESS" == "1" ]]; then
-    echo "Checking remote coolness outputs..."
+    log_step "Checking remote coolness outputs..."
     if remote_has_coolness_scores "${ssh_opts[@]}"; then
       echo "Remote coolness outputs are present."
     else
@@ -322,11 +335,12 @@ main() {
       echo "Re-checking remote coolness outputs..."
       remote_has_coolness_scores "${ssh_opts[@]}"
     fi
+    log_step "Remote coolness check finished."
   else
     echo "Skipping remote coolness auto-score check."
   fi
 
-  echo "Running remote API checks..."
+  log_step "Running remote API checks..."
   local remote_health
   if ! remote_health="$(ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "curl -fsS http://127.0.0.1:8000/api/v1/health")"; then
     echo "Error: failed to fetch remote /health via SSH." >&2
@@ -345,7 +359,7 @@ main() {
   fi
 
   if [[ "$CHECK_PUBLIC" == "1" ]]; then
-    echo "Running public URL checks..."
+    log_step "Running public URL checks..."
     local public_health
     public_health="$(curl -fsS "$PUBLIC_BASE_URL/api/v1/health")"
     echo "Public /health: $public_health"
@@ -356,9 +370,10 @@ main() {
       echo "Public /auth/me: $public_auth"
       check_auth_enabled_json "$public_auth" "$EXPECT_AUTH"
     fi
+    log_step "Public URL checks finished."
   fi
 
-  echo "Deploy complete."
+  log_step "Deploy complete."
 }
 
 main "$@"
