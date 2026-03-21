@@ -23,7 +23,9 @@ CHECK_PUBLIC=1
 AUTO_SCORE_COOLNESS="${SPACEGATE_DEPLOY_AUTO_SCORE_COOLNESS:-1}" # 1|0
 SSH_RETRY_ATTEMPTS="${SPACEGATE_DEPLOY_SSH_RETRY_ATTEMPTS:-5}"
 SSH_RETRY_DELAY_SECONDS="${SPACEGATE_DEPLOY_SSH_RETRY_DELAY_SECONDS:-2}"
+SSH_COOLDOWN_SECONDS="${SPACEGATE_DEPLOY_SSH_COOLDOWN_SECONDS:-3}"
 DRY_RUN=0
+SSH_CONNECTION_COUNT=0
 
 usage() {
   cat <<USAGE
@@ -41,6 +43,8 @@ Options:
   --public-url URL       Public base URL to verify (default: SPACEGATE_DEPLOY_PUBLIC_URL or SPACEGATE_PUBLIC_BASE_URL)
   --expect-auth MODE     enabled|disabled|skip (default: enabled)
   --ssh-key PATH         SSH private key path (default: ssh agent / ssh config)
+  --ssh-cooldown SEC     Delay between successive SSH connections (default: 3,
+                         env SPACEGATE_DEPLOY_SSH_COOLDOWN_SECONDS)
   --no-build             Restart containers without --build
   --skip-auto-score      Skip remote auto-score when coolness outputs are missing
   --skip-public-check    Skip public URL checks
@@ -53,6 +57,15 @@ require_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Error: missing required command: $cmd" >&2
+    exit 1
+  fi
+}
+
+assert_nonnegative_decimal() {
+  local value="$1"
+  local label="$2"
+  if [[ ! "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "Error: $label must be a non-negative number, got: $value" >&2
     exit 1
   fi
 }
@@ -85,6 +98,14 @@ assert_public_url_config() {
   fi
 }
 
+cooldown_before_ssh_connect() {
+  if (( SSH_CONNECTION_COUNT > 0 )) && [[ "$SSH_COOLDOWN_SECONDS" != "0" && "$SSH_COOLDOWN_SECONDS" != "0.0" ]]; then
+    echo "Cooling down ${SSH_COOLDOWN_SECONDS}s before next SSH connection..." >&2
+    sleep "$SSH_COOLDOWN_SECONDS"
+  fi
+  SSH_CONNECTION_COUNT=$((SSH_CONNECTION_COUNT + 1))
+}
+
 ssh_with_retry() {
   local -a ssh_cmd=()
   while [[ $# -gt 2 ]]; do
@@ -96,6 +117,7 @@ ssh_with_retry() {
   local attempt rc
 
   for (( attempt=1; attempt<=SSH_RETRY_ATTEMPTS; attempt++ )); do
+    cooldown_before_ssh_connect
     if ssh "${ssh_cmd[@]}" "$remote_host" "$remote_cmd"; then
       rc=0
       return 0
@@ -159,6 +181,10 @@ main() {
         SSH_KEY_PATH="$2"
         shift 2
         ;;
+      --ssh-cooldown)
+        SSH_COOLDOWN_SECONDS="$2"
+        shift 2
+        ;;
       --no-build)
         BUILD_IMAGES=0
         shift 1
@@ -194,6 +220,7 @@ main() {
   assert_expect_auth
   assert_auto_score_value
   assert_public_url_config
+  assert_nonnegative_decimal "$SSH_COOLDOWN_SECONDS" "SSH cooldown"
 
   local -a ssh_opts=()
   if [[ -n "${SSH_KEY_PATH:-}" ]]; then
@@ -248,6 +275,7 @@ main() {
   echo "Build images:     $BUILD_IMAGES"
   echo "Auto-score miss:  $AUTO_SCORE_COOLNESS"
   echo "Dry run:          $DRY_RUN"
+  echo "SSH cooldown:     ${SSH_COOLDOWN_SECONDS}s"
   if [[ -n "${SSH_KEY_PATH:-}" ]]; then
     echo "SSH key:          $SSH_KEY_PATH"
   else
@@ -260,6 +288,7 @@ main() {
   fi
 
   echo "Syncing app tree (env files excluded)..."
+  cooldown_before_ssh_connect
   rsync -e "$ssh_rsh" "${rsync_args[@]}" "$ROOT_DIR/" "$REMOTE:$REMOTE_APP_DIR/"
 
   if [[ "$DRY_RUN" == "1" ]]; then

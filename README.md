@@ -232,6 +232,13 @@ If your deploy key is not selected by ssh config automatically:
 scripts/push_published_db.sh --remote sgdeploy@antiproton --ssh-key ~/.ssh/spacegate_antiproton
 ```
 
+If your remote host keeps `ufw limit` enabled for SSH, add a short gap between
+new connections:
+
+```bash
+scripts/push_published_db.sh --remote sgdeploy@antiproton --ssh-key ~/.ssh/spacegate_antiproton --ssh-cooldown 3
+```
+
 Use `--skip-catalogs` if you want to push only DB/reports and leave the remote
 catalog mirror untouched.
 
@@ -258,6 +265,7 @@ export SPACEGATE_DEPLOY_PUBLIC_URL=https://your-public-host.example
 Useful options:
 - `--no-build` restart without image rebuild
 - `--skip-public-check` skip public URL checks
+- `--ssh-cooldown 3` space out fresh SSH sessions for hosts protected by `ufw limit`
 - `--dry-run` preview sync/restart steps without changing remote files
 
 ### 4) Run Spacegate API (default mode)

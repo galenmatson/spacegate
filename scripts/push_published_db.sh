@@ -16,9 +16,11 @@ REMOTE="${SPACEGATE_PUSH_REMOTE:-spacegate-host}"
 REMOTE_DL_ROOT="${SPACEGATE_PUSH_REMOTE_DL_ROOT:-/srv/spacegate/dl}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 SSH_KEY_PATH="${SPACEGATE_PUSH_SSH_KEY:-}"
+SSH_COOLDOWN_SECONDS="${SPACEGATE_PUSH_SSH_COOLDOWN_SECONDS:-3}"
 SET_CURRENT_LINK=0
 INCLUDE_CATALOGS=1
 DRY_RUN=0
+SSH_CONNECTION_COUNT=0
 
 usage() {
   cat <<'USAGE'
@@ -37,6 +39,8 @@ Options:
   --meta PATH           Local metadata file (default: $SPACEGATE_DL_ROOT/current.json)
   --catalogs-meta PATH  Local catalog mirror metadata (default: $SPACEGATE_DL_ROOT/catalogs/current.json)
   --ssh-key PATH        SSH private key path (default: ssh agent / ssh config)
+  --ssh-cooldown SEC    Delay between successive SSH connections (default: 3,
+                        env SPACEGATE_PUSH_SSH_COOLDOWN_SECONDS)
   --skip-catalogs       Skip pushing the active catalog mirror snapshot
   --set-current-link    Also set remote current symlink to metadata artifact path
   --dry-run             Show what would be transferred without writing remote files
@@ -50,6 +54,28 @@ require_cmd() {
     echo "Error: missing required command: $cmd" >&2
     exit 1
   fi
+}
+
+assert_nonnegative_decimal() {
+  local value="$1"
+  local label="$2"
+  if [[ ! "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "Error: $label must be a non-negative number, got: $value" >&2
+    exit 1
+  fi
+}
+
+cooldown_before_ssh_connect() {
+  if (( SSH_CONNECTION_COUNT > 0 )) && [[ "$SSH_COOLDOWN_SECONDS" != "0" && "$SSH_COOLDOWN_SECONDS" != "0.0" ]]; then
+    echo "Cooling down ${SSH_COOLDOWN_SECONDS}s before next SSH connection..." >&2
+    sleep "$SSH_COOLDOWN_SECONDS"
+  fi
+  SSH_CONNECTION_COUNT=$((SSH_CONNECTION_COUNT + 1))
+}
+
+run_ssh() {
+  cooldown_before_ssh_connect
+  ssh "$@"
 }
 
 main() {
@@ -73,6 +99,10 @@ main() {
         ;;
       --ssh-key)
         SSH_KEY_PATH="$2"
+        shift 2
+        ;;
+      --ssh-cooldown)
+        SSH_COOLDOWN_SECONDS="$2"
         shift 2
         ;;
       --skip-catalogs)
@@ -102,6 +132,7 @@ main() {
   require_cmd "$PYTHON_BIN"
   require_cmd rsync
   require_cmd ssh
+  assert_nonnegative_decimal "$SSH_COOLDOWN_SECONDS" "SSH cooldown"
 
   if [[ ! -f "$META_PATH" ]]; then
     echo "Error: metadata not found: $META_PATH" >&2
@@ -267,18 +298,21 @@ PY
   else
     echo "SSH key:         (ssh default auth)"
   fi
+  echo "SSH cooldown:    ${SSH_COOLDOWN_SECONDS}s"
 
-  ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
+  run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
 
   (
     cd "$DL_ROOT"
+    cooldown_before_ssh_connect
     rsync -e "$ssh_rsh" "${rsync_args[@]}" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
   )
 
   if [[ "$catalogs_enabled" == "1" ]]; then
-    ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
+    run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
     (
       cd "$DL_ROOT"
+      cooldown_before_ssh_connect
       rsync -e "$ssh_rsh" "${rsync_args[@]}" --links \
         --relative \
         "catalogs/current.json" \
@@ -290,7 +324,7 @@ PY
   fi
 
   if [[ "$SET_CURRENT_LINK" == "1" ]]; then
-    ssh "${ssh_opts[@]}" "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
+    run_ssh "${ssh_opts[@]}" "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
     echo "Updated remote symlink: $REMOTE_DL_ROOT/current -> $artifact"
   else
     echo "Skipped remote current symlink update (use --set-current-link to enable)."
