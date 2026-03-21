@@ -233,9 +233,9 @@ PY
     fi
   done
 
-  local rsync_mode="-avh"
+  local -a rsync_args=( -avh --omit-dir-times )
   if [[ "$DRY_RUN" == "1" ]]; then
-    rsync_mode="-avhn"
+    rsync_args=( -avhn --omit-dir-times )
   fi
 
   local -a ssh_opts=()
@@ -272,14 +272,14 @@ PY
 
   (
     cd "$DL_ROOT"
-    rsync -e "$ssh_rsh" "$rsync_mode" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
+    rsync -e "$ssh_rsh" "${rsync_args[@]}" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
   )
 
   if [[ "$catalogs_enabled" == "1" ]]; then
     ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
     (
       cd "$DL_ROOT"
-      rsync -e "$ssh_rsh" "$rsync_mode" --links \
+      rsync -e "$ssh_rsh" "${rsync_args[@]}" --links \
         --relative \
         "catalogs/current.json" \
         "catalogs/current" \
