@@ -224,12 +224,20 @@ scripts/push_published_db.sh --remote antiproton --set-current-link
 To sync the app and restart containers without overwriting remote secrets:
 
 ```bash
-scripts/deploy_antiproton.sh --remote antiproton --expect-auth enabled
+scripts/deploy_spacegate.sh --remote antiproton --expect-auth enabled
 ```
 
 This deploy helper excludes these remote-local env files from rsync:
 - `.spacegate.env`
 - `.spacegate.local.env`
+
+Set host-specific deploy defaults through local config rather than tracked code:
+
+```bash
+export SPACEGATE_DEPLOY_REMOTE=deploy-user@your-public-host
+export SPACEGATE_DEPLOY_SSH_KEY=$HOME/.ssh/spacegate_deploy_key
+export SPACEGATE_DEPLOY_PUBLIC_URL=https://your-public-host.example
+```
 
 Useful options:
 - `--no-build` restart without image rebuild

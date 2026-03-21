@@ -11,7 +11,7 @@ fi
 
 DL_ROOT="${SPACEGATE_DL_ROOT:-/srv/spacegate/dl}"
 META_PATH="$DL_ROOT/current.json"
-REMOTE="${SPACEGATE_PUSH_REMOTE:-antiproton}"
+REMOTE="${SPACEGATE_PUSH_REMOTE:-spacegate-host}"
 REMOTE_DL_ROOT="${SPACEGATE_PUSH_REMOTE_DL_ROOT:-/srv/spacegate/dl}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 SET_CURRENT_LINK=0
@@ -26,7 +26,7 @@ Push the currently published DB artifacts from local dl root to a remote host.
 Reads local current.json to discover the archive + report files.
 
 Options:
-  --remote HOST         SSH target (default: antiproton, env SPACEGATE_PUSH_REMOTE)
+  --remote HOST         SSH target (default: spacegate-host, env SPACEGATE_PUSH_REMOTE)
   --remote-root PATH    Remote dl root (default: /srv/spacegate/dl,
                         env SPACEGATE_PUSH_REMOTE_DL_ROOT)
   --meta PATH           Local metadata file (default: $SPACEGATE_DL_ROOT/current.json)
