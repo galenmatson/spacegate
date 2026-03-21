@@ -264,9 +264,9 @@ PY
     fi
   done
 
-  local -a rsync_args=( -avh --omit-dir-times )
+  local -a rsync_args=( -avh --omit-dir-times --no-implied-dirs )
   if [[ "$DRY_RUN" == "1" ]]; then
-    rsync_args=( -avhn --omit-dir-times )
+    rsync_args=( -avhn --omit-dir-times --no-implied-dirs )
   fi
 
   local -a ssh_opts=()
