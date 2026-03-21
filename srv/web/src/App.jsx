@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { fetchSystemDetail, fetchSystems } from "./api.js";
+import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 
-const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L"];
+const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "D"];
+const SPECTRAL_NON_TEMP_OPTIONS = new Set(["D"]);
 const THEME_STORAGE_KEY = "spacegate.theme";
 const THEME_OPTIONS = [
   { id: "simple_light", label: "Simple Light" },
@@ -39,6 +40,36 @@ const FILTER_PRESETS = [
   { id: "habitable_like", label: "Habitability", filters: { sort: "coolness", hasHabitableMode: "true", maxDist: 200 } },
   { id: "high_coolness", label: "Cool", filters: { sort: "coolness", minCoolnessScore: 20 } },
 ];
+const SPECTRAL_CLASS_PIE_COLORS = {
+  O: "#6aa9ff",
+  B: "#8cc8ff",
+  A: "#d7e9ff",
+  F: "#fff2b5",
+  G: "#ffd86b",
+  K: "#ffb36a",
+  M: "#f06a55",
+  L: "#cf6b57",
+  T: "#8f6bc7",
+  Y: "#6fc7d8",
+  D: "#c8d2de",
+  UNKNOWN: "#7f8ea3",
+};
+const SPECTRAL_CLASS_TEMP_RANGES = {
+  O: [30000, 50000],
+  B: [10000, 30000],
+  A: [7500, 10000],
+  F: [6000, 7500],
+  G: [5200, 6000],
+  K: [3700, 5200],
+  M: [2400, 3700],
+  L: [1300, 2400],
+};
+const SPECTRAL_TEMP_CLASS_OPTIONS = spectralOptions.filter((token) => !SPECTRAL_NON_TEMP_OPTIONS.has(token));
+const SPECTRAL_TEMP_MIN_K = Math.min(...SPECTRAL_TEMP_CLASS_OPTIONS.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][0]));
+const SPECTRAL_TEMP_MAX_K = Math.max(...SPECTRAL_TEMP_CLASS_OPTIONS.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][1]));
+const SPECTRAL_TEMP_LOG_MIN = Math.log10(SPECTRAL_TEMP_MIN_K);
+const SPECTRAL_TEMP_LOG_MAX = Math.log10(SPECTRAL_TEMP_MAX_K);
+const SPECTRAL_TEMP_SLIDER_MAX = 1000;
 const SPECTRAL_CLASS_INFO = {
   O: { sentence: "Very hot blue stars with intense ultraviolet output and short lifetimes.", tempRangeK: [30000, 50000] },
   B: { sentence: "Hot blue-white stars that are luminous and relatively short-lived.", tempRangeK: [10000, 30000] },
@@ -48,6 +79,7 @@ const SPECTRAL_CLASS_INFO = {
   K: { sentence: "Orange stars that are cooler than the Sun and often long-lived.", tempRangeK: [3700, 5200] },
   M: { sentence: "Cool red dwarfs, the most common stellar class in the Milky Way.", tempRangeK: [2400, 3700] },
   L: { sentence: "Very cool red-brown objects at the star-brown dwarf boundary.", tempRangeK: [1300, 2400] },
+  D: { sentence: "Degenerate white dwarfs: compact stellar remnants with no active core fusion." },
   T: { sentence: "Cool methane-rich brown dwarfs with very low thermal emission.", tempRangeK: [700, 1300] },
   Y: { sentence: "Ultra-cool brown dwarfs approaching giant-planet temperatures.", tempRangeK: [250, 700] },
 };
@@ -88,6 +120,7 @@ const LCARS_HISTORY_LIMIT = 32;
 const LCARS_LEFT_DECORATIVE_CHIP_COUNT = 2;
 const LCARS_RIGHT_CHIP_COUNT = 4;
 const LCARS_TEXT_SLOTS_PER_LINE = 5;
+const SEARCH_EAGER_SNAPSHOT_COUNT = 6;
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
@@ -215,10 +248,39 @@ function MarkdownContent({ markdown }) {
   );
 }
 
-function HeaderNavLinks({ className, linkClassName }) {
+function formatBuildVersionLabel(buildId) {
+  const raw = String(buildId || "").trim();
+  if (!raw) {
+    return "";
+  }
+  return `DB ${raw}`;
+}
+
+function systemDisplayName(system) {
+  const display = String(system?.display_name || "").trim();
+  if (display) {
+    return display;
+  }
+  const fallback = String(system?.system_name || "").trim();
+  return fallback || "";
+}
+
+function starDisplayName(star) {
+  const display = String(star?.display_name || "").trim();
+  if (display) {
+    return display;
+  }
+  const fallback = String(star?.star_name || "").trim();
+  return fallback || "";
+}
+
+function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels = null }) {
+  const buildLabel = formatBuildVersionLabel(buildId);
+  const allowed = Array.isArray(includeLabels) ? new Set(includeLabels) : null;
+  const items = allowed ? HEADER_LINKS.filter((item) => allowed.has(item.label)) : HEADER_LINKS;
   return (
     <span className={className} aria-label="Site links">
-      {HEADER_LINKS.map((item) => (
+      {items.map((item) => (
         item.external ? (
           <a
             key={item.label}
@@ -231,17 +293,54 @@ function HeaderNavLinks({ className, linkClassName }) {
             {item.label}
           </a>
         ) : (
-          <Link
-            key={item.label}
-            to={item.href}
-            className={linkClassName}
-            title={item.title}
-          >
-            {item.label}
-          </Link>
+          item.label === "DATA" ? (
+            <span key={item.label} className="header-data-link-group" title={buildLabel || item.title}>
+              <Link
+                to={item.href}
+                className={linkClassName}
+                title={item.title}
+              >
+                {item.label}
+              </Link>
+              {buildLabel ? <span className="header-build-badge">{buildLabel}</span> : null}
+            </span>
+          ) : (
+            <Link
+              key={item.label}
+              to={item.href}
+              className={linkClassName}
+              title={item.title}
+            >
+              {item.label}
+            </Link>
+          )
         )
       ))}
     </span>
+  );
+}
+
+function LcarsDataRail({ buildId = "" }) {
+  const buildLabel = formatBuildVersionLabel(buildId);
+  return (
+    <div className="lcars-data-rail" aria-label="Data links">
+      <span className="lcars-data-link-group">
+        <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
+          DATA
+        </Link>
+        {buildLabel ? <span className="lcars-data-build">{buildLabel}</span> : null}
+      </span>
+    </div>
+  );
+}
+
+function LcarsUtilityRail() {
+  return (
+    <HeaderNavLinks
+      className="lcars-utility-rail"
+      linkClassName="lcars-utility-link"
+      includeLabels={["ABT", "SPT", "SRC"]}
+    />
   );
 }
 
@@ -251,7 +350,7 @@ function pickRandomSystems(items, count) {
       (Array.isArray(items) ? items : [])
         .map((item) => ({
           system_id: item?.system_id,
-          system_name: String(item?.system_name || "").trim(),
+          system_name: systemDisplayName(item),
         }))
         .filter((entry) => entry.system_id !== null && entry.system_id !== undefined && entry.system_name)
         .map((entry) => [String(entry.system_id), entry]),
@@ -280,23 +379,23 @@ function pickRandomGaiaEntries(items, count) {
             return {
               gaia: String(item.gaia_id_text).trim(),
               system_id: item?.system_id,
-              system_name: String(item?.system_name || "").trim(),
+              system_name: systemDisplayName(item),
             };
           }
           if (item?.gaia_id !== null && item?.gaia_id !== undefined) {
             return {
               gaia: String(item.gaia_id).trim(),
               system_id: item?.system_id,
-              system_name: String(item?.system_name || "").trim(),
+              system_name: systemDisplayName(item),
             };
           }
           const stable = String(item?.stable_object_key || "");
           const match = stable.match(/(?:^|:)gaia:(\d+)/i);
           return match?.[1]
-            ? {
+              ? {
               gaia: String(match[1]).trim(),
               system_id: item?.system_id,
-              system_name: String(item?.system_name || "").trim(),
+              system_name: systemDisplayName(item),
             }
             : null;
         })
@@ -369,7 +468,7 @@ function saveLcarsHistory(entries) {
 
 function updateLcarsHistoryWithSystem(system) {
   const systemId = system?.system_id;
-  const systemName = String(system?.system_name || "").trim();
+  const systemName = systemDisplayName(system);
   if (systemId === null || systemId === undefined || !systemName) {
     return;
   }
@@ -396,6 +495,42 @@ function parseRangeParam(searchParams, key, fallback, min, max, integer = false)
   }
   const normalized = integer ? Math.round(parsed) : parsed;
   return clampNumber(normalized, min, max);
+}
+
+function parseSpectralTokens(rawValue) {
+  return Array.from(
+    new Set(
+      String(rawValue || "")
+        .split(",")
+        .map((item) => item.trim().toUpperCase())
+        .filter((item) => spectralOptions.includes(item)),
+    ),
+  );
+}
+
+function spectralClassesForTemperatureRange(minTempK, maxTempK) {
+  const low = Math.min(Number(minTempK), Number(maxTempK));
+  const high = Math.max(Number(minTempK), Number(maxTempK));
+  const temperatureEligible = SPECTRAL_TEMP_CLASS_OPTIONS.filter((token) => {
+    const [classMin, classMax] = SPECTRAL_CLASS_TEMP_RANGES[token] || [SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K];
+    return classMax >= low && classMin <= high;
+  });
+  const nonTempAlwaysEligible = spectralOptions.filter((token) => SPECTRAL_NON_TEMP_OPTIONS.has(token));
+  return [...temperatureEligible, ...nonTempAlwaysEligible];
+}
+
+function spectralTempToSliderPosition(tempK) {
+  const safe = clampNumber(Number(tempK), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
+  const logValue = Math.log10(safe);
+  const ratio = (logValue - SPECTRAL_TEMP_LOG_MIN) / (SPECTRAL_TEMP_LOG_MAX - SPECTRAL_TEMP_LOG_MIN);
+  return clampNumber(Math.round(ratio * SPECTRAL_TEMP_SLIDER_MAX), 0, SPECTRAL_TEMP_SLIDER_MAX);
+}
+
+function sliderPositionToSpectralTemp(position) {
+  const safe = clampNumber(Number(position), 0, SPECTRAL_TEMP_SLIDER_MAX);
+  const ratio = safe / SPECTRAL_TEMP_SLIDER_MAX;
+  const exponent = SPECTRAL_TEMP_LOG_MIN + ratio * (SPECTRAL_TEMP_LOG_MAX - SPECTRAL_TEMP_LOG_MIN);
+  return clampNumber(Math.round(10 ** exponent), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
 }
 
 function TriStateToggle({ label, value, onChange }) {
@@ -542,11 +677,65 @@ function formatNumber(value, digits = 2) {
   return String(value);
 }
 
+function formatHumanLargeCount(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "Unknown";
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return "Unknown";
+  }
+  const abs = Math.abs(numeric);
+  if (abs >= 1_000_000_000) {
+    return `${formatNumber(numeric / 1_000_000_000, abs >= 10_000_000_000 ? 0 : 1)} billion`;
+  }
+  if (abs >= 1_000_000) {
+    return `${formatNumber(numeric / 1_000_000, abs >= 10_000_000 ? 0 : 1)} million`;
+  }
+  if (abs >= 1_000) {
+    return `${formatNumber(numeric / 1_000, abs >= 10_000 ? 0 : 1)} thousand`;
+  }
+  return formatNumber(numeric, 0);
+}
+
 function formatText(value) {
   if (value === null || value === undefined || value === "") {
     return "Unknown";
   }
   return String(value);
+}
+
+function formatAliasSummary(aliases, { exclude = [], limit = 8 } = {}) {
+  if (!Array.isArray(aliases) || aliases.length === 0) {
+    return "";
+  }
+  const excluded = new Set(
+    (exclude || [])
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const items = [];
+  aliases.forEach((row) => {
+    const raw = String(row?.alias_raw || "").trim();
+    if (!raw) {
+      return;
+    }
+    if (excluded.has(raw.toLowerCase())) {
+      return;
+    }
+    if (items.includes(raw)) {
+      return;
+    }
+    items.push(raw);
+  });
+  if (items.length === 0) {
+    return "";
+  }
+  const shown = items.slice(0, Math.max(1, limit));
+  if (shown.length < items.length) {
+    shown.push(`+${items.length - shown.length} more`);
+  }
+  return shown.join(" · ");
 }
 
 function formatCoordinate(value) {
@@ -561,13 +750,53 @@ function formatPeriodDaysWithYears(periodDays) {
     return "Unknown";
   }
   const days = Number(periodDays);
+  if (!Number.isFinite(days) || days <= 0 || Math.abs(days) >= 1e20) {
+    return "Unknown";
+  }
   const dayLabel = `${formatNumber(days, 2)} d`;
-  if (!Number.isFinite(days) || days <= 365.25) {
+  if (days <= 365.25) {
     return dayLabel;
   }
   const years = days / 365.25;
   const yearDigits = years >= 100 ? 1 : 2;
   return `${dayLabel} (${formatNumber(years, yearDigits)} y)`;
+}
+
+function formatOrbitSummary({ periodDays, semiMajorAxisAu, eccentricity, inclinationDeg }) {
+  const numericPeriod = Number(periodDays);
+  const numericSemiMajorAxis = Number(semiMajorAxisAu);
+  const numericEccentricity = Number(eccentricity);
+  const numericInclination = Number(inclinationDeg);
+  const hasPeriod = Number.isFinite(numericPeriod);
+  const hasSemiMajorAxis = Number.isFinite(numericSemiMajorAxis);
+  const hasEccentricity = Number.isFinite(numericEccentricity);
+  const hasInclination = Number.isFinite(numericInclination);
+  const unboundTrajectory =
+    (hasEccentricity && numericEccentricity >= 1.0) || (hasSemiMajorAxis && numericSemiMajorAxis <= 0.0);
+
+  const bits = [];
+  if (unboundTrajectory) {
+    bits.push("Trajectory unbound");
+  }
+  if (!unboundTrajectory && hasPeriod) {
+    const periodLabel = formatPeriodDaysWithYears(numericPeriod);
+    if (periodLabel !== "Unknown") {
+      bits.push(`P ${periodLabel}`);
+    }
+  }
+  if (!unboundTrajectory && hasSemiMajorAxis) {
+    bits.push(`a ${formatNumber(numericSemiMajorAxis, 4)} AU`);
+  }
+  if (hasEccentricity) {
+    bits.push(`e ${formatNumber(numericEccentricity, 4)}`);
+  }
+  if (hasInclination) {
+    bits.push(`i ${formatNumber(numericInclination, 3)} deg`);
+  }
+  if (bits.length === 0) {
+    return "Orbit parameters unavailable";
+  }
+  return bits.join(" · ");
 }
 
 function formatConfidence(value) {
@@ -604,6 +833,92 @@ function parallaxMasFromDistanceLy(distanceLy) {
     return null;
   }
   return 1000 / distancePc;
+}
+
+function spectralPieColor(rawClass) {
+  const key = String(rawClass || "").trim().toUpperCase();
+  return SPECTRAL_CLASS_PIE_COLORS[key] || SPECTRAL_CLASS_PIE_COLORS.UNKNOWN;
+}
+
+function SidebarSpectralMixCard({
+  mix,
+  loading = false,
+  error = "",
+  collapsed = false,
+}) {
+  const rows = Array.isArray(mix?.rows)
+    ? mix.rows
+      .map((row) => ({
+        spectralClass: String(row?.spectral_class || "unknown").trim().toUpperCase(),
+        starCount: Number(row?.star_count || 0),
+      }))
+      .filter((row) => Number.isFinite(row.starCount) && row.starCount > 0)
+    : [];
+  const totalStars = Number(mix?.total_stars || 0) || rows.reduce((sum, row) => sum + row.starCount, 0);
+  const ringRows = rows
+    .slice()
+    .sort((a, b) => b.starCount - a.starCount)
+    .slice(0, 10);
+  const shownRows = rows
+    .slice()
+    .sort((a, b) => b.starCount - a.starCount)
+    .slice(0, 8);
+
+  let cursor = 0;
+  const gradientParts = ringRows.map((row) => {
+    const pct = totalStars > 0 ? (row.starCount / totalStars) * 100 : 0;
+    const next = Math.min(100, cursor + pct);
+    const part = `${spectralPieColor(row.spectralClass)} ${cursor.toFixed(2)}% ${next.toFixed(2)}%`;
+    cursor = next;
+    return part;
+  });
+  if (cursor < 100) {
+    gradientParts.push(`${SPECTRAL_CLASS_PIE_COLORS.UNKNOWN} ${cursor.toFixed(2)}% 100%`);
+  }
+
+  return (
+    <section className={`panel filters-spectrum-card ${collapsed ? "is-collapsed" : ""}`.trim()}>
+      <div className="filters-spectrum-head">
+        <h4>Stellar Mix</h4>
+        <small>{totalStars > 0 ? `${formatNumber(totalStars, 0)} stars` : "No spectral data"}</small>
+      </div>
+      {error && !rows.length && (
+        <p className="filters-spectrum-note">Spectral mix unavailable right now.</p>
+      )}
+      {loading && !rows.length && !error && (
+        <p className="filters-spectrum-note">Loading spectral mix…</p>
+      )}
+      {!loading && !rows.length && !error && (
+        <p className="filters-spectrum-note">No spectral mix rows returned.</p>
+      )}
+      {rows.length > 0 && (
+        <>
+          <div
+            className="filters-spectrum-pie"
+            style={{ background: `conic-gradient(${gradientParts.join(", ")})` }}
+            role="img"
+            aria-label="Spectral class composition pie chart"
+          />
+          <div className="filters-spectrum-legend">
+            {shownRows.map((row) => {
+              const pct = totalStars > 0 ? (row.starCount / totalStars) * 100 : 0;
+              return (
+                <div key={`mix-${row.spectralClass}`} className="filters-spectrum-legend-item">
+                  <span
+                    className="filters-spectrum-dot"
+                    style={{ backgroundColor: spectralPieColor(row.spectralClass) }}
+                    aria-hidden="true"
+                  />
+                  <span className="filters-spectrum-class">{row.spectralClass}</span>
+                  <span className="filters-spectrum-value">{formatNumber(pct, 1)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  );
 }
 
 async function copyTextToClipboard(rawValue) {
@@ -690,8 +1005,11 @@ function CopyButton({
   );
 }
 
-function CatalogIdChip({ label, value }) {
+function CatalogIdChip({ label, value, hideWhenMissing = false }) {
   const normalized = value === null || value === undefined ? "" : String(value).trim();
+  if (hideWhenMissing && !normalized) {
+    return null;
+  }
   const display = normalized || "Unknown";
 
   return (
@@ -724,9 +1042,9 @@ function resolvedSystemGaiaId(system) {
 
 function buildSystemCatalogIds(system) {
   const entries = [
-    { label: "Gaia", value: resolvedSystemGaiaId(system) },
     { label: "HIP", value: system?.hip_id_text ?? system?.hip_id },
     { label: "HD", value: system?.hd_id_text ?? system?.hd_id },
+    { label: "Gaia", value: resolvedSystemGaiaId(system) },
   ];
   return entries
     .map((entry) => ({
@@ -737,9 +1055,24 @@ function buildSystemCatalogIds(system) {
 }
 
 function MetricChip({ label, value, tooltipLines = [] }) {
-  const lines = tooltipLines.filter((line) => Boolean(line));
+  const isLazyTooltip = typeof tooltipLines === "function";
+  const [lazyTooltipLines, setLazyTooltipLines] = useState(null);
+  const lines = isLazyTooltip
+    ? (Array.isArray(lazyTooltipLines) ? lazyTooltipLines : [])
+    : (Array.isArray(tooltipLines) ? tooltipLines.filter((line) => Boolean(line)) : []);
+  const loadTooltip = () => {
+    if (!isLazyTooltip || lazyTooltipLines !== null) {
+      return;
+    }
+    const computed = tooltipLines();
+    if (!Array.isArray(computed)) {
+      setLazyTooltipLines([]);
+      return;
+    }
+    setLazyTooltipLines(computed.filter((line) => Boolean(line)));
+  };
   return (
-    <div className="metric-chip" tabIndex={0}>
+    <div className="metric-chip" tabIndex={0} onMouseEnter={loadTooltip} onFocus={loadTooltip} onTouchStart={loadTooltip}>
       <span>{label}</span>
       <strong>{value}</strong>
       {lines.length > 0 && (
@@ -850,35 +1183,268 @@ function planetCatalogRecordLink(planet) {
   return null;
 }
 
-function splitDownloadUrls(raw) {
+function eclipsingCatalogRecordLink(entry) {
+  const sourceCatalog = String(entry?.provenance?.source_catalog || "").toLowerCase();
+  if (sourceCatalog === "tess_eb") {
+    return {
+      label: "TESS EB Catalog",
+      url: "https://tessebs.villanova.edu/",
+    };
+  }
+  if (sourceCatalog === "kepler_eb") {
+    return {
+      label: "Kepler EB Catalog",
+      url: "https://keplerebs.villanova.edu/",
+    };
+  }
+  if (sourceCatalog === "debcat") {
+    return {
+      label: "DEBCat",
+      url: "https://www.astro.keele.ac.uk/jkt/debcat/",
+    };
+  }
+  return null;
+}
+
+function parseJsonArray(raw) {
   if (!raw) {
     return [];
   }
-  return Array.from(
-    new Set(
-      String(raw)
-        .split(";")
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  try {
+    const parsed = JSON.parse(String(raw));
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.map((item) => String(item || "").trim()).filter(Boolean);
+  } catch (_) {
+    return [];
+  }
+}
+
+function normalizeEvidenceToken(raw) {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function evidenceLabel(raw) {
+  const token = normalizeEvidenceToken(raw);
+  if (!token) {
+    return "";
+  }
+  const known = {
+    gaia_nss: "Gaia NSS",
+    gaia_nss_two_body: "Gaia NSS Two-Body",
+    wds: "WDS",
+    wds_gaia_xmatch: "WDS-Gaia XMatch",
+    msc: "MSC",
+    orb6: "ORB6",
+    sbx: "SBX",
+    vsx: "VSX",
+    ultracoolsheet: "UltracoolSheet",
+  };
+  if (known[token]) {
+    return known[token];
+  }
+  return token
+    .split("_")
+    .filter(Boolean)
+    .map((part) => {
+      if (part.length <= 4) {
+        return part.toUpperCase();
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
+function truthyEvidenceFlag(value) {
+  return value === true || value === 1 || value === "1";
+}
+
+function collectEvidenceFromFlags(record) {
+  if (!record || typeof record !== "object") {
+    return [];
+  }
+  const tokens = [];
+  Object.entries(record).forEach(([key, value]) => {
+    const match = key.match(/^has_([a-z0-9_]+)_evidence$/i);
+    if (!match || !truthyEvidenceFlag(value)) {
+      return;
+    }
+    const normalized = normalizeEvidenceToken(match[1]);
+    if (normalized) {
+      tokens.push(normalized);
+    }
+  });
+  return tokens;
+}
+
+function collectSystemEvidenceCatalogs(system) {
+  const tokens = new Set();
+  parseJsonArray(system?.grouping_source_catalogs_json).forEach((raw) => {
+    const normalized = normalizeEvidenceToken(raw);
+    if (normalized) {
+      tokens.add(normalized);
+    }
+  });
+  collectEvidenceFromFlags(system).forEach((token) => tokens.add(token));
+  return Array.from(tokens).sort((a, b) => evidenceLabel(a).localeCompare(evidenceLabel(b)));
+}
+
+function collectStarEvidenceCatalogs(star) {
+  const tokens = new Set();
+  parseJsonArray(star?.multiplicity_source_catalogs_json).forEach((raw) => {
+    const normalized = normalizeEvidenceToken(raw);
+    if (normalized) {
+      tokens.add(normalized);
+    }
+  });
+  parseJsonArray(star?.arm_catalogs).forEach((raw) => {
+    const normalized = normalizeEvidenceToken(raw);
+    if (normalized) {
+      tokens.add(normalized);
+    }
+  });
+  collectEvidenceFromFlags(star).forEach((token) => tokens.add(token));
+  if (truthyEvidenceFlag(star?.gaia_non_single_star)) {
+    tokens.add("gaia_nss");
+  }
+  if (star?.sbx_sn !== null && star?.sbx_sn !== undefined && String(star.sbx_sn).trim() !== "") {
+    tokens.add("sbx");
+  }
+  if (star?.wds_id) {
+    tokens.add("wds");
+  }
+  return Array.from(tokens).sort((a, b) => evidenceLabel(a).localeCompare(evidenceLabel(b)));
+}
+
+function formatEvidenceSummary(tokens) {
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    return "None recorded";
+  }
+  return tokens.map((token) => evidenceLabel(token)).filter(Boolean).join(" · ");
+}
+
+function formatArmEvidenceDetails(armEvidence) {
+  if (!armEvidence || typeof armEvidence !== "object") {
+    return "";
+  }
+  const details = [];
+  if (armEvidence?.vsx && typeof armEvidence.vsx === "object") {
+    const vsx = armEvidence.vsx;
+    const parts = [];
+    if (vsx.primary_variability_type_raw) {
+      parts.push(String(vsx.primary_variability_type_raw));
+    } else if (vsx.primary_variability_family) {
+      parts.push(String(vsx.primary_variability_family));
+    }
+    if (vsx.primary_period_days !== null && vsx.primary_period_days !== undefined) {
+      parts.push(`P ${formatNumber(vsx.primary_period_days, 3)} d`);
+    }
+    if (vsx.primary_amplitude_mag !== null && vsx.primary_amplitude_mag !== undefined) {
+      parts.push(`Δmag ${formatNumber(vsx.primary_amplitude_mag, 2)}`);
+    }
+    if (vsx.any_high_variability === true) {
+      parts.push("high variability");
+    }
+    if (parts.length > 0) {
+      details.push(`VSX ${parts.join(" · ")}`);
+    } else {
+      details.push("VSX");
+    }
+  }
+  if (armEvidence?.ultracoolsheet && typeof armEvidence.ultracoolsheet === "object") {
+    const ucd = armEvidence.ultracoolsheet;
+    const parts = [];
+    if (ucd.object_name) {
+      parts.push(String(ucd.object_name));
+    }
+    if (ucd.age_category) {
+      parts.push(String(ucd.age_category));
+    }
+    if (ucd.youth_evidence) {
+      parts.push(String(ucd.youth_evidence));
+    }
+    if (ucd.spectral_type_opt) {
+      parts.push(`opt ${ucd.spectral_type_opt}`);
+    } else if (ucd.spectral_type_ir) {
+      parts.push(`ir ${ucd.spectral_type_ir}`);
+    }
+    if (parts.length > 0) {
+      details.push(`UltracoolSheet ${parts.join(" · ")}`);
+    } else {
+      details.push("UltracoolSheet");
+    }
+  }
+  return details.join(" | ");
+}
+
+function groupingSourceLabel(groupingBasis, groupingSources) {
+  if (groupingSources.length > 0) {
+    return groupingSources.map((source) => evidenceLabel(source)).filter(Boolean).join(" · ");
+  }
+  switch (String(groupingBasis || "").toLowerCase()) {
+    case "wds":
+      return "WDS-linked grouping";
+    case "name_root":
+      return "Name-root heuristic";
+    case "proximity":
+      return "Proximity heuristic";
+    case "singleton":
+      return "Singleton fallback";
+    default:
+      return "Unknown";
+  }
+}
+
+function LazySnapshotImage({ src, alt, eager = false }) {
+  const imgRef = React.useRef(null);
+  const [shouldLoad, setShouldLoad] = useState(Boolean(eager));
+
+  useEffect(() => {
+    if (eager || shouldLoad) {
+      return;
+    }
+    const node = imgRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting || entry.intersectionRatio > 0) {
+            setShouldLoad(true);
+            observer.disconnect();
+            break;
+          }
+        }
+      },
+      { rootMargin: "280px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [eager, shouldLoad]);
+
+  return (
+    <img
+      ref={imgRef}
+      src={shouldLoad ? src : undefined}
+      alt={alt}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      fetchPriority={eager ? "high" : "low"}
+    />
   );
 }
 
-function isCodebergLfsObjectUrl(url) {
-  return /https?:\/\/codeberg\.org\/.+\.git\/info\/lfs\/objects\/[0-9a-f]{64}$/i.test(String(url || ""));
-}
-
-function resolveDownloadLinks(provenance) {
-  const sourceUrl = provenance?.source_url ? String(provenance.source_url) : "";
-  const urls = splitDownloadUrls(provenance?.source_download_url);
-  if (!urls.length) {
-    return [];
-  }
-  const nonLfsUrls = urls.filter((url) => !isCodebergLfsObjectUrl(url));
-  return nonLfsUrls.filter((url) => !sourceUrl || url !== sourceUrl);
-}
-
-function SnapshotVisual({ snapshot, systemName, compact = false }) {
+function SnapshotVisual({ snapshot, systemName, compact = false, eager = false }) {
   const hasImage = Boolean(snapshot?.url);
   if (!hasImage) {
     return (
@@ -899,7 +1465,11 @@ function SnapshotVisual({ snapshot, systemName, compact = false }) {
 
   return (
     <figure className={`snapshot-frame ${compact ? "compact" : ""}`}>
-      <img src={snapshot.url} alt={`${formatText(systemName)} deterministic system snapshot`} loading="lazy" />
+      <LazySnapshotImage
+        src={snapshot.url}
+        alt={`${formatText(systemName)} deterministic system snapshot`}
+        eager={eager}
+      />
       {labelBits.length > 0 && (
         <figcaption className="snapshot-caption">{labelBits.join(" · ")}</figcaption>
       )}
@@ -909,7 +1479,7 @@ function SnapshotVisual({ snapshot, systemName, compact = false }) {
 
 function SnapshotMetadata({ system, snapshot }) {
   const rows = [
-    { label: "System", value: formatText(system?.system_name), copyValue: system?.system_name, copyLabel: "system name" },
+    { label: "System", value: formatText(systemDisplayName(system)), copyValue: systemDisplayName(system), copyLabel: "system name" },
     { label: "Stable key", value: formatText(system?.stable_object_key), copyValue: system?.stable_object_key, copyLabel: "stable key" },
     { label: "Gaia ID", value: formatText(resolvedSystemGaiaId(system)), copyValue: resolvedSystemGaiaId(system), copyLabel: "Gaia ID" },
     { label: "HIP ID", value: formatText(system?.hip_id_text ?? system?.hip_id), copyValue: system?.hip_id_text ?? system?.hip_id, copyLabel: "HIP ID" },
@@ -943,7 +1513,213 @@ function SnapshotMetadata({ system, snapshot }) {
   );
 }
 
-function Layout({ children, headerExtra = null, showSearchLink = true }) {
+function hierarchyTypeLabel(componentType) {
+  const key = String(componentType || "").trim().toLowerCase();
+  const labels = {
+    system: "System",
+    subsystem: "Subsystem",
+    star: "Star",
+    planet: "Planet",
+    moon: "Moon",
+    minor_body: "Minor Body",
+    artificial: "Artificial",
+  };
+  return labels[key] || (key ? key.replace(/_/g, " ") : "Node");
+}
+
+function hierarchyDisplayType(node, children) {
+  const family = String(node?.component_family || node?.component_type || "").trim().toLowerCase();
+  const hasStarChildren = Array.isArray(children) && children.some((child) => String(child?.component_family || child?.component_type || "").trim().toLowerCase() === "star");
+  if (family === "star" && hasStarChildren) {
+    return "subsystem";
+  }
+  return family || String(node?.component_type || "").trim().toLowerCase();
+}
+
+function hierarchyCountSummary(node) {
+  const totalTypeCounts = node?.total_type_counts || {};
+  const bits = [];
+  const stars = Number(node?.total_star_count || 0);
+  const planets = Number(totalTypeCounts.planet || 0);
+  const moons = Number(totalTypeCounts.moon || 0);
+  const minorBodies = Number(totalTypeCounts.minor_body || 0);
+  const artificial = Number(totalTypeCounts.artificial || 0);
+  if (stars > 0) {
+    bits.push(`${formatNumber(stars, 0)} star${stars === 1 ? "" : "s"}`);
+  }
+  if (planets > 0) {
+    bits.push(`${formatNumber(planets, 0)} planet${planets === 1 ? "" : "s"}`);
+  }
+  if (moons > 0) {
+    bits.push(`${formatNumber(moons, 0)} moon${moons === 1 ? "" : "s"}`);
+  }
+  if (minorBodies > 0) {
+    bits.push(`${formatNumber(minorBodies, 0)} minor bod${minorBodies === 1 ? "y" : "ies"}`);
+  }
+  if (artificial > 0) {
+    bits.push(`${formatNumber(artificial, 0)} artificial`);
+  }
+  return bits.join(" · ");
+}
+
+function formatMsun(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `${formatNumber(value, 2)} Msun`;
+}
+
+function formatRsun(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `${formatNumber(value, 2)} Rsun`;
+}
+
+function formatVmag(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `V ${formatNumber(value, 2)}`;
+}
+
+function formatArcsec(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  return `${formatNumber(value, 2)} arcsec`;
+}
+
+function HierarchyFactChips({ node }) {
+  const facts = node?.quick_facts || {};
+  const chips = [];
+  if (facts.spectral_type_raw) {
+    chips.push({ label: "Spectral", value: String(facts.spectral_type_raw) });
+  } else if (facts.spectral_class) {
+    chips.push({ label: "Class", value: String(facts.spectral_class) });
+  }
+  if (facts.teff_k !== null && facts.teff_k !== undefined) {
+    chips.push({ label: "Temp", value: formatKelvin(facts.teff_k, 0) });
+  }
+  if (facts.mass_msun !== null && facts.mass_msun !== undefined) {
+    chips.push({ label: "Mass", value: formatMsun(facts.mass_msun) });
+  }
+  if (facts.radius_rsun !== null && facts.radius_rsun !== undefined) {
+    chips.push({ label: "Radius", value: formatRsun(facts.radius_rsun) });
+  }
+  if (facts.vmag !== null && facts.vmag !== undefined) {
+    chips.push({ label: "Vmag", value: formatVmag(facts.vmag) });
+  }
+  if (facts.dist_ly !== null && facts.dist_ly !== undefined) {
+    chips.push({ label: "Dist", value: `${formatNumber(facts.dist_ly, 2)} ly` });
+  }
+  if (facts.sep_arcsec !== null && facts.sep_arcsec !== undefined) {
+    chips.push({ label: "Sep", value: formatArcsec(facts.sep_arcsec) });
+  }
+  if (chips.length === 0) {
+    return null;
+  }
+  return (
+    <div className="hierarchy-fact-chips" role="list" aria-label="Star quick facts">
+      {chips.map((chip) => (
+        <span key={`${chip.label}-${chip.value}`} className="chip hierarchy-fact-chip" role="listitem">
+          <span className="hierarchy-fact-label">{chip.label}</span>
+          <strong>{chip.value}</strong>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function HierarchyNodeCard({ node, depth = 0 }) {
+  const children = Array.isArray(node?.children) ? node.children : [];
+  const initialExpanded = depth < 2 && !node?.collapsed_by_default;
+  const [expanded, setExpanded] = useState(initialExpanded || depth === 0);
+  const displayName = formatText(node?.display_name);
+  const countSummary = hierarchyCountSummary(node);
+  const displayType = hierarchyDisplayType(node, children);
+
+  return (
+    <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
+      <div className="hierarchy-node-card">
+        <button
+          type="button"
+          className={`hierarchy-node-head ${children.length ? "is-clickable" : "is-static"}`}
+          onClick={() => {
+            if (children.length) {
+              setExpanded((value) => !value);
+            }
+          }}
+          disabled={!children.length}
+          aria-expanded={children.length ? expanded : undefined}
+        >
+          <div className="hierarchy-node-title-wrap">
+            <div className="hierarchy-node-title-row">
+              <strong>{displayName}</strong>
+              <span className="hierarchy-node-kind">{hierarchyTypeLabel(displayType)}</span>
+            </div>
+            <div className="muted hierarchy-node-meta">
+              {countSummary || "No descendants recorded"}
+              {node?.catalog_component_label ? ` · Label ${node.catalog_component_label}` : ""}
+              {children.length ? ` · ${formatNumber(children.length, 0)} child node${children.length === 1 ? "" : "s"}` : ""}
+            </div>
+            {node?.orbit ? (
+              <div className="muted hierarchy-node-orbit">
+                {formatOrbitSummary({
+                  periodDays: node.orbit.period_days,
+                  semiMajorAxisAu: node.orbit.semi_major_axis_au,
+                  eccentricity: node.orbit.eccentricity,
+                  inclinationDeg: node.orbit.inclination_deg,
+                })}
+              </div>
+            ) : null}
+            {(node?.component_family || node?.component_type) === "star" ? (
+              <HierarchyFactChips node={node} />
+            ) : null}
+          </div>
+          {children.length ? (
+            <span className="hierarchy-toggle" aria-hidden="true">
+              {expanded ? "Collapse" : "Expand"}
+            </span>
+          ) : null}
+        </button>
+        {children.length > 0 && expanded ? (
+          <div className="hierarchy-children">
+            {children.map((child) => (
+              <HierarchyNodeCard key={child.stable_component_key} node={child} depth={depth + 1} />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SystemHierarchyPanel({ hierarchy }) {
+  const root = hierarchy?.root;
+  const counts = hierarchy?.counts || {};
+  if (!root) {
+    return null;
+  }
+  return (
+    <section className="panel hierarchy-panel">
+      <h3>System Hierarchy</h3>
+      <p className="muted">
+        This view reconstructs the nested structure from the arm graph so multi-level systems, orbiting bodies, and synthetic subsystems appear in one consistent layout.
+      </p>
+      <div className="hierarchy-kpis">
+        <div><strong>Total Stars</strong><span>{formatNumber(counts.stars, 0)}</span></div>
+        <div><strong>Total Nodes</strong><span>{formatNumber(counts.nodes, 0)}</span></div>
+        <div><strong>Direct Children</strong><span>{formatNumber(counts.direct_children, 0)}</span></div>
+      </div>
+      <div className="hierarchy-tree">
+        <HierarchyNodeCard node={root} depth={0} />
+      </div>
+    </section>
+  );
+}
+
+function Layout({ children, headerExtra = null, showSearchLink = true, buildId = "" }) {
   const { theme, setTheme, options } = useThemeControls();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1097,20 +1873,14 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
     <div className={`app ${isLcars ? "lcars-app" : ""}`}>
       {isLcars && (
         <div className="lcars-topbar">
+          <LcarsUtilityRail />
           <div className="lcars-top-left">
             {Array.from({ length: LCARS_LEFT_DECORATIVE_CHIP_COUNT }).map((_, idx) => (
               <span
                 key={`lcars-deco-left-${idx}`}
                 className={`lcars-left-deco ${idx === 0 ? "lcars-left-deco-top" : "lcars-left-deco-bottom"}`}
                 aria-hidden={idx !== 0}
-              >
-                {idx === 1 && (
-                  <HeaderNavLinks
-                    className="lcars-left-deco-bottom-links"
-                    linkClassName="lcars-left-deco-mini-link"
-                  />
-                )}
-              </span>
+              />
             ))}
           </div>
           <div className="lcars-top-center">
@@ -1153,38 +1923,48 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
           </div>
         </div>
       )}
-      {isLcars && <div className="lcars-header-bridge" aria-hidden="true" />}
+      {isLcars && (
+        <div className="lcars-header-bridge">
+          <LcarsDataRail buildId={buildId} />
+        </div>
+      )}
       <header className="site-header">
         {!isLcars && (
           <div className="header-topline">
-            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" />
+            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" buildId={buildId} />
           </div>
         )}
-        <div>
-          <div className="eyebrow">Stellar Data Explorer</div>
-          <div className="title-row">
-            <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
-            <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
+        <div className="header-main">
+          <div className="header-brand">
+            <div className="eyebrow">Interstellar Explorer</div>
+            <div className="title-row">
+              <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
+            </div>
           </div>
-        </div>
-        <div className="header-actions">
-          <div className="theme-picker">
-            <label htmlFor="theme-select" className="sr-only">Theme</label>
-            <select
-              id="theme-select"
-              className="theme-select"
-              value={theme}
-              onChange={(event) => setTheme(event.target.value)}
-            >
-              {options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+          <div className="header-side">
+            <div className="header-meta-row">
+              <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
+              <div className="header-actions">
+                <div className="theme-picker">
+                  <label htmlFor="theme-select" className="sr-only">Theme</label>
+                  <select
+                    id="theme-select"
+                    className="theme-select"
+                    value={theme}
+                    onChange={(event) => setTheme(event.target.value)}
+                  >
+                    {options.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
+              </div>
+            </div>
+            {headerExtra && <div className="header-lower">{headerExtra}</div>}
           </div>
-          {headerExtra}
-          {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
         </div>
       </header>
       <main>{children}</main>
@@ -1192,9 +1972,76 @@ function Layout({ children, headerExtra = null, showSearchLink = true }) {
   );
 }
 
-function AboutPage() {
+function HeaderSearchBar({
+  query,
+  setQuery,
+  onSubmit,
+  onClear,
+  loading = false,
+  autoFocus = false,
+}) {
   return (
-    <Layout>
+    <form className="results-search-row header-search-row" onSubmit={onSubmit}>
+      <button className="button compact search-submit-button" type="submit" disabled={loading}>
+        {loading ? "Searching..." : "Search"}
+      </button>
+      <label className="results-search-field">
+        <span className="sr-only">Search systems</span>
+        <input
+          type="text"
+          data-global-search-input="true"
+          className="results-search-input"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search systems by name, ID, or catalog key..."
+          autoFocus={autoFocus}
+        />
+      </label>
+      <button type="button" className="button ghost compact" onClick={onClear} disabled={loading}>
+        Clear
+      </button>
+    </form>
+  );
+}
+
+function RouteHeaderSearchBar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (location.pathname === "/") {
+      const params = new URLSearchParams(location.search);
+      setQuery(params.get("q") || "");
+      return;
+    }
+    setQuery("");
+  }, [location.pathname, location.search]);
+
+  const onSubmit = (event) => {
+    event.preventDefault();
+    const nextQuery = query.trim();
+    navigate(nextQuery ? `/?q=${encodeURIComponent(nextQuery)}` : "/");
+  };
+
+  const onClear = () => {
+    setQuery("");
+    navigate("/");
+  };
+
+  return (
+    <HeaderSearchBar
+      query={query}
+      setQuery={setQuery}
+      onSubmit={onSubmit}
+      onClear={onClear}
+    />
+  );
+}
+
+function AboutPage({ buildId = "" }) {
+  return (
+    <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={ABOUT_MARKDOWN} />
@@ -1204,9 +2051,9 @@ function AboutPage() {
   );
 }
 
-function DataPage() {
+function DataPage({ buildId = "" }) {
   return (
-    <Layout>
+    <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
           <MarkdownContent markdown={DATA_MARKDOWN} />
@@ -1216,10 +2063,14 @@ function DataPage() {
   );
 }
 
-function SearchPage() {
+function SearchPage({ buildId = "" }) {
   const { theme } = useThemeControls();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialSpectralClassTokens = parseSpectralTokens(searchParams.get("spectral_class") || "");
+  const initialSpectralIncludeTokens = parseSpectralTokens(searchParams.get("spectral_include") || "");
+  const initialSpectralExcludeTokens = parseSpectralTokens(searchParams.get("spectral_exclude") || "");
+  const hasExplicitSpectralOverrides = searchParams.has("spectral_include") || searchParams.has("spectral_exclude");
   const [query, setQuery] = useState(() => searchParams.get("q") || "");
   const [minDist, setMinDist] = useState(() => parseRangeParam(
     searchParams,
@@ -1290,9 +2141,36 @@ function SearchPage() {
     return ["coolness", "name", "distance"].includes(value) ? value : "coolness";
   });
   const [spectral, setSpectral] = useState(() => {
-    const raw = searchParams.get("spectral_class") || "";
-    return raw.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean);
+    if (hasExplicitSpectralOverrides) {
+      return initialSpectralIncludeTokens;
+    }
+    return initialSpectralClassTokens;
   });
+  const [spectralExclude, setSpectralExclude] = useState(() => {
+    if (hasExplicitSpectralOverrides) {
+      return initialSpectralExcludeTokens;
+    }
+    if (initialSpectralClassTokens.length > 0 && initialSpectralClassTokens.length < spectralOptions.length) {
+      return spectralOptions.filter((token) => !initialSpectralClassTokens.includes(token));
+    }
+    return [];
+  });
+  const [minTempK, setMinTempK] = useState(() => parseRangeParam(
+    searchParams,
+    "min_temp_k",
+    SPECTRAL_TEMP_MIN_K,
+    SPECTRAL_TEMP_MIN_K,
+    SPECTRAL_TEMP_MAX_K,
+    true,
+  ));
+  const [maxTempK, setMaxTempK] = useState(() => parseRangeParam(
+    searchParams,
+    "max_temp_k",
+    SPECTRAL_TEMP_MAX_K,
+    SPECTRAL_TEMP_MIN_K,
+    SPECTRAL_TEMP_MAX_K,
+    true,
+  ));
   const [hasHabitableMode, setHasHabitableMode] = useState(() => {
     const value = searchParams.get("has_habitable");
     return value === "true" || value === "false" ? value : "";
@@ -1312,9 +2190,58 @@ function SearchPage() {
   const [searchStarted, setSearchStarted] = useState(false);
   const [activeParams, setActiveParams] = useState(null);
   const [totalCount, setTotalCount] = useState(null);
+  const [lastQueryStats, setLastQueryStats] = useState(null);
   const [filtersCollapsedY, setFiltersCollapsedY] = useState(false);
+  const [spectralMix, setSpectralMix] = useState(null);
+  const [spectralMixLoading, setSpectralMixLoading] = useState(true);
+  const [spectralMixError, setSpectralMixError] = useState("");
+  const latestSearchTokenRef = useRef(0);
+  const latestTotalTokenRef = useRef(0);
 
-  const spectralSet = useMemo(() => new Set(spectral), [spectral]);
+  const spectralMixCountByClass = useMemo(() => {
+    const map = new Map();
+    const rows = Array.isArray(spectralMix?.rows) ? spectralMix.rows : [];
+    rows.forEach((row) => {
+      const key = String(row?.spectral_class || "").trim().toUpperCase();
+      if (!key) {
+        return;
+      }
+      map.set(key, Number(row?.star_count || 0));
+    });
+    return map;
+  }, [spectralMix]);
+  const spectralMixTotalStars = Number(spectralMix?.total_stars || 0);
+  const eligibleSpectralClasses = useMemo(
+    () => spectralClassesForTemperatureRange(minTempK, maxTempK),
+    [minTempK, maxTempK],
+  );
+  const eligibleSpectralSet = useMemo(() => new Set(eligibleSpectralClasses), [eligibleSpectralClasses]);
+  const spectralIncludeSet = useMemo(
+    () => new Set((spectral || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token))),
+    [spectral],
+  );
+  const spectralExcludeSet = useMemo(
+    () => new Set((spectralExclude || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token))),
+    [spectralExclude],
+  );
+  const explicitIncludeOutsideRangeSet = useMemo(
+    () => new Set(spectralOptions.filter((token) => spectralIncludeSet.has(token) && !eligibleSpectralSet.has(token))),
+    [spectralIncludeSet, eligibleSpectralSet],
+  );
+  const effectiveSpectralClasses = useMemo(() => {
+    return spectralOptions.filter((token) => (
+      (eligibleSpectralSet.has(token) && !spectralExcludeSet.has(token))
+      || explicitIncludeOutsideRangeSet.has(token)
+    ));
+  }, [eligibleSpectralSet, spectralExcludeSet, explicitIncludeOutsideRangeSet]);
+  const effectiveSpectralSet = useMemo(() => new Set(effectiveSpectralClasses), [effectiveSpectralClasses]);
+  const effectiveSpectralCount = useMemo(
+    () => effectiveSpectralClasses.reduce((sum, token) => sum + (Number(spectralMixCountByClass.get(token) || 0)), 0),
+    [effectiveSpectralClasses, spectralMixCountByClass],
+  );
+  const effectiveSpectralPct = spectralMixTotalStars > 0 ? (effectiveSpectralCount / spectralMixTotalStars) * 100 : 0;
+  const minTempSliderPos = spectralTempToSliderPosition(minTempK);
+  const maxTempSliderPos = spectralTempToSliderPosition(maxTempK);
   const defaultFilterState = () => ({
     query: "",
     minDist: filterLimits.distance.min,
@@ -1325,8 +2252,11 @@ function SearchPage() {
     maxPlanetCount: filterLimits.planets.max,
     minCoolnessScore: filterLimits.coolness.min,
     maxCoolnessScore: filterLimits.coolness.max,
+    minTempK: SPECTRAL_TEMP_MIN_K,
+    maxTempK: SPECTRAL_TEMP_MAX_K,
     sort: "coolness",
     spectral: [],
+    spectralExclude: [],
     hasHabitableMode: "",
     pageSize: "50",
   });
@@ -1340,8 +2270,11 @@ function SearchPage() {
     maxPlanetCount,
     minCoolnessScore,
     maxCoolnessScore,
+    minTempK,
+    maxTempK,
     sort,
     spectral,
+    spectralExclude,
     hasHabitableMode,
     pageSize,
   });
@@ -1355,8 +2288,11 @@ function SearchPage() {
     setMaxPlanetCount(next.maxPlanetCount);
     setMinCoolnessScore(next.minCoolnessScore);
     setMaxCoolnessScore(next.maxCoolnessScore);
+    setMinTempK(next.minTempK);
+    setMaxTempK(next.maxTempK);
     setSort(next.sort);
     setSpectral(next.spectral);
+    setSpectralExclude(next.spectralExclude || []);
     setHasHabitableMode(next.hasHabitableMode);
     setPageSize(next.pageSize);
   };
@@ -1371,6 +2307,8 @@ function SearchPage() {
     const planetsMax = Math.max(filters.minPlanetCount, filters.maxPlanetCount);
     const coolnessMin = Math.min(filters.minCoolnessScore, filters.maxCoolnessScore);
     const coolnessMax = Math.max(filters.minCoolnessScore, filters.maxCoolnessScore);
+    const tempMin = Math.min(filters.minTempK, filters.maxTempK);
+    const tempMax = Math.max(filters.minTempK, filters.maxTempK);
     if (filters.query.trim()) {
       params.q = filters.query.trim();
     }
@@ -1398,8 +2336,35 @@ function SearchPage() {
     if (coolnessMax < filterLimits.coolness.max) {
       params.max_coolness_score = String(coolnessMax);
     }
-    if (filters.spectral.length) {
-      params.spectral_class = filters.spectral.join(",");
+    if (tempMin > SPECTRAL_TEMP_MIN_K) {
+      params.min_temp_k = String(Math.round(tempMin));
+    }
+    if (tempMax < SPECTRAL_TEMP_MAX_K) {
+      params.max_temp_k = String(Math.round(tempMax));
+    }
+    const tempEligibleSpectral = spectralClassesForTemperatureRange(tempMin, tempMax);
+    const tempEligibleSet = new Set(tempEligibleSpectral);
+    const normalizedInclude = Array.from(
+      new Set((filters.spectral || []).map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)),
+    ).filter((token) => spectralOptions.includes(token));
+    const normalizedExclude = Array.from(
+      new Set((filters.spectralExclude || []).map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)),
+    ).filter((token) => spectralOptions.includes(token));
+    const includeOutsideRange = normalizedInclude.filter((token) => !tempEligibleSet.has(token));
+    const excludeSet = new Set(normalizedExclude);
+    const includeOutsideSet = new Set(includeOutsideRange);
+    const effectiveSpectral = spectralOptions.filter((token) => (
+      (tempEligibleSet.has(token) && !excludeSet.has(token))
+      || includeOutsideSet.has(token)
+    ));
+    if (effectiveSpectral.length > 0 && effectiveSpectral.length < spectralOptions.length) {
+      params.spectral_class = effectiveSpectral.join(",");
+    }
+    if (includeOutsideRange.length > 0) {
+      params.spectral_include = includeOutsideRange.join(",");
+    }
+    if (normalizedExclude.length > 0) {
+      params.spectral_exclude = normalizedExclude.join(",");
     }
     if (filters.hasHabitableMode) {
       params.has_habitable = filters.hasHabitableMode;
@@ -1409,16 +2374,43 @@ function SearchPage() {
     return params;
   };
   const buildBaseParams = () => buildBaseParamsFromFilters(currentFilterState());
+  const shouldFetchDeferredTotal = (baseParams) => {
+    const ignored = new Set(["sort", "limit"]);
+    const activeKeys = Object.keys(baseParams || {}).filter((key) => !ignored.has(key));
+    return activeKeys.length === 0;
+  };
+
+  const fetchDeferredTotalCount = async (baseParams, searchToken) => {
+    const totalToken = latestTotalTokenRef.current + 1;
+    latestTotalTokenRef.current = totalToken;
+    try {
+      const totalData = await fetchSystems({
+        ...baseParams,
+        include_total: "true",
+        limit: "1",
+      });
+      if (latestSearchTokenRef.current !== searchToken || latestTotalTokenRef.current !== totalToken) {
+        return;
+      }
+      if (typeof totalData.total_count === "number" && Number.isFinite(totalData.total_count)) {
+        setTotalCount(totalData.total_count);
+      }
+    } catch (_) {
+      if (latestSearchTokenRef.current === searchToken && latestTotalTokenRef.current === totalToken) {
+        setTotalCount(null);
+      }
+    }
+  };
 
   const runSearch = async (cursorValue, reset = false, overrideBaseParams = null) => {
+    const searchToken = latestSearchTokenRef.current + 1;
+    latestSearchTokenRef.current = searchToken;
+    const startedAtMs = typeof performance !== "undefined" ? performance.now() : Date.now();
     const resolvedBase =
       (!reset && cursorValue && activeParams)
         ? activeParams
         : (overrideBaseParams || buildBaseParams());
     const requestParams = { ...resolvedBase };
-    if (reset) {
-      requestParams.include_total = "true";
-    }
     if (cursorValue) {
       requestParams.cursor = cursorValue;
     }
@@ -1426,26 +2418,47 @@ function SearchPage() {
     setLoading(true);
     setSearchStarted(true);
     setError("");
+    if (reset) {
+      setTotalCount(null);
+      latestTotalTokenRef.current += 1;
+    }
     try {
       const data = await fetchSystems(requestParams);
+      if (latestSearchTokenRef.current !== searchToken) {
+        return;
+      }
+      const endedAtMs = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const clientQueryMs = Math.max(0, endedAtMs - startedAtMs);
       setHasMore(Boolean(data.has_more));
       setCursor(data.next_cursor || null);
       setResults((prev) => (reset ? data.items : [...prev, ...data.items]));
-      if (reset) {
-        setTotalCount(typeof data.total_count === "number" ? data.total_count : null);
+      if (reset && shouldFetchDeferredTotal(resolvedBase)) {
+        void fetchDeferredTotalCount(resolvedBase, searchToken);
       } else if (typeof data.total_count === "number") {
         setTotalCount(data.total_count);
       }
       if (reset || !activeParams || overrideBaseParams) {
         setActiveParams(resolvedBase);
       }
+      setLastQueryStats({
+        mode: reset ? "search" : "load_more",
+        returnedCount: Array.isArray(data.items) ? data.items.length : 0,
+        serverMs: (typeof data.query_time_ms === "number" && Number.isFinite(data.query_time_ms))
+          ? Number(data.query_time_ms)
+          : null,
+        clientMs: clientQueryMs,
+      });
     } catch (err) {
-      setError(err?.message || "Data temporarily unavailable.");
-      if (reset) {
-        setTotalCount(null);
+      if (latestSearchTokenRef.current === searchToken) {
+        setError(err?.message || "Data temporarily unavailable.");
+        if (reset) {
+          setTotalCount(null);
+        }
       }
     } finally {
-      setLoading(false);
+      if (latestSearchTokenRef.current === searchToken) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1463,13 +2476,69 @@ function SearchPage() {
     runSearch(null, true);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setSpectralMixLoading(true);
+    setSpectralMixError("");
+    fetchSpectralMix()
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setSpectralMix(data || null);
+      })
+      .catch((err) => {
+        if (!active) {
+          return;
+        }
+        setSpectralMixError(err?.message || "Unable to load spectral mix.");
+      })
+      .finally(() => {
+        if (active) {
+          setSpectralMixLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const applyTemperatureRange = (rawMin, rawMax) => {
+    const safeMin = clampNumber(Math.round(Number(rawMin)), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
+    const safeMax = clampNumber(Math.round(Number(rawMax)), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
+    setMinTempK(safeMin);
+    setMaxTempK(safeMax);
+  };
+
   const toggleSpectral = (value) => {
+    const inRange = eligibleSpectralSet.has(value);
+    if (inRange) {
+      setSpectralExclude((prev) => {
+        const nextSet = new Set(
+          (prev || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token)),
+        );
+        if (nextSet.has(value)) {
+          nextSet.delete(value);
+        } else {
+          nextSet.add(value);
+        }
+        return spectralOptions.filter((token) => nextSet.has(token));
+      });
+      setSpectral((prev) => (prev || []).filter((token) => String(token || "").toUpperCase() !== value));
+      return;
+    }
     setSpectral((prev) => {
-      if (prev.includes(value)) {
-        return prev.filter((item) => item !== value);
+      const nextSet = new Set(
+        (prev || []).map((token) => String(token || "").trim().toUpperCase()).filter((token) => spectralOptions.includes(token)),
+      );
+      if (nextSet.has(value)) {
+        nextSet.delete(value);
+      } else {
+        nextSet.add(value);
       }
-      return [...prev, value];
+      return spectralOptions.filter((token) => nextSet.has(token));
     });
+    setSpectralExclude((prev) => (prev || []).filter((token) => String(token || "").toUpperCase() !== value));
   };
 
   const resetFilters = () => {
@@ -1524,182 +2593,254 @@ function SearchPage() {
     "search-layout",
     filtersCollapsedY ? "filters-collapsed-y" : "",
   ].filter(Boolean).join(" ");
+  const headerSearchBar = (
+    <HeaderSearchBar
+      query={query}
+      setQuery={setQuery}
+      onSubmit={onSubmit}
+      onClear={resetFilters}
+      loading={loading}
+      autoFocus
+    />
+  );
 
   return (
-    <Layout showSearchLink={false}>
+    <Layout showSearchLink={false} buildId={buildId} headerExtra={headerSearchBar}>
       <section className={searchLayoutClassName}>
-        <form
-          className={[
-            "panel",
-            "filters-panel",
-            filtersCollapsedY ? "filters-panel-collapsed-y" : "",
-          ].filter(Boolean).join(" ")}
-          onSubmit={onSubmit}
-        >
-          <div className="filters-head">
-            <h3>Filters</h3>
-            <div className="filters-head-actions">
-              {filtersCollapsedY && (
-                <div className="filters-head-presets">
-                  {FILTER_PRESETS.map((preset) => (
-                    <button
-                      key={`head-${preset.id}`}
-                      type="button"
-                      className="button ghost preset-button preset-button-inline"
-                      onClick={() => applyPreset(preset)}
-                      disabled={loading}
-                    >
-                      {presetLabelForTheme(preset, theme)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
-                onClick={() => setFiltersCollapsedY((prev) => !prev)}
-                aria-pressed={filtersCollapsedY}
-                title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
-              >
-                {filtersCollapsedY ? "Expand" : "Collapse"}
-              </button>
-            </div>
-          </div>
-
-          <div className={`filters-body ${filtersBodyCollapsed ? "is-collapsed" : ""}`}>
-            <div className="preset-row">
-              {FILTER_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className="button ghost preset-button"
-                  onClick={() => applyPreset(preset)}
-                  disabled={loading}
-                >
-                  {presetLabelForTheme(preset, theme)}
-                </button>
-              ))}
-            </div>
-
-            <CompactRangeControl
-              label="Distance Range"
-              unit="ly"
-              minValue={minDist}
-              maxValue={maxDist}
-              minLimit={filterLimits.distance.min}
-              maxLimit={filterLimits.distance.max}
-              step={filterLimits.distance.step}
-              integer={filterLimits.distance.integer}
-              onChangeMin={setMinDist}
-              onChangeMax={setMaxDist}
-            />
-
-            <CompactRangeControl
-              label="Star Count"
-              minValue={minStarCount}
-              maxValue={maxStarCount}
-              minLimit={filterLimits.stars.min}
-              maxLimit={filterLimits.stars.max}
-              step={filterLimits.stars.step}
-              integer={filterLimits.stars.integer}
-              onChangeMin={setMinStarCount}
-              onChangeMax={setMaxStarCount}
-            />
-
-            <CompactRangeControl
-              label="Planet Count"
-              minValue={minPlanetCount}
-              maxValue={maxPlanetCount}
-              minLimit={filterLimits.planets.min}
-              maxLimit={filterLimits.planets.max}
-              step={filterLimits.planets.step}
-              integer={filterLimits.planets.integer}
-              onChangeMin={setMinPlanetCount}
-              onChangeMax={setMaxPlanetCount}
-            />
-
-            <CompactRangeControl
-              label="Coolness Score"
-              minValue={minCoolnessScore}
-              maxValue={maxCoolnessScore}
-              minLimit={filterLimits.coolness.min}
-              maxLimit={filterLimits.coolness.max}
-              step={filterLimits.coolness.step}
-              integer={filterLimits.coolness.integer}
-              onChangeMin={setMinCoolnessScore}
-              onChangeMax={setMaxCoolnessScore}
-            />
-
-            <TriStateToggle
-              label="Habitable candidates"
-              value={hasHabitableMode}
-              onChange={setHasHabitableMode}
-            />
-
-            {error && (
-              <div className="error-box">
-                <div>{error}</div>
+        <div className="filters-stack">
+          <form
+            className={[
+              "panel",
+              "filters-panel",
+              filtersCollapsedY ? "filters-panel-collapsed-y" : "",
+            ].filter(Boolean).join(" ")}
+            onSubmit={onSubmit}
+          >
+            <div className="filters-head">
+              <h3>Filters</h3>
+              <div className="filters-head-actions">
+                {filtersCollapsedY && (
+                  <div className="filters-head-presets">
+                    {FILTER_PRESETS.map((preset) => (
+                      <button
+                        key={`head-${preset.id}`}
+                        type="button"
+                        className="button ghost preset-button preset-button-inline"
+                        onClick={() => applyPreset(preset)}
+                        disabled={loading}
+                      >
+                        {presetLabelForTheme(preset, theme)}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   type="button"
-                  className="button ghost retry"
-                  onClick={() => runSearch(null, true)}
-                  disabled={loading}
+                  className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
+                  onClick={() => setFiltersCollapsedY((prev) => !prev)}
+                  aria-pressed={filtersCollapsedY}
+                  title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
                 >
-                  Retry
+                  {filtersCollapsedY ? "Expand" : "Collapse"}
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+            <div className={`filters-body ${filtersBodyCollapsed ? "is-collapsed" : ""}`}>
+              <div className="preset-row">
+                {FILTER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className="button ghost preset-button"
+                    onClick={() => applyPreset(preset)}
+                    disabled={loading}
+                  >
+                    {presetLabelForTheme(preset, theme)}
+                  </button>
+                ))}
+              </div>
 
-          <div className="filters-footer">
-            <a
-              href="https://thelcars.com"
-              className="filters-footer-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              LCARS interface
-            </a>
-          </div>
-        </form>
+              <CompactRangeControl
+                label="Distance Range"
+                unit="ly"
+                minValue={minDist}
+                maxValue={maxDist}
+                minLimit={filterLimits.distance.min}
+                maxLimit={filterLimits.distance.max}
+                step={filterLimits.distance.step}
+                integer={filterLimits.distance.integer}
+                onChangeMin={setMinDist}
+                onChangeMax={setMaxDist}
+              />
+
+              <CompactRangeControl
+                label="Star Count"
+                minValue={minStarCount}
+                maxValue={maxStarCount}
+                minLimit={filterLimits.stars.min}
+                maxLimit={filterLimits.stars.max}
+                step={filterLimits.stars.step}
+                integer={filterLimits.stars.integer}
+                onChangeMin={setMinStarCount}
+                onChangeMax={setMaxStarCount}
+              />
+
+              <CompactRangeControl
+                label="Planet Count"
+                minValue={minPlanetCount}
+                maxValue={maxPlanetCount}
+                minLimit={filterLimits.planets.min}
+                maxLimit={filterLimits.planets.max}
+                step={filterLimits.planets.step}
+                integer={filterLimits.planets.integer}
+                onChangeMin={setMinPlanetCount}
+                onChangeMax={setMaxPlanetCount}
+              />
+
+              <CompactRangeControl
+                label="Coolness Score"
+                minValue={minCoolnessScore}
+                maxValue={maxCoolnessScore}
+                minLimit={filterLimits.coolness.min}
+                maxLimit={filterLimits.coolness.max}
+                step={filterLimits.coolness.step}
+                integer={filterLimits.coolness.integer}
+                onChangeMin={setMinCoolnessScore}
+                onChangeMax={setMaxCoolnessScore}
+              />
+
+              <TriStateToggle
+                label="Habitable candidates"
+                value={hasHabitableMode}
+                onChange={setHasHabitableMode}
+              />
+
+              {error && (
+                <div className="error-box">
+                  <div>{error}</div>
+                  <button
+                    type="button"
+                    className="button ghost retry"
+                    onClick={() => runSearch(null, true)}
+                    disabled={loading}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="filters-footer">
+              <a
+                href="https://thelcars.com"
+                className="filters-footer-link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                LCARS interface
+              </a>
+            </div>
+          </form>
+
+          <SidebarSpectralMixCard
+            mix={spectralMix}
+            loading={spectralMixLoading}
+            error={spectralMixError}
+            collapsed={filtersBodyCollapsed}
+          />
+        </div>
 
         <section className="results">
           <div className="results-toolbar panel">
-            <form className="results-search-row" onSubmit={onSubmit}>
-              <button className="button compact search-submit-button" type="submit" disabled={loading}>
-                {loading ? "Searching..." : "Search"}
-              </button>
-              <label className="results-search-field">
-                <span className="sr-only">Search systems</span>
-                <input
-                  type="text"
-                  data-global-search-input="true"
-                  className="results-search-input"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search systems by name, ID, or catalog key..."
-                  autoFocus
-                />
-              </label>
-              <button type="button" className="button ghost compact" onClick={resetFilters} disabled={loading}>
-                Clear
-              </button>
-            </form>
+            <div className="results-toolbar-head">
+              <h3>Star Selector</h3>
+            </div>
 
             <div className="results-spectral-row">
               <span className="results-spectral-label">Spectral</span>
               <div className="results-spectral-chips">
-                {spectralOptions.map((option) => (
+                {spectralOptions.map((option) => {
+                  const inRange = eligibleSpectralSet.has(option);
+                  const active = effectiveSpectralSet.has(option);
+                  const explicitlyIncluded = explicitIncludeOutsideRangeSet.has(option);
+                  const explicitlyExcluded = inRange && spectralExcludeSet.has(option);
+                  const overrideHint = explicitlyIncluded
+                    ? "Explicit include override"
+                    : explicitlyExcluded
+                      ? "Explicit exclude override"
+                      : inRange
+                        ? "Included by temperature range"
+                        : "Excluded by temperature range";
+                  return (
                   <button
                     type="button"
                     key={option}
-                    className={`chip spectral-chip spectral-${option.toLowerCase()} ${spectralSet.has(option) ? "active" : ""}`}
+                    className={[
+                      "chip",
+                      "spectral-chip",
+                      `spectral-${option.toLowerCase()}`,
+                      active ? "active" : "",
+                      explicitlyIncluded ? "explicit-include" : "",
+                      explicitlyExcluded ? "explicit-exclude" : "",
+                      !inRange && !explicitlyIncluded ? "out-of-range" : "",
+                    ].filter(Boolean).join(" ")}
                     onClick={() => toggleSpectral(option)}
-                    title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"}`}
+                    title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"} · ${overrideHint}`}
                   >
                     {option}
                   </button>
-                ))}
+                  );
+                })}
+              </div>
+              <div className="results-spectral-range" role="group" aria-label="Spectral range selector">
+                <div className="results-spectral-range-head">
+                  <span className="results-spectral-range-label">
+                    {formatKelvin(Math.min(minTempK, maxTempK), 0)} - {formatKelvin(Math.max(minTempK, maxTempK), 0)}
+                  </span>
+                  <span className="results-spectral-range-value">
+                    {formatNumber(effectiveSpectralCount, 0)} stars ({formatNumber(effectiveSpectralPct, 1)}%)
+                  </span>
+                </div>
+                <div className="results-spectral-slider-row">
+                  <span className="results-spectral-label results-temperature-label">Temperature</span>
+                  <div className="results-spectral-slider">
+                    <div className="results-spectral-slider-track" />
+                    <div
+                      className="results-spectral-slider-fill"
+                      style={{
+                        left: `${(Math.min(minTempSliderPos, maxTempSliderPos) / SPECTRAL_TEMP_SLIDER_MAX) * 100}%`,
+                        width: `${((Math.max(minTempSliderPos, maxTempSliderPos) - Math.min(minTempSliderPos, maxTempSliderPos)) / SPECTRAL_TEMP_SLIDER_MAX) * 100}%`,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={SPECTRAL_TEMP_SLIDER_MAX}
+                      step={1}
+                      className="results-spectral-slider-input results-spectral-slider-input-min"
+                      value={minTempSliderPos}
+                      aria-label="Minimum temperature"
+                      onChange={(event) => applyTemperatureRange(
+                        sliderPositionToSpectralTemp(Number(event.target.value)),
+                        maxTempK,
+                      )}
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={SPECTRAL_TEMP_SLIDER_MAX}
+                      step={1}
+                      className="results-spectral-slider-input results-spectral-slider-input-max"
+                      value={maxTempSliderPos}
+                      aria-label="Maximum temperature"
+                      onChange={(event) => applyTemperatureRange(
+                        minTempK,
+                        sliderPositionToSpectralTemp(Number(event.target.value)),
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1763,7 +2904,10 @@ function SearchPage() {
 
           {results.length > 0 && (
             <div className="results-list">
-              {results.map((item) => (
+              {results.map((item, idx) => {
+                const displayName = systemDisplayName(item);
+                const canonicalName = String(item?.system_name || "").trim();
+                return (
                 <article
                   key={item.system_id}
                   className="result-card"
@@ -1772,7 +2916,12 @@ function SearchPage() {
                   <div className="result-shell">
                     <div className="result-left-rail">
                       <Link to={`/systems/${item.system_id}`} className="result-snapshot-link">
-                        <SnapshotVisual snapshot={item.snapshot} systemName={item.system_name} compact />
+                        <SnapshotVisual
+                          snapshot={item.snapshot}
+                          systemName={displayName}
+                          compact
+                          eager={idx < SEARCH_EAGER_SNAPSHOT_COUNT}
+                        />
                       </Link>
                     </div>
                     <div className="result-content">
@@ -1780,9 +2929,15 @@ function SearchPage() {
                         <div>
                           <h3>
                             <Link to={`/systems/${item.system_id}`} className="result-title-link">
-                              {formatText(item.system_name)}
+                              {formatText(displayName)}
                             </Link>
                           </h3>
+                          {canonicalName && canonicalName !== displayName ? (
+                            <div className="muted">Catalog: {formatText(canonicalName)}</div>
+                          ) : null}
+                          {Array.isArray(item?.display_aliases) && item.display_aliases.length > 0 ? (
+                            <div className="muted">Aliases: {item.display_aliases.slice(0, 4).join(" · ")}</div>
+                          ) : null}
                         </div>
                         <div className="distance" title="Coolness rank">
                           {(item.coolness_rank !== null && item.coolness_rank !== undefined)
@@ -1817,7 +2972,7 @@ function SearchPage() {
                         <MetricChip
                           label="Coolness"
                           value={formatNumber(item.coolness_score, 2)}
-                          tooltipLines={buildCoolnessTooltipLines(item)}
+                          tooltipLines={() => buildCoolnessTooltipLines(item)}
                         />
                         <MetricChip
                           label="Habitable-like"
@@ -1829,7 +2984,7 @@ function SearchPage() {
                         <MetricChip
                           label="Spectral"
                           value={item.spectral_classes?.length ? item.spectral_classes.join(", ") : formatText(item.coolness_dominant_spectral_class)}
-                          tooltipLines={buildSpectralTooltipLines(item)}
+                          tooltipLines={() => buildSpectralTooltipLines(item)}
                         />
                       </div>
                     </div>
@@ -1860,11 +3015,24 @@ function SearchPage() {
                     );
                   })()}
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
 
           <div className="pagination-row">
+            {lastQueryStats && (
+              <div className="results-query-note">
+                Query {formatNumber(lastQueryStats.serverMs ?? lastQueryStats.clientMs, 1)} ms
+                {lastQueryStats.serverMs !== null
+                  ? ` server · ${formatNumber(lastQueryStats.clientMs, 1)} ms end-to-end`
+                  : " end-to-end"}
+                {typeof totalCount === "number" && Number.isFinite(totalCount)
+                  ? ` · returned ${formatNumber(lastQueryStats.returnedCount, 0)} of ${formatHumanLargeCount(totalCount)} rows`
+                  : ` · returned ${formatNumber(lastQueryStats.returnedCount, 0)} rows`}
+                {lastQueryStats.mode === "load_more" ? " (page append)" : ""}
+              </div>
+            )}
             {hasMore && (
               <button
                 className="button ghost load-more"
@@ -1881,19 +3049,44 @@ function SearchPage() {
   );
 }
 
-function ProvenanceBlock({ provenance }) {
+function ProvenanceBlock({ provenance, grouping = null }) {
   if (!provenance) {
     return null;
   }
-  const downloadLinks = resolveDownloadLinks(provenance);
   const redistribution =
     provenance.redistribution_ok === true
       ? "Allowed"
       : provenance.redistribution_ok === false
         ? "Restricted"
         : "Unknown";
+  const groupingSources = parseJsonArray(grouping?.grouping_source_catalogs_json);
+  const groupingSourceText = groupingSourceLabel(grouping?.grouping_basis, groupingSources);
+  const evidenceCatalogs = collectSystemEvidenceCatalogs(grouping);
+  const evidenceText = formatEvidenceSummary(evidenceCatalogs);
   return (
     <div className="provenance">
+      {grouping?.grouping_basis ? (
+        <>
+          <div>
+            <strong>Grouping</strong>
+            <span>{formatText(grouping.grouping_basis)}</span>
+          </div>
+          <div>
+            <strong>Grouping source</strong>
+            <span>{groupingSourceText}</span>
+          </div>
+          <div>
+            <strong>Evidence catalogs</strong>
+            <span>{evidenceText}</span>
+          </div>
+          {grouping?.wds_id ? (
+            <div>
+              <strong>Grouping key</strong>
+              <span>WDS {formatText(grouping.wds_id)}</span>
+            </div>
+          ) : null}
+        </>
+      ) : null}
       <div>
         <strong>Source</strong>
         <span>{formatText(provenance.source_catalog)} {formatText(provenance.source_version)}</span>
@@ -1931,26 +3124,11 @@ function ProvenanceBlock({ provenance }) {
           )}
         </span>
       </div>
-      {downloadLinks.length > 0 && (
-        <div>
-          <strong>Download URL</strong>
-          <span>
-            {downloadLinks.map((url, idx) => (
-              <React.Fragment key={`${url}-${idx}`}>
-                {idx > 0 ? " · " : ""}
-                <a href={String(url)} target="_blank" rel="noreferrer">
-                  {downloadLinks.length > 1 ? `Open download ${idx + 1}` : "Open download"}
-                </a>
-              </React.Fragment>
-            ))}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
 
-function SystemDetailPage() {
+function SystemDetailPage({ buildId = "" }) {
   const { systemId } = useParams();
   const navigate = useNavigate();
   const [data, setData] = React.useState(null);
@@ -1985,7 +3163,7 @@ function SystemDetailPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
         <div className="panel">Loading system details...</div>
       </Layout>
     );
@@ -1993,7 +3171,7 @@ function SystemDetailPage() {
 
   if (error || !data) {
     return (
-      <Layout>
+      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
         <div className="panel">
           <h2>System not found</h2>
           <p>{error || "No data returned."}</p>
@@ -2003,25 +3181,34 @@ function SystemDetailPage() {
     );
   }
 
-  const { system, stars, planets } = data;
+  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], hierarchy = null } = data;
+  const currentSystemDisplayName = systemDisplayName(system);
+  const systemAliasSummary = formatAliasSummary(system?.aliases, {
+    exclude: [currentSystemDisplayName, system?.system_name],
+    limit: 10,
+  });
+  const armSummary = system?.arm_evidence_summary || {};
 
   return (
-    <Layout showSearchLink={false}>
+    <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail">
         <div className="system-identifiers-row">
-          <span className="system-identifiers-name">{formatText(system.system_name)}</span>
+          <span className="system-identifiers-name">{formatText(currentSystemDisplayName)}</span>
           <div className="id-line id-line-inline">
-            <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
             <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
             <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
+            <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
           </div>
         </div>
+        {systemAliasSummary ? (
+          <div className="muted">Aliases: {systemAliasSummary}</div>
+        ) : null}
 
         <section className="panel snapshot-panel">
           <h3>System Snapshot</h3>
           <div className="snapshot-panel-layout">
             <SnapshotMetadata system={system} snapshot={system.snapshot} />
-            <SnapshotVisual snapshot={system.snapshot} systemName={system.system_name} />
+            <SnapshotVisual snapshot={system.snapshot} systemName={currentSystemDisplayName} eager />
           </div>
         </section>
 
@@ -2048,23 +3235,42 @@ function SystemDetailPage() {
             <strong>Planets</strong>
             <span>{formatNumber(system.planet_count, 0)}</span>
           </div>
+          <div>
+            <strong>Arm Evidence</strong>
+            <span>
+              {formatNumber(armSummary.stars_with_arm_evidence ?? 0, 0)} stars
+              {armSummary.high_variability_stars ? ` · ${formatNumber(armSummary.high_variability_stars, 0)} high variability` : ""}
+            </span>
+          </div>
         </div>
 
+        <SystemHierarchyPanel hierarchy={hierarchy} />
+
         <section className="panel">
-          <h3>Stars</h3>
+          <h3>Catalog Star Rows</h3>
           {stars.length === 0 && <p className="muted">No star members recorded.</p>}
           {stars.length > 0 && (
             <div className="table">
               {stars.map((star) => (
                 <div className="row" key={star.star_id}>
                   {(() => {
-                    const record = starCatalogRecordLink(star);
+	                    const record = starCatalogRecordLink(star);
+	                    const currentStarDisplayName = starDisplayName(star);
+	                    const starEvidence = collectStarEvidenceCatalogs(star);
+	                    const armEvidenceDetails = formatArmEvidenceDetails(star?.arm_evidence);
+	                    const starAliasSummary = formatAliasSummary(star?.aliases, {
+	                      exclude: [currentStarDisplayName, star?.star_name],
+	                      limit: 6,
+                    });
                     return (
                       <>
                         <div>
-                          <strong className="star-name">{formatText(star.star_name)}</strong>
+                          <strong className="star-name">{formatText(currentStarDisplayName)}</strong>
                           {star.component ? (
                             <div className="muted">Component {formatText(star.component)}</div>
+                          ) : null}
+                          {starAliasSummary ? (
+                            <div className="muted">Aliases: {starAliasSummary}</div>
                           ) : null}
                         </div>
                         <div>
@@ -2081,17 +3287,26 @@ function SystemDetailPage() {
                         </div>
                         <div className="muted">
                           IDs
-                          <div className="id-line">
-                            <CatalogIdChip label="Gaia" value={resolvedEntityGaiaId(star)} />
-                            <CatalogIdChip label="HIP" value={star.hip_id_text ?? star.hip_id} />
-                            <CatalogIdChip label="HD" value={star.hd_id_text ?? star.hd_id} />
-                          </div>
-                        </div>
-                        <div className="muted">
-                          Source {formatText(star.provenance?.source_catalog)} · {formatText(star.provenance?.source_version)}
-                        </div>
-                        <div className="muted">
-                          Catalog record{" "}
+	                          <div className="id-line">
+	                            <CatalogIdChip label="Gaia" value={resolvedEntityGaiaId(star)} />
+	                            <CatalogIdChip label="HIP" value={star.hip_id_text ?? star.hip_id} />
+	                            <CatalogIdChip label="HD" value={star.hd_id_text ?? star.hd_id} />
+	                            <CatalogIdChip label="SBX" value={star.sbx_sn} hideWhenMissing />
+	                          </div>
+	                        </div>
+	                        <div className="muted">
+	                          Source {formatText(star.provenance?.source_catalog)} · {formatText(star.provenance?.source_version)}
+	                        </div>
+		                        <div className="muted">
+		                          Evidence {formatEvidenceSummary(starEvidence)}
+		                        </div>
+		                        {armEvidenceDetails ? (
+		                          <div className="muted">
+		                            Arm {armEvidenceDetails}
+		                          </div>
+		                        ) : null}
+		                        <div className="muted">
+		                          Catalog record{" "}
                           {record ? (
                             <a href={record.url} target="_blank" rel="noreferrer">{record.label}</a>
                           ) : (
@@ -2175,8 +3390,51 @@ function SystemDetailPage() {
         </section>
 
         <section className="panel">
+          <h3>Eclipsing Evidence</h3>
+          {eclipsingBinaries.length === 0 && <p className="muted">No eclipsing-binary catalog evidence linked to this system.</p>}
+          {eclipsingBinaries.length > 0 && (
+            <div className="table">
+              {eclipsingBinaries.map((entry) => {
+                const record = eclipsingCatalogRecordLink(entry);
+                return (
+                  <div className="row" key={entry.eclipsing_binary_id}>
+                    <div>
+                      <strong>{formatText(entry.object_name || entry.source_catalog_object_id)}</strong>
+                      <div className="muted">{formatText(entry.source_catalog_object_id)}</div>
+                    </div>
+                    <div>
+                      <span>Period {formatPeriodDaysWithYears(entry.period_days)}</span>
+                      <span className="muted">
+                        Morphology {formatNumber(entry.morphology, 3)} · Kmag {formatNumber(entry.kmag, 2)}
+                      </span>
+                    </div>
+                    <div className="muted">
+                      Match {formatText(entry.match_method)} · {formatConfidence(entry.match_confidence)}
+                      {(entry.match_confidence ?? 1) < 0.8 && (
+                        <span className="warning-chip">Low confidence</span>
+                      )}
+                    </div>
+                    <div className="muted">
+                      Source {formatText(entry.provenance?.source_catalog)} · {formatText(entry.provenance?.source_version)}
+                    </div>
+                    <div className="muted">
+                      Catalog record{" "}
+                      {record ? (
+                        <a href={record.url} target="_blank" rel="noreferrer">{record.label}</a>
+                      ) : (
+                        "Unavailable for this source"
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="panel">
           <h3>Provenance</h3>
-          <ProvenanceBlock provenance={system.provenance} />
+          <ProvenanceBlock provenance={system.provenance} grouping={system} />
         </section>
       </section>
     </Layout>
@@ -2185,6 +3443,7 @@ function SystemDetailPage() {
 
 export default function App() {
   const [theme, setTheme] = useState(() => resolveInitialTheme());
+  const [buildId, setBuildId] = useState("");
 
   useEffect(() => {
     if (!THEME_IDS.has(theme)) {
@@ -2198,6 +3457,26 @@ export default function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    let active = true;
+    fetchHealth()
+      .then((payload) => {
+        if (!active) {
+          return;
+        }
+        setBuildId(String(payload?.build_id || "").trim());
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setBuildId("");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const themeContextValue = useMemo(
     () => ({
       theme,
@@ -2210,10 +3489,10 @@ export default function App() {
   return (
     <ThemeContext.Provider value={themeContextValue}>
       <Routes>
-        <Route path="/" element={<SearchPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/data" element={<DataPage />} />
-        <Route path="/systems/:systemId" element={<SystemDetailPage />} />
+        <Route path="/" element={<SearchPage buildId={buildId} />} />
+        <Route path="/about" element={<AboutPage buildId={buildId} />} />
+        <Route path="/data" element={<DataPage buildId={buildId} />} />
+        <Route path="/systems/:systemId" element={<SystemDetailPage buildId={buildId} />} />
       </Routes>
     </ThemeContext.Provider>
   );

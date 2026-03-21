@@ -5,10 +5,12 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
+import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import duckdb
@@ -23,14 +25,22 @@ from . import auth
 from . import db
 from .db import DatabaseUnavailable
 from .queries import (
+    choose_display_name,
+    fetch_arm_evidence_for_stars,
+    fetch_eclipsing_for_system,
+    fetch_aliases_for_stars,
+    fetch_aliases_for_system,
     fetch_build_id,
     fetch_counts_for_system,
     fetch_planets_for_system,
+    fetch_spectral_mix,
     fetch_snapshot_for_system,
+    fetch_system_hierarchy_for_system,
     fetch_stars_for_system,
     fetch_system_by_id,
     fetch_system_by_key,
     search_systems,
+    summarize_star_temperatures,
 )
 from .utils import (
     decode_cursor,
@@ -46,7 +56,7 @@ app = FastAPI(title="Spacegate API", version="0.1")
 ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
 SUPPORTED_SEARCH_SORTS = {"name", "distance", "coolness"}
-SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y"}
+SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
 
 COOLNESS_WEIGHT_KEYS = [
     ("luminosity", "luminosity_feature"),
@@ -58,6 +68,9 @@ COOLNESS_WEIGHT_KEYS = [
     ("system_complexity", "system_complexity_feature"),
     ("exotic_star", "exotic_star_feature"),
 ]
+
+DATASET_STATUS_CACHE_TTL_S = 30.0
+_DATASET_STATUS_CACHE: Dict[str, Any] = {}
 
 
 def _state_dir() -> Path:
@@ -76,6 +89,47 @@ def _resolve_rich_db_path() -> Optional[str]:
     if candidate.exists():
         return str(candidate)
     return None
+
+
+def _resolve_arm_db_path() -> Optional[str]:
+    candidate = Path(db.get_db_path()).with_name("arm.duckdb")
+    if candidate.exists():
+        return str(candidate)
+    return None
+
+
+def _resolve_canonical_hierarchy_db_path() -> Optional[str]:
+    candidate = Path(db.get_db_path()).with_name("canonical_hierarchy.duckdb")
+    if candidate.exists():
+        return str(candidate)
+    return None
+
+
+def _summarize_arm_star_evidence(star_evidence: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
+    catalog_counts: Dict[str, int] = {}
+    high_variability_count = 0
+    ultracool_count = 0
+    stars_with_arm_evidence = 0
+    for payload in star_evidence.values():
+        catalogs = payload.get("catalogs") or []
+        if catalogs:
+            stars_with_arm_evidence += 1
+        for token in catalogs:
+            key = str(token or "").strip().lower()
+            if not key:
+                continue
+            catalog_counts[key] = int(catalog_counts.get(key, 0)) + 1
+        vsx = payload.get("vsx")
+        if isinstance(vsx, dict) and bool(vsx.get("any_high_variability")):
+            high_variability_count += 1
+        if isinstance(payload.get("ultracoolsheet"), dict):
+            ultracool_count += 1
+    return {
+        "stars_with_arm_evidence": int(stars_with_arm_evidence),
+        "catalog_counts": catalog_counts,
+        "high_variability_stars": int(high_variability_count),
+        "ultracool_overlay_stars": int(ultracool_count),
+    }
 
 
 def _snapshot_asset_url(build_id: str, artifact_path: str) -> str:
@@ -119,6 +173,8 @@ def _should_audit_systems_search(
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
     max_planet_count: Optional[int],
+    min_temp_k: Optional[float],
+    max_temp_k: Optional[float],
     has_habitable: Optional[bool],
     has_planets: Optional[bool],
     min_coolness_score: Optional[float],
@@ -139,6 +195,8 @@ def _should_audit_systems_search(
             max_star_count,
             min_planet_count,
             max_planet_count,
+            min_temp_k,
+            max_temp_k,
             has_habitable,
             has_planets,
             min_coolness_score,
@@ -161,6 +219,8 @@ def _audit_systems_search(
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
     max_planet_count: Optional[int],
+    min_temp_k: Optional[float],
+    max_temp_k: Optional[float],
     has_habitable: Optional[bool],
     has_planets: Optional[bool],
     min_coolness_score: Optional[float],
@@ -181,6 +241,8 @@ def _audit_systems_search(
         max_star_count=max_star_count,
         min_planet_count=min_planet_count,
         max_planet_count=max_planet_count,
+        min_temp_k=min_temp_k,
+        max_temp_k=max_temp_k,
         has_habitable=has_habitable,
         has_planets=has_planets,
         min_coolness_score=min_coolness_score,
@@ -203,6 +265,8 @@ def _audit_systems_search(
         filters["star_count"] = {"min": min_star_count, "max": max_star_count}
     if min_planet_count is not None or max_planet_count is not None:
         filters["planet_count"] = {"min": min_planet_count, "max": max_planet_count}
+    if min_temp_k is not None or max_temp_k is not None:
+        filters["temperature_k"] = {"min": min_temp_k, "max": max_temp_k}
     if min_coolness_score is not None or max_coolness_score is not None:
         filters["coolness_score"] = {"min": min_coolness_score, "max": max_coolness_score}
     if spectral_classes:
@@ -374,6 +438,20 @@ def health():
     }
 
 
+@app.get("/api/v1/stats/spectral")
+def spectral_mix():
+    with db.connection_scope() as con:
+        mix = fetch_spectral_mix(con)
+        build_id = fetch_build_id(con)
+    return {
+        "status": "ok",
+        "build_id": build_id,
+        "total_stars": mix.get("total_stars", 0),
+        "rows": mix.get("rows", []),
+        "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+
+
 @app.get("/api/v1/systems/search")
 def systems_search(
     request: Request,
@@ -384,6 +462,8 @@ def systems_search(
     max_star_count: Optional[int] = Query(default=None, ge=0),
     min_planet_count: Optional[int] = Query(default=None, ge=0),
     max_planet_count: Optional[int] = Query(default=None, ge=0),
+    min_temp_k: Optional[float] = Query(default=None, ge=0),
+    max_temp_k: Optional[float] = Query(default=None, ge=0),
     has_habitable: Optional[str] = Query(default=None),
     min_coolness_score: Optional[float] = Query(default=None),
     max_coolness_score: Optional[float] = Query(default=None),
@@ -418,6 +498,15 @@ def systems_search(
             detail={
                 "code": "bad_request",
                 "message": "Invalid planet-count range",
+                "details": {},
+            },
+        )
+    if max_temp_k is not None and min_temp_k is not None and min_temp_k > max_temp_k:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid temperature range",
                 "details": {},
             },
         )
@@ -460,6 +549,7 @@ def systems_search(
         )
 
     rich_db_path = _resolve_rich_db_path()
+    arm_db_path = _resolve_arm_db_path()
 
     match_mode = bool(q_norm) or bool(id_query)
 
@@ -550,6 +640,8 @@ def systems_search(
                 max_star_count=max_star_count,
                 min_planet_count=min_planet_count,
                 max_planet_count=max_planet_count,
+                min_temp_k=min_temp_k,
+                max_temp_k=max_temp_k,
                 spectral_classes=spectral_classes,
                 has_planets=has_planets_bool,
                 has_habitable=has_habitable_bool,
@@ -561,6 +653,7 @@ def systems_search(
                 include_total=bool(include_total_bool),
                 cursor_values=cursor_values,
                 rich_db_path=rich_db_path,
+                arm_db_path=arm_db_path,
             )
     except ValueError as exc:
         _audit_systems_search(
@@ -576,6 +669,8 @@ def systems_search(
             max_star_count=max_star_count,
             min_planet_count=min_planet_count,
             max_planet_count=max_planet_count,
+            min_temp_k=min_temp_k,
+            max_temp_k=max_temp_k,
             has_habitable=has_habitable_bool,
             has_planets=has_planets_bool,
             min_coolness_score=min_coolness_score,
@@ -649,6 +744,8 @@ def systems_search(
                 }
             )
 
+    duration_ms = max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000))
+
     _audit_systems_search(
         request,
         q_raw=q,
@@ -662,6 +759,8 @@ def systems_search(
         max_star_count=max_star_count,
         min_planet_count=min_planet_count,
         max_planet_count=max_planet_count,
+        min_temp_k=min_temp_k,
+        max_temp_k=max_temp_k,
         has_habitable=has_habitable_bool,
         has_planets=has_planets_bool,
         min_coolness_score=min_coolness_score,
@@ -671,7 +770,7 @@ def systems_search(
         has_more=has_more,
         total_count=total_count,
         outcome="success",
-        duration_ms=max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000)),
+        duration_ms=duration_ms,
     )
 
     return {
@@ -679,12 +778,15 @@ def systems_search(
         "next_cursor": next_cursor,
         "has_more": has_more,
         "total_count": total_count,
+        "query_time_ms": duration_ms,
     }
 
 
 @app.get("/api/v1/systems/{system_id}")
 def system_detail(system_id: int):
     rich_db_path = _resolve_rich_db_path()
+    arm_db_path = _resolve_arm_db_path()
+    canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
     with db.connection_scope() as con:
         system = fetch_system_by_id(con, system_id)
         if not system:
@@ -698,24 +800,82 @@ def system_detail(system_id: int):
             )
         stars = fetch_stars_for_system(con, system_id)
         planets = fetch_planets_for_system(con, system_id)
+        eclipsing_binaries = fetch_eclipsing_for_system(con, system_id)
         star_count, planet_count = fetch_counts_for_system(con, system_id)
+        aliases = fetch_aliases_for_system(con, system_id)
+        star_aliases = fetch_aliases_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+        )
+        arm_star_evidence = fetch_arm_evidence_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=system_id,
             stable_object_key=system.get("stable_object_key"),
             rich_db_path=rich_db_path,
         )
+        hierarchy = fetch_system_hierarchy_for_system(
+            con,
+            system_id=system_id,
+            stable_object_key=system.get("stable_object_key"),
+            wds_id=system.get("wds_id"),
+            canonical_hierarchy_db_path=canonical_hierarchy_db_path,
+            arm_db_path=arm_db_path,
+        )
 
-    system["star_count"] = star_count
+    effective_star_count = max(
+        int(star_count or 0),
+        int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
+    )
+    system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
+    system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
+    system["aliases"] = aliases
+    system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
+    system_display_name, system_display_aliases = choose_display_name(
+        system.get("system_name"),
+        aliases,
+    )
+    system["display_name"] = system_display_name
+    system["display_aliases"] = system_display_aliases
+    for star in stars:
+        sid = star.get("star_id")
+        if sid is None:
+            star["aliases"] = []
+            star["display_name"] = star.get("star_name")
+            star["display_aliases"] = []
+            continue
+        aliases_for_star = star_aliases.get(int(sid), [])
+        star["aliases"] = aliases_for_star
+        star_display_name, star_display_aliases = choose_display_name(
+            star.get("star_name"),
+            aliases_for_star,
+        )
+        star["display_name"] = star_display_name
+        star["display_aliases"] = star_display_aliases
+        star_arm_evidence = arm_star_evidence.get(int(sid), {})
+        star["arm_evidence"] = star_arm_evidence
+        star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
-    return {"system": system, "stars": stars, "planets": planets}
+    return {
+        "system": system,
+        "stars": stars,
+        "planets": planets,
+        "eclipsing_binaries": eclipsing_binaries,
+        "hierarchy": hierarchy,
+    }
 
 
 @app.get("/api/v1/systems/by-key/{stable_object_key}")
 def system_detail_by_key(stable_object_key: str):
     rich_db_path = _resolve_rich_db_path()
+    arm_db_path = _resolve_arm_db_path()
+    canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
     with db.connection_scope() as con:
         system = fetch_system_by_key(con, stable_object_key)
         if not system:
@@ -730,19 +890,75 @@ def system_detail_by_key(stable_object_key: str):
         system_id = system.get("system_id")
         stars = fetch_stars_for_system(con, system_id)
         planets = fetch_planets_for_system(con, system_id)
+        eclipsing_binaries = fetch_eclipsing_for_system(con, system_id)
         star_count, planet_count = fetch_counts_for_system(con, system_id)
+        aliases = fetch_aliases_for_system(con, int(system_id))
+        star_aliases = fetch_aliases_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+        )
+        arm_star_evidence = fetch_arm_evidence_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=int(system_id),
             stable_object_key=stable_object_key,
             rich_db_path=rich_db_path,
         )
+        hierarchy = fetch_system_hierarchy_for_system(
+            con,
+            system_id=int(system_id),
+            stable_object_key=stable_object_key,
+            wds_id=system.get("wds_id"),
+            canonical_hierarchy_db_path=canonical_hierarchy_db_path,
+            arm_db_path=arm_db_path,
+        )
 
-    system["star_count"] = star_count
+    effective_star_count = max(
+        int(star_count or 0),
+        int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
+    )
+    system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
+    system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
+    system["aliases"] = aliases
+    system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
+    system_display_name, system_display_aliases = choose_display_name(
+        system.get("system_name"),
+        aliases,
+    )
+    system["display_name"] = system_display_name
+    system["display_aliases"] = system_display_aliases
+    for star in stars:
+        sid = star.get("star_id")
+        if sid is None:
+            star["aliases"] = []
+            star["display_name"] = star.get("star_name")
+            star["display_aliases"] = []
+            continue
+        aliases_for_star = star_aliases.get(int(sid), [])
+        star["aliases"] = aliases_for_star
+        star_display_name, star_display_aliases = choose_display_name(
+            star.get("star_name"),
+            aliases_for_star,
+        )
+        star["display_name"] = star_display_name
+        star["display_aliases"] = star_display_aliases
+        star_arm_evidence = arm_star_evidence.get(int(sid), {})
+        star["arm_evidence"] = star_arm_evidence
+        star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
-    return {"system": system, "stars": stars, "planets": planets}
+    return {
+        "system": system,
+        "stars": stars,
+        "planets": planets,
+        "eclipsing_binaries": eclipsing_binaries,
+        "hierarchy": hierarchy,
+    }
 
 
 @app.get("/api/v1/snapshots/{build_id}/{artifact_path:path}")
@@ -790,6 +1006,16 @@ class CoolnessPreviewRequest(BaseModel):
     profile_version: Optional[str] = Field(default=None, max_length=128)
     weights: Dict[str, float] = Field(default_factory=dict)
     top_n: int = Field(default=200, ge=20, le=1000)
+
+
+class DatasetSlicePreviewRequest(BaseModel):
+    max_distance_ly: Optional[float] = Field(default=1000.0, gt=0.0)
+    min_parallax_over_error: Optional[float] = Field(default=None, ge=0.0)
+    max_parallax_error_mas: Optional[float] = Field(default=None, ge=0.0)
+    max_ruwe: Optional[float] = Field(default=None, ge=0.0)
+    require_spectral_class: bool = Field(default=False)
+    require_color_index: bool = Field(default=False)
+    allowed_spectral_classes: List[str] = Field(default_factory=list)
 
 
 def _run_score_coolness_json(args: list[str]) -> Dict[str, Any]:
@@ -1016,6 +1242,804 @@ LIMIT ?
     }
 
 
+def _parse_human_bytes(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    match = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)$", text)
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit_raw = match.group(2).strip().lower()
+    unit = unit_raw.replace("ib", "i").replace("b", "")
+    scale = {
+        "bytes": 1,
+        "byte": 1,
+        "": 1,
+        "k": 10**3,
+        "m": 10**6,
+        "g": 10**9,
+        "t": 10**12,
+        "ki": 2**10,
+        "mi": 2**20,
+        "gi": 2**30,
+        "ti": 2**40,
+    }.get(unit)
+    if scale is None:
+        return None
+    return int(number * scale)
+
+
+def _path_size_bytes(path: Path) -> int:
+    try:
+        if not path.exists():
+            return 0
+        if path.is_symlink():
+            return 0
+        if path.is_file():
+            return int(path.stat().st_size)
+    except OSError:
+        return 0
+    total = 0
+    stack = [path]
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    try:
+                        if entry.is_symlink():
+                            continue
+                        if entry.is_file(follow_symlinks=False):
+                            total += int(entry.stat(follow_symlinks=False).st_size)
+                        elif entry.is_dir(follow_symlinks=False):
+                            stack.append(Path(entry.path))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return int(total)
+
+
+def _read_json_file(path: Path) -> Dict[str, Any]:
+    if not path.exists() or not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _read_proc_key_values(path: Path, sep: str = ":") -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    if not path.exists():
+        return out
+    try:
+        for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if sep not in raw:
+                continue
+            key, value = raw.split(sep, 1)
+            out[key.strip()] = value.strip()
+    except Exception:
+        return out
+    return out
+
+
+def _proc_kib_value(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+    match = re.search(r"([0-9]+)", str(value))
+    if not match:
+        return None
+    return int(match.group(1)) * 1024
+
+
+def _determinism_key(payload: Dict[str, Any]) -> tuple[str, str, str, str, str]:
+    return (
+        str(payload.get("source_inputs_fingerprint") or ""),
+        str(payload.get("transform_version") or ""),
+        str(payload.get("build_layer") or ""),
+        str(payload.get("slice_profile_id") or ""),
+        str(payload.get("slice_profile_version") or ""),
+    )
+
+
+def _determinism_compare_tables(current: Dict[str, Any], baseline: Dict[str, Any]) -> Dict[str, Any]:
+    fields = ("row_count", "xor_hash_hex", "min_hash_uint64", "max_hash_uint64")
+    result: Dict[str, Any] = {"matches": True, "mismatches": [], "tables": {}}
+    current_tables = current.get("table_fingerprints") or {}
+    baseline_tables = baseline.get("table_fingerprints") or {}
+    for table in ("stars", "systems", "planets"):
+        c = current_tables.get(table) or {}
+        b = baseline_tables.get(table) or {}
+        field_matches: Dict[str, Any] = {}
+        table_ok = True
+        for field in fields:
+            c_val = c.get(field)
+            b_val = b.get(field)
+            is_match = c_val == b_val
+            field_matches[field] = {
+                "match": bool(is_match),
+                "current": c_val,
+                "baseline": b_val,
+            }
+            if not is_match:
+                table_ok = False
+                result["mismatches"].append(
+                    {
+                        "table": table,
+                        "field": field,
+                        "current": c_val,
+                        "baseline": b_val,
+                    }
+                )
+        result["tables"][table] = {"match": bool(table_ok), "fields": field_matches}
+        if not table_ok:
+            result["matches"] = False
+    return result
+
+
+def _determinism_status_payload(
+    *,
+    state_dir: Path,
+    reports_dir: Path,
+    build_id: str,
+) -> Dict[str, Any]:
+    output: Dict[str, Any] = {
+        "status": "missing_current_report",
+        "current_report_exists": False,
+        "current_build_id": build_id,
+        "current_report_path": str(reports_dir / "determinism_report.json"),
+        "baseline_build_id": None,
+        "baseline_report_path": None,
+        "baseline_generated_at": None,
+        "comparable_baselines": 0,
+        "comparison": {},
+        "source_inputs_fingerprint": None,
+        "transform_version": None,
+        "build_layer": None,
+        "slice_profile_id": None,
+        "slice_profile_version": None,
+    }
+    current = _read_json_file(reports_dir / "determinism_report.json")
+    if not current:
+        return output
+
+    output["current_report_exists"] = True
+    output["status"] = "no_baseline"
+    output["source_inputs_fingerprint"] = str(current.get("source_inputs_fingerprint") or "")
+    output["transform_version"] = str(current.get("transform_version") or "")
+    output["build_layer"] = str(current.get("build_layer") or "")
+    output["slice_profile_id"] = str(current.get("slice_profile_id") or "")
+    output["slice_profile_version"] = str(current.get("slice_profile_version") or "")
+
+    current_key = _determinism_key(current)
+    all_reports_dir = state_dir / "reports"
+    candidates: List[tuple[str, Dict[str, Any]]] = []
+    if all_reports_dir.exists() and all_reports_dir.is_dir():
+        for child in all_reports_dir.iterdir():
+            if not child.is_dir():
+                continue
+            baseline_build_id = child.name
+            if baseline_build_id == build_id:
+                continue
+            report = _read_json_file(child / "determinism_report.json")
+            if not report:
+                continue
+            if _determinism_key(report) != current_key:
+                continue
+            candidates.append((baseline_build_id, report))
+
+    output["comparable_baselines"] = len(candidates)
+    if not candidates:
+        return output
+
+    candidates.sort(
+        key=lambda row: (
+            str((row[1] or {}).get("generated_at") or ""),
+            str(row[0]),
+        )
+    )
+    baseline_build_id, baseline_report = candidates[-1]
+    compare = _determinism_compare_tables(current, baseline_report)
+    output["baseline_build_id"] = baseline_build_id
+    output["baseline_report_path"] = str(all_reports_dir / baseline_build_id / "determinism_report.json")
+    output["baseline_generated_at"] = str(baseline_report.get("generated_at") or "")
+    output["comparison"] = compare
+    output["status"] = "match" if bool(compare.get("matches")) else "mismatch"
+    return output
+
+
+def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
+    now = time.time()
+    with db.connection_scope() as con:
+        build_id = fetch_build_id(con) or "unknown"
+    cached = _DATASET_STATUS_CACHE.get(build_id)
+    if (
+        not force_refresh
+        and isinstance(cached, dict)
+        and (now - float(cached.get("cached_at_ts", 0.0))) < DATASET_STATUS_CACHE_TTL_S
+    ):
+        payload = dict(cached["payload"])
+        payload["cache"] = {
+            "hit": True,
+            "ttl_s": DATASET_STATUS_CACHE_TTL_S,
+            "age_s": round(now - float(cached.get("cached_at_ts", now)), 3),
+        }
+        return payload
+
+    state_dir = _state_dir().resolve()
+    db_path = Path(db.get_db_path()).resolve()
+    build_dir = db_path.parent if db_path.name == "core.duckdb" else db_path.parent
+    reports_dir = state_dir / "reports" / build_id
+    raw_dir = state_dir / "raw"
+    cooked_dir = state_dir / "cooked"
+    served_dir = state_dir / "served"
+    out_dir = state_dir / "out"
+    rich_db_path = db_path.with_name("rich.duckdb")
+    arm_db_path = db_path.with_name("arm.duckdb")
+    admin_db_path = admin_db.get_admin_db_path().resolve()
+
+    timings_ms: Dict[str, float] = {}
+
+    def _timed(name: str, fn):
+        start = time.perf_counter()
+        result = fn()
+        timings_ms[name] = round((time.perf_counter() - start) * 1000.0, 3)
+        return result
+
+    qc_report = _read_json_file(reports_dir / "qc_report.json")
+    system_grouping_report = _read_json_file(reports_dir / "system_grouping_report.json")
+    gaia_backbone_report = _read_json_file(reports_dir / "gaia_backbone_report.json")
+    slice_policy_report = _read_json_file(reports_dir / "slice_policy_report.json")
+    match_report = _read_json_file(reports_dir / "match_report.json")
+    catalog_contribution_report = _read_json_file(reports_dir / "catalog_contribution_report.json")
+    catalog_pipeline_report = _read_json_file(state_dir / "reports" / "catalog_pipeline_report.json")
+    coolness_report = _read_json_file(reports_dir / "coolness_report.json")
+    determinism_status = _determinism_status_payload(
+        state_dir=state_dir,
+        reports_dir=reports_dir,
+        build_id=str(build_id),
+    )
+
+    with db.connection_scope() as con:
+        db_size_row = _timed("duckdb_database_size", lambda: con.execute("PRAGMA database_size").fetchone())
+        db_size_cols = [desc[0] for desc in con.description]
+        db_size = (
+            {db_size_cols[idx]: db_size_row[idx] for idx in range(len(db_size_cols))}
+            if db_size_row
+            else {}
+        )
+        star_cols = {
+            str(row[1])
+            for row in con.execute("select * from pragma_table_info('stars')").fetchall()
+        }
+        system_cols = {
+            str(row[1])
+            for row in con.execute("select * from pragma_table_info('systems')").fetchall()
+        }
+        star_has_sbx = "sbx_sn" in star_cols
+        system_has_sbx = "has_sbx_evidence" in system_cols
+
+        source_breakdown_rows = _timed(
+            "stars_by_source_catalog",
+            lambda: con.execute(
+                """
+                SELECT source_catalog, COUNT(*)::bigint AS star_count
+                FROM stars
+                GROUP BY 1
+                ORDER BY star_count DESC, source_catalog ASC
+                """
+            ).fetchall(),
+        )
+
+        spectral_rows = _timed(
+            "stars_by_spectral_class",
+            lambda: con.execute(
+                """
+                SELECT COALESCE(NULLIF(spectral_class, ''), '?') AS spectral_class, COUNT(*)::bigint AS star_count
+                FROM stars
+                GROUP BY 1
+                ORDER BY star_count DESC, spectral_class ASC
+                """
+            ).fetchall(),
+        )
+
+        spectral_standard_row = _timed(
+            "stars_by_spectral_standard",
+            lambda: con.execute(
+                """
+                SELECT
+                  SUM(CASE WHEN spectral_class = 'O' THEN 1 ELSE 0 END)::bigint AS class_o,
+                  SUM(CASE WHEN spectral_class = 'B' THEN 1 ELSE 0 END)::bigint AS class_b,
+                  SUM(CASE WHEN spectral_class = 'A' THEN 1 ELSE 0 END)::bigint AS class_a,
+                  SUM(CASE WHEN spectral_class = 'F' THEN 1 ELSE 0 END)::bigint AS class_f,
+                  SUM(CASE WHEN spectral_class = 'G' THEN 1 ELSE 0 END)::bigint AS class_g,
+                  SUM(CASE WHEN spectral_class = 'K' THEN 1 ELSE 0 END)::bigint AS class_k,
+                  SUM(CASE WHEN spectral_class = 'M' THEN 1 ELSE 0 END)::bigint AS class_m,
+                  SUM(CASE WHEN spectral_class = 'L' THEN 1 ELSE 0 END)::bigint AS class_l,
+                  SUM(CASE WHEN spectral_class = 'T' THEN 1 ELSE 0 END)::bigint AS class_t,
+                  SUM(CASE WHEN spectral_class = 'Y' THEN 1 ELSE 0 END)::bigint AS class_y,
+                  SUM(
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                        OR COALESCE(object_type, '') = 'white_dwarf'
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS class_d,
+                  SUM(CASE WHEN spectral_class IS NULL OR spectral_class = '' THEN 1 ELSE 0 END)::bigint AS class_unknown
+                FROM stars
+                """
+            ).fetchone(),
+        )
+
+        compact_row = _timed(
+            "compact_object_inferred_counts",
+            lambda: con.execute(
+                """
+                WITH tagged AS (
+                  SELECT
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE '%WHITE%DWARF%'
+                        OR COALESCE(object_type, '') = 'white_dwarf'
+                      THEN 'white_dwarf'
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%BLACK HOLE%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE 'BH%'
+                        OR COALESCE(object_type, '') = 'black_hole'
+                      THEN 'black_hole'
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%PULSAR%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE '%PSR%'
+                        OR COALESCE(object_type, '') = 'pulsar'
+                      THEN 'pulsar'
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE '%NEUTRON%'
+                        OR UPPER(COALESCE(spectral_type_raw, '')) LIKE 'NS%'
+                        OR COALESCE(object_type, '') = 'neutron_star'
+                      THEN 'neutron_star'
+                      ELSE NULL
+                    END AS compact_type
+                  FROM stars
+                )
+                SELECT
+                  SUM(CASE WHEN compact_type = 'white_dwarf' THEN 1 ELSE 0 END)::bigint AS white_dwarf,
+                  SUM(CASE WHEN compact_type = 'black_hole' THEN 1 ELSE 0 END)::bigint AS black_hole,
+                  SUM(CASE WHEN compact_type = 'neutron_star' THEN 1 ELSE 0 END)::bigint AS neutron_star,
+                  SUM(CASE WHEN compact_type = 'pulsar' THEN 1 ELSE 0 END)::bigint AS pulsar,
+                  SUM(CASE WHEN compact_type IS NOT NULL THEN 1 ELSE 0 END)::bigint AS compact_total
+                FROM tagged
+                """
+            ).fetchone(),
+        )
+
+        exotic_row = _timed(
+            "exotic_star_counts",
+            lambda: con.execute(
+                """
+                SELECT
+                  SUM(CASE WHEN spectral_class IN ('L','T','Y') THEN 1 ELSE 0 END)::bigint AS brown_dwarf_like,
+                  SUM(
+                    CASE
+                      WHEN UPPER(COALESCE(spectral_type_raw, '')) LIKE 'D%'
+                        OR COALESCE(object_type, '') = 'white_dwarf'
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS white_dwarf_like,
+                  SUM(
+                    CASE
+                      WHEN sqrt(
+                        coalesce(pm_ra_mas_yr, 0.0) * coalesce(pm_ra_mas_yr, 0.0) +
+                        coalesce(pm_dec_mas_yr, 0.0) * coalesce(pm_dec_mas_yr, 0.0)
+                      ) >= 1000.0
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS high_proper_motion_ge_1000_mas_yr
+                FROM stars
+                """
+            ).fetchone(),
+        )
+
+        star_mult_row = _timed(
+            "star_multiplicity_breakdown",
+            lambda: con.execute(
+                f"""
+                WITH flags AS (
+                  SELECT
+                    CASE
+                      WHEN coalesce(gaia_non_single_star, false)
+                        OR coalesce(gaia_nss_solution_count, 0) > 0
+                        OR multiplicity_source_catalogs_json LIKE '%"gaia_nss"%'
+                        OR multiplicity_source_catalogs_json LIKE '%"gaia_nss_two_body"%'
+                      THEN 1 ELSE 0
+                    END AS has_nss,
+                    CASE
+                      WHEN wds_id IS NOT NULL
+                        OR multiplicity_source_catalogs_json LIKE '%"wds_gaia_xmatch"%'
+                      THEN 1 ELSE 0
+                    END AS has_wds,
+                    CASE
+                      WHEN source_catalog = 'msc'
+                        OR multiplicity_source_catalogs_json LIKE '%"msc"%'
+                      THEN 1 ELSE 0
+                    END AS has_msc
+                    ,
+                    {("CASE WHEN sbx_sn IS NOT NULL THEN 1 ELSE 0 END" if star_has_sbx else "0")} AS has_sbx
+                  FROM stars
+                )
+                SELECT
+                  COUNT(*)::bigint AS total_stars,
+                  SUM(CASE WHEN has_nss = 1 THEN 1 ELSE 0 END)::bigint AS nss_any,
+                  SUM(CASE WHEN has_wds = 1 THEN 1 ELSE 0 END)::bigint AS wds_any,
+                  SUM(CASE WHEN has_msc = 1 THEN 1 ELSE 0 END)::bigint AS msc_any,
+                  SUM(CASE WHEN has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS sbx_any,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 0 AND has_sbx = 0 THEN 1 ELSE 0 END)::bigint AS none,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS nss_only,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS wds_only,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS msc_only,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 0 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS sbx_only,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 0 THEN 1 ELSE 0 END)::bigint AS nss_wds,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_msc,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 0 AND has_msc = 0 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS nss_sbx,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS wds_msc,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 1 AND has_msc = 0 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS wds_sbx,
+                  SUM(CASE WHEN has_nss = 0 AND has_wds = 0 AND has_msc = 1 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS msc_sbx,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 1 THEN 1 ELSE 0 END)::bigint AS nss_wds_msc,
+                  SUM(CASE WHEN has_nss = 1 AND has_wds = 1 AND has_msc = 1 AND has_sbx = 1 THEN 1 ELSE 0 END)::bigint AS nss_wds_msc_sbx
+                FROM flags
+                """
+            ).fetchone(),
+        )
+
+        system_mult_row = _timed(
+            "system_multiplicity_breakdown",
+            lambda: con.execute(
+                f"""
+                SELECT
+                  COUNT(*)::bigint AS total_systems,
+                  SUM(CASE WHEN has_gaia_nss_evidence THEN 1 ELSE 0 END)::bigint AS nss_any,
+                  SUM(CASE WHEN has_wds_evidence THEN 1 ELSE 0 END)::bigint AS wds_any,
+                  SUM(CASE WHEN has_msc_evidence THEN 1 ELSE 0 END)::bigint AS msc_any,
+                  SUM(CASE WHEN {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS sbx_any,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence AND NOT {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS none,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_only,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS wds_only,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS msc_only,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS sbx_only,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_msc,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND NOT has_wds_evidence AND NOT has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS nss_sbx,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS wds_msc,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND has_wds_evidence AND NOT has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS wds_sbx,
+                  SUM(CASE WHEN NOT has_gaia_nss_evidence AND NOT has_wds_evidence AND has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS msc_sbx,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence THEN 1 ELSE 0 END)::bigint AS nss_wds_msc,
+                  SUM(CASE WHEN has_gaia_nss_evidence AND has_wds_evidence AND has_msc_evidence AND {("has_sbx_evidence" if system_has_sbx else "false")} THEN 1 ELSE 0 END)::bigint AS nss_wds_msc_sbx
+                FROM systems
+                """
+            ).fetchone(),
+        )
+
+        planet_row = _timed(
+            "planet_habitable_breakdown",
+            lambda: con.execute(
+                """
+                SELECT
+                  COUNT(*)::bigint AS total_exoplanets,
+                  SUM(CASE WHEN eq_temp_k BETWEEN 180 AND 320 THEN 1 ELSE 0 END)::bigint AS temperate_exoplanets,
+                  SUM(
+                    CASE
+                      WHEN eq_temp_k BETWEEN 180 AND 320
+                       AND radius_earth BETWEEN 0.5 AND 2.5
+                      THEN 1 ELSE 0
+                    END
+                  )::bigint AS candidate_habitable_exoplanets
+                FROM planets
+                """
+            ).fetchone(),
+        )
+
+    arm_counts = {
+        "component_entities": 0,
+        "system_hierarchy_edges": 0,
+        "orbit_edges": 0,
+        "vsx_variability": 0,
+        "variability_summary": 0,
+        "ultracoolsheet_objects": 0,
+    }
+    arm_high_variability = 0
+    if arm_db_path.exists():
+        arm_con = None
+        try:
+            arm_con = duckdb.connect(str(arm_db_path), read_only=True)
+            for table_name in arm_counts:
+                try:
+                    row = _timed(
+                        f"arm_count_{table_name}",
+                        lambda t=table_name: arm_con.execute(f"SELECT COUNT(*)::bigint FROM {t}").fetchone(),
+                    )
+                    arm_counts[table_name] = int((row or [0])[0] or 0)
+                except Exception:
+                    arm_counts[table_name] = 0
+            try:
+                row = _timed(
+                    "arm_count_variability_summary_high_variability",
+                    lambda: arm_con.execute(
+                        "SELECT COUNT(*)::bigint FROM variability_summary WHERE any_high_variability"
+                    ).fetchone(),
+                )
+                arm_high_variability = int((row or [0])[0] or 0)
+            except Exception:
+                arm_high_variability = 0
+        except Exception:
+            arm_counts = {
+                "component_entities": 0,
+                "system_hierarchy_edges": 0,
+                "orbit_edges": 0,
+                "vsx_variability": 0,
+                "variability_summary": 0,
+                "ultracoolsheet_objects": 0,
+            }
+            arm_high_variability = 0
+        finally:
+            if arm_con is not None:
+                arm_con.close()
+
+    source_breakdown = [
+        {"source_catalog": row[0], "star_count": int(row[1])}
+        for row in source_breakdown_rows
+    ]
+    spectral_total = sum(int(row[1]) for row in spectral_rows) or 0
+    spectral_breakdown = [
+        {
+            "spectral_class": str(row[0]),
+            "star_count": int(row[1]),
+            "pct_of_stars": (float(row[1]) / float(spectral_total) * 100.0) if spectral_total else 0.0,
+        }
+        for row in spectral_rows
+    ]
+
+    star_mult_keys = [
+        "total_stars",
+        "nss_any",
+        "wds_any",
+        "msc_any",
+        "sbx_any",
+        "none",
+        "nss_only",
+        "wds_only",
+        "msc_only",
+        "sbx_only",
+        "nss_wds",
+        "nss_msc",
+        "nss_sbx",
+        "wds_msc",
+        "wds_sbx",
+        "msc_sbx",
+        "nss_wds_msc",
+        "nss_wds_msc_sbx",
+    ]
+    system_mult_keys = [
+        "total_systems",
+        "nss_any",
+        "wds_any",
+        "msc_any",
+        "sbx_any",
+        "none",
+        "nss_only",
+        "wds_only",
+        "msc_only",
+        "sbx_only",
+        "nss_wds",
+        "nss_msc",
+        "nss_sbx",
+        "wds_msc",
+        "wds_sbx",
+        "msc_sbx",
+        "nss_wds_msc",
+        "nss_wds_msc_sbx",
+    ]
+
+    star_mult_breakdown = {
+        key: int(star_mult_row[idx] or 0) for idx, key in enumerate(star_mult_keys)
+    }
+    system_mult_breakdown = {
+        key: int(system_mult_row[idx] or 0) for idx, key in enumerate(system_mult_keys)
+    }
+    exotic_counts = {
+        "brown_dwarf_like_lty": int(exotic_row[0] or 0),
+        "white_dwarf_like_d_prefix": int(exotic_row[1] or 0),
+        "high_proper_motion_ge_1000_mas_yr": int(exotic_row[2] or 0),
+    }
+    exoplanet_counts = {
+        "total_exoplanets": int(planet_row[0] or 0),
+        "temperate_exoplanets": int(planet_row[1] or 0),
+        "candidate_habitable_exoplanets": int(planet_row[2] or 0),
+    }
+    spectral_standard_counts = {
+        "O": int(spectral_standard_row[0] or 0),
+        "B": int(spectral_standard_row[1] or 0),
+        "A": int(spectral_standard_row[2] or 0),
+        "F": int(spectral_standard_row[3] or 0),
+        "G": int(spectral_standard_row[4] or 0),
+        "K": int(spectral_standard_row[5] or 0),
+        "M": int(spectral_standard_row[6] or 0),
+        "L": int(spectral_standard_row[7] or 0),
+        "T": int(spectral_standard_row[8] or 0),
+        "Y": int(spectral_standard_row[9] or 0),
+        "D": int(spectral_standard_row[10] or 0),
+        "unknown": int(spectral_standard_row[11] or 0),
+    }
+    compact_object_counts = {
+        "white_dwarf": int(compact_row[0] or 0),
+        "black_hole": int(compact_row[1] or 0),
+        "neutron_star": int(compact_row[2] or 0),
+        "pulsar": int(compact_row[3] or 0),
+        "compact_total": int(compact_row[4] or 0),
+    }
+
+    stars_count = int(((qc_report.get("counts") or {}).get("stars")) or 0)
+    systems_count = int(((qc_report.get("counts") or {}).get("systems")) or 0)
+    planets_count = int(((qc_report.get("counts") or {}).get("planets")) or 0)
+    multi_systems_count = int(system_grouping_report.get("multi_star_systems") or 0)
+    single_systems_count = max(systems_count - multi_systems_count, 0)
+
+    backbone_input_rows = int(gaia_backbone_report.get("raw_row_count") or 0)
+    sliced_in_stars = int(gaia_backbone_report.get("stars_from_backbone_count") or stars_count)
+    sliced_out_rows = int(
+        gaia_backbone_report.get("rows_dropped_before_star_emit")
+        or max(backbone_input_rows - sliced_in_stars, 0)
+    )
+    sliced_out_pct = (float(sliced_out_rows) / float(backbone_input_rows) * 100.0) if backbone_input_rows else 0.0
+    slice_policy_counts = slice_policy_report.get("counts") or {}
+    policy_input_stars = int(slice_policy_counts.get("input_star_rows") or 0)
+    policy_retained_stars = int(slice_policy_counts.get("retained_star_rows") or 0)
+    policy_sliced_out_stars = int(slice_policy_counts.get("sliced_out_star_rows") or 0)
+    policy_sliced_out_stars_pct = float(slice_policy_counts.get("sliced_out_star_pct") or 0.0)
+
+    proc_status = _read_proc_key_values(Path("/proc/self/status"))
+    proc_io = _read_proc_key_values(Path("/proc/self/io"))
+    meminfo = _read_proc_key_values(Path("/proc/meminfo"))
+    disk_usage = shutil.disk_usage(state_dir)
+
+    core_db_bytes = db_path.stat().st_size if db_path.exists() else 0
+    rich_db_bytes = rich_db_path.stat().st_size if rich_db_path.exists() else 0
+    arm_db_bytes = arm_db_path.stat().st_size if arm_db_path.exists() else 0
+    admin_db_bytes = admin_db_path.stat().st_size if admin_db_path.exists() else 0
+
+    payload = {
+        "status": "ok",
+        "build_id": build_id,
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "paths": {
+            "project_root": str(ROOT_DIR),
+            "state_dir": str(state_dir),
+            "build_dir": str(build_dir),
+            "db_path": str(db_path),
+            "rich_db_path": str(rich_db_path) if rich_db_path.exists() else None,
+            "arm_db_path": str(arm_db_path) if arm_db_path.exists() else None,
+            "admin_db_path": str(admin_db_path) if admin_db_path.exists() else None,
+            "reports_dir": str(reports_dir),
+        },
+        "sizes_bytes": {
+            "project_total": _path_size_bytes(ROOT_DIR),
+            "state_total": _path_size_bytes(state_dir),
+            "build_total": _path_size_bytes(build_dir),
+            "raw_total": _path_size_bytes(raw_dir),
+            "cooked_total": _path_size_bytes(cooked_dir),
+            "reports_total": _path_size_bytes(state_dir / "reports"),
+            "out_total": _path_size_bytes(out_dir),
+            "served_total": _path_size_bytes(served_dir),
+            "core_db": int(core_db_bytes),
+            "rich_db": int(rich_db_bytes),
+            "arm_db": int(arm_db_bytes),
+            "admin_db": int(admin_db_bytes),
+            "parquet_total": _path_size_bytes(build_dir / "parquet"),
+        },
+        "disk": {
+            "total_bytes": int(disk_usage.total),
+            "used_bytes": int(disk_usage.used),
+            "free_bytes": int(disk_usage.free),
+            "used_pct": (float(disk_usage.used) / float(disk_usage.total) * 100.0) if disk_usage.total else 0.0,
+        },
+        "host_runtime": {
+            "cpu_count": os.cpu_count(),
+            "loadavg_1m": os.getloadavg()[0] if hasattr(os, "getloadavg") else None,
+            "loadavg_5m": os.getloadavg()[1] if hasattr(os, "getloadavg") else None,
+            "loadavg_15m": os.getloadavg()[2] if hasattr(os, "getloadavg") else None,
+            "mem_total_bytes": _proc_kib_value(meminfo.get("MemTotal")),
+            "mem_available_bytes": _proc_kib_value(meminfo.get("MemAvailable")),
+            "mem_free_bytes": _proc_kib_value(meminfo.get("MemFree")),
+            "cached_bytes": _proc_kib_value(meminfo.get("Cached")),
+            "buffers_bytes": _proc_kib_value(meminfo.get("Buffers")),
+        },
+        "api_process_runtime": {
+            "pid": os.getpid(),
+            "rss_bytes": _proc_kib_value(proc_status.get("VmRSS")),
+            "peak_rss_bytes": _proc_kib_value(proc_status.get("VmHWM")),
+            "vm_size_bytes": _proc_kib_value(proc_status.get("VmSize")),
+            "threads": int(re.search(r"[0-9]+", proc_status.get("Threads", "0")).group(0)) if re.search(r"[0-9]+", proc_status.get("Threads", "0")) else 0,
+            "io_read_bytes": int(re.search(r"[0-9]+", proc_io.get("read_bytes", "0")).group(0)) if re.search(r"[0-9]+", proc_io.get("read_bytes", "0")) else 0,
+            "io_write_bytes": int(re.search(r"[0-9]+", proc_io.get("write_bytes", "0")).group(0)) if re.search(r"[0-9]+", proc_io.get("write_bytes", "0")) else 0,
+        },
+        "duckdb_runtime": {
+            "database_name": db_size.get("database_name"),
+            "database_size_bytes": _parse_human_bytes(db_size.get("database_size")),
+            "wal_size_bytes": _parse_human_bytes(db_size.get("wal_size")),
+            "memory_usage_bytes": _parse_human_bytes(db_size.get("memory_usage")),
+            "memory_limit_bytes": _parse_human_bytes(db_size.get("memory_limit")),
+            "block_size": int(db_size.get("block_size") or 0),
+            "total_blocks": int(db_size.get("total_blocks") or 0),
+            "used_blocks": int(db_size.get("used_blocks") or 0),
+            "free_blocks": int(db_size.get("free_blocks") or 0),
+        },
+        "dataset_counts": {
+            "rows_total": systems_count + stars_count + planets_count,
+            "systems": systems_count,
+            "stars": stars_count,
+            "planets": planets_count,
+            "arm_component_entities": int(arm_counts["component_entities"]),
+            "arm_hierarchy_edges": int(arm_counts["system_hierarchy_edges"]),
+            "arm_orbit_edges": int(arm_counts["orbit_edges"]),
+            "arm_vsx_variability": int(arm_counts["vsx_variability"]),
+            "arm_variability_summary": int(arm_counts["variability_summary"]),
+            "arm_variability_high": int(arm_high_variability),
+            "arm_ultracoolsheet_objects": int(arm_counts["ultracoolsheet_objects"]),
+            "multi_star_systems": multi_systems_count,
+            "single_star_systems": single_systems_count,
+            "exoplanets_total": exoplanet_counts["total_exoplanets"],
+            "exoplanets_temperate": exoplanet_counts["temperate_exoplanets"],
+            "exoplanets_candidate_habitable": exoplanet_counts["candidate_habitable_exoplanets"],
+        },
+        "slice_metrics": {
+            "input_backbone_rows": backbone_input_rows,
+            "sliced_in_stars": sliced_in_stars,
+            "sliced_out_rows": sliced_out_rows,
+            "sliced_out_pct": sliced_out_pct,
+            "policy_input_stars": policy_input_stars,
+            "policy_retained_stars": policy_retained_stars,
+            "policy_sliced_out_stars": policy_sliced_out_stars,
+            "policy_sliced_out_stars_pct": policy_sliced_out_stars_pct,
+        },
+        "breakdowns": {
+            "stars_by_source_catalog": source_breakdown,
+            "stars_by_spectral_class": spectral_breakdown,
+            "spectral_class_standard_counts": spectral_standard_counts,
+            "compact_object_counts": compact_object_counts,
+            "star_multiplicity_evidence": star_mult_breakdown,
+            "system_multiplicity_evidence": system_mult_breakdown,
+            "exotic_star_counts": exotic_counts,
+            "exoplanet_counts": exoplanet_counts,
+            "qc_report": qc_report,
+            "system_grouping_report": system_grouping_report,
+            "gaia_backbone_report": gaia_backbone_report,
+            "slice_policy_report": slice_policy_report,
+            "match_report": match_report,
+            "catalog_contribution_report": catalog_contribution_report,
+            "catalog_pipeline_report": catalog_pipeline_report,
+            "coolness_report": coolness_report,
+        },
+        "determinism": determinism_status,
+        "bottleneck_hints": {
+            "likely_memory_bound": (
+                (_parse_human_bytes(db_size.get("memory_usage")) or 0) > (8 * 1024 * 1024 * 1024)
+                or ((_proc_kib_value(proc_status.get("VmRSS")) or 0) > (8 * 1024 * 1024 * 1024))
+            ),
+            "likely_io_bound": ((_parse_human_bytes(db_size.get("database_size")) or 0) > (3 * 1024 * 1024 * 1024)),
+            "notes": [
+                "Rows and source/spectral breakdowns are measured from current served core.duckdb.",
+                "Peak memory uses process high-water mark (VmHWM) for this API process lifetime.",
+                "High load average with low process RSS growth often indicates CPU-bound query or scan work.",
+            ],
+        },
+        "timings_ms": timings_ms,
+    }
+    _DATASET_STATUS_CACHE[build_id] = {"cached_at_ts": now, "payload": payload}
+    payload["cache"] = {"hit": False, "ttl_s": DATASET_STATUS_CACHE_TTL_S, "age_s": 0.0}
+    return payload
+
+
 @admin_router.get("/status")
 def admin_status(request: Request):
     user = auth.require_admin(request)
@@ -1033,6 +2057,217 @@ def admin_status(request: Request):
             "roles": sorted(set(user.get("roles", []))),
         },
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+
+
+@admin_router.get("/status/dataset")
+def admin_dataset_status(
+    request: Request,
+    refresh: bool = Query(default=False),
+):
+    auth.require_admin(request)
+    return _dataset_status_payload(force_refresh=bool(refresh))
+
+
+@admin_router.post("/dataset/slice/preview")
+def admin_dataset_slice_preview(request: Request, payload: DatasetSlicePreviewRequest):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+
+    allowed_map = {
+        "O": "O",
+        "B": "B",
+        "A": "A",
+        "F": "F",
+        "G": "G",
+        "K": "K",
+        "M": "M",
+        "L": "L",
+        "T": "T",
+        "Y": "Y",
+        "D": "D",
+        "?": "UNKNOWN",
+        "UNK": "UNKNOWN",
+        "UNKNOWN": "UNKNOWN",
+    }
+    allowed_values: List[str] = []
+    for raw in payload.allowed_spectral_classes or []:
+        token = str(raw or "").strip().upper()
+        if not token:
+            continue
+        mapped = allowed_map.get(token)
+        if not mapped:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "bad_request",
+                    "message": f"Invalid spectral class token: {raw!r}",
+                    "details": {"allowed": sorted(set(allowed_map.keys()))},
+                },
+            )
+        if mapped not in allowed_values:
+            allowed_values.append(mapped)
+
+    warnings: List[str] = []
+    applied_filters: Dict[str, Any] = {}
+
+    with db.connection_scope() as con:
+        star_cols = {
+            str(row[1])
+            for row in con.execute("select * from pragma_table_info('stars')").fetchall()
+        }
+
+        where_clauses: List[str] = []
+        where_params: List[Any] = []
+
+        def _apply_optional_threshold(
+            request_key: str,
+            column_name: str,
+            op: str,
+            value: Optional[float],
+            *,
+            require_non_null: bool = True,
+        ) -> None:
+            if value is None:
+                return
+            if column_name not in star_cols:
+                warnings.append(
+                    f"Filter '{request_key}' ignored: stars.{column_name} not present in this build."
+                )
+                return
+            if require_non_null:
+                where_clauses.append(f"({column_name} is not null and {column_name} {op} ?)")
+            else:
+                where_clauses.append(f"({column_name} {op} ?)")
+            where_params.append(float(value))
+            applied_filters[request_key] = float(value)
+
+        _apply_optional_threshold("max_distance_ly", "dist_ly", "<=", payload.max_distance_ly)
+        _apply_optional_threshold(
+            "min_parallax_over_error",
+            "parallax_over_error",
+            ">=",
+            payload.min_parallax_over_error,
+        )
+        _apply_optional_threshold(
+            "max_parallax_error_mas",
+            "parallax_error_mas",
+            "<=",
+            payload.max_parallax_error_mas,
+        )
+        _apply_optional_threshold("max_ruwe", "ruwe", "<=", payload.max_ruwe)
+
+        if payload.require_spectral_class:
+            if "spectral_class" in star_cols:
+                where_clauses.append("(spectral_class is not null and spectral_class <> '')")
+                applied_filters["require_spectral_class"] = True
+            else:
+                warnings.append("Filter 'require_spectral_class' ignored: stars.spectral_class not present.")
+
+        if payload.require_color_index:
+            if "color_index" in star_cols:
+                where_clauses.append("(color_index is not null)")
+                applied_filters["require_color_index"] = True
+            else:
+                warnings.append("Filter 'require_color_index' ignored: stars.color_index not present.")
+
+        if allowed_values:
+            if "spectral_class" in star_cols:
+                placeholders = ",".join(["?"] * len(allowed_values))
+                where_clauses.append(
+                    f"(coalesce(upper(spectral_class), 'UNKNOWN') in ({placeholders}))"
+                )
+                where_params.extend(allowed_values)
+                applied_filters["allowed_spectral_classes"] = allowed_values
+            else:
+                warnings.append(
+                    "Filter 'allowed_spectral_classes' ignored: stars.spectral_class not present."
+                )
+
+        where_sql = " and ".join(where_clauses) if where_clauses else "true"
+
+        counts_row = con.execute(
+            f"""
+            with candidate_stars as (
+              select star_id, system_id, spectral_class, color_index
+              from stars
+              where {where_sql}
+            ),
+            candidate_systems as (
+              select distinct system_id
+              from candidate_stars
+              where system_id is not null
+            ),
+            candidate_planets as (
+              select p.planet_id
+              from planets p
+              join candidate_systems s using (system_id)
+            )
+            select
+              (select count(*)::bigint from stars) as stars_total,
+              (select count(*)::bigint from candidate_stars) as stars_retained,
+              (select count(*)::bigint from systems) as systems_total,
+              (select count(*)::bigint from candidate_systems) as systems_retained,
+              (select count(*)::bigint from planets) as planets_total,
+              (select count(*)::bigint from candidate_planets) as planets_retained,
+              (select count(*)::bigint from candidate_stars where spectral_class is null or spectral_class = '') as retained_missing_spectral,
+              (select count(*)::bigint from candidate_stars where color_index is null) as retained_missing_color
+            """,
+            where_params,
+        ).fetchone()
+
+        spectral_rows = con.execute(
+            f"""
+            select
+              coalesce(nullif(spectral_class, ''), 'UNKNOWN') as spectral_class,
+              count(*)::bigint as star_count
+            from stars
+            where {where_sql}
+            group by 1
+            order by star_count desc, spectral_class asc
+            limit 16
+            """,
+            where_params,
+        ).fetchall()
+
+    stars_total = int(counts_row[0] or 0)
+    stars_retained = int(counts_row[1] or 0)
+    systems_total = int(counts_row[2] or 0)
+    systems_retained = int(counts_row[3] or 0)
+    planets_total = int(counts_row[4] or 0)
+    planets_retained = int(counts_row[5] or 0)
+
+    def _pct(part: int, whole: int) -> float:
+        if whole <= 0:
+            return 0.0
+        return (float(part) / float(whole)) * 100.0
+
+    return {
+        "status": "ok",
+        "build_id": _dataset_status_payload(force_refresh=False).get("build_id"),
+        "where_sql": where_sql,
+        "applied_filters": applied_filters,
+        "warnings": warnings,
+        "counts": {
+            "stars_total": stars_total,
+            "stars_retained": stars_retained,
+            "stars_sliced_out": max(stars_total - stars_retained, 0),
+            "stars_retained_pct": _pct(stars_retained, stars_total),
+            "systems_total": systems_total,
+            "systems_retained": systems_retained,
+            "systems_sliced_out": max(systems_total - systems_retained, 0),
+            "systems_retained_pct": _pct(systems_retained, systems_total),
+            "planets_total": planets_total,
+            "planets_retained": planets_retained,
+            "planets_sliced_out": max(planets_total - planets_retained, 0),
+            "planets_retained_pct": _pct(planets_retained, planets_total),
+            "retained_missing_spectral": int(counts_row[6] or 0),
+            "retained_missing_color": int(counts_row[7] or 0),
+        },
+        "retained_spectral_breakdown": [
+            {"spectral_class": str(row[0]), "star_count": int(row[1])}
+            for row in spectral_rows
+        ],
     }
 
 
@@ -1449,6 +2684,7 @@ def admin_home(request: Request):
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Spacegate Admin</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style>
       :root {{
         color-scheme: light;
@@ -1461,8 +2697,113 @@ def admin_home(request: Request):
         --warn: #b45309;
         --err: #b91c1c;
         --brand: #0f766e;
+        --panel-soft: #eef2f7;
+        --code-bg: #0f172a;
+        --code-ink: #e2e8f0;
+        --font-body: ui-sans-serif, system-ui, sans-serif;
       }}
-      body {{ font-family: ui-sans-serif, system-ui, sans-serif; margin: 1.25rem; line-height: 1.4; background: var(--bg); color: var(--text); }}
+      :root[data-theme="simple_dark"] {{
+        --bg: #0f1820;
+        --text: #e4edf4;
+        --muted: #9eb2c0;
+        --card: #15242f;
+        --border: rgba(170, 196, 214, 0.24);
+        --ok: #6fd58f;
+        --warn: #f0bf55;
+        --err: #df736f;
+        --brand: #74c5ff;
+        --panel-soft: #1b2b37;
+        --code-bg: #08111a;
+        --code-ink: #dce8f6;
+      }}
+      :root[data-theme="cyberpunk"] {{
+        --bg: #090013;
+        --text: #ecfff7;
+        --muted: #9ad9ff;
+        --card: #121030;
+        --border: rgba(125, 251, 255, 0.45);
+        --ok: #63ff8f;
+        --warn: #ffd166;
+        --err: #ff6ba3;
+        --brand: #ff4fd8;
+        --panel-soft: #151a38;
+        --code-bg: #0a0f23;
+        --code-ink: #d9fff6;
+        --font-body: "IBM Plex Mono", "Spline Sans Mono", ui-monospace, monospace;
+      }}
+      :root[data-theme="lcars"] {{
+        --bg: #000000;
+        --text: #ffd9ba;
+        --muted: #d9b89f;
+        --card: #09080c;
+        --border: rgba(225, 156, 110, 0.42);
+        --ok: #9cf6a8;
+        --warn: #f6c94c;
+        --err: #f08a96;
+        --brand: #f5a22e;
+        --panel-soft: #171221;
+        --code-bg: #140f1b;
+        --code-ink: #ffe2c9;
+        --font-body: "Antonio", "Arial Narrow", "Space Grotesk", sans-serif;
+      }}
+      :root[data-theme="mission_control"] {{
+        --bg: #0b121b;
+        --text: #d9e6f4;
+        --muted: #9bacbf;
+        --card: #17212d;
+        --border: rgba(130, 156, 183, 0.45);
+        --ok: #6fd58f;
+        --warn: #f0bf55;
+        --err: #df736f;
+        --brand: #6fb9ff;
+        --panel-soft: #1c2734;
+        --code-bg: #0c1320;
+        --code-ink: #dce8f6;
+      }}
+      :root[data-theme="aurora"] {{
+        --bg: #0d1530;
+        --text: #edf3ff;
+        --muted: #c2cbf5;
+        --card: rgba(24, 33, 69, 0.72);
+        --border: rgba(176, 214, 255, 0.4);
+        --ok: #5dffd7;
+        --warn: #ffe08a;
+        --err: #ff88e7;
+        --brand: #8d7dff;
+        --panel-soft: rgba(27, 45, 84, 0.72);
+        --code-bg: #111b3a;
+        --code-ink: #e7efff;
+      }}
+      :root[data-theme="retro_90s"] {{
+        --bg: #c3c3c3;
+        --text: #101010;
+        --muted: #393939;
+        --card: #c0c0c0;
+        --border: #7c7c7c;
+        --ok: #008000;
+        --warn: #b45309;
+        --err: #b91c1c;
+        --brand: #0000aa;
+        --panel-soft: #d2d2d2;
+        --code-bg: #1b1b1b;
+        --code-ink: #ffff99;
+        --font-body: "Tahoma", "Verdana", "Arial", sans-serif;
+      }}
+      :root[data-theme="deep_space_minimal"] {{
+        --bg: #010109;
+        --text: #e9eeff;
+        --muted: #9da8c4;
+        --card: rgba(6, 8, 20, 0.8);
+        --border: rgba(155, 181, 239, 0.2);
+        --ok: #8ad58a;
+        --warn: #d8b96a;
+        --err: #d77988;
+        --brand: #8ab8ff;
+        --panel-soft: rgba(10, 14, 30, 0.9);
+        --code-bg: rgba(7, 10, 23, 0.96);
+        --code-ink: #d9e4ff;
+      }}
+      body {{ font-family: var(--font-body); margin: 1.25rem; line-height: 1.4; background: var(--bg); color: var(--text); }}
       h1, h2, h3 {{ margin: 0.5rem 0; }}
       .toolbar {{ display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }}
       .screen-nav {{ display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.9rem; }}
@@ -1476,10 +2817,11 @@ def admin_home(request: Request):
       .action-meta {{ color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }}
       .field {{ margin-bottom: 0.45rem; }}
       .field label {{ display: block; font-size: 0.86rem; color: var(--muted); margin-bottom: 0.15rem; }}
-      .field input[type=text], .field input[type=number], .field select {{ width: 100%; box-sizing: border-box; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; }}
+      .field input[type=text], .field input[type=number], .field select {{ width: 100%; box-sizing: border-box; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }}
       .small {{ font-size: 0.82rem; color: var(--muted); }}
-      code {{ background: #eef2f7; padding: 0.1rem 0.25rem; border-radius: 4px; }}
-      button {{ padding: 0.45rem 0.65rem; cursor: pointer; border: 1px solid var(--border); background: white; border-radius: 6px; }}
+      code {{ background: var(--panel-soft); padding: 0.1rem 0.25rem; border-radius: 4px; }}
+      button {{ padding: 0.45rem 0.65rem; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; }}
+      select {{ border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; padding: 0.35rem; }}
       button.primary {{ background: var(--brand); color: white; border-color: var(--brand); }}
       button.warn {{ border-color: var(--warn); color: var(--warn); }}
       button.danger {{ border-color: var(--err); color: var(--err); }}
@@ -1492,9 +2834,9 @@ def admin_home(request: Request):
       .status-cancelled {{ color: #6b7280; border-color: #d1d5db; }}
       .inline {{ display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }}
       .jobs-list, .audit-list, .backup-list {{ list-style: none; margin: 0; padding: 0; }}
-      .jobs-list li, .audit-list li, .backup-list li {{ border-bottom: 1px solid #eef2f7; padding: 0.35rem 0; }}
+      .jobs-list li, .audit-list li, .backup-list li {{ border-bottom: 1px solid var(--panel-soft); padding: 0.35rem 0; }}
       .jobs-list li:last-child, .audit-list li:last-child, .backup-list li:last-child {{ border-bottom: 0; }}
-      pre {{ background: #0f172a; color: #e2e8f0; padding: 0.6rem; border-radius: 8px; overflow: auto; max-height: 28rem; }}
+      pre {{ background: var(--code-bg); color: var(--code-ink); padding: 0.6rem; border-radius: 8px; overflow: auto; max-height: 28rem; }}
       .audit-presets button.active {{ border-color: var(--brand); color: var(--brand); }}
       .muted {{ color: var(--muted); }}
       .weight-grid {{ display: grid; gap: 0.45rem; }}
@@ -1504,10 +2846,10 @@ def admin_home(request: Request):
       .json-box {{ background: #0f172a; color: #e2e8f0; padding: 0.6rem; border-radius: 8px; overflow: auto; max-height: 16rem; }}
       .guidance {{ margin: 0.25rem 0 0.5rem 1.1rem; color: var(--muted); }}
       .guidance li {{ margin: 0.15rem 0; }}
-      .note-box {{ border: 1px dashed var(--border); border-radius: 8px; padding: 0.5rem; background: #fafafa; }}
+      .note-box {{ border: 1px dashed var(--border); border-radius: 8px; padding: 0.5rem; background: var(--panel-soft); }}
       .preview-grid {{ display: grid; gap: 0.6rem; }}
       .kpis {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 0.5rem; }}
-      .kpi {{ border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem; background: #fff; }}
+      .kpi {{ border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem; background: var(--card); }}
       .kpi .k {{ color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }}
       .kpi .v {{ font-size: 1rem; font-weight: 700; }}
       .changes-list {{ list-style: none; margin: 0; padding: 0; }}
@@ -1515,13 +2857,33 @@ def admin_home(request: Request):
       .changes-list li:last-child {{ border-bottom: 0; }}
       .bar-list {{ display: grid; gap: 0.35rem; }}
       .bar-row {{ display: grid; grid-template-columns: 100px 1fr 90px; gap: 0.45rem; align-items: center; }}
-      .bar-track {{ background: #eef2f7; border-radius: 999px; height: 10px; overflow: hidden; }}
+      .bar-track {{ background: var(--panel-soft); border-radius: 999px; height: 10px; overflow: hidden; }}
       .bar-fill {{ background: var(--brand); height: 100%; border-radius: 999px; }}
+      .bar-fill.warn {{ background: var(--warn); }}
+      .bar-fill.err {{ background: var(--err); }}
+      .chart-split {{ display: grid; gap: 0.6rem; grid-template-columns: minmax(220px, 0.95fr) minmax(220px, 1.05fr); align-items: start; }}
+      .pie-panel {{ border: 1px solid var(--panel-soft); border-radius: 8px; padding: 0.45rem; background: color-mix(in srgb, var(--panel-soft) 68%, transparent); }}
+      .pie-title {{ margin: 0 0 0.35rem 0; font-size: 0.84rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.02em; }}
+      .pie-wrap {{ display: grid; gap: 0.5rem; align-items: center; grid-template-columns: 116px 1fr; }}
+      .pie-plot {{ width: 108px; height: 108px; border-radius: 50%; position: relative; border: 1px solid var(--border); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 42%, transparent); }}
+      .pie-plot::after {{ content: ""; position: absolute; inset: 25%; border-radius: 50%; background: var(--card); border: 1px solid var(--panel-soft); }}
+      .pie-legend {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 0.22rem; }}
+      .pie-legend li {{ display: grid; grid-template-columns: 10px 1fr auto; gap: 0.38rem; align-items: center; font-size: 0.78rem; }}
+      .pie-dot {{ width: 10px; height: 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--bg) 45%, transparent); }}
+      .metric-list {{ display: grid; gap: 0.35rem; }}
+      .metric-row {{ display: grid; grid-template-columns: minmax(130px, 1fr) minmax(180px, 1.1fr); gap: 0.5rem; align-items: baseline; border-bottom: 1px solid var(--panel-soft); padding-bottom: 0.28rem; }}
+      .metric-row:last-child {{ border-bottom: 0; padding-bottom: 0; }}
+      .metric-k {{ color: var(--muted); font-size: 0.82rem; }}
+      .metric-v {{ font-weight: 600; font-size: 0.88rem; word-break: break-word; }}
+      .metric-note {{ color: var(--muted); font-size: 0.78rem; grid-column: 1 / -1; }}
       .mini-table {{ width: 100%; border-collapse: collapse; font-size: 0.86rem; }}
-      .mini-table th, .mini-table td {{ border-bottom: 1px solid #eef2f7; padding: 0.28rem 0.2rem; text-align: left; }}
+      .mini-table th, .mini-table td {{ border-bottom: 1px solid var(--panel-soft); padding: 0.28rem 0.2rem; text-align: left; }}
       .mini-table th {{ color: var(--muted); font-weight: 600; }}
       @media (max-width: 1100px) {{
         .coolness-layout {{ grid-template-columns: 1fr; }}
+      }}
+      @media (max-width: 880px) {{
+        .chart-split {{ grid-template-columns: 1fr; }}
       }}
     </style>
   </head>
@@ -1532,19 +2894,33 @@ def admin_home(request: Request):
 
     <div class="toolbar">
       <button id="logout" class="danger">Log out</button>
+      <label for="adminThemeSelect" class="small">Theme</label>
+      <select id="adminThemeSelect" style="min-width: 12rem;">
+        <option value="simple_light">Simple Light</option>
+        <option value="simple_dark">Simple Dark</option>
+        <option value="cyberpunk">Cyberpunk</option>
+        <option value="lcars">Enterprise</option>
+        <option value="mission_control">Mission Control</option>
+        <option value="aurora">Aurora</option>
+        <option value="retro_90s">Geocities</option>
+        <option value="deep_space_minimal">Deep Space Minimal</option>
+      </select>
       <button id="refreshStatus">Refresh Status</button>
+      <button id="refreshDatasetStatus">Refresh Dataset Stats</button>
       <button id="refreshJobs">Refresh Jobs</button>
       <button id="refreshBackups">Refresh Backups</button>
       <button id="refreshAudit">Refresh Audit</button>
     </div>
 
     <div class="screen-nav">
-      <button id="screenTabOperations" class="active">Operations</button>
+      <button id="screenTabOperations">Operations</button>
+      <button id="screenTabStatus" class="active">Status</button>
+      <button id="screenTabDataset">Dataset</button>
       <button id="screenTabCoolness">Coolness</button>
       <button id="screenTabActivity">Activity</button>
     </div>
 
-    <div id="screenOperations" class="screen active">
+    <div id="screenOperations" class="screen">
       <div class="section">
         <h2>Operations</h2>
         <div id="actionsOps" class="grid"></div>
@@ -1552,6 +2928,227 @@ def admin_home(request: Request):
       <div class="section">
         <h2>Status</h2>
         <pre id="out"></pre>
+      </div>
+    </div>
+
+    <div id="screenStatus" class="screen active">
+      <div class="section">
+        <h2>Status</h2>
+        <p class="muted">Operational health metrics for current served build: runtime memory/IO hints, storage footprint, and capacity indicators.</p>
+        <div class="inline">
+          <button id="refreshDatasetStatusInline">Refresh Dataset Stats</button>
+          <span id="datasetStatusMeta" class="small"></span>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Top KPIs</h3>
+        <div id="datasetKpis" class="kpis"></div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Storage Footprint</h3>
+          <div id="datasetStorage" class="bar-list"></div>
+        </div>
+        <div>
+          <h3>Runtime + Bottleneck Hints</h3>
+          <div id="datasetRuntime" class="bar-list"></div>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Capacity Usage</h3>
+        <div id="datasetUsageBars" class="bar-list"></div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Deterministic Compare</h3>
+          <div id="datasetDeterminism" class="bar-list"></div>
+        </div>
+        <div>
+          <h3>Determinism Table Checks</h3>
+          <table class="mini-table">
+            <thead><tr><th>Table</th><th>Status</th></tr></thead>
+            <tbody id="datasetDeterminismRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Detailed Payload</h3>
+        <details>
+          <summary>Show humanized runtime/storage summary</summary>
+          <pre id="datasetHumanSummary"></pre>
+        </details>
+        <details>
+          <summary>Show raw dataset status JSON</summary>
+          <pre id="datasetStatusRaw"></pre>
+        </details>
+      </div>
+    </div>
+
+    <div id="screenDataset" class="screen">
+      <div class="section">
+        <h2>Dataset</h2>
+        <p class="muted">Catalog composition, multiplicity evidence, spectral distribution, and slice policy controls.</p>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Stars by Source</h3>
+          <div class="chart-split">
+            <div id="datasetSourcePie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Source</th><th>Stars</th></tr></thead>
+              <tbody id="datasetSourceRows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Stars by Spectral Class</h3>
+          <div class="chart-split">
+            <div id="datasetSpectralPie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Class</th><th>Stars</th><th>%</th></tr></thead>
+              <tbody id="datasetSpectralRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Multiplicity Evidence (Systems)</h3>
+          <div class="chart-split">
+            <div id="datasetSystemMultPie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Bucket</th><th>Systems</th></tr></thead>
+              <tbody id="datasetSystemMultRows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Multiplicity Evidence (Stars)</h3>
+          <div class="chart-split">
+            <div id="datasetStarMultPie" class="pie-panel"></div>
+            <table class="mini-table">
+              <thead><tr><th>Bucket</th><th>Stars</th></tr></thead>
+              <tbody id="datasetStarMultRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Spectral Class Standard</h3>
+          <table class="mini-table">
+            <thead><tr><th>Class</th><th>Stars</th></tr></thead>
+            <tbody id="datasetSpectralStandardRows"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Compact Objects (Inferred)</h3>
+          <table class="mini-table">
+            <thead><tr><th>Type</th><th>Stars</th></tr></thead>
+            <tbody id="datasetCompactRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section grid">
+        <div>
+          <h3>Catalog Utility (Ingest)</h3>
+          <div id="datasetCatalogContributionBars" class="bar-list"></div>
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>Catalog</th>
+                <th>Domain</th>
+                <th>Input</th>
+                <th>Direct</th>
+                <th>Evidence</th>
+                <th>Linked</th>
+                <th>Tier</th>
+              </tr>
+            </thead>
+            <tbody id="datasetCatalogContributionRows"></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Catalog Overlap + Pipeline Stages</h3>
+          <table class="mini-table">
+            <thead><tr><th>Scope</th><th>Pair</th><th>Intersection</th><th>Jaccard</th><th>% Scope</th></tr></thead>
+            <tbody id="datasetCatalogOverlapRows"></tbody>
+          </table>
+          <h4 style="margin-top:0.7rem;">Pipeline Stage Status</h4>
+          <table class="mini-table">
+            <thead><tr><th>Stage</th><th>Updated</th><th>Details</th></tr></thead>
+            <tbody id="datasetPipelineRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Slice Policy Controls</h3>
+        <p class="muted">Preview and launch a sliced rebuild. This trims the served dataset by policy and records the policy in build metadata.</p>
+        <div class="grid">
+          <div class="action-card">
+            <div class="field">
+              <label for="sliceMaxDistanceLy">Max distance (ly)</label>
+              <input id="sliceMaxDistanceLy" type="number" min="1" max="1000" step="1" value="1000" />
+            </div>
+            <div class="field">
+              <label for="sliceMinParallaxOverError">Min parallax_over_error (optional)</label>
+              <input id="sliceMinParallaxOverError" type="number" min="0" step="0.1" placeholder="e.g. 5" />
+            </div>
+            <div class="field">
+              <label for="sliceMaxParallaxErrorMas">Max parallax error mas (optional)</label>
+              <input id="sliceMaxParallaxErrorMas" type="number" min="0" step="0.01" placeholder="e.g. 0.2" />
+            </div>
+            <div class="field">
+              <label for="sliceMaxRuwe">Max RUWE (optional)</label>
+              <input id="sliceMaxRuwe" type="number" min="0" step="0.01" placeholder="e.g. 1.4" />
+            </div>
+            <div class="field">
+              <label>Allowed spectral classes (optional)</label>
+              <div id="sliceSpectralFilters" class="inline">
+                <label><input type="checkbox" value="O"> O</label>
+                <label><input type="checkbox" value="B"> B</label>
+                <label><input type="checkbox" value="A"> A</label>
+                <label><input type="checkbox" value="F"> F</label>
+                <label><input type="checkbox" value="G"> G</label>
+                <label><input type="checkbox" value="K"> K</label>
+                <label><input type="checkbox" value="M"> M</label>
+                <label><input type="checkbox" value="L"> L</label>
+                <label><input type="checkbox" value="T"> T</label>
+                <label><input type="checkbox" value="Y"> Y</label>
+                <label><input type="checkbox" value="D"> D</label>
+                <label><input type="checkbox" value="UNKNOWN"> UNKNOWN</label>
+              </div>
+            </div>
+            <div class="inline" style="margin-bottom:0.45rem;">
+              <label><input id="sliceRequireSpectral" type="checkbox" /> Require spectral class</label>
+              <label><input id="sliceRequireColor" type="checkbox" /> Require color index</label>
+            </div>
+            <div class="inline" style="margin-bottom:0.45rem;">
+              <label><input id="sliceFromCooked" type="checkbox" checked /> Rebuild from cooked catalogs</label>
+              <label><input id="sliceOverwrite" type="checkbox" /> Overwrite downloads (full pipeline only)</label>
+            </div>
+            <div class="inline">
+              <button id="slicePreviewBtn" type="button">Preview Slice</button>
+              <button id="sliceRunBtn" type="button" class="warn">Build Sliced Core</button>
+            </div>
+            <div id="sliceRunStatus" class="note-box small" style="margin-top:0.45rem;">Status: idle</div>
+          </div>
+          <div class="action-card">
+            <h4>Slice Preview Impact</h4>
+            <div id="slicePreviewKpis" class="kpis"></div>
+            <div>
+              <h4>Retained Spectral Mix</h4>
+              <table class="mini-table">
+                <thead><tr><th>Class</th><th>Stars</th></tr></thead>
+                <tbody id="slicePreviewSpectralRows"></tbody>
+              </table>
+            </div>
+            <details style="margin-top:0.45rem;">
+              <summary>Preview payload</summary>
+              <pre id="slicePreviewRaw" class="json-box"></pre>
+            </details>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1572,7 +3169,7 @@ def admin_home(request: Request):
           <li><strong>Preview</strong>: auto-refreshed summary from the latest run output; no manual preview action needed.</li>
           <li><strong>Run</strong>: writes rich ranking outputs (`rich.duckdb`, Parquet, report) for the current build using your current sliders, but does not persist a new profile version.</li>
           <li><strong>Save Profile</strong>: stores the current slider mix as an immutable profile version, without activating it.</li>
-          <li><strong>Activate Profile</strong>: points the active profile to a saved immutable version.</li>
+          <li><strong>Activate Profile</strong>: saves current weights as an immutable version (auto-bumping version if needed) and then activates that saved version.</li>
           <li>Core astronomy data is not modified by coolness tuning.</li>
           <li>Profiles are immutable by version: changed weights require a new profile version.</li>
         </ul>
@@ -1583,7 +3180,7 @@ def admin_home(request: Request):
       </div>
       <div class="section">
         <h2>Tuning Preview</h2>
-        <p class="muted">Adjust weights with sliders, run read-only preview, use Run for ephemeral scoring, Save Profile when you want to persist, and Activate Profile when you want that version live.</p>
+        <p class="muted">Adjust weights with sliders, run read-only preview, use Run for ephemeral scoring, Save Profile when you want to persist, and Activate Profile to save current edits then switch that version live.</p>
         <div class="grid coolness-layout">
           <div class="action-card">
             <h3>Weight Controls</h3>
@@ -1627,6 +3224,58 @@ def admin_home(request: Request):
             </div>
             <div id="coolRunStatus" class="note-box small" style="margin-top:0.45rem;">Status: idle</div>
             <div id="coolPreviewNotice" class="note-box small" style="margin-top:0.45rem;"></div>
+            <div class="field" style="margin-top:1rem; padding-top:0.8rem; border-top:1px solid rgba(255,255,255,0.08);">
+              <h4 style="margin-bottom:0.35rem;">Snapshot (Re)generator</h4>
+              <p class="muted">
+                Generate deterministic system visuals for the current build. Filters are applied before the top-rank limit.
+                Defaults to the top 100 coolness-ranked systems.
+              </p>
+              <div class="field">
+                <label for="snapshotTopCoolness">Top coolness systems</label>
+                <div class="inline">
+                  <input id="snapshotTopCoolness" type="range" min="10" max="1000" step="10" value="100" style="flex:1;" />
+                  <input id="snapshotTopCoolnessNumber" type="number" min="1" max="10000" step="10" value="100" style="width:6rem;" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="snapshotMaxDistanceLy">Max distance (ly)</label>
+                <div class="inline">
+                  <input id="snapshotMaxDistanceLy" type="range" min="1" max="1000" step="1" value="1000" style="flex:1;" />
+                  <input id="snapshotMaxDistanceLyNumber" type="number" min="1" max="1000" step="1" value="1000" style="width:6rem;" />
+                </div>
+              </div>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="snapshotMinStarCount">Min stars</label>
+                  <div class="inline">
+                    <input id="snapshotMinStarCount" type="range" min="0" max="12" step="1" value="0" style="flex:1;" />
+                    <input id="snapshotMinStarCountNumber" type="number" min="0" max="12" step="1" value="0" style="width:5rem;" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="snapshotMinPlanetCount">Min planets</label>
+                  <div class="inline">
+                    <input id="snapshotMinPlanetCount" type="range" min="0" max="20" step="1" value="0" style="flex:1;" />
+                    <input id="snapshotMinPlanetCountNumber" type="number" min="0" max="20" step="1" value="0" style="width:5rem;" />
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label for="snapshotMinCoolnessScore">Min coolness score</label>
+                <div class="inline">
+                  <input id="snapshotMinCoolnessScore" type="range" min="0" max="40" step="0.5" value="0" style="flex:1;" />
+                  <input id="snapshotMinCoolnessScoreNumber" type="number" min="0" max="40" step="0.5" value="0" style="width:6rem;" />
+                </div>
+              </div>
+              <div class="inline">
+                <label for="snapshotForceRegenerate">Force regenerate existing images</label>
+                <input id="snapshotForceRegenerate" type="checkbox" />
+              </div>
+              <div class="inline" style="margin-top:0.45rem;">
+                <button id="snapshotRunBtn" type="button" class="primary">Generate Snapshots</button>
+              </div>
+              <div id="snapshotRunStatus" class="note-box small" style="margin-top:0.45rem;">Status: idle</div>
+            </div>
           </div>
           <div class="action-card">
             <h3>Preview Summary</h3>
@@ -1638,11 +3287,17 @@ def admin_home(request: Request):
               </div>
               <div>
                 <h4>Type Distribution</h4>
-                <div id="coolPreviewTypeDist" class="bar-list"></div>
+                <div class="chart-split">
+                  <div id="coolPreviewTypePie" class="pie-panel"></div>
+                  <div id="coolPreviewTypeDist" class="bar-list"></div>
+                </div>
               </div>
               <div>
                 <h4>Spectral Distribution</h4>
-                <div id="coolPreviewSpectralDist" class="bar-list"></div>
+                <div class="chart-split">
+                  <div id="coolPreviewSpectralPie" class="pie-panel"></div>
+                  <div id="coolPreviewSpectralDist" class="bar-list"></div>
+                </div>
               </div>
               <div>
                 <h4>Top Systems (Preview)</h4>
@@ -1716,6 +3371,45 @@ def admin_home(request: Request):
       const out = document.getElementById('out');
       const actionsOpsEl = document.getElementById('actionsOps');
       const actionsCoolnessEl = document.getElementById('actionsCoolness');
+      const adminThemeSelectEl = document.getElementById('adminThemeSelect');
+      const datasetStatusMetaEl = document.getElementById('datasetStatusMeta');
+      const datasetKpisEl = document.getElementById('datasetKpis');
+      const datasetStorageEl = document.getElementById('datasetStorage');
+      const datasetRuntimeEl = document.getElementById('datasetRuntime');
+      const datasetUsageBarsEl = document.getElementById('datasetUsageBars');
+      const datasetDeterminismEl = document.getElementById('datasetDeterminism');
+      const datasetDeterminismRowsEl = document.getElementById('datasetDeterminismRows');
+      const datasetSourceRowsEl = document.getElementById('datasetSourceRows');
+      const datasetSourcePieEl = document.getElementById('datasetSourcePie');
+      const datasetSpectralRowsEl = document.getElementById('datasetSpectralRows');
+      const datasetSpectralPieEl = document.getElementById('datasetSpectralPie');
+      const datasetSpectralStandardRowsEl = document.getElementById('datasetSpectralStandardRows');
+      const datasetCompactRowsEl = document.getElementById('datasetCompactRows');
+      const datasetSystemMultRowsEl = document.getElementById('datasetSystemMultRows');
+      const datasetSystemMultPieEl = document.getElementById('datasetSystemMultPie');
+      const datasetStarMultRowsEl = document.getElementById('datasetStarMultRows');
+      const datasetStarMultPieEl = document.getElementById('datasetStarMultPie');
+      const datasetCatalogContributionBarsEl = document.getElementById('datasetCatalogContributionBars');
+      const datasetCatalogContributionRowsEl = document.getElementById('datasetCatalogContributionRows');
+      const datasetCatalogOverlapRowsEl = document.getElementById('datasetCatalogOverlapRows');
+      const datasetPipelineRowsEl = document.getElementById('datasetPipelineRows');
+      const datasetHumanSummaryEl = document.getElementById('datasetHumanSummary');
+      const datasetStatusRawEl = document.getElementById('datasetStatusRaw');
+      const sliceMaxDistanceLyEl = document.getElementById('sliceMaxDistanceLy');
+      const sliceMinParallaxOverErrorEl = document.getElementById('sliceMinParallaxOverError');
+      const sliceMaxParallaxErrorMasEl = document.getElementById('sliceMaxParallaxErrorMas');
+      const sliceMaxRuweEl = document.getElementById('sliceMaxRuwe');
+      const sliceSpectralFiltersEl = document.getElementById('sliceSpectralFilters');
+      const sliceRequireSpectralEl = document.getElementById('sliceRequireSpectral');
+      const sliceRequireColorEl = document.getElementById('sliceRequireColor');
+      const sliceFromCookedEl = document.getElementById('sliceFromCooked');
+      const sliceOverwriteEl = document.getElementById('sliceOverwrite');
+      const slicePreviewBtnEl = document.getElementById('slicePreviewBtn');
+      const sliceRunBtnEl = document.getElementById('sliceRunBtn');
+      const sliceRunStatusEl = document.getElementById('sliceRunStatus');
+      const slicePreviewKpisEl = document.getElementById('slicePreviewKpis');
+      const slicePreviewSpectralRowsEl = document.getElementById('slicePreviewSpectralRows');
+      const slicePreviewRawEl = document.getElementById('slicePreviewRaw');
       const jobsEl = document.getElementById('jobs');
       const selectedJobEl = document.getElementById('selectedJob');
       const logEl = document.getElementById('log');
@@ -1738,14 +3432,29 @@ def admin_home(request: Request):
       const coolPreviewSummaryEl = document.getElementById('coolPreviewSummary');
       const coolPreviewChangesEl = document.getElementById('coolPreviewChanges');
       const coolPreviewTypeDistEl = document.getElementById('coolPreviewTypeDist');
+      const coolPreviewTypePieEl = document.getElementById('coolPreviewTypePie');
       const coolPreviewSpectralDistEl = document.getElementById('coolPreviewSpectralDist');
+      const coolPreviewSpectralPieEl = document.getElementById('coolPreviewSpectralPie');
       const coolPreviewTopSystemsEl = document.getElementById('coolPreviewTopSystems');
 	      const coolRunStatusEl = document.getElementById('coolRunStatus');
-		      const coolPreviewNoticeEl = document.getElementById('coolPreviewNotice');
-		      const coolApplyBtnEl = document.getElementById('coolApplyBtn');
-		      const coolSaveBtnEl = document.getElementById('coolSaveBtn');
-	      const coolActivateBtnEl = document.getElementById('coolActivateBtn');
-		      const presetBalancedBtnEl = document.getElementById('presetBalanced');
+      const coolPreviewNoticeEl = document.getElementById('coolPreviewNotice');
+      const coolApplyBtnEl = document.getElementById('coolApplyBtn');
+      const coolSaveBtnEl = document.getElementById('coolSaveBtn');
+      const coolActivateBtnEl = document.getElementById('coolActivateBtn');
+      const snapshotTopCoolnessEl = document.getElementById('snapshotTopCoolness');
+      const snapshotTopCoolnessNumberEl = document.getElementById('snapshotTopCoolnessNumber');
+      const snapshotMaxDistanceLyEl = document.getElementById('snapshotMaxDistanceLy');
+      const snapshotMaxDistanceLyNumberEl = document.getElementById('snapshotMaxDistanceLyNumber');
+      const snapshotMinStarCountEl = document.getElementById('snapshotMinStarCount');
+      const snapshotMinStarCountNumberEl = document.getElementById('snapshotMinStarCountNumber');
+      const snapshotMinPlanetCountEl = document.getElementById('snapshotMinPlanetCount');
+      const snapshotMinPlanetCountNumberEl = document.getElementById('snapshotMinPlanetCountNumber');
+      const snapshotMinCoolnessScoreEl = document.getElementById('snapshotMinCoolnessScore');
+      const snapshotMinCoolnessScoreNumberEl = document.getElementById('snapshotMinCoolnessScoreNumber');
+      const snapshotForceRegenerateEl = document.getElementById('snapshotForceRegenerate');
+      const snapshotRunBtnEl = document.getElementById('snapshotRunBtn');
+      const snapshotRunStatusEl = document.getElementById('snapshotRunStatus');
+      const presetBalancedBtnEl = document.getElementById('presetBalanced');
 	      const presetExoticBtnEl = document.getElementById('presetExotic');
 	      const presetHabitableBtnEl = document.getElementById('presetHabitable');
 	      const presetNearbyBtnEl = document.getElementById('presetNearby');
@@ -1755,7 +3464,7 @@ def admin_home(request: Request):
       let currentOffset = 0;
       let nextAuditBeforeId = null;
       let auditPreset = 'all';
-	      let currentScreen = 'operations';
+	      let currentScreen = 'status';
 	      let activeCoolnessProfile = null;
 	      let activeCoolnessPointer = null;
 	      let coolnessProfiles = [];
@@ -1811,9 +3520,13 @@ def admin_home(request: Request):
       function setScreen(screenName) {{
         currentScreen = screenName;
         document.getElementById('screenOperations').classList.toggle('active', screenName === 'operations');
+        document.getElementById('screenStatus').classList.toggle('active', screenName === 'status');
+        document.getElementById('screenDataset').classList.toggle('active', screenName === 'dataset');
         document.getElementById('screenCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenActivity').classList.toggle('active', screenName === 'activity');
         document.getElementById('screenTabOperations').classList.toggle('active', screenName === 'operations');
+        document.getElementById('screenTabStatus').classList.toggle('active', screenName === 'status');
+        document.getElementById('screenTabDataset').classList.toggle('active', screenName === 'dataset');
         document.getElementById('screenTabCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenTabActivity').classList.toggle('active', screenName === 'activity');
       }}
@@ -1850,6 +3563,57 @@ def admin_home(request: Request):
 	      function isRunningStatus(status) {{
 	        return status === 'queued' || status === 'running';
 	      }}
+
+      const adminThemeStorageKey = 'spacegate.theme';
+      const adminThemeIds = new Set([
+        'simple_light',
+        'simple_dark',
+        'cyberpunk',
+        'lcars',
+        'mission_control',
+        'aurora',
+        'retro_90s',
+        'deep_space_minimal',
+      ]);
+      const adminThemeAliases = {{
+        light: 'simple_light',
+        midnight: 'simple_dark',
+        mission: 'mission_control',
+        enterprise: 'lcars',
+      }};
+
+      function normalizeAdminTheme(raw) {{
+        const key = String(raw || '').trim().toLowerCase();
+        const mapped = adminThemeAliases[key] || key;
+        return adminThemeIds.has(mapped) ? mapped : 'simple_light';
+      }}
+
+      function resolveAdminTheme() {{
+        const attrRaw = document.documentElement.getAttribute('data-theme');
+        if (attrRaw && String(attrRaw).trim()) {{
+          return normalizeAdminTheme(attrRaw);
+        }}
+        try {{
+          const storedRaw = window.localStorage.getItem(adminThemeStorageKey);
+          if (storedRaw && String(storedRaw).trim()) {{
+            return normalizeAdminTheme(storedRaw);
+          }}
+        }} catch (_) {{
+          // ignore storage errors
+        }}
+        return 'simple_light';
+      }}
+
+      function applyAdminTheme(theme) {{
+        const normalized = normalizeAdminTheme(theme);
+        document.documentElement.setAttribute('data-theme', normalized);
+        if (adminThemeSelectEl) adminThemeSelectEl.value = normalized;
+        try {{
+          window.localStorage.setItem(adminThemeStorageKey, normalized);
+        }} catch (_) {{
+          // ignore storage errors
+        }}
+      }}
 
 	      const profileTokenRe = /^[A-Za-z0-9_.-]+$/;
 
@@ -1949,18 +3713,19 @@ def admin_home(request: Request):
 	        setPreviewNotice(`Scoring job ${{jobId}} completed. Preview is temporarily busy; retry in a few seconds.`);
 	      }}
 
-	      async function followSaveProfileJob(jobId, profileId, profileVersion) {{
+	      async function followSaveProfileJob(jobId, profileId, profileVersion, options = undefined) {{
+	        const suppressSuccessNotice = !!(options && options.suppressSuccessNotice);
 	        const waitResult = await waitForJobTerminal(jobId);
 	        await loadJobs();
         if (!waitResult.ok) {{
           if (waitResult.reason === 'timeout') {{
             setRunStatus('running', `save job ${{jobId}} still in progress`);
             setPreviewNotice(`Save job ${{jobId}} is still running. Check Activity > Jobs.`);
-            return;
+            return {{ ok: false, reason: 'timeout' }};
           }}
           setRunStatus('error', `save job ${{jobId}} status unavailable`);
           setPreviewNotice(`Could not fetch status for save job ${{jobId}}. Check Activity > Jobs.`);
-          return;
+          return {{ ok: false, reason: 'status_unavailable' }};
         }}
 	        const finalJob = waitResult.job || {{}};
 	        const finalStatus = String(finalJob.status || '');
@@ -1996,7 +3761,7 @@ def admin_home(request: Request):
 	          }} else {{
 	            setPreviewNotice(`Save job ${{jobId}} finished with status '${{finalStatus}}'. Check Activity > Jobs log.`);
 	          }}
-	          return;
+	          return {{ ok: false, reason: 'job_failed', status: finalStatus, hint: failureHint }};
 	        }}
         await loadCoolnessState({{ preserveEditor: true, suppressNotice: true }});
         renderSavedProfilesOptions();
@@ -2004,13 +3769,16 @@ def admin_home(request: Request):
           coolSavedProfilesEl.value = profileOptionValue(profileId, profileVersion);
         }}
         setRunStatus('saved', `${{profileId}}@${{profileVersion}}`);
-	        setPreviewNotice(
-	          `Saved immutable profile ${{profileId}}@${{profileVersion}}. It is stored but not active; active profile remains ${{
-	            String((activeCoolnessPointer || {{}}).profile_id || (activeCoolnessProfile || {{}}).profile_id || 'n/a')
-          }}@${{
-            String((activeCoolnessPointer || {{}}).profile_version || (activeCoolnessProfile || {{}}).profile_version || 'n/a')
-          }}.`
-	        );
+	        if (!suppressSuccessNotice) {{
+	          setPreviewNotice(
+	            `Saved immutable profile ${{profileId}}@${{profileVersion}}. It is stored but not active; active profile remains ${{
+	              String((activeCoolnessPointer || {{}}).profile_id || (activeCoolnessProfile || {{}}).profile_id || 'n/a')
+            }}@${{
+              String((activeCoolnessPointer || {{}}).profile_version || (activeCoolnessProfile || {{}}).profile_version || 'n/a')
+            }}.`
+	          );
+	        }}
+	        return {{ ok: true, profileId, profileVersion }};
 	      }}
 
 	      async function followActivateProfileJob(jobId, profileId, profileVersion) {{
@@ -2130,7 +3898,9 @@ def admin_home(request: Request):
         coolPreviewSummaryEl.innerHTML = '';
         coolPreviewChangesEl.innerHTML = '';
         coolPreviewTypeDistEl.innerHTML = '';
+        if (coolPreviewTypePieEl) coolPreviewTypePieEl.innerHTML = '';
         coolPreviewSpectralDistEl.innerHTML = '';
+        if (coolPreviewSpectralPieEl) coolPreviewSpectralPieEl.innerHTML = '';
         coolPreviewTopSystemsEl.innerHTML = '';
       }}
 
@@ -2141,6 +3911,38 @@ def admin_home(request: Request):
       function setRunStatus(status, detail = '') {{
         const head = String(status || 'idle').trim().toLowerCase() || 'idle';
         coolRunStatusEl.textContent = detail ? `Status: ${{head}} | ${{detail}}` : `Status: ${{head}}`;
+      }}
+
+      function setSnapshotRunStatus(status, detail = '') {{
+        const head = String(status || 'idle').trim().toLowerCase() || 'idle';
+        snapshotRunStatusEl.textContent = detail ? `Status: ${{head}} | ${{detail}}` : `Status: ${{head}}`;
+      }}
+
+      function bindRangeNumberPair(rangeEl, numberEl, fallback, options = undefined) {{
+        const min = Number(options && options.min);
+        const max = Number(options && options.max);
+        const step = Number(options && options.step);
+        const defaultValue = Number.isFinite(Number(fallback)) ? Number(fallback) : 0;
+        const normalize = (raw) => {{
+          let value = Number(raw);
+          if (!Number.isFinite(value)) value = defaultValue;
+          if (Number.isFinite(min)) value = Math.max(min, value);
+          if (Number.isFinite(max)) value = Math.min(max, value);
+          if (Number.isFinite(step) && step > 0) {{
+            value = Math.round(value / step) * step;
+          }}
+          return value;
+        }};
+        const apply = (raw) => {{
+          const value = normalize(raw);
+          const display = Number.isFinite(step) && step > 0 && step < 1 ? value.toFixed(1) : String(Math.round(value));
+          rangeEl.value = display;
+          numberEl.value = display;
+          return value;
+        }};
+        rangeEl.addEventListener('input', () => apply(rangeEl.value));
+        numberEl.addEventListener('change', () => apply(numberEl.value));
+        apply(numberEl.value || rangeEl.value || defaultValue);
       }}
 
       function setActivePreset(name) {{
@@ -2204,6 +4006,114 @@ def admin_home(request: Request):
         }});
       }}
 
+      const PIE_COLORS = [
+        '#4f46e5',
+        '#0284c7',
+        '#0f766e',
+        '#16a34a',
+        '#ca8a04',
+        '#ea580c',
+        '#dc2626',
+        '#be185d',
+        '#7c3aed',
+        '#6b7280',
+      ];
+
+      function spectralPieColor(label) {{
+        const key = String(label || '').trim().toUpperCase();
+        if (key === 'O') return '#6aa9ff';
+        if (key === 'B') return '#8cc8ff';
+        if (key === 'A') return '#d7e9ff';
+        if (key === 'F') return '#fff2b5';
+        if (key === 'G') return '#ffd86b';
+        if (key === 'K') return '#ffb36a';
+        if (key === 'M') return '#f06a55';
+        if (key === 'L') return '#cf6b57';
+        if (key === 'T') return '#8f6bc7';
+        if (key === 'Y') return '#6fc7d8';
+        if (key === 'D') return '#c8d2de';
+        return '#7f8ea3';
+      }}
+
+      function compactPieRows(rows, maxSlices = 8) {{
+        const norm = (Array.isArray(rows) ? rows : [])
+          .map((row) => ({{
+            label: String(row && row.label ? row.label : '?'),
+            value: Math.max(0, toNumber(row && row.value, 0)),
+          }}))
+          .filter((row) => row.value > 0)
+          .sort((a, b) => b.value - a.value);
+        if (norm.length <= maxSlices) return norm;
+        const keep = norm.slice(0, Math.max(1, maxSlices - 1));
+        const tail = norm.slice(Math.max(1, maxSlices - 1));
+        const other = tail.reduce((acc, row) => acc + toNumber(row.value, 0), 0);
+        if (other > 0) keep.push({{ label: 'Other', value: other }});
+        return keep;
+      }}
+
+      function renderPieChart(target, rows, total, title = '') {{
+        if (!target) return;
+        target.innerHTML = '';
+        const compactRows = compactPieRows(rows, 8);
+        const computedTotal = compactRows.reduce((acc, row) => acc + toNumber(row.value, 0), 0);
+        const denom = toNumber(total, 0) > 0 ? toNumber(total, 0) : computedTotal;
+        if (!compactRows.length || denom <= 0) {{
+          const empty = document.createElement('div');
+          empty.className = 'small muted';
+          empty.textContent = 'No data';
+          target.appendChild(empty);
+          return;
+        }}
+        if (title) {{
+          const titleEl = document.createElement('div');
+          titleEl.className = 'pie-title';
+          titleEl.textContent = String(title);
+          target.appendChild(titleEl);
+        }}
+
+        let cursorPct = 0;
+        const gradientParts = [];
+        const rowsWithColor = compactRows.map((row, idx) => {{
+          const color = (row && row.color) ? String(row.color) : PIE_COLORS[idx % PIE_COLORS.length];
+          const partPct = Math.max(0, Math.min(100, pct(row.value, denom)));
+          const nextPct = Math.max(cursorPct, Math.min(100, cursorPct + partPct));
+          gradientParts.push(`${{color}} ${{cursorPct.toFixed(2)}}% ${{nextPct.toFixed(2)}}%`);
+          cursorPct = nextPct;
+          return {{
+            ...row,
+            color,
+            sharePct: partPct,
+          }};
+        }});
+
+        const wrap = document.createElement('div');
+        wrap.className = 'pie-wrap';
+        const pie = document.createElement('div');
+        pie.className = 'pie-plot';
+        pie.style.background = `conic-gradient(${{gradientParts.join(', ')}})`;
+        wrap.appendChild(pie);
+
+        const legend = document.createElement('ul');
+        legend.className = 'pie-legend';
+        rowsWithColor.forEach((row) => {{
+          const li = document.createElement('li');
+          const dot = document.createElement('span');
+          dot.className = 'pie-dot';
+          dot.style.background = row.color;
+          const label = document.createElement('span');
+          label.textContent = row.label;
+          const value = document.createElement('span');
+          value.className = 'small';
+          value.textContent = `${{formatInt(row.value)}} (${{formatPct(row.sharePct)}})`;
+          li.appendChild(dot);
+          li.appendChild(label);
+          li.appendChild(value);
+          legend.appendChild(li);
+        }});
+        wrap.appendChild(legend);
+        target.appendChild(wrap);
+      }}
+
       function renderCoolnessPreview(data) {{
         clearPreviewVisuals();
         if (!data || typeof data !== 'object') {{
@@ -2252,27 +4162,32 @@ def admin_home(request: Request):
         }}
 
         const td = (diversity.type_distribution && typeof diversity.type_distribution === 'object') ? diversity.type_distribution : {{}};
+        const typeRows = [
+          {{ label: 'With planets', value: toNumber(td.with_planets, 0) }},
+          {{ label: 'Without planets', value: toNumber(td.without_planets, 0) }},
+          {{ label: 'Multi-star', value: toNumber(td.multi_star, 0) }},
+          {{ label: 'Single-star', value: toNumber(td.single_star, 0) }},
+          {{ label: 'Weird planets', value: toNumber(td.weird_planet_systems, 0) }},
+        ];
         renderBarList(
           coolPreviewTypeDistEl,
-          [
-            {{ label: 'With planets', value: toNumber(td.with_planets, 0) }},
-            {{ label: 'Without planets', value: toNumber(td.without_planets, 0) }},
-            {{ label: 'Multi-star', value: toNumber(td.multi_star, 0) }},
-            {{ label: 'Single-star', value: toNumber(td.single_star, 0) }},
-            {{ label: 'Weird planets', value: toNumber(td.weird_planet_systems, 0) }},
-          ],
+          typeRows,
           sampleSize
         );
+        renderPieChart(coolPreviewTypePieEl, typeRows, sampleSize, 'Type mix');
 
         const spectral = Array.isArray(diversity.spectral_distribution) ? diversity.spectral_distribution : [];
+        const spectralRows = spectral.slice(0, 12).map((row) => ({{
+          label: String(row.spectral_class || '?'),
+          value: toNumber(row.systems, 0),
+          color: spectralPieColor(row.spectral_class),
+        }}));
         renderBarList(
           coolPreviewSpectralDistEl,
-          spectral.slice(0, 8).map((row) => ({{
-            label: String(row.spectral_class || '?'),
-            value: toNumber(row.systems, 0),
-          }})),
+          spectralRows.slice(0, 8),
           sampleSize
         );
+        renderPieChart(coolPreviewSpectralPieEl, spectralRows, sampleSize, 'Spectral mix');
 
         const topSystems = Array.isArray(diversity.top_systems) ? diversity.top_systems : [];
         if (!topSystems.length) {{
@@ -2621,7 +4536,46 @@ def admin_home(request: Request):
         void followCoolnessJobAndPreview(jobId);
       }}
 
-	      async function saveCoolnessProfile() {{
+      async function runSnapshotGeneration() {{
+        const topCoolness = Math.max(1, Number.parseInt(String(snapshotTopCoolnessNumberEl.value || '100'), 10) || 100);
+        const maxDistanceLy = Math.max(1, Number.parseFloat(String(snapshotMaxDistanceLyNumberEl.value || '1000')) || 1000);
+        const minStarCount = Math.max(0, Number.parseInt(String(snapshotMinStarCountNumberEl.value || '0'), 10) || 0);
+        const minPlanetCount = Math.max(0, Number.parseInt(String(snapshotMinPlanetCountNumberEl.value || '0'), 10) || 0);
+        const minCoolnessScore = Math.max(0, Number.parseFloat(String(snapshotMinCoolnessScoreNumberEl.value || '0')) || 0);
+        snapshotTopCoolnessNumberEl.value = String(topCoolness);
+        snapshotMaxDistanceLyNumberEl.value = String(Math.round(maxDistanceLy));
+        snapshotMinStarCountNumberEl.value = String(minStarCount);
+        snapshotMinPlanetCountNumberEl.value = String(minPlanetCount);
+        snapshotMinCoolnessScoreNumberEl.value = minCoolnessScore.toFixed(1);
+        setSnapshotRunStatus('running', 'starting snapshot job');
+        const params = {{
+          top_coolness: topCoolness,
+          view_type: 'system_card',
+          max_dist_ly: maxDistanceLy,
+          min_star_count: minStarCount,
+          min_planet_count: minPlanetCount,
+          min_coolness_score: minCoolnessScore,
+          force: !!(snapshotForceRegenerateEl && snapshotForceRegenerateEl.checked),
+        }};
+        const runResult = await runAction('generate_snapshots', params);
+        if (!runResult || !runResult.ok) {{
+          setSnapshotRunStatus('error', 'snapshot job failed to start');
+          return;
+        }}
+        const job = (runResult.data && runResult.data.job) || {{}};
+        const jobId = String(job.job_id || '');
+        if (!jobId) {{
+          setSnapshotRunStatus('queued', 'job created; check Activity > Jobs');
+          return;
+        }}
+        setSnapshotRunStatus('queued', `job ${{jobId}}`);
+        await loadJobs();
+        void followActionJob(jobId, snapshotRunStatusEl, 'generate_snapshots');
+      }}
+
+      async function saveCoolnessProfileInternal(options = undefined) {{
+        const forActivation = !!(options && options.forActivation);
+        const suppressSavedNotice = !!(options && options.suppressSavedNotice);
         setRunStatus('saving', 'persisting immutable profile');
         if (!Array.isArray(coolnessProfiles) || !coolnessProfiles.length) {{
           await loadCoolnessState({{ preserveEditor: true }});
@@ -2663,48 +4617,54 @@ def admin_home(request: Request):
           profile_id: profileId,
           profile_version: profileVersion,
           weights_json: JSON.stringify(currentCoolnessWeights),
-          notes: 'saved from admin coolness tuning',
+          notes: forActivation ? 'saved+activated from admin coolness tuning' : 'saved from admin coolness tuning',
         }});
         if (!saveResult || !saveResult.ok) {{
           setRunStatus('error', 'save failed');
           setPreviewNotice('Save failed. Pick a new profile version and retry.');
-          return;
+          return {{ ok: false, reason: 'save_start_failed' }};
         }}
         const job = (saveResult.data && saveResult.data.job) || {{}};
         const jobId = String(job.job_id || '');
         if (!jobId) {{
           setRunStatus('queued', 'save job created');
+          if (forActivation) {{
+            setPreviewNotice('Save job queued but no job ID was returned; cannot continue with activation automatically.');
+            return {{ ok: false, reason: 'save_job_id_missing' }};
+          }}
           setPreviewNotice('Save job queued. Check Activity > Jobs for completion.');
-          return;
+          return {{ ok: true, profileId, profileVersion, queued: true }};
         }}
         setRunStatus('queued', `save job ${{jobId}}`);
         setPreviewNotice(`Save job ${{jobId}} queued. Waiting for completion...`);
         await loadJobs();
-	        await followSaveProfileJob(jobId, profileId, profileVersion);
+	        return await followSaveProfileJob(jobId, profileId, profileVersion, {{
+            suppressSuccessNotice: suppressSavedNotice,
+          }});
+	      }}
+
+      async function saveCoolnessProfile() {{
+        await saveCoolnessProfileInternal({{
+          forActivation: false,
+          suppressSavedNotice: false,
+        }});
 	      }}
 
 	      async function activateCoolnessProfile() {{
-	        setRunStatus('activating', 'updating active profile');
-	        if (!Array.isArray(coolnessProfiles) || !coolnessProfiles.length) {{
-	          await loadCoolnessState({{ preserveEditor: true }});
-	        }}
-	        const normalized = normalizeProfileFields();
-	        let profileId = normalized.profileId;
-	        let profileVersion = normalized.profileVersion;
-	        if (!profileId || !profileVersion) {{
-	          const selected = splitProfileOptionValue(coolSavedProfilesEl ? coolSavedProfilesEl.value : '');
-	          if (!profileId) profileId = selected[0];
-	          if (!profileVersion) profileVersion = selected[1];
-	        }}
-	        if (!profileId || !profileVersion) {{
-	          setRunStatus('error', 'activate failed');
-	          setPreviewNotice('Activate failed: choose a saved profile (ID + version) first.');
+	        setRunStatus('activating', 'saving profile before activation');
+	        const saveOutcome = await saveCoolnessProfileInternal({{
+            forActivation: true,
+            suppressSavedNotice: true,
+          }});
+	        if (!saveOutcome || !saveOutcome.ok) {{
 	          return;
 	        }}
+	        const profileId = String(saveOutcome.profileId || '');
+	        const profileVersion = String(saveOutcome.profileVersion || '');
 	        const profile = findCoolnessProfile(profileId, profileVersion);
 	        if (!profile) {{
 	          setRunStatus('error', 'activate failed');
-	          setPreviewNotice(`Activate failed: saved profile ${{profileId}}@${{profileVersion}} was not found.`);
+	          setPreviewNotice(`Activate failed: saved profile ${{profileId}}@${{profileVersion}} is not visible yet. Refresh and retry.`);
 	          return;
 	        }}
 	        coolProfileIdEl.value = profileId;
@@ -2735,6 +4695,753 @@ def admin_home(request: Request):
 	      async function callStatus() {{
         const {{ data }} = await fetchJson('/api/v1/admin/status', {{ credentials: 'include' }});
         out.textContent = JSON.stringify(data, null, 2);
+      }}
+
+      function formatInt(value) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0';
+        return Math.round(n).toLocaleString('en-US');
+      }}
+
+      function formatFloat(value, digits = 2) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0';
+        return n.toLocaleString('en-US', {{ minimumFractionDigits: 0, maximumFractionDigits: digits }});
+      }}
+
+      function formatPct(value, digits = 2) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0%';
+        return `${{formatFloat(n, digits)}}%`;
+      }}
+
+      function formatBytes(value) {{
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return '0 B';
+        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+        let size = n;
+        let idx = 0;
+        while (size >= 1024 && idx < units.length - 1) {{
+          size /= 1024;
+          idx += 1;
+        }}
+        const digits = idx <= 1 ? 0 : 2;
+        return `${{size.toLocaleString('en-US', {{ minimumFractionDigits: 0, maximumFractionDigits: digits }})}} ${{units[idx]}}`;
+      }}
+
+      function clampPct(value) {{
+        const n = Number(value);
+        if (!Number.isFinite(n)) return 0;
+        if (n < 0) return 0;
+        if (n > 100) return 100;
+        return n;
+      }}
+
+      function pctFromPart(part, whole) {{
+        const nPart = Number(part);
+        const nWhole = Number(whole);
+        if (!Number.isFinite(nPart) || !Number.isFinite(nWhole) || nWhole <= 0) return 0;
+        return clampPct((nPart / nWhole) * 100.0);
+      }}
+
+      function renderMetricRows(containerEl, rows) {{
+        if (!containerEl) return;
+        containerEl.innerHTML = '';
+        (rows || []).forEach((row) => {{
+          const wrap = document.createElement('div');
+          wrap.className = 'metric-row';
+
+          const keyEl = document.createElement('div');
+          keyEl.className = 'metric-k';
+          keyEl.textContent = String(row.key || '');
+          wrap.appendChild(keyEl);
+
+          const valueEl = document.createElement('div');
+          valueEl.className = 'metric-v';
+          valueEl.textContent = String(row.value || '');
+          wrap.appendChild(valueEl);
+
+          if (row.note) {{
+            const noteEl = document.createElement('div');
+            noteEl.className = 'metric-note';
+            noteEl.textContent = String(row.note);
+            wrap.appendChild(noteEl);
+          }}
+          containerEl.appendChild(wrap);
+        }});
+      }}
+
+      function renderUsageBars(containerEl, rows) {{
+        if (!containerEl) return;
+        containerEl.innerHTML = '';
+        (rows || []).forEach((row) => {{
+          const pct = clampPct(row.pct);
+          const severity = pct >= 90 ? ' err' : (pct >= 75 ? ' warn' : '');
+
+          const barRow = document.createElement('div');
+          barRow.className = 'bar-row';
+
+          const label = document.createElement('div');
+          label.textContent = String(row.label || '');
+          barRow.appendChild(label);
+
+          const track = document.createElement('div');
+          track.className = 'bar-track';
+          const fill = document.createElement('div');
+          fill.className = `bar-fill${{severity}}`;
+          fill.style.width = `${{pct}}%`;
+          track.appendChild(fill);
+          barRow.appendChild(track);
+
+          const value = document.createElement('div');
+          value.className = 'small';
+          value.textContent = String(row.value || formatPct(pct));
+          barRow.appendChild(value);
+
+          containerEl.appendChild(barRow);
+        }});
+      }}
+
+      function renderKeyValueRows(tbodyEl, rows) {{
+        if (!tbodyEl) return;
+        tbodyEl.innerHTML = '';
+        (rows || []).forEach((row) => {{
+          const tr = document.createElement('tr');
+          const tdK = document.createElement('td');
+          tdK.textContent = String(row.key || '');
+          const tdV = document.createElement('td');
+          tdV.textContent = String(row.value || '');
+          tr.appendChild(tdK);
+          tr.appendChild(tdV);
+          tbodyEl.appendChild(tr);
+        }});
+      }}
+
+      function renderDatasetStatus(data) {{
+        if (datasetStatusRawEl) datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
+        const counts = data.dataset_counts || {{}};
+        const sizes = data.sizes_bytes || {{}};
+        const disk = data.disk || {{}};
+        const host = data.host_runtime || {{}};
+        const api = data.api_process_runtime || {{}};
+        const duckdb = data.duckdb_runtime || {{}};
+        const slice = data.slice_metrics || {{}};
+        const cache = data.cache || {{}};
+        const bottlenecks = data.bottleneck_hints || {{}};
+        const breakdowns = data.breakdowns || {{}};
+        const determinism = data.determinism || {{}};
+        const policyInputStars = Number(slice.policy_input_stars) || 0;
+        const policySlicedOutStars = Number(slice.policy_sliced_out_stars) || 0;
+        const policySlicedOutStarsPct = Number(slice.policy_sliced_out_stars_pct) || 0;
+        const slicedOutRows = Number(slice.sliced_out_rows) || 0;
+        const slicedOutPct = Number(slice.sliced_out_pct) || 0;
+        const sliceMetricsMatch = (
+          policyInputStars > 0
+          && policySlicedOutStars === slicedOutRows
+          && Math.abs(policySlicedOutStarsPct - slicedOutPct) < 0.0001
+        );
+
+        datasetStatusMetaEl.textContent = `build=${{data.build_id || 'unknown'}} | generated=${{data.generated_at_utc || ''}} | cache=${{cache.hit ? 'hit' : 'miss'}} age=${{formatFloat(cache.age_s || 0, 3)}}s`;
+
+        const hostMemTotal = Number(host.mem_total_bytes) || 0;
+        const hostMemAvailable = Number(host.mem_available_bytes) || 0;
+        const hostMemUsed = Math.max(hostMemTotal - hostMemAvailable, 0);
+        const apiRss = Number(api.rss_bytes) || 0;
+        const apiPeakRss = Number(api.peak_rss_bytes) || 0;
+        const duckMemUsage = Number(duckdb.memory_usage_bytes) || 0;
+        const duckMemLimit = Number(duckdb.memory_limit_bytes) || 0;
+
+        const kpis = [
+          {{ key: 'Stars', value: formatInt(counts.stars) }},
+          {{ key: 'Systems', value: formatInt(counts.systems) }},
+          {{ key: 'Planets', value: formatInt(counts.planets) }},
+          {{ key: 'Arm Components', value: formatInt(counts.arm_component_entities) }},
+          {{ key: 'Arm Orbit Edges', value: formatInt(counts.arm_orbit_edges) }},
+          {{ key: 'VSX Overlay Rows', value: formatInt(counts.arm_vsx_variability) }},
+          {{ key: 'High Variability', value: formatInt(counts.arm_variability_high) }},
+          {{ key: 'Ultracool Overlay Rows', value: formatInt(counts.arm_ultracoolsheet_objects) }},
+          {{ key: 'Multi-Star Systems', value: formatInt(counts.multi_star_systems) }},
+          {{ key: 'Exoplanets', value: formatInt(counts.exoplanets_total) }},
+          {{ key: 'Hab Zone Candidates', value: formatInt(counts.exoplanets_candidate_habitable) }},
+          {{ key: 'Backbone Input', value: formatInt(slice.input_backbone_rows) }},
+          {{ key: 'Sliced Out', value: `${{formatInt(slicedOutRows)}} (${{formatPct(slicedOutPct)}})` }},
+          {{ key: 'Core DB', value: formatBytes(sizes.core_db) }},
+          {{ key: 'State Dir', value: formatBytes(sizes.state_total) }},
+          {{ key: 'API RSS', value: formatBytes(apiRss) }},
+          {{ key: 'API Peak RSS', value: formatBytes(apiPeakRss) }},
+          {{ key: 'Host Mem Available', value: formatBytes(hostMemAvailable) }},
+          {{ key: '/data Used', value: `${{formatPct(disk.used_pct)}} (${{formatBytes(disk.used_bytes)}})` }},
+        ];
+        if (!sliceMetricsMatch && policyInputStars > 0) {{
+          kpis.splice(8, 0, {{
+            key: 'Policy Slice Out',
+            value: `${{formatInt(policySlicedOutStars)}} (${{formatPct(policySlicedOutStarsPct)}})`,
+          }});
+        }}
+        datasetKpisEl.innerHTML = '';
+        kpis.forEach((item) => {{
+          const card = document.createElement('div');
+          card.className = 'kpi';
+          const k = document.createElement('div');
+          k.className = 'k';
+          k.textContent = item.key;
+          const v = document.createElement('div');
+          v.className = 'v';
+          v.textContent = item.value;
+          card.appendChild(k);
+          card.appendChild(v);
+          datasetKpisEl.appendChild(card);
+        }});
+
+        renderMetricRows(datasetStorageEl, [
+          {{ key: 'Project footprint', value: formatBytes(sizes.project_total) }},
+          {{ key: 'State footprint', value: formatBytes(sizes.state_total) }},
+          {{ key: 'Served build footprint', value: formatBytes(sizes.build_total), note: String((data.paths || {{}}).build_dir || '') }},
+          {{ key: 'Raw / cooked / out', value: `${{formatBytes(sizes.raw_total)}} / ${{formatBytes(sizes.cooked_total)}} / ${{formatBytes(sizes.out_total)}}` }},
+          {{ key: 'Reports / served / parquet', value: `${{formatBytes(sizes.reports_total)}} / ${{formatBytes(sizes.served_total)}} / ${{formatBytes(sizes.parquet_total)}}` }},
+          {{ key: 'DB files', value: `core ${{formatBytes(sizes.core_db)}} | arm ${{formatBytes(sizes.arm_db)}} | rich ${{formatBytes(sizes.rich_db)}} | admin ${{formatBytes(sizes.admin_db)}}` }},
+          {{ key: '/data partition', value: `${{formatBytes(disk.used_bytes)}} used of ${{formatBytes(disk.total_bytes)}}`, note: `${{formatBytes(disk.free_bytes)}} free (${{formatPct(disk.used_pct)}} used)` }},
+        ]);
+
+        const timingEntries = Object.entries(data.timings_ms || {{}})
+          .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+          .slice(0, 6)
+          .map(([name, ms]) => `${{name}}=${{formatFloat(ms, 2)}}ms`);
+        const loadLabel = `1m=${{formatFloat(host.loadavg_1m, 2)}} | 5m=${{formatFloat(host.loadavg_5m, 2)}} | 15m=${{formatFloat(host.loadavg_15m, 2)}}`;
+        const bottleneckNotes = [
+          bottlenecks.likely_memory_bound ? 'Memory-bound risk' : 'Memory headroom likely acceptable',
+          bottlenecks.likely_io_bound ? 'IO-bound risk' : 'IO-bound risk low',
+        ].join(' | ');
+        renderMetricRows(datasetRuntimeEl, [
+          {{ key: 'CPU', value: `${{formatInt(host.cpu_count)}} cores`, note: `load average: ${{loadLabel}}` }},
+          {{ key: 'Host memory', value: `${{formatBytes(hostMemUsed)}} used of ${{formatBytes(hostMemTotal)}}`, note: `${{formatBytes(hostMemAvailable)}} available` }},
+          {{ key: 'API process', value: `pid=${{api.pid || '?'}}, threads=${{formatInt(api.threads)}}`, note: `RSS=${{formatBytes(apiRss)}}, peak=${{formatBytes(apiPeakRss)}}, VM=${{formatBytes(api.vm_size_bytes)}}` }},
+          {{ key: 'Process IO', value: `read=${{formatBytes(api.io_read_bytes)}}, write=${{formatBytes(api.io_write_bytes)}}` }},
+          {{ key: 'DuckDB runtime', value: `db=${{formatBytes(duckdb.database_size_bytes)}}, wal=${{formatBytes(duckdb.wal_size_bytes)}}`, note: `memory=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}` }},
+          {{ key: 'Bottleneck hints', value: bottleneckNotes }},
+          {{ key: 'Top status query timings', value: timingEntries.length ? timingEntries.join(' | ') : 'n/a' }},
+        ]);
+
+        const usageRows = [
+          {{
+            label: '/data used',
+            pct: disk.used_pct,
+            value: `${{formatPct(disk.used_pct)}} (${{formatBytes(disk.used_bytes)}} / ${{formatBytes(disk.total_bytes)}})`,
+          }},
+          {{
+            label: 'Host RAM used',
+            pct: pctFromPart(hostMemUsed, hostMemTotal),
+            value: `${{formatPct(pctFromPart(hostMemUsed, hostMemTotal))}} (${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}})`,
+          }},
+          {{
+            label: 'API RSS / host',
+            pct: pctFromPart(apiRss, hostMemTotal),
+            value: `${{formatPct(pctFromPart(apiRss, hostMemTotal))}} (${{formatBytes(apiRss)}} / ${{formatBytes(hostMemTotal)}})`,
+          }},
+          {{
+            label: 'API peak / host',
+            pct: pctFromPart(apiPeakRss, hostMemTotal),
+            value: `${{formatPct(pctFromPart(apiPeakRss, hostMemTotal))}} (${{formatBytes(apiPeakRss)}} / ${{formatBytes(hostMemTotal)}})`,
+          }},
+          {{
+            label: 'DuckDB memory',
+            pct: pctFromPart(duckMemUsage, duckMemLimit),
+            value: `${{formatPct(pctFromPart(duckMemUsage, duckMemLimit))}} (${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}})`,
+          }},
+          {{
+            label: 'Slice out',
+            pct: slicedOutPct,
+            value: `${{formatPct(slicedOutPct)}} (${{formatInt(slicedOutRows)}} rows)`,
+          }},
+        ];
+        if (!sliceMetricsMatch && policyInputStars > 0) {{
+          usageRows.push({{
+            label: 'Policy out',
+            pct: policySlicedOutStarsPct,
+            value: `${{formatPct(policySlicedOutStarsPct)}} (${{formatInt(policySlicedOutStars)}} / ${{formatInt(policyInputStars || counts.stars)}} stars)`,
+          }});
+        }}
+        renderUsageBars(datasetUsageBarsEl, usageRows);
+
+        const detStatusRaw = String(determinism.status || '');
+        const detStatusMap = {{
+          match: 'match',
+          mismatch: 'mismatch',
+          no_baseline: 'no baseline',
+          missing_current_report: 'missing report',
+        }};
+        const detStatusLabel = detStatusMap[detStatusRaw] || (detStatusRaw || 'unknown');
+        const detComparison = determinism.comparison || {{}};
+        const detMismatches = Array.isArray(detComparison.mismatches) ? detComparison.mismatches : [];
+        renderMetricRows(datasetDeterminismEl, [
+          {{
+            key: 'Status',
+            value: detStatusLabel,
+            note: detStatusRaw === 'mismatch'
+              ? `${{formatInt(detMismatches.length)}} mismatched fingerprint fields`
+              : (detStatusRaw === 'match' ? 'fingerprints match baseline build' : ''),
+          }},
+          {{
+            key: 'Current build',
+            value: String(determinism.current_build_id || data.build_id || 'unknown'),
+            note: String(determinism.current_report_exists ? 'determinism_report.json present' : 'determinism_report.json not found'),
+          }},
+          {{
+            key: 'Baseline build',
+            value: String(determinism.baseline_build_id || 'n/a'),
+            note: `comparable baselines=${{formatInt(determinism.comparable_baselines)}}`,
+          }},
+          {{
+            key: 'Input fingerprint',
+            value: String(determinism.source_inputs_fingerprint || 'n/a'),
+          }},
+          {{
+            key: 'Transform / layer',
+            value: `${{String(determinism.transform_version || 'n/a')}} / ${{String(determinism.build_layer || 'n/a')}}`,
+            note: `slice=${{String(determinism.slice_profile_id || 'n/a')}}@${{String(determinism.slice_profile_version || 'n/a')}}`,
+          }},
+        ]);
+        const detTables = (detComparison.tables && typeof detComparison.tables === 'object')
+          ? detComparison.tables
+          : {{}};
+        renderKeyValueRows(datasetDeterminismRowsEl, [
+          {{ key: 'stars', value: detTables.stars ? (detTables.stars.match ? 'match' : 'mismatch') : 'n/a' }},
+          {{ key: 'systems', value: detTables.systems ? (detTables.systems.match ? 'match' : 'mismatch') : 'n/a' }},
+          {{ key: 'planets', value: detTables.planets ? (detTables.planets.match ? 'match' : 'mismatch') : 'n/a' }},
+        ]);
+
+        const sourceRows = breakdowns.stars_by_source_catalog || [];
+        datasetSourceRowsEl.innerHTML = '';
+        sourceRows.forEach((row) => {{
+          const tr = document.createElement('tr');
+          const sourceTd = document.createElement('td');
+          sourceTd.textContent = String(row.source_catalog || '?');
+          const countTd = document.createElement('td');
+          countTd.textContent = formatInt(row.star_count);
+          tr.appendChild(sourceTd);
+          tr.appendChild(countTd);
+          datasetSourceRowsEl.appendChild(tr);
+        }});
+        renderPieChart(
+          datasetSourcePieEl,
+          sourceRows.map((row) => ({{
+            label: String(row.source_catalog || '?'),
+            value: toNumber(row.star_count, 0),
+          }})),
+          toNumber(counts.stars, 0),
+          'Star source share'
+        );
+
+        const spectralRows = (breakdowns.stars_by_spectral_class || []).slice(0, 16);
+        datasetSpectralRowsEl.innerHTML = '';
+        spectralRows.forEach((row) => {{
+          const tr = document.createElement('tr');
+          const classTd = document.createElement('td');
+          classTd.textContent = String(row.spectral_class || '?');
+          const countTd = document.createElement('td');
+          countTd.textContent = formatInt(row.star_count);
+          const pctTd = document.createElement('td');
+          pctTd.textContent = formatPct(row.pct_of_stars);
+          tr.appendChild(classTd);
+          tr.appendChild(countTd);
+          tr.appendChild(pctTd);
+          datasetSpectralRowsEl.appendChild(tr);
+        }});
+        renderPieChart(
+          datasetSpectralPieEl,
+          spectralRows.map((row) => ({{
+            label: String(row.spectral_class || '?'),
+            value: toNumber(row.star_count, 0),
+            color: spectralPieColor(row.spectral_class),
+          }})),
+          toNumber(counts.stars, 0),
+          'Spectral share'
+        );
+
+        const spectralStandard = breakdowns.spectral_class_standard_counts || {{}};
+        renderKeyValueRows(datasetSpectralStandardRowsEl, [
+          {{ key: 'O', value: formatInt(spectralStandard.O) }},
+          {{ key: 'B', value: formatInt(spectralStandard.B) }},
+          {{ key: 'A', value: formatInt(spectralStandard.A) }},
+          {{ key: 'F', value: formatInt(spectralStandard.F) }},
+          {{ key: 'G', value: formatInt(spectralStandard.G) }},
+          {{ key: 'K', value: formatInt(spectralStandard.K) }},
+          {{ key: 'M', value: formatInt(spectralStandard.M) }},
+          {{ key: 'L', value: formatInt(spectralStandard.L) }},
+          {{ key: 'D', value: formatInt(spectralStandard.D) }},
+          {{ key: 'T', value: formatInt(spectralStandard.T) }},
+          {{ key: 'Y', value: formatInt(spectralStandard.Y) }},
+          {{ key: 'unknown', value: formatInt(spectralStandard.unknown) }},
+        ]);
+
+        const compact = breakdowns.compact_object_counts || {{}};
+        renderKeyValueRows(datasetCompactRowsEl, [
+          {{ key: 'white_dwarf', value: formatInt(compact.white_dwarf) }},
+          {{ key: 'neutron_star', value: formatInt(compact.neutron_star) }},
+          {{ key: 'pulsar', value: formatInt(compact.pulsar) }},
+          {{ key: 'black_hole', value: formatInt(compact.black_hole) }},
+          {{ key: 'all_compact', value: formatInt(compact.compact_total) }},
+        ]);
+
+        const sysMult = breakdowns.system_multiplicity_evidence || {{}};
+        const starMult = breakdowns.star_multiplicity_evidence || {{}};
+        renderKeyValueRows(datasetSystemMultRowsEl, [
+          {{ key: 'none', value: formatInt(sysMult.none) }},
+          {{ key: 'nss_only', value: formatInt(sysMult.nss_only) }},
+          {{ key: 'wds_only', value: formatInt(sysMult.wds_only) }},
+          {{ key: 'msc_only', value: formatInt(sysMult.msc_only) }},
+          {{ key: 'sbx_only', value: formatInt(sysMult.sbx_only) }},
+          {{ key: 'nss_wds', value: formatInt(sysMult.nss_wds) }},
+          {{ key: 'nss_msc', value: formatInt(sysMult.nss_msc) }},
+          {{ key: 'nss_sbx', value: formatInt(sysMult.nss_sbx) }},
+          {{ key: 'wds_msc', value: formatInt(sysMult.wds_msc) }},
+          {{ key: 'wds_sbx', value: formatInt(sysMult.wds_sbx) }},
+          {{ key: 'msc_sbx', value: formatInt(sysMult.msc_sbx) }},
+          {{ key: 'nss_wds_msc', value: formatInt(sysMult.nss_wds_msc) }},
+          {{ key: 'nss_wds_msc_sbx', value: formatInt(sysMult.nss_wds_msc_sbx) }},
+        ]);
+        renderPieChart(
+          datasetSystemMultPieEl,
+          [
+            {{ label: 'none', value: toNumber(sysMult.none, 0) }},
+            {{ label: 'nss_only', value: toNumber(sysMult.nss_only, 0) }},
+            {{ label: 'wds_only', value: toNumber(sysMult.wds_only, 0) }},
+            {{ label: 'msc_only', value: toNumber(sysMult.msc_only, 0) }},
+            {{ label: 'sbx_only', value: toNumber(sysMult.sbx_only, 0) }},
+            {{ label: 'nss_wds', value: toNumber(sysMult.nss_wds, 0) }},
+            {{ label: 'nss_msc', value: toNumber(sysMult.nss_msc, 0) }},
+            {{ label: 'nss_sbx', value: toNumber(sysMult.nss_sbx, 0) }},
+            {{ label: 'wds_msc', value: toNumber(sysMult.wds_msc, 0) }},
+            {{ label: 'wds_sbx', value: toNumber(sysMult.wds_sbx, 0) }},
+            {{ label: 'msc_sbx', value: toNumber(sysMult.msc_sbx, 0) }},
+            {{ label: 'nss_wds_msc', value: toNumber(sysMult.nss_wds_msc, 0) }},
+            {{ label: 'nss_wds_msc_sbx', value: toNumber(sysMult.nss_wds_msc_sbx, 0) }},
+          ],
+          toNumber(counts.systems, 0),
+          'System evidence'
+        );
+        renderKeyValueRows(datasetStarMultRowsEl, [
+          {{ key: 'none', value: formatInt(starMult.none) }},
+          {{ key: 'nss_only', value: formatInt(starMult.nss_only) }},
+          {{ key: 'wds_only', value: formatInt(starMult.wds_only) }},
+          {{ key: 'msc_only', value: formatInt(starMult.msc_only) }},
+          {{ key: 'sbx_only', value: formatInt(starMult.sbx_only) }},
+          {{ key: 'nss_wds', value: formatInt(starMult.nss_wds) }},
+          {{ key: 'nss_msc', value: formatInt(starMult.nss_msc) }},
+          {{ key: 'nss_sbx', value: formatInt(starMult.nss_sbx) }},
+          {{ key: 'wds_msc', value: formatInt(starMult.wds_msc) }},
+          {{ key: 'wds_sbx', value: formatInt(starMult.wds_sbx) }},
+          {{ key: 'msc_sbx', value: formatInt(starMult.msc_sbx) }},
+          {{ key: 'nss_wds_msc', value: formatInt(starMult.nss_wds_msc) }},
+          {{ key: 'nss_wds_msc_sbx', value: formatInt(starMult.nss_wds_msc_sbx) }},
+        ]);
+        renderPieChart(
+          datasetStarMultPieEl,
+          [
+            {{ label: 'none', value: toNumber(starMult.none, 0) }},
+            {{ label: 'nss_only', value: toNumber(starMult.nss_only, 0) }},
+            {{ label: 'wds_only', value: toNumber(starMult.wds_only, 0) }},
+            {{ label: 'msc_only', value: toNumber(starMult.msc_only, 0) }},
+            {{ label: 'sbx_only', value: toNumber(starMult.sbx_only, 0) }},
+            {{ label: 'nss_wds', value: toNumber(starMult.nss_wds, 0) }},
+            {{ label: 'nss_msc', value: toNumber(starMult.nss_msc, 0) }},
+            {{ label: 'nss_sbx', value: toNumber(starMult.nss_sbx, 0) }},
+            {{ label: 'wds_msc', value: toNumber(starMult.wds_msc, 0) }},
+            {{ label: 'wds_sbx', value: toNumber(starMult.wds_sbx, 0) }},
+            {{ label: 'msc_sbx', value: toNumber(starMult.msc_sbx, 0) }},
+            {{ label: 'nss_wds_msc', value: toNumber(starMult.nss_wds_msc, 0) }},
+            {{ label: 'nss_wds_msc_sbx', value: toNumber(starMult.nss_wds_msc_sbx, 0) }},
+          ],
+          toNumber(counts.stars, 0),
+          'Star evidence'
+        );
+
+        const catalogContribution = breakdowns.catalog_contribution_report || {{}};
+        const catalogContributionRows = Array.isArray(catalogContribution.catalog_contributions)
+          ? catalogContribution.catalog_contributions.slice()
+          : [];
+        catalogContributionRows.sort((a, b) => {{
+          const scoreDelta = toNumber(b.utility_score, 0) - toNumber(a.utility_score, 0);
+          if (scoreDelta !== 0) return scoreDelta;
+          const directDelta = toNumber(b.direct_rows, 0) - toNumber(a.direct_rows, 0);
+          if (directDelta !== 0) return directDelta;
+          return String(a.catalog || '').localeCompare(String(b.catalog || ''));
+        }});
+
+        if (datasetCatalogContributionBarsEl) {{
+          const topUtilityRows = catalogContributionRows
+            .slice(0, 10)
+            .map((row) => ({{
+              label: `${{String(row.catalog || '?')}} (${{String(row.domain || '?')}})`,
+              value: toNumber(row.utility_score, 0),
+            }}));
+          renderBarList(datasetCatalogContributionBarsEl, topUtilityRows, 100);
+        }}
+
+        if (datasetCatalogContributionRowsEl) {{
+          datasetCatalogContributionRowsEl.innerHTML = '';
+          if (!catalogContributionRows.length) {{
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 7;
+            td.className = 'small muted';
+            td.textContent = 'No catalog contribution report found for this build.';
+            tr.appendChild(td);
+            datasetCatalogContributionRowsEl.appendChild(tr);
+          }} else {{
+            catalogContributionRows.slice(0, 30).forEach((row) => {{
+              const tr = document.createElement('tr');
+              const cells = [
+                String(row.catalog || '?'),
+                String(row.domain || '?'),
+                (row.input_rows === null || row.input_rows === undefined) ? 'n/a' : formatInt(row.input_rows),
+                formatInt(row.direct_rows),
+                formatInt(row.evidence_rows),
+                formatInt(row.linked_rows),
+                `${{String(row.utility_tier || 'n/a')}} (${{formatFloat(row.utility_score, 2)}})`,
+              ];
+              cells.forEach((value) => {{
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+              }});
+              datasetCatalogContributionRowsEl.appendChild(tr);
+            }});
+          }}
+        }}
+
+        if (datasetCatalogOverlapRowsEl) {{
+          datasetCatalogOverlapRowsEl.innerHTML = '';
+          const overlapStarRows = (((catalogContribution.overlaps || {{}}).star_evidence || {{}}).pairwise || [])
+            .map((row) => ({{ ...row, scope: 'stars' }}));
+          const overlapSystemRows = (((catalogContribution.overlaps || {{}}).system_evidence || {{}}).pairwise || [])
+            .map((row) => ({{ ...row, scope: 'systems' }}));
+          const overlapRows = overlapStarRows.concat(overlapSystemRows);
+          if (!overlapRows.length) {{
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 5;
+            td.className = 'small muted';
+            td.textContent = 'No overlap metrics available.';
+            tr.appendChild(td);
+            datasetCatalogOverlapRowsEl.appendChild(tr);
+          }} else {{
+            overlapRows.forEach((row) => {{
+              const tr = document.createElement('tr');
+              const values = [
+                String(row.scope || '?'),
+                `${{String(row.left_catalog || '?')}} ∩ ${{String(row.right_catalog || '?')}}`,
+                formatInt(row.intersection_count),
+                formatPct(row.jaccard_pct),
+                formatPct(row.intersection_pct_of_scope),
+              ];
+              values.forEach((value) => {{
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+              }});
+              datasetCatalogOverlapRowsEl.appendChild(tr);
+            }});
+          }}
+        }}
+
+        if (datasetPipelineRowsEl) {{
+          datasetPipelineRowsEl.innerHTML = '';
+          const pipeline = breakdowns.catalog_pipeline_report || {{}};
+          const stages = pipeline.stages || {{}};
+          ['download', 'cook', 'ingest'].forEach((stageName) => {{
+            const stageData = stages[stageName] || null;
+            const tr = document.createElement('tr');
+            const stageTd = document.createElement('td');
+            stageTd.textContent = stageName;
+            tr.appendChild(stageTd);
+            const updatedTd = document.createElement('td');
+            updatedTd.textContent = stageData ? String(stageData.updated_at || 'n/a') : 'n/a';
+            tr.appendChild(updatedTd);
+            const detailTd = document.createElement('td');
+            if (!stageData) {{
+              detailTd.textContent = 'no stage report';
+            }} else if (stageName === 'download') {{
+              detailTd.textContent = `${{formatInt(stageData.source_count)}} sources | manifests=${{formatInt(stageData.manifest_files_count)}}`;
+            }} else if (stageName === 'cook') {{
+              detailTd.textContent = `${{formatInt(stageData.existing_catalog_count)}}/${{formatInt(stageData.catalog_count)}} cooked files`;
+            }} else {{
+              detailTd.textContent = `build=${{String(stageData.build_id || 'n/a')}} | entries=${{formatInt(stageData.catalog_contribution_entries)}}`;
+            }}
+            tr.appendChild(detailTd);
+            datasetPipelineRowsEl.appendChild(tr);
+          }});
+        }}
+
+        const exotic = breakdowns.exotic_star_counts || {{}};
+        const summaryLines = [
+          `Build: ${{data.build_id || 'unknown'}}`,
+          `Total rows: ${{formatInt(counts.rows_total)}} (systems=${{formatInt(counts.systems)}}, stars=${{formatInt(counts.stars)}}, planets=${{formatInt(counts.planets)}})`,
+          `Multiplicity systems: ${{formatInt(counts.multi_star_systems)}} multi / ${{formatInt(counts.single_star_systems)}} single`,
+          `Arm graph: components=${{formatInt(counts.arm_component_entities)}}, hierarchy edges=${{formatInt(counts.arm_hierarchy_edges)}}, orbit edges=${{formatInt(counts.arm_orbit_edges)}}`,
+          `Arm overlays: VSX rows=${{formatInt(counts.arm_vsx_variability)}}, variability summary=${{formatInt(counts.arm_variability_summary)}}, high variability=${{formatInt(counts.arm_variability_high)}}, ultracool rows=${{formatInt(counts.arm_ultracoolsheet_objects)}}`,
+          `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slicedOutRows)}} sliced out (${{formatPct(slicedOutPct)}})`,
+          `Storage: core=${{formatBytes(sizes.core_db)}}, arm=${{formatBytes(sizes.arm_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
+          `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
+          `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
+          `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,
+          `Determinism: status=${{detStatusLabel}}, baseline=${{String(determinism.baseline_build_id || 'n/a')}}, comparable=${{formatInt(determinism.comparable_baselines)}}`,
+          `Catalog contribution rows: ${{formatInt(catalogContributionRows.length)}}`,
+        ];
+        if (policyInputStars > 0) {{
+          if (sliceMetricsMatch) {{
+            summaryLines.push(`Policy slice matches sliced-out totals (${{formatInt(policySlicedOutStars)}} stars, ${{formatPct(policySlicedOutStarsPct)}}).`);
+          }} else {{
+            summaryLines.push(`Policy slice: ${{formatInt(policyInputStars)}} input stars, ${{formatInt(policySlicedOutStars)}} sliced out (${{formatPct(policySlicedOutStarsPct)}}).`);
+          }}
+        }}
+        if (datasetHumanSummaryEl) datasetHumanSummaryEl.textContent = summaryLines.join('\\n');
+      }}
+
+      async function callDatasetStatus(forceRefresh = false) {{
+        const query = forceRefresh ? '?refresh=1' : '';
+        const {{ res, data }} = await fetchJson(`/api/v1/admin/status/dataset${{query}}`, {{ credentials: 'include' }});
+        if (!res.ok) {{
+          datasetStatusMetaEl.textContent = `error loading dataset status (${{res.status}})`;
+          datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
+          return;
+        }}
+        renderDatasetStatus(data || {{}});
+      }}
+
+      function parseOptionalNumberInput(inputEl) {{
+        const raw = String((inputEl && inputEl.value) || '').trim();
+        if (!raw) return null;
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return null;
+        return n;
+      }}
+
+      function readSlicePayload() {{
+        const payload = {{
+          max_distance_ly: parseOptionalNumberInput(sliceMaxDistanceLyEl),
+          min_parallax_over_error: parseOptionalNumberInput(sliceMinParallaxOverErrorEl),
+          max_parallax_error_mas: parseOptionalNumberInput(sliceMaxParallaxErrorMasEl),
+          max_ruwe: parseOptionalNumberInput(sliceMaxRuweEl),
+          require_spectral_class: !!(sliceRequireSpectralEl && sliceRequireSpectralEl.checked),
+          require_color_index: !!(sliceRequireColorEl && sliceRequireColorEl.checked),
+          allowed_spectral_classes: [],
+        }};
+        if (sliceSpectralFiltersEl) {{
+          const checks = sliceSpectralFiltersEl.querySelectorAll('input[type=checkbox]');
+          checks.forEach((el) => {{
+            if (el.checked) payload.allowed_spectral_classes.push(String(el.value || '').trim().toUpperCase());
+          }});
+        }}
+        return payload;
+      }}
+
+      function setSliceStatus(state, message) {{
+        if (!sliceRunStatusEl) return;
+        const st = String(state || 'idle');
+        const msg = String(message || '');
+        sliceRunStatusEl.textContent = msg ? `Status: ${{st}} | ${{msg}}` : `Status: ${{st}}`;
+      }}
+
+      function renderSlicePreview(data) {{
+        if (slicePreviewRawEl) slicePreviewRawEl.textContent = JSON.stringify(data || {{}}, null, 2);
+        const counts = (data && data.counts) || {{}};
+        if (slicePreviewKpisEl) {{
+          slicePreviewKpisEl.innerHTML = '';
+          const starsSlicedOutPct = (Number(counts.stars_total) > 0)
+            ? (Number(counts.stars_sliced_out || 0) / Number(counts.stars_total)) * 100.0
+            : 0.0;
+          [
+            {{ key: 'Stars Retained', value: `${{formatInt(counts.stars_retained)}} / ${{formatInt(counts.stars_total)}}` }},
+            {{ key: 'Stars Sliced Out', value: `${{formatInt(counts.stars_sliced_out)}} (${{formatPct(starsSlicedOutPct)}})` }},
+            {{ key: 'Systems Retained', value: `${{formatInt(counts.systems_retained)}} / ${{formatInt(counts.systems_total)}}` }},
+            {{ key: 'Planets Retained', value: `${{formatInt(counts.planets_retained)}} / ${{formatInt(counts.planets_total)}}` }},
+            {{ key: 'Missing Spectral (retained)', value: formatInt(counts.retained_missing_spectral) }},
+            {{ key: 'Missing Color (retained)', value: formatInt(counts.retained_missing_color) }},
+          ].forEach((item) => {{
+            const card = document.createElement('div');
+            card.className = 'kpi';
+            const k = document.createElement('div');
+            k.className = 'k';
+            k.textContent = item.key;
+            const v = document.createElement('div');
+            v.className = 'v';
+            v.textContent = item.value;
+            card.appendChild(k);
+            card.appendChild(v);
+            slicePreviewKpisEl.appendChild(card);
+          }});
+        }}
+        if (slicePreviewSpectralRowsEl) {{
+          slicePreviewSpectralRowsEl.innerHTML = '';
+          const rows = (data && data.retained_spectral_breakdown) || [];
+          rows.forEach((row) => {{
+            const tr = document.createElement('tr');
+            const cls = document.createElement('td');
+            cls.textContent = String(row.spectral_class || 'UNKNOWN');
+            const cnt = document.createElement('td');
+            cnt.textContent = formatInt(row.star_count);
+            tr.appendChild(cls);
+            tr.appendChild(cnt);
+            slicePreviewSpectralRowsEl.appendChild(tr);
+          }});
+        }}
+        const warnings = (data && data.warnings) || [];
+        if (warnings.length > 0) {{
+          setSliceStatus('preview-warning', warnings.join(' | '));
+        }} else {{
+          setSliceStatus('preview-ready', 'slice preview loaded');
+        }}
+      }}
+
+      async function callSlicePreview() {{
+        const payload = readSlicePayload();
+        setSliceStatus('preview', 'computing impact...');
+        const {{ res, data }} = await fetchJson('/api/v1/admin/dataset/slice/preview', {{
+          method: 'POST',
+          credentials: 'include',
+          headers: {{
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
+          }},
+          body: JSON.stringify(payload),
+        }});
+        if (!res.ok) {{
+          if (slicePreviewRawEl) slicePreviewRawEl.textContent = JSON.stringify(data, null, 2);
+          setSliceStatus('error', `preview failed (${{res.status}})`);
+          return;
+        }}
+        renderSlicePreview(data || {{}});
+      }}
+
+      async function runSliceBuild() {{
+        const payload = readSlicePayload();
+        const params = {{
+          from_cooked: !!(sliceFromCookedEl && sliceFromCookedEl.checked),
+          overwrite: !!(sliceOverwriteEl && sliceOverwriteEl.checked),
+          max_distance_ly: payload.max_distance_ly === null ? '' : String(payload.max_distance_ly),
+          min_parallax_over_error: payload.min_parallax_over_error === null ? '' : String(payload.min_parallax_over_error),
+          max_parallax_error_mas: payload.max_parallax_error_mas === null ? '' : String(payload.max_parallax_error_mas),
+          max_ruwe: payload.max_ruwe === null ? '' : String(payload.max_ruwe),
+          require_spectral_class: !!payload.require_spectral_class,
+          require_color_index: !!payload.require_color_index,
+          allowed_spectral_classes: (payload.allowed_spectral_classes || []).join(','),
+        }};
+        setSliceStatus('submitting', 'starting sliced build...');
+        const result = await runAction('build_core_slice', params, 'RUN build_core_slice');
+        if (!result || !result.ok) {{
+          setSliceStatus('error', 'failed to start sliced build');
+          return;
+        }}
+        const job = (result.data && result.data.job) || {{}};
+        const jobId = String(job.job_id || '');
+        if (!jobId) {{
+          setSliceStatus('queued', 'job created; check Activity > Jobs');
+          return;
+        }}
+        setSliceStatus('queued', `job ${{jobId}} queued`);
+        await loadJobs();
+        void followActionJob(jobId, sliceRunStatusEl, 'build_core_slice');
       }}
 
       function parseFieldValue(type, input) {{
@@ -3151,10 +5858,19 @@ def admin_home(request: Request):
       }}
 
       document.getElementById('logout').addEventListener('click', doLogout);
+      if (adminThemeSelectEl) {{
+        adminThemeSelectEl.addEventListener('change', (event) => {{
+          applyAdminTheme((event && event.target && event.target.value) || 'simple_light');
+        }});
+      }}
       document.getElementById('screenTabOperations').addEventListener('click', () => setScreen('operations'));
+      document.getElementById('screenTabStatus').addEventListener('click', () => setScreen('status'));
+      document.getElementById('screenTabDataset').addEventListener('click', () => setScreen('dataset'));
       document.getElementById('screenTabCoolness').addEventListener('click', () => setScreen('coolness'));
       document.getElementById('screenTabActivity').addEventListener('click', () => setScreen('activity'));
       document.getElementById('refreshStatus').addEventListener('click', callStatus);
+      document.getElementById('refreshDatasetStatus').addEventListener('click', () => {{ void callDatasetStatus(true); }});
+      document.getElementById('refreshDatasetStatusInline').addEventListener('click', () => {{ void callDatasetStatus(true); }});
       document.getElementById('refreshJobs').addEventListener('click', loadJobs);
       document.getElementById('refreshBackups').addEventListener('click', loadBackups);
       document.getElementById('refreshAudit').addEventListener('click', () => loadAudit(false));
@@ -3167,17 +5883,30 @@ def admin_home(request: Request):
       document.getElementById('presetExotic').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.exotic, 'exotic'));
       document.getElementById('presetHabitable').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.habitable, 'habitable'));
       document.getElementById('presetNearby').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.nearby, 'nearby'));
+      if (slicePreviewBtnEl) slicePreviewBtnEl.addEventListener('click', () => {{ void callSlicePreview(); }});
+      if (sliceRunBtnEl) sliceRunBtnEl.addEventListener('click', () => {{ void runSliceBuild(); }});
       coolResetActiveEl.addEventListener('click', resetCoolnessToActive);
-	      coolApplyBtnEl.addEventListener('click', () => {{ void applyCoolness(); }});
-	      coolSaveBtnEl.addEventListener('click', () => {{ void saveCoolnessProfile(); }});
-	      coolActivateBtnEl.addEventListener('click', () => {{ void activateCoolnessProfile(); }});
-	      coolLoadProfileBtnEl.addEventListener('click', loadSelectedSavedProfile);
-      setScreen('operations');
+      coolApplyBtnEl.addEventListener('click', () => {{ void applyCoolness(); }});
+      coolSaveBtnEl.addEventListener('click', () => {{ void saveCoolnessProfile(); }});
+      coolActivateBtnEl.addEventListener('click', () => {{ void activateCoolnessProfile(); }});
+      coolLoadProfileBtnEl.addEventListener('click', loadSelectedSavedProfile);
+      bindRangeNumberPair(snapshotTopCoolnessEl, snapshotTopCoolnessNumberEl, 100, {{ min: 1, max: 10000, step: 10 }});
+      bindRangeNumberPair(snapshotMaxDistanceLyEl, snapshotMaxDistanceLyNumberEl, 1000, {{ min: 1, max: 1000, step: 1 }});
+      bindRangeNumberPair(snapshotMinStarCountEl, snapshotMinStarCountNumberEl, 0, {{ min: 0, max: 12, step: 1 }});
+      bindRangeNumberPair(snapshotMinPlanetCountEl, snapshotMinPlanetCountNumberEl, 0, {{ min: 0, max: 20, step: 1 }});
+      bindRangeNumberPair(snapshotMinCoolnessScoreEl, snapshotMinCoolnessScoreNumberEl, 0, {{ min: 0, max: 40, step: 0.5 }});
+      snapshotRunBtnEl.addEventListener('click', () => {{ void runSnapshotGeneration(); }});
+      applyAdminTheme(resolveAdminTheme());
+      setScreen('status');
       renderCoolnessSliders();
       renderCoolnessPreview(null);
-	      setPreviewNotice('Preview is safe and read-only. Run updates ranking outputs ephemerally; Save Profile persists a chosen version; Activate Profile switches what is live.');
+      setPreviewNotice('Preview is safe and read-only. Run updates ranking outputs ephemerally; Save Profile persists a chosen version; Activate Profile switches what is live.');
       setRunStatus('idle', 'ready');
+      setSnapshotRunStatus('idle', 'top 100 coolness systems');
+      setSliceStatus('idle', 'configure and preview slice policy');
       callStatus();
+      callDatasetStatus(false);
+      callSlicePreview();
       loadCatalog();
       loadCoolnessState();
       loadJobs();

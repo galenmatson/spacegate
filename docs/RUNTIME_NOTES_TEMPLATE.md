@@ -34,10 +34,17 @@ Keep host-local copy outside git:
 
 - `SPACEGATE_DATA_DIR`:
 - `SPACEGATE_STATE_DIR`:
+- `SPACEGATE_DL_ROOT`:
 - `SPACEGATE_CACHE_DIR`:
 - `SPACEGATE_API_DUCKDB_MEMORY_LIMIT`:
 - `SPACEGATE_API_DUCKDB_THREADS`:
 - `SPACEGATE_STATUS_PUBLIC_URL`:
+
+Operational note:
+
+- `docker-compose.yml` only covers container runtime env.
+- Host-side scripts such as `scripts/promote_build.sh`, `scripts/publish_db.sh`, and `scripts/push_published_db.sh` load env from `/etc/spacegate/spacegate.env`, `.spacegate.env`, and `.spacegate.local.env`.
+- On server hosts, set `SPACEGATE_STATE_DIR` and `SPACEGATE_DL_ROOT` in the host env files so container runtime and host-side operational scripts agree on the same paths.
 
 ## Bootstrap Source
 

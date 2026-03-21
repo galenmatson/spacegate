@@ -1,0 +1,99 @@
+{
+  "fixture_version": "2026-03-15",
+  "systems": [
+    {
+      "id": "castor",
+      "mode": "hierarchy",
+      "scope": "core",
+      "required": true,
+      "name_aliases": ["castor", "alpha gem", "yy gem"],
+      "expected_stellar_components": ["aa", "ab", "ba", "bb", "ca", "cb"],
+      "expected_stellar_component_count": 6,
+      "expected_inner_binary_pairs": [
+        ["aa", "ab"],
+        ["ba", "bb"],
+        ["ca", "cb"]
+      ],
+      "minimum_confidence_tier": "medium"
+    },
+    {
+      "id": "55_cancri",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["55 cnc", "copernicus", "hd 75732", "hip 43587"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 5
+    },
+    {
+      "id": "gliese_667",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["gj 667 c"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 2
+    },
+    {
+      "id": "trappist_1",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["trappist 1"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 7
+    },
+    {
+      "id": "16_cygni_b",
+      "mode": "presence",
+      "scope": "core",
+      "required": true,
+      "alias_queries": ["16 cyg b"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 1
+    },
+    {
+      "id": "nu_scorpii_star_count",
+      "mode": "query",
+      "scope": "core",
+      "required": true,
+      "label": "Nu Sco total star count",
+      "sql_count": "select coalesce(max(s.star_count), 0)::bigint from systems s left join aliases a on a.system_id = s.system_id where lower(coalesce(s.system_name, '')) in ('14nu sco') or lower(coalesce(a.alias_norm, '')) in ('nu sco', 'jabbah', 'hd 145502')",
+      "min_value": 7,
+      "max_value": 7
+    },
+    {
+      "id": "sol_neighborhood",
+      "mode": "query",
+      "scope": "core",
+      "required": true,
+      "label": "systems within 10 ly",
+      "sql_count": "select count(*)::bigint from systems where dist_ly is not null and dist_ly <= 10.0",
+      "min_value": 5
+    },
+    {
+      "id": "psr_b1620_26",
+      "mode": "presence",
+      "scope": "galaxy_or_halo",
+      "required": false,
+      "alias_queries": ["psr b1620 26"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 1
+    },
+    {
+      "id": "tyc_7037_89_1",
+      "mode": "presence",
+      "scope": "galaxy_or_halo",
+      "required": false,
+      "alias_queries": ["tyc 7037-89-1"],
+      "min_system_matches": 1,
+      "min_star_rows": 1,
+      "min_planet_rows": 0
+    }
+  ]
+}

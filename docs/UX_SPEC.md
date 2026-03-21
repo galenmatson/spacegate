@@ -1,6 +1,6 @@
 # Spacegate v1.1 UX Spec (Public Database Browser)
 
-Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only rich overlays for coolness ranking and deterministic system snapshots. No 3D map, no lore.
+Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only disc overlays (legacy `rich` artifacts) for coolness ranking and deterministic system snapshots. No 3D map, no rim overlays.
 
 ## Current Implementation Notes
 - Theme labels currently exposed in UI: `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`, `Aurora`, `Geocities`, `Deep Space Minimal`.
@@ -37,7 +37,7 @@ Scope: search/browse core systems, stars, and planets from `core.duckdb`, with r
 - Alternate: Name (A-Z).
 
 Sorting rules:
-- Coolness: `rich.coolness_scores.rank` ascending, tie-breakers `system_name_norm`, `system_id`.
+- Coolness: disc score ranking (`rich.coolness_scores.rank` legacy table path) ascending, tie-breakers `system_name_norm`, `system_id`.
 - Name: `system_name_norm` ascending, tie-breaker `system_id`.
 - Distance: `dist_ly` ascending, tie-breaker `system_id`.
 
@@ -46,7 +46,7 @@ Sorting rules:
 - System name
 - Distance (ly)
 - RA/Dec (deg)
-- Star count
+- Star count (effective descendant count when the hierarchy overlay exposes more stars than the flat core membership rows)
 - Planet count
 - Spectral classes present (from member stars)
 - IDs: Gaia/HIP/HD where present
@@ -64,7 +64,7 @@ Sorting rules:
 - XYZ (helio, ly): `systems.x_helio_ly`, `systems.y_helio_ly`, `systems.z_helio_ly` (optional in UI)
 - IDs: `systems.gaia_id`, `systems.hip_id`, `systems.hd_id`
 - Stable key: `systems.stable_object_key`
-- Star count: `COUNT(stars.star_id)` grouped by `stars.system_id`
+- Star count: `systems.star_count` when materialized; effective value may be upgraded by `arm` hierarchy overlays (for example MSC/WDS synthetic roots) when that yields a truer total member count than direct `core.stars`
 - Planet count: `COUNT(planets.planet_id)` grouped by `planets.system_id`
 - Spectral classes: `DISTINCT stars.spectral_class` per `stars.system_id`
 - Provenance badge: `systems.source_catalog`, `systems.source_version`
@@ -75,6 +75,7 @@ Sorting rules:
 - Header section with system name and identifiers.
 - Deterministic snapshot panel near top of page.
 - Quick facts grid (distance, coordinates, counts).
+- Hierarchy section: recursive nested cards from the generic `arm` graph payload, with deeper layers collapsed by default.
 - Stars section: table/list of member stars.
 - Planets section: table/list of known exoplanets.
 - Provenance & Trust section with full provenance details.
@@ -88,8 +89,15 @@ Sorting rules:
 - Distance (ly)
 - RA/Dec (deg)
 - XYZ (helio, ly)
-- Star count
+- Star count (effective total stars represented by the hierarchy, not only direct core star rows)
 - Planet count
+
+### Hierarchy Section
+- Uses one generic hierarchy renderer for Sol, multi-star systems, and ordinary planet-host systems.
+- Each node shows the object name, type badge, descendant summary, optional orbit summary, and nested child cards.
+- Star nodes should expose compact fact chips when available, prioritizing spectral type, temperature, mass, radius, visual magnitude, distance, and separation/context values from authoritative overlays.
+- Deeper layers collapse by default so large systems stay navigable.
+- This section is the primary structural explanation of the system; the flat stars/planets tables remain below it as source-facing catalog views.
 
 ### Snapshot Panel
 - Show deterministic snapshot image when present.
@@ -133,10 +141,17 @@ Star fields:
 - Star name: `stars.star_name`
 - Component: `stars.component`
 - Spectral raw/parsed: `stars.spectral_type_raw`, `stars.spectral_class`, `stars.spectral_subtype`, `stars.luminosity_class`, `stars.spectral_peculiar`
+- Surface temperature: `stars.teff_k`
 - Distance (ly): `stars.dist_ly`
 - Apparent magnitude: `stars.vmag`
 - IDs: `stars.gaia_id`, `stars.hip_id`, `stars.hd_id`
 - Provenance: all required provenance fields from `stars`
+
+Hierarchy fields:
+- Root/count summary: derived from `arm.component_entities`, `arm.system_hierarchy_edges`, and `arm.orbit_edges`
+- Synthetic subsystem cards: derived from binary/orbit relationships in `arm.orbit_edges`
+- Orbit summaries: preferred `arm.orbital_solutions` rows when present
+- Presentation rule: a canonical star node that anchors child star nodes should render as a `Subsystem` in the UI even though its underlying core object remains a star
 
 Planet fields:
 - Planet name: `planets.planet_name`

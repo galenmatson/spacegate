@@ -24,7 +24,6 @@ __pycache__/
 **/dist/
 **/.cache/
 .npm-cache/
-/srv/web/content/
 
 # Python
 **/__pycache__/
@@ -34,3 +33,6 @@ __pycache__/
 # OS/editor
 .DS_Store
 .vscode/
+
+# local doc backups
+/docs/PROJECT-*.md

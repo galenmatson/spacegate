@@ -1,4 +1,4 @@
-# Spacegate v0.1 API Spec (Read-only)
+# Spacegate API Spec (Gaia-first)
 
 Base URL: `http://<host>:8000/api/v1`
 
@@ -8,20 +8,25 @@ Base URL: `http://<host>:8000/api/v1`
 - Pagination uses cursor-based keyset pagination.
 - Responses include provenance and match confidence fields.
 
+## Gaia-First Contract Review (2026-03-16)
+- canonical star/system provenance examples now reflect Gaia DR3-first inventory.
+- alias examples now reflect authority/cross-catalog alias ingestion (not AT-HYG-origin placeholders).
+- search/detail field semantics remain backward-compatible for the public UI and admin tooling.
+
 ## Common Types
 
 ### Provenance
 ```json
 {
-  "source_catalog": "athyg",
-  "source_version": "v3.3",
+  "source_catalog": "gaia_dr3",
+  "source_version": "dr3_gaia_source_parallax_gte_3.26156",
   "source_url": "https://...",
   "source_download_url": "https://...",
   "source_doi": null,
-  "source_pk": 196694,
-  "source_row_id": 196694,
+  "source_pk": 19316224572460416,
+  "source_row_id": 19316224572460416,
   "source_row_hash": null,
-  "license": "CC BY-SA 4.0",
+  "license": "ESA Gaia Archive terms",
   "redistribution_ok": true,
   "license_note": "https://...",
   "retrieval_etag": null,
@@ -272,9 +277,11 @@ Query params:
 - `max_star_count` (int, optional, `>= 0`)
 - `min_planet_count` (int, optional, `>= 0`)
 - `max_planet_count` (int, optional, `>= 0`)
+- `min_temp_k` (float, optional, `>= 0`; matches systems having at least one star with `teff_k >= value`)
+- `max_temp_k` (float, optional, `>= 0`; matches systems having at least one star with `teff_k <= value`)
 - `min_coolness_score` (float, optional)
 - `max_coolness_score` (float, optional)
-- `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y)
+- `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
 - `sort` (`name` | `distance` | `coolness`, default `name`)
@@ -283,11 +290,17 @@ Query params:
 - `cursor` (string, optional)
 
 Matching rules (when `q` is provided):
-1. Exact match on `system_name_norm` or star `star_name_norm`
-2. Prefix match
-3. Token-and match (all tokens present)
+1. Exact match on canonical system name / stable key and materialized search terms (`system_search_terms.term_norm` when present; fallback to canonical name + `aliases.alias_norm`)
+2. Prefix match on materialized system search terms (or canonical name + aliases on legacy builds)
+3. Token-and match (all tokens present) on materialized system search terms (or canonical name + aliases on legacy builds)
 4. Identifier match (HD/HIP/Gaia patterns like `HD 10700`, `HIP 8102`, `Gaia 123`)
 5. Plain long numeric queries (`10+` digits) are treated as Gaia IDs
+
+Implementation notes:
+- rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
+- rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
+- temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
+- when `arm` exposes a richer multiplicity root (for example WDS/MSC synthetic system roots), star-count filters and returned `star_count` values use the larger effective descendant-star count instead of only counting direct `core.stars` rows.
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.
@@ -300,7 +313,8 @@ When `q` is not provided:
 Validation and availability behavior:
 - Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.
 - Invalid enum/filter values (for example `sort=foo`, `has_planets=maybe`, `spectral_class=ZZ`) return `400 bad_request`.
-- Requesting coolness sort/score filters when `rich.coolness_scores` is unavailable returns `409 conflict`.
+- Requesting temperature filters when the current build does not expose `core.stars.teff_k` returns `409 conflict`.
+- Requesting coolness sort/score filters when `disc` coolness data (legacy table path `rich.coolness_scores`) is unavailable returns `409 conflict`.
 - Framework-level bound checks (for example negative `min_dist_ly`, `limit > 200`) return `422`.
 
 Pagination and totals:
@@ -316,6 +330,8 @@ Response 200:
       "stable_object_key": "system:gaia:19316224572460416",
       "system_name": "268 G. Cet",
       "system_name_norm": "268 g cet",
+      "display_name": "268 G. Cet",
+      "display_aliases": ["HIP 12114", "HD 16160"],
       "match_rank": 1,
       "dist_ly": 23.5765,
       "ra_deg": 2.601357,
@@ -331,6 +347,9 @@ Response 200:
       "hd_id_text": "16160",
       "star_count": 1,
       "planet_count": 0,
+      "star_teff_count": 1,
+      "min_star_teff_k": 5772.0,
+      "max_star_teff_k": 5772.0,
       "spectral_classes": ["G"],
       "coolness_rank": 97,
       "coolness_score": 18.4412,
@@ -346,7 +365,7 @@ Response 200:
         "height_px": 560,
         "url": "/api/v1/snapshots/2026-02-19T221543Z_2774126/snapshots/system_card/system_gaia_19316224572460416/ea9f1d1a15216a90.svg"
       },
-      "provenance": {"source_catalog":"athyg", "source_version":"v3.3", "license":"CC BY-SA 4.0", "redistribution_ok":true, "retrieved_at":"...", "transform_version":"...", "source_url":"...", "source_download_url":"...", "source_pk":196694, "source_row_id":196694, "source_row_hash":null, "license_note":"...", "retrieval_etag":null, "retrieval_checksum":"...", "ingested_at":"...", "source_doi":null}
+      "provenance": {"source_catalog":"gaia_dr3", "source_version":"dr3_gaia_source_parallax_gte_3.26156", "license":"ESA Gaia Archive terms", "redistribution_ok":true, "retrieved_at":"...", "transform_version":"...", "source_url":"...", "source_download_url":"...", "source_pk":19316224572460416, "source_row_id":19316224572460416, "source_row_hash":null, "license_note":"...", "retrieval_etag":null, "retrieval_checksum":"...", "ingested_at":"...", "source_doi":null}
     }
   ],
   "next_cursor": "<opaque>",
@@ -364,13 +383,36 @@ Path params:
 Response 200:
 ```json
 {
-  "system": { /* same fields as search result + full provenance */ },
+  "system": {
+    /* same fields as search result + full provenance */
+    "display_name": "Sirius",
+    "display_aliases": ["Alp CMa", "HIP 32349", "HD 48915"],
+    "arm_evidence_summary": {
+      "stars_with_arm_evidence": 1,
+      "catalog_counts": {"vsx": 1},
+      "high_variability_stars": 0,
+      "ultracool_overlay_stars": 0
+    },
+    "aliases": [
+      {
+        "alias_raw": "Sirius",
+        "alias_norm": "sirius",
+        "alias_kind": "member_proper_name",
+        "alias_priority": 21,
+        "is_primary": false,
+        "source_catalog": "name_authority",
+        "source_version": "2026-03"
+      }
+    ]
+  },
   "stars": [
     {
       "star_id": 10,
       "system_id": 1,
       "stable_object_key": "star:gaia:...",
       "star_name": "268 G. Cet",
+      "display_name": "268 G. Cet",
+      "display_aliases": ["HIP 12114", "HD 16160"],
       "component": "A",
       "spectral_type_raw": "G2V",
       "spectral_class": "G",
@@ -379,10 +421,43 @@ Response 200:
       "spectral_peculiar": null,
       "dist_ly": 23.5765,
       "vmag": 6.12,
+      "teff_k": 5772.0,
       "gaia_id": 19316224572460416,
       "hip_id": 12114,
       "hd_id": 16160,
       "catalog_ids": {"gaia":..., "hip":..., "hd":..., "tyc":"..."},
+      "arm_catalogs": ["vsx", "ultracoolsheet"],
+      "arm_evidence": {
+        "catalogs": ["vsx", "ultracoolsheet"],
+        "vsx": {
+          "vsx_match_count": 2,
+          "primary_variability_type_raw": "EA",
+          "primary_variability_family": "eclipsing",
+          "primary_amplitude_mag": 0.22,
+          "primary_period_days": 1.23,
+          "any_high_variability": false,
+          "confidence_tier": "high"
+        },
+        "ultracoolsheet": {
+          "match_count": 1,
+          "object_name": "TRAPPIST-1",
+          "age_category": "field",
+          "youth_evidence": null,
+          "spectral_type_opt": "M8",
+          "match_confidence": 1.0
+        }
+      },
+      "aliases": [
+        {
+          "alias_raw": "Sirius A",
+          "alias_norm": "sirius a",
+          "alias_kind": "proper_name",
+          "alias_priority": 1,
+          "is_primary": false,
+          "source_catalog": "name_authority",
+          "source_version": "2026-03"
+        }
+      ],
       "provenance": { /* full provenance */ }
     }
   ],
@@ -409,9 +484,55 @@ Response 200:
       "match_notes": null,
       "provenance": { /* full provenance */ }
     }
-  ]
+  ],
+  "hierarchy": {
+    "preferred_root_key": "comp:msc_system:wds:07346+3153",
+    "root_keys_considered": ["comp:system:system:wds:07346+3153", "comp:msc_system:wds:07346+3153"],
+    "counts": {
+      "stars": 6,
+      "nodes": 10,
+      "direct_children": 3,
+      "type_counts": {"system": 1, "subsystem": 3, "star": 6}
+    },
+    "root": {
+      "stable_component_key": "comp:msc_system:wds:07346+3153",
+      "component_type": "system",
+      "display_name": "Castor",
+      "total_star_count": 6,
+      "collapsed_by_default": false,
+      "children": [
+        {
+          "stable_component_key": "synthetic:orbit:12345",
+          "component_type": "subsystem",
+          "display_name": "Castor A",
+          "total_star_count": 2,
+          "collapsed_by_default": false,
+          "orbit": {
+            "period_days": 342.5,
+            "semi_major_axis_au": 5.1,
+            "eccentricity": 0.12,
+            "inclination_deg": 71.0,
+            "confidence_tier": "high",
+            "source_catalog": "msc"
+          },
+          "children": [
+            {"stable_component_key": "comp:msc:wds:07346+3153:aa", "component_type": "star", "display_name": "Castor AA"},
+            {"stable_component_key": "comp:msc:wds:07346+3153:ab", "component_type": "star", "display_name": "Castor AB"}
+          ]
+        }
+      ]
+    }
+  }
 }
 ```
+
+Display-name behavior:
+- `display_name` prefers human-friendly naming over Gaia placeholders.
+- Alias precedence is deterministic: proper/common name, Bayer, Flamsteed, then major catalog IDs (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
+- `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
+- `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
+- `system.star_count` and search `star_count` filters are descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list.
+- the flat `stars` array remains the canonical direct core membership list; it is not guaranteed to enumerate every nested scientific leaf shown in `hierarchy`.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

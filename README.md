@@ -5,9 +5,10 @@
 
 #  Scope and Deliverables
 
-  - Core datasets: systems, stars, planets (AT‑HYG + NASA Exoplanet Archive).
-  - Optional “packs” (v1.2+): substellar, compact, superstellar, etc., as separate, read‑only artifacts.
-  - Rich (v1.1+): derived artifacts like expositions, reference links, snapshots.
+  - Gaia-first canonical datasets: systems, stars, planets (Gaia DR3 backbone + NASA Exoplanet Archive), with multiplicity and science side catalogs.
+  - AT-HYG is transitional crosswalk support for naming/identifier recovery, not canonical inventory authority.
+  - Optional packs and side catalogs (v1.2+): compact/remnant, superstellar, eclipsing, and lifecycle support artifacts.
+  - Disc layer derivatives (legacy runtime alias: `rich`): expositions, reference links, snapshots, scores.
   - A browser 3D map (v2) with filters and overlays.
 
 # Data & Pipeline Model
@@ -23,7 +24,34 @@
   - Core artifacts: DuckDB + Parquet, sorted by Morton Z‑order spatial_index.
   - Stable object keys for systems/stars/planets; strict provenance fields required 100%.
   - Planet → host matching prioritized by Gaia DR3 ID, then HIP, HD, then hostname.
-
+  - Display naming precedence: common/human names first, then survey/mission host labels (TRAPPIST/Kepler/TOI/WASP family), Gaia ID last fallback.
+  - Separate databases for layer boundaries:
+    - *galaxy*: immutable canonical science corpus
+      - Gaia-first inventory with merged auxiliary science evidence (NSS/WDS/ORB6/MSC/SBX and side catalogs)
+      - AT-HYG contributes transitional crosswalk enrichment only
+    - *core*: the Spacegate database (fast)
+      - deterministic science slice (typically <=1000 LY of Sol)
+      - million-scale object counts tuned for interactive performance
+      - tuned for performance, scaled for resources
+    - *halo*: explicit opt-in science projection (slow)
+      - complementary science rows excluded from `core` by slice policy
+    - *arm*: immutable supplemental science
+      - observational side tables outside core hot paths
+      - Epoch transforms (for example J2000 -> J2016 propagated positions)
+      - Derived kinematics and orbital parameters
+      - System hierarchy inferences with confidence
+      - Crossmatch confidence scores and physical-consistency flags
+      - Deterministic classifications computed from core fields
+    - *disc*: reproducible derivatives
+      - system animations
+      - factsheets
+      - AI narration
+      - generated imagery
+      - links to external catalogs, articles, and papers
+    - *rim*: editable fiction
+      - lore from popular scifi
+      - user creatable maps, links, economy, and narrative
+      
 ## Packs Contract
 
   - Pack schema requires stable_object_key, object type, coordinates, and full provenance.
@@ -92,6 +120,40 @@ If you used `--skip-build`, used `--skip-db-download`, or want to rebuild:
 scripts/build_core.sh
 ```
 
+Before a forced full catalog refresh, run preflight:
+
+```bash
+scripts/preflight_full_refresh.sh
+```
+
+Then run a true full refresh (Gaia `delta_mode=refresh` + support catalog overwrite):
+
+```bash
+scripts/build_core.sh --full-refresh
+```
+
+For routine update runs with automatic differential/full routing, use:
+
+```bash
+scripts/refresh_core.sh
+```
+
+For multiplicity contribution analysis with MSC fixed on (`nss_off`, `nss_on`, optional `nss_on_wds_xmatch`):
+
+```bash
+scripts/run_multiplicity_modes.sh
+```
+
+Optional experimental WDS->Gaia crosswalk (for WDS-linked grouping support alongside MSC):
+
+```bash
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/download_core.sh --non-interactive
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/cook_core.sh
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=1 scripts/ingest_core.sh
+```
+
+When enabled, ingest applies physical-consistency gates to multi-member WDS groups before using them for system grouping.
+
 To fetch the currently published prebuilt DB manually:
 
 ```bash
@@ -114,14 +176,32 @@ To package the currently promoted build and update download metadata:
 scripts/publish_db.sh
 ```
 
-By default this writes to `/srv/spacegate/dl` (override with `SPACEGATE_DL_ROOT`):
+By default this writes to `SPACEGATE_DL_ROOT` (auto-detected as `/data/spacegate/dl` when `/data/spacegate` exists, otherwise `/srv/spacegate/dl`):
 
 - archive: `db/<build_id>.7z` (or `.tar.zst` if `7z` is unavailable)
 - symlink: `current -> db/<archive>`
 - metadata: `current.json`
-- reports: `reports/<build_id>/{qc_report,match_report,provenance_report,system_grouping_report,core_manifest}.json` when present
+- reports: `reports/<build_id>/{qc_report,match_report,identifier_report,alias_report,provenance_report,system_grouping_report,core_manifest}.json` when present
 
 `current.json` includes artifact checksum/size plus report links and summary metadata used by bootstrap clients.
+
+### 3.1a) Publish catalog mirror snapshots for bootstrap clients
+
+To mirror catalog artifacts (raw + cooked) into `$SPACEGATE_DL_ROOT/catalogs`:
+
+```bash
+scripts/publish_catalog_mirror.py
+```
+
+Outputs:
+
+- `catalogs/snapshots/<snapshot_id>/raw/...` (upstream raw format, unchanged)
+- `catalogs/snapshots/<snapshot_id>/cooked/...` (Spacegate-normalized artifacts)
+- `catalogs/snapshots/<snapshot_id>/index.json`
+- `catalogs/current -> snapshots/<snapshot_id>`
+- `catalogs/current.json`
+
+Use `--catalog <name>` repeatedly to mirror a subset, or `--raw-only` to skip cooked artifacts.
 
 ### 3.2) Push published artifacts to a remote host
 
@@ -217,6 +297,62 @@ export SPACEGATE_DATA_DIR=/var/lib/spacegate
 export SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 export SPACEGATE_DUCKDB_THREADS=4
 
+# Multiplicity toggles
+export SPACEGATE_ENABLE_GAIA_NSS=1
+export SPACEGATE_ENABLE_MSC=1
+export SPACEGATE_ENABLE_SBX=1
+export SPACEGATE_ENABLE_PROXIMITY=0
+export SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
+export SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
+export SPACEGATE_ENABLE_KEPLER_EB=0
+export SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK=0
+export SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE=0
+
+# MSC transport fallback (only if CTIO TLS chain fails in your environment)
+# Security note: HTTP is vulnerable to in-transit tampering.
+# In HTTP mode, SHA pinning is required.
+export SPACEGATE_MSC_ALLOW_INSECURE_HTTP=0
+# export SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1
+# export SPACEGATE_MSC_FORCE_HTTP=1
+# export SPACEGATE_MSC_SHA256=<expected_sha256>
+# Optional cooker safety limits for MSC tar processing
+# export SPACEGATE_MSC_MAX_ARCHIVE_BYTES=134217728
+# export SPACEGATE_MSC_MAX_MEMBER_BYTES=67108864
+
+# Auto-score coolness after promote_build.sh (default on)
+export SPACEGATE_AUTO_SCORE_COOLNESS=1
+
+# Multiplicity golden exam is on by default in verify_build.sh.
+# Set to 0 only when intentionally bypassing this gate.
+# export SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS=0
+
+# Gaia NSS fetch tuning (download_core.sh)
+export SPACEGATE_GAIA_NSS_BUCKETS=53
+export SPACEGATE_GAIA_NSS_TIMEOUT_S=240
+export SPACEGATE_GAIA_NSS_RETRIES=4
+
+# Gaia differential fetch controls (download_core.sh)
+# resume: reuse local bucket parts whenever present (fastest, default behavior)
+# delta: refresh only stale/missing buckets
+# refresh: force full refetch of all buckets
+export SPACEGATE_GAIA_DELTA_MODE=delta
+export SPACEGATE_GAIA_DELTA_MAX_AGE_HOURS=720
+# Optional per-source overrides:
+# export SPACEGATE_GAIA_BACKBONE_DELTA_MODE=delta
+# export SPACEGATE_GAIA_CLASSPROB_DELTA_MODE=delta
+# export SPACEGATE_GAIA_NSS_DELTA_MODE=delta
+# export SPACEGATE_SBX_DELTA_MODE=delta
+
+# Optional WDS->Gaia crosswalk via CDS XMatch (download_core.sh)
+export SPACEGATE_WDS_GAIA_XMATCH_DIST_ARCSEC=2.0
+export SPACEGATE_WDS_GAIA_XMATCH_SELECTION=best
+export SPACEGATE_WDS_GAIA_XMATCH_MAX_REC=2000000
+
+# WDS->Gaia ingest-time gating (ingest_core.py)
+export SPACEGATE_WDS_GAIA_MATCH_MAX_ARCSEC=2.0
+export SPACEGATE_WDS_GAIA_GATE_MAX_DIST_SPREAD_LY=10.0
+export SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR=25.0
+
 # Core DB bootstrap controls
 export SPACEGATE_BOOTSTRAP_DB=0
 export SPACEGATE_PUBLIC_BASE_URL=https://coolstars.org
@@ -238,7 +374,22 @@ SPACEGATE_CACHE_DIR=/data/spacegate/data/cache
 SPACEGATE_LOG_DIR=/data/spacegate/data/logs
 
 # Optional source-build knobs
-SPACEGATE_ENABLE_PROXIMITY=1
+SPACEGATE_ENABLE_PROXIMITY=0
+SPACEGATE_ENABLE_GAIA_BACKBONE=1
+SPACEGATE_ENABLE_GAIA_CLASSPROB=1
+SPACEGATE_ENABLE_GAIA_NSS=1
+SPACEGATE_ENABLE_MSC=1
+SPACEGATE_ENABLE_SBX=1
+SPACEGATE_ENABLE_WDS_GAIA_XMATCH=0
+SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1
+SPACEGATE_ENABLE_KEPLER_EB=0
+SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK=0
+SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE=0
+SPACEGATE_GAIA_BACKBONE_BUCKETS=211
+SPACEGATE_GAIA_CLASSPROB_BUCKETS=211
+SPACEGATE_GAIA_NSS_BUCKETS=53
+SPACEGATE_GAIA_DELTA_MODE=delta
+SPACEGATE_GAIA_DELTA_MAX_AGE_HOURS=720
 SPACEGATE_DUCKDB_MEMORY_LIMIT=24GB
 SPACEGATE_DUCKDB_THREADS=12
 EOF
@@ -275,7 +426,7 @@ Behavior:
 - Proxies web UI to container upstream `http://127.0.0.1:8081` by default.
 - Applies API abuse controls by default: per-IP rate limit, burst limit, and connection limit.
 - Applies proxy timeouts on API upstream connections.
-- Serves `/dl/` from `/srv/spacegate/dl` by default (`SPACEGATE_DL_ENABLE=0` to disable).
+- Serves `/dl/` from `SPACEGATE_DL_ALIAS_DIR` (defaults to `SPACEGATE_DL_ROOT`; `SPACEGATE_DL_ENABLE=0` disables `/dl/`).
 - Runs `nginx -t` before reload/start.
 
 If you prefer host-served static files from `srv/web/dist`, use:

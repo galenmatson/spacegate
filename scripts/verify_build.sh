@@ -14,6 +14,8 @@ OUT_DIR="$STATE_DIR/out"
 REPORTS_DIR="$STATE_DIR/reports"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
+VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
+VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -98,7 +100,10 @@ PY
 
   local qc_report="$reports_dir/qc_report.json"
   local match_report="$reports_dir/match_report.json"
+  local duplicate_report="$reports_dir/duplicate_trap_report.json"
   local prov_report="$reports_dir/provenance_report.json"
+  local planet_delta_report="$reports_dir/planet_catalog_delta_report.json"
+  local planet_reclass_report="$reports_dir/planet_reclassification_report.json"
 
   local have_reports=1
   if [[ ! -d "$reports_dir" ]]; then
@@ -139,7 +144,76 @@ counts = data.get("counts") or {}
 if not all(counts.get(k, 0) > 0 for k in ("stars", "systems", "planets")):
     raise SystemExit(f"Invalid counts in QC report: {counts}")
 
+for key in (
+    "gaia_backbone_row_count_check_match",
+    "gaia_classprob_row_count_check_match",
+    "gaia_nss_non_single_row_count_check_match",
+    "gaia_nss_two_body_row_count_check_match",
+):
+    value = data.get(key)
+    if value is False:
+        raise SystemExit(f"Gaia TAP completeness check failed ({key}=false)")
+
 print("OK: qc_report.json")
+PY
+
+    if [[ -f "$duplicate_report" ]]; then
+      "$PYTHON_BIN" - <<'PY' "$duplicate_report" "$build_id"
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+build_id = sys.argv[2]
+data = json.loads(path.read_text())
+if data.get("build_id") != build_id:
+    raise SystemExit(f"duplicate_trap_report build_id mismatch: {data.get('build_id')} != {build_id}")
+near = (data.get("near_pair_totals") or {})
+for key in ("candidate_pairs", "likely_duplicate_pairs", "high_confidence_pairs"):
+    if key not in near:
+        raise SystemExit(f"duplicate_trap_report missing near_pair_totals.{key}")
+print("OK: duplicate_trap_report.json")
+PY
+    elif [[ "$REQUIRE_REPORTS" == "1" ]]; then
+      echo "Error: missing duplicate trap report: $duplicate_report" >&2
+      exit 1
+    else
+      echo "Warning: duplicate trap report missing: $duplicate_report" >&2
+    fi
+
+    "$PYTHON_BIN" - <<'PY' "$qc_report" "$planet_delta_report" "$planet_reclass_report"
+import json
+import sys
+from pathlib import Path
+
+qc_path = Path(sys.argv[1])
+delta_path = Path(sys.argv[2])
+reclass_path = Path(sys.argv[3])
+
+qc = json.loads(qc_path.read_text())
+lifecycle_enabled = bool(qc.get("exoplanet_lifecycle_catalogs_enabled"))
+
+if not lifecycle_enabled:
+    print("OK: exoplanet lifecycle reports not required for this build")
+    raise SystemExit(0)
+
+if not delta_path.exists():
+    raise SystemExit(f"Missing lifecycle report: {delta_path}")
+if not reclass_path.exists():
+    raise SystemExit(f"Missing lifecycle report: {reclass_path}")
+
+delta = json.loads(delta_path.read_text())
+reclass = json.loads(reclass_path.read_text())
+if not delta.get("lifecycle_enabled"):
+    raise SystemExit("planet_catalog_delta_report lifecycle_enabled=false but QC indicates lifecycle enabled")
+if not reclass.get("lifecycle_enabled"):
+    raise SystemExit("planet_reclassification_report lifecycle_enabled=false but QC indicates lifecycle enabled")
+
+stale_rows = int(reclass.get("stale_classifier_rows") or 0)
+if stale_rows != 0:
+    raise SystemExit(f"Lifecycle stale classifier rows: {stale_rows}")
+
+print("OK: exoplanet lifecycle reports")
 PY
   fi
 
@@ -214,8 +288,316 @@ for row in values_rows:
     print(fmt_row(row))
 PY
 
+  "$PYTHON_BIN" - <<'PY' "$core_db"
+import sys
+import duckdb
+
+db_path = sys.argv[1]
+con = duckdb.connect(db_path, read_only=True)
+
+sol = con.execute(
+    """
+    select system_id
+    from systems
+    where lower(coalesce(system_name_norm, '')) = 'sol'
+       or lower(coalesce(stable_object_key, '')) = 'system:sol'
+    order by system_id
+    limit 1
+    """
+).fetchone()
+if not sol:
+    raise SystemExit("Sol gate failed: missing Sol system row")
+sol_system_id = int(sol[0])
+
+sun_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from stars
+        where system_id = ?
+          and lower(coalesce(star_name_norm, '')) = 'sun'
+        """,
+        [sol_system_id],
+    ).fetchone()[0]
+    or 0
+)
+if sun_count < 1:
+    raise SystemExit("Sol gate failed: missing Sun star row linked to Sol system")
+
+major_required = {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"}
+sol_planets = {
+    str(row[0] or "").strip().lower()
+    for row in con.execute(
+        """
+        select planet_name_norm
+        from planets
+        where system_id = ?
+        """,
+        [sol_system_id],
+    ).fetchall()
+}
+missing = sorted(name for name in major_required if name not in sol_planets)
+if missing:
+    raise SystemExit(f"Sol gate failed: missing required major planets: {', '.join(missing)}")
+
+sol_planet_count = int(
+    con.execute(
+        "select count(*)::bigint from planets where system_id = ?",
+        [sol_system_id],
+    ).fetchone()[0]
+    or 0
+)
+if sol_planet_count < 8:
+    raise SystemExit(f"Sol gate failed: expected >=8 planets linked to Sol; got {sol_planet_count}")
+
+print(f"OK: Sol gate (system_id={sol_system_id}, planets={sol_planet_count}, sun_rows={sun_count})")
+PY
+
+  local arm_db="$build_dir/arm.duckdb"
+  if [[ -f "$arm_db" ]]; then
+    "$PYTHON_BIN" - <<'PY' "$arm_db" "${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"
+import sys
+import duckdb
+
+db_path = sys.argv[1]
+enable_sol_artificial = str(sys.argv[2]).strip().lower() not in {"0", "false", "no", "off"}
+con = duckdb.connect(db_path, read_only=True)
+
+required_tables = {
+    "component_entities",
+    "system_hierarchy_edges",
+    "orbit_edges",
+    "orbital_solutions",
+    "barycenters",
+    "sol_small_body_objects",
+}
+if enable_sol_artificial:
+    required_tables.add("sol_artificial_objects")
+present = {
+    row[0]
+    for row in con.execute(
+        "select table_name from information_schema.tables where table_schema='main'"
+    ).fetchall()
+}
+missing_tables = sorted(required_tables - present)
+if missing_tables:
+    raise SystemExit(f"Sol S2 gate failed: missing arm tables: {', '.join(missing_tables)}")
+
+moon_component_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from component_entities
+        where component_type = 'moon'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if moon_component_count < 5:
+    raise SystemExit(f"Sol S2 gate failed: expected >=5 moon components, got {moon_component_count}")
+
+earth_moon_edge_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from system_hierarchy_edges
+        where parent_component_key = 'comp:planet:planet:sol:earth'
+          and child_component_key = 'comp:moon:sol:moon'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if earth_moon_edge_count < 1:
+    raise SystemExit("Sol S2 gate failed: missing Earth->Moon hierarchy edge")
+
+satellite_orbit_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from orbit_edges
+        where relation_kind = 'satellite'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if satellite_orbit_count < 5:
+    raise SystemExit(
+        f"Sol S2 gate failed: expected >=5 sol_authority satellite orbit edges, got {satellite_orbit_count}"
+    )
+
+barycenter_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from barycenters
+        where barycenter_key in ('bary:center:sol:earth-moon', 'bary:center:sol:pluto-charon')
+        """
+    ).fetchone()[0]
+    or 0
+)
+if barycenter_count < 2:
+    raise SystemExit(
+        "Sol S2 gate failed: missing expected Earth-Moon and Pluto-Charon barycenter rows"
+    )
+
+print(
+    f"OK: Sol S2 gate (moon_components={moon_component_count}, "
+    f"satellite_orbits={satellite_orbit_count}, barycenters={barycenter_count})"
+)
+
+small_body_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from sol_small_body_objects
+        where source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if small_body_count < 20:
+    raise SystemExit(
+        f"Sol S3 gate failed: expected >=20 named minor bodies in sol_small_body_objects, got {small_body_count}"
+    )
+
+asteroid_count = int(
+    con.execute("select count(*)::bigint from sol_small_body_objects where body_kind = 'asteroid'").fetchone()[0]
+    or 0
+)
+tno_count = int(
+    con.execute("select count(*)::bigint from sol_small_body_objects where body_kind = 'tno'").fetchone()[0]
+    or 0
+)
+comet_count = int(
+    con.execute("select count(*)::bigint from sol_small_body_objects where body_kind = 'comet'").fetchone()[0]
+    or 0
+)
+if asteroid_count < 5 or tno_count < 3 or comet_count < 1:
+    raise SystemExit(
+        "Sol S3 gate failed: expected asteroid/tno/comet coverage "
+        f"(got asteroids={asteroid_count}, tnos={tno_count}, comets={comet_count})"
+    )
+
+small_body_orbit_count = int(
+    con.execute(
+        """
+        select count(*)::bigint
+        from orbit_edges
+        where relation_kind = 'orbits'
+          and source_catalog = 'sol_authority'
+        """
+    ).fetchone()[0]
+    or 0
+)
+if small_body_orbit_count < small_body_count:
+    raise SystemExit(
+        "Sol S3 gate failed: missing orbit edges for one or more small bodies "
+        f"(objects={small_body_count}, orbit_edges={small_body_orbit_count})"
+    )
+
+print(
+    f"OK: Sol S3 gate (minor_bodies={small_body_count}, "
+    f"asteroids={asteroid_count}, tnos={tno_count}, comets={comet_count})"
+)
+
+if enable_sol_artificial:
+    artificial_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from sol_artificial_objects
+            where source_catalog = 'sol_artificial'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if artificial_count < 6:
+        raise SystemExit(
+            f"Sol S4 gate failed: expected >=6 artificial objects in sol_artificial_objects, got {artificial_count}"
+        )
+
+    artificial_orbit_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from orbit_edges
+            where relation_kind = 'artificial_orbit'
+              and source_catalog = 'sol_artificial'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if artificial_orbit_count < artificial_count:
+        raise SystemExit(
+            "Sol S4 gate failed: missing orbit edges for one or more artificial objects "
+            f"(objects={artificial_count}, orbit_edges={artificial_orbit_count})"
+        )
+
+    deep_space_probe_count = int(
+        con.execute(
+            """
+            select count(*)::bigint
+            from sol_artificial_objects
+            where coalesce(artifact_kind, '') = 'deep_space_probe'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    if deep_space_probe_count < 3:
+        raise SystemExit(
+            f"Sol S4 gate failed: expected >=3 deep-space probes, got {deep_space_probe_count}"
+        )
+
+    print(
+        f"OK: Sol S4 gate (artificial_objects={artificial_count}, "
+        f"deep_space_probes={deep_space_probe_count})"
+    )
+else:
+    print("SKIP: Sol S4 gate (SPACEGATE_ENABLE_SOL_ARTIFICIAL=0)")
+PY
+  else
+    echo "Warning: skipping Sol S2 arm gate (missing $arm_db)." >&2
+  fi
+
+  if [[ "$VERIFY_MULTIPLICITY_GOLDENS" == "1" ]]; then
+    local goldens_script="$ROOT_DIR/scripts/verify_multiplicity_goldens.py"
+    if [[ ! -x "$goldens_script" ]]; then
+      echo "Error: missing executable $goldens_script" >&2
+      exit 1
+    fi
+    echo "Running multiplicity goldens exam..."
+    "$PYTHON_BIN" "$goldens_script" --core-db "$core_db" --arm-db "$arm_db" --require-arm
+    echo "OK: multiplicity goldens"
+  fi
+
+  if [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" && $have_reports -eq 1 ]]; then
+    local deterministic_script="$ROOT_DIR/scripts/verify_deterministic_rerun.py"
+    local determinism_report="$reports_dir/determinism_report.json"
+    if [[ -f "$deterministic_script" ]]; then
+      if [[ -f "$determinism_report" ]]; then
+        "$PYTHON_BIN" "$deterministic_script" \
+          --state-dir "$STATE_DIR" \
+          --build-id "$build_id"
+        echo "OK: deterministic rerun check"
+      elif [[ "$REQUIRE_REPORTS" == "1" ]]; then
+        echo "Error: missing determinism report: $determinism_report" >&2
+        exit 1
+      else
+        echo "Warning: skipping deterministic rerun check (missing $determinism_report)." >&2
+      fi
+    else
+      echo "Warning: missing deterministic rerun checker: $deterministic_script" >&2
+    fi
+  elif [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" ]]; then
+    echo "Warning: skipping deterministic rerun check (reports missing)." >&2
+  fi
+
   echo "Verified build $build_id"
-  echo "Next: scripts/run_spacegate.sh to start API + web."
+  echo "Next (Docker default): scripts/compose_spacegate.sh up -d --build api web"
+  echo "Host mode (no Docker): scripts/run_spacegate.sh"
 }
 
 main "$@"

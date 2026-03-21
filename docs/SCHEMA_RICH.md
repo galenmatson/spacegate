@@ -1,12 +1,14 @@
-# Spacegate Rich Schema
+# Spacegate Disc Schema (Legacy Filename: SCHEMA_RICH)
 
 This document is the source of truth for Spacegate's **derived astronomy artifacts**.
-Rich data is reproducible and regenerated from core/packs; it is not edited in place.
+Disc data is reproducible and regenerated from core/arm/packs; it is not edited in place.
+The runtime still uses legacy `rich` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
-- `docs/SCHEMA_RICH.md`: derived artifacts for ranking, UX, and enrichment (this document)
-- `docs/SCHEMA_LORE.md`: editable fictional overlays
+- `docs/SCHEMA_ARM.md`: immutable supplemental science graph/orbit derivatives
+- `docs/SCHEMA_RICH.md`: disc artifacts for ranking, UX, and enrichment (this document)
+- `docs/SCHEMA_LORE.md`: rim overlays
 
 ## Purpose and Boundaries
 
@@ -16,14 +18,14 @@ Purpose:
 - Provide references and generated content manifests (`snapshot_manifest`, `factsheets`, `expositions`)
 
 Hard constraints:
-- Rich must never overwrite or alter core rows.
-- Rich rows must be reproducible from explicit inputs and versions.
+- Disc must never overwrite or alter core rows.
+- Disc rows must be reproducible from explicit inputs and versions.
 - Cultural/fictional metadata must not alter scientific core values.
 
 ## Primary Artifacts
 
-- `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb`
-- `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb` (legacy path; disc layer artifact)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet` (legacy path; disc layer artifacts)
 - Snapshot/image assets under:
   - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/...`
   - `$SPACEGATE_STATE_DIR/out/<build_id>/images/...`
@@ -31,7 +33,7 @@ Hard constraints:
 ## Key Contracts and Type Normalization
 
 Required cross-dataset join key:
-- `stable_object_key TEXT` (required on all object-scoped rich rows)
+- `stable_object_key TEXT` (required on all object-scoped disc rows)
 
 Build/version keys:
 - `build_id TEXT` (required)
@@ -39,11 +41,11 @@ Build/version keys:
 
 ID normalization:
 - Core surrogate IDs (`system_id`, `star_id`, `planet_id`) are `BIGINT`.
-- If denormalized into rich, keep them `BIGINT`.
+- If denormalized into disc, keep them `BIGINT`.
 - For cross-build stability and cross-database joins, use `stable_object_key` as canonical.
 
 Rule:
-- If both `system_id` and `stable_object_key` are present in a rich row, they must refer to the same core object for that `build_id`.
+- If both `system_id` and `stable_object_key` are present in a disc row, they must refer to the same core object for that `build_id`.
 
 ## Implementation Status
 
@@ -53,10 +55,12 @@ Status labels:
 
 Current status snapshot:
 - `coolness_scores`: implemented (`scripts/score_coolness.py`)
+- `object_coolness_scores`: planned
 - `system_neighbors`: planned
 - `system_tags`: planned
 - `snapshot_manifest`: implemented (`scripts/generate_snapshots.py`)
 - `external_reference_links`: planned
+- `source_evidence_links`: planned
 - `factsheets`: planned
 - `expositions`: planned
 - `generated_images`: planned
@@ -84,6 +88,30 @@ Planned extension columns:
 
 Note:
 - The two planned columns above are not currently emitted by `scripts/score_coolness.py`.
+
+## object_coolness_scores (planned)
+
+Object-scoped prioritization output for enrichment/adjudication queues.
+
+Required columns:
+- `object_type TEXT` (`system|star|planet`)
+- object ID fields:
+  - `system_id BIGINT` (nullable)
+  - `star_id BIGINT` (nullable)
+  - `planet_id BIGINT` (nullable)
+- `stable_object_key TEXT`
+- `build_id TEXT`
+- `profile_id TEXT`
+- `profile_version TEXT`
+- `rank BIGINT`
+- `score_total DOUBLE`
+- `queue_priority TEXT` (`enrichment|adjudication|review`)
+- feature and score breakdown columns from scoring pipeline
+
+Rules:
+- object coolness is derived/prioritization metadata only
+- it does not change canonical scientific truth
+- default enrichment order should prefer systems, then stars, then planets unless the queue policy explicitly overrides it
 
 ## system_tags
 
@@ -160,6 +188,31 @@ Required columns:
 - `build_id TEXT`
 - `created_at TIMESTAMP`
 
+## source_evidence_links (planned)
+
+Structured citation rows backing factsheets, narratives, and agent dossiers.
+
+Required columns:
+- `stable_object_key TEXT`
+- `citation_id TEXT`
+- `url TEXT`
+- `domain TEXT`
+- `source_kind TEXT` (`paper|catalog_doc|archive|mission|encyclopedia|other`)
+- `title TEXT`
+- `publisher TEXT`
+- `published_at TIMESTAMP` (nullable)
+- `accessed_at TIMESTAMP`
+- `authority_score DOUBLE`
+- `relevance_score DOUBLE`
+- `evidence_scope TEXT` (`identity|hierarchy|planet_host|physical_params|narrative|image_context`)
+- `build_id TEXT`
+- `generator_version TEXT`
+- `created_at TIMESTAMP`
+
+Rules:
+- citations must point to the external source; disc stores links and metadata, not copied article bodies
+- generated factsheets/expositions should reference `citation_id` values rather than embedding uncited claims
+
 ## factsheets (v1.4+)
 
 Structured factual summaries used as source-of-truth inputs for exposition.
@@ -168,9 +221,14 @@ Required columns:
 - `stable_object_key TEXT`
 - `facts_json TEXT`
 - `facts_hash TEXT`
+- `citation_ids_json TEXT`
 - `build_id TEXT`
 - `generator_version TEXT`
 - `created_at TIMESTAMP`
+
+Rules:
+- factsheets must be derivable from explicit evidence rows and generator logic
+- any claim that is not directly sourced from `core`/`arm` should point to supporting `source_evidence_links`
 
 ## expositions (v1.4+)
 
@@ -180,6 +238,7 @@ Required columns:
 - `stable_object_key TEXT`
 - `facts_hash TEXT`
 - `text_markdown TEXT`
+- `citation_ids_json TEXT`
 - `model_id TEXT`
 - `prompt_version TEXT`
 - `build_id TEXT`
@@ -199,6 +258,6 @@ Required columns:
 
 ## Invariants
 
-- Rich tables are append/regenerate artifacts, not manual-edit datasets.
+- Disc tables are append/regenerate artifacts, not manual-edit datasets.
 - Any logic change that affects outputs must bump `generator_version`.
-- Every rich row must be attributable to a build and generation method.
+- Every disc row must be attributable to a build and generation method.

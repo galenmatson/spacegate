@@ -27,7 +27,7 @@ export SPACEGATE_OIDC_PROVIDER=google
 export SPACEGATE_OIDC_ISSUER=https://accounts.google.com
 export SPACEGATE_OIDC_CLIENT_ID=...
 export SPACEGATE_OIDC_CLIENT_SECRET=...
-export SPACEGATE_OIDC_REDIRECT_URI=https://spacegates.org/api/v1/auth/callback/google
+export SPACEGATE_OIDC_REDIRECT_URI=https://coolstars.org/api/v1/auth/callback/google
 export SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v1/admin/ui
 export SPACEGATE_SESSION_SECRET=... # high entropy secret
 export SPACEGATE_ADMIN_ALLOWLIST_EMAILS=you@example.com
@@ -75,6 +75,7 @@ Generate cached system snapshots + manifest rows:
 ```bash
 cd /data/spacegate/app
 scripts/generate_snapshots.sh --top-coolness 500
+scripts/generate_snapshots.sh --top-coolness 100 --max-dist-ly 80 --min-planet-count 1 --min-coolness-score 12
 ```
 
 Artifacts and metadata:

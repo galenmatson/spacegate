@@ -61,10 +61,28 @@ def main():
     _, health_json = get_json(base_url, "/health", label="health")
     require_keys(health_json, ["status", "build_id", "db_path", "time_utc"], "health")
 
+    _, seed_page = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "name", "limit": 1},
+        label="seed page",
+    )
+    require_keys(seed_page, ["items", "has_more", "next_cursor"], "seed page")
+    if not seed_page["items"]:
+        raise AssertionError("seed page returned no items")
+    seed_item = seed_page["items"][0]
+    seed_query = (
+        str(seed_item.get("display_name") or "").strip()
+        or str(seed_item.get("system_name") or "").strip()
+        or str(seed_item.get("stable_object_key") or "").strip()
+    )
+    if not seed_query:
+        raise AssertionError("could not derive a seed query from first search result")
+
     _, search_json = get_json(
         base_url,
         "/systems/search",
-        params={"q": "sol", "limit": 1},
+        params={"q": seed_query, "limit": 1},
         label="search basic",
     )
     require_keys(search_json, ["items", "has_more", "next_cursor"], "search")

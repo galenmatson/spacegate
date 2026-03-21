@@ -8,6 +8,7 @@ import json
 import math
 import os
 import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence
@@ -78,10 +79,49 @@ def _open_core_db(build_dir: Path) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(str(db_path), read_only=True)
 
 
-def _open_rich_db(build_dir: Path) -> duckdb.DuckDBPyConnection:
+def _open_rich_db(
+    build_dir: Path,
+) -> tuple[duckdb.DuckDBPyConnection, Path | None, Path | None]:
     rich_path = build_dir / "rich.duckdb"
     rich_path.parent.mkdir(parents=True, exist_ok=True)
-    return duckdb.connect(str(rich_path), read_only=False)
+    writable_path = rich_path
+    temp_copy: Path | None = None
+    if rich_path.exists() and not os.access(rich_path, os.W_OK):
+        temp_copy = build_dir / f".rich.duckdb.{os.getpid()}.tmp"
+        shutil.copy2(rich_path, temp_copy)
+        writable_path = temp_copy
+    con = duckdb.connect(str(writable_path), read_only=False)
+    return con, temp_copy, rich_path if temp_copy is not None else None
+
+
+def _finalize_rich_db(
+    rich_con: duckdb.DuckDBPyConnection,
+    temp_path: Path | None,
+    target_path: Path | None,
+) -> None:
+    rich_con.close()
+    if temp_path is None or target_path is None:
+        return
+    temp_path.chmod(0o664)
+    os.replace(temp_path, target_path)
+
+
+def _rich_has_coolness_scores(rich_path: Path) -> bool:
+    if not rich_path.exists():
+        return False
+    con = duckdb.connect(str(rich_path), read_only=True)
+    try:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE lower(table_name) = 'coolness_scores'
+            LIMIT 1
+            """
+        ).fetchone()
+        return row is not None
+    finally:
+        con.close()
 
 
 def _load_system_rows(
@@ -91,6 +131,14 @@ def _load_system_rows(
     limit: int,
     top_coolness: int,
     rich_path: Path,
+    min_dist_ly: float | None,
+    max_dist_ly: float | None,
+    min_star_count: int | None,
+    max_star_count: int | None,
+    min_planet_count: int | None,
+    max_planet_count: int | None,
+    min_coolness_score: float | None,
+    max_coolness_score: float | None,
 ) -> List[Dict[str, Any]]:
     id_rows: List[Dict[str, Any]] = []
     if system_ids:
@@ -117,14 +165,55 @@ def _load_system_rows(
         id_rows = [dict(zip(cols, row)) for row in cur.fetchall()]
         return id_rows
 
-    if top_coolness > 0 and rich_path.exists():
+    wants_coolness = (
+        top_coolness > 0
+        or min_coolness_score is not None
+        or max_coolness_score is not None
+    )
+    has_coolness_scores = _rich_has_coolness_scores(rich_path) if rich_path.exists() else False
+    if wants_coolness and not has_coolness_scores:
+        raise SystemExit(
+            "Snapshot selection requested coolness-ranked filtering, but rich.coolness_scores is unavailable. "
+            "Run score_coolness first."
+        )
+
+    conditions: list[str] = []
+    params: list[Any] = []
+    if min_dist_ly is not None:
+        conditions.append("s.dist_ly >= ?")
+        params.append(min_dist_ly)
+    if max_dist_ly is not None:
+        conditions.append("s.dist_ly <= ?")
+        params.append(max_dist_ly)
+    if min_star_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) >= ?")
+        params.append(min_star_count)
+    if max_star_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) <= ?")
+        params.append(max_star_count)
+    if min_planet_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) >= ?")
+        params.append(min_planet_count)
+    if max_planet_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) <= ?")
+        params.append(max_planet_count)
+    if min_coolness_score is not None:
+        conditions.append("c.score_total >= ?")
+        params.append(min_coolness_score)
+    if max_coolness_score is not None:
+        conditions.append("c.score_total <= ?")
+        params.append(max_coolness_score)
+    where_sql = ""
+    if conditions:
+        where_sql = "WHERE " + " AND ".join(conditions)
+
+    if has_coolness_scores:
         attached_rich = False
         try:
             escaped = str(rich_path).replace("'", "''")
             core_con.execute(f"ATTACH '{escaped}' AS rich_db (READ_ONLY)")
             attached_rich = True
-            cur = core_con.execute(
-                """
+            sql = f"""
                 SELECT
                   s.system_id,
                   s.stable_object_key,
@@ -137,15 +226,20 @@ def _load_system_rows(
                   s.z_helio_ly
                 FROM systems s
                 JOIN rich_db.coolness_scores c USING (system_id)
-                ORDER BY c.rank ASC, s.system_id ASC
-                LIMIT ?
-                """,
-                [top_coolness],
-            )
+                {where_sql}
+            """
+            query_params = list(params)
+            if top_coolness > 0:
+                sql += " ORDER BY c.rank ASC, s.system_id ASC LIMIT ?"
+                query_params.append(top_coolness)
+            else:
+                sql += " ORDER BY COALESCE(c.rank, 9223372036854775807) ASC, s.system_id ASC"
+                if limit > 0:
+                    sql += " LIMIT ?"
+                    query_params.append(limit)
+            cur = core_con.execute(sql, query_params)
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
-        except Exception:
-            pass
         finally:
             if attached_rich:
                 try:
@@ -155,19 +249,19 @@ def _load_system_rows(
 
     sql = """
         SELECT
-          system_id,
-          stable_object_key,
-          system_name,
-          dist_ly,
-          ra_deg,
-          dec_deg,
-          x_helio_ly,
-          y_helio_ly,
-          z_helio_ly
-        FROM systems
-        ORDER BY COALESCE(dist_ly, 1e18) ASC, system_id ASC
+          s.system_id,
+          s.stable_object_key,
+          s.system_name,
+          s.dist_ly,
+          s.ra_deg,
+          s.dec_deg,
+          s.x_helio_ly,
+          s.y_helio_ly,
+          s.z_helio_ly
+        FROM systems s
+        {where_sql}
+        ORDER BY COALESCE(s.dist_ly, 1e18) ASC, s.system_id ASC
     """
-    params: list[Any] = []
     if limit > 0:
         sql += " LIMIT ?"
         params.append(limit)
@@ -647,21 +741,30 @@ def _export_manifest_parquet(
     *,
     build_id: str,
     out_path: Path,
-) -> None:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+) -> Path:
     escaped_build = build_id.replace("'", "''")
-    escaped_dst = str(out_path).replace("'", "''")
-    rich_con.execute(
-        f"""
-        COPY (
-          SELECT *
-          FROM snapshot_manifest
-          WHERE build_id = '{escaped_build}'
-          ORDER BY stable_object_key ASC, view_type ASC, created_at DESC
+
+    def _copy_to(target: Path) -> Path:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        escaped_dst = str(target).replace("'", "''")
+        rich_con.execute(
+            f"""
+            COPY (
+              SELECT *
+              FROM snapshot_manifest
+              WHERE build_id = '{escaped_build}'
+              ORDER BY stable_object_key ASC, view_type ASC, created_at DESC
+            )
+            TO '{escaped_dst}' (FORMAT PARQUET)
+            """
         )
-        TO '{escaped_dst}' (FORMAT PARQUET)
-        """
-    )
+        return target
+
+    try:
+        return _copy_to(out_path)
+    except duckdb.IOException:
+        fallback_path = out_path.parent.parent / "snapshot_manifest.parquet"
+        return _copy_to(fallback_path)
 
 
 def run(args: argparse.Namespace) -> Dict[str, Any]:
@@ -686,114 +789,138 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         limit=args.limit,
         top_coolness=args.top_coolness,
         rich_path=build_dir / "rich.duckdb",
+        min_dist_ly=args.min_dist_ly,
+        max_dist_ly=args.max_dist_ly,
+        min_star_count=args.min_star_count,
+        max_star_count=args.max_star_count,
+        min_planet_count=args.min_planet_count,
+        max_planet_count=args.max_planet_count,
+        min_coolness_score=args.min_coolness_score,
+        max_coolness_score=args.max_coolness_score,
     )
 
-    rich_con = _open_rich_db(build_dir)
-    _ensure_manifest_table(rich_con)
+    rich_con, rich_temp_path, rich_target_path = _open_rich_db(build_dir)
+    try:
+        _ensure_manifest_table(rich_con)
 
-    snapshots_root = build_dir / "snapshots" / args.view_type
-    created_at = _utc_now()
-    generated = 0
-    reused = 0
-    manifest_rows: List[Dict[str, Any]] = []
-    preview_entries: List[Dict[str, Any]] = []
+        snapshots_root = build_dir / "snapshots" / args.view_type
+        created_at = _utc_now()
+        generated = 0
+        reused = 0
+        manifest_rows: List[Dict[str, Any]] = []
+        preview_entries: List[Dict[str, Any]] = []
 
-    for system_row in system_rows:
-        system_id = int(system_row["system_id"])
-        stable_object_key = str(system_row.get("stable_object_key") or f"system_{system_id}")
-        safe_key = _safe_system_key(stable_object_key, system_id)
-        artifact_rel = Path("snapshots") / args.view_type / safe_key / f"{params_hash}.svg"
-        artifact_abs = build_dir / artifact_rel
-        artifact_abs.parent.mkdir(parents=True, exist_ok=True)
+        for system_row in system_rows:
+            system_id = int(system_row["system_id"])
+            stable_object_key = str(system_row.get("stable_object_key") or f"system_{system_id}")
+            safe_key = _safe_system_key(stable_object_key, system_id)
+            artifact_rel = Path("snapshots") / args.view_type / safe_key / f"{params_hash}.svg"
+            artifact_abs = build_dir / artifact_rel
+            artifact_abs.parent.mkdir(parents=True, exist_ok=True)
 
-        stars = _load_system_stars(core_con, system_id)
-        planets = _load_system_planets(core_con, system_id)
+            stars = _load_system_stars(core_con, system_id)
+            planets = _load_system_planets(core_con, system_id)
 
-        should_generate = args.force or (not artifact_abs.exists())
-        if should_generate:
-            svg = _render_snapshot_svg(
-                system_row,
-                stars,
-                planets,
-                width_px=int(args.width),
-                height_px=int(args.height),
-            )
-            artifact_abs.write_text(svg, encoding="utf-8")
-            generated += 1
-        else:
-            reused += 1
+            should_generate = args.force or (not artifact_abs.exists())
+            if should_generate:
+                svg = _render_snapshot_svg(
+                    system_row,
+                    stars,
+                    planets,
+                    width_px=int(args.width),
+                    height_px=int(args.height),
+                )
+                artifact_abs.write_text(svg, encoding="utf-8")
+                generated += 1
+            else:
+                reused += 1
 
-        source_hash = _source_inputs_hash(system_row, stars, planets, params)
-        manifest_row = {
-            "stable_object_key": stable_object_key,
-            "system_id": system_id,
-            "object_type": "system",
+            source_hash = _source_inputs_hash(system_row, stars, planets, params)
+            manifest_row = {
+                "stable_object_key": stable_object_key,
+                "system_id": system_id,
+                "object_type": "system",
+                "view_type": args.view_type,
+                "params_json": _json_canonical(params),
+                "params_hash": params_hash,
+                "generator_version": args.generator_version,
+                "build_id": build_id,
+                "artifact_path": str(artifact_rel.as_posix()),
+                "artifact_mime": "image/svg+xml",
+                "width_px": int(args.width),
+                "height_px": int(args.height),
+                "source_build_inputs_hash": source_hash,
+                "created_at": created_at,
+            }
+            manifest_rows.append(manifest_row)
+
+            if len(preview_entries) < 8:
+                preview_entries.append(
+                    {
+                        "system_id": system_id,
+                        "stable_object_key": stable_object_key,
+                        "system_name": system_row.get("system_name"),
+                        "artifact_path": str(artifact_rel.as_posix()),
+                    }
+                )
+
+        manifest_count = _upsert_manifest_rows(rich_con, manifest_rows)
+        manifest_parquet_path = _export_manifest_parquet(
+            rich_con,
+            build_id=build_id,
+            out_path=build_dir / "rich" / "snapshot_manifest.parquet",
+        )
+
+        report_dir = state_dir / "reports" / build_id
+        report_dir.mkdir(parents=True, exist_ok=True)
+        report_path = report_dir / "snapshot_report.json"
+        report_payload = {
+            "build_id": build_id,
+            "generated_at": _utc_now(),
+            "generator_version": args.generator_version,
             "view_type": args.view_type,
-            "params_json": _json_canonical(params),
+            "params": params,
+            "selection": {
+                "top_coolness": int(args.top_coolness),
+                "limit": int(args.limit),
+                "min_dist_ly": args.min_dist_ly,
+                "max_dist_ly": args.max_dist_ly,
+                "min_star_count": args.min_star_count,
+                "max_star_count": args.max_star_count,
+                "min_planet_count": args.min_planet_count,
+                "max_planet_count": args.max_planet_count,
+                "min_coolness_score": args.min_coolness_score,
+                "max_coolness_score": args.max_coolness_score,
+            },
+            "params_hash": params_hash,
+            "force": bool(args.force),
+            "requested": len(system_rows),
+            "generated": generated,
+            "reused": reused,
+            "manifest_rows_upserted": manifest_count,
+            "manifest_parquet": str(manifest_parquet_path),
+            "preview_entries": preview_entries,
+        }
+        report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True), encoding="utf-8")
+
+        return {
+            "ok": True,
+            "build_id": build_id,
+            "view_type": args.view_type,
             "params_hash": params_hash,
             "generator_version": args.generator_version,
-            "build_id": build_id,
-            "artifact_path": str(artifact_rel.as_posix()),
-            "artifact_mime": "image/svg+xml",
-            "width_px": int(args.width),
-            "height_px": int(args.height),
-            "source_build_inputs_hash": source_hash,
-            "created_at": created_at,
+            "requested": len(system_rows),
+            "generated": generated,
+            "reused": reused,
+            "manifest_rows_upserted": manifest_count,
+            "snapshot_root": str(snapshots_root),
+            "manifest_parquet": str(manifest_parquet_path),
+            "report_path": str(report_path),
+            "examples": preview_entries,
         }
-        manifest_rows.append(manifest_row)
-
-        if len(preview_entries) < 8:
-            preview_entries.append(
-                {
-                    "system_id": system_id,
-                    "stable_object_key": stable_object_key,
-                    "system_name": system_row.get("system_name"),
-                    "artifact_path": str(artifact_rel.as_posix()),
-                }
-            )
-
-    manifest_count = _upsert_manifest_rows(rich_con, manifest_rows)
-    manifest_parquet = build_dir / "rich" / "snapshot_manifest.parquet"
-    _export_manifest_parquet(rich_con, build_id=build_id, out_path=manifest_parquet)
-
-    report_dir = state_dir / "reports" / build_id
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / "snapshot_report.json"
-    report_payload = {
-        "build_id": build_id,
-        "generated_at": _utc_now(),
-        "generator_version": args.generator_version,
-        "view_type": args.view_type,
-        "params": params,
-        "params_hash": params_hash,
-        "force": bool(args.force),
-        "requested": len(system_rows),
-        "generated": generated,
-        "reused": reused,
-        "manifest_rows_upserted": manifest_count,
-        "manifest_parquet": str(manifest_parquet),
-        "preview_entries": preview_entries,
-    }
-    report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True), encoding="utf-8")
-
-    core_con.close()
-    rich_con.close()
-
-    return {
-        "ok": True,
-        "build_id": build_id,
-        "view_type": args.view_type,
-        "params_hash": params_hash,
-        "generator_version": args.generator_version,
-        "requested": len(system_rows),
-        "generated": generated,
-        "reused": reused,
-        "manifest_rows_upserted": manifest_count,
-        "snapshot_root": str(snapshots_root),
-        "manifest_parquet": str(manifest_parquet),
-        "report_path": str(report_path),
-        "examples": preview_entries,
-    }
+    finally:
+        core_con.close()
+        _finalize_rich_db(rich_con, rich_temp_path, rich_target_path)
 
 
 def parse_args() -> argparse.Namespace:
@@ -823,6 +950,14 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="If >0 and rich.coolness_scores exists, generate for top-N coolness systems.",
     )
+    parser.add_argument("--min-dist-ly", type=float, default=None)
+    parser.add_argument("--max-dist-ly", type=float, default=None)
+    parser.add_argument("--min-star-count", type=int, default=None)
+    parser.add_argument("--max-star-count", type=int, default=None)
+    parser.add_argument("--min-planet-count", type=int, default=None)
+    parser.add_argument("--max-planet-count", type=int, default=None)
+    parser.add_argument("--min-coolness-score", type=float, default=None)
+    parser.add_argument("--max-coolness-score", type=float, default=None)
     parser.add_argument("--view-type", default=DEFAULT_VIEW_TYPE)
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH_PX)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT_PX)
@@ -833,6 +968,26 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.min_dist_ly is not None and args.min_dist_ly < 0:
+        raise SystemExit("--min-dist-ly must be >= 0")
+    if args.max_dist_ly is not None and args.max_dist_ly < 0:
+        raise SystemExit("--max-dist-ly must be >= 0")
+    if args.min_dist_ly is not None and args.max_dist_ly is not None and args.min_dist_ly > args.max_dist_ly:
+        raise SystemExit("--min-dist-ly cannot be greater than --max-dist-ly")
+    if args.min_star_count is not None and args.min_star_count < 0:
+        raise SystemExit("--min-star-count must be >= 0")
+    if args.max_star_count is not None and args.max_star_count < 0:
+        raise SystemExit("--max-star-count must be >= 0")
+    if args.min_star_count is not None and args.max_star_count is not None and args.min_star_count > args.max_star_count:
+        raise SystemExit("--min-star-count cannot be greater than --max-star-count")
+    if args.min_planet_count is not None and args.min_planet_count < 0:
+        raise SystemExit("--min-planet-count must be >= 0")
+    if args.max_planet_count is not None and args.max_planet_count < 0:
+        raise SystemExit("--max-planet-count must be >= 0")
+    if args.min_planet_count is not None and args.max_planet_count is not None and args.min_planet_count > args.max_planet_count:
+        raise SystemExit("--min-planet-count cannot be greater than --max-planet-count")
+    if args.min_coolness_score is not None and args.max_coolness_score is not None and args.min_coolness_score > args.max_coolness_score:
+        raise SystemExit("--min-coolness-score cannot be greater than --max-coolness-score")
     result = run(args)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0

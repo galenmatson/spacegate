@@ -100,6 +100,17 @@ spacegate_normalize_env_paths() {
   if [[ -z "${SPACEGATE_CONFIG_DIR:-}" ]]; then
     export SPACEGATE_CONFIG_DIR="$root_dir/configs"
   fi
+
+  if [[ -z "${SPACEGATE_DL_ROOT:-}" ]]; then
+    if [[ -d "/data/spacegate" ]]; then
+      export SPACEGATE_DL_ROOT="/data/spacegate/dl"
+    else
+      export SPACEGATE_DL_ROOT="/srv/spacegate/dl"
+    fi
+  fi
+  if [[ -z "${SPACEGATE_DL_ALIAS_DIR:-}" ]]; then
+    export SPACEGATE_DL_ALIAS_DIR="$SPACEGATE_DL_ROOT"
+  fi
 }
 
 spacegate_init_env() {

@@ -61,7 +61,7 @@ Environment:
   SPACEGATE_TLS_INCLUDE_FILE Optional ssl include (default letsencrypt options file).
   SPACEGATE_TLS_DHPARAM_FILE Optional dhparam file path.
   SPACEGATE_DL_ENABLE     Enable /dl/ static download endpoint (default: 1).
-  SPACEGATE_DL_ALIAS_DIR  Directory served at /dl/ (default: /srv/spacegate/dl).
+  SPACEGATE_DL_ALIAS_DIR  Directory served at /dl/ (default: SPACEGATE_DL_ROOT).
 USAGE
 }
 

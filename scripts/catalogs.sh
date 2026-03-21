@@ -26,15 +26,23 @@ ATHYG_PART1_URL="${ATHYG_PART1_URL:-$ATHYG_BASE_URL_DEFAULT/athyg_v33-1.csv.gz}"
 ATHYG_PART2_URL="${ATHYG_PART2_URL:-$ATHYG_BASE_URL_DEFAULT/athyg_v33-2.csv.gz}"
 
 NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+pscomppars&format=csv}"
+EXOPLANET_EU_URL="${EXOPLANET_EU_URL:-https://www.exoplanet.eu/catalog/csv/}"
+OPEN_EXOPLANET_CATALOGUE_URL="${OPEN_EXOPLANET_CATALOGUE_URL:-https://codeload.github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue/tar.gz/refs/heads/master}"
+HWC_URL="${HWC_URL:-https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv}"
 
-WDS_URL="${WDS_URL:-http://www.astro.gsu.edu/wds/wds.sum.gz}"
-CLUSTERS_URL="${CLUSTERS_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/640/A1/table1.dat.gz}"
-VSX_URL="${VSX_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/B/vsx/vsx.dat.gz}"
-SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.list}"
+WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
+MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+MSC_HTTP_URL="${MSC_HTTP_URL:-http://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
+DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
+CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
+CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/nodup.dat.gz}"
+VSX_URL="${VSX_URL:-https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat}"
+SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.data.html}"
 ATNF_URL="${ATNF_URL:-https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz}"
-MAGNETAR_URL="${MAGNETAR_URL:-http://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
-ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-http://bit.ly/UltracoolSheet}"
-GAIA_UCD_URL="${GAIA_UCD_URL:-ftp://cdsarc.u-strasbg.fr/pub/cats/J/A+A/657/A69/table4.dat.gz}"
+MAGNETAR_URL="${MAGNETAR_URL:-https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
+ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-https://docs.google.com/spreadsheets/d/1i98ft8g5mzPp2DNno0kcz4B9nzMxdpyz5UquAVhz-U8/gviz/tq?tqx=out:csv&sheet=Main}"
+GAIA_UCD_URL="${GAIA_UCD_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/table4.dat}"
 WHITE_DWARF_URL="${WHITE_DWARF_URL:-https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz}"
 DWARFARCHIVES_URL="${DWARFARCHIVES_URL:-http://dwarfarchives.org/}"
 CATWISE_BASE_URL="${CATWISE_BASE_URL:-https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/catwise_2020.html}"
@@ -61,7 +69,11 @@ Examples:
 Notes:
   - For CatWISE full tiles, provide a URL list file via CATWISE_TILES_LIST
     or configs/catwise_full_tiles.txt (one URL per line).
+  - Set SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS=1 to include
+    exoplanet.eu, OEC, and HWC fetch targets in --core mode.
   - DwarfArchives download requires SPACEGATE_ENABLE_DWARFARCHIVES=1.
+  - MSC insecure HTTP fallback is opt-in: SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1.
+    Integrity pin is required in HTTP mode: SPACEGATE_MSC_SHA256=<known sha256>.
   - Override any catalog URL via configs/catalog_urls.env.
   - --overwrite skips prompts and replaces existing files.
 USAGE
@@ -144,10 +156,16 @@ lfs_url_from_source() {
 
 catalog_titles() {
   cat <<'LIST'
-core|Core (AT-HYG + NASA Exoplanets)
+core|Core (AT-HYG + NASA Exoplanets + WDS/MSC/ORB6 support; Gaia NSS fetched by download_core.sh)
 athyg|AT-HYG stellar catalog
 nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
+exoplanet_eu|Exoplanet.eu catalog export (status layer)
+open_exoplanet_catalogue|Open Exoplanet Catalogue (tarball)
+hwc|Habitable Worlds Catalog (full CSV)
 wds|Washington Double Star Catalog (WDS)
+msc|Multiple Star Catalog (MSC)
+orb6|Sixth Catalog of Orbits of Visual Binary Stars (ORB6)
+debcat|DEBCat detached eclipsing binaries
 clusters|Gaia DR2 clusters (Cantat-Gaudin 2020)
 vsx|AAVSO Variable Star Index (VSX)
 snr|Green's Galactic SNRs
@@ -194,17 +212,36 @@ catalog_sources() {
     nasa_exoplanet_archive)
       printf '%s\n' "nasa_exoplanet_archive|pscomppars|$NASA_EXOPLANET_URL|raw/nasa_exoplanet_archive/pscomppars.csv"
       ;;
+    exoplanet_eu)
+      printf '%s\n' "exoplanet_eu|catalog_csv|$EXOPLANET_EU_URL|raw/exoplanet_eu/catalog.csv"
+      ;;
+    open_exoplanet_catalogue)
+      printf '%s\n' "open_exoplanet_catalogue|catalog_tarball|$OPEN_EXOPLANET_CATALOGUE_URL|raw/open_exoplanet_catalogue/open_exoplanet_catalogue.tar.gz"
+      ;;
+    hwc)
+      printf '%s\n' "hwc|hwc_full_csv|$HWC_URL|raw/hwc/hwc.csv"
+      ;;
     wds)
-      printf '%s\n' "wds|wds_sum|$WDS_URL|raw/wds/wds.sum.gz"
+      printf '%s\n' "wds|wdsweb_summ2|$WDS_URL|raw/wds/wdsweb_summ2.txt"
+      ;;
+    msc)
+      printf '%s\n' "msc|newmsc_20240101|$MSC_URL|raw/msc/newmsc-20240101.tar.gz"
+      ;;
+    orb6)
+      printf '%s\n' "orb6|orb6orbits|$ORB6_URL|raw/orb6/orb6orbits.sql"
+      ;;
+    debcat)
+      printf '%s\n' "debcat|debs_dat|$DEBCAT_URL|raw/debcat/debs.dat"
       ;;
     clusters)
-      printf '%s\n' "clusters|cantat_gaudin_2020|$CLUSTERS_URL|raw/clusters/cantat_gaudin_2020.fits"
+      printf '%s\n' "clusters|cantat_gaudin_2020_table1|$CLUSTERS_URL|raw/clusters/table1.dat"
+      printf '%s\n' "clusters|cantat_gaudin_2020_members|$CLUSTERS_MEMBERS_URL|raw/clusters/nodup.dat.gz"
       ;;
     vsx)
-      printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat.gz"
+      printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat"
       ;;
     snr)
-      printf '%s\n' "snr|snrs_list|$SNR_URL|raw/snr/snrs.list"
+      printf '%s\n' "snr|snrs_data_html|$SNR_URL|raw/snr/snrs.data.html"
       ;;
     atnf)
       printf '%s\n' "atnf|psrcat_pkg|$ATNF_URL|raw/atnf/psrcat_pkg.tar.gz"
@@ -213,10 +250,10 @@ catalog_sources() {
       printf '%s\n' "magnetar|TabO1|$MAGNETAR_URL|raw/magnetar/TabO1.csv"
       ;;
     ultracoolsheet)
-      printf '%s\n' "ultracoolsheet|UltracoolSheet_Main|$ULTRACOOLSHEET_URL|raw/ultracoolsheet/UltracoolSheet - Main.csv"
+      printf '%s\n' "ultracoolsheet|UltracoolSheet_Main|$ULTRACOOLSHEET_URL|raw/ultracoolsheet/ultracoolsheet_main.csv"
       ;;
     gaia_ucd)
-      printf '%s\n' "gaia_ucd|table4|$GAIA_UCD_URL|raw/gaia_ucd/table4.dat.gz"
+      printf '%s\n' "gaia_ucd|table4|$GAIA_UCD_URL|raw/gaia_ucd/table4.dat"
       ;;
     white_dwarf)
       printf '%s\n' "white_dwarf|gaiaedr3_wd_main|$WHITE_DWARF_URL|raw/white_dwarf/gaiaedr3_wd_main.fits.gz"
@@ -329,7 +366,10 @@ expand_catalogs() {
   for item in "${input[@]}"; do
     case "$item" in
       core)
-        expanded+=("athyg" "nasa_exoplanet_archive")
+        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6" "debcat")
+        if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
+          expanded+=("exoplanet_eu" "open_exoplanet_catalogue" "hwc")
+        fi
         ;;
       *)
         expanded+=("$item")
@@ -406,6 +446,7 @@ main() {
   tmp_input="$(mktemp)"
   local -a sources=()
   local -A skip_dest=()
+  local -A resolved_url_by_dest=()
   local catalog
 
   for catalog in "${selected[@]}"; do
@@ -428,10 +469,53 @@ main() {
 
   local entry
   for entry in "${sources[@]}"; do
-    local url dest
+    local source_name rest url dest
+    rest="${entry#*|}"
+    source_name="${rest%%|*}"
     url="${entry#*|*|}"
     url="${url%%|*}"
     dest="${entry##*|}"
+
+    if [[ "$source_name" == "newmsc_20240101" ]]; then
+      if [[ "$url" =~ ^http:// ]]; then
+        if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
+          echo "Error: MSC URL is insecure HTTP but SPACEGATE_MSC_ALLOW_INSECURE_HTTP is not enabled." >&2
+          echo "Set SPACEGATE_MSC_ALLOW_INSECURE_HTTP=1 and SPACEGATE_MSC_SHA256=<expected_sha256> to proceed." >&2
+          exit 1
+        fi
+        if [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+          echo "Error: MSC insecure HTTP mode requires SPACEGATE_MSC_SHA256." >&2
+          exit 1
+        fi
+      elif [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" == "1" ]]; then
+        local tls_check_timeout
+        tls_check_timeout="${SPACEGATE_MSC_TLS_CHECK_TIMEOUT_S:-15}"
+        if [[ "${SPACEGATE_MSC_FORCE_HTTP:-0}" == "1" ]]; then
+          if [[ "$MSC_HTTP_URL" != http://* ]]; then
+            echo "Error: MSC_HTTP_URL must use http:// when SPACEGATE_MSC_FORCE_HTTP=1." >&2
+            exit 1
+          fi
+          if [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+            echo "Error: SPACEGATE_MSC_SHA256 is required when forcing MSC HTTP mode." >&2
+            exit 1
+          fi
+          url="$MSC_HTTP_URL"
+          log "Warning: forcing MSC download over insecure HTTP (SPACEGATE_MSC_FORCE_HTTP=1)."
+        elif ! curl -fsSI --max-time "$tls_check_timeout" "$url" >/dev/null 2>&1; then
+          if [[ "$MSC_HTTP_URL" != http://* ]]; then
+            echo "Error: MSC_HTTP_URL must use http:// for insecure fallback." >&2
+            exit 1
+          fi
+          if [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+            echo "Error: SPACEGATE_MSC_SHA256 is required for MSC HTTPS->HTTP fallback mode." >&2
+            exit 1
+          fi
+          url="$MSC_HTTP_URL"
+          log "Warning: MSC HTTPS preflight failed; falling back to insecure HTTP."
+        fi
+      fi
+    fi
+    resolved_url_by_dest["$dest"]="$url"
 
     local dest_abs="$STATE_DIR/$dest"
     local dest_dir
@@ -492,9 +576,8 @@ main() {
     rest="${rest#*|}"
     url="${rest%%|*}"
     dest="${entry##*|}"
-
-    if [[ -n "${skip_dest[$dest]:-}" ]]; then
-      continue
+    if [[ -n "${resolved_url_by_dest[$dest]:-}" ]]; then
+      url="${resolved_url_by_dest[$dest]}"
     fi
 
     local dest_abs="$STATE_DIR/$dest"
@@ -505,7 +588,7 @@ main() {
     fi
 
     local expected_bytes=""
-    if is_lfs_pointer "$dest_abs"; then
+    if [[ -z "${skip_dest[$dest]:-}" ]] && is_lfs_pointer "$dest_abs"; then
       local oid size
       oid="$(parse_lfs_oid "$dest_abs")"
       size="$(parse_lfs_size "$dest_abs")"
@@ -530,7 +613,7 @@ main() {
       fi
       url="$lfs_url"
       expected_bytes="$size"
-    else
+    elif [[ -z "${skip_dest[$dest]:-}" ]]; then
       expected_bytes="$(get_content_length "$url")"
     fi
 
@@ -551,6 +634,25 @@ main() {
 
     local sha
     sha="$(sha256_file "$dest_abs")"
+    if [[ "$source_name" == "newmsc_20240101" && "$url" =~ ^http:// ]]; then
+      if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
+        log "Error: MSC was downloaded over insecure HTTP without explicit opt-in."
+        size_ok=0
+      elif [[ -z "${SPACEGATE_MSC_SHA256:-}" ]]; then
+        log "Error: MSC insecure HTTP mode requires SPACEGATE_MSC_SHA256."
+        size_ok=0
+      else
+        local expected_sha actual_sha
+        expected_sha="$(printf '%s' "${SPACEGATE_MSC_SHA256}" | tr '[:upper:]' '[:lower:]')"
+        actual_sha="$(printf '%s' "$sha" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$expected_sha" != "$actual_sha" ]]; then
+          log "Error: MSC SHA256 mismatch for insecure HTTP download (expected $expected_sha, got $actual_sha)."
+          size_ok=0
+        else
+          log "MSC insecure HTTP download verified against SPACEGATE_MSC_SHA256."
+        fi
+      fi
+    fi
 
     local ts
     ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"

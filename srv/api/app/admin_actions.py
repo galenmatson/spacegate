@@ -97,6 +97,8 @@ def _dl_root() -> Path:
     raw = os.getenv("SPACEGATE_DL_ROOT", "").strip()
     if raw:
         return Path(raw).expanduser()
+    if Path("/data/spacegate").exists():
+        return Path("/data/spacegate/dl")
     return Path("/srv/spacegate/dl")
 
 
@@ -192,6 +194,36 @@ def _build_command_build_core(params: Dict[str, Any]) -> List[str]:
     return cmd
 
 
+def _build_command_build_core_slice(params: Dict[str, Any]) -> List[str]:
+    cmd = [str(ROOT_DIR / "scripts" / "build_core_slice.sh")]
+    from_cooked = _normalize_boolean(params.get("from_cooked", True))
+    if from_cooked:
+        cmd.append("--from-cooked")
+    else:
+        cmd.append("--full-pipeline")
+    if _normalize_boolean(params.get("overwrite", False)):
+        cmd.append("--overwrite")
+
+    for param_name, flag_name in (
+        ("max_distance_ly", "--max-distance-ly"),
+        ("min_parallax_over_error", "--min-parallax-over-error"),
+        ("max_parallax_error_mas", "--max-parallax-error-mas"),
+        ("max_ruwe", "--max-ruwe"),
+    ):
+        raw = str(params.get(param_name, "") or "").strip()
+        if raw:
+            cmd.extend([flag_name, raw])
+
+    if _normalize_boolean(params.get("require_spectral_class", False)):
+        cmd.append("--require-spectral-class")
+    if _normalize_boolean(params.get("require_color_index", False)):
+        cmd.append("--require-color-index")
+    allowed_spectral = str(params.get("allowed_spectral_classes", "") or "").strip()
+    if allowed_spectral:
+        cmd.extend(["--allowed-spectral-classes", allowed_spectral])
+    return cmd
+
+
 def _build_command_verify_build(params: Dict[str, Any]) -> List[str]:
     cmd = [str(ROOT_DIR / "scripts" / "verify_build.sh")]
     build_id = str(params.get("build_id", "") or "").strip()
@@ -245,10 +277,24 @@ def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.extend(["--build-id", build_id])
-    top_coolness = _normalize_integer(params.get("top_coolness", 200))
+    top_coolness = _normalize_integer(params.get("top_coolness", 100))
     if top_coolness <= 0:
         raise ActionValidationError("top_coolness must be > 0")
     cmd.extend(["--top-coolness", str(top_coolness)])
+    for param_name, flag_name in (
+        ("min_dist_ly", "--min-dist-ly"),
+        ("max_dist_ly", "--max-dist-ly"),
+        ("min_star_count", "--min-star-count"),
+        ("max_star_count", "--max-star-count"),
+        ("min_planet_count", "--min-planet-count"),
+        ("max_planet_count", "--max-planet-count"),
+        ("min_coolness_score", "--min-coolness-score"),
+        ("max_coolness_score", "--max-coolness-score"),
+    ):
+        raw = params.get(param_name)
+        if raw is None or str(raw).strip() == "":
+            continue
+        cmd.extend([flag_name, str(raw)])
     view_type = str(params.get("view_type", "") or "").strip()
     if view_type == "system":
         view_type = "system_card"
@@ -701,6 +747,73 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         confirmation_phrase=_confirmation_for("build_core"),
         build_command=_build_command_build_core,
     ),
+    "build_core_slice": ActionSpec(
+        name="build_core_slice",
+        display_name="Build Sliced Core",
+        description="Apply dataset slice policy filters and rebuild/publish a trimmed core build.",
+        hidden=True,
+        params_schema={
+            "from_cooked": {
+                "type": "boolean",
+                "default": True,
+                "label": "Reuse cooked catalogs (skip download/cook)",
+            },
+            "overwrite": {
+                "type": "boolean",
+                "default": False,
+                "label": "Overwrite cached inputs (full pipeline only)",
+            },
+            "max_distance_ly": {
+                "type": "string",
+                "required": False,
+                "default": "1000",
+                "allow_empty": True,
+                "label": "Max distance ly (optional)",
+            },
+            "min_parallax_over_error": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Min parallax_over_error (optional)",
+            },
+            "max_parallax_error_mas": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max parallax error mas (optional)",
+            },
+            "max_ruwe": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max RUWE (optional)",
+            },
+            "require_spectral_class": {
+                "type": "boolean",
+                "default": False,
+                "label": "Require spectral class",
+            },
+            "require_color_index": {
+                "type": "boolean",
+                "default": False,
+                "label": "Require color index",
+            },
+            "allowed_spectral_classes": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Allowed spectral classes CSV (optional)",
+            },
+        },
+        risk_level="high",
+        requires_confirmation=True,
+        confirmation_phrase=_confirmation_for("build_core_slice"),
+        build_command=_build_command_build_core_slice,
+    ),
     "verify_build": ActionSpec(
         name="verify_build",
         display_name="Verify Build",
@@ -812,7 +925,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "generate_snapshots": ActionSpec(
         name="generate_snapshots",
         display_name="Generate Snapshots",
-        description="Render system snapshot images for top coolness-ranked systems (defaults to top 200).",
+        description="Render system snapshot images for filtered top coolness-ranked systems (defaults to top 100).",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -825,10 +938,62 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "top_coolness": {
                 "type": "integer",
                 "required": False,
-                "default": 200,
+                "default": 100,
                 "min": 1,
                 "max": 10000,
                 "label": "Top coolness systems",
+            },
+            "min_dist_ly": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Min distance ly (optional)",
+            },
+            "max_dist_ly": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max distance ly (optional)",
+            },
+            "min_star_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Min stars (optional)",
+            },
+            "max_star_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Max stars (optional)",
+            },
+            "min_planet_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Min planets (optional)",
+            },
+            "max_planet_count": {
+                "type": "integer",
+                "required": False,
+                "default": "",
+                "label": "Max planets (optional)",
+            },
+            "min_coolness_score": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Min coolness score (optional)",
+            },
+            "max_coolness_score": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "label": "Max coolness score (optional)",
             },
             "view_type": {
                 "type": "string",
