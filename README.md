@@ -220,6 +220,9 @@ files, and preserves relative paths (`db/...`, `reports/...`). When
 - `catalogs/current -> snapshots/<snapshot_id>`
 - `catalogs/snapshots/<snapshot_id>/...`
 
+Real transfer runs print phase timestamps plus aggregate rsync progress/stats so
+large catalog mirror syncs do not look stalled.
+
 By default it does **not** update the remote `current` symlink. If you still want that pointer on the remote host:
 
 ```bash

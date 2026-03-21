@@ -56,6 +56,14 @@ require_cmd() {
   fi
 }
 
+timestamp_utc() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+log_step() {
+  echo "[$(timestamp_utc)] $*"
+}
+
 assert_nonnegative_decimal() {
   local value="$1"
   local label="$2"
@@ -264,9 +272,9 @@ PY
     fi
   done
 
-  local -a rsync_args=( -avh --omit-dir-times --no-implied-dirs )
+  local -a rsync_args=( -ah --omit-dir-times --no-implied-dirs --info=progress2,stats2 )
   if [[ "$DRY_RUN" == "1" ]]; then
-    rsync_args=( -avhn --omit-dir-times --no-implied-dirs )
+    rsync_args=( -ahn --omit-dir-times --no-implied-dirs )
   fi
 
   local -a ssh_opts=()
@@ -300,16 +308,21 @@ PY
   fi
   echo "SSH cooldown:    ${SSH_COOLDOWN_SECONDS}s"
 
+  log_step "Ensuring remote DB/report directories exist..."
   run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
 
+  log_step "Syncing published DB metadata, archive, and reports..."
   (
     cd "$DL_ROOT"
     cooldown_before_ssh_connect
     rsync -e "$ssh_rsh" "${rsync_args[@]}" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
   )
+  log_step "DB/report sync finished."
 
   if [[ "$catalogs_enabled" == "1" ]]; then
+    log_step "Ensuring remote catalog mirror directories exist..."
     run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
+    log_step "Syncing active catalog mirror snapshot $catalogs_snapshot_id..."
     (
       cd "$DL_ROOT"
       cooldown_before_ssh_connect
@@ -321,16 +334,18 @@ PY
         "catalogs/snapshots/$catalogs_snapshot_id/" \
         "$REMOTE:$REMOTE_DL_ROOT/"
     )
+    log_step "Catalog mirror sync finished."
   fi
 
   if [[ "$SET_CURRENT_LINK" == "1" ]]; then
+    log_step "Updating remote current symlink..."
     run_ssh "${ssh_opts[@]}" "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
     echo "Updated remote symlink: $REMOTE_DL_ROOT/current -> $artifact"
   else
     echo "Skipped remote current symlink update (use --set-current-link to enable)."
   fi
 
-  echo "Push complete."
+  log_step "Push complete."
 }
 
 main "$@"
