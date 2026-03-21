@@ -13,8 +13,8 @@ DOCKER_COMPOSE_FILE="${SPACEGATE_DOCKER_COMPOSE_FILE:-$ROOT_DIR/docker-compose.y
 NGINX_CONF="${SPACEGATE_NGINX_CONF:-/etc/nginx/sites-available/spacegate.conf}"
 NGINX_ACCESS_LOG="${SPACEGATE_NGINX_ACCESS_LOG:-/var/log/nginx/access.log}"
 PUBLIC_URL="${SPACEGATE_STATUS_PUBLIC_URL:-http://127.0.0.1}"
-PUBLIC_DOMAIN="${SPACEGATE_PUBLIC_DOMAIN:-coolstars.org}"
-CERT_FILE="${SPACEGATE_TLS_CERT_FILE:-/etc/letsencrypt/live/${PUBLIC_DOMAIN}/fullchain.pem}"
+PUBLIC_DOMAIN="${SPACEGATE_PUBLIC_DOMAIN:-}"
+CERT_FILE="${SPACEGATE_TLS_CERT_FILE:-}"
 WINDOW_MIN=15
 TAIL_LINES=20000
 NO_COLOR=0
@@ -39,6 +39,20 @@ Options:
   --state-dir DIR  Override state dir (default from SPACEGATE_STATE_DIR/SPACEGATE_DATA_DIR or ./data).
   --no-color       Disable ANSI color output.
 USAGE
+}
+
+default_public_domain() {
+  local raw="${PUBLIC_URL#*://}"
+  raw="${raw%%/*}"
+  raw="${raw%%:*}"
+  case "$raw" in
+    ""|127.0.0.1|localhost|0.0.0.0)
+      echo "spacegate.local"
+      ;;
+    *)
+      echo "$raw"
+      ;;
+  esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -70,6 +84,13 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -z "$PUBLIC_DOMAIN" ]]; then
+  PUBLIC_DOMAIN="$(default_public_domain)"
+fi
+if [[ -z "$CERT_FILE" ]]; then
+  CERT_FILE="/etc/letsencrypt/live/${PUBLIC_DOMAIN}/fullchain.pem"
+fi
 
 if [[ "${NO_COLOR}" -eq 1 || ! -t 1 ]]; then
   C_RESET=""
@@ -347,6 +368,9 @@ elif [[ "$api_proxy_code" == "200" ]]; then
 fi
 build_id="$(extract_json_field "$health_json" "build_id")"
 db_path="$(extract_json_field "$health_json" "db_path")"
+if [[ -z "$db_path" ]]; then
+  db_path="$STATE_DIR/served/current/core.duckdb"
+fi
 
 served_link="$(readlink "$STATE_DIR/served/current" 2>/dev/null || true)"
 nginx_state="$(nginx_active)"

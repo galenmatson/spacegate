@@ -42,7 +42,7 @@ def _apply_runtime_limits(con: duckdb.DuckDBPyConnection) -> None:
 def get_connection() -> duckdb.DuckDBPyConnection:
     path = get_db_path()
     if not os.path.exists(path):
-        raise DatabaseUnavailable(f"Database not found at {path}")
+        raise DatabaseUnavailable("Database not found")
     con = duckdb.connect(path, read_only=True)
     _apply_runtime_limits(con)
     return con

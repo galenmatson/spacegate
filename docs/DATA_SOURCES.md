@@ -311,6 +311,9 @@ Policy:
 Security/transport note:
 
 - historical retrieval context requires explicit caution
+- preferred mirror path, when published on the public bootstrap host, is `SPACEGATE_PUBLIC_BASE_URL/dl/catalogs/current/raw/msc/newmsc-20240101.tar.gz`
+- default code should support overriding MSC retrieval to that mirror without changing source provenance
+- preserve the CTIO/NOIRLab MSC export URL as authoritative source provenance
 - maintain mirrored/pinned retrieval strategy for production stability
 
 ## 10) VSX (AAVSO Variable Star Index)

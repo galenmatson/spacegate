@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import os
 import re
 import ssl
 import tarfile
@@ -17,7 +18,12 @@ from catalog_eval import default_state_dir, init_env
 GAIA_TAP_SYNC_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 SBX_TAP_SYNC_URL = "https://astro.ulb.ac.be/sbx/tap/sync"
 WDS_URL = "https://astro.gsu.edu/wds/wdsweb_summ2.txt"
-MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+PUBLIC_BASE_URL = (os.getenv("SPACEGATE_PUBLIC_BASE_URL") or "https://spacegates.org").rstrip("/")
+MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+MSC_URL = os.getenv("MSC_URL") or os.getenv("SPACEGATE_MSC_MIRROR_URL") or MSC_SOURCE_URL
+MSC_SAMPLE_ALLOW_INSECURE_TLS = (
+    os.getenv("SPACEGATE_MSC_SAMPLE_ALLOW_INSECURE_TLS", "0").strip() == "1"
+)
 ORB6_URL = "https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql"
 
 
@@ -469,7 +475,7 @@ def fetch_msc_sample(state_dir: Path) -> dict:
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
 
-    payload = http_get(MSC_URL, allow_insecure_tls=True)
+    payload = http_get(MSC_URL, allow_insecure_tls=MSC_SAMPLE_ALLOW_INSECURE_TLS)
     write_bytes(raw_path, payload)
 
     subsystem_count: dict[str, int] = {}
@@ -582,8 +588,12 @@ def fetch_msc_sample(state_dir: Path) -> dict:
         "raw_path": str(raw_path),
         "cooked_path": str(cooked_path),
         "row_count": line_count,
-        "source_url": MSC_URL,
-        "security_note": "Official source required unverified TLS fallback during evaluation fetch.",
+        "source_url": MSC_SOURCE_URL,
+        "source_download_url": MSC_URL,
+        "security_note": (
+            "TLS verification stays enabled by default; set "
+            "SPACEGATE_MSC_SAMPLE_ALLOW_INSECURE_TLS=1 only for targeted upstream TLS debugging."
+        ),
     }
 
 

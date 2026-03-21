@@ -98,7 +98,7 @@ sudo apt-get install -y nodejs
 ```
 
 ### 2) Clone and install dependencies
-The installer creates virtualenvs, installs Python/web dependencies, and if needed bootstraps the current prebuilt core DB from `https://coolstars.org/dl/current.json` (with fallback to local source build). Override with `SPACEGATE_PUBLIC_BASE_URL` or `SPACEGATE_BOOTSTRAP_META_URL` if your public host differs.
+The installer creates virtualenvs, installs Python/web dependencies, and if needed bootstraps the current prebuilt core DB from `https://spacegates.org/dl/current.json` (with fallback to local source build). Override with `SPACEGATE_PUBLIC_BASE_URL` or `SPACEGATE_BOOTSTRAP_META_URL` if your public host differs.
 
 ```bash
 git clone https://github.com/galenmatson/spacegate.git
@@ -281,7 +281,7 @@ scripts/spacegate_status.sh --watch 2
 
 ```bash
 scripts/ops_report.sh
-scripts/ops_report.sh --public-url https://coolstars.org
+scripts/ops_report.sh --public-url https://spacegates.org
 ```
 
 ### 7) Stress tester (load + latency gates)
@@ -317,6 +317,8 @@ export SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK=0
 export SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE=0
 
 # MSC transport fallback (only if CTIO TLS chain fails in your environment)
+# Preferred MSC mirror override:
+# export SPACEGATE_MSC_MIRROR_URL=$SPACEGATE_PUBLIC_BASE_URL/dl/catalogs/current/raw/msc/newmsc-20240101.tar.gz
 # Security note: HTTP is vulnerable to in-transit tampering.
 # In HTTP mode, SHA pinning is required.
 export SPACEGATE_MSC_ALLOW_INSECURE_HTTP=0
@@ -363,8 +365,8 @@ export SPACEGATE_WDS_GAIA_GATE_MAX_PM_DELTA_MASYR=25.0
 
 # Core DB bootstrap controls
 export SPACEGATE_BOOTSTRAP_DB=0
-export SPACEGATE_PUBLIC_BASE_URL=https://coolstars.org
-export SPACEGATE_BOOTSTRAP_META_URL=https://coolstars.org/dl/current.json
+export SPACEGATE_PUBLIC_BASE_URL=https://spacegates.org
+export SPACEGATE_BOOTSTRAP_META_URL=https://spacegates.org/dl/current.json
 
 # Web runtime mode for scripts/run_spacegate.sh
 # 0 = API only (default), 1 = API + Vite dev server
@@ -452,7 +454,7 @@ sudo SPACEGATE_SERVER_NAME="192.168.1.102" scripts/setup_nginx_spacegate.sh --fo
 Rate-limit and timeout tuning example:
 
 ```bash
-sudo SPACEGATE_SERVER_NAME="coolstars.org www.coolstars.org" \
+sudo SPACEGATE_SERVER_NAME="your-public-host.example www.your-public-host.example" \
   SPACEGATE_API_RATE_RPS=15 \
   SPACEGATE_API_RATE_BURST=30 \
   SPACEGATE_API_CONN_LIMIT=30 \
@@ -463,10 +465,10 @@ sudo SPACEGATE_SERVER_NAME="coolstars.org www.coolstars.org" \
 Optional HTTPS enforcement from this script (requires cert files):
 
 ```bash
-sudo SPACEGATE_SERVER_NAME="coolstars.org www.coolstars.org" \
+sudo SPACEGATE_SERVER_NAME="your-public-host.example www.your-public-host.example" \
   SPACEGATE_TLS_ENABLE=1 \
-  SPACEGATE_TLS_CERT_FILE=/etc/letsencrypt/live/coolstars.org/fullchain.pem \
-  SPACEGATE_TLS_KEY_FILE=/etc/letsencrypt/live/coolstars.org/privkey.pem \
+  SPACEGATE_TLS_CERT_FILE=/etc/letsencrypt/live/your-public-host.example/fullchain.pem \
+  SPACEGATE_TLS_KEY_FILE=/etc/letsencrypt/live/your-public-host.example/privkey.pem \
   scripts/setup_nginx_spacegate.sh --force
 ```
 
@@ -477,7 +479,7 @@ You can either:
 1. Use script-managed TLS via `SPACEGATE_TLS_ENABLE=1` and cert/key paths (shown above), or
 2. Keep script-managed HTTP and let certbot edit nginx:
    ```bash
-   sudo certbot --nginx -d coolstars.org -d www.coolstars.org
+   sudo certbot --nginx -d your-public-host.example -d www.your-public-host.example
    ```
 
 If you use certbot-managed TLS, re-running `scripts/setup_nginx_spacegate.sh --force` will overwrite certbot's nginx edits.

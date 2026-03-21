@@ -574,6 +574,9 @@ render() {
   fi
   build_id="$(extract_build_id "$health_json")"
   db_path="$(extract_db_path "$health_json")"
+  if [[ -z "$db_path" ]]; then
+    db_path="$STATE_DIR/served/current/core.duckdb"
+  fi
 
   local served_link
   served_link="$(readlink "$STATE_DIR/served/current" 2>/dev/null || true)"

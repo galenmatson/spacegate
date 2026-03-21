@@ -30,7 +30,9 @@ WDS_GAIA_XMATCH_URL = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync"
 WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
 SBX_URL = "https://astro.ulb.ac.be/sbx/tap/sync"
 SBX_VERSION = "sbx_tap_parallax_gte_3.26156"
-MSC_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+PUBLIC_BASE_URL = (os.getenv("SPACEGATE_PUBLIC_BASE_URL") or "https://spacegates.org").rstrip("/")
+MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+MSC_URL = os.getenv("MSC_URL") or os.getenv("SPACEGATE_MSC_MIRROR_URL") or MSC_SOURCE_URL
 MSC_VERSION = "2024-01-01"
 GAIA_CLASSPROB_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 GAIA_CLASSPROB_VERSION = "dr3_astrophysical_parameters_parallax_gte_3.26156"
@@ -3196,7 +3198,7 @@ def main() -> int:
             ) as catalog_ids_json,
             'msc' as source_catalog,
             {sql_literal(MSC_VERSION)} as source_version,
-            {sql_literal(MSC_URL)} as source_url,
+            {sql_literal(MSC_SOURCE_URL)} as source_url,
             {sql_literal(MSC_URL)} as source_download_url,
             null::varchar as source_doi,
             900000000000 + m.msc_row_num as source_pk,

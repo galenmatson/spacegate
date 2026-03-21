@@ -24,6 +24,8 @@ fi
 ATHYG_BASE_URL_DEFAULT="https://codeberg.org/astronexus/athyg/raw/branch/main/data"
 ATHYG_PART1_URL="${ATHYG_PART1_URL:-$ATHYG_BASE_URL_DEFAULT/athyg_v33-1.csv.gz}"
 ATHYG_PART2_URL="${ATHYG_PART2_URL:-$ATHYG_BASE_URL_DEFAULT/athyg_v33-2.csv.gz}"
+PUBLIC_BASE_URL="${SPACEGATE_PUBLIC_BASE_URL:-https://spacegates.org}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL%/}"
 
 NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+pscomppars&format=csv}"
 EXOPLANET_EU_URL="${EXOPLANET_EU_URL:-https://www.exoplanet.eu/catalog/csv/}"
@@ -31,7 +33,9 @@ OPEN_EXOPLANET_CATALOGUE_URL="${OPEN_EXOPLANET_CATALOGUE_URL:-https://codeload.g
 HWC_URL="${HWC_URL:-https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv}"
 
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
-MSC_URL="${MSC_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+MSC_UPSTREAM_URL="${MSC_UPSTREAM_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+MSC_MIRROR_URL="${SPACEGATE_MSC_MIRROR_URL:-${PUBLIC_BASE_URL}/dl/catalogs/current/raw/msc/newmsc-20240101.tar.gz}"
+MSC_URL="${MSC_URL:-${SPACEGATE_MSC_MIRROR_URL:-$MSC_UPSTREAM_URL}}"
 MSC_HTTP_URL="${MSC_HTTP_URL:-http://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
 ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
 DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"

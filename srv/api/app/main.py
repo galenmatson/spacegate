@@ -377,26 +377,24 @@ async def db_unavailable_handler(request: Request, exc: DatabaseUnavailable):
             "error": {
                 "code": "db_unavailable",
                 "message": "Database not available",
-                "details": {"reason": str(exc), "db_path": db.get_db_path()},
+                "details": {"reason": str(exc)},
                 "request_id": getattr(request.state, "request_id", None),
             }
         },
     )
 
 
-cors_origins = ["*"]
-raw_cors = os.getenv("SPACEGATE_CORS_ORIGINS")
+raw_cors = (os.getenv("SPACEGATE_CORS_ORIGINS") or "").strip()
 if raw_cors:
     cors_origins = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
-allow_credentials = cors_origins != ["*"]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=allow_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    allow_credentials = cors_origins != ["*"]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 @app.get("/api/v1/auth/login/google")
@@ -433,7 +431,6 @@ def health():
     return {
         "status": "ok",
         "build_id": build_id,
-        "db_path": db.get_db_path(),
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
 

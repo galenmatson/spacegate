@@ -59,7 +59,7 @@ def main():
     base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000/api/v1"
 
     _, health_json = get_json(base_url, "/health", label="health")
-    require_keys(health_json, ["status", "build_id", "db_path", "time_utc"], "health")
+    require_keys(health_json, ["status", "build_id", "time_utc"], "health")
 
     _, seed_page = get_json(
         base_url,
