@@ -205,19 +205,35 @@ Use `--catalog <name>` repeatedly to mirror a subset, or `--raw-only` to skip co
 
 ### 3.2) Push published artifacts to a remote host
 
-To copy the published DB archive, `current.json`, and referenced reports to a remote `/dl` tree:
+To copy the published DB archive, `current.json`, referenced reports, and the
+active catalog mirror snapshot when present, to a remote `/dl` tree:
 
 ```bash
 scripts/push_published_db.sh --remote antiproton
 ```
 
-The script reads local `current.json`, transfers only the referenced files, and preserves relative paths (`db/...`, `reports/...`).
+The script reads local `current.json`, transfers only the referenced DB/report
+files, and preserves relative paths (`db/...`, `reports/...`). When
+`$SPACEGATE_DL_ROOT/catalogs/current.json` exists locally, it also pushes:
+
+- `catalogs/current.json`
+- `catalogs/current -> snapshots/<snapshot_id>`
+- `catalogs/snapshots/<snapshot_id>/...`
 
 By default it does **not** update the remote `current` symlink. If you still want that pointer on the remote host:
 
 ```bash
 scripts/push_published_db.sh --remote antiproton --set-current-link
 ```
+
+If your deploy key is not selected by ssh config automatically:
+
+```bash
+scripts/push_published_db.sh --remote sgdeploy@antiproton --ssh-key ~/.ssh/spacegate_antiproton
+```
+
+Use `--skip-catalogs` if you want to push only DB/reports and leave the remote
+catalog mirror untouched.
 
 ### 3.3) Deploy app code to antiproton safely (preserve remote auth env)
 

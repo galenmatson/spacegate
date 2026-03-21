@@ -11,10 +11,13 @@ fi
 
 DL_ROOT="${SPACEGATE_DL_ROOT:-/srv/spacegate/dl}"
 META_PATH="$DL_ROOT/current.json"
+CATALOGS_META_PATH="$DL_ROOT/catalogs/current.json"
 REMOTE="${SPACEGATE_PUSH_REMOTE:-spacegate-host}"
 REMOTE_DL_ROOT="${SPACEGATE_PUSH_REMOTE_DL_ROOT:-/srv/spacegate/dl}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
+SSH_KEY_PATH="${SPACEGATE_PUSH_SSH_KEY:-}"
 SET_CURRENT_LINK=0
+INCLUDE_CATALOGS=1
 DRY_RUN=0
 
 usage() {
@@ -23,13 +26,18 @@ Usage:
   scripts/push_published_db.sh [options]
 
 Push the currently published DB artifacts from local dl root to a remote host.
-Reads local current.json to discover the archive + report files.
+Reads local current.json to discover the archive + report files. If a local
+catalog mirror exists at catalogs/current.json, the active catalog snapshot is
+also pushed by default.
 
 Options:
   --remote HOST         SSH target (default: spacegate-host, env SPACEGATE_PUSH_REMOTE)
   --remote-root PATH    Remote dl root (default: /srv/spacegate/dl,
                         env SPACEGATE_PUSH_REMOTE_DL_ROOT)
   --meta PATH           Local metadata file (default: $SPACEGATE_DL_ROOT/current.json)
+  --catalogs-meta PATH  Local catalog mirror metadata (default: $SPACEGATE_DL_ROOT/catalogs/current.json)
+  --ssh-key PATH        SSH private key path (default: ssh agent / ssh config)
+  --skip-catalogs       Skip pushing the active catalog mirror snapshot
   --set-current-link    Also set remote current symlink to metadata artifact path
   --dry-run             Show what would be transferred without writing remote files
   -h, --help            Show this help
@@ -58,6 +66,18 @@ main() {
       --meta)
         META_PATH="$2"
         shift 2
+        ;;
+      --catalogs-meta)
+        CATALOGS_META_PATH="$2"
+        shift 2
+        ;;
+      --ssh-key)
+        SSH_KEY_PATH="$2"
+        shift 2
+        ;;
+      --skip-catalogs)
+        INCLUDE_CATALOGS=0
+        shift 1
         ;;
       --set-current-link)
         SET_CURRENT_LINK=1
@@ -150,6 +170,48 @@ PY
     exit 1
   fi
 
+  local catalogs_snapshot_id=""
+  local catalogs_index=""
+  local catalogs_enabled=0
+  if [[ "$INCLUDE_CATALOGS" == "1" && -f "$CATALOGS_META_PATH" ]]; then
+    local catalogs_output
+    if ! catalogs_output="$("$PYTHON_BIN" - "$CATALOGS_META_PATH" <<'PY'
+import json
+import pathlib
+import sys
+
+meta_path = pathlib.Path(sys.argv[1]).resolve()
+meta = json.loads(meta_path.read_text())
+snapshot_id = str(meta.get("snapshot_id") or "").strip()
+index_path = str(meta.get("index") or "").strip()
+if not snapshot_id:
+    raise SystemExit("catalogs/current.json missing snapshot_id")
+if not index_path:
+    raise SystemExit("catalogs/current.json missing index")
+print(f"snapshot_id={snapshot_id}")
+print(f"index={index_path}")
+PY
+)"; then
+      echo "Error: unable to parse catalog mirror metadata: $CATALOGS_META_PATH" >&2
+      exit 1
+    fi
+    while IFS= read -r line; do
+      case "$line" in
+        snapshot_id=*)
+          catalogs_snapshot_id="${line#snapshot_id=}"
+          ;;
+        index=*)
+          catalogs_index="${line#index=}"
+          ;;
+      esac
+    done <<<"$catalogs_output"
+    if [[ -z "$catalogs_snapshot_id" || -z "$catalogs_index" ]]; then
+      echo "Error: parsed catalog mirror metadata is missing snapshot_id/index" >&2
+      exit 1
+    fi
+    catalogs_enabled=1
+  fi
+
   local -a checked_files=()
   local rel
   for rel in "${rel_files[@]}"; do
@@ -176,21 +238,59 @@ PY
     rsync_mode="-avhn"
   fi
 
+  local -a ssh_opts=()
+  if [[ -n "${SSH_KEY_PATH:-}" ]]; then
+    if [[ ! -f "$SSH_KEY_PATH" ]]; then
+      echo "Error: SSH key path does not exist: $SSH_KEY_PATH" >&2
+      exit 1
+    fi
+    ssh_opts+=(-o IdentitiesOnly=yes -i "$SSH_KEY_PATH")
+  fi
+  local ssh_rsh="ssh"
+  local opt
+  for opt in "${ssh_opts[@]}"; do
+    ssh_rsh+=" $(printf '%q' "$opt")"
+  done
+
   echo "Local DL root:   $DL_ROOT"
   echo "Remote target:   $REMOTE:$REMOTE_DL_ROOT"
   echo "Build ID:        $build_id"
   echo "Artifact:        $artifact"
   echo "Files to push:   ${#unique_files[@]}"
+  if [[ "$catalogs_enabled" == "1" ]]; then
+    echo "Catalog mirror:  snapshot $catalogs_snapshot_id"
+  else
+    echo "Catalog mirror:  skipped"
+  fi
+  if [[ -n "${SSH_KEY_PATH:-}" ]]; then
+    echo "SSH key:         $SSH_KEY_PATH"
+  else
+    echo "SSH key:         (ssh default auth)"
+  fi
 
-  ssh "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
+  ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
 
   (
     cd "$DL_ROOT"
-    rsync "$rsync_mode" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
+    rsync -e "$ssh_rsh" "$rsync_mode" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
   )
 
+  if [[ "$catalogs_enabled" == "1" ]]; then
+    ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
+    (
+      cd "$DL_ROOT"
+      rsync -e "$ssh_rsh" "$rsync_mode" --links \
+        --relative \
+        "catalogs/current.json" \
+        "catalogs/current" \
+        "catalogs/$catalogs_index" \
+        "catalogs/snapshots/$catalogs_snapshot_id/" \
+        "$REMOTE:$REMOTE_DL_ROOT/"
+    )
+  fi
+
   if [[ "$SET_CURRENT_LINK" == "1" ]]; then
-    ssh "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
+    ssh "${ssh_opts[@]}" "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
     echo "Updated remote symlink: $REMOTE_DL_ROOT/current -> $artifact"
   else
     echo "Skipped remote current symlink update (use --set-current-link to enable)."
