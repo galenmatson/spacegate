@@ -8,8 +8,8 @@ Purpose:
 - normalize orbital solutions for UI reconstruction and animation readiness scoring
 
 Out of scope:
-- editable fiction/user overlays (`SCHEMA_LORE.md`, rim layer)
-- generated prose/images/snapshots (`SCHEMA_RICH.md`, disc layer)
+- editable fiction/user overlays (`SCHEMA_RIM.md`, rim layer)
+- generated prose/images/snapshots (`SCHEMA_DISC.md`, disc layer)
 - canonical star/system/planet inventory (`SCHEMA_CORE.md`)
 
 ## Artifact Contract

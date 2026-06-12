@@ -572,8 +572,8 @@ Operational status:
 
 - `docs/SCHEMA_CORE.md`: canonical core schema contract
 - `docs/SCHEMA_ARM.md`: supplemental science graph/orbit contract
-- `docs/SCHEMA_RICH.md`: disc contract (legacy filename retained)
-- `docs/SCHEMA_LORE.md`: rim contract (legacy filename retained)
+- `docs/SCHEMA_DISC.md`: disc contract
+- `docs/SCHEMA_RIM.md`: rim contract
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/SOL_AUTHORITY.md`: Sol-system authoritative ingest contract and release gates

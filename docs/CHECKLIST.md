@@ -142,6 +142,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Source mirror strategy documented for fragile external dependencies
 - [x] Retention policy documented (builds, reports, backups, large catalogs)
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
+- [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
 
 ## E) Product Roadmap (Post-Core Migration)
 

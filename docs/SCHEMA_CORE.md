@@ -11,8 +11,8 @@ Scope:
 Out of scope:
 
 - immutable supplemental science side tables (`SCHEMA_ARM.md`, arm layer)
-- generated exposition/images (`SCHEMA_RICH.md`, disc layer)
-- editable fiction/worldbuilding overlays (`SCHEMA_LORE.md`, rim layer)
+- generated exposition/images (`SCHEMA_DISC.md`, disc layer)
+- editable fiction/worldbuilding overlays (`SCHEMA_RIM.md`, rim layer)
 
 ## Artifact Contract
 

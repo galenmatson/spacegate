@@ -1,4 +1,4 @@
-# Spacegate Rim Schema (Legacy Filename: SCHEMA_LORE)
+# Spacegate Rim Schema
 
 This document defines Spacegate's **editable fictional overlay schema**.
 Rim data is intentionally separate from core science and disc derived artifacts.
@@ -6,8 +6,8 @@ The runtime still uses legacy `lore` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
-- `docs/SCHEMA_RICH.md`: reproducible disc artifacts
-- `docs/SCHEMA_LORE.md`: editable fictional/user-authored rim overlays (this document)
+- `docs/SCHEMA_DISC.md`: reproducible disc artifacts
+- `docs/SCHEMA_RIM.md`: editable fictional/user-authored rim overlays (this document)
 
 ## Purpose and Boundaries
 

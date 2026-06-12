@@ -7,8 +7,8 @@ Authoritative architecture and contracts remain in:
 - `docs/PROJECT.md`
 - `docs/SCHEMA_CORE.md`
 - `docs/SLICE_PROFILES.md`
-- `docs/SCHEMA_RICH.md` (disc contract; legacy filename)
-- `docs/SCHEMA_LORE.md` (rim contract; legacy filename)
+- `docs/SCHEMA_DISC.md` (disc contract)
+- `docs/SCHEMA_RIM.md` (rim contract)
 
 ## North-Star Product Intent
 

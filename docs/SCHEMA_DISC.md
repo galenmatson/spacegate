@@ -1,4 +1,4 @@
-# Spacegate Disc Schema (Legacy Filename: SCHEMA_RICH)
+# Spacegate Disc Schema
 
 This document is the source of truth for Spacegate's **derived astronomy artifacts**.
 Disc data is reproducible and regenerated from core/arm/packs; it is not edited in place.
@@ -7,8 +7,8 @@ The runtime still uses legacy `rich` naming in some paths during transition.
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
 - `docs/SCHEMA_ARM.md`: immutable supplemental science graph/orbit derivatives
-- `docs/SCHEMA_RICH.md`: disc artifacts for ranking, UX, and enrichment (this document)
-- `docs/SCHEMA_LORE.md`: rim overlays
+- `docs/SCHEMA_DISC.md`: disc artifacts for ranking, UX, and enrichment (this document)
+- `docs/SCHEMA_RIM.md`: rim overlays
 
 ## Purpose and Boundaries
 
