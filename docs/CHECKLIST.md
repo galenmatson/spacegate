@@ -143,6 +143,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Retention policy documented (builds, reports, backups, large catalogs)
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
 - [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
+- [x] Logged core build wrapper preserves build exit status and host state-dir environment (`scripts/build_core_logged.sh`)
 
 ## E) Product Roadmap (Post-Core Migration)
 
