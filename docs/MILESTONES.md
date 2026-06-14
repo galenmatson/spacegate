@@ -261,6 +261,36 @@ Success criteria:
 - default product views match policy (`candidate` on, `controversial` off, `retracted` hidden)
 - habitability ranking query latency remains within core slice SLO targets
 
+### M5.7 Local Inference Adjudication Bench
+
+Goal:
+
+- establish a repeatable local-model evaluation harness for scientific adjudication, with small/medium models handling routine extraction and review while the strongest available local model handles only the ambiguous high-impact tail.
+
+Dependencies:
+
+- M5.3 and M5.5 queue surfaces sufficiently stable
+- local inference runtime on Photon available through an OpenAI-compatible endpoint
+
+Deliverables:
+
+- benchmark "astronomer adjudicator" cook-off over fixed golden dossiers, including Castor-class multiplicity, exoplanet host binding, lifecycle conflicts, and source-contradiction cases
+- cost/latency budget model for overnight final-adjudication batches, including tokens/sec, wall time per case, context length, and accepted/rejected/deferred outcomes
+- model-role routing policy:
+  - fast extractor/reviewer model for most source triage and structured claim checks
+  - medium model for narrative/factsheet drafting and contradiction summaries
+  - strongest local model for final ambiguous adjudication packets
+  - frontier/cloud escalation only when local models abstain or disagree on high-impact cases
+- pinned local inference metadata for every generated/reviewed output: model id, quantization, runtime, prompt version, context limit, temperature, token limits, and generation metadata
+- TurboQuant KV-cache evaluation pinned as a future optimization experiment for longer-context adjudication profiles, without treating it as a substitute for model-weight compression
+
+Success criteria:
+
+- golden adjudication cases are reproducible across reruns
+- local-model review catches seeded unit, identity-binding, and source-conflict faults
+- overnight batch profile has an explicit throughput floor and stop condition
+- accepted claims remain backed by source IDs and reviewed evidence, not opaque model reasoning
+
 ### M6. External Links and Factual Disc Layer
 
 Goal:

@@ -157,6 +157,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Ingest v2 preview build emitter + runtime canonical-hierarchy fallback for local tryouts
 - [ ] Agent evidence-link pipeline in `disc` (citations/source manifests backing factsheets and narratives)
 - [ ] Agent adjudication tables in `arm` for ambiguity resolution and missing-field proposals
+- [ ] Local inference adjudicator cook-off with pinned TurboQuant KV-cache evaluation for long-context profiles
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
 - [ ] 3D map runtime integration over Gaia-first slice
 - [ ] Rim/worldbuilding overlay expansion without core contamination
