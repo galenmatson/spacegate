@@ -1,0 +1,392 @@
+{
+  "suite_id": "spacegate_agent_seed_v1",
+  "suite_version": "2026-06-15",
+  "description": "Seed golden cases for Spacegate agent model-role evaluation. These are compact source excerpts and expected claim/anomaly targets; they are not production source records.",
+  "cases": [
+    {
+      "case_id": "synthetic_kepler_hz_tidal_lock",
+      "title": "Synthetic M-dwarf orbit consistency and HZ trap",
+      "roles": ["extract", "adjudicate", "criticize"],
+      "source_refs": [{"citation_id": "synthetic:kepler_hz_001", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Extract claim-level facts and adjudicate whether each claim is supported. Do not reject the whole paper if only the habitable-zone implication fails.",
+        "source_excerpt": "A paper claims a stable, rocky exoplanet around an M dwarf with M_star = 0.15 M_sun, L_star = 0.0035 L_sun, and circular orbital period P = 4.2 Earth days. Evaluate semi-major axis, conservative HZ membership, and likely tidal locking.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "semi_major_axis", "subject": "synthetic planet", "predicate": "planet.semi_major_axis_au", "value": 0.0271, "unit": "AU", "tolerance": 0.001, "qualifier": "derived", "status": "accepted"},
+          {"claim_id": "hz_membership", "subject": "synthetic planet", "predicate": "planet.conservative_hz_membership", "value": false, "unit": null, "qualifier": "derived", "status": "accepted"},
+          {"claim_id": "tidal_locking", "subject": "synthetic planet", "predicate": "planet.tidal_locking_likelihood", "value": "likely", "unit": null, "qualifier": "derived", "status": "accepted"},
+          {"claim_id": "rocky_claim", "subject": "synthetic planet", "predicate": "planet.composition_class", "value": "rocky", "unit": null, "qualifier": "asserted_without_radius_or_mass", "status": "deferred"}
+        ],
+        "anomalies": [
+          {"anomaly_type": "unsupported_claim", "severity": "medium", "subject": "synthetic planet", "summary_contains": "rocky"}
+        ]
+      }
+    },
+    {
+      "case_id": "toi_1080_upper_limit",
+      "title": "TOI-1080 b mass upper-limit semantics",
+      "roles": ["extract", "criticize", "adjudicate"],
+      "source_refs": [{"citation_id": "arxiv:2603.00385", "domain": "arxiv.org", "trust_tier": "tier1"}],
+      "input": {
+        "task": "Extract the planetary mass claim and classify whether it is a measurement or an upper limit.",
+        "source_excerpt": "The radial-velocity analysis finds no significant Keplerian signal at the transit period. We therefore report a 3-sigma upper limit of 10.7 Earth masses for TOI-1080 b. The planet radius is 1.09 Earth radii and the equilibrium temperature is 333 K.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "mass_upper_limit", "subject": "TOI-1080 b", "predicate": "planet.mass_mearth", "value": 10.7, "unit": "Mearth", "tolerance": 0.01, "qualifier": "upper_limit_3sigma", "status": "accepted"},
+          {"claim_id": "radius", "subject": "TOI-1080 b", "predicate": "planet.radius_rearth", "value": 1.09, "unit": "Rearth", "tolerance": 0.01, "qualifier": "measured", "status": "accepted"},
+          {"claim_id": "equilibrium_temp", "subject": "TOI-1080 b", "predicate": "planet.equilibrium_temp_k", "value": 333, "unit": "K", "tolerance": 1, "qualifier": "reported", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "barnards_star_minimum_masses",
+      "title": "Barnard's Star RV minimum mass trap",
+      "roles": ["extract", "identify", "criticize"],
+      "source_refs": [{"citation_id": "arxiv:2503.08095", "domain": "arxiv.org", "trust_tier": "tier1"}],
+      "input": {
+        "task": "Extract each planet mass and preserve radial-velocity minimum-mass semantics.",
+        "source_excerpt": "The MAROON-X and ESPRESSO radial-velocity data reveal four sub-Earth planets around Barnard's Star. The reported minimum masses are: planet d, 0.22 Mearth; planet b, 0.32 Mearth; planet c, 0.31 Mearth; planet e, 0.19 Mearth. No transits are detected.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "barnard_d_msini", "subject": "Barnard's Star d", "predicate": "planet.minimum_mass_mearth", "value": 0.22, "unit": "Mearth", "tolerance": 0.01, "qualifier": "m_sin_i", "status": "accepted"},
+          {"claim_id": "barnard_b_msini", "subject": "Barnard's Star b", "predicate": "planet.minimum_mass_mearth", "value": 0.32, "unit": "Mearth", "tolerance": 0.01, "qualifier": "m_sin_i", "status": "accepted"},
+          {"claim_id": "barnard_c_msini", "subject": "Barnard's Star c", "predicate": "planet.minimum_mass_mearth", "value": 0.31, "unit": "Mearth", "tolerance": 0.01, "qualifier": "m_sin_i", "status": "accepted"},
+          {"claim_id": "barnard_e_msini", "subject": "Barnard's Star e", "predicate": "planet.minimum_mass_mearth", "value": 0.19, "unit": "Mearth", "tolerance": 0.01, "qualifier": "m_sin_i", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "toi_2431_dual_mass_models",
+      "title": "TOI-2431 b two-model mass extraction",
+      "roles": ["extract", "criticize"],
+      "source_refs": [{"citation_id": "arxiv:2507.08464", "domain": "arxiv.org", "trust_tier": "tier1"}],
+      "input": {
+        "task": "Extract both mass estimates and do not average them.",
+        "source_excerpt": "For TOI-2431 b, the fixed circular orbit joint fit gives a mass of 1.45 +0.33/-0.31 Earth masses. A quasi-periodic Gaussian-process joint fit gives 1.74 +0.46/-0.44 Earth masses. The orbital period is 0.22419577 days.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "toi_2431_mass_fco", "subject": "TOI-2431 b", "predicate": "planet.mass_mearth", "value": 1.45, "unit": "Mearth", "tolerance": 0.01, "qualifier": "fixed_circular_orbit_fit", "status": "accepted"},
+          {"claim_id": "toi_2431_mass_gp", "subject": "TOI-2431 b", "predicate": "planet.mass_mearth", "value": 1.74, "unit": "Mearth", "tolerance": 0.01, "qualifier": "quasi_periodic_gp_fit", "status": "accepted"},
+          {"claim_id": "toi_2431_period", "subject": "TOI-2431 b", "predicate": "planet.orbital_period_days", "value": 0.22419577, "unit": "days", "tolerance": 0.00000001, "qualifier": "reported", "status": "accepted"}
+        ],
+        "anomalies": [{"anomaly_type": "multi_model_measurement", "severity": "medium", "subject": "TOI-2431 b", "summary_contains": "two"}]
+      }
+    },
+    {
+      "case_id": "toi_7166_host_planet_binding",
+      "title": "TOI-7166 b host/planet scalar binding",
+      "roles": ["extract", "identify"],
+      "source_refs": [{"citation_id": "mnras:toi_7166_b", "domain": "academic.oup.com", "trust_tier": "tier1"}],
+      "input": {
+        "task": "Extract planet and host-star facts without cross-contamination.",
+        "source_excerpt": "TOI-7166 b is a validated mini-Neptune with orbital period 12.9 days, radius 2.02 Earth radii, and equilibrium temperature 280 K. The M4 host star has mass 0.34 solar masses and radius 0.33 solar radii.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "toi_7166_period", "subject": "TOI-7166 b", "predicate": "planet.orbital_period_days", "value": 12.9, "unit": "days", "tolerance": 0.01, "qualifier": "reported", "status": "accepted"},
+          {"claim_id": "toi_7166_radius", "subject": "TOI-7166 b", "predicate": "planet.radius_rearth", "value": 2.02, "unit": "Rearth", "tolerance": 0.01, "qualifier": "reported", "status": "accepted"},
+          {"claim_id": "toi_7166_host_mass", "subject": "TOI-7166", "predicate": "star.mass_msun", "value": 0.34, "unit": "Msun", "tolerance": 0.01, "qualifier": "reported", "status": "accepted"},
+          {"claim_id": "toi_7166_host_radius", "subject": "TOI-7166", "predicate": "star.radius_rsun", "value": 0.33, "unit": "Rsun", "tolerance": 0.01, "qualifier": "reported", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "kepler_51d_haze_restraint",
+      "title": "Kepler-51d haze and composition restraint",
+      "roles": ["extract", "criticize", "narrate"],
+      "source_refs": [{"citation_id": "jwst:kepler_51d_haze", "domain": "science.psu.edu", "trust_tier": "tier2"}],
+      "input": {
+        "task": "Extract atmosphere claims and avoid inventing detected molecules.",
+        "source_excerpt": "JWST NIRSpec observations show that Kepler-51d is obscured by a thick photochemical haze. The haze prevents a definitive retrieval of molecular abundances; water, methane, and carbon dioxide are not robust detections in this analysis.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "kepler_51d_haze", "subject": "Kepler-51d", "predicate": "planet.atmosphere_note", "value": "thick photochemical haze", "unit": null, "qualifier": "observational_interpretation", "status": "accepted"},
+          {"claim_id": "kepler_51d_composition", "subject": "Kepler-51d", "predicate": "planet.atmospheric_composition", "value": "unconstrained", "unit": null, "qualifier": "non_detection", "status": "accepted"}
+        ],
+        "anomalies": [{"anomaly_type": "observational_limitation", "severity": "low", "subject": "Kepler-51d", "summary_contains": "haze"}]
+      }
+    },
+    {
+      "case_id": "wasp_107b_mechanisms",
+      "title": "WASP-107 b mechanism extraction",
+      "roles": ["extract", "narrate"],
+      "source_refs": [{"citation_id": "jwst:wasp_107b_silicate", "domain": "astro.tsinghua.edu.cn", "trust_tier": "tier2"}],
+      "input": {
+        "task": "Extract atmospheric and internal-heating claims with qualifiers.",
+        "source_excerpt": "A self-consistent atmospheric model for WASP-107 b finds silicate cloud features and metallicity about 17 times solar. The inflated radius requires high internal heating, potentially from tidal heating or Ohmic dissipation.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "wasp_107b_metallicity", "subject": "WASP-107 b", "predicate": "planet.atmosphere_metallicity_solar", "value": 17, "unit": "solar", "tolerance": 0.5, "qualifier": "model_dependent", "status": "accepted"},
+          {"claim_id": "wasp_107b_clouds", "subject": "WASP-107 b", "predicate": "planet.cloud_species", "value": "silicate clouds", "unit": null, "qualifier": "model_dependent", "status": "accepted"},
+          {"claim_id": "wasp_107b_heating", "subject": "WASP-107 b", "predicate": "planet.internal_heating_mechanism", "value": "tidal heating or Ohmic dissipation", "unit": null, "qualifier": "hypothesized", "status": "deferred"}
+        ],
+        "anomalies": [{"anomaly_type": "interesting_hypothesis", "severity": "medium", "subject": "WASP-107 b", "summary_contains": "heating"}]
+      }
+    },
+    {
+      "case_id": "cancri_55e_variable_atmosphere",
+      "title": "55 Cancri e variable atmosphere ambiguity",
+      "roles": ["extract", "criticize", "adjudicate"],
+      "source_refs": [{"citation_id": "arxiv:2503.15844", "domain": "arxiv.org", "trust_tier": "tier1"}],
+      "input": {
+        "task": "Extract variability and uncertainty; do not claim a definitive atmosphere composition.",
+        "source_excerpt": "Multi-epoch observations of 55 Cancri e show 4.5 micron brightness temperatures ranging from 900 K to 2300 K. A nitrogen-dominated, hydrogen-free atmosphere enriched in CO2 and PO is statistically favored in one model grid, but H2O-bearing or Si-bearing compositions cannot be ruled out.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "55cnce_temp_low", "subject": "55 Cancri e", "predicate": "planet.brightness_temp_min_k", "value": 900, "unit": "K", "tolerance": 1, "qualifier": "observed_range", "status": "accepted"},
+          {"claim_id": "55cnce_temp_high", "subject": "55 Cancri e", "predicate": "planet.brightness_temp_max_k", "value": 2300, "unit": "K", "tolerance": 1, "qualifier": "observed_range", "status": "accepted"},
+          {"claim_id": "55cnce_atmosphere", "subject": "55 Cancri e", "predicate": "planet.atmospheric_composition", "value": "unconstrained", "unit": null, "qualifier": "model_ambiguous", "status": "accepted"}
+        ],
+        "anomalies": [{"anomaly_type": "source_conflict", "severity": "medium", "subject": "55 Cancri e", "summary_contains": "composition"}]
+      }
+    },
+    {
+      "case_id": "mwc_656_reclassification",
+      "title": "MWC 656 black-hole candidate reclassification",
+      "roles": ["extract", "criticize", "adjudicate"],
+      "source_refs": [{"citation_id": "arxiv:2601.14403", "domain": "arxiv.org", "trust_tier": "tier1"}],
+      "input": {
+        "task": "Compare the new paper claim to current state and produce a quarantined reclassification proposal.",
+        "source_excerpt": "Far-ultraviolet spectra of MWC 656 reveal N V and He II features consistent with a hot hydrogen-deficient stripped star companion. The evidence rules out the previous interpretation of a stellar-mass black hole companion.",
+        "current_state": {"MWC 656 companion": {"classification": "stellar-mass black hole candidate"}}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "mwc656_companion_type", "subject": "MWC 656 companion", "predicate": "companion.classification", "value": "hot hydrogen-deficient stripped star", "unit": null, "qualifier": "new_evidence", "status": "accepted"},
+          {"claim_id": "mwc656_black_hole_status", "subject": "MWC 656 companion", "predicate": "companion.black_hole_candidate_status", "value": false, "unit": null, "qualifier": "ruled_out_by_new_evidence", "status": "accepted"}
+        ],
+        "anomalies": [{"anomaly_type": "stale_consensus", "severity": "high", "subject": "MWC 656 companion", "summary_contains": "black hole"}]
+      }
+    },
+    {
+      "case_id": "castor_hierarchy_relation_scope",
+      "title": "Castor subsystem relation scope",
+      "roles": ["identify", "adjudicate"],
+      "source_refs": [{"citation_id": "spacegate:fixture:castor", "domain": "spacegate_fixture", "trust_tier": "test"}],
+      "input": {
+        "task": "Map hierarchy/orbit claims to subsystem relations, not generic system scalars.",
+        "source_excerpt": "Castor is a hierarchical sextuple. The A subsystem contains Aa and Ab, the B subsystem contains Ba and Bb, and C contains Ca and Cb. The outer visual relation is between the composite AB subsystem and C.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "castor_a_children", "subject": "Castor A", "predicate": "structure.children", "value": "Aa,Ab", "unit": null, "qualifier": "hierarchy", "status": "accepted"},
+          {"claim_id": "castor_b_children", "subject": "Castor B", "predicate": "structure.children", "value": "Ba,Bb", "unit": null, "qualifier": "hierarchy", "status": "accepted"},
+          {"claim_id": "castor_outer_relation", "subject": "Castor AB-C relation", "predicate": "orbit_relation.relation_kind", "value": "hierarchical_pair", "unit": null, "qualifier": "relation_scoped", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "cyg_16_planet_host_binding",
+      "title": "16 Cyg B planet host binding",
+      "roles": ["identify", "extract"],
+      "source_refs": [{"citation_id": "spacegate:fixture:16cyg", "domain": "spacegate_fixture", "trust_tier": "test"}],
+      "input": {
+        "task": "Attach the planet to the correct host star, not the A component or the whole system.",
+        "source_excerpt": "The wide binary 16 Cyg contains the solar analogs 16 Cyg A and 16 Cyg B. The giant planet 16 Cyg B b orbits 16 Cyg B.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "16cygbb_host", "subject": "16 Cyg B b", "predicate": "planet.host_star", "value": "16 Cyg B", "unit": null, "qualifier": "host_binding", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "alpha_cen_preferred_name_reversibility",
+      "title": "Alpha Centauri naming is not identity mutation",
+      "roles": ["identify", "criticize"],
+      "source_refs": [{"citation_id": "spacegate:fixture:alphacen", "domain": "spacegate_fixture", "trust_tier": "test"}],
+      "input": {
+        "task": "Extract naming evidence without changing stable keys.",
+        "source_excerpt": "Alpha Centauri is also known by the traditional name Rigil Kentaurus; Toliman is commonly used for Alpha Centauri B in modern naming contexts. These names are display-name or alias evidence, not new objects.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "alpha_cen_alias", "subject": "Alpha Centauri", "predicate": "naming.alias", "value": "Rigil Kentaurus", "unit": null, "qualifier": "alias", "status": "accepted"},
+          {"claim_id": "toliman_alias", "subject": "Alpha Centauri B", "predicate": "naming.alias", "value": "Toliman", "unit": null, "qualifier": "component_alias", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "trappist_1_multi_planet_binding",
+      "title": "TRAPPIST-1 multi-planet row binding",
+      "roles": ["extract", "identify"],
+      "source_refs": [{"citation_id": "spacegate:fixture:trappist1", "domain": "spacegate_fixture", "trust_tier": "test"}],
+      "input": {
+        "task": "Extract periods for the correct planets.",
+        "source_excerpt": "TRAPPIST-1 b has an orbital period of 1.5109 days, TRAPPIST-1 c has 2.4218 days, and TRAPPIST-1 d has 4.0496 days.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "trappist1b_period", "subject": "TRAPPIST-1 b", "predicate": "planet.orbital_period_days", "value": 1.5109, "unit": "days", "tolerance": 0.0001, "qualifier": "reported", "status": "accepted"},
+          {"claim_id": "trappist1c_period", "subject": "TRAPPIST-1 c", "predicate": "planet.orbital_period_days", "value": 2.4218, "unit": "days", "tolerance": 0.0001, "qualifier": "reported", "status": "accepted"},
+          {"claim_id": "trappist1d_period", "subject": "TRAPPIST-1 d", "predicate": "planet.orbital_period_days", "value": 4.0496, "unit": "days", "tolerance": 0.0001, "qualifier": "reported", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "sirius_white_dwarf_classification",
+      "title": "Sirius B compact remnant classification",
+      "roles": ["extract", "criticize"],
+      "source_refs": [{"citation_id": "spacegate:fixture:sirius", "domain": "spacegate_fixture", "trust_tier": "test"}],
+      "input": {
+        "task": "Preserve explicit compact-remnant evidence over temperature-derived ordinary star labels.",
+        "source_excerpt": "Sirius B is a white dwarf companion to Sirius A. Its high effective temperature must not cause it to be classified as an ordinary hot main-sequence star.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "sirius_b_class", "subject": "Sirius B", "predicate": "star.classification", "value": "white dwarf", "unit": null, "qualifier": "explicit_remnant_evidence", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "sol_authority_singleton",
+      "title": "Sol authority should not become duplicate Gaia object",
+      "roles": ["identify", "criticize"],
+      "source_refs": [{"citation_id": "spacegate:fixture:sol", "domain": "spacegate_fixture", "trust_tier": "test"}],
+      "input": {
+        "task": "Preserve Sol as a local authority object and do not require a Gaia-backed duplicate.",
+        "source_excerpt": "The Sun is represented by the Sol authority record. Nearby-star catalog cross-references are aliases or support records, not separate canonical stars.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "sol_identity", "subject": "Sol", "predicate": "identity.authority_record", "value": "sol_authority", "unit": null, "qualifier": "canonical_local_authority", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "catalog_conflict_temperature",
+      "title": "Conflicting stellar temperatures should be preserved",
+      "roles": ["extract", "criticize", "adjudicate"],
+      "source_refs": [{"citation_id": "synthetic:stellar_conflict", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Extract contradictory values without averaging.",
+        "source_excerpt": "Catalog A reports Star X Teff = 5100 +/- 50 K. A peer-reviewed spectroscopic paper reports Star X Teff = 5350 +/- 40 K. The paper notes Catalog A used photometric calibration affected by reddening.",
+        "current_state": {"Star X": {"teff_k": 5100}}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "starx_teff_catalog", "subject": "Star X", "predicate": "star.teff_k", "value": 5100, "unit": "K", "tolerance": 1, "qualifier": "catalog_a", "status": "accepted"},
+          {"claim_id": "starx_teff_paper", "subject": "Star X", "predicate": "star.teff_k", "value": 5350, "unit": "K", "tolerance": 1, "qualifier": "spectroscopic_paper", "status": "accepted"}
+        ],
+        "anomalies": [{"anomaly_type": "source_conflict", "severity": "medium", "subject": "Star X", "summary_contains": "Teff"}]
+      }
+    },
+    {
+      "case_id": "schema_gap_logg_density",
+      "title": "Useful stellar fields can be schema gaps",
+      "roles": ["extract", "adjudicate"],
+      "source_refs": [{"citation_id": "synthetic:schema_gap", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Classify useful unsupported fields as schema gaps rather than dropping them.",
+        "source_excerpt": "The paper reports Star Y log g = 4.52 dex and density = 1.18 solar densities. The current hot-path overlay allowlist lacks density_solar.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "stary_logg", "subject": "Star Y", "predicate": "star.logg_cgs", "value": 4.52, "unit": "dex", "tolerance": 0.01, "qualifier": "reported", "status": "accepted"},
+          {"claim_id": "stary_density", "subject": "Star Y", "predicate": "star.density_solar", "value": 1.18, "unit": "solar", "tolerance": 0.01, "qualifier": "schema_gap", "status": "deferred"}
+        ],
+        "anomalies": [{"anomaly_type": "schema_gap", "severity": "low", "subject": "Star Y", "summary_contains": "density"}]
+      }
+    },
+    {
+      "case_id": "candidate_vs_confirmed_planet",
+      "title": "Planet candidate must not become confirmed planet",
+      "roles": ["extract", "criticize", "adjudicate"],
+      "source_refs": [{"citation_id": "synthetic:candidate_status", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Preserve candidate status.",
+        "source_excerpt": "TESS Object Z.01 is a planet candidate with two observed transits. Follow-up imaging rules out nearby eclipsing binaries, but radial-velocity confirmation has not yet been obtained.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "objectz_status", "subject": "TESS Object Z.01", "predicate": "planet.lifecycle_status", "value": "candidate", "unit": null, "qualifier": "not_confirmed", "status": "accepted"}
+        ],
+        "anomalies": [{"anomaly_type": "needs_human_review", "severity": "medium", "subject": "TESS Object Z.01", "summary_contains": "candidate"}]
+      }
+    },
+    {
+      "case_id": "non_detection_no_planet_claim",
+      "title": "Non-detection should not become object inventory",
+      "roles": ["prune", "criticize"],
+      "source_refs": [{"citation_id": "synthetic:non_detection", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Extract the non-detection constraint without inventing a planet.",
+        "source_excerpt": "No additional transiting planets are detected around Host Q in the 0.5 to 7.7 day period range for radii larger than 0.8 Earth radii.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "hostq_non_detection", "subject": "Host Q", "predicate": "system.non_detection_constraint", "value": "no additional transiting planets", "unit": null, "qualifier": "0.5_to_7.7_days_radius_gt_0.8_rearth", "status": "accepted"}
+        ],
+        "anomalies": []
+      }
+    },
+    {
+      "case_id": "roche_plausibility_failure",
+      "title": "Derived plausibility failure should become anomaly",
+      "roles": ["adjudicate", "criticize"],
+      "source_refs": [{"citation_id": "synthetic:roche_failure", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Flag physically implausible orbital parameters rather than accepting silently.",
+        "source_excerpt": "A claimed rocky planet with radius 1.2 Earth radii orbits a 1.0 solar-mass star every 0.04 days on a circular orbit.",
+        "current_state": {}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "roche_period", "subject": "synthetic ultra-short planet", "predicate": "planet.orbital_period_days", "value": 0.04, "unit": "days", "tolerance": 0.001, "qualifier": "reported", "status": "deferred"}
+        ],
+        "anomalies": [{"anomaly_type": "derived_plausibility_failure", "severity": "high", "subject": "synthetic ultra-short planet", "summary_contains": "period"}]
+      }
+    },
+    {
+      "case_id": "large_context_cross_source_synthesis",
+      "title": "Controlled dossier cross-source synthesis",
+      "roles": ["compile", "discover", "criticize"],
+      "source_refs": [{"citation_id": "synthetic:large_context_001", "domain": "synthetic", "trust_tier": "test"}],
+      "input": {
+        "task": "Find the contradiction across dossier snippets and create a quarantined anomaly.",
+        "source_excerpt": "Snippet A: System R has a planet candidate R b with period 18.2 days. Snippet B: A later peer-reviewed follow-up finds the 18.2 day signal is stellar rotation and reports no confirmed planet. Snippet C: A public catalog still lists R b as confirmed.",
+        "current_state": {"System R b": {"lifecycle_status": "confirmed"}}
+      },
+      "expected": {
+        "claims": [
+          {"claim_id": "systemr_signal_reclassified", "subject": "System R b", "predicate": "planet.lifecycle_status", "value": "not_confirmed", "unit": null, "qualifier": "later_followup", "status": "deferred"}
+        ],
+        "anomalies": [{"anomaly_type": "stale_consensus", "severity": "high", "subject": "System R b", "summary_contains": "confirmed"}]
+      }
+    }
+  ]
+}
