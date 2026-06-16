@@ -299,10 +299,12 @@ def request_openai_chat(
     request_payload: dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "temperature": temperature,
         "response_format": {"type": "json_object"},
     }
-    if base_url == normalize_base_url(DEFAULT_OPENAI_BASE_URL):
+    is_openai_frontier = base_url == normalize_base_url(DEFAULT_OPENAI_BASE_URL)
+    if not is_openai_frontier:
+        request_payload["temperature"] = temperature
+    if is_openai_frontier:
         request_payload["max_completion_tokens"] = max_tokens
     else:
         request_payload["max_tokens"] = max_tokens

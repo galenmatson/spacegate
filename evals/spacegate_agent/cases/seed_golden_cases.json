@@ -31,7 +31,7 @@
       "roles": ["extract", "criticize", "adjudicate"],
       "source_refs": [{"citation_id": "arxiv:2603.00385", "domain": "arxiv.org", "trust_tier": "tier1"}],
       "input": {
-        "task": "Extract the planetary mass claim and classify whether it is a measurement or an upper limit.",
+        "task": "Extract the planetary mass, radius, and equilibrium-temperature claims. Classify whether the mass is a measurement or an upper limit.",
         "source_excerpt": "The radial-velocity analysis finds no significant Keplerian signal at the transit period. We therefore report a 3-sigma upper limit of 10.7 Earth masses for TOI-1080 b. The planet radius is 1.09 Earth radii and the equilibrium temperature is 333 K.",
         "current_state": {}
       },
