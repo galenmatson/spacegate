@@ -100,8 +100,10 @@ def write_partitioned_csv(
     buckets: int,
     out_path: Path,
     timeout_s: int,
+    count_timeout_s: int,
     retries: int,
     max_rec: int,
+    bucket_count_check: bool,
     delta_mode: str,
     delta_max_age_hours: float,
 ) -> tuple[int, dict[str, int]]:
@@ -237,11 +239,30 @@ def write_partitioned_csv(
                 writer.writerow(row)
                 bucket_rows += 1
         if bucket_rows >= max_rec:
+            tmp_part_path.unlink(missing_ok=True)
             raise RuntimeError(
                 "gaia_dr3_classprob: bucket reached MAXREC guard "
                 f"(bucket={bucket + 1}/{buckets}, rows={bucket_rows:,}, max_rec={max_rec:,}). "
                 "Increase --max-rec and/or --buckets to avoid truncation."
             )
+        if bucket_count_check:
+            bucket_count_query = (
+                "select count(*) as row_count "
+                "from gaiadr3.astrophysical_parameters ap "
+                "join gaiadr3.gaia_source gs on gs.source_id = ap.source_id "
+                f"where gs.parallax >= {min_parallax} "
+                f"and mod(gs.source_id, {buckets}) = {bucket}"
+            )
+            expected_bucket_rows = tap_query_count(
+                bucket_count_query, timeout_s=count_timeout_s, retries=retries
+            )
+            if bucket_rows != expected_bucket_rows:
+                tmp_part_path.unlink(missing_ok=True)
+                raise RuntimeError(
+                    "gaia_dr3_classprob: bucket completeness check failed "
+                    f"(bucket={bucket + 1}/{buckets}, expected_rows={expected_bucket_rows:,}, "
+                    f"actual_rows={bucket_rows:,}). This suggests partial/truncated retrieval."
+                )
         tmp_part_path.replace(part_path)
         log(f"gaia_dr3_classprob: bucket {bucket + 1}/{buckets} rows={bucket_rows:,}")
 
@@ -388,8 +409,10 @@ def main() -> int:
         buckets=args.buckets,
         out_path=out_path,
         timeout_s=args.timeout_s,
+        count_timeout_s=args.count_timeout_s,
         retries=args.retries,
         max_rec=args.max_rec,
+        bucket_count_check=not args.skip_count_check,
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )

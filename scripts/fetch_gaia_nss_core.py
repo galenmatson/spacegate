@@ -100,8 +100,10 @@ def write_partitioned_csv(
     buckets: int,
     out_path: Path,
     timeout_s: int,
+    count_timeout_s: int,
     retries: int,
     max_rec: int,
+    bucket_count_check: bool,
     delta_mode: str,
     delta_max_age_hours: float,
 ) -> tuple[int, dict[str, int]]:
@@ -218,6 +220,28 @@ def write_partitioned_csv(
             for row in reader:
                 writer.writerow(row)
                 bucket_rows += 1
+        if bucket_rows >= max_rec:
+            tmp_part_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"{label}: bucket reached MAXREC guard "
+                f"(bucket={bucket + 1}/{buckets}, rows={bucket_rows:,}, max_rec={max_rec:,}). "
+                "Increase --max-rec and/or --buckets to avoid truncation."
+            )
+        if bucket_count_check:
+            bucket_count_query = (
+                f"select count(*) as row_count from {table_name} "
+                f"where {where_clause} and mod(source_id, {buckets}) = {bucket}"
+            )
+            expected_bucket_rows = tap_query_count(
+                bucket_count_query, timeout_s=count_timeout_s, retries=retries
+            )
+            if bucket_rows != expected_bucket_rows:
+                tmp_part_path.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"{label}: bucket completeness check failed "
+                    f"(bucket={bucket + 1}/{buckets}, expected_rows={expected_bucket_rows:,}, "
+                    f"actual_rows={bucket_rows:,}). This suggests partial/truncated retrieval."
+                )
         tmp_part_path.replace(part_path)
         log(f"{label}: bucket {bucket + 1}/{buckets} rows={bucket_rows:,}")
 
@@ -410,8 +434,10 @@ def main() -> int:
         buckets=args.buckets,
         out_path=non_single_path,
         timeout_s=args.timeout_s,
+        count_timeout_s=args.count_timeout_s,
         retries=args.retries,
         max_rec=args.max_rec,
+        bucket_count_check=not args.skip_count_check,
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
@@ -423,8 +449,10 @@ def main() -> int:
         buckets=args.buckets,
         out_path=two_body_path,
         timeout_s=args.timeout_s,
+        count_timeout_s=args.count_timeout_s,
         retries=args.retries,
         max_rec=args.max_rec,
+        bucket_count_check=not args.skip_count_check,
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
