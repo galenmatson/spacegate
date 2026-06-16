@@ -69,7 +69,7 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     "$@"
   echo "Gaia differential mode: backbone=${GAIA_BACKBONE_DELTA_MODE}@${GAIA_BACKBONE_DELTA_MAX_AGE_HOURS}h classprob=${GAIA_CLASSPROB_DELTA_MODE}@${GAIA_CLASSPROB_DELTA_MAX_AGE_HOURS}h nss=${GAIA_NSS_DELTA_MODE}@${GAIA_NSS_DELTA_MAX_AGE_HOURS}h sbx=${SBX_DELTA_MODE}@${SBX_DELTA_MAX_AGE_HOURS}h"
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_backbone.py" \
-    --buckets "${SPACEGATE_GAIA_BACKBONE_BUCKETS:-211}" \
+    --buckets "${SPACEGATE_GAIA_BACKBONE_BUCKETS:-4001}" \
     --min-parallax-mas "${SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_BACKBONE_TIMEOUT_S:-240}" \
     --retries "${SPACEGATE_GAIA_BACKBONE_RETRIES:-4}" \
@@ -79,7 +79,7 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     --delta-max-age-hours "${GAIA_BACKBONE_DELTA_MAX_AGE_HOURS}"
   if [[ "${SPACEGATE_ENABLE_GAIA_CLASSPROB:-1}" != "0" ]]; then
     "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_classprob_core.py" \
-      --buckets "${SPACEGATE_GAIA_CLASSPROB_BUCKETS:-211}" \
+      --buckets "${SPACEGATE_GAIA_CLASSPROB_BUCKETS:-1009}" \
       --min-parallax-mas "${SPACEGATE_GAIA_CLASSPROB_MIN_PARALLAX_MAS:-3.26156}" \
       --timeout-s "${SPACEGATE_GAIA_CLASSPROB_TIMEOUT_S:-360}" \
       --retries "${SPACEGATE_GAIA_CLASSPROB_RETRIES:-6}" \

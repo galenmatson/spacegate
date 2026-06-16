@@ -380,6 +380,8 @@ def main() -> int:
 
     if args.buckets < 1:
         raise SystemExit("--buckets must be >= 1")
+    if args.buckets % 2 == 0:
+        raise SystemExit("--buckets must be odd for Gaia source_id modulo partitioning")
     if args.min_parallax_mas <= 0:
         raise SystemExit("--min-parallax-mas must be > 0")
     if args.max_rec < 1:
