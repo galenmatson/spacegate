@@ -291,7 +291,7 @@ def request_json(
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")[:1200]
         raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise RuntimeError(f"request failed: {exc}") from exc
 
 
@@ -359,7 +359,7 @@ def request_google_generate_content(
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")[:1200]
         raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise RuntimeError(f"request failed: {exc}") from exc
 
     candidates = payload.get("candidates")
@@ -955,6 +955,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         raise SystemExit("No cases selected.")
     provider, model, base_url, api_key = resolve_provider_config(args)
     results = []
+    consecutive_errors = 0
+    aborted_reason = None
     for ref in selected:
         print(f"Running {ref.case['case_id']} via {provider}:{model}...", file=sys.stderr)
         result = run_case(
@@ -971,6 +973,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         results.append(result)
         print(f"  score={result['score']['score']:.4f}", file=sys.stderr)
+        if result.get("error"):
+            consecutive_errors += 1
+        else:
+            consecutive_errors = 0
+        if args.fail_fast_errors and consecutive_errors >= args.fail_fast_errors:
+            aborted_reason = (
+                f"aborted after {consecutive_errors} consecutive provider errors; "
+                f"last case={result['case_id']}"
+            )
+            print(f"  {aborted_reason}", file=sys.stderr)
+            break
     run_payload = {
         "run_id": sha256_text(f"{utc_now()}:{provider}:{model}:{len(results)}")[:16],
         "created_at": utc_now(),
@@ -980,13 +993,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         "prompt_version": PROMPT_VERSION,
         "harness_version": HARNESS_VERSION,
         "oracle": args.oracle,
+        "aborted_reason": aborted_reason,
         "summary": summarize(results),
         "results": results,
     }
     json_path, md_path = write_reports(args.report_dir, run_payload)
     print(f"Wrote {json_path}")
     print(f"Wrote {md_path}")
-    return 0
+    return 2 if aborted_reason else 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1021,6 +1035,12 @@ def build_parser() -> argparse.ArgumentParser:
     default_max_tokens = os.getenv("SPACEGATE_FRONTIER_MAX_TOKENS") or os.getenv("SPACEGATE_LLM_MAX_TOKENS", "3000")
     run_parser.add_argument("--max-tokens", type=int, default=int(default_max_tokens))
     run_parser.add_argument("--timeout", type=int, default=int(os.getenv("SPACEGATE_LLM_TIMEOUT_S", "120")))
+    run_parser.add_argument(
+        "--fail-fast-errors",
+        type=int,
+        default=int(os.getenv("SPACEGATE_EVAL_FAIL_FAST_ERRORS", "3")),
+        help="Abort after this many consecutive provider errors. Use 0 to disable.",
+    )
     run_parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
     run_parser.add_argument(
         "--oracle",
