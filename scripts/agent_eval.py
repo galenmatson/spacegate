@@ -417,6 +417,50 @@ def extract_message_content(response: dict[str, Any]) -> str:
     return content if isinstance(content, str) else ""
 
 
+def provider_usage(provider: str, response: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(response, dict):
+        return {}
+    if provider in {"local", "openai"}:
+        usage = response.get("usage", {})
+        return usage if isinstance(usage, dict) else {}
+    if provider == "google":
+        usage = response.get("usageMetadata", {})
+        if not isinstance(usage, dict):
+            return {}
+        normalized = {
+            "prompt_tokens": usage.get("promptTokenCount"),
+            "completion_tokens": usage.get("candidatesTokenCount"),
+            "thinking_tokens": usage.get("thoughtsTokenCount"),
+            "total_tokens": usage.get("totalTokenCount"),
+        }
+        return {key: value for key, value in normalized.items() if value is not None}
+    return {}
+
+
+def provider_finish_metadata(provider: str, response: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(response, dict):
+        return {}
+    if provider in {"local", "openai"}:
+        choices = response.get("choices")
+        if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+            finish_reason = choices[0].get("finish_reason")
+            return {"finish_reason": finish_reason} if finish_reason is not None else {}
+    if provider == "google":
+        metadata: dict[str, Any] = {}
+        candidates = response.get("candidates")
+        if isinstance(candidates, list) and candidates and isinstance(candidates[0], dict):
+            candidate = candidates[0]
+            if candidate.get("finishReason") is not None:
+                metadata["finish_reason"] = candidate.get("finishReason")
+            if candidate.get("safetyRatings") is not None:
+                metadata["safety_ratings"] = candidate.get("safetyRatings")
+        prompt_feedback = response.get("promptFeedback")
+        if isinstance(prompt_feedback, dict) and prompt_feedback.get("blockReason") is not None:
+            metadata["prompt_block_reason"] = prompt_feedback.get("blockReason")
+        return metadata
+    return {}
+
+
 def parse_model_json(content: str) -> tuple[dict[str, Any] | None, str | None]:
     stripped = content.strip()
     if not stripped:
@@ -687,7 +731,8 @@ def run_case(
             error = str(exc)
     elapsed_s = time.monotonic() - started
     score = score_output(case, parsed_output, parse_error)
-    usage = raw_response.get("usage", {}) if isinstance(raw_response, dict) else {}
+    usage = provider_usage(provider, raw_response)
+    finish_metadata = provider_finish_metadata(provider, raw_response)
     result = {
         "case_id": case["case_id"],
         "title": case["title"],
@@ -705,6 +750,7 @@ def run_case(
         "max_tokens": max_tokens,
         "elapsed_s": round(elapsed_s, 3),
         "usage": usage,
+        "finish_metadata": finish_metadata,
         "case_hash": sha256_text(canonical_json(case)),
         "request_hash": sha256_text(canonical_json(request_payload)),
         "output_hash": sha256_text(canonical_json(parsed_output) if parsed_output is not None else content),
@@ -899,7 +945,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional KEY=value environment file. Defaults to /etc/spacegate/spacegate.env when present.",
     )
     run_parser.add_argument("--temperature", type=float, default=float(os.getenv("SPACEGATE_LLM_TEMPERATURE", "0.0")))
-    run_parser.add_argument("--max-tokens", type=int, default=int(os.getenv("SPACEGATE_LLM_MAX_TOKENS", "2000")))
+    default_max_tokens = os.getenv("SPACEGATE_FRONTIER_MAX_TOKENS") or os.getenv("SPACEGATE_LLM_MAX_TOKENS", "3000")
+    run_parser.add_argument("--max-tokens", type=int, default=int(default_max_tokens))
     run_parser.add_argument("--timeout", type=int, default=int(os.getenv("SPACEGATE_LLM_TIMEOUT_S", "120")))
     run_parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
     run_parser.add_argument(
