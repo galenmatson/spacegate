@@ -104,13 +104,65 @@ scripts/agent_eval.py run --oracle
 Run against the current Photon vLLM endpoint:
 
 ```bash
-SPACEGATE_LLM_BASE_URL=http://127.0.0.1:8000/v1 \
-SPACEGATE_LLM_MODEL=gemma-4-31b-it-qat-w4a16-ct \
-scripts/agent_eval.py run --role extract
+scripts/agent_eval.py run \
+  --provider local \
+  --model gemma-4-31b-it-qat-w4a16-ct \
+  --role extract
 ```
+
+Run against the configured default frontier provider:
+
+```bash
+scripts/agent_eval.py run --provider frontier --case-id toi_1080_upper_limit
+```
+
+Run against OpenAI explicitly:
+
+```bash
+scripts/agent_eval.py run \
+  --provider openai \
+  --model "$SPACEGATE_FRONTIER_OPENAI_MODEL" \
+  --case-id toi_1080_upper_limit
+```
+
+Run against Google Gemini explicitly:
+
+```bash
+scripts/agent_eval.py run \
+  --provider google \
+  --model "$SPACEGATE_FRONTIER_GOOGLE_MODEL" \
+  --case-id toi_1080_upper_limit
+```
+
+When `/etc/spacegate/spacegate.env` exists, the harness loads it by default for
+missing environment variables. Use `--env-file /path/to/file` to override that
+behavior. API keys are used only for authentication and are not written to eval
+reports.
 
 Reports are written under `reports/agent_eval/`, which is treated as
 regenerable report state.
+
+## Frontier Secret File
+
+Photon frontier credentials should live outside git:
+
+```bash
+/etc/spacegate/spacegate.env
+```
+
+Expected keys:
+
+```bash
+OPENAI_API_KEY=...
+GOOGLE_API_KEY=...
+SPACEGATE_FRONTIER_OPENAI_MODEL=gpt-5.5
+SPACEGATE_FRONTIER_GOOGLE_MODEL=gemini-pro-latest
+SPACEGATE_FRONTIER_DEFAULT_PROVIDER=openai
+```
+
+Recommended ownership is `root:spacegate` with `0640` permissions. The account
+or systemd service that runs the agent pipeline should be in the `spacegate`
+group, or the service should use `Group=spacegate`.
 
 ## Scoring
 

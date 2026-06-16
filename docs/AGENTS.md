@@ -169,6 +169,11 @@ Environment variables:
 - `SPACEGATE_REVIEWER_MAX_TOKENS` (default: `700`)
 - `SPACEGATE_FRONTIER_MAX_INPUT_CHARS` (default: `128000`, unless overridden in the runtime environment)
 - `SPACEGATE_FRONTIER_MAX_TOKENS` (default: `3000`)
+- `SPACEGATE_FRONTIER_DEFAULT_PROVIDER` (`openai|google`)
+- `SPACEGATE_FRONTIER_OPENAI_MODEL` (frontier OpenAI default model)
+- `SPACEGATE_FRONTIER_GOOGLE_MODEL` (frontier Google default model)
+- `SPACEGATE_OPENAI_API_KEY` or `OPENAI_API_KEY`
+- `SPACEGATE_GOOGLE_API_KEY` or `GOOGLE_API_KEY`
 - `SPACEGATE_LLM_API_KEY` (optional, only if your endpoint requires auth)
 - `SPACEGATE_INFERENCE_VERBOSE` (`1` to emit pass-level extractor progress to stderr for API-side inference calls)
 - `SPACEGATE_GROBID_URL` (optional scholarly-PDF preprocessing endpoint, for example `http://10.0.0.10:8070`)

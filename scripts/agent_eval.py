@@ -28,6 +28,9 @@ DEFAULT_CASES_DIR = ROOT / "evals" / "spacegate_agent" / "cases"
 DEFAULT_REPORT_DIR = ROOT / "reports" / "agent_eval"
 DEFAULT_BASE_URL = "http://127.0.0.1:8000/v1"
 DEFAULT_MODEL = "local-70b"
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_GOOGLE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+DEFAULT_ENV_FILE = Path("/etc/spacegate/spacegate.env")
 PROMPT_VERSION = "agent_eval_v1"
 HARNESS_VERSION = "agent_eval.py:2026-06-15"
 ANOMALY_TYPES = {
@@ -72,6 +75,35 @@ def normalize_base_url(url: str) -> str:
     if not value.endswith("/v1"):
         value = f"{value}/v1"
     return value
+
+
+def load_env_file(path: Path, *, required: bool) -> None:
+    if not path.exists():
+        if required:
+            raise SystemExit(f"required env file does not exist: {path}")
+        return
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except PermissionError as exc:
+        if required:
+            raise SystemExit(f"cannot read required env file {path}: {exc}") from exc
+        return
+    for line_no, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export "):
+            stripped = stripped.removeprefix("export ").strip()
+        if "=" not in stripped:
+            raise SystemExit(f"{path}:{line_no} expected KEY=value")
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            raise SystemExit(f"{path}:{line_no} empty environment key")
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
 
 
 def load_case_refs(cases_dir: Path) -> list[CaseRef]:
@@ -246,6 +278,118 @@ def request_json(
         raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
         raise RuntimeError(f"request failed: {exc}") from exc
+
+
+def request_openai_chat(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout_s: int,
+) -> tuple[dict[str, Any], str, dict[str, Any]]:
+    request_payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "response_format": {"type": "json_object"},
+    }
+    response = request_json(base_url, api_key, request_payload, timeout_s)
+    return response, extract_message_content(response), request_payload
+
+
+def request_google_generate_content(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout_s: int,
+) -> tuple[dict[str, Any], str, dict[str, Any]]:
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY or SPACEGATE_GOOGLE_API_KEY is required for provider=google")
+    if len(messages) != 2:
+        raise RuntimeError("Gemini request builder expects one system and one user message")
+    system_text = messages[0]["content"]
+    user_text = messages[1]["content"]
+    request_payload: dict[str, Any] = {
+        "systemInstruction": {"parts": [{"text": system_text}]},
+        "contents": [{"role": "user", "parts": [{"text": user_text}]}],
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_tokens,
+            "responseMimeType": "application/json",
+        },
+    }
+    data = json.dumps(request_payload).encode("utf-8")
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/models/{model}:generateContent",
+        data=data,
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:1200]
+        raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError(f"request failed: {exc}") from exc
+
+    candidates = payload.get("candidates")
+    content = ""
+    if isinstance(candidates, list) and candidates:
+        first = candidates[0] if isinstance(candidates[0], dict) else {}
+        candidate_content = first.get("content") if isinstance(first, dict) else {}
+        parts = candidate_content.get("parts") if isinstance(candidate_content, dict) else []
+        if isinstance(parts, list):
+            content = "".join(str(part.get("text", "")) for part in parts if isinstance(part, dict))
+    return payload, content, request_payload
+
+
+def resolve_provider_config(args: argparse.Namespace) -> tuple[str, str, str, str]:
+    provider = args.provider
+    if provider == "frontier":
+        provider = os.getenv("SPACEGATE_FRONTIER_DEFAULT_PROVIDER", "openai").strip().lower() or "openai"
+    if provider not in {"local", "openai", "google"}:
+        raise SystemExit(f"Unsupported provider: {provider}")
+
+    if args.model:
+        model = args.model
+    elif provider == "openai":
+        model = os.getenv("SPACEGATE_FRONTIER_OPENAI_MODEL", DEFAULT_MODEL)
+    elif provider == "google":
+        model = os.getenv("SPACEGATE_FRONTIER_GOOGLE_MODEL", DEFAULT_MODEL)
+    else:
+        model = os.getenv("SPACEGATE_LLM_MODEL", DEFAULT_MODEL)
+
+    if args.base_url:
+        base_url = args.base_url
+    elif provider == "openai":
+        base_url = os.getenv("SPACEGATE_OPENAI_BASE_URL", DEFAULT_OPENAI_BASE_URL)
+    elif provider == "google":
+        base_url = os.getenv("SPACEGATE_GOOGLE_BASE_URL", DEFAULT_GOOGLE_BASE_URL)
+    else:
+        base_url = os.getenv("SPACEGATE_LLM_BASE_URL", DEFAULT_BASE_URL)
+
+    if provider in {"local", "openai"}:
+        base_url = normalize_base_url(base_url)
+    else:
+        base_url = base_url.rstrip("/")
+
+    if provider == "openai":
+        api_key = os.getenv("SPACEGATE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+    elif provider == "google":
+        api_key = os.getenv("SPACEGATE_GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY", "")
+    else:
+        api_key = os.getenv("SPACEGATE_LLM_API_KEY", "")
+    return provider, model, base_url, api_key
 
 
 def extract_message_content(response: dict[str, Any]) -> str:
@@ -473,6 +617,7 @@ def expected_as_oracle(case: dict[str, Any]) -> dict[str, Any]:
 def run_case(
     ref: CaseRef,
     *,
+    provider: str,
     model: str,
     base_url: str,
     api_key: str,
@@ -499,8 +644,28 @@ def run_case(
         parse_error = None
     else:
         try:
-            raw_response = request_json(base_url, api_key, request_payload, timeout_s)
-            content = extract_message_content(raw_response)
+            if provider in {"local", "openai"}:
+                raw_response, content, request_payload = request_openai_chat(
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    timeout_s=timeout_s,
+                )
+            elif provider == "google":
+                raw_response, content, request_payload = request_google_generate_content(
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    timeout_s=timeout_s,
+                )
+            else:
+                raise RuntimeError(f"unsupported provider {provider}")
             parsed_output, parse_error = parse_model_json(content)
         except RuntimeError as exc:
             parsed_output = None
@@ -517,6 +682,7 @@ def run_case(
         "case_path": str(ref.path.relative_to(ROOT)),
         "roles": case.get("roles", []),
         "role_under_test": role,
+        "provider": provider,
         "model_id": model,
         "base_url": base_url,
         "prompt_version": PROMPT_VERSION,
@@ -581,6 +747,7 @@ def write_reports(report_dir: Path, run_payload: dict[str, Any]) -> tuple[Path, 
         "",
         f"- Run ID: `{run_payload['run_id']}`",
         f"- Created: `{run_payload['created_at']}`",
+        f"- Provider: `{run_payload['provider']}`",
         f"- Model: `{run_payload['model_id']}`",
         f"- Base URL: `{run_payload['base_url']}`",
         f"- Cases: `{run_payload['summary']['case_count']}`",
@@ -641,18 +808,21 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
+    if args.env_file:
+        env_required = args.provider in {"openai", "google", "frontier"} and not args.oracle
+        load_env_file(args.env_file, required=env_required)
     refs = load_case_refs(args.cases_dir)
     selected = select_cases(refs, set(args.case_id or []), set(args.role or []))
     if not selected:
         raise SystemExit("No cases selected.")
-    base_url = normalize_base_url(args.base_url)
-    api_key = os.getenv("SPACEGATE_LLM_API_KEY", "").strip()
+    provider, model, base_url, api_key = resolve_provider_config(args)
     results = []
     for ref in selected:
-        print(f"Running {ref.case['case_id']}...", file=sys.stderr)
+        print(f"Running {ref.case['case_id']} via {provider}:{model}...", file=sys.stderr)
         result = run_case(
             ref,
-            model=args.model,
+            provider=provider,
+            model=model,
             base_url=base_url,
             api_key=api_key,
             role=",".join(args.role) if args.role else None,
@@ -664,9 +834,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         results.append(result)
         print(f"  score={result['score']['score']:.4f}", file=sys.stderr)
     run_payload = {
-        "run_id": sha256_text(f"{utc_now()}:{args.model}:{len(results)}")[:16],
+        "run_id": sha256_text(f"{utc_now()}:{provider}:{model}:{len(results)}")[:16],
         "created_at": utc_now(),
-        "model_id": args.model,
+        "provider": provider,
+        "model_id": model,
         "base_url": base_url,
         "prompt_version": PROMPT_VERSION,
         "harness_version": HARNESS_VERSION,
@@ -694,8 +865,20 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser("run", help="Run selected cases.")
     run_parser.add_argument("--case-id", action="append", help="Case id to run. May be repeated.")
     run_parser.add_argument("--role", action="append", help="Run cases matching role. May be repeated.")
-    run_parser.add_argument("--model", default=os.getenv("SPACEGATE_LLM_MODEL", DEFAULT_MODEL))
-    run_parser.add_argument("--base-url", default=os.getenv("SPACEGATE_LLM_BASE_URL", DEFAULT_BASE_URL))
+    run_parser.add_argument(
+        "--provider",
+        choices=["local", "openai", "google", "frontier"],
+        default="local",
+        help="Inference provider. frontier uses SPACEGATE_FRONTIER_DEFAULT_PROVIDER.",
+    )
+    run_parser.add_argument("--model", default=None, help="Override provider default model.")
+    run_parser.add_argument("--base-url", default=None, help="Override provider default base URL.")
+    run_parser.add_argument(
+        "--env-file",
+        type=Path,
+        default=DEFAULT_ENV_FILE if DEFAULT_ENV_FILE.exists() else None,
+        help="Optional KEY=value environment file. Defaults to /etc/spacegate/spacegate.env when present.",
+    )
     run_parser.add_argument("--temperature", type=float, default=float(os.getenv("SPACEGATE_LLM_TEMPERATURE", "0.0")))
     run_parser.add_argument("--max-tokens", type=int, default=int(os.getenv("SPACEGATE_LLM_MAX_TOKENS", "2000")))
     run_parser.add_argument("--timeout", type=int, default=int(os.getenv("SPACEGATE_LLM_TIMEOUT_S", "120")))
