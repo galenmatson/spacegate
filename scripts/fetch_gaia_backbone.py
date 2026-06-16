@@ -10,6 +10,7 @@ import tempfile
 import time
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import StringIO
 from pathlib import Path
 
@@ -103,6 +104,7 @@ def write_partitioned_csv(
     retries: int,
     max_rec: int,
     bucket_count_check: bool,
+    workers: int,
     delta_mode: str,
     delta_max_age_hours: float,
 ) -> tuple[int, dict[str, int]]:
@@ -134,6 +136,77 @@ def write_partitioned_csv(
             next(reader, None)
             return sum(1 for _ in reader)
 
+    def fetch_bucket(bucket: int, *, refresh_reason: str) -> tuple[int, list[str], int, bool]:
+        part_path = parts_dir / f"bucket_{bucket:04d}.csv"
+        empty_marker_path = parts_dir / f"bucket_{bucket:04d}.empty"
+        if part_path.exists():
+            part_path.unlink()
+        if empty_marker_path.exists():
+            empty_marker_path.unlink()
+        if refresh_reason != "missing":
+            log(
+                f"gaia_dr3_backbone: bucket {bucket + 1}/{buckets} refreshing ({refresh_reason})"
+            )
+
+        adql = (
+            f"select {select_fields} from gaiadr3.gaia_source "
+            f"where {where_clause} and mod(source_id, {buckets}) = {bucket} "
+        )
+        text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries, max_rec=max_rec)
+        reader = csv.DictReader(StringIO(text))
+        fieldnames = list(reader.fieldnames or [])
+        if not fieldnames:
+            log(f"gaia_dr3_backbone: bucket {bucket + 1}/{buckets} returned no header/rows")
+            empty_marker_path.write_text(
+                f"bucket={bucket} empty=true checked_at={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n",
+                encoding="utf-8",
+            )
+            return bucket, [], 0, True
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            newline="",
+            encoding="utf-8",
+            delete=False,
+            dir=str(parts_dir),
+            prefix=part_path.name + ".tmp.",
+        ) as tmp_part:
+            tmp_part_path = Path(tmp_part.name)
+            writer = csv.DictWriter(tmp_part, fieldnames=fieldnames)
+            writer.writeheader()
+            bucket_rows = 0
+            for row in reader:
+                writer.writerow(row)
+                bucket_rows += 1
+        if bucket_rows >= max_rec:
+            tmp_part_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                "gaia_dr3_backbone: bucket reached MAXREC guard "
+                f"(bucket={bucket + 1}/{buckets}, rows={bucket_rows:,}, max_rec={max_rec:,}). "
+                "Increase --max-rec and/or --buckets to avoid truncation."
+            )
+        if bucket_count_check:
+            bucket_count_query = (
+                "select count(*) as row_count from gaiadr3.gaia_source "
+                f"where {where_clause} and mod(source_id, {buckets}) = {bucket}"
+            )
+            expected_bucket_rows = tap_query_count(
+                bucket_count_query, timeout_s=count_timeout_s, retries=retries
+            )
+            if bucket_rows != expected_bucket_rows:
+                tmp_part_path.unlink(missing_ok=True)
+                raise RuntimeError(
+                    "gaia_dr3_backbone: bucket completeness check failed "
+                    f"(bucket={bucket + 1}/{buckets}, expected_rows={expected_bucket_rows:,}, "
+                    f"actual_rows={bucket_rows:,}). This suggests partial/truncated retrieval."
+                )
+        tmp_part_path.replace(part_path)
+        log(
+            f"gaia_dr3_backbone: bucket {bucket + 1}/{buckets} rows={bucket_rows:,}"
+        )
+        return bucket, fieldnames, bucket_rows, False
+
+    buckets_to_fetch: list[tuple[int, str]] = []
     for bucket in range(buckets):
         part_path = parts_dir / f"bucket_{bucket:04d}.csv"
         empty_marker_path = parts_dir / f"bucket_{bucket:04d}.empty"
@@ -177,80 +250,29 @@ def write_partitioned_csv(
             bucket_stats["buckets_reused"] += 1
             continue
 
-        if part_path.exists():
-            part_path.unlink()
-        if empty_marker_path.exists():
-            empty_marker_path.unlink()
         if refresh_reason != "missing":
             bucket_stats["buckets_refreshed"] += 1
-            log(
-                f"gaia_dr3_backbone: bucket {bucket + 1}/{buckets} refreshing ({refresh_reason})"
-            )
+        buckets_to_fetch.append((bucket, refresh_reason))
 
-        adql = (
-            f"select {select_fields} from gaiadr3.gaia_source "
-            f"where {where_clause} and mod(source_id, {buckets}) = {bucket} "
-        )
-        text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries, max_rec=max_rec)
-        bucket_stats["buckets_fetched"] += 1
-        reader = csv.DictReader(StringIO(text))
-        fieldnames = list(reader.fieldnames or [])
-        if not fieldnames:
-            log(f"gaia_dr3_backbone: bucket {bucket + 1}/{buckets} returned no header/rows")
-            empty_marker_path.write_text(
-                f"bucket={bucket} empty=true checked_at={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n",
-                encoding="utf-8",
-            )
-            continue
-        if expected_fields is None:
-            expected_fields = fieldnames
-        elif fieldnames != expected_fields:
-            raise RuntimeError(
-                "gaia_dr3_backbone: schema mismatch in bucket "
-                f"{bucket + 1}: {fieldnames} != {expected_fields}"
-            )
-
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            newline="",
-            encoding="utf-8",
-            delete=False,
-            dir=str(parts_dir),
-            prefix=part_path.name + ".tmp.",
-        ) as tmp_part:
-            tmp_part_path = Path(tmp_part.name)
-            writer = csv.DictWriter(tmp_part, fieldnames=expected_fields)
-            writer.writeheader()
-            bucket_rows = 0
-            for row in reader:
-                writer.writerow(row)
-                bucket_rows += 1
-        if bucket_rows >= max_rec:
-            tmp_part_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "gaia_dr3_backbone: bucket reached MAXREC guard "
-                f"(bucket={bucket + 1}/{buckets}, rows={bucket_rows:,}, max_rec={max_rec:,}). "
-                "Increase --max-rec and/or --buckets to avoid truncation."
-            )
-        if bucket_count_check:
-            bucket_count_query = (
-                "select count(*) as row_count from gaiadr3.gaia_source "
-                f"where {where_clause} and mod(source_id, {buckets}) = {bucket}"
-            )
-            expected_bucket_rows = tap_query_count(
-                bucket_count_query, timeout_s=count_timeout_s, retries=retries
-            )
-            if bucket_rows != expected_bucket_rows:
-                tmp_part_path.unlink(missing_ok=True)
-                raise RuntimeError(
-                    "gaia_dr3_backbone: bucket completeness check failed "
-                    f"(bucket={bucket + 1}/{buckets}, expected_rows={expected_bucket_rows:,}, "
-                    f"actual_rows={bucket_rows:,}). This suggests partial/truncated retrieval."
-                )
-        tmp_part_path.replace(part_path)
-        log(
-            f"gaia_dr3_backbone: bucket {bucket + 1}/{buckets} rows={bucket_rows:,}"
-        )
+    if buckets_to_fetch:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(fetch_bucket, bucket, refresh_reason=refresh_reason)
+                for bucket, refresh_reason in buckets_to_fetch
+            ]
+            for future in as_completed(futures):
+                bucket, fieldnames, _bucket_rows, is_empty = future.result()
+                bucket_stats["buckets_fetched"] += 1
+                if is_empty:
+                    continue
+                if expected_fields is None:
+                    expected_fields = fieldnames
+                elif fieldnames != expected_fields:
+                    executor.shutdown(cancel_futures=True)
+                    raise RuntimeError(
+                        "gaia_dr3_backbone: schema mismatch in bucket "
+                        f"{bucket + 1}: {fieldnames} != {expected_fields}"
+                    )
 
     if expected_fields is None:
         raise RuntimeError("gaia_dr3_backbone: no data returned from Gaia TAP")
@@ -344,6 +366,7 @@ def main() -> int:
     parser.add_argument("--count-timeout-s", type=int, default=DEFAULT_COUNT_TIMEOUT_S)
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
     parser.add_argument("--max-rec", type=int, default=DEFAULT_MAX_REC)
+    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument(
         "--skip-count-check",
         action="store_true",
@@ -369,6 +392,8 @@ def main() -> int:
         raise SystemExit("--min-parallax-mas must be > 0")
     if args.max_rec < 1:
         raise SystemExit("--max-rec must be >= 1")
+    if args.workers < 1:
+        raise SystemExit("--workers must be >= 1")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
         raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
     if args.count_timeout_s < 1:
@@ -437,7 +462,8 @@ def main() -> int:
     log(
         "Gaia backbone fetch start "
         f"(min_parallax_mas={args.min_parallax_mas}, buckets={args.buckets}, timeout_s={args.timeout_s}, "
-        f"max_rec={args.max_rec}, delta_mode={args.delta_mode}, delta_max_age_hours={args.delta_max_age_hours})"
+        f"max_rec={args.max_rec}, workers={args.workers}, delta_mode={args.delta_mode}, "
+        f"delta_max_age_hours={args.delta_max_age_hours})"
     )
     row_count, bucket_stats = write_partitioned_csv(
         select_fields=select_fields,
@@ -449,6 +475,7 @@ def main() -> int:
         retries=args.retries,
         max_rec=args.max_rec,
         bucket_count_check=not args.skip_count_check,
+        workers=args.workers,
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
@@ -486,6 +513,7 @@ def main() -> int:
             "mode": args.delta_mode,
             "max_age_hours": args.delta_max_age_hours,
             "max_rec": args.max_rec,
+            "workers": args.workers,
             **bucket_stats,
         },
     )
