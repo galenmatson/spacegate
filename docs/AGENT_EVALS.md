@@ -182,12 +182,22 @@ Claim checks compare:
 - qualifier
 - status
 
+Expected rows may define `subject_aliases` when a compact fixture has several
+acceptable ways to name the same synthetic or source-described object. Numeric
+checks accept numeric strings with uncertainty text, such as `5350 +/- 40`, when
+the parsed numeric value falls within tolerance. Duplicate same-subject
+predicates are matched by best value/qualifier/status/unit fit instead of by
+first occurrence.
+
 Anomaly checks compare:
 
 - anomaly type
 - severity
 - subject
 - summary containing the expected cue
+
+Expected anomalies may define `anomaly_type_aliases` for fixture-local
+equivalent labels where the pipeline distinction is not under test.
 
 This is not a substitute for human or frontier review. It is a reproducible
 filter for model/prompt/runtime comparison.

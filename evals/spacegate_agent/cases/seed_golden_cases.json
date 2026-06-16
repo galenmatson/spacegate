@@ -299,7 +299,7 @@
           {"claim_id": "starx_teff_catalog", "subject": "Star X", "predicate": "star.teff_k", "value": 5100, "unit": "K", "tolerance": 1, "qualifier": "catalog_a", "status": "accepted"},
           {"claim_id": "starx_teff_paper", "subject": "Star X", "predicate": "star.teff_k", "value": 5350, "unit": "K", "tolerance": 1, "qualifier": "spectroscopic_paper", "status": "accepted"}
         ],
-        "anomalies": [{"anomaly_type": "source_conflict", "severity": "medium", "subject": "Star X", "summary_contains": "Teff"}]
+        "anomalies": [{"anomaly_type": "source_conflict", "anomaly_type_aliases": ["catalog_conflict"], "severity": "medium", "subject": "Star X", "summary_contains": "Teff"}]
       }
     },
     {
@@ -366,9 +366,9 @@
       },
       "expected": {
         "claims": [
-          {"claim_id": "roche_period", "subject": "synthetic ultra-short planet", "predicate": "planet.orbital_period_days", "value": 0.04, "unit": "days", "tolerance": 0.001, "qualifier": "reported", "status": "deferred"}
+          {"claim_id": "roche_period", "subject": "claimed rocky planet", "subject_aliases": ["synthetic ultra-short planet", "planet", "claimed planet", "claimed rocky planet orbiting 1.0 solar-mass star", "claimed planet orbiting 1.0 Msun star"], "predicate": "planet.orbital_period_days", "value": 0.04, "unit": "days", "tolerance": 0.001, "qualifier": "reported", "status": "deferred"}
         ],
-        "anomalies": [{"anomaly_type": "derived_plausibility_failure", "severity": "high", "subject": "synthetic ultra-short planet", "summary_contains": "period"}]
+        "anomalies": [{"anomaly_type": "derived_plausibility_failure", "severity": "high", "subject": "claimed rocky planet", "subject_aliases": ["synthetic ultra-short planet", "planet", "claimed planet", "claimed rocky planet orbiting 1.0 solar-mass star", "claimed planet orbiting 1.0 Msun star"], "summary_contains": "0.04"}]
       }
     },
     {

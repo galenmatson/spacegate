@@ -489,17 +489,49 @@ def normalize_scalar(value: Any) -> Any:
     return value
 
 
+def parse_numeric(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        match = re.search(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?", value)
+        if match:
+            try:
+                return float(match.group(0))
+            except ValueError:
+                return None
+    return None
+
+
 def values_match(expected: Any, actual: Any, tolerance: float | None) -> bool:
     if isinstance(expected, bool):
         return isinstance(actual, bool) and actual is expected
     if isinstance(expected, (int, float)) and not isinstance(expected, bool):
-        try:
-            actual_num = float(actual)
-        except (TypeError, ValueError):
+        actual_num = parse_numeric(actual)
+        if actual_num is None:
             return False
         tol = 0.0 if tolerance is None else float(tolerance)
         return abs(float(expected) - actual_num) <= tol
     return normalize_scalar(expected) == normalize_scalar(actual)
+
+
+def subject_matches(expected: dict[str, Any], actual_subject: Any) -> bool:
+    actual = normalize_scalar(actual_subject)
+    subjects = [expected.get("subject")]
+    aliases = expected.get("subject_aliases", [])
+    if isinstance(aliases, list):
+        subjects.extend(aliases)
+    return any(normalize_scalar(subject) == actual for subject in subjects)
+
+
+def anomaly_type_matches(expected: dict[str, Any], actual_type: Any) -> bool:
+    actual = normalize_scalar(actual_type)
+    types = [expected.get("anomaly_type")]
+    aliases = expected.get("anomaly_type_aliases", [])
+    if isinstance(aliases, list):
+        types.extend(aliases)
+    return any(normalize_scalar(anomaly_type) == actual for anomaly_type in types)
 
 
 def claim_key(claim: dict[str, Any]) -> tuple[str, str]:
@@ -511,26 +543,43 @@ def find_actual_claim(expected: dict[str, Any], actual_claims: list[dict[str, An
     for actual in actual_claims:
         if str(actual.get("claim_id", "")) == expected_id:
             return actual
+    candidates = []
     key = claim_key(expected)
     for actual in actual_claims:
         if claim_key(actual) == key:
-            return actual
-    return None
+            candidates.append(actual)
+    expected_predicate = normalize_scalar(expected.get("predicate"))
+    for actual in actual_claims:
+        if normalize_scalar(actual.get("predicate")) == expected_predicate and subject_matches(expected, actual.get("subject")):
+            candidates.append(actual)
+    if not candidates:
+        return None
+
+    def candidate_score(actual: dict[str, Any]) -> tuple[int, int, int, int]:
+        return (
+            int(values_match(expected.get("value"), actual.get("value"), expected.get("tolerance"))),
+            int(values_match(expected.get("qualifier"), actual.get("qualifier"), None)),
+            int(values_match(expected.get("status"), actual.get("status"), None)),
+            int(values_match(expected.get("unit"), actual.get("unit"), None)),
+        )
+
+    return max(candidates, key=candidate_score)
 
 
 def score_claim(expected: dict[str, Any], actual: dict[str, Any] | None) -> tuple[float, list[str]]:
     if actual is None:
         return 0.0, [f"missing claim {expected.get('claim_id')}"]
     checks = [
-        ("subject", expected.get("subject"), actual.get("subject"), None),
         ("predicate", expected.get("predicate"), actual.get("predicate"), None),
         ("value", expected.get("value"), actual.get("value"), expected.get("tolerance")),
         ("unit", expected.get("unit"), actual.get("unit"), None),
         ("qualifier", expected.get("qualifier"), actual.get("qualifier"), None),
         ("status", expected.get("status"), actual.get("status"), None),
     ]
-    passed = 0
+    passed = 1 if subject_matches(expected, actual.get("subject")) else 0
     notes: list[str] = []
+    if not subject_matches(expected, actual.get("subject")):
+        notes.append(f"{expected.get('claim_id')} field subject expected {expected.get('subject')!r} got {actual.get('subject')!r}")
     for field, expected_value, actual_value, tolerance in checks:
         if values_match(expected_value, actual_value, tolerance):
             passed += 1
@@ -538,16 +587,14 @@ def score_claim(expected: dict[str, Any], actual: dict[str, Any] | None) -> tupl
             notes.append(
                 f"{expected.get('claim_id')} field {field} expected {expected_value!r} got {actual_value!r}"
             )
-    return passed / len(checks), notes
+    return passed / (len(checks) + 1), notes
 
 
 def find_actual_anomaly(expected: dict[str, Any], actual_anomalies: list[dict[str, Any]]) -> dict[str, Any] | None:
-    expected_type = expected.get("anomaly_type")
-    expected_subject = normalize_scalar(expected.get("subject"))
     for actual in actual_anomalies:
-        if actual.get("anomaly_type") != expected_type:
+        if not anomaly_type_matches(expected, actual.get("anomaly_type")):
             continue
-        if normalize_scalar(actual.get("subject")) == expected_subject:
+        if subject_matches(expected, actual.get("subject")):
             return actual
     return None
 
@@ -556,12 +603,20 @@ def score_anomaly(expected: dict[str, Any], actual: dict[str, Any] | None) -> tu
     if actual is None:
         return 0.0, [f"missing anomaly {expected.get('anomaly_type')} for {expected.get('subject')}"]
     checks = [
-        ("anomaly_type", expected.get("anomaly_type"), actual.get("anomaly_type")),
         ("severity", expected.get("severity"), actual.get("severity")),
-        ("subject", expected.get("subject"), actual.get("subject")),
     ]
-    passed = 0
+    passed = int(subject_matches(expected, actual.get("subject"))) + int(
+        anomaly_type_matches(expected, actual.get("anomaly_type"))
+    )
     notes: list[str] = []
+    if not subject_matches(expected, actual.get("subject")):
+        notes.append(
+            f"anomaly {expected.get('anomaly_type')} field subject expected {expected.get('subject')!r} got {actual.get('subject')!r}"
+        )
+    if not anomaly_type_matches(expected, actual.get("anomaly_type")):
+        notes.append(
+            f"anomaly {expected.get('anomaly_type')} field anomaly_type expected {expected.get('anomaly_type')!r} got {actual.get('anomaly_type')!r}"
+        )
     for field, expected_value, actual_value in checks:
         if values_match(expected_value, actual_value, None):
             passed += 1
