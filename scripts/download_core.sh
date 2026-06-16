@@ -73,6 +73,7 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     --min-parallax-mas "${SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_BACKBONE_TIMEOUT_S:-240}" \
     --retries "${SPACEGATE_GAIA_BACKBONE_RETRIES:-4}" \
+    --max-rec "${SPACEGATE_GAIA_BACKBONE_MAX_REC:-500000}" \
     --delta-mode "${GAIA_BACKBONE_DELTA_MODE}" \
     --delta-max-age-hours "${GAIA_BACKBONE_DELTA_MAX_AGE_HOURS}"
   if [[ "${SPACEGATE_ENABLE_GAIA_CLASSPROB:-1}" != "0" ]]; then
@@ -127,6 +128,7 @@ if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
     --min-parallax-mas "${SPACEGATE_GAIA_NSS_MIN_PARALLAX_MAS:-3.26156}" \
     --timeout-s "${SPACEGATE_GAIA_NSS_TIMEOUT_S:-360}" \
     --retries "${SPACEGATE_GAIA_NSS_RETRIES:-6}" \
+    --max-rec "${SPACEGATE_GAIA_NSS_MAX_REC:-500000}" \
     --delta-mode "${GAIA_NSS_DELTA_MODE}" \
     --delta-max-age-hours "${GAIA_NSS_DELTA_MAX_AGE_HOURS}"
 else

@@ -19,6 +19,7 @@ DEFAULT_MIN_PARALLAX_MAS = 3.26156
 DEFAULT_BUCKETS = 53
 DEFAULT_TIMEOUT_S = 240
 DEFAULT_RETRIES = 4
+DEFAULT_MAX_REC = 500000
 DEFAULT_COUNT_TIMEOUT_S = 600
 DEFAULT_DELTA_MODE = "resume"
 DEFAULT_DELTA_MAX_AGE_HOURS = 24.0 * 30.0
@@ -30,11 +31,12 @@ def log(msg: str) -> None:
     print(f"{ts} {msg}", flush=True)
 
 
-def tap_query_csv(adql: str, timeout_s: int, retries: int) -> str:
+def tap_query_csv(adql: str, timeout_s: int, retries: int, max_rec: int) -> str:
     params = {
         "REQUEST": "doQuery",
         "LANG": "ADQL",
         "FORMAT": "csv",
+        "MAXREC": str(max_rec),
         "QUERY": adql,
     }
     url = GAIA_TAP_SYNC_URL + "?" + urllib.parse.urlencode(params)
@@ -62,7 +64,7 @@ def tap_query_csv(adql: str, timeout_s: int, retries: int) -> str:
 
 
 def tap_query_count(adql: str, timeout_s: int, retries: int) -> int:
-    text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
+    text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries, max_rec=10_000)
     reader = csv.DictReader(StringIO(text))
     row = next(reader, None)
     if row is None:
@@ -98,12 +100,13 @@ def write_partitioned_csv(
     out_path: Path,
     timeout_s: int,
     retries: int,
+    max_rec: int,
     delta_mode: str,
     delta_max_age_hours: float,
 ) -> tuple[int, dict[str, int]]:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     query_tag = hashlib.sha1(
-        f"{select_fields}|{where_clause}|{buckets}".encode("utf-8")
+        f"{select_fields}|{where_clause}|{buckets}|{max_rec}".encode("utf-8")
     ).hexdigest()[:12]
     parts_dir = out_path.parent / f"{out_path.stem}.parts.{query_tag}"
     parts_dir.mkdir(parents=True, exist_ok=True)
@@ -186,7 +189,7 @@ def write_partitioned_csv(
             f"select {select_fields} from gaiadr3.gaia_source "
             f"where {where_clause} and mod(source_id, {buckets}) = {bucket} "
         )
-        text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries)
+        text = tap_query_csv(adql, timeout_s=timeout_s, retries=retries, max_rec=max_rec)
         bucket_stats["buckets_fetched"] += 1
         reader = csv.DictReader(StringIO(text))
         fieldnames = list(reader.fieldnames or [])
@@ -316,6 +319,7 @@ def main() -> int:
     parser.add_argument("--timeout-s", type=int, default=DEFAULT_TIMEOUT_S)
     parser.add_argument("--count-timeout-s", type=int, default=DEFAULT_COUNT_TIMEOUT_S)
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
+    parser.add_argument("--max-rec", type=int, default=DEFAULT_MAX_REC)
     parser.add_argument(
         "--skip-count-check",
         action="store_true",
@@ -339,6 +343,8 @@ def main() -> int:
         raise SystemExit("--buckets must be >= 1")
     if args.min_parallax_mas <= 0:
         raise SystemExit("--min-parallax-mas must be > 0")
+    if args.max_rec < 1:
+        raise SystemExit("--max-rec must be >= 1")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
         raise SystemExit("--delta-max-age-hours must be > 0 in --delta-mode delta")
     if args.count_timeout_s < 1:
@@ -407,7 +413,7 @@ def main() -> int:
     log(
         "Gaia backbone fetch start "
         f"(min_parallax_mas={args.min_parallax_mas}, buckets={args.buckets}, timeout_s={args.timeout_s}, "
-        f"delta_mode={args.delta_mode}, delta_max_age_hours={args.delta_max_age_hours})"
+        f"max_rec={args.max_rec}, delta_mode={args.delta_mode}, delta_max_age_hours={args.delta_max_age_hours})"
     )
     row_count, bucket_stats = write_partitioned_csv(
         select_fields=select_fields,
@@ -416,6 +422,7 @@ def main() -> int:
         out_path=out_path,
         timeout_s=args.timeout_s,
         retries=args.retries,
+        max_rec=args.max_rec,
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
@@ -452,6 +459,7 @@ def main() -> int:
         delta_update={
             "mode": args.delta_mode,
             "max_age_hours": args.delta_max_age_hours,
+            "max_rec": args.max_rec,
             **bucket_stats,
         },
     )
