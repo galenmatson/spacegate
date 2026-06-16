@@ -177,6 +177,12 @@ def validate_case(case: dict[str, Any], path: Path) -> list[str]:
 
 def build_messages(case: dict[str, Any], role: str | None) -> list[dict[str, str]]:
     canonical_predicates = [
+        "companion.black_hole_candidate_status",
+        "companion.classification",
+        "identity.authority_record",
+        "naming.alias",
+        "orbit_relation.relation_kind",
+        "planet.atmosphere_metallicity_solar",
         "planet.mass_mearth",
         "planet.minimum_mass_mearth",
         "planet.radius_rearth",
@@ -188,21 +194,24 @@ def build_messages(case: dict[str, Any], role: str | None) -> list[dict[str, str
         "planet.host_star",
         "planet.atmosphere_note",
         "planet.atmospheric_composition",
+        "planet.brightness_temp_max_k",
+        "planet.brightness_temp_min_k",
+        "planet.cloud_species",
+        "planet.composition_class",
         "planet.conservative_hz_membership",
+        "planet.internal_heating_mechanism",
         "planet.tidal_locking_likelihood",
         "star.teff_k",
         "star.mass_msun",
         "star.radius_rsun",
+        "star.density_solar",
         "star.luminosity_log10_lsun",
         "star.age_gyr",
         "star.metallicity_feh",
         "star.rotation_period_days",
         "star.logg_cgs",
         "star.classification",
-        "identity.authority_record",
-        "naming.alias",
         "structure.children",
-        "orbit_relation.relation_kind",
         "system.non_detection_constraint",
     ]
     canonical_units = ["Mearth", "Rearth", "Msun", "Rsun", "AU", "days", "K", "dex", "solar"]
@@ -241,8 +250,8 @@ def build_messages(case: dict[str, Any], role: str | None) -> list[dict[str, str
         "You are a Spacegate astronomical evidence agent. Extract only claims supported by the supplied "
         "source excerpt and current state. Do not invent facts. Preserve uncertainty, upper/lower limits, "
         "minimum-mass semantics, subject binding, and contradictions. Produce strict JSON only. Do not "
-        "wrap output in markdown. Quarantine surprising or novel findings as anomalies; never promote them "
-        "to canonical truth."
+        "wrap output in markdown. Prefer predicates from canonical_predicate_examples exactly when they fit. "
+        "Quarantine surprising or novel findings as anomalies; never promote them to canonical truth."
     )
     user_payload = {
         "role_under_test": role_text,
@@ -516,6 +525,15 @@ def values_match(expected: Any, actual: Any, tolerance: float | None) -> bool:
     return normalize_scalar(expected) == normalize_scalar(actual)
 
 
+def expected_field_matches(expected: dict[str, Any], field: str, actual: Any, tolerance: float | None) -> bool:
+    if values_match(expected.get(field), actual, tolerance):
+        return True
+    aliases = expected.get(f"{field}_aliases", [])
+    if not isinstance(aliases, list):
+        return False
+    return any(values_match(alias, actual, tolerance) for alias in aliases)
+
+
 def subject_matches(expected: dict[str, Any], actual_subject: Any) -> bool:
     actual = normalize_scalar(actual_subject)
     subjects = [expected.get("subject")]
@@ -557,10 +575,10 @@ def find_actual_claim(expected: dict[str, Any], actual_claims: list[dict[str, An
 
     def candidate_score(actual: dict[str, Any]) -> tuple[int, int, int, int]:
         return (
-            int(values_match(expected.get("value"), actual.get("value"), expected.get("tolerance"))),
-            int(values_match(expected.get("qualifier"), actual.get("qualifier"), None)),
-            int(values_match(expected.get("status"), actual.get("status"), None)),
-            int(values_match(expected.get("unit"), actual.get("unit"), None)),
+            int(expected_field_matches(expected, "value", actual.get("value"), expected.get("tolerance"))),
+            int(expected_field_matches(expected, "qualifier", actual.get("qualifier"), None)),
+            int(expected_field_matches(expected, "status", actual.get("status"), None)),
+            int(expected_field_matches(expected, "unit", actual.get("unit"), None)),
         )
 
     return max(candidates, key=candidate_score)
@@ -581,7 +599,7 @@ def score_claim(expected: dict[str, Any], actual: dict[str, Any] | None) -> tupl
     if not subject_matches(expected, actual.get("subject")):
         notes.append(f"{expected.get('claim_id')} field subject expected {expected.get('subject')!r} got {actual.get('subject')!r}")
     for field, expected_value, actual_value, tolerance in checks:
-        if values_match(expected_value, actual_value, tolerance):
+        if expected_field_matches(expected, field, actual_value, tolerance):
             passed += 1
         else:
             notes.append(
@@ -618,7 +636,7 @@ def score_anomaly(expected: dict[str, Any], actual: dict[str, Any] | None) -> tu
             f"anomaly {expected.get('anomaly_type')} field anomaly_type expected {expected.get('anomaly_type')!r} got {actual.get('anomaly_type')!r}"
         )
     for field, expected_value, actual_value in checks:
-        if values_match(expected_value, actual_value, None):
+        if expected_field_matches(expected, field, actual_value, None):
             passed += 1
         else:
             notes.append(

@@ -101,6 +101,10 @@ Run an oracle smoke test without calling a model:
 scripts/agent_eval.py run --oracle
 ```
 
+Oracle mode copies each case's golden expected output into the scorer instead
+of calling a model. It should score `1.0`; if it does not, the fixture or
+scoring logic is broken independently of model quality.
+
 Run against the current Photon vLLM endpoint:
 
 ```bash
@@ -187,7 +191,9 @@ acceptable ways to name the same synthetic or source-described object. Numeric
 checks accept numeric strings with uncertainty text, such as `5350 +/- 40`, when
 the parsed numeric value falls within tolerance. Duplicate same-subject
 predicates are matched by best value/qualifier/status/unit fit instead of by
-first occurrence.
+first occurrence. Fixtures may also define field-specific aliases such as
+`value_aliases`, `qualifier_aliases`, `status_aliases`, or `unit_aliases` for
+local semantic equivalents.
 
 Anomaly checks compare:
 
@@ -197,7 +203,9 @@ Anomaly checks compare:
 - summary containing the expected cue
 
 Expected anomalies may define `anomaly_type_aliases` for fixture-local
-equivalent labels where the pipeline distinction is not under test.
+equivalent labels where the pipeline distinction is not under test. They may
+also use field-specific aliases such as `severity_aliases` when that distinction
+is not the target of the case.
 
 This is not a substitute for human or frontier review. It is a reproducible
 filter for model/prompt/runtime comparison.

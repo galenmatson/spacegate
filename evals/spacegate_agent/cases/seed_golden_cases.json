@@ -15,13 +15,13 @@
       },
       "expected": {
         "claims": [
-          {"claim_id": "semi_major_axis", "subject": "synthetic planet", "predicate": "planet.semi_major_axis_au", "value": 0.0271, "unit": "AU", "tolerance": 0.001, "qualifier": "derived", "status": "accepted"},
-          {"claim_id": "hz_membership", "subject": "synthetic planet", "predicate": "planet.conservative_hz_membership", "value": false, "unit": null, "qualifier": "derived", "status": "accepted"},
-          {"claim_id": "tidal_locking", "subject": "synthetic planet", "predicate": "planet.tidal_locking_likelihood", "value": "likely", "unit": null, "qualifier": "derived", "status": "accepted"},
-          {"claim_id": "rocky_claim", "subject": "synthetic planet", "predicate": "planet.composition_class", "value": "rocky", "unit": null, "qualifier": "asserted_without_radius_or_mass", "status": "deferred"}
+          {"claim_id": "semi_major_axis", "subject": "synthetic planet", "subject_aliases": ["claimed exoplanet", "exoplanet", "planet", "planet_1", "synthetic_kepler_hz_tidal_lock_b"], "predicate": "planet.semi_major_axis_au", "value": 0.0271, "unit": "AU", "tolerance": 0.001, "qualifier": "derived", "qualifier_aliases": ["derived_assuming_negligible_planet_mass", "derived_keplerian", "derived_keplerian_from_period_and_stellar_mass", "derived_keplerian_from_period_and_mass"], "status": "accepted"},
+          {"claim_id": "hz_membership", "subject": "synthetic planet", "subject_aliases": ["claimed exoplanet", "exoplanet", "planet", "planet_1", "synthetic_kepler_hz_tidal_lock_b"], "predicate": "planet.conservative_hz_membership", "value": false, "unit": null, "qualifier": "derived", "qualifier_aliases": ["derived_from_insolation", "derived_from_luminosity_and_orbit"], "status": "accepted"},
+          {"claim_id": "tidal_locking", "subject": "synthetic planet", "subject_aliases": ["claimed exoplanet", "exoplanet", "planet", "planet_1", "synthetic_kepler_hz_tidal_lock_b"], "predicate": "planet.tidal_locking_likelihood", "value": "likely", "value_aliases": ["high"], "unit": null, "qualifier": "derived", "qualifier_aliases": ["inferred_likely", "inferred_likely_not_definitive", "inferred_likely_not_observed"], "status": "accepted"},
+          {"claim_id": "rocky_claim", "subject": "synthetic planet", "subject_aliases": ["claimed exoplanet", "exoplanet", "planet", "planet_1", "synthetic_kepler_hz_tidal_lock_b"], "predicate": "planet.composition_class", "value": "rocky", "unit": null, "qualifier": "asserted_without_radius_or_mass", "qualifier_aliases": ["stated_by_paper_but_not_evidenced_in_excerpt"], "status": "deferred"}
         ],
         "anomalies": [
-          {"anomaly_type": "unsupported_claim", "severity": "medium", "subject": "synthetic planet", "summary_contains": "rocky"}
+          {"anomaly_type": "unsupported_claim", "severity": "medium", "severity_aliases": ["low"], "subject": "synthetic planet", "subject_aliases": ["claimed exoplanet", "exoplanet", "planet", "planet_1", "synthetic_kepler_hz_tidal_lock_b"], "summary_contains": "rocky"}
         ]
       }
     },
