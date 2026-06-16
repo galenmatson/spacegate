@@ -77,14 +77,14 @@ def count_table(con: duckdb.DuckDBPyConnection, table_name: str) -> int:
 
 
 def build_identity_graph(*, build_id: str, build_dir: Path, reports_dir: Path) -> dict[str, object]:
-    norm_path = build_dir / "ingest_v2" / "normalized_sources.duckdb"
+    norm_path = build_dir / "ingest" / "normalized_sources.duckdb"
     if not norm_path.exists():
         raise SystemExit(
-            f"Missing normalized ingest_v2 artifact for build {build_id}: {norm_path}. "
-            "Run scripts/ingest_v2/normalize_sources.py first."
+            f"Missing normalized ingest artifact for build {build_id}: {norm_path}. "
+            "Run scripts/ingest/normalize_sources.py first."
         )
 
-    out_dir = build_dir / "ingest_v2"
+    out_dir = build_dir / "ingest"
     out_dir.mkdir(parents=True, exist_ok=True)
     db_path = out_dir / "identity_graph.duckdb"
     report_path = reports_dir / "identity_graph_report.json"
@@ -598,7 +598,7 @@ def build_identity_graph(*, build_id: str, build_dir: Path, reports_dir: Path) -
             for rel, method, count in relation_counts
         ],
         "notes": [
-            "legacy_core_crosswalk-backed edges are transitional bootstrap evidence for ingest_v2",
+            "legacy_core_crosswalk-backed edges are transitional bootstrap evidence for ingest",
             "canonical reduction should eventually replace those edges with source-native crosswalk and resolver outputs",
         ],
     }
@@ -607,7 +607,7 @@ def build_identity_graph(*, build_id: str, build_dir: Path, reports_dir: Path) -
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build ingest_v2 identity graph artifacts for a Spacegate build.")
+    parser = argparse.ArgumentParser(description="Build ingest identity graph artifacts for a Spacegate build.")
     parser.add_argument("--build-id", help="Specific build id to analyze.")
     parser.add_argument(
         "--latest-out",

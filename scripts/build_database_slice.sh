@@ -12,13 +12,13 @@ fi
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/build_core_slice.sh [options]
+  scripts/build_database_slice.sh [options]
 
-Rebuild a sliced core dataset using slice policy env vars, then promote + verify.
+Rebuild a sliced database set using slice policy env vars, then promote + verify.
 
 Options:
-  --from-cooked                     Reuse existing cooked catalogs (default).
-  --full-pipeline                   Run full download->cook->ingest pipeline.
+  --from-cooked                     Reuse existing cooked catalogs (currently disabled pending canonical slice rewrite).
+  --full-pipeline                   Run full download->cook->canonical ingest pipeline (default).
   --overwrite                       Overwrite cached downloads (full-pipeline only).
   --build-id <id>                   Explicit ingest build id.
   --profile-id <id>                 Slice profile id (e.g., core.default).
@@ -43,7 +43,7 @@ Options:
 USAGE
 }
 
-from_cooked=1
+from_cooked=0
 overwrite=0
 ingest_build_id=""
 profile_id=""
@@ -182,20 +182,15 @@ echo "  SPACEGATE_SOURCE_GALAXY_BUILD_ID=${SPACEGATE_SOURCE_GALAXY_BUILD_ID:-}"
 echo "  SPACEGATE_BUILD_LAYER=${SPACEGATE_BUILD_LAYER:-core}"
 
 if [[ "$from_cooked" == "1" ]]; then
-  echo "==> Rebuild from cooked catalogs"
-  if [[ -n "$ingest_build_id" ]]; then
-    "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$ingest_build_id"
-  else
-    "$ROOT_DIR/scripts/ingest_core.sh"
-  fi
-  "$ROOT_DIR/scripts/promote_build.sh"
-  "$ROOT_DIR/scripts/verify_build.sh"
+  echo "Error: --from-cooked slice rebuild still targets the retired bootstrap ingest path." >&2
+  echo "Use --full-pipeline until sliced canonical emission is implemented." >&2
+  exit 2
 else
   echo "==> Full pipeline rebuild"
   if [[ "$overwrite" == "1" ]]; then
-    "$ROOT_DIR/scripts/build_core.sh" --overwrite
+    "$ROOT_DIR/scripts/build_database.sh" --overwrite
   else
-    "$ROOT_DIR/scripts/build_core.sh"
+    "$ROOT_DIR/scripts/build_database.sh"
   fi
 fi
 

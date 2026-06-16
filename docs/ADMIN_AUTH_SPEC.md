@@ -14,12 +14,12 @@ This document focuses on Checkpoint A auth/RBAC design. Checkpoints B-D are trac
 
 ## Goals
 - Add secure authentication for `/admin` and `/api/v1/admin/*`.
-- Keep auth foundation general so later per-user lore features reuse the same identity/session model.
+- Keep auth foundation general so later per-user rim features reuse the same identity/session model.
 - Keep core astronomy data immutable and separate from auth state.
 
 ## Non-goals (Checkpoint A)
 - No public user signup.
-- No lore edit UI.
+- No rim edit UI.
 - No arbitrary command execution from web.
 - No full replacement of all script workflows in this Checkpoint A document scope.
 

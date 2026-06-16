@@ -4,7 +4,7 @@ This policy governs Spacegate build artifacts in `$SPACEGATE_STATE_DIR`.
 
 ## Scope
 
-- `out/<build_id>/` immutable build artifacts (`core.duckdb`, `arm.duckdb`, parquet, rich outputs)
+- `out/<build_id>/` immutable build artifacts (`core.duckdb`, `arm.duckdb`, parquet, disc outputs)
 - `reports/<build_id>/` per-build reports
 
 Out of scope (never pruned by retention script):

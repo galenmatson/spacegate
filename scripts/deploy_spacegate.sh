@@ -144,7 +144,7 @@ remote_has_coolness_scores() {
   local -a ssh_cmd=("$@")
   ssh_with_retry "${ssh_cmd[@]}" "$REMOTE" "
     cd '$REMOTE_APP_DIR' &&
-    scripts/compose_spacegate.sh exec -T api python -c \"import duckdb, os, sys; p='/data/served/current/rich.duckdb'; exists=os.path.exists(p); print('missing rich.duckdb at ' + p) if not exists else None; sys.exit(2) if not exists else None; con=duckdb.connect(p, read_only=True); has_table=con.execute(\\\"select count(*) from information_schema.tables where table_schema='main' and table_name='coolness_scores'\\\").fetchone()[0] > 0; print('missing coolness_scores table') if not has_table else None; rows=con.execute('select count(*) from coolness_scores').fetchone()[0] if has_table else -1; print(f'coolness_scores rows={rows}') if has_table else None; sys.exit(0 if has_table else 3)\"
+    scripts/compose_spacegate.sh exec -T api python -c \"import duckdb, os, sys; p='/data/served/current/disc.duckdb'; exists=os.path.exists(p); print('missing disc.duckdb at ' + p) if not exists else None; sys.exit(2) if not exists else None; con=duckdb.connect(p, read_only=True); has_table=con.execute(\\\"select count(*) from information_schema.tables where table_schema='main' and table_name='coolness_scores'\\\").fetchone()[0] > 0; print('missing coolness_scores table') if not has_table else None; rows=con.execute('select count(*) from coolness_scores').fetchone()[0] if has_table else -1; print(f'coolness_scores rows={rows}') if has_table else None; sys.exit(0 if has_table else 3)\"
   "
 }
 

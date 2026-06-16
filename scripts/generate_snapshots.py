@@ -79,37 +79,37 @@ def _open_core_db(build_dir: Path) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(str(db_path), read_only=True)
 
 
-def _open_rich_db(
+def _open_disc_db(
     build_dir: Path,
 ) -> tuple[duckdb.DuckDBPyConnection, Path | None, Path | None]:
-    rich_path = build_dir / "rich.duckdb"
-    rich_path.parent.mkdir(parents=True, exist_ok=True)
-    writable_path = rich_path
+    disc_path = build_dir / "disc.duckdb"
+    disc_path.parent.mkdir(parents=True, exist_ok=True)
+    writable_path = disc_path
     temp_copy: Path | None = None
-    if rich_path.exists() and not os.access(rich_path, os.W_OK):
-        temp_copy = build_dir / f".rich.duckdb.{os.getpid()}.tmp"
-        shutil.copy2(rich_path, temp_copy)
+    if disc_path.exists() and not os.access(disc_path, os.W_OK):
+        temp_copy = build_dir / f".disc.duckdb.{os.getpid()}.tmp"
+        shutil.copy2(disc_path, temp_copy)
         writable_path = temp_copy
     con = duckdb.connect(str(writable_path), read_only=False)
-    return con, temp_copy, rich_path if temp_copy is not None else None
+    return con, temp_copy, disc_path if temp_copy is not None else None
 
 
-def _finalize_rich_db(
-    rich_con: duckdb.DuckDBPyConnection,
+def _finalize_disc_db(
+    disc_con: duckdb.DuckDBPyConnection,
     temp_path: Path | None,
     target_path: Path | None,
 ) -> None:
-    rich_con.close()
+    disc_con.close()
     if temp_path is None or target_path is None:
         return
     temp_path.chmod(0o664)
     os.replace(temp_path, target_path)
 
 
-def _rich_has_coolness_scores(rich_path: Path) -> bool:
-    if not rich_path.exists():
+def _disc_has_coolness_scores(disc_path: Path) -> bool:
+    if not disc_path.exists():
         return False
-    con = duckdb.connect(str(rich_path), read_only=True)
+    con = duckdb.connect(str(disc_path), read_only=True)
     try:
         row = con.execute(
             """
@@ -130,7 +130,7 @@ def _load_system_rows(
     system_ids: Sequence[int],
     limit: int,
     top_coolness: int,
-    rich_path: Path,
+    disc_path: Path,
     min_dist_ly: float | None,
     max_dist_ly: float | None,
     min_star_count: int | None,
@@ -170,10 +170,10 @@ def _load_system_rows(
         or min_coolness_score is not None
         or max_coolness_score is not None
     )
-    has_coolness_scores = _rich_has_coolness_scores(rich_path) if rich_path.exists() else False
+    has_coolness_scores = _disc_has_coolness_scores(disc_path) if disc_path.exists() else False
     if wants_coolness and not has_coolness_scores:
         raise SystemExit(
-            "Snapshot selection requested coolness-ranked filtering, but rich.coolness_scores is unavailable. "
+            "Snapshot selection requested coolness-ranked filtering, but disc.coolness_scores is unavailable. "
             "Run score_coolness first."
         )
 
@@ -208,11 +208,11 @@ def _load_system_rows(
         where_sql = "WHERE " + " AND ".join(conditions)
 
     if has_coolness_scores:
-        attached_rich = False
+        attached_disc = False
         try:
-            escaped = str(rich_path).replace("'", "''")
-            core_con.execute(f"ATTACH '{escaped}' AS rich_db (READ_ONLY)")
-            attached_rich = True
+            escaped = str(disc_path).replace("'", "''")
+            core_con.execute(f"ATTACH '{escaped}' AS disc_db (READ_ONLY)")
+            attached_disc = True
             sql = f"""
                 SELECT
                   s.system_id,
@@ -225,7 +225,7 @@ def _load_system_rows(
                   s.y_helio_ly,
                   s.z_helio_ly
                 FROM systems s
-                JOIN rich_db.coolness_scores c USING (system_id)
+                JOIN disc_db.coolness_scores c USING (system_id)
                 {where_sql}
             """
             query_params = list(params)
@@ -241,9 +241,9 @@ def _load_system_rows(
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
         finally:
-            if attached_rich:
+            if attached_disc:
                 try:
-                    core_con.execute("DETACH rich_db")
+                    core_con.execute("DETACH disc_db")
                 except Exception:
                     pass
 
@@ -652,8 +652,8 @@ def _source_inputs_hash(
     return hashlib.sha256(_json_canonical(payload).encode("utf-8")).hexdigest()
 
 
-def _ensure_manifest_table(rich_con: duckdb.DuckDBPyConnection) -> None:
-    rich_con.execute(
+def _ensure_manifest_table(disc_con: duckdb.DuckDBPyConnection) -> None:
+    disc_con.execute(
         """
         CREATE TABLE IF NOT EXISTS snapshot_manifest (
           stable_object_key VARCHAR,
@@ -676,12 +676,12 @@ def _ensure_manifest_table(rich_con: duckdb.DuckDBPyConnection) -> None:
 
 
 def _upsert_manifest_rows(
-    rich_con: duckdb.DuckDBPyConnection,
+    disc_con: duckdb.DuckDBPyConnection,
     rows: Iterable[Dict[str, Any]],
 ) -> int:
     count = 0
     for row in rows:
-        rich_con.execute(
+        disc_con.execute(
             """
             DELETE FROM snapshot_manifest
             WHERE build_id = ?
@@ -696,7 +696,7 @@ def _upsert_manifest_rows(
                 row["params_hash"],
             ],
         )
-        rich_con.execute(
+        disc_con.execute(
             """
             INSERT INTO snapshot_manifest (
               stable_object_key,
@@ -737,7 +737,7 @@ def _upsert_manifest_rows(
 
 
 def _export_manifest_parquet(
-    rich_con: duckdb.DuckDBPyConnection,
+    disc_con: duckdb.DuckDBPyConnection,
     *,
     build_id: str,
     out_path: Path,
@@ -747,7 +747,7 @@ def _export_manifest_parquet(
     def _copy_to(target: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         escaped_dst = str(target).replace("'", "''")
-        rich_con.execute(
+        disc_con.execute(
             f"""
             COPY (
               SELECT *
@@ -788,7 +788,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         system_ids=args.system_id or [],
         limit=args.limit,
         top_coolness=args.top_coolness,
-        rich_path=build_dir / "rich.duckdb",
+        disc_path=build_dir / "disc.duckdb",
         min_dist_ly=args.min_dist_ly,
         max_dist_ly=args.max_dist_ly,
         min_star_count=args.min_star_count,
@@ -799,9 +799,9 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         max_coolness_score=args.max_coolness_score,
     )
 
-    rich_con, rich_temp_path, rich_target_path = _open_rich_db(build_dir)
+    disc_con, disc_temp_path, disc_target_path = _open_disc_db(build_dir)
     try:
-        _ensure_manifest_table(rich_con)
+        _ensure_manifest_table(disc_con)
 
         snapshots_root = build_dir / "snapshots" / args.view_type
         created_at = _utc_now()
@@ -864,11 +864,11 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
                     }
                 )
 
-        manifest_count = _upsert_manifest_rows(rich_con, manifest_rows)
+        manifest_count = _upsert_manifest_rows(disc_con, manifest_rows)
         manifest_parquet_path = _export_manifest_parquet(
-            rich_con,
+            disc_con,
             build_id=build_id,
-            out_path=build_dir / "rich" / "snapshot_manifest.parquet",
+            out_path=build_dir / "disc" / "snapshot_manifest.parquet",
         )
 
         report_dir = state_dir / "reports" / build_id
@@ -920,14 +920,14 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         }
     finally:
         core_con.close()
-        _finalize_rich_db(rich_con, rich_temp_path, rich_target_path)
+        _finalize_disc_db(disc_con, disc_temp_path, disc_target_path)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Generate deterministic system snapshots and write snapshot_manifest "
-            "rows into rich.duckdb."
+            "rows into disc.duckdb."
         )
     )
     parser.add_argument("--build-id", default=None, help="Build ID to target (defaults to served/current).")
@@ -948,7 +948,7 @@ def parse_args() -> argparse.Namespace:
         "--top-coolness",
         type=int,
         default=0,
-        help="If >0 and rich.coolness_scores exists, generate for top-N coolness systems.",
+        help="If >0 and disc.coolness_scores exists, generate for top-N coolness systems.",
     )
     parser.add_argument("--min-dist-ly", type=float, default=None)
     parser.add_argument("--max-dist-ly", type=float, default=None)

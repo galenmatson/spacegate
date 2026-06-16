@@ -94,13 +94,13 @@ def normalize_sql_expr(expr: str) -> str:
     )
 
 
-def _attach_rich_db(
+def _attach_side_db(
     con: duckdb.DuckDBPyConnection,
-    rich_db_path: Optional[str],
+    disc_db_path: Optional[str],
     *,
-    alias: str = "rich_db",
+    alias: str = "disc_db",
 ) -> bool:
-    if not rich_db_path:
+    if not disc_db_path:
         return False
     try:
         attached = {str(row[1]) for row in con.execute("PRAGMA database_list").fetchall()}
@@ -109,8 +109,8 @@ def _attach_rich_db(
     except Exception:
         pass
     try:
-        rich_path_sql = str(rich_db_path).replace("'", "''")
-        con.execute(f"ATTACH '{rich_path_sql}' AS {alias} (READ_ONLY)")
+        db_path_sql = str(disc_db_path).replace("'", "''")
+        con.execute(f"ATTACH '{db_path_sql}' AS {alias} (READ_ONLY)")
         return True
     except Exception:
         return False
@@ -657,7 +657,7 @@ def fetch_arm_evidence_for_stars(
 ) -> Dict[int, Dict[str, Any]]:
     if not star_ids or not arm_db_path:
         return {}
-    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+    if not _attach_side_db(con, arm_db_path, alias="arm_db"):
         return {}
     has_variability_summary = _has_table(con, alias="arm_db", table_name="variability_summary")
     has_ultracoolsheet = _has_table(con, alias="arm_db", table_name="ultracoolsheet_objects")
@@ -843,7 +843,7 @@ def fetch_sol_hierarchy_for_system(
     )
     if not is_sol or not arm_db_path:
         return None
-    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+    if not _attach_side_db(con, arm_db_path, alias="arm_db"):
         return None
     if not _has_table(con, alias="arm_db", table_name="component_entities"):
         return None
@@ -1081,7 +1081,7 @@ def _fetch_arm_star_overlay_counts_for_systems(
 ) -> Dict[int, int]:
     if not systems or not arm_db_path:
         return {}
-    if not _attach_rich_db(con, arm_db_path, alias="arm_db"):
+    if not _attach_side_db(con, arm_db_path, alias="arm_db"):
         return {}
     if not _has_table(con, alias="arm_db", table_name="component_entities"):
         return {}
@@ -1448,7 +1448,7 @@ def _fetch_canonical_hierarchy_for_system(
     canonical_hierarchy_db_path: Optional[str],
     arm_db_path: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    if not _attach_rich_db(con, canonical_hierarchy_db_path, alias="canon_hier"):
+    if not _attach_side_db(con, canonical_hierarchy_db_path, alias="canon_hier"):
         return None
     if not _has_table(con, alias="canon_hier", table_name="hierarchy_nodes"):
         return None
@@ -1643,7 +1643,7 @@ def _fetch_canonical_hierarchy_for_system(
         )
         node["self_star_count"] = 0 if has_leaf_children else 1
 
-    arm_attached = _attach_rich_db(con, arm_db_path, alias="arm_db")
+    arm_attached = _attach_side_db(con, arm_db_path, alias="arm_db")
     _enrich_hierarchy_star_nodes(
         con,
         node_map=node_map,
@@ -1690,7 +1690,7 @@ def fetch_system_hierarchy_for_system(
         return canonical_payload
     if not arm_db_path:
         return None
-    arm_attached = _attach_rich_db(con, arm_db_path, alias="arm_db")
+    arm_attached = _attach_side_db(con, arm_db_path, alias="arm_db")
     if not arm_attached:
         return None
     if not _has_table(con, alias="arm_db", table_name="component_entities"):
@@ -1973,11 +1973,11 @@ def fetch_snapshot_for_system(
     *,
     system_id: int,
     stable_object_key: Optional[str],
-    rich_db_path: Optional[str],
+    disc_db_path: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    if not _attach_rich_db(con, rich_db_path, alias="rich_snap"):
+    if not _attach_side_db(con, disc_db_path, alias="disc_snap"):
         return None
-    if not _has_table(con, alias="rich_snap", table_name="snapshot_manifest"):
+    if not _has_table(con, alias="disc_snap", table_name="snapshot_manifest"):
         return None
     row = con.execute(
         """
@@ -1988,7 +1988,7 @@ def fetch_snapshot_for_system(
           sm.params_hash AS snapshot_params_hash,
           sm.width_px AS snapshot_width_px,
           sm.height_px AS snapshot_height_px
-        FROM rich_snap.snapshot_manifest sm
+        FROM disc_snap.snapshot_manifest sm
         JOIN (
           SELECT value AS build_id
           FROM build_metadata
@@ -2042,7 +2042,7 @@ def search_systems(
     limit: int,
     include_total: bool,
     cursor_values: Optional[Dict[str, Any]],
-    rich_db_path: Optional[str] = None,
+    disc_db_path: Optional[str] = None,
     arm_db_path: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
     conditions: List[str] = []
@@ -2066,7 +2066,7 @@ def search_systems(
     has_system_spectral_class_mask = _has_local_column(con, "systems", "spectral_class_mask")
     has_star_teff_k = _has_local_column(con, "stars", "teff_k")
     star_teff_select = "teff_k" if has_star_teff_k else "NULL::DOUBLE AS teff_k"
-    arm_attached = bool(arm_db_path and _attach_rich_db(con, arm_db_path, alias="arm_db"))
+    arm_attached = bool(arm_db_path and _attach_side_db(con, arm_db_path, alias="arm_db"))
     has_arm_star_overlay = (
         arm_attached
         and _has_table(con, alias="arm_db", table_name="component_entities")
@@ -2451,15 +2451,15 @@ def search_systems(
     elif has_habitable is False:
         conditions.append(f"NOT {habitability_clause}")
 
-    rich_attached = _attach_rich_db(con, rich_db_path, alias="rich_db")
-    has_coolness_scores = rich_attached and _has_table(
+    disc_attached = _attach_side_db(con, disc_db_path, alias="disc_db")
+    has_coolness_scores = disc_attached and _has_table(
         con,
-        alias="rich_db",
+        alias="disc_db",
         table_name="coolness_scores",
     )
-    has_snapshot_manifest = rich_attached and _has_table(
+    has_snapshot_manifest = disc_attached and _has_table(
         con,
-        alias="rich_db",
+        alias="disc_db",
         table_name="snapshot_manifest",
     )
     if sort == "coolness" and not match_mode and not has_coolness_scores:
@@ -2619,7 +2619,7 @@ def search_systems(
                 score_proximity AS coolness_score_proximity,
                 score_system_complexity AS coolness_score_system_complexity,
                 score_exotic_star AS coolness_score_exotic_star
-            FROM rich_db.coolness_scores
+            FROM disc_db.coolness_scores
         )
         """
         coolness_join = "LEFT JOIN coolness c ON c.system_id = s.system_id"
@@ -2899,7 +2899,7 @@ def search_systems(
                   score_proximity AS coolness_score_proximity,
                   score_system_complexity AS coolness_score_system_complexity,
                   score_exotic_star AS coolness_score_exotic_star
-                FROM rich_db.coolness_scores
+                FROM disc_db.coolness_scores
                 WHERE system_id IN ({placeholders})
                 """,
                 system_ids,
@@ -2951,7 +2951,7 @@ def search_systems(
                           CASE WHEN sm.view_type = 'system_card' THEN 0 ELSE 1 END ASC,
                           sm.created_at DESC
                       ) AS snapshot_rn
-                    FROM rich_db.snapshot_manifest sm
+                    FROM disc_db.snapshot_manifest sm
                     JOIN (
                       SELECT value AS build_id
                       FROM build_metadata

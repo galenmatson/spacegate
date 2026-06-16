@@ -798,9 +798,9 @@ def build_normalized_sources(*, build_id: str, build_dir: Path, state: Path, rep
     }
     missing = [name for name, path in cooked_paths.items() if not path.exists()]
     if missing:
-        raise SystemExit(f"Missing cooked source files for ingest_v2 normalization: {', '.join(sorted(missing))}")
+        raise SystemExit(f"Missing cooked source files for ingest normalization: {', '.join(sorted(missing))}")
 
-    out_dir = build_dir / "ingest_v2"
+    out_dir = build_dir / "ingest"
     out_dir.mkdir(parents=True, exist_ok=True)
     db_path = out_dir / "normalized_sources.duckdb"
     report_path = reports_dir / "normalized_sources_report.json"
@@ -878,7 +878,7 @@ def build_normalized_sources(*, build_id: str, build_dir: Path, state: Path, rep
         "tables": table_counts,
         "notes": [
             "legacy_core_crosswalk is a transitional bootstrap bridge from the current deterministic build",
-            "ingest_v2 canonical reduction should replace this bridge with source-native crosswalk rules over time",
+            "ingest canonical reduction should replace this bridge with source-native crosswalk rules over time",
         ],
     }
     report_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -886,7 +886,7 @@ def build_normalized_sources(*, build_id: str, build_dir: Path, state: Path, rep
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build ingest_v2 normalized source artifacts for a Spacegate build.")
+    parser = argparse.ArgumentParser(description="Build ingest normalized source artifacts for a Spacegate build.")
     parser.add_argument("--build-id", help="Specific build id to analyze.")
     parser.add_argument(
         "--latest-out",

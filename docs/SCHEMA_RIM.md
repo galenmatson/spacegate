@@ -2,7 +2,6 @@
 
 This document defines Spacegate's **editable fictional overlay schema**.
 Rim data is intentionally separate from core science and disc derived artifacts.
-The runtime still uses legacy `lore` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
@@ -25,8 +24,8 @@ Hard constraints:
 ## Primary Artifacts
 
 Recommended:
-- `$SPACEGATE_STATE_DIR/out/<build_id>/lore.duckdb` (legacy path; rim layer artifact)
-- Optional export: `$SPACEGATE_STATE_DIR/out/<build_id>/lore/*.parquet` (legacy path; rim layer artifacts)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/rim.duckdb`
+- Optional export: `$SPACEGATE_STATE_DIR/out/<build_id>/rim/*.parquet`
 
 ## Key Contracts and Type Normalization
 
@@ -46,13 +45,13 @@ ID normalization:
 
 ## Tables
 
-## lore_entities
+## rim_entities
 
 Primary fictional entity table.
 
 | Column             | Type      | Description |
 |--------------------|-----------|-------------|
-| lore_entity_id     | BIGINT    | Surrogate primary key |
+| rim_entity_id      | BIGINT    | Surrogate primary key |
 | namespace          | TEXT      | User/project namespace |
 | entity_type        | TEXT      | e.g. faction, station, gate, colony, route |
 | entity_key         | TEXT      | Stable key unique within namespace |
@@ -61,7 +60,7 @@ Primary fictional entity table.
 | x_helio_ly         | DOUBLE    | Optional explicit position |
 | y_helio_ly         | DOUBLE    | Optional explicit position |
 | z_helio_ly         | DOUBLE    | Optional explicit position |
-| lore_json          | TEXT      | Flexible lore payload |
+| rim_json           | TEXT      | Flexible rim payload |
 | source             | TEXT      | user, import pack, generator |
 | created_at         | TIMESTAMP | Created time |
 | updated_at         | TIMESTAMP | Last update time |
@@ -71,13 +70,13 @@ Constraints:
 - If `anchor_mode='anchored'`, `stable_object_key` is required.
 - If `anchor_mode='free'`, explicit coordinates are required.
 
-## lore_relationships
+## rim_relationships
 
-Graph edges between lore entities and/or anchored objects.
+Graph edges between rim entities and/or anchored objects.
 
 | Column               | Type      | Description |
 |----------------------|-----------|-------------|
-| lore_relationship_id | BIGINT    | Surrogate primary key |
+| rim_relationship_id  | BIGINT    | Surrogate primary key |
 | namespace            | TEXT      | Namespace |
 | from_entity_key      | TEXT      | Source entity key |
 | to_entity_key        | TEXT      | Target entity key |
@@ -95,23 +94,23 @@ Recommended relation families:
 - governance/social: `controls`, `allied_with`, `hostile_to`
 
 Note:
-- cyclical lore graphs are allowed.
-- any canonical navigation tree behavior should be implemented with explicit primary-parent metadata, not inferred from arbitrary lore edges.
+- cyclical rim graphs are allowed.
+- any canonical navigation tree behavior should be implemented with explicit primary-parent metadata, not inferred from arbitrary rim edges.
 
-## lore_references
+## rim_references
 
 Optional cultural/franchise references.
 
 | Column            | Type      | Description |
 |-------------------|-----------|-------------|
-| lore_reference_id | BIGINT    | Surrogate primary key |
+| rim_reference_id  | BIGINT    | Surrogate primary key |
 | namespace         | TEXT      | Namespace |
 | stable_object_key | TEXT      | Core/disc object reference |
 | reference_type    | TEXT      | franchise, film, novel, game |
 | source_name       | TEXT      | Franchise/source name |
-| description       | TEXT      | Lore text |
+| description       | TEXT      | Rim overlay text |
 | citation_url      | TEXT      | Source/provenance URL |
-| pack_id           | TEXT      | Optional lore pack source |
+| pack_id           | TEXT      | Optional rim pack source |
 | created_at        | TIMESTAMP | Created time |
 | updated_at        | TIMESTAMP | Updated time |
 

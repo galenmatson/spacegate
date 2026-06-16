@@ -57,8 +57,8 @@ def sql_string_literal(value: str) -> str:
 
 def load_optional_coolness_map(state: Path, build_dir: Path) -> dict[str, dict[str, Any]]:
     candidates = [
-        build_dir / "rich.duckdb",
-        state / "served" / "current" / "rich.duckdb",
+        build_dir / "disc.duckdb",
+        state / "served" / "current" / "disc.duckdb",
     ]
     for path in candidates:
         if not path.exists():

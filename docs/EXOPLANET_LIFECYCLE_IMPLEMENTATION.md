@@ -200,6 +200,6 @@ Emit:
 
 ## 6) Notes on Scientific Interpretation
 
-- `planet_element_richness_*` is intentionally a proxy for utility/lore ranking and should be labeled as inferred.
+- `planet_element_richness_*` is intentionally a proxy for utility/rim ranking and should be labeled as inferred.
 - direct atmospheric/abundance measurements, when present, must override host-metallicity proxy logic.
 - HWC remains a comparison/reference signal; Spacegate owns the canonical `spacegate_hab_score`.

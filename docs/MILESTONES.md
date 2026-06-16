@@ -247,7 +247,7 @@ Deliverables:
   - insolation/temperature class (`hot`, `warm`, `cold`, inferno/ice thresholds)
   - orbital class (`USP`, short/long period, eccentric, circumbinary when evidenced)
   - detection-method tags and host-context tags
-  - stellar-spectroscopy-informed element-richness proxy tags for lore/search context
+  - stellar-spectroscopy-informed element-richness proxy tags for rim/search context
 - Spacegate habitability scorer (`spacegate_hab_score`) with confidence and reason flags
 - searchable score controls:
   - habitability slider

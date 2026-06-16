@@ -27,13 +27,8 @@ Spacegate layer names:
 - `core`: canonical immutable fast astronomy projection
 - `halo`: canonical immutable opt-in astronomy projection (complement to core)
 - `arm`: immutable supplemental science artifacts
-- `disc`: reproducible derived artifacts (legacy alias: `rich`)
-- `rim`: editable worldbuilding overlays (legacy alias: `lore`)
-
-Compatibility note:
-
-- current runtime artifact names still use legacy `rich`/`lore` paths in several scripts.
-- naming migration should preserve backward compatibility until scripts/services are fully moved.
+- `disc`: reproducible derived artifacts
+- `rim`: editable worldbuilding overlays
 
 ## Source Classification
 

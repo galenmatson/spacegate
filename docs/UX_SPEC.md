@@ -1,6 +1,6 @@
 # Spacegate v1.1 UX Spec (Public Database Browser)
 
-Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only disc overlays (legacy `rich` artifacts) for coolness ranking and deterministic system snapshots. No 3D map, no rim overlays.
+Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only disc overlays (`disc` artifacts) for coolness ranking and deterministic system snapshots. No 3D map, no rim overlays.
 
 ## Current Implementation Notes
 - Theme labels currently exposed in UI: `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`, `Aurora`, `Geocities`, `Deep Space Minimal`.
@@ -37,7 +37,7 @@ Scope: search/browse core systems, stars, and planets from `core.duckdb`, with r
 - Alternate: Name (A-Z).
 
 Sorting rules:
-- Coolness: disc score ranking (`rich.coolness_scores.rank` legacy table path) ascending, tie-breakers `system_name_norm`, `system_id`.
+- Coolness: disc score ranking (`disc.coolness_scores.rank` legacy table path) ascending, tie-breakers `system_name_norm`, `system_id`.
 - Name: `system_name_norm` ascending, tie-breaker `system_id`.
 - Distance: `dist_ly` ascending, tie-breaker `system_id`.
 

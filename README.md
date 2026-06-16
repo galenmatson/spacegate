@@ -8,7 +8,7 @@
   - Gaia-first canonical datasets: systems, stars, planets (Gaia DR3 backbone + NASA Exoplanet Archive), with multiplicity and science side catalogs.
   - AT-HYG is transitional crosswalk support for naming/identifier recovery, not canonical inventory authority.
   - Optional packs and side catalogs (v1.2+): compact/remnant, superstellar, eclipsing, and lifecycle support artifacts.
-  - Disc layer derivatives (legacy runtime alias: `rich`): expositions, reference links, snapshots, scores.
+  - Disc layer derivatives: expositions, reference links, snapshots, scores.
   - A browser 3D map (v2) with filters and overlays.
 
 # Data & Pipeline Model
@@ -49,7 +49,7 @@
       - generated imagery
       - links to external catalogs, articles, and papers
     - *rim*: editable fiction
-      - lore from popular scifi
+      - rim overlays from popular science fiction
       - user creatable maps, links, economy, and narrative
       
 ## Packs Contract
@@ -117,7 +117,7 @@ Optional flags:
 If you used `--skip-build`, used `--skip-db-download`, or want to rebuild:
 
 ```bash
-scripts/build_core.sh
+scripts/build_database.sh
 ```
 
 Before a forced full catalog refresh, run preflight:
@@ -129,7 +129,7 @@ scripts/preflight_full_refresh.sh
 Then run a true full refresh (Gaia `delta_mode=refresh` + support catalog overwrite):
 
 ```bash
-scripts/build_core.sh --full-refresh
+scripts/build_database.sh --full-refresh
 ```
 
 For routine update runs with automatic differential/full routing, use:
@@ -589,7 +589,7 @@ If you want a dedicated “builder” container in compose, say the word and I�
   `SPACEGATE_WEB_PORT=5174 scripts/run_spacegate.sh --web-dev`
 
 - **Build verification fails**  
-  Run `scripts/verify_build.sh` directly to see details. If it references an old build, rebuild with `scripts/build_core.sh --overwrite`.
+  Run `scripts/verify_build.sh` directly to see details. If it references an old build, rebuild with `scripts/build_database.sh --overwrite`.
 
 # Roadmap (high level)
 
@@ -598,4 +598,4 @@ If you want a dedicated “builder” container in compose, say the word and I�
   - v1.3-v1.5: reference links, facts → exposition, and image generation.
   - v1.6: precomputed 10-nearest neighbor graph.
   - v2: browser 3D map.
-  - v2.2: lore, engagement, and community ranking overlays.
+  - v2.2: rim overlays, engagement, and community ranking overlays.

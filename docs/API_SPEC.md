@@ -313,7 +313,7 @@ Validation and availability behavior:
 - Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.
 - Invalid enum/filter values (for example `sort=foo`, `has_planets=maybe`, `spectral_class=ZZ`) return `400 bad_request`.
 - Requesting temperature filters when the current build does not expose `core.stars.teff_k` returns `409 conflict`.
-- Requesting coolness sort/score filters when `disc` coolness data (legacy table path `rich.coolness_scores`) is unavailable returns `409 conflict`.
+- Requesting coolness sort/score filters when `disc` coolness data (legacy table path `disc.coolness_scores`) is unavailable returns `409 conflict`.
 - Framework-level bound checks (for example negative `min_dist_ly`, `limit > 200`) return `422`.
 
 Pagination and totals:

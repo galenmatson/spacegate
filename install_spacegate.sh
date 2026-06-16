@@ -152,11 +152,11 @@ main() {
         fi
       fi
       if [[ $bootstrapped -eq 0 ]]; then
-        echo "==> Building core database from source catalogs"
+        echo "==> Building database from source catalogs"
         SPACEGATE_STATE_DIR="$STATE_DIR" \
         SPACEGATE_CACHE_DIR="$CACHE_DIR" \
         SPACEGATE_LOG_DIR="$LOG_DIR" \
-        "$ROOT_DIR/scripts/build_core.sh" $overwrite
+        "$ROOT_DIR/scripts/build_database.sh" $overwrite
       fi
     else
       echo "==> Core database exists: $core_db"
@@ -165,7 +165,7 @@ main() {
 
   echo "Install complete."
   if [[ $skip_build -eq 1 ]]; then
-    echo "Next: scripts/build_core.sh to download and build the core database."
+    echo "Next: scripts/build_database.sh to download and build the database."
   elif [[ $skip_db_download -eq 1 ]]; then
     echo "Database install mode: local source build (--skip-db-download)."
   else

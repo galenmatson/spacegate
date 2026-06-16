@@ -7,7 +7,7 @@ This document defines the cross-layer graph model used for scientific hierarchy,
 Spacegate must support both:
 
 - scientific correctness and provenance
-- deep, user-extensible structures (systems, subsystems, infrastructure, lore)
+- deep, user-extensible structures (systems, subsystems, infrastructure, rim overlays)
 
 A pure tree is too rigid. A pure graph is hard to navigate and can become chaotic.
 
@@ -38,7 +38,7 @@ Storage by layer:
 - `disc`:
   - derived/rebuildable presentation artifacts
 - `rim`:
-  - editable user/lore nodes and edges anchored to scientific nodes
+  - editable user/rim nodes and edges anchored to scientific nodes
 
 ## Classification Policy
 
@@ -122,4 +122,3 @@ Procedural tools must reuse this same graph contract:
 - every node records `root_system`.
 - every non-core edge includes provenance, confidence, and transform lineage.
 - rim imports never mutate canonical science rows.
-

@@ -132,16 +132,11 @@ Design implication:
 
 Implementation note:
 
-- ingest v2 canonicalization is being built in parallel and documented in `docs/INGEST_V2.md`
-- the first deterministic sloppy-system queue baseline is emitted by `scripts/ingest_v2/build_adjudication_queue.py`
+- canonical ingest is documented in `docs/CANONICAL_INGEST.md`; full build wrappers promote the canonical database build emitted from the bootstrap science projection
+- the first deterministic sloppy-system queue baseline is emitted by `scripts/ingest/build_adjudication_queue.py`
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
-
-### Compatibility aliases (remaining transition)
-
-- `rich` -> `disc`
-- `lore` -> `rim`
 
 `arm` is now canonical (no `aux` compatibility artifact).
 
@@ -274,13 +269,13 @@ Derived planet fields are deterministic and versioned per build:
 
 - taxonomy tags (size/mass, insolation/temperature, orbit class, composition proxy, detection tags, host-context tags)
 - `spacegate_hab_score` and confidence/reason metadata
-- stellar-spectroscopy-informed element-richness proxy tags for lore/search use
+- stellar-spectroscopy-informed element-richness proxy tags for rim/search use
 
 Element-richness policy:
 
 - inferred from host stellar spectroscopy/metallicity evidence unless direct planetary composition evidence exists
 - explicitly labeled as proxy/inferred when not directly measured
-- intended for ranking/filtering and lore context, not as a substitute for direct compositional measurement
+- intended for ranking/filtering and rim context, not as a substitute for direct compositional measurement
 
 ## Catalog Delta and Re-Evaluation (Exoplanets)
 
@@ -353,9 +348,10 @@ Pipeline:
 
 1. download (`raw/`)
 2. cook (`cooked/`)
-3. ingest (`out/<build_id>/core.duckdb` + `out/<build_id>/arm.duckdb` + parquet)
-4. promote (`served/current`)
-5. verify (QC + provenance + contract checks)
+3. bootstrap science projection (`out/<build_id>_bootstrap/core.duckdb` + `out/<build_id>_bootstrap/arm.duckdb` + parquet)
+4. canonicalization + emission (`out/<build_id>/core.duckdb` + `out/<build_id>/arm.duckdb` + `canonical_hierarchy.duckdb` + parquet)
+5. promote (`served/current`)
+6. verify (QC + provenance + contract checks)
 
 Rules:
 
@@ -437,7 +433,7 @@ Minimum metrics exposed:
 - object breakdowns: spectral class distribution; exotic-star heuristics; exoplanet + candidate habitable counts
 - astrophysical breakdowns: standard spectral buckets (`O/B/A/F/G/K/M/L/T/Y/D/unknown`) and inferred compact-object counts
 - runtime health: API RSS + peak RSS, host memory/load, DuckDB runtime memory/database figures
-- storage health: project/state/build/core/rich/parquet/raw/cooked/reports sizes and disk usage
+- storage health: project/state/build/core/arm/disc/parquet/raw/cooked/reports sizes and disk usage
 - query-timing probes for major status queries
 - percentage capacity bars where current vs maximum is known (disk, host memory, API RSS/peak vs host, DuckDB memory vs limit)
 - deterministic rerun compare status (`match` / `mismatch` / `no baseline`) against prior comparable build fingerprints
@@ -468,7 +464,7 @@ Current slice controls (admin):
 Execution model:
 
 - Preview endpoint estimates retained/sliced counts against current served build.
-- Build action applies policy through `scripts/build_core_slice.sh` and publishes a new immutable build set.
+- Build action applies policy through `scripts/build_database_slice.sh` and publishes a new immutable build set.
 - Projection reversibility is handled by rebuilding from `galaxy` with a different slice profile, not by mutating rows.
 
 Performance model:

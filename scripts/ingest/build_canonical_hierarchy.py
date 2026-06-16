@@ -77,15 +77,15 @@ def count_table(con: duckdb.DuckDBPyConnection, table_name: str) -> int:
 
 
 def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dict[str, object]:
-    reduction_path = build_dir / "ingest_v2" / "canonical_reduction.duckdb"
+    reduction_path = build_dir / "ingest" / "canonical_reduction.duckdb"
     arm_path = build_dir / "arm.duckdb"
     missing = [str(p) for p in (reduction_path, arm_path) if not p.exists()]
     if missing:
         raise SystemExit(
-            "Missing ingest_v2 prerequisites for hierarchy build: " + ", ".join(missing)
+            "Missing ingest prerequisites for hierarchy build: " + ", ".join(missing)
         )
 
-    out_dir = build_dir / "ingest_v2"
+    out_dir = build_dir / "ingest"
     out_dir.mkdir(parents=True, exist_ok=True)
     db_path = out_dir / "canonical_hierarchy.duckdb"
     report_path = reports_dir / "canonical_hierarchy_report.json"
@@ -409,6 +409,110 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
         con.execute(
             """
+            create temp table unresolved_role_nodes as
+            with wds_pair_roles as (
+              select
+                wds_id,
+                lower(substr(component_label, 1, 1)) as role_a,
+                lower(substr(component_label, 2, 1)) as role_b,
+                lower(component_label) as component_label,
+                max(coalesce(obs_count, 0))::bigint as max_obs_count,
+                max(coalesce(last_year, 0))::bigint as last_observed,
+                string_agg(distinct source_pk, ',' order by source_pk) as source_pks
+              from arm.wds_component_observations
+              where length(coalesce(component_label, '')) = 2
+                and lower(component_label) ~ '^[a-z][a-z]$'
+              group by 1, 2, 3, 4
+            ),
+            supported_missing_roles as (
+              select
+                leaf_counts.canonical_system_key,
+                leaf_counts.member_role,
+                leaf_counts.leaf_count,
+                max(leaf.confidence_score) as msc_confidence_score,
+                string_agg(leaf.catalog_component_label, ',' order by leaf.catalog_component_label) as msc_leaf_labels,
+                string_agg(distinct pair.component_label, ',' order by pair.component_label) as wds_pair_labels,
+                max(pair.max_obs_count)::bigint as max_wds_obs_count,
+                max(pair.last_observed)::bigint as last_wds_observed,
+                string_agg(distinct pair.source_pks, ',' order by pair.source_pks) as wds_source_pks
+              from msc_role_leaf_counts leaf_counts
+              join msc_leaf_nodes leaf
+                on leaf.canonical_system_key = leaf_counts.canonical_system_key
+               and leaf.member_role = leaf_counts.member_role
+              join red.canonical_system_groups sys
+                on sys.canonical_system_key = leaf_counts.canonical_system_key
+              join wds_pair_roles pair
+                on pair.wds_id = sys.wds_id
+               and (
+                    (pair.role_a = leaf_counts.member_role and exists (
+                       select 1
+                       from root_role_map sibling
+                       where sibling.canonical_system_key = leaf_counts.canonical_system_key
+                         and sibling.member_role = pair.role_b
+                    ))
+                 or (pair.role_b = leaf_counts.member_role and exists (
+                       select 1
+                       from root_role_map sibling
+                       where sibling.canonical_system_key = leaf_counts.canonical_system_key
+                         and sibling.member_role = pair.role_a
+                    ))
+               )
+              left join root_role_map resolved
+                on resolved.canonical_system_key = leaf_counts.canonical_system_key
+               and resolved.member_role = leaf_counts.member_role
+              where leaf_counts.leaf_count >= 2
+                and resolved.member_role is null
+                and pair.max_obs_count >= 2
+              group by 1, 2, 3
+            )
+            select
+              'canon:unresolved_role:' || replace(sys.wds_id, ':', '_') || ':' || missing.member_role as hierarchy_node_key,
+              missing.canonical_system_key,
+              sys.wds_id,
+              missing.member_role,
+              coalesce(nullif(sys.representative_name, ''), 'WDS ' || sys.wds_id) || ' ' || upper(missing.member_role) as display_name,
+              least(0.80, max(missing.msc_confidence_score))::double as confidence_score,
+              'medium'::varchar as confidence_tier,
+              missing.leaf_count,
+              missing.msc_leaf_labels,
+              missing.wds_pair_labels,
+              missing.max_wds_obs_count,
+              missing.last_wds_observed,
+              missing.wds_source_pks
+            from supported_missing_roles missing
+            join red.canonical_system_groups sys
+              on sys.canonical_system_key = missing.canonical_system_key
+            group by
+              missing.canonical_system_key,
+              sys.wds_id,
+              sys.representative_name,
+              missing.member_role,
+              missing.leaf_count,
+              missing.msc_leaf_labels,
+              missing.wds_pair_labels,
+              missing.max_wds_obs_count,
+              missing.last_wds_observed,
+              missing.wds_source_pks
+            """
+        )
+
+        con.execute(
+            """
+            create temp table unresolved_role_leaf_edges as
+            select
+              unresolved.hierarchy_node_key as parent_unresolved_node_key,
+              leaf.hierarchy_node_key as child_hierarchy_node_key,
+              leaf.catalog_component_label,
+              least(unresolved.confidence_score, leaf.confidence_score)::double as confidence_score
+            from unresolved_role_nodes unresolved
+            join msc_leaf_nodes leaf
+              on leaf.canonical_system_key = unresolved.canonical_system_key
+             and leaf.member_role = unresolved.member_role
+            """
+        )
+
+        con.execute(
+            """
             create table hierarchy_nodes as
             with system_nodes as (
               select
@@ -463,6 +567,17 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 member_role,
                 'msc_inferred_leaf'::varchar as source_basis
               from msc_leaf_nodes
+            ),
+            unresolved_role as (
+              select
+                hierarchy_node_key,
+                'unresolved_component'::varchar as node_kind,
+                cast(null as varchar) as canonical_key,
+                display_name,
+                wds_id,
+                member_role,
+                'wds_msc_implied_role'::varchar as source_basis
+              from unresolved_role_nodes
             )
             select * from system_nodes
             union all
@@ -471,6 +586,8 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             select * from planet_nodes
             union all
             select * from msc_leaf
+            union all
+            select * from unresolved_role
             """
         )
 
@@ -524,6 +641,30 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 confidence_score,
                 1::bigint as supporting_edge_count
               from msc_leaf_edges
+            ),
+            system_to_unresolved_role as (
+              select
+                row_number() over (order by canonical_system_key, hierarchy_node_key)::bigint as hierarchy_edge_id,
+                canonical_system_key as parent_node_key,
+                hierarchy_node_key as child_node_key,
+                'contains'::varchar as edge_kind,
+                member_role,
+                'wds_msc_implied_role'::varchar as source_basis,
+                confidence_score,
+                (leaf_count + 1)::bigint as supporting_edge_count
+              from unresolved_role_nodes
+            ),
+            unresolved_role_to_msc_leaf as (
+              select
+                row_number() over (order by parent_unresolved_node_key, child_hierarchy_node_key)::bigint as hierarchy_edge_id,
+                parent_unresolved_node_key as parent_node_key,
+                child_hierarchy_node_key as child_node_key,
+                'contains'::varchar as edge_kind,
+                catalog_component_label as member_role,
+                'wds_msc_implied_role_leaf'::varchar as source_basis,
+                confidence_score,
+                1::bigint as supporting_edge_count
+              from unresolved_role_leaf_edges
             )
             select * from system_to_star
             union all
@@ -532,6 +673,10 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             select * from system_to_planet
             union all
             select * from star_to_msc_leaf
+            union all
+            select * from system_to_unresolved_role
+            union all
+            select * from unresolved_role_to_msc_leaf
             """
         )
 
@@ -615,7 +760,8 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
         "notes": [
             "This bootstrap hierarchy prefers canonical root system -> canonical star -> canonical planet containment.",
             "MSC inferred leaf components are attached beneath top-level stars only when the root member_role mapping is unique.",
-            "Singleton MSC subdivisions are suppressed in the preview hierarchy to avoid overfitting sparse role evidence.",
+            "Missing one-letter root roles may be represented as unresolved components only when WDS pair evidence and MSC multi-leaf evidence agree.",
+            "Singleton MSC subdivisions are suppressed in the canonical hierarchy to avoid overfitting sparse role evidence.",
         ],
     }
     report_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -623,7 +769,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build ingest_v2 canonical hierarchy artifacts for a Spacegate build.")
+    parser = argparse.ArgumentParser(description="Build ingest canonical hierarchy artifacts for a Spacegate build.")
     parser.add_argument("--build-id", help="Specific build id to analyze.")
     parser.add_argument(
         "--latest-out",

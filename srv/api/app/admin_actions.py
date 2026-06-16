@@ -187,15 +187,15 @@ def _normalize_string(value: Any) -> str:
     return str(value).strip()
 
 
-def _build_command_build_core(params: Dict[str, Any]) -> List[str]:
-    cmd = [str(ROOT_DIR / "scripts" / "build_core.sh")]
+def _build_command_build_database(params: Dict[str, Any]) -> List[str]:
+    cmd = [str(ROOT_DIR / "scripts" / "build_database.sh")]
     if params.get("overwrite", False):
         cmd.append("--overwrite")
     return cmd
 
 
-def _build_command_build_core_slice(params: Dict[str, Any]) -> List[str]:
-    cmd = [str(ROOT_DIR / "scripts" / "build_core_slice.sh")]
+def _build_command_build_database_slice(params: Dict[str, Any]) -> List[str]:
+    cmd = [str(ROOT_DIR / "scripts" / "build_database_slice.sh")]
     from_cooked = _normalize_boolean(params.get("from_cooked", True))
     if from_cooked:
         cmd.append("--from-cooked")
@@ -731,10 +731,10 @@ def _confirmation_for(action_name: str) -> str:
 
 
 ACTION_SPECS: Dict[str, ActionSpec] = {
-    "build_core": ActionSpec(
-        name="build_core",
-        display_name="Build Core",
-        description="Run full core pipeline: download, cook, ingest, promote, verify.",
+    "build_database": ActionSpec(
+        name="build_database",
+        display_name="Build Database",
+        description="Run full database pipeline: download, cook, canonical ingest, promote, verify.",
         params_schema={
             "overwrite": {
                 "type": "boolean",
@@ -744,12 +744,12 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         },
         risk_level="high",
         requires_confirmation=True,
-        confirmation_phrase=_confirmation_for("build_core"),
-        build_command=_build_command_build_core,
+        confirmation_phrase=_confirmation_for("build_database"),
+        build_command=_build_command_build_database,
     ),
-    "build_core_slice": ActionSpec(
-        name="build_core_slice",
-        display_name="Build Sliced Core",
+    "build_database_slice": ActionSpec(
+        name="build_database_slice",
+        display_name="Build Sliced Database",
         description="Apply dataset slice policy filters and rebuild/publish a trimmed core build.",
         hidden=True,
         params_schema={
@@ -811,8 +811,8 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         },
         risk_level="high",
         requires_confirmation=True,
-        confirmation_phrase=_confirmation_for("build_core_slice"),
-        build_command=_build_command_build_core_slice,
+        confirmation_phrase=_confirmation_for("build_database_slice"),
+        build_command=_build_command_build_database_slice,
     ),
     "verify_build": ActionSpec(
         name="verify_build",
@@ -879,7 +879,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "score_coolness": ActionSpec(
         name="score_coolness",
         display_name="Score Coolness",
-        description="Generate rich coolness ranking + report for a build (supports ephemeral scoring).",
+        description="Generate disc coolness ranking + report for a build (supports ephemeral scoring).",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -1217,7 +1217,7 @@ def _validate_params(spec: ActionSpec, params: Dict[str, Any]) -> Dict[str, Any]
 
         normalized[name] = value
 
-    if spec.name in {"verify_build", "publish_db", "build_core", "score_coolness", "generate_snapshots"}:
+    if spec.name in {"verify_build", "publish_db", "build_database", "score_coolness", "generate_snapshots"}:
         build_id = str(normalized.get("build_id", "") or "").strip()
         if build_id and not _is_safe_build_id(build_id):
             raise ActionValidationError("Invalid build_id format")

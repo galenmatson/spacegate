@@ -42,8 +42,8 @@ Usage:
 
 Behavior:
   - default: run differential download, source-delta scan, impacted-row planning
-  - if plan mode is planet_incremental_eligible -> selective cook + incremental planet ingest
-  - otherwise -> full cook + full ingest
+  - always run full cook + canonical ingest
+  - impacted-row planning is retained for reporting only until incremental canonical emission exists
   - always promotes and verifies resulting build
 
 Options:
@@ -122,19 +122,18 @@ PY
   now="$(date -u +"%Y%m%dT%H%M%SZ")"
   git_sha="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo nogit)"
   if [[ "$mode" == "planet_incremental_eligible" ]]; then
-    build_id="${now}_${git_sha}_incplanet"
-    log "Refresh core: incremental mode (build_id=$build_id)"
-    "$ROOT_DIR/scripts/cook_delta.sh" "$impacted_plan"
-    "$PYTHON_BIN" "$ROOT_DIR/scripts/ingest_incremental_planets.py" \
-      --root "$ROOT_DIR" \
-      --build-id "$build_id" \
-      --impacted-plan "$impacted_plan"
-  else
-    build_id="${now}_${git_sha}"
-    log "Refresh core: full rebuild mode (build_id=$build_id)"
-    "$ROOT_DIR/scripts/cook_core.sh"
-    "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$build_id"
+    log "Refresh core: incremental planet mode disabled; canonical rebuild required"
   fi
+
+  local bootstrap_build_id
+  build_id="${now}_${git_sha}"
+  bootstrap_build_id="${build_id}_bootstrap"
+  log "Refresh core: full canonical rebuild mode (bootstrap_build_id=$bootstrap_build_id, build_id=$build_id)"
+  "$ROOT_DIR/scripts/cook_core.sh"
+  "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$bootstrap_build_id"
+  "$ROOT_DIR/scripts/ingest/build_canonical.sh" \
+    --build-id "$bootstrap_build_id" \
+    --canonical-build-id "$build_id"
 
   log "Refresh core: promote + verify build $build_id"
   "$ROOT_DIR/scripts/promote_build.sh" "$build_id"

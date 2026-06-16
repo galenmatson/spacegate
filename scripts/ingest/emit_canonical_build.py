@@ -104,54 +104,74 @@ def count_table(con: duckdb.DuckDBPyConnection, table_name: str) -> int:
     return int(con.execute(f"select count(*) from {table_name}").fetchone()[0])
 
 
-def emit_preview_build(
+def table_fingerprint(con: duckdb.DuckDBPyConnection, table_name: str, key_column: str) -> dict[str, object]:
+    row = con.execute(
+        f"""
+        select
+          count(*)::bigint as row_count,
+          bit_xor(hash({key_column}))::ubigint as xor_hash,
+          min(hash({key_column}))::ubigint as min_hash,
+          max(hash({key_column}))::ubigint as max_hash
+        from {table_name}
+        """
+    ).fetchone()
+    return {
+        "row_count": int(row[0] or 0),
+        "xor_hash_hex": f"{int(row[1] or 0):016x}",
+        "min_hash_uint64": int(row[2] or 0),
+        "max_hash_uint64": int(row[3] or 0),
+    }
+
+
+def emit_canonical_build(
     *,
     root: Path,
     state: Path,
     source_build_id: str,
     source_build_dir: Path,
-    preview_build_id: str,
+    canonical_build_id: str,
 ) -> dict[str, object]:
     source_core = source_build_dir / "core.duckdb"
     source_arm = source_build_dir / "arm.duckdb"
-    source_hierarchy = source_build_dir / "ingest_v2" / "canonical_hierarchy.duckdb"
-    source_reduction = source_build_dir / "ingest_v2" / "canonical_reduction.duckdb"
+    source_hierarchy = source_build_dir / "ingest" / "canonical_hierarchy.duckdb"
+    source_reduction = source_build_dir / "ingest" / "canonical_reduction.duckdb"
     missing = [
         str(path)
         for path in (source_core, source_arm, source_hierarchy, source_reduction)
         if not path.exists()
     ]
     if missing:
-        raise SystemExit("Missing preview prerequisites: " + ", ".join(missing))
+        raise SystemExit("Missing canonical build prerequisites: " + ", ".join(missing))
 
     out_dir = state / "out"
-    preview_dir = out_dir / preview_build_id
-    tmp_dir = out_dir / f"{preview_build_id}.tmp"
-    if preview_dir.exists():
-        raise SystemExit(f"Preview build already exists: {preview_dir}")
+    canonical_dir = out_dir / canonical_build_id
+    tmp_dir = out_dir / f"{canonical_build_id}.tmp"
+    if canonical_dir.exists():
+        raise SystemExit(f"Canonical build already exists: {canonical_dir}")
     if tmp_dir.exists():
         shutil.rmtree(tmp_dir)
     tmp_dir.mkdir(parents=True, exist_ok=False)
 
-    preview_core = tmp_dir / "core.duckdb"
-    preview_hierarchy = tmp_dir / "canonical_hierarchy.duckdb"
-    preview_arm = tmp_dir / "arm.duckdb"
+    canonical_core = tmp_dir / "core.duckdb"
+    canonical_hierarchy = tmp_dir / "canonical_hierarchy.duckdb"
+    canonical_arm = tmp_dir / "arm.duckdb"
     parquet_dir = tmp_dir / "parquet"
     parquet_dir.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(source_core, preview_core)
-    shutil.copy2(source_hierarchy, preview_hierarchy)
-    if preview_arm.exists() or preview_arm.is_symlink():
-        preview_arm.unlink()
-    preview_arm.symlink_to(source_arm)
+    shutil.copy2(source_core, canonical_core)
+    shutil.copy2(source_hierarchy, canonical_hierarchy)
+    if canonical_arm.exists() or canonical_arm.is_symlink():
+        canonical_arm.unlink()
+    shutil.copy2(source_arm, canonical_arm)
 
-    con = duckdb.connect(str(preview_core))
+    con = duckdb.connect(str(canonical_core))
     report: dict[str, object] | None = None
+    determinism_report: dict[str, object] | None = None
     try:
         maybe_set_duckdb_env(con)
         con.execute(f"ATTACH {sql_literal(str(source_core))} AS src_core (READ_ONLY)")
         con.execute(f"ATTACH {sql_literal(str(source_reduction))} AS red (READ_ONLY)")
-        con.execute(f"ATTACH {sql_literal(str(preview_hierarchy))} AS hier (READ_ONLY)")
+        con.execute(f"ATTACH {sql_literal(str(canonical_hierarchy))} AS hier (READ_ONLY)")
 
         con.execute(
             """
@@ -349,7 +369,17 @@ def emit_preview_build(
         con.execute(
             """
             create or replace temp table preview_leaf_rollup as
-            with leaf_counts as (
+            with direct_children as (
+              select
+                e.parent_node_key as canonical_system_key,
+                e.child_node_key,
+                n.node_kind
+              from hier.hierarchy_edges e
+              join hier.hierarchy_nodes n on n.hierarchy_node_key = e.child_node_key
+              where e.edge_kind = 'contains'
+                and n.node_kind in ('star', 'unresolved_component')
+            ),
+            leaf_counts as (
               select
                 e.parent_node_key as canonical_star_key,
                 count(*)::bigint as leaf_star_count
@@ -360,10 +390,10 @@ def emit_preview_build(
               group by 1
             )
             select
-              pss.canonical_system_key,
+              dc.canonical_system_key,
               sum(case when coalesce(lc.leaf_star_count, 0) > 0 then lc.leaf_star_count else 1 end)::bigint as effective_star_count
-            from preview_star_system pss
-            left join leaf_counts lc on lc.canonical_star_key = pss.canonical_star_key
+            from direct_children dc
+            left join leaf_counts lc on lc.canonical_star_key = dc.child_node_key
             group by 1
             """
         )
@@ -381,7 +411,7 @@ def emit_preview_build(
                     coalesce(nullif(csg.representative_name, ''), s.system_name) as system_name,
                     {normalize_expr("coalesce(nullif(csg.representative_name, ''), s.system_name)")} as system_name_norm,
                     coalesce(nullif(csg.wds_id, ''), s.wds_id) as wds_id,
-                    'canonical_preview_v2' as grouping_basis,
+                    'canonical_build_v2' as grouping_basis,
                     cast(1.00 as decimal(3,2)) as grouping_confidence,
                     'high' as grouping_confidence_tier,
                     cast(0 as bigint) as star_count,
@@ -722,10 +752,10 @@ def emit_preview_build(
                 delete from build_metadata
                 where key in (
                   'build_id',
-                  'preview_source_build_id',
-                  'preview_mode',
+                  'bootstrap_source_build_id',
+                  'canonical_mode',
                   'canonical_hierarchy_enabled',
-                  'canonical_preview_generated_at'
+                  'canonical_build_generated_at'
                 )
                 """
             )
@@ -733,12 +763,12 @@ def emit_preview_build(
                 """
                 insert into build_metadata values
                   ('build_id', ?),
-                  ('preview_source_build_id', ?),
-                  ('preview_mode', 'ingest_v2_canonical_preview'),
+                  ('bootstrap_source_build_id', ?),
+                  ('canonical_mode', 'ingest_canonical_build'),
                   ('canonical_hierarchy_enabled', '1'),
-                  ('canonical_preview_generated_at', ?)
+                  ('canonical_build_generated_at', ?)
                 """,
-                [preview_build_id, source_build_id, utc_now()],
+                [canonical_build_id, source_build_id, utc_now()],
             )
 
             con.execute(
@@ -769,6 +799,27 @@ def emit_preview_build(
                 (format parquet, compression zstd)
                 """
             )
+            con.execute(
+                f"""
+                copy (select * from aliases order by alias_id asc)
+                to {sql_literal(str(parquet_dir / 'aliases.parquet'))}
+                (format parquet, compression zstd)
+                """
+            )
+            con.execute(
+                f"""
+                copy (select * from object_identifiers order by identifier_id asc)
+                to {sql_literal(str(parquet_dir / 'object_identifiers.parquet'))}
+                (format parquet, compression zstd)
+                """
+            )
+            con.execute(
+                f"""
+                copy (select * from identifier_quarantine order by quarantine_id asc)
+                to {sql_literal(str(parquet_dir / 'identifier_quarantine.parquet'))}
+                (format parquet, compression zstd)
+                """
+            )
             con.execute("commit")
         except Exception:
             con.execute("rollback")
@@ -776,11 +827,11 @@ def emit_preview_build(
 
         report = {
             "generated_at": utc_now(),
-            "preview_build_id": preview_build_id,
+            "canonical_build_id": canonical_build_id,
             "source_build_id": source_build_id,
             "source_build_dir": str(source_build_dir),
-            "preview_build_dir": str(preview_dir),
-            "canonical_preview_mode": "ingest_v2_canonical_preview",
+            "canonical_build_dir": str(canonical_dir),
+            "canonical_build_mode": "ingest_canonical_build",
             "table_counts": {
                 "systems": count_table(con, "systems"),
                 "stars": count_table(con, "stars"),
@@ -806,57 +857,109 @@ def emit_preview_build(
                 ).fetchall(),
             },
             "notes": [
-                "Preview build keeps representative legacy row ids where possible, but replaces stable_object_key with ingest_v2 canonical keys.",
-                "Canonical hierarchy lives beside the preview core build and is preferred by the API when present.",
-                "Preview builds materialize compact system_search_terms so the API exercises the fast search path during proton validation.",
-                "Member-star names are included in preview search terms when they are not Gaia-style placeholders, so lookups like AR Cas resolve without relying on fallback scans.",
+                "Canonical build keeps representative legacy row ids where possible, but replaces stable_object_key with ingest canonical keys.",
+                "Canonical hierarchy lives beside the core build and is preferred by the API when present.",
+                "Canonical builds materialize compact system_search_terms so the API exercises the fast search path.",
+                "Member-star names are included in search terms when they are not Gaia-style placeholders, so lookups like AR Cas resolve without relying on fallback scans.",
                 "Auxiliary tables not needed for search/detail remain copied from the source build; only key browse/detail tables are canonicalized here.",
             ],
+        }
+        determinism_report = {
+            "build_id": canonical_build_id,
+            "bootstrap_source_build_id": source_build_id,
+            "generated_at": utc_now(),
+            "source_inputs_fingerprint": f"canonical:{source_build_id}",
+            "transform_version": "ingest_canonical_build",
+            "build_layer": "core",
+            "slice_profile_id": "",
+            "slice_profile_version": "",
+            "table_fingerprints": {
+                "systems": table_fingerprint(con, "systems", "stable_object_key"),
+                "stars": table_fingerprint(con, "stars", "stable_object_key"),
+                "planets": table_fingerprint(con, "planets", "stable_object_key"),
+            },
         }
     finally:
         con.close()
 
     if report is None:
-        raise RuntimeError("preview build failed before report generation")
+        raise RuntimeError("canonical build failed before report generation")
 
-    reports_dir = state / "reports" / preview_build_id
+    reports_dir = state / "reports" / canonical_build_id
     reports_dir.mkdir(parents=True, exist_ok=True)
-    report_path = reports_dir / "canonical_preview_report.json"
+    source_reports_dir = state / "reports" / source_build_id
+    if source_reports_dir.is_dir():
+        for source_report in source_reports_dir.iterdir():
+            if not source_report.is_file():
+                continue
+            dest_report = reports_dir / source_report.name
+            if source_report.suffix == ".json":
+                try:
+                    payload = json.loads(source_report.read_text(encoding="utf-8"))
+                except Exception:
+                    shutil.copy2(source_report, dest_report)
+                    continue
+                if isinstance(payload, dict):
+                    payload.setdefault("bootstrap_source_build_id", source_build_id)
+                    payload.setdefault("canonical_build_id", canonical_build_id)
+                    if payload.get("build_id") == source_build_id:
+                        payload["build_id"] = canonical_build_id
+                    if source_report.name == "qc_report.json":
+                        counts = payload.get("counts")
+                        if isinstance(counts, dict):
+                            for key, value in (report.get("table_counts") or {}).items():
+                                if key in counts:
+                                    counts[key] = value
+                    dest_report.write_text(
+                        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                else:
+                    shutil.copy2(source_report, dest_report)
+            else:
+                shutil.copy2(source_report, dest_report)
+    report_path = reports_dir / "canonical_build_report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if determinism_report is not None:
+        (reports_dir / "determinism_report.json").write_text(
+            json.dumps(determinism_report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
-    tmp_dir.rename(preview_dir)
-    report["preview_build_dir"] = str(preview_dir)
+    tmp_dir.rename(canonical_dir)
+    report["canonical_build_dir"] = str(canonical_dir)
     return report
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Emit a full ingest_v2 canonical preview build.")
-    parser.add_argument("--build-id", help="Source build id to transform into a canonical preview.")
+    parser = argparse.ArgumentParser(description="Emit a full ingest canonical build.")
+    parser.add_argument("--build-id", help="Source build id to transform into a canonical build.")
     parser.add_argument(
         "--latest-out",
         action="store_true",
         help="Use the newest out/<build_id> directory instead of served/current.",
     )
     parser.add_argument(
-        "--preview-build-id",
-        help="Optional explicit preview build id. Default: <timestamp>_<gitsha>_v2preview",
+        "--canonical-build-id",
+        help="Optional explicit canonical build id. Default: <timestamp>_<gitsha>_canonical",
     )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[2]
     state = state_dir(root)
     source_build_id, source_build_dir = resolve_build_dir(state, args.build_id, args.latest_out)
-    preview_build_id = (
-        str(args.preview_build_id).strip()
-        if args.preview_build_id
-        else f"{build_token_now()}_{git_sha(root)}_v2preview"
+    explicit_build_id = args.canonical_build_id
+    canonical_build_id = (
+        str(explicit_build_id).strip()
+        if explicit_build_id
+        else f"{build_token_now()}_{git_sha(root)}_canonical"
     )
-    payload = emit_preview_build(
+    payload = emit_canonical_build(
         root=root,
         state=state,
         source_build_id=source_build_id,
         source_build_dir=source_build_dir,
-        preview_build_id=preview_build_id,
+        canonical_build_id=canonical_build_id,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
 

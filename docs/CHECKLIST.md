@@ -76,7 +76,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)
 - [ ] Benchmark system validation set passes (Castor, 16 Cyg, Sol-neighborhood checks)
 - [ ] Expand multiplicity goldens with AR Cas / HD 221253 and Nu Scorpii / HD 145502; keep HD 235299 and Gamma Cas as adjudication/watchlist systems until evidence policy is explicit
-- [x] Suppress singleton MSC leaf inference in preview hierarchy to avoid Bet Mon-style overfit
+- [x] Suppress singleton MSC leaf inference in canonical hierarchy to avoid Bet Mon-style overfit
 
 ### C5. Phase D - Crosswalk and Naming
 
@@ -143,7 +143,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Retention policy documented (builds, reports, backups, large catalogs)
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
 - [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
-- [x] Logged core build wrapper preserves build exit status and host state-dir environment (`scripts/build_core_logged.sh`)
+- [x] Logged database build wrapper preserves build exit status and host state-dir environment (`scripts/build_database_logged.sh`)
 
 ## E) Product Roadmap (Post-Core Migration)
 
@@ -151,10 +151,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Factsheets + exposition generation with confidence metadata
 - [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues
 - [ ] Fold stellar gigantism into coolness/search ranking so giants and supergiants are not buried with ordinary stars
-- [x] Ingest v2 design doc + deterministic adjudication queue baseline for sloppy-system triage
-- [x] Ingest v2 bootstrap artifacts for normalized sources, identity graph, and canonical reduction
-- [x] Ingest v2 bootstrap canonical hierarchy artifact from canonical objects + arm role evidence
-- [x] Ingest v2 preview build emitter + runtime canonical-hierarchy fallback for local tryouts
+- [x] Canonical ingest design doc + deterministic adjudication queue baseline for sloppy-system triage
+- [x] Canonical ingest artifacts for normalized sources, identity graph, and canonical reduction
+- [x] Canonical hierarchy artifact from canonical objects + arm role evidence
+- [x] Canonical build emitter + runtime canonical-hierarchy fallback
 - [ ] Agent evidence-link pipeline in `disc` (citations/source manifests backing factsheets and narratives)
 - [ ] Agent adjudication tables in `arm` for ambiguity resolution and missing-field proposals
 - [ ] Local inference adjudicator cook-off with pinned TurboQuant KV-cache evaluation for long-context profiles

@@ -12,16 +12,16 @@ The surface area requirements result in dyson swarms of solar collectors around 
 These objects should be definable so I can create immense solar collectors that output 1 gram of antimatter per year or something like that. Or a mine that produces x kilotons of 18% aluminum 12% iron ore per day. And an ore processor that separataes and concentrates that to 78% grade aluminum ore and 68% iron ore. And an aluminum smelter that outputs x amount of pure aluminum. And a foundry that outputs x tons of steel per day. And a space elevator that can bring x tons up to orbit per day. And a ship yard that consumes x tons of aluminum per day as it produces a ship that contains x tons of aluminum and steel. For example.
 
 
-# Lore Maps
+# Rim Maps
 For fans of scifi set in the actual Milky Way (sorry Star Wars), map soverign space in popular science fiction.
-## Franchises with Real Star Lore
+## Franchises with Real Star Rim Overlays
 - Star Trek
 - Dune
 - Battletech
 - Babylon 5
 - Elite Dangerous
 - The Expanse
-There's certainly more. The lore functionality should be robust enough for users to map just about any franchise they're into.
+There's certainly more. The rim functionality should be robust enough for users to map just about any franchise they're into.
 
 
 # I secretly want to make a Masters of Orion game you can play in the real Milky Way

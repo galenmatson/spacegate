@@ -77,15 +77,15 @@ def count_table(con: duckdb.DuckDBPyConnection, table_name: str) -> int:
 
 
 def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dict[str, object]:
-    norm_path = build_dir / "ingest_v2" / "normalized_sources.duckdb"
-    graph_path = build_dir / "ingest_v2" / "identity_graph.duckdb"
+    norm_path = build_dir / "ingest" / "normalized_sources.duckdb"
+    graph_path = build_dir / "ingest" / "identity_graph.duckdb"
     missing = [str(p) for p in (norm_path, graph_path) if not p.exists()]
     if missing:
         raise SystemExit(
-            "Missing ingest_v2 prerequisites for canonical reduction: " + ", ".join(missing)
+            "Missing ingest prerequisites for canonical reduction: " + ", ".join(missing)
         )
 
-    out_dir = build_dir / "ingest_v2"
+    out_dir = build_dir / "ingest"
     out_dir.mkdir(parents=True, exist_ok=True)
     db_path = out_dir / "canonical_reduction.duckdb"
     report_path = reports_dir / "canonical_reduction_report.json"
@@ -776,7 +776,7 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build ingest_v2 canonical reduction artifacts for a Spacegate build.")
+    parser = argparse.ArgumentParser(description="Build ingest canonical reduction artifacts for a Spacegate build.")
     parser.add_argument("--build-id", help="Specific build id to analyze.")
     parser.add_argument(
         "--latest-out",

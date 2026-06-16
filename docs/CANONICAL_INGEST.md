@@ -1,11 +1,11 @@
-# Spacegate Ingest V2 Plan
+# Spacegate Canonical Ingest Plan
 
 This document defines the clean-slate canonicalization pipeline that will replace the remaining AT-HYG-era assumptions in the current ingest flow.
 
 Status:
 - architecture approved
-- implementation started in `feature/ingest-v2-canonicalization`
-- agent integration is explicitly **not** a prerequisite for ingest v2
+- production full-build wrappers emit and promote canonical database builds after the bootstrap science projection
+- agent integration is explicitly **not** a prerequisite for canonical ingest
 
 ## Goals
 
@@ -23,24 +23,24 @@ Status:
 
 ## Pipeline Shape
 
-Current bootstrap artifacts on `feature/ingest-v2-canonicalization`:
+Current bootstrap artifacts:
 
-- `out/<build_id>/ingest_v2/normalized_sources.duckdb`
-- `out/<build_id>/ingest_v2/identity_graph.duckdb`
-- `out/<build_id>/ingest_v2/canonical_reduction.duckdb`
-- `out/<build_id>/ingest_v2/canonical_hierarchy.duckdb`
-- `out/<preview_build_id>/core.duckdb` emitted by `scripts/ingest_v2/emit_preview_build.py`
-- `out/<preview_build_id>/canonical_hierarchy.duckdb` copied beside preview `core.duckdb`
+- `out/<build_id>/ingest/normalized_sources.duckdb`
+- `out/<build_id>/ingest/identity_graph.duckdb`
+- `out/<build_id>/ingest/canonical_reduction.duckdb`
+- `out/<build_id>/ingest/canonical_hierarchy.duckdb`
+- `out/<canonical_build_id>/core.duckdb` emitted by `scripts/ingest/emit_canonical_build.py`
+- `out/<canonical_build_id>/canonical_hierarchy.duckdb` copied beside `core.duckdb`
 - `reports/<build_id>/normalized_sources_report.json`
 - `reports/<build_id>/identity_graph_report.json`
 - `reports/<build_id>/canonical_reduction_report.json`
 - `reports/<build_id>/canonical_hierarchy_report.json`
-- `reports/<preview_build_id>/canonical_preview_report.json`
+- `reports/<canonical_build_id>/canonical_build_report.json`
 
 Bootstrap note:
 
 - the initial graph uses a clearly-labeled `legacy_core_crosswalk` bridge from the current deterministic build
-- that bridge is transitional and exists only to connect Gaia rows to HIP/HD/WDS-oriented catalogs while ingest v2 crosswalk rules are still being rebuilt source-natively
+- that bridge is transitional and exists only to connect Gaia rows to HIP/HD/WDS-oriented catalogs while canonical ingest crosswalk rules are still being rebuilt source-natively
 - canonical reduction must be designed so this bridge can be removed later without changing the public contract
 
 ### Stage 1: Source Normalization
@@ -131,7 +131,8 @@ Bootstrap status:
 - top-level canonical stars attach beneath canonical systems
 - canonical planets attach beneath canonical host stars when host mapping is resolved
 - MSC inferred leaves attach beneath top-level stars only when the arm `member_role` mapping is unique
-- singleton MSC subdivisions are suppressed in the preview hierarchy so sparse role evidence does not masquerade as a resolved pair
+- missing one-letter root roles may be represented as unresolved hierarchy components when WDS pair evidence and MSC multi-leaf evidence agree; these nodes remain outside canonical `core.stars`
+- singleton MSC subdivisions are suppressed in the canonical hierarchy so sparse role evidence does not masquerade as a resolved pair
 
 ### Stage 5: Artifact Emission
 
@@ -141,17 +142,17 @@ Emit:
 - `disc`: citations, factsheets, narratives, and reproducible enrichment artifacts
 - `reports`: deterministic quality and queue outputs
 
-Preview-emission note:
+Canonical emission note:
 
-- during transition, ingest v2 may emit a full preview build before it becomes the default production emitter
-- preview builds keep representative legacy row ids where practical, but replace `stable_object_key` with canonical ingest_v2 keys
-- preview builds ship a sibling `canonical_hierarchy.duckdb`; the API should prefer that hierarchy when present and fall back to legacy `arm` hierarchy otherwise
-- preview builds should also materialize compact `system_search_terms` so proton validation exercises the fast search path instead of the alias/star fallback scans
-- preview builds are for local proton validation and golden testing, not proof that ingest v2 is ready to replace the main build path
+- production full-build wrappers run the bootstrap science projection, then run `scripts/ingest/build_canonical.sh`
+- emitted canonical builds keep representative bootstrap row ids where practical, but replace `stable_object_key` with canonical ingest keys
+- emitted canonical builds ship a sibling `canonical_hierarchy.duckdb`; the API should prefer that hierarchy when present and fall back to `arm` hierarchy otherwise
+- emitted canonical builds materialize compact `system_search_terms` so validation exercises the fast search path instead of the alias/star fallback scans
+- the bootstrap build remains an immutable input artifact, but `scripts/build_database.sh` and full `scripts/refresh_core.sh` promotion target the canonical build id
 
 ## Adjudication Queue
 
-Ingest v2 must emit a queue of “sloppy systems” before any agent exists.
+Canonical ingest must emit a queue of “sloppy systems” before any agent exists.
 
 Purpose:
 - rank unresolved or low-quality systems for later adjudication
@@ -199,7 +200,7 @@ Initial queue issue families:
 
 ## Agent Integration Point
 
-The agent consumes adjudication queue rows after ingest v2 exists.
+The agent consumes adjudication queue rows after canonical ingest exists.
 
 Agent inputs:
 - canonical object bundle
@@ -235,7 +236,7 @@ Required early goldens:
 
 ## Implementation Order
 
-1. Document ingest v2 contracts.
+1. Document canonical ingest contracts.
 2. Emit first adjudication queue from current builds.
 3. Build source normalization modules.
 4. Build identity graph + canonical reducer.

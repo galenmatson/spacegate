@@ -260,12 +260,12 @@ Measurement tooling:
 1. Materialize existing full build as `galaxy`:
    - `scripts/materialize_galaxy.sh <build_id>`
 2. Build/promote sliced core with explicit profile metadata:
-   - `scripts/build_core_slice.sh --from-cooked --profile-id <id> --profile-version <ver> --source-galaxy-build-id <build_id> ...slice knobs...`
+   - `scripts/build_database_slice.sh --from-cooked --profile-id <id> --profile-version <ver> --source-galaxy-build-id <build_id> ...slice knobs...`
    - promotion can run `scripts/check_profile_slo.py` for profile-tagged builds when explicitly enabled (`SPACEGATE_PROMOTE_ENFORCE_PROFILE_SLO=1`)
 3. Build halo complement from the (`galaxy`, `core`) pair:
    - `scripts/build_halo.sh --galaxy-build-id <galaxy_build_id> --core-build-id <core_build_id>`
-4. For v2-preview benchmarking on proton without re-running the full canonical emitter:
-   - `scripts/ingest_v2/build_public_slice.py --build-id <v2_preview_build_id>`
+4. For canonical-build benchmarking without re-running the full canonical emitter:
+   - `scripts/ingest/build_public_slice.py --build-id <canonical_build_id>`
 
 ## Known Constraint (Current Builds)
 

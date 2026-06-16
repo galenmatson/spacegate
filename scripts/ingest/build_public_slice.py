@@ -74,7 +74,7 @@ def build_slice(
     if final_dir.exists():
         raise SystemExit(f"Target build already exists: {final_dir}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    (tmp_dir / "ingest_v2").mkdir(parents=True, exist_ok=True)
+    (tmp_dir / "ingest").mkdir(parents=True, exist_ok=True)
     (tmp_dir / "parquet").mkdir(parents=True, exist_ok=True)
 
     core_dst = tmp_dir / "core.duckdb"
@@ -198,7 +198,7 @@ def build_slice(
             delete from build_metadata
             where key in (
               'build_id',
-              'preview_source_build_id',
+              'bootstrap_source_build_id',
               'slice_profile_id',
               'slice_profile_version',
               'slice_max_distance_ly',
@@ -311,7 +311,7 @@ def build_slice(
             "insert into build_metadata values (?, ?)",
             [
                 ("build_id", slice_build_id),
-                ("preview_source_build_id", source_build_id),
+                ("bootstrap_source_build_id", source_build_id),
                 ("slice_profile_id", "core.public"),
                 ("slice_profile_version", "v3"),
                 ("slice_max_distance_ly", str(max_distance_ly)),
@@ -363,8 +363,8 @@ def build_slice(
 
     for rel_path in [
         Path("arm.duckdb"),
-        Path("rich.duckdb"),
-        Path("rich"),
+        Path("disc.duckdb"),
+        Path("disc"),
         Path("canonical_hierarchy.duckdb"),
     ]:
         src = source_build_dir / rel_path
@@ -423,7 +423,7 @@ def build_slice(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build a v2-preview public slice from an existing canonical preview build.")
+    parser = argparse.ArgumentParser(description="Build a public core slice from an existing canonical build.")
     parser.add_argument("--build-id", help="Source build id. Defaults to served/current.", default="")
     parser.add_argument("--slice-build-id", help="Explicit output build id.", default="")
     parser.add_argument("--max-distance-ly", type=float, default=1000.0)

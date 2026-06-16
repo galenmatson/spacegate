@@ -2,7 +2,6 @@
 
 This document is the source of truth for Spacegate's **derived astronomy artifacts**.
 Disc data is reproducible and regenerated from core/arm/packs; it is not edited in place.
-The runtime still uses legacy `rich` naming in some paths during transition.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
@@ -24,8 +23,8 @@ Hard constraints:
 
 ## Primary Artifacts
 
-- `$SPACEGATE_STATE_DIR/out/<build_id>/rich.duckdb` (legacy path; disc layer artifact)
-- `$SPACEGATE_STATE_DIR/out/<build_id>/rich/*.parquet` (legacy path; disc layer artifacts)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/disc.duckdb`
+- `$SPACEGATE_STATE_DIR/out/<build_id>/disc/*.parquet`
 - Snapshot/image assets under:
   - `$SPACEGATE_STATE_DIR/out/<build_id>/snapshots/...`
   - `$SPACEGATE_STATE_DIR/out/<build_id>/images/...`

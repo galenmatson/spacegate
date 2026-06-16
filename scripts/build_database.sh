@@ -12,9 +12,9 @@ fi
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/build_core.sh [--overwrite] [--full-refresh]
+  scripts/build_database.sh [--overwrite] [--full-refresh]
 
-Runs: download -> cook -> ingest -> promote -> verify
+Runs: download -> cook -> canonical ingest -> promote -> verify
 
 Options:
   --overwrite      Replace existing raw downloads if present.
@@ -68,14 +68,25 @@ main() {
   echo "==> Cook core catalogs"
   "$ROOT_DIR/scripts/cook_core.sh"
 
-  echo "==> Ingest core catalogs"
-  "$ROOT_DIR/scripts/ingest_core.sh"
+  local now git_sha bootstrap_build_id build_id
+  now="$(date -u +"%Y%m%dT%H%M%SZ")"
+  git_sha="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo nogit)"
+  build_id="${now}_${git_sha}"
+  bootstrap_build_id="${build_id}_bootstrap"
 
-  echo "==> Promote latest build"
-  "$ROOT_DIR/scripts/promote_build.sh"
+  echo "==> Build bootstrap science projection ($bootstrap_build_id)"
+  "$ROOT_DIR/scripts/ingest_core.sh" --build-id "$bootstrap_build_id"
 
-  echo "==> Verify build"
-  "$ROOT_DIR/scripts/verify_build.sh"
+  echo "==> Build canonical database set ($build_id)"
+  "$ROOT_DIR/scripts/ingest/build_canonical.sh" \
+    --build-id "$bootstrap_build_id" \
+    --canonical-build-id "$build_id"
+
+  echo "==> Promote canonical build"
+  "$ROOT_DIR/scripts/promote_build.sh" "$build_id"
+
+  echo "==> Verify canonical build"
+  "$ROOT_DIR/scripts/verify_build.sh" "$build_id"
   echo "Build complete."
   echo "Next (Docker default): scripts/compose_spacegate.sh up -d --build api web"
   echo "Host mode (no Docker): scripts/run_spacegate.sh"

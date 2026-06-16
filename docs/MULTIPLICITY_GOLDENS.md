@@ -81,5 +81,6 @@ Adjudication/watchlist set:
 - Beta Monocerotis / HD 45725 as an over-inference risk: public descriptions consistently treat it as a triple while current WDS/MSC reconstruction expands it to six
 
 Current guardrails:
-- preview hierarchy suppresses singleton MSC subdivisions, so systems like Beta Monocerotis no longer invent one-off `BA`-style child leaves from a lone role label
+- canonical hierarchy suppresses singleton MSC subdivisions, so systems like Beta Monocerotis no longer invent one-off `BA`-style child leaves from a lone role label
+- canonical hierarchy may create unresolved role nodes only when WDS pair evidence and MSC multi-leaf evidence agree, so systems like Nu Scorpii can expose orphaned `BA`/`BB` leaves without fabricating measured core stars
 - search/display should prefer matched member-star names when no system-level common-name alias exists, so variable-star lookups like `AR Cas` still surface the correct system card cleanly

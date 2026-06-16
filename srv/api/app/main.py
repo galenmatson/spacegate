@@ -84,8 +84,8 @@ def _state_dir() -> Path:
     return ROOT_DIR / "data"
 
 
-def _resolve_rich_db_path() -> Optional[str]:
-    candidate = Path(db.get_db_path()).with_name("rich.duckdb")
+def _resolve_disc_db_path() -> Optional[str]:
+    candidate = Path(db.get_db_path()).with_name("disc.duckdb")
     if candidate.exists():
         return str(candidate)
     return None
@@ -545,7 +545,7 @@ def systems_search(
             },
         )
 
-    rich_db_path = _resolve_rich_db_path()
+    disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
 
     match_mode = bool(q_norm) or bool(id_query)
@@ -649,7 +649,7 @@ def systems_search(
                 limit=limit + 1,
                 include_total=bool(include_total_bool),
                 cursor_values=cursor_values,
-                rich_db_path=rich_db_path,
+                disc_db_path=disc_db_path,
                 arm_db_path=arm_db_path,
             )
     except ValueError as exc:
@@ -781,7 +781,7 @@ def systems_search(
 
 @app.get("/api/v1/systems/{system_id}")
 def system_detail(system_id: int):
-    rich_db_path = _resolve_rich_db_path()
+    disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
     with db.connection_scope() as con:
@@ -813,7 +813,7 @@ def system_detail(system_id: int):
             con,
             system_id=system_id,
             stable_object_key=system.get("stable_object_key"),
-            rich_db_path=rich_db_path,
+            disc_db_path=disc_db_path,
         )
         hierarchy = fetch_system_hierarchy_for_system(
             con,
@@ -870,7 +870,7 @@ def system_detail(system_id: int):
 
 @app.get("/api/v1/systems/by-key/{stable_object_key}")
 def system_detail_by_key(stable_object_key: str):
-    rich_db_path = _resolve_rich_db_path()
+    disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
     with db.connection_scope() as con:
@@ -903,7 +903,7 @@ def system_detail_by_key(stable_object_key: str):
             con,
             system_id=int(system_id),
             stable_object_key=stable_object_key,
-            rich_db_path=rich_db_path,
+            disc_db_path=disc_db_path,
         )
         hierarchy = fetch_system_hierarchy_for_system(
             con,
@@ -1079,16 +1079,16 @@ def _is_duckdb_lock_conflict(exc: Exception) -> bool:
     )
 
 
-def _coolness_preview_from_rich_db(weights: Dict[str, float], top_n: int) -> Dict[str, Any]:
+def _coolness_preview_from_disc_db(weights: Dict[str, float], top_n: int) -> Dict[str, Any]:
     core_db_path = Path(db.get_db_path())
-    rich_db_path = core_db_path.with_name("rich.duckdb")
-    if not rich_db_path.exists():
+    disc_db_path = core_db_path.with_name("disc.duckdb")
+    if not disc_db_path.exists():
         raise HTTPException(
             status_code=409,
             detail={
                 "code": "conflict",
-                "message": "Missing rich.duckdb for current build; run score_coolness first",
-                "details": {"rich_db_path": str(rich_db_path)},
+                "message": "Missing disc.duckdb for current build; run score_coolness first",
+                "details": {"disc_db_path": str(disc_db_path)},
             },
         )
 
@@ -1131,7 +1131,7 @@ LIMIT ?
     params = [*subscore_params, *score_params, int(top_n)]
     con = None
     try:
-        con = duckdb.connect(str(rich_db_path), read_only=True)
+        con = duckdb.connect(str(disc_db_path), read_only=True)
         cur = con.execute(sql, params)
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -1142,7 +1142,7 @@ LIMIT ?
                 detail={
                     "code": "conflict",
                     "message": "Coolness preview is temporarily unavailable while scoring is writing outputs; retry in a few seconds",
-                    "details": {"error": str(exc), "rich_db_path": str(rich_db_path), "retryable": True},
+                    "details": {"error": str(exc), "disc_db_path": str(disc_db_path), "retryable": True},
                 },
             )
         raise HTTPException(
@@ -1150,7 +1150,7 @@ LIMIT ?
             detail={
                 "code": "internal_error",
                 "message": "Failed to compute coolness diversity preview",
-                "details": {"error": str(exc), "rich_db_path": str(rich_db_path)},
+                "details": {"error": str(exc), "disc_db_path": str(disc_db_path)},
             },
         )
     except Exception as exc:
@@ -1159,7 +1159,7 @@ LIMIT ?
             detail={
                 "code": "internal_error",
                 "message": "Failed to compute coolness diversity preview",
-                "details": {"error": str(exc), "rich_db_path": str(rich_db_path)},
+                "details": {"error": str(exc), "disc_db_path": str(disc_db_path)},
             },
         )
     finally:
@@ -1219,7 +1219,7 @@ LIMIT ?
     shannon_normalized = (shannon_nats / math.log(max_classes)) if max_classes > 1 else 0.0
 
     return {
-        "rich_db_path": str(rich_db_path),
+        "disc_db_path": str(disc_db_path),
         "top_n": int(top_n),
         "sample_size": len(rows),
         "diversity_scores": {
@@ -1477,7 +1477,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     cooked_dir = state_dir / "cooked"
     served_dir = state_dir / "served"
     out_dir = state_dir / "out"
-    rich_db_path = db_path.with_name("rich.duckdb")
+    disc_db_path = db_path.with_name("disc.duckdb")
     arm_db_path = db_path.with_name("arm.duckdb")
     admin_db_path = admin_db.get_admin_db_path().resolve()
 
@@ -1901,7 +1901,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     disk_usage = shutil.disk_usage(state_dir)
 
     core_db_bytes = db_path.stat().st_size if db_path.exists() else 0
-    rich_db_bytes = rich_db_path.stat().st_size if rich_db_path.exists() else 0
+    disc_db_bytes = disc_db_path.stat().st_size if disc_db_path.exists() else 0
     arm_db_bytes = arm_db_path.stat().st_size if arm_db_path.exists() else 0
     admin_db_bytes = admin_db_path.stat().st_size if admin_db_path.exists() else 0
 
@@ -1914,7 +1914,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "state_dir": str(state_dir),
             "build_dir": str(build_dir),
             "db_path": str(db_path),
-            "rich_db_path": str(rich_db_path) if rich_db_path.exists() else None,
+            "disc_db_path": str(disc_db_path) if disc_db_path.exists() else None,
             "arm_db_path": str(arm_db_path) if arm_db_path.exists() else None,
             "admin_db_path": str(admin_db_path) if admin_db_path.exists() else None,
             "reports_dir": str(reports_dir),
@@ -1929,7 +1929,7 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "out_total": _path_size_bytes(out_dir),
             "served_total": _path_size_bytes(served_dir),
             "core_db": int(core_db_bytes),
-            "rich_db": int(rich_db_bytes),
+            "disc_db": int(disc_db_bytes),
             "arm_db": int(arm_db_bytes),
             "admin_db": int(admin_db_bytes),
             "parquet_total": _path_size_bytes(build_dir / "parquet"),
@@ -2334,7 +2334,7 @@ def admin_coolness_preview(request: Request, payload: CoolnessPreviewRequest):
             },
         )
 
-    diversity = _coolness_preview_from_rich_db(
+    diversity = _coolness_preview_from_disc_db(
         {k: float(v) for k, v in candidate_weights.items()},
         top_n=int(payload.top_n),
     )
@@ -3164,7 +3164,7 @@ def admin_home(request: Request):
         </p>
         <ul class="guidance">
           <li><strong>Preview</strong>: auto-refreshed summary from the latest run output; no manual preview action needed.</li>
-          <li><strong>Run</strong>: writes rich ranking outputs (`rich.duckdb`, Parquet, report) for the current build using your current sliders, but does not persist a new profile version.</li>
+          <li><strong>Run</strong>: writes disc ranking outputs (`disc.duckdb`, Parquet, report) for the current build using your current sliders, but does not persist a new profile version.</li>
           <li><strong>Save Profile</strong>: stores the current slider mix as an immutable profile version, without activating it.</li>
           <li><strong>Activate Profile</strong>: saves current weights as an immutable version (auto-bumping version if needed) and then activates that saved version.</li>
           <li>Core astronomy data is not modified by coolness tuning.</li>
@@ -4443,7 +4443,7 @@ def admin_home(request: Request):
 		            String(active.profile_id || activeProfile.profile_id || 'default')
 		          }}@${{
 		            String(active.profile_version || activeProfile.profile_version || '1')
-		          }}. Preview is read-only; Run updates rich outputs ephemerally; Save Profile persists versions; Activate Profile switches what is live.`
+		          }}. Preview is read-only; Run updates disc outputs ephemerally; Save Profile persists versions; Activate Profile switches what is live.`
 		        );
 	      }}
 
@@ -4896,7 +4896,7 @@ def admin_home(request: Request):
           {{ key: 'Served build footprint', value: formatBytes(sizes.build_total), note: String((data.paths || {{}}).build_dir || '') }},
           {{ key: 'Raw / cooked / out', value: `${{formatBytes(sizes.raw_total)}} / ${{formatBytes(sizes.cooked_total)}} / ${{formatBytes(sizes.out_total)}}` }},
           {{ key: 'Reports / served / parquet', value: `${{formatBytes(sizes.reports_total)}} / ${{formatBytes(sizes.served_total)}} / ${{formatBytes(sizes.parquet_total)}}` }},
-          {{ key: 'DB files', value: `core ${{formatBytes(sizes.core_db)}} | arm ${{formatBytes(sizes.arm_db)}} | rich ${{formatBytes(sizes.rich_db)}} | admin ${{formatBytes(sizes.admin_db)}}` }},
+          {{ key: 'DB files', value: `core ${{formatBytes(sizes.core_db)}} | arm ${{formatBytes(sizes.arm_db)}} | disc ${{formatBytes(sizes.disc_db)}} | admin ${{formatBytes(sizes.admin_db)}}` }},
           {{ key: '/data partition', value: `${{formatBytes(disk.used_bytes)}} used of ${{formatBytes(disk.total_bytes)}}`, note: `${{formatBytes(disk.free_bytes)}} free (${{formatPct(disk.used_pct)}} used)` }},
         ]);
 
@@ -5278,7 +5278,7 @@ def admin_home(request: Request):
           `Arm graph: components=${{formatInt(counts.arm_component_entities)}}, hierarchy edges=${{formatInt(counts.arm_hierarchy_edges)}}, orbit edges=${{formatInt(counts.arm_orbit_edges)}}`,
           `Arm overlays: VSX rows=${{formatInt(counts.arm_vsx_variability)}}, variability summary=${{formatInt(counts.arm_variability_summary)}}, high variability=${{formatInt(counts.arm_variability_high)}}, ultracool rows=${{formatInt(counts.arm_ultracoolsheet_objects)}}`,
           `Input vs sliced: ${{formatInt(slice.input_backbone_rows)}} input, ${{formatInt(slicedOutRows)}} sliced out (${{formatPct(slicedOutPct)}})`,
-          `Storage: core=${{formatBytes(sizes.core_db)}}, arm=${{formatBytes(sizes.arm_db)}}, rich=${{formatBytes(sizes.rich_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
+          `Storage: core=${{formatBytes(sizes.core_db)}}, arm=${{formatBytes(sizes.arm_db)}}, disc=${{formatBytes(sizes.disc_db)}}, admin=${{formatBytes(sizes.admin_db)}}, state=${{formatBytes(sizes.state_total)}}`,
           `Memory: host used=${{formatBytes(hostMemUsed)}} / ${{formatBytes(hostMemTotal)}}, API rss=${{formatBytes(apiRss)}}, API peak=${{formatBytes(apiPeakRss)}}, duckdb=${{formatBytes(duckMemUsage)}} / ${{formatBytes(duckMemLimit)}}`,
           `Exoplanets: total=${{formatInt(counts.exoplanets_total)}}, temperate=${{formatInt(counts.exoplanets_temperate)}}, habitable candidates=${{formatInt(counts.exoplanets_candidate_habitable)}}`,
           `Exotic highlights: L/T/Y=${{formatInt(exotic.brown_dwarf_like_lty)}}, WD-like=${{formatInt(exotic.white_dwarf_like_d_prefix)}}, high proper motion=${{formatInt(exotic.high_proper_motion_ge_1000_mas_yr)}}`,
@@ -5425,7 +5425,7 @@ def admin_home(request: Request):
           allowed_spectral_classes: (payload.allowed_spectral_classes || []).join(','),
         }};
         setSliceStatus('submitting', 'starting sliced build...');
-        const result = await runAction('build_core_slice', params, 'RUN build_core_slice');
+        const result = await runAction('build_database_slice', params, 'RUN build_database_slice');
         if (!result || !result.ok) {{
           setSliceStatus('error', 'failed to start sliced build');
           return;
@@ -5438,7 +5438,7 @@ def admin_home(request: Request):
         }}
         setSliceStatus('queued', `job ${{jobId}} queued`);
         await loadJobs();
-        void followActionJob(jobId, sliceRunStatusEl, 'build_core_slice');
+        void followActionJob(jobId, sliceRunStatusEl, 'build_database_slice');
       }}
 
       function parseFieldValue(type, input) {{

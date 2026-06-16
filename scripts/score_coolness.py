@@ -577,7 +577,7 @@ def _weight_diff(left: dict[str, float], right: dict[str, float]) -> dict[str, A
 def build_scores(
     *,
     core_db_path: Path,
-    rich_db_path: Path,
+    disc_db_path: Path,
     weights: dict[str, float],
     build_id: str,
     profile_id: str,
@@ -589,8 +589,8 @@ def build_scores(
         raise SystemExit(
             "python module 'duckdb' not found. Install requirements before running score command."
         ) from exc
-    rich_db_path.parent.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(rich_db_path))
+    disc_db_path.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(str(disc_db_path))
     try:
         core_path_sql = str(core_db_path).replace("'", "''")
         con.execute(f"ATTACH '{core_path_sql}' AS core_db (READ_ONLY)")
@@ -841,8 +841,8 @@ FROM scored
 
 def write_outputs(
     *,
-    rich_db_path: Path,
-    rich_parquet_path: Path,
+    disc_db_path: Path,
+    disc_parquet_path: Path,
     report_path: Path,
     build_id: str,
     profile: dict[str, Any],
@@ -856,12 +856,12 @@ def write_outputs(
         raise SystemExit(
             "python module 'duckdb' not found. Install requirements before running score command."
         ) from exc
-    rich_parquet_path.parent.mkdir(parents=True, exist_ok=True)
+    disc_parquet_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
-    con = duckdb.connect(str(rich_db_path), read_only=True)
+    con = duckdb.connect(str(disc_db_path), read_only=True)
     try:
-        parquet_path_sql = str(rich_parquet_path).replace("'", "''")
+        parquet_path_sql = str(disc_parquet_path).replace("'", "''")
         con.execute(
             f"""
 COPY (
@@ -992,8 +992,8 @@ ORDER BY systems DESC, dominant_spectral_class ASC
             for row in top_distribution_rows
         ],
         "artifacts": {
-            "rich_db": str(rich_db_path),
-            "parquet": str(rich_parquet_path),
+            "disc_db": str(disc_db_path),
+            "parquet": str(disc_parquet_path),
             "report": str(report_path),
         },
     }
@@ -1019,21 +1019,21 @@ def _cmd_score(args: argparse.Namespace, root: Path) -> int:
     if not core_db_path.exists():
         raise SystemExit(f"Missing core DB: {core_db_path}")
 
-    rich_db_path = build_dir / "rich.duckdb"
-    rich_parquet_path = build_dir / "rich" / "coolness_scores.parquet"
+    disc_db_path = build_dir / "disc.duckdb"
+    disc_parquet_path = build_dir / "disc" / "coolness_scores.parquet"
     report_path = state_dir / "reports" / build_id / "coolness_report.json"
 
     build_scores(
         core_db_path=core_db_path,
-        rich_db_path=rich_db_path,
+        disc_db_path=disc_db_path,
         weights=weights,
         build_id=build_id,
         profile_id=str(profile["profile_id"]),
         profile_version=str(profile["profile_version"]),
     )
     write_outputs(
-        rich_db_path=rich_db_path,
-        rich_parquet_path=rich_parquet_path,
+        disc_db_path=disc_db_path,
+        disc_parquet_path=disc_parquet_path,
         report_path=report_path,
         build_id=build_id,
         profile=profile,
@@ -1053,15 +1053,15 @@ def _cmd_score(args: argparse.Namespace, root: Path) -> int:
             "profile_created_during_run": profile_created,
             "ephemeral": bool(args.ephemeral),
             "report_path": str(report_path),
-            "parquet_path": str(rich_parquet_path),
+            "parquet_path": str(disc_parquet_path),
         },
     )
 
     print(f"Scored build: {build_id}")
     print(f"Mode: {'ephemeral' if args.ephemeral else 'persistent'}")
     print(f"Profile: {profile['profile_id']}@{profile['profile_version']} ({profile.get('profile_hash')})")
-    print(f"Rich DB: {rich_db_path}")
-    print(f"Parquet: {rich_parquet_path}")
+    print(f"Disc DB: {disc_db_path}")
+    print(f"Parquet: {disc_parquet_path}")
     print(f"Report: {report_path}")
     print(f"Profile store: {store_dir}")
     return 0
