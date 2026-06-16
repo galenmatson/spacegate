@@ -78,9 +78,15 @@ def normalize_base_url(url: str) -> str:
 
 
 def load_env_file(path: Path, *, required: bool) -> None:
-    if not path.exists():
+    try:
+        path.stat()
+    except FileNotFoundError:
         if required:
             raise SystemExit(f"required env file does not exist: {path}")
+        return
+    except PermissionError as exc:
+        if required:
+            raise SystemExit(f"cannot access required env file {path}: {exc}") from exc
         return
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -294,9 +300,12 @@ def request_openai_chat(
         "model": model,
         "messages": messages,
         "temperature": temperature,
-        "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
     }
+    if base_url == normalize_base_url(DEFAULT_OPENAI_BASE_URL):
+        request_payload["max_completion_tokens"] = max_tokens
+    else:
+        request_payload["max_tokens"] = max_tokens
     response = request_json(base_url, api_key, request_payload, timeout_s)
     return response, extract_message_content(response), request_payload
 
@@ -389,6 +398,9 @@ def resolve_provider_config(args: argparse.Namespace) -> tuple[str, str, str, st
         api_key = os.getenv("SPACEGATE_GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY", "")
     else:
         api_key = os.getenv("SPACEGATE_LLM_API_KEY", "")
+    if provider in {"openai", "google"} and not api_key:
+        expected = "OPENAI_API_KEY or SPACEGATE_OPENAI_API_KEY" if provider == "openai" else "GOOGLE_API_KEY or SPACEGATE_GOOGLE_API_KEY"
+        raise SystemExit(f"{expected} is required for provider={provider}")
     return provider, model, base_url, api_key
 
 
@@ -742,6 +754,10 @@ def write_reports(report_dir: Path, run_payload: dict[str, Any]) -> tuple[Path, 
     json_path = report_dir / f"agent_eval_{stamp}.json"
     md_path = report_dir / f"agent_eval_{stamp}.md"
     json_path.write_text(json.dumps(run_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def table_cell(value: str) -> str:
+        return " ".join(value.replace("|", "\\|").split())
+
     lines = [
         "# Spacegate Agent Eval Report",
         "",
@@ -765,9 +781,10 @@ def write_reports(report_dir: Path, run_payload: dict[str, Any]) -> tuple[Path, 
         notes = "; ".join(score.get("notes", [])[:3])
         if len(score.get("notes", [])) > 3:
             notes += "; ..."
+        notes = table_cell(notes or "ok")
         lines.append(
             f"| `{result['case_id']}` | {score['score']:.4f} | {score['claim_score']:.4f} | "
-            f"{score['anomaly_score']:.4f} | {notes or 'ok'} |"
+            f"{score['anomaly_score']:.4f} | {notes} |"
         )
     if run_payload["summary"].get("anomaly_inbox"):
         lines.extend(["", "## Anomaly Inbox", ""])
@@ -876,7 +893,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--env-file",
         type=Path,
-        default=DEFAULT_ENV_FILE if DEFAULT_ENV_FILE.exists() else None,
+        default=DEFAULT_ENV_FILE,
         help="Optional KEY=value environment file. Defaults to /etc/spacegate/spacegate.env when present.",
     )
     run_parser.add_argument("--temperature", type=float, default=float(os.getenv("SPACEGATE_LLM_TEMPERATURE", "0.0")))
