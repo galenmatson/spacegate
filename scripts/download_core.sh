@@ -75,6 +75,7 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     --retries "${SPACEGATE_GAIA_BACKBONE_RETRIES:-4}" \
     --max-rec "${SPACEGATE_GAIA_BACKBONE_MAX_REC:-500000}" \
     --workers "${SPACEGATE_GAIA_BACKBONE_WORKERS:-1}" \
+    --stagger-s "${SPACEGATE_GAIA_BACKBONE_STAGGER_S:-0}" \
     --delta-mode "${GAIA_BACKBONE_DELTA_MODE}" \
     --delta-max-age-hours "${GAIA_BACKBONE_DELTA_MAX_AGE_HOURS}"
   if [[ "${SPACEGATE_ENABLE_GAIA_CLASSPROB:-1}" != "0" ]]; then
@@ -85,6 +86,7 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
       --retries "${SPACEGATE_GAIA_CLASSPROB_RETRIES:-6}" \
       --max-rec "${SPACEGATE_GAIA_CLASSPROB_MAX_REC:-500000}" \
       --workers "${SPACEGATE_GAIA_CLASSPROB_WORKERS:-1}" \
+      --stagger-s "${SPACEGATE_GAIA_CLASSPROB_STAGGER_S:-0}" \
       --delta-mode "${GAIA_CLASSPROB_DELTA_MODE}" \
       --delta-max-age-hours "${GAIA_CLASSPROB_DELTA_MAX_AGE_HOURS}"
   else

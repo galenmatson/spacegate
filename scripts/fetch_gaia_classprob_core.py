@@ -106,6 +106,7 @@ def write_partitioned_csv(
     max_rec: int,
     bucket_count_check: bool,
     workers: int,
+    stagger_s: float,
     delta_mode: str,
     delta_max_age_hours: float,
 ) -> tuple[int, dict[str, int]]:
@@ -139,9 +140,13 @@ def write_partitioned_csv(
             next(reader, None)
             return sum(1 for _ in reader)
 
-    def fetch_bucket(bucket: int, *, refresh_reason: str) -> tuple[int, list[str], int, bool]:
+    def fetch_bucket(
+        bucket: int, *, refresh_reason: str, fetch_index: int
+    ) -> tuple[int, list[str], int, bool]:
         part_path = parts_dir / f"bucket_{bucket:04d}.csv"
         empty_marker_path = parts_dir / f"bucket_{bucket:04d}.empty"
+        if stagger_s > 0:
+            time.sleep((fetch_index % workers) * stagger_s)
         if part_path.exists():
             part_path.unlink()
         if empty_marker_path.exists():
@@ -271,8 +276,13 @@ def write_partitioned_csv(
     if buckets_to_fetch:
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = [
-                executor.submit(fetch_bucket, bucket, refresh_reason=refresh_reason)
-                for bucket, refresh_reason in buckets_to_fetch
+                executor.submit(
+                    fetch_bucket,
+                    bucket,
+                    refresh_reason=refresh_reason,
+                    fetch_index=fetch_index,
+                )
+                for fetch_index, (bucket, refresh_reason) in enumerate(buckets_to_fetch)
             ]
             for future in as_completed(futures):
                 bucket, fieldnames, _bucket_rows, is_empty = future.result()
@@ -381,6 +391,7 @@ def main() -> int:
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
     parser.add_argument("--max-rec", type=int, default=DEFAULT_MAX_REC)
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--stagger-s", type=float, default=0.0)
     parser.add_argument(
         "--skip-count-check",
         action="store_true",
@@ -410,6 +421,8 @@ def main() -> int:
         raise SystemExit("--max-rec must be >= 1")
     if args.workers < 1:
         raise SystemExit("--workers must be >= 1")
+    if args.stagger_s < 0:
+        raise SystemExit("--stagger-s must be >= 0")
     if args.count_timeout_s < 1:
         raise SystemExit("--count-timeout-s must be >= 1")
     if args.delta_mode == "delta" and args.delta_max_age_hours <= 0:
@@ -429,7 +442,7 @@ def main() -> int:
     log(
         "Gaia classifier fetch start "
         f"(min_parallax_mas={args.min_parallax_mas}, buckets={args.buckets}, timeout_s={args.timeout_s}, "
-        f"workers={args.workers}, delta_mode={args.delta_mode}, "
+        f"workers={args.workers}, stagger_s={args.stagger_s}, delta_mode={args.delta_mode}, "
         f"delta_max_age_hours={args.delta_max_age_hours})"
     )
     row_count, bucket_stats = write_partitioned_csv(
@@ -442,6 +455,7 @@ def main() -> int:
         max_rec=args.max_rec,
         bucket_count_check=not args.skip_count_check,
         workers=args.workers,
+        stagger_s=args.stagger_s,
         delta_mode=args.delta_mode,
         delta_max_age_hours=args.delta_max_age_hours,
     )
@@ -487,6 +501,7 @@ def main() -> int:
             "max_age_hours": args.delta_max_age_hours,
             "max_rec": args.max_rec,
             "workers": args.workers,
+            "stagger_s": args.stagger_s,
             **bucket_stats,
         },
     )
