@@ -105,6 +105,16 @@ Oracle mode copies each case's golden expected output into the scorer instead
 of calling a model. It should score `1.0`; if it does not, the fixture or
 scoring logic is broken independently of model quality.
 
+Rescore existing JSON reports after fixture or scorer changes without spending
+tokens:
+
+```bash
+scripts/agent_eval.py rescore reports/agent_eval/agent_eval_*.json --details
+```
+
+Rescoring also re-parses saved raw model content when the original run had a
+recoverable JSON framing issue. It does not repair genuinely truncated output.
+
 Run against the current Photon vLLM endpoint:
 
 ```bash

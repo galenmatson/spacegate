@@ -32,7 +32,7 @@ DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_GOOGLE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_ENV_FILE = Path("/etc/spacegate/spacegate.env")
 PROMPT_VERSION = "agent_eval_v1"
-HARNESS_VERSION = "agent_eval.py:2026-06-15"
+HARNESS_VERSION = "agent_eval.py:2026-06-17"
 ANOMALY_TYPES = {
     "catalog_conflict",
     "source_conflict",
@@ -482,6 +482,7 @@ def parse_model_json(content: str) -> tuple[dict[str, Any] | None, str | None]:
     last = stripped.rfind("}")
     if first >= 0 and last > first:
         candidates.append(stripped[first : last + 1])
+    candidates.extend(repaired_json_candidates(candidates))
     for candidate in candidates:
         try:
             payload = json.loads(candidate)
@@ -490,6 +491,44 @@ def parse_model_json(content: str) -> tuple[dict[str, Any] | None, str | None]:
         if isinstance(payload, dict):
             return payload, None
     return None, "model content did not contain a JSON object"
+
+
+def repaired_json_candidates(candidates: list[str]) -> list[str]:
+    repaired: list[str] = []
+    for candidate in candidates:
+        repaired_candidate = repair_trailing_json(candidate)
+        if repaired_candidate and repaired_candidate != candidate:
+            repaired.append(repaired_candidate)
+    return repaired
+
+
+def repair_trailing_json(candidate: str) -> str | None:
+    stripped = candidate.strip()
+    if not stripped or stripped[0] not in "[{" or stripped[-1] not in "]}":
+        return None
+    stack: list[str] = []
+    in_string = False
+    escape = False
+    pairs = {"{": "}", "[": "]"}
+    for char in stripped:
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in pairs:
+            stack.append(pairs[char])
+        elif char in "]}":
+            if not stack or stack.pop() != char:
+                return None
+    if in_string or not stack:
+        return None
+    return stripped + "".join(reversed(stack))
 
 
 def normalize_scalar(value: Any) -> Any:
@@ -1003,6 +1042,57 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 2 if aborted_reason else 0
 
 
+def rescore_result(result: dict[str, Any], refs_by_case_id: dict[str, CaseRef]) -> tuple[dict[str, Any], bool]:
+    case_id = result.get("case_id")
+    if case_id not in refs_by_case_id:
+        raise SystemExit(f"report references unknown case_id: {case_id}")
+    output = result.get("output")
+    parse_error = result.get("score", {}).get("parse_error")
+    repaired_parse = False
+    if output is None and result.get("raw_content"):
+        output, parse_error = parse_model_json(str(result.get("raw_content") or ""))
+        repaired_parse = output is not None
+    return score_output(refs_by_case_id[case_id].case, output, parse_error), repaired_parse
+
+
+def cmd_rescore(args: argparse.Namespace) -> int:
+    refs_by_case_id = {ref.case["case_id"]: ref for ref in load_case_refs(args.cases_dir)}
+    print("report\tprovider\tmodel\tcases\told_mean\tnew_mean\tdelta\trepaired_parse")
+    for report_path in args.report:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        results = payload.get("results", [])
+        if not isinstance(results, list):
+            raise SystemExit(f"{report_path} does not contain a results array")
+        old_scores = []
+        new_scores = []
+        repaired_cases = []
+        changed = []
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            old_score = float(result.get("score", {}).get("score", 0.0))
+            new_score, repaired_parse = rescore_result(result, refs_by_case_id)
+            old_scores.append(old_score)
+            new_scores.append(float(new_score["score"]))
+            if repaired_parse:
+                repaired_cases.append(str(result.get("case_id")))
+            if abs(old_score - float(new_score["score"])) > 1e-9:
+                changed.append((str(result.get("case_id")), old_score, new_score))
+        old_mean = sum(old_scores) / len(old_scores) if old_scores else 0.0
+        new_mean = sum(new_scores) / len(new_scores) if new_scores else 0.0
+        print(
+            f"{report_path}\t{payload.get('provider')}\t{payload.get('model_id')}\t{len(new_scores)}\t"
+            f"{old_mean:.4f}\t{new_mean:.4f}\t{new_mean - old_mean:+.4f}\t{','.join(repaired_cases)}"
+        )
+        if args.details:
+            for case_id, old_score, new_score in changed:
+                print(
+                    f"  {case_id}\t{old_score:.4f}->{float(new_score['score']):.4f}\t"
+                    f"claim={float(new_score['claim_score']):.4f}\tanomaly={float(new_score['anomaly_score']):.4f}"
+                )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run Spacegate agent golden-case evaluations.")
     parser.add_argument("--cases-dir", type=Path, default=DEFAULT_CASES_DIR)
@@ -1048,6 +1138,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use golden expected output instead of calling a model. Useful for harness smoke tests.",
     )
     run_parser.set_defaults(func=cmd_run)
+
+    rescore_parser = subparsers.add_parser("rescore", help="Rescore existing JSON reports with current cases.")
+    rescore_parser.add_argument("report", nargs="+", type=Path, help="Report JSON path to rescore.")
+    rescore_parser.add_argument("--details", action="store_true", help="Print case-level score changes.")
+    rescore_parser.set_defaults(func=cmd_rescore)
     return parser
 
 
