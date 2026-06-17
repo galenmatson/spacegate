@@ -220,6 +220,12 @@ is not the target of the case.
 This is not a substitute for human or frontier review. It is a reproducible
 filter for model/prompt/runtime comparison.
 
+Prompt version `agent_eval_v2` explicitly permits deterministic derived claims
+when a case task asks the model to evaluate, calculate, infer, or adjudicate a
+quantity and the excerpt provides enough inputs. The model must still mark the
+claim as `derived` or `inferred_*` and must not treat the derived value as a
+source-native measurement.
+
 ## Output Contract
 
 Model outputs should be JSON objects with:

@@ -31,8 +31,8 @@ DEFAULT_MODEL = "local-70b"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_GOOGLE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_ENV_FILE = Path("/etc/spacegate/spacegate.env")
-PROMPT_VERSION = "agent_eval_v1"
-HARNESS_VERSION = "agent_eval.py:2026-06-17"
+PROMPT_VERSION = "agent_eval_v2"
+HARNESS_VERSION = "agent_eval.py:2026-06-17-derive"
 ANOMALY_TYPES = {
     "catalog_conflict",
     "source_conflict",
@@ -251,7 +251,11 @@ def build_messages(case: dict[str, Any], role: str | None) -> list[dict[str, str
         "source excerpt and current state. Do not invent facts. Preserve uncertainty, upper/lower limits, "
         "minimum-mass semantics, subject binding, and contradictions. Produce strict JSON only. Do not "
         "wrap output in markdown. Prefer predicates from canonical_predicate_examples exactly when they fit. "
-        "Quarantine surprising or novel findings as anomalies; never promote them to canonical truth."
+        "Quarantine surprising or novel findings as anomalies; never promote them to canonical truth. "
+        "When the task explicitly asks you to evaluate, calculate, infer, or adjudicate a quantity and the "
+        "source excerpt supplies enough inputs, emit the deterministic or clearly bounded result as a claim "
+        "with qualifier derived or inferred_* and a short reasoning_summary. Do not treat requested derived "
+        "checks as absent measurements merely because the final value is not written in the excerpt."
     )
     user_payload = {
         "role_under_test": role_text,
