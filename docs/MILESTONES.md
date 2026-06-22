@@ -293,6 +293,33 @@ Success criteria:
 - overnight batch profile has an explicit throughput floor and stop condition
 - accepted claims remain backed by source IDs and reviewed evidence, not opaque model reasoning
 
+### M5.8 Admin v2 Control Plane
+
+Goal:
+
+- rebuild Admin as the operating console for builds, dataset state, inference,
+  evidence portfolios, review, and audit.
+
+Dependencies:
+
+- Admin auth/API v2 baseline
+- M5.7 evaluation harness for inference workspace grounding
+
+Deliverables:
+
+- dedicated Admin v2 frontend shell instead of the large embedded FastAPI HTML page
+- Overview, Builds, Dataset, Inference, Agency, and Audit workspaces as defined in `docs/ADMIN_V2.md`
+- Inference workspace with endpoint probes, model-role routing, generation smoke tests, and eval report history
+- Evidence Portfolio journal surface where each agent step is captured as a plain-language, linkable, source-backed entry
+- bulk research/source-document storage rooted at `/mnt/space/spacegate`, with durable hashes and references in admin/disc state
+
+Success criteria:
+
+- existing auth, CSRF, job runner, and audit behavior preserved
+- operators can understand current build, dataset, inference, and review state from Admin without shell access
+- agent activity is inspectable as a chronological evidence narrative rather than opaque model output
+- no Admin workflow can mutate `core` or publish unreviewed scientific overlays
+
 ### M6. External Links and Factual Disc Layer
 
 Goal:

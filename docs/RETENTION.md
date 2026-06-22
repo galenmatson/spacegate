@@ -16,8 +16,10 @@ Out of scope (never pruned by retention script):
 ## Default Policy
 
 - Keep the currently served build (`served/current`) regardless of age.
-- Keep newest 6 build directories in `out/`.
-- Keep newest 12 per-build report directories in `reports/`.
+- On Photon, keep newest 12 build directories in `out/`.
+- On Photon, keep newest 24 per-build report directories in `reports/`.
+- On smaller hosts, use at least newest 6 build directories and newest 12 report
+  directories unless disk pressure requires tighter local overrides.
 - Remove stale temporary ingest paths (`out/*.tmp`).
 
 ## Scripted Cleanup
@@ -41,8 +43,81 @@ scripts/prune_state_retention.sh --keep-builds 8 --keep-reports 16 --apply
 scripts/prune_state_retention.sh --no-prune-tmp
 ```
 
+Photon's current generous default:
+
+```bash
+scripts/prune_state_retention.sh --keep-builds 12 --keep-reports 24 --apply
+```
+
+Run retention only after successful promotion and verification. Do not run it
+during ingest or while diagnosing a failed build.
+
+## Bulk Research Storage
+
+Large research/document material should not live under repo paths or inside
+`out/` build artifacts.
+
+Photon default bulk root:
+
+```bash
+/mnt/space/spacegate
+```
+
+Use this root for:
+
+- archived papers and source documents
+- retrieved HTML/PDF/source pages
+- OCR/intermediate text
+- large object-dossier attachments
+- reusable science-document caches
+- one-off model/eval research bundles that are too large for git or reports
+
+Recommended layout:
+
+```text
+/mnt/space/spacegate/
+  research/
+    sources/
+    papers/
+    ocr/
+    dossiers/
+    eval-runs/
+  cache/
+    source-documents/
+    literature-indexes/
+```
+
+The USB-backed `/mnt/space` drive is large and fast but less trustworthy than
+internal NVMe. Anything required for auditability must have durable metadata in
+Spacegate state or generated databases:
+
+- canonical URL
+- source domain and trust tier
+- retrieval timestamp
+- content hash/checksum
+- local cache path
+- transform/prompt/model versions where applicable
+
+If `/mnt/space` content is lost, Spacegate should be able to identify missing
+attachments and re-fetch or mark dossiers stale from metadata.
+
+## Docker and Model Storage
+
+Docker data and model caches are intentionally outside the Spacegate build
+retention script:
+
+- Docker data root: `/data/docker`
+- model weights/caches: `/data/models`
+
+Clean Docker image/container/build-cache slag with Docker-native tools after
+checking active containers. Do not teach `scripts/prune_state_retention.sh` to
+delete Docker or model data.
+
 ## Operational Notes
 
 - If artifacts were created by root-owned container processes, run cleanup with appropriate permissions.
 - Run retention after successful promotion/verification, not during ingest.
 - If large one-off caches (for example external catalog mirrors) are stored under the state root, move them outside `out/` and `reports/` so retention remains deterministic.
+- Failed builds may be kept temporarily for diagnosis, but once the root cause is
+  captured in a report or issue, remove them through the retention script rather
+  than manual edits inside immutable build directories.

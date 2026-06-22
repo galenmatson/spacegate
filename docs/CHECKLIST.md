@@ -144,9 +144,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
 - [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
 - [x] Logged database build wrapper preserves build exit status and host state-dir environment (`scripts/build_database_logged.sh`)
+- [x] Photon generous retention and bulk research storage policy documented (`/mnt/space/spacegate`)
 
 ## E) Product Roadmap (Post-Core Migration)
 
+- [x] Admin v2 architecture documented (`docs/ADMIN_V2.md`)
+- [ ] Admin v2 React shell extracted from embedded FastAPI HTML
+- [ ] Admin v2 Inference workspace (endpoint probes, role/model routing, eval report history)
+- [ ] Evidence Portfolio journal model for plain-language agent step history
 - [ ] External reference link pipeline (curated authority sources)
 - [ ] Factsheets + exposition generation with confidence metadata
 - [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues
