@@ -3,3 +3,4 @@ uvicorn[standard]>=0.29.0
 duckdb>=0.10.2
 google-auth>=2.35.0
 requests>=2.32.0
+cryptography>=42.0.0

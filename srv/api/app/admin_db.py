@@ -171,6 +171,66 @@ CREATE TABLE IF NOT EXISTS admin_jobs (
   FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS inference_endpoints (
+  endpoint_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  endpoint_key TEXT UNIQUE NOT NULL,
+  display_name TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  base_url TEXT NOT NULL,
+  auth_mode TEXT NOT NULL DEFAULT 'none',
+  api_key_env TEXT,
+  api_key_ciphertext TEXT,
+  default_model TEXT,
+  role_defaults_json TEXT NOT NULL DEFAULT '{}',
+  timeout_s INTEGER NOT NULL DEFAULT 30,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS inference_model_cache (
+  model_cache_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  endpoint_id INTEGER NOT NULL,
+  model_id TEXT NOT NULL,
+  model_root TEXT,
+  max_model_len INTEGER,
+  owned_by TEXT,
+  raw_json TEXT,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  UNIQUE(endpoint_id, model_id),
+  FOREIGN KEY (endpoint_id) REFERENCES inference_endpoints(endpoint_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS inference_endpoint_probes (
+  probe_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  endpoint_id INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  model_count INTEGER NOT NULL DEFAULT 0,
+  latency_ms INTEGER,
+  error_message TEXT,
+  probed_at TEXT NOT NULL,
+  FOREIGN KEY (endpoint_id) REFERENCES inference_endpoints(endpoint_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS inference_usage_events (
+  usage_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  endpoint_id INTEGER,
+  model_id TEXT,
+  role TEXT,
+  request_kind TEXT,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  total_tokens INTEGER,
+  latency_ms INTEGER,
+  success INTEGER NOT NULL DEFAULT 1,
+  error_class TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (endpoint_id) REFERENCES inference_endpoints(endpoint_id) ON DELETE SET NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at);
@@ -178,6 +238,10 @@ CREATE INDEX IF NOT EXISTS idx_allowlist_email ON admin_allowlist(email_norm);
 CREATE INDEX IF NOT EXISTS idx_allowlist_sub ON admin_allowlist(provider_sub);
 CREATE INDEX IF NOT EXISTS idx_admin_jobs_status ON admin_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_admin_jobs_created_at ON admin_jobs(created_at);
+CREATE INDEX IF NOT EXISTS idx_inference_endpoints_enabled ON inference_endpoints(enabled);
+CREATE INDEX IF NOT EXISTS idx_inference_model_endpoint ON inference_model_cache(endpoint_id);
+CREATE INDEX IF NOT EXISTS idx_inference_probes_endpoint ON inference_endpoint_probes(endpoint_id, probed_at);
+CREATE INDEX IF NOT EXISTS idx_inference_usage_endpoint_model ON inference_usage_events(endpoint_id, model_id, created_at);
             """
         )
         con.execute(
@@ -189,6 +253,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_jobs_created_at ON admin_jobs(created_at);
             ("user",),
         )
         _seed_allowlist_from_env(con)
+        _seed_inference_endpoints_from_env(con)
         con.commit()
 
 
@@ -237,3 +302,119 @@ INSERT INTO admin_allowlist(
                 """,
                 (provider, issuer, provider_sub, "seeded-from-env"),
             )
+
+
+def _seed_inference_endpoints_from_env(con: sqlite3.Connection) -> None:
+    now_expr = "strftime('%Y-%m-%dT%H:%M:%SZ','now')"
+
+    def _seed(
+        *,
+        endpoint_key: str,
+        display_name: str,
+        provider: str,
+        base_url: str,
+        auth_mode: str = "none",
+        api_key_env: str | None = None,
+        default_model: str | None = None,
+        notes: str | None = None,
+    ) -> None:
+        existing = con.execute(
+            "SELECT endpoint_id, notes FROM inference_endpoints WHERE endpoint_key = ? LIMIT 1",
+            (endpoint_key,),
+        ).fetchone()
+        if existing is not None:
+            note = str(existing["notes"] or "")
+            if note.startswith("Seeded from "):
+                con.execute(
+                    f"""
+UPDATE inference_endpoints
+SET display_name = ?,
+    provider = ?,
+    base_url = ?,
+    auth_mode = ?,
+    api_key_env = ?,
+    default_model = ?,
+    notes = ?,
+    updated_at = {now_expr}
+WHERE endpoint_id = ?
+                    """,
+                    (
+                        display_name,
+                        provider,
+                        base_url,
+                        auth_mode,
+                        api_key_env,
+                        default_model,
+                        notes,
+                        int(existing["endpoint_id"]),
+                    ),
+                )
+            return
+        con.execute(
+            f"""
+INSERT INTO inference_endpoints(
+  endpoint_key, display_name, provider, base_url, auth_mode, api_key_env,
+  default_model, role_defaults_json, timeout_s, enabled, notes, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, '{{}}', 30, 1, ?, {now_expr}, {now_expr})
+            """,
+            (
+                endpoint_key,
+                display_name,
+                provider,
+                base_url,
+                auth_mode,
+                api_key_env,
+                default_model,
+                notes,
+            ),
+        )
+
+    llm_base = os.getenv("SPACEGATE_LLM_BASE_URL", "").strip()
+    if llm_base:
+        _seed(
+            endpoint_key="photon-local",
+            display_name="Photon Local",
+            provider="openai_compatible",
+            base_url=llm_base,
+            default_model=os.getenv("SPACEGATE_LLM_MODEL", "").strip() or None,
+            notes="Seeded from SPACEGATE_LLM_BASE_URL.",
+        )
+
+    fallback_base = os.getenv("SPACEGATE_LLM_FALLBACK_BASE_URL", "").strip()
+    if fallback_base:
+        _seed(
+            endpoint_key="positron-fallback",
+            display_name="Positron Fallback",
+            provider="openai_compatible",
+            base_url=fallback_base,
+            default_model=os.getenv("SPACEGATE_LLM_FALLBACK_MODEL", "").strip() or None,
+            notes="Seeded from SPACEGATE_LLM_FALLBACK_BASE_URL.",
+        )
+
+    openai_model = os.getenv("SPACEGATE_FRONTIER_OPENAI_MODEL", "").strip()
+    if os.getenv("SPACEGATE_OPENAI_API_KEY", "").strip() or os.getenv("OPENAI_API_KEY", "").strip() or openai_model:
+        _seed(
+            endpoint_key="openai-frontier",
+            display_name="OpenAI Frontier",
+            provider="openai",
+            base_url=os.getenv("SPACEGATE_OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
+            or "https://api.openai.com/v1",
+            auth_mode="env",
+            api_key_env="SPACEGATE_OPENAI_API_KEY",
+            default_model=openai_model or None,
+            notes="Seeded from frontier OpenAI environment.",
+        )
+
+    google_model = os.getenv("SPACEGATE_FRONTIER_GOOGLE_MODEL", "").strip()
+    if os.getenv("SPACEGATE_GOOGLE_API_KEY", "").strip() or os.getenv("GOOGLE_API_KEY", "").strip() or google_model:
+        _seed(
+            endpoint_key="google-frontier",
+            display_name="Google Gemini",
+            provider="google",
+            base_url=os.getenv("SPACEGATE_GOOGLE_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").strip()
+            or "https://generativelanguage.googleapis.com/v1beta",
+            auth_mode="env",
+            api_key_env="SPACEGATE_GOOGLE_API_KEY",
+            default_model=google_model or None,
+            notes="Seeded from frontier Google environment.",
+        )

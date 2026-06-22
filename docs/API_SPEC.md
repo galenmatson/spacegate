@@ -134,6 +134,80 @@ Notes:
 - Prefer `/api/v2/admin/ui` behind nginx/container deployments to avoid web route conflicts.
 - `/admin` remains available when API is exposed directly.
 
+### GET /admin/inference/endpoints
+Lists dynamic model endpoint registry records, cached models, and latest probe
+status. Secrets are never returned; `api_key_configured` only reports whether a
+stored key or configured environment variable is present.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
+### POST /admin/inference/endpoints
+Creates an inference endpoint registry record.
+
+Request body:
+```json
+{
+  "endpoint_key": "photon-vllm",
+  "display_name": "Photon vLLM",
+  "provider": "openai_compatible",
+  "base_url": "http://127.0.0.1:8001/v1",
+  "auth_mode": "none",
+  "api_key_env": null,
+  "api_key": null,
+  "default_model": "gemma-4-31b-it-qat-w4a16-ct",
+  "role_defaults": {},
+  "timeout_s": 30,
+  "enabled": true,
+  "notes": "local bulk endpoint"
+}
+```
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+- `api_key` is encrypted at rest when `auth_mode=stored` and is not returned.
+
+### PATCH /admin/inference/endpoints/{endpoint_id}
+Updates endpoint metadata, auth settings, default model, role defaults, timeout,
+enabled state, notes, or stored API key. Send `clear_api_key: true` to remove a
+stored key.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+
+### DELETE /admin/inference/endpoints/{endpoint_id}
+Soft-removes an endpoint from the active registry and disables it.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+
+### POST /admin/inference/endpoints/{endpoint_id}/poll-models
+Polls the provider model-list endpoint (`/v1/models` for OpenAI-compatible
+providers, provider equivalent for others), records probe status, and updates
+the model cache.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+
+Response:
+- `200` with endpoint, latest probe, and cached models.
+- `404` when the endpoint is missing.
+- `502` when the upstream provider cannot be reached or returns malformed data.
+
+### GET /admin/inference/stats
+Returns aggregate usage counters recorded by the inference runner, grouped by
+endpoint and model. This endpoint is useful before generation routing is
+automated because it defines the stats contract the runner must write.
+
+Response fields include request count, prompt/completion/total tokens, average
+latency, and last-used timestamp.
+
 ### GET /admin/actions/catalog
 Returns allowlisted admin actions and parameter schemas.
 

@@ -150,7 +150,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Admin v2 architecture documented (`docs/ADMIN_V2.md`)
 - [ ] Admin v2 React shell extracted from embedded FastAPI HTML
-- [ ] Admin v2 Inference workspace (endpoint probes, role/model routing, eval report history)
+- [x] Admin v2 dynamic inference endpoint registry (add/remove endpoints, auth modes, model polling, usage stats API)
+- [ ] Admin v2 Inference workspace role/model routing and eval report history
 - [ ] Evidence Portfolio journal model for plain-language agent step history
 - [ ] External reference link pipeline (curated authority sources)
 - [ ] Factsheets + exposition generation with confidence metadata

@@ -23,6 +23,7 @@ from . import admin_actions
 from . import admin_db
 from . import auth
 from . import db
+from . import inference_registry
 from .db import DatabaseUnavailable
 from .queries import (
     choose_display_name,
@@ -1028,6 +1029,37 @@ class DatasetSlicePreviewRequest(BaseModel):
     require_spectral_class: bool = Field(default=False)
     require_color_index: bool = Field(default=False)
     allowed_spectral_classes: List[str] = Field(default_factory=list)
+
+
+class InferenceEndpointRequest(BaseModel):
+    endpoint_key: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    display_name: str = Field(min_length=1, max_length=160)
+    provider: str = Field(default="openai_compatible", min_length=1, max_length=64)
+    base_url: str = Field(min_length=1, max_length=500)
+    auth_mode: str = Field(default="none", min_length=1, max_length=32)
+    api_key_env: Optional[str] = Field(default=None, max_length=160)
+    api_key: Optional[str] = Field(default=None, max_length=4096)
+    default_model: Optional[str] = Field(default=None, max_length=240)
+    role_defaults: Dict[str, str] = Field(default_factory=dict)
+    timeout_s: int = Field(default=30, ge=1, le=600)
+    enabled: bool = Field(default=True)
+    notes: Optional[str] = Field(default=None, max_length=1000)
+
+
+class InferenceEndpointUpdateRequest(BaseModel):
+    endpoint_key: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    display_name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    provider: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    base_url: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    auth_mode: Optional[str] = Field(default=None, min_length=1, max_length=32)
+    api_key_env: Optional[str] = Field(default=None, max_length=160)
+    api_key: Optional[str] = Field(default=None, max_length=4096)
+    clear_api_key: bool = Field(default=False)
+    default_model: Optional[str] = Field(default=None, max_length=240)
+    role_defaults: Optional[Dict[str, str]] = Field(default=None)
+    timeout_s: Optional[int] = Field(default=None, ge=1, le=600)
+    enabled: Optional[bool] = Field(default=None)
+    notes: Optional[str] = Field(default=None, max_length=1000)
 
 
 def _run_score_coolness_json(args: list[str]) -> Dict[str, Any]:
@@ -2371,6 +2403,158 @@ def admin_coolness_preview(request: Request, payload: CoolnessPreviewRequest):
     }
 
 
+@admin_router.get("/inference/endpoints")
+def admin_inference_endpoints(request: Request):
+    auth.require_admin(request)
+    return {"items": inference_registry.list_endpoints()}
+
+
+@admin_router.post("/inference/endpoints")
+def admin_inference_endpoint_create(request: Request, payload: InferenceEndpointRequest):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    try:
+        endpoint = inference_registry.create_endpoint(payload.dict())
+    except inference_registry.RegistryError as exc:
+        auth.audit_event(
+            request,
+            event_type="admin.inference.endpoint.create",
+            result="deny",
+            actor_user_id=int(user["user_id"]),
+            details={"message": str(exc), "endpoint_key": payload.endpoint_key},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "bad_request", "message": str(exc), "details": {}},
+        )
+    auth.audit_event(
+        request,
+        event_type="admin.inference.endpoint.create",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={"endpoint_id": endpoint["endpoint_id"], "endpoint_key": endpoint["endpoint_key"]},
+    )
+    return {"endpoint": endpoint}
+
+
+@admin_router.patch("/inference/endpoints/{endpoint_id}")
+def admin_inference_endpoint_update(
+    request: Request,
+    endpoint_id: int,
+    payload: InferenceEndpointUpdateRequest,
+):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    try:
+        endpoint = inference_registry.update_endpoint(endpoint_id, payload.dict(exclude_unset=True))
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Inference endpoint not found",
+                "details": {"endpoint_id": endpoint_id},
+            },
+        )
+    except inference_registry.RegistryError as exc:
+        auth.audit_event(
+            request,
+            event_type="admin.inference.endpoint.update",
+            result="deny",
+            actor_user_id=int(user["user_id"]),
+            details={"message": str(exc), "endpoint_id": endpoint_id},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "bad_request", "message": str(exc), "details": {"endpoint_id": endpoint_id}},
+        )
+    auth.audit_event(
+        request,
+        event_type="admin.inference.endpoint.update",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={"endpoint_id": endpoint["endpoint_id"], "endpoint_key": endpoint["endpoint_key"]},
+    )
+    return {"endpoint": endpoint}
+
+
+@admin_router.delete("/inference/endpoints/{endpoint_id}")
+def admin_inference_endpoint_delete(request: Request, endpoint_id: int):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    try:
+        endpoint = inference_registry.get_endpoint(endpoint_id, include_models=False)
+        inference_registry.delete_endpoint(endpoint_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Inference endpoint not found",
+                "details": {"endpoint_id": endpoint_id},
+            },
+        )
+    auth.audit_event(
+        request,
+        event_type="admin.inference.endpoint.delete",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={"endpoint_id": endpoint_id, "endpoint_key": endpoint.get("endpoint_key")},
+    )
+    return {"status": "deleted", "endpoint_id": endpoint_id}
+
+
+@admin_router.post("/inference/endpoints/{endpoint_id}/poll-models")
+def admin_inference_endpoint_poll_models(request: Request, endpoint_id: int):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    try:
+        result = inference_registry.poll_models(endpoint_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Inference endpoint not found",
+                "details": {"endpoint_id": endpoint_id},
+            },
+        )
+    except inference_registry.RegistryError as exc:
+        auth.audit_event(
+            request,
+            event_type="admin.inference.endpoint.poll",
+            result="error",
+            actor_user_id=int(user["user_id"]),
+            details={"endpoint_id": endpoint_id, "message": str(exc)},
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "upstream_error",
+                "message": str(exc),
+                "details": {"endpoint_id": endpoint_id},
+            },
+        )
+    auth.audit_event(
+        request,
+        event_type="admin.inference.endpoint.poll",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={
+            "endpoint_id": endpoint_id,
+            "model_count": len(result.get("models") or []),
+            "latency_ms": (result.get("probe") or {}).get("latency_ms"),
+        },
+    )
+    return result
+
+
+@admin_router.get("/inference/stats")
+def admin_inference_stats(request: Request):
+    auth.require_admin(request)
+    return inference_registry.usage_stats()
+
+
 @admin_router.get("/actions/catalog")
 def admin_actions_catalog(request: Request):
     auth.require_admin(request)
@@ -2934,6 +3118,7 @@ def admin_home(request: Request):
       <button id="screenTabOperations">Operations</button>
       <button id="screenTabStatus" class="active">Status</button>
       <button id="screenTabDataset">Dataset</button>
+      <button id="screenTabInference">Inference</button>
       <button id="screenTabCoolness">Coolness</button>
       <button id="screenTabActivity">Activity</button>
     </div>
@@ -3170,6 +3355,86 @@ def admin_home(request: Request):
       </div>
     </div>
 
+    <div id="screenInference" class="screen">
+      <div class="section">
+        <h2>Inference Endpoints</h2>
+        <p class="muted">Dynamic registry for local, LAN, and frontier model endpoints. Stored secrets are never displayed after save.</p>
+        <div class="inline">
+          <button id="refreshInference">Refresh Registry</button>
+        </div>
+      </div>
+      <div class="section grid">
+        <div class="action-card">
+          <h3>Add Endpoint</h3>
+          <div class="field">
+            <label for="infDisplayName">Display name</label>
+            <input id="infDisplayName" type="text" placeholder="Photon vLLM" />
+          </div>
+          <div class="field">
+            <label for="infEndpointKey">Endpoint key</label>
+            <input id="infEndpointKey" type="text" placeholder="photon-vllm" />
+          </div>
+          <div class="field">
+            <label for="infProvider">Provider</label>
+            <select id="infProvider">
+              <option value="openai_compatible">OpenAI-compatible</option>
+              <option value="openai">OpenAI</option>
+              <option value="google">Google Gemini</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="infBaseUrl">Base URL</label>
+            <input id="infBaseUrl" type="url" placeholder="http://127.0.0.1:8001/v1" />
+          </div>
+          <div class="field">
+            <label for="infAuthMode">Auth mode</label>
+            <select id="infAuthMode">
+              <option value="none">None</option>
+              <option value="env">Environment variable</option>
+              <option value="stored">Stored encrypted key</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="infApiKeyEnv">API key env var</label>
+            <input id="infApiKeyEnv" type="text" placeholder="SPACEGATE_OPENAI_API_KEY" />
+          </div>
+          <div class="field">
+            <label for="infApiKey">API key</label>
+            <input id="infApiKey" type="password" autocomplete="new-password" placeholder="Only saved if provided" />
+          </div>
+          <div class="field">
+            <label for="infDefaultModel">Default model</label>
+            <input id="infDefaultModel" type="text" placeholder="optional" />
+          </div>
+          <div class="field">
+            <label for="infTimeout">Timeout seconds</label>
+            <input id="infTimeout" type="number" min="1" max="600" step="1" value="30" />
+          </div>
+          <div class="field">
+            <label for="infNotes">Notes</label>
+            <textarea id="infNotes" rows="3" placeholder="role, hardware, intended jobs"></textarea>
+          </div>
+          <div class="inline" style="margin-bottom:0.45rem;">
+            <label><input id="infEnabled" type="checkbox" checked /> Enabled</label>
+          </div>
+          <button id="infCreateBtn" type="button" class="primary">Add Endpoint</button>
+          <div id="infFormStatus" class="note-box small" style="margin-top:0.45rem;">Status: ready</div>
+        </div>
+        <div>
+          <h3>Registered Endpoints</h3>
+          <div id="inferenceEndpoints" class="grid"></div>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Usage Stats</h3>
+        <table class="mini-table">
+          <thead><tr><th>Endpoint</th><th>Model</th><th>Requests</th><th>Total tokens</th><th>Avg latency</th><th>Last used</th></tr></thead>
+          <tbody id="inferenceStatsRows"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="screenCoolness" class="screen">
       <div class="section">
         <h2>Coolness Tuning</h2>
@@ -3363,6 +3628,7 @@ def admin_home(request: Request):
           <button id="auditPresetAll" class="active">All</button>
           <button id="auditPresetAuth">Auth</button>
           <button id="auditPresetActions">Admin Actions</button>
+          <button id="auditPresetInference">Inference</button>
           <button id="auditPresetQueries">Queries</button>
         </div>
         <div class="inline" style="margin-top: 0.45rem;">
@@ -3431,6 +3697,21 @@ def admin_home(request: Request):
       const slicePreviewKpisEl = document.getElementById('slicePreviewKpis');
       const slicePreviewSpectralRowsEl = document.getElementById('slicePreviewSpectralRows');
       const slicePreviewRawEl = document.getElementById('slicePreviewRaw');
+      const inferenceEndpointsEl = document.getElementById('inferenceEndpoints');
+      const inferenceStatsRowsEl = document.getElementById('inferenceStatsRows');
+      const infDisplayNameEl = document.getElementById('infDisplayName');
+      const infEndpointKeyEl = document.getElementById('infEndpointKey');
+      const infProviderEl = document.getElementById('infProvider');
+      const infBaseUrlEl = document.getElementById('infBaseUrl');
+      const infAuthModeEl = document.getElementById('infAuthMode');
+      const infApiKeyEnvEl = document.getElementById('infApiKeyEnv');
+      const infApiKeyEl = document.getElementById('infApiKey');
+      const infDefaultModelEl = document.getElementById('infDefaultModel');
+      const infTimeoutEl = document.getElementById('infTimeout');
+      const infNotesEl = document.getElementById('infNotes');
+      const infEnabledEl = document.getElementById('infEnabled');
+      const infCreateBtnEl = document.getElementById('infCreateBtn');
+      const infFormStatusEl = document.getElementById('infFormStatus');
       const jobsEl = document.getElementById('jobs');
       const selectedJobEl = document.getElementById('selectedJob');
       const logEl = document.getElementById('log');
@@ -3543,11 +3824,13 @@ def admin_home(request: Request):
         document.getElementById('screenOperations').classList.toggle('active', screenName === 'operations');
         document.getElementById('screenStatus').classList.toggle('active', screenName === 'status');
         document.getElementById('screenDataset').classList.toggle('active', screenName === 'dataset');
+        document.getElementById('screenInference').classList.toggle('active', screenName === 'inference');
         document.getElementById('screenCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenActivity').classList.toggle('active', screenName === 'activity');
         document.getElementById('screenTabOperations').classList.toggle('active', screenName === 'operations');
         document.getElementById('screenTabStatus').classList.toggle('active', screenName === 'status');
         document.getElementById('screenTabDataset').classList.toggle('active', screenName === 'dataset');
+        document.getElementById('screenTabInference').classList.toggle('active', screenName === 'inference');
         document.getElementById('screenTabCoolness').classList.toggle('active', screenName === 'coolness');
         document.getElementById('screenTabActivity').classList.toggle('active', screenName === 'activity');
       }}
@@ -3557,6 +3840,7 @@ def admin_home(request: Request):
         document.getElementById('auditPresetAll').classList.toggle('active', name === 'all');
         document.getElementById('auditPresetAuth').classList.toggle('active', name === 'auth');
         document.getElementById('auditPresetActions').classList.toggle('active', name === 'actions');
+        document.getElementById('auditPresetInference').classList.toggle('active', name === 'inference');
         document.getElementById('auditPresetQueries').classList.toggle('active', name === 'queries');
       }}
 
@@ -5783,6 +6067,274 @@ def admin_home(request: Request):
         }});
       }}
 
+      function setInferenceStatus(status, detail = '') {{
+        if (!infFormStatusEl) return;
+        const head = String(status || 'idle').trim().toLowerCase() || 'idle';
+        infFormStatusEl.textContent = detail ? `Status: ${{head}} | ${{detail}}` : `Status: ${{head}}`;
+      }}
+
+      function readInferenceForm() {{
+        const payload = {{
+          display_name: String(infDisplayNameEl.value || '').trim(),
+          endpoint_key: String(infEndpointKeyEl.value || '').trim() || null,
+          provider: String(infProviderEl.value || 'openai_compatible'),
+          base_url: String(infBaseUrlEl.value || '').trim(),
+          auth_mode: String(infAuthModeEl.value || 'none'),
+          api_key_env: String(infApiKeyEnvEl.value || '').trim() || null,
+          api_key: String(infApiKeyEl.value || '').trim() || null,
+          default_model: String(infDefaultModelEl.value || '').trim() || null,
+          timeout_s: Number.parseInt(String(infTimeoutEl.value || '30'), 10),
+          enabled: !!infEnabledEl.checked,
+          notes: String(infNotesEl.value || '').trim() || null,
+          role_defaults: {{}},
+        }};
+        if (!Number.isFinite(payload.timeout_s)) payload.timeout_s = 30;
+        return payload;
+      }}
+
+      function resetInferenceForm() {{
+        infDisplayNameEl.value = '';
+        infEndpointKeyEl.value = '';
+        infProviderEl.value = 'openai_compatible';
+        infBaseUrlEl.value = '';
+        infAuthModeEl.value = 'none';
+        infApiKeyEnvEl.value = '';
+        infApiKeyEl.value = '';
+        infDefaultModelEl.value = '';
+        infTimeoutEl.value = '30';
+        infEnabledEl.checked = true;
+        infNotesEl.value = '';
+      }}
+
+      function appendEndpointMeta(parent, label, value) {{
+        const row = document.createElement('div');
+        row.className = 'metric-row';
+        const keyEl = document.createElement('div');
+        keyEl.className = 'metric-k';
+        keyEl.textContent = label;
+        const valueEl = document.createElement('div');
+        valueEl.className = 'metric-v';
+        valueEl.textContent = String(value || '');
+        row.appendChild(keyEl);
+        row.appendChild(valueEl);
+        parent.appendChild(row);
+      }}
+
+      function renderInferenceEndpoints(items) {{
+        inferenceEndpointsEl.innerHTML = '';
+        if (!items.length) {{
+          const empty = document.createElement('div');
+          empty.className = 'note-box small';
+          empty.textContent = 'No endpoints registered.';
+          inferenceEndpointsEl.appendChild(empty);
+          return;
+        }}
+        items.forEach((endpoint) => {{
+          const card = document.createElement('div');
+          card.className = 'action-card';
+          const titleRow = document.createElement('div');
+          titleRow.className = 'inline';
+          const title = document.createElement('h3');
+          title.style.margin = '0';
+          title.textContent = endpoint.display_name || endpoint.endpoint_key;
+          titleRow.appendChild(title);
+          const badge = document.createElement('span');
+          badge.className = 'status-badge';
+          badge.textContent = endpoint.enabled ? 'enabled' : 'disabled';
+          titleRow.appendChild(badge);
+          card.appendChild(titleRow);
+
+          const meta = document.createElement('div');
+          meta.className = 'metric-list';
+          appendEndpointMeta(meta, 'Key', endpoint.endpoint_key);
+          appendEndpointMeta(meta, 'Provider', endpoint.provider);
+          appendEndpointMeta(meta, 'Base URL', endpoint.base_url);
+          appendEndpointMeta(meta, 'Auth', `${{endpoint.auth_mode || 'none'}}${{endpoint.api_key_configured ? ' / configured' : ''}}`);
+          appendEndpointMeta(meta, 'API key env', endpoint.api_key_env || '');
+          appendEndpointMeta(meta, 'Default model', endpoint.default_model || '');
+          const lastProbe = endpoint.last_probe || null;
+          if (lastProbe) {{
+            appendEndpointMeta(
+              meta,
+              'Last probe',
+              `${{lastProbe.status}} at ${{lastProbe.probed_at || 'n/a'}}; models=${{formatInt(lastProbe.model_count)}}; latency=${{lastProbe.latency_ms === null || lastProbe.latency_ms === undefined ? 'n/a' : formatInt(lastProbe.latency_ms) + ' ms'}}`
+            );
+            if (lastProbe.error_message) appendEndpointMeta(meta, 'Probe error', lastProbe.error_message);
+          }}
+          if (endpoint.notes) appendEndpointMeta(meta, 'Notes', endpoint.notes);
+          card.appendChild(meta);
+
+          const models = Array.isArray(endpoint.models) ? endpoint.models : [];
+          const details = document.createElement('details');
+          details.style.marginTop = '0.45rem';
+          const summary = document.createElement('summary');
+          summary.textContent = `Models (${{formatInt(models.length)}})`;
+          details.appendChild(summary);
+          const table = document.createElement('table');
+          table.className = 'mini-table';
+          const thead = document.createElement('thead');
+          thead.innerHTML = '<tr><th>Model</th><th>Context</th><th>Owner</th><th>Last seen</th></tr>';
+          table.appendChild(thead);
+          const tbody = document.createElement('tbody');
+          if (!models.length) {{
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            td.textContent = 'No cached models yet. Poll the endpoint.';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+          }} else {{
+            models.forEach((model) => {{
+              const tr = document.createElement('tr');
+              ['model_id', 'max_model_len', 'owned_by', 'last_seen_at'].forEach((key) => {{
+                const td = document.createElement('td');
+                td.textContent = String(model[key] || '');
+                tr.appendChild(td);
+              }});
+              tbody.appendChild(tr);
+            }});
+          }}
+          table.appendChild(tbody);
+          details.appendChild(table);
+          card.appendChild(details);
+
+          const controls = document.createElement('div');
+          controls.className = 'inline';
+          controls.style.marginTop = '0.45rem';
+          const pollBtn = document.createElement('button');
+          pollBtn.type = 'button';
+          pollBtn.textContent = 'Poll Models';
+          pollBtn.onclick = () => {{ void pollInferenceEndpoint(endpoint.endpoint_id); }};
+          controls.appendChild(pollBtn);
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'danger';
+          deleteBtn.textContent = 'Remove';
+          deleteBtn.onclick = () => {{ void deleteInferenceEndpoint(endpoint.endpoint_id, endpoint.display_name || endpoint.endpoint_key); }};
+          controls.appendChild(deleteBtn);
+          card.appendChild(controls);
+          inferenceEndpointsEl.appendChild(card);
+        }});
+      }}
+
+      function renderInferenceStats(items) {{
+        inferenceStatsRowsEl.innerHTML = '';
+        if (!items.length) {{
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 6;
+          td.textContent = 'No usage events recorded yet.';
+          tr.appendChild(td);
+          inferenceStatsRowsEl.appendChild(tr);
+          return;
+        }}
+        items.forEach((item) => {{
+          const tr = document.createElement('tr');
+          [
+            item.display_name || item.endpoint_key || '',
+            item.model_id || '',
+            formatInt(item.request_count),
+            formatInt(item.total_tokens),
+            item.avg_latency_ms === null || item.avg_latency_ms === undefined ? '' : `${{formatFloat(item.avg_latency_ms, 1)}} ms`,
+            item.last_used_at || '',
+          ].forEach((value) => {{
+            const td = document.createElement('td');
+            td.textContent = String(value);
+            tr.appendChild(td);
+          }});
+          inferenceStatsRowsEl.appendChild(tr);
+        }});
+      }}
+
+      async function loadInferenceEndpoints() {{
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/inference/endpoints`, {{ credentials: 'include' }});
+        if (!res.ok) {{
+          setInferenceStatus('error', `endpoint load failed (${{res.status}})`);
+          renderInferenceEndpoints([]);
+          return;
+        }}
+        renderInferenceEndpoints(Array.isArray(data.items) ? data.items : []);
+      }}
+
+      async function loadInferenceStats() {{
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/inference/stats`, {{ credentials: 'include' }});
+        if (!res.ok) {{
+          renderInferenceStats([]);
+          return;
+        }}
+        renderInferenceStats(Array.isArray(data.items) ? data.items : []);
+      }}
+
+      async function loadInference() {{
+        await loadInferenceEndpoints();
+        await loadInferenceStats();
+      }}
+
+      async function createInferenceEndpoint() {{
+        const payload = readInferenceForm();
+        if (!payload.display_name || !payload.base_url) {{
+          setInferenceStatus('error', 'display name and base URL are required');
+          return;
+        }}
+        setInferenceStatus('saving', 'creating endpoint...');
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/inference/endpoints`, {{
+          method: 'POST',
+          credentials: 'include',
+          headers: {{
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken(),
+          }},
+          body: JSON.stringify(payload),
+        }});
+        if (!res.ok) {{
+          const msg = String((data && data.detail && data.detail.message) || data.message || res.status);
+          setInferenceStatus('error', msg);
+          return;
+        }}
+        resetInferenceForm();
+        setInferenceStatus('saved', 'endpoint added');
+        await loadInference();
+        await loadAudit(false);
+      }}
+
+      async function pollInferenceEndpoint(endpointId) {{
+        setInferenceStatus('polling', `endpoint ${{endpointId}}`);
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/inference/endpoints/${{endpointId}}/poll-models`, {{
+          method: 'POST',
+          credentials: 'include',
+          headers: {{ 'X-CSRF-Token': csrfToken() }},
+        }});
+        if (!res.ok) {{
+          const msg = String((data && data.detail && data.detail.message) || data.message || res.status);
+          setInferenceStatus('error', msg);
+          await loadInferenceEndpoints();
+          await loadAudit(false);
+          return;
+        }}
+        const models = Array.isArray(data.models) ? data.models.length : 0;
+        setInferenceStatus('ready', `polled ${{formatInt(models)}} models`);
+        await loadInference();
+        await loadAudit(false);
+      }}
+
+      async function deleteInferenceEndpoint(endpointId, label) {{
+        if (!window.confirm(`Remove inference endpoint "${{label || endpointId}}"?`)) return;
+        setInferenceStatus('removing', `endpoint ${{endpointId}}`);
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/inference/endpoints/${{endpointId}}`, {{
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {{ 'X-CSRF-Token': csrfToken() }},
+        }});
+        if (!res.ok) {{
+          const msg = String((data && data.detail && data.detail.message) || data.message || res.status);
+          setInferenceStatus('error', msg);
+          return;
+        }}
+        setInferenceStatus('removed', String(label || endpointId));
+        await loadInference();
+        await loadAudit(false);
+      }}
+
       function buildAuditQuery(loadOlder) {{
         const params = new URLSearchParams();
         params.set('limit', '50');
@@ -5793,6 +6345,8 @@ def admin_home(request: Request):
           params.set('event_prefix', 'auth.');
         }} else if (auditPreset === 'actions') {{
           params.set('event_prefix', 'admin.action.');
+        }} else if (auditPreset === 'inference') {{
+          params.set('event_prefix', 'admin.inference.');
         }} else if (auditPreset === 'queries') {{
           params.set('event_prefix', 'api.search.');
         }}
@@ -5887,6 +6441,7 @@ def admin_home(request: Request):
       document.getElementById('screenTabOperations').addEventListener('click', () => setScreen('operations'));
       document.getElementById('screenTabStatus').addEventListener('click', () => setScreen('status'));
       document.getElementById('screenTabDataset').addEventListener('click', () => setScreen('dataset'));
+      document.getElementById('screenTabInference').addEventListener('click', () => setScreen('inference'));
       document.getElementById('screenTabCoolness').addEventListener('click', () => setScreen('coolness'));
       document.getElementById('screenTabActivity').addEventListener('click', () => setScreen('activity'));
       document.getElementById('refreshStatus').addEventListener('click', callStatus);
@@ -5899,6 +6454,7 @@ def admin_home(request: Request):
       document.getElementById('auditPresetAll').addEventListener('click', () => {{ setAuditPreset('all'); loadAudit(false); }});
       document.getElementById('auditPresetAuth').addEventListener('click', () => {{ setAuditPreset('auth'); loadAudit(false); }});
       document.getElementById('auditPresetActions').addEventListener('click', () => {{ setAuditPreset('actions'); loadAudit(false); }});
+      document.getElementById('auditPresetInference').addEventListener('click', () => {{ setAuditPreset('inference'); loadAudit(false); }});
       document.getElementById('auditPresetQueries').addEventListener('click', () => {{ setAuditPreset('queries'); loadAudit(false); }});
       document.getElementById('presetBalanced').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.balanced, 'balanced'));
       document.getElementById('presetExotic').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.exotic, 'exotic'));
@@ -5906,6 +6462,8 @@ def admin_home(request: Request):
       document.getElementById('presetNearby').addEventListener('click', () => setCoolnessWeights(coolnessPresetWeights.nearby, 'nearby'));
       if (slicePreviewBtnEl) slicePreviewBtnEl.addEventListener('click', () => {{ void callSlicePreview(); }});
       if (sliceRunBtnEl) sliceRunBtnEl.addEventListener('click', () => {{ void runSliceBuild(); }});
+      document.getElementById('refreshInference').addEventListener('click', () => {{ void loadInference(); }});
+      infCreateBtnEl.addEventListener('click', () => {{ void createInferenceEndpoint(); }});
       coolResetActiveEl.addEventListener('click', resetCoolnessToActive);
       coolApplyBtnEl.addEventListener('click', () => {{ void applyCoolness(); }});
       coolSaveBtnEl.addEventListener('click', () => {{ void saveCoolnessProfile(); }});
@@ -5928,6 +6486,7 @@ def admin_home(request: Request):
       callStatus();
       callDatasetStatus(false);
       callSlicePreview();
+      loadInference();
       loadCatalog();
       loadCoolnessState();
       loadJobs();

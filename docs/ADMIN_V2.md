@@ -87,9 +87,15 @@ Purpose: manage model endpoints and model suitability.
 
 Show:
 
-- endpoint registry: local Photon vLLM, Positron LM Studio fallback, OpenAI,
-  Google Gemini, and any later endpoints
+- dynamic endpoint registry: local Photon vLLM, Positron LM Studio fallback,
+  OpenAI, Google Gemini, and any later endpoints
+- add/remove endpoints from Admin v2 without code changes
+- endpoint auth mode: none, environment variable, or stored encrypted API key
 - cheap endpoint probe: `/v1/models` or provider equivalent
+- cached available model ids from probe results
+- per-endpoint notes, default model, timeout, enabled flag, and auth status
+- aggregate usage stats by endpoint/model: request count, token totals, average
+  latency, and last use
 - deliberate generation smoke test
 - selected model per pipeline role: `discover`, `prune`, `compile`,
   `identify`, `extract`, `criticize`, `adjudicate`, `narrate`
@@ -194,11 +200,20 @@ Recommended v1 policy:
 The current Photon vLLM setup should remain host-local until there is a stable
 runtime contract. Admin should probe and use it, not own it.
 
+When an inference runtime is outside the API container, store the URL that the
+API container can actually reach. On Photon, host-side tools may use
+`http://127.0.0.1:8001/v1`, while the Admin/API container should use the
+container-network URL `http://photon-vllm:8000/v1` when `photon-vllm` is joined
+to the app network. Use `SPACEGATE_CONTAINER_LLM_BASE_URL` for that
+container-side override so `SPACEGATE_LLM_BASE_URL` can remain convenient for
+host-side tools.
+
 Minimum endpoint record:
 
 - endpoint id and provider
 - base URL
 - auth mode, without displaying secrets
+- encrypted stored API key or environment variable pointer
 - reachable status and last probe time
 - available model ids
 - default model per role
@@ -249,7 +264,11 @@ from those records.
 2. Overview + Inference foundation
    - show auth/session status, service health, current build, container status,
      and endpoint probes
-   - read model ids from configured endpoints
+   - read model ids from configured dynamic endpoints
+   - support add/remove endpoint records and stored or environment-backed API
+     keys
+   - show basic endpoint/model usage counters once the inference runner records
+     calls
    - show recent eval reports
 
 3. Agency read model
