@@ -2,6 +2,10 @@
 
 Base URL: `http://<host>:8000/api/v1`
 
+Admin/auth v2 base URL: `http://<host>/api/v2`
+
+Note: `/api/v1/auth/*` and `/api/v1/admin/*` are deprecated compatibility routes. New Admin clients and OIDC redirect URIs should use `/api/v2`.
+
 ## Principles
 - Read-only access to core data.
 - All SQL is parameterized; no user input is concatenated into SQL.
@@ -124,10 +128,10 @@ Response:
 - `403` authenticated non-admin.
 
 ### GET /admin/ui
-Admin UI scaffold served by the API (under `/api/v1/admin/ui`).
+Admin UI scaffold served by the API (under `/api/v2/admin/ui`).
 
 Notes:
-- Prefer `/api/v1/admin/ui` behind nginx/container deployments to avoid web route conflicts.
+- Prefer `/api/v2/admin/ui` behind nginx/container deployments to avoid web route conflicts.
 - `/admin` remains available when API is exposed directly.
 
 ### GET /admin/actions/catalog
@@ -242,7 +246,7 @@ Response shape:
       "event_type": "auth.login.denied",
       "result": "deny",
       "request_id": "req_efc0733fbb33",
-      "route": "/api/v1/auth/callback/google",
+      "route": "/api/v2/auth/callback/google",
       "method": "GET",
       "correlation_id": "job_20260220T190001Z_a1b2c3d4e5",
       "details": {"email":"galen.matson@archittec.com","reason":"allowlist"},

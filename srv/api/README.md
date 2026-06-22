@@ -27,8 +27,8 @@ export SPACEGATE_OIDC_PROVIDER=google
 export SPACEGATE_OIDC_ISSUER=https://accounts.google.com
 export SPACEGATE_OIDC_CLIENT_ID=...
 export SPACEGATE_OIDC_CLIENT_SECRET=...
-export SPACEGATE_OIDC_REDIRECT_URI=https://your-public-host.example/api/v1/auth/callback/google
-export SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v1/admin/ui
+export SPACEGATE_OIDC_REDIRECT_URI=https://your-public-host.example/api/v2/auth/callback/google
+export SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v2/admin/ui
 export SPACEGATE_SESSION_SECRET=... # high entropy secret
 export SPACEGATE_ADMIN_ALLOWLIST_EMAILS=you@example.com
 ```
@@ -49,24 +49,26 @@ Optional:
 - `GET /api/v1/systems/{system_id}`
 - `GET /api/v1/systems/by-key/{stable_object_key}`
 - `GET /api/v1/snapshots/{build_id}/{artifact_path}`
-- `GET /api/v1/auth/login/google`
-- `GET /api/v1/auth/callback/google`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-- `GET /api/v1/admin/status` (admin only)
-- `GET /api/v1/admin/coolness/state` (admin only; active profile + weights for slider initialization)
-- `POST /api/v1/admin/coolness/preview` (admin only, CSRF required; diversity preview for candidate weights)
-- `GET /api/v1/admin/actions/catalog` (admin only)
-- `POST /api/v1/admin/actions/run` (admin only, CSRF required)
-- `GET /api/v1/admin/actions/jobs` (admin only)
-- `GET /api/v1/admin/actions/jobs/{job_id}` (admin only)
-- `GET /api/v1/admin/actions/jobs/{job_id}/log` (admin only)
-- `GET /api/v1/admin/actions/jobs/{job_id}/log/download` (admin only)
-- `POST /api/v1/admin/actions/jobs/{job_id}/cancel` (admin only, CSRF required)
-- `GET /api/v1/admin/backups` (admin only)
-- `GET /api/v1/admin/audit` (admin only; audit/event feed with filters)
-- `GET /api/v1/admin/ui` (admin page scaffold; preferred behind nginx)
+- `GET /api/v2/auth/login/google`
+- `GET /api/v2/auth/callback/google`
+- `POST /api/v2/auth/logout`
+- `GET /api/v2/auth/me`
+- `GET /api/v2/admin/status` (admin only)
+- `GET /api/v2/admin/coolness/state` (admin only; active profile + weights for slider initialization)
+- `POST /api/v2/admin/coolness/preview` (admin only, CSRF required; diversity preview for candidate weights)
+- `GET /api/v2/admin/actions/catalog` (admin only)
+- `POST /api/v2/admin/actions/run` (admin only, CSRF required)
+- `GET /api/v2/admin/actions/jobs` (admin only)
+- `GET /api/v2/admin/actions/jobs/{job_id}` (admin only)
+- `GET /api/v2/admin/actions/jobs/{job_id}/log`
+- `GET /api/v2/admin/actions/jobs/{job_id}/log/download`
+- `POST /api/v2/admin/actions/jobs/{job_id}/cancel` (admin only, CSRF required)
+- `GET /api/v2/admin/backups` (admin only)
+- `GET /api/v2/admin/audit` (admin only; audit/event feed with filters)
+- `GET /api/v2/admin/ui` (admin page scaffold; preferred behind nginx)
 - `GET /admin` (admin page scaffold when API is exposed directly)
+
+`/api/v1/auth/*` and `/api/v1/admin/*` remain mounted for compatibility and emit deprecation headers. New Admin/OIDC integrations should use `/api/v2`.
 
 ## Deterministic snapshots (v1.0 baseline)
 

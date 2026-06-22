@@ -14,20 +14,36 @@ spacegate_load_env_defaults() {
   local file line key value
   local -A process_keys=()
   local -A loaded_keys=()
+  local host_env_file=""
+  local host_name=""
+
+  if command -v hostname >/dev/null 2>&1; then
+    host_name="$(hostname -s 2>/dev/null || true)"
+    if [[ -n "$host_name" ]]; then
+      host_env_file="$(cd "$root_dir/.." >/dev/null 2>&1 && pwd)/$host_name.env"
+    fi
+  fi
 
   # Low -> high precedence (later files override earlier file values).
   # Existing process env always wins over file values.
   env_files+=(
     "/etc/spacegate/spacegate.env"
     "$root_dir/.spacegate.env"
-    "$root_dir/.spacegate.local.env"
   )
+  if [[ -n "$host_env_file" ]]; then
+    env_files+=("$host_env_file")
+  fi
+  env_files+=("$root_dir/.spacegate.local.env")
   if [[ -n "${SPACEGATE_ENV_FILE:-}" ]]; then
     env_files+=("$SPACEGATE_ENV_FILE")
   fi
 
   for file in "${env_files[@]}"; do
     [[ -f "$file" ]] || continue
+    if [[ ! -r "$file" ]]; then
+      echo "Warning: Spacegate env file exists but is not readable: $file" >&2
+      continue
+    fi
     while IFS= read -r line || [[ -n "$line" ]]; do
       line="$(spacegate_trim "$line")"
       [[ -z "$line" || "$line" == \#* ]] && continue

@@ -331,6 +331,17 @@ async def attach_auth_context(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def mark_v1_admin_api_deprecated(request: Request, call_next):
+    response = await call_next(request)
+    path = str(request.url.path)
+    if path.startswith("/api/v1/auth/") or path.startswith("/api/v1/admin/"):
+        response.headers["Deprecation"] = "true"
+        response.headers["Sunset"] = "Wed, 01 Jul 2026 00:00:00 GMT"
+        response.headers["Link"] = '</api/v2/admin/ui>; rel="successor-version"'
+    return response
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if isinstance(exc.detail, dict):
@@ -397,6 +408,7 @@ if raw_cors:
     )
 
 
+@app.get("/api/v2/auth/login/google")
 @app.get("/api/v1/auth/login/google")
 def auth_login_google(
     request: Request,
@@ -405,6 +417,7 @@ def auth_login_google(
     return auth.login_redirect(request, next_path=next_path)
 
 
+@app.get("/api/v2/auth/callback/google")
 @app.get("/api/v1/auth/callback/google")
 def auth_callback_google(
     request: Request,
@@ -414,11 +427,13 @@ def auth_callback_google(
     return auth.auth_callback(request, code=code, state=state)
 
 
+@app.post("/api/v2/auth/logout")
 @app.post("/api/v1/auth/logout")
 def auth_logout(request: Request):
     return auth.logout(request)
 
 
+@app.get("/api/v2/auth/me")
 @app.get("/api/v1/auth/me")
 def auth_me(request: Request):
     return auth.auth_me(request)
@@ -989,7 +1004,7 @@ def system_snapshot_asset(build_id: str, artifact_path: str):
     )
 
 
-admin_router = APIRouter(prefix="/api/v1/admin")
+admin_router = APIRouter()
 
 
 class ActionRunRequest(BaseModel):
@@ -2659,15 +2674,21 @@ LIMIT ?
     return {"items": items, "next_before_audit_id": next_before}
 
 
-app.include_router(admin_router)
+app.include_router(admin_router, prefix="/api/v2/admin")
+app.include_router(admin_router, prefix="/api/v1/admin")
 
 
 @app.get("/admin", response_class=HTMLResponse)
+@app.get("/api/v2/admin/ui", response_class=HTMLResponse)
 @app.get("/api/v1/admin/ui", response_class=HTMLResponse)
 def admin_home(request: Request):
     if not auth.is_enabled():
         return HTMLResponse("<h1>Spacegate Admin</h1><p>Auth is disabled.</p>", status_code=503)
-    next_path = request.url.path if str(request.url.path).startswith("/api/v1/admin/") else "/api/v1/admin/ui"
+    request_path = str(request.url.path)
+    if request_path.startswith("/api/v1/admin/") or request_path.startswith("/api/v2/admin/"):
+        next_path = request_path
+    else:
+        next_path = auth.get_config().success_redirect
     if not getattr(request.state, "auth_user", None):
         return auth.login_redirect(request, next_path=next_path)
     user = auth.require_admin(request)
@@ -3366,6 +3387,9 @@ def admin_home(request: Request):
 
     <script>
       const out = document.getElementById('out');
+      const API_VERSION_PREFIX = window.location.pathname.startsWith('/api/v2/') ? '/api/v2' : '/api/v1';
+      const ADMIN_API_BASE = `${{API_VERSION_PREFIX}}/admin`;
+      const AUTH_API_BASE = `${{API_VERSION_PREFIX}}/auth`;
       const actionsOpsEl = document.getElementById('actionsOps');
       const actionsCoolnessEl = document.getElementById('actionsCoolness');
       const adminThemeSelectEl = document.getElementById('adminThemeSelect');
@@ -3650,7 +3674,7 @@ def admin_home(request: Request):
 	        const started = Date.now();
 	        setRunStatus('running', `job ${{jobId}}`);
 	        while (Date.now() - started <= timeoutMs) {{
-	          const {{ res, data }} = await fetchJson(`/api/v1/admin/actions/jobs/${{jobId}}`, {{ credentials: 'include' }});
+	          const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/jobs/${{jobId}}`, {{ credentials: 'include' }});
 	          if (!res.ok) {{
 	            setRunStatus('error', `job lookup failed (${{jobId}})`);
 	            return {{ ok: false, reason: 'lookup_failed', data }};
@@ -3729,7 +3753,7 @@ def admin_home(request: Request):
 	        if (finalStatus !== 'succeeded') {{
 	          let failureHint = '';
 	          try {{
-	            const res = await fetch(`/api/v1/admin/actions/jobs/${{jobId}}/log/download`, {{ credentials: 'include' }});
+	            const res = await fetch(`${{ADMIN_API_BASE}}/actions/jobs/${{jobId}}/log/download`, {{ credentials: 'include' }});
 	            if (res.ok) {{
 	              const text = await res.text();
 	              const lines = String(text || '').split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
@@ -3796,7 +3820,7 @@ def admin_home(request: Request):
 	        if (finalStatus !== 'succeeded') {{
 	          let failureHint = '';
 	          try {{
-	            const res = await fetch(`/api/v1/admin/actions/jobs/${{jobId}}/log/download`, {{ credentials: 'include' }});
+	            const res = await fetch(`${{ADMIN_API_BASE}}/actions/jobs/${{jobId}}/log/download`, {{ credentials: 'include' }});
 	            if (res.ok) {{
 	              const text = await res.text();
 	              const lines = String(text || '').split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
@@ -4420,7 +4444,7 @@ def admin_home(request: Request):
 	      async function loadCoolnessState(options = undefined) {{
 	        const preserveEditor = !!(options && options.preserveEditor);
         const suppressNotice = !!(options && options.suppressNotice);
-	        const {{ res, data }} = await fetchJson('/api/v1/admin/coolness/state', {{ credentials: 'include' }});
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/coolness/state`, {{ credentials: 'include' }});
 	        if (!res.ok) {{
 	          coolPreviewOutEl.textContent = JSON.stringify(data, null, 2);
 	          setPreviewNotice('Could not load active coolness profile.');
@@ -4470,7 +4494,7 @@ def admin_home(request: Request):
 	          weights: currentCoolnessWeights,
 	          top_n: topN,
 	        }};
-        const {{ res, data }} = await fetchJson('/api/v1/admin/coolness/preview', {{
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/coolness/preview`, {{
           method: 'POST',
           credentials: 'include',
           headers: {{
@@ -4690,7 +4714,7 @@ def admin_home(request: Request):
 	      }}
 
 	      async function callStatus() {{
-        const {{ data }} = await fetchJson('/api/v1/admin/status', {{ credentials: 'include' }});
+        const {{ data }} = await fetchJson(`${{ADMIN_API_BASE}}/status`, {{ credentials: 'include' }});
         out.textContent = JSON.stringify(data, null, 2);
       }}
 
@@ -5297,7 +5321,7 @@ def admin_home(request: Request):
 
       async function callDatasetStatus(forceRefresh = false) {{
         const query = forceRefresh ? '?refresh=1' : '';
-        const {{ res, data }} = await fetchJson(`/api/v1/admin/status/dataset${{query}}`, {{ credentials: 'include' }});
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/status/dataset${{query}}`, {{ credentials: 'include' }});
         if (!res.ok) {{
           datasetStatusMetaEl.textContent = `error loading dataset status (${{res.status}})`;
           datasetStatusRawEl.textContent = JSON.stringify(data, null, 2);
@@ -5394,7 +5418,7 @@ def admin_home(request: Request):
       async function callSlicePreview() {{
         const payload = readSlicePayload();
         setSliceStatus('preview', 'computing impact...');
-        const {{ res, data }} = await fetchJson('/api/v1/admin/dataset/slice/preview', {{
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/dataset/slice/preview`, {{
           method: 'POST',
           credentials: 'include',
           headers: {{
@@ -5491,7 +5515,7 @@ def admin_home(request: Request):
       async function runAction(actionName, params, confirmation) {{
         const payload = {{ action: actionName, params: params || {{}} }};
         if (confirmation) payload.confirmation = confirmation;
-        const {{ res, data }} = await fetchJson('/api/v1/admin/actions/run', {{
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/run`, {{
           method: 'POST',
           credentials: 'include',
           headers: {{
@@ -5519,7 +5543,7 @@ def admin_home(request: Request):
       async function followActionJob(jobId, statusEl, actionName) {{
         const maxPolls = 300;
         for (let i = 0; i < maxPolls; i += 1) {{
-          const {{ res, data }} = await fetchJson(`/api/v1/admin/actions/jobs/${{jobId}}`, {{ credentials: 'include' }});
+          const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/jobs/${{jobId}}`, {{ credentials: 'include' }});
           if (!res.ok) {{
             setActionRunStatus(statusEl, 'error', `failed to fetch job ${{jobId}}`);
             return;
@@ -5556,7 +5580,7 @@ def admin_home(request: Request):
       }}
 
       async function loadCatalog() {{
-        const {{ data }} = await fetchJson('/api/v1/admin/actions/catalog', {{ credentials: 'include' }});
+        const {{ data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/catalog`, {{ credentials: 'include' }});
         actionsOpsEl.innerHTML = '';
         actionsCoolnessEl.innerHTML = '';
         (data.items || []).forEach((item) => {{
@@ -5654,7 +5678,7 @@ def admin_home(request: Request):
       }}
 
       async function cancelJob(jobId) {{
-        const {{ res, data }} = await fetchJson(`/api/v1/admin/actions/jobs/${{jobId}}/cancel`, {{
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/jobs/${{jobId}}/cancel`, {{
           method: 'POST',
           credentials: 'include',
           headers: {{ 'X-CSRF-Token': csrfToken() }},
@@ -5668,7 +5692,7 @@ def admin_home(request: Request):
       }}
 
 	      async function loadJobs() {{
-	        const {{ data }} = await fetchJson('/api/v1/admin/actions/jobs?limit=50', {{ credentials: 'include' }});
+	        const {{ data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/jobs?limit=50`, {{ credentials: 'include' }});
 	        latestJobs = Array.isArray(data.items) ? data.items : [];
 	        jobsEl.innerHTML = '';
 	        latestJobs.forEach((job) => {{
@@ -5699,7 +5723,7 @@ def admin_home(request: Request):
           controls.appendChild(viewBtn);
 
           const download = document.createElement('a');
-          download.href = `/api/v1/admin/actions/jobs/${{job.job_id}}/log/download`;
+          download.href = `${{ADMIN_API_BASE}}/actions/jobs/${{job.job_id}}/log/download`;
           download.textContent = 'Download Log';
           controls.appendChild(download);
 
@@ -5730,7 +5754,7 @@ def admin_home(request: Request):
       }}
 
       async function loadBackups() {{
-        const {{ data }} = await fetchJson('/api/v1/admin/backups?limit=100', {{ credentials: 'include' }});
+        const {{ data }} = await fetchJson(`${{ADMIN_API_BASE}}/backups?limit=100`, {{ credentials: 'include' }});
         backupsAdminDbEl.innerHTML = '';
         backupsReleaseMetaEl.innerHTML = '';
 
@@ -5821,7 +5845,7 @@ def admin_home(request: Request):
 
       async function loadAudit(loadOlder = false) {{
         const query = buildAuditQuery(loadOlder);
-        const {{ res, data }} = await fetchJson(`/api/v1/admin/audit?${{query}}`, {{ credentials: 'include' }});
+        const {{ res, data }} = await fetchJson(`${{ADMIN_API_BASE}}/audit?${{query}}`, {{ credentials: 'include' }});
         if (!res.ok) {{
           auditDetailsEl.textContent = JSON.stringify(data, null, 2);
           return;
@@ -5833,7 +5857,7 @@ def admin_home(request: Request):
 
       async function pollLog() {{
         if (!currentJobId) return;
-        const {{ data }} = await fetchJson(`/api/v1/admin/actions/jobs/${{currentJobId}}/log?offset=${{currentOffset}}&limit=65536`, {{ credentials: 'include' }});
+        const {{ data }} = await fetchJson(`${{ADMIN_API_BASE}}/actions/jobs/${{currentJobId}}/log?offset=${{currentOffset}}&limit=65536`, {{ credentials: 'include' }});
         const chunk = data.chunk || '';
         if (chunk) {{
           logEl.textContent += chunk;
@@ -5846,12 +5870,12 @@ def admin_home(request: Request):
       }}
 
       async function doLogout() {{
-        await fetch('/api/v1/auth/logout', {{
+        await fetch(`${{AUTH_API_BASE}}/logout`, {{
           method: 'POST',
           credentials: 'include',
           headers: {{ 'X-CSRF-Token': csrfToken() }},
         }});
-        window.location.href = '/api/v1/admin/ui';
+        window.location.href = `${{ADMIN_API_BASE}}/ui`;
       }}
 
       document.getElementById('logout').addEventListener('click', doLogout);

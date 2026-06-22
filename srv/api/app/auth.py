@@ -95,8 +95,8 @@ def _load_config() -> AuthConfig:
     client_secret = os.getenv("SPACEGATE_OIDC_CLIENT_SECRET", "").strip()
     redirect_uri = os.getenv("SPACEGATE_OIDC_REDIRECT_URI", "").strip()
     success_redirect = _safe_local_path(
-        os.getenv("SPACEGATE_AUTH_SUCCESS_REDIRECT", "/api/v1/admin/ui"),
-        "/api/v1/admin/ui",
+        os.getenv("SPACEGATE_AUTH_SUCCESS_REDIRECT", "/api/v2/admin/ui"),
+        "/api/v2/admin/ui",
     )
     cookie_secure = admin_db.parse_env_bool(os.getenv("SPACEGATE_SESSION_COOKIE_SECURE"), default=True)
     session_secret = os.getenv("SPACEGATE_SESSION_SECRET", "").strip()

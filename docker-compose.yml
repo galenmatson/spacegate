@@ -16,7 +16,7 @@ services:
       SPACEGATE_OIDC_CLIENT_ID: ${SPACEGATE_OIDC_CLIENT_ID:-}
       SPACEGATE_OIDC_CLIENT_SECRET: ${SPACEGATE_OIDC_CLIENT_SECRET:-}
       SPACEGATE_OIDC_REDIRECT_URI: ${SPACEGATE_OIDC_REDIRECT_URI:-}
-      SPACEGATE_AUTH_SUCCESS_REDIRECT: ${SPACEGATE_AUTH_SUCCESS_REDIRECT:-/api/v1/admin/ui}
+      SPACEGATE_AUTH_SUCCESS_REDIRECT: ${SPACEGATE_AUTH_SUCCESS_REDIRECT:-/api/v2/admin/ui}
       SPACEGATE_SESSION_SECRET: ${SPACEGATE_SESSION_SECRET:-}
       SPACEGATE_SESSION_COOKIE_SECURE: ${SPACEGATE_SESSION_COOKIE_SECURE:-1}
       SPACEGATE_SESSION_TTL_HOURS: ${SPACEGATE_SESSION_TTL_HOURS:-12}
@@ -53,8 +53,11 @@ services:
         condition: service_healthy
     ports:
       - "${SPACEGATE_WEB_BIND:-127.0.0.1}:${SPACEGATE_WEB_HOST_PORT:-8081}:80"
+      - "${SPACEGATE_WEB_TLS_BIND:-127.0.0.1}:${SPACEGATE_WEB_TLS_HOST_PORT:-8443}:443"
+    volumes:
+      - ${SPACEGATE_WEB_TLS_DIR:-/srv/spacegate/tls}:/etc/spacegate/tls:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://127.0.0.1/ >/dev/null 2>&1 || wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 4s
       retries: 5

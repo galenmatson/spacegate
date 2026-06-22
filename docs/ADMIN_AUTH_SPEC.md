@@ -13,7 +13,8 @@ This spec defines the first implementation slice of `v0.1.5: Admin Control Plane
 This document focuses on Checkpoint A auth/RBAC design. Checkpoints B-D are tracked in `docs/PROJECT.md` and implemented in the current admin API/UI.
 
 ## Goals
-- Add secure authentication for `/admin` and `/api/v1/admin/*`.
+- Add secure authentication for `/admin` and `/api/v2/admin/*`.
+- Keep `/api/v1/auth/*` and `/api/v1/admin/*` as deprecated compatibility aliases during the Admin v2 transition.
 - Keep auth foundation general so later per-user rim features reuse the same identity/session model.
 - Keep core astronomy data immutable and separate from auth state.
 
@@ -106,24 +107,24 @@ Rule:
 
 ## Auth Flow
 ### Login
-1. Client requests `GET /api/v1/auth/login/google`.
+1. Client requests `GET /api/v2/auth/login/google`.
 2. Server creates OIDC `state` + `nonce`, stores signed transient cookie, redirects to provider.
-3. Provider redirects to `GET /api/v1/auth/callback/google?code=...&state=...`.
+3. Provider redirects to `GET /api/v2/auth/callback/google?code=...&state=...`.
 4. Server validates `state`, exchanges code, validates ID token (`iss`, `aud`, `exp`, `nonce`, `email_verified`).
 5. Server checks admin allowlist match.
 6. If allowed: upsert user + identity, ensure `admin` role, create session, set secure cookie.
 7. Server writes audit event and redirects to `/admin`.
 
 ### Logout
-- `POST /api/v1/auth/logout`: revoke session row, clear cookie, audit log.
+- `POST /api/v2/auth/logout`: revoke session row, clear cookie, audit log.
 
 ### Session Introspection
-- `GET /api/v1/auth/me`: return authenticated identity summary + roles + session expiry.
+- `GET /api/v2/auth/me`: return authenticated identity summary + roles + session expiry.
 
 ## API and Route Protection
 Protected route groups:
 - `/admin/*` (UI assets/pages)
-- `/api/v1/admin/*` (admin APIs)
+- `/api/v2/admin/*` (admin APIs)
 
 Policy:
 - Unauthenticated -> `401`.
@@ -158,8 +159,8 @@ Required env vars (production):
 - `SPACEGATE_OIDC_ISSUER=https://accounts.google.com`
 - `SPACEGATE_OIDC_CLIENT_ID=...`
 - `SPACEGATE_OIDC_CLIENT_SECRET=...`
-- `SPACEGATE_OIDC_REDIRECT_URI=https://your-public-host.example/api/v1/auth/callback/google`
-- `SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v1/admin/ui`
+- `SPACEGATE_OIDC_REDIRECT_URI=https://your-public-host.example/api/v2/auth/callback/google`
+- `SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v2/admin/ui`
 - `SPACEGATE_ADMIN_DB_PATH=$SPACEGATE_STATE_DIR/admin/admin.sqlite3`
 - `SPACEGATE_SESSION_SECRET=...` (high-entropy secret for signing)
 
@@ -191,8 +192,8 @@ Admin allowlist source options:
 ## Acceptance Criteria (Checkpoint A)
 - Allowlisted Google account can log in and access `/admin`.
 - Non-allowlisted Google account is denied and audited.
-- `/api/v1/admin/*` returns `401` when unauthenticated.
-- `/api/v1/admin/*` returns `403` for authenticated non-admin user.
+- `/api/v2/admin/*` returns `401` when unauthenticated.
+- `/api/v2/admin/*` returns `403` for authenticated non-admin user.
 - Session expiry/idle timeout are enforced.
 - CSRF validation blocks invalid mutating requests.
 - Auth events create `audit_log` records with `request_id`.
