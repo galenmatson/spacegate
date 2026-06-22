@@ -18,6 +18,7 @@ Authoritative companion documents:
 - `docs/AGENT_PUBLISHER.md`: publication/materialization surfaces
 - `docs/AGENT_NARRATOR.md`: reviewed-evidence narrative generation
 - `docs/AGENT_WATCHER.md`: continuous refresh, drift detection, and reconciliation
+- `docs/AGENT_EVALS.md`: local-model golden-case evaluation, anomaly inbox, and role routing
 
 ## Pipeline Order
 
@@ -92,6 +93,18 @@ Implementation note: storage still uses `claim_bundle_id` and `claim_bundles` fo
 - monitor stale dossiers and re-check important systems when new catalogs or papers appear
 - produce eval artifacts so we can compare agent output to goldens instead of trusting vibes
 
+## Evaluation and Anomaly Inbox
+
+Use `scripts/agent_eval.py` and the tracked cases under
+`evals/spacegate_agent/cases/` before promoting a model or prompt into an agent
+role. The eval harness compares models by pipeline role (`extract`, `identify`,
+`criticize`, `adjudicate`, and related stages), not as a single global winner.
+
+Surprising findings discovered during extraction or review belong in the
+anomaly inbox concept described in `docs/AGENT_EVALS.md`. They are quarantined
+signals, not accepted facts. Future production persistence should route them to
+reviewed `disc`/`arm` surfaces and never directly into `core`.
+
 ## EXPLICIT ALLOWLIST
 File: docs/AGENT_ALLOWLIST.md
 Only use these sites. Each site comes with a trust score. Do not follow links off site unless they are direct document downloads.
@@ -156,6 +169,11 @@ Environment variables:
 - `SPACEGATE_REVIEWER_MAX_TOKENS` (default: `700`)
 - `SPACEGATE_FRONTIER_MAX_INPUT_CHARS` (default: `128000`, unless overridden in the runtime environment)
 - `SPACEGATE_FRONTIER_MAX_TOKENS` (default: `3000`)
+- `SPACEGATE_FRONTIER_DEFAULT_PROVIDER` (`openai|google`)
+- `SPACEGATE_FRONTIER_OPENAI_MODEL` (frontier OpenAI default model)
+- `SPACEGATE_FRONTIER_GOOGLE_MODEL` (frontier Google default model)
+- `SPACEGATE_OPENAI_API_KEY` or `OPENAI_API_KEY`
+- `SPACEGATE_GOOGLE_API_KEY` or `GOOGLE_API_KEY`
 - `SPACEGATE_LLM_API_KEY` (optional, only if your endpoint requires auth)
 - `SPACEGATE_INFERENCE_VERBOSE` (`1` to emit pass-level extractor progress to stderr for API-side inference calls)
 - `SPACEGATE_GROBID_URL` (optional scholarly-PDF preprocessing endpoint, for example `http://10.0.0.10:8070`)

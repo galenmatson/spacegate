@@ -157,6 +157,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Canonical build emitter + runtime canonical-hierarchy fallback
 - [ ] Agent evidence-link pipeline in `disc` (citations/source manifests backing factsheets and narratives)
 - [ ] Agent adjudication tables in `arm` for ambiguity resolution and missing-field proposals
+- [x] Initial role-based agent eval harness with seed golden cases and quarantined anomaly inbox reports
 - [ ] Local inference adjudicator cook-off with pinned TurboQuant KV-cache evaluation for long-context profiles
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
 - [ ] 3D map runtime integration over Gaia-first slice

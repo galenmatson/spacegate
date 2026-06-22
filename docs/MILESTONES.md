@@ -275,6 +275,8 @@ Dependencies:
 Deliverables:
 
 - benchmark "astronomer adjudicator" cook-off over fixed golden dossiers, including Castor-class multiplicity, exoplanet host binding, lifecycle conflicts, and source-contradiction cases
+- role-based agent evaluation harness with tracked golden cases and reproducible reports
+- quarantined anomaly inbox for catalog conflicts, source conflicts, schema gaps, stale consensus, plausibility failures, and interesting hypotheses discovered during evaluation or later agent runs
 - cost/latency budget model for overnight final-adjudication batches, including tokens/sec, wall time per case, context length, and accepted/rejected/deferred outcomes
 - model-role routing policy:
   - fast extractor/reviewer model for most source triage and structured claim checks

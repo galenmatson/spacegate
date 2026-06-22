@@ -9,6 +9,7 @@ Related documents:
 - `docs/AGENT_ALLOWLIST.md`: internet source policy and trust tiers
 - `docs/SCHEMA_ARM.md`: audited supplemental science and adjudication tables
 - `docs/SCHEMA_DISC.md`: audited citations, claims, factsheets, expositions, and other derived artifacts
+- `docs/AGENT_EVALS.md`: role-based local-model evaluation and anomaly inbox policy
 
 ## Purpose
 
@@ -284,6 +285,26 @@ Policy:
   - unsupported, low-value, or too-ambiguous claims
 
 `schema_gap` is an explicit queue, not a silent drop. This is where the system should capture values like stellar `log g`, stellar density, linear luminosity, mutual inclinations, and other useful literature facts that do not yet have a first-class field.
+
+## Anomaly Inbox
+
+Agent runs may notice useful issues that are not direct claim acceptances:
+catalog conflicts, source conflicts, identity/host ambiguity, schema gaps, stale
+consensus, plausibility failures, observational limitations, or interesting
+hypotheses. These should be tracked as quarantined anomaly-inbox items.
+
+Policy:
+
+- an anomaly is a review signal, not accepted science
+- every anomaly must reference the source or eval case that triggered it
+- anomaly items may motivate a dossier, proposal, deterministic check, or human
+  review, but they must not mutate `core`
+- high-impact or speculative anomalies require accepted supporting claims before
+  any public-facing narrative or overlay uses them
+
+The first concrete implementation is the eval-report anomaly inbox emitted by
+`scripts/agent_eval.py`; production persistence should later map the same
+concept into reviewed `disc`/`arm` rows.
 
 ## Schema-Gap Workflow
 
