@@ -3015,11 +3015,12 @@ def admin_home(request: Request):
       .section {{ background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; margin-bottom: 0.9rem; }}
       .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem; }}
       .coolness-layout {{ grid-template-columns: minmax(300px, 35fr) minmax(420px, 65fr); }}
+      .inference-layout {{ grid-template-columns: minmax(280px, 1fr) minmax(520px, 2fr); align-items: start; }}
       .action-card {{ border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; }}
       .action-meta {{ color: var(--muted); font-size: 0.9rem; margin-bottom: 0.5rem; }}
       .field {{ margin-bottom: 0.45rem; }}
       .field label {{ display: block; font-size: 0.86rem; color: var(--muted); margin-bottom: 0.15rem; }}
-      .field input[type=text], .field input[type=number], .field select {{ width: 100%; box-sizing: border-box; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }}
+      .field input[type=text], .field input[type=url], .field input[type=password], .field input[type=number], .field select, .field textarea {{ width: 100%; box-sizing: border-box; padding: 0.35rem; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); }}
       .small {{ font-size: 0.82rem; color: var(--muted); }}
       code {{ background: var(--panel-soft); padding: 0.1rem 0.25rem; border-radius: 4px; }}
       button {{ padding: 0.45rem 0.65rem; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; }}
@@ -3083,6 +3084,7 @@ def admin_home(request: Request):
       .mini-table th {{ color: var(--muted); font-weight: 600; }}
       @media (max-width: 1100px) {{
         .coolness-layout {{ grid-template-columns: 1fr; }}
+        .inference-layout {{ grid-template-columns: 1fr; }}
       }}
       @media (max-width: 880px) {{
         .chart-split {{ grid-template-columns: 1fr; }}
@@ -3363,7 +3365,7 @@ def admin_home(request: Request):
           <button id="refreshInference">Refresh Registry</button>
         </div>
       </div>
-      <div class="section grid">
+      <div class="section grid inference-layout">
         <div class="action-card">
           <h3>Add Endpoint</h3>
           <div class="field">
