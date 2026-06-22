@@ -131,8 +131,11 @@ Response:
 Admin UI scaffold served by the API (under `/api/v2/admin/ui`).
 
 Notes:
-- Prefer `/api/v2/admin/ui` behind nginx/container deployments to avoid web route conflicts.
-- `/admin` remains available when API is exposed directly.
+- New Admin UI work should target the React/Vite app served at `/admin/`.
+- `/api/v2/admin/ui` is retained as a temporary embedded fallback during the
+  Admin migration.
+- The FastAPI-served `/admin` route remains available only when the API is
+  exposed directly; nginx deployments reserve `/admin/` for the React app.
 
 ### GET /admin/inference/endpoints
 Lists dynamic model endpoint registry records, cached models, and latest probe

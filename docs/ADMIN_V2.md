@@ -256,10 +256,14 @@ from those records.
 ## First Implementation Slices
 
 1. Admin shell extraction
-   - move Admin UI out of the large FastAPI HTML string into a dedicated admin
-     frontend
+   - scaffold the dedicated React/Vite Admin frontend at `srv/admin-web`
+   - serve it from nginx at `/admin/`
+   - move Admin UI out of the large FastAPI HTML string into the dedicated admin
+     frontend one top-level workspace at a time
    - keep existing `/api/v2/admin/*` APIs and auth
    - preserve the old v1 routes as deprecated aliases
+   - keep the embedded FastAPI Admin UI only as a temporary fallback until each
+     migrated workspace reaches parity
 
 2. Overview + Inference foundation
    - show auth/session status, service health, current build, container status,

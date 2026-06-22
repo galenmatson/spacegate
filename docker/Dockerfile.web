@@ -1,8 +1,16 @@
-FROM node:20-slim AS build
+FROM node:20-slim AS public-build
 
 WORKDIR /app
 COPY srv/web /app/srv/web
 WORKDIR /app/srv/web
+RUN npm install
+RUN npm run build
+
+FROM node:20-slim AS admin-build
+
+WORKDIR /app
+COPY srv/admin-web /app/srv/admin-web
+WORKDIR /app/srv/admin-web
 RUN npm install
 RUN npm run build
 
@@ -11,6 +19,7 @@ COPY docker/nginx-http.conf /etc/nginx/spacegate/nginx-http.conf
 COPY docker/nginx-tls.conf /etc/nginx/spacegate/nginx-tls.conf
 COPY docker/40-spacegate-nginx-mode.sh /docker-entrypoint.d/40-spacegate-nginx-mode.sh
 RUN chmod +x /docker-entrypoint.d/40-spacegate-nginx-mode.sh
-COPY --from=build /app/srv/web/dist /usr/share/nginx/html
+COPY --from=public-build /app/srv/web/dist /usr/share/nginx/html
+COPY --from=admin-build /app/srv/admin-web/dist /usr/share/nginx/html/admin
 
 EXPOSE 80 443
