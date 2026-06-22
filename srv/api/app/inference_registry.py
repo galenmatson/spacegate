@@ -320,23 +320,27 @@ LIMIT 1
 
 
 def _auth_header(endpoint: Dict[str, Any], row: sqlite3.Row) -> Optional[str]:
+    token = _auth_token(endpoint, row)
+    if not token:
+        return None
+    return f"Bearer {token}"
+
+
+def _auth_token(endpoint: Dict[str, Any], row: sqlite3.Row) -> str:
     mode = str(endpoint.get("auth_mode") or "none")
-    token = ""
     if mode == "env":
         env_name = str(endpoint.get("api_key_env") or "").strip()
-        if env_name:
-            token = os.getenv(env_name, "").strip()
+        token = os.getenv(env_name, "").strip() if env_name else ""
         if not token and env_name == "SPACEGATE_OPENAI_API_KEY":
             token = os.getenv("OPENAI_API_KEY", "").strip()
         if not token and env_name == "SPACEGATE_GOOGLE_API_KEY":
             token = os.getenv("GOOGLE_API_KEY", "").strip()
-    elif mode == "stored":
+        return token
+    if mode == "stored":
         ciphertext = row["api_key_ciphertext"]
         if ciphertext:
-            token = _decrypt_secret(str(ciphertext))
-    if not token:
-        return None
-    return f"Bearer {token}"
+            return _decrypt_secret(str(ciphertext))
+    return ""
 
 
 def _poll_url(endpoint: Dict[str, Any]) -> str:
@@ -362,16 +366,14 @@ def poll_models(endpoint_id: int) -> Dict[str, Any]:
         raise RegistryError("endpoint is disabled")
 
     headers = {"Accept": "application/json"}
+    token = _auth_token(endpoint, row)
     auth_header = _auth_header(endpoint, row)
-    if auth_header:
+    if endpoint["provider"] == "google":
+        if token:
+            headers["x-goog-api-key"] = token
+    elif auth_header:
         headers["Authorization"] = auth_header
     url = _poll_url(endpoint)
-    if endpoint["provider"] == "google" and not auth_header:
-        env_name = str(endpoint.get("api_key_env") or "SPACEGATE_GOOGLE_API_KEY")
-        key = os.getenv(env_name, "").strip() or os.getenv("GOOGLE_API_KEY", "").strip()
-        if key:
-            sep = "&" if "?" in url else "?"
-            url = f"{url}{sep}key={urllib.parse.quote(key)}"
 
     started = time.monotonic()
     now = _utc_now()
