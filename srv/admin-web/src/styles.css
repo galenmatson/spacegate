@@ -905,6 +905,30 @@ textarea {
   margin-top: 0.7rem;
 }
 
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.smoke-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.stacked-field {
+  margin-top: 0.55rem;
+}
+
+.smoke-result {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

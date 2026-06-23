@@ -161,7 +161,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Evidence Portfolio seed workflow from current coolness-ranked systems with first journal entry
 - [ ] Retire embedded FastAPI Admin UI after React workspace parity
 - [x] Admin v2 dynamic inference endpoint registry (add/remove endpoints, auth modes, model polling, usage stats API)
-- [ ] Admin v2 Inference workspace role/model routing and eval report history
+- [x] Admin v2 Inference workspace role/model routing and bounded smoke tests
+- [ ] Admin v2 Inference workspace eval report history
 - [x] Evidence Portfolio journal persistence schema for plain-language agent step history
 - [ ] External reference link pipeline (curated authority sources)
 - [ ] Factsheets + exposition generation with confidence metadata

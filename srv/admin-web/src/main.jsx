@@ -20,6 +20,8 @@ const emptyEndpointForm = {
 };
 
 const terminalJobStatuses = new Set(["succeeded", "failed", "cancelled"]);
+const inferenceRoles = ["discover", "prune", "compile", "identify", "extract", "criticize", "adjudicate", "narrate"];
+const defaultSmokePrompt = "Spacegate inference smoke test. Reply with exactly: spacegate inference smoke ok";
 
 const fallbackActionGuidance = {
   build_database: {
@@ -2837,6 +2839,9 @@ function InferenceScreen({ csrf }) {
   const [form, setForm] = useState(emptyEndpointForm);
   const [status, setStatus] = useState("Loading registry...");
   const [busyEndpoint, setBusyEndpoint] = useState(null);
+  const [roleDrafts, setRoleDrafts] = useState({});
+  const [smokeDrafts, setSmokeDrafts] = useState({});
+  const [smokeResults, setSmokeResults] = useState({});
 
   const csrfHeaders = useMemo(() => {
     if (!csrf?.cookie_name) return {};
@@ -2854,7 +2859,30 @@ function InferenceScreen({ csrf }) {
       setStatus(compactError(endpointResult.data, endpointResult.response.status));
       return;
     }
-    setEndpoints(Array.isArray(endpointResult.data.items) ? endpointResult.data.items : []);
+    const nextEndpoints = Array.isArray(endpointResult.data.items) ? endpointResult.data.items : [];
+    setEndpoints(nextEndpoints);
+    setRoleDrafts((current) => {
+      const next = { ...current };
+      nextEndpoints.forEach((endpoint) => {
+        if (!next[endpoint.endpoint_id]) next[endpoint.endpoint_id] = { ...(endpoint.role_defaults || {}) };
+      });
+      return next;
+    });
+    setSmokeDrafts((current) => {
+      const next = { ...current };
+      nextEndpoints.forEach((endpoint) => {
+        if (!next[endpoint.endpoint_id]) {
+          next[endpoint.endpoint_id] = {
+            role: "discover",
+            model_id: "",
+            prompt: defaultSmokePrompt,
+            temperature: 0,
+            max_tokens: 32,
+          };
+        }
+      });
+      return next;
+    });
     if (statsResult.response.ok) {
       setStats(Array.isArray(statsResult.data.items) ? statsResult.data.items : []);
     }
@@ -2921,6 +2949,76 @@ function InferenceScreen({ csrf }) {
     await loadInference();
   }
 
+  function updateRoleDefault(endpointId, role, modelId) {
+    setRoleDrafts((current) => ({
+      ...current,
+      [endpointId]: {
+        ...(current[endpointId] || {}),
+        [role]: modelId,
+      },
+    }));
+  }
+
+  async function saveRoleDefaults(endpoint) {
+    const roleDefaults = {};
+    const draft = roleDrafts[endpoint.endpoint_id] || {};
+    inferenceRoles.forEach((role) => {
+      const modelId = normalizeOptional(draft[role]);
+      if (modelId) roleDefaults[role] = modelId;
+    });
+    setBusyEndpoint(endpoint.endpoint_id);
+    setStatus(`Saving role defaults for ${endpoint.display_name || endpoint.endpoint_key}...`);
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/inference/endpoints/${endpoint.endpoint_id}`, {
+      method: "PATCH",
+      headers: csrfHeaders,
+      body: JSON.stringify({ role_defaults: roleDefaults }),
+    });
+    setBusyEndpoint(null);
+    if (!response.ok) {
+      setStatus(compactError(data, response.status));
+      return;
+    }
+    setStatus("Role defaults saved.");
+    await loadInference();
+  }
+
+  function updateSmokeDraft(endpointId, key, value) {
+    setSmokeDrafts((current) => ({
+      ...current,
+      [endpointId]: {
+        ...(current[endpointId] || {}),
+        [key]: value,
+      },
+    }));
+  }
+
+  async function smokeTestEndpoint(endpoint) {
+    const draft = smokeDrafts[endpoint.endpoint_id] || {};
+    const payload = {
+      role: draft.role || "discover",
+      model_id: normalizeOptional(draft.model_id),
+      prompt: normalizeOptional(draft.prompt) || defaultSmokePrompt,
+      temperature: Number(draft.temperature ?? 0),
+      max_tokens: Number.parseInt(String(draft.max_tokens || "32"), 10),
+    };
+    setBusyEndpoint(endpoint.endpoint_id);
+    setStatus(`Running smoke test for ${endpoint.display_name || endpoint.endpoint_key}...`);
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/inference/endpoints/${endpoint.endpoint_id}/smoke-test`, {
+      method: "POST",
+      headers: csrfHeaders,
+      body: JSON.stringify(payload),
+    });
+    setBusyEndpoint(null);
+    if (!response.ok) {
+      setStatus(`Smoke test failed: ${compactError(data, response.status)}`);
+      await loadInference();
+      return;
+    }
+    setSmokeResults((current) => ({ ...current, [endpoint.endpoint_id]: data }));
+    setStatus(`Smoke test ok: ${data.model_id || "model"} | ${formatLatency(data.latency_ms)} | ${formatInt(data.usage?.total_tokens)} tokens`);
+    await loadInference();
+  }
+
   async function deleteEndpoint(endpoint) {
     if (!window.confirm(`Remove endpoint "${endpoint.display_name || endpoint.endpoint_key}"?`)) return;
     setBusyEndpoint(endpoint.endpoint_id);
@@ -2975,7 +3073,14 @@ function InferenceScreen({ csrf }) {
         <EndpointList
           endpoints={endpoints}
           busyEndpoint={busyEndpoint}
+          roleDrafts={roleDrafts}
+          smokeDrafts={smokeDrafts}
+          smokeResults={smokeResults}
           pollEndpoint={pollEndpoint}
+          updateRoleDefault={updateRoleDefault}
+          saveRoleDefaults={saveRoleDefaults}
+          updateSmokeDraft={updateSmokeDraft}
+          smokeTestEndpoint={smokeTestEndpoint}
           deleteEndpoint={deleteEndpoint}
         />
       </section>
@@ -3047,7 +3152,19 @@ function EndpointForm({ form, updateForm, createEndpoint }) {
   );
 }
 
-function EndpointList({ endpoints, busyEndpoint, pollEndpoint, deleteEndpoint }) {
+function EndpointList({
+  endpoints,
+  busyEndpoint,
+  roleDrafts,
+  smokeDrafts,
+  smokeResults,
+  pollEndpoint,
+  updateRoleDefault,
+  saveRoleDefaults,
+  updateSmokeDraft,
+  smokeTestEndpoint,
+  deleteEndpoint,
+}) {
   return (
     <section className="panel">
       <h2>Registered Endpoints</h2>
@@ -3072,6 +3189,21 @@ function EndpointList({ endpoints, busyEndpoint, pollEndpoint, deleteEndpoint })
             </div>
             {endpoint.notes ? <p className="note">{endpoint.notes}</p> : null}
             <ModelTable models={endpoint.models || []} />
+            <RoleDefaultsEditor
+              endpoint={endpoint}
+              draft={roleDrafts[endpoint.endpoint_id] || endpoint.role_defaults || {}}
+              busy={busyEndpoint === endpoint.endpoint_id}
+              updateRoleDefault={updateRoleDefault}
+              saveRoleDefaults={saveRoleDefaults}
+            />
+            <SmokeTestPanel
+              endpoint={endpoint}
+              draft={smokeDrafts[endpoint.endpoint_id] || {}}
+              result={smokeResults[endpoint.endpoint_id]}
+              busy={busyEndpoint === endpoint.endpoint_id}
+              updateSmokeDraft={updateSmokeDraft}
+              smokeTestEndpoint={smokeTestEndpoint}
+            />
             <div className="card-actions">
               <button className="button" disabled={busyEndpoint === endpoint.endpoint_id} onClick={() => pollEndpoint(endpoint.endpoint_id)}>
                 {busyEndpoint === endpoint.endpoint_id ? "Polling..." : "Poll Models"}
@@ -3084,6 +3216,97 @@ function EndpointList({ endpoints, busyEndpoint, pollEndpoint, deleteEndpoint })
         ))}
       </div>
     </section>
+  );
+}
+
+function RoleDefaultsEditor({ endpoint, draft, busy, updateRoleDefault, saveRoleDefaults }) {
+  const models = Array.isArray(endpoint.models) ? endpoint.models : [];
+  return (
+    <details className="models role-defaults">
+      <summary>Role Defaults</summary>
+      <div className="role-grid">
+        {inferenceRoles.map((role) => (
+          <label key={role}>
+            <span>{role}</span>
+            <select value={draft[role] || ""} onChange={(event) => updateRoleDefault(endpoint.endpoint_id, role, event.target.value)}>
+              <option value="">Endpoint default ({endpoint.default_model || "none"})</option>
+              {draft[role] && !models.some((model) => model.model_id === draft[role]) ? (
+                <option value={draft[role]}>{draft[role]}</option>
+              ) : null}
+              {models.map((model) => (
+                <option value={model.model_id} key={model.model_id}>{model.model_id}</option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      <div className="card-actions">
+        <button className="button" disabled={busy} onClick={() => saveRoleDefaults(endpoint)}>
+          {busy ? "Saving..." : "Save Role Defaults"}
+        </button>
+      </div>
+    </details>
+  );
+}
+
+function SmokeTestPanel({ endpoint, draft, result, busy, updateSmokeDraft, smokeTestEndpoint }) {
+  const models = Array.isArray(endpoint.models) ? endpoint.models : [];
+  const role = draft.role || "discover";
+  const roleDefault = (endpoint.role_defaults || {})[role] || "";
+  return (
+    <details className="models smoke-test">
+      <summary>Smoke Test</summary>
+      <div className="smoke-grid">
+        <label>
+          <span>Role</span>
+          <select value={role} onChange={(event) => updateSmokeDraft(endpoint.endpoint_id, "role", event.target.value)}>
+            {inferenceRoles.map((item) => <option value={item} key={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Model</span>
+          <select value={draft.model_id || ""} onChange={(event) => updateSmokeDraft(endpoint.endpoint_id, "model_id", event.target.value)}>
+            <option value="">Role/default ({roleDefault || endpoint.default_model || "none"})</option>
+            {draft.model_id && !models.some((model) => model.model_id === draft.model_id) ? (
+              <option value={draft.model_id}>{draft.model_id}</option>
+            ) : null}
+            {models.map((model) => (
+              <option value={model.model_id} key={model.model_id}>{model.model_id}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Temperature</span>
+          <input type="number" min="0" max="2" step="0.1" value={draft.temperature ?? 0} onChange={(event) => updateSmokeDraft(endpoint.endpoint_id, "temperature", event.target.value)} />
+        </label>
+        <label>
+          <span>Max tokens</span>
+          <input type="number" min="1" max="512" value={draft.max_tokens || 32} onChange={(event) => updateSmokeDraft(endpoint.endpoint_id, "max_tokens", event.target.value)} />
+        </label>
+      </div>
+      <label className="stacked-field">
+        <span>Prompt</span>
+        <textarea rows={3} value={draft.prompt || defaultSmokePrompt} onChange={(event) => updateSmokeDraft(endpoint.endpoint_id, "prompt", event.target.value)} />
+      </label>
+      <div className="card-actions">
+        <button className="button" disabled={busy || !endpoint.enabled} onClick={() => smokeTestEndpoint(endpoint)}>
+          {busy ? "Running..." : "Run Smoke Test"}
+        </button>
+      </div>
+      {result ? (
+        <div className="smoke-result">
+          <MetricList
+            rows={[
+              ["Status", result.status || "n/a"],
+              ["Role / model", `${result.role || "n/a"} / ${result.model_id || "n/a"}`],
+              ["Latency", formatLatency(result.latency_ms)],
+              ["Tokens", formatInt(result.usage?.total_tokens)],
+            ]}
+          />
+          <pre className="json-box">{result.output_excerpt || ""}</pre>
+        </div>
+      ) : null}
+    </details>
   );
 }
 

@@ -423,6 +423,10 @@ from those records.
      keys
    - show basic endpoint/model usage counters once the inference runner records
      calls
+   - edit per-endpoint role defaults for `discover`, `prune`, `compile`,
+     `identify`, `extract`, `criticize`, `adjudicate`, and `narrate`
+   - run bounded endpoint smoke tests that record usage telemetry without
+     persisting prompt text
    - show recent eval reports
 
 3. Operations + Audit migration

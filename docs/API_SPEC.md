@@ -203,6 +203,42 @@ Response:
 - `404` when the endpoint is missing.
 - `502` when the upstream provider cannot be reached or returns malformed data.
 
+### POST /admin/inference/endpoints/{endpoint_id}/smoke-test
+Runs a bounded generation smoke test against an endpoint using the selected
+role/model routing.
+
+Request body:
+```json
+{
+  "role": "discover",
+  "model_id": "optional-model-override",
+  "prompt": "Spacegate inference smoke test. Reply with exactly: spacegate inference smoke ok",
+  "temperature": 0,
+  "max_tokens": 32
+}
+```
+
+Notes:
+- If `model_id` is omitted, the server uses the endpoint role default for
+  `role`, then the endpoint default model.
+- Supports OpenAI-compatible chat completions and Google Gemini
+  `generateContent` provider shapes.
+- Prompt text is sent to the provider but is not persisted in the usage event
+  or audit payload.
+- Records `inference_usage_events` with `request_kind=smoke_test`, role, model,
+  success/failure, latency, and token counts when available.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+
+Response:
+- `200` with endpoint, selected role/model, latency, usage, and an output
+  excerpt.
+- `404` when the endpoint is missing.
+- `502` when the upstream provider cannot be reached, rejects the request, or
+  returns malformed data.
+
 ### GET /admin/inference/stats
 Returns aggregate usage counters recorded by the inference runner, grouped by
 endpoint and model. This endpoint is useful before generation routing is

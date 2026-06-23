@@ -1073,6 +1073,14 @@ class InferenceEndpointUpdateRequest(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=1000)
 
 
+class InferenceSmokeTestRequest(BaseModel):
+    role: str = Field(default="discover", min_length=1, max_length=64)
+    model_id: Optional[str] = Field(default=None, max_length=240)
+    prompt: Optional[str] = Field(default=None, max_length=2000)
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=32, ge=1, le=512)
+
+
 def _run_score_coolness_json(args: list[str]) -> Dict[str, Any]:
     cmd = [str(SCORE_COOLNESS_SCRIPT), *args]
     try:
@@ -3427,6 +3435,62 @@ def admin_inference_endpoint_poll_models(request: Request, endpoint_id: int):
             "endpoint_id": endpoint_id,
             "model_count": len(result.get("models") or []),
             "latency_ms": (result.get("probe") or {}).get("latency_ms"),
+        },
+    )
+    return result
+
+
+@admin_router.post("/inference/endpoints/{endpoint_id}/smoke-test")
+def admin_inference_endpoint_smoke_test(
+    request: Request,
+    endpoint_id: int,
+    payload: InferenceSmokeTestRequest,
+):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    try:
+        result = inference_registry.smoke_test(endpoint_id, payload.dict())
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Inference endpoint not found",
+                "details": {"endpoint_id": endpoint_id},
+            },
+        )
+    except inference_registry.RegistryError as exc:
+        auth.audit_event(
+            request,
+            event_type="admin.inference.endpoint.smoke_test",
+            result="error",
+            actor_user_id=int(user["user_id"]),
+            details={
+                "endpoint_id": endpoint_id,
+                "role": payload.role,
+                "model_id": payload.model_id,
+                "message": str(exc),
+            },
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "upstream_error",
+                "message": str(exc),
+                "details": {"endpoint_id": endpoint_id},
+            },
+        )
+    auth.audit_event(
+        request,
+        event_type="admin.inference.endpoint.smoke_test",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={
+            "endpoint_id": endpoint_id,
+            "role": result.get("role"),
+            "model_id": result.get("model_id"),
+            "latency_ms": result.get("latency_ms"),
+            "total_tokens": (result.get("usage") or {}).get("total_tokens"),
         },
     )
     return result

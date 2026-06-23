@@ -19,6 +19,16 @@ from . import admin_db
 
 SUPPORTED_PROVIDERS = {"openai_compatible", "openai", "google", "custom"}
 SUPPORTED_AUTH_MODES = {"none", "env", "stored"}
+INFERENCE_ROLE_KEYS = [
+    "discover",
+    "prune",
+    "compile",
+    "identify",
+    "extract",
+    "criticize",
+    "adjudicate",
+    "narrate",
+]
 
 
 class RegistryError(ValueError):
@@ -353,6 +363,19 @@ def _poll_url(endpoint: Dict[str, Any]) -> str:
     return f"{base_url}/v1/models"
 
 
+def _completion_url(endpoint: Dict[str, Any], model_id: str) -> str:
+    base_url = str(endpoint["base_url"]).rstrip("/")
+    provider = str(endpoint["provider"])
+    if provider == "google":
+        model = str(model_id or "").strip()
+        if model.startswith("models/"):
+            model = model.split("/", 1)[1]
+        return f"{base_url}/models/{urllib.parse.quote(model, safe='.-_:/')}:generateContent"
+    if base_url.endswith("/v1"):
+        return f"{base_url}/chat/completions"
+    return f"{base_url}/v1/chat/completions"
+
+
 def poll_models(endpoint_id: int) -> Dict[str, Any]:
     with admin_db.connection_scope() as con:
         row = con.execute(
@@ -398,6 +421,221 @@ def poll_models(endpoint_id: int) -> Dict[str, Any]:
             message = f"HTTP {exc.code}: {exc.reason}"
         _store_probe(endpoint_id, status="error", model_count=0, latency_ms=latency_ms, error_message=message[:500], probed_at=now)
         raise RegistryError(message) from exc
+
+
+def smoke_test(endpoint_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    with admin_db.connection_scope() as con:
+        row = con.execute(
+            "SELECT * FROM inference_endpoints WHERE endpoint_id = ? AND deleted_at IS NULL",
+            (int(endpoint_id),),
+        ).fetchone()
+    if row is None:
+        raise KeyError(endpoint_id)
+    endpoint = _row_to_endpoint(row, include_models=False)
+    if not endpoint["enabled"]:
+        raise RegistryError("endpoint is disabled")
+
+    role = str(payload.get("role") or "discover").strip().lower()
+    if role not in INFERENCE_ROLE_KEYS:
+        raise RegistryError(f"role must be one of: {', '.join(INFERENCE_ROLE_KEYS)}")
+    role_defaults = endpoint.get("role_defaults") or {}
+    model_id = (
+        str(payload.get("model_id") or "").strip()
+        or str(role_defaults.get(role) or "").strip()
+        or str(endpoint.get("default_model") or "").strip()
+    )
+    if not model_id:
+        raise RegistryError("model_id is required when no endpoint default or role default is configured")
+    prompt = str(
+        payload.get("prompt")
+        or "Spacegate inference smoke test. Reply with exactly: spacegate inference smoke ok"
+    ).strip()
+    if not prompt:
+        raise RegistryError("prompt is required")
+    if len(prompt) > 2000:
+        raise RegistryError("prompt must be <= 2000 characters")
+    try:
+        max_tokens = int(payload.get("max_tokens") or 32)
+    except (TypeError, ValueError) as exc:
+        raise RegistryError("max_tokens must be an integer") from exc
+    if max_tokens < 1 or max_tokens > 512:
+        raise RegistryError("max_tokens must be between 1 and 512")
+    try:
+        temperature = float(payload.get("temperature", 0.0))
+    except (TypeError, ValueError) as exc:
+        raise RegistryError("temperature must be a number") from exc
+    if temperature < 0.0 or temperature > 2.0:
+        raise RegistryError("temperature must be between 0 and 2")
+
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    token = _auth_token(endpoint, row)
+    auth_header = _auth_header(endpoint, row)
+    if endpoint["provider"] == "google":
+        if token:
+            headers["x-goog-api-key"] = token
+        request_body = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": max_tokens,
+            },
+        }
+    else:
+        if auth_header:
+            headers["Authorization"] = auth_header
+        request_body = {
+            "model": model_id,
+            "messages": [
+                {"role": "system", "content": "You are a Spacegate inference endpoint health check."},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+    url = _completion_url(endpoint, model_id)
+    started = time.monotonic()
+    now = _utc_now()
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(request_body).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=int(endpoint["timeout_s"])) as resp:
+            raw_text = resp.read().decode("utf-8")
+        raw = json.loads(raw_text)
+        latency_ms = int((time.monotonic() - started) * 1000)
+        parsed = _parse_generation_response(raw, provider=str(endpoint["provider"]))
+        usage = parsed["usage"]
+        _record_usage_event(
+            endpoint_id=int(endpoint_id),
+            model_id=model_id,
+            role=role,
+            request_kind="smoke_test",
+            prompt_tokens=usage.get("prompt_tokens"),
+            completion_tokens=usage.get("completion_tokens"),
+            total_tokens=usage.get("total_tokens"),
+            latency_ms=latency_ms,
+            success=True,
+            error_class=None,
+            created_at=now,
+        )
+        return {
+            "status": "ok",
+            "endpoint": get_endpoint(endpoint_id),
+            "role": role,
+            "model_id": model_id,
+            "latency_ms": latency_ms,
+            "usage": usage,
+            "output_excerpt": parsed["text"][:500],
+            "created_at": now,
+        }
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, RegistryError) as exc:
+        latency_ms = int((time.monotonic() - started) * 1000)
+        message = str(exc)
+        error_class = exc.__class__.__name__
+        if isinstance(exc, urllib.error.HTTPError):
+            message = f"HTTP {exc.code}: {exc.reason}"
+            error_class = f"HTTPError{exc.code}"
+        _record_usage_event(
+            endpoint_id=int(endpoint_id),
+            model_id=model_id,
+            role=role,
+            request_kind="smoke_test",
+            prompt_tokens=None,
+            completion_tokens=None,
+            total_tokens=None,
+            latency_ms=latency_ms,
+            success=False,
+            error_class=error_class,
+            created_at=now,
+        )
+        raise RegistryError(message) from exc
+
+
+def _parse_generation_response(raw: Dict[str, Any], *, provider: str) -> Dict[str, Any]:
+    if provider == "google":
+        candidates = raw.get("candidates") or []
+        text_parts: List[str] = []
+        if candidates and isinstance(candidates[0], dict):
+            parts = ((candidates[0].get("content") or {}).get("parts") or [])
+            for part in parts:
+                if isinstance(part, dict) and part.get("text"):
+                    text_parts.append(str(part["text"]))
+        usage_raw = raw.get("usageMetadata") or {}
+        return {
+            "text": "\n".join(text_parts).strip(),
+            "usage": {
+                "prompt_tokens": _optional_int(usage_raw.get("promptTokenCount")),
+                "completion_tokens": _optional_int(usage_raw.get("candidatesTokenCount")),
+                "total_tokens": _optional_int(usage_raw.get("totalTokenCount")),
+            },
+        }
+
+    choices = raw.get("choices") or []
+    text = ""
+    if choices and isinstance(choices[0], dict):
+        message = choices[0].get("message") or {}
+        text = str(message.get("content") or choices[0].get("text") or "").strip()
+    usage_raw = raw.get("usage") or {}
+    return {
+        "text": text,
+        "usage": {
+            "prompt_tokens": _optional_int(usage_raw.get("prompt_tokens")),
+            "completion_tokens": _optional_int(usage_raw.get("completion_tokens")),
+            "total_tokens": _optional_int(usage_raw.get("total_tokens")),
+        },
+    }
+
+
+def _optional_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _record_usage_event(
+    *,
+    endpoint_id: int,
+    model_id: str,
+    role: str,
+    request_kind: str,
+    prompt_tokens: Optional[int],
+    completion_tokens: Optional[int],
+    total_tokens: Optional[int],
+    latency_ms: int,
+    success: bool,
+    error_class: Optional[str],
+    created_at: str,
+) -> None:
+    with admin_db.connection_scope() as con:
+        con.execute(
+            """
+INSERT INTO inference_usage_events(
+  endpoint_id, model_id, role, request_kind, prompt_tokens, completion_tokens,
+  total_tokens, latency_ms, success, error_class, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(endpoint_id),
+                model_id,
+                role,
+                request_kind,
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                int(latency_ms),
+                1 if success else 0,
+                error_class,
+                created_at,
+            ),
+        )
+        con.commit()
 
 
 def _extract_models(raw: Dict[str, Any], *, provider: str) -> List[Dict[str, Any]]:
