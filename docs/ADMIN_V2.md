@@ -91,6 +91,8 @@ Show:
   OpenAI, Google Gemini, and any later endpoints
 - add/remove endpoints from Admin v2 without code changes
 - endpoint auth mode: none, environment variable, or stored encrypted API key
+- named provider credential env suggestions from runtime, with configured flags
+  but no secret values
 - cheap endpoint probe: `/v1/models` or provider equivalent
 - cached available model ids from probe results
 - per-endpoint notes, default model, timeout, enabled flag, and auth status

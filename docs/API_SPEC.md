@@ -172,6 +172,29 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /admin/inference/credential-envs
+Lists provider credential environment variable names visible to the API runtime
+for use by inference endpoints with `auth_mode=env`.
+
+Response items include:
+- `env_key`
+- `provider`
+- `label`
+- `configured`
+- `preferred`
+- `source` (`known` or `discovered`)
+
+Notes:
+- Secret values are never returned.
+- Named provider credentials should use `SPACEGATE_*_API_KEY` names and live in
+  `/etc/spacegate/spacegate.env`.
+- Endpoints may still reference arbitrary env var names for future credentials.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
 ### POST /admin/inference/endpoints
 Creates an inference endpoint registry record.
 

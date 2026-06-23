@@ -919,6 +919,20 @@ textarea {
   margin-top: 0.7rem;
 }
 
+.credential-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: -0.15rem 0 0.65rem;
+}
+
+.credential-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
 .endpoint-meta span {
   display: block;
   color: var(--muted);

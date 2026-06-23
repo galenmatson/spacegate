@@ -3193,6 +3193,7 @@ function InferenceScreen({ csrf }) {
   const [endpoints, setEndpoints] = useState([]);
   const [stats, setStats] = useState([]);
   const [evalReports, setEvalReports] = useState(null);
+  const [credentialEnvs, setCredentialEnvs] = useState({ items: [], notes: [] });
   const [form, setForm] = useState(emptyEndpointForm);
   const [status, setStatus] = useState("Loading registry...");
   const [busyEndpoint, setBusyEndpoint] = useState(null);
@@ -3208,10 +3209,11 @@ function InferenceScreen({ csrf }) {
 
   async function loadInference() {
     setStatus("Refreshing registry...");
-    const [endpointResult, statsResult, evalResult] = await Promise.all([
+    const [endpointResult, statsResult, evalResult, credentialResult] = await Promise.all([
       fetchJson(`${ADMIN_API_BASE}/inference/endpoints`),
       fetchJson(`${ADMIN_API_BASE}/inference/stats`),
       fetchJson(`${ADMIN_API_BASE}/inference/eval-reports?limit=24`),
+      fetchJson(`${ADMIN_API_BASE}/inference/credential-envs`),
     ]);
     if (!endpointResult.response.ok) {
       setStatus(compactError(endpointResult.data, endpointResult.response.status));
@@ -3248,6 +3250,14 @@ function InferenceScreen({ csrf }) {
       setEvalReports(evalResult.data);
     } else {
       setEvalReports({ reports: [], role_summary: [], anomaly_inbox: [], searched_dirs: [], error: compactError(evalResult.data, evalResult.response.status) });
+    }
+    if (credentialResult.response.ok) {
+      setCredentialEnvs({
+        items: Array.isArray(credentialResult.data.items) ? credentialResult.data.items : [],
+        notes: Array.isArray(credentialResult.data.notes) ? credentialResult.data.notes : [],
+      });
+    } else {
+      setCredentialEnvs({ items: [], notes: [`Credential envs: ${compactError(credentialResult.data, credentialResult.response.status)}`] });
     }
     setStatus("Ready");
   }
@@ -3434,7 +3444,7 @@ function InferenceScreen({ csrf }) {
       <div className="status-line">{status}</div>
 
       <section className="inference-grid">
-        <EndpointForm form={form} updateForm={updateForm} createEndpoint={createEndpoint} />
+        <EndpointForm form={form} updateForm={updateForm} createEndpoint={createEndpoint} credentialEnvs={credentialEnvs} />
         <EndpointList
           endpoints={endpoints}
           busyEndpoint={busyEndpoint}
@@ -3456,7 +3466,8 @@ function InferenceScreen({ csrf }) {
   );
 }
 
-function EndpointForm({ form, updateForm, createEndpoint }) {
+function EndpointForm({ form, updateForm, createEndpoint, credentialEnvs }) {
+  const credentialItems = Array.isArray(credentialEnvs?.items) ? credentialEnvs.items : [];
   return (
     <form className="panel endpoint-form" onSubmit={createEndpoint}>
       <h2>Add Endpoint</h2>
@@ -3491,8 +3502,25 @@ function EndpointForm({ form, updateForm, createEndpoint }) {
       </label>
       <label>
         <span>API key env var</span>
-        <input value={form.api_key_env} onChange={(event) => updateForm("api_key_env", event.target.value)} placeholder="SPACEGATE_OPENAI_API_KEY" />
+        <input list="credential-env-options" value={form.api_key_env} onChange={(event) => updateForm("api_key_env", event.target.value)} placeholder="SPACEGATE_OPENAI_API_KEY" />
+        <datalist id="credential-env-options">
+          {credentialItems.map((item) => (
+            <option value={item.env_key} key={item.env_key} label={`${item.label} (${item.configured ? "configured" : "missing"})`} />
+          ))}
+        </datalist>
       </label>
+      {credentialItems.length ? (
+        <div className="credential-list">
+          {credentialItems.map((item) => (
+            <div className="credential-row" key={item.env_key}>
+              <span className={`badge ${item.configured ? "ok" : "muted"}`}>{item.configured ? "configured" : "missing"}</span>
+              <span>{item.env_key}</span>
+              <span className="muted">{item.provider}</span>
+            </div>
+          ))}
+          {(credentialEnvs.notes || []).map((note) => <div className="table-subtext" key={note}>{note}</div>)}
+        </div>
+      ) : null}
       <label>
         <span>API key</span>
         <input type="password" value={form.api_key} onChange={(event) => updateForm("api_key", event.target.value)} autoComplete="new-password" />

@@ -3347,6 +3347,53 @@ def _config_sources_payload() -> Dict[str, Any]:
     }
 
 
+def _inference_credential_envs_payload() -> Dict[str, Any]:
+    known = {
+        "SPACEGATE_OPENAI_API_KEY": {"provider": "openai", "label": "OpenAI primary"},
+        "OPENAI_API_KEY": {"provider": "openai", "label": "OpenAI legacy alias"},
+        "SPACEGATE_GOOGLE_API_KEY": {"provider": "google", "label": "Google primary"},
+        "GOOGLE_API_KEY": {"provider": "google", "label": "Google legacy alias"},
+    }
+    discovered = {
+        key
+        for key in os.environ
+        if key.startswith("SPACEGATE_")
+        and key.endswith("_API_KEY")
+        and key not in known
+    }
+    items: List[Dict[str, Any]] = []
+    for key in sorted(set(known) | discovered):
+        meta = known.get(key) or {}
+        upper = key.upper()
+        provider = meta.get("provider")
+        if not provider:
+            if "OPENAI" in upper:
+                provider = "openai"
+            elif "GOOGLE" in upper or "GEMINI" in upper:
+                provider = "google"
+            else:
+                provider = "custom"
+        items.append(
+            {
+                "env_key": key,
+                "provider": provider,
+                "label": meta.get("label") or key.replace("SPACEGATE_", "").replace("_API_KEY", "").replace("_", " ").title(),
+                "configured": bool(os.getenv(key, "").strip()),
+                "preferred": key.startswith("SPACEGATE_"),
+                "source": "known" if key in known else "discovered",
+            }
+        )
+    items.sort(key=lambda item: (not item["configured"], item["provider"], item["env_key"]))
+    return {
+        "items": items,
+        "notes": [
+            "Only environment variable names and configured/missing flags are returned.",
+            "Add named provider keys to /etc/spacegate/spacegate.env using SPACEGATE_*_API_KEY names, then recreate the containers.",
+            "Inference endpoints may reference any env var name even if it is not currently configured.",
+        ],
+    }
+
+
 def _git_head_short() -> Optional[str]:
     try:
         result = subprocess.run(
@@ -3936,6 +3983,12 @@ def admin_coolness_preview(request: Request, payload: CoolnessPreviewRequest):
 def admin_inference_endpoints(request: Request):
     auth.require_admin(request)
     return {"items": inference_registry.list_endpoints()}
+
+
+@admin_router.get("/inference/credential-envs")
+def admin_inference_credential_envs(request: Request):
+    auth.require_admin(request)
+    return _inference_credential_envs_payload()
 
 
 @admin_router.post("/inference/endpoints")
