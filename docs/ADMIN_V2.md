@@ -143,6 +143,155 @@ Show:
 Audit entries are not a substitute for dossier journal entries. Audit answers
 "who did what"; the journal answers "how the evidence case developed."
 
+## Operations, Jobs, and Audit Workspace
+
+The embedded Admin UI currently exposes these operational surfaces:
+
+- action catalog: allowlisted actions with parameter schemas, role checks, risk
+  levels, and confirmation phrases
+- action runner: queued background jobs with a single-worker default
+- job history: job metadata, command/native execution plan, status, timestamps,
+  exit code, and error message
+- job logs: chunk polling and full log download from
+  `$SPACEGATE_STATE_DIR/admin/jobs`
+- cancellation: queued jobs only; running jobs are not interrupted
+- backups: admin DB snapshots and release metadata snapshots
+- audit log: auth, admin action, inference, and query events with filters and
+  correlation IDs
+
+Admin v2 should migrate this as an **Operations** workspace, with Audit either
+as a tab in that workspace or a persistent adjacent top-level screen. The mental
+model should be:
+
+1. Action launcher: "what can I safely do next?"
+2. Jobs: "what is running, what happened, and what did it output?"
+3. Backups/recovery: "what can I roll back, and what must I back up first?"
+4. Audit trail: "who did what, from which route/request, and what correlated
+   records explain it?"
+
+### Operator Model
+
+Jobs are execution records. Audit entries are accountability records. Dossier
+journal entries are scientific evidence-history records. The UI should link
+these records but not collapse them.
+
+- A job should link to its launch audit event, completion audit event, log file,
+  parameters, command/native execution plan, and any produced reports.
+- An audit event with `correlation_id` or `job_id` should link back to the
+  matching job detail.
+- Future agency jobs should additionally link to Evidence Portfolio journal
+  entries, source files, extraction sets, claims, proposals, and review records.
+
+### Workspace Layout
+
+Use a dense operations console rather than a card pile.
+
+Header summary:
+
+- active jobs, queued jobs, recent failed jobs
+- latest high-risk action
+- admin DB backup age and release metadata backup age
+- current served build and last verification status when available
+- job runner capacity from `SPACEGATE_ADMIN_MAX_RUNNING_JOBS` and
+  `SPACEGATE_ADMIN_MAX_QUEUED_JOBS`
+
+Primary tabs:
+
+1. **Runbook**
+   - grouped action launcher with sequences and safe next steps
+   - workflow rails for common sequences:
+     - Build Database -> Verify Build -> Publish Database -> retention
+     - Score Coolness -> Save Profile -> Activate Profile -> Generate Snapshots
+     - Backup Admin DB -> Restore Admin DB
+     - Backup Release Metadata -> Restore Release Metadata
+   - each action should show purpose, prerequisites, writes/outputs, risk,
+     expected duration, required confirmation phrase, and next recommended step
+2. **Jobs**
+   - queue table with status, action, actor, created/started/finished times,
+     duration, exit code, and compact error
+   - split-pane job detail with parameters, execution plan, log tail, full log
+     download, linked audit events, and produced artifact hints
+   - status traps for missing log file, queued too long, running unusually long,
+     failed exit code, and stale page data
+3. **Backups**
+   - admin DB snapshot list and release metadata snapshot list
+   - create-backup actions near restore actions
+   - restore warnings that explain what state is affected and what is preserved
+   - "backup first" guidance before high-risk restore paths
+4. **Audit Trail**
+   - presets for auth, admin actions, inference, searches, errors, and denies
+   - exact filters for event type, result, request id, actor id, and correlation
+     id when available
+   - timeline/list with selected-event JSON detail
+   - links from correlated audit events to job detail or inference endpoint
+
+### Action Grouping
+
+Do not present all actions as one flat list. Group by operator intent:
+
+- Build pipeline: `build_database`, `verify_build`, `publish_db`
+- Presentation generation: `score_coolness`, `save_coolness_profile`,
+  `apply_coolness_profile`, `generate_snapshots`
+- Backups and recovery: `backup_admin_db`, `restore_admin_db`,
+  `backup_release_metadata`, `restore_release_metadata`
+- Service control: `restart_services`, `stop_services`
+- Advanced/hidden: sliced builds and future one-off maintenance actions
+
+The action catalog should eventually grow structured metadata instead of
+forcing the React UI to hardcode guidance:
+
+- `prerequisites`
+- `writes_to`
+- `outputs`
+- `expected_duration`
+- `preflight_checks`
+- `success_next_actions`
+- `failure_next_actions`
+- `warnings`
+- `docs_links`
+
+### Hints and Safety Feedback
+
+The UI should be generous with inline operational guidance, especially for a new
+administrator.
+
+- Build actions should remind operators that raw/cooked/out/served artifacts are
+  managed by scripts, not manual edits.
+- Verify should be framed as the required checkpoint before promotion,
+  retention, or deployment recommendations.
+- Publish should explain that it updates public download metadata, not the
+  immutable science build itself.
+- Retention should remain unavailable or clearly disabled while ingest/build
+  jobs are running, and should only run after successful promotion and
+  verification.
+- Restore Admin DB should warn that auth, allowlist, sessions, and audit tables
+  may change; active job references must remain valid.
+- Restore Release Metadata should warn that it changes download metadata and
+  optionally the `current` symlink.
+- Stop Services should warn that the Admin UI may disconnect and should require
+  explicit confirmation.
+- Failed jobs should show the last log lines, exit code, compact error, and
+  links to the full log and correlated audit events.
+- Empty states should explain what the operator can do next, not merely say
+  "no rows."
+
+### Backend Gaps to Close
+
+The current backend is enough for the first React migration, but future
+operators will benefit from several small API additions:
+
+- action metadata fields listed above, emitted from `ActionSpec`
+- `GET /admin/operations/status` summary for queue counts, runner capacity,
+  backup ages, and latest failures
+- `GET /admin/actions/jobs/{job_id}/audit` or audit filtering by
+  `correlation_id`
+- structured `admin_job_events` for progress milestones instead of log parsing
+- optional `parent_job_id` / `predecessor_job_id` so sequential workflows can be
+  represented explicitly
+- report/artifact links on completed jobs when an action writes known reports
+- actor display metadata for audit/job rows without exposing sensitive auth
+  claims
+
 ## Dossier Journal
 
 Every nontrivial agency step should append a journal entry that a human or LLM
@@ -277,18 +426,26 @@ from those records.
      calls
    - show recent eval reports
 
-3. Agency read model
+3. Operations + Audit migration
+   - migrate action launcher, job queue, selected job log, backups, and audit
+     filters into React
+   - preserve current API behavior while improving grouping, guidance, and
+     correlation links
+   - add backend action metadata and operations summary endpoint only after the
+     first React screen proves the operator workflow
+
+4. Agency read model
    - define API shapes for Evidence Portfolio, Source File, Extraction Set,
      Findings, Proposals, Review, and Journal Entry
    - start with read-only/mock or report-backed data where production tables do
      not exist yet
 
-4. Work queue and journal persistence
+5. Work queue and journal persistence
    - seed portfolios from coolness/adjudication queues
    - append journal entries for queue seed, source retrieval, extraction, and
      review actions
 
-5. Human-gated review
+6. Human-gated review
    - accept/reject/defer/escalate proposals
    - write accepted science overlays only to reviewed `arm`/`disc` surfaces
 
