@@ -459,6 +459,11 @@ from those records.
    - `/api/v2/admin/agency/portfolios` and
      `/api/v2/admin/agency/portfolios/{dossier_id}` expose read-only portfolio
      state for the React Admin workspace
+   - `/api/v2/admin/agency/seed-candidates` exposes ranked coolness candidates
+     from the current `disc.coolness_scores`
+   - `/api/v2/admin/agency/portfolios` `POST` creates only an admin dossier and
+     first journal entry; it does not run retrieval, extraction, model calls,
+     claim/proposal generation, publication, or layer materialization
 
 7. Human-gated review
    - accept/reject/defer/escalate proposals

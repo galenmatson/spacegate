@@ -260,6 +260,21 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /admin/agency/seed-candidates
+Returns ranked candidate targets for creating new Evidence Portfolios.
+
+Query params:
+- `limit` integer, default `50`, max `200`
+
+Notes:
+- Read-only.
+- Current implementation reads `disc.coolness_scores` from the served build's
+  sibling `disc.duckdb`.
+- Candidates include rank/score metadata, source build id when available, and
+  existing active dossier ids so the UI can avoid duplicate seeding.
+- If `disc.duckdb` or `coolness_scores` is absent, the endpoint returns `200`
+  with an empty list and explanatory message.
+
 ### GET /admin/agency/portfolios
 Lists Evidence Portfolio rows from the admin operational store.
 
@@ -272,6 +287,35 @@ Notes:
 - Returns counts for attached Source Files, Extraction Sets, Findings, and
   Journal Entries.
 - These rows are admin workflow state, not public served `disc` materialization.
+
+### POST /admin/agency/portfolios
+Creates a seeded Evidence Portfolio in the admin operational store.
+
+Request body:
+```json
+{
+  "stable_object_key": "gaia_dr3:123",
+  "object_type": "system",
+  "display_name": "Example System",
+  "queue_reason": "coolness_rank",
+  "queue_priority": "high",
+  "source_build_id": "2026-06-23T120000Z_example",
+  "source": "coolness_scores",
+  "metadata": {"rank": 7, "score_total": 91.5}
+}
+```
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+
+Notes:
+- Creates one `agent_object_dossiers` row and one
+  `agent_portfolio_journal_entries` row.
+- Does not run retrieval, extraction, model generation, claim creation,
+  proposal creation, `arm` writes, `disc` materialization, or publication.
+- Duplicate active portfolios for the same `stable_object_key` and
+  `object_type` return `409 conflict`.
 
 ### GET /admin/agency/portfolios/{dossier_id}
 Returns one Evidence Portfolio with attached Source Files, Extraction Sets,

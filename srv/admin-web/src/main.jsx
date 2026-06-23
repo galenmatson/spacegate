@@ -443,7 +443,7 @@ function App() {
         ) : activeScreen === "operations" ? (
           <OperationsScreen csrf={csrf} />
         ) : activeScreen === "agency" ? (
-          <AgencyScreen />
+          <AgencyScreen csrf={csrf} />
         ) : (
           <PlaceholderScreen name={activeScreen} />
         )}
@@ -1434,31 +1434,36 @@ function spectralColor(value) {
   return colors[key] || "#64748b";
 }
 
-function AgencyScreen() {
+function AgencyScreen({ csrf }) {
   const [activeTab, setActiveTab] = useState("portfolios");
-  const [state, setState] = useState({ loading: true, data: null, portfolios: null, selectedDetail: null, message: "Loading agency status..." });
+  const [state, setState] = useState({ loading: true, data: null, portfolios: null, seedCandidates: null, selectedDetail: null, message: "Loading agency status..." });
   const [selectedDossierId, setSelectedDossierId] = useState("");
+  const [busySeedId, setBusySeedId] = useState("");
+  const headers = useMemo(() => buildCsrfHeaders(csrf), [csrf]);
 
-  async function loadAgency() {
+  async function loadAgency(preferredDossierId = selectedDossierId) {
     setState((current) => ({ ...current, loading: true, message: "Refreshing agency status..." }));
-    const [statusResult, portfolioResult] = await Promise.all([
+    const [statusResult, portfolioResult, seedResult] = await Promise.all([
       fetchJson(`${ADMIN_API_BASE}/agency/status`),
       fetchJson(`${ADMIN_API_BASE}/agency/portfolios?limit=100`),
+      fetchJson(`${ADMIN_API_BASE}/agency/seed-candidates?limit=50`),
     ]);
     const errors = [];
     if (!statusResult.response.ok) errors.push(`agency: ${compactError(statusResult.data, statusResult.response.status)}`);
     if (!portfolioResult.response.ok) errors.push(`portfolios: ${compactError(portfolioResult.data, portfolioResult.response.status)}`);
+    if (!seedResult.response.ok) errors.push(`seed candidates: ${compactError(seedResult.data, seedResult.response.status)}`);
     const items = portfolioResult.response.ok && Array.isArray(portfolioResult.data.items) ? portfolioResult.data.items : [];
-    const nextSelected = selectedDossierId || items[0]?.dossier_id || "";
+    const nextSelected = preferredDossierId || items[0]?.dossier_id || "";
     let selectedDetail = null;
     if (nextSelected) {
       selectedDetail = await loadPortfolioDetail(nextSelected, { silent: true });
     }
-    if (nextSelected && !selectedDossierId) setSelectedDossierId(nextSelected);
+    if (nextSelected && nextSelected !== selectedDossierId) setSelectedDossierId(nextSelected);
     setState({
       loading: false,
       data: statusResult.response.ok ? statusResult.data : null,
       portfolios: portfolioResult.response.ok ? portfolioResult.data : { items: [], counts_by_status: {} },
+      seedCandidates: seedResult.response.ok ? seedResult.data : { items: [], message: "Seed candidates unavailable" },
       selectedDetail,
       message: errors.length ? errors.join(" | ") : "Ready",
     });
@@ -1483,12 +1488,42 @@ function AgencyScreen() {
     await loadPortfolioDetail(dossierId);
   }
 
+  async function seedPortfolio(candidate) {
+    if (!candidate?.stable_object_key) return;
+    setBusySeedId(candidate.id || candidate.stable_object_key);
+    setState((current) => ({ ...current, message: `Seeding ${candidate.display_name || candidate.stable_object_key}...` }));
+    const payload = {
+      stable_object_key: candidate.stable_object_key,
+      object_type: candidate.object_type || "system",
+      display_name: candidate.display_name || candidate.stable_object_key,
+      queue_reason: candidate.queue_reason || "coolness_rank",
+      queue_priority: candidate.queue_priority || "normal",
+      source_build_id: candidate.source_build_id || null,
+      source: candidate.source || "coolness_scores",
+      metadata: candidate.metadata || {},
+    };
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/portfolios`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    setBusySeedId("");
+    if (!response.ok) {
+      setState((current) => ({ ...current, message: `Seed failed: ${compactError(data, response.status)}` }));
+      return;
+    }
+    const createdId = data?.dossier?.dossier_id || "";
+    if (createdId) setSelectedDossierId(createdId);
+    await loadAgency(createdId);
+  }
+
   useEffect(() => {
     loadAgency();
   }, []);
 
   const data = state.data || {};
   const portfolios = state.portfolios || { items: [], counts_by_status: {} };
+  const seedCandidates = state.seedCandidates || { items: [] };
   const portfolioItems = Array.isArray(portfolios.items) ? portfolios.items : [];
   const readiness = data.readiness || {};
   const evalReports = data.eval_reports || {};
@@ -1579,6 +1614,9 @@ function AgencyScreen() {
           selectedDossierId={selectedDossierId}
           selectedDetail={state.selectedDetail}
           selectPortfolio={selectPortfolio}
+          seedCandidates={seedCandidates}
+          seedPortfolio={seedPortfolio}
+          busySeedId={busySeedId}
         />
       ) : activeTab === "flow" ? (
         <AgencyPortfolioFlowTab stages={data.workflow_stages || []} />
@@ -1595,51 +1633,106 @@ function AgencyScreen() {
   );
 }
 
-function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, selectedDetail, selectPortfolio }) {
+function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, selectedDetail, selectPortfolio, seedCandidates, seedPortfolio, busySeedId }) {
+  const seedItems = Array.isArray(seedCandidates?.items) ? seedCandidates.items : [];
   return (
     <section className="agency-portfolio-layout">
-      <div className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Evidence Portfolios</h2>
-            <p className="muted">Operational dossier rows in the admin database. Public disc materialization is a separate later step.</p>
+      <div className="agency-stack">
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Evidence Portfolios</h2>
+              <p className="muted">Operational dossier rows in the admin database. Public disc materialization is a separate later step.</p>
+            </div>
+            <span className="badge">{formatInt(portfolios.length)} shown</span>
           </div>
-          <span className="badge">{formatInt(portfolios.length)} shown</span>
-        </div>
-        <div className="report-chip-list">
-          {Object.entries(countsByStatus).map(([status, count]) => (
-            <span className="badge muted" key={status}>{status}: {formatInt(count)}</span>
-          ))}
-        </div>
-        {portfolios.length ? (
-          <table className="select-table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Target</th>
-                <th>Sources</th>
-                <th>Findings</th>
-                <th>Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {portfolios.map((item) => (
-                <tr className={selectedDossierId === item.dossier_id ? "selected" : ""} key={item.dossier_id}>
-                  <td><button className="link-button" onClick={() => selectPortfolio(item.dossier_id)}>{item.dossier_status}</button></td>
-                  <td>
-                    <strong>{item.display_name || item.stable_object_key}</strong>
-                    <span className="table-subtext">{item.object_type} | {item.stable_object_key}</span>
-                  </td>
-                  <td>{formatInt(item.source_count)}</td>
-                  <td>{formatInt(item.claim_count)}</td>
-                  <td>{formatDate(item.updated_at)}</td>
+          <div className="report-chip-list">
+            {Object.entries(countsByStatus).map(([status, count]) => (
+              <span className="badge muted" key={status}>{status}: {formatInt(count)}</span>
+            ))}
+          </div>
+          {portfolios.length ? (
+            <table className="select-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Target</th>
+                  <th>Sources</th>
+                  <th>Findings</th>
+                  <th>Updated</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="empty">No Evidence Portfolio rows exist yet. The schema is ready; the next implementation step is controlled creation from coolness/adjudication queues or an operator-selected target.</div>
-        )}
+              </thead>
+              <tbody>
+                {portfolios.map((item) => (
+                  <tr className={selectedDossierId === item.dossier_id ? "selected" : ""} key={item.dossier_id}>
+                    <td><button className="link-button" onClick={() => selectPortfolio(item.dossier_id)}>{item.dossier_status}</button></td>
+                    <td>
+                      <strong>{item.display_name || item.stable_object_key}</strong>
+                      <span className="table-subtext">{item.object_type} | {item.stable_object_key}</span>
+                    </td>
+                    <td>{formatInt(item.source_count)}</td>
+                    <td>{formatInt(item.claim_count)}</td>
+                    <td>{formatDate(item.updated_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty">No Evidence Portfolio rows exist yet. Seed a ranked target below to create the first admin dossier and journal entry.</div>
+          )}
+        </div>
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Seed Candidates</h2>
+              <p className="muted">Ranked systems from current disc coolness scores. Seeding creates only workflow rows and a journal entry.</p>
+            </div>
+            <span className="badge">{formatInt(seedItems.length)} shown</span>
+          </div>
+          {seedCandidates?.message ? <div className="status-line">{seedCandidates.message}</div> : null}
+          {seedItems.length ? (
+            <table className="select-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Target</th>
+                  <th>Score</th>
+                  <th>Priority</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {seedItems.map((item) => {
+                  const busy = busySeedId === (item.id || item.stable_object_key);
+                  const disabled = Boolean(item.existing_dossier_id) || busy;
+                  return (
+                    <tr key={item.id || item.stable_object_key}>
+                      <td>{item.rank ?? "n/a"}</td>
+                      <td>
+                        <strong>{item.display_name || item.stable_object_key}</strong>
+                        <span className="table-subtext">{item.stable_object_key}</span>
+                        {item.existing_dossier_id ? <span className="table-subtext">existing: {compactId(item.existing_dossier_id, 28)} ({item.existing_dossier_status})</span> : null}
+                      </td>
+                      <td>{item.score_total == null ? "n/a" : formatFloat(item.score_total, 2)}</td>
+                      <td><span className={`badge ${item.queue_priority === "high" ? "warn" : "muted"}`}>{item.queue_priority || "normal"}</span></td>
+                      <td>
+                        <button className="button" disabled={disabled} onClick={() => seedPortfolio(item)}>
+                          {item.existing_dossier_id ? "Seeded" : busy ? "Seeding..." : "Seed"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty">No seed candidates are available. Run score coolness for the current build, then refresh this workspace.</div>
+          )}
+          <div className="hint-list agency-notes">
+            <div>Seeded portfolios are not scientific claims. They are admin work items that make the next retrieval and review steps traceable.</div>
+            <div>The first journal entry records the operator, source build, ranking metadata, and the fact that no model or extraction step has run.</div>
+          </div>
+        </div>
       </div>
       <AgencyPortfolioDetail detail={selectedDetail} />
     </section>

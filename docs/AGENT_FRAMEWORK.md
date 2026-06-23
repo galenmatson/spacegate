@@ -91,6 +91,18 @@ Implementation note:
   `arm` should be materialized deliberately from those rows, with generator
   versions, hashes, citations, and review state preserved.
 
+Portfolio interaction note:
+
+- Forked chat or side-agent sessions must be separate interaction records with
+  their own session id, parent interaction id, explicit context snapshot, and
+  context snapshot hash.
+- A fork may read selected portfolio context, but it must not share hidden
+  mutable memory with the parent run and must not write claims, proposals, or
+  publication artifacts by default.
+- Outputs from forked interactions can enter the evidence process only through
+  explicit reviewed imports that preserve prompt/runtime metadata, citations,
+  and journal history.
+
 ## Claim Family Registry
 
 Claim expansion should be governed by an explicit registry, not by allowing arbitrary new predicates whenever a model emits something interesting.

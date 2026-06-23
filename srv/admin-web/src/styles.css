@@ -396,6 +396,11 @@ h3 {
   align-items: start;
 }
 
+.agency-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .agency-detail {
   position: sticky;
   top: 1rem;

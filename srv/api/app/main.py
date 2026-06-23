@@ -1031,6 +1031,17 @@ class DatasetSlicePreviewRequest(BaseModel):
     allowed_spectral_classes: List[str] = Field(default_factory=list)
 
 
+class AgencyPortfolioSeedRequest(BaseModel):
+    stable_object_key: str = Field(min_length=1, max_length=240)
+    object_type: str = Field(default="system", min_length=1, max_length=32)
+    display_name: Optional[str] = Field(default=None, max_length=240)
+    queue_reason: str = Field(default="operator_seed", min_length=1, max_length=80)
+    queue_priority: str = Field(default="normal", min_length=1, max_length=32)
+    source_build_id: Optional[str] = Field(default=None, max_length=160)
+    source: str = Field(default="manual", min_length=1, max_length=80)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class InferenceEndpointRequest(BaseModel):
     endpoint_key: Optional[str] = Field(default=None, min_length=1, max_length=80)
     display_name: str = Field(min_length=1, max_length=160)
@@ -2352,6 +2363,337 @@ ORDER BY row_count DESC, dossier_status ASC
     }
 
 
+def _current_build_id_or_none() -> Optional[str]:
+    try:
+        with db.connection_scope() as con:
+            return fetch_build_id(con)
+    except Exception:
+        return None
+
+
+def _agency_existing_dossiers_by_key(stable_keys: List[str], object_type: str = "system") -> Dict[str, Dict[str, Any]]:
+    if not stable_keys:
+        return {}
+    admin_db.initialize()
+    placeholders = ",".join(["?"] * len(stable_keys))
+    params: List[Any] = [object_type, *stable_keys]
+    with admin_db.connection_scope() as con:
+        rows = con.execute(
+            f"""
+SELECT dossier_id, stable_object_key, dossier_status, display_name, updated_at
+FROM agent_object_dossiers
+WHERE object_type = ?
+  AND archived_at IS NULL
+  AND stable_object_key IN ({placeholders})
+ORDER BY updated_at DESC
+            """,
+            params,
+        ).fetchall()
+    output: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        key = str(row["stable_object_key"])
+        output.setdefault(
+            key,
+            {
+                "dossier_id": row["dossier_id"],
+                "dossier_status": row["dossier_status"],
+                "display_name": row["display_name"],
+                "updated_at": row["updated_at"],
+            },
+        )
+    return output
+
+
+def _agency_seed_candidates(limit: int) -> Dict[str, Any]:
+    safe_limit = max(1, min(int(limit or 50), 200))
+    core_db_path = Path(db.get_db_path())
+    disc_db_path = core_db_path.with_name("disc.duckdb")
+    build_id = _current_build_id_or_none()
+    if not disc_db_path.exists():
+        return {
+            "status": "ok",
+            "items": [],
+            "limit": safe_limit,
+            "source": "disc.coolness_scores",
+            "source_build_id": build_id,
+            "message": "disc.duckdb is not available for the current build; run the coolness scoring workflow before seeding ranked portfolios.",
+        }
+
+    con = None
+    try:
+        con = duckdb.connect(str(disc_db_path), read_only=True)
+        table_exists = bool(
+            con.execute(
+                """
+SELECT COUNT(*) > 0
+FROM information_schema.tables
+WHERE table_schema = 'main' AND table_name = 'coolness_scores'
+                """
+            ).fetchone()[0]
+        )
+        if not table_exists:
+            return {
+                "status": "ok",
+                "items": [],
+                "limit": safe_limit,
+                "source": "disc.coolness_scores",
+                "source_build_id": build_id,
+                "message": "disc.coolness_scores is not present; score coolness before using ranked portfolio seeds.",
+            }
+        columns = {
+            str(row[0])
+            for row in con.execute(
+                """
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = 'main' AND table_name = 'coolness_scores'
+                """
+            ).fetchall()
+        }
+        desired = [
+            "rank",
+            "system_id",
+            "stable_object_key",
+            "system_name",
+            "score_total",
+            "profile_id",
+            "profile_version",
+            "dist_ly",
+            "dominant_spectral_class",
+            "star_count",
+            "planet_count",
+            "nice_planet_count",
+            "weird_planet_count",
+        ]
+        select_terms: List[str] = []
+        for column in desired:
+            if column in columns:
+                select_terms.append(column)
+            else:
+                select_terms.append(f"NULL AS {column}")
+        if "rank" not in columns:
+            order_expr = []
+            if "score_total" in columns:
+                order_expr.append("score_total DESC")
+            if "system_id" in columns:
+                order_expr.append("system_id ASC")
+            select_terms[0] = f"ROW_NUMBER() OVER (ORDER BY {', '.join(order_expr) or '1'}) AS rank"
+        order_terms = []
+        if "rank" in columns:
+            order_terms.append("rank ASC")
+        elif "score_total" in columns:
+            order_terms.append("score_total DESC")
+        if "system_id" in columns:
+            order_terms.append("system_id ASC")
+        elif "stable_object_key" in columns:
+            order_terms.append("stable_object_key ASC")
+        sql = f"""
+SELECT {", ".join(select_terms)}
+FROM coolness_scores
+ORDER BY {", ".join(order_terms) or "rank ASC"}
+LIMIT ?
+        """
+        cur = con.execute(sql, [safe_limit])
+        result_columns = [desc[0] for desc in cur.description]
+        rows = [dict(zip(result_columns, row)) for row in cur.fetchall()]
+    except Exception as exc:
+        return {
+            "status": "error",
+            "items": [],
+            "limit": safe_limit,
+            "source": "disc.coolness_scores",
+            "source_build_id": build_id,
+            "message": str(exc),
+        }
+    finally:
+        if con is not None:
+            con.close()
+
+    keys = [str(row.get("stable_object_key") or "").strip() for row in rows if str(row.get("stable_object_key") or "").strip()]
+    existing = _agency_existing_dossiers_by_key(keys, object_type="system")
+    items: List[Dict[str, Any]] = []
+    for row in rows:
+        stable_key = str(row.get("stable_object_key") or "").strip()
+        if not stable_key:
+            continue
+        rank_value = row.get("rank")
+        try:
+            rank_int = int(rank_value) if rank_value is not None else None
+        except (TypeError, ValueError):
+            rank_int = None
+        score_value = row.get("score_total")
+        try:
+            score_float = float(score_value) if score_value is not None else None
+        except (TypeError, ValueError):
+            score_float = None
+        metadata = {
+            key: row.get(key)
+            for key in [
+                "rank",
+                "system_id",
+                "score_total",
+                "profile_id",
+                "profile_version",
+                "dist_ly",
+                "dominant_spectral_class",
+                "star_count",
+                "planet_count",
+                "nice_planet_count",
+                "weird_planet_count",
+            ]
+            if row.get(key) is not None
+        }
+        existing_dossier = existing.get(stable_key)
+        items.append(
+            {
+                "id": stable_key,
+                "stable_object_key": stable_key,
+                "object_type": "system",
+                "display_name": row.get("system_name") or stable_key,
+                "rank": rank_int,
+                "score_total": score_float,
+                "queue_reason": "coolness_rank",
+                "queue_priority": "high" if rank_int is not None and rank_int <= 100 else "normal",
+                "source": "coolness_scores",
+                "source_build_id": build_id,
+                "metadata": metadata,
+                "existing_dossier_id": existing_dossier["dossier_id"] if existing_dossier else None,
+                "existing_dossier_status": existing_dossier["dossier_status"] if existing_dossier else None,
+            }
+        )
+    return {
+        "status": "ok",
+        "items": items,
+        "limit": safe_limit,
+        "source": "disc.coolness_scores",
+        "source_build_id": build_id,
+        "message": "Ranked candidates from the current disc coolness scores. Seeding creates only admin workflow rows and a journal entry.",
+    }
+
+
+def _seed_agency_portfolio(payload: AgencyPortfolioSeedRequest, user: Dict[str, Any]) -> Dict[str, Any]:
+    stable_key = str(payload.stable_object_key or "").strip()
+    object_type = str(payload.object_type or "").strip().lower()
+    display_name = str(payload.display_name or "").strip() or None
+    queue_reason = str(payload.queue_reason or "").strip() or "operator_seed"
+    queue_priority = str(payload.queue_priority or "").strip().lower() or "normal"
+    source = str(payload.source or "").strip() or "manual"
+    if not stable_key:
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "stable_object_key is required", "details": {}})
+    if object_type not in {"system", "star", "planet"}:
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "Unsupported object_type", "details": {"object_type": object_type}})
+    if queue_priority not in {"low", "normal", "high", "urgent"}:
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "Unsupported queue_priority", "details": {"queue_priority": queue_priority}})
+
+    admin_db.initialize()
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    dossier_id = f"dossier_{uuid.uuid4().hex}"
+    journal_entry_id = f"journal_{uuid.uuid4().hex}"
+    user_id = int(user["user_id"])
+    actor_id = str(user.get("email") or user.get("user_id") or "admin")
+    metadata = {
+        "seed_source": source,
+        "seeded_from_admin_v2": True,
+        "seed_metadata": payload.metadata or {},
+    }
+    linked = {
+        "stable_object_key": stable_key,
+        "object_type": object_type,
+        "source": source,
+        "source_build_id": payload.source_build_id,
+    }
+    machine_payload = {
+        "stable_object_key": stable_key,
+        "object_type": object_type,
+        "display_name": display_name,
+        "queue_reason": queue_reason,
+        "queue_priority": queue_priority,
+        "source_build_id": payload.source_build_id,
+        "source": source,
+        "metadata": payload.metadata or {},
+    }
+    narrative_name = display_name or stable_key
+    narrative = (
+        f"Seeded an Evidence Portfolio for {narrative_name} from {source}. "
+        "No source retrieval, extraction, model generation, claims, proposals, or publication steps were run."
+    )
+    with admin_db.connection_scope() as con:
+        existing = con.execute(
+            """
+SELECT dossier_id, dossier_status, display_name
+FROM agent_object_dossiers
+WHERE stable_object_key = ?
+  AND object_type = ?
+  AND archived_at IS NULL
+LIMIT 1
+            """,
+            (stable_key, object_type),
+        ).fetchone()
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "conflict",
+                    "message": "An active Evidence Portfolio already exists for this object",
+                    "details": {
+                        "dossier_id": existing["dossier_id"],
+                        "dossier_status": existing["dossier_status"],
+                        "display_name": existing["display_name"],
+                    },
+                },
+            )
+        con.execute(
+            """
+INSERT INTO agent_object_dossiers(
+  dossier_id, stable_object_key, object_type, display_name, dossier_status,
+  queue_reason, queue_priority, source_build_id, freshness_state, review_state,
+  publication_state, metadata_json, created_by_user_id, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                dossier_id,
+                stable_key,
+                object_type,
+                display_name,
+                "seeded",
+                queue_reason,
+                queue_priority,
+                payload.source_build_id,
+                "current",
+                "unreviewed",
+                "not_published",
+                json.dumps(metadata, separators=(",", ":"), sort_keys=True),
+                user_id,
+                now,
+                now,
+            ),
+        )
+        con.execute(
+            """
+INSERT INTO agent_portfolio_journal_entries(
+  journal_entry_id, dossier_id, actor_type, actor_id, stage, title, narrative,
+  outcome, linked_json, machine_payload_json, token_usage_json, created_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                journal_entry_id,
+                dossier_id,
+                "operator",
+                actor_id,
+                "seeded",
+                "Evidence Portfolio seeded",
+                narrative,
+                "created",
+                json.dumps(linked, separators=(",", ":"), sort_keys=True),
+                json.dumps(machine_payload, separators=(",", ":"), sort_keys=True),
+                "{}",
+                now,
+            ),
+        )
+        con.commit()
+    return _agency_portfolio_detail(dossier_id)
+
+
 def _agency_portfolio_detail(dossier_id: str) -> Dict[str, Any]:
     admin_db.initialize()
     with admin_db.connection_scope() as con:
@@ -2608,6 +2950,15 @@ def admin_agency_status(request: Request):
     return _agency_status_payload()
 
 
+@admin_router.get("/agency/seed-candidates")
+def admin_agency_seed_candidates(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    auth.require_admin(request)
+    return _agency_seed_candidates(limit=limit)
+
+
 @admin_router.get("/agency/portfolios")
 def admin_agency_portfolios(
     request: Request,
@@ -2617,6 +2968,26 @@ def admin_agency_portfolios(
     auth.require_admin(request)
     clean_status = str(status or "").strip() or None
     return _list_agency_portfolios(limit=limit, status=clean_status)
+
+
+@admin_router.post("/agency/portfolios")
+def admin_agency_portfolio_seed(request: Request, payload: AgencyPortfolioSeedRequest):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    detail = _seed_agency_portfolio(payload, user)
+    auth.audit_event(
+        request,
+        event_type="admin.agency.portfolio.seed",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={
+            "dossier_id": detail.get("dossier", {}).get("dossier_id"),
+            "stable_object_key": payload.stable_object_key,
+            "object_type": payload.object_type,
+            "source": payload.source,
+        },
+    )
+    return detail
 
 
 @admin_router.get("/agency/portfolios/{dossier_id}")
