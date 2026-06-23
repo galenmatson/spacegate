@@ -3291,6 +3291,62 @@ def _env_runtime_status(key: str, spec: Dict[str, Any], *, include_value: bool) 
     return payload
 
 
+def _split_runtime_list(value: str) -> List[str]:
+    return [item for item in (part.strip() for part in value.split("|")) if item]
+
+
+def _config_source_role(path: str) -> str:
+    if path == "/etc/spacegate/spacegate.env":
+        return "host secrets/deployment config"
+    if path.endswith("/.spacegate.env"):
+        return "repo-local nonsecret override"
+    if path.endswith("/.spacegate.local.env"):
+        return "repo-local private override"
+    if os.getenv("SPACEGATE_ENV_FILE", "").strip() == path:
+        return "explicit override"
+    if path.startswith("/srv/spacegate/") and path.endswith(".env"):
+        return "host-local runtime config"
+    return "env source"
+
+
+def _config_sources_payload() -> Dict[str, Any]:
+    candidate_files = _split_runtime_list(os.getenv("SPACEGATE_ENV_CANDIDATE_FILES", ""))
+    loaded_files = set(_split_runtime_list(os.getenv("SPACEGATE_ENV_LOADED_FILES", "")))
+    missing_files = set(_split_runtime_list(os.getenv("SPACEGATE_ENV_MISSING_FILES", "")))
+    unreadable_files = set(_split_runtime_list(os.getenv("SPACEGATE_ENV_UNREADABLE_FILES", "")))
+    rows: List[Dict[str, Any]] = []
+    for index, path in enumerate(candidate_files, start=1):
+        if path in loaded_files:
+            status = "loaded"
+        elif path in unreadable_files:
+            status = "unreadable"
+        elif path in missing_files:
+            status = "missing"
+        else:
+            status = "unknown"
+        rows.append(
+            {
+                "path": path,
+                "status": status,
+                "role": _config_source_role(path),
+                "precedence": index,
+            }
+        )
+    return {
+        "host_name": os.getenv("SPACEGATE_ENV_HOST_NAME", "").strip() or None,
+        "sources": rows,
+        "candidate_count": len(candidate_files),
+        "loaded_count": len(loaded_files),
+        "missing_count": len(missing_files),
+        "unreadable_count": len(unreadable_files),
+        "notes": [
+            "Config source diagnostics are launcher-observed metadata passed into the API container.",
+            "Source file contents and secret values are never exposed by Runtime.",
+            "Later files have higher precedence; existing process environment values override file values.",
+        ],
+    }
+
+
 def _git_head_short() -> Optional[str]:
     try:
         result = subprocess.run(
@@ -3465,6 +3521,7 @@ def _runtime_status_payload() -> Dict[str, Any]:
         "environment": {
             "configured": configured_env,
             "sensitive": sensitive_env,
+            "config_sources": _config_sources_payload(),
             "notes": [
                 "Sensitive values are reported only as configured/missing flags.",
                 "Container-visible paths may differ from host paths when volumes are not mounted into the API container.",

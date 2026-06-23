@@ -322,10 +322,10 @@ function riskTone(riskLevel) {
 
 function runtimeStatusTone(status) {
   const value = String(status || "");
-  if (value === "configured" || value === "alias_satisfied" || value === "ok") return "ok";
-  if (value === "optional_missing") return "muted";
-  if (value === "warning") return "warn";
-  if (value === "missing" || value === "error") return "danger";
+  if (value === "configured" || value === "alias_satisfied" || value === "ok" || value === "loaded") return "ok";
+  if (value === "optional_missing" || value === "missing") return "muted";
+  if (value === "warning" || value === "unknown") return "warn";
+  if (value === "unreadable" || value === "error") return "danger";
   return "";
 }
 
@@ -2871,6 +2871,13 @@ function RuntimeScreen() {
   const healthyEndpoints = endpoints.filter((endpoint) => endpoint.last_probe_status === "ok");
   const configuredEnv = data.environment?.configured || {};
   const sensitiveEnv = data.environment?.sensitive || {};
+  const configSources = data.environment?.config_sources || {};
+  const configSourceRows = (configSources.sources || []).map((item) => [
+    item.precedence || "",
+    <span className={`badge ${runtimeStatusTone(item.status)}`}>{runtimeStatusLabel(item.status)}</span>,
+    item.role || "",
+    item.path || "",
+  ]);
   function pathAccessLabel(item) {
     if (!item.exists) {
       return item.configured || item.required ? "missing" : "optional not mounted";
@@ -2953,6 +2960,7 @@ function RuntimeScreen() {
       environment: {
         configured: redactEnv(configuredEnv),
         sensitive: redactEnv(sensitiveEnv),
+        config_sources: configSources,
         notes: data.environment?.notes || [],
       },
       auth: authStatus,
@@ -3087,6 +3095,28 @@ function RuntimeScreen() {
           </div>
         </div>
         <KeyValueTable rows={pathRows} columns={["Key", "Health", "Type", "Access", "Disk", "Path"]} />
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Config Sources</h2>
+            <p className="muted">Launcher-observed env files. Later files have higher precedence; values are not shown.</p>
+          </div>
+          <span className={`badge ${configSources.unreadable_count ? "danger" : "muted"}`}>
+            {formatInt(configSources.loaded_count)} loaded / {formatInt(configSources.unreadable_count)} unreadable
+          </span>
+        </div>
+        {configSourceRows.length ? (
+          <>
+            <KeyValueTable rows={configSourceRows} columns={["Order", "Status", "Role", "Path"]} />
+            <div className="hint-list">
+              {(configSources.notes || []).map((note) => <div key={note}>{note}</div>)}
+            </div>
+          </>
+        ) : (
+          <div className="empty">No config source metadata was passed into the API container. Start through the Spacegate launcher to populate this card.</div>
+        )}
       </section>
 
       <section className="panel">

@@ -8,9 +8,17 @@ spacegate_trim() {
   printf '%s' "$value"
 }
 
+spacegate_join_by_pipe() {
+  local IFS='|'
+  printf '%s' "$*"
+}
+
 spacegate_load_env_defaults() {
   local root_dir="$1"
   local -a env_files=()
+  local -a loaded_env_files=()
+  local -a missing_env_files=()
+  local -a unreadable_env_files=()
   local file line key value
   local -A process_keys=()
   local -A loaded_keys=()
@@ -39,11 +47,16 @@ spacegate_load_env_defaults() {
   fi
 
   for file in "${env_files[@]}"; do
-    [[ -f "$file" ]] || continue
+    if [[ ! -f "$file" ]]; then
+      missing_env_files+=("$file")
+      continue
+    fi
     if [[ ! -r "$file" ]]; then
+      unreadable_env_files+=("$file")
       echo "Warning: Spacegate env file exists but is not readable: $file" >&2
       continue
     fi
+    loaded_env_files+=("$file")
     while IFS= read -r line || [[ -n "$line" ]]; do
       line="$(spacegate_trim "$line")"
       [[ -z "$line" || "$line" == \#* ]] && continue
@@ -86,6 +99,16 @@ spacegate_load_env_defaults() {
       loaded_keys["$key"]=1
     done < "$file"
   done
+
+  export SPACEGATE_ENV_HOST_NAME="$host_name"
+  export SPACEGATE_ENV_CANDIDATE_FILES
+  export SPACEGATE_ENV_LOADED_FILES
+  export SPACEGATE_ENV_MISSING_FILES
+  export SPACEGATE_ENV_UNREADABLE_FILES
+  SPACEGATE_ENV_CANDIDATE_FILES="$(spacegate_join_by_pipe "${env_files[@]}")"
+  SPACEGATE_ENV_LOADED_FILES="$(spacegate_join_by_pipe "${loaded_env_files[@]}")"
+  SPACEGATE_ENV_MISSING_FILES="$(spacegate_join_by_pipe "${missing_env_files[@]}")"
+  SPACEGATE_ENV_UNREADABLE_FILES="$(spacegate_join_by_pipe "${unreadable_env_files[@]}")"
 }
 
 spacegate_normalize_env_paths() {

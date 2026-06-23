@@ -176,6 +176,28 @@ The Runtime page should offer a copyable redacted diagnostics bundle containing
 filesystem alerts, path status, env configured/missing/alias flags, container
 status, auth status, and inference reachability without secret values.
 
+Runtime should also display launcher-observed config sources. The source list is
+metadata passed into the API container by the Spacegate launcher; the API does
+not read or mount the source files, and it never exposes file contents.
+
+Config source ownership:
+
+- `/etc/spacegate/spacegate.env`: canonical host-level Spacegate secrets and
+  deployment-sensitive config, including OIDC secrets, session secrets, admin
+  allowlist bootstrap, and provider API keys such as
+  `SPACEGATE_OPENAI_API_KEY` or named future variants.
+- `/srv/spacegate/<host>.env`: host-local nonsecret runtime config such as
+  paths, ports, cache roots, model directories, and LAN/local endpoint URLs.
+- `$repo/.spacegate.env`: optional repo-local nonsecret overrides for local
+  development.
+- `$repo/.spacegate.local.env`: optional private repo-local overrides that must
+  remain untracked.
+- `$SPACEGATE_ENV_FILE`: explicit highest-precedence override for temporary or
+  special-purpose launches.
+
+Config precedence is low-to-high in the order above. Existing process
+environment values still override file values.
+
 ## Operations, Jobs, and Audit Workspace
 
 The embedded Admin UI currently exposes these operational surfaces:
