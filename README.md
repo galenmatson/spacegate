@@ -77,6 +77,12 @@ If you intend to download all of the raw astronomical data, consider locating
   - /var/log/spacegate
   - /etc/spacegate
 
+On server hosts, keep `/etc/spacegate` owned by `root:spacegate` with mode
+`2750`. The setgid bit makes files replaced inside the directory inherit the
+`spacegate` group, which keeps `/etc/spacegate/spacegate.env` readable by
+Spacegate host-side tooling after root editor saves. Keep `spacegate.env`
+`root:spacegate` with mode `0640`.
+
 ## Quickstart (from scratch)
 
 Running Spacegate (API + web UI) from scratch.

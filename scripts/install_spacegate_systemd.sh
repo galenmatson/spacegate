@@ -13,6 +13,8 @@ UNIT_PATH="/etc/systemd/system/spacegate-api.service"
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 API_PORT="${SPACEGATE_API_PORT:-8000}"
 API_USER="${SPACEGATE_API_USER:-${SUDO_USER:-$(id -un)}}"
+CONFIG_DIR="/etc/spacegate"
+CONFIG_GROUP="${SPACEGATE_CONFIG_GROUP:-spacegate}"
 
 usage() {
   cat <<'USAGE'
@@ -53,6 +55,14 @@ ensure_uvicorn() {
   fi
 }
 
+ensure_config_dir() {
+  if ! getent group "$CONFIG_GROUP" >/dev/null 2>&1; then
+    groupadd --system "$CONFIG_GROUP"
+  fi
+
+  install -d -o root -g "$CONFIG_GROUP" -m 2750 "$CONFIG_DIR"
+}
+
 install_unit() {
   local tmp
   tmp="$(mktemp)"
@@ -86,6 +96,7 @@ main() {
   require_systemd
   ensure_template
   ensure_uvicorn
+  ensure_config_dir
   install_unit
 
   systemctl daemon-reload
