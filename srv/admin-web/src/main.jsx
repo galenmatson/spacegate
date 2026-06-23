@@ -3089,17 +3089,16 @@ function RuntimeScreen() {
         <KeyValueTable rows={pathRows} columns={["Key", "Health", "Type", "Access", "Disk", "Path"]} />
       </section>
 
-      <section className="runtime-grid">
-        <div className="panel">
-          <h2>Configured Environment</h2>
-          <KeyValueTable rows={envRows} columns={["Key", "Status", "Value"]} />
-        </div>
-        <div className="panel">
-          <h2>Secret Status</h2>
-          <KeyValueTable rows={secretRows} columns={["Key", "Status", "Note"]} />
-          <div className="hint-list">
-            {(data.environment?.notes || []).map((note) => <div key={note}>{note}</div>)}
-          </div>
+      <section className="panel">
+        <h2>Configured Environment</h2>
+        <KeyValueTable rows={envRows} columns={["Key", "Status", "Value"]} />
+      </section>
+
+      <section className="panel">
+        <h2>Secret Status</h2>
+        <KeyValueTable rows={secretRows} columns={["Key", "Status", "Note"]} />
+        <div className="hint-list">
+          {(data.environment?.notes || []).map((note) => <div key={note}>{note}</div>)}
         </div>
       </section>
 
