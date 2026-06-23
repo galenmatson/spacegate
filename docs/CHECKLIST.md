@@ -153,6 +153,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Admin v2 React Overview page with status/jobs/inference health summary
 - [x] Admin v2 Operations/Jobs/Audit workspace design documented
 - [x] Admin v2 React Operations workspace first pass (runbook actions, jobs/logs, backups, audit filters)
+- [x] Admin v2 backend operation metadata and `/admin/operations/status` API
+- [x] Admin v2 React Builds workspace first pass (build state, runbook, artifacts, retention readiness)
 - [ ] Retire embedded FastAPI Admin UI after React workspace parity
 - [x] Admin v2 dynamic inference endpoint registry (add/remove endpoints, auth modes, model polling, usage stats API)
 - [ ] Admin v2 Inference workspace role/model routing and eval report history

@@ -2555,6 +2555,12 @@ def admin_inference_stats(request: Request):
     return inference_registry.usage_stats()
 
 
+@admin_router.get("/operations/status")
+def admin_operations_status(request: Request):
+    auth.require_admin(request)
+    return admin_actions.operations_status()
+
+
 @admin_router.get("/actions/catalog")
 def admin_actions_catalog(request: Request):
     auth.require_admin(request)

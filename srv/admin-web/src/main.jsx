@@ -21,7 +21,7 @@ const emptyEndpointForm = {
 
 const terminalJobStatuses = new Set(["succeeded", "failed", "cancelled"]);
 
-const actionGuidance = {
+const fallbackActionGuidance = {
   build_database: {
     group: "build",
     purpose: "Runs the full deterministic pipeline: download, cook, ingest, promote, and verify.",
@@ -134,7 +134,7 @@ const actionGuidance = {
   },
 };
 
-const actionGroups = [
+const fallbackActionGroups = [
   {
     key: "build",
     title: "Build Pipeline",
@@ -416,6 +416,8 @@ function App() {
       <main className="workspace">
         {activeScreen === "overview" ? (
           <OverviewScreen auth={auth} />
+        ) : activeScreen === "builds" ? (
+          <BuildsScreen csrf={csrf} />
         ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
@@ -589,6 +591,272 @@ function OverviewFact({ label, value }) {
   );
 }
 
+function BuildsScreen({ csrf }) {
+  const [state, setState] = useState({
+    loading: true,
+    status: null,
+    dataset: null,
+    operations: null,
+    actions: [],
+    message: "Loading build state...",
+  });
+  const [busyAction, setBusyAction] = useState("");
+  const headers = useMemo(() => buildCsrfHeaders(csrf), [csrf]);
+
+  const actionsByName = useMemo(() => new Map(state.actions.map((item) => [item.name, item])), [state.actions]);
+
+  async function loadBuilds() {
+    setState((current) => ({ ...current, loading: true, message: "Refreshing build state..." }));
+    const [statusResult, datasetResult, operationsResult, actionsResult] = await Promise.all([
+      fetchJson(`${ADMIN_API_BASE}/status`),
+      fetchJson(`${ADMIN_API_BASE}/status/dataset`),
+      fetchJson(`${ADMIN_API_BASE}/operations/status`),
+      fetchJson(`${ADMIN_API_BASE}/actions/catalog`),
+    ]);
+    const errors = [];
+    if (!statusResult.response.ok) errors.push(`status: ${compactError(statusResult.data, statusResult.response.status)}`);
+    if (!datasetResult.response.ok) errors.push(`dataset: ${compactError(datasetResult.data, datasetResult.response.status)}`);
+    if (!operationsResult.response.ok) errors.push(`operations: ${compactError(operationsResult.data, operationsResult.response.status)}`);
+    if (!actionsResult.response.ok) errors.push(`actions: ${compactError(actionsResult.data, actionsResult.response.status)}`);
+    setState({
+      loading: false,
+      status: statusResult.response.ok ? statusResult.data : null,
+      dataset: datasetResult.response.ok ? datasetResult.data : null,
+      operations: operationsResult.response.ok ? operationsResult.data : null,
+      actions: actionsResult.response.ok && Array.isArray(actionsResult.data.items) ? actionsResult.data.items : [],
+      message: errors.length ? errors.join(" | ") : "Ready",
+    });
+  }
+
+  useEffect(() => {
+    loadBuilds();
+  }, []);
+
+  async function runAction(actionName, params, confirmation) {
+    setBusyAction(actionName);
+    setState((current) => ({ ...current, message: `Starting ${actionLabel(actionName)}...` }));
+    const payload = { action: actionName, params: params || {} };
+    if (confirmation) payload.confirmation = confirmation;
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/actions/run`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    setBusyAction("");
+    if (!response.ok) {
+      const message = compactError(data, response.status);
+      setState((current) => ({ ...current, message: `${actionLabel(actionName)} failed to start: ${message}` }));
+      return { ok: false, message };
+    }
+    const job = data.job || {};
+    setState((current) => ({ ...current, message: `Queued ${actionLabel(actionName)} as ${job.job_id || "job"}.` }));
+    await loadBuilds();
+    return { ok: true, job };
+  }
+
+  const dataset = state.dataset || {};
+  const operations = state.operations || {};
+  const sizes = dataset.sizes_bytes || {};
+  const counts = dataset.dataset_counts || {};
+  const disk = dataset.disk || {};
+  const builds = operations.builds || {};
+  const served = builds.served_current || {};
+  const retention = operations.retention || {};
+  const recentBuilds = Array.isArray(builds.recent) ? builds.recent : [];
+  const tmpBuilds = Array.isArray(builds.tmp) ? builds.tmp : [];
+  const currentBuild = recentBuilds.find((item) => item.build_id === served.build_id) || recentBuilds[0] || null;
+  const buildActions = ["build_database", "verify_build", "publish_db"].map((name) => actionsByName.get(name)).filter(Boolean);
+  const kpis = [
+    { label: "Served build", value: compactId(state.status?.build_id || served.build_id, 20) },
+    { label: "Build dirs", value: formatInt(builds.out_count || recentBuilds.length) },
+    { label: "Temp outputs", value: formatInt(tmpBuilds.length), tone: tmpBuilds.length ? "warn" : "ok" },
+    { label: "Retention", value: retention.can_run_now ? "ready" : "blocked", tone: retention.can_run_now ? "ok" : "warn" },
+  ];
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div>
+          <h1>Builds</h1>
+          <p className="muted">Deterministic science artifacts, report state, and the build/verify/publish path.</p>
+        </div>
+        <button className="button" onClick={loadBuilds}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+      </header>
+
+      <div className="kpi-row">
+        {kpis.map((item) => (
+          <div className={`kpi ${item.tone || ""}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>{state.message}</div>
+
+      <section className="builds-grid">
+        <div className="panel">
+          <h2>Current Served Build</h2>
+          <OverviewFact label="Build ID" value={state.status?.build_id || served.build_id || "n/a"} />
+          <OverviewFact label="Served target" value={served.target || "n/a"} />
+          <OverviewFact label="Core / Arm / Disc" value={`${formatBytes(sizes.core_db)} / ${formatBytes(sizes.arm_db)} / ${formatBytes(sizes.disc_db)}`} />
+          <OverviewFact label="Systems / Stars / Planets" value={`${formatInt(counts.systems)} / ${formatInt(counts.stars)} / ${formatInt(counts.planets)}`} />
+          <OverviewFact label="/data free" value={`${formatBytes(disk.free_bytes)} (${formatPct(100 - Number(disk.used_pct || 0))} free)`} />
+        </div>
+
+        <div className="panel">
+          <h2>Retention Readiness</h2>
+          <p className="muted">Retention should run only after successful promotion and verification, never during ingest or failed-build diagnosis.</p>
+          <OverviewFact label="Default keep builds" value={formatInt(retention.default_keep_builds)} />
+          <OverviewFact label="Default keep reports" value={formatInt(retention.default_keep_reports)} />
+          <OverviewFact label="Script" value={retention.script || "scripts/prune_state_retention.sh"} />
+          {Array.isArray(retention.blocked_reasons) && retention.blocked_reasons.length ? (
+            <div className="trap-list">
+              {retention.blocked_reasons.map((reason) => <div key={reason}>{reason}</div>)}
+            </div>
+          ) : (
+            <div className="status-line">No active build blockers reported. Use dry-run before applying retention.</div>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Build Runbook</h2>
+            <p className="muted">Sequential path: build database, verify the served or selected build, then publish download metadata only after verification is clean.</p>
+          </div>
+        </div>
+        <div className="action-grid">
+          {buildActions.map((action) => (
+            <ActionCard action={action} key={action.name} runAction={runAction} busy={busyAction === action.name} />
+          ))}
+        </div>
+      </section>
+
+      <section className="builds-grid">
+        <BuildArtifactPanel title="Served Build Artifacts" build={currentBuild} />
+        <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} />
+      </section>
+
+      <section className="builds-grid">
+        <TempBuildsPanel builds={tmpBuilds} />
+        <BuildReportsPanel build={currentBuild} />
+      </section>
+    </div>
+  );
+}
+
+function BuildArtifactPanel({ title, build }) {
+  return (
+    <div className="panel">
+      <h2>{title}</h2>
+      {build ? (
+        <>
+          <OverviewFact label="Build ID" value={build.build_id} />
+          <OverviewFact label="Path" value={build.path} />
+          <OverviewFact label="Size" value={formatBytes(build.size_bytes)} />
+          <OverviewFact label="Promotable" value={build.promotable ? "yes" : `missing ${build.missing_required?.join(", ") || "required artifacts"}`} />
+          <div className="artifact-flags">
+            {Object.entries(build.artifacts || {}).map(([key, value]) => (
+              <span className={`badge ${value ? "ok" : "danger"}`} key={key}>{key}: {value ? "yes" : "no"}</span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="empty">No build artifact summary is available yet.</div>
+      )}
+    </div>
+  );
+}
+
+function RecentBuildsPanel({ builds, servedBuildId }) {
+  return (
+    <div className="panel">
+      <h2>Recent Build Directories</h2>
+      {builds.length ? (
+        <table>
+          <thead>
+            <tr>
+              <th>Build</th>
+              <th>Reports</th>
+              <th>Artifacts</th>
+              <th>Size</th>
+            </tr>
+          </thead>
+          <tbody>
+            {builds.map((build) => (
+              <tr key={build.build_id}>
+                <td>
+                  <strong>{build.build_id}</strong>
+                  <span className="table-subtext">{build.build_id === servedBuildId ? "served/current" : formatDate(build.mtime_utc)}</span>
+                </td>
+                <td>{formatInt(build.reports?.count || 0)}</td>
+                <td>{build.promotable ? "core+arm" : `missing ${(build.missing_required || []).join(", ")}`}</td>
+                <td>{formatBytes(build.size_bytes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="empty">No immutable build directories were found under the state out directory.</div>
+      )}
+    </div>
+  );
+}
+
+function TempBuildsPanel({ builds }) {
+  return (
+    <div className="panel">
+      <h2>Temporary Outputs</h2>
+      <p className="muted">Temporary ingest outputs are useful for failure diagnosis. Do not prune them until the root cause is captured.</p>
+      {builds.length ? (
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Modified</th><th>Size</th></tr>
+          </thead>
+          <tbody>
+            {builds.map((build) => (
+              <tr key={build.name}>
+                <td>{build.name}</td>
+                <td>{formatDate(build.mtime_utc)}</td>
+                <td>{formatBytes(build.size_bytes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="empty">No temporary ingest output directories are currently present.</div>
+      )}
+    </div>
+  );
+}
+
+function BuildReportsPanel({ build }) {
+  const files = build?.reports?.files || [];
+  return (
+    <div className="panel">
+      <h2>Report Files</h2>
+      {build ? (
+        <>
+          <OverviewFact label="Reports dir" value={build.reports_dir || "n/a"} />
+          <OverviewFact label="Report count" value={formatInt(build.reports?.count || 0)} />
+          <OverviewFact label="Latest report mtime" value={formatDate(build.reports?.latest_mtime_utc)} />
+          {files.length ? (
+            <div className="report-chip-list">
+              {files.map((name) => <span className="badge" key={name}>{name}</span>)}
+            </div>
+          ) : (
+            <div className="empty">No JSON reports were found for this build.</div>
+          )}
+        </>
+      ) : (
+        <div className="empty">Select or create a build before report files are available.</div>
+      )}
+    </div>
+  );
+}
+
 function OperationsScreen({ csrf }) {
   const [activeTab, setActiveTab] = useState("runbook");
   const [actions, setActions] = useState([]);
@@ -602,6 +870,7 @@ function OperationsScreen({ csrf }) {
   const [nextAuditBefore, setNextAuditBefore] = useState(null);
   const [auditPreset, setAuditPreset] = useState("all");
   const [auditFilters, setAuditFilters] = useState({ event_type: "", result: "", request_id: "", actor_user_id: "" });
+  const [opsStatus, setOpsStatus] = useState(null);
   const [status, setStatus] = useState("Loading operations...");
   const [busyAction, setBusyAction] = useState("");
 
@@ -617,6 +886,16 @@ function OperationsScreen({ csrf }) {
     const items = Array.isArray(data.items) ? data.items : [];
     setActions(items);
     return items;
+  }
+
+  async function loadOpsStatus() {
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/operations/status`);
+    if (!response.ok) {
+      setStatus(`Operations status: ${compactError(data, response.status)}`);
+      return null;
+    }
+    setOpsStatus(data);
+    return data;
   }
 
   async function loadJobs() {
@@ -720,7 +999,7 @@ function OperationsScreen({ csrf }) {
 
   async function loadOperations() {
     setStatus("Refreshing operations...");
-    await Promise.all([loadActions(), loadJobs(), loadBackups(), loadAudit({ append: false })]);
+    await Promise.all([loadOpsStatus(), loadActions(), loadJobs(), loadBackups(), loadAudit({ append: false })]);
     setStatus("Ready");
   }
 
@@ -807,16 +1086,17 @@ function OperationsScreen({ csrf }) {
     setAuditFilters((current) => ({ ...current, [key]: value }));
   }
 
-  const activeJobs = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
-  const failedJobs = jobs.filter((job) => String(job.status || "") === "failed");
-  const latestAdminBackup = backups.admin_db?.[0]?.mtime_utc || backups.admin_db?.[0]?.created_at;
-  const latestReleaseBackup = backups.release_metadata?.[0]?.mtime_utc || backups.release_metadata?.[0]?.created_at;
+  const activeJobs = opsStatus?.jobs?.active || jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
+  const failedJobs = opsStatus?.jobs?.latest_failures || jobs.filter((job) => String(job.status || "") === "failed");
+  const latestAdminBackup = opsStatus?.backups?.latest_admin_db?.mtime_utc || opsStatus?.backups?.latest_admin_db?.created_at || backups.admin_db?.[0]?.mtime_utc || backups.admin_db?.[0]?.created_at;
+  const latestReleaseBackup = opsStatus?.backups?.latest_release_metadata?.mtime_utc || opsStatus?.backups?.latest_release_metadata?.created_at || backups.release_metadata?.[0]?.mtime_utc || backups.release_metadata?.[0]?.created_at;
   const kpis = [
     { label: "Active jobs", value: activeJobs.length, tone: activeJobs.length ? "warn" : "ok" },
     { label: "Recent failures", value: failedJobs.length, tone: failedJobs.length ? "danger" : "ok" },
-    { label: "Admin DB backups", value: formatInt(backups.admin_db?.length || 0) },
-    { label: "Release backups", value: formatInt(backups.release_metadata?.length || 0) },
+    { label: "Admin DB backups", value: formatInt(opsStatus?.backups?.admin_db_count ?? backups.admin_db?.length ?? 0) },
+    { label: "Release backups", value: formatInt(opsStatus?.backups?.release_metadata_count ?? backups.release_metadata?.length ?? 0) },
   ];
+  const groups = opsStatus?.action_groups || fallbackActionGroups;
 
   return (
     <div className="screen">
@@ -855,7 +1135,7 @@ function OperationsScreen({ csrf }) {
       </div>
 
       {activeTab === "runbook" ? (
-        <RunbookTab actionsByName={actionsByName} runAction={runAction} busyAction={busyAction} />
+        <RunbookTab actionGroups={groups} actionsByName={actionsByName} runAction={runAction} busyAction={busyAction} />
       ) : activeTab === "jobs" ? (
         <JobsTab
           jobs={jobs}
@@ -890,7 +1170,7 @@ function OperationsScreen({ csrf }) {
   );
 }
 
-function RunbookTab({ actionsByName, runAction, busyAction }) {
+function RunbookTab({ actionGroups, actionsByName, runAction, busyAction }) {
   return (
     <div className="runbook-grid">
       {actionGroups.map((group) => {
@@ -929,7 +1209,7 @@ function RunbookTab({ actionsByName, runAction, busyAction }) {
 function ActionCard({ action, runAction, busy }) {
   const [values, setValues] = useState(() => initialActionValues(action));
   const [status, setStatus] = useState("");
-  const guidance = actionGuidance[action.name] || {};
+  const guidance = action.operator_guidance || fallbackActionGuidance[action.name] || {};
   const schema = action.params_schema || {};
 
   useEffect(() => {
@@ -988,9 +1268,14 @@ function ActionCard({ action, runAction, busy }) {
       <p>{guidance.purpose || action.description}</p>
       <div className="hint-list">
         {guidance.prerequisites ? <div><strong>Before:</strong> {guidance.prerequisites}</div> : null}
+        {guidance.writes_to ? <div><strong>Writes:</strong> {guidance.writes_to}</div> : null}
         {guidance.writes ? <div><strong>Writes:</strong> {guidance.writes}</div> : null}
+        {Array.isArray(guidance.outputs) && guidance.outputs.length ? <div><strong>Outputs:</strong> {guidance.outputs.join(", ")}</div> : null}
+        {Array.isArray(guidance.success_next_actions) && guidance.success_next_actions.length ? <div><strong>Next:</strong> {guidance.success_next_actions.join(" ")}</div> : null}
         {guidance.next ? <div><strong>Next:</strong> {guidance.next}</div> : null}
+        {guidance.expected_duration ? <div><strong>Expected:</strong> {String(guidance.expected_duration).replaceAll("_", " ")}</div> : null}
         {guidance.duration ? <div><strong>Expected:</strong> {guidance.duration}</div> : null}
+        {Array.isArray(guidance.warnings) && guidance.warnings.length ? <div className="warning-text"><strong>Warning:</strong> {guidance.warnings.join(" ")}</div> : null}
         {guidance.warning ? <div className="warning-text"><strong>Warning:</strong> {guidance.warning}</div> : null}
       </div>
       <div className="action-fields">

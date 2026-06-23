@@ -216,6 +216,25 @@ Returns allowlisted admin actions and parameter schemas.
 
 Notes:
 - Includes `display_name` and `category` fields for admin UI grouping (for example `operations` vs `coolness`).
+- Includes `group_key` and `operator_guidance` fields for Admin v2 runbook
+  layout, prerequisites, outputs, warnings, and recommended next actions.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
+### GET /admin/operations/status
+Returns an Admin v2 operations summary.
+
+Includes:
+- job runner capacity and current queued/running counts
+- recent jobs, active jobs, latest failures, and latest high-risk action
+- latest admin DB and release metadata backups
+- served/current target, recent build artifact summaries, incomplete builds,
+  and temporary ingest output directories
+- retention readiness and default retention values
+- action group metadata for runbook layout
 
 Response:
 - `200` for authenticated admins.

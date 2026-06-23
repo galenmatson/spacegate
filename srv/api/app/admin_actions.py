@@ -7,7 +7,7 @@ import secrets
 import sqlite3
 import subprocess
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Sequence, TextIO
 
@@ -42,6 +42,8 @@ class ActionSpec:
     required_roles: Sequence[str] = ("admin",)
     requires_confirmation: bool = False
     confirmation_phrase: str | None = None
+    group_key: str = "operations"
+    operator_guidance: Dict[str, Any] = field(default_factory=dict)
     build_command: Callable[[Dict[str, Any]], List[str]] | None = None
     run_native: Callable[[Dict[str, Any], TextIO], int] | None = None
 
@@ -730,6 +732,198 @@ def _confirmation_for(action_name: str) -> str:
     return f"RUN {action_name}"
 
 
+ACTION_GROUPS: List[Dict[str, Any]] = [
+    {
+        "key": "build",
+        "title": "Build Pipeline",
+        "description": "Build, verify, and publish deterministic science artifacts in order.",
+        "actions": ["build_database", "verify_build", "publish_db"],
+        "sequence": ["Build Database", "Verify Build", "Publish Database", "Retention after verified promotion"],
+    },
+    {
+        "key": "presentation",
+        "title": "Presentation Generation",
+        "description": "Generate ranking and snapshot artifacts without changing canonical science rows.",
+        "actions": ["score_coolness", "save_coolness_profile", "apply_coolness_profile", "generate_snapshots"],
+        "sequence": ["Score Coolness", "Save Profile", "Activate Profile", "Generate Snapshots"],
+    },
+    {
+        "key": "recovery",
+        "title": "Backups and Recovery",
+        "description": "Create rollback points and recover admin or release metadata state.",
+        "actions": ["backup_admin_db", "restore_admin_db", "backup_release_metadata", "restore_release_metadata"],
+        "sequence": ["Backup First", "Restore Only When Needed", "Verify Auth or Release Metadata"],
+    },
+    {
+        "key": "service",
+        "title": "Service Control",
+        "description": "Legacy process-runner controls for API/web service state.",
+        "actions": ["restart_services", "stop_services"],
+        "sequence": ["Confirm Runtime Mode", "Run Action", "Verify Health"],
+    },
+]
+
+
+ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
+    "build_database": {
+        "group_key": "build",
+        "purpose": "Runs the full deterministic pipeline: download, cook, ingest, promote, and verify.",
+        "prerequisites": "Use when you intentionally want a fresh served build from current source inputs.",
+        "writes_to": "$SPACEGATE_STATE_DIR/raw, cooked, out/<build_id>, reports/<build_id>, and served/current through scripts.",
+        "outputs": ["core.duckdb", "arm.duckdb", "disc artifacts", "per-build reports", "served/current promotion"],
+        "expected_duration": "long",
+        "success_next_actions": ["Inspect the job log.", "Review verification report.", "Publish only after verification is clean."],
+        "failure_next_actions": ["Inspect final log lines.", "Keep failed artifacts until the root cause is captured.", "Do not run retention while diagnosing."],
+        "warnings": ["Long-running and high impact.", "Do not manually edit raw, cooked, out, reports, or served artifacts."],
+        "docs_links": ["docs/PROJECT.md", "docs/RETENTION.md"],
+    },
+    "verify_build": {
+        "group_key": "build",
+        "purpose": "Checks served/current, or a specific build id, against schema, provenance, and runtime gates.",
+        "prerequisites": "Run after build/promotion and before publish, deployment, or cleanup recommendations.",
+        "writes_to": "Verification reports under the state report tree.",
+        "outputs": ["verification status", "QC/provenance/contract report signals"],
+        "expected_duration": "short_to_medium",
+        "success_next_actions": ["Publish or continue with deployment/retention decisions."],
+        "failure_next_actions": ["Inspect the report and job log before rebuilding or retrying."],
+        "warnings": ["Verification failure should block promotion/deployment recommendations."],
+        "docs_links": ["docs/PROJECT.md"],
+    },
+    "publish_db": {
+        "group_key": "build",
+        "purpose": "Packages the promoted build and updates download metadata for public release artifacts.",
+        "prerequisites": "Requires a verified build. Leave build id empty to publish served/current.",
+        "writes_to": "Public download metadata and package/report files under the configured dl root.",
+        "outputs": ["download metadata", "release package/report artifacts"],
+        "expected_duration": "medium",
+        "success_next_actions": ["Confirm release metadata.", "Keep or create release metadata backup before later risky changes."],
+        "failure_next_actions": ["Use release metadata backup if public download metadata points at the wrong release."],
+        "warnings": ["This affects what download clients see; it does not change immutable build contents."],
+        "docs_links": ["docs/ADMIN_V2.md"],
+    },
+    "score_coolness": {
+        "group_key": "presentation",
+        "purpose": "Generates deterministic disc coolness ranking and scoring reports for a build.",
+        "prerequisites": "Use after a valid build exists. Ephemeral scoring is useful for experiments.",
+        "writes_to": "Disc scoring artifacts and reports, unless ephemeral mode is selected.",
+        "outputs": ["coolness_scores", "coolness_report.json"],
+        "expected_duration": "medium",
+        "success_next_actions": ["Save a profile if the result is worth preserving.", "Activate deliberately."],
+        "failure_next_actions": ["Inspect scoring report/log and verify the target build has required data."],
+        "warnings": ["Presentation artifacts must not alter canonical science rows."],
+        "docs_links": ["docs/SCHEMA_DISC.md"],
+    },
+    "save_coolness_profile": {
+        "group_key": "presentation",
+        "purpose": "Persists an immutable coolness profile version without activating it.",
+        "prerequisites": "Use after evaluating weights through preview or scoring jobs.",
+        "writes_to": "Coolness profile metadata.",
+        "outputs": ["saved profile version"],
+        "expected_duration": "short",
+        "success_next_actions": ["Activate the saved profile when it should become default presentation policy."],
+        "failure_next_actions": ["Check profile id/version and weight JSON validity."],
+        "warnings": [],
+        "docs_links": ["docs/SCHEMA_DISC.md"],
+    },
+    "apply_coolness_profile": {
+        "group_key": "presentation",
+        "purpose": "Activates a saved immutable coolness profile version.",
+        "prerequisites": "The profile id and version should already exist and be reviewed.",
+        "writes_to": "Active coolness profile selection metadata.",
+        "outputs": ["active profile pointer"],
+        "expected_duration": "short",
+        "success_next_actions": ["Regenerate scores or snapshots if visible presentation should change."],
+        "failure_next_actions": ["Confirm the profile exists and has the expected version."],
+        "warnings": ["Changes ranking policy used by presentation workflows."],
+        "docs_links": ["docs/SCHEMA_DISC.md"],
+    },
+    "generate_snapshots": {
+        "group_key": "presentation",
+        "purpose": "Renders snapshot images for filtered coolness-ranked systems.",
+        "prerequisites": "Run after scoring when top targets or view parameters changed.",
+        "writes_to": "Snapshot assets and manifests in disc/build artifact paths.",
+        "outputs": ["snapshot files", "snapshot_manifest rows/artifacts"],
+        "expected_duration": "medium_to_long",
+        "success_next_actions": ["Reload public search/detail views to confirm new images are referenced correctly."],
+        "failure_next_actions": ["Inspect renderer errors and target build coolness availability."],
+        "warnings": ["Can create many generated files; keep it scoped when testing."],
+        "docs_links": ["docs/SCHEMA_DISC.md"],
+    },
+    "backup_admin_db": {
+        "group_key": "recovery",
+        "purpose": "Creates a point-in-time backup of admin auth, sessions, jobs, audit, and registry state.",
+        "prerequisites": "Run before restore operations or risky auth/admin changes.",
+        "writes_to": "$SPACEGATE_STATE_DIR/admin/backups/admin_db.",
+        "outputs": ["admin DB snapshot"],
+        "expected_duration": "short",
+        "success_next_actions": ["Record the backup filename if it is a pre-change rollback point."],
+        "failure_next_actions": ["Check admin DB path and filesystem permissions."],
+        "warnings": ["Backup files may contain sensitive admin state; do not commit them."],
+        "docs_links": ["docs/ADMIN_AUTH_SPEC.md"],
+    },
+    "restore_admin_db": {
+        "group_key": "recovery",
+        "purpose": "Restores admin auth/audit database tables from a named backup file.",
+        "prerequisites": "Create a fresh backup first unless the current DB is already known bad.",
+        "writes_to": "Admin DB auth, allowlist, sessions, audit, inference registry, and related admin tables.",
+        "outputs": ["restored admin DB state"],
+        "expected_duration": "short",
+        "success_next_actions": ["Verify login, allowlist, audit visibility, and endpoint registry."],
+        "failure_next_actions": ["Inspect restore log and preserve current DB for diagnosis."],
+        "warnings": ["Can change who can log in and what audit/history is visible."],
+        "docs_links": ["docs/ADMIN_AUTH_SPEC.md"],
+    },
+    "backup_release_metadata": {
+        "group_key": "recovery",
+        "purpose": "Backs up public release metadata and the current download symlink target.",
+        "prerequisites": "Run before publish or before manually repairing download metadata.",
+        "writes_to": "$SPACEGATE_STATE_DIR/admin/backups/release_metadata.",
+        "outputs": ["release metadata backup manifest"],
+        "expected_duration": "short",
+        "success_next_actions": ["Use the backup id if download metadata needs rollback."],
+        "failure_next_actions": ["Check dl root path and metadata permissions."],
+        "warnings": [],
+        "docs_links": ["docs/ADMIN_V2.md"],
+    },
+    "restore_release_metadata": {
+        "group_key": "recovery",
+        "purpose": "Restores /dl/current.json and optionally the /dl/current symlink from a metadata backup.",
+        "prerequisites": "Use when publish/deploy left public download metadata pointing at the wrong release or missing fields.",
+        "writes_to": "Download metadata and, when selected, the current download symlink.",
+        "outputs": ["restored current.json", "optional restored current symlink"],
+        "expected_duration": "short",
+        "success_next_actions": ["Verify public download status and release metadata."],
+        "failure_next_actions": ["Inspect release metadata backup manifest and dl root state."],
+        "warnings": ["Does not rebuild science artifacts or change served/current; it repairs what release/download clients see."],
+        "docs_links": ["docs/ADMIN_V2.md"],
+    },
+    "restart_services": {
+        "group_key": "service",
+        "purpose": "Restarts API/web processes tracked by the legacy service runner.",
+        "prerequisites": "Use for local process-runner mode, not Docker compose deployments unless the host is configured that way.",
+        "writes_to": "Runtime process state and logs.",
+        "outputs": ["restarted local service processes"],
+        "expected_duration": "short",
+        "success_next_actions": ["Verify API/web health after restart."],
+        "failure_next_actions": ["Use host shell/system service logs if Admin becomes unavailable."],
+        "warnings": ["The Admin UI may briefly disconnect."],
+        "docs_links": ["docs/ADMIN_V2.md"],
+    },
+    "stop_services": {
+        "group_key": "service",
+        "purpose": "Stops API/web processes tracked by the legacy service runner.",
+        "prerequisites": "Use only when intentionally taking those services down.",
+        "writes_to": "Runtime process state.",
+        "outputs": ["stopped local service processes"],
+        "expected_duration": "short",
+        "success_next_actions": ["Start services from the host if Admin becomes unavailable."],
+        "failure_next_actions": ["Use host shell/system service controls."],
+        "warnings": ["The Admin UI may disconnect immediately."],
+        "docs_links": ["docs/ADMIN_V2.md"],
+    },
+}
+
+
 ACTION_SPECS: Dict[str, ActionSpec] = {
     "build_database": ActionSpec(
         name="build_database",
@@ -1148,6 +1342,8 @@ def list_actions() -> List[Dict[str, Any]]:
     for spec in sorted(ACTION_SPECS.values(), key=lambda s: s.name):
         if spec.hidden:
             continue
+        guidance = dict(spec.operator_guidance or ACTION_OPERATOR_GUIDANCE.get(spec.name, {}))
+        group_key = str(guidance.get("group_key") or spec.group_key or spec.category or "operations")
         data.append(
             {
                 "name": spec.name,
@@ -1155,13 +1351,19 @@ def list_actions() -> List[Dict[str, Any]]:
                 "description": spec.description,
                 "params_schema": spec.params_schema,
                 "category": spec.category,
+                "group_key": group_key,
                 "risk_level": spec.risk_level,
                 "required_roles": list(spec.required_roles),
                 "requires_confirmation": bool(spec.requires_confirmation),
                 "confirmation_phrase": spec.confirmation_phrase or "",
+                "operator_guidance": guidance,
             }
         )
     return data
+
+
+def action_groups() -> List[Dict[str, Any]]:
+    return [dict(group) for group in ACTION_GROUPS]
 
 
 def _canonicalize_params(params: Dict[str, Any] | None) -> Dict[str, Any]:
@@ -1721,3 +1923,228 @@ def list_backups(limit: int = 100) -> Dict[str, Any]:
         out["release_metadata"].append(item)
 
     return out
+
+
+def _path_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    if path.is_file() or path.is_symlink():
+        try:
+            return int(path.stat().st_size)
+        except OSError:
+            return 0
+    total = 0
+    for child in path.rglob("*"):
+        try:
+            if child.is_file() or child.is_symlink():
+                total += int(child.stat().st_size)
+        except OSError:
+            continue
+    return total
+
+
+def _path_mtime_iso(path: Path) -> str | None:
+    try:
+        return _to_iso(dt.datetime.fromtimestamp(path.stat().st_mtime, tz=dt.timezone.utc))
+    except OSError:
+        return None
+
+
+def _served_current_target(state_dir: Path) -> Dict[str, Any]:
+    current = state_dir / "served" / "current"
+    out: Dict[str, Any] = {
+        "path": str(current),
+        "exists": current.exists() or current.is_symlink(),
+        "is_symlink": current.is_symlink(),
+        "target": None,
+        "build_id": None,
+    }
+    try:
+        target = current.resolve()
+        out["target"] = str(target)
+        if target.name and target.parent.name == "out":
+            out["build_id"] = target.name
+    except OSError:
+        pass
+    return out
+
+
+def _report_file_summary(reports_dir: Path) -> Dict[str, Any]:
+    if not reports_dir.exists() or not reports_dir.is_dir():
+        return {"exists": False, "count": 0, "latest_mtime_utc": None, "files": []}
+    files = sorted([p for p in reports_dir.glob("*.json") if p.is_file()], key=lambda p: p.name)
+    latest = None
+    for path in files:
+        mtime = _path_mtime_iso(path)
+        if mtime and (latest is None or mtime > latest):
+            latest = mtime
+    return {
+        "exists": True,
+        "count": len(files),
+        "latest_mtime_utc": latest,
+        "files": [p.name for p in files[:80]],
+    }
+
+
+def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
+    build_id = build_dir.name
+    reports_dir = state_dir / "reports" / build_id
+    core_db = build_dir / "core.duckdb"
+    arm_db = build_dir / "arm.duckdb"
+    disc_db = build_dir / "disc.duckdb"
+    halo_db = build_dir / "halo.duckdb"
+    galaxy_db = build_dir / "galaxy.duckdb"
+    parquet_dir = build_dir / "parquet"
+    reports = _report_file_summary(reports_dir)
+    missing_required = []
+    if not core_db.exists():
+        missing_required.append("core.duckdb")
+    if not arm_db.exists():
+        missing_required.append("arm.duckdb")
+    return {
+        "build_id": build_id,
+        "path": str(build_dir),
+        "mtime_utc": _path_mtime_iso(build_dir),
+        "size_bytes": _path_size_bytes(build_dir),
+        "reports_dir": str(reports_dir),
+        "reports": reports,
+        "artifacts": {
+            "core_db": core_db.exists(),
+            "arm_db": arm_db.exists(),
+            "disc_db": disc_db.exists(),
+            "halo_db": halo_db.exists(),
+            "galaxy_db": galaxy_db.exists(),
+            "parquet": parquet_dir.exists(),
+        },
+        "artifact_sizes_bytes": {
+            "core_db": core_db.stat().st_size if core_db.exists() else 0,
+            "arm_db": arm_db.stat().st_size if arm_db.exists() else 0,
+            "disc_db": disc_db.stat().st_size if disc_db.exists() else 0,
+            "halo_db": halo_db.stat().st_size if halo_db.exists() else 0,
+            "galaxy_db": galaxy_db.stat().st_size if galaxy_db.exists() else 0,
+            "parquet": _path_size_bytes(parquet_dir),
+        },
+        "promotable": not missing_required,
+        "missing_required": missing_required,
+    }
+
+
+def _recent_builds(state_dir: Path, limit: int = 12) -> List[Dict[str, Any]]:
+    out_dir = state_dir / "out"
+    if not out_dir.exists() or not out_dir.is_dir():
+        return []
+    candidates = [
+        path for path in out_dir.iterdir()
+        if path.is_dir() and not path.name.endswith(".tmp")
+    ]
+    candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return [_build_artifact_summary(state_dir, path) for path in candidates[: max(1, limit)]]
+
+
+def _tmp_builds(state_dir: Path, limit: int = 20) -> List[Dict[str, Any]]:
+    out_dir = state_dir / "out"
+    if not out_dir.exists() or not out_dir.is_dir():
+        return []
+    candidates = [
+        path for path in out_dir.iterdir()
+        if path.is_dir() and path.name.endswith(".tmp")
+    ]
+    candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    items = []
+    for path in candidates[: max(1, limit)]:
+        items.append(
+            {
+                "name": path.name,
+                "build_id": path.name[:-4],
+                "path": str(path),
+                "mtime_utc": _path_mtime_iso(path),
+                "size_bytes": _path_size_bytes(path),
+            }
+        )
+    return items
+
+
+def operations_status() -> Dict[str, Any]:
+    state_dir = _state_dir().resolve()
+    jobs_dir = _jobs_dir().resolve()
+    backups_dir = _backups_dir().resolve()
+    dl_root = _dl_root().resolve()
+    backups = list_backups(limit=100)
+    jobs = list_jobs(limit=100)
+    active_jobs = [job for job in jobs if job.get("status") in RUNNING_STATUSES]
+    running_jobs = [job for job in jobs if job.get("status") == "running"]
+    queued_jobs = [job for job in jobs if job.get("status") == "queued"]
+    failed_jobs = [job for job in jobs if job.get("status") == "failed"]
+    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db"}
+    active_build_jobs = [job for job in active_jobs if job.get("action") in build_related_actions]
+    latest_high_risk = None
+    for job in jobs:
+        spec = ACTION_SPECS.get(str(job.get("action") or ""))
+        if spec and spec.risk_level == "high":
+            latest_high_risk = job
+            break
+    admin_backups = backups.get("admin_db") or []
+    release_backups = backups.get("release_metadata") or []
+    recent_builds = _recent_builds(state_dir, limit=12)
+    tmp_builds = _tmp_builds(state_dir, limit=20)
+    incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
+    retention_blockers = []
+    if active_build_jobs:
+        retention_blockers.append("A build, verify, or publish job is active.")
+    if tmp_builds:
+        retention_blockers.append("Temporary ingest output directories exist; inspect them before pruning.")
+
+    return {
+        "status": "ok",
+        "generated_at_utc": _to_iso(_utc_now()),
+        "paths": {
+            "state_dir": str(state_dir),
+            "jobs_dir": str(jobs_dir),
+            "backups_dir": str(backups_dir),
+            "dl_root": str(dl_root),
+            "out_dir": str(state_dir / "out"),
+            "reports_dir": str(state_dir / "reports"),
+            "served_current": str(state_dir / "served" / "current"),
+        },
+        "runner": {
+            "max_running_jobs": _max_concurrent_jobs(),
+            "max_queued_jobs": _max_queued_jobs(),
+            "running_count": len(running_jobs),
+            "queued_count": len(queued_jobs),
+            "active_count": len(active_jobs),
+            "available_running_slots": max(_max_concurrent_jobs() - len(running_jobs), 0),
+        },
+        "jobs": {
+            "recent": jobs[:20],
+            "active": active_jobs,
+            "latest_failures": failed_jobs[:8],
+            "latest_high_risk": latest_high_risk,
+        },
+        "backups": {
+            "admin_db_count": len(admin_backups),
+            "release_metadata_count": len(release_backups),
+            "latest_admin_db": admin_backups[0] if admin_backups else None,
+            "latest_release_metadata": release_backups[0] if release_backups else None,
+        },
+        "builds": {
+            "served_current": _served_current_target(state_dir),
+            "recent": recent_builds,
+            "tmp": tmp_builds,
+            "incomplete_recent": incomplete_builds,
+            "out_count": len([p for p in (state_dir / "out").iterdir() if p.is_dir() and not p.name.endswith(".tmp")]) if (state_dir / "out").exists() else 0,
+            "tmp_count": len(tmp_builds),
+        },
+        "retention": {
+            "default_keep_builds": int(os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12")),
+            "default_keep_reports": int(os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24")),
+            "script": "scripts/prune_state_retention.sh",
+            "can_run_now": not retention_blockers,
+            "blocked_reasons": retention_blockers,
+            "notes": [
+                "Retention must not prune raw/ or cooked/.",
+                "Run retention only after successful promotion and verification.",
+                "Use dry-run first unless the cleanup target is already reviewed.",
+            ],
+        },
+        "action_groups": action_groups(),
+    }

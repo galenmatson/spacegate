@@ -277,12 +277,11 @@ administrator.
 
 ### Backend Gaps to Close
 
-The current backend is enough for the first React migration, but future
-operators will benefit from several small API additions:
+The backend now exposes action metadata from `ActionSpec` and
+`GET /admin/operations/status` for runner capacity, backup age, recent failures,
+build artifacts, retention readiness, and runbook grouping. Future operators
+will benefit from several additional API additions:
 
-- action metadata fields listed above, emitted from `ActionSpec`
-- `GET /admin/operations/status` summary for queue counts, runner capacity,
-  backup ages, and latest failures
 - `GET /admin/actions/jobs/{job_id}/audit` or audit filtering by
   `correlation_id`
 - structured `admin_job_events` for progress milestones instead of log parsing
