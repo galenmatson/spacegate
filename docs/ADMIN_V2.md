@@ -163,6 +163,19 @@ visible from inside the API container. The UI should display these as actionable
 operator alerts with the affected env var/path and the next troubleshooting
 step, rather than relying on hardcoded frontend path assumptions.
 
+Runtime environment diagnostics should distinguish:
+
+- `configured`: explicitly present in the API container
+- `optional`: not set because the runtime uses a default or the setting belongs
+  to another container
+- `alias satisfied`: an alternate/preferred variable is set, such as
+  `SPACEGATE_OPENAI_API_KEY` satisfying the legacy `OPENAI_API_KEY` alias
+- `missing`: required by the current runtime and absent from the API container
+
+The Runtime page should offer a copyable redacted diagnostics bundle containing
+filesystem alerts, path status, env configured/missing/alias flags, container
+status, auth status, and inference reachability without secret values.
+
 ## Operations, Jobs, and Audit Workspace
 
 The embedded Admin UI currently exposes these operational surfaces:

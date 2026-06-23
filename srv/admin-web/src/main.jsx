@@ -320,6 +320,22 @@ function riskTone(riskLevel) {
   return "ok";
 }
 
+function runtimeStatusTone(status) {
+  const value = String(status || "");
+  if (value === "configured" || value === "alias_satisfied" || value === "ok") return "ok";
+  if (value === "optional_missing") return "muted";
+  if (value === "warning") return "warn";
+  if (value === "missing" || value === "error") return "danger";
+  return "";
+}
+
+function runtimeStatusLabel(status) {
+  const value = String(status || "unknown");
+  if (value === "alias_satisfied") return "alias satisfied";
+  if (value === "optional_missing") return "optional";
+  return value;
+}
+
 function parseMaybeJson(value) {
   if (value === null || value === undefined || value === "") return {};
   if (typeof value === "object") return value;
@@ -2828,6 +2844,7 @@ function AuditTab({
 
 function RuntimeScreen() {
   const [state, setState] = useState({ loading: true, data: null, message: "Loading runtime status..." });
+  const [copyStatus, setCopyStatus] = useState("");
 
   async function loadRuntime() {
     setState((current) => ({ ...current, loading: true, message: "Refreshing runtime status..." }));
@@ -2854,17 +2871,30 @@ function RuntimeScreen() {
   const healthyEndpoints = endpoints.filter((endpoint) => endpoint.last_probe_status === "ok");
   const configuredEnv = data.environment?.configured || {};
   const sensitiveEnv = data.environment?.sensitive || {};
+  function pathAccessLabel(item) {
+    if (!item.exists) {
+      return item.configured || item.required ? "missing" : "optional not mounted";
+    }
+    const parts = [item.readable ? "read ok" : "read blocked"];
+    if (item.require_writable) {
+      parts.push(item.writable ? "write ok" : "write blocked");
+    } else {
+      parts.push(item.writable ? "write available" : "read-only ok");
+    }
+    if (item.mount_expected) {
+      parts.push(item.mounted ? `mounted at ${item.mount_point || "target"}` : "mount not visible");
+    } else if (item.mount_point) {
+      parts.push(`fs ${item.mount_point}`);
+    }
+    return parts.join(" / ");
+  }
   const pathRows = Object.entries(paths).map(([key, item]) => [
     key,
     <span className={`badge ${item.check_status === "error" ? "danger" : item.check_status === "warning" ? "warn" : "ok"}`}>
       {item.check_status || "unknown"}
     </span>,
     item.exists ? (item.is_dir ? "dir" : item.is_file ? "file" : "exists") : "missing",
-    [
-      item.readable ? "read" : "no read",
-      item.writable ? "write" : "no write",
-      item.mount_expected ? (item.mounted ? "mounted" : "mount?") : null,
-    ].filter(Boolean).join(" / "),
+    pathAccessLabel(item),
     item.disk ? `${formatBytes(item.disk.free_bytes)} free (${formatPct(item.disk.used_pct)} used)` : "n/a",
     <>
       {item.path || ""}
@@ -2879,12 +2909,13 @@ function RuntimeScreen() {
   ]);
   const envRows = Object.entries(configuredEnv).map(([key, item]) => [
     key,
-    item.configured ? "configured" : "missing",
-    item.configured ? String(item.value || "") : "",
+    <span className={`badge ${runtimeStatusTone(item.status)}`}>{runtimeStatusLabel(item.status)}</span>,
+    item.configured ? String(item.value || "") : String(item.note || item.description || ""),
   ]);
   const secretRows = Object.entries(sensitiveEnv).map(([key, item]) => [
     key,
-    item.configured ? "configured" : "missing",
+    <span className={`badge ${runtimeStatusTone(item.status)}`}>{runtimeStatusLabel(item.status)}</span>,
+    String(item.note || item.description || ""),
   ]);
   const kpis = [
     { label: "Build", value: compactId(data.build_id, 18) },
@@ -2899,6 +2930,71 @@ function RuntimeScreen() {
     { label: "API RSS", value: formatBytes(api.rss_bytes) },
   ];
 
+  async function copyDiagnostics() {
+    const redactEnv = (rows) => Object.fromEntries(
+      Object.entries(rows || {}).map(([key, item]) => [
+        key,
+        {
+          configured: !!item.configured,
+          required: !!item.required,
+          status: item.status || "unknown",
+          satisfied_by: item.satisfied_by || [],
+          note: item.note || item.description || "",
+        },
+      ])
+    );
+    const bundle = {
+      generated_at_utc: data.generated_at_utc || null,
+      build_id: data.build_id || null,
+      git: data.git || {},
+      filesystem_summary: filesystemSummary,
+      filesystem_alerts: filesystemAlerts,
+      paths,
+      environment: {
+        configured: redactEnv(configuredEnv),
+        sensitive: redactEnv(sensitiveEnv),
+        notes: data.environment?.notes || [],
+      },
+      auth: authStatus,
+      container_runtime: data.container_runtime || {},
+      host_runtime: host,
+      api_process_runtime: api,
+      inference_endpoints: endpoints.map((endpoint) => ({
+        endpoint_key: endpoint.endpoint_key,
+        display_name: endpoint.display_name,
+        provider: endpoint.provider,
+        enabled: endpoint.enabled,
+        base_url: endpoint.base_url,
+        auth_mode: endpoint.auth_mode,
+        api_key_configured: !!endpoint.api_key_configured,
+        default_model: endpoint.default_model,
+        model_count: endpoint.model_count,
+        last_probe_status: endpoint.last_probe_status,
+        last_probe_at: endpoint.last_probe_at,
+        last_probe_error: endpoint.last_probe_error,
+      })),
+    };
+    const text = JSON.stringify(bundle, null, 2);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopyStatus("Copied redacted diagnostics.");
+    } catch (error) {
+      setCopyStatus(`Copy failed: ${String(error)}`);
+    }
+  }
+
   return (
     <div className="screen">
       <header className="page-header">
@@ -2906,7 +3002,10 @@ function RuntimeScreen() {
           <h1>Runtime</h1>
           <p className="muted">Read-only host, container, path, auth, and configuration diagnostics.</p>
         </div>
-        <button className="button" onClick={loadRuntime}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+        <div className="button-row">
+          <button className="button" onClick={copyDiagnostics} disabled={!state.data}>Copy Diagnostics</button>
+          <button className="button" onClick={loadRuntime}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+        </div>
       </header>
 
       <div className="kpi-row">
@@ -2920,6 +3019,7 @@ function RuntimeScreen() {
 
       <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>
         {state.message} Generated: {formatDate(data.generated_at_utc)}
+        {copyStatus ? <span className="table-subtext">{copyStatus}</span> : null}
       </div>
 
       {filesystemAlerts.length ? (
@@ -2996,7 +3096,7 @@ function RuntimeScreen() {
         </div>
         <div className="panel">
           <h2>Secret Status</h2>
-          <KeyValueTable rows={secretRows} columns={["Key", "Status"]} />
+          <KeyValueTable rows={secretRows} columns={["Key", "Status", "Note"]} />
           <div className="hint-list">
             {(data.environment?.notes || []).map((note) => <div key={note}>{note}</div>)}
           </div>

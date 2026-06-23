@@ -3027,43 +3027,45 @@ def _agency_status_payload() -> Dict[str, Any]:
     }
 
 
-RUNTIME_ENV_KEYS = [
-    "SPACEGATE_STATE_DIR",
-    "SPACEGATE_DATA_DIR",
-    "SPACEGATE_CACHE_DIR",
-    "SPACEGATE_LOG_DIR",
-    "SPACEGATE_ADMIN_DB_PATH",
-    "SPACEGATE_ADMIN_JOBS_DIR",
-    "SPACEGATE_WEB_BIND",
-    "SPACEGATE_WEB_TLS_BIND",
-    "SPACEGATE_WEB_HOST_PORT",
-    "SPACEGATE_WEB_TLS_HOST_PORT",
-    "SPACEGATE_AUTH_ENABLE",
-    "SPACEGATE_OIDC_PROVIDER",
-    "SPACEGATE_OIDC_ISSUER",
-    "SPACEGATE_OIDC_REDIRECT_URI",
-    "SPACEGATE_AUTH_SUCCESS_REDIRECT",
-    "SPACEGATE_SESSION_COOKIE_SECURE",
-    "SPACEGATE_CSRF_ENABLE",
-    "SPACEGATE_CONTAINER_LLM_BASE_URL",
-    "SPACEGATE_LLM_BASE_URL",
-    "SPACEGATE_OPENAI_BASE_URL",
-    "SPACEGATE_GOOGLE_BASE_URL",
-    "SPACEGATE_FRONTIER_OPENAI_MODEL",
-    "SPACEGATE_FRONTIER_GOOGLE_MODEL",
-    "SPACEGATE_BULK_DIR",
-]
+RUNTIME_ENV_SPECS: Dict[str, Dict[str, Any]] = {
+    "SPACEGATE_STATE_DIR": {"required": True, "description": "Primary runtime state root."},
+    "SPACEGATE_DATA_DIR": {"required": False, "description": "Legacy/fallback state root; not needed when SPACEGATE_STATE_DIR is set.", "satisfied_by": ["SPACEGATE_STATE_DIR"]},
+    "SPACEGATE_CACHE_DIR": {"required": False, "description": "Optional cache override; defaults under state."},
+    "SPACEGATE_LOG_DIR": {"required": False, "description": "Optional log override; defaults under state."},
+    "SPACEGATE_ADMIN_DB_PATH": {"required": False, "description": "Optional admin DB path override; defaults under state."},
+    "SPACEGATE_ADMIN_JOBS_DIR": {"required": False, "description": "Optional admin jobs path override; defaults under state."},
+    "SPACEGATE_WEB_BIND": {"required": False, "description": "Web container bind setting; usually not present in the API container."},
+    "SPACEGATE_WEB_TLS_BIND": {"required": False, "description": "Web container TLS bind setting; usually not present in the API container."},
+    "SPACEGATE_WEB_HOST_PORT": {"required": False, "description": "Compose/web host port setting; usually not present in the API container."},
+    "SPACEGATE_WEB_TLS_HOST_PORT": {"required": False, "description": "Compose/web TLS host port setting; usually not present in the API container."},
+    "SPACEGATE_AUTH_ENABLE": {"required": True, "description": "Admin auth enable flag."},
+    "SPACEGATE_OIDC_PROVIDER": {"required": True, "description": "OIDC provider name."},
+    "SPACEGATE_OIDC_ISSUER": {"required": True, "description": "OIDC issuer URL."},
+    "SPACEGATE_OIDC_REDIRECT_URI": {"required": True, "description": "OIDC callback URL."},
+    "SPACEGATE_AUTH_SUCCESS_REDIRECT": {"required": False, "description": "Post-login redirect; defaults to the admin app."},
+    "SPACEGATE_SESSION_COOKIE_SECURE": {"required": False, "description": "Secure cookie setting; defaults according to runtime mode."},
+    "SPACEGATE_CSRF_ENABLE": {"required": False, "description": "CSRF protection flag; defaults on for authenticated admin operations."},
+    "SPACEGATE_CONTAINER_LLM_BASE_URL": {"required": False, "description": "Optional container-specific local LLM URL override.", "satisfied_by": ["SPACEGATE_LLM_BASE_URL"]},
+    "SPACEGATE_LLM_BASE_URL": {"required": False, "description": "Default local/OpenAI-compatible LLM base URL."},
+    "SPACEGATE_OPENAI_BASE_URL": {"required": False, "description": "OpenAI API base URL override."},
+    "SPACEGATE_GOOGLE_BASE_URL": {"required": False, "description": "Google Gemini API base URL override."},
+    "SPACEGATE_FRONTIER_OPENAI_MODEL": {"required": False, "description": "Default OpenAI frontier model."},
+    "SPACEGATE_FRONTIER_GOOGLE_MODEL": {"required": False, "description": "Default Google frontier model."},
+    "SPACEGATE_BULK_DIR": {"required": True, "description": "Bulk research/document storage root."},
+}
+RUNTIME_ENV_KEYS = list(RUNTIME_ENV_SPECS.keys())
 
 
-SENSITIVE_ENV_KEYS = [
-    "SPACEGATE_OIDC_CLIENT_ID",
-    "SPACEGATE_OIDC_CLIENT_SECRET",
-    "SPACEGATE_SESSION_SECRET",
-    "SPACEGATE_OPENAI_API_KEY",
-    "OPENAI_API_KEY",
-    "SPACEGATE_GOOGLE_API_KEY",
-    "GOOGLE_API_KEY",
-]
+SENSITIVE_ENV_SPECS: Dict[str, Dict[str, Any]] = {
+    "SPACEGATE_OIDC_CLIENT_ID": {"required": True, "description": "OIDC client id."},
+    "SPACEGATE_OIDC_CLIENT_SECRET": {"required": True, "description": "OIDC client secret."},
+    "SPACEGATE_SESSION_SECRET": {"required": True, "description": "Session signing secret."},
+    "SPACEGATE_OPENAI_API_KEY": {"required": False, "description": "Preferred OpenAI API key env var."},
+    "OPENAI_API_KEY": {"required": False, "description": "Legacy/provider alias; not needed when SPACEGATE_OPENAI_API_KEY is set.", "satisfied_by": ["SPACEGATE_OPENAI_API_KEY"]},
+    "SPACEGATE_GOOGLE_API_KEY": {"required": False, "description": "Preferred Google API key env var."},
+    "GOOGLE_API_KEY": {"required": False, "description": "Legacy/provider alias; not needed when SPACEGATE_GOOGLE_API_KEY is set.", "satisfied_by": ["SPACEGATE_GOOGLE_API_KEY"]},
+}
+SENSITIVE_ENV_KEYS = list(SENSITIVE_ENV_SPECS.keys())
 
 
 def _nearest_existing_path(path: Path) -> Path:
@@ -3214,6 +3216,7 @@ def _path_runtime_status(
         "configured": configured,
         "required": required,
         "expected_type": expected_type,
+        "require_writable": require_writable,
         "exists": exists,
         "is_dir": is_dir,
         "is_file": is_file,
@@ -3252,6 +3255,40 @@ def _filesystem_alerts(paths: Dict[str, Dict[str, Any]]) -> List[Dict[str, str]]
     severity_rank = {"error": 0, "warning": 1, "info": 2}
     alerts.sort(key=lambda alert: (severity_rank.get(alert["severity"], 9), alert["path_key"], alert["code"]))
     return alerts
+
+
+def _env_runtime_status(key: str, spec: Dict[str, Any], *, include_value: bool) -> Dict[str, Any]:
+    raw_value = os.getenv(key, "").strip()
+    configured = bool(raw_value)
+    satisfied_by = [
+        alias
+        for alias in spec.get("satisfied_by") or []
+        if os.getenv(str(alias), "").strip()
+    ]
+    required = bool(spec.get("required"))
+    if configured:
+        status = "configured"
+        note = spec.get("description") or ""
+    elif satisfied_by:
+        status = "alias_satisfied"
+        note = f"Not set; satisfied by {', '.join(satisfied_by)}."
+    elif required:
+        status = "missing"
+        note = spec.get("description") or "Required variable is missing from the API container."
+    else:
+        status = "optional_missing"
+        note = spec.get("description") or "Optional variable is not set."
+    payload = {
+        "configured": configured,
+        "required": required,
+        "status": status,
+        "satisfied_by": satisfied_by,
+        "description": spec.get("description") or "",
+        "note": note,
+    }
+    if include_value:
+        payload["value"] = raw_value or None
+    return payload
 
 
 def _git_head_short() -> Optional[str]:
@@ -3394,15 +3431,12 @@ def _runtime_status_payload() -> Dict[str, Any]:
         },
     }
     configured_env = {
-        key: {
-            "configured": bool(os.getenv(key, "").strip()),
-            "value": os.getenv(key, "").strip() or None,
-        }
-        for key in RUNTIME_ENV_KEYS
+        key: _env_runtime_status(key, spec, include_value=True)
+        for key, spec in RUNTIME_ENV_SPECS.items()
     }
     sensitive_env = {
-        key: {"configured": bool(os.getenv(key, "").strip())}
-        for key in SENSITIVE_ENV_KEYS
+        key: _env_runtime_status(key, spec, include_value=False)
+        for key, spec in SENSITIVE_ENV_SPECS.items()
     }
     paths = {
         key: _path_runtime_status(**spec)
