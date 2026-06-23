@@ -61,6 +61,38 @@ function formatLatency(value) {
   return `${formatInt(value)} ms`;
 }
 
+function formatBytes(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "0 B";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+  let size = number;
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index += 1;
+  }
+  return `${size.toLocaleString("en-US", { maximumFractionDigits: index <= 1 ? 0 : 1 })} ${units[index]}`;
+}
+
+function formatPct(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "n/a";
+  return `${number.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
+}
+
+function formatDate(value) {
+  if (!value) return "n/a";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString();
+}
+
+function compactId(value, size = 18) {
+  const text = String(value || "");
+  if (text.length <= size) return text || "n/a";
+  return `${text.slice(0, size - 1)}...`;
+}
+
 function normalizeOptional(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed : null;
@@ -68,7 +100,7 @@ function normalizeOptional(value) {
 
 function App() {
   const [authState, setAuthState] = useState({ loading: true, data: null, error: "" });
-  const [activeScreen, setActiveScreen] = useState("inference");
+  const [activeScreen, setActiveScreen] = useState("overview");
 
   useEffect(() => {
     let cancelled = false;
@@ -157,12 +189,175 @@ function App() {
         <button className="button" onClick={logout}>Log out</button>
       </aside>
       <main className="workspace">
-        {activeScreen === "inference" ? (
+        {activeScreen === "overview" ? (
+          <OverviewScreen auth={auth} />
+        ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : (
           <PlaceholderScreen name={activeScreen} />
         )}
       </main>
+    </div>
+  );
+}
+
+function OverviewScreen({ auth }) {
+  const [state, setState] = useState({
+    loading: true,
+    status: null,
+    dataset: null,
+    jobs: [],
+    endpoints: [],
+    errors: {},
+  });
+
+  async function loadOverview() {
+    setState((current) => ({ ...current, loading: true }));
+    const [statusResult, datasetResult, jobsResult, endpointsResult] = await Promise.all([
+      fetchJson(`${ADMIN_API_BASE}/status`),
+      fetchJson(`${ADMIN_API_BASE}/status/dataset`),
+      fetchJson(`${ADMIN_API_BASE}/actions/jobs?limit=8`),
+      fetchJson(`${ADMIN_API_BASE}/inference/endpoints`),
+    ]);
+
+    const errors = {};
+    if (!statusResult.response.ok) errors.status = compactError(statusResult.data, statusResult.response.status);
+    if (!datasetResult.response.ok) errors.dataset = compactError(datasetResult.data, datasetResult.response.status);
+    if (!jobsResult.response.ok) errors.jobs = compactError(jobsResult.data, jobsResult.response.status);
+    if (!endpointsResult.response.ok) errors.inference = compactError(endpointsResult.data, endpointsResult.response.status);
+
+    setState({
+      loading: false,
+      status: statusResult.response.ok ? statusResult.data : null,
+      dataset: datasetResult.response.ok ? datasetResult.data : null,
+      jobs: jobsResult.response.ok && Array.isArray(jobsResult.data.items) ? jobsResult.data.items : [],
+      endpoints: endpointsResult.response.ok && Array.isArray(endpointsResult.data.items) ? endpointsResult.data.items : [],
+      errors,
+    });
+  }
+
+  useEffect(() => {
+    loadOverview();
+  }, []);
+
+  const dataset = state.dataset || {};
+  const sizes = dataset.sizes_bytes || {};
+  const counts = dataset.dataset_counts || {};
+  const disk = dataset.disk || {};
+  const api = dataset.api_process_runtime || {};
+  const duckdb = dataset.duckdb_runtime || {};
+  const runningJobs = state.jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
+  const failedJobs = state.jobs.filter((job) => String(job.status || "") === "failed");
+  const healthyEndpoints = state.endpoints.filter((endpoint) => endpoint.last_probe?.status === "ok");
+  const modelCount = state.endpoints.reduce((total, endpoint) => total + (Array.isArray(endpoint.models) ? endpoint.models.length : 0), 0);
+
+  const overviewKpis = [
+    { label: "API", value: state.status?.status || "n/a", tone: state.status?.status === "ok" ? "ok" : "" },
+    { label: "Build", value: compactId(state.status?.build_id, 20) },
+    { label: "Jobs active", value: runningJobs.length, tone: runningJobs.length ? "warn" : "ok" },
+    { label: "Inference healthy", value: `${healthyEndpoints.length}/${state.endpoints.length}` },
+    { label: "Systems", value: formatInt(counts.systems) },
+    { label: "Stars", value: formatInt(counts.stars) },
+  ];
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div>
+          <h1>Overview</h1>
+          <p className="muted">Operational status for the current Spacegate runtime.</p>
+        </div>
+        <button className="button" onClick={loadOverview}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+      </header>
+
+      {Object.keys(state.errors).length ? (
+        <div className="status-line danger-line">
+          {Object.entries(state.errors).map(([key, value]) => `${key}: ${value}`).join(" | ")}
+        </div>
+      ) : (
+        <div className="status-line">Last checked {formatDate(state.status?.time_utc)} as {auth.user?.email}</div>
+      )}
+
+      <div className="overview-kpis">
+        {overviewKpis.map((item) => (
+          <div className={`kpi ${item.tone || ""}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <section className="overview-grid">
+        <OverviewCard title="Current Build">
+          <OverviewFact label="Build ID" value={state.status?.build_id || "n/a"} />
+          <OverviewFact label="Core DB" value={formatBytes(sizes.core_db)} />
+          <OverviewFact label="Arm DB" value={formatBytes(sizes.arm_db)} />
+          <OverviewFact label="Disc DB" value={formatBytes(sizes.disc_db)} />
+          <OverviewFact label="DB path" value={state.status?.db_path || "n/a"} />
+        </OverviewCard>
+
+        <OverviewCard title="Runtime Capacity">
+          <OverviewFact label="/data used" value={`${formatPct(disk.used_pct)} (${formatBytes(disk.used_bytes)})`} />
+          <OverviewFact label="/data free" value={formatBytes(disk.free_bytes)} />
+          <OverviewFact label="API RSS" value={formatBytes(api.rss_bytes)} />
+          <OverviewFact label="API peak RSS" value={formatBytes(api.peak_rss_bytes)} />
+          <OverviewFact label="DuckDB memory" value={`${formatBytes(duckdb.memory_usage_bytes)} / ${formatBytes(duckdb.memory_limit_bytes)}`} />
+        </OverviewCard>
+
+        <OverviewCard title="Recent Jobs">
+          {state.jobs.length ? (
+            <div className="compact-list">
+              {state.jobs.map((job) => (
+                <div className="compact-row" key={job.job_id}>
+                  <span className={`dot ${job.status || ""}`} />
+                  <div>
+                    <strong>{job.action || "job"}</strong>
+                    <span>{job.status || "unknown"} | {compactId(job.job_id, 14)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No recent jobs.</p>
+          )}
+          {failedJobs.length ? <p className="notice">{failedJobs.length} recent failed job(s).</p> : null}
+        </OverviewCard>
+
+        <OverviewCard title="Inference">
+          <OverviewFact label="Endpoints" value={formatInt(state.endpoints.length)} />
+          <OverviewFact label="Healthy probes" value={`${healthyEndpoints.length}/${state.endpoints.length}`} />
+          <OverviewFact label="Cached models" value={formatInt(modelCount)} />
+          <div className="compact-list">
+            {state.endpoints.slice(0, 5).map((endpoint) => (
+              <div className="compact-row" key={endpoint.endpoint_id}>
+                <span className={`dot ${endpoint.last_probe?.status === "ok" ? "succeeded" : "failed"}`} />
+                <div>
+                  <strong>{endpoint.display_name || endpoint.endpoint_key}</strong>
+                  <span>{endpoint.last_probe?.status || "unprobed"} | {(endpoint.models || []).length} models</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </OverviewCard>
+      </section>
+    </div>
+  );
+}
+
+function OverviewCard({ title, children }) {
+  return (
+    <section className="panel overview-card">
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function OverviewFact({ label, value }) {
+  return (
+    <div className="overview-fact">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }

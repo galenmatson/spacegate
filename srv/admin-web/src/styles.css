@@ -198,6 +198,14 @@ h3 {
   font-size: 1.2rem;
 }
 
+.kpi.ok strong {
+  color: var(--ok);
+}
+
+.kpi.warn strong {
+  color: #a16207;
+}
+
 .status-line {
   border: 1px dashed var(--border);
   background: var(--surface-soft);
@@ -205,6 +213,105 @@ h3 {
   border-radius: 8px;
   padding: 0.55rem 0.7rem;
   font-size: 0.9rem;
+}
+
+.danger-line {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
+}
+
+.overview-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.overview-card {
+  min-height: 100%;
+}
+
+.overview-fact {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.65fr) minmax(0, 1.35fr);
+  gap: 0.7rem;
+  padding: 0.42rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.overview-fact:last-child {
+  border-bottom: 0;
+}
+
+.overview-fact span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.overview-fact strong {
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+
+.compact-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.compact-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.5rem;
+}
+
+.compact-row strong,
+.compact-row span {
+  display: block;
+}
+
+.compact-row strong {
+  font-size: 0.9rem;
+}
+
+.compact-row span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.dot {
+  width: 0.58rem;
+  height: 0.58rem;
+  margin-top: 0.28rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.dot.running,
+.dot.queued {
+  background: #a16207;
+}
+
+.dot.succeeded,
+.dot.ok {
+  background: var(--ok);
+}
+
+.dot.failed,
+.dot.cancelled {
+  background: var(--danger);
+}
+
+.notice {
+  margin: 0.7rem 0 0;
+  color: var(--danger);
+  font-size: 0.86rem;
 }
 
 .inference-grid {
@@ -357,7 +464,14 @@ th {
 
   .inference-grid,
   .kpi-row,
+  .overview-kpis,
+  .overview-grid,
   .endpoint-meta {
     grid-template-columns: 1fr;
+  }
+
+  .overview-fact {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
   }
 }

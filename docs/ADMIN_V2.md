@@ -268,6 +268,8 @@ from those records.
 2. Overview + Inference foundation
    - show auth/session status, service health, current build, container status,
      and endpoint probes
+   - start with a read-only Overview page in React that aggregates admin status,
+     dataset status, jobs, and inference endpoint health
    - read model ids from configured dynamic endpoints
    - support add/remove endpoint records and stored or environment-backed API
      keys

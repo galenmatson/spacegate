@@ -150,6 +150,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Admin v2 architecture documented (`docs/ADMIN_V2.md`)
 - [x] Admin v2 React/Vite shell scaffolded at `/admin/`
+- [x] Admin v2 React Overview page with status/jobs/inference health summary
 - [ ] Retire embedded FastAPI Admin UI after React workspace parity
 - [x] Admin v2 dynamic inference endpoint registry (add/remove endpoints, auth modes, model polling, usage stats API)
 - [ ] Admin v2 Inference workspace role/model routing and eval report history
