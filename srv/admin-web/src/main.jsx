@@ -442,6 +442,8 @@ function App() {
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
           <OperationsScreen csrf={csrf} />
+        ) : activeScreen === "agency" ? (
+          <AgencyScreen />
         ) : (
           <PlaceholderScreen name={activeScreen} />
         )}
@@ -1430,6 +1432,336 @@ function spectralColor(value) {
     D: "#94a3b8",
   };
   return colors[key] || "#64748b";
+}
+
+function AgencyScreen() {
+  const [activeTab, setActiveTab] = useState("portfolios");
+  const [state, setState] = useState({ loading: true, data: null, message: "Loading agency status..." });
+
+  async function loadAgency() {
+    setState((current) => ({ ...current, loading: true, message: "Refreshing agency status..." }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/status`);
+    if (!response.ok) {
+      setState({ loading: false, data: null, message: `Agency status: ${compactError(data, response.status)}` });
+      return;
+    }
+    setState({ loading: false, data, message: "Ready" });
+  }
+
+  useEffect(() => {
+    loadAgency();
+  }, []);
+
+  const data = state.data || {};
+  const readiness = data.readiness || {};
+  const evalReports = data.eval_reports || {};
+  const liveCounts = readiness.live_counts || {};
+  const anomalies = Array.isArray(evalReports.anomaly_inbox) ? evalReports.anomaly_inbox : [];
+  const reports = Array.isArray(evalReports.reports) ? evalReports.reports : [];
+  const kpis = [
+    { label: "Portfolio rows", value: formatInt(liveCounts.object_dossiers), tone: liveCounts.object_dossiers ? "ok" : "warn" },
+    { label: "Source files", value: formatInt(liveCounts.source_documents), tone: liveCounts.source_documents ? "ok" : "warn" },
+    { label: "Findings", value: formatInt(liveCounts.extracted_claims), tone: liveCounts.extracted_claims ? "ok" : "warn" },
+    { label: "Anomalies", value: formatInt(evalReports.anomaly_count || anomalies.length), tone: anomalies.length ? "warn" : "" },
+  ];
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div>
+          <h1>Agency</h1>
+          <p className="muted">Evidence portfolios, agent workflow readiness, quarantined anomalies, and the future conversation workbench.</p>
+        </div>
+        <button className="button" onClick={loadAgency}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+      </header>
+
+      <div className="kpi-row">
+        {kpis.map((item) => (
+          <div className={`kpi ${item.tone || ""}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>
+        {state.message} Portfolio persistence: {readiness.portfolio_persistence_ready ? "ready" : "not live"} | Generated: {formatDate(data.generated_at_utc)}
+      </div>
+
+      <section className="agency-grid">
+        <div className="panel">
+          <h2>Evidence Portfolio Model</h2>
+          <MetricList
+            rows={[
+              ["Hot rows", data.storage_model?.hot_layer || "disc dossier, source, extraction, finding, citation, factsheet, and exposition rows"],
+              ["Proposal layer", data.storage_model?.proposal_layer || "arm proposal and accepted overlay rows"],
+              ["Cold archive", data.storage_model?.cold_archive || "/mnt/space/spacegate/agent_archive"],
+              ["Core policy", data.storage_model?.core_policy || "agents never write directly to core"],
+            ]}
+          />
+        </div>
+        <div className="panel">
+          <h2>Readiness</h2>
+          <MetricList
+            rows={[
+              ["Persistence", readiness.portfolio_persistence_ready ? "ready" : "not live"],
+              ["Implemented disc tables", (readiness.implemented_disc_tables || []).join(", ") || "none"],
+              ["Missing disc tables", (readiness.missing_disc_tables || []).join(", ") || "none"],
+              ["Eval reports", `${formatInt(evalReports.report_count)} reports found`],
+            ]}
+          />
+          {Array.isArray(readiness.notes) && readiness.notes.length ? (
+            <div className="hint-list agency-notes">
+              {readiness.notes.map((note) => <div key={note}>{note}</div>)}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="tab-row">
+        {[
+          ["portfolios", "Portfolio Flow"],
+          ["anomalies", "Anomaly Inbox"],
+          ["reports", "Eval Reports"],
+          ["storage", "Storage Readiness"],
+          ["interaction", "Agent Interaction"],
+        ].map(([key, label]) => (
+          <button className={activeTab === key ? "active" : ""} key={key} onClick={() => setActiveTab(key)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "portfolios" ? (
+        <AgencyPortfolioFlowTab stages={data.workflow_stages || []} />
+      ) : activeTab === "anomalies" ? (
+        <AgencyAnomalyTab anomalies={anomalies} />
+      ) : activeTab === "reports" ? (
+        <AgencyReportsTab reports={reports} searchedDirs={evalReports.searched_dirs || []} />
+      ) : activeTab === "storage" ? (
+        <AgencyStorageTab data={data} />
+      ) : (
+        <AgencyInteractionTab model={data.interaction_model || {}} />
+      )}
+    </div>
+  );
+}
+
+function AgencyPortfolioFlowTab({ stages }) {
+  const fallback = [
+    { key: "seeded", title: "Seeded", description: "Queued target object.", predecessor: null, successor: "gathering" },
+    { key: "gathering", title: "Gathering", description: "Collect source files.", predecessor: "seeded", successor: "extracted" },
+    { key: "extracted", title: "Extracted", description: "Findings exist.", predecessor: "gathering", successor: "review_ready" },
+    { key: "review_ready", title: "Review Ready", description: "Proposals need verdicts.", predecessor: "extracted", successor: "published" },
+  ];
+  const rows = stages.length ? stages : fallback;
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>Portfolio Flow</h2>
+          <p className="muted">Sequential states for object-level evidence cases. Blocked can happen from any state when source, schema, identity, or review prerequisites are missing.</p>
+        </div>
+      </div>
+      <div className="agency-stage-grid">
+        {rows.map((stage, index) => (
+          <div className="agency-stage" key={stage.key || stage.title}>
+            <div className="agency-stage-index">{index + 1}</div>
+            <div>
+              <h3>{stage.title || actionLabel(stage.key)}</h3>
+              <p>{stage.description}</p>
+              <div className="action-meta">
+                <span className="badge muted">from {stage.predecessor || "start/any"}</span>
+                <span className="badge muted">next {stage.successor || "operator decision"}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AgencyAnomalyTab({ anomalies }) {
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>Anomaly Inbox</h2>
+          <p className="muted">Quarantined eval findings. These are review signals, not accepted science or public claims.</p>
+        </div>
+        <span className="badge warn">{formatInt(anomalies.length)} shown</span>
+      </div>
+      {anomalies.length ? (
+        <table>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Type</th>
+              <th>Subject</th>
+              <th>Case / model</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {anomalies.map((item, index) => (
+              <tr key={`${item.report_id}-${item.case_id}-${index}`}>
+                <td><span className={`badge ${item.severity === "high" ? "danger" : item.severity === "medium" ? "warn" : "muted"}`}>{item.severity || "n/a"}</span></td>
+                <td>{item.anomaly_type || "n/a"}</td>
+                <td>{item.subject || "n/a"}</td>
+                <td>
+                  <strong>{item.case_id || "n/a"}</strong>
+                  <span className="table-subtext">{item.provider || "?"} / {item.model_id || "?"}</span>
+                </td>
+                <td>
+                  {item.summary || ""}
+                  {item.recommended_next_action ? <span className="table-subtext">next: {item.recommended_next_action}</span> : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="empty">No anomaly inbox items were found in the searched eval reports. That can mean no reports are mounted into the runtime, or no run emitted quarantined anomalies.</div>
+      )}
+    </section>
+  );
+}
+
+function AgencyReportsTab({ reports, searchedDirs }) {
+  return (
+    <div className="runbook-grid">
+      <section className="panel">
+        <h2>Eval Report Locations</h2>
+        <KeyValueTable rows={(searchedDirs || []).map((item) => [item.path, item.exists ? "found" : "missing"])} columns={["Path", "Status"]} />
+      </section>
+      <section className="panel">
+        <h2>Latest Eval Reports</h2>
+        {reports.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Report</th>
+                <th>Provider / model</th>
+                <th>Score</th>
+                <th>Cases</th>
+                <th>Anomalies</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map((report) => (
+                <tr key={report.report_id}>
+                  <td>
+                    <strong>{report.report_id}</strong>
+                    <span className="table-subtext">{formatDate(report.created_at || report.mtime_utc)}</span>
+                  </td>
+                  <td>
+                    {report.provider || "n/a"} / {report.model_id || "n/a"}
+                    <span className="table-subtext">{(report.roles || []).join(", ") || "roles n/a"}</span>
+                  </td>
+                  <td>{formatFloat(toNumber(report.mean_score, NaN), 3)}</td>
+                  <td>{formatInt(report.case_count)}</td>
+                  <td>{formatInt(report.anomaly_count)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">No eval report JSON files were found in the runtime report locations.</div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function AgencyStorageTab({ data }) {
+  const disc = data.disc || {};
+  const arm = data.arm || {};
+  return (
+    <section className="agency-grid">
+      <div className="panel">
+        <h2>Disc Portfolio Tables</h2>
+        <AgencyTableReadiness expected={disc.expected || {}} />
+      </div>
+      <div className="panel">
+        <h2>Arm Evidence Signals</h2>
+        <AgencyTableReadiness expected={arm.expected || {}} />
+      </div>
+      <div className="panel">
+        <h2>Disc Runtime Tables</h2>
+        <div className="report-chip-list">
+          {(disc.tables || []).map((name) => <span className="badge" key={name}>{name}</span>)}
+        </div>
+        {disc.error ? <p className="notice">{disc.error}</p> : null}
+      </div>
+      <div className="panel">
+        <h2>Paths</h2>
+        <MetricList rows={Object.entries(data.paths || {}).map(([key, value]) => [key, String(value || "n/a")])} />
+      </div>
+    </section>
+  );
+}
+
+function AgencyTableReadiness({ expected }) {
+  const rows = Object.entries(expected || {});
+  if (!rows.length) return <div className="empty">No table readiness data is available.</div>;
+  return (
+    <table>
+      <thead>
+        <tr><th>Table</th><th>Status</th><th>Rows</th></tr>
+      </thead>
+      <tbody>
+        {rows.map(([name, item]) => (
+          <tr key={name}>
+            <td>{name}</td>
+            <td><span className={`badge ${item.exists ? "ok" : "warn"}`}>{item.exists ? "present" : "missing"}</span></td>
+            <td>{item.count === null || item.count === undefined ? "n/a" : formatInt(item.count)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function AgencyInteractionTab({ model }) {
+  const features = Array.isArray(model.minimum_features) ? model.minimum_features : [];
+  const sidecars = Array.isArray(model.possible_sidecars) ? model.possible_sidecars : [];
+  return (
+    <section className="agency-grid">
+      <div className="panel">
+        <h2>Recommendation</h2>
+        <MetricList
+          rows={[
+            ["Approach", model.recommended || "Build a Spacegate-native portfolio conversation workbench."],
+            ["Reason", model.why || "The agent conversation needs source, claim, proposal, review, journal, and layer context."],
+            ["Default mode", "read-only Q&A against selected portfolio context"],
+            ["Mutation path", "explicit proposal or review action, never freeform core edits"],
+          ]}
+        />
+      </div>
+      <div className="panel">
+        <h2>Minimum Workbench Features</h2>
+        <div className="hint-list">
+          {features.map((feature) => <div key={feature}>{feature}</div>)}
+        </div>
+      </div>
+      <div className="panel">
+        <h2>Free Sidecar Candidates</h2>
+        <p className="muted">Useful references or optional local chat clients, but not a replacement for Spacegate’s evidence and review state.</p>
+        <div className="report-chip-list">
+          {sidecars.map((item) => <span className="badge" key={item}>{item}</span>)}
+        </div>
+      </div>
+      <div className="panel">
+        <h2>Context Boundary</h2>
+        <div className="trap-list">
+          <div>Every chat turn should name the portfolio, selected sources, selected findings, model id, prompt version, and token budget.</div>
+          <div>Agent answers should cite source/finding IDs or say that evidence is missing.</div>
+          <div>Useful exchanges should become journal entries so a human or later LLM can follow the evidence trail.</div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function OperationsScreen({ csrf }) {

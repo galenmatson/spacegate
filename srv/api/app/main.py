@@ -2084,6 +2084,284 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
     return payload
 
 
+AGENCY_WORKFLOW_STAGES: List[Dict[str, Any]] = [
+    {
+        "key": "seeded",
+        "title": "Seeded",
+        "description": "A target object has been queued from coolness, adjudication candidates, stale sources, or operator request.",
+        "predecessor": None,
+        "successor": "gathering",
+    },
+    {
+        "key": "gathering",
+        "title": "Gathering",
+        "description": "Allowlisted source material is being discovered, retrieved, archived, hashed, and attached as Source Files.",
+        "predecessor": "seeded",
+        "successor": "extracted",
+    },
+    {
+        "key": "extracted",
+        "title": "Extracted",
+        "description": "Extraction Sets and narrow Findings exist, but review has not accepted them for use.",
+        "predecessor": "gathering",
+        "successor": "review_ready",
+    },
+    {
+        "key": "review_ready",
+        "title": "Review Ready",
+        "description": "Findings and Proposals have enough evidence for deterministic checks, adversarial review, and human verdicts.",
+        "predecessor": "extracted",
+        "successor": "published",
+    },
+    {
+        "key": "published",
+        "title": "Published",
+        "description": "Accepted overlays, factsheets, expositions, or citations are available from reviewed arm/disc surfaces.",
+        "predecessor": "review_ready",
+        "successor": "stale",
+    },
+    {
+        "key": "stale",
+        "title": "Stale",
+        "description": "Source set, canonical object state, or model/prompt policy changed enough to require refresh.",
+        "predecessor": "published",
+        "successor": "gathering",
+    },
+    {
+        "key": "blocked",
+        "title": "Blocked",
+        "description": "The portfolio needs missing source access, schema review, identity resolution, model routing, or human decision.",
+        "predecessor": None,
+        "successor": None,
+    },
+]
+
+
+AGENCY_DISC_TABLES = [
+    "object_dossiers",
+    "source_documents",
+    "claim_bundles",
+    "extracted_claims",
+    "source_evidence_links",
+    "factsheets",
+    "expositions",
+]
+
+
+AGENCY_ARM_SIGNALS = [
+    "orbital_solutions",
+    "component_entities",
+    "system_hierarchy_edges",
+    "orbit_edges",
+    "stellar_parameters",
+]
+
+
+def _utc_from_timestamp(ts: float) -> str:
+    return datetime.datetime.utcfromtimestamp(ts).replace(microsecond=0).isoformat() + "Z"
+
+
+def _duckdb_table_counts(db_path: Path, expected_tables: List[str]) -> Dict[str, Any]:
+    output: Dict[str, Any] = {
+        "path": str(db_path),
+        "exists": db_path.exists(),
+        "tables": [],
+        "expected": {},
+    }
+    if not db_path.exists():
+        output["expected"] = {name: {"exists": False, "count": None} for name in expected_tables}
+        return output
+    con = None
+    try:
+        con = duckdb.connect(str(db_path), read_only=True)
+        tables = [
+            str(row[0])
+            for row in con.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' ORDER BY table_name"
+            ).fetchall()
+        ]
+        output["tables"] = tables
+        table_set = set(tables)
+        expected: Dict[str, Any] = {}
+        for table_name in expected_tables:
+            if table_name not in table_set:
+                expected[table_name] = {"exists": False, "count": None}
+                continue
+            try:
+                row = con.execute(f"SELECT COUNT(*)::bigint FROM {table_name}").fetchone()
+                expected[table_name] = {"exists": True, "count": int((row or [0])[0] or 0)}
+            except Exception as exc:
+                expected[table_name] = {"exists": True, "count": None, "error": str(exc)}
+        output["expected"] = expected
+        return output
+    except Exception as exc:
+        output["error"] = str(exc)
+        output["expected"] = {name: {"exists": False, "count": None} for name in expected_tables}
+        return output
+    finally:
+        if con is not None:
+            con.close()
+
+
+def _agent_eval_report_dirs(state_dir: Path) -> List[Path]:
+    candidates = [
+        state_dir / "reports" / "agent_eval",
+        ROOT_DIR / "reports" / "agent_eval",
+    ]
+    seen: set[str] = set()
+    output: List[Path] = []
+    for path in candidates:
+        key = str(path.resolve()) if path.exists() else str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        output.append(path)
+    return output
+
+
+def _agent_eval_report_summary(path: Path) -> Dict[str, Any]:
+    payload = _read_json_file(path)
+    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    results = payload.get("results") if isinstance(payload.get("results"), list) else []
+    roles: set[str] = set()
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        for role in result.get("roles") or []:
+            if role:
+                roles.add(str(role))
+        role_under_test = result.get("role_under_test")
+        if role_under_test:
+            roles.add(str(role_under_test))
+    return {
+        "report_id": path.stem,
+        "path": str(path),
+        "mtime_utc": _utc_from_timestamp(path.stat().st_mtime),
+        "created_at": payload.get("created_at"),
+        "provider": payload.get("provider"),
+        "model_id": payload.get("model_id"),
+        "prompt_version": payload.get("prompt_version"),
+        "harness_version": payload.get("harness_version"),
+        "aborted_reason": payload.get("aborted_reason"),
+        "roles": sorted(roles),
+        "case_count": int(summary.get("case_count") or len(results) or 0),
+        "mean_score": summary.get("mean_score"),
+        "schema_valid_rate": summary.get("schema_valid_rate"),
+        "anomaly_count": int(summary.get("anomaly_count") or 0),
+        "summary": summary,
+    }
+
+
+def _list_agent_eval_reports(state_dir: Path, limit: int = 12) -> Dict[str, Any]:
+    dirs = _agent_eval_report_dirs(state_dir)
+    reports: List[Dict[str, Any]] = []
+    anomalies: List[Dict[str, Any]] = []
+    for directory in dirs:
+        if not directory.exists() or not directory.is_dir():
+            continue
+        for path in directory.glob("agent_eval_*.json"):
+            try:
+                report = _agent_eval_report_summary(path)
+            except Exception:
+                continue
+            reports.append(report)
+            inbox = ((report.get("summary") or {}).get("anomaly_inbox") or [])
+            if isinstance(inbox, list):
+                for item in inbox:
+                    if not isinstance(item, dict):
+                        continue
+                    anomalies.append(
+                        {
+                            "report_id": report["report_id"],
+                            "created_at": report.get("created_at"),
+                            "provider": report.get("provider"),
+                            "model_id": report.get("model_id"),
+                            "case_id": item.get("case_id"),
+                            "anomaly_type": item.get("anomaly_type"),
+                            "severity": item.get("severity"),
+                            "subject": item.get("subject"),
+                            "summary": item.get("summary"),
+                            "recommended_next_action": item.get("recommended_next_action"),
+                            "status": "quarantined",
+                        }
+                    )
+    reports.sort(key=lambda row: str(row.get("created_at") or row.get("mtime_utc") or ""), reverse=True)
+    anomalies.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+    return {
+        "searched_dirs": [{"path": str(path), "exists": path.exists()} for path in dirs],
+        "reports": reports[:limit],
+        "report_count": len(reports),
+        "anomaly_inbox": anomalies[:50],
+        "anomaly_count": len(anomalies),
+    }
+
+
+def _agency_status_payload() -> Dict[str, Any]:
+    state_dir = _state_dir().resolve()
+    core_db_path = Path(db.get_db_path()).resolve()
+    disc_db_path = core_db_path.with_name("disc.duckdb")
+    arm_db_path = core_db_path.with_name("arm.duckdb")
+    disc = _duckdb_table_counts(disc_db_path, AGENCY_DISC_TABLES)
+    arm = _duckdb_table_counts(arm_db_path, AGENCY_ARM_SIGNALS)
+    eval_reports = _list_agent_eval_reports(state_dir)
+    expected = disc.get("expected") or {}
+    live_portfolio_tables = {
+        name: expected.get(name, {"exists": False, "count": None})
+        for name in ["object_dossiers", "source_documents", "claim_bundles", "extracted_claims"]
+    }
+    live_counts = {
+        name: int(value.get("count") or 0)
+        for name, value in live_portfolio_tables.items()
+        if value.get("exists") and value.get("count") is not None
+    }
+    persistence_ready = all((expected.get(name) or {}).get("exists") for name in live_portfolio_tables)
+    return {
+        "status": "ok",
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "paths": {
+            "state_dir": str(state_dir),
+            "core_db_path": str(core_db_path),
+            "disc_db_path": str(disc_db_path),
+            "arm_db_path": str(arm_db_path),
+            "bulk_archive_root": "/mnt/space/spacegate/agent_archive",
+        },
+        "workflow_stages": AGENCY_WORKFLOW_STAGES,
+        "storage_model": {
+            "hot_layer": "disc normalized rows for dossiers, source files, extraction sets, findings, citations, factsheets, and expositions",
+            "proposal_layer": "arm proposal/overlay rows for accepted supplemental science and adjudication candidates",
+            "cold_archive": "/mnt/space/spacegate/agent_archive for compressed dossier packages and bulky source snapshots",
+            "core_policy": "agents never write directly to core",
+        },
+        "readiness": {
+            "portfolio_persistence_ready": persistence_ready,
+            "live_counts": live_counts,
+            "missing_disc_tables": [name for name in AGENCY_DISC_TABLES if not (expected.get(name) or {}).get("exists")],
+            "implemented_disc_tables": [name for name in AGENCY_DISC_TABLES if (expected.get(name) or {}).get("exists")],
+            "notes": [
+                "This endpoint is read-only and does not create agent/dossier state.",
+                "Eval report anomalies are quarantine signals, not accepted science.",
+                "Portfolio chat should be scoped to retrieved sources, extraction sets, findings, proposals, and journal entries.",
+            ],
+        },
+        "disc": disc,
+        "arm": arm,
+        "eval_reports": eval_reports,
+        "interaction_model": {
+            "recommended": "Build a Spacegate-native portfolio conversation workbench.",
+            "why": "Generic chat tools do not understand Spacegate layer ownership, claim/proposal state, source allowlists, or citation obligations.",
+            "minimum_features": [
+                "portfolio-scoped context assembly",
+                "visible source/finding/proposal selectors",
+                "bounded prompts and recorded prompt/runtime metadata",
+                "read-only agent Q&A by default",
+                "explicit proposal creation instead of direct core edits",
+                "journal entry for each meaningful exchange",
+            ],
+            "possible_sidecars": ["Open WebUI", "LibreChat", "AnythingLLM", "Dify"],
+        },
+    }
+
+
 @admin_router.get("/status")
 def admin_status(request: Request):
     user = auth.require_admin(request)
@@ -2111,6 +2389,12 @@ def admin_dataset_status(
 ):
     auth.require_admin(request)
     return _dataset_status_payload(force_refresh=bool(refresh))
+
+
+@admin_router.get("/agency/status")
+def admin_agency_status(request: Request):
+    auth.require_admin(request)
+    return _agency_status_payload()
 
 
 @admin_router.post("/dataset/slice/preview")

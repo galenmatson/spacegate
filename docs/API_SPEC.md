@@ -241,6 +241,23 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /admin/agency/status
+Returns a read-only Admin v2 agency summary.
+
+Includes:
+- Evidence Portfolio workflow stages and predecessor/successor relationships
+- disc/arm table readiness for dossier, source-file, extraction-set, finding,
+  citation, factsheet, exposition, and proposal-support surfaces
+- latest agent eval report summaries and quarantined anomaly inbox items found
+  in runtime report locations
+- storage model guidance for hot normalized rows and cold dossier archives
+- recommended portfolio-scoped agent interaction model
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
 ### POST /admin/actions/run
 Starts an allowlisted admin action as a background job.
 

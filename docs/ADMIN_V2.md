@@ -446,6 +446,9 @@ from those records.
      Findings, Proposals, Review, and Journal Entry
    - start with read-only/mock or report-backed data where production tables do
      not exist yet
+   - first pass exposes `/api/v2/admin/agency/status` and a React Agency shell
+     for workflow stages, storage readiness, eval reports, anomaly inbox, and
+     the portfolio-scoped interaction model
 
 6. Work queue and journal persistence
    - seed portfolios from coolness/adjudication queues

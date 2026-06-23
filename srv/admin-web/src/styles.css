@@ -376,6 +376,53 @@ h3 {
   align-items: start;
 }
 
+.agency-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(380px, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.agency-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.7rem;
+}
+
+.agency-stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 0.7rem;
+}
+
+.agency-stage p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.agency-stage-index {
+  width: 1.65rem;
+  height: 1.65rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--brand);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.agency-notes {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+}
+
 .narrative-list {
   display: grid;
   gap: 0.38rem;
@@ -856,6 +903,7 @@ th {
   .overview-grid,
   .builds-grid,
   .dataset-grid,
+  .agency-grid,
   .runbook-head,
   .jobs-layout,
   .audit-layout,
