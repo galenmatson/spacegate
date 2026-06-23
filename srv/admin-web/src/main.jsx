@@ -2836,6 +2836,7 @@ function PlaceholderScreen({ name }) {
 function InferenceScreen({ csrf }) {
   const [endpoints, setEndpoints] = useState([]);
   const [stats, setStats] = useState([]);
+  const [evalReports, setEvalReports] = useState(null);
   const [form, setForm] = useState(emptyEndpointForm);
   const [status, setStatus] = useState("Loading registry...");
   const [busyEndpoint, setBusyEndpoint] = useState(null);
@@ -2851,9 +2852,10 @@ function InferenceScreen({ csrf }) {
 
   async function loadInference() {
     setStatus("Refreshing registry...");
-    const [endpointResult, statsResult] = await Promise.all([
+    const [endpointResult, statsResult, evalResult] = await Promise.all([
       fetchJson(`${ADMIN_API_BASE}/inference/endpoints`),
       fetchJson(`${ADMIN_API_BASE}/inference/stats`),
+      fetchJson(`${ADMIN_API_BASE}/inference/eval-reports?limit=24`),
     ]);
     if (!endpointResult.response.ok) {
       setStatus(compactError(endpointResult.data, endpointResult.response.status));
@@ -2885,6 +2887,11 @@ function InferenceScreen({ csrf }) {
     });
     if (statsResult.response.ok) {
       setStats(Array.isArray(statsResult.data.items) ? statsResult.data.items : []);
+    }
+    if (evalResult.response.ok) {
+      setEvalReports(evalResult.data);
+    } else {
+      setEvalReports({ reports: [], role_summary: [], anomaly_inbox: [], searched_dirs: [], error: compactError(evalResult.data, evalResult.response.status) });
     }
     setStatus("Ready");
   }
@@ -3039,13 +3046,15 @@ function InferenceScreen({ csrf }) {
     const enabled = endpoints.filter((item) => item.enabled).length;
     const modelCount = endpoints.reduce((total, item) => total + (Array.isArray(item.models) ? item.models.length : 0), 0);
     const ready = endpoints.filter((item) => item.last_probe?.status === "ok").length;
+    const reportCount = Number(evalReports?.report_count || 0);
     return [
       { label: "Endpoints", value: endpoints.length },
       { label: "Enabled", value: enabled },
       { label: "Healthy probes", value: ready },
       { label: "Cached models", value: modelCount },
+      { label: "Eval reports", value: reportCount },
     ];
-  }, [endpoints]);
+  }, [endpoints, evalReports]);
 
   return (
     <div className="screen">
@@ -3085,6 +3094,7 @@ function InferenceScreen({ csrf }) {
         />
       </section>
 
+      <InferenceEvalReports evalReports={evalReports} />
       <UsageStats stats={stats} />
     </div>
   );
@@ -3353,6 +3363,148 @@ function ModelTable({ models }) {
         </tbody>
       </table>
     </details>
+  );
+}
+
+function InferenceEvalReports({ evalReports }) {
+  const reports = Array.isArray(evalReports?.reports) ? evalReports.reports : [];
+  const roleSummary = Array.isArray(evalReports?.role_summary) ? evalReports.role_summary : [];
+  const anomalies = Array.isArray(evalReports?.anomaly_inbox) ? evalReports.anomaly_inbox : [];
+  const searchedDirs = Array.isArray(evalReports?.searched_dirs) ? evalReports.searched_dirs : [];
+  const sortedRoles = [...roleSummary].sort((a, b) => {
+    const ai = inferenceRoles.indexOf(a.role);
+    const bi = inferenceRoles.indexOf(b.role);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi) || String(a.role).localeCompare(String(b.role));
+  });
+  return (
+    <section className="panel inference-evals">
+      <div className="panel-head">
+        <div>
+          <h2>Eval Report History</h2>
+          <p className="muted">Read-only model suitability signals from agent eval reports. Eval output is experimental and does not mutate science layers.</p>
+        </div>
+        <span className="badge">{formatInt(evalReports?.report_count || reports.length)} reports</span>
+      </div>
+      {evalReports?.error ? <div className="status-line danger-line">{evalReports.error}</div> : null}
+      <div className="report-chip-list">
+        {searchedDirs.map((item) => (
+          <span className={`badge ${item.exists ? "ok" : "muted"}`} key={item.path}>{item.exists ? "found" : "missing"}: {item.path}</span>
+        ))}
+      </div>
+      <div className="inference-eval-grid">
+        <div>
+          <h3>Role Suitability</h3>
+          {sortedRoles.length ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Best candidate</th>
+                  <th>Score</th>
+                  <th>Schema</th>
+                  <th>Cases</th>
+                  <th>Latest run</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRoles.map((item) => {
+                  const best = item.best_candidate || {};
+                  const latest = item.latest_candidate || {};
+                  return (
+                    <tr key={item.role}>
+                      <td><strong>{item.role}</strong></td>
+                      <td>
+                        {best.provider || "n/a"} / {best.model_id || "n/a"}
+                        <span className="table-subtext">{best.report_id || "no report"}</span>
+                      </td>
+                      <td>{best.mean_score == null ? "n/a" : formatFloat(toNumber(best.mean_score, NaN), 3)}</td>
+                      <td>{best.schema_valid_rate == null ? "n/a" : `${formatFloat(toNumber(best.schema_valid_rate, NaN) * 100, 1)}%`}</td>
+                      <td>{formatInt(best.case_count)}</td>
+                      <td>
+                        {formatDate(latest.created_at)}
+                        <span className="table-subtext">{latest.provider || "n/a"} / {latest.model_id || "n/a"}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty">No role-scored eval reports were found. Run `scripts/agent_eval.py run --provider local --model MODEL_ID --role extract` to generate report history.</div>
+          )}
+        </div>
+        <div>
+          <h3>Latest Reports</h3>
+          {reports.length ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Report</th>
+                  <th>Provider / model</th>
+                  <th>Roles</th>
+                  <th>Score</th>
+                  <th>Anomalies</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.slice(0, 10).map((report) => (
+                  <tr key={report.report_id}>
+                    <td>
+                      <strong>{report.report_id}</strong>
+                      <span className="table-subtext">{formatDate(report.created_at || report.mtime_utc)}</span>
+                    </td>
+                    <td>
+                      {report.provider || "n/a"} / {report.model_id || "n/a"}
+                      <span className="table-subtext">{report.prompt_version || "prompt n/a"}</span>
+                    </td>
+                    <td>{(report.roles || []).join(", ") || "n/a"}</td>
+                    <td>{report.mean_score == null ? "n/a" : formatFloat(toNumber(report.mean_score, NaN), 3)}</td>
+                    <td>{formatInt(report.anomaly_count)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty">No eval reports were found in the searched report directories.</div>
+          )}
+        </div>
+      </div>
+      <details className="models">
+        <summary>Anomaly Inbox ({formatInt(anomalies.length)})</summary>
+        {anomalies.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Type</th>
+                <th>Subject</th>
+                <th>Case / model</th>
+                <th>Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {anomalies.map((item, index) => (
+                <tr key={`${item.report_id}-${item.case_id}-${index}`}>
+                  <td><span className={`badge ${item.severity === "high" ? "danger" : item.severity === "medium" ? "warn" : "muted"}`}>{item.severity || "n/a"}</span></td>
+                  <td>{item.anomaly_type || "n/a"}</td>
+                  <td>{item.subject || "n/a"}</td>
+                  <td>
+                    <strong>{item.case_id || "n/a"}</strong>
+                    <span className="table-subtext">{item.provider || "?"} / {item.model_id || "?"}</span>
+                  </td>
+                  <td>
+                    {item.summary || ""}
+                    {item.recommended_next_action ? <span className="table-subtext">next: {item.recommended_next_action}</span> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">No quarantined anomalies were found in the latest eval reports.</div>
+        )}
+      </details>
+    </section>
   );
 }
 

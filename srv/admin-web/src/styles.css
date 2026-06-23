@@ -929,6 +929,18 @@ textarea {
   margin-top: 0.65rem;
 }
 
+.inference-evals {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.inference-eval-grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -982,6 +994,9 @@ th {
   .jobs-layout,
   .audit-layout,
   .filter-grid,
+  .inference-eval-grid,
+  .role-grid,
+  .smoke-grid,
   .endpoint-meta {
     grid-template-columns: 1fr;
   }

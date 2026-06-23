@@ -427,7 +427,8 @@ from those records.
      `identify`, `extract`, `criticize`, `adjudicate`, and `narrate`
    - run bounded endpoint smoke tests that record usage telemetry without
      persisting prompt text
-   - show recent eval reports
+   - show recent eval reports, role-suitability summaries, and quarantined
+     anomaly inbox items
 
 3. Operations + Audit migration
    - migrate action launcher, job queue, selected job log, backups, and audit

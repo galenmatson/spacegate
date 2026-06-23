@@ -2772,6 +2772,63 @@ def _agent_eval_report_dirs(state_dir: Path) -> List[Path]:
     return output
 
 
+def _agent_eval_role_summary(results: List[Any]) -> List[Dict[str, Any]]:
+    buckets: Dict[str, Dict[str, Any]] = {}
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        role_tokens: List[str] = []
+        role_under_test = str(result.get("role_under_test") or "").strip()
+        if role_under_test:
+            role_tokens.append(role_under_test)
+        else:
+            for role in result.get("roles") or []:
+                token = str(role or "").strip()
+                if token:
+                    role_tokens.append(token)
+        score_payload = result.get("score") if isinstance(result.get("score"), dict) else {}
+        score_value = score_payload.get("score")
+        try:
+            score_float = float(score_value) if score_value is not None else None
+        except (TypeError, ValueError):
+            score_float = None
+        schema_valid = score_payload.get("schema_valid")
+        for role in sorted(set(role_tokens)):
+            bucket = buckets.setdefault(
+                role,
+                {
+                    "role": role,
+                    "case_count": 0,
+                    "score_sum": 0.0,
+                    "score_count": 0,
+                    "schema_valid_count": 0,
+                    "schema_valid_observed": 0,
+                },
+            )
+            bucket["case_count"] += 1
+            if score_float is not None:
+                bucket["score_sum"] += score_float
+                bucket["score_count"] += 1
+            if schema_valid is not None:
+                bucket["schema_valid_observed"] += 1
+                if bool(schema_valid):
+                    bucket["schema_valid_count"] += 1
+    output: List[Dict[str, Any]] = []
+    for role, bucket in buckets.items():
+        score_count = int(bucket["score_count"] or 0)
+        schema_count = int(bucket["schema_valid_observed"] or 0)
+        output.append(
+            {
+                "role": role,
+                "case_count": int(bucket["case_count"] or 0),
+                "mean_score": round(float(bucket["score_sum"]) / score_count, 4) if score_count else None,
+                "schema_valid_rate": round(float(bucket["schema_valid_count"]) / schema_count, 4) if schema_count else None,
+            }
+        )
+    output.sort(key=lambda item: item["role"])
+    return output
+
+
 def _agent_eval_report_summary(path: Path) -> Dict[str, Any]:
     payload = _read_json_file(path)
     summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
@@ -2801,6 +2858,7 @@ def _agent_eval_report_summary(path: Path) -> Dict[str, Any]:
         "mean_score": summary.get("mean_score"),
         "schema_valid_rate": summary.get("schema_valid_rate"),
         "anomaly_count": int(summary.get("anomaly_count") or 0),
+        "role_summary": _agent_eval_role_summary(results),
         "summary": summary,
     }
 
@@ -2809,6 +2867,7 @@ def _list_agent_eval_reports(state_dir: Path, limit: int = 12) -> Dict[str, Any]
     dirs = _agent_eval_report_dirs(state_dir)
     reports: List[Dict[str, Any]] = []
     anomalies: List[Dict[str, Any]] = []
+    role_candidates: Dict[str, List[Dict[str, Any]]] = {}
     for directory in dirs:
         if not directory.exists() or not directory.is_dir():
             continue
@@ -2818,6 +2877,28 @@ def _list_agent_eval_reports(state_dir: Path, limit: int = 12) -> Dict[str, Any]
             except Exception:
                 continue
             reports.append(report)
+            for role_summary in report.get("role_summary") or []:
+                if not isinstance(role_summary, dict):
+                    continue
+                role = str(role_summary.get("role") or "").strip()
+                if not role:
+                    continue
+                role_candidates.setdefault(role, []).append(
+                    {
+                        "role": role,
+                        "report_id": report["report_id"],
+                        "created_at": report.get("created_at") or report.get("mtime_utc"),
+                        "provider": report.get("provider"),
+                        "model_id": report.get("model_id"),
+                        "prompt_version": report.get("prompt_version"),
+                        "harness_version": report.get("harness_version"),
+                        "aborted_reason": report.get("aborted_reason"),
+                        "case_count": int(role_summary.get("case_count") or 0),
+                        "mean_score": role_summary.get("mean_score"),
+                        "schema_valid_rate": role_summary.get("schema_valid_rate"),
+                        "report_anomaly_count": int(report.get("anomaly_count") or 0),
+                    }
+                )
             inbox = ((report.get("summary") or {}).get("anomaly_inbox") or [])
             if isinstance(inbox, list):
                 for item in inbox:
@@ -2840,10 +2921,33 @@ def _list_agent_eval_reports(state_dir: Path, limit: int = 12) -> Dict[str, Any]
                     )
     reports.sort(key=lambda row: str(row.get("created_at") or row.get("mtime_utc") or ""), reverse=True)
     anomalies.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+    role_summary: List[Dict[str, Any]] = []
+    for role, candidates in role_candidates.items():
+        candidates.sort(
+            key=lambda item: (
+                float(item["mean_score"]) if item.get("mean_score") is not None else -1.0,
+                float(item["schema_valid_rate"]) if item.get("schema_valid_rate") is not None else -1.0,
+                int(item.get("case_count") or 0),
+                str(item.get("created_at") or ""),
+            ),
+            reverse=True,
+        )
+        latest = sorted(candidates, key=lambda item: str(item.get("created_at") or ""), reverse=True)
+        role_summary.append(
+            {
+                "role": role,
+                "best_candidate": candidates[0] if candidates else None,
+                "latest_candidate": latest[0] if latest else None,
+                "candidates": candidates[:5],
+                "candidate_count": len(candidates),
+            }
+        )
+    role_summary.sort(key=lambda item: item["role"])
     return {
         "searched_dirs": [{"path": str(path), "exists": path.exists()} for path in dirs],
         "reports": reports[:limit],
         "report_count": len(reports),
+        "role_summary": role_summary,
         "anomaly_inbox": anomalies[:50],
         "anomaly_count": len(anomalies),
     }
@@ -3500,6 +3604,15 @@ def admin_inference_endpoint_smoke_test(
 def admin_inference_stats(request: Request):
     auth.require_admin(request)
     return inference_registry.usage_stats()
+
+
+@admin_router.get("/inference/eval-reports")
+def admin_inference_eval_reports(
+    request: Request,
+    limit: int = Query(default=24, ge=1, le=200),
+):
+    auth.require_admin(request)
+    return _list_agent_eval_reports(_state_dir().resolve(), limit=limit)
 
 
 @admin_router.get("/operations/status")

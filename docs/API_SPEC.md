@@ -247,6 +247,23 @@ automated because it defines the stats contract the runner must write.
 Response fields include request count, prompt/completion/total tokens, average
 latency, and last-used timestamp.
 
+### GET /admin/inference/eval-reports
+Returns read-only agent evaluation report history for model suitability review.
+
+Query params:
+- `limit` integer, default `24`, max `200`
+
+Notes:
+- Reads `agent_eval_*.json` files from runtime report locations, currently
+  `$SPACEGATE_STATE_DIR/reports/agent_eval` and repo-local `reports/agent_eval`.
+- Returns searched directories, latest reports, per-report role scores, a
+  role-suitability summary, and quarantined anomaly inbox items.
+- Eval reports are experimental model-selection evidence. They do not mutate
+  `core`, `arm`, `disc`, or any production science layer.
+
+Security:
+- Requires authenticated admin session.
+
 ### GET /admin/actions/catalog
 Returns allowlisted admin actions and parameter schemas.
 
