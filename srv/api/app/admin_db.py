@@ -231,6 +231,117 @@ CREATE TABLE IF NOT EXISTS inference_usage_events (
   FOREIGN KEY (endpoint_id) REFERENCES inference_endpoints(endpoint_id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS agent_object_dossiers (
+  dossier_id TEXT PRIMARY KEY,
+  stable_object_key TEXT NOT NULL,
+  object_type TEXT NOT NULL,
+  display_name TEXT,
+  dossier_status TEXT NOT NULL DEFAULT 'seeded',
+  queue_reason TEXT,
+  queue_priority TEXT,
+  source_build_id TEXT,
+  freshness_state TEXT NOT NULL DEFAULT 'current',
+  review_state TEXT NOT NULL DEFAULT 'unreviewed',
+  publication_state TEXT NOT NULL DEFAULT 'not_published',
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_by_user_id INTEGER,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  stale_at TEXT,
+  published_at TEXT,
+  archived_at TEXT,
+  FOREIGN KEY (created_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_source_documents (
+  source_document_id TEXT PRIMARY KEY,
+  dossier_id TEXT NOT NULL,
+  canonical_url TEXT NOT NULL,
+  source_domain TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  allowlist_tier TEXT,
+  trust_score REAL,
+  title TEXT,
+  publisher TEXT,
+  published_at TEXT,
+  accessed_at TEXT NOT NULL,
+  retrieval_status TEXT NOT NULL DEFAULT 'pending',
+  content_hash TEXT,
+  archive_path TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (dossier_id) REFERENCES agent_object_dossiers(dossier_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS agent_claim_bundles (
+  claim_bundle_id TEXT PRIMARY KEY,
+  dossier_id TEXT NOT NULL,
+  source_document_id TEXT,
+  bundle_kind TEXT NOT NULL,
+  extraction_method TEXT,
+  model_id TEXT,
+  endpoint_id INTEGER,
+  prompt_version TEXT,
+  temperature REAL,
+  token_limit INTEGER,
+  prompt_hash TEXT,
+  bundle_hash TEXT,
+  status TEXT NOT NULL DEFAULT 'created',
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (dossier_id) REFERENCES agent_object_dossiers(dossier_id) ON DELETE CASCADE,
+  FOREIGN KEY (source_document_id) REFERENCES agent_source_documents(source_document_id) ON DELETE SET NULL,
+  FOREIGN KEY (endpoint_id) REFERENCES inference_endpoints(endpoint_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_extracted_claims (
+  claim_id TEXT PRIMARY KEY,
+  dossier_id TEXT NOT NULL,
+  claim_bundle_id TEXT NOT NULL,
+  source_document_id TEXT,
+  subject_stable_key TEXT,
+  subject_label TEXT,
+  subject_resolution_mode TEXT NOT NULL DEFAULT 'ambiguous',
+  claim_family TEXT NOT NULL,
+  predicate TEXT NOT NULL,
+  value_json TEXT NOT NULL,
+  unit TEXT,
+  qualifier TEXT,
+  confidence REAL,
+  schema_fit TEXT NOT NULL DEFAULT 'schema_gap',
+  rigor_tier TEXT NOT NULL DEFAULT 'contextual',
+  review_status TEXT NOT NULL DEFAULT 'proposed',
+  citation_ids_json TEXT NOT NULL DEFAULT '[]',
+  reasoning_summary TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (dossier_id) REFERENCES agent_object_dossiers(dossier_id) ON DELETE CASCADE,
+  FOREIGN KEY (claim_bundle_id) REFERENCES agent_claim_bundles(claim_bundle_id) ON DELETE CASCADE,
+  FOREIGN KEY (source_document_id) REFERENCES agent_source_documents(source_document_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_portfolio_journal_entries (
+  journal_entry_id TEXT PRIMARY KEY,
+  dossier_id TEXT NOT NULL,
+  actor_type TEXT NOT NULL,
+  actor_id TEXT,
+  stage TEXT NOT NULL,
+  title TEXT NOT NULL,
+  narrative TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  linked_json TEXT NOT NULL DEFAULT '{}',
+  machine_payload_json TEXT NOT NULL DEFAULT '{}',
+  model_id TEXT,
+  endpoint_id INTEGER,
+  prompt_version TEXT,
+  token_usage_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (dossier_id) REFERENCES agent_object_dossiers(dossier_id) ON DELETE CASCADE,
+  FOREIGN KEY (endpoint_id) REFERENCES inference_endpoints(endpoint_id) ON DELETE SET NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at);
@@ -242,6 +353,16 @@ CREATE INDEX IF NOT EXISTS idx_inference_endpoints_enabled ON inference_endpoint
 CREATE INDEX IF NOT EXISTS idx_inference_model_endpoint ON inference_model_cache(endpoint_id);
 CREATE INDEX IF NOT EXISTS idx_inference_probes_endpoint ON inference_endpoint_probes(endpoint_id, probed_at);
 CREATE INDEX IF NOT EXISTS idx_inference_usage_endpoint_model ON inference_usage_events(endpoint_id, model_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_dossiers_status ON agent_object_dossiers(dossier_status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_agent_dossiers_object ON agent_object_dossiers(stable_object_key);
+CREATE INDEX IF NOT EXISTS idx_agent_sources_dossier ON agent_source_documents(dossier_id, accessed_at);
+CREATE INDEX IF NOT EXISTS idx_agent_sources_domain ON agent_source_documents(source_domain);
+CREATE INDEX IF NOT EXISTS idx_agent_bundles_dossier ON agent_claim_bundles(dossier_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_bundles_source ON agent_claim_bundles(source_document_id);
+CREATE INDEX IF NOT EXISTS idx_agent_claims_dossier ON agent_extracted_claims(dossier_id, review_status);
+CREATE INDEX IF NOT EXISTS idx_agent_claims_subject ON agent_extracted_claims(subject_stable_key);
+CREATE INDEX IF NOT EXISTS idx_agent_claims_predicate ON agent_extracted_claims(predicate);
+CREATE INDEX IF NOT EXISTS idx_agent_journal_dossier ON agent_portfolio_journal_entries(dossier_id, created_at);
             """
         )
         con.execute(

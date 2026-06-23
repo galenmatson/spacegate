@@ -246,8 +246,10 @@ Returns a read-only Admin v2 agency summary.
 
 Includes:
 - Evidence Portfolio workflow stages and predecessor/successor relationships
-- disc/arm table readiness for dossier, source-file, extraction-set, finding,
-  citation, factsheet, exposition, and proposal-support surfaces
+- admin operational store readiness for dossier, source-file, extraction-set,
+  finding, and journal rows
+- disc/arm table readiness for later citation, factsheet, exposition, and
+  proposal-support materialization surfaces
 - latest agent eval report summaries and quarantined anomaly inbox items found
   in runtime report locations
 - storage model guidance for hot normalized rows and cold dossier archives
@@ -257,6 +259,29 @@ Response:
 - `200` for authenticated admins.
 - `401` unauthenticated.
 - `403` authenticated non-admin.
+
+### GET /admin/agency/portfolios
+Lists Evidence Portfolio rows from the admin operational store.
+
+Query params:
+- `limit` integer, default `50`, max `200`
+- `status` optional dossier lifecycle status filter
+
+Notes:
+- Read-only.
+- Returns counts for attached Source Files, Extraction Sets, Findings, and
+  Journal Entries.
+- These rows are admin workflow state, not public served `disc` materialization.
+
+### GET /admin/agency/portfolios/{dossier_id}
+Returns one Evidence Portfolio with attached Source Files, Extraction Sets,
+Findings, and Journal Entries.
+
+Notes:
+- Read-only.
+- JSON payload fields from storage columns are parsed into structured response
+  objects.
+- Returns `404` when the portfolio does not exist.
 
 ### POST /admin/actions/run
 Starts an allowlisted admin action as a background job.

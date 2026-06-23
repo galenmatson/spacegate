@@ -1436,16 +1436,51 @@ function spectralColor(value) {
 
 function AgencyScreen() {
   const [activeTab, setActiveTab] = useState("portfolios");
-  const [state, setState] = useState({ loading: true, data: null, message: "Loading agency status..." });
+  const [state, setState] = useState({ loading: true, data: null, portfolios: null, selectedDetail: null, message: "Loading agency status..." });
+  const [selectedDossierId, setSelectedDossierId] = useState("");
 
   async function loadAgency() {
     setState((current) => ({ ...current, loading: true, message: "Refreshing agency status..." }));
-    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/status`);
-    if (!response.ok) {
-      setState({ loading: false, data: null, message: `Agency status: ${compactError(data, response.status)}` });
-      return;
+    const [statusResult, portfolioResult] = await Promise.all([
+      fetchJson(`${ADMIN_API_BASE}/agency/status`),
+      fetchJson(`${ADMIN_API_BASE}/agency/portfolios?limit=100`),
+    ]);
+    const errors = [];
+    if (!statusResult.response.ok) errors.push(`agency: ${compactError(statusResult.data, statusResult.response.status)}`);
+    if (!portfolioResult.response.ok) errors.push(`portfolios: ${compactError(portfolioResult.data, portfolioResult.response.status)}`);
+    const items = portfolioResult.response.ok && Array.isArray(portfolioResult.data.items) ? portfolioResult.data.items : [];
+    const nextSelected = selectedDossierId || items[0]?.dossier_id || "";
+    let selectedDetail = null;
+    if (nextSelected) {
+      selectedDetail = await loadPortfolioDetail(nextSelected, { silent: true });
     }
-    setState({ loading: false, data, message: "Ready" });
+    if (nextSelected && !selectedDossierId) setSelectedDossierId(nextSelected);
+    setState({
+      loading: false,
+      data: statusResult.response.ok ? statusResult.data : null,
+      portfolios: portfolioResult.response.ok ? portfolioResult.data : { items: [], counts_by_status: {} },
+      selectedDetail,
+      message: errors.length ? errors.join(" | ") : "Ready",
+    });
+  }
+
+  async function loadPortfolioDetail(dossierId, { silent = false } = {}) {
+    if (!dossierId) return null;
+    if (!silent) setState((current) => ({ ...current, message: `Loading ${compactId(dossierId, 28)}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/portfolios/${encodeURIComponent(dossierId)}`);
+    if (!response.ok) {
+      if (!silent) setState((current) => ({ ...current, message: `Portfolio detail: ${compactError(data, response.status)}` }));
+      return null;
+    }
+    if (!silent) {
+      setState((current) => ({ ...current, selectedDetail: data, message: "Ready" }));
+    }
+    return data;
+  }
+
+  async function selectPortfolio(dossierId) {
+    setSelectedDossierId(dossierId);
+    await loadPortfolioDetail(dossierId);
   }
 
   useEffect(() => {
@@ -1453,6 +1488,8 @@ function AgencyScreen() {
   }, []);
 
   const data = state.data || {};
+  const portfolios = state.portfolios || { items: [], counts_by_status: {} };
+  const portfolioItems = Array.isArray(portfolios.items) ? portfolios.items : [];
   const readiness = data.readiness || {};
   const evalReports = data.eval_reports || {};
   const liveCounts = readiness.live_counts || {};
@@ -1462,7 +1499,7 @@ function AgencyScreen() {
     { label: "Portfolio rows", value: formatInt(liveCounts.object_dossiers), tone: liveCounts.object_dossiers ? "ok" : "warn" },
     { label: "Source files", value: formatInt(liveCounts.source_documents), tone: liveCounts.source_documents ? "ok" : "warn" },
     { label: "Findings", value: formatInt(liveCounts.extracted_claims), tone: liveCounts.extracted_claims ? "ok" : "warn" },
-    { label: "Anomalies", value: formatInt(evalReports.anomaly_count || anomalies.length), tone: anomalies.length ? "warn" : "" },
+    { label: "Journal entries", value: formatInt(liveCounts.portfolio_journal_entries), tone: liveCounts.portfolio_journal_entries ? "ok" : "warn" },
   ];
 
   return (
@@ -1493,7 +1530,8 @@ function AgencyScreen() {
           <h2>Evidence Portfolio Model</h2>
           <MetricList
             rows={[
-              ["Hot rows", data.storage_model?.hot_layer || "disc dossier, source, extraction, finding, citation, factsheet, and exposition rows"],
+              ["Hot rows", data.storage_model?.hot_layer || "admin operational dossier, source, extraction, finding, and journal rows"],
+              ["Disc materialization", data.storage_model?.disc_materialization || "future public citation/factsheet/exposition surfaces"],
               ["Proposal layer", data.storage_model?.proposal_layer || "arm proposal and accepted overlay rows"],
               ["Cold archive", data.storage_model?.cold_archive || "/mnt/space/spacegate/agent_archive"],
               ["Core policy", data.storage_model?.core_policy || "agents never write directly to core"],
@@ -1505,8 +1543,9 @@ function AgencyScreen() {
           <MetricList
             rows={[
               ["Persistence", readiness.portfolio_persistence_ready ? "ready" : "not live"],
-              ["Implemented disc tables", (readiness.implemented_disc_tables || []).join(", ") || "none"],
-              ["Missing disc tables", (readiness.missing_disc_tables || []).join(", ") || "none"],
+              ["Implemented admin tables", (readiness.implemented_admin_tables || []).join(", ") || "none"],
+              ["Missing admin tables", (readiness.missing_admin_tables || []).join(", ") || "none"],
+              ["Missing disc materialization", (readiness.missing_disc_tables || []).join(", ") || "none"],
               ["Eval reports", `${formatInt(evalReports.report_count)} reports found`],
             ]}
           />
@@ -1520,7 +1559,8 @@ function AgencyScreen() {
 
       <div className="tab-row">
         {[
-          ["portfolios", "Portfolio Flow"],
+          ["portfolios", "Portfolios"],
+          ["flow", "Portfolio Flow"],
           ["anomalies", "Anomaly Inbox"],
           ["reports", "Eval Reports"],
           ["storage", "Storage Readiness"],
@@ -1533,6 +1573,14 @@ function AgencyScreen() {
       </div>
 
       {activeTab === "portfolios" ? (
+        <AgencyPortfoliosTab
+          portfolios={portfolioItems}
+          countsByStatus={portfolios.counts_by_status || {}}
+          selectedDossierId={selectedDossierId}
+          selectedDetail={state.selectedDetail}
+          selectPortfolio={selectPortfolio}
+        />
+      ) : activeTab === "flow" ? (
         <AgencyPortfolioFlowTab stages={data.workflow_stages || []} />
       ) : activeTab === "anomalies" ? (
         <AgencyAnomalyTab anomalies={anomalies} />
@@ -1545,6 +1593,136 @@ function AgencyScreen() {
       )}
     </div>
   );
+}
+
+function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, selectedDetail, selectPortfolio }) {
+  return (
+    <section className="agency-portfolio-layout">
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Evidence Portfolios</h2>
+            <p className="muted">Operational dossier rows in the admin database. Public disc materialization is a separate later step.</p>
+          </div>
+          <span className="badge">{formatInt(portfolios.length)} shown</span>
+        </div>
+        <div className="report-chip-list">
+          {Object.entries(countsByStatus).map(([status, count]) => (
+            <span className="badge muted" key={status}>{status}: {formatInt(count)}</span>
+          ))}
+        </div>
+        {portfolios.length ? (
+          <table className="select-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Target</th>
+                <th>Sources</th>
+                <th>Findings</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {portfolios.map((item) => (
+                <tr className={selectedDossierId === item.dossier_id ? "selected" : ""} key={item.dossier_id}>
+                  <td><button className="link-button" onClick={() => selectPortfolio(item.dossier_id)}>{item.dossier_status}</button></td>
+                  <td>
+                    <strong>{item.display_name || item.stable_object_key}</strong>
+                    <span className="table-subtext">{item.object_type} | {item.stable_object_key}</span>
+                  </td>
+                  <td>{formatInt(item.source_count)}</td>
+                  <td>{formatInt(item.claim_count)}</td>
+                  <td>{formatDate(item.updated_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">No Evidence Portfolio rows exist yet. The schema is ready; the next implementation step is controlled creation from coolness/adjudication queues or an operator-selected target.</div>
+        )}
+      </div>
+      <AgencyPortfolioDetail detail={selectedDetail} />
+    </section>
+  );
+}
+
+function AgencyPortfolioDetail({ detail }) {
+  if (!detail?.dossier) {
+    return (
+      <div className="panel agency-detail">
+        <h2>Selected Portfolio</h2>
+        <div className="empty">Select a portfolio to inspect source files, extraction sets, findings, and journal entries.</div>
+      </div>
+    );
+  }
+  const dossier = detail.dossier;
+  const sources = detail.source_documents || [];
+  const bundles = detail.claim_bundles || [];
+  const claims = detail.extracted_claims || [];
+  const journal = detail.journal_entries || [];
+  return (
+    <div className="panel agency-detail">
+      <div className="panel-head">
+        <div>
+          <h2>{dossier.display_name || dossier.stable_object_key}</h2>
+          <p className="muted">{dossier.dossier_id}</p>
+        </div>
+        <span className="badge warn">{dossier.dossier_status}</span>
+      </div>
+      <MetricList
+        rows={[
+          ["Object", `${dossier.object_type} | ${dossier.stable_object_key}`],
+          ["Queue", `${dossier.queue_priority || "n/a"} | ${dossier.queue_reason || "n/a"}`],
+          ["Review / publication", `${dossier.review_state} / ${dossier.publication_state}`],
+          ["Freshness", dossier.freshness_state || "n/a"],
+          ["Updated", formatDate(dossier.updated_at)],
+        ]}
+      />
+      <div className="agency-detail-sections">
+        <details open>
+          <summary>Source Files ({formatInt(sources.length)})</summary>
+          <CompactAgencyTable
+            emptyText="No source files are attached."
+            rows={sources.map((item) => [item.source_domain, item.title || item.canonical_url, item.retrieval_status, formatDate(item.accessed_at)])}
+            columns={["Domain", "Title / URL", "Status", "Accessed"]}
+          />
+        </details>
+        <details>
+          <summary>Extraction Sets ({formatInt(bundles.length)})</summary>
+          <CompactAgencyTable
+            emptyText="No extraction sets are attached."
+            rows={bundles.map((item) => [item.bundle_kind, item.model_id || item.extraction_method || "n/a", item.status, formatDate(item.created_at)])}
+            columns={["Kind", "Model / method", "Status", "Created"]}
+          />
+        </details>
+        <details>
+          <summary>Findings ({formatInt(claims.length)})</summary>
+          <CompactAgencyTable
+            emptyText="No findings are attached."
+            rows={claims.map((item) => [item.review_status, item.predicate, item.subject_label || item.subject_stable_key || "n/a", item.confidence ?? "n/a"])}
+            columns={["Review", "Predicate", "Subject", "Confidence"]}
+          />
+        </details>
+        <details>
+          <summary>Journal ({formatInt(journal.length)})</summary>
+          <div className="timeline-list">
+            {journal.length ? journal.map((item) => (
+              <div className="timeline-row" key={item.journal_entry_id}>
+                <strong>{item.title}</strong>
+                <span>{formatDate(item.created_at)} | {item.actor_type} | {item.stage} | {item.outcome}</span>
+                <p>{item.narrative}</p>
+              </div>
+            )) : <div className="empty">No journal entries are attached.</div>}
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+function CompactAgencyTable({ rows, columns, emptyText }) {
+  if (!rows.length) return <div className="empty">{emptyText}</div>;
+  return <KeyValueTable rows={rows} columns={columns} />;
 }
 
 function AgencyPortfolioFlowTab({ stages }) {
@@ -1675,12 +1853,17 @@ function AgencyReportsTab({ reports, searchedDirs }) {
 }
 
 function AgencyStorageTab({ data }) {
+  const adminStore = data.admin_store || {};
   const disc = data.disc || {};
   const arm = data.arm || {};
   return (
     <section className="agency-grid">
       <div className="panel">
-        <h2>Disc Portfolio Tables</h2>
+        <h2>Admin Portfolio Store</h2>
+        <AgencyTableReadiness expected={adminStore.expected || {}} />
+      </div>
+      <div className="panel">
+        <h2>Disc Materialization Tables</h2>
         <AgencyTableReadiness expected={disc.expected || {}} />
       </div>
       <div className="panel">
@@ -1688,8 +1871,10 @@ function AgencyStorageTab({ data }) {
         <AgencyTableReadiness expected={arm.expected || {}} />
       </div>
       <div className="panel">
-        <h2>Disc Runtime Tables</h2>
+        <h2>Runtime Tables</h2>
+        <p className="muted">Admin tables are mutable operator state. Disc tables are served build artifacts and should be materialized deliberately.</p>
         <div className="report-chip-list">
+          {(adminStore.tables || []).filter((name) => name.startsWith("agent_")).map((name) => <span className="badge ok" key={name}>{name}</span>)}
           {(disc.tables || []).map((name) => <span className="badge" key={name}>{name}</span>)}
         </div>
         {disc.error ? <p className="notice">{disc.error}</p> : null}

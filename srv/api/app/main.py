@@ -2148,6 +2148,15 @@ AGENCY_DISC_TABLES = [
 ]
 
 
+AGENCY_ADMIN_TABLES = {
+    "object_dossiers": "agent_object_dossiers",
+    "source_documents": "agent_source_documents",
+    "claim_bundles": "agent_claim_bundles",
+    "extracted_claims": "agent_extracted_claims",
+    "portfolio_journal_entries": "agent_portfolio_journal_entries",
+}
+
+
 AGENCY_ARM_SIGNALS = [
     "orbital_solutions",
     "component_entities",
@@ -2201,6 +2210,200 @@ def _duckdb_table_counts(db_path: Path, expected_tables: List[str]) -> Dict[str,
     finally:
         if con is not None:
             con.close()
+
+
+def _sqlite_table_counts(table_map: Dict[str, str]) -> Dict[str, Any]:
+    admin_db.initialize()
+    with admin_db.connection_scope() as con:
+        table_rows = con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
+        ).fetchall()
+        table_names = {str(row["name"]) for row in table_rows}
+        expected: Dict[str, Any] = {}
+        for public_name, table_name in table_map.items():
+            if table_name not in table_names:
+                expected[public_name] = {
+                    "storage_table": table_name,
+                    "exists": False,
+                    "count": None,
+                }
+                continue
+            try:
+                row = con.execute(f"SELECT COUNT(*) AS row_count FROM {table_name}").fetchone()
+                expected[public_name] = {
+                    "storage_table": table_name,
+                    "exists": True,
+                    "count": int((row or {"row_count": 0})["row_count"] or 0),
+                }
+            except Exception as exc:
+                expected[public_name] = {
+                    "storage_table": table_name,
+                    "exists": True,
+                    "count": None,
+                    "error": str(exc),
+                }
+        return {
+            "path": str(admin_db.get_admin_db_path()),
+            "exists": admin_db.get_admin_db_path().exists(),
+            "tables": sorted(table_names),
+            "expected": expected,
+        }
+
+
+def _json_value(value: Any, fallback: Any) -> Any:
+    if value is None:
+        return fallback
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(str(value))
+    except Exception:
+        return fallback
+
+
+def _sqlite_row_dict(row: Any) -> Dict[str, Any]:
+    if row is None:
+        return {}
+    return {key: row[key] for key in row.keys()}
+
+
+def _portfolio_row_payload(row: Any) -> Dict[str, Any]:
+    payload = _sqlite_row_dict(row)
+    if not payload:
+        return payload
+    payload["metadata"] = _json_value(payload.pop("metadata_json", "{}"), {})
+    return payload
+
+
+def _source_document_payload(row: Any) -> Dict[str, Any]:
+    payload = _sqlite_row_dict(row)
+    if not payload:
+        return payload
+    payload["metadata"] = _json_value(payload.pop("metadata_json", "{}"), {})
+    return payload
+
+
+def _claim_bundle_payload(row: Any) -> Dict[str, Any]:
+    payload = _sqlite_row_dict(row)
+    if not payload:
+        return payload
+    payload["metadata"] = _json_value(payload.pop("metadata_json", "{}"), {})
+    return payload
+
+
+def _extracted_claim_payload(row: Any) -> Dict[str, Any]:
+    payload = _sqlite_row_dict(row)
+    if not payload:
+        return payload
+    payload["value"] = _json_value(payload.pop("value_json", "{}"), {})
+    payload["citation_ids"] = _json_value(payload.pop("citation_ids_json", "[]"), [])
+    payload["metadata"] = _json_value(payload.pop("metadata_json", "{}"), {})
+    return payload
+
+
+def _journal_entry_payload(row: Any) -> Dict[str, Any]:
+    payload = _sqlite_row_dict(row)
+    if not payload:
+        return payload
+    payload["linked"] = _json_value(payload.pop("linked_json", "{}"), {})
+    payload["machine_payload"] = _json_value(payload.pop("machine_payload_json", "{}"), {})
+    payload["token_usage"] = _json_value(payload.pop("token_usage_json", "{}"), {})
+    return payload
+
+
+def _list_agency_portfolios(limit: int, status: str | None = None) -> Dict[str, Any]:
+    admin_db.initialize()
+    safe_limit = max(1, min(int(limit or 50), 200))
+    params: List[Any] = []
+    where = ""
+    if status:
+        where = "WHERE d.dossier_status = ?"
+        params.append(status)
+    params.append(safe_limit)
+    with admin_db.connection_scope() as con:
+        rows = con.execute(
+            f"""
+SELECT
+  d.*,
+  (SELECT COUNT(*) FROM agent_source_documents s WHERE s.dossier_id = d.dossier_id) AS source_count,
+  (SELECT COUNT(*) FROM agent_claim_bundles b WHERE b.dossier_id = d.dossier_id) AS bundle_count,
+  (SELECT COUNT(*) FROM agent_extracted_claims c WHERE c.dossier_id = d.dossier_id) AS claim_count,
+  (SELECT COUNT(*) FROM agent_portfolio_journal_entries j WHERE j.dossier_id = d.dossier_id) AS journal_count
+FROM agent_object_dossiers d
+{where}
+ORDER BY d.updated_at DESC, d.created_at DESC
+LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        status_rows = con.execute(
+            """
+SELECT dossier_status, COUNT(*) AS row_count
+FROM agent_object_dossiers
+GROUP BY dossier_status
+ORDER BY row_count DESC, dossier_status ASC
+            """
+        ).fetchall()
+    return {
+        "status": "ok",
+        "items": [_portfolio_row_payload(row) for row in rows],
+        "counts_by_status": {str(row["dossier_status"]): int(row["row_count"] or 0) for row in status_rows},
+        "limit": safe_limit,
+    }
+
+
+def _agency_portfolio_detail(dossier_id: str) -> Dict[str, Any]:
+    admin_db.initialize()
+    with admin_db.connection_scope() as con:
+        dossier = con.execute(
+            "SELECT * FROM agent_object_dossiers WHERE dossier_id = ? LIMIT 1",
+            (dossier_id,),
+        ).fetchone()
+        if dossier is None:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": {"code": "not_found", "message": "Evidence Portfolio not found", "details": {"dossier_id": dossier_id}}},
+            )
+        sources = con.execute(
+            """
+SELECT * FROM agent_source_documents
+WHERE dossier_id = ?
+ORDER BY accessed_at DESC, created_at DESC
+            """,
+            (dossier_id,),
+        ).fetchall()
+        bundles = con.execute(
+            """
+SELECT * FROM agent_claim_bundles
+WHERE dossier_id = ?
+ORDER BY created_at DESC
+            """,
+            (dossier_id,),
+        ).fetchall()
+        claims = con.execute(
+            """
+SELECT * FROM agent_extracted_claims
+WHERE dossier_id = ?
+ORDER BY updated_at DESC, created_at DESC
+            """,
+            (dossier_id,),
+        ).fetchall()
+        journal = con.execute(
+            """
+SELECT * FROM agent_portfolio_journal_entries
+WHERE dossier_id = ?
+ORDER BY created_at ASC
+            """,
+            (dossier_id,),
+        ).fetchall()
+    return {
+        "status": "ok",
+        "dossier": _portfolio_row_payload(dossier),
+        "source_documents": [_source_document_payload(row) for row in sources],
+        "claim_bundles": [_claim_bundle_payload(row) for row in bundles],
+        "extracted_claims": [_extracted_claim_payload(row) for row in claims],
+        "journal_entries": [_journal_entry_payload(row) for row in journal],
+    }
 
 
 def _agent_eval_report_dirs(state_dir: Path) -> List[Path]:
@@ -2301,25 +2504,28 @@ def _agency_status_payload() -> Dict[str, Any]:
     core_db_path = Path(db.get_db_path()).resolve()
     disc_db_path = core_db_path.with_name("disc.duckdb")
     arm_db_path = core_db_path.with_name("arm.duckdb")
+    admin_store = _sqlite_table_counts(AGENCY_ADMIN_TABLES)
     disc = _duckdb_table_counts(disc_db_path, AGENCY_DISC_TABLES)
     arm = _duckdb_table_counts(arm_db_path, AGENCY_ARM_SIGNALS)
     eval_reports = _list_agent_eval_reports(state_dir)
-    expected = disc.get("expected") or {}
+    admin_expected = admin_store.get("expected") or {}
+    disc_expected = disc.get("expected") or {}
     live_portfolio_tables = {
-        name: expected.get(name, {"exists": False, "count": None})
-        for name in ["object_dossiers", "source_documents", "claim_bundles", "extracted_claims"]
+        name: admin_expected.get(name, {"exists": False, "count": None})
+        for name in ["object_dossiers", "source_documents", "claim_bundles", "extracted_claims", "portfolio_journal_entries"]
     }
     live_counts = {
         name: int(value.get("count") or 0)
         for name, value in live_portfolio_tables.items()
         if value.get("exists") and value.get("count") is not None
     }
-    persistence_ready = all((expected.get(name) or {}).get("exists") for name in live_portfolio_tables)
+    persistence_ready = all((admin_expected.get(name) or {}).get("exists") for name in live_portfolio_tables)
     return {
         "status": "ok",
         "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
         "paths": {
             "state_dir": str(state_dir),
+            "admin_db_path": str(admin_db.get_admin_db_path()),
             "core_db_path": str(core_db_path),
             "disc_db_path": str(disc_db_path),
             "arm_db_path": str(arm_db_path),
@@ -2327,7 +2533,8 @@ def _agency_status_payload() -> Dict[str, Any]:
         },
         "workflow_stages": AGENCY_WORKFLOW_STAGES,
         "storage_model": {
-            "hot_layer": "disc normalized rows for dossiers, source files, extraction sets, findings, citations, factsheets, and expositions",
+            "hot_layer": "admin operational rows for active dossiers, source files, extraction sets, findings, and journal entries",
+            "disc_materialization": "disc remains the future/public materialized citation, factsheet, exposition, and evidence-link layer",
             "proposal_layer": "arm proposal/overlay rows for accepted supplemental science and adjudication candidates",
             "cold_archive": "/mnt/space/spacegate/agent_archive for compressed dossier packages and bulky source snapshots",
             "core_policy": "agents never write directly to core",
@@ -2335,14 +2542,18 @@ def _agency_status_payload() -> Dict[str, Any]:
         "readiness": {
             "portfolio_persistence_ready": persistence_ready,
             "live_counts": live_counts,
-            "missing_disc_tables": [name for name in AGENCY_DISC_TABLES if not (expected.get(name) or {}).get("exists")],
-            "implemented_disc_tables": [name for name in AGENCY_DISC_TABLES if (expected.get(name) or {}).get("exists")],
+            "missing_admin_tables": [name for name in AGENCY_ADMIN_TABLES if not (admin_expected.get(name) or {}).get("exists")],
+            "implemented_admin_tables": [name for name in AGENCY_ADMIN_TABLES if (admin_expected.get(name) or {}).get("exists")],
+            "missing_disc_tables": [name for name in AGENCY_DISC_TABLES if not (disc_expected.get(name) or {}).get("exists")],
+            "implemented_disc_tables": [name for name in AGENCY_DISC_TABLES if (disc_expected.get(name) or {}).get("exists")],
             "notes": [
-                "This endpoint is read-only and does not create agent/dossier state.",
+                "This endpoint is read-only; operational dossier persistence is initialized in the admin database.",
                 "Eval report anomalies are quarantine signals, not accepted science.",
                 "Portfolio chat should be scoped to retrieved sources, extraction sets, findings, proposals, and journal entries.",
+                "Public disc materialization remains separate from mutable admin workflow state.",
             ],
         },
+        "admin_store": admin_store,
         "disc": disc,
         "arm": arm,
         "eval_reports": eval_reports,
@@ -2395,6 +2606,23 @@ def admin_dataset_status(
 def admin_agency_status(request: Request):
     auth.require_admin(request)
     return _agency_status_payload()
+
+
+@admin_router.get("/agency/portfolios")
+def admin_agency_portfolios(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+    status: str | None = Query(default=None),
+):
+    auth.require_admin(request)
+    clean_status = str(status or "").strip() or None
+    return _list_agency_portfolios(limit=limit, status=clean_status)
+
+
+@admin_router.get("/agency/portfolios/{dossier_id}")
+def admin_agency_portfolio_detail(request: Request, dossier_id: str):
+    auth.require_admin(request)
+    return _agency_portfolio_detail(dossier_id)
 
 
 @admin_router.post("/dataset/slice/preview")

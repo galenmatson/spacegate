@@ -389,6 +389,50 @@ h3 {
   gap: 0.7rem;
 }
 
+.agency-portfolio-layout {
+  display: grid;
+  grid-template-columns: minmax(460px, 1.15fr) minmax(420px, 0.85fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.agency-detail {
+  position: sticky;
+  top: 1rem;
+}
+
+.agency-detail-sections {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.timeline-row {
+  border-left: 3px solid var(--brand);
+  padding-left: 0.65rem;
+}
+
+.timeline-row strong,
+.timeline-row span {
+  display: block;
+}
+
+.timeline-row span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.timeline-row p {
+  margin: 0.25rem 0 0;
+  font-size: 0.86rem;
+}
+
 .agency-stage {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -904,6 +948,7 @@ th {
   .builds-grid,
   .dataset-grid,
   .agency-grid,
+  .agency-portfolio-layout,
   .runbook-head,
   .jobs-layout,
   .audit-layout,

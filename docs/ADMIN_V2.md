@@ -454,6 +454,11 @@ from those records.
    - seed portfolios from coolness/adjudication queues
    - append journal entries for queue seed, source retrieval, extraction, and
      review actions
+   - first persistence foundation uses admin DB tables for Evidence
+     Portfolios, Source Files, Extraction Sets, Findings, and Journal Entries
+   - `/api/v2/admin/agency/portfolios` and
+     `/api/v2/admin/agency/portfolios/{dossier_id}` expose read-only portfolio
+     state for the React Admin workspace
 
 7. Human-gated review
    - accept/reject/defer/escalate proposals

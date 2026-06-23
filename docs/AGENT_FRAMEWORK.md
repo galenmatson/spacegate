@@ -79,6 +79,18 @@ Recommended shape:
 
 This avoids attaching eight or more provenance fields to every scalar value when several claims came from the same source pass.
 
+Implementation note:
+
+- Active Evidence Portfolio workflow state is currently implemented in the
+  Admin SQLite database as `agent_object_dossiers`,
+  `agent_source_documents`, `agent_claim_bundles`,
+  `agent_extracted_claims`, and `agent_portfolio_journal_entries`.
+- These rows are mutable admin/operator state. They are not public served
+  science artifacts.
+- Reviewed publication surfaces in `disc` and proposal/overlay surfaces in
+  `arm` should be materialized deliberately from those rows, with generator
+  versions, hashes, citations, and review state preserved.
+
 ## Claim Family Registry
 
 Claim expansion should be governed by an explicit registry, not by allowing arbitrary new predicates whenever a model emits something interesting.
@@ -117,19 +129,23 @@ Policy:
 
 The minimum concrete workflow should use four object families:
 
-1. `object_dossiers` in `disc`
+1. `object_dossiers` / `agent_object_dossiers`
    - one operational dossier per target object
    - tracks enrichment state, freshness, and publication readiness
 2. `agent_work_items` in the operational agent store
    - durable overlay above generated ranking tables such as `disc.enrichment_priority_queue` and `arm.*_candidates`
    - preserves operator state like claim/bump/defer/block/complete without mutating deterministic source queues
-3. `source_documents` in `disc`
+3. `source_documents` / `agent_source_documents`
    - one row per fetched source document or canonical archive page
-4. `claim_bundles` and `extracted_claims` in `disc`
+4. `claim_bundles` and `extracted_claims` / `agent_claim_bundles` and
+   `agent_extracted_claims`
    - source-file row = one archived source attached to an evidence portfolio
    - extraction-set row = one extraction/review pass over one source for one target object
    - finding = one narrow factual statement
-5. proposal / overlay rows in `arm`
+5. `agent_portfolio_journal_entries`
+   - append-friendly plain-language timeline of queue, retrieval, extraction,
+     review, interaction, and publication events
+6. proposal / overlay rows in `arm`
    - proposal rows reference supporting claim IDs
    - accepted overlays reference the selected supporting claim IDs and remain audit-visible
 

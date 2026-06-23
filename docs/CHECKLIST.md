@@ -157,10 +157,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Admin v2 React Builds workspace first pass (build state, runbook, artifacts, retention readiness)
 - [x] Admin v2 React Dataset workspace first pass (science shape, source contribution, quality, runtime)
 - [x] Admin v2 React Agency workspace first pass (portfolio flow, storage readiness, eval anomalies, interaction model)
+- [x] Evidence Portfolio admin persistence schema and read API baseline
 - [ ] Retire embedded FastAPI Admin UI after React workspace parity
 - [x] Admin v2 dynamic inference endpoint registry (add/remove endpoints, auth modes, model polling, usage stats API)
 - [ ] Admin v2 Inference workspace role/model routing and eval report history
-- [ ] Evidence Portfolio journal model for plain-language agent step history
+- [x] Evidence Portfolio journal persistence schema for plain-language agent step history
 - [ ] External reference link pipeline (curated authority sources)
 - [ ] Factsheets + exposition generation with confidence metadata
 - [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues

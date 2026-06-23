@@ -60,11 +60,53 @@ Current status snapshot:
 - `snapshot_manifest`: implemented (`scripts/generate_snapshots.py`)
 - `external_reference_links`: planned
 - `source_evidence_links`: planned
+- Evidence Portfolio operational store: implemented in the Admin DB as mutable
+  admin workflow state; public `disc` materialization remains planned
 - `factsheets`: planned
 - `expositions`: planned
 - `generated_images`: planned
 
 ## Tables
+
+## Evidence Portfolio Operational Store
+
+Active agent workflow state currently lives in the Admin SQLite database, not
+inside served build artifacts. This keeps conversations, source retrieval,
+findings, and journal entries mutable and auditable without editing immutable
+`out/<build_id>/disc.duckdb` or `served/current`.
+
+Implemented admin tables:
+
+- `agent_object_dossiers`
+  - operator-facing object: Evidence Portfolio
+  - tracks target object, lifecycle status, queue reason/priority, freshness,
+    review state, publication state, and metadata
+- `agent_source_documents`
+  - operator-facing object: Source File
+  - tracks canonical URL, domain, source kind, allowlist tier, trust score,
+    retrieval status, archive path, content hash, and metadata
+- `agent_claim_bundles`
+  - operator-facing object: Source File or Extraction Set, depending on
+    `bundle_kind`
+  - tracks extraction method, endpoint/model/prompt metadata, token limits,
+    hashes, status, and metadata
+- `agent_extracted_claims`
+  - operator-facing object: Finding
+  - tracks subject binding, claim family, predicate, value, unit, qualifier,
+    confidence, schema fit, rigor tier, review status, citations, and reasoning
+- `agent_portfolio_journal_entries`
+  - operator-facing object: Journal Entry
+  - tracks plain-language stage history, actor, outcome, linked records,
+    machine payload, model/prompt metadata, and token usage
+
+Materialization rule:
+
+- Admin workflow rows are the hot mutable case file.
+- Future public `disc` rows such as `source_evidence_links`, `factsheets`, and
+  `expositions` must be generated deliberately from reviewed evidence and
+  explicit generator versions.
+- Agent conversations must not directly mutate `core` or silently publish
+  public `disc` artifacts.
 
 ## coolness_scores
 
