@@ -206,6 +206,10 @@ h3 {
   color: #a16207;
 }
 
+.kpi.danger strong {
+  color: var(--danger);
+}
+
 .status-line {
   border: 1px dashed var(--border);
   background: var(--surface-soft);
@@ -314,6 +318,259 @@ h3 {
   font-size: 0.86rem;
 }
 
+.tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.tab-row button,
+.audit-presets button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+}
+
+.tab-row button.active,
+.audit-presets button.active {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: #eefdf9;
+}
+
+.runbook-grid,
+.backups-layout {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.runbook-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.runbook-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.75fr);
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.workflow-rail {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.55rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0.7rem;
+}
+
+.action-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.action-card {
+  display: grid;
+  gap: 0.6rem;
+  border: 1px solid var(--border);
+  background: #fbfcfe;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.action-card.warn {
+  border-color: color-mix(in srgb, #a16207 35%, var(--border));
+}
+
+.action-card.danger {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
+}
+
+.action-title-row,
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.6rem;
+}
+
+.action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.hint-list {
+  display: grid;
+  gap: 0.28rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.hint-list strong {
+  color: var(--text);
+}
+
+.warning-text {
+  color: var(--danger);
+}
+
+.action-fields {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.inline-status {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.jobs-layout,
+.audit-layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.job-detail,
+.audit-detail {
+  position: sticky;
+  top: 1rem;
+}
+
+.select-table tr.selected,
+.select-table tr:hover {
+  background: var(--surface-soft);
+}
+
+.table-subtext {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--brand);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.link-button.ok {
+  color: var(--ok);
+}
+
+.link-button.warn {
+  color: #a16207;
+}
+
+.link-button.danger {
+  color: var(--danger);
+}
+
+.link-button.muted {
+  color: var(--muted);
+}
+
+.trap-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.7rem 0;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, #a16207 38%, var(--border));
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #854d0e;
+  font-size: 0.86rem;
+}
+
+.log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.7rem 0;
+}
+
+.log-box,
+.json-box {
+  max-height: 520px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f172a;
+  color: #dbeafe;
+  padding: 0.75rem;
+  font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.json-box {
+  max-height: 360px;
+  background: #f8fafc;
+  color: var(--text);
+}
+
+.audit-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.audit-list {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.2rem 0.55rem;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.55rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.audit-row.selected,
+.audit-row:hover {
+  border-color: var(--brand);
+}
+
+.audit-row span:last-child {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .inference-grid {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(540px, 2fr);
@@ -392,6 +649,20 @@ textarea {
   color: var(--ok);
 }
 
+.badge.warn {
+  border-color: color-mix(in srgb, #a16207 45%, var(--border));
+  color: #a16207;
+}
+
+.badge.danger {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  color: var(--danger);
+}
+
+.badge.muted {
+  color: var(--muted);
+}
+
 .endpoint-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -466,6 +737,10 @@ th {
   .kpi-row,
   .overview-kpis,
   .overview-grid,
+  .runbook-head,
+  .jobs-layout,
+  .audit-layout,
+  .filter-grid,
   .endpoint-meta {
     grid-template-columns: 1fr;
   }
@@ -473,5 +748,10 @@ th {
   .overview-fact {
     grid-template-columns: 1fr;
     gap: 0.15rem;
+  }
+
+  .job-detail,
+  .audit-detail {
+    position: static;
   }
 }
