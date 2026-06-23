@@ -3051,6 +3051,7 @@ RUNTIME_ENV_KEYS = [
     "SPACEGATE_GOOGLE_BASE_URL",
     "SPACEGATE_FRONTIER_OPENAI_MODEL",
     "SPACEGATE_FRONTIER_GOOGLE_MODEL",
+    "SPACEGATE_BULK_DIR",
 ]
 
 
@@ -3153,7 +3154,7 @@ def _runtime_status_payload() -> Dict[str, Any]:
         "arm_db_path": core_db_path.with_name("arm.duckdb"),
         "reports_dir": state_dir / "reports",
         "served_current": state_dir / "served" / "current",
-        "bulk_research_root": Path("/mnt/space/spacegate"),
+        "bulk_research_root": Path(os.getenv("SPACEGATE_BULK_DIR") or "/mnt/space/spacegate"),
         "model_cache_root": Path("/data/models"),
         "docker_data_root": Path("/data/docker"),
     }

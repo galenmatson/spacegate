@@ -37,8 +37,10 @@ services:
       SPACEGATE_GOOGLE_BASE_URL: ${SPACEGATE_GOOGLE_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
       SPACEGATE_GOOGLE_API_KEY: ${SPACEGATE_GOOGLE_API_KEY:-${GOOGLE_API_KEY:-}}
       SPACEGATE_FRONTIER_GOOGLE_MODEL: ${SPACEGATE_FRONTIER_GOOGLE_MODEL:-}
+      SPACEGATE_BULK_DIR: ${SPACEGATE_BULK_DIR:-/data/bulk}
     volumes:
       - ${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-./data}}:/data
+      - ${SPACEGATE_BULK_DIR:-${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-./data}}/bulk}:${SPACEGATE_BULK_DIR:-/data/bulk}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

@@ -60,7 +60,7 @@ Large research/document material should not live under repo paths or inside
 Photon default bulk root:
 
 ```bash
-/mnt/space/spacegate
+SPACEGATE_BULK_DIR=/mnt/space/spacegate
 ```
 
 Use this root for:
@@ -86,6 +86,11 @@ Recommended layout:
     source-documents/
     literature-indexes/
 ```
+
+Container deployments should bind-mount `$SPACEGATE_BULK_DIR` into the API
+container at the same path. If this mount is absent, Admin Runtime will report
+the bulk root as missing from the container even when the host USB filesystem is
+mounted correctly.
 
 The USB-backed `/mnt/space` drive is large and fast but less trustworthy than
 internal NVMe. Anything required for auditability must have durable metadata in
