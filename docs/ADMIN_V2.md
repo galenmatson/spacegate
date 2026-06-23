@@ -143,6 +143,20 @@ Show:
 Audit entries are not a substitute for dossier journal entries. Audit answers
 "who did what"; the journal answers "how the evidence case developed."
 
+### Runtime
+
+Purpose: read-only operator diagnostics for the current Admin/API runtime.
+
+Show:
+
+- active build id, git head, generated timestamp, and API process metrics
+- auth/OIDC configuration status without exposing secrets
+- container-visible paths, storage capacity, and mount gaps
+- redacted environment variable status
+- sensitive key configured/missing flags
+- inference endpoint last-probe reachability summaries
+- Docker/container visibility note, without requiring the Docker socket
+
 ## Operations, Jobs, and Audit Workspace
 
 The embedded Admin UI currently exposes these operational surfaces:
@@ -429,6 +443,8 @@ from those records.
      persisting prompt text
    - show recent eval reports, role-suitability summaries, and quarantined
      anomaly inbox items
+   - add Runtime workspace backed by `/api/v2/admin/runtime/status` for
+     read-only path, storage, auth, config, process, and endpoint diagnostics
 
 3. Operations + Audit migration
    - migrate action launcher, job queue, selected job log, backups, and audit

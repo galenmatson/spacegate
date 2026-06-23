@@ -3027,6 +3027,193 @@ def _agency_status_payload() -> Dict[str, Any]:
     }
 
 
+RUNTIME_ENV_KEYS = [
+    "SPACEGATE_STATE_DIR",
+    "SPACEGATE_DATA_DIR",
+    "SPACEGATE_CACHE_DIR",
+    "SPACEGATE_LOG_DIR",
+    "SPACEGATE_ADMIN_DB_PATH",
+    "SPACEGATE_ADMIN_JOBS_DIR",
+    "SPACEGATE_WEB_BIND",
+    "SPACEGATE_WEB_TLS_BIND",
+    "SPACEGATE_WEB_HOST_PORT",
+    "SPACEGATE_WEB_TLS_HOST_PORT",
+    "SPACEGATE_AUTH_ENABLE",
+    "SPACEGATE_OIDC_PROVIDER",
+    "SPACEGATE_OIDC_ISSUER",
+    "SPACEGATE_OIDC_REDIRECT_URI",
+    "SPACEGATE_AUTH_SUCCESS_REDIRECT",
+    "SPACEGATE_SESSION_COOKIE_SECURE",
+    "SPACEGATE_CSRF_ENABLE",
+    "SPACEGATE_CONTAINER_LLM_BASE_URL",
+    "SPACEGATE_LLM_BASE_URL",
+    "SPACEGATE_OPENAI_BASE_URL",
+    "SPACEGATE_GOOGLE_BASE_URL",
+    "SPACEGATE_FRONTIER_OPENAI_MODEL",
+    "SPACEGATE_FRONTIER_GOOGLE_MODEL",
+]
+
+
+SENSITIVE_ENV_KEYS = [
+    "SPACEGATE_OIDC_CLIENT_ID",
+    "SPACEGATE_OIDC_CLIENT_SECRET",
+    "SPACEGATE_SESSION_SECRET",
+    "SPACEGATE_OPENAI_API_KEY",
+    "OPENAI_API_KEY",
+    "SPACEGATE_GOOGLE_API_KEY",
+    "GOOGLE_API_KEY",
+]
+
+
+def _nearest_existing_path(path: Path) -> Path:
+    current = path
+    while not current.exists() and current.parent != current:
+        current = current.parent
+    return current
+
+
+def _path_runtime_status(path: Path) -> Dict[str, Any]:
+    target = _nearest_existing_path(path)
+    usage = None
+    if target.exists():
+        try:
+            disk = shutil.disk_usage(target)
+            usage = {
+                "total_bytes": int(disk.total),
+                "used_bytes": int(disk.used),
+                "free_bytes": int(disk.free),
+                "used_pct": (float(disk.used) / float(disk.total) * 100.0) if disk.total else 0.0,
+            }
+        except Exception:
+            usage = None
+    return {
+        "path": str(path),
+        "exists": path.exists(),
+        "is_dir": path.is_dir(),
+        "is_file": path.is_file(),
+        "is_symlink": path.is_symlink(),
+        "resolved": str(path.resolve()) if path.exists() else None,
+        "writable": os.access(str(path), os.W_OK) if path.exists() else False,
+        "disk": usage,
+    }
+
+
+def _git_head_short() -> Optional[str]:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(ROOT_DIR), "rev-parse", "--short", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        return result.stdout.strip() or None
+    except Exception:
+        return None
+
+
+def _runtime_status_payload() -> Dict[str, Any]:
+    state_dir = _state_dir().resolve()
+    core_db_path = Path(db.get_db_path()).resolve()
+    proc_status = _read_proc_key_values(Path("/proc/self/status"))
+    proc_io = _read_proc_key_values(Path("/proc/self/io"))
+    meminfo = _read_proc_key_values(Path("/proc/meminfo"))
+    build_id = _current_build_id_or_none()
+    auth_status = auth.auth_runtime_status()
+    endpoint_rows = inference_registry.list_endpoints()
+    endpoint_summary = []
+    for endpoint in endpoint_rows:
+        last_probe = endpoint.get("last_probe") or {}
+        endpoint_summary.append(
+            {
+                "endpoint_id": endpoint.get("endpoint_id"),
+                "endpoint_key": endpoint.get("endpoint_key"),
+                "display_name": endpoint.get("display_name"),
+                "provider": endpoint.get("provider"),
+                "enabled": endpoint.get("enabled"),
+                "base_url": endpoint.get("base_url"),
+                "auth_mode": endpoint.get("auth_mode"),
+                "api_key_configured": endpoint.get("api_key_configured"),
+                "default_model": endpoint.get("default_model"),
+                "model_count": len(endpoint.get("models") or []),
+                "last_probe_status": last_probe.get("status"),
+                "last_probe_at": last_probe.get("probed_at"),
+                "last_probe_error": last_probe.get("error_message"),
+            }
+        )
+    path_map = {
+        "project_root": ROOT_DIR,
+        "state_dir": state_dir,
+        "cache_dir": Path(os.getenv("SPACEGATE_CACHE_DIR") or state_dir / "cache"),
+        "log_dir": Path(os.getenv("SPACEGATE_LOG_DIR") or state_dir / "logs"),
+        "admin_db_path": admin_db.get_admin_db_path(),
+        "admin_jobs_dir": Path(os.getenv("SPACEGATE_ADMIN_JOBS_DIR") or state_dir / "admin" / "jobs"),
+        "core_db_path": core_db_path,
+        "disc_db_path": core_db_path.with_name("disc.duckdb"),
+        "arm_db_path": core_db_path.with_name("arm.duckdb"),
+        "reports_dir": state_dir / "reports",
+        "served_current": state_dir / "served" / "current",
+        "bulk_research_root": Path("/mnt/space/spacegate"),
+        "model_cache_root": Path("/data/models"),
+        "docker_data_root": Path("/data/docker"),
+    }
+    configured_env = {
+        key: {
+            "configured": bool(os.getenv(key, "").strip()),
+            "value": os.getenv(key, "").strip() or None,
+        }
+        for key in RUNTIME_ENV_KEYS
+    }
+    sensitive_env = {
+        key: {"configured": bool(os.getenv(key, "").strip())}
+        for key in SENSITIVE_ENV_KEYS
+    }
+    docker_socket = Path("/var/run/docker.sock")
+    return {
+        "status": "ok",
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "build_id": build_id,
+        "git": {
+            "head_short": _git_head_short(),
+        },
+        "auth": auth_status,
+        "paths": {key: _path_runtime_status(path) for key, path in path_map.items()},
+        "environment": {
+            "configured": configured_env,
+            "sensitive": sensitive_env,
+            "notes": [
+                "Sensitive values are reported only as configured/missing flags.",
+                "Container-visible paths may differ from host paths when volumes are not mounted into the API container.",
+            ],
+        },
+        "container_runtime": {
+            "hostname": os.getenv("HOSTNAME"),
+            "in_container": Path("/.dockerenv").exists(),
+            "docker_socket_visible": docker_socket.exists(),
+            "docker_socket_readable": docker_socket.exists() and os.access(str(docker_socket), os.R_OK),
+            "docker_status_note": "Docker container health is not queried from the API container unless the Docker socket is deliberately mounted.",
+        },
+        "host_runtime": {
+            "cpu_count": os.cpu_count(),
+            "loadavg_1m": os.getloadavg()[0] if hasattr(os, "getloadavg") else None,
+            "loadavg_5m": os.getloadavg()[1] if hasattr(os, "getloadavg") else None,
+            "loadavg_15m": os.getloadavg()[2] if hasattr(os, "getloadavg") else None,
+            "mem_total_bytes": _proc_kib_value(meminfo.get("MemTotal")),
+            "mem_available_bytes": _proc_kib_value(meminfo.get("MemAvailable")),
+        },
+        "api_process_runtime": {
+            "pid": os.getpid(),
+            "rss_bytes": _proc_kib_value(proc_status.get("VmRSS")),
+            "peak_rss_bytes": _proc_kib_value(proc_status.get("VmHWM")),
+            "vm_size_bytes": _proc_kib_value(proc_status.get("VmSize")),
+            "threads": int(re.search(r"[0-9]+", proc_status.get("Threads", "0")).group(0)) if re.search(r"[0-9]+", proc_status.get("Threads", "0")) else 0,
+            "io_read_bytes": int(re.search(r"[0-9]+", proc_io.get("read_bytes", "0")).group(0)) if re.search(r"[0-9]+", proc_io.get("read_bytes", "0")) else 0,
+            "io_write_bytes": int(re.search(r"[0-9]+", proc_io.get("write_bytes", "0")).group(0)) if re.search(r"[0-9]+", proc_io.get("write_bytes", "0")) else 0,
+        },
+        "inference_endpoints": endpoint_summary,
+    }
+
+
 @admin_router.get("/status")
 def admin_status(request: Request):
     user = auth.require_admin(request)
@@ -3054,6 +3241,12 @@ def admin_dataset_status(
 ):
     auth.require_admin(request)
     return _dataset_status_payload(force_refresh=bool(refresh))
+
+
+@admin_router.get("/runtime/status")
+def admin_runtime_status(request: Request):
+    auth.require_admin(request)
+    return _runtime_status_payload()
 
 
 @admin_router.get("/agency/status")

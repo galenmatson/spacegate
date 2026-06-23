@@ -430,6 +430,7 @@ function App() {
           <button className={activeScreen === "inference" ? "active" : ""} onClick={() => setActiveScreen("inference")}>Inference</button>
           <button className={activeScreen === "operations" ? "active" : ""} onClick={() => setActiveScreen("operations")}>Operations</button>
           <button className={activeScreen === "agency" ? "active" : ""} onClick={() => setActiveScreen("agency")}>Agency</button>
+          <button className={activeScreen === "runtime" ? "active" : ""} onClick={() => setActiveScreen("runtime")}>Runtime</button>
         </nav>
         <button className="button" onClick={logout}>Log out</button>
       </aside>
@@ -446,6 +447,8 @@ function App() {
           <OperationsScreen csrf={csrf} />
         ) : activeScreen === "agency" ? (
           <AgencyScreen csrf={csrf} />
+        ) : activeScreen === "runtime" ? (
+          <RuntimeScreen />
         ) : (
           <PlaceholderScreen name={activeScreen} />
         )}
@@ -2820,6 +2823,178 @@ function AuditTab({
         )}
       </div>
     </section>
+  );
+}
+
+function RuntimeScreen() {
+  const [state, setState] = useState({ loading: true, data: null, message: "Loading runtime status..." });
+
+  async function loadRuntime() {
+    setState((current) => ({ ...current, loading: true, message: "Refreshing runtime status..." }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/runtime/status`);
+    if (!response.ok) {
+      setState({ loading: false, data: null, message: `Runtime status: ${compactError(data, response.status)}` });
+      return;
+    }
+    setState({ loading: false, data, message: "Ready" });
+  }
+
+  useEffect(() => {
+    loadRuntime();
+  }, []);
+
+  const data = state.data || {};
+  const authStatus = data.auth || {};
+  const host = data.host_runtime || {};
+  const api = data.api_process_runtime || {};
+  const paths = data.paths || {};
+  const endpoints = Array.isArray(data.inference_endpoints) ? data.inference_endpoints : [];
+  const healthyEndpoints = endpoints.filter((endpoint) => endpoint.last_probe_status === "ok");
+  const configuredEnv = data.environment?.configured || {};
+  const sensitiveEnv = data.environment?.sensitive || {};
+  const pathRows = Object.entries(paths).map(([key, item]) => [
+    key,
+    item.exists ? (item.is_dir ? "dir" : item.is_file ? "file" : "exists") : "missing",
+    item.writable ? "writable" : "read-only/missing",
+    item.disk ? `${formatBytes(item.disk.free_bytes)} free (${formatPct(item.disk.used_pct)} used)` : "n/a",
+    item.path || "",
+  ]);
+  const envRows = Object.entries(configuredEnv).map(([key, item]) => [
+    key,
+    item.configured ? "configured" : "missing",
+    item.configured ? String(item.value || "") : "",
+  ]);
+  const secretRows = Object.entries(sensitiveEnv).map(([key, item]) => [
+    key,
+    item.configured ? "configured" : "missing",
+  ]);
+  const kpis = [
+    { label: "Build", value: compactId(data.build_id, 18) },
+    { label: "Git", value: data.git?.head_short || "n/a" },
+    { label: "Auth", value: authStatus.enabled ? "enabled" : "disabled", tone: authStatus.enabled ? "ok" : "warn" },
+    { label: "Inference probes", value: `${healthyEndpoints.length}/${endpoints.length}` },
+    { label: "API RSS", value: formatBytes(api.rss_bytes) },
+  ];
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div>
+          <h1>Runtime</h1>
+          <p className="muted">Read-only host, container, path, auth, and configuration diagnostics.</p>
+        </div>
+        <button className="button" onClick={loadRuntime}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+      </header>
+
+      <div className="kpi-row">
+        {kpis.map((item) => (
+          <div className={`kpi ${item.tone || ""}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>
+        {state.message} Generated: {formatDate(data.generated_at_utc)}
+      </div>
+
+      <section className="runtime-grid">
+        <div className="panel">
+          <h2>Auth and OIDC</h2>
+          <MetricList
+            rows={[
+              ["Auth", authStatus.enabled ? "enabled" : "disabled"],
+              ["Provider", authStatus.provider || "n/a"],
+              ["Issuer", authStatus.issuer || "n/a"],
+              ["Redirect URI", authStatus.redirect_uri || "n/a"],
+              ["Admin DB", authStatus.admin_db_path || "n/a"],
+            ]}
+          />
+        </div>
+        <div className="panel">
+          <h2>Container and API Process</h2>
+          <MetricList
+            rows={[
+              ["Container", data.container_runtime?.in_container ? "inside container" : "host process", data.container_runtime?.hostname || ""],
+              ["Docker socket", data.container_runtime?.docker_socket_visible ? "visible" : "not mounted", data.container_runtime?.docker_status_note || ""],
+              ["CPU load", `cores=${formatInt(host.cpu_count)}`, `1m=${formatFloat(host.loadavg_1m)} 5m=${formatFloat(host.loadavg_5m)} 15m=${formatFloat(host.loadavg_15m)}`],
+              ["Host memory", `${formatBytes(Math.max(toNumber(host.mem_total_bytes) - toNumber(host.mem_available_bytes), 0))} used`, `${formatBytes(host.mem_available_bytes)} available of ${formatBytes(host.mem_total_bytes)}`],
+              ["API process", `pid=${api.pid || "?"}, threads=${formatInt(api.threads)}`, `RSS=${formatBytes(api.rss_bytes)}, peak=${formatBytes(api.peak_rss_bytes)}`],
+              ["Process IO", `read=${formatBytes(api.io_read_bytes)}, write=${formatBytes(api.io_write_bytes)}`],
+            ]}
+          />
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Paths and Storage</h2>
+            <p className="muted">Container-visible path checks. Missing host-only paths may simply not be mounted into the API container.</p>
+          </div>
+        </div>
+        <KeyValueTable rows={pathRows} columns={["Key", "Status", "Access", "Disk", "Path"]} />
+      </section>
+
+      <section className="runtime-grid">
+        <div className="panel">
+          <h2>Configured Environment</h2>
+          <KeyValueTable rows={envRows} columns={["Key", "Status", "Value"]} />
+        </div>
+        <div className="panel">
+          <h2>Secret Status</h2>
+          <KeyValueTable rows={secretRows} columns={["Key", "Status"]} />
+          <div className="hint-list">
+            {(data.environment?.notes || []).map((note) => <div key={note}>{note}</div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>Inference Reachability</h2>
+            <p className="muted">Last recorded probe state from the dynamic endpoint registry.</p>
+          </div>
+          <span className="badge">{healthyEndpoints.length}/{endpoints.length} healthy</span>
+        </div>
+        {endpoints.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Endpoint</th>
+                <th>Provider</th>
+                <th>Status</th>
+                <th>Models</th>
+                <th>Auth</th>
+                <th>Last probe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {endpoints.map((endpoint) => (
+                <tr key={endpoint.endpoint_id}>
+                  <td>
+                    <strong>{endpoint.display_name || endpoint.endpoint_key}</strong>
+                    <span className="table-subtext">{endpoint.base_url}</span>
+                  </td>
+                  <td>{endpoint.provider || "n/a"}</td>
+                  <td><span className={`badge ${endpoint.last_probe_status === "ok" ? "ok" : endpoint.enabled ? "warn" : "muted"}`}>{endpoint.last_probe_status || (endpoint.enabled ? "unprobed" : "disabled")}</span></td>
+                  <td>{formatInt(endpoint.model_count)}</td>
+                  <td>{endpoint.auth_mode || "none"}{endpoint.api_key_configured ? " / configured" : ""}</td>
+                  <td>
+                    {formatDate(endpoint.last_probe_at)}
+                    {endpoint.last_probe_error ? <span className="table-subtext">{endpoint.last_probe_error}</span> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">No inference endpoints are registered.</div>
+        )}
+      </section>
+    </div>
   );
 }
 

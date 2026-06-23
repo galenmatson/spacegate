@@ -376,6 +376,13 @@ h3 {
   align-items: start;
 }
 
+.runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(380px, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
 .agency-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(380px, 1fr));
@@ -988,6 +995,7 @@ th {
   .overview-grid,
   .builds-grid,
   .dataset-grid,
+  .runtime-grid,
   .agency-grid,
   .agency-portfolio-layout,
   .runbook-head,

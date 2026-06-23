@@ -127,6 +127,31 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /admin/runtime/status
+Returns read-only runtime and configuration diagnostics for the Admin Runtime
+workspace.
+
+Includes:
+- active build id and git head
+- auth/OIDC runtime status without secrets
+- container-visible path and storage checks
+- redacted environment configuration status
+- configured/missing flags for sensitive keys
+- API process and host/container runtime metrics
+- inference endpoint last-probe summaries
+
+Notes:
+- Secret values are never returned.
+- Container-visible path checks can differ from host paths when a directory is
+  not mounted into the API container.
+- Docker container health is not queried unless the Docker socket is
+  deliberately mounted into the API container.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
 ### GET /admin/ui
 Admin UI scaffold served by the API (under `/api/v2/admin/ui`).
 

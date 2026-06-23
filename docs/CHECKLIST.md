@@ -156,6 +156,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Admin v2 backend operation metadata and `/admin/operations/status` API
 - [x] Admin v2 React Builds workspace first pass (build state, runbook, artifacts, retention readiness)
 - [x] Admin v2 React Dataset workspace first pass (science shape, source contribution, quality, runtime)
+- [x] Admin v2 React Runtime workspace first pass (paths, storage, auth, config, process, endpoint diagnostics)
 - [x] Admin v2 React Agency workspace first pass (portfolio flow, storage readiness, eval anomalies, interaction model)
 - [x] Evidence Portfolio admin persistence schema and read API baseline
 - [x] Evidence Portfolio seed workflow from current coolness-ranked systems with first journal entry
