@@ -21,6 +21,8 @@ Out of scope (never pruned by retention script):
 - On smaller hosts, use at least newest 6 build directories and newest 12 report
   directories unless disk pressure requires tighter local overrides.
 - Remove stale temporary ingest paths (`out/*.tmp`).
+- Build/report directory detection accepts both dashed build IDs
+  (`YYYY-MM-DDT...`) and compact build IDs (`YYYYMMDDT...`).
 
 ## Scripted Cleanup
 
@@ -35,6 +37,11 @@ This is dry-run by default. To apply:
 ```bash
 scripts/prune_state_retention.sh --apply
 ```
+
+Admin v2 exposes a read-only **Retention Dry Run** action in the Builds
+workspace. It runs this script without `--apply`, records an auditable job log,
+and shows the parsed candidate plan in the Builds page. Deletion/apply remains
+manual for now.
 
 Useful overrides:
 

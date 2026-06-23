@@ -68,6 +68,8 @@ Show:
   assumptions
 - snapshot generation outcomes, including explicit zero-row/null-result runs
 - API-derived next actions that point to predecessor/successor pipeline steps
+- retention dry-run planning with candidate paths, estimated reclaimable bytes,
+  and an auditable dry-run job action
 
 Actions remain allowlisted jobs with confirmation phrases for high-risk steps.
 

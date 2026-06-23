@@ -162,7 +162,8 @@ Includes:
 - per-build required report presence, basic verification gate summaries, and
   snapshot/coolness report summaries
 - temporary `out/*.tmp` directories for failed/in-progress ingest diagnosis
-- retention readiness and blockers
+- retention readiness, blockers, and a dry-run candidate plan with estimated
+  reclaimable bytes
 - recommended next operator actions derived from active jobs, filesystem state,
   served build state, verification reports, snapshot reports, and retention
   readiness

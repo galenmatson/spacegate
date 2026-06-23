@@ -50,6 +50,15 @@ const fallbackActionGuidance = {
     warning: "This affects what download clients see; it does not change immutable build contents.",
     duration: "Medium",
   },
+  retention_dry_run: {
+    group: "build",
+    purpose: "Runs the retention script in dry-run mode and logs exactly which build, report, and tmp paths would be pruned.",
+    prerequisites: "Use after verification and after temporary outputs have been reviewed.",
+    writes: "Admin job log only; it never passes --apply.",
+    next: "Review the log and candidate list before any manual cleanup.",
+    warning: "The destructive apply path is intentionally not exposed in Admin.",
+    duration: "Short",
+  },
   score_coolness: {
     group: "presentation",
     purpose: "Generates deterministic disc coolness ranking and scoring reports for a build.",
@@ -717,7 +726,7 @@ function BuildsScreen({ csrf }) {
   const snapshot = currentBuild?.snapshot || {};
   const pathHealth = buildStatus.path_health || {};
   const nextActions = Array.isArray(buildStatus.next_actions) ? buildStatus.next_actions : [];
-  const buildActions = ["build_database", "verify_build", "publish_db"].map((name) => actionsByName.get(name)).filter(Boolean);
+  const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run"].map((name) => actionsByName.get(name)).filter(Boolean);
   const kpis = [
     { label: "Served build", value: compactId(state.status?.build_id || served.build_id, 20) },
     { label: "Verification", value: readableStatus(verification.status || "unknown"), tone: statusTone(verification.status) },
@@ -804,8 +813,10 @@ function BuildsScreen({ csrf }) {
 
       <section className="builds-grid">
         <TempBuildsPanel builds={tmpBuilds} />
-        <BuildReportsPanel build={currentBuild} />
+        <RetentionPlanPanel retention={retention} />
       </section>
+
+      <BuildReportsPanel build={currentBuild} />
     </div>
   );
 }
@@ -1035,6 +1046,52 @@ function TempBuildsPanel({ builds }) {
       ) : (
         <div className="empty">No temporary ingest output directories are currently present.</div>
       )}
+    </div>
+  );
+}
+
+function RetentionPlanPanel({ retention }) {
+  const plan = retention?.dry_run || {};
+  const candidates = plan.candidates || {};
+  const buildCandidates = candidates.builds || [];
+  const tmpCandidates = candidates.tmp || [];
+  const reportCandidates = candidates.reports || [];
+  const allCandidates = [
+    ...buildCandidates.map((item) => ({ ...item, type: "build" })),
+    ...tmpCandidates.map((item) => ({ ...item, type: "tmp" })),
+    ...reportCandidates.map((item) => ({ ...item, type: "report" })),
+  ];
+  return (
+    <div className="panel">
+      <h2>Retention Dry-Run Plan</h2>
+      <p className="muted">Parsed preview of what the retention script would report. The Admin action is dry-run only and does not delete artifacts.</p>
+      <OverviewFact label="Policy" value={`keep ${formatInt(plan.keep_builds)} builds / ${formatInt(plan.keep_reports)} report dirs`} />
+      <OverviewFact label="Candidates" value={`${formatInt(buildCandidates.length)} builds / ${formatInt(tmpCandidates.length)} tmp / ${formatInt(reportCandidates.length)} reports`} />
+      <OverviewFact label="Estimated reclaimable" value={formatBytes(plan.estimated_reclaimable_bytes)} />
+      <OverviewFact label="Served build protected" value={plan.served_build_id || "n/a"} />
+      {allCandidates.length ? (
+        <table>
+          <thead>
+            <tr><th>Type</th><th>Name</th><th>Reason</th><th>Size</th></tr>
+          </thead>
+          <tbody>
+            {allCandidates.slice(0, 18).map((item) => (
+              <tr key={`${item.type}-${item.path}`}>
+                <td><span className={`badge ${item.type === "tmp" ? "warn" : "muted"}`}>{item.type}</span></td>
+                <td>
+                  {item.name}
+                  <span className="table-subtext">{item.path}</span>
+                </td>
+                <td>{item.reason}</td>
+                <td>{formatBytes(item.size_bytes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="empty">Retention dry-run has no build, report, or temporary-output candidates under the current policy.</div>
+      )}
+      {allCandidates.length > 18 ? <div className="status-line">{formatInt(allCandidates.length - 18)} additional candidates omitted from this compact view. Run Retention Dry Run for the full log.</div> : null}
     </div>
   );
 }

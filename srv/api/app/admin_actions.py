@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import secrets
 import sqlite3
 import subprocess
@@ -239,6 +240,20 @@ def _build_command_publish_db(params: Dict[str, Any]) -> List[str]:
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.append(build_id)
+    return cmd
+
+
+def _build_command_retention_dry_run(params: Dict[str, Any]) -> List[str]:
+    cmd = [str(ROOT_DIR / "scripts" / "prune_state_retention.sh")]
+    keep_builds = _normalize_integer(params.get("keep_builds", os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12")))
+    keep_reports = _normalize_integer(params.get("keep_reports", os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24")))
+    if keep_builds < 0:
+        raise ActionValidationError("keep_builds must be >= 0")
+    if keep_reports < 0:
+        raise ActionValidationError("keep_reports must be >= 0")
+    cmd.extend(["--keep-builds", str(keep_builds), "--keep-reports", str(keep_reports)])
+    if _normalize_boolean(params.get("skip_tmp", False)):
+        cmd.append("--no-prune-tmp")
     return cmd
 
 
@@ -737,7 +752,7 @@ ACTION_GROUPS: List[Dict[str, Any]] = [
         "key": "build",
         "title": "Build Pipeline",
         "description": "Build, verify, and publish deterministic science artifacts in order.",
-        "actions": ["build_database", "verify_build", "publish_db"],
+        "actions": ["build_database", "verify_build", "publish_db", "retention_dry_run"],
         "sequence": ["Build Database", "Verify Build", "Publish Database", "Retention after verified promotion"],
     },
     {
@@ -800,6 +815,18 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "failure_next_actions": ["Use release metadata backup if public download metadata points at the wrong release."],
         "warnings": ["This affects what download clients see; it does not change immutable build contents."],
         "docs_links": ["docs/ADMIN_V2.md"],
+    },
+    "retention_dry_run": {
+        "group_key": "build",
+        "purpose": "Runs the retention script in dry-run mode and logs exactly which build/report/tmp paths would be pruned.",
+        "prerequisites": "Use only after the served build is verified and temporary outputs have been reviewed.",
+        "writes_to": "Admin job log only. It does not delete artifacts because --apply is never passed.",
+        "outputs": ["retention candidate list", "estimated reclaimable bytes", "dry-run job log"],
+        "expected_duration": "short",
+        "success_next_actions": ["Review the job log.", "Only run apply manually after confirming the candidate list is safe."],
+        "failure_next_actions": ["Check state directory permissions and the retention script output."],
+        "warnings": ["This action is intentionally read-only; apply/delete remains outside Admin v2 for now."],
+        "docs_links": ["docs/RETENTION.md"],
     },
     "score_coolness": {
         "group_key": "presentation",
@@ -1043,6 +1070,37 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         requires_confirmation=True,
         confirmation_phrase=_confirmation_for("publish_db"),
         build_command=_build_command_publish_db,
+    ),
+    "retention_dry_run": ActionSpec(
+        name="retention_dry_run",
+        display_name="Retention Dry Run",
+        description="Preview stale build/report/tmp paths that the retention script would prune.",
+        params_schema={
+            "keep_builds": {
+                "type": "integer",
+                "required": False,
+                "default": 12,
+                "min": 0,
+                "max": 200,
+                "label": "Keep newest build dirs",
+            },
+            "keep_reports": {
+                "type": "integer",
+                "required": False,
+                "default": 24,
+                "min": 0,
+                "max": 500,
+                "label": "Keep newest report dirs",
+            },
+            "skip_tmp": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Do not include out/*.tmp",
+            },
+        },
+        risk_level="low",
+        build_command=_build_command_retention_dry_run,
     ),
     "restart_services": ActionSpec(
         name="restart_services",
@@ -2339,6 +2397,93 @@ def _tmp_builds(state_dir: Path, limit: int = 20) -> List[Dict[str, Any]]:
     return items
 
 
+def _is_retention_build_dir_name(name: str) -> bool:
+    return bool(re.match(r"^(\d{4}-\d{2}-\d{2}|\d{8})T\d{6}Z_[A-Za-z0-9._-]+$", name or ""))
+
+
+def _retention_candidate(path: Path, reason: str) -> Dict[str, Any]:
+    return {
+        "name": path.name,
+        "path": str(path),
+        "reason": reason,
+        "mtime_utc": _path_mtime_iso(path),
+        "size_bytes": _path_size_bytes(path),
+    }
+
+
+def _retention_plan(
+    state_dir: Path,
+    *,
+    keep_builds: int,
+    keep_reports: int,
+    prune_tmp: bool = True,
+) -> Dict[str, Any]:
+    out_dir = state_dir / "out"
+    reports_dir = state_dir / "reports"
+    served = _served_current_target(state_dir)
+    served_build_id = str(served.get("build_id") or "")
+
+    out_names = sorted(
+        [path.name for path in out_dir.iterdir() if path.is_dir()],
+        reverse=True,
+    ) if out_dir.exists() and out_dir.is_dir() else []
+    report_names = sorted(
+        [path.name for path in reports_dir.iterdir() if path.is_dir()],
+        reverse=True,
+    ) if reports_dir.exists() and reports_dir.is_dir() else []
+
+    build_names = [name for name in out_names if not name.endswith(".tmp") and _is_retention_build_dir_name(name)]
+    tmp_names = [name for name in out_names if name.endswith(".tmp")]
+    report_build_names = [name for name in report_names if _is_retention_build_dir_name(name)]
+
+    keep_build_names = set(build_names[: max(0, keep_builds)])
+    keep_report_names = set(report_build_names[: max(0, keep_reports)])
+    if served_build_id:
+        keep_build_names.add(served_build_id)
+        keep_report_names.add(served_build_id)
+
+    build_candidates = [
+        _retention_candidate(out_dir / name, f"older than newest {keep_builds} build dirs and not served/current")
+        for name in build_names
+        if name not in keep_build_names
+    ]
+    tmp_candidates = [
+        _retention_candidate(out_dir / name, "temporary ingest output")
+        for name in tmp_names
+    ] if prune_tmp else []
+    report_candidates = [
+        _retention_candidate(reports_dir / name, f"older than newest {keep_reports} report dirs and not served/current")
+        for name in report_build_names
+        if name not in keep_report_names
+    ]
+    total_bytes = sum(int(item.get("size_bytes") or 0) for item in build_candidates + tmp_candidates + report_candidates)
+    return {
+        "mode": "dry_run",
+        "script": "scripts/prune_state_retention.sh",
+        "keep_builds": keep_builds,
+        "keep_reports": keep_reports,
+        "prune_tmp": prune_tmp,
+        "served_build_id": served_build_id or None,
+        "build_dir_count": len(build_names),
+        "report_dir_count": len(report_build_names),
+        "tmp_dir_count": len(tmp_names),
+        "kept_build_count": len(keep_build_names.intersection(build_names)),
+        "kept_report_count": len(keep_report_names.intersection(report_build_names)),
+        "candidates": {
+            "builds": build_candidates,
+            "tmp": tmp_candidates,
+            "reports": report_candidates,
+        },
+        "candidate_count": len(build_candidates) + len(tmp_candidates) + len(report_candidates),
+        "estimated_reclaimable_bytes": total_bytes,
+        "notes": [
+            "This plan is informational; the Admin action runs the script without --apply.",
+            "raw/ and cooked/ are never retention candidates.",
+            "served/current is kept even if older than the keep window.",
+        ],
+    }
+
+
 def _build_path_health(state_dir: Path) -> Dict[str, Any]:
     return {
         "state_dir": _path_health(state_dir, label="State root", required=True, require_writable=True),
@@ -2351,18 +2496,22 @@ def _build_path_health(state_dir: Path) -> Dict[str, Any]:
     }
 
 
-def _retention_summary(active_build_jobs: List[Dict[str, Any]], tmp_builds: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _retention_summary(state_dir: Path, active_build_jobs: List[Dict[str, Any]], tmp_builds: List[Dict[str, Any]]) -> Dict[str, Any]:
     retention_blockers = []
     if active_build_jobs:
         retention_blockers.append("A build, verify, or publish job is active.")
     if tmp_builds:
         retention_blockers.append("Temporary ingest output directories exist; inspect them before pruning.")
+    keep_builds = int(os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12"))
+    keep_reports = int(os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24"))
     return {
-        "default_keep_builds": int(os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12")),
-        "default_keep_reports": int(os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24")),
+        "default_keep_builds": keep_builds,
+        "default_keep_reports": keep_reports,
         "script": "scripts/prune_state_retention.sh",
+        "dry_run_available": not active_build_jobs,
         "can_run_now": not retention_blockers,
         "blocked_reasons": retention_blockers,
+        "dry_run": _retention_plan(state_dir, keep_builds=keep_builds, keep_reports=keep_reports, prune_tmp=True),
         "notes": [
             "Retention must not prune raw/ or cooked/.",
             "Run retention only after successful promotion and verification.",
@@ -2499,7 +2648,7 @@ def _build_next_actions(
 
 
 def _build_related_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db"}
+    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db", "retention_dry_run"}
     return [
         job for job in jobs
         if job.get("status") in RUNNING_STATUSES and job.get("action") in build_related_actions
@@ -2521,7 +2670,7 @@ def builds_status() -> Dict[str, Any]:
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
     current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
     path_health = _build_path_health(state_dir)
-    retention = _retention_summary(active_build_jobs, tmp_builds)
+    retention = _retention_summary(state_dir, active_build_jobs, tmp_builds)
     out_dir = state_dir / "out"
     reports_dir = state_dir / "reports"
     next_actions = _build_next_actions(
@@ -2593,7 +2742,7 @@ def operations_status() -> Dict[str, Any]:
     recent_builds = _recent_builds(state_dir, limit=12)
     tmp_builds = _tmp_builds(state_dir, limit=20)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
-    retention = _retention_summary(active_build_jobs, tmp_builds)
+    retention = _retention_summary(state_dir, active_build_jobs, tmp_builds)
 
     return {
         "status": "ok",
