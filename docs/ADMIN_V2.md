@@ -157,6 +157,12 @@ Show:
 - inference endpoint last-probe reachability summaries
 - Docker/container visibility note, without requiring the Docker socket
 
+Runtime must emit structured filesystem alerts for configured targets that are
+missing, unreadable, untraversable, unwritable, or expected to be mounted but not
+visible from inside the API container. The UI should display these as actionable
+operator alerts with the affected env var/path and the next troubleshooting
+step, rather than relying on hardcoded frontend path assumptions.
+
 ## Operations, Jobs, and Audit Workspace
 
 The embedded Admin UI currently exposes these operational surfaces:

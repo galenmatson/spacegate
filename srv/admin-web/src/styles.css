@@ -643,6 +643,35 @@ h3 {
   color: var(--danger);
 }
 
+.runtime-alert-panel {
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
+}
+
+.alert-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+.alert-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem;
+  background: var(--surface-soft);
+}
+
+.alert-row.warn {
+  border-color: color-mix(in srgb, #a16207 32%, var(--border));
+}
+
+.alert-row.danger {
+  border-color: color-mix(in srgb, var(--danger) 32%, var(--border));
+}
+
 .action-fields {
   display: grid;
   gap: 0.5rem;

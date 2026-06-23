@@ -1332,8 +1332,8 @@ function KeyValueTable({ rows, columns = ["Key", "Value"] }) {
         <tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr>
       </thead>
       <tbody>
-        {rows.map((row) => (
-          <tr key={row.join("|")}>
+        {rows.map((row, rowIndex) => (
+          <tr key={`${row[0]}-${rowIndex}`}>
             {columns.map((_, index) => <td key={`${row[0]}-${index}`}>{row[index] || ""}</td>)}
           </tr>
         ))}
@@ -2848,16 +2848,34 @@ function RuntimeScreen() {
   const host = data.host_runtime || {};
   const api = data.api_process_runtime || {};
   const paths = data.paths || {};
+  const filesystemAlerts = Array.isArray(data.filesystem_alerts) ? data.filesystem_alerts : [];
+  const filesystemSummary = data.filesystem_summary || {};
   const endpoints = Array.isArray(data.inference_endpoints) ? data.inference_endpoints : [];
   const healthyEndpoints = endpoints.filter((endpoint) => endpoint.last_probe_status === "ok");
   const configuredEnv = data.environment?.configured || {};
   const sensitiveEnv = data.environment?.sensitive || {};
   const pathRows = Object.entries(paths).map(([key, item]) => [
     key,
+    <span className={`badge ${item.check_status === "error" ? "danger" : item.check_status === "warning" ? "warn" : "ok"}`}>
+      {item.check_status || "unknown"}
+    </span>,
     item.exists ? (item.is_dir ? "dir" : item.is_file ? "file" : "exists") : "missing",
-    item.writable ? "writable" : "read-only/missing",
+    [
+      item.readable ? "read" : "no read",
+      item.writable ? "write" : "no write",
+      item.mount_expected ? (item.mounted ? "mounted" : "mount?") : null,
+    ].filter(Boolean).join(" / "),
     item.disk ? `${formatBytes(item.disk.free_bytes)} free (${formatPct(item.disk.used_pct)} used)` : "n/a",
-    item.path || "",
+    <>
+      {item.path || ""}
+      {item.env_key ? <span className="table-subtext">{item.env_key}</span> : null}
+      {item.description ? <span className="table-subtext">{item.description}</span> : null}
+      {(item.issues || []).map((issue) => (
+        <span className="table-subtext warning-text" key={`${key}-${issue.code}`}>
+          {issue.message} {issue.next_action}
+        </span>
+      ))}
+    </>,
   ]);
   const envRows = Object.entries(configuredEnv).map(([key, item]) => [
     key,
@@ -2873,6 +2891,11 @@ function RuntimeScreen() {
     { label: "Git", value: data.git?.head_short || "n/a" },
     { label: "Auth", value: authStatus.enabled ? "enabled" : "disabled", tone: authStatus.enabled ? "ok" : "warn" },
     { label: "Inference probes", value: `${healthyEndpoints.length}/${endpoints.length}` },
+    {
+      label: "Filesystem",
+      value: filesystemSummary.alert_count ? `${filesystemSummary.error_count || 0} error / ${filesystemSummary.warning_count || 0} warn` : "ok",
+      tone: filesystemSummary.error_count ? "danger" : filesystemSummary.warning_count ? "warn" : "ok",
+    },
     { label: "API RSS", value: formatBytes(api.rss_bytes) },
   ];
 
@@ -2898,6 +2921,35 @@ function RuntimeScreen() {
       <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>
         {state.message} Generated: {formatDate(data.generated_at_utc)}
       </div>
+
+      {filesystemAlerts.length ? (
+        <section className="panel runtime-alert-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Filesystem Alerts</h2>
+              <p className="muted">Configured runtime targets with missing, inaccessible, unwritable, or unmounted destinations.</p>
+            </div>
+            <span className={`badge ${filesystemSummary.error_count ? "danger" : "warn"}`}>
+              {formatInt(filesystemAlerts.length)} alert{filesystemAlerts.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="alert-list">
+            {filesystemAlerts.map((alert) => (
+              <div className={`alert-row ${alert.severity === "error" ? "danger" : "warn"}`} key={`${alert.path_key}-${alert.code}`}>
+                <span className={`badge ${alert.severity === "error" ? "danger" : "warn"}`}>{alert.severity}</span>
+                <div>
+                  <strong>{alert.path_key}</strong>
+                  <span className="table-subtext">{alert.env_key || "derived path"} · {alert.path}</span>
+                  <span className="table-subtext">{alert.message}</span>
+                  <span className="table-subtext"><strong>Next:</strong> {alert.next_action}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div className="status-line">Filesystem targets ok: {formatInt(filesystemSummary.configured_target_count)} configured targets checked.</div>
+      )}
 
       <section className="runtime-grid">
         <div className="panel">
@@ -2934,7 +2986,7 @@ function RuntimeScreen() {
             <p className="muted">Container-visible path checks. Missing host-only paths may simply not be mounted into the API container.</p>
           </div>
         </div>
-        <KeyValueTable rows={pathRows} columns={["Key", "Status", "Access", "Disk", "Path"]} />
+        <KeyValueTable rows={pathRows} columns={["Key", "Health", "Type", "Access", "Disk", "Path"]} />
       </section>
 
       <section className="runtime-grid">

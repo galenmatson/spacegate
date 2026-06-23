@@ -3073,9 +3073,29 @@ def _nearest_existing_path(path: Path) -> Path:
     return current
 
 
-def _path_runtime_status(path: Path) -> Dict[str, Any]:
+def _nearest_mount_point(path: Path) -> Optional[Path]:
+    current = path if path.exists() else _nearest_existing_path(path)
+    while current.parent != current:
+        if os.path.ismount(str(current)):
+            return current
+        current = current.parent
+    return current if os.path.ismount(str(current)) else None
+
+
+def _path_runtime_status(
+    path: Path,
+    *,
+    expected_type: str = "any",
+    require_writable: bool = False,
+    required: bool = True,
+    configured: bool = True,
+    env_key: Optional[str] = None,
+    description: Optional[str] = None,
+    mount_expected: bool = False,
+) -> Dict[str, Any]:
     target = _nearest_existing_path(path)
     usage = None
+    disk_error = None
     if target.exists():
         try:
             disk = shutil.disk_usage(target)
@@ -3085,18 +3105,153 @@ def _path_runtime_status(path: Path) -> Dict[str, Any]:
                 "free_bytes": int(disk.free),
                 "used_pct": (float(disk.used) / float(disk.total) * 100.0) if disk.total else 0.0,
             }
-        except Exception:
+        except Exception as exc:
+            disk_error = str(exc)
             usage = None
+    exists = path.exists()
+    is_dir = path.is_dir()
+    is_file = path.is_file()
+    readable = os.access(str(path), os.R_OK) if exists else False
+    searchable = os.access(str(path), os.X_OK) if exists and is_dir else None
+    writable = os.access(str(path), os.W_OK) if exists else False
+    parent = path.parent
+    parent_exists = parent.exists()
+    parent_writable = os.access(str(parent), os.W_OK) if parent_exists else False
+    mount_point = _nearest_mount_point(path) if exists else None
+    mounted = bool(mount_point and str(mount_point) != "/")
+
+    issues: List[Dict[str, str]] = []
+    if configured and required and not exists:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "missing",
+                "message": "Configured filesystem target is missing.",
+                "next_action": "Create the directory/file or mount the host path into the API container, then refresh Runtime.",
+            }
+        )
+    if exists and expected_type == "dir" and not is_dir:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "not_directory",
+                "message": "Configured filesystem target exists but is not a directory.",
+                "next_action": "Fix the path or replace it with the expected directory.",
+            }
+        )
+    if exists and expected_type == "file" and not is_file:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "not_file",
+                "message": "Configured filesystem target exists but is not a file.",
+                "next_action": "Fix the path or restore the expected file.",
+            }
+        )
+    if exists and not readable:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "not_readable",
+                "message": "API process cannot read this filesystem target.",
+                "next_action": "Check ownership, mode bits, container user, and bind-mount permissions.",
+            }
+        )
+    if exists and is_dir and searchable is False:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "not_searchable",
+                "message": "API process cannot traverse this directory.",
+                "next_action": "Grant execute/search permission on this directory and its parents.",
+            }
+        )
+    if exists and require_writable and not writable:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "not_writable",
+                "message": "API process cannot write to this configured destination.",
+                "next_action": "Check ownership, group membership, mode bits, and Docker volume options.",
+            }
+        )
+    if not exists and expected_type == "file" and require_writable and parent_exists and not parent_writable:
+        issues.append(
+            {
+                "severity": "error",
+                "code": "parent_not_writable",
+                "message": "Target file is missing and its parent directory is not writable.",
+                "next_action": "Restore the file or grant write permission to the parent directory.",
+            }
+        )
+    if exists and mount_expected and not mounted:
+        issues.append(
+            {
+                "severity": "warning",
+                "code": "mount_not_visible",
+                "message": "Path exists, but no non-root mount point is visible for this target.",
+                "next_action": "Confirm the host filesystem is mounted and the Docker bind mount targets this path.",
+            }
+        )
+    if exists and disk_error:
+        issues.append(
+            {
+                "severity": "warning",
+                "code": "disk_usage_unavailable",
+                "message": "Disk usage could not be read for this target.",
+                "next_action": "Check filesystem accessibility from inside the API container.",
+            }
+        )
+    check_status = "ok"
+    if any(issue["severity"] == "error" for issue in issues):
+        check_status = "error"
+    elif issues:
+        check_status = "warning"
     return {
         "path": str(path),
-        "exists": path.exists(),
-        "is_dir": path.is_dir(),
-        "is_file": path.is_file(),
+        "description": description,
+        "env_key": env_key,
+        "configured": configured,
+        "required": required,
+        "expected_type": expected_type,
+        "exists": exists,
+        "is_dir": is_dir,
+        "is_file": is_file,
         "is_symlink": path.is_symlink(),
-        "resolved": str(path.resolve()) if path.exists() else None,
-        "writable": os.access(str(path), os.W_OK) if path.exists() else False,
+        "resolved": str(path.resolve()) if exists else None,
+        "readable": readable,
+        "searchable": searchable,
+        "writable": writable,
+        "parent": str(parent),
+        "parent_exists": parent_exists,
+        "parent_writable": parent_writable,
+        "mount_expected": mount_expected,
+        "mounted": mounted,
+        "mount_point": str(mount_point) if mount_point else None,
+        "check_status": check_status,
+        "issues": issues,
         "disk": usage,
     }
+
+
+def _filesystem_alerts(paths: Dict[str, Dict[str, Any]]) -> List[Dict[str, str]]:
+    alerts: List[Dict[str, str]] = []
+    for key, item in paths.items():
+        for issue in item.get("issues") or []:
+            alerts.append(
+                {
+                    "severity": str(issue.get("severity") or "warning"),
+                    "path_key": key,
+                    "path": str(item.get("path") or ""),
+                    "env_key": str(item.get("env_key") or ""),
+                    "code": str(issue.get("code") or "filesystem_issue"),
+                    "message": str(issue.get("message") or "Filesystem issue detected."),
+                    "next_action": str(issue.get("next_action") or "Inspect the configured path from inside the API container."),
+                }
+            )
+    severity_rank = {"error": 0, "warning": 1, "info": 2}
+    alerts.sort(key=lambda alert: (severity_rank.get(alert["severity"], 9), alert["path_key"], alert["code"]))
+    return alerts
 
 
 def _git_head_short() -> Optional[str]:
@@ -3142,21 +3297,101 @@ def _runtime_status_payload() -> Dict[str, Any]:
                 "last_probe_error": last_probe.get("error_message"),
             }
         )
-    path_map = {
-        "project_root": ROOT_DIR,
-        "state_dir": state_dir,
-        "cache_dir": Path(os.getenv("SPACEGATE_CACHE_DIR") or state_dir / "cache"),
-        "log_dir": Path(os.getenv("SPACEGATE_LOG_DIR") or state_dir / "logs"),
-        "admin_db_path": admin_db.get_admin_db_path(),
-        "admin_jobs_dir": Path(os.getenv("SPACEGATE_ADMIN_JOBS_DIR") or state_dir / "admin" / "jobs"),
-        "core_db_path": core_db_path,
-        "disc_db_path": core_db_path.with_name("disc.duckdb"),
-        "arm_db_path": core_db_path.with_name("arm.duckdb"),
-        "reports_dir": state_dir / "reports",
-        "served_current": state_dir / "served" / "current",
-        "bulk_research_root": Path(os.getenv("SPACEGATE_BULK_DIR") or "/mnt/space/spacegate"),
-        "model_cache_root": Path("/data/models"),
-        "docker_data_root": Path("/data/docker"),
+    bulk_env = os.getenv("SPACEGATE_BULK_DIR", "").strip()
+    path_specs = {
+        "project_root": {
+            "path": ROOT_DIR,
+            "expected_type": "dir",
+            "require_writable": False,
+            "description": "Repository root visible to the API runtime.",
+        },
+        "state_dir": {
+            "path": state_dir,
+            "expected_type": "dir",
+            "require_writable": True,
+            "env_key": "SPACEGATE_STATE_DIR",
+            "description": "Primary Spacegate state root for builds, reports, admin DB, and runtime artifacts.",
+        },
+        "cache_dir": {
+            "path": Path(os.getenv("SPACEGATE_CACHE_DIR") or state_dir / "cache"),
+            "expected_type": "dir",
+            "require_writable": True,
+            "env_key": "SPACEGATE_CACHE_DIR",
+            "description": "Runtime cache directory.",
+        },
+        "log_dir": {
+            "path": Path(os.getenv("SPACEGATE_LOG_DIR") or state_dir / "logs"),
+            "expected_type": "dir",
+            "require_writable": True,
+            "env_key": "SPACEGATE_LOG_DIR",
+            "description": "Runtime log directory.",
+        },
+        "admin_db_path": {
+            "path": admin_db.get_admin_db_path(),
+            "expected_type": "file",
+            "require_writable": True,
+            "env_key": "SPACEGATE_ADMIN_DB_PATH",
+            "description": "Admin SQLite database for auth, jobs, audit, and registries.",
+        },
+        "admin_jobs_dir": {
+            "path": Path(os.getenv("SPACEGATE_ADMIN_JOBS_DIR") or state_dir / "admin" / "jobs"),
+            "expected_type": "dir",
+            "require_writable": True,
+            "env_key": "SPACEGATE_ADMIN_JOBS_DIR",
+            "description": "Admin job records and logs.",
+        },
+        "core_db_path": {
+            "path": core_db_path,
+            "expected_type": "file",
+            "require_writable": False,
+            "description": "Served immutable core science database.",
+        },
+        "disc_db_path": {
+            "path": core_db_path.with_name("disc.duckdb"),
+            "expected_type": "file",
+            "require_writable": False,
+            "description": "Served disc presentation/artifact database.",
+        },
+        "arm_db_path": {
+            "path": core_db_path.with_name("arm.duckdb"),
+            "expected_type": "file",
+            "require_writable": False,
+            "description": "Served arm supplemental science/proposal database.",
+        },
+        "reports_dir": {
+            "path": state_dir / "reports",
+            "expected_type": "dir",
+            "require_writable": True,
+            "description": "Build, verification, and agent/eval reports.",
+        },
+        "served_current": {
+            "path": state_dir / "served" / "current",
+            "expected_type": "dir",
+            "require_writable": False,
+            "description": "Current promoted immutable build symlink/directory.",
+        },
+        "bulk_research_root": {
+            "path": Path(bulk_env or "/mnt/space/spacegate"),
+            "expected_type": "dir",
+            "require_writable": True,
+            "env_key": "SPACEGATE_BULK_DIR",
+            "mount_expected": bool(bulk_env),
+            "description": "Bulk research, source documents, dossiers, OCR, and large reusable caches.",
+        },
+        "model_cache_root": {
+            "path": Path("/data/models"),
+            "expected_type": "dir",
+            "required": False,
+            "configured": False,
+            "description": "Optional model cache visibility probe.",
+        },
+        "docker_data_root": {
+            "path": Path("/data/docker"),
+            "expected_type": "dir",
+            "required": False,
+            "configured": False,
+            "description": "Optional Docker data-root visibility probe.",
+        },
     }
     configured_env = {
         key: {
@@ -3169,6 +3404,18 @@ def _runtime_status_payload() -> Dict[str, Any]:
         key: {"configured": bool(os.getenv(key, "").strip())}
         for key in SENSITIVE_ENV_KEYS
     }
+    paths = {
+        key: _path_runtime_status(**spec)
+        for key, spec in path_specs.items()
+    }
+    filesystem_alerts = _filesystem_alerts(paths)
+    filesystem_summary = {
+        "alert_count": len(filesystem_alerts),
+        "error_count": sum(1 for alert in filesystem_alerts if alert["severity"] == "error"),
+        "warning_count": sum(1 for alert in filesystem_alerts if alert["severity"] == "warning"),
+        "checked_count": len(paths),
+        "configured_target_count": sum(1 for item in paths.values() if item.get("configured")),
+    }
     docker_socket = Path("/var/run/docker.sock")
     return {
         "status": "ok",
@@ -3178,7 +3425,9 @@ def _runtime_status_payload() -> Dict[str, Any]:
             "head_short": _git_head_short(),
         },
         "auth": auth_status,
-        "paths": {key: _path_runtime_status(path) for key, path in path_map.items()},
+        "paths": paths,
+        "filesystem_alerts": filesystem_alerts,
+        "filesystem_summary": filesystem_summary,
         "environment": {
             "configured": configured_env,
             "sensitive": sensitive_env,
