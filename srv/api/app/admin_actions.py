@@ -1986,6 +1986,267 @@ def _report_file_summary(reports_dir: Path) -> Dict[str, Any]:
     }
 
 
+def _read_report_json(path: Path) -> tuple[Dict[str, Any] | None, str | None]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return None, str(exc)
+    if not isinstance(data, dict):
+        return None, "report root is not a JSON object"
+    return data, None
+
+
+def _report_presence(reports_dir: Path, names: Sequence[str]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for name in names:
+        path = reports_dir / name
+        out.append(
+            {
+                "name": name,
+                "exists": path.exists() and path.is_file(),
+                "mtime_utc": _path_mtime_iso(path) if path.exists() else None,
+            }
+        )
+    return out
+
+
+def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, Any]:
+    required_names = ("qc_report.json", "match_report.json", "provenance_report.json")
+    supplemental_names = (
+        "duplicate_trap_report.json",
+        "determinism_report.json",
+        "planet_catalog_delta_report.json",
+        "planet_reclassification_report.json",
+        "classification_safety_report.json",
+    )
+    required = _report_presence(reports_dir, required_names)
+    supplemental = _report_presence(reports_dir, supplemental_names)
+    missing_required = [item["name"] for item in required if not item["exists"]]
+    issues: List[str] = []
+    warnings: List[str] = []
+    checks: Dict[str, Any] = {}
+
+    if not reports_dir.exists() or not reports_dir.is_dir():
+        issues.append("Report directory is missing.")
+    if missing_required:
+        issues.append(f"Missing required verify reports: {', '.join(missing_required)}.")
+
+    qc_path = reports_dir / "qc_report.json"
+    qc: Dict[str, Any] | None = None
+    if qc_path.exists():
+        qc, error = _read_report_json(qc_path)
+        if error:
+            issues.append(f"qc_report.json could not be parsed: {error}")
+        elif qc is not None:
+            checks["qc_build_id"] = qc.get("build_id")
+            checks["qc_build_id_matches"] = qc.get("build_id") == build_id
+            if qc.get("build_id") != build_id:
+                issues.append(f"QC build_id mismatch: {qc.get('build_id')} != {build_id}.")
+            violations = qc.get("dist_invariant_violations")
+            checks["dist_invariant_violations"] = violations
+            if violations is None:
+                issues.append("QC report is missing dist_invariant_violations.")
+            elif int(violations or 0) != 0:
+                issues.append(f"Distance invariant violations: {violations}.")
+            counts = qc.get("counts") if isinstance(qc.get("counts"), dict) else {}
+            checks["counts"] = {key: counts.get(key) for key in ("systems", "stars", "planets")}
+            if not all(int(counts.get(key) or 0) > 0 for key in ("systems", "stars", "planets")):
+                issues.append("QC counts for systems, stars, or planets are zero/missing.")
+            tap_keys = (
+                "gaia_backbone_row_count_check_match",
+                "gaia_classprob_row_count_check_match",
+                "gaia_nss_non_single_row_count_check_match",
+                "gaia_nss_two_body_row_count_check_match",
+            )
+            failed_tap = [key for key in tap_keys if qc.get(key) is False]
+            checks["gaia_row_count_checks_failed"] = failed_tap
+            if failed_tap:
+                issues.append(f"Gaia TAP row-count checks failed: {', '.join(failed_tap)}.")
+            lifecycle_enabled = bool(qc.get("exoplanet_lifecycle_catalogs_enabled"))
+            checks["exoplanet_lifecycle_catalogs_enabled"] = lifecycle_enabled
+            if lifecycle_enabled:
+                for name in ("planet_catalog_delta_report.json", "planet_reclassification_report.json"):
+                    if not (reports_dir / name).exists():
+                        issues.append(f"Missing lifecycle report required by QC: {name}.")
+
+    prov_path = reports_dir / "provenance_report.json"
+    if prov_path.exists():
+        prov, error = _read_report_json(prov_path)
+        if error:
+            issues.append(f"provenance_report.json could not be parsed: {error}")
+        elif prov is not None:
+            checks["provenance_build_id"] = prov.get("build_id")
+            checks["provenance_build_id_matches"] = prov.get("build_id") == build_id
+            checks["provenance_table_count"] = len(prov.get("tables") or {}) if isinstance(prov.get("tables"), dict) else 0
+            if prov.get("build_id") and prov.get("build_id") != build_id:
+                issues.append(f"Provenance build_id mismatch: {prov.get('build_id')} != {build_id}.")
+
+    match_path = reports_dir / "match_report.json"
+    if match_path.exists():
+        match, error = _read_report_json(match_path)
+        if error:
+            issues.append(f"match_report.json could not be parsed: {error}")
+        elif match is not None:
+            checks["match_build_id"] = match.get("build_id")
+            checks["match_build_id_matches"] = match.get("build_id") == build_id
+            if match.get("build_id") and match.get("build_id") != build_id:
+                issues.append(f"Match report build_id mismatch: {match.get('build_id')} != {build_id}.")
+
+    duplicate_path = reports_dir / "duplicate_trap_report.json"
+    if duplicate_path.exists():
+        duplicate, error = _read_report_json(duplicate_path)
+        if error:
+            warnings.append(f"duplicate_trap_report.json could not be parsed: {error}")
+        elif duplicate is not None:
+            near = duplicate.get("near_pair_totals") if isinstance(duplicate.get("near_pair_totals"), dict) else {}
+            checks["duplicate_near_pair_totals"] = {
+                "candidate_pairs": near.get("candidate_pairs"),
+                "likely_duplicate_pairs": near.get("likely_duplicate_pairs"),
+                "high_confidence_pairs": near.get("high_confidence_pairs"),
+            }
+            if duplicate.get("build_id") and duplicate.get("build_id") != build_id:
+                warnings.append(f"Duplicate trap build_id mismatch: {duplicate.get('build_id')} != {build_id}.")
+    else:
+        warnings.append("duplicate_trap_report.json is absent; default verification may allow this, strict verification may not.")
+
+    if issues:
+        status = "failed"
+    elif missing_required:
+        status = "missing_reports"
+    elif warnings:
+        status = "attention"
+    elif all(item["exists"] for item in required):
+        status = "passed_reports"
+    else:
+        status = "unknown"
+
+    return {
+        "status": status,
+        "required_reports": required,
+        "supplemental_reports": supplemental,
+        "missing_required_reports": missing_required,
+        "issues": issues,
+        "warnings": warnings,
+        "checks": checks,
+    }
+
+
+def _snapshot_report_summary(reports_dir: Path) -> Dict[str, Any]:
+    path = reports_dir / "snapshot_report.json"
+    out: Dict[str, Any] = {
+        "has_report": path.exists() and path.is_file(),
+        "status": "missing",
+        "path": str(path),
+        "generated_at": None,
+        "generator_version": None,
+        "view_type": None,
+        "force": None,
+        "params_hash": None,
+        "requested": None,
+        "generated": None,
+        "reused": None,
+        "manifest_rows_upserted": None,
+        "manifest_parquet": None,
+        "null_result": False,
+        "parse_error": None,
+    }
+    if not out["has_report"]:
+        return out
+    data, error = _read_report_json(path)
+    if error or data is None:
+        out["status"] = "parse_error"
+        out["parse_error"] = error
+        return out
+    for key in (
+        "generated_at",
+        "generator_version",
+        "view_type",
+        "force",
+        "params_hash",
+        "requested",
+        "generated",
+        "reused",
+        "manifest_rows_upserted",
+        "manifest_parquet",
+    ):
+        out[key] = data.get(key)
+    requested = int(data.get("requested") or 0)
+    generated = int(data.get("generated") or 0)
+    reused = int(data.get("reused") or 0)
+    upserted = int(data.get("manifest_rows_upserted") or 0)
+    out["null_result"] = requested == 0 and generated == 0 and reused == 0 and upserted == 0
+    if out["null_result"]:
+        out["status"] = "null_result"
+    elif generated > 0:
+        out["status"] = "generated"
+    elif reused > 0:
+        out["status"] = "reused"
+    elif requested == 0:
+        out["status"] = "completed_zero_requested"
+    else:
+        out["status"] = "completed_zero_generated"
+    return out
+
+
+def _coolness_report_summary(reports_dir: Path) -> Dict[str, Any]:
+    path = reports_dir / "coolness_report.json"
+    out: Dict[str, Any] = {"has_report": path.exists() and path.is_file(), "status": "missing", "parse_error": None}
+    if not out["has_report"]:
+        return out
+    data, error = _read_report_json(path)
+    if error or data is None:
+        out["status"] = "parse_error"
+        out["parse_error"] = error
+        return out
+    summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+    profile = data.get("profile") if isinstance(data.get("profile"), dict) else {}
+    out.update(
+        {
+            "status": "present",
+            "profile_id": profile.get("profile_id") or data.get("profile_id"),
+            "profile_version": profile.get("profile_version") or data.get("profile_version"),
+            "scored_rows": summary.get("scored_rows") or summary.get("rows") or data.get("scored_rows"),
+        }
+    )
+    return out
+
+
+def _path_health(path: Path, *, label: str, required: bool = True, require_writable: bool = False) -> Dict[str, Any]:
+    exists = path.exists() or path.is_symlink()
+    is_dir = path.is_dir()
+    readable = bool(exists and os.access(path, os.R_OK))
+    traversable = bool(exists and (not is_dir or os.access(path, os.X_OK)))
+    writable = bool(exists and os.access(path, os.W_OK))
+    issues: List[str] = []
+    if required and not exists:
+        issues.append("missing")
+    if exists and not readable:
+        issues.append("not readable")
+    if exists and is_dir and not traversable:
+        issues.append("not traversable")
+    if require_writable and exists and not writable:
+        issues.append("not writable")
+    if issues:
+        status = "error" if required or require_writable else "warning"
+    else:
+        status = "ok" if exists else "optional_missing"
+    return {
+        "label": label,
+        "path": str(path),
+        "exists": exists,
+        "is_dir": is_dir,
+        "is_symlink": path.is_symlink(),
+        "readable": readable,
+        "traversable": traversable,
+        "writable": writable,
+        "required": required,
+        "require_writable": require_writable,
+        "status": status,
+        "issues": issues,
+        "mtime_utc": _path_mtime_iso(path) if exists else None,
+    }
+
+
 def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
     build_id = build_dir.name
     reports_dir = state_dir / "reports" / build_id
@@ -2001,6 +2262,12 @@ def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
         missing_required.append("core.duckdb")
     if not arm_db.exists():
         missing_required.append("arm.duckdb")
+    parquet_required = {
+        "stars": parquet_dir / "stars.parquet",
+        "systems": parquet_dir / "systems.parquet",
+        "planets": parquet_dir / "planets.parquet",
+    }
+    missing_parquet = [f"parquet/{name}.parquet" for name, path in parquet_required.items() if not path.exists()]
     return {
         "build_id": build_id,
         "path": str(build_dir),
@@ -2015,6 +2282,9 @@ def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
             "halo_db": halo_db.exists(),
             "galaxy_db": galaxy_db.exists(),
             "parquet": parquet_dir.exists(),
+            "stars_parquet": parquet_required["stars"].exists(),
+            "systems_parquet": parquet_required["systems"].exists(),
+            "planets_parquet": parquet_required["planets"].exists(),
         },
         "artifact_sizes_bytes": {
             "core_db": core_db.stat().st_size if core_db.exists() else 0,
@@ -2024,8 +2294,13 @@ def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
             "galaxy_db": galaxy_db.stat().st_size if galaxy_db.exists() else 0,
             "parquet": _path_size_bytes(parquet_dir),
         },
-        "promotable": not missing_required,
-        "missing_required": missing_required,
+        "promotable": not missing_required and not missing_parquet,
+        "missing_required": missing_required + missing_parquet,
+        "missing_artifacts": missing_required,
+        "missing_parquet": missing_parquet,
+        "verification": _build_verification_summary(reports_dir, build_id),
+        "snapshot": _snapshot_report_summary(reports_dir),
+        "coolness": _coolness_report_summary(reports_dir),
     }
 
 
@@ -2064,6 +2339,237 @@ def _tmp_builds(state_dir: Path, limit: int = 20) -> List[Dict[str, Any]]:
     return items
 
 
+def _build_path_health(state_dir: Path) -> Dict[str, Any]:
+    return {
+        "state_dir": _path_health(state_dir, label="State root", required=True, require_writable=True),
+        "raw_dir": _path_health(state_dir / "raw", label="Raw snapshots", required=True, require_writable=False),
+        "cooked_dir": _path_health(state_dir / "cooked", label="Cooked exports", required=True, require_writable=False),
+        "out_dir": _path_health(state_dir / "out", label="Immutable build outputs", required=True, require_writable=True),
+        "reports_dir": _path_health(state_dir / "reports", label="Build reports", required=True, require_writable=True),
+        "served_dir": _path_health(state_dir / "served", label="Served metadata", required=True, require_writable=True),
+        "served_current": _path_health(state_dir / "served" / "current", label="Served current symlink", required=True, require_writable=False),
+    }
+
+
+def _retention_summary(active_build_jobs: List[Dict[str, Any]], tmp_builds: List[Dict[str, Any]]) -> Dict[str, Any]:
+    retention_blockers = []
+    if active_build_jobs:
+        retention_blockers.append("A build, verify, or publish job is active.")
+    if tmp_builds:
+        retention_blockers.append("Temporary ingest output directories exist; inspect them before pruning.")
+    return {
+        "default_keep_builds": int(os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12")),
+        "default_keep_reports": int(os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24")),
+        "script": "scripts/prune_state_retention.sh",
+        "can_run_now": not retention_blockers,
+        "blocked_reasons": retention_blockers,
+        "notes": [
+            "Retention must not prune raw/ or cooked/.",
+            "Run retention only after successful promotion and verification.",
+            "Use dry-run first unless the cleanup target is already reviewed.",
+        ],
+    }
+
+
+def _build_next_actions(
+    *,
+    served: Dict[str, Any],
+    current_build: Dict[str, Any] | None,
+    recent_builds: List[Dict[str, Any]],
+    tmp_builds: List[Dict[str, Any]],
+    active_build_jobs: List[Dict[str, Any]],
+    path_health: Dict[str, Any],
+    retention: Dict[str, Any],
+) -> List[Dict[str, str]]:
+    actions: List[Dict[str, str]] = []
+    path_errors = [item for item in path_health.values() if item.get("status") == "error"]
+    if path_errors:
+        actions.append(
+            {
+                "priority": "high",
+                "title": "Fix filesystem targets before running builds",
+                "detail": f"{len(path_errors)} configured build path(s) are missing or inaccessible.",
+                "action": "Open Runtime or inspect the path health table below.",
+            }
+        )
+    if active_build_jobs:
+        job = active_build_jobs[0]
+        actions.append(
+            {
+                "priority": "normal",
+                "title": "Wait for active build job",
+                "detail": f"{job.get('action') or 'build action'} is {job.get('status') or 'active'} as {job.get('job_id') or 'a job'}.",
+                "action": "Open Operations to monitor logs before starting another build/publish action.",
+            }
+        )
+    if not served.get("build_id"):
+        actions.append(
+            {
+                "priority": "high",
+                "title": "Promote a verified build",
+                "detail": "served/current does not resolve to an out/<build_id> directory.",
+                "action": "Run Build Database if no good build exists, then Verify Build and Publish Database.",
+            }
+        )
+    elif current_build:
+        verification = current_build.get("verification") or {}
+        snapshot = current_build.get("snapshot") or {}
+        if not current_build.get("promotable"):
+            actions.append(
+                {
+                    "priority": "high",
+                    "title": "Investigate missing served artifacts",
+                    "detail": f"Missing: {', '.join(current_build.get('missing_required') or ['required artifacts'])}.",
+                    "action": "Rebuild or restore before publishing/deploying.",
+                }
+            )
+        if verification.get("status") not in {"passed_reports", "attention"}:
+            actions.append(
+                {
+                    "priority": "high",
+                    "title": "Run or inspect Verify Build",
+                    "detail": f"Verification summary is {verification.get('status') or 'unknown'}.",
+                    "action": "Run Verify Build from the runbook, then inspect any failed report gates.",
+                }
+            )
+        elif verification.get("warnings"):
+            actions.append(
+                {
+                    "priority": "normal",
+                    "title": "Review verification warnings",
+                    "detail": "; ".join((verification.get("warnings") or [])[:2]),
+                    "action": "Warnings may be acceptable, but should be noted before retention or deployment.",
+                }
+            )
+        if not snapshot.get("has_report"):
+            actions.append(
+                {
+                    "priority": "normal",
+                    "title": "Generate or record snapshot state",
+                    "detail": "No snapshot_report.json is present for the served build.",
+                    "action": "Generate snapshots when visual/card artifacts are expected for this build.",
+                }
+            )
+        elif snapshot.get("null_result"):
+            actions.append(
+                {
+                    "priority": "normal",
+                    "title": "Record snapshot null result",
+                    "detail": "Snapshot generation completed with zero requested/generated/reused rows.",
+                    "action": "Treat as a scientific null result unless the selection parameters were unintended.",
+                }
+            )
+    elif recent_builds:
+        actions.append(
+            {
+                "priority": "normal",
+                "title": "Select the served build for inspection",
+                "detail": "Recent builds exist, but the served build was not found in the recent window.",
+                "action": "Increase inspection depth or check served/current manually.",
+            }
+        )
+    else:
+        actions.append(
+            {
+                "priority": "normal",
+                "title": "Create first build artifact",
+                "detail": "No immutable build directories were found under out/.",
+                "action": "Run Build Database, then Verify Build.",
+            }
+        )
+    if tmp_builds:
+        actions.append(
+            {
+                "priority": "normal",
+                "title": "Review temporary build outputs",
+                "detail": f"{len(tmp_builds)} temporary output director{'y' if len(tmp_builds) == 1 else 'ies'} exist.",
+                "action": "Capture the failure cause before pruning .tmp outputs.",
+            }
+        )
+    elif retention.get("can_run_now") and current_build and (current_build.get("verification") or {}).get("status") in {"passed_reports", "attention"}:
+        actions.append(
+            {
+                "priority": "low",
+                "title": "Retention dry-run is available",
+                "detail": "No active build blockers or temporary outputs are reported.",
+                "action": "Run scripts/prune_state_retention.sh without --apply first.",
+            }
+        )
+    return actions[:8]
+
+
+def _build_related_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db"}
+    return [
+        job for job in jobs
+        if job.get("status") in RUNNING_STATUSES and job.get("action") in build_related_actions
+    ]
+
+
+def builds_status() -> Dict[str, Any]:
+    state_dir = _state_dir().resolve()
+    jobs_error = None
+    try:
+        jobs = list_jobs(limit=100)
+    except Exception as exc:
+        jobs = []
+        jobs_error = str(exc)
+    active_build_jobs = _build_related_jobs(jobs)
+    served = _served_current_target(state_dir)
+    recent_builds = _recent_builds(state_dir, limit=16)
+    tmp_builds = _tmp_builds(state_dir, limit=20)
+    incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
+    current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
+    path_health = _build_path_health(state_dir)
+    retention = _retention_summary(active_build_jobs, tmp_builds)
+    out_dir = state_dir / "out"
+    reports_dir = state_dir / "reports"
+    next_actions = _build_next_actions(
+        served=served,
+        current_build=current_build,
+        recent_builds=recent_builds,
+        tmp_builds=tmp_builds,
+        active_build_jobs=active_build_jobs,
+        path_health=path_health,
+        retention=retention,
+    )
+    if jobs_error:
+        next_actions.insert(
+            0,
+            {
+                "priority": "normal",
+                "title": "Job state unavailable",
+                "detail": f"Build status loaded, but job history could not be read: {jobs_error}",
+                "action": "Check admin DB permissions or use the Operations workspace after the API runtime can read the DB.",
+            },
+        )
+    return {
+        "status": "ok",
+        "generated_at_utc": _to_iso(_utc_now()),
+        "paths": {
+            "state_dir": str(state_dir),
+            "raw_dir": str(state_dir / "raw"),
+            "cooked_dir": str(state_dir / "cooked"),
+            "out_dir": str(out_dir),
+            "reports_dir": str(reports_dir),
+            "served_current": str(state_dir / "served" / "current"),
+        },
+        "path_health": path_health,
+        "served_current": served,
+        "current_build": current_build,
+        "recent": recent_builds,
+        "tmp": tmp_builds,
+        "incomplete_recent": incomplete_builds,
+        "out_count": len([p for p in out_dir.iterdir() if p.is_dir() and not p.name.endswith(".tmp")]) if out_dir.exists() else 0,
+        "report_build_count": len([p for p in reports_dir.iterdir() if p.is_dir()]) if reports_dir.exists() else 0,
+        "tmp_count": len(tmp_builds),
+        "active_build_jobs": active_build_jobs,
+        "jobs_error": jobs_error,
+        "retention": retention,
+        "next_actions": next_actions[:8],
+    }
+
+
 def operations_status() -> Dict[str, Any]:
     state_dir = _state_dir().resolve()
     jobs_dir = _jobs_dir().resolve()
@@ -2075,8 +2581,7 @@ def operations_status() -> Dict[str, Any]:
     running_jobs = [job for job in jobs if job.get("status") == "running"]
     queued_jobs = [job for job in jobs if job.get("status") == "queued"]
     failed_jobs = [job for job in jobs if job.get("status") == "failed"]
-    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db"}
-    active_build_jobs = [job for job in active_jobs if job.get("action") in build_related_actions]
+    active_build_jobs = _build_related_jobs(jobs)
     latest_high_risk = None
     for job in jobs:
         spec = ACTION_SPECS.get(str(job.get("action") or ""))
@@ -2088,11 +2593,7 @@ def operations_status() -> Dict[str, Any]:
     recent_builds = _recent_builds(state_dir, limit=12)
     tmp_builds = _tmp_builds(state_dir, limit=20)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
-    retention_blockers = []
-    if active_build_jobs:
-        retention_blockers.append("A build, verify, or publish job is active.")
-    if tmp_builds:
-        retention_blockers.append("Temporary ingest output directories exist; inspect them before pruning.")
+    retention = _retention_summary(active_build_jobs, tmp_builds)
 
     return {
         "status": "ok",
@@ -2135,16 +2636,7 @@ def operations_status() -> Dict[str, Any]:
             "tmp_count": len(tmp_builds),
         },
         "retention": {
-            "default_keep_builds": int(os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12")),
-            "default_keep_reports": int(os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24")),
-            "script": "scripts/prune_state_retention.sh",
-            "can_run_now": not retention_blockers,
-            "blocked_reasons": retention_blockers,
-            "notes": [
-                "Retention must not prune raw/ or cooked/.",
-                "Run retention only after successful promotion and verification.",
-                "Use dry-run first unless the cleanup target is already reviewed.",
-            ],
+            **retention,
         },
         "action_groups": action_groups(),
     }

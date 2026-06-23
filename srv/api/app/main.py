@@ -4208,6 +4208,12 @@ def admin_operations_status(request: Request):
     return admin_actions.operations_status()
 
 
+@admin_router.get("/builds/status")
+def admin_builds_status(request: Request):
+    auth.require_admin(request)
+    return admin_actions.builds_status()
+
+
 @admin_router.get("/actions/catalog")
 def admin_actions_catalog(request: Request):
     auth.require_admin(request)

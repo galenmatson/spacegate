@@ -152,6 +152,33 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /admin/builds/status
+Returns read-only build pipeline diagnostics for the Admin Builds workspace.
+
+Includes:
+- container-visible raw/cooked/out/reports/served path health
+- `served/current` target and resolved build id
+- recent immutable `out/<build_id>/` artifact summaries
+- per-build required report presence, basic verification gate summaries, and
+  snapshot/coolness report summaries
+- temporary `out/*.tmp` directories for failed/in-progress ingest diagnosis
+- retention readiness and blockers
+- recommended next operator actions derived from active jobs, filesystem state,
+  served build state, verification reports, snapshot reports, and retention
+  readiness
+
+Notes:
+- This endpoint does not mutate build artifacts or reports.
+- Snapshot reports distinguish missing reports, generated artifacts, reused
+  artifacts, zero-generated runs, and explicit null results where requested,
+  generated, reused, and manifest-upserted rows are all zero.
+- Secret values are never returned.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
 ### GET /admin/ui
 Admin UI scaffold served by the API (under `/api/v2/admin/ui`).
 

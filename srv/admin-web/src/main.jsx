@@ -639,6 +639,7 @@ function BuildsScreen({ csrf }) {
     loading: true,
     status: null,
     dataset: null,
+    buildStatus: null,
     operations: null,
     actions: [],
     message: "Loading build state...",
@@ -650,21 +651,24 @@ function BuildsScreen({ csrf }) {
 
   async function loadBuilds() {
     setState((current) => ({ ...current, loading: true, message: "Refreshing build state..." }));
-    const [statusResult, datasetResult, operationsResult, actionsResult] = await Promise.all([
+    const [statusResult, datasetResult, buildStatusResult, operationsResult, actionsResult] = await Promise.all([
       fetchJson(`${ADMIN_API_BASE}/status`),
       fetchJson(`${ADMIN_API_BASE}/status/dataset`),
+      fetchJson(`${ADMIN_API_BASE}/builds/status`),
       fetchJson(`${ADMIN_API_BASE}/operations/status`),
       fetchJson(`${ADMIN_API_BASE}/actions/catalog`),
     ]);
     const errors = [];
     if (!statusResult.response.ok) errors.push(`status: ${compactError(statusResult.data, statusResult.response.status)}`);
     if (!datasetResult.response.ok) errors.push(`dataset: ${compactError(datasetResult.data, datasetResult.response.status)}`);
+    if (!buildStatusResult.response.ok) errors.push(`builds: ${compactError(buildStatusResult.data, buildStatusResult.response.status)}`);
     if (!operationsResult.response.ok) errors.push(`operations: ${compactError(operationsResult.data, operationsResult.response.status)}`);
     if (!actionsResult.response.ok) errors.push(`actions: ${compactError(actionsResult.data, actionsResult.response.status)}`);
     setState({
       loading: false,
       status: statusResult.response.ok ? statusResult.data : null,
       dataset: datasetResult.response.ok ? datasetResult.data : null,
+      buildStatus: buildStatusResult.response.ok ? buildStatusResult.data : null,
       operations: operationsResult.response.ok ? operationsResult.data : null,
       actions: actionsResult.response.ok && Array.isArray(actionsResult.data.items) ? actionsResult.data.items : [],
       message: errors.length ? errors.join(" | ") : "Ready",
@@ -698,22 +702,27 @@ function BuildsScreen({ csrf }) {
   }
 
   const dataset = state.dataset || {};
+  const buildStatus = state.buildStatus || {};
   const operations = state.operations || {};
   const sizes = dataset.sizes_bytes || {};
   const counts = dataset.dataset_counts || {};
   const disk = dataset.disk || {};
-  const builds = operations.builds || {};
-  const served = builds.served_current || {};
-  const retention = operations.retention || {};
-  const recentBuilds = Array.isArray(builds.recent) ? builds.recent : [];
-  const tmpBuilds = Array.isArray(builds.tmp) ? builds.tmp : [];
-  const currentBuild = recentBuilds.find((item) => item.build_id === served.build_id) || recentBuilds[0] || null;
+  const legacyBuilds = operations.builds || {};
+  const served = buildStatus.served_current || legacyBuilds.served_current || {};
+  const retention = buildStatus.retention || operations.retention || {};
+  const recentBuilds = Array.isArray(buildStatus.recent) ? buildStatus.recent : Array.isArray(legacyBuilds.recent) ? legacyBuilds.recent : [];
+  const tmpBuilds = Array.isArray(buildStatus.tmp) ? buildStatus.tmp : Array.isArray(legacyBuilds.tmp) ? legacyBuilds.tmp : [];
+  const currentBuild = buildStatus.current_build || recentBuilds.find((item) => item.build_id === served.build_id) || recentBuilds[0] || null;
+  const verification = currentBuild?.verification || {};
+  const snapshot = currentBuild?.snapshot || {};
+  const pathHealth = buildStatus.path_health || {};
+  const nextActions = Array.isArray(buildStatus.next_actions) ? buildStatus.next_actions : [];
   const buildActions = ["build_database", "verify_build", "publish_db"].map((name) => actionsByName.get(name)).filter(Boolean);
   const kpis = [
     { label: "Served build", value: compactId(state.status?.build_id || served.build_id, 20) },
-    { label: "Build dirs", value: formatInt(builds.out_count || recentBuilds.length) },
+    { label: "Verification", value: readableStatus(verification.status || "unknown"), tone: statusTone(verification.status) },
+    { label: "Snapshots", value: readableStatus(snapshot.status || "missing"), tone: statusTone(snapshot.status) },
     { label: "Temp outputs", value: formatInt(tmpBuilds.length), tone: tmpBuilds.length ? "warn" : "ok" },
-    { label: "Retention", value: retention.can_run_now ? "ready" : "blocked", tone: retention.can_run_now ? "ok" : "warn" },
   ];
 
   return (
@@ -742,6 +751,7 @@ function BuildsScreen({ csrf }) {
           <h2>Current Served Build</h2>
           <OverviewFact label="Build ID" value={state.status?.build_id || served.build_id || "n/a"} />
           <OverviewFact label="Served target" value={served.target || "n/a"} />
+          <OverviewFact label="Build dirs / report dirs" value={`${formatInt(buildStatus.out_count || recentBuilds.length)} / ${formatInt(buildStatus.report_build_count)}`} />
           <OverviewFact label="Core / Arm / Disc" value={`${formatBytes(sizes.core_db)} / ${formatBytes(sizes.arm_db)} / ${formatBytes(sizes.disc_db)}`} />
           <OverviewFact label="Systems / Stars / Planets" value={`${formatInt(counts.systems)} / ${formatInt(counts.stars)} / ${formatInt(counts.planets)}`} />
           <OverviewFact label="/data free" value={`${formatBytes(disk.free_bytes)} (${formatPct(100 - Number(disk.used_pct || 0))} free)`} />
@@ -763,6 +773,11 @@ function BuildsScreen({ csrf }) {
         </div>
       </section>
 
+      <section className="builds-grid">
+        <NextActionsPanel actions={nextActions} />
+        <PathHealthPanel paths={pathHealth} />
+      </section>
+
       <section className="panel">
         <div className="panel-head">
           <div>
@@ -779,6 +794,11 @@ function BuildsScreen({ csrf }) {
 
       <section className="builds-grid">
         <BuildArtifactPanel title="Served Build Artifacts" build={currentBuild} />
+        <BuildVerificationPanel build={currentBuild} />
+      </section>
+
+      <section className="builds-grid">
+        <SnapshotReportPanel build={currentBuild} />
         <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} />
       </section>
 
@@ -788,6 +808,25 @@ function BuildsScreen({ csrf }) {
       </section>
     </div>
   );
+}
+
+function readableStatus(value) {
+  return String(value || "unknown").replaceAll("_", " ");
+}
+
+function statusTone(value) {
+  const status = String(value || "").toLowerCase();
+  if (["ok", "passed", "passed_reports", "generated", "reused", "present", "ready"].includes(status)) return "ok";
+  if (["failed", "error", "parse_error", "missing_reports"].includes(status)) return "danger";
+  if (["unknown", "", "null_result"].includes(status)) return "muted";
+  return "warn";
+}
+
+function priorityTone(value) {
+  const priority = String(value || "").toLowerCase();
+  if (priority === "high") return "danger";
+  if (priority === "low") return "muted";
+  return "warn";
 }
 
 function BuildArtifactPanel({ title, build }) {
@@ -800,6 +839,8 @@ function BuildArtifactPanel({ title, build }) {
           <OverviewFact label="Path" value={build.path} />
           <OverviewFact label="Size" value={formatBytes(build.size_bytes)} />
           <OverviewFact label="Promotable" value={build.promotable ? "yes" : `missing ${build.missing_required?.join(", ") || "required artifacts"}`} />
+          <OverviewFact label="Verification" value={readableStatus(build.verification?.status)} />
+          <OverviewFact label="Snapshots" value={readableStatus(build.snapshot?.status)} />
           <div className="artifact-flags">
             {Object.entries(build.artifacts || {}).map(([key, value]) => (
               <span className={`badge ${value ? "ok" : "danger"}`} key={key}>{key}: {value ? "yes" : "no"}</span>
@@ -808,6 +849,125 @@ function BuildArtifactPanel({ title, build }) {
         </>
       ) : (
         <div className="empty">No build artifact summary is available yet.</div>
+      )}
+    </div>
+  );
+}
+
+function NextActionsPanel({ actions }) {
+  return (
+    <div className="panel">
+      <h2>Recommended Next Actions</h2>
+      {actions.length ? (
+        <div className="alert-list">
+          {actions.map((item, index) => (
+            <div className={`alert-row ${priorityTone(item.priority)}`} key={`${item.title}-${index}`}>
+              <span className={`badge ${priorityTone(item.priority)}`}>{item.priority || "normal"}</span>
+              <div>
+                <strong>{item.title}</strong>
+                <span className="table-subtext">{item.detail}</span>
+                <span className="table-subtext">{item.action}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">No build next-action guidance is available yet.</div>
+      )}
+    </div>
+  );
+}
+
+function PathHealthPanel({ paths }) {
+  const rows = Object.entries(paths || {});
+  return (
+    <div className="panel">
+      <h2>Pipeline Path Health</h2>
+      <p className="muted">Container-visible state paths used by download, cook, ingest, reports, and served/current promotion.</p>
+      {rows.length ? (
+        <table>
+          <thead>
+            <tr><th>Target</th><th>Status</th><th>Access</th><th>Path</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(([key, item]) => (
+              <tr key={key}>
+                <td>{item.label || key}</td>
+                <td><span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span></td>
+                <td>
+                  {item.exists ? `${item.readable ? "read" : "no read"} / ${item.writable ? "write" : "no write"}` : "missing"}
+                  {(item.issues || []).map((issue) => <span className="table-subtext warning-text" key={issue}>{issue}</span>)}
+                </td>
+                <td>{item.path}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="empty">Path health has not been reported by the API.</div>
+      )}
+    </div>
+  );
+}
+
+function BuildVerificationPanel({ build }) {
+  const verification = build?.verification || {};
+  const required = verification.required_reports || [];
+  const supplemental = verification.supplemental_reports || [];
+  const duplicate = verification.checks?.duplicate_near_pair_totals || {};
+  const counts = verification.checks?.counts || {};
+  return (
+    <div className="panel">
+      <h2>Verification Gates</h2>
+      {build ? (
+        <>
+          <OverviewFact label="Status" value={<span className={`badge ${statusTone(verification.status)}`}>{readableStatus(verification.status)}</span>} />
+          <OverviewFact label="QC counts" value={`${formatInt(counts.systems)} systems / ${formatInt(counts.stars)} stars / ${formatInt(counts.planets)} planets`} />
+          <OverviewFact label="Distance invariant violations" value={String(verification.checks?.dist_invariant_violations ?? "n/a")} />
+          <OverviewFact label="Duplicate near pairs" value={`${formatInt(duplicate.candidate_pairs)} candidate / ${formatInt(duplicate.likely_duplicate_pairs)} likely / ${formatInt(duplicate.high_confidence_pairs)} high-confidence`} />
+          <div className="artifact-flags">
+            {required.map((item) => <span className={`badge ${item.exists ? "ok" : "danger"}`} key={item.name}>{item.name}</span>)}
+            {supplemental.map((item) => <span className={`badge ${item.exists ? "ok" : "muted"}`} key={item.name}>{item.name}</span>)}
+          </div>
+          {verification.issues?.length ? (
+            <div className="trap-list">
+              {verification.issues.map((issue) => <div key={issue}>{issue}</div>)}
+            </div>
+          ) : null}
+          {verification.warnings?.length ? (
+            <div className="status-line">
+              {verification.warnings.map((warning) => <span className="table-subtext" key={warning}>{warning}</span>)}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="empty">No build is selected for verification summary.</div>
+      )}
+    </div>
+  );
+}
+
+function SnapshotReportPanel({ build }) {
+  const snapshot = build?.snapshot || {};
+  return (
+    <div className="panel">
+      <h2>Snapshot Report</h2>
+      {build ? (
+        <>
+          <OverviewFact label="Status" value={<span className={`badge ${statusTone(snapshot.status)}`}>{readableStatus(snapshot.status)}</span>} />
+          <OverviewFact label="Requested / generated / reused" value={`${formatInt(snapshot.requested)} / ${formatInt(snapshot.generated)} / ${formatInt(snapshot.reused)}`} />
+          <OverviewFact label="Manifest rows upserted" value={formatInt(snapshot.manifest_rows_upserted)} />
+          <OverviewFact label="Generated at" value={formatDate(snapshot.generated_at)} />
+          <OverviewFact label="Generator / view" value={`${snapshot.generator_version || "n/a"} / ${snapshot.view_type || "n/a"}`} />
+          <OverviewFact label="Params hash" value={snapshot.params_hash || "n/a"} />
+          <OverviewFact label="Manifest parquet" value={snapshot.manifest_parquet || "n/a"} />
+          {snapshot.null_result ? (
+            <div className="status-line">Null result recorded: zero requested, generated, reused, and manifest-upserted snapshot rows.</div>
+          ) : null}
+          {snapshot.parse_error ? <div className="trap-list"><div>{snapshot.parse_error}</div></div> : null}
+        </>
+      ) : (
+        <div className="empty">No build is selected for snapshot report summary.</div>
       )}
     </div>
   );
@@ -822,6 +982,8 @@ function RecentBuildsPanel({ builds, servedBuildId }) {
           <thead>
             <tr>
               <th>Build</th>
+              <th>Verify</th>
+              <th>Snapshots</th>
               <th>Reports</th>
               <th>Artifacts</th>
               <th>Size</th>
@@ -834,6 +996,8 @@ function RecentBuildsPanel({ builds, servedBuildId }) {
                   <strong>{build.build_id}</strong>
                   <span className="table-subtext">{build.build_id === servedBuildId ? "served/current" : formatDate(build.mtime_utc)}</span>
                 </td>
+                <td><span className={`badge ${statusTone(build.verification?.status)}`}>{readableStatus(build.verification?.status)}</span></td>
+                <td><span className={`badge ${statusTone(build.snapshot?.status)}`}>{readableStatus(build.snapshot?.status)}</span></td>
                 <td>{formatInt(build.reports?.count || 0)}</td>
                 <td>{build.promotable ? "core+arm" : `missing ${(build.missing_required || []).join(", ")}`}</td>
                 <td>{formatBytes(build.size_bytes)}</td>

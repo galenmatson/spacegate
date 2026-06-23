@@ -63,6 +63,11 @@ Show:
 - recent build report cards
 - failed build cleanup candidates
 - immutable build artifact locations
+- container-visible path health for raw/cooked/out/reports/served targets
+- verification gate summaries from required reports instead of frontend-only
+  assumptions
+- snapshot generation outcomes, including explicit zero-row/null-result runs
+- API-derived next actions that point to predecessor/successor pipeline steps
 
 Actions remain allowlisted jobs with confirmation phrases for high-risk steps.
 
