@@ -41,7 +41,7 @@ textarea {
 .admin-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 244px 1fr;
+  grid-template-columns: 196px 1fr;
 }
 
 .sidebar {
@@ -362,6 +362,104 @@ h3 {
   margin-top: 0.7rem;
 }
 
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.dataset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(380px, 1fr));
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.narrative-list {
+  display: grid;
+  gap: 0.38rem;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.metric-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.75fr) minmax(0, 1.25fr);
+  gap: 0.6rem;
+  align-items: start;
+  padding-bottom: 0.42rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.metric-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.metric-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.metric-row strong {
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+
+.metric-row em {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  word-break: break-word;
+}
+
+.dataset-bars {
+  display: grid;
+  gap: 0.58rem;
+}
+
+.dataset-bar-row {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.dataset-bar-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.dataset-bar-row strong {
+  font-size: 0.84rem;
+}
+
+.dataset-bar-row span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.dataset-bar-track {
+  height: 0.48rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.dataset-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
 .runbook-group {
   display: grid;
   gap: 0.75rem;
@@ -540,6 +638,10 @@ h3 {
   max-height: 360px;
   background: #f8fafc;
   color: var(--text);
+}
+
+.json-box.tall {
+  max-height: 720px;
 }
 
 .audit-presets {
@@ -753,6 +855,7 @@ th {
   .overview-kpis,
   .overview-grid,
   .builds-grid,
+  .dataset-grid,
   .runbook-head,
   .jobs-layout,
   .audit-layout,

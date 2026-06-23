@@ -236,6 +236,24 @@ function formatPct(value) {
   return `${number.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
 }
 
+function formatFloat(value, digits = 2) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "n/a";
+  return number.toLocaleString("en-US", { maximumFractionDigits: digits });
+}
+
+function toNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function pctFromPart(part, total) {
+  const numerator = Number(part);
+  const denominator = Number(total);
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return 0;
+  return (numerator / denominator) * 100;
+}
+
 function formatDate(value) {
   if (!value) return "n/a";
   const date = new Date(value);
@@ -418,6 +436,8 @@ function App() {
           <OverviewScreen auth={auth} />
         ) : activeScreen === "builds" ? (
           <BuildsScreen csrf={csrf} />
+        ) : activeScreen === "dataset" ? (
+          <DatasetScreen />
         ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
@@ -855,6 +875,561 @@ function BuildReportsPanel({ build }) {
       )}
     </div>
   );
+}
+
+function DatasetScreen() {
+  const [activeTab, setActiveTab] = useState("summary");
+  const [state, setState] = useState({
+    loading: true,
+    data: null,
+    message: "Loading dataset status...",
+  });
+
+  async function loadDataset(forceRefresh = false) {
+    setState((current) => ({ ...current, loading: true, message: forceRefresh ? "Refreshing dataset cache..." : "Refreshing dataset status..." }));
+    const query = forceRefresh ? "?refresh=1" : "";
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/status/dataset${query}`);
+    if (!response.ok) {
+      setState({ loading: false, data: null, message: `Dataset status: ${compactError(data, response.status)}` });
+      return;
+    }
+    setState({ loading: false, data, message: "Ready" });
+  }
+
+  useEffect(() => {
+    loadDataset(false);
+  }, []);
+
+  const data = state.data || {};
+  const counts = data.dataset_counts || {};
+  const sizes = data.sizes_bytes || {};
+  const disk = data.disk || {};
+  const slice = data.slice_metrics || {};
+  const determinism = data.determinism || {};
+  const breakdowns = data.breakdowns || {};
+  const cache = data.cache || {};
+  const catalogContribution = breakdowns.catalog_contribution_report || {};
+  const contributionRows = sortedCatalogContributionRows(catalogContribution);
+  const kpis = [
+    { label: "Systems", value: formatInt(counts.systems) },
+    { label: "Stars", value: formatInt(counts.stars) },
+    { label: "Planets", value: formatInt(counts.planets) },
+    { label: "Determinism", value: datasetDeterminismLabel(determinism), tone: determinism.status === "match" ? "ok" : "warn" },
+  ];
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div>
+          <h1>Dataset</h1>
+          <p className="muted">Served science artifact, source contribution, schema gates, determinism, and runtime diagnostics.</p>
+        </div>
+        <div className="button-row">
+          <button className="button" onClick={() => loadDataset(false)}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+          <button className="button" onClick={() => loadDataset(true)}>Force Refresh</button>
+        </div>
+      </header>
+
+      <div className="kpi-row">
+        {kpis.map((item) => (
+          <div className={`kpi ${item.tone || ""}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>
+        {state.message} Build: {data.build_id || "unknown"} | Generated: {formatDate(data.generated_at_utc)} | Cache: {cache.hit ? "hit" : "miss"} age {formatFloat(cache.age_s, 3)}s
+      </div>
+
+      <section className="dataset-grid">
+        <div className="panel">
+          <h2>Dataset Contract</h2>
+          <OverviewFact label="Total rows" value={formatInt(counts.rows_total)} />
+          <OverviewFact label="Layer DBs" value={`core ${formatBytes(sizes.core_db)} | arm ${formatBytes(sizes.arm_db)} | disc ${formatBytes(sizes.disc_db)}`} />
+          <OverviewFact label="Arm graph" value={`${formatInt(counts.arm_component_entities)} components, ${formatInt(counts.arm_hierarchy_edges)} hierarchy edges, ${formatInt(counts.arm_orbit_edges)} orbit edges`} />
+          <OverviewFact label="Slice profile" value={`${determinism.slice_profile_id || "n/a"} @ ${determinism.slice_profile_version || "n/a"}`} />
+          <OverviewFact label="/data free" value={`${formatBytes(disk.free_bytes)} (${formatPct(100 - toNumber(disk.used_pct))} free)`} />
+        </div>
+        <div className="panel">
+          <h2>Operator Readout</h2>
+          <DatasetSummaryLines data={data} contributionRows={contributionRows} />
+        </div>
+      </section>
+
+      <div className="tab-row">
+        {[
+          ["summary", "Summary"],
+          ["science", "Science Shape"],
+          ["sources", "Sources"],
+          ["quality", "Quality"],
+          ["runtime", "Runtime"],
+          ["raw", "Raw JSON"],
+        ].map(([key, label]) => (
+          <button className={activeTab === key ? "active" : ""} key={key} onClick={() => setActiveTab(key)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "summary" ? (
+        <DatasetSummaryTab data={data} contributionRows={contributionRows} />
+      ) : activeTab === "science" ? (
+        <DatasetScienceTab data={data} />
+      ) : activeTab === "sources" ? (
+        <DatasetSourcesTab data={data} contributionRows={contributionRows} />
+      ) : activeTab === "quality" ? (
+        <DatasetQualityTab data={data} />
+      ) : activeTab === "runtime" ? (
+        <DatasetRuntimeTab data={data} />
+      ) : (
+        <section className="panel">
+          <h2>Raw Dataset Status JSON</h2>
+          <pre className="json-box tall">{jsonBlock(data)}</pre>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function DatasetSummaryTab({ data, contributionRows }) {
+  const counts = data.dataset_counts || {};
+  const sizes = data.sizes_bytes || {};
+  const slice = data.slice_metrics || {};
+  const breakdowns = data.breakdowns || {};
+  const exotic = breakdowns.exotic_star_counts || {};
+  const compact = breakdowns.compact_object_counts || {};
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Inventory</h2>
+        <MetricList
+          rows={[
+            ["Systems / stars / planets", `${formatInt(counts.systems)} / ${formatInt(counts.stars)} / ${formatInt(counts.planets)}`],
+            ["Multi / single systems", `${formatInt(counts.multi_star_systems)} / ${formatInt(counts.single_star_systems)}`],
+            ["Exoplanets", `${formatInt(counts.exoplanets_total)} total, ${formatInt(counts.exoplanets_temperate)} temperate, ${formatInt(counts.exoplanets_candidate_habitable)} candidate habitable`],
+            ["Arm overlays", `${formatInt(counts.arm_vsx_variability)} VSX, ${formatInt(counts.arm_variability_high)} high variability, ${formatInt(counts.arm_ultracoolsheet_objects)} ultracool`],
+            ["Compact objects", `${formatInt(compact.compact_total)} total, ${formatInt(compact.white_dwarf)} white dwarfs, ${formatInt(compact.neutron_star)} neutron stars, ${formatInt(compact.pulsar)} pulsars`],
+            ["Exotic highlights", `${formatInt(exotic.brown_dwarf_like_lty)} L/T/Y, ${formatInt(exotic.white_dwarf_like_d_prefix)} WD-like, ${formatInt(exotic.high_proper_motion_ge_1000_mas_yr)} high proper motion`],
+          ]}
+        />
+      </div>
+      <div className="panel">
+        <h2>Build Slice</h2>
+        <MetricList
+          rows={[
+            ["Backbone input", formatInt(slice.input_backbone_rows)],
+            ["Sliced-in stars", formatInt(slice.sliced_in_stars)],
+            ["Sliced-out rows", `${formatInt(slice.sliced_out_rows)} (${formatPct(slice.sliced_out_pct)})`],
+            ["Policy retained stars", formatInt(slice.policy_retained_stars)],
+            ["Policy sliced-out stars", `${formatInt(slice.policy_sliced_out_stars)} (${formatPct(slice.policy_sliced_out_stars_pct)})`],
+            ["Parquet footprint", formatBytes(sizes.parquet_total)],
+          ]}
+        />
+      </div>
+      <div className="panel">
+        <h2>Top Source Catalogs</h2>
+        <DatasetBarList rows={(breakdowns.stars_by_source_catalog || []).slice(0, 10).map((row) => ({
+          label: row.source_catalog || "?",
+          value: row.star_count,
+          max: counts.stars,
+          detail: `${formatInt(row.star_count)} stars`,
+        }))} />
+      </div>
+      <div className="panel">
+        <h2>Top Contribution Utility</h2>
+        <DatasetBarList rows={contributionRows.slice(0, 10).map((row) => ({
+          label: `${row.catalog || "?"} (${row.domain || "?"})`,
+          value: row.utility_score,
+          max: 100,
+          detail: `${formatFloat(row.utility_score, 2)} utility`,
+        }))} />
+      </div>
+    </section>
+  );
+}
+
+function DatasetScienceTab({ data }) {
+  const counts = data.dataset_counts || {};
+  const breakdowns = data.breakdowns || {};
+  const spectralRows = (breakdowns.stars_by_spectral_class || []).slice(0, 18);
+  const standard = breakdowns.spectral_class_standard_counts || {};
+  const sysMult = breakdowns.system_multiplicity_evidence || {};
+  const starMult = breakdowns.star_multiplicity_evidence || {};
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Spectral Distribution</h2>
+        <DatasetBarList rows={spectralRows.map((row) => ({
+          label: row.spectral_class || "?",
+          value: row.star_count,
+          max: counts.stars,
+          detail: `${formatInt(row.star_count)} stars, ${formatPct(row.pct_of_stars)}`,
+          color: spectralColor(row.spectral_class),
+        }))} />
+      </div>
+      <div className="panel">
+        <h2>Standard Spectral Counts</h2>
+        <KeyValueTable rows={["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D", "unknown"].map((key) => [key, formatInt(standard[key])])} />
+      </div>
+      <div className="panel">
+        <h2>System Multiplicity Evidence</h2>
+        <MultiplicityTable values={sysMult} total={counts.systems} />
+      </div>
+      <div className="panel">
+        <h2>Star Multiplicity Evidence</h2>
+        <MultiplicityTable values={starMult} total={counts.stars} />
+      </div>
+    </section>
+  );
+}
+
+function DatasetSourcesTab({ data, contributionRows }) {
+  const breakdowns = data.breakdowns || {};
+  const catalogContribution = breakdowns.catalog_contribution_report || {};
+  const overlaps = catalogOverlapRows(catalogContribution);
+  const pipeline = breakdowns.catalog_pipeline_report || {};
+  const stages = pipeline.stages || {};
+  return (
+    <div className="runbook-grid">
+      <section className="panel">
+        <h2>Catalog Contribution</h2>
+        {contributionRows.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Catalog</th>
+                <th>Domain</th>
+                <th>Input</th>
+                <th>Direct</th>
+                <th>Evidence</th>
+                <th>Linked</th>
+                <th>Utility</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contributionRows.slice(0, 35).map((row) => (
+                <tr key={`${row.catalog}-${row.domain}`}>
+                  <td>{row.catalog || "?"}</td>
+                  <td>{row.domain || "?"}</td>
+                  <td>{row.input_rows === null || row.input_rows === undefined ? "n/a" : formatInt(row.input_rows)}</td>
+                  <td>{formatInt(row.direct_rows)}</td>
+                  <td>{formatInt(row.evidence_rows)}</td>
+                  <td>{formatInt(row.linked_rows)}</td>
+                  <td>{row.utility_tier || "n/a"} ({formatFloat(row.utility_score, 2)})</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">No catalog contribution report was found for this build.</div>
+        )}
+      </section>
+      <section className="dataset-grid">
+        <div className="panel">
+          <h2>Catalog Overlap</h2>
+          {overlaps.length ? (
+            <table>
+              <thead>
+                <tr><th>Scope</th><th>Pair</th><th>Intersection</th><th>Jaccard</th><th>Scope Share</th></tr>
+              </thead>
+              <tbody>
+                {overlaps.map((row) => (
+                  <tr key={`${row.scope}-${row.left_catalog}-${row.right_catalog}`}>
+                    <td>{row.scope}</td>
+                    <td>{row.left_catalog || "?"} / {row.right_catalog || "?"}</td>
+                    <td>{formatInt(row.intersection_count)}</td>
+                    <td>{formatPct(row.jaccard_pct)}</td>
+                    <td>{formatPct(row.intersection_pct_of_scope)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty">No overlap metrics are available for this build.</div>
+          )}
+        </div>
+        <div className="panel">
+          <h2>Catalog Pipeline</h2>
+          <KeyValueTable rows={["download", "cook", "ingest"].map((stage) => {
+            const item = stages[stage] || {};
+            return [stage, catalogStageSummary(stage, item), item.updated_at || "n/a"];
+          })} columns={["Stage", "Summary", "Updated"]} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DatasetQualityTab({ data }) {
+  const breakdowns = data.breakdowns || {};
+  const determinism = data.determinism || {};
+  const comparison = determinism.comparison || {};
+  const tables = comparison.tables || {};
+  const qc = breakdowns.qc_report || {};
+  const grouping = breakdowns.system_grouping_report || {};
+  const match = breakdowns.match_report || {};
+  const coolness = breakdowns.coolness_report || {};
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Determinism</h2>
+        <MetricList
+          rows={[
+            ["Status", datasetDeterminismLabel(determinism)],
+            ["Current build", determinism.current_build_id || data.build_id || "unknown"],
+            ["Baseline build", determinism.baseline_build_id || "n/a"],
+            ["Comparable baselines", formatInt(determinism.comparable_baselines)],
+            ["Source fingerprint", determinism.source_inputs_fingerprint || "n/a"],
+            ["Transform / layer", `${determinism.transform_version || "n/a"} / ${determinism.build_layer || "n/a"}`],
+          ]}
+        />
+        <KeyValueTable rows={["stars", "systems", "planets"].map((key) => [key, tables[key] ? (tables[key].match ? "match" : "mismatch") : "n/a"])} />
+      </div>
+      <div className="panel">
+        <h2>QC and Reports</h2>
+        <MetricList
+          rows={[
+            ["QC report status", qc.status || qc.result || "present"],
+            ["Report count hints", `${Object.keys(breakdowns).filter((key) => key.endsWith("_report")).length} report payloads loaded`],
+            ["Grouping multi-star systems", formatInt(grouping.multi_star_systems)],
+            ["Grouping source", grouping.grouping_strategy || grouping.strategy || "n/a"],
+            ["Match report keys", Object.keys(match).length ? Object.keys(match).slice(0, 8).join(", ") : "n/a"],
+            ["Coolness profile", coolness.profile_id || coolness.profile || "n/a"],
+          ]}
+        />
+      </div>
+      <div className="panel">
+        <h2>Loaded Report Payloads</h2>
+        <div className="report-chip-list">
+          {Object.entries(breakdowns)
+            .filter(([key, value]) => key.endsWith("_report") && value && typeof value === "object" && Object.keys(value).length)
+            .map(([key]) => <span className="badge" key={key}>{key}</span>)}
+        </div>
+      </div>
+      <div className="panel">
+        <h2>Quality Notes</h2>
+        <div className="trap-list">
+          <div>Canonical science remains immutable in `core`; supplemental evidence belongs in `arm` and presentation artifacts belong in `disc`.</div>
+          <div>Verification failures should block promotion, public deployment, and retention recommendations.</div>
+          <div>Contradictory values should stay source-native until an explicit adjudication proposal is accepted.</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DatasetRuntimeTab({ data }) {
+  const sizes = data.sizes_bytes || {};
+  const disk = data.disk || {};
+  const host = data.host_runtime || {};
+  const api = data.api_process_runtime || {};
+  const duckdb = data.duckdb_runtime || {};
+  const bottlenecks = data.bottleneck_hints || {};
+  const timings = Object.entries(data.timings_ms || {}).sort((a, b) => toNumber(b[1]) - toNumber(a[1])).slice(0, 10);
+  const hostMemTotal = toNumber(host.mem_total_bytes);
+  const hostMemAvailable = toNumber(host.mem_available_bytes);
+  const hostMemUsed = Math.max(hostMemTotal - hostMemAvailable, 0);
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Storage</h2>
+        <MetricList
+          rows={[
+            ["Project footprint", formatBytes(sizes.project_total)],
+            ["State footprint", formatBytes(sizes.state_total)],
+            ["Served build footprint", formatBytes(sizes.build_total), data.paths?.build_dir || ""],
+            ["Raw / cooked / out", `${formatBytes(sizes.raw_total)} / ${formatBytes(sizes.cooked_total)} / ${formatBytes(sizes.out_total)}`],
+            ["Reports / served / parquet", `${formatBytes(sizes.reports_total)} / ${formatBytes(sizes.served_total)} / ${formatBytes(sizes.parquet_total)}`],
+            ["/data partition", `${formatBytes(disk.used_bytes)} used of ${formatBytes(disk.total_bytes)}`, `${formatBytes(disk.free_bytes)} free (${formatPct(disk.used_pct)} used)`],
+          ]}
+        />
+        <DatasetBarList rows={[
+          { label: "/data used", value: disk.used_pct, max: 100, detail: `${formatBytes(disk.used_bytes)} / ${formatBytes(disk.total_bytes)}` },
+          { label: "Host RAM used", value: pctFromPart(hostMemUsed, hostMemTotal), max: 100, detail: `${formatBytes(hostMemUsed)} / ${formatBytes(hostMemTotal)}` },
+          { label: "API RSS / host", value: pctFromPart(api.rss_bytes, hostMemTotal), max: 100, detail: formatBytes(api.rss_bytes) },
+          { label: "DuckDB memory", value: pctFromPart(duckdb.memory_usage_bytes, duckdb.memory_limit_bytes), max: 100, detail: `${formatBytes(duckdb.memory_usage_bytes)} / ${formatBytes(duckdb.memory_limit_bytes)}` },
+        ]} />
+      </div>
+      <div className="panel">
+        <h2>Runtime</h2>
+        <MetricList
+          rows={[
+            ["CPU", `${formatInt(host.cpu_count)} cores`, `load 1m=${formatFloat(host.loadavg_1m)} 5m=${formatFloat(host.loadavg_5m)} 15m=${formatFloat(host.loadavg_15m)}`],
+            ["Host memory", `${formatBytes(hostMemUsed)} used of ${formatBytes(hostMemTotal)}`, `${formatBytes(hostMemAvailable)} available`],
+            ["API process", `pid=${api.pid || "?"}, threads=${formatInt(api.threads)}`, `RSS=${formatBytes(api.rss_bytes)}, peak=${formatBytes(api.peak_rss_bytes)}, VM=${formatBytes(api.vm_size_bytes)}`],
+            ["Process IO", `read=${formatBytes(api.io_read_bytes)}, write=${formatBytes(api.io_write_bytes)}`],
+            ["DuckDB runtime", `db=${formatBytes(duckdb.database_size_bytes)}, wal=${formatBytes(duckdb.wal_size_bytes)}`, `memory=${formatBytes(duckdb.memory_usage_bytes)} / ${formatBytes(duckdb.memory_limit_bytes)}`],
+            ["Bottleneck hints", `${bottlenecks.likely_memory_bound ? "memory-bound risk" : "memory headroom likely acceptable"} | ${bottlenecks.likely_io_bound ? "IO-bound risk" : "IO-bound risk low"}`],
+          ]}
+        />
+      </div>
+      <div className="panel">
+        <h2>Status Query Timings</h2>
+        <KeyValueTable rows={timings.map(([key, value]) => [key, `${formatFloat(value, 3)} ms`])} />
+      </div>
+      <div className="panel">
+        <h2>Runtime Notes</h2>
+        <div className="hint-list">
+          {(bottlenecks.notes || []).map((note) => <div key={note}>{note}</div>)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DatasetSummaryLines({ data, contributionRows }) {
+  const counts = data.dataset_counts || {};
+  const sizes = data.sizes_bytes || {};
+  const slice = data.slice_metrics || {};
+  const breakdowns = data.breakdowns || {};
+  const determinism = data.determinism || {};
+  const exotic = breakdowns.exotic_star_counts || {};
+  const lines = [
+    `Total rows: ${formatInt(counts.rows_total)} (${formatInt(counts.systems)} systems, ${formatInt(counts.stars)} stars, ${formatInt(counts.planets)} planets).`,
+    `Multiplicity: ${formatInt(counts.multi_star_systems)} multi-star systems and ${formatInt(counts.single_star_systems)} single-star systems.`,
+    `Arm graph: ${formatInt(counts.arm_component_entities)} components, ${formatInt(counts.arm_hierarchy_edges)} hierarchy edges, ${formatInt(counts.arm_orbit_edges)} orbit edges.`,
+    `Input slice: ${formatInt(slice.input_backbone_rows)} input rows, ${formatInt(slice.sliced_out_rows)} sliced out (${formatPct(slice.sliced_out_pct)}).`,
+    `Storage: core ${formatBytes(sizes.core_db)}, arm ${formatBytes(sizes.arm_db)}, disc ${formatBytes(sizes.disc_db)}, state ${formatBytes(sizes.state_total)}.`,
+    `Exoplanets: ${formatInt(counts.exoplanets_total)} total, ${formatInt(counts.exoplanets_temperate)} temperate, ${formatInt(counts.exoplanets_candidate_habitable)} candidate habitable.`,
+    `Exotic highlights: ${formatInt(exotic.brown_dwarf_like_lty)} L/T/Y, ${formatInt(exotic.white_dwarf_like_d_prefix)} WD-like, ${formatInt(exotic.high_proper_motion_ge_1000_mas_yr)} high proper motion.`,
+    `Determinism: ${datasetDeterminismLabel(determinism)} against ${determinism.baseline_build_id || "no baseline"}.`,
+    `Catalog contribution rows: ${formatInt(contributionRows.length)}.`,
+  ];
+  return (
+    <div className="narrative-list">
+      {lines.map((line) => <div key={line}>{line}</div>)}
+    </div>
+  );
+}
+
+function MetricList({ rows }) {
+  return (
+    <div className="metric-list">
+      {rows.map(([label, value, note]) => (
+        <div className="metric-row" key={label}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+          {note ? <em>{note}</em> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KeyValueTable({ rows, columns = ["Key", "Value"] }) {
+  return (
+    <table>
+      <thead>
+        <tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.join("|")}>
+            {columns.map((_, index) => <td key={`${row[0]}-${index}`}>{row[index] || ""}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function DatasetBarList({ rows }) {
+  if (!rows.length) return <div className="empty">No rows are available for this section.</div>;
+  return (
+    <div className="dataset-bars">
+      {rows.map((row) => {
+        const max = Math.max(toNumber(row.max), toNumber(row.value), 1);
+        const width = Math.max(0, Math.min(100, pctFromPart(row.value, max)));
+        return (
+          <div className="dataset-bar-row" key={row.label}>
+            <div>
+              <strong>{row.label}</strong>
+              <span>{row.detail || formatInt(row.value)}</span>
+            </div>
+            <div className="dataset-bar-track">
+              <div className="dataset-bar-fill" style={{ width: `${width}%`, background: row.color || undefined }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MultiplicityTable({ values, total }) {
+  const keys = ["none", "nss_only", "wds_only", "msc_only", "sbx_only", "nss_wds", "nss_msc", "nss_sbx", "wds_msc", "wds_sbx", "msc_sbx", "nss_wds_msc", "nss_wds_msc_sbx"];
+  return (
+    <table>
+      <thead>
+        <tr><th>Evidence pattern</th><th>Rows</th><th>Share</th></tr>
+      </thead>
+      <tbody>
+        {keys.map((key) => (
+          <tr key={key}>
+            <td>{key}</td>
+            <td>{formatInt(values[key])}</td>
+            <td>{formatPct(pctFromPart(values[key], total))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function sortedCatalogContributionRows(report) {
+  const rows = Array.isArray(report.catalog_contributions) ? [...report.catalog_contributions] : [];
+  return rows.sort((a, b) => {
+    const utilityDelta = toNumber(b.utility_score) - toNumber(a.utility_score);
+    if (utilityDelta !== 0) return utilityDelta;
+    const directDelta = toNumber(b.direct_rows) - toNumber(a.direct_rows);
+    if (directDelta !== 0) return directDelta;
+    return String(a.catalog || "").localeCompare(String(b.catalog || ""));
+  });
+}
+
+function catalogOverlapRows(report) {
+  const starRows = report?.overlaps?.star_evidence?.pairwise || [];
+  const systemRows = report?.overlaps?.system_evidence?.pairwise || [];
+  return [
+    ...starRows.map((row) => ({ ...row, scope: "stars" })),
+    ...systemRows.map((row) => ({ ...row, scope: "systems" })),
+  ];
+}
+
+function catalogStageSummary(stage, item) {
+  if (!item || !Object.keys(item).length) return "no stage report";
+  if (stage === "download") return `${formatInt(item.source_count)} sources | ${formatInt(item.manifest_files_count)} manifests`;
+  if (stage === "cook") return `${formatInt(item.existing_catalog_count)} / ${formatInt(item.catalog_count)} cooked files`;
+  return `build=${item.build_id || "n/a"} | entries=${formatInt(item.catalog_contribution_entries)}`;
+}
+
+function datasetDeterminismLabel(determinism) {
+  const status = String(determinism?.status || "");
+  if (status === "match") return "match";
+  if (status === "mismatch") return "mismatch";
+  if (status === "no_baseline") return "no baseline";
+  if (status === "missing_current_report") return "missing report";
+  return status || "unknown";
+}
+
+function spectralColor(value) {
+  const key = String(value || "").toUpperCase();
+  const colors = {
+    O: "#5b7cfa",
+    B: "#5ca4ff",
+    A: "#74b8ff",
+    F: "#f7d774",
+    G: "#f59e0b",
+    K: "#e87524",
+    M: "#c2410c",
+    L: "#8b5cf6",
+    T: "#14b8a6",
+    Y: "#64748b",
+    D: "#94a3b8",
+  };
+  return colors[key] || "#64748b";
 }
 
 function OperationsScreen({ csrf }) {

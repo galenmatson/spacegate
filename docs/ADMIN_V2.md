@@ -433,18 +433,26 @@ from those records.
    - add backend action metadata and operations summary endpoint only after the
      first React screen proves the operator workflow
 
-4. Agency read model
+4. Dataset migration
+   - migrate served dataset status, source contribution, overlap, determinism,
+     storage, and runtime diagnostics into React
+   - keep the first pass read-heavy; slice/rebuild controls should remain
+     deliberate and tied to the build runbook
+   - preserve `/api/v2/admin/status/dataset` as the single source of truth for
+     this workspace
+
+5. Agency read model
    - define API shapes for Evidence Portfolio, Source File, Extraction Set,
      Findings, Proposals, Review, and Journal Entry
    - start with read-only/mock or report-backed data where production tables do
      not exist yet
 
-5. Work queue and journal persistence
+6. Work queue and journal persistence
    - seed portfolios from coolness/adjudication queues
    - append journal entries for queue seed, source retrieval, extraction, and
      review actions
 
-6. Human-gated review
+7. Human-gated review
    - accept/reject/defer/escalate proposals
    - write accepted science overlays only to reviewed `arm`/`disc` surfaces
 
