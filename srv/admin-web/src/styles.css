@@ -900,10 +900,14 @@ h3 {
   border-color: var(--brand);
 }
 
-.audit-row span:last-child {
+.audit-row .audit-row-meta {
   grid-column: 2;
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.audit-row .audit-row-aux {
+  font-size: 0.74rem;
 }
 
 .inference-grid {

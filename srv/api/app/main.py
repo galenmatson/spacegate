@@ -4377,6 +4377,27 @@ def admin_actions_job_log_download(request: Request, job_id: str):
     return PlainTextResponse(content=str(payload["chunk"]), headers=headers)
 
 
+@admin_router.get("/actions/jobs/{job_id}/log/text", response_class=PlainTextResponse)
+def admin_actions_job_log_text(request: Request, job_id: str):
+    auth.require_admin(request)
+    try:
+        payload = admin_actions.read_full_job_log(job_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Job not found",
+                "details": {"job_id": job_id},
+            },
+        )
+    headers = {
+        "Content-Disposition": f'inline; filename="{job_id}.log"',
+        "X-Job-Status": str(payload["status"]),
+    }
+    return PlainTextResponse(content=str(payload["chunk"]), headers=headers)
+
+
 @admin_router.post("/actions/jobs/{job_id}/cancel")
 def admin_actions_job_cancel(request: Request, job_id: str):
     user = auth.require_admin(request)
@@ -4454,22 +4475,22 @@ def admin_audit_log(
     where_clauses = []
     params: list[Any] = []
     if before_audit_id is not None:
-        where_clauses.append("audit_id < ?")
+        where_clauses.append("a.audit_id < ?")
         params.append(before_audit_id)
     if event_type:
-        where_clauses.append("event_type = ?")
+        where_clauses.append("a.event_type = ?")
         params.append(event_type)
     if event_prefix:
-        where_clauses.append("event_type LIKE ?")
+        where_clauses.append("a.event_type LIKE ?")
         params.append(f"{event_prefix}%")
     if result:
-        where_clauses.append("result = ?")
+        where_clauses.append("a.result = ?")
         params.append(result)
     if request_id:
-        where_clauses.append("request_id = ?")
+        where_clauses.append("a.request_id = ?")
         params.append(request_id)
     if actor_user_id is not None:
-        where_clauses.append("actor_user_id = ?")
+        where_clauses.append("a.actor_user_id = ?")
         params.append(actor_user_id)
 
     where_sql = ""
@@ -4477,10 +4498,22 @@ def admin_audit_log(
         where_sql = "WHERE " + " AND ".join(where_clauses)
 
     query = f"""
-SELECT audit_id, actor_user_id, event_type, result, request_id, route, method, details_json, created_at
-FROM audit_log
+SELECT
+    a.audit_id,
+    a.actor_user_id,
+    u.email_norm AS actor_email,
+    u.display_name AS actor_display_name,
+    a.event_type,
+    a.result,
+    a.request_id,
+    a.route,
+    a.method,
+    a.details_json,
+    a.created_at
+FROM audit_log a
+LEFT JOIN users u ON u.user_id = a.actor_user_id
 {where_sql}
-ORDER BY audit_id DESC
+ORDER BY a.audit_id DESC
 LIMIT ?
     """
     params.append(limit)
@@ -4488,6 +4521,22 @@ LIMIT ?
     items = []
     with admin_db.connection_scope() as con:
         rows = con.execute(query, params).fetchall()
+        actor_ids = sorted({int(row["actor_user_id"]) for row in rows if row["actor_user_id"] is not None})
+        roles_by_actor: dict[int, list[str]] = {actor_id: [] for actor_id in actor_ids}
+        if actor_ids:
+            placeholders = ",".join("?" for _ in actor_ids)
+            role_rows = con.execute(
+                f"""
+SELECT ur.user_id, r.role_code
+FROM user_roles ur
+JOIN roles r ON r.role_id = ur.role_id
+WHERE ur.user_id IN ({placeholders})
+ORDER BY ur.user_id, r.role_code
+                """,
+                actor_ids,
+            ).fetchall()
+            for role_row in role_rows:
+                roles_by_actor.setdefault(int(role_row["user_id"]), []).append(str(role_row["role_code"]))
     for row in rows:
         details: Any = {}
         raw_details = row["details_json"]
@@ -4499,10 +4548,20 @@ LIMIT ?
         correlation_id = None
         if isinstance(details, dict):
             correlation_id = details.get("correlation_id") or details.get("job_id")
+        actor = None
+        if row["actor_user_id"] is not None:
+            user_id = int(row["actor_user_id"])
+            actor = {
+                "user_id": user_id,
+                "email": row["actor_email"],
+                "display_name": row["actor_display_name"],
+                "roles": roles_by_actor.get(user_id, []),
+            }
         items.append(
             {
                 "audit_id": row["audit_id"],
                 "actor_user_id": row["actor_user_id"],
+                "actor": actor,
                 "event_type": row["event_type"],
                 "result": row["result"],
                 "request_id": row["request_id"],

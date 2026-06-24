@@ -225,8 +225,8 @@ The embedded Admin UI currently exposes these operational surfaces:
   `$SPACEGATE_STATE_DIR/admin/jobs`
 - cancellation: queued jobs only; running jobs are not interrupted
 - backups: admin DB snapshots and release metadata snapshots
-- audit log: auth, admin action, inference, and query events with filters and
-  correlation IDs
+- audit log: auth, admin action, inference, and query events with filters,
+  actor identity metadata, and correlation IDs
 
 Admin v2 should migrate this as an **Operations** workspace, with Audit either
 as a tab in that workspace or a persistent adjacent top-level screen. The mental
@@ -247,7 +247,8 @@ these records but not collapse them.
 - A job should link to its launch audit event, completion audit event, log file,
   parameters, command/native execution plan, and any produced reports.
 - Job logs should be readable in-browser with severity highlighting, search,
-  line filtering, summary counts, reload, full-log open, and download options.
+  line filtering, summary counts, reload, inline full-log open, and separate
+  download options.
 - An audit event with `correlation_id` or `job_id` should link back to the
   matching job detail.
 - Future agency jobs should additionally link to Evidence Portfolio journal
@@ -293,7 +294,7 @@ Primary tabs:
    - presets for auth, admin actions, inference, searches, errors, and denies
    - exact filters for event type, result, request id, actor id, and correlation
      id when available
-   - timeline/list with selected-event JSON detail
+   - timeline/list with selected-event actor, route, correlation, and JSON detail
    - links from correlated audit events to job detail or inference endpoint
 
 ### Action Grouping

@@ -2891,6 +2891,7 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
   const activeRows = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
   const selectedStatus = String(selectedJob?.status || "");
   const logDownloadHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/download` : "";
+  const logViewHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/text` : "";
 
   return (
     <section className="jobs-layout">
@@ -2964,7 +2965,7 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
             </details>
             <div className="log-toolbar">
               <button className="button" onClick={refreshSelected}>Reload Log</button>
-              <a className="button" href={logDownloadHref} target="_blank" rel="noreferrer">Open Full Log</a>
+              <a className="button" href={logViewHref} target="_blank" rel="noreferrer">Open Full Log</a>
               <a className="button" href={logDownloadHref}>Download Log</a>
               {selectedStatus === "queued" ? (
                 <button className="button danger" onClick={() => cancelJob(selectedJob.job_id)}>Cancel Queued Job</button>
@@ -3152,6 +3153,22 @@ function BackupTable({ items, type, emptyText }) {
   );
 }
 
+function auditActorLabel(entry) {
+  const actor = entry?.actor || {};
+  if (actor.email && actor.display_name) return `${actor.display_name} <${actor.email}>`;
+  if (actor.email) return actor.email;
+  if (entry?.actor_user_id) return `user #${entry.actor_user_id}`;
+  return "system / unauthenticated";
+}
+
+function auditActorDetail(entry) {
+  const actor = entry?.actor || {};
+  const parts = [];
+  if (entry?.actor_user_id) parts.push(`id ${entry.actor_user_id}`);
+  if (Array.isArray(actor.roles) && actor.roles.length) parts.push(`roles ${actor.roles.join(", ")}`);
+  return parts.length ? parts.join(" | ") : "no actor user recorded";
+}
+
 function AuditTab({
   auditItems,
   selectedAudit,
@@ -3164,6 +3181,15 @@ function AuditTab({
   nextAuditBefore,
   selectJob,
 }) {
+  function filterSelectedActor() {
+    if (!selectedAudit?.actor_user_id) return;
+    const actorId = String(selectedAudit.actor_user_id);
+    const nextFilters = { event_type: "", result: "", request_id: "", actor_user_id: actorId };
+    setAuditPreset("all");
+    Object.entries(nextFilters).forEach(([key, value]) => updateAuditFilter(key, value));
+    loadAudit({ append: false, preset: "all", filters: nextFilters });
+  }
+
   return (
     <section className="audit-layout">
       <div className="panel">
@@ -3210,7 +3236,8 @@ function AuditTab({
             <button className={selectedAudit?.audit_id === entry.audit_id ? "audit-row selected" : "audit-row"} key={entry.audit_id} onClick={() => setSelectedAudit(entry)}>
               <span className={`badge ${entry.result === "success" ? "ok" : entry.result === "error" ? "danger" : "warn"}`}>{entry.result}</span>
               <strong>#{entry.audit_id} {entry.event_type}</strong>
-              <span>{formatDate(entry.created_at)} {entry.request_id || ""} {entry.correlation_id || ""}</span>
+              <span className="audit-row-meta">{formatDate(entry.created_at)} | {auditActorLabel(entry)}</span>
+              <span className="audit-row-meta audit-row-aux">{auditActorDetail(entry)} {entry.request_id || ""} {entry.correlation_id || ""}</span>
             </button>
           )) : <div className="empty">No audit entries match the current filters.</div>}
         </div>
@@ -3228,9 +3255,16 @@ function AuditTab({
               <strong>{selectedAudit.method || ""} {selectedAudit.route || "n/a"}</strong>
             </div>
             <div className="overview-fact">
+              <span>Actor</span>
+              <strong>{auditActorLabel(selectedAudit)} | {auditActorDetail(selectedAudit)}</strong>
+            </div>
+            <div className="overview-fact">
               <span>Correlation</span>
               <strong>{selectedAudit.correlation_id || "n/a"}</strong>
             </div>
+            {selectedAudit.actor_user_id ? (
+              <button className="button" onClick={filterSelectedActor}>Filter To This Actor</button>
+            ) : null}
             {selectedAudit.correlation_id && String(selectedAudit.correlation_id).startsWith("job_") ? (
               <button className="button" onClick={() => selectJob(selectedAudit.correlation_id)}>Open Correlated Job</button>
             ) : null}

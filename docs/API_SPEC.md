@@ -522,6 +522,13 @@ Response:
 - `200 text/plain` with `Content-Disposition: attachment; filename="<job_id>.log"`
 - `404` when missing.
 
+### GET /admin/actions/jobs/{job_id}/log/text
+Returns full job log text for inline browser viewing.
+
+Response:
+- `200 text/plain` with `Content-Disposition: inline; filename="<job_id>.log"`
+- `404` when missing.
+
 ### POST /admin/actions/jobs/{job_id}/cancel
 Cancels a queued job.
 
@@ -558,6 +565,7 @@ Response shape:
     {
       "audit_id": 7,
       "actor_user_id": null,
+      "actor": null,
       "event_type": "auth.login.denied",
       "result": "deny",
       "request_id": "req_efc0733fbb33",
@@ -569,6 +577,20 @@ Response shape:
     }
   ],
   "next_before_audit_id": 7
+}
+```
+
+When `actor_user_id` is present, `actor` contains display metadata from the
+admin auth database:
+
+```json
+{
+  "actor": {
+    "user_id": 1,
+    "email": "admin@example.com",
+    "display_name": "Admin User",
+    "roles": ["admin"]
+  }
 }
 ```
 
