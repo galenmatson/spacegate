@@ -247,8 +247,8 @@ these records but not collapse them.
 - A job should link to its launch audit event, completion audit event, log file,
   parameters, command/native execution plan, and any produced reports.
 - Job logs should be readable in-browser with severity highlighting, search,
-  line filtering, summary counts, reload, inline full-log open, and separate
-  download options.
+  line filtering, summary counts, reload, embedded and full-page reader modes,
+  raw text access, and separate download options.
 - An audit event with `correlation_id` or `job_id` should link back to the
   matching job detail.
 - Future agency jobs should additionally link to Evidence Portfolio journal
@@ -293,7 +293,7 @@ Primary tabs:
 4. **Audit Trail**
    - presets for auth, admin actions, inference, searches, errors, and denies
    - exact filters for event type, result, request id, actor id, and correlation
-     id when available
+     id when available, with an obvious reset path
    - timeline/list with selected-event actor, route, correlation, and JSON detail
    - links from correlated audit events to job detail or inference endpoint
 

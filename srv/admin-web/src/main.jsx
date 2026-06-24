@@ -22,6 +22,7 @@ const emptyEndpointForm = {
 const terminalJobStatuses = new Set(["succeeded", "failed", "cancelled"]);
 const inferenceRoles = ["discover", "prune", "compile", "identify", "extract", "criticize", "adjudicate", "narrate"];
 const defaultSmokePrompt = "Spacegate inference smoke test. Reply with exactly: spacegate inference smoke ok";
+const emptyAuditFilters = { event_type: "", result: "", request_id: "", actor_user_id: "" };
 
 const fallbackActionGuidance = {
   build_database: {
@@ -226,6 +227,18 @@ async function fetchJson(path, options = {}) {
   return { response, data };
 }
 
+async function fetchText(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: "include",
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+    },
+  });
+  const text = await response.text();
+  return { response, text };
+}
+
 function formatInt(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "0";
@@ -380,6 +393,7 @@ function actionLabel(action) {
 function App() {
   const [authState, setAuthState] = useState({ loading: true, data: null, error: "" });
   const [activeScreen, setActiveScreen] = useState("overview");
+  const jobLogId = new URLSearchParams(window.location.search).get("job_log");
 
   useEffect(() => {
     let cancelled = false;
@@ -440,10 +454,11 @@ function App() {
   }
 
   if (!auth?.authenticated) {
+    const nextPath = `${window.location.pathname}${window.location.search || ""}`;
     return (
       <div className="boot">
         <h1>Spacegate Admin</h1>
-        <a className="button primary" href={`${AUTH_API_BASE}/login/google?next=${encodeURIComponent("/admin/")}`}>
+        <a className="button primary" href={`${AUTH_API_BASE}/login/google?next=${encodeURIComponent(nextPath || "/admin/")}`}>
           Sign in with Google
         </a>
       </div>
@@ -469,7 +484,9 @@ function App() {
         <button className="button" onClick={logout}>Log out</button>
       </aside>
       <main className="workspace">
-        {activeScreen === "overview" ? (
+        {jobLogId ? (
+          <FullJobLogScreen jobId={jobLogId} />
+        ) : activeScreen === "overview" ? (
           <OverviewScreen auth={auth} />
         ) : activeScreen === "builds" ? (
           <BuildsScreen csrf={csrf} />
@@ -2377,7 +2394,7 @@ function OperationsScreen({ csrf }) {
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [nextAuditBefore, setNextAuditBefore] = useState(null);
   const [auditPreset, setAuditPreset] = useState("all");
-  const [auditFilters, setAuditFilters] = useState({ event_type: "", result: "", request_id: "", actor_user_id: "" });
+  const [auditFilters, setAuditFilters] = useState(emptyAuditFilters);
   const [opsStatus, setOpsStatus] = useState(null);
   const [status, setStatus] = useState("Loading operations...");
   const [busyAction, setBusyAction] = useState("");
@@ -2590,6 +2607,12 @@ function OperationsScreen({ csrf }) {
     loadAudit({ append: false, preset: nextPreset, filters: auditFilters });
   }
 
+  function clearAuditFilters() {
+    setAuditPreset("all");
+    setAuditFilters(emptyAuditFilters);
+    loadAudit({ append: false, preset: "all", filters: emptyAuditFilters });
+  }
+
   function updateAuditFilter(key, value) {
     setAuditFilters((current) => ({ ...current, [key]: value }));
   }
@@ -2666,14 +2689,113 @@ function OperationsScreen({ csrf }) {
           selectedAudit={selectedAudit}
           setSelectedAudit={setSelectedAudit}
           auditPreset={auditPreset}
-          setAuditPreset={applyAuditPreset}
+          applyAuditPreset={applyAuditPreset}
+          setAuditPreset={setAuditPreset}
           auditFilters={auditFilters}
           updateAuditFilter={updateAuditFilter}
+          clearAuditFilters={clearAuditFilters}
           loadAudit={loadAudit}
           nextAuditBefore={nextAuditBefore}
           selectJob={selectJob}
         />
       )}
+    </div>
+  );
+}
+
+function FullJobLogScreen({ jobId }) {
+  const [state, setState] = useState({ loading: true, job: null, text: "", status: "", message: "Loading full log..." });
+  const [query, setQuery] = useState("");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const safeJobId = String(jobId || "").trim();
+  const encodedJobId = encodeURIComponent(safeJobId);
+  const downloadHref = safeJobId ? `${ADMIN_API_BASE}/actions/jobs/${encodedJobId}/log/download` : "";
+  const rawTextHref = safeJobId ? `${ADMIN_API_BASE}/actions/jobs/${encodedJobId}/log/text` : "";
+
+  async function loadFullLog() {
+    if (!safeJobId) {
+      setState({ loading: false, job: null, text: "", status: "", message: "No job id was provided." });
+      return;
+    }
+    setState((current) => ({ ...current, loading: true, message: "Loading full log..." }));
+    const [jobResult, logResult] = await Promise.all([
+      fetchJson(`${ADMIN_API_BASE}/actions/jobs/${encodedJobId}`),
+      fetchText(`${ADMIN_API_BASE}/actions/jobs/${encodedJobId}/log/text`),
+    ]);
+    if (!jobResult.response.ok) {
+      setState({
+        loading: false,
+        job: null,
+        text: "",
+        status: "",
+        message: `Job metadata: ${compactError(jobResult.data, jobResult.response.status)}`,
+      });
+      return;
+    }
+    if (!logResult.response.ok) {
+      setState({
+        loading: false,
+        job: jobResult.data.job || null,
+        text: logResult.text || "",
+        status: "",
+        message: `Log: ${logResult.text || logResult.response.status}`,
+      });
+      return;
+    }
+    setState({
+      loading: false,
+      job: jobResult.data.job || null,
+      text: logResult.text || "",
+      status: logResult.response.headers.get("X-Job-Status") || jobResult.data.job?.status || "",
+      message: "Ready",
+    });
+  }
+
+  useEffect(() => {
+    loadFullLog();
+  }, [safeJobId]);
+
+  const job = state.job || {};
+  return (
+    <div className="screen full-log-screen">
+      <header className="page-header">
+        <div>
+          <h1>Job Log</h1>
+          <p className="muted">{safeJobId || "No job selected"} | {actionLabel(job.action)} | {state.message}</p>
+        </div>
+        <div className="log-toolbar">
+          <button className="button" onClick={loadFullLog}>Reload</button>
+          {rawTextHref ? <a className="button" href={rawTextHref} target="_blank" rel="noreferrer">Raw Text</a> : null}
+          {downloadHref ? <a className="button" href={downloadHref}>Download</a> : null}
+          <a className="button" href="/admin/">Admin</a>
+        </div>
+      </header>
+      {state.job ? (
+        <div className="log-summary-grid">
+          <div className="overview-fact">
+            <span>Status</span>
+            <strong>{job.status || state.status || "n/a"}</strong>
+          </div>
+          <div className="overview-fact">
+            <span>Timeline</span>
+            <strong>{formatDate(job.created_at)}{" -> "}{formatDate(job.finished_at || job.started_at)}</strong>
+          </div>
+          <div className="overview-fact">
+            <span>Exit</span>
+            <strong>{job.exit_code ?? "n/a"} {job.error_message ? `| ${job.error_message}` : ""}</strong>
+          </div>
+        </div>
+      ) : null}
+      <JobLogViewer
+        text={state.text}
+        query={query}
+        setQuery={setQuery}
+        levelFilter={levelFilter}
+        setLevelFilter={setLevelFilter}
+        eof={!state.loading}
+        status={state.status || job.status || ""}
+        fullHeight
+      />
     </div>
   );
 }
@@ -2891,7 +3013,7 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
   const activeRows = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
   const selectedStatus = String(selectedJob?.status || "");
   const logDownloadHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/download` : "";
-  const logViewHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/text` : "";
+  const logViewHref = selectedJob ? `/admin/?job_log=${encodeURIComponent(selectedJob.job_id)}` : "";
 
   return (
     <section className="jobs-layout">
@@ -2999,7 +3121,7 @@ function classifyLogLine(text) {
   return "plain";
 }
 
-function JobLogViewer({ text, query, setQuery, levelFilter, setLevelFilter, eof, status }) {
+function JobLogViewer({ text, query, setQuery, levelFilter, setLevelFilter, eof, status, fullHeight = false }) {
   const rows = String(text || "")
     .split(/\r?\n/)
     .map((line, index) => ({ index: index + 1, text: line, level: classifyLogLine(line) }))
@@ -3046,7 +3168,7 @@ function JobLogViewer({ text, query, setQuery, levelFilter, setLevelFilter, eof,
         </label>
       </div>
       {hasLog ? (
-        <div className="log-lines" role="log" aria-label="Job log output">
+        <div className={`log-lines ${fullHeight ? "full-height" : ""}`} role="log" aria-label="Job log output">
           {filtered.length ? filtered.map((row) => (
             <div className={`log-line ${row.level}`} key={`${row.index}-${row.text}`}>
               <span className="log-line-no">{row.index}</span>
@@ -3174,9 +3296,11 @@ function AuditTab({
   selectedAudit,
   setSelectedAudit,
   auditPreset,
+  applyAuditPreset,
   setAuditPreset,
   auditFilters,
   updateAuditFilter,
+  clearAuditFilters,
   loadAudit,
   nextAuditBefore,
   selectJob,
@@ -3199,7 +3323,7 @@ function AuditTab({
         </div>
         <div className="audit-presets">
           {auditPresets.map((preset) => (
-            <button className={auditPreset === preset.key ? "active" : ""} key={preset.key} onClick={() => setAuditPreset(preset.key)}>
+            <button className={auditPreset === preset.key ? "active" : ""} key={preset.key} onClick={() => applyAuditPreset(preset.key)}>
               {preset.label}
             </button>
           ))}
@@ -3229,6 +3353,7 @@ function AuditTab({
         </div>
         <div className="card-actions">
           <button className="button primary" onClick={() => loadAudit({ append: false })}>Apply Filters</button>
+          <button className="button" onClick={clearAuditFilters}>Clear Filters</button>
           <button className="button" disabled={!nextAuditBefore} onClick={() => loadAudit({ append: true })}>Load Older</button>
         </div>
         <div className="audit-list">
