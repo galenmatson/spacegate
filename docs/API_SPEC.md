@@ -498,6 +498,11 @@ Response:
 
 Job responses include `requested_by_user_id` and `requested_by` display
 metadata when the requesting user still exists in the admin auth database.
+Detailed job responses also include best-effort `artifact_hints` for expected
+or detected outputs such as build report directories, release metadata,
+snapshots, retention summaries, backups, and profile files. These hints are
+derived at read time from job parameters, logs, and current filesystem state;
+they are operator guidance, not immutable provenance records.
 
 ### GET /admin/actions/jobs/{job_id}/audit
 Lists audit entries correlated with a job id.

@@ -248,6 +248,10 @@ these records but not collapse them.
   parameters, command/native execution plan, and any produced reports.
 - Job rows should show the requesting actor when the admin user record is still
   available, and job detail should expose correlated audit entries.
+- Job detail should show derived output hints for expected or detected reports,
+  backups, release metadata, snapshots, retention summaries, and profile files.
+  These hints are for operator navigation and troubleshooting; immutable
+  provenance still lives in the build/report/database artifacts themselves.
 - Job logs should be readable in-browser with severity highlighting, search,
   line filtering, summary counts, reload, embedded and full-page reader modes,
   raw text access, and separate download options.
@@ -359,7 +363,6 @@ will benefit from several additional API additions:
 - structured `admin_job_events` for progress milestones instead of log parsing
 - optional `parent_job_id` / `predecessor_job_id` so sequential workflows can be
   represented explicitly
-- report/artifact links on completed jobs when an action writes known reports
 
 ## Dossier Journal
 

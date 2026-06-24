@@ -3123,6 +3123,7 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
               <strong>{selectedJob.exit_code ?? "n/a"} {selectedJob.error_message ? `| ${selectedJob.error_message}` : ""}</strong>
             </div>
             <JobTrap job={selectedJob} logState={logState} />
+            <JobArtifactHintsPanel hints={selectedJob.artifact_hints || []} />
             <details open>
               <summary>Parameters</summary>
               <pre className="json-box">{jsonBlock(selectedJob.params)}</pre>
@@ -3156,6 +3157,44 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
         )}
       </div>
     </section>
+  );
+}
+
+function JobArtifactHintsPanel({ hints }) {
+  const items = Array.isArray(hints) ? hints : [];
+  return (
+    <details open className="job-output-panel">
+      <summary>Outputs ({formatInt(items.length)})</summary>
+      {items.length ? (
+        <div className="job-output-list">
+          {items.map((item, index) => (
+            <div className="job-output-row" key={`${item.kind || "output"}-${item.path || item.label || index}-${index}`}>
+              <div>
+                <span className={`badge ${item.exists ? "ok" : "warn"}`}>{item.exists ? "found" : "missing"}</span>
+              </div>
+              <div>
+                <strong>{item.label || item.kind || "Output"}</strong>
+                <span className="table-subtext">
+                  {item.path || item.description || ""}
+                </span>
+                {item.description && item.path ? <span className="table-subtext">{item.description}</span> : null}
+                {item.note ? <span className="table-subtext">note: {item.note}</span> : null}
+                <div className="report-chip-list compact">
+                  {item.kind ? <span className="badge muted">{item.kind}</span> : null}
+                  {item.size_bytes ? <span className="badge muted">{formatBytes(item.size_bytes)}</span> : null}
+                  {item.candidate_count !== undefined ? <span className="badge muted">candidates {formatInt(item.candidate_count)}</span> : null}
+                  {item.estimated_reclaimable_bytes !== undefined ? <span className="badge muted">reclaim {formatBytes(item.estimated_reclaimable_bytes)}</span> : null}
+                  {item.candidate_hash ? <span className="badge muted">{compactId(item.candidate_hash, 18)}</span> : null}
+                  {item.mtime_utc ? <span className="badge muted">{formatDate(item.mtime_utc)}</span> : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">No structured output hints are available for this action yet. Use the log reader for detailed command output.</div>
+      )}
+    </details>
   );
 }
 

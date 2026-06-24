@@ -2043,7 +2043,7 @@ INSERT INTO audit_log(
     _start_queued_jobs()
 
 
-def _row_to_job(row: sqlite3.Row) -> Dict[str, Any]:
+def _row_to_job(row: sqlite3.Row, *, include_artifact_hints: bool = False) -> Dict[str, Any]:
     params: Dict[str, Any] = {}
     plan_payload: Dict[str, Any] = {}
     try:
@@ -2072,7 +2072,7 @@ def _row_to_job(row: sqlite3.Row) -> Dict[str, Any]:
         "roles": [role for role in roles_raw.split(",") if role],
     }
 
-    return {
+    job = {
         "job_id": str(row["job_id"]),
         "action": str(row["action"]),
         "status": str(row["status"]),
@@ -2087,6 +2087,9 @@ def _row_to_job(row: sqlite3.Row) -> Dict[str, Any]:
         "exit_code": row["exit_code"],
         "error_message": row["error_message"],
     }
+    if include_artifact_hints:
+        job["artifact_hints"] = _job_artifact_hints(job)
+    return job
 
 
 def get_job(job_id: str) -> Dict[str, Any]:
@@ -2126,7 +2129,7 @@ WHERE j.job_id = ?
         ).fetchone()
     if row is None:
         raise KeyError(f"Job not found: {job_id}")
-    return _row_to_job(row)
+    return _row_to_job(row, include_artifact_hints=True)
 
 
 def list_jobs(limit: int = 20) -> List[Dict[str, Any]]:
@@ -2295,6 +2298,328 @@ def _served_current_target(state_dir: Path) -> Dict[str, Any]:
     except OSError:
         pass
     return out
+
+
+def _read_job_log_tail(log_path: Path, max_bytes: int = 512 * 1024) -> str:
+    try:
+        if not log_path.exists() or not log_path.is_file():
+            return ""
+        size = log_path.stat().st_size
+        with log_path.open("rb") as handle:
+            if size > max_bytes:
+                handle.seek(max(0, size - max_bytes))
+            raw = handle.read(max_bytes)
+        return raw.decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _extract_build_id_from_log(text: str) -> str:
+    patterns = [
+        r"Build canonical database set \(([^)]+)\)",
+        r"Promote canonical build\s+([A-Za-z0-9._:-]+)",
+        r"Verify canonical build\s+([A-Za-z0-9._:-]+)",
+        r"Scored build:\s*([A-Za-z0-9._:-]+)",
+        r'"build_id"\s*:\s*"([^"]+)"',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text or "")
+        if match:
+            value = str(match.group(1)).strip()
+            if value and _is_safe_build_id(value):
+                return value
+    return ""
+
+
+def _job_target_build_id(job: Dict[str, Any], log_text: str = "") -> tuple[str, str]:
+    params = job.get("params") if isinstance(job.get("params"), dict) else {}
+    raw = str(params.get("build_id") or "").strip()
+    if raw and _is_safe_build_id(raw):
+        return raw, "parameter"
+    from_log = _extract_build_id_from_log(log_text)
+    if from_log:
+        return from_log, "job_log"
+    served = _served_current_target(_state_dir())
+    current = str(served.get("build_id") or "").strip()
+    if current:
+        return current, "served_current_now"
+    return "", "unknown"
+
+
+def _path_hint(
+    *,
+    kind: str,
+    label: str,
+    path: Path,
+    description: str = "",
+    role: str = "output",
+    note: str = "",
+) -> Dict[str, Any]:
+    exists = path.exists() or path.is_symlink()
+    is_dir = path.is_dir()
+    is_file = path.is_file()
+    size_bytes = 0
+    if exists and (is_file or path.is_symlink()):
+        try:
+            size_bytes = int(path.stat().st_size)
+        except OSError:
+            size_bytes = 0
+    return {
+        "kind": kind,
+        "role": role,
+        "label": label,
+        "path": str(path),
+        "exists": exists,
+        "is_dir": is_dir,
+        "is_file": is_file,
+        "size_bytes": size_bytes,
+        "mtime_utc": _path_mtime_iso(path) if exists else None,
+        "description": description,
+        "note": note,
+    }
+
+
+def _add_build_artifact_hints(
+    hints: List[Dict[str, Any]],
+    *,
+    state_dir: Path,
+    build_id: str,
+    source: str,
+    include_core: bool = True,
+    include_reports: bool = True,
+) -> None:
+    if not build_id:
+        hints.append(
+            {
+                "kind": "build",
+                "role": "target",
+                "label": "Build ID",
+                "path": "",
+                "exists": False,
+                "description": "No build id could be resolved from parameters, job log, or served/current.",
+                "note": "Inspect the job log for the exact target.",
+            }
+        )
+        return
+    build_dir = state_dir / "out" / build_id
+    if include_core:
+        hints.extend(
+            [
+                _path_hint(
+                    kind="build_dir",
+                    label=f"Build output {build_id}",
+                    path=build_dir,
+                    description=f"Immutable output directory for build {build_id}.",
+                    note=f"Build id source: {source}.",
+                ),
+                _path_hint(
+                    kind="database",
+                    label="core.duckdb",
+                    path=build_dir / "core.duckdb",
+                    description="Fast default science projection used by the API.",
+                ),
+                _path_hint(
+                    kind="database",
+                    label="disc.duckdb",
+                    path=build_dir / "disc.duckdb",
+                    description="Derived presentation artifacts and generated disc tables.",
+                ),
+                _path_hint(
+                    kind="parquet",
+                    label="Parquet exports",
+                    path=build_dir / "parquet",
+                    description="Columnar build exports for stars, systems, planets, and related tables.",
+                ),
+            ]
+        )
+    if include_reports:
+        reports_dir = state_dir / "reports" / build_id
+        hints.append(
+            _path_hint(
+                kind="reports_dir",
+                label=f"Reports {build_id}",
+                path=reports_dir,
+                description="Per-build QC, provenance, and lifecycle reports.",
+                note=f"Build id source: {source}.",
+            )
+        )
+        for name in (
+            "qc_report.json",
+            "match_report.json",
+            "duplicate_trap_report.json",
+            "provenance_report.json",
+            "determinism_report.json",
+            "coolness_report.json",
+            "snapshot_report.json",
+        ):
+            hints.append(
+                _path_hint(
+                    kind="report",
+                    label=name,
+                    path=reports_dir / name,
+                    description=f"Build report file: {name}.",
+                )
+            )
+
+
+def _profile_store_dir() -> Path:
+    raw = os.getenv("SPACEGATE_COOLNESS_PROFILE_DIR", "").strip()
+    if raw:
+        return Path(raw).expanduser()
+    return _state_dir() / "config" / "coolness_profiles"
+
+
+def _extract_created_paths_from_log(text: str) -> List[Path]:
+    paths: List[Path] = []
+    for pattern in (
+        r"Created admin DB backup:\s*(.+)",
+        r"Created release metadata backup:\s*(.+)",
+        r"Report:\s*(.+)",
+        r"Parquet:\s*(.+)",
+        r"Disc DB:\s*(.+)",
+    ):
+        for match in re.finditer(pattern, text or ""):
+            raw = str(match.group(1)).strip()
+            if raw.startswith("/") and "\x00" not in raw:
+                paths.append(Path(raw))
+    return paths
+
+
+def _job_artifact_hints(job: Dict[str, Any]) -> List[Dict[str, Any]]:
+    action = str(job.get("action") or "")
+    params = job.get("params") if isinstance(job.get("params"), dict) else {}
+    state_dir = _state_dir()
+    log_path = Path(str(job.get("log_path") or ""))
+    log_text = _read_job_log_tail(log_path)
+    build_id, build_source = _job_target_build_id(job, log_text)
+    hints: List[Dict[str, Any]] = []
+
+    if action in {"build_database", "build_database_slice"}:
+        _add_build_artifact_hints(hints, state_dir=state_dir, build_id=build_id, source=build_source)
+        hints.append(
+            _path_hint(
+                kind="served_pointer",
+                label="served/current",
+                path=state_dir / "served" / "current",
+                description="Atomic served build pointer after promotion.",
+            )
+        )
+    elif action == "verify_build":
+        _add_build_artifact_hints(hints, state_dir=state_dir, build_id=build_id, source=build_source, include_core=False)
+    elif action == "publish_db":
+        _add_build_artifact_hints(hints, state_dir=state_dir, build_id=build_id, source=build_source, include_core=False)
+        dl_root = _dl_root()
+        hints.extend(
+            [
+                _path_hint(kind="release_metadata", label="current.json", path=dl_root / "current.json", description="Published release metadata for bootstrap/download clients."),
+                _path_hint(kind="release_pointer", label="current", path=dl_root / "current", description="Download current symlink."),
+            ]
+        )
+        if build_id:
+            hints.extend(
+                [
+                    _path_hint(kind="release_reports", label=f"Published reports {build_id}", path=dl_root / "reports" / build_id, description="Published report subset copied during release packaging."),
+                    _path_hint(kind="release_archive", label=f"{build_id}.7z", path=dl_root / "db" / f"{build_id}.7z", description="Published compressed build archive."),
+                    _path_hint(kind="release_archive", label=f"{build_id}.tar.zst", path=dl_root / "db" / f"{build_id}.tar.zst", description="Fallback published compressed build archive."),
+                ]
+            )
+    elif action in {"retention_dry_run", "retention_apply"}:
+        try:
+            keep_builds, keep_reports, prune_tmp = _normalize_retention_params(params)
+            plan = _retention_plan(state_dir, keep_builds=keep_builds, keep_reports=keep_reports, prune_tmp=prune_tmp)
+            hints.append(
+                {
+                    "kind": "retention_plan",
+                    "role": "plan",
+                    "label": "Retention candidate plan",
+                    "path": "",
+                    "exists": True,
+                    "description": "Current retention candidate summary for this action's parameters.",
+                    "note": "For old jobs, current filesystem state may differ from the original job log.",
+                    "candidate_count": plan.get("candidate_count"),
+                    "estimated_reclaimable_bytes": plan.get("estimated_reclaimable_bytes"),
+                    "candidate_hash": plan.get("candidate_hash"),
+                    "served_build_id": plan.get("served_build_id"),
+                }
+            )
+        except Exception as exc:
+            hints.append(
+                {
+                    "kind": "retention_plan",
+                    "role": "plan",
+                    "label": "Retention candidate plan",
+                    "path": "",
+                    "exists": False,
+                    "description": "Retention candidate plan could not be computed.",
+                    "note": str(exc),
+                }
+            )
+    elif action == "score_coolness":
+        _add_build_artifact_hints(hints, state_dir=state_dir, build_id=build_id, source=build_source, include_core=False)
+        build_dir = state_dir / "out" / build_id
+        hints.extend(
+            [
+                _path_hint(kind="database", label="disc.duckdb", path=build_dir / "disc.duckdb", description="Disc DB updated with coolness_scores."),
+                _path_hint(kind="parquet", label="coolness_scores.parquet", path=build_dir / "disc" / "coolness_scores.parquet", description="Coolness scores parquet export."),
+                _path_hint(kind="report", label="coolness_report.json", path=state_dir / "reports" / build_id / "coolness_report.json", description="Coolness scoring report."),
+                _path_hint(kind="profile_store", label="Coolness profile store", path=_profile_store_dir(), description="Stored coolness profiles and active pointer."),
+            ]
+        )
+    elif action == "generate_snapshots":
+        _add_build_artifact_hints(hints, state_dir=state_dir, build_id=build_id, source=build_source, include_core=False)
+        view_type = str(params.get("view_type") or "system_card").strip() or "system_card"
+        build_dir = state_dir / "out" / build_id
+        hints.extend(
+            [
+                _path_hint(kind="snapshot_root", label=f"Snapshots: {view_type}", path=build_dir / "snapshots" / view_type, description="Generated SVG snapshot assets."),
+                _path_hint(kind="parquet", label="snapshot_manifest.parquet", path=build_dir / "disc" / "snapshot_manifest.parquet", description="Snapshot manifest parquet export."),
+                _path_hint(kind="report", label="snapshot_report.json", path=state_dir / "reports" / build_id / "snapshot_report.json", description="Snapshot generation report."),
+            ]
+        )
+    elif action in {"save_coolness_profile", "apply_coolness_profile"}:
+        profile_id = str(params.get("profile_id") or "").strip()
+        profile_version = str(params.get("profile_version") or "").strip()
+        store_dir = _profile_store_dir()
+        if profile_id and profile_version:
+            hints.append(
+                _path_hint(
+                    kind="profile",
+                    label=f"Profile {profile_id}@{profile_version}",
+                    path=store_dir / "profiles" / profile_id / f"{profile_version}.json",
+                    description="Immutable coolness profile file.",
+                )
+            )
+        hints.append(
+            _path_hint(kind="profile_active", label="Active profile pointer", path=store_dir / "active.json", description="Current coolness profile activation record.")
+        )
+    elif action in {"backup_admin_db", "restore_admin_db", "backup_release_metadata", "restore_release_metadata"}:
+        if action == "restore_admin_db":
+            backup_name = str(params.get("backup_name") or "").strip()
+            if backup_name:
+                hints.append(_path_hint(kind="backup", label=backup_name, path=_backups_dir() / "admin_db" / backup_name, description="Admin DB backup used as restore source."))
+        elif action == "restore_release_metadata":
+            backup_id = str(params.get("backup_id") or "").strip()
+            if backup_id:
+                backup_dir = _backups_dir() / "release_metadata" / backup_id
+                hints.extend(
+                    [
+                        _path_hint(kind="backup", label=backup_id, path=backup_dir, description="Release metadata backup used as restore source."),
+                        _path_hint(kind="backup_manifest", label="manifest.json", path=backup_dir / "manifest.json", description="Release metadata backup manifest."),
+                    ]
+                )
+        else:
+            for created_path in _extract_created_paths_from_log(log_text):
+                hints.append(_path_hint(kind="backup", label=created_path.name, path=created_path, description="Backup artifact reported by the job log."))
+        if action in {"backup_admin_db", "restore_admin_db"}:
+            hints.append(_path_hint(kind="backup_dir", label="Admin DB backups", path=_backups_dir() / "admin_db", description="Admin DB backup directory."))
+        else:
+            hints.append(_path_hint(kind="backup_dir", label="Release metadata backups", path=_backups_dir() / "release_metadata", description="Release metadata backup directory."))
+
+    for created_path in _extract_created_paths_from_log(log_text):
+        if not any(item.get("path") == str(created_path) for item in hints):
+            hints.append(_path_hint(kind="logged_output", label=created_path.name, path=created_path, description="Output path detected in the job log."))
+
+    return hints
 
 
 def _report_file_summary(reports_dir: Path) -> Dict[str, Any]:
