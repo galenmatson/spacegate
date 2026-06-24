@@ -171,6 +171,17 @@ CREATE TABLE IF NOT EXISTS admin_jobs (
   FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS admin_job_events (
+  event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  event_status TEXT,
+  message TEXT,
+  details_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (job_id) REFERENCES admin_jobs(job_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS inference_endpoints (
   endpoint_id INTEGER PRIMARY KEY AUTOINCREMENT,
   endpoint_key TEXT UNIQUE NOT NULL,
@@ -349,6 +360,8 @@ CREATE INDEX IF NOT EXISTS idx_allowlist_email ON admin_allowlist(email_norm);
 CREATE INDEX IF NOT EXISTS idx_allowlist_sub ON admin_allowlist(provider_sub);
 CREATE INDEX IF NOT EXISTS idx_admin_jobs_status ON admin_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_admin_jobs_created_at ON admin_jobs(created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_job_events_job ON admin_job_events(job_id, event_id);
+CREATE INDEX IF NOT EXISTS idx_admin_job_events_type ON admin_job_events(event_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_inference_endpoints_enabled ON inference_endpoints(enabled);
 CREATE INDEX IF NOT EXISTS idx_inference_model_endpoint ON inference_model_cache(endpoint_id);
 CREATE INDEX IF NOT EXISTS idx_inference_probes_endpoint ON inference_endpoint_probes(endpoint_id, probed_at);

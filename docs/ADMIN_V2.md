@@ -252,6 +252,9 @@ these records but not collapse them.
   backups, release metadata, snapshots, retention summaries, and profile files.
   These hints are for operator navigation and troubleshooting; immutable
   provenance still lives in the build/report/database artifacts themselves.
+- Job detail should show structured lifecycle events for queue/start/execution
+  and terminal states. Older jobs may show derived timeline events from existing
+  timestamps until enough structured history exists.
 - Job logs should be readable in-browser with severity highlighting, search,
   line filtering, summary counts, reload, embedded and full-page reader modes,
   raw text access, and separate download options.
@@ -360,7 +363,6 @@ The backend now exposes action metadata from `ActionSpec` and
 build artifacts, retention readiness, and runbook grouping. Future operators
 will benefit from several additional API additions:
 
-- structured `admin_job_events` for progress milestones instead of log parsing
 - optional `parent_job_id` / `predecessor_job_id` so sequential workflows can be
   represented explicitly
 

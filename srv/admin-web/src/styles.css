@@ -811,6 +811,38 @@ h3 {
   margin: 0.7rem 0;
 }
 
+.job-events-panel {
+  margin: 0.7rem 0;
+}
+
+.job-event-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.6rem 0;
+}
+
+.job-event-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0.55rem;
+}
+
+.job-event-row.ok {
+  border-color: color-mix(in srgb, var(--ok) 28%, var(--border));
+}
+
+.job-event-row.warn {
+  border-color: color-mix(in srgb, #a16207 28%, var(--border));
+}
+
+.job-event-row.danger {
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--border));
+}
+
 .job-output-list {
   display: grid;
   gap: 0.45rem;

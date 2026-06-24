@@ -2412,6 +2412,7 @@ function OperationsScreen({ csrf }) {
   const [selectedJobId, setSelectedJobId] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedJobAudit, setSelectedJobAudit] = useState([]);
+  const [selectedJobEvents, setSelectedJobEvents] = useState([]);
   const [logState, setLogState] = useState({ text: "", offset: 0, eof: true, status: "" });
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [nextAuditBefore, setNextAuditBefore] = useState(null);
@@ -2534,6 +2535,22 @@ function OperationsScreen({ csrf }) {
     return items;
   }
 
+  async function loadJobEvents(jobId) {
+    if (!jobId) {
+      setSelectedJobEvents([]);
+      return [];
+    }
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(jobId)}/events?limit=100`);
+    if (!response.ok) {
+      setStatus(`Job events ${compactId(jobId)}: ${compactError(data, response.status)}`);
+      setSelectedJobEvents([]);
+      return [];
+    }
+    const items = Array.isArray(data.items) ? data.items : [];
+    setSelectedJobEvents(items);
+    return items;
+  }
+
   async function loadLogChunk(jobId, offset, reset = false) {
     if (!jobId) return;
     const safeOffset = Number.isFinite(Number(offset)) ? Number(offset) : 0;
@@ -2557,6 +2574,7 @@ function OperationsScreen({ csrf }) {
     setSelectedJobId(jobId);
     setLogState({ text: "", offset: 0, eof: false, status: "" });
     await loadJobDetail(jobId);
+    await loadJobEvents(jobId);
     await loadJobAudit(jobId);
     await loadLogChunk(jobId, 0, true);
   }
@@ -2577,6 +2595,7 @@ function OperationsScreen({ csrf }) {
     async function loadSelected() {
       const job = await loadJobDetail(selectedJobId);
       if (!cancelled && job) {
+        await loadJobEvents(selectedJobId);
         await loadJobAudit(selectedJobId);
         await loadLogChunk(selectedJobId, 0, true);
       }
@@ -2595,6 +2614,7 @@ function OperationsScreen({ csrf }) {
       await loadJobs();
       if (selectedJobId) {
         await loadJobDetail(selectedJobId);
+        await loadJobEvents(selectedJobId);
         await loadLogChunk(selectedJobId, logState.offset, false);
       }
     }, 3000);
@@ -2640,6 +2660,7 @@ function OperationsScreen({ csrf }) {
     setStatus(`Cancelled ${jobId}.`);
     await Promise.all([loadJobs(), loadAudit({ append: false })]);
     await loadJobDetail(jobId);
+    await loadJobEvents(jobId);
     await loadJobAudit(jobId);
   }
 
@@ -2722,6 +2743,7 @@ function OperationsScreen({ csrf }) {
           jobs={jobs}
           selectedJob={selectedJob}
           selectedJobAudit={selectedJobAudit}
+          selectedJobEvents={selectedJobEvents}
           logState={logState}
           selectJob={selectJob}
           filterAuditForJob={filterAuditForJob}
@@ -3067,7 +3089,7 @@ function jobActorLabel(job) {
   return "unknown";
 }
 
-function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, filterAuditForJob, cancelJob, refreshSelected }) {
+function JobsTab({ jobs, selectedJob, selectedJobAudit, selectedJobEvents, logState, selectJob, filterAuditForJob, cancelJob, refreshSelected }) {
   const [logQuery, setLogQuery] = useState("");
   const [logLevelFilter, setLogLevelFilter] = useState("all");
   const activeRows = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
@@ -3075,6 +3097,7 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
   const logDownloadHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/download` : "";
   const logViewHref = selectedJob ? `/admin/?job_log=${encodeURIComponent(selectedJob.job_id)}` : "";
   const auditItems = Array.isArray(selectedJobAudit) ? selectedJobAudit : [];
+  const eventItems = Array.isArray(selectedJobEvents) ? selectedJobEvents : [];
 
   return (
     <section className="jobs-layout">
@@ -3152,6 +3175,7 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
               <strong>{selectedJob.exit_code ?? "n/a"} {selectedJob.error_message ? `| ${selectedJob.error_message}` : ""}</strong>
             </div>
             <JobTrap job={selectedJob} logState={logState} />
+            <JobEventsPanel events={eventItems} />
             <JobArtifactHintsPanel hints={selectedJob.artifact_hints || []} />
             <details open>
               <summary>Parameters</summary>
@@ -3186,6 +3210,43 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
         )}
       </div>
     </section>
+  );
+}
+
+function jobEventTone(event) {
+  const status = String(event?.event_status || "");
+  const type = String(event?.event_type || "");
+  if (status === "succeeded" || type === "completed") return "ok";
+  if (status === "failed" || type === "failed") return "danger";
+  if (status === "cancelled" || type === "cancelled") return "muted";
+  if (status === "running" || status === "queued" || type === "executing" || type === "started") return "warn";
+  return "muted";
+}
+
+function JobEventsPanel({ events }) {
+  const items = Array.isArray(events) ? events : [];
+  return (
+    <details open className="job-events-panel">
+      <summary>Timeline ({formatInt(items.length)})</summary>
+      {items.length ? (
+        <div className="job-event-list">
+          {items.map((event) => (
+            <div className={`job-event-row ${jobEventTone(event)}`} key={`${event.event_id}-${event.event_type}-${event.created_at}`}>
+              <span className={`badge ${jobEventTone(event)}`}>{event.event_status || event.event_type}</span>
+              <div>
+                <strong>{event.event_type}{event.synthetic ? " (derived)" : ""}</strong>
+                <span className="table-subtext">{formatDate(event.created_at)} | {event.message || "No message"}</span>
+                {event.details && Object.keys(event.details).length ? (
+                  <span className="table-subtext">{compactId(JSON.stringify(event.details), 140)}</span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">No structured job events are available yet. New jobs should record queue, start, execution, and terminal milestones.</div>
+      )}
+    </details>
   );
 }
 

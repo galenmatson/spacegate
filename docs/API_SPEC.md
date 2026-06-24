@@ -514,6 +514,33 @@ Response:
 - `200` with `job_id` and `items` using the same item shape as `GET /admin/audit`
 - `404` when the job is missing.
 
+### GET /admin/actions/jobs/{job_id}/events
+Lists structured lifecycle events for a job.
+
+Query params:
+- `limit` (default 100, max 500)
+
+Response:
+- `200` with `job_id` and `items`
+- `404` when the job is missing.
+
+Event items:
+```json
+{
+  "event_id": 12,
+  "job_id": "job_...",
+  "event_type": "started",
+  "event_status": "running",
+  "message": "Started Verify Build.",
+  "details": {"action": "verify_build"},
+  "created_at": "2026-06-24T15:30:00Z",
+  "synthetic": false
+}
+```
+
+Older jobs may return synthetic events derived from job timestamps when no
+structured event rows exist.
+
 ### GET /admin/actions/jobs/{job_id}/log
 Returns a log chunk for polling/streaming.
 

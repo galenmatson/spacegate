@@ -1747,6 +1747,33 @@ def _validate_and_plan(
     raise ActionValidationError(f"Action has no execution handler: {spec.name}")
 
 
+def _insert_job_event(
+    con: sqlite3.Connection,
+    *,
+    job_id: str,
+    event_type: str,
+    event_status: str | None = None,
+    message: str = "",
+    details: Dict[str, Any] | None = None,
+    created_at: str | None = None,
+) -> None:
+    con.execute(
+        """
+INSERT INTO admin_job_events(
+  job_id, event_type, event_status, message, details_json, created_at
+) VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            job_id,
+            event_type,
+            event_status,
+            message,
+            json.dumps(details or {}, separators=(",", ":"), sort_keys=True),
+            created_at or _to_iso(_utc_now()),
+        ),
+    )
+
+
 def _insert_job(
     con: sqlite3.Connection,
     *,
@@ -1774,6 +1801,15 @@ INSERT INTO admin_jobs(
             log_path,
             now,
         ),
+    )
+    _insert_job_event(
+        con,
+        job_id=job_id,
+        event_type="queued",
+        event_status="queued",
+        message=f"Queued {action}.",
+        details={"action": action, "requested_by_user_id": requested_by_user_id},
+        created_at=now,
     )
 
 
@@ -1827,14 +1863,25 @@ LIMIT ?
 
             started_at = _to_iso(_utc_now())
             for row in rows:
+                job_id = str(row["job_id"])
+                action = str(row["action"])
                 con.execute(
                     "UPDATE admin_jobs SET status='running', started_at=? WHERE job_id=? AND status='queued'",
-                    (started_at, str(row["job_id"])),
+                    (started_at, job_id),
+                )
+                _insert_job_event(
+                    con,
+                    job_id=job_id,
+                    event_type="started",
+                    event_status="running",
+                    message=f"Started {action}.",
+                    details={"action": action},
+                    created_at=started_at,
                 )
                 jobs_to_launch.append(
                     {
-                        "job_id": str(row["job_id"]),
-                        "action": str(row["action"]),
+                        "job_id": job_id,
+                        "action": action,
                         "requested_by_user_id": int(row["requested_by_user_id"]),
                         "params_json": str(row["params_json"] or "{}"),
                         "command_json": str(row["command_json"] or "{}"),
@@ -1923,6 +1970,15 @@ WHERE job_id = ?
                 """,
                 (finished_at, "cancelled by operator", job_id),
             )
+            _insert_job_event(
+                con,
+                job_id=job_id,
+                event_type="cancelled",
+                event_status="cancelled",
+                message="Cancelled by operator before execution.",
+                details={"previous_status": status},
+                created_at=finished_at,
+            )
             con.commit()
     return get_job(job_id)
 
@@ -1988,6 +2044,18 @@ def _run_job_worker(
         logf.write(f"Execution: {json.dumps(json.loads(command_json), sort_keys=True)}\n\n")
         logf.flush()
 
+        with admin_db.connection_scope() as con:
+            _insert_job_event(
+                con,
+                job_id=job_id,
+                event_type="executing",
+                event_status="running",
+                message="Execution plan entered worker.",
+                details={"action": action, "execution_kind": plan.kind},
+                created_at=started_at,
+            )
+            con.commit()
+
         if plan.kind == "command":
             assert plan.argv is not None
             exit_code, error_message = _run_command(plan.argv, logf)
@@ -2037,6 +2105,19 @@ INSERT INTO audit_log(
                 ),
                 finished_at,
             ),
+        )
+        _insert_job_event(
+            con,
+            job_id=job_id,
+            event_type="completed" if status == "succeeded" else "failed",
+            event_status=status,
+            message=f"Finished with status={status}, exit_code={exit_code}.",
+            details={
+                "action": action,
+                "exit_code": exit_code,
+                "error_message": error_message,
+            },
+            created_at=finished_at,
         )
         con.commit()
 
@@ -2170,6 +2251,84 @@ LIMIT ?
             (limit,),
         ).fetchall()
     return [_row_to_job(row) for row in rows]
+
+
+def _serialize_job_event(row: sqlite3.Row) -> Dict[str, Any]:
+    details: Dict[str, Any] = {}
+    raw = row["details_json"]
+    if raw:
+        try:
+            loaded = json.loads(raw)
+            if isinstance(loaded, dict):
+                details = loaded
+        except Exception:
+            details = {"raw": raw}
+    return {
+        "event_id": int(row["event_id"]),
+        "job_id": str(row["job_id"]),
+        "event_type": str(row["event_type"]),
+        "event_status": row["event_status"],
+        "message": row["message"],
+        "details": details,
+        "created_at": str(row["created_at"]),
+        "synthetic": False,
+    }
+
+
+def _synthetic_job_events(job: Dict[str, Any]) -> List[Dict[str, Any]]:
+    events: List[Dict[str, Any]] = []
+
+    def add(event_id: int, event_type: str, event_status: str | None, message: str, created_at: Any, details: Dict[str, Any] | None = None) -> None:
+        if not created_at:
+            return
+        events.append(
+            {
+                "event_id": event_id,
+                "job_id": job["job_id"],
+                "event_type": event_type,
+                "event_status": event_status,
+                "message": message,
+                "details": details or {},
+                "created_at": str(created_at),
+                "synthetic": True,
+            }
+        )
+
+    action = str(job.get("action") or "")
+    add(-3, "queued", "queued", f"Queued {action}.", job.get("created_at"), {"action": action})
+    add(-2, "started", "running", f"Started {action}.", job.get("started_at"), {"action": action})
+    status = str(job.get("status") or "")
+    if job.get("finished_at"):
+        if status == "cancelled":
+            event_type = "cancelled"
+            message = "Cancelled by operator before execution."
+        elif status == "succeeded":
+            event_type = "completed"
+            message = f"Finished with status=succeeded, exit_code={job.get('exit_code')}."
+        else:
+            event_type = "failed"
+            message = f"Finished with status={status}, exit_code={job.get('exit_code')}."
+        add(-1, event_type, status, message, job.get("finished_at"), {"exit_code": job.get("exit_code"), "error_message": job.get("error_message")})
+    return events
+
+
+def list_job_events(job_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    job = get_job(job_id)
+    safe_limit = max(1, min(int(limit), 500))
+    with admin_db.connection_scope() as con:
+        rows = con.execute(
+            """
+SELECT event_id, job_id, event_type, event_status, message, details_json, created_at
+FROM admin_job_events
+WHERE job_id = ?
+ORDER BY event_id ASC
+LIMIT ?
+            """,
+            (job_id, safe_limit),
+        ).fetchall()
+    if rows:
+        return [_serialize_job_event(row) for row in rows]
+    return _synthetic_job_events(job)
 
 
 def read_job_log(job_id: str, offset: int = 0, limit: int = 65536) -> Dict[str, Any]:

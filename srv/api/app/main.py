@@ -4357,6 +4357,26 @@ def admin_actions_job_audit(
     return {"job_id": job_id, "items": items}
 
 
+@admin_router.get("/actions/jobs/{job_id}/events")
+def admin_actions_job_events(
+    request: Request,
+    job_id: str,
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    auth.require_admin(request)
+    try:
+        return {"job_id": job_id, "items": admin_actions.list_job_events(job_id, limit=limit)}
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Job not found",
+                "details": {"job_id": job_id},
+            },
+        )
+
+
 @admin_router.get("/actions/jobs/{job_id}/log")
 def admin_actions_job_log(
     request: Request,
