@@ -193,8 +193,8 @@ const fallbackActionGroups = [
     key: "presentation",
     title: "Presentation Generation",
     description: "Generate ranking and snapshot artifacts without changing canonical science rows.",
-    actions: ["score_coolness", "save_coolness_profile", "apply_coolness_profile", "generate_snapshots"],
-    sequence: ["Score Coolness", "Save Profile", "Activate Profile", "Generate Snapshots"],
+    actions: ["score_coolness", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
+    sequence: ["Score Coolness", "Generate Snapshots", "Save Profile", "Activate Profile"],
   },
   {
     key: "recovery",
@@ -2924,7 +2924,7 @@ function RunbookTab({ actionGroups, actionsByName, runAction, busyAction }) {
         const groupActions = group.actions.map((name) => actionsByName.get(name)).filter(Boolean);
         if (!groupActions.length) return null;
         return (
-          <section className="panel runbook-group" key={group.key}>
+          <section className={`panel runbook-group ${group.key || ""}`} key={group.key}>
             <div className="runbook-head">
               <div>
                 <h2>{group.title}</h2>
@@ -3077,6 +3077,7 @@ function ActionParamField({ action, name, spec, value, updateValue }) {
   if (name === "weights_json" && ["score_coolness", "save_coolness_profile"].includes(String(action?.name || ""))) {
     return (
       <CoolnessWeightsField
+        collapsed={String(action?.name || "") === "save_coolness_profile"}
         label={label}
         name={name}
         value={value}
@@ -3152,7 +3153,7 @@ function weightsJsonFromSliders(sliders) {
   return JSON.stringify(weights);
 }
 
-function CoolnessWeightsField({ label, name, value, updateValue }) {
+function CoolnessWeightsField({ collapsed = false, label, name, value, updateValue }) {
   const [sliders, setSliders] = useState(() => slidersFromWeightsJson(value));
   const usingOverride = Boolean(String(value || "").trim());
   const normalized = weightsJsonFromSliders(sliders);
@@ -3177,7 +3178,7 @@ function CoolnessWeightsField({ label, name, value, updateValue }) {
     updateValue(name, "");
   }
 
-  return (
+  const field = (
     <div className="coolness-weights-field">
       <div className="field-head">
         <div>
@@ -3215,6 +3216,13 @@ function CoolnessWeightsField({ label, name, value, updateValue }) {
         </details>
       ) : null}
     </div>
+  );
+  if (!collapsed) return field;
+  return (
+    <details className="coolness-weights-disclosure">
+      <summary>{label.replace(" JSON", "")}</summary>
+      {field}
+    </details>
   );
 }
 

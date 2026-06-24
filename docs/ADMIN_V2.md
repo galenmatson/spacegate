@@ -282,7 +282,7 @@ Primary tabs:
    - grouped action launcher with sequences and safe next steps
    - workflow rails for common sequences:
      - Build Database -> Verify Build -> Publish Database -> retention
-     - Score Coolness -> Save Profile -> Activate Profile -> Generate Snapshots
+     - Score Coolness -> Generate Snapshots -> Save Profile -> Activate Profile
      - Backup Admin DB -> Restore Admin DB
      - Backup Release Metadata -> Restore Release Metadata
    - each action should show purpose, prerequisites, writes/outputs, risk,

@@ -901,8 +901,8 @@ ACTION_GROUPS: List[Dict[str, Any]] = [
         "key": "presentation",
         "title": "Presentation Generation",
         "description": "Generate ranking and snapshot artifacts without changing canonical science rows.",
-        "actions": ["score_coolness", "save_coolness_profile", "apply_coolness_profile", "generate_snapshots"],
-        "sequence": ["Score Coolness", "Save Profile", "Activate Profile", "Generate Snapshots"],
+        "actions": ["score_coolness", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
+        "sequence": ["Score Coolness", "Generate Snapshots", "Save Profile", "Activate Profile"],
     },
     {
         "key": "recovery",
@@ -1983,9 +1983,38 @@ WHERE job_id = ?
     return get_job(job_id)
 
 
+def _log_error_line(line: str) -> str | None:
+    text = str(line or "").strip()
+    if not text:
+        return None
+    lower = text.lower()
+    if (
+        lower.startswith("error:")
+        or lower.startswith("[error]")
+        or " traceback " in f" {lower} "
+        or "exception" in lower
+        or "failed" in lower
+    ):
+        return text[:500]
+    return None
+
+
+def _last_log_error_line(log_path: Path) -> str | None:
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        error_line = _log_error_line(line)
+        if error_line:
+            return error_line
+    return None
+
+
 def _run_command(command: List[str], logf: TextIO) -> tuple[int, str | None]:
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
+    last_error_line: str | None = None
     try:
         proc = subprocess.Popen(
             command,
@@ -1999,8 +2028,12 @@ def _run_command(command: List[str], logf: TextIO) -> tuple[int, str | None]:
         assert proc.stdout is not None
         for line in proc.stdout:
             logf.write(line)
+            detected = _log_error_line(line)
+            if detected:
+                last_error_line = detected
         proc.wait()
-        return int(proc.returncode), None
+        return_code = int(proc.returncode)
+        return return_code, last_error_line if return_code != 0 else None
     except Exception as exc:
         return 1, str(exc)
 
@@ -2064,6 +2097,10 @@ def _run_job_worker(
             exit_code, error_message = _run_native(plan.native_handler, params, logf)
         else:
             exit_code, error_message = 1, f"Unsupported execution plan kind: {plan.kind}"
+
+        if exit_code != 0 and not error_message:
+            logf.flush()
+            error_message = _last_log_error_line(log_path) or f"Action exited with code {exit_code}"
 
         finished_at = _to_iso(_utc_now())
         status = "succeeded" if exit_code == 0 and not error_message else "failed"
