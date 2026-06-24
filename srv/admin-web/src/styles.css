@@ -763,6 +763,81 @@ h3 {
   margin: 0.7rem 0;
 }
 
+.log-reader {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.7rem;
+}
+
+.log-reader-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.log-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.4fr);
+  gap: 0.55rem;
+}
+
+.report-chip-list.compact {
+  margin-top: 0;
+}
+
+.log-lines {
+  max-height: 560px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f172a;
+  color: #dbeafe;
+  font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.log-line {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.log-line:last-child {
+  border-bottom: 0;
+}
+
+.log-line-no {
+  color: #94a3b8;
+  text-align: right;
+  padding: 0.12rem 0.65rem;
+  user-select: none;
+}
+
+.log-line-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 0.12rem 0.65rem;
+}
+
+.log-line.error {
+  background: rgba(180, 35, 24, 0.18);
+  color: #fecaca;
+}
+
+.log-line.warn {
+  background: rgba(161, 98, 7, 0.18);
+  color: #fde68a;
+}
+
+.log-line.ok {
+  color: #bbf7d0;
+}
+
+.log-line.meta {
+  color: #bfdbfe;
+}
+
 .log-box,
 .json-box {
   max-height: 520px;
@@ -1056,6 +1131,7 @@ th {
   .jobs-layout,
   .audit-layout,
   .filter-grid,
+  .log-controls,
   .inference-eval-grid,
   .role-grid,
   .smoke-grid,

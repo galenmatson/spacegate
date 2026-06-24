@@ -2886,6 +2886,8 @@ function initialActionValues(action) {
 }
 
 function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSelected }) {
+  const [logQuery, setLogQuery] = useState("");
+  const [logLevelFilter, setLogLevelFilter] = useState("all");
   const activeRows = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
   const selectedStatus = String(selectedJob?.status || "");
   const logDownloadHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/download` : "";
@@ -2962,18 +2964,101 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
             </details>
             <div className="log-toolbar">
               <button className="button" onClick={refreshSelected}>Reload Log</button>
+              <a className="button" href={logDownloadHref} target="_blank" rel="noreferrer">Open Full Log</a>
               <a className="button" href={logDownloadHref}>Download Log</a>
               {selectedStatus === "queued" ? (
                 <button className="button danger" onClick={() => cancelJob(selectedJob.job_id)}>Cancel Queued Job</button>
               ) : null}
             </div>
-            <pre className="log-box">{logState.text || "No log output is available yet."}</pre>
+            <JobLogViewer
+              text={logState.text}
+              query={logQuery}
+              setQuery={setLogQuery}
+              levelFilter={logLevelFilter}
+              setLevelFilter={setLogLevelFilter}
+              eof={logState.eof}
+              status={logState.status}
+            />
           </>
         ) : (
           <div className="empty">Select a job to inspect parameters, execution plan, log output, and troubleshooting hints.</div>
         )}
       </div>
     </section>
+  );
+}
+
+function classifyLogLine(text) {
+  const line = String(text || "");
+  const lower = line.toLowerCase();
+  if (lower.includes("[error]") || lower.includes("error:") || lower.includes("traceback") || lower.includes("failed") || lower.includes("exception")) return "error";
+  if (lower.includes("warning") || lower.includes("warn:") || lower.includes("blocked") || lower.includes("skipped")) return "warn";
+  if (lower.includes("ok:") || lower.includes("succeeded") || lower.includes("complete") || lower.includes("healthy")) return "ok";
+  if (line.startsWith("[") || lower.startsWith("action:") || lower.startsWith("params:") || lower.startsWith("execution:")) return "meta";
+  return "plain";
+}
+
+function JobLogViewer({ text, query, setQuery, levelFilter, setLevelFilter, eof, status }) {
+  const rows = String(text || "")
+    .split(/\r?\n/)
+    .map((line, index) => ({ index: index + 1, text: line, level: classifyLogLine(line) }))
+    .filter((row, index, array) => row.text || index < array.length - 1);
+  const counts = rows.reduce((acc, row) => {
+    acc[row.level] = (acc[row.level] || 0) + 1;
+    return acc;
+  }, {});
+  const needle = String(query || "").trim().toLowerCase();
+  const filtered = rows.filter((row) => {
+    const levelMatch = levelFilter === "all" || row.level === levelFilter;
+    const queryMatch = !needle || row.text.toLowerCase().includes(needle) || String(row.index).includes(needle);
+    return levelMatch && queryMatch;
+  });
+  const hasLog = rows.length > 0;
+  return (
+    <div className="log-reader">
+      <div className="log-reader-head">
+        <div>
+          <strong>Log Reader</strong>
+          <span className="table-subtext">{formatInt(filtered.length)} shown of {formatInt(rows.length)} lines | status {status || "n/a"} | {eof ? "complete" : "streaming"}</span>
+        </div>
+        <div className="report-chip-list compact">
+          <span className="badge danger">errors {formatInt(counts.error || 0)}</span>
+          <span className="badge warn">warnings {formatInt(counts.warn || 0)}</span>
+          <span className="badge ok">ok {formatInt(counts.ok || 0)}</span>
+        </div>
+      </div>
+      <div className="log-controls">
+        <label>
+          <span>Search log</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="error, Deleted, job id, line number" />
+        </label>
+        <label>
+          <span>Line filter</span>
+          <select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)}>
+            <option value="all">All lines</option>
+            <option value="error">Errors</option>
+            <option value="warn">Warnings/skips</option>
+            <option value="ok">OK/complete</option>
+            <option value="meta">Metadata</option>
+            <option value="plain">Plain</option>
+          </select>
+        </label>
+      </div>
+      {hasLog ? (
+        <div className="log-lines" role="log" aria-label="Job log output">
+          {filtered.length ? filtered.map((row) => (
+            <div className={`log-line ${row.level}`} key={`${row.index}-${row.text}`}>
+              <span className="log-line-no">{row.index}</span>
+              <span className="log-line-text">{row.text || " "}</span>
+            </div>
+          )) : (
+            <div className="empty">No log lines match the current filter.</div>
+          )}
+        </div>
+      ) : (
+        <div className="empty">No log output is available yet.</div>
+      )}
+    </div>
   );
 }
 

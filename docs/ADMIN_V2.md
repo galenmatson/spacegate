@@ -246,6 +246,8 @@ these records but not collapse them.
 
 - A job should link to its launch audit event, completion audit event, log file,
   parameters, command/native execution plan, and any produced reports.
+- Job logs should be readable in-browser with severity highlighting, search,
+  line filtering, summary counts, reload, full-log open, and download options.
 - An audit event with `correlation_id` or `job_id` should link back to the
   matching job detail.
 - Future agency jobs should additionally link to Evidence Portfolio journal
