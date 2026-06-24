@@ -2062,11 +2062,22 @@ def _row_to_job(row: sqlite3.Row) -> Dict[str, Any]:
     except Exception:
         plan_payload = {}
 
+    row_keys = set(row.keys())
+    roles_raw = str(row["requested_by_roles_csv"] or "") if "requested_by_roles_csv" in row_keys else ""
+    requested_by_user_id = int(row["requested_by_user_id"])
+    requested_by = {
+        "user_id": requested_by_user_id,
+        "email": row["requested_by_email"] if "requested_by_email" in row_keys else None,
+        "display_name": row["requested_by_display_name"] if "requested_by_display_name" in row_keys else None,
+        "roles": [role for role in roles_raw.split(",") if role],
+    }
+
     return {
         "job_id": str(row["job_id"]),
         "action": str(row["action"]),
         "status": str(row["status"]),
-        "requested_by_user_id": int(row["requested_by_user_id"]),
+        "requested_by_user_id": requested_by_user_id,
+        "requested_by": requested_by,
         "params": params,
         "execution": plan_payload,
         "log_path": str(row["log_path"]),
@@ -2082,10 +2093,34 @@ def get_job(job_id: str) -> Dict[str, Any]:
     with admin_db.connection_scope() as con:
         row = con.execute(
             """
-SELECT job_id, action, status, requested_by_user_id, params_json, command_json,
-       log_path, created_at, started_at, finished_at, exit_code, error_message
-FROM admin_jobs
-WHERE job_id = ?
+SELECT
+    j.job_id,
+    j.action,
+    j.status,
+    j.requested_by_user_id,
+    u.email_norm AS requested_by_email,
+    u.display_name AS requested_by_display_name,
+    (
+        SELECT group_concat(role_code, ',')
+        FROM (
+            SELECT r.role_code AS role_code
+            FROM user_roles ur
+            JOIN roles r ON r.role_id = ur.role_id
+            WHERE ur.user_id = j.requested_by_user_id
+            ORDER BY r.role_code
+        )
+    ) AS requested_by_roles_csv,
+    j.params_json,
+    j.command_json,
+    j.log_path,
+    j.created_at,
+    j.started_at,
+    j.finished_at,
+    j.exit_code,
+    j.error_message
+FROM admin_jobs j
+LEFT JOIN users u ON u.user_id = j.requested_by_user_id
+WHERE j.job_id = ?
             """,
             (job_id,),
         ).fetchone()
@@ -2099,10 +2134,34 @@ def list_jobs(limit: int = 20) -> List[Dict[str, Any]]:
     with admin_db.connection_scope() as con:
         rows = con.execute(
             """
-SELECT job_id, action, status, requested_by_user_id, params_json, command_json,
-       log_path, created_at, started_at, finished_at, exit_code, error_message
-FROM admin_jobs
-ORDER BY created_at DESC
+SELECT
+    j.job_id,
+    j.action,
+    j.status,
+    j.requested_by_user_id,
+    u.email_norm AS requested_by_email,
+    u.display_name AS requested_by_display_name,
+    (
+        SELECT group_concat(role_code, ',')
+        FROM (
+            SELECT r.role_code AS role_code
+            FROM user_roles ur
+            JOIN roles r ON r.role_id = ur.role_id
+            WHERE ur.user_id = j.requested_by_user_id
+            ORDER BY r.role_code
+        )
+    ) AS requested_by_roles_csv,
+    j.params_json,
+    j.command_json,
+    j.log_path,
+    j.created_at,
+    j.started_at,
+    j.finished_at,
+    j.exit_code,
+    j.error_message
+FROM admin_jobs j
+LEFT JOIN users u ON u.user_id = j.requested_by_user_id
+ORDER BY j.created_at DESC
 LIMIT ?
             """,
             (limit,),

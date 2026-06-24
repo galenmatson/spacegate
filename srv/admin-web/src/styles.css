@@ -763,6 +763,32 @@ h3 {
   margin: 0.7rem 0;
 }
 
+.job-audit-panel {
+  margin: 0.7rem 0;
+}
+
+.job-audit-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.6rem 0;
+}
+
+.job-audit-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0.5rem;
+}
+
+.job-audit-row span:last-child {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .log-reader {
   display: grid;
   gap: 0.65rem;

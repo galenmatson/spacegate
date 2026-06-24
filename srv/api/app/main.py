@@ -4335,6 +4335,28 @@ def admin_actions_job(request: Request, job_id: str):
         )
 
 
+@admin_router.get("/actions/jobs/{job_id}/audit")
+def admin_actions_job_audit(
+    request: Request,
+    job_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    auth.require_admin(request)
+    try:
+        admin_actions.get_job(job_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Job not found",
+                "details": {"job_id": job_id},
+            },
+        )
+    items = _admin_audit_items(["a.details_json LIKE ?"], [f"%{job_id}%"], limit)
+    return {"job_id": job_id, "items": items}
+
+
 @admin_router.get("/actions/jobs/{job_id}/log")
 def admin_actions_job_log(
     request: Request,
@@ -4441,63 +4463,8 @@ def admin_backups(
     return admin_actions.list_backups(limit=limit)
 
 
-@admin_router.get("/audit")
-def admin_audit_log(
-    request: Request,
-    limit: int = Query(default=50, ge=1, le=500),
-    before_audit_id: Optional[int] = Query(default=None, ge=1),
-    event_type: Optional[str] = Query(default=None, min_length=1, max_length=128),
-    event_prefix: Optional[str] = Query(default=None, min_length=1, max_length=128),
-    result: Optional[str] = Query(default=None, min_length=1, max_length=16),
-    request_id: Optional[str] = Query(default=None, min_length=1, max_length=128),
-    actor_user_id: Optional[int] = Query(default=None, ge=1),
-):
-    auth.require_admin(request)
-    if result:
-        normalized_result = result.strip().lower()
-        if normalized_result not in {"success", "deny", "error"}:
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "code": "bad_request",
-                    "message": "Invalid result filter",
-                    "details": {"result": result},
-                },
-            )
-        result = normalized_result
-    if event_type:
-        event_type = event_type.strip()
-    if event_prefix:
-        event_prefix = event_prefix.strip()
-    if request_id:
-        request_id = request_id.strip()
-
-    where_clauses = []
-    params: list[Any] = []
-    if before_audit_id is not None:
-        where_clauses.append("a.audit_id < ?")
-        params.append(before_audit_id)
-    if event_type:
-        where_clauses.append("a.event_type = ?")
-        params.append(event_type)
-    if event_prefix:
-        where_clauses.append("a.event_type LIKE ?")
-        params.append(f"{event_prefix}%")
-    if result:
-        where_clauses.append("a.result = ?")
-        params.append(result)
-    if request_id:
-        where_clauses.append("a.request_id = ?")
-        params.append(request_id)
-    if actor_user_id is not None:
-        where_clauses.append("a.actor_user_id = ?")
-        params.append(actor_user_id)
-
-    where_sql = ""
-    if where_clauses:
-        where_sql = "WHERE " + " AND ".join(where_clauses)
-
-    query = f"""
+def _admin_audit_select_sql(where_sql: str) -> str:
+    return f"""
 SELECT
     a.audit_id,
     a.actor_user_id,
@@ -4516,27 +4483,30 @@ LEFT JOIN users u ON u.user_id = a.actor_user_id
 ORDER BY a.audit_id DESC
 LIMIT ?
     """
-    params.append(limit)
 
-    items = []
-    with admin_db.connection_scope() as con:
-        rows = con.execute(query, params).fetchall()
-        actor_ids = sorted({int(row["actor_user_id"]) for row in rows if row["actor_user_id"] is not None})
-        roles_by_actor: dict[int, list[str]] = {actor_id: [] for actor_id in actor_ids}
-        if actor_ids:
-            placeholders = ",".join("?" for _ in actor_ids)
-            role_rows = con.execute(
-                f"""
+
+def _admin_audit_roles_by_actor(con: Any, actor_ids: list[int]) -> dict[int, list[str]]:
+    roles_by_actor: dict[int, list[str]] = {actor_id: [] for actor_id in actor_ids}
+    if not actor_ids:
+        return roles_by_actor
+    placeholders = ",".join("?" for _ in actor_ids)
+    role_rows = con.execute(
+        f"""
 SELECT ur.user_id, r.role_code
 FROM user_roles ur
 JOIN roles r ON r.role_id = ur.role_id
 WHERE ur.user_id IN ({placeholders})
 ORDER BY ur.user_id, r.role_code
-                """,
-                actor_ids,
-            ).fetchall()
-            for role_row in role_rows:
-                roles_by_actor.setdefault(int(role_row["user_id"]), []).append(str(role_row["role_code"]))
+        """,
+        actor_ids,
+    ).fetchall()
+    for role_row in role_rows:
+        roles_by_actor.setdefault(int(role_row["user_id"]), []).append(str(role_row["role_code"]))
+    return roles_by_actor
+
+
+def _serialize_admin_audit_rows(rows: list[Any], roles_by_actor: dict[int, list[str]]) -> list[dict[str, Any]]:
+    items = []
     for row in rows:
         details: Any = {}
         raw_details = row["details_json"]
@@ -4572,6 +4542,81 @@ ORDER BY ur.user_id, r.role_code
                 "created_at": row["created_at"],
             }
         )
+    return items
+
+
+def _admin_audit_items(where_clauses: list[str], params: list[Any], limit: int) -> list[dict[str, Any]]:
+    where_sql = ""
+    if where_clauses:
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+    query = _admin_audit_select_sql(where_sql)
+    query_params = [*params, limit]
+    with admin_db.connection_scope() as con:
+        rows = con.execute(query, query_params).fetchall()
+        actor_ids = sorted({int(row["actor_user_id"]) for row in rows if row["actor_user_id"] is not None})
+        roles_by_actor = _admin_audit_roles_by_actor(con, actor_ids)
+    return _serialize_admin_audit_rows(rows, roles_by_actor)
+
+
+@admin_router.get("/audit")
+def admin_audit_log(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=500),
+    before_audit_id: Optional[int] = Query(default=None, ge=1),
+    event_type: Optional[str] = Query(default=None, min_length=1, max_length=128),
+    event_prefix: Optional[str] = Query(default=None, min_length=1, max_length=128),
+    result: Optional[str] = Query(default=None, min_length=1, max_length=16),
+    request_id: Optional[str] = Query(default=None, min_length=1, max_length=128),
+    actor_user_id: Optional[int] = Query(default=None, ge=1),
+    correlation_id: Optional[str] = Query(default=None, min_length=1, max_length=128),
+):
+    auth.require_admin(request)
+    if result:
+        normalized_result = result.strip().lower()
+        if normalized_result not in {"success", "deny", "error"}:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "bad_request",
+                    "message": "Invalid result filter",
+                    "details": {"result": result},
+                },
+            )
+        result = normalized_result
+    if event_type:
+        event_type = event_type.strip()
+    if event_prefix:
+        event_prefix = event_prefix.strip()
+    if request_id:
+        request_id = request_id.strip()
+    if correlation_id:
+        correlation_id = correlation_id.strip()
+
+    where_clauses = []
+    params: list[Any] = []
+    if before_audit_id is not None:
+        where_clauses.append("a.audit_id < ?")
+        params.append(before_audit_id)
+    if event_type:
+        where_clauses.append("a.event_type = ?")
+        params.append(event_type)
+    if event_prefix:
+        where_clauses.append("a.event_type LIKE ?")
+        params.append(f"{event_prefix}%")
+    if result:
+        where_clauses.append("a.result = ?")
+        params.append(result)
+    if request_id:
+        where_clauses.append("a.request_id = ?")
+        params.append(request_id)
+    if actor_user_id is not None:
+        where_clauses.append("a.actor_user_id = ?")
+        params.append(actor_user_id)
+    if correlation_id:
+        where_clauses.append("a.details_json LIKE ?")
+        params.append(f"%{correlation_id}%")
+
+    items = _admin_audit_items(where_clauses, params, limit)
     next_before = items[-1]["audit_id"] if items else None
     return {"items": items, "next_before_audit_id": next_before}
 

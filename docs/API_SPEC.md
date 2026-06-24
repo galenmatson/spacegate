@@ -496,6 +496,19 @@ Response:
 - `200` when found.
 - `404` when missing.
 
+Job responses include `requested_by_user_id` and `requested_by` display
+metadata when the requesting user still exists in the admin auth database.
+
+### GET /admin/actions/jobs/{job_id}/audit
+Lists audit entries correlated with a job id.
+
+Query params:
+- `limit` (default 50, max 200)
+
+Response:
+- `200` with `job_id` and `items` using the same item shape as `GET /admin/audit`
+- `404` when the job is missing.
+
 ### GET /admin/actions/jobs/{job_id}/log
 Returns a log chunk for polling/streaming.
 
@@ -557,6 +570,7 @@ Query params:
 - `result` (optional: `success|deny|error`)
 - `request_id` (optional exact match)
 - `actor_user_id` (optional exact match)
+- `correlation_id` (optional match against correlated detail payloads, commonly `job_...`)
 
 Response shape:
 ```json

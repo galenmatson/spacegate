@@ -22,7 +22,7 @@ const emptyEndpointForm = {
 const terminalJobStatuses = new Set(["succeeded", "failed", "cancelled"]);
 const inferenceRoles = ["discover", "prune", "compile", "identify", "extract", "criticize", "adjudicate", "narrate"];
 const defaultSmokePrompt = "Spacegate inference smoke test. Reply with exactly: spacegate inference smoke ok";
-const emptyAuditFilters = { event_type: "", result: "", request_id: "", actor_user_id: "" };
+const emptyAuditFilters = { event_type: "", result: "", request_id: "", actor_user_id: "", correlation_id: "" };
 
 const fallbackActionGuidance = {
   build_database: {
@@ -2390,6 +2390,7 @@ function OperationsScreen({ csrf }) {
   const [auditItems, setAuditItems] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedJobAudit, setSelectedJobAudit] = useState([]);
   const [logState, setLogState] = useState({ text: "", offset: 0, eof: true, status: "" });
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [nextAuditBefore, setNextAuditBefore] = useState(null);
@@ -2496,6 +2497,22 @@ function OperationsScreen({ csrf }) {
     return job;
   }
 
+  async function loadJobAudit(jobId) {
+    if (!jobId) {
+      setSelectedJobAudit([]);
+      return [];
+    }
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(jobId)}/audit?limit=25`);
+    if (!response.ok) {
+      setStatus(`Job audit ${compactId(jobId)}: ${compactError(data, response.status)}`);
+      setSelectedJobAudit([]);
+      return [];
+    }
+    const items = Array.isArray(data.items) ? data.items : [];
+    setSelectedJobAudit(items);
+    return items;
+  }
+
   async function loadLogChunk(jobId, offset, reset = false) {
     if (!jobId) return;
     const safeOffset = Number.isFinite(Number(offset)) ? Number(offset) : 0;
@@ -2519,6 +2536,7 @@ function OperationsScreen({ csrf }) {
     setSelectedJobId(jobId);
     setLogState({ text: "", offset: 0, eof: false, status: "" });
     await loadJobDetail(jobId);
+    await loadJobAudit(jobId);
     await loadLogChunk(jobId, 0, true);
   }
 
@@ -2538,6 +2556,7 @@ function OperationsScreen({ csrf }) {
     async function loadSelected() {
       const job = await loadJobDetail(selectedJobId);
       if (!cancelled && job) {
+        await loadJobAudit(selectedJobId);
         await loadLogChunk(selectedJobId, 0, true);
       }
     }
@@ -2600,6 +2619,7 @@ function OperationsScreen({ csrf }) {
     setStatus(`Cancelled ${jobId}.`);
     await Promise.all([loadJobs(), loadAudit({ append: false })]);
     await loadJobDetail(jobId);
+    await loadJobAudit(jobId);
   }
 
   function applyAuditPreset(nextPreset) {
@@ -2615,6 +2635,15 @@ function OperationsScreen({ csrf }) {
 
   function updateAuditFilter(key, value) {
     setAuditFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  function filterAuditForJob(jobId) {
+    if (!jobId) return;
+    const nextFilters = { ...emptyAuditFilters, correlation_id: jobId };
+    setActiveTab("audit");
+    setAuditPreset("all");
+    setAuditFilters(nextFilters);
+    loadAudit({ append: false, preset: "all", filters: nextFilters });
   }
 
   const activeJobs = opsStatus?.jobs?.active || jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
@@ -2671,8 +2700,10 @@ function OperationsScreen({ csrf }) {
         <JobsTab
           jobs={jobs}
           selectedJob={selectedJob}
+          selectedJobAudit={selectedJobAudit}
           logState={logState}
           selectJob={selectJob}
+          filterAuditForJob={filterAuditForJob}
           cancelJob={cancelJob}
           refreshSelected={() => selectedJobId && loadLogChunk(selectedJobId, 0, true)}
         />
@@ -3007,13 +3038,22 @@ function initialActionValues(action) {
   return values;
 }
 
-function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSelected }) {
+function jobActorLabel(job) {
+  const actor = job?.requested_by || {};
+  if (actor.email && actor.display_name) return `${actor.display_name} <${actor.email}>`;
+  if (actor.email) return actor.email;
+  if (job?.requested_by_user_id) return `user #${job.requested_by_user_id}`;
+  return "unknown";
+}
+
+function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, filterAuditForJob, cancelJob, refreshSelected }) {
   const [logQuery, setLogQuery] = useState("");
   const [logLevelFilter, setLogLevelFilter] = useState("all");
   const activeRows = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
   const selectedStatus = String(selectedJob?.status || "");
   const logDownloadHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/download` : "";
   const logViewHref = selectedJob ? `/admin/?job_log=${encodeURIComponent(selectedJob.job_id)}` : "";
+  const auditItems = Array.isArray(selectedJobAudit) ? selectedJobAudit : [];
 
   return (
     <section className="jobs-layout">
@@ -3028,6 +3068,7 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
               <tr>
                 <th>Status</th>
                 <th>Action</th>
+                <th>Actor</th>
                 <th>Created</th>
                 <th>Duration</th>
                 <th>Error</th>
@@ -3041,6 +3082,7 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
                     <strong>{actionLabel(job.action)}</strong>
                     <span className="table-subtext">{compactId(job.job_id, 24)}</span>
                   </td>
+                  <td>{jobActorLabel(job)}</td>
                   <td>{formatDate(job.created_at)}</td>
                   <td>{jobDuration(job)}</td>
                   <td>{job.error_message ? compactId(job.error_message, 56) : ""}</td>
@@ -3069,6 +3111,10 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
               <strong>{actionLabel(selectedJob.action)}</strong>
             </div>
             <div className="overview-fact">
+              <span>Requested By</span>
+              <strong>{jobActorLabel(selectedJob)}</strong>
+            </div>
+            <div className="overview-fact">
               <span>Timeline</span>
               <strong>{formatDate(selectedJob.created_at)}{" -> "}{formatDate(selectedJob.finished_at || selectedJob.started_at)}</strong>
             </div>
@@ -3089,10 +3135,12 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
               <button className="button" onClick={refreshSelected}>Reload Log</button>
               <a className="button" href={logViewHref} target="_blank" rel="noreferrer">Open Full Log</a>
               <a className="button" href={logDownloadHref}>Download Log</a>
+              <button className="button" onClick={() => filterAuditForJob(selectedJob.job_id)}>Open Job Audit</button>
               {selectedStatus === "queued" ? (
                 <button className="button danger" onClick={() => cancelJob(selectedJob.job_id)}>Cancel Queued Job</button>
               ) : null}
             </div>
+            <JobAuditPanel items={auditItems} filterAuditForJob={() => filterAuditForJob(selectedJob.job_id)} />
             <JobLogViewer
               text={logState.text}
               query={logQuery}
@@ -3108,6 +3156,28 @@ function JobsTab({ jobs, selectedJob, logState, selectJob, cancelJob, refreshSel
         )}
       </div>
     </section>
+  );
+}
+
+function JobAuditPanel({ items, filterAuditForJob }) {
+  return (
+    <details open className="job-audit-panel">
+      <summary>Correlated Audit ({formatInt(items.length)})</summary>
+      {items.length ? (
+        <div className="job-audit-list">
+          {items.map((entry) => (
+            <div className="job-audit-row" key={entry.audit_id}>
+              <span className={`badge ${entry.result === "success" ? "ok" : entry.result === "error" ? "danger" : "warn"}`}>{entry.result}</span>
+              <strong>#{entry.audit_id} {entry.event_type}</strong>
+              <span>{formatDate(entry.created_at)} | {auditActorLabel(entry)}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">No correlated audit entries were found for this job. Newer jobs should usually have at least a launch audit event.</div>
+      )}
+      <button className="button" onClick={filterAuditForJob}>Inspect In Audit Trail</button>
+    </details>
   );
 }
 
@@ -3349,6 +3419,10 @@ function AuditTab({
           <label>
             <span>Actor user ID</span>
             <input value={auditFilters.actor_user_id} onChange={(event) => updateAuditFilter("actor_user_id", event.target.value)} />
+          </label>
+          <label>
+            <span>Correlation ID</span>
+            <input value={auditFilters.correlation_id} onChange={(event) => updateAuditFilter("correlation_id", event.target.value)} placeholder="job_..." />
           </label>
         </div>
         <div className="card-actions">

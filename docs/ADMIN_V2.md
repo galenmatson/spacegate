@@ -246,6 +246,8 @@ these records but not collapse them.
 
 - A job should link to its launch audit event, completion audit event, log file,
   parameters, command/native execution plan, and any produced reports.
+- Job rows should show the requesting actor when the admin user record is still
+  available, and job detail should expose correlated audit entries.
 - Job logs should be readable in-browser with severity highlighting, search,
   line filtering, summary counts, reload, embedded and full-page reader modes,
   raw text access, and separate download options.
@@ -354,14 +356,10 @@ The backend now exposes action metadata from `ActionSpec` and
 build artifacts, retention readiness, and runbook grouping. Future operators
 will benefit from several additional API additions:
 
-- `GET /admin/actions/jobs/{job_id}/audit` or audit filtering by
-  `correlation_id`
 - structured `admin_job_events` for progress milestones instead of log parsing
 - optional `parent_job_id` / `predecessor_job_id` so sequential workflows can be
   represented explicitly
 - report/artifact links on completed jobs when an action writes known reports
-- actor display metadata for audit/job rows without exposing sensitive auth
-  claims
 
 ## Dossier Journal
 
