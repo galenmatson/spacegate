@@ -23,6 +23,32 @@ const terminalJobStatuses = new Set(["succeeded", "failed", "cancelled"]);
 const inferenceRoles = ["discover", "prune", "compile", "identify", "extract", "criticize", "adjudicate", "narrate"];
 const defaultSmokePrompt = "Spacegate inference smoke test. Reply with exactly: spacegate inference smoke ok";
 const emptyAuditFilters = { event_type: "", result: "", request_id: "", actor_user_id: "", correlation_id: "" };
+const coolnessWeightDefaults = {
+  luminosity: 0.22,
+  proper_motion: 0.10,
+  multiplicity: 0.14,
+  nice_planets: 0.12,
+  weird_planets: 0.14,
+  proximity: 0.08,
+  system_complexity: 0.12,
+  exotic_star: 0.08,
+};
+const coolnessWeightMeta = [
+  ["luminosity", "Luminosity", "Bright, rare spectral classes and visually prominent stellar hosts."],
+  ["proper_motion", "Proper Motion", "Nearby high-motion systems with strong apparent movement."],
+  ["multiplicity", "Multiplicity", "Binary and multi-star architecture."],
+  ["nice_planets", "Nice Planets", "Temperate or otherwise inviting planet candidates."],
+  ["weird_planets", "Weird Planets", "Unusual, extreme, or dynamically interesting planets."],
+  ["proximity", "Proximity", "Nearby systems that are easier to explain and map."],
+  ["system_complexity", "System Complexity", "Richer systems with more objects and structure."],
+  ["exotic_star", "Exotic Star", "Remnants, giants, peculiar stars, and other rare stellar traits."],
+];
+const defaultCoolnessSliders = Object.fromEntries(
+  coolnessWeightMeta.map(([key]) => [
+    key,
+    Math.max(1, Math.min(10, Math.round((coolnessWeightDefaults[key] / Math.max(...Object.values(coolnessWeightDefaults))) * 10))),
+  ])
+);
 
 const fallbackActionGuidance = {
   build_database: {
@@ -3015,6 +3041,7 @@ function ActionCard({ action, runAction, busy }) {
       <div className="action-fields">
         {Object.entries(schema).map(([name, spec]) => (
           <ActionParamField
+            action={action}
             key={name}
             name={name}
             spec={spec || {}}
@@ -3044,9 +3071,19 @@ function ActionCard({ action, runAction, busy }) {
   );
 }
 
-function ActionParamField({ name, spec, value, updateValue }) {
+function ActionParamField({ action, name, spec, value, updateValue }) {
   if (spec.hidden) return null;
   const label = spec.label || actionLabel(name);
+  if (name === "weights_json" && ["score_coolness", "save_coolness_profile"].includes(String(action?.name || ""))) {
+    return (
+      <CoolnessWeightsField
+        label={label}
+        name={name}
+        value={value}
+        updateValue={updateValue}
+      />
+    );
+  }
   if (spec.type === "boolean") {
     return (
       <label className="checkbox-row">
@@ -3080,6 +3117,104 @@ function ActionParamField({ name, spec, value, updateValue }) {
         placeholder={spec.placeholder || ""}
       />
     </label>
+  );
+}
+
+function slidersFromWeightsJson(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return { ...defaultCoolnessSliders };
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ...defaultCoolnessSliders };
+    const values = coolnessWeightMeta.map(([key]) => Number(parsed[key]));
+    const maxValue = Math.max(...values.filter((item) => Number.isFinite(item) && item > 0), 0);
+    if (maxValue <= 0) return { ...defaultCoolnessSliders };
+    return Object.fromEntries(
+      coolnessWeightMeta.map(([key]) => {
+        const value = Number(parsed[key]);
+        const sliderValue = Number.isFinite(value) && value > 0 ? Math.round((value / maxValue) * 10) : 1;
+        return [key, Math.max(1, Math.min(10, sliderValue))];
+      })
+    );
+  } catch (_) {
+    return { ...defaultCoolnessSliders };
+  }
+}
+
+function weightsJsonFromSliders(sliders) {
+  const total = coolnessWeightMeta.reduce((sum, [key]) => sum + Math.max(1, Math.min(10, Number(sliders[key]) || 1)), 0);
+  const weights = Object.fromEntries(
+    coolnessWeightMeta.map(([key]) => {
+      const value = Math.max(1, Math.min(10, Number(sliders[key]) || 1));
+      return [key, Number((value / total).toFixed(6))];
+    })
+  );
+  return JSON.stringify(weights);
+}
+
+function CoolnessWeightsField({ label, name, value, updateValue }) {
+  const [sliders, setSliders] = useState(() => slidersFromWeightsJson(value));
+  const usingOverride = Boolean(String(value || "").trim());
+  const normalized = weightsJsonFromSliders(sliders);
+
+  useEffect(() => {
+    if (!String(value || "").trim()) {
+      setSliders({ ...defaultCoolnessSliders });
+    }
+  }, [value]);
+
+  function updateSlider(key, rawValue) {
+    const sliderValue = Math.max(1, Math.min(10, Number.parseInt(String(rawValue), 10) || 1));
+    setSliders((current) => {
+      const next = { ...current, [key]: sliderValue };
+      updateValue(name, weightsJsonFromSliders(next));
+      return next;
+    });
+  }
+
+  function resetWeights() {
+    setSliders({ ...defaultCoolnessSliders });
+    updateValue(name, "");
+  }
+
+  return (
+    <div className="coolness-weights-field">
+      <div className="field-head">
+        <div>
+          <strong>{label.replace(" JSON", "")}</strong>
+          <span className="table-subtext">Set relative contribution from 1 to 10. Slider values are normalized into the scorer's weight JSON.</span>
+        </div>
+        <button className="button" type="button" onClick={resetWeights}>Use Profile Defaults</button>
+      </div>
+      <div className="coolness-slider-list">
+        {coolnessWeightMeta.map(([key, itemLabel, description]) => (
+          <label className="coolness-slider-row" key={key}>
+            <span>
+              <strong>{itemLabel}</strong>
+              <em>{description}</em>
+            </span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={sliders[key] || 1}
+              onChange={(event) => updateSlider(key, event.target.value)}
+            />
+            <output>{sliders[key] || 1}</output>
+          </label>
+        ))}
+      </div>
+      <div className="status-line">
+        {usingOverride ? "Using slider override for this job." : "No override: this job will use the selected profile/default weights."}
+      </div>
+      {usingOverride ? (
+        <details>
+          <summary>Generated weights JSON</summary>
+          <pre className="json-box">{JSON.stringify(JSON.parse(normalized), null, 2)}</pre>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
