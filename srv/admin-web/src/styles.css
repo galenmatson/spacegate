@@ -712,6 +712,46 @@ h3 {
   background: var(--surface-soft);
 }
 
+.job-queue-table {
+  table-layout: fixed;
+}
+
+.job-queue-table .job-col-status {
+  width: 4.4rem;
+}
+
+.job-queue-table .job-col-action {
+  width: 8.2rem;
+}
+
+.job-queue-table .job-col-actor {
+  width: 6.4rem;
+}
+
+.job-queue-table .job-col-created {
+  width: 6.8rem;
+}
+
+.job-queue-table .job-col-duration {
+  width: 4.6rem;
+}
+
+.job-queue-table .job-col-error {
+  width: auto;
+}
+
+.job-queue-table th,
+.job-queue-table td {
+  overflow: hidden;
+}
+
+.job-actor-cell,
+.job-error-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-subtext {
   display: block;
   margin-top: 0.12rem;

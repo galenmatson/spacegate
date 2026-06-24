@@ -291,7 +291,28 @@ function formatDate(value) {
   if (!value) return "n/a";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString();
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function formatDateCompact(value) {
+  if (!value) return "n/a";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 function compactId(value, size = 18) {
@@ -3063,7 +3084,15 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
           <span className="muted">{formatInt(activeRows.length)} active</span>
         </div>
         {jobs.length ? (
-          <table className="select-table">
+          <table className="select-table job-queue-table">
+            <colgroup>
+              <col className="job-col-status" />
+              <col className="job-col-action" />
+              <col className="job-col-actor" />
+              <col className="job-col-created" />
+              <col className="job-col-duration" />
+              <col className="job-col-error" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Status</th>
@@ -3082,10 +3111,10 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, logState, selectJob, fil
                     <strong>{actionLabel(job.action)}</strong>
                     <span className="table-subtext">{compactId(job.job_id, 24)}</span>
                   </td>
-                  <td>{jobActorLabel(job)}</td>
-                  <td>{formatDate(job.created_at)}</td>
+                  <td className="job-actor-cell" title={jobActorLabel(job)}>{jobActorLabel(job)}</td>
+                  <td title={formatDate(job.created_at)}>{formatDateCompact(job.created_at)}</td>
                   <td>{jobDuration(job)}</td>
-                  <td>{job.error_message ? compactId(job.error_message, 56) : ""}</td>
+                  <td className="job-error-cell" title={job.error_message || ""}>{job.error_message ? compactId(job.error_message, 72) : ""}</td>
                 </tr>
               ))}
             </tbody>
