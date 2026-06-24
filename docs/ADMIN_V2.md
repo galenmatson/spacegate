@@ -353,6 +353,8 @@ administrator.
   explicit confirmation.
 - Failed jobs should show the last log lines, exit code, compact error, and
   links to the full log and correlated audit events.
+- Snapshot generation should warn when requesting more than 10,000 coolness
+  systems, but should not hard-cap Photon-era bulk runs from Admin.
 - Empty states should explain what the operator can do next, not merely say
   "no rows."
 

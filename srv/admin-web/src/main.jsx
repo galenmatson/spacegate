@@ -2954,7 +2954,7 @@ function RunbookTab({ actionGroups, actionsByName, runAction, busyAction }) {
 }
 
 function ActionCard({ action, runAction, busy }) {
-  const [values, setValues] = useState(() => initialActionValues(action));
+  const [values, setValues] = useState(() => ({ ...initialActionValues(action), ...loadPersistedActionDraft(action) }));
   const [status, setStatus] = useState("");
   const guidance = action.operator_guidance || fallbackActionGuidance[action.name] || {};
   const schema = action.params_schema || {};
@@ -2962,7 +2962,7 @@ function ActionCard({ action, runAction, busy }) {
   const confirmationPhrase = action.confirmation_phrase || `RUN ${action.name}`;
 
   useEffect(() => {
-    setValues(initialActionValues(action));
+    setValues({ ...initialActionValues(action), ...loadPersistedActionDraft(action) });
     setStatus("");
   }, [
     action.name,
@@ -2973,7 +2973,11 @@ function ActionCard({ action, runAction, busy }) {
   ]);
 
   function updateValue(key, value) {
-    setValues((current) => ({ ...current, [key]: value }));
+    setValues((current) => {
+      const next = { ...current, [key]: value };
+      savePersistedActionDraft(action, next);
+      return next;
+    });
   }
 
   async function submit(event) {
@@ -3117,6 +3121,11 @@ function ActionParamField({ action, name, spec, value, updateValue }) {
         onChange={(event) => updateValue(name, event.target.value)}
         placeholder={spec.placeholder || ""}
       />
+      {action?.name === "generate_snapshots" && name === "top_coolness" && Number(value) > 10000 ? (
+        <em className="confirmation-reminder warning-text">
+          Above 10,000 systems can run for a long time and produce many files. This is allowed on Photon; monitor Jobs and storage.
+        </em>
+      ) : null}
     </label>
   );
 }
@@ -3402,6 +3411,33 @@ function jobGuidance(job, action) {
 function normalizeGuidanceList(value) {
   if (!value) return [];
   return Array.isArray(value) ? value.filter(Boolean).map(String) : [String(value)];
+}
+
+function persistedActionDraftKey(action) {
+  if (action?.name !== "score_coolness") return "";
+  return "spacegate.admin.actionDraft.score_coolness";
+}
+
+function loadPersistedActionDraft(action) {
+  const key = persistedActionDraftKey(action);
+  if (!key) return {};
+  try {
+    const raw = window.localStorage?.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function savePersistedActionDraft(action, values) {
+  const key = persistedActionDraftKey(action);
+  if (!key) return;
+  try {
+    window.localStorage?.setItem(key, JSON.stringify(values || {}));
+  } catch (_) {
+    // Draft persistence is a convenience; failed storage should not block jobs.
+  }
 }
 
 function JobDetailPanel({

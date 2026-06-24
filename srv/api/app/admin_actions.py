@@ -1363,7 +1363,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                 "default": "",
                 "allow_empty": True,
                 "placeholder": "{\"weird_planets\":0.20,\"exotic_star\":0.12}",
-                "label": "Weight Overrides JSON (optional)",
+                "label": "Coolness Score Weights",
             },
             "ephemeral": {
                 "type": "boolean",
@@ -1394,7 +1394,6 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                 "required": False,
                 "default": 100,
                 "min": 1,
-                "max": 10000,
                 "label": "Top coolness systems",
             },
             "min_dist_ly": {
