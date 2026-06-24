@@ -161,6 +161,9 @@ Includes:
 - recent immutable `out/<build_id>/` artifact summaries
 - per-build required report presence, basic verification gate summaries, and
   snapshot/coolness report summaries
+- `snapshot_control` metadata for the selected/latest snapshot job: progress
+  counts, elapsed time, output root/size, footprint estimate, storage health,
+  latest warning/error, safety warnings, and queued-only cancellation state
 - temporary `out/*.tmp` directories for failed/in-progress ingest diagnosis
 - retention readiness, blockers, and a dry-run candidate plan with estimated
   reclaimable bytes
@@ -177,6 +180,9 @@ Notes:
 - Snapshot reports distinguish missing reports, generated artifacts, reused
   artifacts, zero-generated runs, and explicit null results where requested,
   generated, reused, and manifest-upserted rows are all zero.
+- Snapshot generation emits structured `[snapshot-progress]` log lines for new
+  jobs. Running snapshot jobs are monitor-only in Admin v2; queued jobs can be
+  cancelled through `POST /admin/actions/jobs/{job_id}/cancel`.
 - Secret values are never returned.
 
 Response:

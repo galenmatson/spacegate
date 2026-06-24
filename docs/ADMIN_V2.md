@@ -67,6 +67,10 @@ Show:
 - verification gate summaries from required reports instead of frontend-only
   assumptions
 - snapshot generation outcomes, including explicit zero-row/null-result runs
+- snapshot operation control with requested/processed/generated/reused/failed/
+  skipped counts, elapsed time, output root, selected artifact size, estimated
+  large-run footprint, latest warning/error, advisory thresholds, and
+  queued-job cancellation
 - links from build, verification, coolness, snapshot, retention, and temporary
   output status cards back to the relevant Operations job detail when
   detectable

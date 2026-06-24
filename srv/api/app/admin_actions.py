@@ -1023,11 +1023,11 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "purpose": "Renders snapshot images for filtered coolness-ranked systems.",
         "prerequisites": "Run after scoring when top targets or view parameters changed.",
         "writes_to": "Snapshot assets and manifests in disc/build artifact paths.",
-        "outputs": ["snapshot files", "snapshot_manifest rows/artifacts"],
+        "outputs": ["snapshot files", "snapshot_manifest rows/artifacts", "snapshot_report.json", "structured progress lines in the job log"],
         "expected_duration": "medium_to_long",
         "success_next_actions": ["Reload public search/detail views to confirm new images are referenced correctly."],
         "failure_next_actions": ["Inspect renderer errors and target build coolness availability."],
-        "warnings": ["Can create many generated files; keep it scoped when testing."],
+        "warnings": ["Large runs cross advisory thresholds at 10,000, 100,000, and 1,000,000 requested systems. Queued jobs can be cancelled safely; running snapshot jobs are monitor-only until the runner has a persisted process-control channel."],
         "docs_links": ["docs/SCHEMA_DISC.md"],
     },
     "backup_admin_db": {
@@ -2997,8 +2997,14 @@ def _snapshot_report_summary(reports_dir: Path) -> Dict[str, Any]:
         "requested": None,
         "generated": None,
         "reused": None,
+        "failed": None,
+        "skipped": None,
         "manifest_rows_upserted": None,
         "manifest_parquet": None,
+        "snapshot_root": None,
+        "snapshot_root_size_bytes": None,
+        "selected_artifact_size_bytes": None,
+        "preview_entries": [],
         "null_result": False,
         "parse_error": None,
     }
@@ -3018,10 +3024,18 @@ def _snapshot_report_summary(reports_dir: Path) -> Dict[str, Any]:
         "requested",
         "generated",
         "reused",
+        "failed",
+        "skipped",
         "manifest_rows_upserted",
         "manifest_parquet",
+        "snapshot_root",
+        "snapshot_root_size_bytes",
+        "selected_artifact_size_bytes",
     ):
         out[key] = data.get(key)
+    if out["snapshot_root_size_bytes"] is None and out["selected_artifact_size_bytes"] is not None:
+        out["snapshot_root_size_bytes"] = out["selected_artifact_size_bytes"]
+    out["preview_entries"] = data.get("preview_entries") if isinstance(data.get("preview_entries"), list) else []
     requested = int(data.get("requested") or 0)
     generated = int(data.get("generated") or 0)
     reused = int(data.get("reused") or 0)
@@ -3038,6 +3052,178 @@ def _snapshot_report_summary(reports_dir: Path) -> Dict[str, Any]:
     else:
         out["status"] = "completed_zero_generated"
     return out
+
+
+def _log_warning_line(line: str) -> str | None:
+    text = str(line or "").strip()
+    if not text:
+        return None
+    lower = text.lower()
+    if lower.startswith("warning:") or lower.startswith("[warning]") or " warning " in f" {lower} ":
+        return text[:500]
+    return None
+
+
+def _last_log_warning_line(log_path: Path) -> str | None:
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        warning_line = _log_warning_line(line)
+        if warning_line:
+            return warning_line
+    return None
+
+
+def _latest_snapshot_progress(log_text: str) -> Dict[str, Any] | None:
+    latest: Dict[str, Any] | None = None
+    for line in (log_text or "").splitlines():
+        if "[snapshot-progress]" not in line:
+            continue
+        raw = line.split("[snapshot-progress]", 1)[1].strip()
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            continue
+        if isinstance(payload, dict):
+            latest = payload
+    return latest
+
+
+def _latest_snapshot_job_for_build(jobs: Sequence[Dict[str, Any]], build_id: str) -> Dict[str, Any] | None:
+    if not build_id:
+        return None
+    snapshot_jobs = [job for job in jobs if job.get("action") == "generate_snapshots"]
+    for job in snapshot_jobs:
+        if job.get("status") in RUNNING_STATUSES and _job_mentions_build(job, build_id):
+            return job
+    for job in snapshot_jobs:
+        if _job_mentions_build(job, build_id):
+            return job
+    return snapshot_jobs[0] if snapshot_jobs else None
+
+
+def _snapshot_safety_warnings(top_coolness: int, estimated_bytes: int | None, storage: Dict[str, Any]) -> List[str]:
+    warnings: List[str] = []
+    if top_coolness >= 1_000_000:
+        warnings.append("Requested snapshot count is at or above 1,000,000; expect a long run and many filesystem entries.")
+    elif top_coolness >= 100_000:
+        warnings.append("Requested snapshot count is above 100,000; monitor elapsed time, job logs, and output filesystem capacity.")
+    elif top_coolness > 10_000:
+        warnings.append("Requested snapshot count is above 10,000; this is allowed on Photon but should be monitored.")
+    if estimated_bytes and estimated_bytes >= 50 * 1024**3:
+        warnings.append(f"Estimated snapshot footprint is high: {estimated_bytes / 1024**3:.1f} GiB.")
+    output_health = storage.get("output_parent") if isinstance(storage.get("output_parent"), dict) else {}
+    if output_health.get("status") == "error":
+        warnings.append(f"Snapshot output parent has filesystem issues: {', '.join(output_health.get('issues') or ['unknown'])}.")
+    bulk_health = storage.get("bulk_dir") if isinstance(storage.get("bulk_dir"), dict) else {}
+    if bulk_health and bulk_health.get("status") in {"error", "warning"}:
+        warnings.append(f"Configured bulk directory status is {bulk_health.get('status')}: {', '.join(bulk_health.get('issues') or ['unknown'])}.")
+    return warnings
+
+
+def _snapshot_control_summary(
+    *,
+    state_dir: Path,
+    current_build: Dict[str, Any] | None,
+    served: Dict[str, Any],
+    jobs: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    build_id = str((current_build or {}).get("build_id") or served.get("build_id") or "").strip()
+    snapshot = (current_build or {}).get("snapshot") if isinstance((current_build or {}).get("snapshot"), dict) else {}
+    job = _latest_snapshot_job_for_build(jobs, build_id)
+    params = job.get("params") if isinstance(job, dict) and isinstance(job.get("params"), dict) else {}
+    log_path = Path(str(job.get("log_path") or "")) if job else Path("")
+    log_tail = _read_job_log_tail(log_path) if job else ""
+    progress = _latest_snapshot_progress(log_tail) or {}
+    view_type = str(progress.get("view_type") or params.get("view_type") or snapshot.get("view_type") or "system_card").strip() or "system_card"
+    output_root = str(progress.get("snapshot_root") or snapshot.get("snapshot_root") or "")
+    if not output_root and build_id:
+        output_root = str(state_dir / "out" / build_id / "snapshots" / view_type)
+    output_path = Path(output_root) if output_root else state_dir / "out"
+    output_size = int(
+        progress.get("selected_artifact_size_bytes")
+        or progress.get("snapshot_root_size_bytes")
+        or snapshot.get("selected_artifact_size_bytes")
+        or snapshot.get("snapshot_root_size_bytes")
+        or 0
+    )
+    top_coolness = int(params.get("top_coolness") or 0)
+    requested = int(progress.get("requested") or snapshot.get("requested") or top_coolness or 0)
+    processed = int(progress.get("processed") or 0)
+    if not processed and job and job.get("status") in TERMINAL_STATUSES:
+        processed = requested
+    generated = int(progress.get("generated") or snapshot.get("generated") or 0)
+    reused = int(progress.get("reused") or snapshot.get("reused") or 0)
+    failed = int(progress.get("failed") or snapshot.get("failed") or 0)
+    skipped = int(progress.get("skipped") or snapshot.get("skipped") or 0)
+    report_requested = int(snapshot.get("requested") or 0)
+    report_size = int(snapshot.get("snapshot_root_size_bytes") or 0)
+    avg_bytes = None
+    if report_requested > 0 and report_size > 0:
+        avg_bytes = report_size / report_requested
+    elif requested > 0 and output_size > 0:
+        avg_bytes = output_size / requested
+    estimated_bytes = int(avg_bytes * top_coolness) if avg_bytes and top_coolness > 0 else None
+    percent = round((processed / requested) * 100, 1) if requested > 0 and processed > 0 else 0
+    output_parent = output_path.parent if output_path.name else output_path
+    bulk_raw = os.getenv("SPACEGATE_BULK_DIR", "").strip()
+    bulk_path = Path(bulk_raw).expanduser() if bulk_raw else Path("/mnt/space/spacegate")
+    storage = {
+        "output_root": str(output_path),
+        "output_size_bytes": output_size,
+        "output_parent": _path_health(output_parent, label="Snapshot output parent", required=True, require_writable=True),
+        "bulk_dir": _path_health(bulk_path, label="Bulk storage root", required=False, require_writable=True),
+        "bulk_dir_is_snapshot_target": bool(output_root and str(output_path).startswith(str(bulk_path))),
+    }
+    started = _parse_job_finished_at(job.get("started_at") if job else None)
+    finished = _parse_job_finished_at(job.get("finished_at") if job else None)
+    elapsed_seconds = None
+    if started:
+        elapsed_end = finished or _utc_now()
+        elapsed_seconds = int((elapsed_end - started).total_seconds())
+    latest_error = (job.get("error_message") if job else None) or (_last_log_error_line(log_path) if job else None)
+    latest_warning = _last_log_warning_line(log_path) if job else None
+    return {
+        "build_id": build_id or None,
+        "job": _compact_job_ref(job) if job else None,
+        "job_params": params,
+        "status": job.get("status") if job else snapshot.get("status", "missing"),
+        "progress": {
+            "stage": progress.get("stage") or ("complete" if job and job.get("status") in TERMINAL_STATUSES else "unknown"),
+            "requested": requested,
+            "processed": processed,
+            "generated": generated,
+            "reused": reused,
+            "failed": failed,
+            "skipped": skipped,
+            "percent": percent,
+        },
+        "elapsed_seconds": elapsed_seconds,
+        "latest_error": latest_error,
+        "latest_warning": latest_warning,
+        "outputs": {
+            "snapshot_root": str(output_path),
+            "snapshot_root_size_bytes": output_size,
+            "selected_artifact_size_bytes": output_size,
+            "manifest_parquet": snapshot.get("manifest_parquet"),
+            "report_path": snapshot.get("path"),
+        },
+        "estimate": {
+            "top_coolness": top_coolness,
+            "estimated_bytes": estimated_bytes,
+            "average_bytes_per_requested": avg_bytes,
+        },
+        "storage": storage,
+        "safety_warnings": _snapshot_safety_warnings(top_coolness, estimated_bytes, storage),
+        "cancellation": {
+            "queued_cancel_supported": True,
+            "can_cancel_selected_job": bool(job and job.get("status") == "queued"),
+            "running_stop_supported": False,
+            "manual_stop_note": "Running snapshot jobs do not yet have a persisted subprocess PID/control channel. Queued jobs can be cancelled safely; running jobs should be monitored in Operations.",
+        },
+    }
 
 
 def _coolness_report_summary(reports_dir: Path) -> Dict[str, Any]:
@@ -3556,7 +3742,7 @@ def _build_next_actions(
 
 
 def _build_related_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db", "retention_dry_run"}
+    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db", "generate_snapshots", "retention_dry_run"}
     return [
         job for job in jobs
         if job.get("status") in RUNNING_STATUSES and job.get("action") in build_related_actions
@@ -3579,6 +3765,7 @@ def builds_status() -> Dict[str, Any]:
     current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
     path_health = _build_path_health(state_dir)
     retention = _retention_summary(state_dir, active_build_jobs, tmp_builds, jobs)
+    snapshot_control = _snapshot_control_summary(state_dir=state_dir, current_build=current_build, served=served, jobs=jobs)
     out_dir = state_dir / "out"
     reports_dir = state_dir / "reports"
     next_actions = _build_next_actions(
@@ -3623,6 +3810,7 @@ def builds_status() -> Dict[str, Any]:
         "active_build_jobs": active_build_jobs,
         "jobs_error": jobs_error,
         "retention": retention,
+        "snapshot_control": snapshot_control,
         "next_actions": next_actions[:8],
     }
 
@@ -3650,6 +3838,8 @@ def operations_status() -> Dict[str, Any]:
     recent_builds = _recent_builds(state_dir, limit=12)
     tmp_builds = _tmp_builds(state_dir, limit=20, jobs=jobs)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
+    served = _served_current_target(state_dir)
+    current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
     retention = _retention_summary(state_dir, active_build_jobs, tmp_builds, jobs)
 
     return {
@@ -3685,13 +3875,14 @@ def operations_status() -> Dict[str, Any]:
             "latest_release_metadata": release_backups[0] if release_backups else None,
         },
         "builds": {
-            "served_current": _served_current_target(state_dir),
+            "served_current": served,
             "recent": recent_builds,
             "tmp": tmp_builds,
             "incomplete_recent": incomplete_builds,
             "out_count": len([p for p in (state_dir / "out").iterdir() if p.is_dir() and not p.name.endswith(".tmp")]) if (state_dir / "out").exists() else 0,
             "tmp_count": len(tmp_builds),
         },
+        "snapshot_control": _snapshot_control_summary(state_dir=state_dir, current_build=current_build, served=served, jobs=jobs),
         "retention": {
             **retention,
         },

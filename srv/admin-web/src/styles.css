@@ -253,6 +253,12 @@ h3 {
   border-bottom: 0;
 }
 
+.overview-facts.compact {
+  display: grid;
+  gap: 0;
+  margin-top: 0.55rem;
+}
+
 .overview-fact span {
   color: var(--muted);
   font-size: 0.82rem;
@@ -679,6 +685,52 @@ h3 {
 .action-fields {
   display: grid;
   gap: 0.5rem;
+}
+
+.snapshot-progress {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.65rem 0;
+}
+
+.snapshot-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.snapshot-progress-head strong {
+  color: var(--text);
+}
+
+.progress-track {
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--brand);
+}
+
+.snapshot-safety {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.55rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.snapshot-safety strong {
+  color: var(--text);
 }
 
 .field-head {

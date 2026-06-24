@@ -826,6 +826,23 @@ function BuildsScreen({ csrf, openOperationsJob }) {
     return { ok: true, job };
   }
 
+  async function cancelJob(jobId) {
+    if (!jobId) return;
+    if (!window.confirm(`Cancel queued job ${jobId}?`)) return;
+    setState((current) => ({ ...current, message: `Cancelling ${compactId(jobId)}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) {
+      setState((current) => ({ ...current, message: `Cancel failed: ${compactError(data, response.status)}` }));
+      return;
+    }
+    setState((current) => ({ ...current, message: `Cancelled ${jobId}. Refreshing build state...` }));
+    await loadBuilds();
+  }
+
   const dataset = state.dataset || {};
   const buildStatus = state.buildStatus || {};
   const operations = state.operations || {};
@@ -835,6 +852,7 @@ function BuildsScreen({ csrf, openOperationsJob }) {
   const legacyBuilds = operations.builds || {};
   const served = buildStatus.served_current || legacyBuilds.served_current || {};
   const retention = buildStatus.retention || operations.retention || {};
+  const snapshotControl = buildStatus.snapshot_control || operations.snapshot_control || {};
   const recentBuilds = Array.isArray(buildStatus.recent) ? buildStatus.recent : Array.isArray(legacyBuilds.recent) ? legacyBuilds.recent : [];
   const tmpBuilds = Array.isArray(buildStatus.tmp) ? buildStatus.tmp : Array.isArray(legacyBuilds.tmp) ? legacyBuilds.tmp : [];
   const currentBuild = buildStatus.current_build || recentBuilds.find((item) => item.build_id === served.build_id) || recentBuilds[0] || null;
@@ -940,7 +958,7 @@ function BuildsScreen({ csrf, openOperationsJob }) {
         </div>
         <div className="action-grid">
           {buildActions.map((action) => (
-            <ActionCard action={action} key={action.name} runAction={runAction} busy={busyAction === action.name} />
+            <ActionCard action={action} key={action.name} runAction={runAction} busy={busyAction === action.name} snapshotControl={snapshotControl} />
           ))}
         </div>
       </section>
@@ -951,12 +969,17 @@ function BuildsScreen({ csrf, openOperationsJob }) {
       </section>
 
       <section className="builds-grid">
+        <SnapshotOperationsPanel
+          snapshotControl={snapshotControl}
+          snapshotJob={snapshotJob}
+          openOperationsJob={openOperationsJob}
+          cancelJob={cancelJob}
+        />
         <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-        <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} jobs={operationJobs} openOperationsJob={openOperationsJob} />
       </section>
 
       <section className="builds-grid">
-        <TempBuildsPanel builds={tmpBuilds} openOperationsJob={openOperationsJob} />
+        <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} jobs={operationJobs} openOperationsJob={openOperationsJob} />
         <RetentionPlanPanel
           retention={retention}
           dryRunJob={retentionDryRunJob}
@@ -965,7 +988,10 @@ function BuildsScreen({ csrf, openOperationsJob }) {
         />
       </section>
 
-      <BuildReportsPanel build={currentBuild} />
+      <section className="builds-grid">
+        <TempBuildsPanel builds={tmpBuilds} openOperationsJob={openOperationsJob} />
+        <BuildReportsPanel build={currentBuild} />
+      </section>
     </div>
   );
 }
@@ -1266,6 +1292,66 @@ function CoolnessReportPanel({ build, coolness, scoreJob, openOperationsJob }) {
   );
 }
 
+function SnapshotOperationsPanel({ snapshotControl, snapshotJob, openOperationsJob, cancelJob }) {
+  const control = snapshotControl || {};
+  const progress = control.progress || {};
+  const outputs = control.outputs || {};
+  const estimate = control.estimate || {};
+  const storage = control.storage || {};
+  const job = control.job || snapshotJob || null;
+  const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+  const jobStatus = job?.status || control.status || "unknown";
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>Snapshot Operations Control</h2>
+          <p className="muted">Monitor long snapshot renders, filesystem footprint, warnings, and safe cancellation state.</p>
+        </div>
+        <span className={`badge ${jobStatusTone(jobStatus)}`}>{jobStatus}</span>
+      </div>
+      <div className="snapshot-progress">
+        <div className="snapshot-progress-head">
+          <strong>{readableStatus(progress.stage || "unknown")}</strong>
+          <span>{formatPct(percent)}</span>
+        </div>
+        <div className="progress-track">
+          <div className="progress-fill" style={{ width: `${percent}%` }} />
+        </div>
+      </div>
+      <div className="overview-facts compact">
+        <OverviewFact label="Requested / processed" value={`${formatInt(progress.requested)} / ${formatInt(progress.processed)}`} />
+        <OverviewFact label="Generated / reused" value={`${formatInt(progress.generated)} / ${formatInt(progress.reused)}`} />
+        <OverviewFact label="Failed / skipped" value={`${formatInt(progress.failed)} / ${formatInt(progress.skipped)}`} />
+        <OverviewFact label="Elapsed" value={control.elapsed_seconds === null || control.elapsed_seconds === undefined ? "n/a" : formatDurationMs(Number(control.elapsed_seconds) * 1000)} />
+        <OverviewFact label="Output root" value={outputs.snapshot_root || "n/a"} />
+        <OverviewFact label="Selected artifact size" value={formatBytes(outputs.selected_artifact_size_bytes || outputs.snapshot_root_size_bytes || storage.output_size_bytes)} />
+        <OverviewFact label="Estimated run size" value={estimate.estimated_bytes ? formatBytes(estimate.estimated_bytes) : "n/a"} />
+        <OverviewFact label="Bulk root visible" value={storage.bulk_dir ? `${runtimeStatusLabel(storage.bulk_dir.status)} (${storage.bulk_dir.path})` : "n/a"} />
+      </div>
+      {Array.isArray(control.safety_warnings) && control.safety_warnings.length ? (
+        <div className="trap-list">
+          {control.safety_warnings.map((warning) => <div key={warning}>{warning}</div>)}
+        </div>
+      ) : (
+        <div className="status-line">No snapshot safety warnings for the selected/latest snapshot job.</div>
+      )}
+      {control.latest_error ? <div className="status-line danger-line">Latest error: {control.latest_error}</div> : null}
+      {control.latest_warning ? <div className="status-line">Latest warning: {control.latest_warning}</div> : null}
+      <div className="hint-list">
+        <div><strong>Cancellation:</strong> {control.cancellation?.can_cancel_selected_job ? "queued job can be cancelled safely" : control.cancellation?.manual_stop_note || "queued-only cancellation is supported"}</div>
+        {storage.output_parent ? <div><strong>Output parent:</strong> {runtimeStatusLabel(storage.output_parent.status)} | {storage.output_parent.path}</div> : null}
+      </div>
+      <div className="card-actions">
+        <OperationJobButton job={job} label="Open Snapshot Job" openOperationsJob={openOperationsJob} />
+        {control.cancellation?.can_cancel_selected_job ? (
+          <button className="button danger" type="button" onClick={() => cancelJob?.(job?.job_id)}>Cancel Queued Job</button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SnapshotReportPanel({ build, snapshotJob, scoreJob, openOperationsJob }) {
   const snapshot = build?.snapshot || {};
   return (
@@ -1275,10 +1361,13 @@ function SnapshotReportPanel({ build, snapshotJob, scoreJob, openOperationsJob }
         <>
           <OverviewFact label="Status" value={<span className={`badge ${statusTone(snapshot.status)}`}>{readableStatus(snapshot.status)}</span>} />
           <OverviewFact label="Requested / generated / reused" value={`${formatInt(snapshot.requested)} / ${formatInt(snapshot.generated)} / ${formatInt(snapshot.reused)}`} />
+          <OverviewFact label="Failed / skipped" value={`${formatInt(snapshot.failed)} / ${formatInt(snapshot.skipped)}`} />
           <OverviewFact label="Manifest rows upserted" value={formatInt(snapshot.manifest_rows_upserted)} />
           <OverviewFact label="Generated at" value={formatDate(snapshot.generated_at)} />
           <OverviewFact label="Generator / view" value={`${snapshot.generator_version || "n/a"} / ${snapshot.view_type || "n/a"}`} />
           <OverviewFact label="Params hash" value={snapshot.params_hash || "n/a"} />
+          <OverviewFact label="Snapshot root" value={snapshot.snapshot_root || "n/a"} />
+          <OverviewFact label="Selected artifact size" value={formatBytes(snapshot.selected_artifact_size_bytes || snapshot.snapshot_root_size_bytes)} />
           <OverviewFact label="Manifest parquet" value={snapshot.manifest_parquet || "n/a"} />
           {snapshot.null_result ? (
             <div className="status-line">Null result recorded: zero requested, generated, reused, and manifest-upserted snapshot rows.</div>
@@ -3120,7 +3209,7 @@ function RunbookTab({ actionGroups, actionsByName, runAction, busyAction }) {
   );
 }
 
-function ActionCard({ action, runAction, busy }) {
+function ActionCard({ action, runAction, busy, snapshotControl = null }) {
   const [values, setValues] = useState(() => ({ ...initialActionValues(action), ...loadPersistedActionDraft(action) }));
   const [status, setStatus] = useState("");
   const guidance = action.operator_guidance || fallbackActionGuidance[action.name] || {};
@@ -3221,6 +3310,7 @@ function ActionCard({ action, runAction, busy }) {
             updateValue={updateValue}
           />
         ))}
+        {action.name === "generate_snapshots" ? <SnapshotActionSafety values={values} snapshotControl={snapshotControl} /> : null}
         {action.requires_confirmation ? (
           <label>
             <span>Confirmation phrase</span>
@@ -3240,6 +3330,37 @@ function ActionCard({ action, runAction, busy }) {
         {status ? <span className="inline-status">{status}</span> : null}
       </div>
     </form>
+  );
+}
+
+function snapshotRunWarnings(topCount) {
+  const count = Number(topCount);
+  if (!Number.isFinite(count) || count <= 0) return [];
+  if (count >= 1000000) {
+    return ["1,000,000 or more snapshots is a major batch run. Expect long runtime, many filesystem entries, and monitor Operations until completion."];
+  }
+  if (count >= 100000) {
+    return ["100,000 or more snapshots is a large batch run. Watch elapsed time, output footprint, and job logs."];
+  }
+  if (count > 10000) {
+    return ["More than 10,000 snapshots is allowed on Photon, but should be treated as a monitored batch job."];
+  }
+  return [];
+}
+
+function SnapshotActionSafety({ values, snapshotControl }) {
+  const topCount = Number(values?.top_coolness || 0);
+  const warnings = snapshotRunWarnings(topCount);
+  const average = Number(snapshotControl?.estimate?.average_bytes_per_requested);
+  const estimatedBytes = Number.isFinite(average) && average > 0 && topCount > 0 ? average * topCount : null;
+  const bulk = snapshotControl?.storage?.bulk_dir;
+  return (
+    <div className="snapshot-safety">
+      <strong>Snapshot run safety</strong>
+      <span>Requested count: {formatInt(topCount)}{estimatedBytes ? ` | estimated footprint ${formatBytes(estimatedBytes)}` : " | no footprint estimate yet"}</span>
+      {bulk ? <span>Bulk root: {runtimeStatusLabel(bulk.status)} | {bulk.path}</span> : null}
+      {warnings.length ? <span className="warning-text">{warnings.join(" ")}</span> : <span>No large-run threshold warning for this count.</span>}
+    </div>
   );
 }
 
@@ -3292,7 +3413,7 @@ function ActionParamField({ action, name, spec, value, values, updateValue }) {
       />
       {action?.name === "generate_snapshots" && name === "top_coolness" && Number(value) > 10000 ? (
         <em className="confirmation-reminder warning-text">
-          Above 10,000 systems can run for a long time and produce many files. This is allowed on Photon; monitor Jobs and storage.
+          {snapshotRunWarnings(Number(value)).join(" ")}
         </em>
       ) : null}
     </label>

@@ -39,6 +39,16 @@ def _json_canonical(payload: Any) -> str:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
 
 
+def _emit_progress(payload: Dict[str, Any]) -> None:
+    print("[snapshot-progress] " + json.dumps(payload, sort_keys=True), flush=True)
+
+
+def _progress_interval(total: int) -> int:
+    if total <= 0:
+        return 1
+    return max(100, min(10000, max(1, total // 100)))
+
+
 def _safe_system_key(stable_object_key: str, system_id: int) -> str:
     cleaned = SYSTEM_KEY_SAFE_RE.sub("_", str(stable_object_key or "").strip())
     cleaned = cleaned.strip("._-")
@@ -807,10 +817,30 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         created_at = _utc_now()
         generated = 0
         reused = 0
+        failed = 0
+        skipped = 0
+        selected_artifact_size_bytes = 0
         manifest_rows: List[Dict[str, Any]] = []
         preview_entries: List[Dict[str, Any]] = []
+        total_requested = len(system_rows)
+        progress_every = _progress_interval(total_requested)
 
-        for system_row in system_rows:
+        _emit_progress(
+            {
+                "build_id": build_id,
+                "view_type": args.view_type,
+                "stage": "selected",
+                "requested": total_requested,
+                "generated": generated,
+                "reused": reused,
+                "failed": failed,
+                "skipped": skipped,
+                "snapshot_root": str(snapshots_root),
+                "params_hash": params_hash,
+            }
+        )
+
+        for index, system_row in enumerate(system_rows, start=1):
             system_id = int(system_row["system_id"])
             stable_object_key = str(system_row.get("stable_object_key") or f"system_{system_id}")
             safe_key = _safe_system_key(stable_object_key, system_id)
@@ -834,6 +864,10 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
                 generated += 1
             else:
                 reused += 1
+            try:
+                selected_artifact_size_bytes += artifact_abs.stat().st_size
+            except OSError:
+                pass
 
             source_hash = _source_inputs_hash(system_row, stars, planets, params)
             manifest_row = {
@@ -861,6 +895,23 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
                         "stable_object_key": stable_object_key,
                         "system_name": system_row.get("system_name"),
                         "artifact_path": str(artifact_rel.as_posix()),
+                    }
+                )
+            if index == total_requested or index % progress_every == 0:
+                _emit_progress(
+                    {
+                        "build_id": build_id,
+                        "view_type": args.view_type,
+                        "stage": "rendering",
+                        "processed": index,
+                        "requested": total_requested,
+                        "generated": generated,
+                        "reused": reused,
+                        "failed": failed,
+                        "skipped": skipped,
+                        "selected_artifact_size_bytes": selected_artifact_size_bytes,
+                        "snapshot_root": str(snapshots_root),
+                        "params_hash": params_hash,
                     }
                 )
 
@@ -897,11 +948,34 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
             "requested": len(system_rows),
             "generated": generated,
             "reused": reused,
+            "failed": failed,
+            "skipped": skipped,
             "manifest_rows_upserted": manifest_count,
             "manifest_parquet": str(manifest_parquet_path),
+            "snapshot_root": str(snapshots_root),
+            "selected_artifact_size_bytes": selected_artifact_size_bytes,
             "preview_entries": preview_entries,
         }
         report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True), encoding="utf-8")
+
+        _emit_progress(
+            {
+                "build_id": build_id,
+                "view_type": args.view_type,
+                "stage": "complete",
+                "processed": total_requested,
+                "requested": total_requested,
+                "generated": generated,
+                "reused": reused,
+                "failed": failed,
+                "skipped": skipped,
+                "manifest_rows_upserted": manifest_count,
+                "snapshot_root": str(snapshots_root),
+                "selected_artifact_size_bytes": selected_artifact_size_bytes,
+                "report_path": str(report_path),
+                "params_hash": params_hash,
+            }
+        )
 
         return {
             "ok": True,
@@ -912,8 +986,11 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
             "requested": len(system_rows),
             "generated": generated,
             "reused": reused,
+            "failed": failed,
+            "skipped": skipped,
             "manifest_rows_upserted": manifest_count,
             "snapshot_root": str(snapshots_root),
+            "selected_artifact_size_bytes": selected_artifact_size_bytes,
             "manifest_parquet": str(manifest_parquet_path),
             "report_path": str(report_path),
             "examples": preview_entries,
