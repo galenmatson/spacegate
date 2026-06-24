@@ -456,6 +456,7 @@ function actionLabel(action) {
 function App() {
   const [authState, setAuthState] = useState({ loading: true, data: null, error: "" });
   const [activeScreen, setActiveScreen] = useState("overview");
+  const [operationsJobRequest, setOperationsJobRequest] = useState("");
   const jobLogId = new URLSearchParams(window.location.search).get("job_log");
 
   useEffect(() => {
@@ -492,6 +493,13 @@ function App() {
       headers: token ? { [csrf.header_name || "X-CSRF-Token"]: token } : {},
     });
     window.location.href = "/admin/";
+  }
+
+  function openOperationsJob(jobId) {
+    const id = String(jobId || "").trim();
+    if (!id) return;
+    setOperationsJobRequest(id);
+    setActiveScreen("operations");
   }
 
   if (authState.loading) {
@@ -552,13 +560,13 @@ function App() {
         ) : activeScreen === "overview" ? (
           <OverviewScreen auth={auth} />
         ) : activeScreen === "builds" ? (
-          <BuildsScreen csrf={csrf} />
+          <BuildsScreen csrf={csrf} openOperationsJob={openOperationsJob} />
         ) : activeScreen === "dataset" ? (
           <DatasetScreen />
         ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
-          <OperationsScreen csrf={csrf} />
+          <OperationsScreen csrf={csrf} requestedJobId={operationsJobRequest} />
         ) : activeScreen === "agency" ? (
           <AgencyScreen csrf={csrf} />
         ) : activeScreen === "runtime" ? (
@@ -732,7 +740,7 @@ function OverviewFact({ label, value }) {
   );
 }
 
-function BuildsScreen({ csrf }) {
+function BuildsScreen({ csrf, openOperationsJob }) {
   const [state, setState] = useState({
     loading: true,
     status: null,
@@ -832,9 +840,19 @@ function BuildsScreen({ csrf }) {
   const currentBuild = buildStatus.current_build || recentBuilds.find((item) => item.build_id === served.build_id) || recentBuilds[0] || null;
   const verification = currentBuild?.verification || {};
   const snapshot = currentBuild?.snapshot || {};
+  const coolness = currentBuild?.coolness || {};
   const pathHealth = buildStatus.path_health || {};
   const nextActions = Array.isArray(buildStatus.next_actions) ? buildStatus.next_actions : [];
+  const operationJobs = operationJobsFromStatus(operations);
+  const currentBuildId = currentBuild?.build_id || served.build_id || state.status?.build_id || "";
+  const relatedBuildJobs = relatedJobsForBuild(operationJobs, currentBuildId);
+  const verifyJob = latestJobForBuild(operationJobs, ["verify_build"], currentBuildId);
+  const publishJob = latestJobForBuild(operationJobs, ["publish_db"], currentBuildId);
+  const scoreJob = latestJobForBuild(operationJobs, ["score_coolness"], currentBuildId);
+  const snapshotJob = latestJobForBuild(operationJobs, ["generate_snapshots"], currentBuildId);
   const retentionPlan = retention.dry_run || {};
+  const retentionDryRunJob = retention.latest_matching_dry_run || null;
+  const retentionApplyJob = latestJobByParams(operationJobs, "retention_apply", { candidate_hash: retentionPlan.candidate_hash });
   const retentionContext = {
     plan: retentionPlan,
     latestDryRun: retention.latest_matching_dry_run || null,
@@ -900,7 +918,17 @@ function BuildsScreen({ csrf }) {
 
       <section className="builds-grid">
         <NextActionsPanel actions={nextActions} />
+        <BuildOperationsPanel jobs={relatedBuildJobs} openOperationsJob={openOperationsJob} />
+      </section>
+
+      <section className="builds-grid">
         <PathHealthPanel paths={pathHealth} />
+        <BuildArtifactPanel
+          title="Served Build Artifacts"
+          build={currentBuild}
+          relatedJobs={[verifyJob, publishJob].filter(Boolean)}
+          openOperationsJob={openOperationsJob}
+        />
       </section>
 
       <section className="panel">
@@ -918,18 +946,23 @@ function BuildsScreen({ csrf }) {
       </section>
 
       <section className="builds-grid">
-        <BuildArtifactPanel title="Served Build Artifacts" build={currentBuild} />
-        <BuildVerificationPanel build={currentBuild} />
+        <BuildVerificationPanel build={currentBuild} verifyJob={verifyJob} openOperationsJob={openOperationsJob} />
+        <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
       </section>
 
       <section className="builds-grid">
-        <SnapshotReportPanel build={currentBuild} />
-        <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} />
+        <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+        <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} jobs={operationJobs} openOperationsJob={openOperationsJob} />
       </section>
 
       <section className="builds-grid">
-        <TempBuildsPanel builds={tmpBuilds} />
-        <RetentionPlanPanel retention={retention} />
+        <TempBuildsPanel builds={tmpBuilds} openOperationsJob={openOperationsJob} />
+        <RetentionPlanPanel
+          retention={retention}
+          dryRunJob={retentionDryRunJob}
+          applyJob={retentionApplyJob}
+          openOperationsJob={openOperationsJob}
+        />
       </section>
 
       <BuildReportsPanel build={currentBuild} />
@@ -947,6 +980,65 @@ function statusTone(value) {
   if (["failed", "error", "parse_error", "missing_reports"].includes(status)) return "danger";
   if (["unknown", "", "null_result"].includes(status)) return "muted";
   return "warn";
+}
+
+function operationJobsFromStatus(operations) {
+  const buckets = [operations?.jobs?.active, operations?.jobs?.recent, operations?.jobs?.latest_failures];
+  const seen = new Set();
+  const out = [];
+  buckets.flatMap((items) => Array.isArray(items) ? items : []).forEach((job) => {
+    if (!job?.job_id || seen.has(job.job_id)) return;
+    seen.add(job.job_id);
+    out.push(job);
+  });
+  return out.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+}
+
+function jobParams(job) {
+  return job?.params && typeof job.params === "object" ? job.params : {};
+}
+
+function jobMatchesBuild(job, buildId, { allowImplicit = true } = {}) {
+  const id = String(buildId || "").trim();
+  if (!id) return false;
+  const params = jobParams(job);
+  const explicit = String(params.build_id || "").trim();
+  if (explicit) return explicit === id;
+  if (allowImplicit && ["verify_build", "publish_db", "score_coolness", "generate_snapshots"].includes(String(job?.action || ""))) {
+    return true;
+  }
+  return false;
+}
+
+function latestJobForBuild(jobs, actions, buildId, options = {}) {
+  const actionSet = new Set(actions);
+  return (jobs || []).find((job) => actionSet.has(String(job.action || "")) && jobMatchesBuild(job, buildId, options)) || null;
+}
+
+function latestJobByParams(jobs, action, params) {
+  const expected = Object.entries(params || {}).filter(([, value]) => String(value || "").trim());
+  if (!expected.length) return null;
+  return (jobs || []).find((job) => {
+    if (String(job.action || "") !== action) return false;
+    const actual = jobParams(job);
+    return expected.every(([key, value]) => String(actual[key] || "").trim() === String(value || "").trim());
+  }) || null;
+}
+
+function relatedJobsForBuild(jobs, buildId) {
+  const actions = new Set(["build_database", "build_database_slice", "verify_build", "publish_db", "score_coolness", "generate_snapshots", "retention_dry_run", "retention_apply"]);
+  return (jobs || [])
+    .filter((job) => actions.has(String(job.action || "")) && (jobMatchesBuild(job, buildId) || ["retention_dry_run", "retention_apply"].includes(String(job.action || ""))))
+    .slice(0, 8);
+}
+
+function OperationJobButton({ job, openOperationsJob, label = "Open Job" }) {
+  if (!job?.job_id) return null;
+  return (
+    <button className="button" type="button" onClick={() => openOperationsJob?.(job.job_id)}>
+      {label}: {compactId(job.job_id, 18)}
+    </button>
+  );
 }
 
 function priorityTone(value) {
@@ -1000,7 +1092,7 @@ function enrichBuildAction(action, retentionContext) {
   return { ...action, params_schema: schema, operator_guidance: guidance, disabled_reason: disabledReason };
 }
 
-function BuildArtifactPanel({ title, build }) {
+function BuildArtifactPanel({ title, build, relatedJobs = [], openOperationsJob }) {
   return (
     <div className="panel">
       <h2>{title}</h2>
@@ -1017,9 +1109,40 @@ function BuildArtifactPanel({ title, build }) {
               <span className={`badge ${value ? "ok" : "danger"}`} key={key}>{key}: {value ? "yes" : "no"}</span>
             ))}
           </div>
+          {relatedJobs.length ? (
+            <div className="log-toolbar">
+              {relatedJobs.map((job) => (
+                <OperationJobButton job={job} key={job.job_id} label={actionLabel(job.action)} openOperationsJob={openOperationsJob} />
+              ))}
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="empty">No build artifact summary is available yet.</div>
+      )}
+    </div>
+  );
+}
+
+function BuildOperationsPanel({ jobs, openOperationsJob }) {
+  const items = Array.isArray(jobs) ? jobs : [];
+  return (
+    <div className="panel">
+      <h2>Build Operation Trail</h2>
+      <p className="muted">Recent jobs connected to build, verification, presentation, publish, or retention operations.</p>
+      {items.length ? (
+        <div className="job-audit-list">
+          {items.map((job) => (
+            <div className="job-audit-row" key={job.job_id}>
+              <span className={`badge ${jobStatusTone(job.status)}`}>{job.status}</span>
+              <strong>{actionLabel(job.action)}</strong>
+              <span>{formatDate(job.created_at)} | {job.error_message || job.job_id}</span>
+              <button className="button" type="button" onClick={() => openOperationsJob?.(job.job_id)}>Open Job</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">No recent build-related admin jobs were found in the Operations status window.</div>
       )}
     </div>
   );
@@ -1081,7 +1204,7 @@ function PathHealthPanel({ paths }) {
   );
 }
 
-function BuildVerificationPanel({ build }) {
+function BuildVerificationPanel({ build, verifyJob, openOperationsJob }) {
   const verification = build?.verification || {};
   const required = verification.required_reports || [];
   const supplemental = verification.supplemental_reports || [];
@@ -1110,6 +1233,9 @@ function BuildVerificationPanel({ build }) {
               {verification.warnings.map((warning) => <span className="table-subtext" key={warning}>{warning}</span>)}
             </div>
           ) : null}
+          <div className="log-toolbar">
+            <OperationJobButton job={verifyJob} label="Open Verify Job" openOperationsJob={openOperationsJob} />
+          </div>
         </>
       ) : (
         <div className="empty">No build is selected for verification summary.</div>
@@ -1118,7 +1244,29 @@ function BuildVerificationPanel({ build }) {
   );
 }
 
-function SnapshotReportPanel({ build }) {
+function CoolnessReportPanel({ build, coolness, scoreJob, openOperationsJob }) {
+  const item = coolness || {};
+  return (
+    <div className="panel">
+      <h2>Coolness Report</h2>
+      {build ? (
+        <>
+          <OverviewFact label="Status" value={<span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span>} />
+          <OverviewFact label="Profile" value={`${item.profile_id || "n/a"} @ ${item.profile_version || "n/a"}`} />
+          <OverviewFact label="Scored rows" value={formatInt(item.scored_rows)} />
+          <div className="log-toolbar">
+            <OperationJobButton job={scoreJob} label="Open Score Job" openOperationsJob={openOperationsJob} />
+          </div>
+          {!scoreJob ? <div className="empty">No recent Score Coolness job was found for this build in the Operations status window.</div> : null}
+        </>
+      ) : (
+        <div className="empty">No build is selected for coolness report summary.</div>
+      )}
+    </div>
+  );
+}
+
+function SnapshotReportPanel({ build, snapshotJob, scoreJob, openOperationsJob }) {
   const snapshot = build?.snapshot || {};
   return (
     <div className="panel">
@@ -1136,6 +1284,10 @@ function SnapshotReportPanel({ build }) {
             <div className="status-line">Null result recorded: zero requested, generated, reused, and manifest-upserted snapshot rows.</div>
           ) : null}
           {snapshot.parse_error ? <div className="trap-list"><div>{snapshot.parse_error}</div></div> : null}
+          <div className="log-toolbar">
+            <OperationJobButton job={snapshotJob} label="Open Snapshot Job" openOperationsJob={openOperationsJob} />
+            <OperationJobButton job={scoreJob} label="Open Score Job" openOperationsJob={openOperationsJob} />
+          </div>
         </>
       ) : (
         <div className="empty">No build is selected for snapshot report summary.</div>
@@ -1144,7 +1296,7 @@ function SnapshotReportPanel({ build }) {
   );
 }
 
-function RecentBuildsPanel({ builds, servedBuildId }) {
+function RecentBuildsPanel({ builds, servedBuildId, jobs, openOperationsJob }) {
   return (
     <div className="panel">
       <h2>Recent Build Directories</h2>
@@ -1157,23 +1309,28 @@ function RecentBuildsPanel({ builds, servedBuildId }) {
               <th>Snapshots</th>
               <th>Reports</th>
               <th>Artifacts</th>
+              <th>Job</th>
               <th>Size</th>
             </tr>
           </thead>
           <tbody>
-            {builds.map((build) => (
-              <tr key={build.build_id}>
-                <td>
-                  <strong>{build.build_id}</strong>
-                  <span className="table-subtext">{build.build_id === servedBuildId ? "served/current" : formatDate(build.mtime_utc)}</span>
-                </td>
-                <td><span className={`badge ${statusTone(build.verification?.status)}`}>{readableStatus(build.verification?.status)}</span></td>
-                <td><span className={`badge ${statusTone(build.snapshot?.status)}`}>{readableStatus(build.snapshot?.status)}</span></td>
-                <td>{formatInt(build.reports?.count || 0)}</td>
-                <td>{build.promotable ? "core+arm" : `missing ${(build.missing_required || []).join(", ")}`}</td>
-                <td>{formatBytes(build.size_bytes)}</td>
-              </tr>
-            ))}
+            {builds.map((build) => {
+              const job = latestJobForBuild(jobs, ["verify_build", "publish_db", "score_coolness", "generate_snapshots"], build.build_id, { allowImplicit: build.build_id === servedBuildId });
+              return (
+                <tr key={build.build_id}>
+                  <td>
+                    <strong>{build.build_id}</strong>
+                    <span className="table-subtext">{build.build_id === servedBuildId ? "served/current" : formatDate(build.mtime_utc)}</span>
+                  </td>
+                  <td><span className={`badge ${statusTone(build.verification?.status)}`}>{readableStatus(build.verification?.status)}</span></td>
+                  <td><span className={`badge ${statusTone(build.snapshot?.status)}`}>{readableStatus(build.snapshot?.status)}</span></td>
+                  <td>{formatInt(build.reports?.count || 0)}</td>
+                  <td>{build.promotable ? "core+arm" : `missing ${(build.missing_required || []).join(", ")}`}</td>
+                  <td><OperationJobButton job={job} label={actionLabel(job?.action)} openOperationsJob={openOperationsJob} /></td>
+                  <td>{formatBytes(build.size_bytes)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       ) : (
@@ -1183,7 +1340,7 @@ function RecentBuildsPanel({ builds, servedBuildId }) {
   );
 }
 
-function TempBuildsPanel({ builds }) {
+function TempBuildsPanel({ builds, openOperationsJob }) {
   return (
     <div className="panel">
       <h2>Temporary Outputs</h2>
@@ -1191,7 +1348,7 @@ function TempBuildsPanel({ builds }) {
       {builds.length ? (
         <table>
           <thead>
-            <tr><th>Name</th><th>Modified</th><th>Size</th></tr>
+            <tr><th>Name</th><th>Modified</th><th>Size</th><th>Failure Job</th></tr>
           </thead>
           <tbody>
             {builds.map((build) => (
@@ -1199,6 +1356,7 @@ function TempBuildsPanel({ builds }) {
                 <td>{build.name}</td>
                 <td>{formatDate(build.mtime_utc)}</td>
                 <td>{formatBytes(build.size_bytes)}</td>
+                <td><OperationJobButton job={build.related_failed_job} label="Open" openOperationsJob={openOperationsJob} /></td>
               </tr>
             ))}
           </tbody>
@@ -1210,7 +1368,7 @@ function TempBuildsPanel({ builds }) {
   );
 }
 
-function RetentionPlanPanel({ retention }) {
+function RetentionPlanPanel({ retention, dryRunJob, applyJob, openOperationsJob }) {
   const plan = retention?.dry_run || {};
   const candidates = plan.candidates || {};
   const buildCandidates = candidates.builds || [];
@@ -1230,6 +1388,10 @@ function RetentionPlanPanel({ retention }) {
       <OverviewFact label="Estimated reclaimable" value={formatBytes(plan.estimated_reclaimable_bytes)} />
       <OverviewFact label="Served build protected" value={plan.served_build_id || "n/a"} />
       <OverviewFact label="Candidate hash" value={plan.candidate_hash ? compactId(plan.candidate_hash, 18) : "n/a"} />
+      <div className="log-toolbar">
+        <OperationJobButton job={dryRunJob} label="Open Dry-Run Job" openOperationsJob={openOperationsJob} />
+        <OperationJobButton job={applyJob} label="Open Apply Job" openOperationsJob={openOperationsJob} />
+      </div>
       {allCandidates.length ? (
         <table>
           <thead>
@@ -2445,7 +2607,7 @@ function AgencyInteractionTab({ model }) {
   );
 }
 
-function OperationsScreen({ csrf }) {
+function OperationsScreen({ csrf, requestedJobId = "" }) {
   const [activeTab, setActiveTab] = useState("runbook");
   const [actions, setActions] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -2630,6 +2792,11 @@ function OperationsScreen({ csrf }) {
   useEffect(() => {
     loadOperations();
   }, []);
+
+  useEffect(() => {
+    if (!requestedJobId) return;
+    selectJob(requestedJobId);
+  }, [requestedJobId]);
 
   useEffect(() => {
     if (!selectedJobId) return;

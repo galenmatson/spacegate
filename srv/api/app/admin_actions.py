@@ -3168,7 +3168,47 @@ def _recent_builds(state_dir: Path, limit: int = 12) -> List[Dict[str, Any]]:
     return [_build_artifact_summary(state_dir, path) for path in candidates[: max(1, limit)]]
 
 
-def _tmp_builds(state_dir: Path, limit: int = 20) -> List[Dict[str, Any]]:
+def _compact_job_ref(job: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if not job:
+        return None
+    return {
+        "job_id": job.get("job_id"),
+        "action": job.get("action"),
+        "status": job.get("status"),
+        "created_at": job.get("created_at"),
+        "finished_at": job.get("finished_at"),
+        "exit_code": job.get("exit_code"),
+        "error_message": job.get("error_message"),
+    }
+
+
+def _job_mentions_build(job: Dict[str, Any], build_id: str) -> bool:
+    target = str(build_id or "").strip()
+    if not target:
+        return False
+    params = job.get("params") if isinstance(job.get("params"), dict) else {}
+    if str(params.get("build_id") or "").strip() == target:
+        return True
+    log_path = Path(str(job.get("log_path") or ""))
+    if not log_path.exists():
+        return False
+    try:
+        return target in _read_job_log_tail(log_path, max_bytes=256 * 1024)
+    except Exception:
+        return False
+
+
+def _related_failed_build_job(jobs: Sequence[Dict[str, Any]], build_id: str) -> Dict[str, Any] | None:
+    build_actions = {"build_database", "build_database_slice"}
+    for job in jobs:
+        if job.get("status") != "failed" or job.get("action") not in build_actions:
+            continue
+        if _job_mentions_build(job, build_id):
+            return _compact_job_ref(job)
+    return None
+
+
+def _tmp_builds(state_dir: Path, limit: int = 20, jobs: Sequence[Dict[str, Any]] | None = None) -> List[Dict[str, Any]]:
     out_dir = state_dir / "out"
     if not out_dir.exists() or not out_dir.is_dir():
         return []
@@ -3178,14 +3218,17 @@ def _tmp_builds(state_dir: Path, limit: int = 20) -> List[Dict[str, Any]]:
     ]
     candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
     items = []
+    job_rows = list(jobs or [])
     for path in candidates[: max(1, limit)]:
+        build_id = path.name[:-4]
         items.append(
             {
                 "name": path.name,
-                "build_id": path.name[:-4],
+                "build_id": build_id,
                 "path": str(path),
                 "mtime_utc": _path_mtime_iso(path),
                 "size_bytes": _path_size_bytes(path),
+                "related_failed_job": _related_failed_build_job(job_rows, build_id),
             }
         )
     return items
@@ -3531,7 +3574,7 @@ def builds_status() -> Dict[str, Any]:
     active_build_jobs = _build_related_jobs(jobs)
     served = _served_current_target(state_dir)
     recent_builds = _recent_builds(state_dir, limit=16)
-    tmp_builds = _tmp_builds(state_dir, limit=20)
+    tmp_builds = _tmp_builds(state_dir, limit=20, jobs=jobs)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
     current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
     path_health = _build_path_health(state_dir)
@@ -3605,7 +3648,7 @@ def operations_status() -> Dict[str, Any]:
     admin_backups = backups.get("admin_db") or []
     release_backups = backups.get("release_metadata") or []
     recent_builds = _recent_builds(state_dir, limit=12)
-    tmp_builds = _tmp_builds(state_dir, limit=20)
+    tmp_builds = _tmp_builds(state_dir, limit=20, jobs=jobs)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
     retention = _retention_summary(state_dir, active_build_jobs, tmp_builds, jobs)
 

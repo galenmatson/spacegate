@@ -67,6 +67,9 @@ Show:
 - verification gate summaries from required reports instead of frontend-only
   assumptions
 - snapshot generation outcomes, including explicit zero-row/null-result runs
+- links from build, verification, coolness, snapshot, retention, and temporary
+  output status cards back to the relevant Operations job detail when
+  detectable
 - API-derived next actions that point to predecessor/successor pipeline steps
 - retention dry-run planning with candidate paths, estimated reclaimable bytes,
   and an auditable dry-run job action
