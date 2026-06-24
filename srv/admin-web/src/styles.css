@@ -707,9 +707,58 @@ h3 {
   top: 1rem;
 }
 
+.job-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.65rem 0;
+}
+
+.job-detail-grid .overview-fact {
+  min-width: 0;
+}
+
+.job-detail-grid .overview-fact strong {
+  overflow-wrap: anywhere;
+}
+
+.job-guidance-panel {
+  margin: 0.7rem 0;
+}
+
+.failure-card {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.7rem 0;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 42%, var(--border));
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.failure-card ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.failure-card li {
+  margin: 0.18rem 0;
+  overflow-wrap: anywhere;
+}
+
 .select-table tr.selected,
 .select-table tr:hover {
   background: var(--surface-soft);
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 
 .job-queue-table {
@@ -1288,6 +1337,7 @@ th {
   .agency-portfolio-layout,
   .runbook-head,
   .jobs-layout,
+  .job-detail-grid,
   .audit-layout,
   .filter-grid,
   .log-controls,

@@ -332,6 +332,22 @@ function buildCsrfHeaders(csrf) {
   return token ? { [csrf.header_name || "X-CSRF-Token"]: token } : {};
 }
 
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "readonly");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 function dateMs(value) {
   if (!value) return null;
   const ms = new Date(value).getTime();
@@ -2745,6 +2761,7 @@ function OperationsScreen({ csrf }) {
           selectedJobAudit={selectedJobAudit}
           selectedJobEvents={selectedJobEvents}
           logState={logState}
+          actionsByName={actionsByName}
           selectJob={selectJob}
           filterAuditForJob={filterAuditForJob}
           cancelJob={cancelJob}
@@ -3089,15 +3106,67 @@ function jobActorLabel(job) {
   return "unknown";
 }
 
-function JobsTab({ jobs, selectedJob, selectedJobAudit, selectedJobEvents, logState, selectJob, filterAuditForJob, cancelJob, refreshSelected }) {
+function JobsTab({
+  jobs,
+  selectedJob,
+  selectedJobAudit,
+  selectedJobEvents,
+  logState,
+  actionsByName,
+  selectJob,
+  filterAuditForJob,
+  cancelJob,
+  refreshSelected,
+}) {
   const [logQuery, setLogQuery] = useState("");
   const [logLevelFilter, setLogLevelFilter] = useState("all");
+  const [copyStatus, setCopyStatus] = useState("");
   const activeRows = jobs.filter((job) => ["queued", "running"].includes(String(job.status || "")));
   const selectedStatus = String(selectedJob?.status || "");
-  const logDownloadHref = selectedJob ? `${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(selectedJob.job_id)}/log/download` : "";
-  const logViewHref = selectedJob ? `/admin/?job_log=${encodeURIComponent(selectedJob.job_id)}` : "";
   const auditItems = Array.isArray(selectedJobAudit) ? selectedJobAudit : [];
   const eventItems = Array.isArray(selectedJobEvents) ? selectedJobEvents : [];
+  const selectedAction = selectedJob ? actionsByName.get(selectedJob.action) || null : null;
+
+  async function copySelectedJobDiagnostics() {
+    if (!selectedJob) return;
+    const lines = String(logState.text || "").split(/\r?\n/).filter(Boolean);
+    const lineCounts = lines.reduce((acc, line) => {
+      const level = classifyLogLine(line);
+      acc[level] = (acc[level] || 0) + 1;
+      return acc;
+    }, {});
+    const bundle = {
+      generated_at_utc: new Date().toISOString(),
+      job: selectedJob,
+      action: selectedAction ? {
+        name: selectedAction.name,
+        display_name: selectedAction.display_name,
+        category: selectedAction.category,
+        group_key: selectedAction.group_key,
+        risk_level: selectedAction.risk_level,
+        required_roles: selectedAction.required_roles,
+        requires_confirmation: selectedAction.requires_confirmation,
+        operator_guidance: selectedAction.operator_guidance,
+      } : null,
+      timeline: eventItems,
+      audit_items: auditItems,
+      output_hints: selectedJob.artifact_hints || [],
+      log: {
+        status: logState.status || selectedJob.status || "",
+        eof: Boolean(logState.eof),
+        loaded_offset: logState.offset,
+        loaded_line_count: lines.length,
+        line_counts: lineCounts,
+        final_lines: lines.slice(-60),
+      },
+    };
+    try {
+      await copyTextToClipboard(JSON.stringify(bundle, null, 2));
+      setCopyStatus("Copied job diagnostics.");
+    } catch (error) {
+      setCopyStatus(`Copy failed: ${String(error)}`);
+    }
+  }
 
   return (
     <section className="jobs-layout">
@@ -3128,8 +3197,21 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, selectedJobEvents, logSt
             </thead>
             <tbody>
               {jobs.map((job) => (
-                <tr className={selectedJob?.job_id === job.job_id ? "selected" : ""} key={job.job_id}>
-                  <td><button className={`link-button ${jobStatusTone(job.status)}`} onClick={() => selectJob(job.job_id)}>{job.status}</button></td>
+                <tr
+                  className={selectedJob?.job_id === job.job_id ? "selected clickable-row" : "clickable-row"}
+                  key={job.job_id}
+                  onClick={() => selectJob(job.job_id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      selectJob(job.job_id);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title={`Open job detail for ${job.job_id}`}
+                >
+                  <td><span className={`badge ${jobStatusTone(job.status)}`}>{job.status}</span></td>
                   <td>
                     <strong>{actionLabel(job.action)}</strong>
                     <span className="table-subtext">{compactId(job.job_id, 24)}</span>
@@ -3147,69 +3229,218 @@ function JobsTab({ jobs, selectedJob, selectedJobAudit, selectedJobEvents, logSt
         )}
       </div>
 
+      <JobDetailPanel
+        job={selectedJob}
+        action={selectedAction}
+        selectedStatus={selectedStatus}
+        auditItems={auditItems}
+        eventItems={eventItems}
+        logState={logState}
+        logQuery={logQuery}
+        setLogQuery={setLogQuery}
+        logLevelFilter={logLevelFilter}
+        setLogLevelFilter={setLogLevelFilter}
+        refreshSelected={refreshSelected}
+        filterAuditForJob={filterAuditForJob}
+        cancelJob={cancelJob}
+        copyDiagnostics={copySelectedJobDiagnostics}
+        copyStatus={copyStatus}
+      />
+    </section>
+  );
+}
+
+function jobGuidance(job, action) {
+  const fromAction = action?.operator_guidance || {};
+  const fallback = fallbackActionGuidance[job?.action] || {};
+  return { ...fallback, ...fromAction };
+}
+
+function normalizeGuidanceList(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value.filter(Boolean).map(String) : [String(value)];
+}
+
+function JobDetailPanel({
+  job,
+  action,
+  selectedStatus,
+  auditItems,
+  eventItems,
+  logState,
+  logQuery,
+  setLogQuery,
+  logLevelFilter,
+  setLogLevelFilter,
+  refreshSelected,
+  filterAuditForJob,
+  cancelJob,
+  copyDiagnostics,
+  copyStatus,
+}) {
+  if (!job) {
+    return (
       <div className="panel job-detail">
         <div className="panel-head">
-          <h2>Selected Job</h2>
-          {selectedJob ? <span className={`badge ${jobStatusTone(selectedStatus)}`}>{selectedStatus}</span> : null}
+          <h2>Job Detail</h2>
         </div>
-        {selectedJob ? (
-          <>
-            <div className="overview-fact">
-              <span>Job ID</span>
-              <strong>{selectedJob.job_id}</strong>
-            </div>
-            <div className="overview-fact">
-              <span>Action</span>
-              <strong>{actionLabel(selectedJob.action)}</strong>
-            </div>
-            <div className="overview-fact">
-              <span>Requested By</span>
-              <strong>{jobActorLabel(selectedJob)}</strong>
-            </div>
-            <div className="overview-fact">
-              <span>Timeline</span>
-              <strong>{formatDate(selectedJob.created_at)}{" -> "}{formatDate(selectedJob.finished_at || selectedJob.started_at)}</strong>
-            </div>
-            <div className="overview-fact">
-              <span>Exit</span>
-              <strong>{selectedJob.exit_code ?? "n/a"} {selectedJob.error_message ? `| ${selectedJob.error_message}` : ""}</strong>
-            </div>
-            <JobTrap job={selectedJob} logState={logState} />
-            <JobEventsPanel events={eventItems} />
-            <JobArtifactHintsPanel hints={selectedJob.artifact_hints || []} />
-            <details open>
-              <summary>Parameters</summary>
-              <pre className="json-box">{jsonBlock(selectedJob.params)}</pre>
-            </details>
-            <details>
-              <summary>Execution Plan</summary>
-              <pre className="json-box">{jsonBlock(selectedJob.execution)}</pre>
-            </details>
-            <div className="log-toolbar">
-              <button className="button" onClick={refreshSelected}>Reload Log</button>
-              <a className="button" href={logViewHref} target="_blank" rel="noreferrer">Open Full Log</a>
-              <a className="button" href={logDownloadHref}>Download Log</a>
-              <button className="button" onClick={() => filterAuditForJob(selectedJob.job_id)}>Open Job Audit</button>
-              {selectedStatus === "queued" ? (
-                <button className="button danger" onClick={() => cancelJob(selectedJob.job_id)}>Cancel Queued Job</button>
-              ) : null}
-            </div>
-            <JobAuditPanel items={auditItems} filterAuditForJob={() => filterAuditForJob(selectedJob.job_id)} />
-            <JobLogViewer
-              text={logState.text}
-              query={logQuery}
-              setQuery={setLogQuery}
-              levelFilter={logLevelFilter}
-              setLevelFilter={setLogLevelFilter}
-              eof={logState.eof}
-              status={logState.status}
-            />
-          </>
-        ) : (
-          <div className="empty">Select a job to inspect parameters, execution plan, log output, and troubleshooting hints.</div>
-        )}
+        <div className="empty">Select a job to inspect parameters, execution plan, log output, and troubleshooting hints.</div>
       </div>
-    </section>
+    );
+  }
+  const encodedJobId = encodeURIComponent(job.job_id);
+  const logDownloadHref = `${ADMIN_API_BASE}/actions/jobs/${encodedJobId}/log/download`;
+  const logTextHref = `${ADMIN_API_BASE}/actions/jobs/${encodedJobId}/log/text`;
+  const logViewHref = `/admin/?job_log=${encodedJobId}`;
+  const guidance = jobGuidance(job, action);
+  const risk = action?.risk_level || guidance.risk_level || "low";
+  const timelineEnd = job.finished_at || job.started_at || null;
+  return (
+    <div className="panel job-detail">
+      <div className="panel-head">
+        <div>
+          <h2>Job Detail</h2>
+          <p className="muted">{job.job_id}</p>
+        </div>
+        <div className="report-chip-list compact">
+          <span className={`badge ${jobStatusTone(selectedStatus)}`}>{selectedStatus || "unknown"}</span>
+          <span className={`badge ${riskTone(risk)}`}>{risk} risk</span>
+        </div>
+      </div>
+
+      <JobFailureSummary job={job} logText={logState.text} />
+      <JobTrap job={job} logState={logState} />
+
+      <div className="job-detail-grid">
+        <div className="overview-fact">
+          <span>Action</span>
+          <strong>{action?.display_name || actionLabel(job.action)}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Actor</span>
+          <strong>{jobActorLabel(job)}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Created</span>
+          <strong>{formatDate(job.created_at)}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Started</span>
+          <strong>{formatDate(job.started_at)}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Finished</span>
+          <strong>{formatDate(job.finished_at)}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Duration</span>
+          <strong>{jobDuration(job)}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Exit Code</span>
+          <strong>{job.exit_code ?? "n/a"}</strong>
+        </div>
+        <div className="overview-fact">
+          <span>Log Path</span>
+          <strong title={job.log_path || ""}>{compactId(job.log_path, 42)}</strong>
+        </div>
+      </div>
+
+      <JobGuidancePanel action={action} guidance={guidance} job={job} />
+
+      <div className="log-toolbar">
+        <button className="button" onClick={refreshSelected}>Reload Log</button>
+        <a className="button" href={logViewHref} target="_blank" rel="noreferrer">Readable Log</a>
+        <a className="button" href={logTextHref} target="_blank" rel="noreferrer">Raw Text</a>
+        <a className="button" href={logDownloadHref}>Download Log</a>
+        <button className="button" onClick={() => filterAuditForJob(job.job_id)}>Open Job Audit</button>
+        <button className="button" onClick={copyDiagnostics}>Copy Diagnostics</button>
+        {selectedStatus === "queued" ? (
+          <button className="button danger" onClick={() => cancelJob(job.job_id)}>Cancel Queued Job</button>
+        ) : null}
+      </div>
+      {copyStatus ? <div className="status-line">{copyStatus}</div> : null}
+
+      <JobEventsPanel events={eventItems} />
+      <JobArtifactHintsPanel hints={job.artifact_hints || []} />
+      <JobAuditPanel items={auditItems} filterAuditForJob={() => filterAuditForJob(job.job_id)} />
+
+      <details open>
+        <summary>Parameters</summary>
+        <pre className="json-box">{jsonBlock(job.params)}</pre>
+      </details>
+      <details>
+        <summary>Execution Plan</summary>
+        <pre className="json-box">{jsonBlock(job.execution)}</pre>
+      </details>
+      <details>
+        <summary>Lifecycle Summary</summary>
+        <MetricList
+          rows={[
+            ["Job ID", job.job_id],
+            ["Timeline", `${formatDate(job.created_at)} -> ${formatDate(timelineEnd)}`],
+            ["Requested by", jobActorLabel(job), job.requested_by?.roles?.length ? `roles: ${job.requested_by.roles.join(", ")}` : ""],
+            ["Correlation", job.job_id, "Use this ID to filter Audit Trail entries."],
+          ]}
+        />
+      </details>
+
+      <JobLogViewer
+        text={logState.text}
+        query={logQuery}
+        setQuery={setLogQuery}
+        levelFilter={logLevelFilter}
+        setLevelFilter={setLogLevelFilter}
+        eof={logState.eof}
+        status={logState.status}
+      />
+    </div>
+  );
+}
+
+function JobGuidancePanel({ action, guidance, job }) {
+  const before = normalizeGuidanceList(guidance.prerequisites || guidance.before);
+  const writes = normalizeGuidanceList(guidance.writes_to || guidance.writes);
+  const outputs = normalizeGuidanceList(guidance.outputs);
+  const next = normalizeGuidanceList(guidance.success_next_actions || guidance.next);
+  const warnings = normalizeGuidanceList(guidance.warnings || guidance.warning);
+  return (
+    <details open className="job-guidance-panel">
+      <summary>Operation Guidance</summary>
+      <div className="hint-list">
+        <div><strong>Purpose:</strong> {guidance.purpose || action?.description || `Run ${actionLabel(job.action)}.`}</div>
+        {before.length ? <div><strong>Before:</strong> {before.join(" ")}</div> : null}
+        {writes.length ? <div><strong>Writes:</strong> {writes.join(", ")}</div> : null}
+        {outputs.length ? <div><strong>Expected outputs:</strong> {outputs.join(", ")}</div> : null}
+        {guidance.expected_duration || guidance.duration ? <div><strong>Expected duration:</strong> {String(guidance.expected_duration || guidance.duration).replaceAll("_", " ")}</div> : null}
+        {next.length ? <div><strong>Next action:</strong> {next.join(" ")}</div> : null}
+        {warnings.length ? <div className="warning-text"><strong>Warning:</strong> {warnings.join(" ")}</div> : null}
+        {action?.required_roles?.length ? <div><strong>Required roles:</strong> {action.required_roles.join(", ")}</div> : null}
+      </div>
+    </details>
+  );
+}
+
+function JobFailureSummary({ job, logText }) {
+  const status = String(job?.status || "");
+  const failed = status === "failed" || job?.error_message || (job?.exit_code !== null && job?.exit_code !== undefined && Number(job.exit_code) !== 0);
+  if (!failed) return null;
+  const lines = String(logText || "").split(/\r?\n/).filter(Boolean);
+  const important = lines.filter((line) => ["error", "warn"].includes(classifyLogLine(line))).slice(-5);
+  return (
+    <div className="failure-card">
+      <div>
+        <strong>Failure Summary</strong>
+        <span className="table-subtext">Exit {job.exit_code ?? "n/a"} | {job.error_message || "No structured error message recorded."}</span>
+      </div>
+      {important.length ? (
+        <ul>
+          {important.map((line, index) => <li key={`${index}-${line}`}>{compactId(line, 180)}</li>)}
+        </ul>
+      ) : (
+        <p className="muted">No error or warning lines are loaded yet. Open the readable log or reload the log chunk before retrying.</p>
+      )}
+    </div>
   );
 }
 
