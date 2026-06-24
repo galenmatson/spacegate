@@ -2720,6 +2720,7 @@ function ActionCard({ action, runAction, busy }) {
   const guidance = action.operator_guidance || fallbackActionGuidance[action.name] || {};
   const schema = action.params_schema || {};
   const disabledReason = action.disabled_reason || "";
+  const confirmationPhrase = action.confirmation_phrase || `RUN ${action.name}`;
 
   useEffect(() => {
     setValues(initialActionValues(action));
@@ -2814,8 +2815,9 @@ function ActionCard({ action, runAction, busy }) {
             <input
               value={values.confirmation || ""}
               onChange={(event) => updateValue("confirmation", event.target.value)}
-              placeholder={action.confirmation_phrase || `RUN ${action.name}`}
+              placeholder={confirmationPhrase}
             />
+            <em className="confirmation-reminder">Required phrase: <code>{confirmationPhrase}</code></em>
           </label>
         ) : null}
       </div>
