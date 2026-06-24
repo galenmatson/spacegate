@@ -824,11 +824,21 @@ h3 {
 .job-event-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.45rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   padding: 0.55rem;
+}
+
+.job-event-row > .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  align-self: start;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .job-event-row.ok {
