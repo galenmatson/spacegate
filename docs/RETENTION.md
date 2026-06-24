@@ -46,6 +46,9 @@ Admin v2 exposes retention controls in the Builds workspace:
   successful dry-run from the last 6 hours, an unchanged candidate hash, and the
   confirmation phrase. It deletes only the exact candidate directories from the
   checked plan. `raw/`, `cooked/`, and `served/current` are protected.
+  After a matching dry-run succeeds, the Builds page updates the apply card with
+  the dry-run job id, candidate count, estimated reclaimable space, and candidate
+  hash.
 
 Useful overrides:
 

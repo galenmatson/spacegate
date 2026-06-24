@@ -697,6 +697,19 @@ function BuildsScreen({ csrf }) {
     loadBuilds();
   }, []);
 
+  async function waitForJobTerminal(jobId, timeoutMs = 90000) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      const { response, data } = await fetchJson(`${ADMIN_API_BASE}/actions/jobs/${encodeURIComponent(jobId)}`);
+      if (!response.ok) return null;
+      const job = data.job || data;
+      const status = String(job.status || "");
+      if (terminalJobStatuses.has(status)) return job;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    return null;
+  }
+
   async function runAction(actionName, params, confirmation) {
     setBusyAction(actionName);
     setState((current) => ({ ...current, message: `Starting ${actionLabel(actionName)}...` }));
@@ -715,6 +728,12 @@ function BuildsScreen({ csrf }) {
     }
     const job = data.job || {};
     setState((current) => ({ ...current, message: `Queued ${actionLabel(actionName)} as ${job.job_id || "job"}.` }));
+    if (job.job_id && ["retention_dry_run", "retention_apply"].includes(actionName)) {
+      setState((current) => ({ ...current, message: `Queued ${actionLabel(actionName)} as ${job.job_id}. Waiting for completion...` }));
+      const finished = await waitForJobTerminal(job.job_id);
+      const finalStatus = finished?.status || "queued";
+      setState((current) => ({ ...current, message: `${actionLabel(actionName)} ${finalStatus}. Refreshing build state...` }));
+    }
     await loadBuilds();
     return { ok: true, job };
   }
@@ -736,8 +755,13 @@ function BuildsScreen({ csrf }) {
   const pathHealth = buildStatus.path_health || {};
   const nextActions = Array.isArray(buildStatus.next_actions) ? buildStatus.next_actions : [];
   const retentionPlan = retention.dry_run || {};
+  const retentionContext = {
+    plan: retentionPlan,
+    latestDryRun: retention.latest_matching_dry_run || null,
+    applyReady: Boolean(retention.apply_ready),
+  };
   const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"]
-    .map((name) => enrichBuildAction(actionsByName.get(name), retentionPlan))
+    .map((name) => enrichBuildAction(actionsByName.get(name), retentionContext))
     .filter(Boolean);
   const kpis = [
     { label: "Served build", value: compactId(state.status?.build_id || served.build_id, 20) },
@@ -852,15 +876,48 @@ function priorityTone(value) {
   return "warn";
 }
 
-function enrichBuildAction(action, retentionPlan) {
+function retentionCandidateSummary(plan) {
+  const candidates = plan?.candidates || {};
+  const builds = Array.isArray(candidates.builds) ? candidates.builds.length : 0;
+  const tmp = Array.isArray(candidates.tmp) ? candidates.tmp.length : 0;
+  const reports = Array.isArray(candidates.reports) ? candidates.reports.length : 0;
+  return `${formatInt(builds)} build dirs, ${formatInt(tmp)} temp outputs, ${formatInt(reports)} report dirs; ${formatBytes(plan?.estimated_reclaimable_bytes)} reclaimable`;
+}
+
+function enrichBuildAction(action, retentionContext) {
   if (!action) return null;
   if (!["retention_dry_run", "retention_apply"].includes(action.name)) return action;
+  const retentionPlan = retentionContext?.plan || {};
   const schema = { ...(action.params_schema || {}) };
   if (schema.keep_builds) schema.keep_builds = { ...schema.keep_builds, default: retentionPlan.keep_builds ?? schema.keep_builds.default };
   if (schema.keep_reports) schema.keep_reports = { ...schema.keep_reports, default: retentionPlan.keep_reports ?? schema.keep_reports.default };
   if (schema.skip_tmp) schema.skip_tmp = { ...schema.skip_tmp, default: retentionPlan.prune_tmp === false };
   if (schema.candidate_hash) schema.candidate_hash = { ...schema.candidate_hash, default: retentionPlan.candidate_hash || "" };
-  return { ...action, params_schema: schema };
+  const guidance = { ...(action.operator_guidance || fallbackActionGuidance[action.name] || {}) };
+  if (action.name === "retention_dry_run") {
+    guidance.outputs = [
+      `Current plan: ${retentionCandidateSummary(retentionPlan)}`,
+      `Candidate hash: ${compactId(retentionPlan.candidate_hash, 18)}`,
+    ];
+  }
+  if (action.name === "retention_apply") {
+    const dryRun = retentionContext?.latestDryRun;
+    const ready = Boolean(retentionContext?.applyReady);
+    guidance.prerequisites = dryRun
+      ? `Satisfied by dry-run job ${dryRun.job_id} (${formatDate(dryRun.finished_at)}).`
+      : "Run Retention Dry Run first. Apply is blocked until a matching successful dry-run exists.";
+    guidance.outputs = [
+      `Will delete: ${retentionCandidateSummary(retentionPlan)}`,
+      `Candidate hash: ${compactId(retentionPlan.candidate_hash, 18)}`,
+    ];
+    guidance.warning = ready
+      ? "High-risk deletion action. Type the confirmation phrase only after reviewing the candidate list and dry-run log."
+      : "Apply will fail until the matching dry-run requirement is satisfied.";
+  }
+  const disabledReason = action.name === "retention_apply" && !retentionContext?.applyReady
+    ? "Run Retention Dry Run and wait for it to succeed before applying retention."
+    : "";
+  return { ...action, params_schema: schema, operator_guidance: guidance, disabled_reason: disabledReason };
 }
 
 function BuildArtifactPanel({ title, build }) {
@@ -2662,11 +2719,18 @@ function ActionCard({ action, runAction, busy }) {
   const [status, setStatus] = useState("");
   const guidance = action.operator_guidance || fallbackActionGuidance[action.name] || {};
   const schema = action.params_schema || {};
+  const disabledReason = action.disabled_reason || "";
 
   useEffect(() => {
     setValues(initialActionValues(action));
     setStatus("");
-  }, [action.name]);
+  }, [
+    action.name,
+    schema.candidate_hash?.default,
+    schema.keep_builds?.default,
+    schema.keep_reports?.default,
+    schema.skip_tmp?.default,
+  ]);
 
   function updateValue(key, value) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -2674,6 +2738,10 @@ function ActionCard({ action, runAction, busy }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (disabledReason) {
+      setStatus(disabledReason);
+      return;
+    }
     const params = {};
     for (const [name, spec] of Object.entries(schema)) {
       const value = values[name];
@@ -2728,6 +2796,7 @@ function ActionCard({ action, runAction, busy }) {
         {guidance.duration ? <div><strong>Expected:</strong> {guidance.duration}</div> : null}
         {Array.isArray(guidance.warnings) && guidance.warnings.length ? <div className="warning-text"><strong>Warning:</strong> {guidance.warnings.join(" ")}</div> : null}
         {guidance.warning ? <div className="warning-text"><strong>Warning:</strong> {guidance.warning}</div> : null}
+        {disabledReason ? <div className="warning-text"><strong>Blocked:</strong> {disabledReason}</div> : null}
       </div>
       <div className="action-fields">
         {Object.entries(schema).map(([name, spec]) => (
@@ -2751,7 +2820,7 @@ function ActionCard({ action, runAction, busy }) {
         ) : null}
       </div>
       <div className="card-actions">
-        <button className={`button ${action.risk_level === "high" ? "danger" : "primary"}`} disabled={busy} type="submit">
+        <button className={`button ${action.risk_level === "high" ? "danger" : "primary"}`} disabled={busy || Boolean(disabledReason)} type="submit">
           {busy ? "Starting..." : "Start Job"}
         </button>
         {status ? <span className="inline-status">{status}</span> : null}

@@ -2645,6 +2645,36 @@ def _retention_candidate_hash(plan_payload: Dict[str, Any]) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _matching_retention_dry_run_jobs(
+    jobs: Sequence[Dict[str, Any]],
+    *,
+    candidate_hash: str,
+    keep_builds: int,
+    keep_reports: int,
+    prune_tmp: bool,
+    max_age_hours: int = 6,
+) -> List[Dict[str, Any]]:
+    cutoff = _utc_now() - dt.timedelta(hours=max_age_hours)
+    matches: List[Dict[str, Any]] = []
+    for job in jobs:
+        if job.get("action") != "retention_dry_run" or job.get("status") != "succeeded":
+            continue
+        params = job.get("params") if isinstance(job.get("params"), dict) else {}
+        if str(params.get("candidate_hash") or "").strip() != candidate_hash:
+            continue
+        try:
+            job_keep_builds, job_keep_reports, job_prune_tmp = _normalize_retention_params(params)
+        except Exception:
+            continue
+        if (job_keep_builds, job_keep_reports, job_prune_tmp) != (keep_builds, keep_reports, prune_tmp):
+            continue
+        finished_at = _parse_job_finished_at(job.get("finished_at"))
+        if finished_at is None or finished_at < cutoff:
+            continue
+        matches.append(job)
+    return matches
+
+
 def _retention_plan(
     state_dir: Path,
     *,
@@ -2732,7 +2762,12 @@ def _build_path_health(state_dir: Path) -> Dict[str, Any]:
     }
 
 
-def _retention_summary(state_dir: Path, active_build_jobs: List[Dict[str, Any]], tmp_builds: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _retention_summary(
+    state_dir: Path,
+    active_build_jobs: List[Dict[str, Any]],
+    tmp_builds: List[Dict[str, Any]],
+    jobs: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
     retention_blockers = []
     if active_build_jobs:
         retention_blockers.append("A build, verify, or publish job is active.")
@@ -2740,6 +2775,15 @@ def _retention_summary(state_dir: Path, active_build_jobs: List[Dict[str, Any]],
         retention_blockers.append("Temporary ingest output directories exist; inspect them before pruning.")
     keep_builds = int(os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12"))
     keep_reports = int(os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24"))
+    plan = _retention_plan(state_dir, keep_builds=keep_builds, keep_reports=keep_reports, prune_tmp=True)
+    matching_dry_runs = _matching_retention_dry_run_jobs(
+        jobs,
+        candidate_hash=str(plan.get("candidate_hash") or ""),
+        keep_builds=keep_builds,
+        keep_reports=keep_reports,
+        prune_tmp=True,
+    )
+    latest_matching = matching_dry_runs[0] if matching_dry_runs else None
     return {
         "default_keep_builds": keep_builds,
         "default_keep_reports": keep_reports,
@@ -2747,7 +2791,9 @@ def _retention_summary(state_dir: Path, active_build_jobs: List[Dict[str, Any]],
         "dry_run_available": not active_build_jobs,
         "can_run_now": not retention_blockers,
         "blocked_reasons": retention_blockers,
-        "dry_run": _retention_plan(state_dir, keep_builds=keep_builds, keep_reports=keep_reports, prune_tmp=True),
+        "dry_run": plan,
+        "latest_matching_dry_run": latest_matching,
+        "apply_ready": latest_matching is not None and int(plan.get("candidate_count") or 0) > 0,
         "notes": [
             "Retention must not prune raw/ or cooked/.",
             "Run retention only after successful promotion and verification.",
@@ -2895,7 +2941,7 @@ def builds_status() -> Dict[str, Any]:
     state_dir = _state_dir().resolve()
     jobs_error = None
     try:
-        jobs = list_jobs(limit=100)
+        jobs = list_jobs(limit=200)
     except Exception as exc:
         jobs = []
         jobs_error = str(exc)
@@ -2906,7 +2952,7 @@ def builds_status() -> Dict[str, Any]:
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
     current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
     path_health = _build_path_health(state_dir)
-    retention = _retention_summary(state_dir, active_build_jobs, tmp_builds)
+    retention = _retention_summary(state_dir, active_build_jobs, tmp_builds, jobs)
     out_dir = state_dir / "out"
     reports_dir = state_dir / "reports"
     next_actions = _build_next_actions(
@@ -2978,7 +3024,7 @@ def operations_status() -> Dict[str, Any]:
     recent_builds = _recent_builds(state_dir, limit=12)
     tmp_builds = _tmp_builds(state_dir, limit=20)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
-    retention = _retention_summary(state_dir, active_build_jobs, tmp_builds)
+    retention = _retention_summary(state_dir, active_build_jobs, tmp_builds, jobs)
 
     return {
         "status": "ok",

@@ -72,6 +72,9 @@ Show:
   and an auditable dry-run job action
 - guarded retention apply that requires a recent matching dry-run, unchanged
   candidate hash, explicit confirmation, and protected `served/current`
+- after a dry-run succeeds, the apply card should summarize the exact candidate
+  count, reclaimable bytes, candidate hash, and matching dry-run job before it
+  can be started
 
 Actions remain allowlisted jobs with confirmation phrases for high-risk steps.
 
