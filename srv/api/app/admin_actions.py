@@ -986,10 +986,10 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "group_key": "presentation",
         "purpose": "Generates deterministic disc coolness ranking and scoring reports for a build.",
         "prerequisites": "Use after a valid build exists. Ephemeral scoring is useful for experiments.",
-        "writes_to": "Disc scoring artifacts and reports, unless ephemeral mode is selected.",
+        "writes_to": "Disc scoring artifacts and reports. Ephemeral mode avoids creating or mutating stored profile versions.",
         "outputs": ["coolness_scores", "coolness_report.json"],
         "expected_duration": "medium",
-        "success_next_actions": ["Save a profile if the result is worth preserving.", "Activate deliberately."],
+        "success_next_actions": ["Generate snapshots for the new ranking.", "Save and activate a profile if the result is worth preserving."],
         "failure_next_actions": ["Inspect scoring report/log and verify the target build has required data."],
         "warnings": ["Presentation artifacts must not alter canonical science rows."],
         "docs_links": ["docs/SCHEMA_DISC.md"],
@@ -1368,8 +1368,8 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "ephemeral": {
                 "type": "boolean",
                 "required": False,
-                "default": False,
-                "label": "Ephemeral (do not persist profile)",
+                "default": True,
+                "label": "Ephemeral scoring run",
             },
         },
         category="coolness",
@@ -2015,6 +2015,7 @@ def _run_command(command: List[str], logf: TextIO) -> tuple[int, str | None]:
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
     last_error_line: str | None = None
+    last_output_line: str | None = None
     try:
         proc = subprocess.Popen(
             command,
@@ -2028,12 +2029,15 @@ def _run_command(command: List[str], logf: TextIO) -> tuple[int, str | None]:
         assert proc.stdout is not None
         for line in proc.stdout:
             logf.write(line)
+            stripped = str(line or "").strip()
+            if stripped:
+                last_output_line = stripped[:500]
             detected = _log_error_line(line)
             if detected:
                 last_error_line = detected
         proc.wait()
         return_code = int(proc.returncode)
-        return return_code, last_error_line if return_code != 0 else None
+        return return_code, (last_error_line or last_output_line) if return_code != 0 else None
     except Exception as exc:
         return 1, str(exc)
 

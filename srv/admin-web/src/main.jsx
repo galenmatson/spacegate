@@ -99,8 +99,8 @@ const fallbackActionGuidance = {
     group: "presentation",
     purpose: "Generates deterministic disc coolness ranking and scoring reports for a build.",
     prerequisites: "Use after a valid build exists. Ephemeral scoring is useful for experiments.",
-    writes: "Disc scoring artifacts and reports, unless ephemeral mode is selected.",
-    next: "Save a profile if the result is worth preserving, then activate it deliberately.",
+    writes: "Disc scoring artifacts and reports. Ephemeral mode avoids creating or mutating stored profile versions.",
+    next: "Generate snapshots for the new ranking. Save and activate a profile if the result is worth preserving.",
     duration: "Medium",
   },
   save_coolness_profile: {
