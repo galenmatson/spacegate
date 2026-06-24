@@ -3050,6 +3050,7 @@ function ActionCard({ action, runAction, busy }) {
             name={name}
             spec={spec || {}}
             value={values[name]}
+            values={values}
             updateValue={updateValue}
           />
         ))}
@@ -3075,7 +3076,7 @@ function ActionCard({ action, runAction, busy }) {
   );
 }
 
-function ActionParamField({ action, name, spec, value, updateValue }) {
+function ActionParamField({ action, name, spec, value, values, updateValue }) {
   if (spec.hidden) return null;
   const label = spec.label || actionLabel(name);
   if (name === "weights_json" && ["score_coolness", "save_coolness_profile"].includes(String(action?.name || ""))) {
@@ -3084,6 +3085,7 @@ function ActionParamField({ action, name, spec, value, updateValue }) {
         collapsed={String(action?.name || "") === "save_coolness_profile"}
         label={label}
         name={name}
+        sliderDraft={values?._coolness_sliders}
         value={value}
         updateValue={updateValue}
       />
@@ -3151,6 +3153,17 @@ function slidersFromWeightsJson(raw) {
   }
 }
 
+function validCoolnessSliderDraft(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out = {};
+  for (const [key] of coolnessWeightMeta) {
+    const value = Number(raw[key]);
+    if (!Number.isFinite(value)) return null;
+    out[key] = Math.max(1, Math.min(10, Math.round(value)));
+  }
+  return out;
+}
+
 function weightsJsonFromSliders(sliders) {
   const total = coolnessWeightMeta.reduce((sum, [key]) => sum + Math.max(1, Math.min(10, Number(sliders[key]) || 1)), 0);
   const weights = Object.fromEntries(
@@ -3162,21 +3175,27 @@ function weightsJsonFromSliders(sliders) {
   return JSON.stringify(weights);
 }
 
-function CoolnessWeightsField({ collapsed = false, label, name, value, updateValue }) {
-  const [sliders, setSliders] = useState(() => slidersFromWeightsJson(value));
+function CoolnessWeightsField({ collapsed = false, label, name, sliderDraft, value, updateValue }) {
+  const [sliders, setSliders] = useState(() => validCoolnessSliderDraft(sliderDraft) || slidersFromWeightsJson(value));
   const usingOverride = Boolean(String(value || "").trim());
   const normalized = weightsJsonFromSliders(sliders);
 
   useEffect(() => {
-    if (!String(value || "").trim()) {
+    const draft = validCoolnessSliderDraft(sliderDraft);
+    if (draft) {
+      setSliders(draft);
+    } else if (!String(value || "").trim()) {
       setSliders({ ...defaultCoolnessSliders });
+    } else {
+      setSliders(slidersFromWeightsJson(value));
     }
-  }, [value]);
+  }, [sliderDraft, value]);
 
   function updateSlider(key, rawValue) {
     const sliderValue = Math.max(1, Math.min(10, Number.parseInt(String(rawValue), 10) || 1));
     setSliders((current) => {
       const next = { ...current, [key]: sliderValue };
+      updateValue("_coolness_sliders", next);
       updateValue(name, weightsJsonFromSliders(next));
       return next;
     });
@@ -3184,6 +3203,7 @@ function CoolnessWeightsField({ collapsed = false, label, name, value, updateVal
 
   function resetWeights() {
     setSliders({ ...defaultCoolnessSliders });
+    updateValue("_coolness_sliders", null);
     updateValue(name, "");
   }
 
