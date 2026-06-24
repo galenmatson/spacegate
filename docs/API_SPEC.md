@@ -170,6 +170,10 @@ Includes:
 
 Notes:
 - This endpoint does not mutate build artifacts or reports.
+- Admin retention apply is exposed as a high-risk action, not through this
+  status endpoint. It requires a recent matching dry-run job, unchanged
+  candidate hash, and explicit confirmation before deleting exact candidate
+  directories.
 - Snapshot reports distinguish missing reports, generated artifacts, reused
   artifacts, zero-generated runs, and explicit null results where requested,
   generated, reused, and manifest-upserted rows are all zero.

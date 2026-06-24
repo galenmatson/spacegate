@@ -38,10 +38,14 @@ This is dry-run by default. To apply:
 scripts/prune_state_retention.sh --apply
 ```
 
-Admin v2 exposes a read-only **Retention Dry Run** action in the Builds
-workspace. It runs this script without `--apply`, records an auditable job log,
-and shows the parsed candidate plan in the Builds page. Deletion/apply remains
-manual for now.
+Admin v2 exposes retention controls in the Builds workspace:
+
+- **Retention Dry Run** runs this script without `--apply`, records an
+  auditable job log, and shows the parsed candidate plan in the Builds page.
+- **Retention Apply** is a guarded high-risk action. It requires a matching
+  successful dry-run from the last 6 hours, an unchanged candidate hash, and the
+  confirmation phrase. It deletes only the exact candidate directories from the
+  checked plan. `raw/`, `cooked/`, and `served/current` are protected.
 
 Useful overrides:
 

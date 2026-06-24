@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import re
 import secrets
+import shutil
 import sqlite3
 import subprocess
 import threading
@@ -245,16 +247,22 @@ def _build_command_publish_db(params: Dict[str, Any]) -> List[str]:
 
 def _build_command_retention_dry_run(params: Dict[str, Any]) -> List[str]:
     cmd = [str(ROOT_DIR / "scripts" / "prune_state_retention.sh")]
+    keep_builds, keep_reports, prune_tmp = _normalize_retention_params(params)
+    cmd.extend(["--keep-builds", str(keep_builds), "--keep-reports", str(keep_reports)])
+    if not prune_tmp:
+        cmd.append("--no-prune-tmp")
+    return cmd
+
+
+def _normalize_retention_params(params: Dict[str, Any]) -> tuple[int, int, bool]:
     keep_builds = _normalize_integer(params.get("keep_builds", os.getenv("SPACEGATE_RETENTION_KEEP_BUILDS", "12")))
     keep_reports = _normalize_integer(params.get("keep_reports", os.getenv("SPACEGATE_RETENTION_KEEP_REPORTS", "24")))
     if keep_builds < 0:
         raise ActionValidationError("keep_builds must be >= 0")
     if keep_reports < 0:
         raise ActionValidationError("keep_reports must be >= 0")
-    cmd.extend(["--keep-builds", str(keep_builds), "--keep-reports", str(keep_reports)])
-    if _normalize_boolean(params.get("skip_tmp", False)):
-        cmd.append("--no-prune-tmp")
-    return cmd
+    prune_tmp = not _normalize_boolean(params.get("skip_tmp", False))
+    return keep_builds, keep_reports, prune_tmp
 
 
 def _build_command_restart_services(params: Dict[str, Any]) -> List[str]:
@@ -459,6 +467,140 @@ WHERE ur.user_id IN ({placeholders})
 
 def _run_native_backup_admin_db(params: Dict[str, Any], logf: TextIO) -> int:
     _create_admin_db_backup(logf)
+    return 0
+
+
+def _parse_job_finished_at(value: Any) -> dt.datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _find_recent_retention_dry_run(
+    *,
+    candidate_hash: str,
+    keep_builds: int,
+    keep_reports: int,
+    prune_tmp: bool,
+    max_age_hours: int = 6,
+) -> Dict[str, Any] | None:
+    cutoff = _utc_now() - dt.timedelta(hours=max_age_hours)
+    for job in list_jobs(limit=200):
+        if job.get("action") != "retention_dry_run" or job.get("status") != "succeeded":
+            continue
+        params = job.get("params") if isinstance(job.get("params"), dict) else {}
+        if str(params.get("candidate_hash") or "").strip() != candidate_hash:
+            continue
+        try:
+            job_keep_builds, job_keep_reports, job_prune_tmp = _normalize_retention_params(params)
+        except Exception:
+            continue
+        if (job_keep_builds, job_keep_reports, job_prune_tmp) != (keep_builds, keep_reports, prune_tmp):
+            continue
+        finished_at = _parse_job_finished_at(job.get("finished_at"))
+        if finished_at is None or finished_at < cutoff:
+            continue
+        return job
+    return None
+
+
+def _ensure_no_active_mutating_build_jobs() -> None:
+    mutating = {"build_database", "build_database_slice", "verify_build", "publish_db"}
+    active = [
+        job for job in list_jobs(limit=100)
+        if job.get("status") in RUNNING_STATUSES and job.get("action") in mutating
+    ]
+    if active:
+        labels = [f"{job.get('action')}:{job.get('job_id')}" for job in active[:4]]
+        raise ActionValidationError("Cannot apply retention while build/publish/verify jobs are active: " + ", ".join(labels))
+
+
+def _candidate_paths_from_plan(plan: Dict[str, Any]) -> List[Path]:
+    candidates = plan.get("candidates") if isinstance(plan.get("candidates"), dict) else {}
+    paths: List[Path] = []
+    for group in ("builds", "tmp", "reports"):
+        for item in candidates.get(group, []):
+            raw_path = str(item.get("path") or "").strip()
+            if raw_path:
+                paths.append(Path(raw_path))
+    return paths
+
+
+def _validate_retention_apply_paths(state_dir: Path, plan: Dict[str, Any]) -> List[Path]:
+    out_root = (state_dir / "out").resolve()
+    reports_root = (state_dir / "reports").resolve()
+    served = _served_current_target(state_dir)
+    served_target = Path(str(served.get("target"))).resolve() if served.get("target") else None
+    paths = []
+    for raw_path in _candidate_paths_from_plan(plan):
+        path = raw_path.resolve()
+        if not (path.is_relative_to(out_root) or path.is_relative_to(reports_root)):
+            raise ActionValidationError(f"Retention candidate is outside allowed roots: {path}")
+        if served_target is not None and path == served_target:
+            raise ActionValidationError(f"Retention candidate resolves to served/current target: {path}")
+        if "/raw/" in f"{path}/" or "/cooked/" in f"{path}/":
+            raise ActionValidationError(f"Retention candidate touches raw/cooked path: {path}")
+        if path.is_symlink():
+            raise ActionValidationError(f"Refusing to delete symlink candidate: {path}")
+        paths.append(path)
+    return paths
+
+
+def _run_native_retention_apply(params: Dict[str, Any], logf: TextIO) -> int:
+    keep_builds, keep_reports, prune_tmp = _normalize_retention_params(params)
+    expected_hash = str(params.get("candidate_hash") or "").strip()
+    if not expected_hash:
+        raise ActionValidationError("candidate_hash is required")
+
+    state_dir = _state_dir().resolve()
+    plan = _retention_plan(state_dir, keep_builds=keep_builds, keep_reports=keep_reports, prune_tmp=prune_tmp)
+    actual_hash = str(plan.get("candidate_hash") or "")
+    if actual_hash != expected_hash:
+        logf.write(f"Expected candidate hash: {expected_hash}\n")
+        logf.write(f"Current candidate hash:  {actual_hash}\n")
+        raise ActionValidationError("Retention candidate set changed after dry-run; refresh Builds and run Retention Dry Run again.")
+
+    dry_run_job = _find_recent_retention_dry_run(
+        candidate_hash=expected_hash,
+        keep_builds=keep_builds,
+        keep_reports=keep_reports,
+        prune_tmp=prune_tmp,
+    )
+    if dry_run_job is None:
+        raise ActionValidationError("No successful matching Retention Dry Run job was found in the last 6 hours.")
+
+    _ensure_no_active_mutating_build_jobs()
+    paths = _validate_retention_apply_paths(state_dir, plan)
+    if not paths:
+        raise ActionValidationError("Retention plan has no candidates to apply.")
+
+    logf.write("Retention apply guard passed.\n")
+    logf.write(f"Matched dry-run job: {dry_run_job.get('job_id')}\n")
+    logf.write(f"Candidate hash: {expected_hash}\n")
+    logf.write(f"Policy: keep_builds={keep_builds} keep_reports={keep_reports} prune_tmp={int(prune_tmp)}\n")
+    logf.write(f"Estimated reclaimable bytes: {plan.get('estimated_reclaimable_bytes')}\n")
+    logf.write("Deleting exact candidate directories:\n")
+    for path in paths:
+        logf.write(f"  {path}\n")
+    logf.flush()
+
+    deleted = 0
+    missing = 0
+    for path in paths:
+        if not path.exists():
+            missing += 1
+            logf.write(f"Skipped missing candidate: {path}\n")
+            continue
+        shutil.rmtree(path)
+        deleted += 1
+        logf.write(f"Deleted: {path}\n")
+        logf.flush()
+
+    logf.write(f"Retention apply complete. deleted={deleted} missing={missing}\n")
     return 0
 
 
@@ -752,7 +894,7 @@ ACTION_GROUPS: List[Dict[str, Any]] = [
         "key": "build",
         "title": "Build Pipeline",
         "description": "Build, verify, and publish deterministic science artifacts in order.",
-        "actions": ["build_database", "verify_build", "publish_db", "retention_dry_run"],
+        "actions": ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"],
         "sequence": ["Build Database", "Verify Build", "Publish Database", "Retention after verified promotion"],
     },
     {
@@ -825,7 +967,19 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "expected_duration": "short",
         "success_next_actions": ["Review the job log.", "Only run apply manually after confirming the candidate list is safe."],
         "failure_next_actions": ["Check state directory permissions and the retention script output."],
-        "warnings": ["This action is intentionally read-only; apply/delete remains outside Admin v2 for now."],
+        "warnings": ["This action is intentionally read-only; apply requires a separate high-risk action."],
+        "docs_links": ["docs/RETENTION.md"],
+    },
+    "retention_apply": {
+        "group_key": "build",
+        "purpose": "Applies a previously reviewed retention candidate set from the Builds page.",
+        "prerequisites": "Requires a matching successful Retention Dry Run from the last 6 hours and an unchanged candidate hash.",
+        "writes_to": "$SPACEGATE_STATE_DIR/out stale build/tmp directories and $SPACEGATE_STATE_DIR/reports stale report directories only.",
+        "outputs": ["deleted candidate paths", "retention apply job log", "audit completion event"],
+        "expected_duration": "short",
+        "success_next_actions": ["Refresh Builds and Runtime storage after completion."],
+        "failure_next_actions": ["Refresh Builds, rerun Retention Dry Run, and compare the candidate hash."],
+        "warnings": ["Deletes exact candidate directories. raw/, cooked/, and served/current are protected."],
         "docs_links": ["docs/RETENTION.md"],
     },
     "score_coolness": {
@@ -1098,9 +1252,57 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                 "default": False,
                 "label": "Do not include out/*.tmp",
             },
+            "candidate_hash": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "hidden": True,
+                "label": "Candidate hash",
+            },
         },
         risk_level="low",
         build_command=_build_command_retention_dry_run,
+    ),
+    "retention_apply": ActionSpec(
+        name="retention_apply",
+        display_name="Retention Apply",
+        description="Delete the exact stale build/report/tmp candidates from a matching recent retention dry-run.",
+        params_schema={
+            "keep_builds": {
+                "type": "integer",
+                "required": False,
+                "default": 12,
+                "min": 0,
+                "max": 200,
+                "label": "Keep newest build dirs",
+            },
+            "keep_reports": {
+                "type": "integer",
+                "required": False,
+                "default": 24,
+                "min": 0,
+                "max": 500,
+                "label": "Keep newest report dirs",
+            },
+            "skip_tmp": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Do not include out/*.tmp",
+            },
+            "candidate_hash": {
+                "type": "string",
+                "required": True,
+                "allow_empty": False,
+                "hidden": True,
+                "label": "Candidate hash",
+            },
+        },
+        risk_level="high",
+        requires_confirmation=True,
+        confirmation_phrase=_confirmation_for("retention_apply"),
+        run_native=_run_native_retention_apply,
     ),
     "restart_services": ActionSpec(
         name="restart_services",
@@ -1483,6 +1685,15 @@ def _validate_params(spec: ActionSpec, params: Dict[str, Any]) -> Dict[str, Any]
             raise ActionValidationError("Invalid build_id format")
         if "build_id" in normalized:
             normalized["build_id"] = build_id
+
+    if spec.name in {"retention_dry_run", "retention_apply"}:
+        candidate_hash = str(normalized.get("candidate_hash", "") or "").strip()
+        if candidate_hash and not re.match(r"^[0-9a-f]{64}$", candidate_hash):
+            raise ActionValidationError("Invalid candidate_hash format")
+        if spec.name == "retention_apply" and not candidate_hash:
+            raise ActionValidationError("candidate_hash is required")
+        if "candidate_hash" in normalized:
+            normalized["candidate_hash"] = candidate_hash
 
     if spec.name == "restore_admin_db":
         backup_name = str(normalized.get("backup_name", "") or "").strip()
@@ -2411,6 +2622,29 @@ def _retention_candidate(path: Path, reason: str) -> Dict[str, Any]:
     }
 
 
+def _retention_candidate_hash(plan_payload: Dict[str, Any]) -> str:
+    candidates = plan_payload.get("candidates") if isinstance(plan_payload.get("candidates"), dict) else {}
+    stable_payload = {
+        "keep_builds": plan_payload.get("keep_builds"),
+        "keep_reports": plan_payload.get("keep_reports"),
+        "prune_tmp": plan_payload.get("prune_tmp"),
+        "served_build_id": plan_payload.get("served_build_id"),
+        "candidates": {
+            group: [
+                {
+                    "path": item.get("path"),
+                    "size_bytes": int(item.get("size_bytes") or 0),
+                    "reason": item.get("reason"),
+                }
+                for item in candidates.get(group, [])
+            ]
+            for group in ("builds", "tmp", "reports")
+        },
+    }
+    raw = json.dumps(stable_payload, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _retention_plan(
     state_dir: Path,
     *,
@@ -2457,7 +2691,7 @@ def _retention_plan(
         if name not in keep_report_names
     ]
     total_bytes = sum(int(item.get("size_bytes") or 0) for item in build_candidates + tmp_candidates + report_candidates)
-    return {
+    payload = {
         "mode": "dry_run",
         "script": "scripts/prune_state_retention.sh",
         "keep_builds": keep_builds,
@@ -2482,6 +2716,8 @@ def _retention_plan(
             "served/current is kept even if older than the keep window.",
         ],
     }
+    payload["candidate_hash"] = _retention_candidate_hash(payload)
+    return payload
 
 
 def _build_path_health(state_dir: Path) -> Dict[str, Any]:

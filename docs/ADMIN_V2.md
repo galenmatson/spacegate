@@ -70,6 +70,8 @@ Show:
 - API-derived next actions that point to predecessor/successor pipeline steps
 - retention dry-run planning with candidate paths, estimated reclaimable bytes,
   and an auditable dry-run job action
+- guarded retention apply that requires a recent matching dry-run, unchanged
+  candidate hash, explicit confirmation, and protected `served/current`
 
 Actions remain allowlisted jobs with confirmation phrases for high-risk steps.
 

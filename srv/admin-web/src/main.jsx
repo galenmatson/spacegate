@@ -56,7 +56,16 @@ const fallbackActionGuidance = {
     prerequisites: "Use after verification and after temporary outputs have been reviewed.",
     writes: "Admin job log only; it never passes --apply.",
     next: "Review the log and candidate list before any manual cleanup.",
-    warning: "The destructive apply path is intentionally not exposed in Admin.",
+    warning: "Read-only. Apply requires a separate high-risk action.",
+    duration: "Short",
+  },
+  retention_apply: {
+    group: "build",
+    purpose: "Deletes the exact retention candidate directories from a matching recent dry-run.",
+    prerequisites: "Run Retention Dry Run first, then confirm the candidate hash and paths have not changed.",
+    writes: "Only stale out/ and reports/ candidate directories. raw/, cooked/, and served/current are protected.",
+    next: "Refresh Builds and Runtime storage after completion.",
+    warning: "High-risk deletion action. Requires confirmation and a matching dry-run candidate hash.",
     duration: "Short",
   },
   score_coolness: {
@@ -150,7 +159,7 @@ const fallbackActionGroups = [
     key: "build",
     title: "Build Pipeline",
     description: "Build, verify, and publish deterministic science artifacts in order.",
-    actions: ["build_database", "verify_build", "publish_db"],
+    actions: ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"],
     sequence: ["Build Database", "Verify Build", "Publish Database", "Retention after verified promotion"],
   },
   {
@@ -726,7 +735,10 @@ function BuildsScreen({ csrf }) {
   const snapshot = currentBuild?.snapshot || {};
   const pathHealth = buildStatus.path_health || {};
   const nextActions = Array.isArray(buildStatus.next_actions) ? buildStatus.next_actions : [];
-  const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run"].map((name) => actionsByName.get(name)).filter(Boolean);
+  const retentionPlan = retention.dry_run || {};
+  const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"]
+    .map((name) => enrichBuildAction(actionsByName.get(name), retentionPlan))
+    .filter(Boolean);
   const kpis = [
     { label: "Served build", value: compactId(state.status?.build_id || served.build_id, 20) },
     { label: "Verification", value: readableStatus(verification.status || "unknown"), tone: statusTone(verification.status) },
@@ -838,6 +850,17 @@ function priorityTone(value) {
   if (priority === "high") return "danger";
   if (priority === "low") return "muted";
   return "warn";
+}
+
+function enrichBuildAction(action, retentionPlan) {
+  if (!action) return null;
+  if (!["retention_dry_run", "retention_apply"].includes(action.name)) return action;
+  const schema = { ...(action.params_schema || {}) };
+  if (schema.keep_builds) schema.keep_builds = { ...schema.keep_builds, default: retentionPlan.keep_builds ?? schema.keep_builds.default };
+  if (schema.keep_reports) schema.keep_reports = { ...schema.keep_reports, default: retentionPlan.keep_reports ?? schema.keep_reports.default };
+  if (schema.skip_tmp) schema.skip_tmp = { ...schema.skip_tmp, default: retentionPlan.prune_tmp === false };
+  if (schema.candidate_hash) schema.candidate_hash = { ...schema.candidate_hash, default: retentionPlan.candidate_hash || "" };
+  return { ...action, params_schema: schema };
 }
 
 function BuildArtifactPanel({ title, build }) {
@@ -1069,6 +1092,7 @@ function RetentionPlanPanel({ retention }) {
       <OverviewFact label="Candidates" value={`${formatInt(buildCandidates.length)} builds / ${formatInt(tmpCandidates.length)} tmp / ${formatInt(reportCandidates.length)} reports`} />
       <OverviewFact label="Estimated reclaimable" value={formatBytes(plan.estimated_reclaimable_bytes)} />
       <OverviewFact label="Served build protected" value={plan.served_build_id || "n/a"} />
+      <OverviewFact label="Candidate hash" value={plan.candidate_hash ? compactId(plan.candidate_hash, 18) : "n/a"} />
       {allCandidates.length ? (
         <table>
           <thead>
@@ -2737,6 +2761,7 @@ function ActionCard({ action, runAction, busy }) {
 }
 
 function ActionParamField({ name, spec, value, updateValue }) {
+  if (spec.hidden) return null;
   const label = spec.label || actionLabel(name);
   if (spec.type === "boolean") {
     return (
