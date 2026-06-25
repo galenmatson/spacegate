@@ -109,20 +109,27 @@ knowledge lives.
 
 Show:
 
-- system search by canonical name, alias, stable object key, or catalog id
+- system search by canonical name, alias, stable object key, catalog id,
+  `system <id>`, `star <id>`, or `planet <id>`
 - core identity, counts, coordinates, grouping basis, aliases, and provenance
 - member stars and planets with key scalar/orbital fields
+- direct star/planet focus diagnostics from member tables, including scalar
+  fields and provenance without leaving the system dossier
 - layer artifact paths for core, arm, and disc
 - provenance completeness checks for system, star, and planet rows
 - arm component, hierarchy, orbit-edge, orbital-solution, and stellar-parameter
   diagnostics
 - disc coolness score, snapshot manifest rows, public/API links, and artifact
   URLs
+- coolness explanation separating normalized feature values from weighted score
+  contributions
+- read-only node/edge relation diagram for arm containment and orbit edges
 - readiness status for public detail, coolness, snapshots, arm graph, orbital
   solutions, and provenance
 
-The first implementation is system-scoped. Direct star/planet diagnostics should
-reuse the same layer-aware structure after the system workflow is stable.
+The first implementation is still system-dossier scoped. Star and planet
+inspection reuses the selected system payload rather than introducing mutable
+object records or direct layer writes.
 
 ### Inference
 

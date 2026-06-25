@@ -421,6 +421,24 @@ h3 {
   font-size: 0.78rem;
 }
 
+.selected-row {
+  background: #eefdf9;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 700;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
 .readiness-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -454,6 +472,127 @@ h3 {
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--text);
+}
+
+.object-focus-panel {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.object-focus-panel .muted {
+  margin-bottom: 0;
+}
+
+.object-focus-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.object-details {
+  margin-top: 0.65rem;
+}
+
+.object-details summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.object-graph-wrap {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.object-graph {
+  width: 100%;
+  min-height: 330px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.object-graph-edge {
+  stroke: #64748b;
+  stroke-width: 1.4;
+}
+
+.object-graph-edge.orbit {
+  stroke: #0f766e;
+  stroke-dasharray: 6 4;
+}
+
+.object-graph-edge-label {
+  fill: var(--muted);
+  font-size: 10px;
+  paint-order: stroke;
+  stroke: #f8fafc;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.object-graph-node circle {
+  fill: #ffffff;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+}
+
+.object-graph-node.system circle {
+  fill: #ecfeff;
+  stroke: var(--brand);
+}
+
+.object-graph-node.star circle {
+  fill: #fff7ed;
+  stroke: #c2410c;
+}
+
+.object-graph-node.planet circle,
+.object-graph-node.subplanet circle,
+.object-graph-node.moon circle {
+  fill: #eff6ff;
+  stroke: #2563eb;
+}
+
+.object-graph-node-type {
+  fill: var(--muted);
+  font-size: 9px;
+  text-anchor: middle;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.object-graph-node-label {
+  fill: var(--text);
+  font-size: 10px;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #f8fafc;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 1.8rem;
+  height: 0;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  border-top: 2px solid #64748b;
+}
+
+.legend-swatch.orbit {
+  border-top-style: dashed;
+  border-top-color: var(--brand);
 }
 
 .dataset-grid {
@@ -1534,6 +1673,9 @@ th {
   .filter-grid,
   .log-controls,
   .log-summary-grid,
+  .object-focus-grid,
+  .object-layout,
+  .object-search,
   .inference-eval-grid,
   .role-grid,
   .smoke-grid,

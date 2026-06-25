@@ -194,11 +194,14 @@ Response:
 Searches systems for the Admin Object Diagnostics workspace.
 
 Query params:
-- `q` optional system name, alias, catalog id, stable key, or `system <id>`
+- `q` optional system name, alias, catalog id, stable key, `system <id>`,
+  `star <id>`, or `planet <id>`
 - `limit` optional result limit, default 20, max 50
 
 Response includes candidate systems from the current served core projection plus
-disc snapshot URL hints when available.
+disc snapshot URL hints when available. Exact `star <id>` and `planet <id>`
+queries return the owning system candidate with a `diagnostic_focus` hint for
+Admin clients.
 
 Response:
 - `200` for authenticated admins.
@@ -212,7 +215,7 @@ Includes:
 - public system detail payload reused from the v1 system detail contract
 - core identity, aliases, stars, planets, eclipsing binaries, and hierarchy
 - provenance completeness diagnostics for system/star/planet rows
-- disc coolness and snapshot manifest rows
+- disc coolness, coolness contribution explanation, and snapshot manifest rows
 - arm component, hierarchy-edge, orbit-edge, orbital-solution, and
   stellar-parameter diagnostics
 - readiness rows for public detail, coolness, snapshots, arm graph, orbital
@@ -220,8 +223,9 @@ Includes:
 
 Notes:
 - This endpoint does not mutate core, arm, disc, or rim.
-- The first implementation is system-scoped; direct star/planet diagnostics are
-  expected to reuse this layer-aware structure.
+- The endpoint is system-dossier scoped. Admin clients may provide direct
+  star/planet focus views from the returned member rows without introducing
+  object mutations or cross-layer writes.
 
 Response:
 - `200` for authenticated admins.

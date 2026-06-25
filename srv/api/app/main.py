@@ -285,6 +285,36 @@ def _provenance_diagnostics(objects: List[Dict[str, Any]], object_type: str, id_
     }
 
 
+def _coolness_explanation_from_row(row: Dict[str, Any]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for weight_key, feature_column in COOLNESS_WEIGHT_KEYS:
+        feature_value = row.get(feature_column)
+        score_value = row.get(f"score_{weight_key}")
+        weight_value: Optional[float] = None
+        try:
+            if feature_value is not None and score_value is not None and float(feature_value) != 0:
+                weight_value = float(score_value) / float(feature_value)
+        except Exception:
+            weight_value = None
+        out.append(
+            {
+                "key": weight_key,
+                "feature_column": feature_column,
+                "score_column": f"score_{weight_key}",
+                "feature_value": feature_value,
+                "score_contribution": score_value,
+                "effective_weight": weight_value,
+            }
+        )
+    out.sort(
+        key=lambda item: (
+            -float(item.get("score_contribution") or 0.0),
+            str(item.get("key") or ""),
+        )
+    )
+    return out
+
+
 def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
     disc_path_raw = _resolve_disc_db_path()
     output: Dict[str, Any] = {
@@ -327,6 +357,7 @@ def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
                         for key in row
                         if key.endswith("_feature") or key.endswith("_score")
                     },
+                    "explanation": _coolness_explanation_from_row(row),
                 }
         if _duckdb_has_table(con, "snapshot_manifest"):
             rows = _rows_to_dicts(
@@ -4044,14 +4075,28 @@ def admin_objects_search(
     q_norm = normalize_query_text(q or "")
     id_query = parse_identifier_query(q_norm)
     system_id_exact: Optional[int] = None
+    diagnostic_focus: Optional[Dict[str, Any]] = None
     system_id_match = re.match(r"^(?:system|sys)\s+(\d+)$", q_norm or "")
     if system_id_match:
         try:
             system_id_exact = int(system_id_match.group(1))
         except ValueError:
             system_id_exact = None
+    object_id_match = re.match(r"^(star|planet)\s+(\d+)$", q_norm or "")
     started_at = datetime.datetime.utcnow()
     with db.connection_scope() as con:
+        if system_id_exact is None and object_id_match:
+            object_type = object_id_match.group(1)
+            object_id = int(object_id_match.group(2))
+            table_name = "stars" if object_type == "star" else "planets"
+            id_column = "star_id" if object_type == "star" else "planet_id"
+            row = con.execute(
+                f"SELECT system_id FROM {table_name} WHERE {id_column} = ? LIMIT 1",
+                [object_id],
+            ).fetchone()
+            if row:
+                system_id_exact = int(row[0])
+                diagnostic_focus = {"type": object_type, "id": object_id}
         rows, total_count = search_systems(
             con,
             q_norm=q_norm or None,
@@ -4081,6 +4126,8 @@ def admin_objects_search(
         )
     for item in rows:
         _attach_snapshot_url(item)
+        if diagnostic_focus and item.get("system_id") == system_id_exact:
+            item["diagnostic_focus"] = diagnostic_focus
     duration_ms = max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000))
     return {
         "items": rows[:limit],
