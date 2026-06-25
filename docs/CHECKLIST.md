@@ -161,7 +161,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Admin v2 React Dataset workspace first pass (science shape, source contribution, quality, runtime)
 - [x] Admin v2 React Runtime workspace first pass (paths, storage, auth, config, process, endpoint diagnostics)
 - [x] Admin v2 React Agency workspace first pass (portfolio flow, storage readiness, eval anomalies, interaction model)
-- [x] Admin v2 Object Diagnostics first pass with system dossiers, member focus diagnostics, coolness contribution explanation, and read-only relation diagram
+- [x] Admin v2 Object Diagnostics first pass with system dossiers, member/component focus diagnostics, coolness contribution explanation, and read-only relation diagram
 - [x] Evidence Portfolio admin persistence schema and read API baseline
 - [x] Evidence Portfolio seed workflow from current coolness-ranked systems with first journal entry
 - [ ] Retire embedded FastAPI Admin UI after React workspace parity

@@ -216,7 +216,7 @@ Includes:
 - core identity, aliases, stars, planets, eclipsing binaries, and hierarchy
 - provenance completeness diagnostics for system/star/planet rows
 - disc coolness, coolness contribution explanation, and snapshot manifest rows
-- arm component, hierarchy-edge, orbit-edge, orbital-solution, and
+- expanded arm component, hierarchy-edge, orbit-edge, orbital-solution, and
   stellar-parameter diagnostics
 - readiness rows for public detail, coolness, snapshots, arm graph, orbital
   solutions, and provenance
@@ -224,8 +224,11 @@ Includes:
 Notes:
 - This endpoint does not mutate core, arm, disc, or rim.
 - The endpoint is system-dossier scoped. Admin clients may provide direct
-  star/planet focus views from the returned member rows without introducing
-  object mutations or cross-layer writes.
+  star/planet/component focus views from the returned member and arm rows
+  without introducing object mutations or cross-layer writes.
+- `diagnostics.arm.components.items` includes core-linked components plus
+  connected parent/child endpoint components referenced by returned hierarchy
+  edges, such as moons, minor bodies, and artificial objects.
 
 Response:
 - `200` for authenticated admins.

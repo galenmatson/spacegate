@@ -405,6 +405,8 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
     con = None
     try:
         con = duckdb.connect(str(arm_path_raw), read_only=True)
+        component_rows: List[Dict[str, Any]] = []
+        component_by_key: Dict[str, Dict[str, Any]] = {}
         component_filters = ["(core_object_type = 'system' AND core_object_id = ?)"]
         component_params: List[Any] = [int(system.get("system_id"))]
         if star_ids:
@@ -418,18 +420,25 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
             rows = _rows_to_dicts(
                 con.execute(
                     f"""
-                    SELECT stable_component_key, component_type, core_object_type, core_object_id,
-                           display_name, catalog_component_label, source_catalog
+                    SELECT component_entity_id, stable_component_key, component_type,
+                           core_object_type, core_object_id, display_name,
+                           catalog_component_label, ra_deg, dec_deg, dist_pc,
+                           source_catalog, source_version, source_pk
                     FROM component_entities
                     WHERE {' OR '.join(component_filters)}
                     ORDER BY component_type ASC, display_name ASC
-                    LIMIT 80
+                    LIMIT 120
                     """,
                     component_params,
                 )
             )
-            component_keys = [str(row.get("stable_component_key")) for row in rows if row.get("stable_component_key")]
-            output["components"] = {"count": len(rows), "items": rows[:30]}
+            for row in rows:
+                key = str(row.get("stable_component_key") or "")
+                if not key or key in component_by_key:
+                    continue
+                component_by_key[key] = row
+                component_rows.append(row)
+            component_keys = list(component_by_key.keys())
         if component_keys and _duckdb_has_table(con, "system_hierarchy_edges"):
             placeholders = ",".join(["?"] * len(component_keys))
             rows = _rows_to_dicts(
@@ -446,7 +455,45 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                     [*component_keys, *component_keys],
                 )
             )
-            output["hierarchy_edges"] = {"count": len(rows), "items": rows[:30]}
+            output["hierarchy_edges"] = {"count": len(rows), "items": rows[:120]}
+            connected_keys = set(component_keys)
+            for row in rows:
+                for key_name in ("parent_component_key", "child_component_key"):
+                    key = str(row.get(key_name) or "")
+                    if key:
+                        connected_keys.add(key)
+            missing_keys = sorted(key for key in connected_keys if key not in component_by_key)
+            if missing_keys and _duckdb_has_table(con, "component_entities"):
+                placeholders = ",".join(["?"] * len(missing_keys))
+                extra_rows = _rows_to_dicts(
+                    con.execute(
+                        f"""
+                        SELECT component_entity_id, stable_component_key, component_type,
+                               core_object_type, core_object_id, display_name,
+                               catalog_component_label, ra_deg, dec_deg, dist_pc,
+                               source_catalog, source_version, source_pk
+                        FROM component_entities
+                        WHERE stable_component_key IN ({placeholders})
+                        ORDER BY component_type ASC, display_name ASC
+                        LIMIT 160
+                        """,
+                        missing_keys,
+                    )
+                )
+                for row in extra_rows:
+                    key = str(row.get("stable_component_key") or "")
+                    if not key or key in component_by_key:
+                        continue
+                    component_by_key[key] = row
+                    component_rows.append(row)
+            component_rows.sort(
+                key=lambda row: (
+                    str(row.get("component_type") or ""),
+                    str(row.get("display_name") or row.get("stable_component_key") or ""),
+                )
+            )
+            component_keys = list(component_by_key.keys())
+        output["components"] = {"count": len(component_rows), "items": component_rows[:120]}
         orbit_edge_ids: List[int] = []
         if component_keys and _duckdb_has_table(con, "orbit_edges"):
             placeholders = ",".join(["?"] * len(component_keys))

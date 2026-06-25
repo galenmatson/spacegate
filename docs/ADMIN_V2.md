@@ -113,8 +113,12 @@ Show:
   `system <id>`, `star <id>`, or `planet <id>`
 - core identity, counts, coordinates, grouping basis, aliases, and provenance
 - member stars and planets with key scalar/orbital fields
+- arm-only components such as moons, minor bodies, artificial objects, and
+  future exomoon candidates when they are present in `arm.component_entities`
 - direct star/planet focus diagnostics from member tables, including scalar
   fields and provenance without leaving the system dossier
+- direct component focus diagnostics from member tables, graph nodes, and
+  parent/child relation links
 - layer artifact paths for core, arm, and disc
 - provenance completeness checks for system, star, and planet rows
 - arm component, hierarchy, orbit-edge, orbital-solution, and stellar-parameter
@@ -123,13 +127,15 @@ Show:
   URLs
 - coolness explanation separating normalized feature values from weighted score
   contributions
-- read-only node/edge relation diagram for arm containment and orbit edges
+- read-only, clickable node/edge relation diagram for arm containment and orbit
+  edges, with common-name labels when available
 - readiness status for public detail, coolness, snapshots, arm graph, orbital
   solutions, and provenance
 
 The first implementation is still system-dossier scoped. Star and planet
-inspection reuses the selected system payload rather than introducing mutable
-object records or direct layer writes.
+inspection reuses the selected system payload, and arm-only component
+inspection reuses immutable component/edge rows, rather than introducing
+mutable object records or direct layer writes.
 
 ### Inference
 

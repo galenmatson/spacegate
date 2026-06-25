@@ -2114,7 +2114,7 @@ function ObjectDiagnosticsScreen() {
             ))}
           </div>
 
-          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} />
+          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} arm={arm} onSelectObject={setSelectedObject} />
 
           <div className="tab-row">
             {[
@@ -2134,9 +2134,9 @@ function ObjectDiagnosticsScreen() {
           ) : activeTab === "layers" ? (
             <ObjectLayersTab detail={detail} />
           ) : activeTab === "members" ? (
-            <ObjectMembersTab stars={stars} planets={planets} selectedObject={selectedObject} onSelectObject={setSelectedObject} />
+            <ObjectMembersTab stars={stars} planets={planets} arm={arm} selectedObject={selectedObject} onSelectObject={setSelectedObject} />
           ) : activeTab === "graph" ? (
-            <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} system={system} />
+            <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} system={system} selectedObject={selectedObject} onSelectObject={setSelectedObject} />
           ) : activeTab === "presentation" ? (
             <ObjectPresentationTab disc={disc} system={system} />
           ) : (
@@ -2166,11 +2166,19 @@ function resolveObjectFocus(detail, focus) {
   return null;
 }
 
-function ObjectFocusPanel({ object }) {
+function ObjectFocusPanel({ object, arm, onSelectObject }) {
   const type = object?.type || "system";
   const data = object?.data || {};
-  const name = data.display_name || data.system_name || data.star_name || data.planet_name || data.stable_object_key || "Selected object";
-  const idValue = type === "star" ? data.star_id : type === "planet" ? data.planet_id : data.system_id;
+  const name = objectDisplayName(type, data);
+  const componentKey = focusComponentKey(object, arm);
+  const relations = objectComponentRelations(componentKey, arm);
+  const idValue = type === "star"
+    ? data.star_id
+    : type === "planet"
+      ? data.planet_id
+      : type === "component"
+        ? compactId(data.stable_component_key, 24)
+        : data.system_id;
   return (
     <section className="panel object-focus-panel">
       <div className="panel-head">
@@ -2187,11 +2195,40 @@ function ObjectFocusPanel({ object }) {
           <ObjectKeyValueTable payload={data.provenance || {}} />
         </div>
       </div>
+      {componentKey ? (
+        <div className="object-focus-grid">
+          <ObjectRelationList
+            title="Contained Components"
+            rows={relations.children}
+            empty="No child components are linked to this object in arm.system_hierarchy_edges."
+            onSelectObject={onSelectObject}
+          />
+          <ObjectRelationList
+            title="Containing Components"
+            rows={relations.parents}
+            empty="No parent component is linked to this object in arm.system_hierarchy_edges."
+            onSelectObject={onSelectObject}
+          />
+        </div>
+      ) : null}
     </section>
   );
 }
 
 function objectFocusSummary(type, data) {
+  if (type === "component") {
+    return {
+      display_name: data.display_name,
+      stable_component_key: data.stable_component_key,
+      component_type: data.component_type,
+      core_object_type: data.core_object_type,
+      core_object_id: data.core_object_id,
+      catalog_component_label: data.catalog_component_label,
+      source_catalog: data.source_catalog,
+      source_version: data.source_version,
+      source_pk: data.source_pk,
+    };
+  }
   if (type === "star") {
     return {
       display_name: data.display_name || data.star_name,
@@ -2205,6 +2242,7 @@ function objectFocusSummary(type, data) {
       radius_rsun: data.radius_rsun,
       luminosity_lsun: data.luminosity_lsun,
       arm_catalogs: data.arm_catalogs,
+      arm_component_key: data.arm_component?.stable_component_key,
       source_catalog: data.source_catalog,
     };
   }
@@ -2221,6 +2259,7 @@ function objectFocusSummary(type, data) {
       eq_temp_k: data.eq_temp_k,
       discovery_method: data.discovery_method,
       lifecycle_status: data.lifecycle_status,
+      arm_component_key: data.arm_component?.stable_component_key,
       source_catalog: data.source_catalog,
     };
   }
@@ -2236,7 +2275,93 @@ function objectFocusSummary(type, data) {
     grouping_confidence: data.grouping_confidence,
     star_count: data.star_count,
     planet_count: data.planet_count,
+    arm_component_key: data.arm_component?.stable_component_key,
   };
+}
+
+function objectDisplayName(type, data) {
+  if (type === "component") return componentDisplayLabel(data);
+  return data.display_name || data.system_name || data.star_name || data.planet_name || data.stable_object_key || "Selected object";
+}
+
+function componentDisplayLabel(component) {
+  const displayName = String(component?.display_name || "").trim();
+  if (displayName) return displayName;
+  const label = String(component?.catalog_component_label || "").trim();
+  if (label) return label;
+  const key = String(component?.stable_component_key || "").trim();
+  if (!key) return "Component";
+  const tail = key.split(":").filter(Boolean).pop() || key;
+  return actionLabel(tail.replaceAll("-", "_"));
+}
+
+function componentByKey(arm) {
+  const out = new Map();
+  (arm?.components?.items || []).forEach((component) => {
+    if (component?.stable_component_key) out.set(String(component.stable_component_key), component);
+  });
+  return out;
+}
+
+function componentForCoreObject(arm, coreObjectType, coreObjectId) {
+  const targetId = Number(coreObjectId);
+  if (!coreObjectType || !Number.isFinite(targetId)) return null;
+  return (arm?.components?.items || []).find((component) => (
+    String(component.core_object_type || "") === String(coreObjectType)
+    && Number(component.core_object_id) === targetId
+  )) || null;
+}
+
+function focusComponentKey(object, arm) {
+  const type = object?.type || "";
+  const data = object?.data || {};
+  if (type === "component") return data.stable_component_key || "";
+  if (data.arm_component?.stable_component_key) return data.arm_component.stable_component_key;
+  if (type === "star") return componentForCoreObject(arm, "star", data.star_id)?.stable_component_key || "";
+  if (type === "planet") return componentForCoreObject(arm, "planet", data.planet_id)?.stable_component_key || "";
+  if (type === "system") return componentForCoreObject(arm, "system", data.system_id)?.stable_component_key || "";
+  return "";
+}
+
+function objectComponentRelations(componentKey, arm) {
+  const key = String(componentKey || "");
+  const byKey = componentByKey(arm);
+  const toRelation = (edge, direction) => {
+    const relatedKey = direction === "child" ? edge.child_component_key : edge.parent_component_key;
+    return {
+      edge,
+      component: byKey.get(String(relatedKey || "")) || { stable_component_key: relatedKey },
+    };
+  };
+  const edges = arm?.hierarchy_edges?.items || [];
+  return {
+    children: edges.filter((edge) => String(edge.parent_component_key || "") === key).map((edge) => toRelation(edge, "child")),
+    parents: edges.filter((edge) => String(edge.child_component_key || "") === key).map((edge) => toRelation(edge, "parent")),
+  };
+}
+
+function ObjectRelationList({ title, rows, empty, onSelectObject }) {
+  const items = Array.isArray(rows) ? rows : [];
+  return (
+    <div>
+      <h3>{title}</h3>
+      {items.length ? (
+        <div className="component-link-list">
+          {items.map(({ component, edge }, index) => (
+            <button
+              className="component-link-row"
+              key={`${component.stable_component_key}-${index}`}
+              type="button"
+              onClick={() => onSelectObject?.({ type: "component", data: component })}
+            >
+              <strong>{componentDisplayLabel(component)}</strong>
+              <span>{component.component_type || "component"} | {edge.edge_kind || "edge"} | {edge.confidence_tier || "unknown"}</span>
+            </button>
+          ))}
+        </div>
+      ) : <div className="empty">{empty}</div>}
+    </div>
+  );
 }
 
 function ObjectOverviewTab({ detail }) {
@@ -2330,9 +2455,11 @@ function ObjectLayersTab({ detail }) {
   );
 }
 
-function ObjectMembersTab({ stars, planets, selectedObject, onSelectObject }) {
+function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject }) {
   const selectedType = selectedObject?.type;
-  const selectedId = selectedObject?.data?.star_id || selectedObject?.data?.planet_id;
+  const selectedId = selectedObject?.data?.star_id || selectedObject?.data?.planet_id || selectedObject?.data?.stable_component_key;
+  const components = arm?.components?.items || [];
+  const armOnlyComponents = components.filter((component) => !["system", "star", "planet"].includes(String(component.core_object_type || "")));
   return (
     <section className="dataset-grid">
       <div className="panel">
@@ -2344,7 +2471,7 @@ function ObjectMembersTab({ stars, planets, selectedObject, onSelectObject }) {
               {stars.slice(0, 40).map((star) => (
                 <tr className={selectedType === "star" && selectedId === star.star_id ? "selected-row" : ""} key={star.star_id}>
                   <td>
-                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "star", data: star })}>
+                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "star", data: { ...star, arm_component: componentForCoreObject(arm, "star", star.star_id) } })}>
                       {star.display_name || star.star_name || star.stable_object_key}
                     </button>
                   </td>
@@ -2367,7 +2494,7 @@ function ObjectMembersTab({ stars, planets, selectedObject, onSelectObject }) {
               {planets.slice(0, 40).map((planet) => (
                 <tr className={selectedType === "planet" && selectedId === planet.planet_id ? "selected-row" : ""} key={planet.planet_id}>
                   <td>
-                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "planet", data: planet })}>
+                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "planet", data: { ...planet, arm_component: componentForCoreObject(arm, "planet", planet.planet_id) } })}>
                       {planet.planet_name || planet.stable_object_key}
                     </button>
                   </td>
@@ -2381,16 +2508,38 @@ function ObjectMembersTab({ stars, planets, selectedObject, onSelectObject }) {
           </table>
         ) : <div className="empty">No planets returned.</div>}
       </div>
+      <div className="panel">
+        <h2>Arm Components</h2>
+        {armOnlyComponents.length ? (
+          <table>
+            <thead><tr><th>Name</th><th>Type</th><th>Core Link</th><th>Source</th></tr></thead>
+            <tbody>
+              {armOnlyComponents.slice(0, 120).map((component) => (
+                <tr className={selectedType === "component" && selectedId === component.stable_component_key ? "selected-row" : ""} key={component.stable_component_key}>
+                  <td>
+                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "component", data: component })}>
+                      {componentDisplayLabel(component)}
+                    </button>
+                  </td>
+                  <td>{component.component_type || "component"}</td>
+                  <td>{component.core_object_type ? `${component.core_object_type} ${component.core_object_id || ""}` : "arm only"}</td>
+                  <td>{component.source_catalog || "n/a"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty">No non-core arm components returned. Moons, minor bodies, and artificial objects appear here when present.</div>}
+      </div>
     </section>
   );
 }
 
-function ObjectGraphTab({ arm, hierarchy, system }) {
+function ObjectGraphTab({ arm, hierarchy, system, selectedObject, onSelectObject }) {
   return (
     <section className="runbook-grid">
       <div className="panel">
         <h2>Relation Diagram</h2>
-        <ObjectRelationGraph arm={arm} system={system} />
+        <ObjectRelationGraph arm={arm} system={system} selectedObject={selectedObject} onSelectObject={onSelectObject} />
       </div>
       <div className="panel">
         <h2>Hierarchy Summary</h2>
@@ -2416,8 +2565,9 @@ function ObjectGraphTab({ arm, hierarchy, system }) {
   );
 }
 
-function ObjectRelationGraph({ arm, system }) {
+function ObjectRelationGraph({ arm, system, selectedObject, onSelectObject }) {
   const graph = buildObjectRelationGraph(arm, system);
+  const selectedKey = focusComponentKey(selectedObject, arm);
   if (!graph.nodes.length) return <div className="empty">No arm component rows are available for a relation diagram.</div>;
   return (
     <div className="object-graph-wrap">
@@ -2441,7 +2591,21 @@ function ObjectRelationGraph({ arm, system }) {
           </g>
         ))}
         {graph.nodes.map((node) => (
-          <g className={`object-graph-node ${node.kind}`} key={node.key} transform={`translate(${node.x} ${node.y})`}>
+          <g
+            className={`object-graph-node ${node.kind} ${selectedKey === node.key ? "selected" : ""}`}
+            key={node.key}
+            transform={`translate(${node.x} ${node.y})`}
+            onClick={() => onSelectObject?.({ type: "component", data: node.component || { stable_component_key: node.key, component_type: node.kind, display_name: node.label } })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelectObject?.({ type: "component", data: node.component || { stable_component_key: node.key, component_type: node.kind, display_name: node.label } });
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <title>{node.label}</title>
             <circle r="22" />
             <text className="object-graph-node-type" y="-2">{node.shortType}</text>
             <text className="object-graph-node-label" y="38">{compactId(node.label, 20)}</text>
@@ -2462,13 +2626,22 @@ function buildObjectRelationGraph(arm, system) {
   const addNode = (key, payload = {}) => {
     const cleanKey = String(key || "").trim();
     if (!cleanKey) return null;
+    const label = componentDisplayLabel({ ...payload, stable_component_key: cleanKey });
+    const kind = payload.component_type || payload.core_object_type || "component";
     if (!nodesByKey.has(cleanKey)) {
       nodesByKey.set(cleanKey, {
         key: cleanKey,
-        label: payload.display_name || payload.catalog_component_label || cleanKey,
-        kind: payload.component_type || payload.core_object_type || "component",
-        shortType: graphTypeLabel(payload.component_type || payload.core_object_type || "node"),
+        label,
+        kind,
+        shortType: graphTypeLabel(kind),
+        component: payload,
       });
+    } else {
+      const existing = nodesByKey.get(cleanKey);
+      if (label && existing.label === componentDisplayLabel({ stable_component_key: cleanKey })) existing.label = label;
+      if (payload.component_type || payload.core_object_type) existing.kind = kind;
+      existing.shortType = graphTypeLabel(existing.kind);
+      existing.component = { ...(existing.component || {}), ...payload, stable_component_key: cleanKey };
     }
     return nodesByKey.get(cleanKey);
   };
@@ -2489,12 +2662,22 @@ function buildObjectRelationGraph(arm, system) {
     const to = addNode(toKey);
     if (from && to) rawEdges.push({ id: `o-${index}`, from: from.key, to: to.key, kind: "orbit", label: edge.relation_kind || "orbits" });
   });
-  const nodes = Array.from(nodesByKey.values()).slice(0, 36);
+  const tiers = ["system", "star", "main_sequence", "brown_dwarf", "compact", "planet", "subplanet", "moon", "minor_body", "artificial", "unresolved_component", "component"];
+  const tierIndexFor = (kind) => {
+    const index = tiers.indexOf(String(kind || ""));
+    return index >= 0 ? index : tiers.length - 1;
+  };
+  const nodes = Array.from(nodesByKey.values())
+    .sort((a, b) => {
+      const tierDelta = tierIndexFor(a.kind) - tierIndexFor(b.kind);
+      if (tierDelta !== 0) return tierDelta;
+      return String(a.label || "").localeCompare(String(b.label || ""));
+    })
+    .slice(0, 48);
   const visible = new Set(nodes.map((node) => node.key));
-  const tiers = ["system", "star", "brown_dwarf", "compact", "planet", "subplanet", "moon", "minor_body", "artificial", "unresolved_component", "component"];
   const grouped = new Map();
   nodes.forEach((node) => {
-    const tierIndex = tiers.includes(node.kind) ? tiers.indexOf(node.kind) : tiers.length - 1;
+    const tierIndex = tierIndexFor(node.kind);
     if (!grouped.has(tierIndex)) grouped.set(tierIndex, []);
     grouped.get(tierIndex).push(node);
   });
@@ -2519,8 +2702,15 @@ function buildObjectRelationGraph(arm, system) {
 
 function graphTypeLabel(value) {
   const text = String(value || "node");
-  if (text === "unresolved_component") return "unres";
-  return text.slice(0, 5);
+  if (text === "system") return "SYS";
+  if (text === "star" || text === "main_sequence") return "STAR";
+  if (text === "planet") return "PLN";
+  if (text === "subplanet") return "SUB";
+  if (text === "moon") return "MOON";
+  if (text === "minor_body") return "MNR";
+  if (text === "artificial") return "ASO";
+  if (text === "unresolved_component") return "UNR";
+  return text.slice(0, 3).toUpperCase();
 }
 
 function ObjectPresentationTab({ disc, system }) {

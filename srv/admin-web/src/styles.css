@@ -500,6 +500,34 @@ h3 {
   font-weight: 700;
 }
 
+.component-link-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.component-link-row {
+  display: grid;
+  gap: 0.12rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.component-link-row:hover {
+  border-color: var(--brand);
+  background: #eefdf9;
+}
+
+.component-link-row span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .object-graph-wrap {
   display: grid;
   gap: 0.55rem;
@@ -538,6 +566,10 @@ h3 {
   stroke-width: 1.5;
 }
 
+.object-graph-node {
+  cursor: pointer;
+}
+
 .object-graph-node.system circle {
   fill: #ecfeff;
   stroke: var(--brand);
@@ -555,9 +587,14 @@ h3 {
   stroke: #2563eb;
 }
 
+.object-graph-node.selected circle {
+  stroke: var(--brand);
+  stroke-width: 3;
+}
+
 .object-graph-node-type {
   fill: var(--muted);
-  font-size: 9px;
+  font-size: 7px;
   text-anchor: middle;
   text-transform: uppercase;
   font-weight: 800;
