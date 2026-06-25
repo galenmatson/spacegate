@@ -499,6 +499,17 @@ h3 {
   margin-top: 0.12rem;
 }
 
+.readiness-row span strong {
+  color: var(--text);
+}
+
+.readiness-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .kv-table th {
   width: 34%;
   color: var(--muted);
@@ -568,6 +579,58 @@ h3 {
 .component-link-row span {
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.object-members-layout {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.component-group-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.component-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.component-group summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  padding: 0.55rem 0.7rem;
+  font-weight: 800;
+}
+
+.component-group table {
+  border-top: 1px solid var(--border);
+}
+
+.object-inline-list {
+  overflow-wrap: anywhere;
+}
+
+.object-nested-list {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.object-nested-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.28fr) minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: start;
+}
+
+.object-nested-row strong {
+  color: var(--muted);
 }
 
 .object-graph-wrap {
@@ -1753,6 +1816,7 @@ th {
   .log-controls,
   .log-summary-grid,
   .object-focus-grid,
+  .object-nested-row,
   .object-layout,
   .object-search,
   .inference-eval-grid,

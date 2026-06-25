@@ -1009,7 +1009,7 @@ function statusTone(value) {
   const status = String(value || "").toLowerCase();
   if (["ok", "passed", "passed_reports", "generated", "reused", "present", "ready"].includes(status)) return "ok";
   if (["failed", "error", "parse_error", "missing_reports"].includes(status)) return "danger";
-  if (["unknown", "", "null_result"].includes(status)) return "muted";
+  if (["unknown", "", "null_result", "not_applicable"].includes(status)) return "muted";
   return "warn";
 }
 
@@ -2126,8 +2126,13 @@ function ObjectDiagnosticsScreen() {
                 <div className="readiness-row" key={item.key}>
                   <span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span>
                   <div>
-                    <strong>{item.label}</strong>
+                    <div className="readiness-title">
+                      <strong>{item.label}</strong>
+                      {item.workspace ? <span className="badge muted">{item.workspace}</span> : null}
+                    </div>
                     <span>{item.detail}</span>
+                    {item.why ? <span><strong>Why:</strong> {item.why}</span> : null}
+                    {item.next_action ? <span><strong>Next:</strong> {item.next_action}</span> : null}
                   </div>
                 </div>
               ))}
@@ -2646,10 +2651,10 @@ function ObjectLayersTab({ detail }) {
 function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject }) {
   const selectedType = selectedObject?.type;
   const selectedId = selectedObject?.data?.star_id || selectedObject?.data?.planet_id || selectedObject?.data?.stable_component_key;
-  const components = arm?.components?.items || [];
   const armOnlyComponents = orderedArmOnlyComponents(arm);
+  const componentGroups = groupedArmOnlyComponents(armOnlyComponents);
   return (
-    <section className="dataset-grid">
+    <section className="object-members-layout">
       <div className="panel">
         <h2>Stars</h2>
         {stars.length ? (
@@ -2697,29 +2702,88 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
         ) : <div className="empty">No planets returned.</div>}
       </div>
       <div className="panel">
-        <h2>Arm Components</h2>
-        {armOnlyComponents.length ? (
-          <table>
-            <thead><tr><th>Name</th><th>Type</th><th>Core Link</th><th>Distance</th><th>Source</th></tr></thead>
-            <tbody>
-              {armOnlyComponents.slice(0, 120).map((component) => (
-                <tr className={selectedType === "component" && selectedId === component.stable_component_key ? "selected-row" : ""} key={component.stable_component_key}>
-                  <td>
-                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "component", data: component })}>
-                      {component.depth ? `${"\u00a0\u00a0".repeat(Math.min(component.depth, 4))}${componentDisplayLabel(component)}` : componentDisplayLabel(component)}
-                    </button>
-                  </td>
-                  <td>{component.component_type || "component"}</td>
-                  <td>{component.core_object_type ? `${component.core_object_type} ${component.core_object_id || ""}` : "arm only"}</td>
-                  <td>{Number.isFinite(Number(component.sort_distance_au)) ? `${formatFloat(component.sort_distance_au, 4)} au` : ""}</td>
-                  <td>{component.source_catalog || "n/a"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="panel-head">
+          <div>
+            <h2>Arm Components</h2>
+            <p className="muted">Supplemental components from arm, grouped for navigation and sorted by hierarchy and distance where available.</p>
+          </div>
+          <span className="badge muted">{formatInt(armOnlyComponents.length)} rows</span>
+        </div>
+        {componentGroups.length ? (
+          <div className="component-group-list">
+            {componentGroups.map((group) => (
+              <details
+                className="component-group"
+                key={group.key}
+                defaultOpen={group.rows.some((component) => selectedType === "component" && selectedId === component.stable_component_key) || group.defaultOpen}
+              >
+                <summary>
+                  <span>{group.label}</span>
+                  <span className="badge muted">{formatInt(group.rows.length)}</span>
+                </summary>
+                <ComponentGroupTable
+                  rows={group.rows}
+                  selectedType={selectedType}
+                  selectedId={selectedId}
+                  onSelectObject={onSelectObject}
+                />
+              </details>
+            ))}
+          </div>
         ) : <div className="empty">No non-core arm components returned. Moons, minor bodies, and artificial objects appear here when present.</div>}
       </div>
     </section>
+  );
+}
+
+function groupedArmOnlyComponents(components) {
+  const labels = {
+    moon: "Moons",
+    subplanet: "Dwarf Planets / Subplanets",
+    minor_body: "Minor Bodies",
+    artificial: "Artificial Objects",
+    region: "Regions",
+    unresolved_component: "Unresolved Components",
+  };
+  const order = ["moon", "subplanet", "minor_body", "artificial", "region", "unresolved_component", "other"];
+  const groups = new Map();
+  (components || []).forEach((component) => {
+    const type = String(component?.component_type || "other");
+    const key = labels[type] ? type : "other";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label: labels[key] || "Other Arm Components",
+        rows: [],
+        defaultOpen: ["moon", "subplanet"].includes(key),
+      });
+    }
+    groups.get(key).rows.push(component);
+  });
+  return Array.from(groups.values()).sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+}
+
+function ComponentGroupTable({ rows, selectedType, selectedId, onSelectObject }) {
+  return (
+    <table>
+      <thead><tr><th>Name</th><th>Parent</th><th>Type</th><th>Core Link</th><th>Distance</th><th>Source</th></tr></thead>
+      <tbody>
+        {rows.map((component) => (
+          <tr className={selectedType === "component" && selectedId === component.stable_component_key ? "selected-row" : ""} key={component.stable_component_key}>
+            <td>
+              <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "component", data: component })}>
+                {component.depth ? `${"\u00a0\u00a0".repeat(Math.min(component.depth, 4))}${componentDisplayLabel(component)}` : componentDisplayLabel(component)}
+              </button>
+            </td>
+            <td>{component.parent_display_name || "n/a"}</td>
+            <td>{component.component_type || "component"}</td>
+            <td>{component.core_object_type ? `${component.core_object_type} ${component.core_object_id || ""}` : "arm only"}</td>
+            <td>{Number.isFinite(Number(component.sort_distance_au)) ? `${formatFloat(component.sort_distance_au, 4)} au` : ""}</td>
+            <td>{component.source_catalog || "n/a"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -2728,12 +2792,14 @@ function orderedArmOnlyComponents(arm) {
     .filter((component) => !["system", "star", "planet"].includes(String(component.core_object_type || "")));
   const byKey = componentByKey(arm);
   const childMap = new Map();
+  const parentMap = new Map();
   (arm?.hierarchy_edges?.items || []).forEach((edge) => {
     const parent = String(edge.parent_component_key || "");
     const child = String(edge.child_component_key || "");
     if (!parent || !child) return;
     if (!childMap.has(parent)) childMap.set(parent, []);
     childMap.get(parent).push(child);
+    if (!parentMap.has(child)) parentMap.set(child, parent);
   });
   childMap.forEach((children) => {
     children.sort((left, right) => compareComponent(byKey.get(left) || { stable_component_key: left }, byKey.get(right) || { stable_component_key: right }));
@@ -2752,7 +2818,8 @@ function orderedArmOnlyComponents(arm) {
     if (!key || seen.has(key)) return;
     const component = byKey.get(key);
     if (component && componentKeys.has(key)) {
-      out.push({ ...component, depth });
+      const parent = byKey.get(parentMap.get(key));
+      out.push({ ...component, depth, parent_display_name: parent ? componentDisplayLabel(parent) : "" });
     }
     seen.add(key);
     (childMap.get(key) || []).forEach((childKey) => {
@@ -2762,7 +2829,10 @@ function orderedArmOnlyComponents(arm) {
   roots.forEach((key) => visit(key, 0));
   components.sort(compareComponent).forEach((component) => {
     const key = String(component.stable_component_key || "");
-    if (!seen.has(key)) out.push({ ...component, depth: 0 });
+    if (!seen.has(key)) {
+      const parent = byKey.get(parentMap.get(key));
+      out.push({ ...component, depth: 0, parent_display_name: parent ? componentDisplayLabel(parent) : "" });
+    }
   });
   return out;
 }
@@ -2780,11 +2850,11 @@ function ObjectGraphTab({ arm, hierarchy, system, selectedObject, onSelectObject
       </div>
       <div className="panel">
         <h2>Arm Components</h2>
-        <ObjectRowsTable rows={arm.components?.items || []} />
+        <ObjectRowsTable rows={arm.components?.items || []} preferredColumns={["display_name", "component_type", "core_object_type", "core_object_id", "stable_component_key", "source_catalog", "source_pk"]} />
       </div>
       <div className="panel">
         <h2>Hierarchy Edges</h2>
-        <ObjectRowsTable rows={arm.hierarchy_edges?.items || []} />
+        <ObjectRowsTable rows={arm.hierarchy_edges?.items || []} preferredColumns={["parent_component_key", "child_component_key", "edge_kind", "member_role", "confidence_tier", "source_catalog"]} />
       </div>
       <div className="panel">
         <h2>Orbit Edges</h2>
@@ -3050,8 +3120,60 @@ function renderObjectValue(value) {
   if (value === null || value === undefined || value === "") return "n/a";
   if (typeof value === "boolean") return value ? "yes" : "no";
   if (typeof value === "number") return Number.isInteger(value) ? formatInt(value) : formatFloat(value, 6);
-  if (Array.isArray(value)) return value.length ? value.map((item) => String(item)).join(", ") : "none";
-  if (typeof value === "object") return <code>{JSON.stringify(value)}</code>;
+  if (Array.isArray(value)) return <ObjectNestedValue value={value} />;
+  if (typeof value === "object") return <ObjectNestedValue value={value} />;
+  return <ObjectLinkValue value={value} />;
+}
+
+function ObjectNestedValue({ value, depth = 0 }) {
+  if (value === null || value === undefined || value === "") return "n/a";
+  if (typeof value !== "object") return renderObjectScalar(value);
+  if (Array.isArray(value)) {
+    if (!value.length) return "none";
+    const scalarOnly = value.every((item) => item === null || typeof item !== "object");
+    if (scalarOnly) {
+      return (
+        <span className="object-inline-list">
+          {value.map((item, index) => (
+            <React.Fragment key={`${String(item)}-${index}`}>
+              {index ? ", " : ""}
+              {renderObjectScalar(item)}
+            </React.Fragment>
+          ))}
+        </span>
+      );
+    }
+    return (
+      <div className="object-nested-list">
+        {value.slice(0, 12).map((item, index) => (
+          <div className="object-nested-row" key={index}>
+            <strong>{index + 1}</strong>
+            <ObjectNestedValue value={item} depth={depth + 1} />
+          </div>
+        ))}
+        {value.length > 12 ? <span className="table-subtext">plus {formatInt(value.length - 12)} more</span> : null}
+      </div>
+    );
+  }
+  const entries = Object.entries(value).filter(([, item]) => item !== undefined && item !== null && item !== "");
+  if (!entries.length) return "none";
+  if (depth > 2) return <code>{JSON.stringify(value)}</code>;
+  return (
+    <div className="object-nested-list">
+      {entries.map(([key, item]) => (
+        <div className="object-nested-row" key={key}>
+          <strong>{actionLabel(key)}</strong>
+          <ObjectNestedValue value={item} depth={depth + 1} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function renderObjectScalar(value) {
+  if (value === null || value === undefined || value === "") return "n/a";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (typeof value === "number") return Number.isInteger(value) ? formatInt(value) : formatFloat(value, 6);
   return <ObjectLinkValue value={value} />;
 }
 
@@ -3089,7 +3211,7 @@ function ObjectRowsTable({ rows, preferredColumns = [] }) {
       <tbody>
         {items.slice(0, 30).map((row, rowIndex) => (
           <tr key={rowIndex}>
-            {columns.map((column) => <td key={column}>{String(row[column] ?? "")}</td>)}
+            {columns.map((column) => <td key={column}>{renderObjectValue(row[column])}</td>)}
           </tr>
         ))}
       </tbody>

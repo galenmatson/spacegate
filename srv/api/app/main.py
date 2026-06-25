@@ -386,6 +386,31 @@ def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
     return output
 
 
+def _object_readiness_item(
+    *,
+    key: str,
+    status: str,
+    label: str,
+    detail: str,
+    why: str = "",
+    next_action: str = "",
+    workspace: str = "",
+) -> Dict[str, Any]:
+    item: Dict[str, Any] = {
+        "key": key,
+        "status": status,
+        "label": label,
+        "detail": detail,
+    }
+    if why:
+        item["why"] = why
+    if next_action:
+        item["next_action"] = next_action
+    if workspace:
+        item["workspace"] = workspace
+    return item
+
+
 def _component_label_from_key(component_by_key: Dict[str, Dict[str, Any]], key: Any) -> Optional[str]:
     key_text = str(key or "").strip()
     if not key_text:
@@ -641,46 +666,114 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
         "stars": _provenance_diagnostics(stars, "star", "star_id"),
         "planets": _provenance_diagnostics(planets, "planet", "planet_id"),
     }
+    arm_component_count = int((arm.get("components") or {}).get("count") or 0)
+    orbit_edge_count = int((arm.get("orbit_edges") or {}).get("count") or 0)
+    orbital_solution_count = int((arm.get("orbital_solutions") or {}).get("count") or 0)
     readiness = [
-        {
-            "key": "public_detail",
-            "status": "ok",
-            "label": "Public Detail",
-            "detail": "Core system detail assembled successfully.",
-        },
-        {
-            "key": "coolness",
-            "status": "ok" if disc.get("coolness") else "missing",
-            "label": "Coolness",
-            "detail": "disc.coolness_scores row found." if disc.get("coolness") else "No disc.coolness_scores row found for this system.",
-        },
-        {
-            "key": "snapshot",
-            "status": "ok" if disc.get("snapshots") else "missing",
-            "label": "Snapshot",
-            "detail": "Snapshot manifest row found." if disc.get("snapshots") else "No snapshot_manifest row found for this system.",
-        },
-        {
-            "key": "arm_graph",
-            "status": "ok" if int((arm.get("components") or {}).get("count") or 0) else "missing",
-            "label": "Arm Graph",
-            "detail": f"{int((arm.get('components') or {}).get('count') or 0)} component row(s), {int((arm.get('orbit_edges') or {}).get('count') or 0)} orbit edge(s).",
-        },
-        {
-            "key": "orbital_solutions",
-            "status": "ok" if int((arm.get("orbital_solutions") or {}).get("count") or 0) else "missing",
-            "label": "Orbital Solutions",
-            "detail": f"{int((arm.get('orbital_solutions') or {}).get('count') or 0)} normalized orbital solution row(s).",
-        },
+        _object_readiness_item(
+            key="public_detail",
+            status="ok",
+            label="Public Detail",
+            detail="Core system detail assembled successfully.",
+            why="The public v1 detail contract can resolve this system from the current served core projection.",
+            next_action="Use the Overview and Members tabs to inspect object identity and public links.",
+        ),
+        _object_readiness_item(
+            key="coolness",
+            status="ok" if disc.get("coolness") else "missing",
+            label="Coolness",
+            detail="disc.coolness_scores row found." if disc.get("coolness") else "No disc.coolness_scores row found for this system.",
+            why=(
+                "Presentation ranking has been materialized in disc for this served build."
+                if disc.get("coolness")
+                else "The current disc artifact does not contain a matching coolness row, or this object was outside the scored slice."
+            ),
+            next_action=(
+                "Review score contributions in the Presentation tab."
+                if disc.get("coolness")
+                else "Run Score Coolness from the Builds workspace for the served build, then refresh diagnostics."
+            ),
+            workspace="Builds" if not disc.get("coolness") else "Object Diagnostics",
+        ),
+        _object_readiness_item(
+            key="snapshot",
+            status="ok" if disc.get("snapshots") else "missing",
+            label="Snapshot",
+            detail="Snapshot manifest row found." if disc.get("snapshots") else "No snapshot_manifest row found for this system.",
+            why=(
+                "disc.snapshot_manifest includes at least one generated or reused presentation artifact for this system."
+                if disc.get("snapshots")
+                else "Snapshot generation has not produced a manifest row for this system/view in the current disc artifact."
+            ),
+            next_action=(
+                "Open the snapshot URL from the Presentation tab."
+                if disc.get("snapshots")
+                else "Generate snapshots from the Builds workspace. If using coolness-ranked generation, score coolness first."
+            ),
+            workspace="Builds" if not disc.get("snapshots") else "Object Diagnostics",
+        ),
+        _object_readiness_item(
+            key="arm_graph",
+            status="ok" if arm_component_count else "missing",
+            label="Arm Graph",
+            detail=f"{arm_component_count} component row(s), {orbit_edge_count} orbit edge(s).",
+            why=(
+                "arm.component_entities and graph edge tables have diagnostics-visible rows connected to this system."
+                if arm_component_count
+                else "No connected arm.component_entities rows were found for this system in the current arm artifact."
+            ),
+            next_action=(
+                "Use Members and Graph / Orbits to inspect containment and dynamic relationships."
+                if arm_component_count
+                else "Verify arm.duckdb exists for the served build and that ingest emitted component_entities for this object."
+            ),
+            workspace="Object Diagnostics",
+        ),
+        _object_readiness_item(
+            key="orbital_solutions",
+            status="ok" if orbital_solution_count else ("missing" if orbit_edge_count else "not_applicable"),
+            label="Orbital Solutions",
+            detail=f"{orbital_solution_count} normalized orbital solution row(s).",
+            why=(
+                "At least one connected arm.orbital_solutions row is available for reconstruction or narration."
+                if orbital_solution_count
+                else (
+                    "Dynamic orbit edges exist, but none have normalized orbital element rows attached."
+                    if orbit_edge_count
+                    else "No connected dynamic orbit edges were found; a normalized solution may not be expected for this object yet."
+                )
+            ),
+            next_action=(
+                "Inspect the solution rows in Graph / Orbits."
+                if orbital_solution_count
+                else (
+                    "Inspect orbit edges and source coverage, then add orbital-solution evidence/proposals through the arm adjudication path."
+                    if orbit_edge_count
+                    else "No immediate action unless this object should have known orbital evidence."
+                )
+            ),
+            workspace="Object Diagnostics" if orbital_solution_count or not orbit_edge_count else "Agency",
+        ),
     ]
     missing_provenance = sum(int((item or {}).get("incomplete_count") or 0) for item in provenance.values())
     readiness.append(
-        {
-            "key": "provenance",
-            "status": "ok" if missing_provenance == 0 else "warn",
-            "label": "Provenance",
-            "detail": f"{missing_provenance} object row(s) with incomplete required provenance diagnostics.",
-        }
+        _object_readiness_item(
+            key="provenance",
+            status="ok" if missing_provenance == 0 else "warn",
+            label="Provenance",
+            detail=f"{missing_provenance} object row(s) with incomplete required provenance diagnostics.",
+            why=(
+                "Required source, retrieval, and transform fields are present on checked core rows."
+                if missing_provenance == 0
+                else "At least one checked core row is missing required provenance fields or a source row id/hash."
+            ),
+            next_action=(
+                "No provenance repair needed for checked core rows."
+                if missing_provenance == 0
+                else "Open the Layers tab for examples, then fix the deterministic ingest/provenance emitter rather than editing artifacts."
+            ),
+            workspace="Dataset" if missing_provenance else "Object Diagnostics",
+        )
     )
     return {
         "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",

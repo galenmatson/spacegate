@@ -115,6 +115,8 @@ Show:
 - member stars and planets with key scalar/orbital fields
 - arm-only components such as moons, minor bodies, artificial objects, and
   future exomoon candidates when they are present in `arm.component_entities`
+- grouped/collapsible arm-only component sections so Sol-scale systems remain
+  navigable while sparse extrasolar systems stay simple
 - direct star/planet focus diagnostics from member tables, including scalar
   fields and provenance without leaving the system dossier
 - direct component focus diagnostics from member tables, graph nodes, and
@@ -136,7 +138,8 @@ Show:
 - orbit-edge and orbital-solution diagnostics with common names or component
   labels alongside technical IDs
 - readiness status for public detail, coolness, snapshots, arm graph, orbital
-  solutions, and provenance
+  solutions, and provenance, including probable cause and next operator action
+  when data is missing or not applicable
 
 The first implementation is still system-dossier scoped. Star and planet
 inspection reuses the selected system payload, and arm-only component

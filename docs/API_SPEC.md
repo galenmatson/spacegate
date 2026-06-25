@@ -223,7 +223,9 @@ Includes:
 - expanded arm component, hierarchy-edge, orbit-edge, orbital-solution, and
   stellar-parameter diagnostics, including display-name labels where available
 - readiness rows for public detail, coolness, snapshots, arm graph, orbital
-  solutions, and provenance
+  solutions, and provenance; each row may include `why`, `next_action`, and
+  `workspace` fields to explain missing/not-applicable states and point the
+  operator toward the relevant Admin workspace
 
 Notes:
 - This endpoint does not mutate core, arm, disc, or rim.
@@ -237,6 +239,9 @@ Notes:
   semi-major axis for Admin sorting/navigation; orbit edges and orbital
   solutions include `edge_label` and display-name helper fields when component
   labels are available.
+- Admin clients should treat readiness rows as operator guidance, not as hard
+  science gates. For example, `orbital_solutions=not_applicable` can be a valid
+  result when no connected dynamic orbit edge exists.
 
 Response:
 - `200` for authenticated admins.
