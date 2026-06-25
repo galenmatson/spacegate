@@ -386,6 +386,61 @@ def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
     return output
 
 
+def _component_label_from_key(component_by_key: Dict[str, Dict[str, Any]], key: Any) -> Optional[str]:
+    key_text = str(key or "").strip()
+    if not key_text:
+        return None
+    component = component_by_key.get(key_text) or {}
+    label = str(component.get("display_name") or component.get("catalog_component_label") or "").strip()
+    if label:
+        return label
+    parts = [part for part in key_text.split(":") if part]
+    if not parts:
+        return key_text
+    return parts[-1].replace("-", " ").replace("_", " ").title()
+
+
+def _orbit_edge_label(component_by_key: Dict[str, Dict[str, Any]], edge: Dict[str, Any]) -> str:
+    primary = _component_label_from_key(component_by_key, edge.get("primary_component_key"))
+    secondary = _component_label_from_key(component_by_key, edge.get("secondary_component_key"))
+    host = _component_label_from_key(component_by_key, edge.get("host_component_key"))
+    relation = str(edge.get("relation_kind") or "orbit").replace("_", " ")
+    if primary and secondary:
+        return f"{primary} - {secondary} ({relation})"
+    if host and secondary:
+        return f"{secondary} around {host} ({relation})"
+    if host and primary:
+        return f"{primary} around {host} ({relation})"
+    return f"Orbit edge {edge.get('orbit_edge_id')}"
+
+
+def _enrich_component_rows(
+    component_rows: List[Dict[str, Any]],
+    stars: List[Dict[str, Any]],
+    planets: List[Dict[str, Any]],
+) -> None:
+    stars_by_id = {int(row["star_id"]): row for row in stars if row.get("star_id") is not None}
+    planets_by_id = {int(row["planet_id"]): row for row in planets if row.get("planet_id") is not None}
+    for row in component_rows:
+        try:
+            core_id = int(row.get("core_object_id"))
+        except Exception:
+            core_id = -1
+        core_type = str(row.get("core_object_type") or "")
+        if core_type == "star" and core_id in stars_by_id:
+            star = stars_by_id[core_id]
+            row["core_display_name"] = star.get("display_name") or star.get("star_name")
+            row["spectral_class"] = star.get("spectral_class") or star.get("spectral_type")
+            row["teff_k"] = star.get("teff_k")
+        elif core_type == "planet" and core_id in planets_by_id:
+            planet = planets_by_id[core_id]
+            row["core_display_name"] = planet.get("planet_name")
+            row["semi_major_axis_au"] = planet.get("semi_major_axis_au")
+            row["orbital_period_days"] = planet.get("orbital_period_days")
+            row["eq_temp_k"] = planet.get("eq_temp_k")
+            row["sort_distance_au"] = planet.get("semi_major_axis_au")
+
+
 def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str, Any]], system: Dict[str, Any]) -> Dict[str, Any]:
     arm_path_raw = _resolve_arm_db_path()
     output: Dict[str, Any] = {
@@ -493,8 +548,10 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 )
             )
             component_keys = list(component_by_key.keys())
+        _enrich_component_rows(component_rows, stars, planets)
         output["components"] = {"count": len(component_rows), "items": component_rows[:120]}
         orbit_edge_ids: List[int] = []
+        orbit_edge_by_id: Dict[int, Dict[str, Any]] = {}
         if component_keys and _duckdb_has_table(con, "orbit_edges"):
             placeholders = ",".join(["?"] * len(component_keys))
             rows = _rows_to_dicts(
@@ -513,8 +570,15 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                     [*component_keys, *component_keys, *component_keys],
                 )
             )
+            for row in rows:
+                row["host_display_name"] = _component_label_from_key(component_by_key, row.get("host_component_key"))
+                row["primary_display_name"] = _component_label_from_key(component_by_key, row.get("primary_component_key"))
+                row["secondary_display_name"] = _component_label_from_key(component_by_key, row.get("secondary_component_key"))
+                row["barycenter_display_name"] = _component_label_from_key(component_by_key, row.get("barycenter_key"))
+                row["edge_label"] = _orbit_edge_label(component_by_key, row)
             orbit_edge_ids = [int(row["orbit_edge_id"]) for row in rows if row.get("orbit_edge_id") is not None]
-            output["orbit_edges"] = {"count": len(rows), "items": rows[:30]}
+            orbit_edge_by_id = {int(row["orbit_edge_id"]): row for row in rows if row.get("orbit_edge_id") is not None}
+            output["orbit_edges"] = {"count": len(rows), "items": rows[:80]}
         if orbit_edge_ids and _duckdb_has_table(con, "orbital_solutions"):
             placeholders = ",".join(["?"] * len(orbit_edge_ids))
             rows = _rows_to_dicts(
@@ -532,7 +596,14 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                     orbit_edge_ids,
                 )
             )
-            output["orbital_solutions"] = {"count": len(rows), "items": rows[:30]}
+            for row in rows:
+                edge = orbit_edge_by_id.get(int(row.get("orbit_edge_id") or -1), {})
+                row["edge_label"] = edge.get("edge_label") or f"Orbit edge {row.get('orbit_edge_id')}"
+                row["primary_display_name"] = edge.get("primary_display_name")
+                row["secondary_display_name"] = edge.get("secondary_display_name")
+                row["host_display_name"] = edge.get("host_display_name")
+                row["relation_kind"] = edge.get("relation_kind")
+            output["orbital_solutions"] = {"count": len(rows), "items": rows[:80]}
         if star_ids and _duckdb_has_table(con, "stellar_parameters"):
             placeholders = ",".join(["?"] * len(star_ids))
             rows = _rows_to_dicts(

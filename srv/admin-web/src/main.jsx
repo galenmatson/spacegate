@@ -2295,6 +2295,44 @@ function componentDisplayLabel(component) {
   return actionLabel(tail.replaceAll("-", "_"));
 }
 
+function componentTypeRank(value) {
+  const ranks = {
+    system: 0,
+    star: 1,
+    main_sequence: 1,
+    brown_dwarf: 2,
+    compact: 2,
+    planet: 3,
+    subplanet: 4,
+    moon: 5,
+    minor_body: 6,
+    artificial: 7,
+    unresolved_component: 8,
+    component: 9,
+  };
+  return ranks[String(value || "")] ?? 9;
+}
+
+function componentSortKey(component) {
+  const distance = Number(component?.sort_distance_au ?? component?.semi_major_axis_au);
+  return [
+    componentTypeRank(component?.component_type || component?.core_object_type),
+    Number.isFinite(distance) ? distance : Number.POSITIVE_INFINITY,
+    String(componentDisplayLabel(component)).toLowerCase(),
+    String(component?.stable_component_key || ""),
+  ];
+}
+
+function compareComponent(a, b) {
+  const left = componentSortKey(a);
+  const right = componentSortKey(b);
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] < right[index]) return -1;
+    if (left[index] > right[index]) return 1;
+  }
+  return 0;
+}
+
 function componentByKey(arm) {
   const out = new Map();
   (arm?.components?.items || []).forEach((component) => {
@@ -2335,8 +2373,14 @@ function objectComponentRelations(componentKey, arm) {
   };
   const edges = arm?.hierarchy_edges?.items || [];
   return {
-    children: edges.filter((edge) => String(edge.parent_component_key || "") === key).map((edge) => toRelation(edge, "child")),
-    parents: edges.filter((edge) => String(edge.child_component_key || "") === key).map((edge) => toRelation(edge, "parent")),
+    children: edges
+      .filter((edge) => String(edge.parent_component_key || "") === key)
+      .map((edge) => toRelation(edge, "child"))
+      .sort((a, b) => compareComponent(a.component, b.component)),
+    parents: edges
+      .filter((edge) => String(edge.child_component_key || "") === key)
+      .map((edge) => toRelation(edge, "parent"))
+      .sort((a, b) => compareComponent(a.component, b.component)),
   };
 }
 
@@ -2355,7 +2399,10 @@ function ObjectRelationList({ title, rows, empty, onSelectObject }) {
               onClick={() => onSelectObject?.({ type: "component", data: component })}
             >
               <strong>{componentDisplayLabel(component)}</strong>
-              <span>{component.component_type || "component"} | {edge.edge_kind || "edge"} | {edge.confidence_tier || "unknown"}</span>
+              <span>
+                {component.component_type || "component"} | {edge.edge_kind || "edge"} | {edge.confidence_tier || "unknown"}
+                {Number.isFinite(Number(component.sort_distance_au)) ? ` | ${formatFloat(component.sort_distance_au, 4)} au` : ""}
+              </span>
             </button>
           ))}
         </div>
@@ -2459,7 +2506,7 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
   const selectedType = selectedObject?.type;
   const selectedId = selectedObject?.data?.star_id || selectedObject?.data?.planet_id || selectedObject?.data?.stable_component_key;
   const components = arm?.components?.items || [];
-  const armOnlyComponents = components.filter((component) => !["system", "star", "planet"].includes(String(component.core_object_type || "")));
+  const armOnlyComponents = orderedArmOnlyComponents(arm);
   return (
     <section className="dataset-grid">
       <div className="panel">
@@ -2512,17 +2559,18 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
         <h2>Arm Components</h2>
         {armOnlyComponents.length ? (
           <table>
-            <thead><tr><th>Name</th><th>Type</th><th>Core Link</th><th>Source</th></tr></thead>
+            <thead><tr><th>Name</th><th>Type</th><th>Core Link</th><th>Distance</th><th>Source</th></tr></thead>
             <tbody>
               {armOnlyComponents.slice(0, 120).map((component) => (
                 <tr className={selectedType === "component" && selectedId === component.stable_component_key ? "selected-row" : ""} key={component.stable_component_key}>
                   <td>
                     <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "component", data: component })}>
-                      {componentDisplayLabel(component)}
+                      {component.depth ? `${"\u00a0\u00a0".repeat(Math.min(component.depth, 4))}${componentDisplayLabel(component)}` : componentDisplayLabel(component)}
                     </button>
                   </td>
                   <td>{component.component_type || "component"}</td>
                   <td>{component.core_object_type ? `${component.core_object_type} ${component.core_object_id || ""}` : "arm only"}</td>
+                  <td>{Number.isFinite(Number(component.sort_distance_au)) ? `${formatFloat(component.sort_distance_au, 4)} au` : ""}</td>
                   <td>{component.source_catalog || "n/a"}</td>
                 </tr>
               ))}
@@ -2532,6 +2580,50 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
       </div>
     </section>
   );
+}
+
+function orderedArmOnlyComponents(arm) {
+  const components = (arm?.components?.items || [])
+    .filter((component) => !["system", "star", "planet"].includes(String(component.core_object_type || "")));
+  const byKey = componentByKey(arm);
+  const childMap = new Map();
+  (arm?.hierarchy_edges?.items || []).forEach((edge) => {
+    const parent = String(edge.parent_component_key || "");
+    const child = String(edge.child_component_key || "");
+    if (!parent || !child) return;
+    if (!childMap.has(parent)) childMap.set(parent, []);
+    childMap.get(parent).push(child);
+  });
+  childMap.forEach((children) => {
+    children.sort((left, right) => compareComponent(byKey.get(left) || { stable_component_key: left }, byKey.get(right) || { stable_component_key: right }));
+  });
+  const componentKeys = new Set(components.map((component) => String(component.stable_component_key || "")));
+  const roots = components
+    .filter((component) => {
+      const key = String(component.stable_component_key || "");
+      return !(arm?.hierarchy_edges?.items || []).some((edge) => componentKeys.has(String(edge.parent_component_key || "")) && String(edge.child_component_key || "") === key);
+    })
+    .sort(compareComponent)
+    .map((component) => String(component.stable_component_key || ""));
+  const out = [];
+  const seen = new Set();
+  const visit = (key, depth) => {
+    if (!key || seen.has(key)) return;
+    const component = byKey.get(key);
+    if (component && componentKeys.has(key)) {
+      out.push({ ...component, depth });
+    }
+    seen.add(key);
+    (childMap.get(key) || []).forEach((childKey) => {
+      if (componentKeys.has(childKey)) visit(childKey, depth + 1);
+    });
+  };
+  roots.forEach((key) => visit(key, 0));
+  components.sort(compareComponent).forEach((component) => {
+    const key = String(component.stable_component_key || "");
+    if (!seen.has(key)) out.push({ ...component, depth: 0 });
+  });
+  return out;
 }
 
 function ObjectGraphTab({ arm, hierarchy, system, selectedObject, onSelectObject }) {
@@ -2555,11 +2647,11 @@ function ObjectGraphTab({ arm, hierarchy, system, selectedObject, onSelectObject
       </div>
       <div className="panel">
         <h2>Orbit Edges</h2>
-        <ObjectRowsTable rows={arm.orbit_edges?.items || []} />
+        <ObjectRowsTable rows={arm.orbit_edges?.items || []} preferredColumns={["edge_label", "relation_kind", "primary_display_name", "secondary_display_name", "host_display_name", "confidence_tier", "source_catalog"]} />
       </div>
       <div className="panel">
         <h2>Orbital Solutions</h2>
-        <ObjectRowsTable rows={arm.orbital_solutions?.items || []} />
+        <ObjectRowsTable rows={arm.orbital_solutions?.items || []} preferredColumns={["edge_label", "solution_source_catalog", "period_days", "semi_major_axis_au", "semi_major_axis_arcsec", "eccentricity", "inclination_deg", "confidence_tier"]} />
       </div>
     </section>
   );
@@ -2840,10 +2932,16 @@ function ObjectFeatureTable({ features }) {
   );
 }
 
-function ObjectRowsTable({ rows }) {
+function ObjectRowsTable({ rows, preferredColumns = [] }) {
   const items = Array.isArray(rows) ? rows : [];
   if (!items.length) return <div className="empty">No rows returned for this diagnostic.</div>;
-  const columns = Object.keys(items[0] || {}).slice(0, 8);
+  const allColumns = Object.keys(items[0] || {});
+  const columns = preferredColumns.length
+    ? [
+        ...preferredColumns.filter((column) => allColumns.includes(column)),
+        ...allColumns.filter((column) => !preferredColumns.includes(column)),
+      ].slice(0, 8)
+    : allColumns.slice(0, 8);
   return (
     <table>
       <thead><tr>{columns.map((column) => <th key={column}>{actionLabel(column)}</th>)}</tr></thead>

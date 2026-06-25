@@ -119,6 +119,8 @@ Show:
   fields and provenance without leaving the system dossier
 - direct component focus diagnostics from member tables, graph nodes, and
   parent/child relation links
+- component navigation ordered by object class and orbital distance when a
+  core-linked planet/subplanet provides a semi-major axis
 - layer artifact paths for core, arm, and disc
 - provenance completeness checks for system, star, and planet rows
 - arm component, hierarchy, orbit-edge, orbital-solution, and stellar-parameter
@@ -129,6 +131,8 @@ Show:
   contributions
 - read-only, clickable node/edge relation diagram for arm containment and orbit
   edges, with common-name labels when available
+- orbit-edge and orbital-solution diagnostics with common names or component
+  labels alongside technical IDs
 - readiness status for public detail, coolness, snapshots, arm graph, orbital
   solutions, and provenance
 

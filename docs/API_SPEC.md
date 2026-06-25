@@ -217,7 +217,7 @@ Includes:
 - provenance completeness diagnostics for system/star/planet rows
 - disc coolness, coolness contribution explanation, and snapshot manifest rows
 - expanded arm component, hierarchy-edge, orbit-edge, orbital-solution, and
-  stellar-parameter diagnostics
+  stellar-parameter diagnostics, including display-name labels where available
 - readiness rows for public detail, coolness, snapshots, arm graph, orbital
   solutions, and provenance
 
@@ -229,6 +229,10 @@ Notes:
 - `diagnostics.arm.components.items` includes core-linked components plus
   connected parent/child endpoint components referenced by returned hierarchy
   edges, such as moons, minor bodies, and artificial objects.
+- core-linked planet components include selected core scalar fields such as
+  semi-major axis for Admin sorting/navigation; orbit edges and orbital
+  solutions include `edge_label` and display-name helper fields when component
+  labels are available.
 
 Response:
 - `200` for authenticated admins.
