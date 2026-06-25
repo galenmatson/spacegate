@@ -2240,8 +2240,7 @@ function ObjectRecentList({ items, onOpen, onClear }) {
       const width = node.getBoundingClientRect().width || 0;
       const cardMinWidth = 180;
       const gapPx = 8;
-      const rawCount = Math.max(1, Math.floor((width + gapPx) / (cardMinWidth + gapPx)));
-      const count = items.length > rawCount ? Math.max(1, rawCount - 1) : rawCount;
+      const count = Math.max(1, Math.floor((width + gapPx) / (cardMinWidth + gapPx)));
       setVisibleLimit(Math.min(OBJECT_RECENTS_LIMIT, count));
     };
     updateLimit();
@@ -2255,7 +2254,6 @@ function ObjectRecentList({ items, onOpen, onClear }) {
   }, [items.length]);
   if (!items.length) return null;
   const visibleItems = items.slice(0, visibleLimit);
-  const hiddenCount = Math.max(0, items.length - visibleItems.length);
   return (
     <section className="panel object-recent-panel">
       <div className="panel-head">
@@ -2272,7 +2270,6 @@ function ObjectRecentList({ items, onOpen, onClear }) {
             <span>{item.sublabel}</span>
           </button>
         ))}
-        {hiddenCount ? <span className="object-recent-hidden">+{hiddenCount} older</span> : null}
       </div>
     </section>
   );

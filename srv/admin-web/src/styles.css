@@ -435,14 +435,6 @@ h3 {
   font-size: 0.76rem;
 }
 
-.object-recent-hidden {
-  flex: 0 0 auto;
-  align-self: center;
-  color: var(--muted);
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
 .select-list,
 .readiness-list {
   display: grid;
