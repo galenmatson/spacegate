@@ -225,10 +225,13 @@ Includes:
   manifest rows
 - expanded arm component, hierarchy-edge, orbit-edge, orbital-solution, and
   stellar-parameter diagnostics, including display-name labels where available
+- simulation readiness diagnostics for stars and planets, with checked fields
+  labeled as `source`, `derived`, `assumed`, or `missing`; rows include value,
+  unit, basis, confidence tier, intended layer, and replacement target
 - readiness rows for public detail, coolness, snapshots, arm graph, orbital
-  solutions, and provenance; each row may include `why`, `next_action`, and
-  `workspace` fields to explain missing/not-applicable states and point the
-  operator toward the relevant Admin workspace
+  solutions, simulation readiness, and provenance; each row may include `why`,
+  `next_action`, and `workspace` fields to explain missing/not-applicable states
+  and point the operator toward the relevant Admin workspace
 
 Notes:
 - This endpoint does not mutate core, arm, disc, or rim.
@@ -245,6 +248,9 @@ Notes:
 - Admin clients should treat readiness rows as operator guidance, not as hard
   science gates. For example, `orbital_solutions=not_applicable` can be a valid
   result when no connected dynamic orbit edge exists.
+- Simulation readiness values are diagnostics unless already source-backed.
+  Defensible numeric derivatives should be materialized in `arm`; visual
+  defaults and placeholders belong in `disc`.
 
 Response:
 - `200` for authenticated admins.

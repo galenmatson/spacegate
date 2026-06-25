@@ -130,6 +130,9 @@ Show:
   inspected systems, stars, planets, or arm components
 - component navigation ordered by object class and orbital distance when a
   core-linked planet/subplanet provides a semi-major axis
+- simulation readiness diagnostics that label needed numeric fields as
+  `source`, `derived`, `assumed`, or `missing`, including the layer where each
+  value belongs and the stronger replacement value administrators should seek
 - layer artifact paths for core, arm, and disc
 - provenance completeness checks for system, star, and planet rows
 - arm component, hierarchy, orbit-edge, orbital-solution, and stellar-parameter

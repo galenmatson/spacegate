@@ -2096,6 +2096,7 @@ function ObjectDiagnosticsScreen() {
   const planets = publicPayload.planets || [];
   const disc = diagnostics.disc || {};
   const arm = diagnostics.arm || {};
+  const simulationReadiness = diagnostics.simulation_readiness || {};
   const provenance = diagnostics.provenance || {};
   const kpis = [
     { label: "System", value: system.display_name || system.system_name || compactId(system.stable_object_key, 22) },
@@ -2196,6 +2197,7 @@ function ObjectDiagnosticsScreen() {
               ["layers", "Layers"],
               ["members", "Members"],
               ["graph", "Graph / Orbits"],
+              ["simulation", "Simulation"],
               ["presentation", "Presentation"],
               ["raw", "Raw JSON"],
             ].map(([key, label]) => (
@@ -2211,6 +2213,8 @@ function ObjectDiagnosticsScreen() {
             <ObjectMembersTab stars={stars} planets={planets} arm={arm} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
           ) : activeTab === "graph" ? (
             <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} system={system} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
+          ) : activeTab === "simulation" ? (
+            <ObjectSimulationTab simulation={simulationReadiness} />
           ) : activeTab === "presentation" ? (
             <ObjectPresentationTab disc={disc} system={system} />
           ) : (
@@ -3079,6 +3083,93 @@ function graphTypeLabel(value) {
   if (text === "artificial") return "ASO";
   if (text === "unresolved_component") return "UNR";
   return text.slice(0, 3).toUpperCase();
+}
+
+function ObjectSimulationTab({ simulation }) {
+  const counts = simulation?.counts || {};
+  const stars = Array.isArray(simulation?.stars) ? simulation.stars : [];
+  const planets = Array.isArray(simulation?.planets) ? simulation.planets : [];
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Simulation Readiness</h2>
+        <MetricList rows={[
+          ["Readiness score", formatPct((simulation?.score || 0) * 100)],
+          ["Source fields", formatInt(counts.source)],
+          ["Derived fields", formatInt(counts.derived)],
+          ["Assumed fields", formatInt(counts.assumed)],
+          ["Missing fields", formatInt(counts.missing)],
+        ]} />
+      </div>
+      <div className="panel">
+        <h2>Layer Guidance</h2>
+        <div className="trap-list">
+          {(simulation?.notes || []).map((note) => <div key={note}>{note}</div>)}
+        </div>
+      </div>
+      <div className="panel wide-panel">
+        <h2>Stars</h2>
+        {stars.length ? <SimulationObjectTable rows={stars} /> : <div className="empty">No star simulation fields were returned.</div>}
+      </div>
+      <div className="panel wide-panel">
+        <h2>Planets</h2>
+        {planets.length ? <SimulationObjectTable rows={planets} /> : <div className="empty">No planet simulation fields were returned.</div>}
+      </div>
+    </section>
+  );
+}
+
+function SimulationObjectTable({ rows }) {
+  return (
+    <div className="simulation-object-list">
+      {rows.map((row) => (
+        <div className="simulation-object-card" key={`${row.object_type}-${row.object_id || row.stable_object_key}`}>
+          <div className="panel-head compact">
+            <div>
+              <h3>{row.display_name || row.stable_object_key || "Object"}</h3>
+              <p className="muted">
+                {row.object_type} {row.object_id || ""}
+                {row.host_display_name ? ` | host ${row.host_display_name}` : ""}
+              </p>
+            </div>
+            <span className="badge muted">{compactId(row.stable_object_key, 28)}</span>
+          </div>
+          <table>
+            <thead><tr><th>Field</th><th>Value</th><th>Status</th><th>Basis</th><th>Replace With</th></tr></thead>
+            <tbody>
+              {(row.fields || []).map((field) => (
+                <tr key={field.key}>
+                  <td>{field.label || actionLabel(field.key)}</td>
+                  <td>
+                    <strong>{renderSimulationValue(field)}</strong>
+                    <span className="table-subtext">{field.layer || "n/a"} | {field.confidence_tier || "unknown"}</span>
+                  </td>
+                  <td><span className={`badge ${simulationStatusTone(field.status)}`}>{readableStatus(field.status)}</span></td>
+                  <td>{field.basis || "n/a"}</td>
+                  <td>{field.replacement_target || "n/a"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function renderSimulationValue(field) {
+  if (field?.value === null || field?.value === undefined || field?.value === "") return "n/a";
+  const value = typeof field.value === "number" ? formatFloat(field.value, Math.abs(field.value) >= 100 ? 2 : 5) : String(field.value);
+  return field.unit ? `${value} ${field.unit}` : value;
+}
+
+function simulationStatusTone(status) {
+  const key = String(status || "");
+  if (key === "source") return "ok";
+  if (key === "derived") return "muted";
+  if (key === "assumed") return "warn";
+  if (key === "missing") return "danger";
+  return statusTone(key);
 }
 
 function ObjectPresentationTab({ disc, system }) {

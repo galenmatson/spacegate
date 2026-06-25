@@ -336,6 +336,344 @@ def _stellar_luminosity_proxy_lsun(star: Dict[str, Any]) -> Optional[float]:
     }.get(spectral_class)
 
 
+def _stellar_main_sequence_proxy(star: Dict[str, Any]) -> Dict[str, Optional[float]]:
+    spectral_class = str(star.get("spectral_class") or "").strip().upper()
+    luminosity_class = str(star.get("luminosity_class") or "").strip().upper()
+    spectral_type_raw = str(star.get("spectral_type_raw") or "").lower()
+    if spectral_class not in {"O", "B", "A", "F", "G", "K", "M"}:
+        return {}
+    if luminosity_class not in {"", "V"}:
+        return {}
+    if re.search(r"giant|supergiant|\biii\b|\bii\b|\biv\b", spectral_type_raw):
+        return {}
+    return {
+        "teff_k": {
+            "O": 30000.0,
+            "B": 12000.0,
+            "A": 8000.0,
+            "F": 6500.0,
+            "G": 5500.0,
+            "K": 4200.0,
+            "M": 3200.0,
+        }.get(spectral_class),
+        "mass_msun": {
+            "O": 16.0,
+            "B": 2.1,
+            "A": 1.7,
+            "F": 1.2,
+            "G": 1.0,
+            "K": 0.7,
+            "M": 0.3,
+        }.get(spectral_class),
+        "radius_rsun": {
+            "O": 6.6,
+            "B": 3.0,
+            "A": 1.7,
+            "F": 1.3,
+            "G": 1.0,
+            "K": 0.8,
+            "M": 0.4,
+        }.get(spectral_class),
+        "luminosity_lsun": _stellar_luminosity_proxy_lsun(star),
+    }
+
+
+def _float_or_none(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        out = float(value)
+        if math.isnan(out) or math.isinf(out):
+            return None
+        return out
+    except Exception:
+        return None
+
+
+def _simulation_field(
+    *,
+    key: str,
+    label: str,
+    value: Any = None,
+    unit: Optional[str] = None,
+    status: str,
+    basis: str,
+    layer: str,
+    confidence_tier: str,
+    replacement_target: str,
+) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "value": value,
+        "unit": unit,
+        "status": status,
+        "basis": basis,
+        "layer": layer,
+        "confidence_tier": confidence_tier,
+        "replacement_target": replacement_target,
+    }
+
+
+def _best_stellar_parameters_by_star_id(arm: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+    rows = ((arm.get("stellar_parameters") or {}).get("items") or [])
+    out: Dict[int, Dict[str, Any]] = {}
+    for row in rows:
+        star_id = row.get("star_id")
+        if star_id is None:
+            continue
+        sid = int(star_id)
+        current = out.get(sid)
+        row_score = sum(1 for key in ("teff_k", "radius_rsun", "mass_msun", "luminosity_log10_lsun") if row.get(key) is not None)
+        current_score = sum(1 for key in ("teff_k", "radius_rsun", "mass_msun", "luminosity_log10_lsun") if current and current.get(key) is not None)
+        if current is None or row_score > current_score:
+            out[sid] = row
+    return out
+
+
+def _star_simulation_fields(star: Dict[str, Any], params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    proxy = _stellar_main_sequence_proxy(star)
+    source_teff = _float_or_none(star.get("teff_k")) or _float_or_none((params or {}).get("teff_k"))
+    source_mass = _float_or_none(star.get("mass_msun")) or _float_or_none((params or {}).get("mass_msun"))
+    source_radius = _float_or_none(star.get("radius_rsun")) or _float_or_none((params or {}).get("radius_rsun"))
+    source_lum = _float_or_none(star.get("luminosity_lsun"))
+    log_lum = _float_or_none((params or {}).get("luminosity_log10_lsun"))
+    if source_lum is None and log_lum is not None:
+        source_lum = math.pow(10.0, log_lum)
+    derived_lum = None
+    if source_lum is None and source_radius is not None and source_teff is not None and source_teff > 0:
+        derived_lum = source_radius * source_radius * math.pow(source_teff / 5772.0, 4.0)
+
+    fields = [
+        _simulation_field(
+            key="teff_k",
+            label="Effective temperature",
+            value=source_teff if source_teff is not None else proxy.get("teff_k"),
+            unit="K",
+            status="source" if source_teff is not None else ("derived" if proxy.get("teff_k") is not None else "missing"),
+            basis="core/arm source teff_k" if source_teff is not None else ("main-sequence spectral-class proxy" if proxy.get("teff_k") is not None else "no source temperature or supported spectral-class proxy"),
+            layer="core/arm" if source_teff is not None else ("arm_candidate" if proxy.get("teff_k") is not None else "none"),
+            confidence_tier="high" if source_teff is not None else ("low" if proxy.get("teff_k") is not None else "missing"),
+            replacement_target="source stellar effective temperature with uncertainty",
+        ),
+        _simulation_field(
+            key="luminosity_lsun",
+            label="Luminosity",
+            value=source_lum if source_lum is not None else (derived_lum if derived_lum is not None else proxy.get("luminosity_lsun")),
+            unit="Lsun",
+            status="source" if source_lum is not None else ("derived" if derived_lum is not None or proxy.get("luminosity_lsun") is not None else "missing"),
+            basis=(
+                "arm source luminosity_log10_lsun"
+                if source_lum is not None
+                else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else ("main-sequence spectral-class proxy" if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy"))
+            ),
+            layer="arm" if source_lum is not None or derived_lum is not None else ("arm_candidate" if proxy.get("luminosity_lsun") is not None else "none"),
+            confidence_tier="high" if source_lum is not None else ("medium" if derived_lum is not None else ("low" if proxy.get("luminosity_lsun") is not None else "missing")),
+            replacement_target="source stellar luminosity or source radius+teff with uncertainty",
+        ),
+        _simulation_field(
+            key="mass_msun",
+            label="Mass",
+            value=source_mass if source_mass is not None else proxy.get("mass_msun"),
+            unit="Msun",
+            status="source" if source_mass is not None else ("derived" if proxy.get("mass_msun") is not None else "missing"),
+            basis="arm source mass_msun" if source_mass is not None else ("main-sequence spectral-class proxy" if proxy.get("mass_msun") is not None else "no source mass or supported spectral-class proxy"),
+            layer="arm" if source_mass is not None else ("arm_candidate" if proxy.get("mass_msun") is not None else "none"),
+            confidence_tier="high" if source_mass is not None else ("low" if proxy.get("mass_msun") is not None else "missing"),
+            replacement_target="source stellar mass with uncertainty",
+        ),
+        _simulation_field(
+            key="radius_rsun",
+            label="Radius",
+            value=source_radius if source_radius is not None else proxy.get("radius_rsun"),
+            unit="Rsun",
+            status="source" if source_radius is not None else ("derived" if proxy.get("radius_rsun") is not None else "missing"),
+            basis="arm source radius_rsun" if source_radius is not None else ("main-sequence spectral-class proxy" if proxy.get("radius_rsun") is not None else "no source radius or supported spectral-class proxy"),
+            layer="arm" if source_radius is not None else ("arm_candidate" if proxy.get("radius_rsun") is not None else "none"),
+            confidence_tier="high" if source_radius is not None else ("low" if proxy.get("radius_rsun") is not None else "missing"),
+            replacement_target="source stellar radius with uncertainty",
+        ),
+    ]
+    return {
+        "object_type": "star",
+        "object_id": star.get("star_id"),
+        "display_name": star.get("display_name") or star.get("star_name") or star.get("stable_object_key"),
+        "stable_object_key": star.get("stable_object_key"),
+        "fields": fields,
+    }
+
+
+def _field_value(fields: List[Dict[str, Any]], key: str) -> Optional[float]:
+    for field in fields:
+        if field.get("key") == key:
+            return _float_or_none(field.get("value"))
+    return None
+
+
+def _planet_mass_earth(planet: Dict[str, Any]) -> Optional[float]:
+    mass_earth = _float_or_none(planet.get("mass_earth"))
+    if mass_earth is not None:
+        return mass_earth
+    mass_jup = _float_or_none(planet.get("mass_jup"))
+    if mass_jup is not None:
+        return mass_jup * 317.8
+    return None
+
+
+def _planet_simulation_fields(
+    planet: Dict[str, Any],
+    star_fields_by_id: Dict[int, Dict[str, Any]],
+    default_star_fields: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    try:
+        star_id = int(planet.get("star_id")) if planet.get("star_id") is not None else None
+    except Exception:
+        star_id = None
+    host = star_fields_by_id.get(star_id) if star_id is not None else default_star_fields
+    host_fields = (host or {}).get("fields") or []
+    host_mass = _field_value(host_fields, "mass_msun")
+    host_mass_field = next((field for field in host_fields if field.get("key") == "mass_msun"), {})
+    period_days = _float_or_none(planet.get("orbital_period_days"))
+    source_sma = _float_or_none(planet.get("semi_major_axis_au"))
+    derived_sma = None
+    if source_sma is None and period_days is not None and period_days > 0 and host_mass is not None and host_mass > 0:
+        period_years = period_days / 365.25
+        derived_sma = math.pow(host_mass * period_years * period_years, 1.0 / 3.0)
+    mass_earth = _planet_mass_earth(planet)
+    environment = planet.get("environment_evidence") or {}
+    env_basis = str(environment.get("evidence_basis") or "missing")
+    env_status = "source" if env_basis in {"source_eq_temp", "source_insolation"} else ("derived" if env_basis == "stellar_class_luminosity_proxy" else "missing")
+    env_confidence = "high" if env_status == "source" else ("low" if env_status == "derived" else "missing")
+    fields = [
+        _simulation_field(
+            key="orbital_period_days",
+            label="Orbital period",
+            value=period_days,
+            unit="days",
+            status="source" if period_days is not None else "missing",
+            basis="core/source orbital_period_days" if period_days is not None else "no period source value",
+            layer="core" if period_days is not None else "none",
+            confidence_tier="high" if period_days is not None else "missing",
+            replacement_target="source orbital period with uncertainty",
+        ),
+        _simulation_field(
+            key="semi_major_axis_au",
+            label="Semi-major axis",
+            value=source_sma if source_sma is not None else derived_sma,
+            unit="au",
+            status="source" if source_sma is not None else ("derived" if derived_sma is not None else "missing"),
+            basis=(
+                "core/source semi_major_axis_au"
+                if source_sma is not None
+                else (
+                    f"Kepler estimate from source period and {host_mass_field.get('status', 'unknown')} host mass"
+                    if derived_sma is not None
+                    else "no semi-major axis and insufficient period/host-mass inputs"
+                )
+            ),
+            layer="core" if source_sma is not None else ("arm_candidate" if derived_sma is not None else "none"),
+            confidence_tier="high" if source_sma is not None else ("medium" if host_mass_field.get("status") == "source" else ("low" if derived_sma is not None else "missing")),
+            replacement_target="source semi-major axis or full orbital solution",
+        ),
+        _simulation_field(
+            key="eccentricity",
+            label="Eccentricity",
+            value=_float_or_none(planet.get("eccentricity")) if _float_or_none(planet.get("eccentricity")) is not None else 0.0,
+            unit=None,
+            status="source" if _float_or_none(planet.get("eccentricity")) is not None else "assumed",
+            basis="core/source eccentricity" if _float_or_none(planet.get("eccentricity")) is not None else "circular orbit visualization default",
+            layer="core" if _float_or_none(planet.get("eccentricity")) is not None else "disc_assumption",
+            confidence_tier="high" if _float_or_none(planet.get("eccentricity")) is not None else "illustrative",
+            replacement_target="source eccentricity or reviewed orbital solution",
+        ),
+        _simulation_field(
+            key="radius_earth",
+            label="Radius",
+            value=_float_or_none(planet.get("radius_earth")),
+            unit="Rearth",
+            status="source" if _float_or_none(planet.get("radius_earth")) is not None else "missing",
+            basis="core/source radius_earth" if _float_or_none(planet.get("radius_earth")) is not None else "no radius source value",
+            layer="core" if _float_or_none(planet.get("radius_earth")) is not None else "none",
+            confidence_tier="high" if _float_or_none(planet.get("radius_earth")) is not None else "missing",
+            replacement_target="source planet radius with uncertainty",
+        ),
+        _simulation_field(
+            key="mass_earth",
+            label="Mass",
+            value=mass_earth,
+            unit="Mearth",
+            status="source" if mass_earth is not None else "missing",
+            basis="core/source mass_earth or converted mass_jup" if mass_earth is not None else "no mass source value",
+            layer="core" if mass_earth is not None else "none",
+            confidence_tier="high" if mass_earth is not None else "missing",
+            replacement_target="source planet mass with uncertainty",
+        ),
+        _simulation_field(
+            key="candidate_insol_earth",
+            label="Incident flux",
+            value=_float_or_none(environment.get("candidate_insol_earth")),
+            unit="Earth=1",
+            status=env_status,
+            basis=env_basis if env_status != "missing" else (environment.get("missing_reason") or "no temperature/insolation derivation inputs"),
+            layer="core/arm" if env_status == "source" else ("arm_candidate" if env_status == "derived" else "none"),
+            confidence_tier=env_confidence,
+            replacement_target="source insolation or luminosity plus orbit with uncertainty",
+        ),
+        _simulation_field(
+            key="candidate_eq_temp_k",
+            label="Equilibrium temperature",
+            value=_float_or_none(environment.get("candidate_eq_temp_k")),
+            unit="K",
+            status=env_status,
+            basis=env_basis if env_status != "missing" else (environment.get("missing_reason") or "no temperature/insolation derivation inputs"),
+            layer="core/arm" if env_status == "source" else ("arm_candidate" if env_status == "derived" else "none"),
+            confidence_tier=env_confidence,
+            replacement_target="source equilibrium temperature or source insolation/luminosity inputs",
+        ),
+    ]
+    return {
+        "object_type": "planet",
+        "object_id": planet.get("planet_id"),
+        "display_name": planet.get("planet_name") or planet.get("stable_object_key"),
+        "stable_object_key": planet.get("stable_object_key"),
+        "host_star_id": star_id,
+        "host_display_name": (host or {}).get("display_name"),
+        "fields": fields,
+    }
+
+
+def _simulation_readiness_diagnostics(
+    stars: List[Dict[str, Any]],
+    planets: List[Dict[str, Any]],
+    arm: Dict[str, Any],
+) -> Dict[str, Any]:
+    params_by_star_id = _best_stellar_parameters_by_star_id(arm)
+    star_rows = [_star_simulation_fields(star, params_by_star_id.get(int(star["star_id"]))) for star in stars if star.get("star_id") is not None]
+    star_fields_by_id = {int(row["object_id"]): row for row in star_rows if row.get("object_id") is not None}
+    default_star_fields = star_rows[0] if star_rows else None
+    planet_rows = [_planet_simulation_fields(planet, star_fields_by_id, default_star_fields) for planet in planets]
+    all_fields = [field for row in [*star_rows, *planet_rows] for field in row.get("fields", [])]
+    counts: Dict[str, int] = {"source": 0, "derived": 0, "assumed": 0, "missing": 0}
+    for field in all_fields:
+        status = str(field.get("status") or "missing")
+        counts[status] = int(counts.get(status, 0)) + 1
+    total = sum(counts.values())
+    score = (counts.get("source", 0) + 0.75 * counts.get("derived", 0) + 0.35 * counts.get("assumed", 0)) / total if total else 0.0
+    return {
+        "score": score,
+        "counts": counts,
+        "required_field_count": total,
+        "status": "ok" if total and counts.get("missing", 0) == 0 and counts.get("assumed", 0) == 0 else ("warn" if total else "missing"),
+        "stars": star_rows,
+        "planets": planet_rows,
+        "notes": [
+            "Runtime diagnostics are shaped like future arm/disc rows but are not yet persisted.",
+            "Derived numeric science candidates should be materialized in arm with provenance before becoming simulation inputs.",
+            "Visualization-only defaults such as circular unknown orbits belong in disc assumptions and should be replaced when literature values are found.",
+        ],
+    }
+
+
 def _planet_environment_evidence(planet: Dict[str, Any], host_star: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     eq_temp = planet.get("eq_temp_k")
     insolation = planet.get("insol_earth")
@@ -818,6 +1156,7 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
     planet_environment = _attach_planet_environment_diagnostics(stars, planets)
     disc = _disc_object_diagnostics(system)
     arm = _arm_object_diagnostics(stars, planets, system)
+    simulation_readiness = _simulation_readiness_diagnostics(stars, planets, arm)
     provenance = {
         "system": _provenance_diagnostics([system], "system", "system_id"),
         "stars": _provenance_diagnostics(stars, "star", "star_id"),
@@ -911,6 +1250,25 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
             ),
             workspace="Object Diagnostics" if orbital_solution_count or not orbit_edge_count else "Agency",
         ),
+        _object_readiness_item(
+            key="simulation_readiness",
+            status=simulation_readiness.get("status") or "missing",
+            label="Simulation Readiness",
+            detail=(
+                f"{simulation_readiness.get('required_field_count', 0)} checked field(s): "
+                f"{simulation_readiness.get('counts', {}).get('source', 0)} source, "
+                f"{simulation_readiness.get('counts', {}).get('derived', 0)} derived, "
+                f"{simulation_readiness.get('counts', {}).get('assumed', 0)} assumed, "
+                f"{simulation_readiness.get('counts', {}).get('missing', 0)} missing."
+            ),
+            why="The 3D simulator needs numeric stellar, planet, orbit, and environment inputs with explicit evidence basis.",
+            next_action=(
+                "Open the Simulation tab. Promote defensible derived science candidates into arm and keep visualization-only assumptions in disc."
+                if simulation_readiness.get("required_field_count")
+                else "No simulation readiness fields were available to inspect for this object."
+            ),
+            workspace="Object Diagnostics",
+        ),
     ]
     missing_provenance = sum(int((item or {}).get("incomplete_count") or 0) for item in provenance.values())
     readiness.append(
@@ -946,6 +1304,7 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
             "disc": disc,
             "arm": arm,
             "planet_environment": planet_environment,
+            "simulation_readiness": simulation_readiness,
             "readiness": readiness,
             "public_urls": {
                 "api_detail": f"/api/v1/systems/{system_id}",

@@ -173,6 +173,55 @@ Rules:
 - keep source-native values and uncertainty bounds; do not collapse them into inferred prose fields here
 - one star may legitimately have multiple rows from different source catalogs
 
+## `derived_physical_parameters` (planned)
+
+Deterministic, provenance-bound numeric science candidates used when source
+catalogs do not provide a needed physical value. These rows are temporary in the
+scientific sense: they are acceptable explicit derivations, but they should be
+replaced or superseded when a stronger source measurement is found.
+
+Columns:
+- `derived_parameter_id BIGINT`
+- object binding:
+  - `object_type TEXT` (`system|star|planet|component|orbit`)
+  - `system_id BIGINT` (nullable)
+  - `star_id BIGINT` (nullable)
+  - `planet_id BIGINT` (nullable)
+  - `stable_object_key TEXT` (nullable)
+  - `stable_component_key TEXT` (nullable)
+- parameter:
+  - `parameter_key TEXT` (for example `teff_k`, `luminosity_lsun`,
+    `mass_msun`, `semi_major_axis_au`, `insol_earth`)
+  - `value DOUBLE`
+  - `unit TEXT`
+  - uncertainty/range: `value_lo DOUBLE`, `value_hi DOUBLE`, `sigma DOUBLE`
+- derivation:
+  - `derivation_method TEXT` (for example `spectral_type_proxy`,
+    `stefan_boltzmann_from_radius_teff`, `kepler_from_period_host_mass`)
+  - `derivation_version TEXT`
+  - `input_parameters_json TEXT`
+  - `assumptions_json TEXT`
+  - `lossy_transform BOOLEAN`
+  - `superseded_by_source BOOLEAN`
+  - `replacement_priority TEXT` (`low|normal|high|critical`)
+- quality:
+  - `confidence_score DOUBLE`
+  - `confidence_tier TEXT` (`high|medium|low|illustrative`)
+  - `review_status TEXT` (`candidate|accepted|superseded|rejected`)
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`,
+  `transform_version`)
+
+Rules:
+- source-native measurements always win over derived values for science claims.
+- spectral-type proxy rows are allowed only when the source spectral evidence is
+  preserved and the confidence tier is no higher than `low`.
+- derived orbital values such as semi-major axis from period and host mass must
+  retain the exact input mass/period basis and method version.
+- Astronomy Agency enrichment must treat non-superseded rows in this table as a
+  prioritized search target for stronger literature/source values.
+- rows with `confidence_tier='illustrative'` may support diagnostics but must
+  not be used as canonical science assertions.
+
 ## `msc_component_details`
 
 MSC component/context rows for subsystem narration and photometry support.

@@ -58,6 +58,7 @@ Current status snapshot:
 - `system_neighbors`: planned
 - `system_tags`: planned
 - `snapshot_manifest`: implemented (`scripts/generate_snapshots.py`)
+- `simulation_assumptions`: planned
 - `external_reference_links`: planned
 - `source_evidence_links`: planned
 - Evidence Portfolio operational store: implemented in the Admin DB as mutable
@@ -202,6 +203,46 @@ Required columns:
 - `build_id TEXT`
 - `generator_version TEXT`
 - `created_at TIMESTAMP`
+
+## simulation_assumptions (planned)
+
+Reproducible presentation/simulation defaults used when a visual or 3D scene
+needs a value but no source-backed or defensible `arm` derivative is available.
+
+Required columns:
+- object binding:
+  - `object_type TEXT` (`system|star|planet|component|orbit`)
+  - `system_id BIGINT` (nullable)
+  - `star_id BIGINT` (nullable)
+  - `planet_id BIGINT` (nullable)
+  - `stable_object_key TEXT` (nullable)
+  - `stable_component_key TEXT` (nullable)
+- assumption:
+  - `parameter_key TEXT` (for example `eccentricity`, `inclination_deg`,
+    `render_albedo`, `surface_palette`, `cloud_fraction`)
+  - `value_json TEXT`
+  - `unit TEXT` (nullable)
+  - `assumption_kind TEXT` (`visual_default|simulation_default|classification_hint`)
+  - `assumption_method TEXT`
+  - `assumption_version TEXT`
+  - `input_context_json TEXT`
+  - `replacement_target TEXT`
+  - `visibility_label TEXT` (`assumed|illustrative|placeholder`)
+- build/version:
+  - `build_id TEXT`
+  - `generator_version TEXT`
+  - `created_at TIMESTAMP`
+
+Rules:
+- Disc assumptions are not measurements and must be labeled in Admin/public
+  object explorers when surfaced.
+- Assumptions must be deterministic for the same input context and generator
+  version.
+- A stronger `core` source value or accepted `arm.derived_physical_parameters`
+  row must supersede the assumption in downstream presentation.
+- Agency enrichment should treat active assumptions as search targets for real
+  values, but conversations or generated prose must not silently convert an
+  assumption into a science claim.
 
 ## snapshot_manifest
 
