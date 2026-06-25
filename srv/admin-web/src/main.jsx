@@ -2081,8 +2081,8 @@ function ObjectDiagnosticsScreen() {
 
       <form className="object-search" onSubmit={runSearch}>
         <label>
-          <span>System, alias, catalog id, or stable key</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Sol, Alpha Centauri, Gaia 4472832130942575872, system 1" />
+          <span>System, component, alias, catalog id, or stable key</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Sol, Mars, Ganymede, Gaia 4472832130942575872, system 1" />
         </label>
         <button className="button primary" type="submit">{state.loadingSearch ? "Searching..." : "Search"}</button>
       </form>
@@ -2099,17 +2099,22 @@ function ObjectDiagnosticsScreen() {
               {items.map((item) => (
                 <button
                   className={`select-row ${item.system_id === system.system_id ? "selected" : ""}`}
-                  key={item.system_id}
+                  key={objectSearchResultKey(item)}
                   onClick={() => loadDetail(item.system_id, item.diagnostic_focus)}
                   type="button"
                 >
-                  <strong>{item.display_name || item.system_name || `System ${item.system_id}`}</strong>
-                  <span>{compactId(item.stable_object_key, 34)} | {formatFloat(item.dist_ly, 2)} ly | {formatInt(item.star_count)} stars | {formatInt(item.planet_count)} planets</span>
+                  <strong>{item.object_match?.label || item.display_name || item.system_name || `System ${item.system_id}`}</strong>
+                  <span>
+                    {item.object_match
+                      ? `${item.object_match.component_type || item.object_match.type} in ${item.display_name || item.system_name || `System ${item.system_id}`}`
+                      : compactId(item.stable_object_key, 34)}
+                    {" | "}{formatFloat(item.dist_ly, 2)} ly | {formatInt(item.star_count)} stars | {formatInt(item.planet_count)} planets
+                  </span>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="empty">No search results yet. Try a common name, Gaia/HD/HIP id, or `system 123`.</div>
+            <div className="empty">No search results yet. Try a common name, moon/planet name, Gaia/HD/HIP id, or `system 123`.</div>
           )}
         </div>
 
@@ -2188,6 +2193,11 @@ function loadObjectRecents() {
   } catch (_) {
     return [];
   }
+}
+
+function objectSearchResultKey(item) {
+  const focus = item?.diagnostic_focus || {};
+  return `${item?.system_id || "system"}:${focus.type || "system"}:${focus.key || focus.id || ""}`;
 }
 
 function saveObjectRecents(items) {

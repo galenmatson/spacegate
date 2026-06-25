@@ -704,6 +704,227 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
     }
 
 
+def _admin_search_system_by_id(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    disc_db_path: Optional[str],
+    arm_db_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    rows, _ = search_systems(
+        con,
+        q_norm=None,
+        q_raw=None,
+        system_id_exact=system_id,
+        id_query=None,
+        max_dist_ly=None,
+        min_dist_ly=None,
+        min_star_count=None,
+        max_star_count=None,
+        min_planet_count=None,
+        max_planet_count=None,
+        min_temp_k=None,
+        max_temp_k=None,
+        spectral_classes=[],
+        has_planets=None,
+        has_habitable=None,
+        min_coolness_score=None,
+        max_coolness_score=None,
+        sort="name",
+        match_mode=True,
+        limit=1,
+        include_total=False,
+        cursor_values=None,
+        disc_db_path=disc_db_path,
+        arm_db_path=arm_db_path,
+    )
+    return rows[0] if rows else None
+
+
+def _admin_core_system_id_for_object(con: duckdb.DuckDBPyConnection, object_type: Any, object_id: Any) -> Optional[int]:
+    object_type_text = str(object_type or "")
+    try:
+        object_id_int = int(object_id)
+    except Exception:
+        return None
+    if object_type_text == "system":
+        return object_id_int
+    if object_type_text == "star":
+        row = con.execute("SELECT system_id FROM stars WHERE star_id = ? LIMIT 1", [object_id_int]).fetchone()
+        return int(row[0]) if row and row[0] is not None else None
+    if object_type_text == "planet":
+        row = con.execute("SELECT system_id FROM planets WHERE planet_id = ? LIMIT 1", [object_id_int]).fetchone()
+        return int(row[0]) if row and row[0] is not None else None
+    return None
+
+
+def _admin_resolve_component_system_id(
+    core_con: duckdb.DuckDBPyConnection,
+    arm_con: duckdb.DuckDBPyConnection,
+    component: Dict[str, Any],
+) -> Optional[int]:
+    direct = _admin_core_system_id_for_object(
+        core_con,
+        component.get("core_object_type"),
+        component.get("core_object_id"),
+    )
+    if direct is not None:
+        return direct
+
+    seen: set[str] = set()
+    frontier = [str(component.get("stable_component_key") or "")]
+    for _ in range(12):
+        frontier = [key for key in frontier if key and key not in seen]
+        if not frontier:
+            break
+        seen.update(frontier)
+        placeholders = ",".join(["?"] * len(frontier))
+        parents = _rows_to_dicts(
+            arm_con.execute(
+                f"""
+                SELECT DISTINCT parent_component_key
+                FROM system_hierarchy_edges
+                WHERE child_component_key IN ({placeholders})
+                ORDER BY parent_component_key ASC
+                LIMIT 80
+                """,
+                frontier,
+            )
+        )
+        parent_keys = [str(row.get("parent_component_key") or "") for row in parents if row.get("parent_component_key")]
+        if not parent_keys:
+            break
+        parent_placeholders = ",".join(["?"] * len(parent_keys))
+        parent_components = _rows_to_dicts(
+            arm_con.execute(
+                f"""
+                SELECT stable_component_key, core_object_type, core_object_id
+                FROM component_entities
+                WHERE stable_component_key IN ({parent_placeholders})
+                """,
+                parent_keys,
+            )
+        )
+        for parent in parent_components:
+            resolved = _admin_core_system_id_for_object(
+                core_con,
+                parent.get("core_object_type"),
+                parent.get("core_object_id"),
+            )
+            if resolved is not None:
+                return resolved
+        frontier = parent_keys
+    return None
+
+
+def _admin_component_search_matches(
+    core_con: duckdb.DuckDBPyConnection,
+    *,
+    q_raw: Optional[str],
+    q_norm: str,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    if not q_norm or len(q_norm) < 2:
+        return []
+    arm_path_raw = _resolve_arm_db_path()
+    if not arm_path_raw:
+        return []
+    raw_text = str(q_raw or q_norm or "").strip().lower()
+    norm_pattern = f"%{q_norm}%"
+    raw_pattern = f"%{raw_text}%" if raw_text else norm_pattern
+    arm_con = None
+    out: List[Dict[str, Any]] = []
+    try:
+        arm_con = duckdb.connect(str(arm_path_raw), read_only=True)
+        if not _duckdb_has_table(arm_con, "component_entities"):
+            return []
+        rows = _rows_to_dicts(
+            arm_con.execute(
+                """
+                SELECT component_entity_id, stable_component_key, component_type,
+                       core_object_type, core_object_id, display_name,
+                       catalog_component_label, source_catalog, source_pk
+                FROM component_entities
+                WHERE coalesce(core_object_type, '') != 'system'
+                  AND (
+                    regexp_replace(lower(coalesce(display_name, '')), '[^a-z0-9]+', ' ', 'g') = ?
+                    OR regexp_replace(lower(coalesce(display_name, '')), '[^a-z0-9]+', ' ', 'g') LIKE ?
+                    OR regexp_replace(lower(coalesce(catalog_component_label, '')), '[^a-z0-9]+', ' ', 'g') = ?
+                    OR regexp_replace(lower(coalesce(catalog_component_label, '')), '[^a-z0-9]+', ' ', 'g') LIKE ?
+                    OR regexp_replace(lower(coalesce(stable_component_key, '')), '[^a-z0-9]+', ' ', 'g') LIKE ?
+                    OR lower(coalesce(stable_component_key, '')) LIKE ?
+                    OR lower(coalesce(source_pk, '')) LIKE ?
+                  )
+                ORDER BY
+                  CASE
+                    WHEN regexp_replace(lower(coalesce(display_name, '')), '[^a-z0-9]+', ' ', 'g') = ? THEN 0
+                    WHEN regexp_replace(lower(coalesce(catalog_component_label, '')), '[^a-z0-9]+', ' ', 'g') = ? THEN 1
+                    WHEN lower(coalesce(stable_component_key, '')) = ? THEN 2
+                    ELSE 3
+                  END,
+                  CASE component_type
+                    WHEN 'system' THEN 0
+                    WHEN 'star' THEN 1
+                    WHEN 'main_sequence' THEN 1
+                    WHEN 'planet' THEN 2
+                    WHEN 'subplanet' THEN 3
+                    WHEN 'moon' THEN 4
+                    WHEN 'artificial' THEN 5
+                    WHEN 'minor_body' THEN 6
+                    ELSE 9
+                  END,
+                  display_name ASC NULLS LAST,
+                  stable_component_key ASC
+                LIMIT ?
+                """,
+                [
+                    q_norm,
+                    norm_pattern,
+                    q_norm,
+                    norm_pattern,
+                    norm_pattern,
+                    raw_pattern,
+                    raw_pattern,
+                    q_norm,
+                    q_norm,
+                    raw_text,
+                    max(limit * 3, limit),
+                ],
+            )
+        )
+        seen: set[tuple[int, str]] = set()
+        for row in rows:
+            system_id = _admin_resolve_component_system_id(core_con, arm_con, row)
+            key = str(row.get("stable_component_key") or "")
+            if system_id is None or not key:
+                continue
+            dedupe_key = (int(system_id), key)
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            out.append(
+                {
+                    "system_id": int(system_id),
+                    "diagnostic_focus": {"type": "component", "key": key},
+                    "object_match": {
+                        "type": "component",
+                        "label": row.get("display_name") or row.get("catalog_component_label") or key,
+                        "component_type": row.get("component_type"),
+                        "stable_component_key": key,
+                        "source_catalog": row.get("source_catalog"),
+                    },
+                }
+            )
+            if len(out) >= limit:
+                break
+    except Exception:
+        return []
+    finally:
+        if arm_con is not None:
+            arm_con.close()
+    return out
+
+
 def _actor_user_id_from_request(request: Request) -> Optional[int]:
     context = getattr(request.state, "auth_user", None)
     if not isinstance(context, dict):
@@ -4202,6 +4423,8 @@ def admin_objects_search(
             system_id_exact = None
     object_id_match = re.match(r"^(star|planet)\s+(\d+)$", q_norm or "")
     started_at = datetime.datetime.utcnow()
+    disc_db_path = _resolve_disc_db_path()
+    arm_db_path = _resolve_arm_db_path()
     with db.connection_scope() as con:
         if system_id_exact is None and object_id_match:
             object_type = object_id_match.group(1)
@@ -4215,6 +4438,14 @@ def admin_objects_search(
             if row:
                 system_id_exact = int(row[0])
                 diagnostic_focus = {"type": object_type, "id": object_id}
+        component_matches = []
+        if system_id_exact is None and not object_id_match:
+            component_matches = _admin_component_search_matches(
+                con,
+                q_raw=q,
+                q_norm=q_norm,
+                limit=limit,
+            )
         rows, total_count = search_systems(
             con,
             q_norm=q_norm or None,
@@ -4239,9 +4470,31 @@ def admin_objects_search(
             limit=limit,
             include_total=True,
             cursor_values=None,
-            disc_db_path=_resolve_disc_db_path(),
-            arm_db_path=_resolve_arm_db_path(),
+            disc_db_path=disc_db_path,
+            arm_db_path=arm_db_path,
         )
+        focused_rows: List[Dict[str, Any]] = []
+        for match in component_matches:
+            row = _admin_search_system_by_id(
+                con,
+                system_id=int(match["system_id"]),
+                disc_db_path=disc_db_path,
+                arm_db_path=arm_db_path,
+            )
+            if not row:
+                continue
+            row["diagnostic_focus"] = match["diagnostic_focus"]
+            row["object_match"] = match["object_match"]
+            focused_rows.append(row)
+        if focused_rows:
+            focused_system_ids = {int(row["system_id"]) for row in focused_rows if row.get("system_id") is not None}
+            merged_rows = focused_rows[:]
+            for row in rows:
+                if row.get("system_id") is not None and int(row["system_id"]) in focused_system_ids:
+                    continue
+                merged_rows.append(row)
+            rows = merged_rows
+            total_count = max(int(total_count or 0), len(rows))
     for item in rows:
         _attach_snapshot_url(item)
         if diagnostic_focus and item.get("system_id") == system_id_exact:

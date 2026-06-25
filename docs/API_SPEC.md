@@ -191,17 +191,21 @@ Response:
 - `403` authenticated non-admin.
 
 ### GET /admin/objects/search
-Searches systems for the Admin Object Diagnostics workspace.
+Searches systems and system-owned components for the Admin Object Diagnostics
+workspace.
 
 Query params:
 - `q` optional system name, alias, catalog id, stable key, `system <id>`,
-  `star <id>`, or `planet <id>`
+  `star <id>`, `planet <id>`, or arm component name/key such as `Ganymede`
 - `limit` optional result limit, default 20, max 50
 
 Response includes candidate systems from the current served core projection plus
 disc snapshot URL hints when available. Exact `star <id>` and `planet <id>`
 queries return the owning system candidate with a `diagnostic_focus` hint for
-Admin clients.
+Admin clients. Arm component matches, including moons, minor bodies, and
+artificial objects, also return the owning system candidate with
+`diagnostic_focus: {"type":"component","key":"..."}` and an `object_match`
+summary.
 
 Response:
 - `200` for authenticated admins.

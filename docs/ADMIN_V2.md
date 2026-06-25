@@ -109,8 +109,8 @@ knowledge lives.
 
 Show:
 
-- system search by canonical name, alias, stable object key, catalog id,
-  `system <id>`, `star <id>`, or `planet <id>`
+- system/object search by canonical name, alias, stable object key, catalog id,
+  `system <id>`, `star <id>`, `planet <id>`, or arm component name/key
 - core identity, counts, coordinates, grouping basis, aliases, and provenance
 - member stars and planets with key scalar/orbital fields
 - arm-only components such as moons, minor bodies, artificial objects, and
