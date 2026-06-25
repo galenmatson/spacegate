@@ -219,6 +219,8 @@ Includes:
 - public system detail payload reused from the v1 system detail contract
 - core identity, aliases, stars, planets, eclipsing binaries, and hierarchy
 - provenance completeness diagnostics for system/star/planet rows
+- per-planet environment evidence basis and derived candidate
+  temperature/insolation fields for Admin triage
 - disc coolness, signal counts, coolness contribution explanation, and snapshot
   manifest rows
 - expanded arm component, hierarchy-edge, orbit-edge, orbital-solution, and
@@ -249,6 +251,29 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 - `404` if the system id is not found.
+
+### GET /admin/dataset/status
+Returns read-only science artifact diagnostics for the Admin Dataset workspace.
+
+Includes:
+- current build and layer artifact metadata
+- inventory, source contribution, spectral, multiplicity, and compact-object
+  summaries
+- planet environment coverage, including source equilibrium-temperature rows,
+  source-insolation-only rows, proxy-derivable rows, broad HZ environment
+  candidates, nice-planet-like candidates, missing environment counts, and gap
+  examples
+- QC, determinism, catalog lifecycle, and runtime footprint summaries
+
+Notes:
+- This endpoint does not mutate build artifacts.
+- Proxy-derivable planet environment rows are diagnostics and presentation
+  triage signals, not canonical habitability facts.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
 
 ### GET /admin/ui
 Admin UI scaffold served by the API (under `/api/v2/admin/ui`).

@@ -1832,6 +1832,8 @@ function DatasetQualityTab({ data }) {
   const grouping = breakdowns.system_grouping_report || {};
   const match = breakdowns.match_report || {};
   const coolness = breakdowns.coolness_report || {};
+  const planetEnvironment = breakdowns.planet_environment_coverage || {};
+  const planetEnvironmentExamples = breakdowns.planet_environment_gap_examples || [];
   return (
     <section className="dataset-grid">
       <div className="panel">
@@ -1868,6 +1870,38 @@ function DatasetQualityTab({ data }) {
             .filter(([key, value]) => key.endsWith("_report") && value && typeof value === "object" && Object.keys(value).length)
             .map(([key]) => <span className="badge" key={key}>{key}</span>)}
         </div>
+      </div>
+      <div className="panel">
+        <h2>Planet Environment Coverage</h2>
+        <MetricList
+          rows={[
+            ["Source or derivable", `${formatInt(planetEnvironment.source_or_derivable_count)} / ${formatInt(planetEnvironment.total_planets)}`, `${formatPct(planetEnvironment.source_or_derivable_pct)} coverage`],
+            ["Source equilibrium temp", formatInt(planetEnvironment.source_eq_temp_count)],
+            ["Source insolation only", formatInt(planetEnvironment.source_insolation_only_count)],
+            ["Proxy derivable", formatInt(planetEnvironment.proxy_derivable_count), "stellar class + semi-major axis"],
+            ["Missing environment", `${formatInt(planetEnvironment.missing_environment_count)} (${formatPct(planetEnvironment.missing_pct)})`],
+            ["Broad HZ environment", formatInt(planetEnvironment.broad_hz_environment_count)],
+            ["Nice-planet-like", formatInt(planetEnvironment.nice_planet_like_count), "broad HZ + mass/eccentricity filters"],
+          ]}
+        />
+        <details className="object-details">
+          <summary>Gap examples</summary>
+          {planetEnvironmentExamples.length ? (
+            <table>
+              <thead><tr><th>Planet</th><th>Reason</th><th>Source</th><th>Host spectral</th></tr></thead>
+              <tbody>
+                {planetEnvironmentExamples.map((row) => (
+                  <tr key={`${row.stable_object_key}-${row.gap_reason}`}>
+                    <td>{row.planet_name || row.stable_object_key || "n/a"}</td>
+                    <td>{readableStatus(row.gap_reason)}</td>
+                    <td>{row.source_catalog || "n/a"}</td>
+                    <td>{[row.spectral_class, row.luminosity_class, row.spectral_type_raw].filter(Boolean).join(" / ") || "n/a"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div className="empty">No planet environment coverage gaps were sampled.</div>}
+        </details>
       </div>
       <div className="panel">
         <h2>Quality Notes</h2>
@@ -2393,6 +2427,7 @@ function objectFocusSummary(type, data) {
     };
   }
   if (type === "planet") {
+    const environment = data.environment_evidence || {};
     return {
       planet_name: data.planet_name,
       planet_id: data.planet_id,
@@ -2403,6 +2438,12 @@ function objectFocusSummary(type, data) {
       radius_earth: data.radius_earth,
       mass_earth: data.mass_earth,
       eq_temp_k: data.eq_temp_k,
+      environment_evidence_basis: environment.evidence_basis,
+      candidate_eq_temp_k: environment.candidate_eq_temp_k,
+      candidate_insol_earth: environment.candidate_insol_earth,
+      broad_hz_candidate: environment.broad_hz_candidate,
+      nice_planet_candidate: environment.nice_planet_candidate,
+      environment_missing_reason: environment.missing_reason,
       discovery_method: data.discovery_method,
       lifecycle_status: data.lifecycle_status,
       arm_component_key: data.arm_component?.stable_component_key,
@@ -2682,21 +2723,37 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
         <h2>Planets</h2>
         {planets.length ? (
           <table>
-            <thead><tr><th>Name</th><th>Period</th><th>Semi-major axis</th><th>Radius</th><th>Temp</th></tr></thead>
+            <thead><tr><th>Name</th><th>Period</th><th>Semi-major axis</th><th>Radius</th><th>Env Evidence</th><th>Candidate Environment</th></tr></thead>
             <tbody>
-              {planets.slice(0, 40).map((planet) => (
-                <tr className={selectedType === "planet" && selectedId === planet.planet_id ? "selected-row" : ""} key={planet.planet_id}>
-                  <td>
-                    <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "planet", data: { ...planet, arm_component: componentForCoreObject(arm, "planet", planet.planet_id) } })}>
-                      {planet.planet_name || planet.stable_object_key}
-                    </button>
-                  </td>
-                  <td>{formatFloat(planet.orbital_period_days, 3)} d</td>
-                  <td>{formatFloat(planet.semi_major_axis_au, 4)} au</td>
-                  <td>{formatFloat(planet.radius_earth, 2)} Earth</td>
-                  <td>{formatFloat(planet.eq_temp_k, 0)} K</td>
-                </tr>
-              ))}
+              {planets.slice(0, 40).map((planet) => {
+                const environment = planet.environment_evidence || {};
+                return (
+                  <tr className={selectedType === "planet" && selectedId === planet.planet_id ? "selected-row" : ""} key={planet.planet_id}>
+                    <td>
+                      <button className="link-button" type="button" onClick={() => onSelectObject?.({ type: "planet", data: { ...planet, arm_component: componentForCoreObject(arm, "planet", planet.planet_id) } })}>
+                        {planet.planet_name || planet.stable_object_key}
+                      </button>
+                    </td>
+                    <td>{formatFloat(planet.orbital_period_days, 3)} d</td>
+                    <td>{formatFloat(planet.semi_major_axis_au, 4)} au</td>
+                    <td>{formatFloat(planet.radius_earth, 2)} Earth</td>
+                    <td>
+                      <span className={`badge ${environment.evidence_basis === "missing" ? "warn" : environment.evidence_basis === "stellar_class_luminosity_proxy" ? "muted" : "ok"}`}>
+                        {environmentEvidenceLabel(environment.evidence_basis)}
+                      </span>
+                      {environment.missing_reason ? <span className="table-subtext">{environment.missing_reason}</span> : null}
+                    </td>
+                    <td>
+                      <strong>{formatFloat(environment.candidate_eq_temp_k, 0)} K</strong>
+                      <span className="table-subtext">
+                        {formatFloat(environment.candidate_insol_earth, 3)} Earth flux
+                        {environment.broad_hz_candidate ? " | broad HZ" : ""}
+                        {environment.nice_planet_candidate ? " | nice candidate" : ""}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : <div className="empty">No planets returned.</div>}
@@ -2734,6 +2791,14 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
       </div>
     </section>
   );
+}
+
+function environmentEvidenceLabel(value) {
+  const key = String(value || "missing");
+  if (key === "source_eq_temp") return "source temp";
+  if (key === "source_insolation") return "source flux";
+  if (key === "stellar_class_luminosity_proxy") return "proxy flux";
+  return "missing";
 }
 
 function groupedArmOnlyComponents(components) {

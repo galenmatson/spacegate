@@ -127,7 +127,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Add API filters/toggles for controversial lifecycle state and habitability range
 - [ ] Add UI habitability slider + top-N shortcut
 - [ ] Add optional filter/display for element-richness class
-- [ ] Investigate planet equilibrium-temperature coverage gaps surfaced in
+- [x] Investigate planet equilibrium-temperature coverage gaps surfaced in
   Admin Object Diagnostics; missing `eq_temp_k` should be distinguished between
   unavailable source data and derivable-but-not-materialized estimates.
 - [x] Add classifier drift/regression checks in build verification

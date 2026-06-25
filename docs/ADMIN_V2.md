@@ -98,6 +98,9 @@ Show:
 - determinism fields
 - product slice and deep-query readiness
 - catalog lifecycle and classifier drift summaries
+- planet environment coverage, separating source equilibrium temperature,
+  source insolation, proxy-derivable insolation, broad HZ candidates, and
+  missing environment evidence
 
 This screen should be read-heavy. Actions should be limited to previewing or
 launching controlled rebuilds.
@@ -113,6 +116,8 @@ Show:
   `system <id>`, `star <id>`, `planet <id>`, or arm component name/key
 - core identity, counts, coordinates, grouping basis, aliases, and provenance
 - member stars and planets with key scalar/orbital fields
+- per-planet environment evidence basis, candidate insolation/temperature,
+  broad HZ triage flag, and nice-planet candidate flag
 - arm-only components such as moons, minor bodies, artificial objects, and
   future exomoon candidates when they are present in `arm.component_entities`
 - grouped/collapsible arm-only component sections so Sol-scale systems remain

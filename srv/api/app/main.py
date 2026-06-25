@@ -315,6 +315,157 @@ def _coolness_explanation_from_row(row: Dict[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
+def _stellar_luminosity_proxy_lsun(star: Dict[str, Any]) -> Optional[float]:
+    spectral_class = str(star.get("spectral_class") or "").strip().upper()
+    if spectral_class not in {"O", "B", "A", "F", "G", "K", "M"}:
+        return None
+    luminosity_class = str(star.get("luminosity_class") or "").strip().upper()
+    spectral_type_raw = str(star.get("spectral_type_raw") or "").lower()
+    if luminosity_class not in {"", "V"}:
+        return None
+    if re.search(r"giant|supergiant|\biii\b|\bii\b|\biv\b", spectral_type_raw):
+        return None
+    return {
+        "O": 30000.0,
+        "B": 1000.0,
+        "A": 20.0,
+        "F": 4.0,
+        "G": 1.0,
+        "K": 0.4,
+        "M": 0.04,
+    }.get(spectral_class)
+
+
+def _planet_environment_evidence(planet: Dict[str, Any], host_star: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    eq_temp = planet.get("eq_temp_k")
+    insolation = planet.get("insol_earth")
+    semi_major_axis = planet.get("semi_major_axis_au")
+    luminosity_proxy = _stellar_luminosity_proxy_lsun(host_star or {}) if host_star else None
+    candidate_insolation: Optional[float] = None
+    candidate_eq_temp: Optional[float] = None
+    evidence_basis = "missing"
+    missing_reason = ""
+
+    try:
+        eq_value = float(eq_temp) if eq_temp is not None else None
+    except Exception:
+        eq_value = None
+    try:
+        insol_value = float(insolation) if insolation is not None else None
+    except Exception:
+        insol_value = None
+    try:
+        sma_value = float(semi_major_axis) if semi_major_axis is not None else None
+    except Exception:
+        sma_value = None
+
+    if eq_value is not None:
+        evidence_basis = "source_eq_temp"
+        candidate_eq_temp = eq_value
+    elif insol_value is not None and insol_value > 0:
+        evidence_basis = "source_insolation"
+        candidate_insolation = insol_value
+        candidate_eq_temp = 278.5 * math.pow(insol_value, 0.25)
+    elif sma_value is not None and sma_value > 0 and luminosity_proxy is not None:
+        evidence_basis = "stellar_class_luminosity_proxy"
+        candidate_insolation = luminosity_proxy / (sma_value * sma_value)
+        candidate_eq_temp = 278.5 * math.pow(candidate_insolation, 0.25)
+    else:
+        if sma_value is None or sma_value <= 0:
+            missing_reason = "missing semi-major axis for derived insolation"
+        elif host_star is None:
+            missing_reason = "missing host star row"
+        else:
+            missing_reason = "host spectral class/luminosity class is insufficient for proxy insolation"
+
+    if candidate_insolation is None and insol_value is not None and insol_value > 0:
+        candidate_insolation = insol_value
+
+    broad_hz_candidate = False
+    if candidate_insolation is not None:
+        broad_hz_candidate = 0.35 <= candidate_insolation <= 1.70
+    elif candidate_eq_temp is not None:
+        broad_hz_candidate = 180.0 <= candidate_eq_temp <= 350.0
+
+    try:
+        mass_earth = planet.get("mass_earth")
+        if mass_earth is None and planet.get("mass_jup") is not None:
+            mass_earth = float(planet.get("mass_jup")) * 317.8
+        mass_earth_value = float(mass_earth) if mass_earth is not None else None
+    except Exception:
+        mass_earth_value = None
+    try:
+        eccentricity_value = float(planet.get("eccentricity")) if planet.get("eccentricity") is not None else None
+    except Exception:
+        eccentricity_value = None
+
+    nice_candidate = (
+        broad_hz_candidate
+        and mass_earth_value is not None
+        and 0.3 <= mass_earth_value <= 8.0
+        and (eccentricity_value is None or eccentricity_value <= 0.35)
+    )
+    return {
+        "evidence_basis": evidence_basis,
+        "missing_reason": missing_reason,
+        "candidate_insol_earth": candidate_insolation,
+        "candidate_eq_temp_k": candidate_eq_temp,
+        "stellar_luminosity_proxy_lsun": luminosity_proxy,
+        "broad_hz_candidate": broad_hz_candidate,
+        "nice_planet_candidate": nice_candidate,
+    }
+
+
+def _attach_planet_environment_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str, Any]]) -> Dict[str, Any]:
+    stars_by_id = {int(row["star_id"]): row for row in stars if row.get("star_id") is not None}
+    counts: Dict[str, int] = {
+        "planets": len(planets),
+        "source_eq_temp": 0,
+        "source_insolation": 0,
+        "proxy_derivable": 0,
+        "missing_environment": 0,
+        "broad_hz_candidates": 0,
+        "nice_planet_candidates": 0,
+    }
+    missing_examples: List[Dict[str, Any]] = []
+    for planet in planets:
+        try:
+            star_id = int(planet.get("star_id")) if planet.get("star_id") is not None else None
+        except Exception:
+            star_id = None
+        evidence = _planet_environment_evidence(planet, stars_by_id.get(star_id) if star_id is not None else None)
+        planet["environment_evidence"] = evidence
+        basis = str(evidence.get("evidence_basis") or "missing")
+        if basis == "source_eq_temp":
+            counts["source_eq_temp"] += 1
+        elif basis == "source_insolation":
+            counts["source_insolation"] += 1
+        elif basis == "stellar_class_luminosity_proxy":
+            counts["proxy_derivable"] += 1
+        else:
+            counts["missing_environment"] += 1
+            missing_examples.append(
+                {
+                    "planet_id": planet.get("planet_id"),
+                    "planet_name": planet.get("planet_name"),
+                    "stable_object_key": planet.get("stable_object_key"),
+                    "reason": evidence.get("missing_reason") or "missing environment evidence",
+                }
+            )
+        if evidence.get("broad_hz_candidate"):
+            counts["broad_hz_candidates"] += 1
+        if evidence.get("nice_planet_candidate"):
+            counts["nice_planet_candidates"] += 1
+    return {
+        "counts": counts,
+        "missing_examples": missing_examples[:12],
+        "notes": [
+            "Environment diagnostics prefer source equilibrium temperature, then source insolation, then a labeled stellar-class luminosity proxy.",
+            "Broad HZ candidate is a triage signal only; it is not a canonical habitability claim.",
+        ],
+    }
+
+
 def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
     disc_path_raw = _resolve_disc_db_path()
     output: Dict[str, Any] = {
@@ -664,6 +815,7 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
     system = public["system"]
     stars = public["stars"]
     planets = public["planets"]
+    planet_environment = _attach_planet_environment_diagnostics(stars, planets)
     disc = _disc_object_diagnostics(system)
     arm = _arm_object_diagnostics(stars, planets, system)
     provenance = {
@@ -793,6 +945,7 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
             "provenance": provenance,
             "disc": disc,
             "arm": arm,
+            "planet_environment": planet_environment,
             "readiness": readiness,
             "public_urls": {
                 "api_detail": f"/api/v1/systems/{system_id}",
@@ -2673,6 +2826,149 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
                 """
             ).fetchone(),
         )
+        planet_environment_row = _timed(
+            "planet_environment_coverage",
+            lambda: con.execute(
+                """
+                WITH host_star AS (
+                  SELECT
+                    star_id,
+                    CASE
+                      WHEN COALESCE(luminosity_class, '') IN ('', 'V')
+                       AND NOT regexp_matches(LOWER(COALESCE(spectral_type_raw, '')), 'giant|supergiant|\\biii\\b|\\bii\\b|\\biv\\b')
+                      THEN
+                        CASE COALESCE(spectral_class, '')
+                          WHEN 'O' THEN 30000.0
+                          WHEN 'B' THEN 1000.0
+                          WHEN 'A' THEN 20.0
+                          WHEN 'F' THEN 4.0
+                          WHEN 'G' THEN 1.0
+                          WHEN 'K' THEN 0.4
+                          WHEN 'M' THEN 0.04
+                          ELSE NULL
+                        END
+                      ELSE NULL
+                    END AS luminosity_proxy_lsun
+                  FROM stars
+                ),
+                planet_env AS (
+                  SELECT
+                    p.*,
+                    hs.luminosity_proxy_lsun,
+                    COALESCE(p.mass_earth, p.mass_jup * 317.8) AS planet_mass_earth,
+                    CASE
+                      WHEN p.insol_earth IS NOT NULL AND p.insol_earth > 0.0 THEN p.insol_earth
+                      WHEN p.semi_major_axis_au IS NOT NULL
+                       AND p.semi_major_axis_au > 0.0
+                       AND hs.luminosity_proxy_lsun IS NOT NULL
+                      THEN hs.luminosity_proxy_lsun / (p.semi_major_axis_au * p.semi_major_axis_au)
+                      ELSE NULL
+                    END AS candidate_insol_earth,
+                    CASE
+                      WHEN p.eq_temp_k IS NOT NULL THEN p.eq_temp_k
+                      WHEN p.insol_earth IS NOT NULL AND p.insol_earth > 0.0
+                      THEN 278.5 * POW(p.insol_earth, 0.25)
+                      WHEN p.semi_major_axis_au IS NOT NULL
+                       AND p.semi_major_axis_au > 0.0
+                       AND hs.luminosity_proxy_lsun IS NOT NULL
+                      THEN 278.5 * POW(hs.luminosity_proxy_lsun / (p.semi_major_axis_au * p.semi_major_axis_au), 0.25)
+                      ELSE NULL
+                    END AS candidate_eq_temp_k,
+                    CASE
+                      WHEN p.eq_temp_k IS NOT NULL THEN 'source_eq_temp'
+                      WHEN p.insol_earth IS NOT NULL AND p.insol_earth > 0.0 THEN 'source_insolation'
+                      WHEN p.semi_major_axis_au IS NOT NULL
+                       AND p.semi_major_axis_au > 0.0
+                       AND hs.luminosity_proxy_lsun IS NOT NULL
+                      THEN 'stellar_class_luminosity_proxy'
+                      WHEN p.semi_major_axis_au IS NULL OR p.semi_major_axis_au <= 0.0 THEN 'missing_orbit'
+                      WHEN p.star_id IS NULL THEN 'missing_host'
+                      ELSE 'missing_host_luminosity_proxy'
+                    END AS evidence_basis
+                  FROM planets p
+                  LEFT JOIN host_star hs ON p.star_id = hs.star_id
+                )
+                SELECT
+                  COUNT(*)::bigint AS total_planets,
+                  SUM(CASE WHEN eq_temp_k IS NOT NULL THEN 1 ELSE 0 END)::bigint AS source_eq_temp_count,
+                  SUM(CASE WHEN eq_temp_k IS NULL AND insol_earth IS NOT NULL AND insol_earth > 0.0 THEN 1 ELSE 0 END)::bigint AS source_insolation_only_count,
+                  SUM(CASE WHEN evidence_basis = 'stellar_class_luminosity_proxy' THEN 1 ELSE 0 END)::bigint AS proxy_derivable_count,
+                  SUM(CASE WHEN evidence_basis IN ('missing_orbit','missing_host','missing_host_luminosity_proxy') THEN 1 ELSE 0 END)::bigint AS missing_environment_count,
+                  SUM(CASE WHEN evidence_basis = 'missing_orbit' THEN 1 ELSE 0 END)::bigint AS missing_orbit_count,
+                  SUM(CASE WHEN evidence_basis = 'missing_host' THEN 1 ELSE 0 END)::bigint AS missing_host_count,
+                  SUM(CASE WHEN evidence_basis = 'missing_host_luminosity_proxy' THEN 1 ELSE 0 END)::bigint AS missing_host_luminosity_proxy_count,
+                  SUM(CASE WHEN candidate_insol_earth BETWEEN 0.35 AND 1.70 OR (candidate_insol_earth IS NULL AND candidate_eq_temp_k BETWEEN 180.0 AND 350.0) THEN 1 ELSE 0 END)::bigint AS broad_hz_environment_count,
+                  SUM(CASE WHEN (candidate_insol_earth BETWEEN 0.35 AND 1.70 OR (candidate_insol_earth IS NULL AND candidate_eq_temp_k BETWEEN 180.0 AND 350.0))
+                            AND planet_mass_earth BETWEEN 0.3 AND 8.0
+                            AND COALESCE(eccentricity, 0.0) <= 0.35
+                           THEN 1 ELSE 0 END)::bigint AS nice_planet_like_count
+                FROM planet_env
+                """
+            ).fetchone(),
+        )
+        planet_environment_examples_rows = _timed(
+            "planet_environment_gap_examples",
+            lambda: con.execute(
+                """
+                WITH host_star AS (
+                  SELECT
+                    star_id,
+                    spectral_class,
+                    luminosity_class,
+                    spectral_type_raw,
+                    CASE
+                      WHEN COALESCE(luminosity_class, '') IN ('', 'V')
+                       AND NOT regexp_matches(LOWER(COALESCE(spectral_type_raw, '')), 'giant|supergiant|\\biii\\b|\\bii\\b|\\biv\\b')
+                      THEN
+                        CASE COALESCE(spectral_class, '')
+                          WHEN 'O' THEN 30000.0
+                          WHEN 'B' THEN 1000.0
+                          WHEN 'A' THEN 20.0
+                          WHEN 'F' THEN 4.0
+                          WHEN 'G' THEN 1.0
+                          WHEN 'K' THEN 0.4
+                          WHEN 'M' THEN 0.04
+                          ELSE NULL
+                        END
+                      ELSE NULL
+                    END AS luminosity_proxy_lsun
+                  FROM stars
+                )
+                SELECT
+                  p.planet_id,
+                  p.planet_name,
+                  p.system_id,
+                  p.stable_object_key,
+                  p.source_catalog,
+                  CASE
+                    WHEN p.semi_major_axis_au IS NULL OR p.semi_major_axis_au <= 0.0 THEN 'missing_orbit'
+                    WHEN p.star_id IS NULL THEN 'missing_host'
+                    ELSE 'missing_host_luminosity_proxy'
+                  END AS gap_reason,
+                  hs.spectral_class,
+                  hs.luminosity_class,
+                  hs.spectral_type_raw
+                FROM planets p
+                LEFT JOIN host_star hs ON p.star_id = hs.star_id
+                WHERE p.eq_temp_k IS NULL
+                  AND (p.insol_earth IS NULL OR p.insol_earth <= 0.0)
+                  AND NOT (
+                    p.semi_major_axis_au IS NOT NULL
+                    AND p.semi_major_axis_au > 0.0
+                    AND hs.luminosity_proxy_lsun IS NOT NULL
+                  )
+                ORDER BY
+                  CASE
+                    WHEN p.semi_major_axis_au IS NULL OR p.semi_major_axis_au <= 0.0 THEN 0
+                    WHEN p.star_id IS NULL THEN 1
+                    ELSE 2
+                  END,
+                  p.source_catalog ASC,
+                  p.planet_name ASC
+                LIMIT 12
+                """
+            ).fetchall(),
+        )
 
     arm_counts = {
         "component_entities": 0,
@@ -2791,6 +3087,52 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         "temperate_exoplanets": int(planet_row[1] or 0),
         "candidate_habitable_exoplanets": int(planet_row[2] or 0),
     }
+    planet_environment_keys = [
+        "total_planets",
+        "source_eq_temp_count",
+        "source_insolation_only_count",
+        "proxy_derivable_count",
+        "missing_environment_count",
+        "missing_orbit_count",
+        "missing_host_count",
+        "missing_host_luminosity_proxy_count",
+        "broad_hz_environment_count",
+        "nice_planet_like_count",
+    ]
+    planet_environment_coverage = {
+        key: int((planet_environment_row or [0] * len(planet_environment_keys))[idx] or 0)
+        for idx, key in enumerate(planet_environment_keys)
+    }
+    total_environment = int(planet_environment_coverage.get("total_planets") or 0)
+    planet_environment_coverage["source_or_derivable_count"] = (
+        int(planet_environment_coverage.get("source_eq_temp_count") or 0)
+        + int(planet_environment_coverage.get("source_insolation_only_count") or 0)
+        + int(planet_environment_coverage.get("proxy_derivable_count") or 0)
+    )
+    planet_environment_coverage["source_or_derivable_pct"] = (
+        float(planet_environment_coverage["source_or_derivable_count"]) / float(total_environment) * 100.0
+        if total_environment
+        else 0.0
+    )
+    planet_environment_coverage["missing_pct"] = (
+        float(planet_environment_coverage.get("missing_environment_count") or 0) / float(total_environment) * 100.0
+        if total_environment
+        else 0.0
+    )
+    planet_environment_examples = [
+        {
+            "planet_id": int(row[0]) if row[0] is not None else None,
+            "planet_name": row[1],
+            "system_id": int(row[2]) if row[2] is not None else None,
+            "stable_object_key": row[3],
+            "source_catalog": row[4],
+            "gap_reason": row[5],
+            "spectral_class": row[6],
+            "luminosity_class": row[7],
+            "spectral_type_raw": row[8],
+        }
+        for row in planet_environment_examples_rows
+    ]
     spectral_standard_counts = {
         "O": int(spectral_standard_row[0] or 0),
         "B": int(spectral_standard_row[1] or 0),
@@ -2945,6 +3287,8 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
             "system_multiplicity_evidence": system_mult_breakdown,
             "exotic_star_counts": exotic_counts,
             "exoplanet_counts": exoplanet_counts,
+            "planet_environment_coverage": planet_environment_coverage,
+            "planet_environment_gap_examples": planet_environment_examples,
             "qc_report": qc_report,
             "system_grouping_report": system_grouping_report,
             "gaia_backbone_report": gaia_backbone_report,
