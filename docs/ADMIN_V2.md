@@ -119,8 +119,8 @@ Show:
   fields and provenance without leaving the system dossier
 - direct component focus diagnostics from member tables, graph nodes, and
   parent/child relation links
-- browser-local recent-object shortcuts for returning to recently inspected
-  systems, stars, planets, or arm components
+- single-row browser-local recent-object shortcuts for returning to recently
+  inspected systems, stars, planets, or arm components
 - component navigation ordered by object class and orbital distance when a
   core-linked planet/subplanet provides a semi-major axis
 - layer artifact paths for core, arm, and disc

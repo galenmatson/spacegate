@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -2231,7 +2231,31 @@ function objectRecentEntry(detail, object) {
 }
 
 function ObjectRecentList({ items, onOpen, onClear }) {
+  const listRef = useRef(null);
+  const [visibleLimit, setVisibleLimit] = useState(OBJECT_RECENTS_LIMIT);
+  useEffect(() => {
+    const node = listRef.current;
+    if (!node) return undefined;
+    const updateLimit = () => {
+      const width = node.getBoundingClientRect().width || 0;
+      const cardMinWidth = 180;
+      const gapPx = 8;
+      const rawCount = Math.max(1, Math.floor((width + gapPx) / (cardMinWidth + gapPx)));
+      const count = items.length > rawCount ? Math.max(1, rawCount - 1) : rawCount;
+      setVisibleLimit(Math.min(OBJECT_RECENTS_LIMIT, count));
+    };
+    updateLimit();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateLimit);
+      return () => window.removeEventListener("resize", updateLimit);
+    }
+    const observer = new ResizeObserver(updateLimit);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [items.length]);
   if (!items.length) return null;
+  const visibleItems = items.slice(0, visibleLimit);
+  const hiddenCount = Math.max(0, items.length - visibleItems.length);
   return (
     <section className="panel object-recent-panel">
       <div className="panel-head">
@@ -2241,13 +2265,14 @@ function ObjectRecentList({ items, onOpen, onClear }) {
         </div>
         <button className="button" type="button" onClick={onClear}>Clear</button>
       </div>
-      <div className="object-recent-list">
-        {items.map((item) => (
+      <div className="object-recent-list" ref={listRef}>
+        {visibleItems.map((item) => (
           <button className="object-recent-row" key={item.key} type="button" onClick={() => onOpen?.(item)}>
             <strong>{item.label}</strong>
             <span>{item.sublabel}</span>
           </button>
         ))}
+        {hiddenCount ? <span className="object-recent-hidden">+{hiddenCount} older</span> : null}
       </div>
     </section>
   );

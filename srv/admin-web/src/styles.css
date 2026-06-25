@@ -404,15 +404,18 @@ h3 {
 
 .object-recent-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 .object-recent-row {
   display: grid;
   gap: 0.08rem;
-  min-width: 180px;
-  max-width: 280px;
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 260px;
   text-align: left;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -430,6 +433,14 @@ h3 {
 .object-recent-row span {
   color: var(--muted);
   font-size: 0.76rem;
+}
+
+.object-recent-hidden {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .select-list,
