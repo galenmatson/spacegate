@@ -439,6 +439,23 @@ h3 {
   margin-top: 0.12rem;
 }
 
+.kv-table th {
+  width: 34%;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.kv-table td,
+.kv-table th {
+  vertical-align: top;
+}
+
+.kv-table code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
 .dataset-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(380px, 1fr));

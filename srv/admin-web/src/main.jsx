@@ -2183,14 +2183,14 @@ function ObjectOverviewTab({ detail }) {
       <div className="panel">
         <h2>Public Links</h2>
         <MetricList rows={[
-          ["API detail", urls.api_detail || "n/a"],
-          ["Public detail", urls.public_detail || "n/a"],
-          ["Snapshot URL", system.snapshot?.url || "n/a"],
+          ["API detail", <ObjectLinkValue value={urls.api_detail} />],
+          ["Public detail", <ObjectLinkValue value={urls.public_detail} />],
+          ["Snapshot URL", <ObjectLinkValue value={system.snapshot?.url} />],
         ]} />
       </div>
       <div className="panel">
         <h2>System Provenance</h2>
-        <pre className="json-box">{jsonBlock(system.provenance || {})}</pre>
+        <ObjectKeyValueTable payload={system.provenance || {}} />
       </div>
     </section>
   );
@@ -2284,10 +2284,10 @@ function ObjectMembersTab({ stars, planets }) {
 
 function ObjectGraphTab({ arm, hierarchy }) {
   return (
-    <section className="dataset-grid">
+    <section className="runbook-grid">
       <div className="panel">
         <h2>Hierarchy Summary</h2>
-        <pre className="json-box">{jsonBlock(hierarchy?.counts || {})}</pre>
+        <ObjectKeyValueTable payload={hierarchy?.counts || {}} />
       </div>
       <div className="panel">
         <h2>Arm Components</h2>
@@ -2317,7 +2317,8 @@ function ObjectPresentationTab({ disc, system }) {
             <OverviewFact label="Rank" value={formatInt(coolness.rank)} />
             <OverviewFact label="Score" value={formatFloat(coolness.score_total, 4)} />
             <OverviewFact label="Profile" value={`${coolness.profile_id || "n/a"} @ ${coolness.profile_version || "n/a"}`} />
-            <pre className="json-box">{jsonBlock(coolness.features || {})}</pre>
+            <h3>Feature Contributions</h3>
+            <ObjectFeatureTable features={coolness.features || {}} />
           </>
         ) : <div className="empty">No coolness row found in disc.</div>}
       </div>
@@ -2342,9 +2343,66 @@ function ObjectPresentationTab({ disc, system }) {
       </div>
       <div className="panel">
         <h2>Primary Snapshot</h2>
-        <pre className="json-box">{jsonBlock(system.snapshot || {})}</pre>
+        {system.snapshot ? <ObjectKeyValueTable payload={system.snapshot} /> : <div className="empty">No primary snapshot is attached to the public system payload.</div>}
       </div>
     </section>
+  );
+}
+
+function isHttpUrl(value) {
+  return /^https?:\/\//i.test(String(value || ""));
+}
+
+function ObjectLinkValue({ value }) {
+  const text = String(value || "").trim();
+  if (!text) return "n/a";
+  if (isHttpUrl(text) || text.startsWith("/")) {
+    return <a href={text} target="_blank" rel="noreferrer">{text}</a>;
+  }
+  return text;
+}
+
+function ObjectKeyValueTable({ payload }) {
+  const entries = Object.entries(payload || {}).filter(([, value]) => value !== undefined && value !== null && value !== "");
+  if (!entries.length) return <div className="empty">No fields returned.</div>;
+  return (
+    <table className="kv-table">
+      <tbody>
+        {entries.map(([key, value]) => (
+          <tr key={key}>
+            <th>{actionLabel(key)}</th>
+            <td>{renderObjectValue(value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function renderObjectValue(value) {
+  if (value === null || value === undefined || value === "") return "n/a";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (typeof value === "number") return Number.isInteger(value) ? formatInt(value) : formatFloat(value, 6);
+  if (Array.isArray(value)) return value.length ? value.map((item) => String(item)).join(", ") : "none";
+  if (typeof value === "object") return <code>{JSON.stringify(value)}</code>;
+  return <ObjectLinkValue value={value} />;
+}
+
+function ObjectFeatureTable({ features }) {
+  const rows = Object.entries(features || {}).sort(([a], [b]) => a.localeCompare(b));
+  if (!rows.length) return <div className="empty">No feature values returned.</div>;
+  return (
+    <table>
+      <thead><tr><th>Feature</th><th>Value</th></tr></thead>
+      <tbody>
+        {rows.map(([key, value]) => (
+          <tr key={key}>
+            <td>{actionLabel(key)}</td>
+            <td>{typeof value === "number" ? formatFloat(value, 6) : String(value ?? "n/a")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
