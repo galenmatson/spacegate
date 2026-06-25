@@ -3387,6 +3387,29 @@ function ActionParamField({ action, name, spec, value, values, updateValue }) {
       </label>
     );
   }
+  if (Array.isArray(spec.options) || Array.isArray(spec.enum)) {
+    const options = Array.isArray(spec.options) && spec.options.length
+      ? spec.options
+      : (spec.enum || []).map((item) => ({ value: item, label: actionLabel(item) }));
+    return (
+      <label>
+        <span>{label}</span>
+        <select value={value ?? ""} onChange={(event) => updateValue(name, event.target.value)}>
+          {options.map((option) => {
+            const optionValue = typeof option === "object" ? option.value : option;
+            const optionLabel = typeof option === "object" ? option.label || option.value : actionLabel(option);
+            return <option key={optionValue} value={optionValue}>{optionLabel}</option>;
+          })}
+        </select>
+        {spec.help ? <em className="confirmation-reminder">{spec.help}</em> : null}
+        {options.map((option) => (
+          typeof option === "object" && option.description ? (
+            <em className="confirmation-reminder" key={`${option.value}-description`}>{option.label || option.value}: {option.description}</em>
+          ) : null
+        ))}
+      </label>
+    );
+  }
   if (name.includes("json") || name === "notes" || name === "reason") {
     return (
       <label>

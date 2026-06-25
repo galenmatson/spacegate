@@ -1454,6 +1454,15 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                 "default": "system_card",
                 "allow_empty": False,
                 "label": "View type",
+                "enum": ["system_card"],
+                "options": [
+                    {
+                        "value": "system_card",
+                        "label": "System card",
+                        "description": "Default deterministic SVG card used by public search/detail presentation.",
+                    }
+                ],
+                "help": "Only System card is implemented today. Add new renderer-backed view types here when they exist.",
             },
             "force": {
                 "type": "boolean",

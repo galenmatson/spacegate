@@ -71,6 +71,8 @@ Show:
   skipped counts, elapsed time, output root, selected artifact size, estimated
   large-run footprint, latest warning/error, advisory thresholds, and
   queued-job cancellation
+- snapshot view type selection should be an explicit selector populated from
+  the Admin action schema, not a free-text field
 - links from build, verification, coolness, snapshot, retention, and temporary
   output status cards back to the relevant Operations job detail when
   detectable
