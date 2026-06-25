@@ -152,6 +152,409 @@ def _attach_snapshot_url(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+OBJECT_PROVENANCE_REQUIRED_KEYS = [
+    "source_catalog",
+    "source_version",
+    "source_url",
+    "source_download_url",
+    "license",
+    "redistribution_ok",
+    "license_note",
+    "retrieved_at",
+    "ingested_at",
+    "transform_version",
+]
+
+
+def _duckdb_has_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
+    row = con.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'main' AND table_name = ?
+        LIMIT 1
+        """,
+        [table_name],
+    ).fetchone()
+    return row is not None
+
+
+def _rows_to_dicts(cursor: duckdb.DuckDBPyConnection) -> List[Dict[str, Any]]:
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    return [dict(zip(columns, row)) for row in rows]
+
+
+def _object_public_system_payload(system_id: int) -> Dict[str, Any]:
+    disc_db_path = _resolve_disc_db_path()
+    arm_db_path = _resolve_arm_db_path()
+    canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
+    with db.connection_scope() as con:
+        system = fetch_system_by_id(con, system_id)
+        if not system:
+            raise KeyError(f"System not found: {system_id}")
+        stars = fetch_stars_for_system(con, system_id)
+        planets = fetch_planets_for_system(con, system_id)
+        eclipsing_binaries = fetch_eclipsing_for_system(con, system_id)
+        star_count, planet_count = fetch_counts_for_system(con, system_id)
+        aliases = fetch_aliases_for_system(con, system_id)
+        star_aliases = fetch_aliases_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+        )
+        arm_star_evidence = fetch_arm_evidence_for_stars(
+            con,
+            [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
+        snapshot = fetch_snapshot_for_system(
+            con,
+            system_id=system_id,
+            stable_object_key=system.get("stable_object_key"),
+            disc_db_path=disc_db_path,
+        )
+        hierarchy = fetch_system_hierarchy_for_system(
+            con,
+            system_id=system_id,
+            stable_object_key=system.get("stable_object_key"),
+            wds_id=system.get("wds_id"),
+            canonical_hierarchy_db_path=canonical_hierarchy_db_path,
+            arm_db_path=arm_db_path,
+        )
+
+    effective_star_count = max(
+        int(star_count or 0),
+        int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
+    )
+    system["star_count"] = effective_star_count
+    system["planet_count"] = planet_count
+    system.update(summarize_star_temperatures(stars))
+    system["snapshot"] = snapshot
+    system["aliases"] = aliases
+    system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
+    system_display_name, system_display_aliases = choose_display_name(system.get("system_name"), aliases)
+    system["display_name"] = system_display_name
+    system["display_aliases"] = system_display_aliases
+    for star in stars:
+        sid = star.get("star_id")
+        if sid is None:
+            star["aliases"] = []
+            star["display_name"] = star.get("star_name")
+            star["display_aliases"] = []
+            continue
+        aliases_for_star = star_aliases.get(int(sid), [])
+        star["aliases"] = aliases_for_star
+        star_display_name, star_display_aliases = choose_display_name(star.get("star_name"), aliases_for_star)
+        star["display_name"] = star_display_name
+        star["display_aliases"] = star_display_aliases
+        star_arm_evidence = arm_star_evidence.get(int(sid), {})
+        star["arm_evidence"] = star_arm_evidence
+        star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
+    _attach_snapshot_url(system)
+    return {
+        "system": system,
+        "stars": stars,
+        "planets": planets,
+        "eclipsing_binaries": eclipsing_binaries,
+        "hierarchy": hierarchy,
+    }
+
+
+def _provenance_diagnostics(objects: List[Dict[str, Any]], object_type: str, id_key: str) -> Dict[str, Any]:
+    checked = 0
+    incomplete: List[Dict[str, Any]] = []
+    for item in objects:
+        checked += 1
+        provenance = item.get("provenance") if isinstance(item.get("provenance"), dict) else {}
+        missing = [key for key in OBJECT_PROVENANCE_REQUIRED_KEYS if provenance.get(key) in (None, "")]
+        if provenance.get("source_row_id") in (None, "") and provenance.get("source_row_hash") in (None, ""):
+            missing.append("source_row_id_or_hash")
+        if missing:
+            incomplete.append(
+                {
+                    "object_type": object_type,
+                    "object_id": item.get(id_key),
+                    "stable_object_key": item.get("stable_object_key"),
+                    "missing": missing,
+                }
+            )
+    return {
+        "checked": checked,
+        "incomplete_count": len(incomplete),
+        "examples": incomplete[:12],
+    }
+
+
+def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
+    disc_path_raw = _resolve_disc_db_path()
+    output: Dict[str, Any] = {
+        "path": disc_path_raw,
+        "exists": bool(disc_path_raw),
+        "coolness": None,
+        "snapshots": [],
+        "errors": [],
+    }
+    if not disc_path_raw:
+        return output
+    disc_path = Path(disc_path_raw)
+    system_id = int(system.get("system_id"))
+    stable_key = str(system.get("stable_object_key") or "")
+    con = None
+    try:
+        con = duckdb.connect(str(disc_path), read_only=True)
+        if _duckdb_has_table(con, "coolness_scores"):
+            cursor = con.execute(
+                """
+                SELECT *
+                FROM coolness_scores
+                WHERE system_id = ? OR stable_object_key = ?
+                ORDER BY rank ASC
+                LIMIT 1
+                """,
+                [system_id, stable_key],
+            )
+            rows = _rows_to_dicts(cursor)
+            if rows:
+                row = rows[0]
+                output["coolness"] = {
+                    "rank": row.get("rank"),
+                    "score_total": row.get("score_total"),
+                    "profile_id": row.get("profile_id"),
+                    "profile_version": row.get("profile_version"),
+                    "build_id": row.get("build_id"),
+                    "features": {
+                        key: row.get(key)
+                        for key in row
+                        if key.endswith("_feature") or key.endswith("_score")
+                    },
+                }
+        if _duckdb_has_table(con, "snapshot_manifest"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    """
+                    SELECT build_id, view_type, artifact_path, params_hash, width_px, height_px,
+                           source_build_inputs_hash, created_at
+                    FROM snapshot_manifest
+                    WHERE object_type = 'system'
+                      AND (system_id = ? OR stable_object_key = ?)
+                    ORDER BY created_at DESC
+                    LIMIT 12
+                    """,
+                    [system_id, stable_key],
+                )
+            )
+            for row in rows:
+                if row.get("build_id") and row.get("artifact_path"):
+                    row["url"] = _snapshot_asset_url(str(row["build_id"]), str(row["artifact_path"]))
+            output["snapshots"] = rows
+    except Exception as exc:
+        output["errors"].append(str(exc))
+    finally:
+        if con is not None:
+            con.close()
+    return output
+
+
+def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str, Any]], system: Dict[str, Any]) -> Dict[str, Any]:
+    arm_path_raw = _resolve_arm_db_path()
+    output: Dict[str, Any] = {
+        "path": arm_path_raw,
+        "exists": bool(arm_path_raw),
+        "components": {"count": 0, "items": []},
+        "hierarchy_edges": {"count": 0, "items": []},
+        "orbit_edges": {"count": 0, "items": []},
+        "orbital_solutions": {"count": 0, "items": []},
+        "stellar_parameters": {"count": 0, "items": []},
+        "errors": [],
+    }
+    if not arm_path_raw:
+        return output
+    star_ids = [int(row["star_id"]) for row in stars if row.get("star_id") is not None]
+    planet_ids = [int(row["planet_id"]) for row in planets if row.get("planet_id") is not None]
+    con = None
+    try:
+        con = duckdb.connect(str(arm_path_raw), read_only=True)
+        component_filters = ["(core_object_type = 'system' AND core_object_id = ?)"]
+        component_params: List[Any] = [int(system.get("system_id"))]
+        if star_ids:
+            component_filters.append(f"(core_object_type = 'star' AND core_object_id IN ({','.join(['?'] * len(star_ids))}))")
+            component_params.extend(star_ids)
+        if planet_ids:
+            component_filters.append(f"(core_object_type = 'planet' AND core_object_id IN ({','.join(['?'] * len(planet_ids))}))")
+            component_params.extend(planet_ids)
+        component_keys: List[str] = []
+        if _duckdb_has_table(con, "component_entities"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT stable_component_key, component_type, core_object_type, core_object_id,
+                           display_name, catalog_component_label, source_catalog
+                    FROM component_entities
+                    WHERE {' OR '.join(component_filters)}
+                    ORDER BY component_type ASC, display_name ASC
+                    LIMIT 80
+                    """,
+                    component_params,
+                )
+            )
+            component_keys = [str(row.get("stable_component_key")) for row in rows if row.get("stable_component_key")]
+            output["components"] = {"count": len(rows), "items": rows[:30]}
+        if component_keys and _duckdb_has_table(con, "system_hierarchy_edges"):
+            placeholders = ",".join(["?"] * len(component_keys))
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT parent_component_key, child_component_key, edge_kind, member_role,
+                           confidence_score, confidence_tier, source_catalog
+                    FROM system_hierarchy_edges
+                    WHERE parent_component_key IN ({placeholders})
+                       OR child_component_key IN ({placeholders})
+                    ORDER BY confidence_score DESC NULLS LAST
+                    LIMIT 80
+                    """,
+                    [*component_keys, *component_keys],
+                )
+            )
+            output["hierarchy_edges"] = {"count": len(rows), "items": rows[:30]}
+        orbit_edge_ids: List[int] = []
+        if component_keys and _duckdb_has_table(con, "orbit_edges"):
+            placeholders = ",".join(["?"] * len(component_keys))
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT orbit_edge_id, host_component_key, primary_component_key, secondary_component_key,
+                           relation_kind, barycenter_key, preferred_solution_id, confidence_score,
+                           confidence_tier, source_catalog
+                    FROM orbit_edges
+                    WHERE host_component_key IN ({placeholders})
+                       OR primary_component_key IN ({placeholders})
+                       OR secondary_component_key IN ({placeholders})
+                    ORDER BY confidence_score DESC NULLS LAST, orbit_edge_id ASC
+                    LIMIT 80
+                    """,
+                    [*component_keys, *component_keys, *component_keys],
+                )
+            )
+            orbit_edge_ids = [int(row["orbit_edge_id"]) for row in rows if row.get("orbit_edge_id") is not None]
+            output["orbit_edges"] = {"count": len(rows), "items": rows[:30]}
+        if orbit_edge_ids and _duckdb_has_table(con, "orbital_solutions"):
+            placeholders = ",".join(["?"] * len(orbit_edge_ids))
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT orbital_solution_id, orbit_edge_id, solution_source_catalog,
+                           solution_rank, period_days, semi_major_axis_au,
+                           semi_major_axis_arcsec, eccentricity, inclination_deg,
+                           confidence_score, confidence_tier, normalization_method
+                    FROM orbital_solutions
+                    WHERE orbit_edge_id IN ({placeholders})
+                    ORDER BY solution_rank ASC NULLS LAST, confidence_score DESC NULLS LAST
+                    LIMIT 80
+                    """,
+                    orbit_edge_ids,
+                )
+            )
+            output["orbital_solutions"] = {"count": len(rows), "items": rows[:30]}
+        if star_ids and _duckdb_has_table(con, "stellar_parameters"):
+            placeholders = ",".join(["?"] * len(star_ids))
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT star_id, stable_object_key, parameter_source, teff_k, radius_rsun,
+                           mass_msun, luminosity_log10_lsun, age_gyr, spectral_type_raw,
+                           source_catalog
+                    FROM stellar_parameters
+                    WHERE star_id IN ({placeholders})
+                    ORDER BY parameter_source ASC, star_id ASC
+                    LIMIT 80
+                    """,
+                    star_ids,
+                )
+            )
+            output["stellar_parameters"] = {"count": len(rows), "items": rows[:30]}
+    except Exception as exc:
+        output["errors"].append(str(exc))
+    finally:
+        if con is not None:
+            con.close()
+    return output
+
+
+def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
+    public = _object_public_system_payload(system_id)
+    system = public["system"]
+    stars = public["stars"]
+    planets = public["planets"]
+    disc = _disc_object_diagnostics(system)
+    arm = _arm_object_diagnostics(stars, planets, system)
+    provenance = {
+        "system": _provenance_diagnostics([system], "system", "system_id"),
+        "stars": _provenance_diagnostics(stars, "star", "star_id"),
+        "planets": _provenance_diagnostics(planets, "planet", "planet_id"),
+    }
+    readiness = [
+        {
+            "key": "public_detail",
+            "status": "ok",
+            "label": "Public Detail",
+            "detail": "Core system detail assembled successfully.",
+        },
+        {
+            "key": "coolness",
+            "status": "ok" if disc.get("coolness") else "missing",
+            "label": "Coolness",
+            "detail": "disc.coolness_scores row found." if disc.get("coolness") else "No disc.coolness_scores row found for this system.",
+        },
+        {
+            "key": "snapshot",
+            "status": "ok" if disc.get("snapshots") else "missing",
+            "label": "Snapshot",
+            "detail": "Snapshot manifest row found." if disc.get("snapshots") else "No snapshot_manifest row found for this system.",
+        },
+        {
+            "key": "arm_graph",
+            "status": "ok" if int((arm.get("components") or {}).get("count") or 0) else "missing",
+            "label": "Arm Graph",
+            "detail": f"{int((arm.get('components') or {}).get('count') or 0)} component row(s), {int((arm.get('orbit_edges') or {}).get('count') or 0)} orbit edge(s).",
+        },
+        {
+            "key": "orbital_solutions",
+            "status": "ok" if int((arm.get("orbital_solutions") or {}).get("count") or 0) else "missing",
+            "label": "Orbital Solutions",
+            "detail": f"{int((arm.get('orbital_solutions') or {}).get('count') or 0)} normalized orbital solution row(s).",
+        },
+    ]
+    missing_provenance = sum(int((item or {}).get("incomplete_count") or 0) for item in provenance.values())
+    readiness.append(
+        {
+            "key": "provenance",
+            "status": "ok" if missing_provenance == 0 else "warn",
+            "label": "Provenance",
+            "detail": f"{missing_provenance} object row(s) with incomplete required provenance diagnostics.",
+        }
+    )
+    return {
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "build": {
+            "build_id": system.get("snapshot", {}).get("build_id") if isinstance(system.get("snapshot"), dict) else None,
+            "core_db_path": db.get_db_path(),
+            "arm_db_path": _resolve_arm_db_path(),
+            "disc_db_path": _resolve_disc_db_path(),
+        },
+        "public": public,
+        "diagnostics": {
+            "provenance": provenance,
+            "disc": disc,
+            "arm": arm,
+            "readiness": readiness,
+            "public_urls": {
+                "api_detail": f"/api/v1/systems/{system_id}",
+                "public_detail": f"/systems/{system_id}",
+            },
+        },
+    }
+
+
 def _actor_user_id_from_request(request: Request) -> Optional[int]:
     context = getattr(request.state, "auth_user", None)
     if not isinstance(context, dict):
@@ -3629,6 +4032,78 @@ def admin_dataset_status(
 ):
     auth.require_admin(request)
     return _dataset_status_payload(force_refresh=bool(refresh))
+
+
+@admin_router.get("/objects/search")
+def admin_objects_search(
+    request: Request,
+    q: Optional[str] = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=50),
+):
+    auth.require_admin(request)
+    q_norm = normalize_query_text(q or "")
+    id_query = parse_identifier_query(q_norm)
+    system_id_exact: Optional[int] = None
+    system_id_match = re.match(r"^(?:system|sys)\s+(\d+)$", q_norm or "")
+    if system_id_match:
+        try:
+            system_id_exact = int(system_id_match.group(1))
+        except ValueError:
+            system_id_exact = None
+    started_at = datetime.datetime.utcnow()
+    with db.connection_scope() as con:
+        rows, total_count = search_systems(
+            con,
+            q_norm=q_norm or None,
+            q_raw=q,
+            system_id_exact=system_id_exact,
+            id_query=id_query,
+            max_dist_ly=None,
+            min_dist_ly=None,
+            min_star_count=None,
+            max_star_count=None,
+            min_planet_count=None,
+            max_planet_count=None,
+            min_temp_k=None,
+            max_temp_k=None,
+            spectral_classes=[],
+            has_planets=None,
+            has_habitable=None,
+            min_coolness_score=None,
+            max_coolness_score=None,
+            sort="name",
+            match_mode=bool(q_norm) or bool(id_query),
+            limit=limit,
+            include_total=True,
+            cursor_values=None,
+            disc_db_path=_resolve_disc_db_path(),
+            arm_db_path=_resolve_arm_db_path(),
+        )
+    for item in rows:
+        _attach_snapshot_url(item)
+    duration_ms = max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000))
+    return {
+        "items": rows[:limit],
+        "total_count": total_count,
+        "query_time_ms": duration_ms,
+        "query": q or "",
+    }
+
+
+@admin_router.get("/objects/systems/{system_id}")
+def admin_object_system_detail(request: Request, system_id: int):
+    auth.require_admin(request)
+    try:
+        return _system_object_diagnostics(system_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "System not found",
+                "details": {"system_id": system_id},
+            },
+        )
 
 
 @admin_router.get("/runtime/status")

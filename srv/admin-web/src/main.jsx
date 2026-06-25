@@ -547,6 +547,7 @@ function App() {
           <button className={activeScreen === "overview" ? "active" : ""} onClick={() => setActiveScreen("overview")}>Overview</button>
           <button className={activeScreen === "builds" ? "active" : ""} onClick={() => setActiveScreen("builds")}>Builds</button>
           <button className={activeScreen === "dataset" ? "active" : ""} onClick={() => setActiveScreen("dataset")}>Dataset</button>
+          <button className={activeScreen === "objects" ? "active" : ""} onClick={() => setActiveScreen("objects")}>Objects</button>
           <button className={activeScreen === "inference" ? "active" : ""} onClick={() => setActiveScreen("inference")}>Inference</button>
           <button className={activeScreen === "operations" ? "active" : ""} onClick={() => setActiveScreen("operations")}>Operations</button>
           <button className={activeScreen === "agency" ? "active" : ""} onClick={() => setActiveScreen("agency")}>Agency</button>
@@ -563,6 +564,8 @@ function App() {
           <BuildsScreen csrf={csrf} openOperationsJob={openOperationsJob} />
         ) : activeScreen === "dataset" ? (
           <DatasetScreen />
+        ) : activeScreen === "objects" ? (
+          <ObjectDiagnosticsScreen />
         ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
@@ -1971,6 +1974,395 @@ function MetricList({ rows }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ObjectDiagnosticsScreen() {
+  const [query, setQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [state, setState] = useState({
+    loadingSearch: false,
+    loadingDetail: false,
+    search: null,
+    detail: null,
+    message: "Search for a system, alias, catalog id, or stable object key.",
+  });
+
+  async function runSearch(event = null) {
+    if (event) event.preventDefault();
+    setState((current) => ({ ...current, loadingSearch: true, message: "Searching objects..." }));
+    const params = new URLSearchParams();
+    if (String(query || "").trim()) params.set("q", String(query).trim());
+    params.set("limit", "25");
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/objects/search?${params.toString()}`);
+    if (!response.ok) {
+      setState((current) => ({ ...current, loadingSearch: false, search: null, message: `Object search: ${compactError(data, response.status)}` }));
+      return;
+    }
+    setState((current) => ({ ...current, loadingSearch: false, search: data, message: `Found ${formatInt((data.items || []).length)} system candidate(s).` }));
+    const first = Array.isArray(data.items) ? data.items[0] : null;
+    if (first?.system_id) {
+      await loadDetail(first.system_id);
+    }
+  }
+
+  async function loadDetail(systemId) {
+    if (!systemId) return;
+    setState((current) => ({ ...current, loadingDetail: true, message: `Loading diagnostics for system ${systemId}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/objects/systems/${encodeURIComponent(systemId)}`);
+    if (!response.ok) {
+      setState((current) => ({ ...current, loadingDetail: false, detail: null, message: `Object detail: ${compactError(data, response.status)}` }));
+      return;
+    }
+    setState((current) => ({ ...current, loadingDetail: false, detail: data, message: "Ready" }));
+  }
+
+  useEffect(() => {
+    runSearch();
+  }, []);
+
+  const items = state.search?.items || [];
+  const detail = state.detail || {};
+  const publicPayload = detail.public || {};
+  const system = publicPayload.system || {};
+  const diagnostics = detail.diagnostics || {};
+  const readiness = diagnostics.readiness || [];
+  const stars = publicPayload.stars || [];
+  const planets = publicPayload.planets || [];
+  const disc = diagnostics.disc || {};
+  const arm = diagnostics.arm || {};
+  const provenance = diagnostics.provenance || {};
+  const kpis = [
+    { label: "System", value: system.display_name || system.system_name || compactId(system.stable_object_key, 22) },
+    { label: "Stars", value: formatInt(system.star_count ?? stars.length) },
+    { label: "Planets", value: formatInt(system.planet_count ?? planets.length) },
+    { label: "Orbit solutions", value: formatInt(arm.orbital_solutions?.count), tone: arm.orbital_solutions?.count ? "ok" : "warn" },
+  ];
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div>
+          <h1>Object Diagnostics</h1>
+          <p className="muted">Layer-aware lookup for core identity, provenance, arm graph/orbits, disc presentation, and public artifact state.</p>
+        </div>
+      </header>
+
+      <form className="object-search" onSubmit={runSearch}>
+        <label>
+          <span>System, alias, catalog id, or stable key</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Sol, Alpha Centauri, Gaia 4472832130942575872, system 1" />
+        </label>
+        <button className="button primary" type="submit">{state.loadingSearch ? "Searching..." : "Search"}</button>
+      </form>
+
+      <div className={state.message === "Ready" ? "status-line" : "status-line"}>{state.message}</div>
+
+      <section className="object-layout">
+        <div className="panel">
+          <h2>Search Results</h2>
+          {items.length ? (
+            <div className="select-list">
+              {items.map((item) => (
+                <button
+                  className={`select-row ${item.system_id === system.system_id ? "selected" : ""}`}
+                  key={item.system_id}
+                  onClick={() => loadDetail(item.system_id)}
+                  type="button"
+                >
+                  <strong>{item.display_name || item.system_name || `System ${item.system_id}`}</strong>
+                  <span>{compactId(item.stable_object_key, 34)} | {formatFloat(item.dist_ly, 2)} ly | {formatInt(item.star_count)} stars | {formatInt(item.planet_count)} planets</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty">No search results yet. Try a common name, Gaia/HD/HIP id, or `system 123`.</div>
+          )}
+        </div>
+
+        <div className="panel">
+          <h2>Readiness</h2>
+          {readiness.length ? (
+            <div className="readiness-list">
+              {readiness.map((item) => (
+                <div className="readiness-row" key={item.key}>
+                  <span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span>
+                  <div>
+                    <strong>{item.label}</strong>
+                    <span>{item.detail}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty">Select an object to see diagnostics.</div>
+          )}
+        </div>
+      </section>
+
+      {state.detail ? (
+        <>
+          <div className="kpi-row">
+            {kpis.map((item) => (
+              <div className={`kpi ${item.tone || ""}`} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="tab-row">
+            {[
+              ["overview", "Overview"],
+              ["layers", "Layers"],
+              ["members", "Members"],
+              ["graph", "Graph / Orbits"],
+              ["presentation", "Presentation"],
+              ["raw", "Raw JSON"],
+            ].map(([key, label]) => (
+              <button className={activeTab === key ? "active" : ""} key={key} onClick={() => setActiveTab(key)}>{label}</button>
+            ))}
+          </div>
+
+          {activeTab === "overview" ? (
+            <ObjectOverviewTab detail={detail} />
+          ) : activeTab === "layers" ? (
+            <ObjectLayersTab detail={detail} />
+          ) : activeTab === "members" ? (
+            <ObjectMembersTab stars={stars} planets={planets} />
+          ) : activeTab === "graph" ? (
+            <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} />
+          ) : activeTab === "presentation" ? (
+            <ObjectPresentationTab disc={disc} system={system} />
+          ) : (
+            <section className="panel">
+              <h2>Raw Object Diagnostics JSON</h2>
+              <pre className="json-box tall">{jsonBlock(detail)}</pre>
+            </section>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ObjectOverviewTab({ detail }) {
+  const publicPayload = detail.public || {};
+  const system = publicPayload.system || {};
+  const aliases = system.aliases || [];
+  const urls = detail.diagnostics?.public_urls || {};
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Core Identity</h2>
+        <OverviewFact label="Display name" value={system.display_name || system.system_name || "n/a"} />
+        <OverviewFact label="System ID" value={system.system_id || "n/a"} />
+        <OverviewFact label="Stable object key" value={system.stable_object_key || "n/a"} />
+        <OverviewFact label="Distance" value={`${formatFloat(system.dist_ly, 3)} ly / ${formatFloat(system.dist_pc, 3)} pc`} />
+        <OverviewFact label="Coordinates" value={`${formatFloat(system.ra_deg, 5)} / ${formatFloat(system.dec_deg, 5)} deg`} />
+        <OverviewFact label="Grouping" value={`${system.grouping_basis || "n/a"} | ${system.grouping_confidence || "n/a"}`} />
+      </div>
+      <div className="panel">
+        <h2>Aliases</h2>
+        {aliases.length ? (
+          <table>
+            <thead><tr><th>Alias</th><th>Kind</th><th>Source</th><th>Primary</th></tr></thead>
+            <tbody>
+              {aliases.slice(0, 20).map((alias, index) => (
+                <tr key={`${alias.alias_norm}-${index}`}>
+                  <td>{alias.alias_raw}</td>
+                  <td>{alias.alias_kind || "n/a"}</td>
+                  <td>{alias.source_catalog || "n/a"}</td>
+                  <td>{alias.is_primary ? "yes" : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty">No system aliases returned for this object.</div>}
+      </div>
+      <div className="panel">
+        <h2>Public Links</h2>
+        <MetricList rows={[
+          ["API detail", urls.api_detail || "n/a"],
+          ["Public detail", urls.public_detail || "n/a"],
+          ["Snapshot URL", system.snapshot?.url || "n/a"],
+        ]} />
+      </div>
+      <div className="panel">
+        <h2>System Provenance</h2>
+        <pre className="json-box">{jsonBlock(system.provenance || {})}</pre>
+      </div>
+    </section>
+  );
+}
+
+function ObjectLayersTab({ detail }) {
+  const build = detail.build || {};
+  const diagnostics = detail.diagnostics || {};
+  const provenance = diagnostics.provenance || {};
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Layer Artifacts</h2>
+        <MetricList rows={[
+          ["Core DB", build.core_db_path || "n/a"],
+          ["Arm DB", build.arm_db_path || "missing"],
+          ["Disc DB", build.disc_db_path || "missing"],
+        ]} />
+      </div>
+      <div className="panel">
+        <h2>Provenance Completeness</h2>
+        <MetricList rows={[
+          ["System rows", `${formatInt(provenance.system?.checked)} checked, ${formatInt(provenance.system?.incomplete_count)} incomplete`],
+          ["Star rows", `${formatInt(provenance.stars?.checked)} checked, ${formatInt(provenance.stars?.incomplete_count)} incomplete`],
+          ["Planet rows", `${formatInt(provenance.planets?.checked)} checked, ${formatInt(provenance.planets?.incomplete_count)} incomplete`],
+        ]} />
+      </div>
+      <div className="panel">
+        <h2>Provenance Gaps</h2>
+        <pre className="json-box">{jsonBlock({
+          system: provenance.system?.examples || [],
+          stars: provenance.stars?.examples || [],
+          planets: provenance.planets?.examples || [],
+        })}</pre>
+      </div>
+      <div className="panel">
+        <h2>Layer Errors</h2>
+        <MetricList rows={[
+          ["Arm errors", (diagnostics.arm?.errors || []).join(" | ") || "none"],
+          ["Disc errors", (diagnostics.disc?.errors || []).join(" | ") || "none"],
+        ]} />
+      </div>
+    </section>
+  );
+}
+
+function ObjectMembersTab({ stars, planets }) {
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Stars</h2>
+        {stars.length ? (
+          <table>
+            <thead><tr><th>Name</th><th>Component</th><th>Spectral</th><th>Temp</th><th>Catalogs</th></tr></thead>
+            <tbody>
+              {stars.slice(0, 40).map((star) => (
+                <tr key={star.star_id}>
+                  <td>{star.display_name || star.star_name || star.stable_object_key}</td>
+                  <td>{star.component || "n/a"}</td>
+                  <td>{star.spectral_class || star.spectral_type || "n/a"}</td>
+                  <td>{formatFloat(star.teff_k, 0)} K</td>
+                  <td>{(star.arm_catalogs || []).join(", ") || star.source_catalog || "n/a"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty">No stars returned.</div>}
+      </div>
+      <div className="panel">
+        <h2>Planets</h2>
+        {planets.length ? (
+          <table>
+            <thead><tr><th>Name</th><th>Period</th><th>Semi-major axis</th><th>Radius</th><th>Temp</th></tr></thead>
+            <tbody>
+              {planets.slice(0, 40).map((planet) => (
+                <tr key={planet.planet_id}>
+                  <td>{planet.planet_name || planet.stable_object_key}</td>
+                  <td>{formatFloat(planet.orbital_period_days, 3)} d</td>
+                  <td>{formatFloat(planet.semi_major_axis_au, 4)} au</td>
+                  <td>{formatFloat(planet.radius_earth, 2)} Earth</td>
+                  <td>{formatFloat(planet.eq_temp_k, 0)} K</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty">No planets returned.</div>}
+      </div>
+    </section>
+  );
+}
+
+function ObjectGraphTab({ arm, hierarchy }) {
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Hierarchy Summary</h2>
+        <pre className="json-box">{jsonBlock(hierarchy?.counts || {})}</pre>
+      </div>
+      <div className="panel">
+        <h2>Arm Components</h2>
+        <ObjectRowsTable rows={arm.components?.items || []} />
+      </div>
+      <div className="panel">
+        <h2>Orbit Edges</h2>
+        <ObjectRowsTable rows={arm.orbit_edges?.items || []} />
+      </div>
+      <div className="panel">
+        <h2>Orbital Solutions</h2>
+        <ObjectRowsTable rows={arm.orbital_solutions?.items || []} />
+      </div>
+    </section>
+  );
+}
+
+function ObjectPresentationTab({ disc, system }) {
+  const coolness = disc.coolness || null;
+  const snapshots = disc.snapshots || [];
+  return (
+    <section className="dataset-grid">
+      <div className="panel">
+        <h2>Coolness</h2>
+        {coolness ? (
+          <>
+            <OverviewFact label="Rank" value={formatInt(coolness.rank)} />
+            <OverviewFact label="Score" value={formatFloat(coolness.score_total, 4)} />
+            <OverviewFact label="Profile" value={`${coolness.profile_id || "n/a"} @ ${coolness.profile_version || "n/a"}`} />
+            <pre className="json-box">{jsonBlock(coolness.features || {})}</pre>
+          </>
+        ) : <div className="empty">No coolness row found in disc.</div>}
+      </div>
+      <div className="panel">
+        <h2>Snapshots</h2>
+        {snapshots.length ? (
+          <table>
+            <thead><tr><th>View</th><th>Build</th><th>Params</th><th>Created</th><th>URL</th></tr></thead>
+            <tbody>
+              {snapshots.map((snapshot, index) => (
+                <tr key={`${snapshot.artifact_path}-${index}`}>
+                  <td>{snapshot.view_type}</td>
+                  <td>{compactId(snapshot.build_id, 22)}</td>
+                  <td>{snapshot.params_hash}</td>
+                  <td>{formatDate(snapshot.created_at)}</td>
+                  <td>{snapshot.url ? <a href={snapshot.url} target="_blank" rel="noreferrer">open</a> : "n/a"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="empty">No snapshot manifest rows found.</div>}
+      </div>
+      <div className="panel">
+        <h2>Primary Snapshot</h2>
+        <pre className="json-box">{jsonBlock(system.snapshot || {})}</pre>
+      </div>
+    </section>
+  );
+}
+
+function ObjectRowsTable({ rows }) {
+  const items = Array.isArray(rows) ? rows : [];
+  if (!items.length) return <div className="empty">No rows returned for this diagnostic.</div>;
+  const columns = Object.keys(items[0] || {}).slice(0, 8);
+  return (
+    <table>
+      <thead><tr>{columns.map((column) => <th key={column}>{actionLabel(column)}</th>)}</tr></thead>
+      <tbody>
+        {items.slice(0, 30).map((row, rowIndex) => (
+          <tr key={rowIndex}>
+            {columns.map((column) => <td key={column}>{String(row[column] ?? "")}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

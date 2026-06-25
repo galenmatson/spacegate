@@ -102,6 +102,28 @@ Show:
 This screen should be read-heavy. Actions should be limited to previewing or
 launching controlled rebuilds.
 
+### Object Diagnostics
+
+Purpose: answer what Spacegate knows about a specific system and where that
+knowledge lives.
+
+Show:
+
+- system search by canonical name, alias, stable object key, or catalog id
+- core identity, counts, coordinates, grouping basis, aliases, and provenance
+- member stars and planets with key scalar/orbital fields
+- layer artifact paths for core, arm, and disc
+- provenance completeness checks for system, star, and planet rows
+- arm component, hierarchy, orbit-edge, orbital-solution, and stellar-parameter
+  diagnostics
+- disc coolness score, snapshot manifest rows, public/API links, and artifact
+  URLs
+- readiness status for public detail, coolness, snapshots, arm graph, orbital
+  solutions, and provenance
+
+The first implementation is system-scoped. Direct star/planet diagnostics should
+reuse the same layer-aware structure after the system workflow is stable.
+
 ### Inference
 
 Purpose: manage model endpoints and model suitability.

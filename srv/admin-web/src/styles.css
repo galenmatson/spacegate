@@ -375,6 +375,70 @@ h3 {
   justify-content: flex-end;
 }
 
+.object-search {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.object-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.select-list,
+.readiness-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.select-row {
+  display: grid;
+  gap: 0.18rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.55rem;
+  cursor: pointer;
+}
+
+.select-row.selected {
+  border-color: var(--brand);
+  background: #eefdf9;
+}
+
+.select-row span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.readiness-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem;
+  background: var(--surface);
+}
+
+.readiness-row span:not(.badge) {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.12rem;
+}
+
 .dataset-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(380px, 1fr));
