@@ -3028,6 +3028,8 @@ function ObjectPresentationTab({ disc, system }) {
             <OverviewFact label="Rank" value={formatInt(coolness.rank)} />
             <OverviewFact label="Score" value={formatFloat(coolness.score_total, 4)} />
             <OverviewFact label="Profile" value={`${coolness.profile_id || "n/a"} @ ${coolness.profile_version || "n/a"}`} />
+            <h3>Score Signals</h3>
+            <MetricList rows={coolnessSignalRows(coolness.counts || {})} />
             <h3>Score Contributions</h3>
             <ObjectCoolnessExplanation rows={coolness.explanation || []} />
             <details className="object-details">
@@ -3062,6 +3064,18 @@ function ObjectPresentationTab({ disc, system }) {
       </div>
     </section>
   );
+}
+
+function coolnessSignalRows(counts) {
+  return [
+    ["Nice planet count", formatInt(counts.nice_planet_count)],
+    ["Nice from source temp", formatInt(counts.nice_planet_source_eq_temp_count)],
+    ["Nice from source insolation", formatInt(counts.nice_planet_source_insolation_count)],
+    ["Nice from proxy insolation", formatInt(counts.nice_planet_proxy_insolation_count)],
+    ["Weird planet count", formatInt(counts.weird_planet_count)],
+    ["Ultra-short period", formatInt(counts.ultra_short_period_count)],
+    ["High eccentricity", formatInt(counts.high_eccentricity_count)],
+  ];
 }
 
 function ObjectCoolnessExplanation({ rows }) {

@@ -352,6 +352,11 @@ def _disc_object_diagnostics(system: Dict[str, Any]) -> Dict[str, Any]:
                     "profile_id": row.get("profile_id"),
                     "profile_version": row.get("profile_version"),
                     "build_id": row.get("build_id"),
+                    "counts": {
+                        key: row.get(key)
+                        for key in row
+                        if key.endswith("_count")
+                    },
                     "features": {
                         key: row.get(key)
                         for key in row

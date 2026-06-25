@@ -599,6 +599,7 @@ def build_scores(
 CREATE OR REPLACE TABLE coolness_scores AS
 WITH star_scored AS (
   SELECT
+    star_id,
     system_id,
     COALESCE(spectral_class, '?') AS spectral_class,
     COALESCE(luminosity_class, '') AS luminosity_class,
@@ -624,7 +625,23 @@ WITH star_scored AS (
       WHEN COALESCE(luminosity_class, '') IN ('I', 'II', 'III', 'VII') THEN 0.70
       WHEN COALESCE(spectral_class, '') IN ('O', 'B', 'L', 'T', 'Y') THEN 0.60
       ELSE 0.00
-    END AS star_exotic_raw
+    END AS star_exotic_raw,
+    CASE
+      WHEN COALESCE(luminosity_class, '') IN ('', 'V')
+       AND NOT regexp_matches(LOWER(COALESCE(spectral_type_raw, '')), 'giant|supergiant|\\biii\\b|\\bii\\b|\\biv\\b')
+      THEN
+        CASE COALESCE(spectral_class, '')
+          WHEN 'O' THEN 30000.0
+          WHEN 'B' THEN 1000.0
+          WHEN 'A' THEN 20.0
+          WHEN 'F' THEN 4.0
+          WHEN 'G' THEN 1.0
+          WHEN 'K' THEN 0.4
+          WHEN 'M' THEN 0.04
+          ELSE NULL
+        END
+      ELSE NULL
+    END AS luminosity_proxy_lsun
   FROM core_db.stars
   WHERE system_id IS NOT NULL
 ),
@@ -653,6 +670,47 @@ dominant_spectral AS (
   ) ranked
   WHERE rn = 1
 ),
+planet_scored AS (
+  SELECT
+    p.system_id,
+    p.match_confidence,
+    p.eq_temp_k,
+    p.insol_earth,
+    p.semi_major_axis_au,
+    p.eccentricity,
+    p.orbital_period_days,
+    COALESCE(p.mass_earth, p.mass_jup * 317.8) AS planet_mass_earth,
+    CASE
+      WHEN p.insol_earth IS NOT NULL AND p.insol_earth > 0.0 THEN p.insol_earth
+      WHEN p.semi_major_axis_au IS NOT NULL
+       AND p.semi_major_axis_au > 0.0
+       AND hs.luminosity_proxy_lsun IS NOT NULL
+      THEN hs.luminosity_proxy_lsun / (p.semi_major_axis_au * p.semi_major_axis_au)
+      ELSE NULL
+    END AS candidate_insol_earth,
+    CASE
+      WHEN p.eq_temp_k IS NOT NULL THEN p.eq_temp_k
+      WHEN p.insol_earth IS NOT NULL AND p.insol_earth > 0.0
+      THEN 278.5 * POW(p.insol_earth, 0.25)
+      WHEN p.semi_major_axis_au IS NOT NULL
+       AND p.semi_major_axis_au > 0.0
+       AND hs.luminosity_proxy_lsun IS NOT NULL
+      THEN 278.5 * POW(hs.luminosity_proxy_lsun / (p.semi_major_axis_au * p.semi_major_axis_au), 0.25)
+      ELSE NULL
+    END AS candidate_eq_temp_k,
+    CASE
+      WHEN p.eq_temp_k IS NOT NULL THEN 'source_eq_temp'
+      WHEN p.insol_earth IS NOT NULL AND p.insol_earth > 0.0 THEN 'source_insolation'
+      WHEN p.semi_major_axis_au IS NOT NULL
+       AND p.semi_major_axis_au > 0.0
+       AND hs.luminosity_proxy_lsun IS NOT NULL
+      THEN 'stellar_class_luminosity_proxy'
+      ELSE 'missing'
+    END AS temperate_basis
+  FROM core_db.planets p
+  LEFT JOIN star_scored hs ON p.star_id = hs.star_id
+  WHERE p.system_id IS NOT NULL
+),
 planet_features AS (
   SELECT
     system_id,
@@ -660,12 +718,57 @@ planet_features AS (
     SUM(
       CASE
         WHEN COALESCE(match_confidence, 0.0) >= 0.80
-         AND COALESCE(eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0
-         AND COALESCE(mass_earth, mass_jup * 317.8, -1.0) BETWEEN 0.3 AND 8.0
+         AND COALESCE(planet_mass_earth, -1.0) BETWEEN 0.3 AND 8.0
          AND COALESCE(eccentricity, 0.0) <= 0.35
+         AND (
+           COALESCE(eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0
+           OR (
+             eq_temp_k IS NULL
+             AND COALESCE(insol_earth, -1.0) BETWEEN 0.35 AND 1.70
+           )
+           OR (
+             eq_temp_k IS NULL
+             AND insol_earth IS NULL
+             AND temperate_basis = 'stellar_class_luminosity_proxy'
+             AND COALESCE(candidate_insol_earth, -1.0) BETWEEN 0.35 AND 1.70
+             AND COALESCE(candidate_eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0
+           )
+         )
         THEN 1 ELSE 0
       END
     )::BIGINT AS nice_planet_count,
+    SUM(
+      CASE
+        WHEN COALESCE(match_confidence, 0.0) >= 0.80
+         AND COALESCE(planet_mass_earth, -1.0) BETWEEN 0.3 AND 8.0
+         AND COALESCE(eccentricity, 0.0) <= 0.35
+         AND COALESCE(eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0
+        THEN 1 ELSE 0
+      END
+    )::BIGINT AS nice_planet_source_eq_temp_count,
+    SUM(
+      CASE
+        WHEN COALESCE(match_confidence, 0.0) >= 0.80
+         AND eq_temp_k IS NULL
+         AND COALESCE(planet_mass_earth, -1.0) BETWEEN 0.3 AND 8.0
+         AND COALESCE(eccentricity, 0.0) <= 0.35
+         AND COALESCE(insol_earth, -1.0) BETWEEN 0.35 AND 1.70
+        THEN 1 ELSE 0
+      END
+    )::BIGINT AS nice_planet_source_insolation_count,
+    SUM(
+      CASE
+        WHEN COALESCE(match_confidence, 0.0) >= 0.80
+         AND eq_temp_k IS NULL
+         AND insol_earth IS NULL
+         AND temperate_basis = 'stellar_class_luminosity_proxy'
+         AND COALESCE(planet_mass_earth, -1.0) BETWEEN 0.3 AND 8.0
+         AND COALESCE(eccentricity, 0.0) <= 0.35
+         AND COALESCE(candidate_insol_earth, -1.0) BETWEEN 0.35 AND 1.70
+         AND COALESCE(candidate_eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0
+        THEN 1 ELSE 0
+      END
+    )::BIGINT AS nice_planet_proxy_insolation_count,
     SUM(
       CASE
         WHEN COALESCE(match_confidence, 0.0) >= 0.80
@@ -691,7 +794,7 @@ planet_features AS (
         THEN 1 ELSE 0
       END
     )::BIGINT AS high_eccentricity_count
-  FROM core_db.planets
+  FROM planet_scored
   WHERE system_id IS NOT NULL
   GROUP BY system_id
 ),
@@ -707,6 +810,9 @@ base AS (
     COALESCE(sf.exotic_star_feature, 0.0) AS exotic_star_feature,
     COALESCE(pf.planet_count, 0) AS planet_count,
     COALESCE(pf.nice_planet_count, 0) AS nice_planet_count,
+    COALESCE(pf.nice_planet_source_eq_temp_count, 0) AS nice_planet_source_eq_temp_count,
+    COALESCE(pf.nice_planet_source_insolation_count, 0) AS nice_planet_source_insolation_count,
+    COALESCE(pf.nice_planet_proxy_insolation_count, 0) AS nice_planet_proxy_insolation_count,
     COALESCE(pf.weird_planet_count, 0) AS weird_planet_count,
     COALESCE(pf.ultra_short_period_count, 0) AS ultra_short_period_count,
     COALESCE(pf.high_eccentricity_count, 0) AS high_eccentricity_count,
@@ -755,6 +861,9 @@ scored AS (
     star_count,
     planet_count,
     nice_planet_count,
+    nice_planet_source_eq_temp_count,
+    nice_planet_source_insolation_count,
+    nice_planet_proxy_insolation_count,
     weird_planet_count,
     ultra_short_period_count,
     high_eccentricity_count,
@@ -795,6 +904,9 @@ SELECT
   star_count,
   planet_count,
   nice_planet_count,
+  nice_planet_source_eq_temp_count,
+  nice_planet_source_insolation_count,
+  nice_planet_proxy_insolation_count,
   weird_planet_count,
   ultra_short_period_count,
   high_eccentricity_count,
@@ -876,6 +988,10 @@ SELECT
   COUNT(*)::BIGINT AS system_count,
   SUM(CASE WHEN planet_count > 0 THEN 1 ELSE 0 END)::BIGINT AS systems_with_planets,
   SUM(CASE WHEN star_count > 1 THEN 1 ELSE 0 END)::BIGINT AS multi_star_systems,
+  SUM(nice_planet_count)::BIGINT AS nice_planets,
+  SUM(nice_planet_source_eq_temp_count)::BIGINT AS nice_planets_from_source_eq_temp,
+  SUM(nice_planet_source_insolation_count)::BIGINT AS nice_planets_from_source_insolation,
+  SUM(nice_planet_proxy_insolation_count)::BIGINT AS nice_planets_from_proxy_insolation,
   MIN(score_total) AS score_min,
   MAX(score_total) AS score_max,
   AVG(score_total) AS score_avg
@@ -948,9 +1064,13 @@ ORDER BY systems DESC, dominant_spectral_class ASC
             "system_count": int(summary[0]),
             "systems_with_planets": int(summary[1]),
             "multi_star_systems": int(summary[2]),
-            "score_min": float(summary[3]) if summary[3] is not None else None,
-            "score_max": float(summary[4]) if summary[4] is not None else None,
-            "score_avg": float(summary[5]) if summary[5] is not None else None,
+            "nice_planets": int(summary[3] or 0),
+            "nice_planets_from_source_eq_temp": int(summary[4] or 0),
+            "nice_planets_from_source_insolation": int(summary[5] or 0),
+            "nice_planets_from_proxy_insolation": int(summary[6] or 0),
+            "score_min": float(summary[7]) if summary[7] is not None else None,
+            "score_max": float(summary[8]) if summary[8] is not None else None,
+            "score_avg": float(summary[9]) if summary[9] is not None else None,
         },
         "top_25": [
             {

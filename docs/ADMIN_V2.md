@@ -133,6 +133,8 @@ Show:
   URLs
 - coolness explanation separating normalized feature values from weighted score
   contributions
+- coolness signal counts, including source-temperature, source-insolation, and
+  proxy-insolation basis counts for nice-planet signals
 - read-only, clickable node/edge relation diagram for arm containment and orbit
   edges, with common-name labels when available
 - orbit-edge and orbital-solution diagnostics with common names or component

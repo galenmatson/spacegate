@@ -122,6 +122,8 @@ Current required columns:
 - `profile_version TEXT`
 - `score_total DOUBLE`
 - feature and score breakdown columns from scoring pipeline
+- signal-count columns from the scoring pipeline, including nice/weird planet
+  counts and the nice-planet evidence basis counts
 
 Planned extension columns:
 - `dominant_category TEXT` (planned)
@@ -129,6 +131,13 @@ Planned extension columns:
 
 Note:
 - The two planned columns above are not currently emitted by `scripts/score_coolness.py`.
+- `nice_planet_count` is a presentation/prioritization signal, not a canonical
+  habitability claim. It prefers source-native equilibrium temperature, then
+  source-native insolation, then a lower-confidence stellar-class luminosity
+  proxy when a planet has a high-confidence host link and semi-major axis but
+  lacks temperature/insolation fields. Basis-specific count columns must be
+  preserved so operators can distinguish source-backed signals from proxy
+  signals.
 
 ## object_coolness_scores (planned)
 

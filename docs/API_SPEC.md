@@ -219,7 +219,8 @@ Includes:
 - public system detail payload reused from the v1 system detail contract
 - core identity, aliases, stars, planets, eclipsing binaries, and hierarchy
 - provenance completeness diagnostics for system/star/planet rows
-- disc coolness, coolness contribution explanation, and snapshot manifest rows
+- disc coolness, signal counts, coolness contribution explanation, and snapshot
+  manifest rows
 - expanded arm component, hierarchy-edge, orbit-edge, orbital-solution, and
   stellar-parameter diagnostics, including display-name labels where available
 - readiness rows for public detail, coolness, snapshots, arm graph, orbital
