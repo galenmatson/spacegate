@@ -431,8 +431,55 @@ def _best_stellar_parameters_by_star_id(arm: Dict[str, Any]) -> Dict[int, Dict[s
     return out
 
 
-def _star_simulation_fields(star: Dict[str, Any], params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _derived_parameter_lookup(arm: Dict[str, Any]) -> Dict[tuple[str, int, str], Dict[str, Any]]:
+    rows = ((arm.get("derived_physical_parameters") or {}).get("items") or [])
+    out: Dict[tuple[str, int, str], Dict[str, Any]] = {}
+    for row in rows:
+        object_type = str(row.get("object_type") or "")
+        object_id_raw = row.get("star_id") if object_type == "star" else row.get("planet_id")
+        parameter_key = str(row.get("parameter_key") or "")
+        if not object_type or object_id_raw is None or not parameter_key:
+            continue
+        try:
+            object_id = int(object_id_raw)
+        except Exception:
+            continue
+        key = (object_type, object_id, parameter_key)
+        current = out.get(key)
+        if current is None or float(row.get("confidence_score") or 0.0) > float(current.get("confidence_score") or 0.0):
+            out[key] = row
+    return out
+
+
+def _derived_parameter_field(
+    row: Optional[Dict[str, Any]],
+    *,
+    key: str,
+    label: str,
+    replacement_target: str,
+) -> Optional[Dict[str, Any]]:
+    if not row:
+        return None
+    return _simulation_field(
+        key=key,
+        label=label,
+        value=_float_or_none(row.get("value")),
+        unit=row.get("unit"),
+        status="derived",
+        basis=f"arm.derived_physical_parameters:{row.get('derivation_method') or 'derived'}",
+        layer="arm",
+        confidence_tier=row.get("confidence_tier") or "medium",
+        replacement_target=replacement_target,
+    )
+
+
+def _star_simulation_fields(
+    star: Dict[str, Any],
+    params: Optional[Dict[str, Any]],
+    derived_lookup: Dict[tuple[str, int, str], Dict[str, Any]],
+) -> Dict[str, Any]:
     proxy = _stellar_main_sequence_proxy(star)
+    star_id = int(star["star_id"]) if star.get("star_id") is not None else -1
     source_teff = _float_or_none(star.get("teff_k")) or _float_or_none((params or {}).get("teff_k"))
     source_mass = _float_or_none(star.get("mass_msun")) or _float_or_none((params or {}).get("mass_msun"))
     source_radius = _float_or_none(star.get("radius_rsun")) or _float_or_none((params or {}).get("radius_rsun"))
@@ -440,6 +487,12 @@ def _star_simulation_fields(star: Dict[str, Any], params: Optional[Dict[str, Any
     log_lum = _float_or_none((params or {}).get("luminosity_log10_lsun"))
     if source_lum is None and log_lum is not None:
         source_lum = math.pow(10.0, log_lum)
+    arm_lum_field = _derived_parameter_field(
+        derived_lookup.get(("star", star_id, "luminosity_lsun")),
+        key="luminosity_lsun",
+        label="Luminosity",
+        replacement_target="source stellar luminosity or source radius+teff with uncertainty",
+    )
     derived_lum = None
     if source_lum is None and source_radius is not None and source_teff is not None and source_teff > 0:
         derived_lum = source_radius * source_radius * math.pow(source_teff / 5772.0, 4.0)
@@ -459,16 +512,16 @@ def _star_simulation_fields(star: Dict[str, Any], params: Optional[Dict[str, Any
         _simulation_field(
             key="luminosity_lsun",
             label="Luminosity",
-            value=source_lum if source_lum is not None else (derived_lum if derived_lum is not None else proxy.get("luminosity_lsun")),
+            value=source_lum if source_lum is not None else ((arm_lum_field or {}).get("value") if arm_lum_field else (derived_lum if derived_lum is not None else proxy.get("luminosity_lsun"))),
             unit="Lsun",
-            status="source" if source_lum is not None else ("derived" if derived_lum is not None or proxy.get("luminosity_lsun") is not None else "missing"),
+            status="source" if source_lum is not None else ("derived" if arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is not None else "missing"),
             basis=(
                 "arm source luminosity_log10_lsun"
                 if source_lum is not None
-                else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else ("main-sequence spectral-class proxy" if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy"))
+                else ((arm_lum_field or {}).get("basis") if arm_lum_field else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else ("main-sequence spectral-class proxy" if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy")))
             ),
-            layer="arm" if source_lum is not None or derived_lum is not None else ("arm_candidate" if proxy.get("luminosity_lsun") is not None else "none"),
-            confidence_tier="high" if source_lum is not None else ("medium" if derived_lum is not None else ("low" if proxy.get("luminosity_lsun") is not None else "missing")),
+            layer="arm" if source_lum is not None or arm_lum_field is not None or derived_lum is not None else ("arm_candidate" if proxy.get("luminosity_lsun") is not None else "none"),
+            confidence_tier="high" if source_lum is not None else ((arm_lum_field or {}).get("confidence_tier") if arm_lum_field else ("medium" if derived_lum is not None else ("low" if proxy.get("luminosity_lsun") is not None else "missing"))),
             replacement_target="source stellar luminosity or source radius+teff with uncertainty",
         ),
         _simulation_field(
@@ -524,6 +577,7 @@ def _planet_simulation_fields(
     planet: Dict[str, Any],
     star_fields_by_id: Dict[int, Dict[str, Any]],
     default_star_fields: Optional[Dict[str, Any]],
+    derived_lookup: Dict[tuple[str, int, str], Dict[str, Any]],
 ) -> Dict[str, Any]:
     try:
         star_id = int(planet.get("star_id")) if planet.get("star_id") is not None else None
@@ -535,6 +589,13 @@ def _planet_simulation_fields(
     host_mass_field = next((field for field in host_fields if field.get("key") == "mass_msun"), {})
     period_days = _float_or_none(planet.get("orbital_period_days"))
     source_sma = _float_or_none(planet.get("semi_major_axis_au"))
+    planet_id = int(planet["planet_id"]) if planet.get("planet_id") is not None else -1
+    arm_sma_field = _derived_parameter_field(
+        derived_lookup.get(("planet", planet_id, "semi_major_axis_au")),
+        key="semi_major_axis_au",
+        label="Semi-major axis",
+        replacement_target="source semi-major axis or full orbital solution",
+    )
     derived_sma = None
     if source_sma is None and period_days is not None and period_days > 0 and host_mass is not None and host_mass > 0:
         period_years = period_days / 365.25
@@ -544,6 +605,18 @@ def _planet_simulation_fields(
     env_basis = str(environment.get("evidence_basis") or "missing")
     env_status = "source" if env_basis in {"source_eq_temp", "source_insolation"} else ("derived" if env_basis == "stellar_class_luminosity_proxy" else "missing")
     env_confidence = "high" if env_status == "source" else ("low" if env_status == "derived" else "missing")
+    arm_insol_field = _derived_parameter_field(
+        derived_lookup.get(("planet", planet_id, "insol_earth")),
+        key="candidate_insol_earth",
+        label="Incident flux",
+        replacement_target="source insolation or luminosity plus orbit with uncertainty",
+    )
+    arm_eq_temp_field = _derived_parameter_field(
+        derived_lookup.get(("planet", planet_id, "eq_temp_k")),
+        key="candidate_eq_temp_k",
+        label="Equilibrium temperature",
+        replacement_target="source equilibrium temperature or source insolation/luminosity inputs",
+    )
     fields = [
         _simulation_field(
             key="orbital_period_days",
@@ -559,20 +632,22 @@ def _planet_simulation_fields(
         _simulation_field(
             key="semi_major_axis_au",
             label="Semi-major axis",
-            value=source_sma if source_sma is not None else derived_sma,
+            value=source_sma if source_sma is not None else ((arm_sma_field or {}).get("value") if arm_sma_field else derived_sma),
             unit="au",
-            status="source" if source_sma is not None else ("derived" if derived_sma is not None else "missing"),
+            status="source" if source_sma is not None else ("derived" if arm_sma_field is not None or derived_sma is not None else "missing"),
             basis=(
                 "core/source semi_major_axis_au"
                 if source_sma is not None
                 else (
-                    f"Kepler estimate from source period and {host_mass_field.get('status', 'unknown')} host mass"
+                    (arm_sma_field or {}).get("basis")
+                    if arm_sma_field
+                    else f"Kepler estimate from source period and {host_mass_field.get('status', 'unknown')} host mass"
                     if derived_sma is not None
                     else "no semi-major axis and insufficient period/host-mass inputs"
                 )
             ),
-            layer="core" if source_sma is not None else ("arm_candidate" if derived_sma is not None else "none"),
-            confidence_tier="high" if source_sma is not None else ("medium" if host_mass_field.get("status") == "source" else ("low" if derived_sma is not None else "missing")),
+            layer="core" if source_sma is not None else ("arm" if arm_sma_field else ("arm_candidate" if derived_sma is not None else "none")),
+            confidence_tier="high" if source_sma is not None else ((arm_sma_field or {}).get("confidence_tier") if arm_sma_field else ("medium" if host_mass_field.get("status") == "source" else ("low" if derived_sma is not None else "missing"))),
             replacement_target="source semi-major axis or full orbital solution",
         ),
         _simulation_field(
@@ -611,23 +686,23 @@ def _planet_simulation_fields(
         _simulation_field(
             key="candidate_insol_earth",
             label="Incident flux",
-            value=_float_or_none(environment.get("candidate_insol_earth")),
+            value=(arm_insol_field or {}).get("value") if arm_insol_field and _float_or_none(planet.get("insol_earth")) is None else _float_or_none(environment.get("candidate_insol_earth")),
             unit="Earth=1",
-            status=env_status,
-            basis=env_basis if env_status != "missing" else (environment.get("missing_reason") or "no temperature/insolation derivation inputs"),
-            layer="core/arm" if env_status == "source" else ("arm_candidate" if env_status == "derived" else "none"),
-            confidence_tier=env_confidence,
+            status="source" if _float_or_none(planet.get("insol_earth")) is not None else ("derived" if arm_insol_field else env_status),
+            basis="core/source insol_earth" if _float_or_none(planet.get("insol_earth")) is not None else ((arm_insol_field or {}).get("basis") if arm_insol_field else (env_basis if env_status != "missing" else (environment.get("missing_reason") or "no temperature/insolation derivation inputs"))),
+            layer="core" if _float_or_none(planet.get("insol_earth")) is not None else ("arm" if arm_insol_field else ("arm_candidate" if env_status == "derived" else "none")),
+            confidence_tier="high" if _float_or_none(planet.get("insol_earth")) is not None else ((arm_insol_field or {}).get("confidence_tier") if arm_insol_field else env_confidence),
             replacement_target="source insolation or luminosity plus orbit with uncertainty",
         ),
         _simulation_field(
             key="candidate_eq_temp_k",
             label="Equilibrium temperature",
-            value=_float_or_none(environment.get("candidate_eq_temp_k")),
+            value=(arm_eq_temp_field or {}).get("value") if arm_eq_temp_field and _float_or_none(planet.get("eq_temp_k")) is None else _float_or_none(environment.get("candidate_eq_temp_k")),
             unit="K",
-            status=env_status,
-            basis=env_basis if env_status != "missing" else (environment.get("missing_reason") or "no temperature/insolation derivation inputs"),
-            layer="core/arm" if env_status == "source" else ("arm_candidate" if env_status == "derived" else "none"),
-            confidence_tier=env_confidence,
+            status="source" if _float_or_none(planet.get("eq_temp_k")) is not None else ("derived" if arm_eq_temp_field else env_status),
+            basis="core/source eq_temp_k" if _float_or_none(planet.get("eq_temp_k")) is not None else ((arm_eq_temp_field or {}).get("basis") if arm_eq_temp_field else (env_basis if env_status != "missing" else (environment.get("missing_reason") or "no temperature/insolation derivation inputs"))),
+            layer="core" if _float_or_none(planet.get("eq_temp_k")) is not None else ("arm" if arm_eq_temp_field else ("arm_candidate" if env_status == "derived" else "none")),
+            confidence_tier="high" if _float_or_none(planet.get("eq_temp_k")) is not None else ((arm_eq_temp_field or {}).get("confidence_tier") if arm_eq_temp_field else env_confidence),
             replacement_target="source equilibrium temperature or source insolation/luminosity inputs",
         ),
     ]
@@ -648,10 +723,15 @@ def _simulation_readiness_diagnostics(
     arm: Dict[str, Any],
 ) -> Dict[str, Any]:
     params_by_star_id = _best_stellar_parameters_by_star_id(arm)
-    star_rows = [_star_simulation_fields(star, params_by_star_id.get(int(star["star_id"]))) for star in stars if star.get("star_id") is not None]
+    derived_lookup = _derived_parameter_lookup(arm)
+    star_rows = [
+        _star_simulation_fields(star, params_by_star_id.get(int(star["star_id"])), derived_lookup)
+        for star in stars
+        if star.get("star_id") is not None
+    ]
     star_fields_by_id = {int(row["object_id"]): row for row in star_rows if row.get("object_id") is not None}
     default_star_fields = star_rows[0] if star_rows else None
-    planet_rows = [_planet_simulation_fields(planet, star_fields_by_id, default_star_fields) for planet in planets]
+    planet_rows = [_planet_simulation_fields(planet, star_fields_by_id, default_star_fields, derived_lookup) for planet in planets]
     all_fields = [field for row in [*star_rows, *planet_rows] for field in row.get("fields", [])]
     counts: Dict[str, int] = {"source": 0, "derived": 0, "assumed": 0, "missing": 0}
     for field in all_fields:
@@ -970,6 +1050,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         "orbit_edges": {"count": 0, "items": []},
         "orbital_solutions": {"count": 0, "items": []},
         "stellar_parameters": {"count": 0, "items": []},
+        "derived_physical_parameters": {"count": 0, "items": []},
         "errors": [],
     }
     if not arm_path_raw:
@@ -1140,6 +1221,34 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 )
             )
             output["stellar_parameters"] = {"count": len(rows), "items": rows[:30]}
+        derived_filters: List[str] = []
+        derived_params: List[Any] = []
+        if star_ids:
+            derived_filters.append(f"(object_type = 'star' AND star_id IN ({','.join(['?'] * len(star_ids))}))")
+            derived_params.extend(star_ids)
+        if planet_ids:
+            derived_filters.append(f"(object_type = 'planet' AND planet_id IN ({','.join(['?'] * len(planet_ids))}))")
+            derived_params.extend(planet_ids)
+        if derived_filters and _duckdb_has_table(con, "derived_physical_parameters"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT derived_parameter_id, build_id, object_type, system_id, star_id,
+                           planet_id, stable_object_key, parameter_key, value, unit,
+                           value_lo, value_hi, derivation_method, derivation_version,
+                           input_parameters_json, assumptions_json, lossy_transform,
+                           superseded_by_source, replacement_priority, confidence_score,
+                           confidence_tier, review_status, source_catalog, source_version,
+                           source_pk, source_row_hash
+                    FROM derived_physical_parameters
+                    WHERE {' OR '.join(derived_filters)}
+                    ORDER BY object_type ASC, stable_object_key ASC, parameter_key ASC
+                    LIMIT 200
+                    """,
+                    derived_params,
+                )
+            )
+            output["derived_physical_parameters"] = {"count": len(rows), "items": rows[:120]}
     except Exception as exc:
         output["errors"].append(str(exc))
     finally:

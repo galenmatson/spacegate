@@ -251,6 +251,9 @@ Notes:
 - Simulation readiness values are diagnostics unless already source-backed.
   Defensible numeric derivatives should be materialized in `arm`; visual
   defaults and placeholders belong in `disc`.
+- When `diagnostics.arm.derived_physical_parameters.items` is present,
+  Simulation readiness should prefer those persisted arm rows over runtime
+  fallback derivations.
 
 Response:
 - `200` for authenticated admins.

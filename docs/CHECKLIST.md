@@ -85,6 +85,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add deterministic identifier reconciliation with ambiguity quarantine + QC collision gates
 - [x] Add duplicate-trap stewardship report (exact-key + near-pair checks) with optional QC high-confidence gate
 - [x] Materialize narration-oriented `arm.stellar_parameters` rows from Gaia DR3 + NASA host-star payloads
+- [x] Materialize deterministic source-input physical derivations in `arm.derived_physical_parameters`
 - [x] Materialize `system_search_terms` and system-level browse/search facet columns for public-host performance
 - [x] Use generic `arm` hierarchy payloads in detail/search paths and descendant-aware star counts for multiplicity-heavy systems
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)

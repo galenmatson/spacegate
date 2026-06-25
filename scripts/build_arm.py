@@ -33,6 +33,7 @@ GAIA_NSS_VERSION_FALLBACK = "gaia_dr3_nss_two_body_orbit"
 GAIA_NSS_URL_FALLBACK = "https://gea.esac.esa.int/archive/"
 NASA_PSCOMPPARS_VERSION_FALLBACK = "pscomppars"
 NASA_PSCOMPPARS_URL_FALLBACK = "https://exoplanetarchive.ipac.caltech.edu"
+DERIVED_PHYSICAL_PARAMETERS_VERSION = "derived_physical_parameters_v1"
 
 
 def log(message: str) -> None:
@@ -1278,6 +1279,353 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: stellar_parameters ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: creating derived_physical_parameters")
+    con.execute(
+        f"""
+        create table derived_physical_parameters as
+        with source_luminosity_by_star as (
+          select
+            star_id,
+            max(power(10.0, luminosity_log10_lsun)) as luminosity_lsun
+          from stellar_parameters
+          where luminosity_log10_lsun is not null
+          group by star_id
+        ), source_mass_by_star as (
+          select
+            star_id,
+            mass_msun,
+            stellar_parameter_id,
+            parameter_source,
+            source_catalog,
+            source_version,
+            source_pk,
+            source_row_hash,
+            retrieval_checksum,
+            retrieved_at
+          from (
+            select
+              *,
+              row_number() over (
+                partition by star_id
+                order by
+                  case parameter_source
+                    when 'nasa_pscomppars_host' then 0
+                    when 'gaia_dr3_backbone' then 1
+                    else 9
+                  end,
+                  stellar_parameter_id
+              ) as rn
+            from stellar_parameters
+            where mass_msun is not null
+              and mass_msun > 0.0
+          )
+          where rn = 1
+        ), stellar_luminosity_candidates as (
+          select
+            'star'::varchar as object_type,
+            sp.system_id,
+            sp.star_id,
+            cast(null as bigint) as planet_id,
+            sp.stable_object_key,
+            cast(null as varchar) as stable_component_key,
+            'luminosity_lsun'::varchar as parameter_key,
+            (sp.radius_rsun * sp.radius_rsun * power(sp.teff_k / 5772.0, 4.0))::double as value,
+            'Lsun'::varchar as unit,
+            cast(null as double) as value_lo,
+            cast(null as double) as value_hi,
+            cast(null as double) as sigma,
+            'stefan_boltzmann_from_radius_teff'::varchar as derivation_method,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as derivation_version,
+            json_object(
+              'stellar_parameter_id', sp.stellar_parameter_id,
+              'parameter_source', sp.parameter_source,
+              'teff_k', sp.teff_k,
+              'radius_rsun', sp.radius_rsun,
+              'solar_teff_reference_k', 5772.0
+            )::varchar as input_parameters_json,
+            json_object(
+              'formula', 'L/Lsun = (R/Rsun)^2 * (Teff/5772K)^4',
+              'requires_source_teff', true,
+              'requires_source_radius', true
+            )::varchar as assumptions_json,
+            false as lossy_transform,
+            false as superseded_by_source,
+            'normal'::varchar as replacement_priority,
+            0.86::double as confidence_score,
+            'medium'::varchar as confidence_tier,
+            'candidate'::varchar as review_status,
+            'spacegate_derived'::varchar as source_catalog,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as source_version,
+            concat('star:', sp.star_id::varchar, ':luminosity_lsun:', sp.stellar_parameter_id::varchar)::varchar as source_pk,
+            sp.source_row_hash,
+            sp.retrieval_checksum,
+            sp.retrieved_at,
+            sp.ingested_at,
+            {sql_literal(args.transform_version)}::varchar as transform_version
+          from stellar_parameters sp
+          left join source_luminosity_by_star src on src.star_id = sp.star_id
+          where sp.teff_k is not null
+            and sp.teff_k > 0.0
+            and sp.radius_rsun is not null
+            and sp.radius_rsun > 0.0
+            and src.star_id is null
+          qualify row_number() over (
+            partition by sp.star_id
+            order by
+              case sp.parameter_source
+                when 'nasa_pscomppars_host' then 0
+                when 'gaia_dr3_backbone' then 1
+                else 9
+              end,
+              sp.stellar_parameter_id
+          ) = 1
+        ), luminosity_for_planets as (
+          select
+            star_id,
+            luminosity_lsun,
+            'source'::varchar as luminosity_status,
+            'source stellar luminosity_log10_lsun'::varchar as luminosity_basis,
+            cast(null as bigint) as derived_parameter_id
+          from source_luminosity_by_star
+          union all
+          select
+            star_id,
+            value as luminosity_lsun,
+            'derived'::varchar as luminosity_status,
+            'arm.derived_physical_parameters:stefan_boltzmann_from_radius_teff'::varchar as luminosity_basis,
+            cast(null as bigint) as derived_parameter_id
+          from stellar_luminosity_candidates
+        ), planet_sma_candidates as (
+          select
+            'planet'::varchar as object_type,
+            p.system_id,
+            cast(null as bigint) as star_id,
+            p.planet_id,
+            p.stable_object_key,
+            cast(null as varchar) as stable_component_key,
+            'semi_major_axis_au'::varchar as parameter_key,
+            power(sm.mass_msun * power(p.orbital_period_days / 365.25, 2.0), 1.0 / 3.0)::double as value,
+            'au'::varchar as unit,
+            cast(null as double) as value_lo,
+            cast(null as double) as value_hi,
+            cast(null as double) as sigma,
+            'kepler_from_period_host_mass'::varchar as derivation_method,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as derivation_version,
+            json_object(
+              'planet_id', p.planet_id,
+              'star_id', p.star_id,
+              'orbital_period_days', p.orbital_period_days,
+              'host_mass_msun', sm.mass_msun,
+              'host_mass_stellar_parameter_id', sm.stellar_parameter_id,
+              'host_mass_parameter_source', sm.parameter_source
+            )::varchar as input_parameters_json,
+            json_object(
+              'formula', 'a_au = (Mstar_msun * period_years^2)^(1/3)',
+              'planet_mass_ignored', true,
+              'period_year_days', 365.25
+            )::varchar as assumptions_json,
+            true as lossy_transform,
+            false as superseded_by_source,
+            'high'::varchar as replacement_priority,
+            0.78::double as confidence_score,
+            'medium'::varchar as confidence_tier,
+            'candidate'::varchar as review_status,
+            'spacegate_derived'::varchar as source_catalog,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as source_version,
+            concat('planet:', p.planet_id::varchar, ':semi_major_axis_au')::varchar as source_pk,
+            p.source_row_hash,
+            coalesce(p.retrieval_checksum, sm.retrieval_checksum) as retrieval_checksum,
+            coalesce(p.retrieved_at, sm.retrieved_at) as retrieved_at,
+            {sql_literal(args.ingested_at)}::varchar as ingested_at,
+            {sql_literal(args.transform_version)}::varchar as transform_version
+          from core.planets p
+          join source_mass_by_star sm on sm.star_id = p.star_id
+          where p.semi_major_axis_au is null
+            and p.orbital_period_days is not null
+            and p.orbital_period_days > 0.0
+        ), sma_for_planets as (
+          select
+            planet_id,
+            semi_major_axis_au,
+            'source'::varchar as sma_status,
+            'source planet semi_major_axis_au'::varchar as sma_basis
+          from core.planets
+          where semi_major_axis_au is not null
+            and semi_major_axis_au > 0.0
+          union all
+          select
+            planet_id,
+            value as semi_major_axis_au,
+            'derived'::varchar as sma_status,
+            'arm.derived_physical_parameters:kepler_from_period_host_mass'::varchar as sma_basis
+          from planet_sma_candidates
+        ), planet_insolation_candidates as (
+          select
+            'planet'::varchar as object_type,
+            p.system_id,
+            cast(null as bigint) as star_id,
+            p.planet_id,
+            p.stable_object_key,
+            cast(null as varchar) as stable_component_key,
+            'insol_earth'::varchar as parameter_key,
+            (lfp.luminosity_lsun / (sfp.semi_major_axis_au * sfp.semi_major_axis_au))::double as value,
+            'Earth=1'::varchar as unit,
+            cast(null as double) as value_lo,
+            cast(null as double) as value_hi,
+            cast(null as double) as sigma,
+            'insolation_from_luminosity_sma'::varchar as derivation_method,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as derivation_version,
+            json_object(
+              'planet_id', p.planet_id,
+              'star_id', p.star_id,
+              'luminosity_lsun', lfp.luminosity_lsun,
+              'luminosity_status', lfp.luminosity_status,
+              'luminosity_basis', lfp.luminosity_basis,
+              'semi_major_axis_au', sfp.semi_major_axis_au,
+              'semi_major_axis_status', sfp.sma_status,
+              'semi_major_axis_basis', sfp.sma_basis
+            )::varchar as input_parameters_json,
+            json_object(
+              'formula', 'S/Searth = L/Lsun / a_au^2',
+              'single_host_star', true
+            )::varchar as assumptions_json,
+            false as lossy_transform,
+            false as superseded_by_source,
+            'high'::varchar as replacement_priority,
+            case
+              when lfp.luminosity_status = 'source' and sfp.sma_status = 'source' then 0.90
+              when lfp.luminosity_status = 'source' or sfp.sma_status = 'source' then 0.82
+              else 0.72
+            end::double as confidence_score,
+            case
+              when lfp.luminosity_status = 'source' and sfp.sma_status = 'source' then 'high'
+              else 'medium'
+            end::varchar as confidence_tier,
+            'candidate'::varchar as review_status,
+            'spacegate_derived'::varchar as source_catalog,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as source_version,
+            concat('planet:', p.planet_id::varchar, ':insol_earth')::varchar as source_pk,
+            p.source_row_hash,
+            p.retrieval_checksum,
+            p.retrieved_at,
+            {sql_literal(args.ingested_at)}::varchar as ingested_at,
+            {sql_literal(args.transform_version)}::varchar as transform_version
+          from core.planets p
+          join luminosity_for_planets lfp on lfp.star_id = p.star_id
+          join sma_for_planets sfp on sfp.planet_id = p.planet_id
+          where p.insol_earth is null
+            and sfp.semi_major_axis_au > 0.0
+        ), insolation_for_planets as (
+          select
+            planet_id,
+            insol_earth,
+            'source'::varchar as insolation_status,
+            'source planet insol_earth'::varchar as insolation_basis
+          from core.planets
+          where insol_earth is not null
+            and insol_earth > 0.0
+          union all
+          select
+            planet_id,
+            value as insol_earth,
+            'derived'::varchar as insolation_status,
+            'arm.derived_physical_parameters:insolation_from_luminosity_sma'::varchar as insolation_basis
+          from planet_insolation_candidates
+        ), planet_eq_temp_candidates as (
+          select
+            'planet'::varchar as object_type,
+            p.system_id,
+            cast(null as bigint) as star_id,
+            p.planet_id,
+            p.stable_object_key,
+            cast(null as varchar) as stable_component_key,
+            'eq_temp_k'::varchar as parameter_key,
+            (278.5 * power(ifp.insol_earth, 0.25))::double as value,
+            'K'::varchar as unit,
+            cast(null as double) as value_lo,
+            cast(null as double) as value_hi,
+            cast(null as double) as sigma,
+            'equilibrium_temp_from_insolation'::varchar as derivation_method,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as derivation_version,
+            json_object(
+              'planet_id', p.planet_id,
+              'insol_earth', ifp.insol_earth,
+              'insolation_status', ifp.insolation_status,
+              'insolation_basis', ifp.insolation_basis,
+              'earth_normalized_constant_k', 278.5
+            )::varchar as input_parameters_json,
+            json_object(
+              'formula', 'Teq_K = 278.5 * (S/Searth)^0.25',
+              'atmosphere_ignored', true,
+              'albedo_not_individually_modeled', true
+            )::varchar as assumptions_json,
+            true as lossy_transform,
+            false as superseded_by_source,
+            'normal'::varchar as replacement_priority,
+            case when ifp.insolation_status = 'source' then 0.84 else 0.74 end::double as confidence_score,
+            case when ifp.insolation_status = 'source' then 'medium' else 'low' end::varchar as confidence_tier,
+            'candidate'::varchar as review_status,
+            'spacegate_derived'::varchar as source_catalog,
+            {sql_literal(DERIVED_PHYSICAL_PARAMETERS_VERSION)}::varchar as source_version,
+            concat('planet:', p.planet_id::varchar, ':eq_temp_k')::varchar as source_pk,
+            p.source_row_hash,
+            p.retrieval_checksum,
+            p.retrieved_at,
+            {sql_literal(args.ingested_at)}::varchar as ingested_at,
+            {sql_literal(args.transform_version)}::varchar as transform_version
+          from core.planets p
+          join insolation_for_planets ifp on ifp.planet_id = p.planet_id
+          where p.eq_temp_k is null
+            and ifp.insol_earth > 0.0
+        ), unioned as (
+          select * from stellar_luminosity_candidates
+          union all
+          select * from planet_sma_candidates
+          union all
+          select * from planet_insolation_candidates
+          union all
+          select * from planet_eq_temp_candidates
+        )
+        select
+          row_number() over (order by object_type, coalesce(system_id, -1), coalesce(star_id, -1), coalesce(planet_id, -1), parameter_key)::bigint as derived_parameter_id,
+          {sql_literal(args.build_id)}::varchar as build_id,
+          object_type,
+          system_id,
+          star_id,
+          planet_id,
+          stable_object_key,
+          stable_component_key,
+          parameter_key,
+          value,
+          unit,
+          value_lo,
+          value_hi,
+          sigma,
+          derivation_method,
+          derivation_version,
+          input_parameters_json,
+          assumptions_json,
+          lossy_transform,
+          superseded_by_source,
+          replacement_priority,
+          confidence_score,
+          confidence_tier,
+          review_status,
+          source_catalog,
+          source_version,
+          source_pk,
+          sha256(concat_ws('|', source_pk, parameter_key, coalesce(cast(value as varchar), ''), input_parameters_json, assumptions_json)) as source_row_hash,
+          retrieval_checksum,
+          retrieved_at,
+          ingested_at,
+          transform_version
+        from unioned
+        where value is not null
+        """
+    )
+    log(f"Arm stage complete: derived_physical_parameters ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
     log("Arm stage: creating gaia_nss_best")
@@ -3580,6 +3928,21 @@ def main() -> int:
     stellar_parameter_count = int(
         con.execute("select count(*) from stellar_parameters").fetchone()[0] or 0
     )
+    derived_parameter_count = int(
+        con.execute("select count(*) from derived_physical_parameters").fetchone()[0] or 0
+    )
+    derived_parameter_by_key_rows = con.execute(
+        """
+        select parameter_key, count(*)::bigint
+        from derived_physical_parameters
+        group by parameter_key
+        order by parameter_key
+        """
+    ).fetchall()
+    derived_parameter_counts_by_key = {
+        str(parameter_key): int(count or 0)
+        for parameter_key, count in derived_parameter_by_key_rows
+    }
     gaia_stellar_parameter_count = int(
         con.execute(
             """
@@ -3891,6 +4254,8 @@ def main() -> int:
             "msc_component_details": msc_component_detail_count,
             "wds_component_observations": wds_component_observation_count,
             "stellar_parameters_rows": stellar_parameter_count,
+            "derived_physical_parameters_rows": derived_parameter_count,
+            "derived_physical_parameters_by_key": derived_parameter_counts_by_key,
             "stellar_parameters_gaia_rows": gaia_stellar_parameter_count,
             "stellar_parameters_nasa_rows": nasa_stellar_parameter_count,
             "vsx_variability_rows": vsx_variability_count,
@@ -3936,6 +4301,7 @@ def main() -> int:
             "MSC subsystem_count inference synthesizes lettered leaf labels (Aa/Ab...) for unresolved hierarchy depth.",
             "Orbit edges currently include core two-letter component pairs and inferred MSC leaf pairs.",
             "Arm stellar_parameters materializes source-native Gaia DR3 and NASA host-star values for narration/filtering workflows.",
+            "Arm derived_physical_parameters materializes deterministic source-input physical candidates; source-native values supersede these rows.",
             "Gaia NSS rows materialize inferred unresolved companions plus source-native orbital summaries in arm.orbital_solutions.",
             "WDS and MSC catalog detail tables preserve observation history, component photometry, grades, and notes outside core hot paths.",
             "ORB6 rows are folded into arm.orbital_solutions when they can be mapped safely to a unique binary edge for a WDS-linked system.",
@@ -3959,7 +4325,8 @@ def main() -> int:
         "Arm build complete "
         f"(components={component_count:,}, hierarchy_edges={hierarchy_count:,}, orbit_edges={orbit_count:,}, "
         f"msc_details={msc_component_detail_count:,}, wds_obs={wds_component_observation_count:,}, "
-        f"stellar_parameters={stellar_parameter_count:,}, gaia_nss_orbits={gaia_nss_solution_count:,}, orb6_orbits={orb6_solution_count:,}, "
+        f"stellar_parameters={stellar_parameter_count:,}, derived_parameters={derived_parameter_count:,}, "
+        f"gaia_nss_orbits={gaia_nss_solution_count:,}, orb6_orbits={orb6_solution_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "
         f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
         f"msc_inferred_leaves={inferred_leaf_count:,}, sol_moons={sol_moon_component_count:,}, "

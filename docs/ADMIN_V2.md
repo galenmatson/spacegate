@@ -133,6 +133,8 @@ Show:
 - simulation readiness diagnostics that label needed numeric fields as
   `source`, `derived`, `assumed`, or `missing`, including the layer where each
   value belongs and the stronger replacement value administrators should seek
+- persisted `arm.derived_physical_parameters` rows when present, preferred over
+  runtime fallback derivations in the Simulation tab
 - layer artifact paths for core, arm, and disc
 - provenance completeness checks for system, star, and planet rows
 - arm component, hierarchy, orbit-edge, orbital-solution, and stellar-parameter

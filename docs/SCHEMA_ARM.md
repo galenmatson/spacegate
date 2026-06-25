@@ -173,15 +173,19 @@ Rules:
 - keep source-native values and uncertainty bounds; do not collapse them into inferred prose fields here
 - one star may legitimately have multiple rows from different source catalogs
 
-## `derived_physical_parameters` (planned)
+## `derived_physical_parameters`
 
 Deterministic, provenance-bound numeric science candidates used when source
 catalogs do not provide a needed physical value. These rows are temporary in the
 scientific sense: they are acceptable explicit derivations, but they should be
 replaced or superseded when a stronger source measurement is found.
 
+Implementation status: emitted by `scripts/build_arm.py` as
+`derived_physical_parameters_v1` for deterministic source-input candidates.
+
 Columns:
 - `derived_parameter_id BIGINT`
+- `build_id TEXT`
 - object binding:
   - `object_type TEXT` (`system|star|planet|component|orbit`)
   - `system_id BIGINT` (nullable)
@@ -215,6 +219,8 @@ Rules:
 - source-native measurements always win over derived values for science claims.
 - spectral-type proxy rows are allowed only when the source spectral evidence is
   preserved and the confidence tier is no higher than `low`.
+- v1 intentionally does not persist spectral-type proxy rows; those remain
+  runtime diagnostics until the stricter source-input path is validated.
 - derived orbital values such as semi-major axis from period and host mass must
   retain the exact input mass/period basis and method version.
 - Astronomy Agency enrichment must treat non-superseded rows in this table as a
