@@ -4,6 +4,8 @@ import "./styles.css";
 
 const ADMIN_API_BASE = "/api/v2/admin";
 const AUTH_API_BASE = "/api/v2/auth";
+const OBJECT_RECENTS_KEY = "spacegate.admin.objectDiagnostics.recents";
+const OBJECT_RECENTS_LIMIT = 8;
 
 const emptyEndpointForm = {
   display_name: "",
@@ -1981,6 +1983,7 @@ function ObjectDiagnosticsScreen() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedObject, setSelectedObject] = useState(null);
+  const [recentObjects, setRecentObjects] = useState(() => loadObjectRecents());
   const [state, setState] = useState({
     loadingSearch: false,
     loadingDetail: false,
@@ -2016,8 +2019,33 @@ function ObjectDiagnosticsScreen() {
       return;
     }
     const loadedSystem = data?.public?.system || {};
-    setSelectedObject(resolveObjectFocus(data, focus) || { type: "system", data: loadedSystem });
+    const nextObject = resolveObjectFocus(data, focus) || { type: "system", data: loadedSystem };
+    setSelectedObject(nextObject);
+    rememberObjectRecent(data, nextObject);
     setState((current) => ({ ...current, loadingDetail: false, detail: data, message: "Ready" }));
+  }
+
+  function rememberObjectRecent(detail, object) {
+    const entry = objectRecentEntry(detail, object);
+    if (!entry) return;
+    setRecentObjects((current) => {
+      const next = [
+        entry,
+        ...current.filter((item) => item.key !== entry.key),
+      ].slice(0, OBJECT_RECENTS_LIMIT);
+      saveObjectRecents(next);
+      return next;
+    });
+  }
+
+  function handleSelectObject(object) {
+    setSelectedObject(object);
+    rememberObjectRecent(state.detail, object);
+  }
+
+  function clearObjectRecents() {
+    saveObjectRecents([]);
+    setRecentObjects([]);
   }
 
   useEffect(() => {
@@ -2058,6 +2086,8 @@ function ObjectDiagnosticsScreen() {
         </label>
         <button className="button primary" type="submit">{state.loadingSearch ? "Searching..." : "Search"}</button>
       </form>
+
+      <ObjectRecentList items={recentObjects} onOpen={(item) => loadDetail(item.system_id, item.focus)} onClear={clearObjectRecents} />
 
       <div className={state.message === "Ready" ? "status-line" : "status-line"}>{state.message}</div>
 
@@ -2114,7 +2144,7 @@ function ObjectDiagnosticsScreen() {
             ))}
           </div>
 
-          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} arm={arm} onSelectObject={setSelectedObject} />
+          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} arm={arm} onSelectObject={handleSelectObject} />
 
           <div className="tab-row">
             {[
@@ -2134,9 +2164,9 @@ function ObjectDiagnosticsScreen() {
           ) : activeTab === "layers" ? (
             <ObjectLayersTab detail={detail} />
           ) : activeTab === "members" ? (
-            <ObjectMembersTab stars={stars} planets={planets} arm={arm} selectedObject={selectedObject} onSelectObject={setSelectedObject} />
+            <ObjectMembersTab stars={stars} planets={planets} arm={arm} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
           ) : activeTab === "graph" ? (
-            <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} system={system} selectedObject={selectedObject} onSelectObject={setSelectedObject} />
+            <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} system={system} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
           ) : activeTab === "presentation" ? (
             <ObjectPresentationTab disc={disc} system={system} />
           ) : (
@@ -2151,17 +2181,96 @@ function ObjectDiagnosticsScreen() {
   );
 }
 
+function loadObjectRecents() {
+  try {
+    const parsed = JSON.parse(window.localStorage?.getItem(OBJECT_RECENTS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((item) => item?.system_id && item?.label).slice(0, OBJECT_RECENTS_LIMIT) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveObjectRecents(items) {
+  try {
+    window.localStorage?.setItem(OBJECT_RECENTS_KEY, JSON.stringify(items || []));
+  } catch (_) {
+    // Recent-object persistence is only an operator convenience.
+  }
+}
+
+function objectFocusToken(object) {
+  const type = object?.type || "system";
+  const data = object?.data || {};
+  if (type === "star" && data.star_id) return { type, id: Number(data.star_id) };
+  if (type === "planet" && data.planet_id) return { type, id: Number(data.planet_id) };
+  if (type === "component" && data.stable_component_key) return { type, key: String(data.stable_component_key) };
+  return { type: "system" };
+}
+
+function objectRecentEntry(detail, object) {
+  const system = detail?.public?.system || {};
+  if (!system.system_id) return null;
+  const type = object?.type || "system";
+  const data = object?.data || system;
+  const focus = objectFocusToken(object);
+  const label = objectDisplayName(type, data);
+  const systemLabel = system.display_name || system.system_name || `System ${system.system_id}`;
+  const sublabel = type === "system"
+    ? `${compactId(system.stable_object_key, 34)}`
+    : `${actionLabel(type)} in ${systemLabel}`;
+  const focusKey = focus.key || focus.id || "system";
+  return {
+    key: `${system.system_id}:${focus.type}:${focusKey}`,
+    system_id: Number(system.system_id),
+    system_label: systemLabel,
+    label,
+    sublabel,
+    focus,
+    saved_at: new Date().toISOString(),
+  };
+}
+
+function ObjectRecentList({ items, onOpen, onClear }) {
+  if (!items.length) return null;
+  return (
+    <section className="panel object-recent-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Recent Objects</h2>
+          <p className="muted">Quick return links stored in this browser.</p>
+        </div>
+        <button className="button" type="button" onClick={onClear}>Clear</button>
+      </div>
+      <div className="object-recent-list">
+        {items.map((item) => (
+          <button className="object-recent-row" key={item.key} type="button" onClick={() => onOpen?.(item)}>
+            <strong>{item.label}</strong>
+            <span>{item.sublabel}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function resolveObjectFocus(detail, focus) {
   const wantedType = String(focus?.type || "");
   const wantedId = Number(focus?.id);
-  if (!wantedType || !Number.isFinite(wantedId)) return null;
+  const wantedKey = String(focus?.key || "");
+  if (!wantedType) return null;
   if (wantedType === "star") {
+    if (!Number.isFinite(wantedId)) return null;
     const star = (detail?.public?.stars || []).find((row) => Number(row.star_id) === wantedId);
-    return star ? { type: "star", data: star } : null;
+    return star ? { type: "star", data: { ...star, arm_component: componentForCoreObject(detail?.diagnostics?.arm || {}, "star", star.star_id) } } : null;
   }
   if (wantedType === "planet") {
+    if (!Number.isFinite(wantedId)) return null;
     const planet = (detail?.public?.planets || []).find((row) => Number(row.planet_id) === wantedId);
-    return planet ? { type: "planet", data: planet } : null;
+    return planet ? { type: "planet", data: { ...planet, arm_component: componentForCoreObject(detail?.diagnostics?.arm || {}, "planet", planet.planet_id) } } : null;
+  }
+  if (wantedType === "component" && wantedKey) {
+    const component = (detail?.diagnostics?.arm?.components?.items || []).find((row) => String(row.stable_component_key || "") === wantedKey);
+    return component ? { type: "component", data: component } : null;
   }
   return null;
 }

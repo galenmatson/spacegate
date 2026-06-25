@@ -393,6 +393,45 @@ h3 {
   align-items: start;
 }
 
+.object-recent-panel {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.object-recent-panel .muted {
+  margin-bottom: 0;
+}
+
+.object-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.object-recent-row {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 180px;
+  max-width: 280px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+}
+
+.object-recent-row:hover {
+  border-color: var(--brand);
+  background: #eefdf9;
+}
+
+.object-recent-row span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 .select-list,
 .readiness-list {
   display: grid;
