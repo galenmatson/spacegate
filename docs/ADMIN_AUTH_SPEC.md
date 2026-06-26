@@ -160,9 +160,12 @@ Required env vars (production):
 - `SPACEGATE_OIDC_CLIENT_ID=...`
 - `SPACEGATE_OIDC_CLIENT_SECRET=...`
 - `SPACEGATE_OIDC_REDIRECT_URI=https://your-public-host.example/api/v2/auth/callback/google`
-- `SPACEGATE_AUTH_SUCCESS_REDIRECT=/api/v2/admin/ui`
+- `SPACEGATE_AUTH_SUCCESS_REDIRECT=/admin/`
 - `SPACEGATE_ADMIN_DB_PATH=$SPACEGATE_STATE_DIR/admin/admin.sqlite3`
 - `SPACEGATE_SESSION_SECRET=...` (high-entropy secret for signing)
+
+`/api/v2/admin/ui` remains available as an embedded fallback during migration,
+but new OAuth client redirect-success flow should land operators on `/admin/`.
 
 Recommended:
 - `SPACEGATE_SESSION_TTL_HOURS=12`

@@ -5,20 +5,15 @@ This file is the prompt/runtime behavior note for agent-driven enrichment work.
 Authoritative companion documents:
 
 - `docs/AGENT_FRAMEWORK.md`: architecture, lifecycle, and storage contract
-- `docs/AGENT_ITERATION_HISTORY.md`: implementation timeline, benchmark pivots, and lessons learned while building the first half of the agent pipeline
 - `docs/AGENT_ALLOWLIST.md`: allowed web domains and source-trust policy
-- `docs/AGENT_SCOUT.md`: target discovery, prioritization, and refresh seeding
-- `docs/AGENT_DESIGNATOR.md`: pre-extraction identifier disambiguation, same-object lookup links, and binding-scope quarantine
-- `docs/AGENT_RETRIEVER.md`: allowlisted fetch, archive, and source-file creation
-- `docs/AGENT_EXTRACTOR.md`: source-to-claim extraction
-- `docs/AGENT_RESOLVER.md`: claim subject mapping onto stable objects and relations
-- `docs/AGENT_STRUCTURE.md`: reviewed derived subsystem and dynamical-tree reduction
-- `docs/AGENT_REVIEWER.md`: review and acceptance policy
-- `docs/AGENT_TAGGER.md`: search/discovery labeling and mode-aware tag classification
-- `docs/AGENT_PUBLISHER.md`: publication/materialization surfaces
-- `docs/AGENT_NARRATOR.md`: reviewed-evidence narrative generation
-- `docs/AGENT_WATCHER.md`: continuous refresh, drift detection, and reconciliation
 - `docs/AGENT_EVALS.md`: local-model golden-case evaluation, anomaly inbox, and role routing
+- `docs/SCHEMA_ARM.md` and `docs/SCHEMA_DISC.md`: storage boundaries for
+  proposals, accepted overlays, citations, claims, and generated presentation
+  artifacts
+
+Planned role-specific notes are still design vocabulary, not separate checked-in
+documents: `SCOUT`, `DESIGNATOR`, `RETRIEVER`, `EXTRACTOR`, `RESOLVER`,
+`STRUCTURE`, `REVIEWER`, `TAGGER`, `PUBLISHER`, `NARRATOR`, and `WATCHER`.
 
 ## Pipeline Order
 
@@ -145,7 +140,12 @@ Use local GPU inference for enrichment experiments before spending cloud tokens.
 
 Admin UI:
 
-- Agent Workspace -> Adjudicator -> Inference Runtime provides the shared runtime probe surface for local OpenAI-compatible endpoints, OpenAI, and Google Gemini.
+- Admin v2 -> Inference provides the shared runtime probe surface for local
+  OpenAI-compatible endpoints, OpenAI, Google Gemini, and future dynamic
+  endpoints.
+- Admin v2 -> Agency exposes source allowlist management, restore controls,
+  Evidence Portfolio scaffolding, eval summaries, anomaly inbox state, and
+  source-policy readiness.
 - Catalog probes are the cheap reachability check.
 - Generation tests make one tiny model call and should be used deliberately for paid providers.
 - The same runtime selector is the intended control surface for future extraction, review, adjudication, narration, and illustration defaults.

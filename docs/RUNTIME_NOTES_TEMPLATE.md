@@ -48,6 +48,9 @@ Operational note:
 - `docker-compose.yml` only covers container runtime env.
 - Host-side scripts such as `scripts/promote_build.sh`, `scripts/publish_db.sh`, and `scripts/push_published_db.sh` load env from `/etc/spacegate/spacegate.env`, `.spacegate.env`, and `.spacegate.local.env`.
 - On server hosts, set `SPACEGATE_STATE_DIR` and `SPACEGATE_DL_ROOT` in the host env files so container runtime and host-side operational scripts agree on the same paths.
+- `SPACEGATE_STATE_DIR` is the canonical persistent runtime/build state root.
+  `SPACEGATE_DATA_DIR` is retained as a compatibility alias/fallback where
+  older compose/scripts still read it.
 - Keep `/etc/spacegate` owned by `root:spacegate` with mode `2750`. The setgid bit makes replaced files inherit group `spacegate`, which prevents root-owned editor temp-file saves from changing `/etc/spacegate/spacegate.env` back to `root:root`.
 - Keep `/etc/spacegate/spacegate.env` owned by `root:spacegate` with mode `0640`; it may contain OIDC secrets, API keys, and the session signing secret.
 

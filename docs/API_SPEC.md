@@ -287,7 +287,7 @@ Response:
 - `403` authenticated non-admin.
 - `404` if the system id is not found.
 
-### GET /admin/dataset/status
+### GET /admin/status/dataset
 Returns read-only science artifact diagnostics for the Admin Dataset workspace.
 
 Includes:
@@ -529,6 +529,9 @@ Notes:
 - Falls back to `config/agent_source_allowlist.json` from the repo/image.
 - Includes source counts by tier, the loaded/default/runtime paths, and
   restorable versions.
+- Each source includes an `enabled` flag. Disabled sources remain visible for
+  audit/review, but retrieval and future portfolio-context assembly must treat
+  them as not allowed.
 
 ### POST /admin/agency/source-allowlist/sources
 Adds or updates one source-domain allowlist entry.
@@ -563,6 +566,10 @@ Security:
 ### POST /admin/agency/source-allowlist/restore-default
 Restores the shipped Spacegate source allowlist by removing the runtime
 override after first snapshotting the current runtime JSON when present.
+
+Use this when operator edits have damaged, over-pruned, or otherwise confused
+the runtime policy. The shipped default remains in the repo/image and is never
+mutated by Admin.
 
 Security:
 - Requires authenticated admin session.

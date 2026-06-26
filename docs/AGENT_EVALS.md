@@ -167,12 +167,17 @@ Photon frontier credentials should live outside git:
 Expected keys:
 
 ```bash
-OPENAI_API_KEY=...
-GOOGLE_API_KEY=...
+SPACEGATE_OPENAI_API_KEY=...
+SPACEGATE_GOOGLE_API_KEY=...
 SPACEGATE_FRONTIER_OPENAI_MODEL=gpt-5.5
 SPACEGATE_FRONTIER_GOOGLE_MODEL=gemini-pro-latest
 SPACEGATE_FRONTIER_DEFAULT_PROVIDER=openai
 ```
+
+Legacy `OPENAI_API_KEY` and `GOOGLE_API_KEY` aliases may still be recognized by
+some tools, but new Spacegate host config should prefer the `SPACEGATE_*`
+names so Runtime diagnostics can distinguish project-scoped secrets from a
+generic shell environment.
 
 Recommended ownership is `root:spacegate` with `0640` permissions. The account
 or systemd service that runs the agent pipeline should be in the `spacegate`

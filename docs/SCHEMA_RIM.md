@@ -5,6 +5,7 @@ Rim data is intentionally separate from core science and disc derived artifacts.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
+- `docs/SCHEMA_ARM.md`: audited supplemental science, proposals, and accepted overlays
 - `docs/SCHEMA_DISC.md`: reproducible disc artifacts
 - `docs/SCHEMA_RIM.md`: editable fictional/user-authored rim overlays (this document)
 

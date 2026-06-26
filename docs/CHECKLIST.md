@@ -15,6 +15,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Admin dataset status panel (runtime/storage/quality metrics) for performance diagnostics
 - [x] Admin dataset slicer panel (preview + policy-driven sliced rebuild action)
 - [x] Catalog contribution + overlap report generation and Admin Dataset visualization
+- [x] Admin v2 Runtime workspace with redacted config/secret diagnostics
+- [x] Admin v2 Object Diagnostics workspace with readiness, provenance,
+  graph/orbit, presentation, and simulation inspection
+- [x] Admin v2 Operations/Jobs/Audit workspace with job timeline, log reader,
+  correlated audit events, retention dry-run/apply safeguards, and actor
+  attribution
+- [x] Admin v2 Agency source allowlist management with source enable/disable,
+  runtime JSON overrides, shipped-default restore, and previous-version restore
 - [x] Coolness scoring pipeline with versioned profiles
 - [x] Snapshot generation pipeline baseline
 

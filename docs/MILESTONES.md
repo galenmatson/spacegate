@@ -339,9 +339,12 @@ Dependencies:
 Deliverables:
 
 - dedicated Admin v2 frontend shell instead of the large embedded FastAPI HTML page
-- Overview, Builds, Dataset, Inference, Agency, and Audit workspaces as defined in `docs/ADMIN_V2.md`
+- Overview, Builds, Dataset, Object Diagnostics, Inference, Agency, Runtime,
+  Operations/Jobs, and Audit workspaces as defined in `docs/ADMIN_V2.md`
 - Inference workspace with endpoint probes, model-role routing, generation smoke tests, and eval report history
 - Evidence Portfolio journal surface where each agent step is captured as a plain-language, linkable, source-backed entry
+- Agency source allowlist management backed by repo defaults, runtime JSON
+  overrides, source enabled/disabled state, and restore/version controls
 - bulk research/source-document storage rooted at `/mnt/space/spacegate`, with durable hashes and references in admin/disc state
 
 Success criteria:

@@ -49,6 +49,9 @@ Admin v2 exposes retention controls in the Builds workspace:
   After a matching dry-run succeeds, the Builds page updates the apply card with
   the dry-run job id, candidate count, estimated reclaimable space, and candidate
   hash.
+- If a dry run finds zero candidates, that is a successful null result. Admin
+  should report zero reclaimable bytes and leave Retention Apply disabled
+  because there is nothing to delete.
 
 Useful overrides:
 

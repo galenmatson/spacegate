@@ -83,6 +83,12 @@ On server hosts, keep `/etc/spacegate` owned by `root:spacegate` with mode
 Spacegate host-side tooling after root editor saves. Keep `spacegate.env`
 `root:spacegate` with mode `0640`.
 
+On Photon, source `/srv/spacegate/photon.env` before host-side Spacegate tasks.
+The active development/build state is under `/data/spacegate/state` on the
+`/data` volume; bulk research documents, papers, OCR text, and other large
+dossier cache material should live under `/mnt/space/spacegate` when that mount
+is available, with hashes and metadata kept in Spacegate state.
+
 ## Quickstart (from scratch)
 
 Running Spacegate (API + web UI) from scratch.
@@ -451,6 +457,24 @@ Most scripts now auto-load these files in this precedence (lowest to highest):
 Process env always wins (inline prefixes like `SPACEGATE_STATE_DIR=... scripts/...` override all files).
 
 Note: `.spacegate.env` and `.spacegate.local.env` are ignored by git.
+
+`SPACEGATE_STATE_DIR` is the canonical persistent runtime/build state root.
+`SPACEGATE_DATA_DIR` remains a compatibility alias/fallback for older
+compose/script paths.
+
+## Admin v2
+
+Admin v2 is served from `/admin/` and uses authenticated `/api/v2/admin/*`
+endpoints. OAuth callbacks should target
+`/api/v2/auth/callback/google`; successful logins should redirect to `/admin/`.
+The older `/api/v2/admin/ui` page remains only as an embedded fallback while
+migration work continues.
+
+The Agency source allowlist ships as `config/agent_source_allowlist.json`.
+Admin writes operator edits to
+`$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json` and snapshots previous
+runtime versions under
+`$SPACEGATE_STATE_DIR/config/agent_source_allowlist.history/`.
 
 ## Nginx setup (optional)
 

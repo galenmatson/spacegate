@@ -403,16 +403,33 @@ Host-specific runtime config is documented outside git at `/srv/spacegate/RUNTIM
 Required runtime notes:
 
 - antiproton public-host specifics (TLS, nginx, auth, deployment)
-- proton development specifics
-  - OAuth redirect workaround (tunnel `:8080` to `:80` on proton for admin panel OAuth flow)
+- photon development/build specifics
+  - source `/srv/spacegate/photon.env` before host-side Spacegate tasks
+  - keep bulky research/source-document cache under `/mnt/space/spacegate`
+    when mounted; keep auditable metadata and hashes in internal state
+- proton fallback/reference specifics only where still relevant
 
-## Operational Observability (Admin Status Panel)
+Operational config note:
 
-Spacegate now includes a dedicated admin status panel for build/runtime diagnostics and dataset governance.
+- `/etc/spacegate` should be `root:spacegate` with mode `2750` so files
+  replaced by root-owned editor save paths inherit group `spacegate`.
+- `/etc/spacegate/spacegate.env` should be `root:spacegate` with mode `0640`.
+  It is the preferred host-local location for OIDC secrets, provider API keys,
+  session secrets, and server-side Spacegate runtime secrets.
 
-API endpoint:
+## Operational Observability (Admin v2)
 
-- `GET /api/v1/admin/status/dataset`
+Spacegate now includes a dedicated Admin v2 console for build/runtime
+diagnostics, dataset governance, object diagnostics, inference configuration,
+Agency source policy, jobs, audit, and operational runbooks.
+
+Primary UI/API:
+
+- UI: `/admin/`
+- API base: `/api/v2/admin`
+- Dataset status endpoint: `GET /api/v2/admin/status/dataset`
+- Runtime status endpoint: `GET /api/v2/admin/runtime/status`
+- Operations status endpoint: `GET /api/v2/admin/operations/status`
 
 Panel purpose:
 
@@ -424,6 +441,8 @@ Panel purpose:
 - keep admin diagnostics visually consistent with active site theme
 - make status interpretation fast under large builds (humanized rows, bars, concise summaries)
 - expose star-level `arm` evidence overlays in system detail (currently VSX + UltracoolSheet, with stellar-parameter/orbital overlays as the next narration-facing payload)
+- expose persisted `arm.derived_physical_parameters` rows and clearly label
+  source, derived, and assumed simulation inputs for review
 
 Minimum metrics exposed:
 
@@ -444,8 +463,10 @@ Implementation constraints:
 - status endpoint is admin-only
 - heavy aggregates are cached briefly in-process to avoid repeated full scans
 - status metrics are diagnostic, not canonical science tables
-- admin UI defaults to the Status subpage for immediate operational visibility
-- admin IA split: `Status` (performance/health) and `Dataset` (composition/slice controls)
+- Admin v2 uses task-oriented workspaces: Overview, Builds, Dataset, Object
+  Diagnostics, Inference, Agency, Runtime, Operations/Jobs, Audit
+- Admin v2 routes mutating work through authenticated, CSRF-protected,
+  allowlisted jobs with audit records
 
 ## Dataset Slice Policy (Admin Dataset Panel)
 

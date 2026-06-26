@@ -49,8 +49,8 @@ This provides live progress during long silent phases (`stars`, `alias tables`, 
 
 For Gaia-heavy ingest, `scripts/ingest_core.sh` defaults `SPACEGATE_KEEP_TMP=1` (if unset), so failed temporary builds are retained:
 
-- temp path: `/data/spacegate/data/out/<build_id>.tmp`
-- reports path: `/data/spacegate/data/reports/<build_id>/...`
+- temp path: `$SPACEGATE_STATE_DIR/out/<build_id>.tmp`
+- reports path: `$SPACEGATE_STATE_DIR/reports/<build_id>/...`
 
 This avoids losing expensive intermediate artifacts.
 
@@ -100,8 +100,8 @@ scripts/benchmark_ingest_tuning.sh --threads 8,10,12 --memory 26GB,28GB,30GB
 
 Outputs are written to:
 
-- `/data/spacegate/data/reports/benchmarks/<timestamp>/summary.csv`
-- `/data/spacegate/data/reports/benchmarks/<timestamp>/summary.md`
+- `$SPACEGATE_STATE_DIR/reports/benchmarks/<timestamp>/summary.csv`
+- `$SPACEGATE_STATE_DIR/reports/benchmarks/<timestamp>/summary.md`
 - per-run logs in the same directory
 
 Notes:

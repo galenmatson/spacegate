@@ -752,7 +752,15 @@ Recommended next design slice before widening extraction:
 
 ## Source Policy
 
-Agents must use the allowlist in `docs/AGENT_ALLOWLIST.md`.
+Agents must use the source policy described in `docs/AGENT_ALLOWLIST.md`.
+Machine-readable policy lives in `config/agent_source_allowlist.json`, with
+operator overrides at `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json`
+and previous runtime versions under
+`$SPACEGATE_STATE_DIR/config/agent_source_allowlist.history/`.
+
+Retrieval code must load the runtime JSON first and fall back to the shipped
+repo default. An `enabled=false` source remains part of the audit trail but is
+not allowed for retrieval or portfolio-context assembly.
 
 Required rules:
 

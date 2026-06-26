@@ -414,7 +414,7 @@ or use the default Docker mode.
 
 ## Operations, Jobs, and Audit Workspace
 
-The embedded Admin UI currently exposes these operational surfaces:
+Admin v2 exposes these operational surfaces:
 
 - action catalog: allowlisted actions with parameter schemas, role checks, risk
   levels, and confirmation phrases
@@ -428,9 +428,8 @@ The embedded Admin UI currently exposes these operational surfaces:
 - audit log: auth, admin action, inference, and query events with filters,
   actor identity metadata, and correlation IDs
 
-Admin v2 should migrate this as an **Operations** workspace, with Audit either
-as a tab in that workspace or a persistent adjacent top-level screen. The mental
-model should be:
+These belong in an **Operations** workspace, with Audit either as a tab in that
+workspace or a persistent adjacent top-level screen. The mental model should be:
 
 1. Action launcher: "what can I safely do next?"
 2. Jobs: "what is running, what happened, and what did it output?"
@@ -548,7 +547,9 @@ administrator.
 - Restore Admin DB should warn that auth, allowlist, sessions, and audit tables
   may change; active job references must remain valid.
 - Restore Release Metadata should warn that it changes download metadata and
-  optionally the `current` symlink.
+  optionally the `current` symlink. It is used when release metadata or public
+  download pointers were damaged or need rollback after a bad publish; it does
+  not edit immutable build outputs.
 - Stop Services should warn that the Admin UI may disconnect and should require
   explicit confirmation.
 - Failed jobs should show the last log lines, exit code, compact error, and
@@ -664,8 +665,9 @@ Minimum generation metadata:
 
 Use these locations by default on Photon:
 
-- `$SPACEGATE_STATE_DIR` (`/data/spacegate/state`): builds, reports, admin DB,
-  jobs, reproducible generated artifacts
+- `$SPACEGATE_STATE_DIR` (`/data/spacegate/state` on Photon, set by
+  `/srv/spacegate/photon.env`; containers may see this mounted at `/data`):
+  builds, reports, admin DB, jobs, reproducible generated artifacts
 - `$SPACEGATE_BULK_DIR` (`/mnt/space/spacegate` on Photon): bulk research
   material, archived papers, retrieved source documents, OCR/intermediate text,
   large dossier attachments, and reusable science-document cache

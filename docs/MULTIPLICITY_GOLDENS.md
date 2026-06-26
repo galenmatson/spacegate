@@ -46,8 +46,8 @@ Explicit build paths:
 
 ```bash
 scripts/verify_multiplicity_goldens.py \
-  --core-db /data/spacegate/data/out/<build_id>/core.duckdb \
-  --arm-db /data/spacegate/data/out/<build_id>/arm.duckdb \
+  --core-db "$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb" \
+  --arm-db "$SPACEGATE_STATE_DIR/out/<build_id>/arm.duckdb" \
   --fixture /srv/spacegate/app/scripts/fixtures/multiplicity_goldens.json \
   --require-arm
 ```

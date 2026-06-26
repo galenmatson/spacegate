@@ -203,7 +203,7 @@ Promotion must evaluate SLOs against the selected active profile.
 Measurement tooling:
 
 - `scripts/spacegate_stress.sh` (`smoke`, `mixed`, `search-heavy`, optional `spike`)
-- admin status endpoint (`/api/v1/admin/status/dataset`) for memory/size/context
+- Admin v2 dataset status endpoint (`/api/v2/admin/status/dataset`) for memory/size/context
 
 ### Profile SLO Classes
 

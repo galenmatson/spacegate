@@ -86,6 +86,9 @@ Implemented admin tables:
   - operator-facing object: Source File
   - tracks canonical URL, domain, source kind, allowlist tier, trust score,
     retrieval status, archive path, content hash, and metadata
+  - source domain, allowlist tier, trust score, and enabled state should be
+    validated against the current Agency source allowlist at retrieval/context
+    assembly time
 - `agent_claim_bundles`
   - operator-facing object: Source File or Extraction Set, depending on
     `bundle_kind`
