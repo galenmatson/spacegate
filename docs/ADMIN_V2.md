@@ -202,7 +202,8 @@ Screens:
 - source file detail: URL, domain tier, retrieval metadata, local archive path,
   content hash, extracted sections, source notes
 - source allowlist: manage Agency retrieval domains, tier, trust score, allowed
-  uses, enabled state, and citation caveats through runtime JSON policy
+  uses, enabled state, citation caveats, previous runtime versions, and restore
+  to shipped Spacegate defaults through runtime JSON policy
 - extraction set detail: model/prompt/runtime metadata, source context, parsed
   claims, raw output, parse errors
 - proposal review: deterministic checks, adversarial review, conflict flags,
@@ -739,6 +740,8 @@ workflows see the same location as host-side tools.
    - source allowlist management reads repo defaults from
      `config/agent_source_allowlist.json` and writes runtime overrides to
      `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json`
+   - runtime source allowlist writes snapshot previous versions under
+     `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.history/`
 
 6. Work queue and journal persistence
    - seed portfolios from coolness/adjudication queues

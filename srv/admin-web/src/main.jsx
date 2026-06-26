@@ -3989,6 +3989,36 @@ function AgencyScreen({ csrf }) {
     setState((current) => ({ ...current, sourceAllowlist: data, message: "Ready" }));
   }
 
+  async function restoreAllowlistDefault() {
+    if (!window.confirm("Restore the Agency source allowlist to the Spacegate shipped default? Current runtime policy will be backed up first.")) return;
+    setState((current) => ({ ...current, message: "Restoring source allowlist default..." }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/source-allowlist/restore-default`, {
+      method: "POST",
+      headers,
+    });
+    if (!response.ok) {
+      setState((current) => ({ ...current, message: `Allowlist restore failed: ${compactError(data, response.status)}` }));
+      return;
+    }
+    setState((current) => ({ ...current, sourceAllowlist: data, message: "Ready" }));
+  }
+
+  async function restoreAllowlistVersion(versionId) {
+    if (!versionId) return;
+    if (!window.confirm(`Restore Agency source allowlist version ${versionId}? Current runtime policy will be backed up first.`)) return;
+    setState((current) => ({ ...current, message: `Restoring source allowlist ${versionId}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/source-allowlist/restore-version`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ version_id: versionId }),
+    });
+    if (!response.ok) {
+      setState((current) => ({ ...current, message: `Allowlist restore failed: ${compactError(data, response.status)}` }));
+      return;
+    }
+    setState((current) => ({ ...current, sourceAllowlist: data, message: "Ready" }));
+  }
+
   useEffect(() => {
     loadAgency();
   }, []);
@@ -4099,6 +4129,8 @@ function AgencyScreen({ csrf }) {
           allowlist={sourceAllowlist}
           saveEntry={saveAllowlistEntry}
           deleteEntry={deleteAllowlistEntry}
+          restoreDefault={restoreAllowlistDefault}
+          restoreVersion={restoreAllowlistVersion}
         />
       ) : activeTab === "anomalies" ? (
         <AgencyAnomalyTab anomalies={anomalies} />
@@ -4344,16 +4376,16 @@ const emptyAllowlistEntry = {
   enabled: true,
 };
 
-function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
+function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry, restoreDefault, restoreVersion }) {
   const sources = Array.isArray(allowlist?.sources) ? allowlist.sources : [];
   const summary = allowlist?.summary || {};
+  const versions = Array.isArray(allowlist?.versions) ? allowlist.versions : [];
+  const historyVersions = versions.filter((item) => item.kind === "history");
   const [draft, setDraft] = useState(emptyAllowlistEntry);
   const [status, setStatus] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
-  const [selectedDomains, setSelectedDomains] = useState(() => new Set());
+  const [restoreVersionId, setRestoreVersionId] = useState("");
   const tierRows = Array.isArray(summary.tiers) ? summary.tiers : [];
-  const selectedCount = sources.filter((source) => selectedDomains.has(source.domain)).length;
-  const allVisibleSelected = sources.length > 0 && selectedCount === sources.length;
 
   function editSource(source) {
     setDraft({
@@ -4394,17 +4426,17 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
-  function toggleSource(domain, checked) {
-    setSelectedDomains((current) => {
-      const next = new Set(current);
-      if (checked) next.add(domain);
-      else next.delete(domain);
-      return next;
+  async function toggleSourceEnabled(source, enabled) {
+    await saveEntry({
+      domain: source.domain,
+      tier: Number(source.tier ?? 2),
+      org: source.org || "",
+      source_type: source.source_type || "",
+      trust_score: Number(source.trust_score ?? 0.9),
+      allowed_uses: Array.isArray(source.allowed_uses) ? source.allowed_uses : [],
+      notes: source.notes || "",
+      enabled,
     });
-  }
-
-  function toggleAllSources(checked) {
-    setSelectedDomains(() => checked ? new Set(sources.map((source) => source.domain)) : new Set());
   }
 
   return (
@@ -4469,7 +4501,6 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
             <p className="muted">Runtime policy used by Agency retrieval and future portfolio chat context assembly.</p>
           </div>
           <div className="action-meta">
-            <span className="badge muted">{formatInt(selectedCount)} selected</span>
             <button className="button" type="button" onClick={() => setEditorOpen(true)}>Add Source</button>
           </div>
         </div>
@@ -4488,30 +4519,35 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
             ))}
           </div>
         ) : null}
+        <div className="allowlist-restore-bar">
+          <button className="button" type="button" onClick={restoreDefault}>Restore Spacegate Default</button>
+          <select value={restoreVersionId} onChange={(event) => setRestoreVersionId(event.target.value)}>
+            <option value="">Select previous version...</option>
+            {historyVersions.map((version) => (
+              <option key={version.version_id} value={version.version_id}>
+                {formatDate(version.mtime_utc)} | {version.backup_reason || "backup"} | {formatInt(version.enabled_count)} enabled
+              </option>
+            ))}
+          </select>
+          <button className="button" disabled={!restoreVersionId} type="button" onClick={() => restoreVersion(restoreVersionId)}>Restore Version</button>
+        </div>
         {sources.length ? (
           <table className="source-allowlist-table">
             <thead>
               <tr>
-                <th className="source-check-col">
-                  <input
-                    aria-label="Select all source allowlist rows"
-                    checked={allVisibleSelected}
-                    type="checkbox"
-                    onChange={(event) => toggleAllSources(event.target.checked)}
-                  />
-                </th>
+                <th className="source-check-col">Enabled</th>
                 <th>Domain</th><th>Tier</th><th>Trust</th><th>Use</th><th></th>
               </tr>
             </thead>
             <tbody>
               {sources.map((source) => (
-                <tr className={selectedDomains.has(source.domain) ? "selected" : ""} key={source.domain}>
+                <tr className={source.enabled === false ? "disabled-row" : ""} key={source.domain}>
                   <td className="source-check-col">
                     <input
-                      aria-label={`Select ${source.domain}`}
-                      checked={selectedDomains.has(source.domain)}
+                      aria-label={`${source.enabled === false ? "Enable" : "Disable"} ${source.domain}`}
+                      checked={source.enabled !== false}
                       type="checkbox"
-                      onChange={(event) => toggleSource(source.domain, event.target.checked)}
+                      onChange={(event) => toggleSourceEnabled(source, event.target.checked)}
                     />
                   </td>
                   <td>

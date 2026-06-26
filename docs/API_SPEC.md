@@ -527,7 +527,8 @@ portfolio-context assembly.
 Notes:
 - Loads `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json` when present.
 - Falls back to `config/agent_source_allowlist.json` from the repo/image.
-- Includes source counts by tier and the loaded/default/runtime paths.
+- Includes source counts by tier, the loaded/default/runtime paths, and
+  restorable versions.
 
 ### POST /admin/agency/source-allowlist/sources
 Adds or updates one source-domain allowlist entry.
@@ -558,6 +559,28 @@ Security:
 - Requires authenticated admin session.
 - Requires CSRF header (`X-CSRF-Token`).
 - Audits the source-domain removal.
+
+### POST /admin/agency/source-allowlist/restore-default
+Restores the shipped Spacegate source allowlist by removing the runtime
+override after first snapshotting the current runtime JSON when present.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+- Audits the restore.
+
+### POST /admin/agency/source-allowlist/restore-version
+Restores one previous runtime source allowlist snapshot.
+
+Request body:
+```json
+{"version_id": "20260626T190000Z_abcdef123456_1234abcd.json"}
+```
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+- Audits the restore.
 
 ### GET /admin/agency/seed-candidates
 Returns ranked candidate targets for creating new Evidence Portfolios.

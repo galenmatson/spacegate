@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import errno
 import grp
+import hashlib
 import json
 import math
 import os
@@ -2553,6 +2554,10 @@ class AgencySourceAllowlistEntryRequest(BaseModel):
     enabled: bool = Field(default=True)
 
 
+class AgencySourceAllowlistRestoreRequest(BaseModel):
+    version_id: str = Field(min_length=1, max_length=160)
+
+
 class InferenceEndpointRequest(BaseModel):
     endpoint_key: Optional[str] = Field(default=None, min_length=1, max_length=80)
     display_name: str = Field(min_length=1, max_length=160)
@@ -3902,6 +3907,10 @@ def _agent_source_allowlist_runtime_path() -> Path:
     return _state_dir().resolve() / AGENT_SOURCE_ALLOWLIST_RUNTIME_REL
 
 
+def _agent_source_allowlist_history_dir() -> Path:
+    return _agent_source_allowlist_runtime_path().parent / "agent_source_allowlist.history"
+
+
 def _normalize_allowlist_domain(raw: Any) -> str:
     value = str(raw or "").strip().lower()
     if "://" in value:
@@ -3988,6 +3997,79 @@ def _read_json_file(path: Path) -> Dict[str, Any]:
     return loaded
 
 
+def _allowlist_doc_hash(doc: Dict[str, Any]) -> str:
+    raw = json.dumps(doc, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _backup_agent_source_allowlist(reason: str) -> Dict[str, Any] | None:
+    runtime_path = _agent_source_allowlist_runtime_path()
+    if not runtime_path.exists():
+        return None
+    raw = _read_json_file(runtime_path)
+    normalized = _normalize_agent_source_allowlist_doc(raw)
+    normalized["backup_reason"] = re.sub(r"\s+", "_", str(reason or "change").strip().lower())[:80] or "change"
+    normalized["backed_up_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    digest = _allowlist_doc_hash(normalized)[:12]
+    backup_id = f"{datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}_{digest}_{uuid.uuid4().hex[:8]}.json"
+    history_dir = _agent_source_allowlist_history_dir()
+    history_dir.mkdir(parents=True, exist_ok=True)
+    path = history_dir / backup_id
+    path.write_text(json.dumps(normalized, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return {"version_id": backup_id, "path": str(path), "reason": normalized["backup_reason"]}
+
+
+def _safe_allowlist_version_id(raw: str) -> str:
+    value = str(raw or "").strip()
+    if not re.match(r"^[0-9]{8}T[0-9]{6}Z_[0-9a-f]{12}_[0-9a-f]{8}\.json$", value):
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "Invalid allowlist version id."})
+    return value
+
+
+def _list_agent_source_allowlist_versions(limit: int = 30) -> List[Dict[str, Any]]:
+    history_dir = _agent_source_allowlist_history_dir()
+    versions: List[Dict[str, Any]] = [
+        {
+            "version_id": "spacegate_default",
+            "kind": "default",
+            "label": "Spacegate shipped default",
+            "path": str(AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH),
+            "mtime_utc": _utc_from_timestamp(AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH.stat().st_mtime) if AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH.exists() else None,
+            "source_count": None,
+            "enabled_count": None,
+            "backup_reason": "repo_default",
+        }
+    ]
+    if history_dir.exists() and history_dir.is_dir():
+        for path in sorted(history_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)[: max(1, min(limit, 200))]:
+            source_count = None
+            enabled_count = None
+            backup_reason = ""
+            updated_at = None
+            try:
+                doc = _normalize_agent_source_allowlist_doc(_read_json_file(path))
+                source_count = len(doc.get("sources", []))
+                enabled_count = len([item for item in doc.get("sources", []) if item.get("enabled")])
+                backup_reason = str(_read_json_file(path).get("backup_reason") or "")
+                updated_at = doc.get("updated_at_utc")
+            except Exception:
+                pass
+            versions.append(
+                {
+                    "version_id": path.name,
+                    "kind": "history",
+                    "label": path.name,
+                    "path": str(path),
+                    "mtime_utc": _utc_from_timestamp(path.stat().st_mtime),
+                    "updated_at_utc": updated_at,
+                    "source_count": source_count,
+                    "enabled_count": enabled_count,
+                    "backup_reason": backup_reason,
+                }
+            )
+    return versions
+
+
 def _load_agent_source_allowlist() -> Dict[str, Any]:
     runtime_path = _agent_source_allowlist_runtime_path()
     default_path = AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH
@@ -4001,6 +4083,8 @@ def _load_agent_source_allowlist() -> Dict[str, Any]:
     doc["default_path"] = str(default_path)
     doc["runtime_path"] = str(runtime_path)
     doc["runtime_override_exists"] = runtime_path.exists()
+    doc["history_dir"] = str(_agent_source_allowlist_history_dir())
+    doc["versions"] = _list_agent_source_allowlist_versions()
     doc["generated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
     doc["summary"] = {
         "total_sources": len(doc["sources"]),
@@ -4018,9 +4102,10 @@ def _load_agent_source_allowlist() -> Dict[str, Any]:
     return doc
 
 
-def _write_agent_source_allowlist(doc: Dict[str, Any]) -> Dict[str, Any]:
+def _write_agent_source_allowlist(doc: Dict[str, Any], *, backup_reason: str = "change") -> Dict[str, Any]:
     runtime_path = _agent_source_allowlist_runtime_path()
     runtime_path.parent.mkdir(parents=True, exist_ok=True)
+    _backup_agent_source_allowlist(backup_reason)
     normalized = _normalize_agent_source_allowlist_doc(doc)
     tmp_path = runtime_path.with_name(f".{runtime_path.name}.{uuid.uuid4().hex}.tmp")
     tmp_path.write_text(json.dumps(normalized, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -4036,7 +4121,7 @@ def _upsert_agent_source_allowlist_entry(payload: AgencySourceAllowlistEntryRequ
     doc["sources"] = sources
     doc["updated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
     doc["updated_by"] = str(user.get("email_norm") or user.get("email") or user.get("user_id") or "admin")
-    return _write_agent_source_allowlist(doc)
+    return _write_agent_source_allowlist(doc, backup_reason=f"upsert_{entry['domain']}")
 
 
 def _delete_agent_source_allowlist_entry(domain: str, user: Dict[str, Any]) -> Dict[str, Any]:
@@ -4048,7 +4133,29 @@ def _delete_agent_source_allowlist_entry(domain: str, user: Dict[str, Any]) -> D
     doc["sources"] = sources
     doc["updated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
     doc["updated_by"] = str(user.get("email_norm") or user.get("email") or user.get("user_id") or "admin")
-    return _write_agent_source_allowlist(doc)
+    return _write_agent_source_allowlist(doc, backup_reason=f"delete_{clean_domain}")
+
+
+def _restore_agent_source_allowlist_default(user: Dict[str, Any]) -> Dict[str, Any]:
+    _backup_agent_source_allowlist("restore_default")
+    runtime_path = _agent_source_allowlist_runtime_path()
+    try:
+        runtime_path.unlink()
+    except FileNotFoundError:
+        pass
+    return _load_agent_source_allowlist()
+
+
+def _restore_agent_source_allowlist_version(version_id: str, user: Dict[str, Any]) -> Dict[str, Any]:
+    clean_version_id = _safe_allowlist_version_id(version_id)
+    source_path = _agent_source_allowlist_history_dir() / clean_version_id
+    if not source_path.exists() or not source_path.is_file():
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": f"Allowlist version not found: {clean_version_id}"})
+    raw = _read_json_file(source_path)
+    doc = _normalize_agent_source_allowlist_doc(raw)
+    doc["updated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    doc["updated_by"] = str(user.get("email_norm") or user.get("email") or user.get("user_id") or "admin")
+    return _write_agent_source_allowlist(doc, backup_reason=f"restore_{clean_version_id}")
 
 
 def _utc_from_timestamp(ts: float) -> str:
@@ -5881,6 +5988,37 @@ def admin_agency_source_allowlist_upsert(request: Request, payload: AgencySource
             "trust_score": payload.trust_score,
             "enabled": payload.enabled,
         },
+    )
+    return updated
+
+
+@admin_router.post("/agency/source-allowlist/restore-default")
+def admin_agency_source_allowlist_restore_default(request: Request):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    updated = _restore_agent_source_allowlist_default(user)
+    auth.audit_event(
+        request,
+        event_type="admin.agency.source_allowlist.restore_default",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={"source": "spacegate_default"},
+    )
+    return updated
+
+
+@admin_router.post("/agency/source-allowlist/restore-version")
+def admin_agency_source_allowlist_restore_version(request: Request, payload: AgencySourceAllowlistRestoreRequest):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    clean_version_id = _safe_allowlist_version_id(payload.version_id)
+    updated = _restore_agent_source_allowlist_version(clean_version_id, user)
+    auth.audit_event(
+        request,
+        event_type="admin.agency.source_allowlist.restore_version",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={"version_id": clean_version_id},
     )
     return updated
 

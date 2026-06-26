@@ -927,8 +927,17 @@ h3 {
   margin: 0.8rem;
 }
 
-.source-allowlist-table tr.selected {
-  background: color-mix(in srgb, var(--brand) 8%, transparent);
+.allowlist-restore-bar {
+  display: grid;
+  grid-template-columns: auto minmax(260px, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.source-allowlist-table tr.disabled-row {
+  opacity: 0.68;
+  background: var(--surface-soft);
 }
 
 .source-allowlist-table th:nth-child(3),
@@ -947,7 +956,7 @@ h3 {
 }
 
 .source-check-col {
-  width: 2.2rem;
+  width: 4.4rem;
   text-align: center;
 }
 

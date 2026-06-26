@@ -7,6 +7,12 @@ Source Allowlist tab. Agent retrieval code should read the runtime JSON first
 and fall back to the repo default. This Markdown file remains the human-readable
 policy overview and review guide.
 
+Before Admin overwrites or restores the runtime JSON, it snapshots the previous
+runtime policy under
+`$SPACEGATE_STATE_DIR/config/agent_source_allowlist.history/`. The shipped
+Spacegate default is always available through the Agency Source Allowlist
+restore control even if the runtime copy is damaged by operator error.
+
 ## TIER 0 - CANONICAL
 trust >= 0.98
 These can directly support core-adjacent facts (still routed via arm → adjudication).
