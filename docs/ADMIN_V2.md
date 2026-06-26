@@ -744,6 +744,9 @@ workflows see the same location as host-side tools.
      `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json`
    - runtime source allowlist writes snapshot previous versions under
      `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.history/`
+   - selected portfolios should surface context guardrails from the current
+     source allowlist and link directly to Object Diagnostics for the target
+     object before retrieval, extraction, or chat context assembly
 
 6. Work queue and journal persistence
    - seed portfolios from coolness/adjudication queues

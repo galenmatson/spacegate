@@ -987,6 +987,20 @@ h3 {
   top: 1rem;
 }
 
+.agency-context-guardrails {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.agency-context-guardrails.warn {
+  border-color: color-mix(in srgb, #a16207 44%, var(--border));
+}
+
 .agency-detail-sections {
   display: grid;
   gap: 0.65rem;

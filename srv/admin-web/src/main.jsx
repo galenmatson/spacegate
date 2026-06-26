@@ -486,6 +486,7 @@ function App() {
   const [authState, setAuthState] = useState({ loading: true, data: null, error: "" });
   const [activeScreen, setActiveScreen] = useState("overview");
   const [operationsJobRequest, setOperationsJobRequest] = useState("");
+  const [objectDiagnosticsRequest, setObjectDiagnosticsRequest] = useState(null);
   const jobLogId = new URLSearchParams(window.location.search).get("job_log");
 
   useEffect(() => {
@@ -529,6 +530,17 @@ function App() {
     if (!id) return;
     setOperationsJobRequest(id);
     setActiveScreen("operations");
+  }
+
+  function openObjectDiagnostics(target) {
+    const q = String(target?.q || target?.stable_object_key || target?.display_name || "").trim();
+    if (!q) return;
+    setObjectDiagnosticsRequest({
+      id: Date.now(),
+      q,
+      focus: target?.focus || null,
+    });
+    setActiveScreen("objects");
   }
 
   if (authState.loading) {
@@ -594,13 +606,13 @@ function App() {
         ) : activeScreen === "dataset" ? (
           <DatasetScreen />
         ) : activeScreen === "objects" ? (
-          <ObjectDiagnosticsScreen />
+          <ObjectDiagnosticsScreen requested={objectDiagnosticsRequest} />
         ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
           <OperationsScreen csrf={csrf} requestedJobId={operationsJobRequest} />
         ) : activeScreen === "agency" ? (
-          <AgencyScreen csrf={csrf} />
+          <AgencyScreen csrf={csrf} openObjectDiagnostics={openObjectDiagnostics} />
         ) : activeScreen === "runtime" ? (
           <RuntimeScreen />
         ) : (
@@ -2253,7 +2265,7 @@ function MetricList({ rows }) {
   );
 }
 
-function ObjectDiagnosticsScreen() {
+function ObjectDiagnosticsScreen({ requested = null }) {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedObject, setSelectedObject] = useState(null);
@@ -2266,11 +2278,12 @@ function ObjectDiagnosticsScreen() {
     message: "Search for a system, alias, catalog id, or stable object key.",
   });
 
-  async function runSearch(event = null) {
-    if (event) event.preventDefault();
+  async function executeSearch(searchText, focus = null) {
+    const cleanQuery = String(searchText || "").trim();
+    if (cleanQuery) setQuery(cleanQuery);
     setState((current) => ({ ...current, loadingSearch: true, message: "Searching objects..." }));
     const params = new URLSearchParams();
-    if (String(query || "").trim()) params.set("q", String(query).trim());
+    if (cleanQuery) params.set("q", cleanQuery);
     params.set("limit", "25");
     const { response, data } = await fetchJson(`${ADMIN_API_BASE}/objects/search?${params.toString()}`);
     if (!response.ok) {
@@ -2280,8 +2293,13 @@ function ObjectDiagnosticsScreen() {
     setState((current) => ({ ...current, loadingSearch: false, search: data, message: `Found ${formatInt((data.items || []).length)} system candidate(s).` }));
     const first = Array.isArray(data.items) ? data.items[0] : null;
     if (first?.system_id) {
-      await loadDetail(first.system_id, first.diagnostic_focus);
+      await loadDetail(first.system_id, focus || first.diagnostic_focus);
     }
+  }
+
+  async function runSearch(event = null) {
+    if (event) event.preventDefault();
+    await executeSearch(query);
   }
 
   async function loadDetail(systemId, focus = null) {
@@ -2323,8 +2341,13 @@ function ObjectDiagnosticsScreen() {
   }
 
   useEffect(() => {
-    runSearch();
+    if (!requested?.q) runSearch();
   }, []);
+
+  useEffect(() => {
+    if (!requested?.q) return;
+    executeSearch(requested.q, requested.focus);
+  }, [requested?.id]);
 
   const items = state.search?.items || [];
   const detail = state.detail || {};
@@ -3873,7 +3896,7 @@ function spectralColor(value) {
   return colors[key] || "#64748b";
 }
 
-function AgencyScreen({ csrf }) {
+function AgencyScreen({ csrf, openObjectDiagnostics }) {
   const [activeTab, setActiveTab] = useState("portfolios");
   const [state, setState] = useState({ loading: true, data: null, portfolios: null, seedCandidates: null, sourceAllowlist: null, selectedDetail: null, message: "Loading agency status..." });
   const [selectedDossierId, setSelectedDossierId] = useState("");
@@ -4121,6 +4144,8 @@ function AgencyScreen({ csrf }) {
           seedCandidates={seedCandidates}
           seedPortfolio={seedPortfolio}
           busySeedId={busySeedId}
+          sourceAllowlist={sourceAllowlist}
+          openObjectDiagnostics={openObjectDiagnostics}
         />
       ) : activeTab === "flow" ? (
         <AgencyPortfolioFlowTab stages={data.workflow_stages || []} />
@@ -4145,7 +4170,7 @@ function AgencyScreen({ csrf }) {
   );
 }
 
-function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, selectedDetail, selectPortfolio, seedCandidates, seedPortfolio, busySeedId }) {
+function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, selectedDetail, selectPortfolio, seedCandidates, seedPortfolio, busySeedId, sourceAllowlist, openObjectDiagnostics }) {
   const seedItems = Array.isArray(seedCandidates?.items) ? seedCandidates.items : [];
   return (
     <section className="agency-portfolio-layout">
@@ -4210,7 +4235,7 @@ function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, se
                   <th>Target</th>
                   <th>Score</th>
                   <th>Priority</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -4228,9 +4253,12 @@ function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, se
                       <td>{item.score_total == null ? "n/a" : formatFloat(item.score_total, 2)}</td>
                       <td><span className={`badge ${item.queue_priority === "high" ? "warn" : "muted"}`}>{item.queue_priority || "normal"}</span></td>
                       <td>
-                        <button className="button" disabled={disabled} onClick={() => seedPortfolio(item)}>
-                          {item.existing_dossier_id ? "Seeded" : busy ? "Seeding..." : "Seed"}
-                        </button>
+                        <div className="form-actions compact">
+                          <button className="button" type="button" onClick={() => openObjectDiagnostics?.({ q: item.stable_object_key || item.display_name })}>Inspect</button>
+                          <button className="button" disabled={disabled} type="button" onClick={() => seedPortfolio(item)}>
+                            {item.existing_dossier_id ? "Seeded" : busy ? "Seeding..." : "Seed"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -4246,12 +4274,12 @@ function AgencyPortfoliosTab({ portfolios, countsByStatus, selectedDossierId, se
           </div>
         </div>
       </div>
-      <AgencyPortfolioDetail detail={selectedDetail} />
+      <AgencyPortfolioDetail detail={selectedDetail} sourceAllowlist={sourceAllowlist} openObjectDiagnostics={openObjectDiagnostics} />
     </section>
   );
 }
 
-function AgencyPortfolioDetail({ detail }) {
+function AgencyPortfolioDetail({ detail, sourceAllowlist, openObjectDiagnostics }) {
   if (!detail?.dossier) {
     return (
       <div className="panel agency-detail">
@@ -4272,8 +4300,12 @@ function AgencyPortfolioDetail({ detail }) {
           <h2>{dossier.display_name || dossier.stable_object_key}</h2>
           <p className="muted">{dossier.dossier_id}</p>
         </div>
-        <span className="badge warn">{dossier.dossier_status}</span>
+        <div className="action-meta">
+          <button className="button" type="button" onClick={() => openObjectDiagnostics?.({ q: dossier.stable_object_key || dossier.display_name })}>Open Diagnostics</button>
+          <span className="badge warn">{dossier.dossier_status}</span>
+        </div>
       </div>
+      <AgencyContextGuardrails allowlist={sourceAllowlist} sourceDocuments={sources} />
       <MetricList
         rows={[
           ["Object", `${dossier.object_type} | ${dossier.stable_object_key}`],
@@ -4321,6 +4353,47 @@ function AgencyPortfolioDetail({ detail }) {
           </div>
         </details>
       </div>
+    </div>
+  );
+}
+
+function AgencyContextGuardrails({ allowlist, sourceDocuments }) {
+  const sources = Array.isArray(allowlist?.sources) ? allowlist.sources : [];
+  const sourceByDomain = new Map(sources.map((source) => [String(source.domain || "").toLowerCase(), source]));
+  const attachedDomains = Array.from(new Set((sourceDocuments || []).map((item) => String(item.source_domain || "").toLowerCase()).filter(Boolean))).sort();
+  const blockedAttached = attachedDomains.filter((domain) => {
+    const source = sourceByDomain.get(domain);
+    return !source || source.enabled === false;
+  });
+  const summary = allowlist?.summary || {};
+  const tierRows = Array.isArray(summary.tiers) ? summary.tiers : [];
+  const enabledCount = Number(summary.enabled_sources || 0);
+  return (
+    <div className={`agency-context-guardrails ${blockedAttached.length || !enabledCount ? "warn" : ""}`}>
+      <div className="panel-head compact">
+        <div>
+          <h3>Context Guardrails</h3>
+          <p className="muted">Agency retrieval and portfolio chat context must use enabled allowlist sources only.</p>
+        </div>
+        <span className={`badge ${enabledCount ? "ok" : "danger"}`}>{formatInt(enabledCount)} enabled</span>
+      </div>
+      <MetricList rows={[
+        ["Source policy", `${formatInt(summary.total_sources)} total / ${formatInt(enabledCount)} enabled`],
+        ["Runtime override", allowlist?.runtime_override_exists ? "yes" : "no"],
+        ["Updated", allowlist?.updated_at_utc ? `${formatDate(allowlist.updated_at_utc)} by ${allowlist.updated_by || "unknown"}` : "repo default"],
+        ["Attached source domains", attachedDomains.length ? attachedDomains.join(", ") : "none yet"],
+        ["Blocked or unknown attached domains", blockedAttached.length ? blockedAttached.join(", ") : "none"],
+      ]} />
+      {tierRows.length ? (
+        <div className="report-chip-list">
+          {tierRows.map((tier) => (
+            <span className="badge muted" key={tier.tier}>T{tier.tier}: {formatInt(tier.enabled_count)} / {formatInt(tier.count)}</span>
+          ))}
+        </div>
+      ) : null}
+      {blockedAttached.length ? (
+        <div className="status-line danger-line">Attached source files include domains that are disabled or absent from the current allowlist. Do not use them for new claims until policy is reviewed.</div>
+      ) : null}
     </div>
   );
 }
