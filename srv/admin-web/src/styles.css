@@ -1300,6 +1300,17 @@ h3 {
   font-size: 0.75rem;
 }
 
+.resolved-science-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.resolved-science-value .table-subtext {
+  flex-basis: 100%;
+}
+
 .link-button {
   border: 0;
   background: transparent;

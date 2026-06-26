@@ -2189,7 +2189,7 @@ function ObjectDiagnosticsScreen() {
             ))}
           </div>
 
-          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} arm={arm} onSelectObject={handleSelectObject} />
+          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} arm={arm} simulation={simulationReadiness} onSelectObject={handleSelectObject} />
 
           <div className="tab-row">
             {[
@@ -2210,7 +2210,7 @@ function ObjectDiagnosticsScreen() {
           ) : activeTab === "layers" ? (
             <ObjectLayersTab detail={detail} />
           ) : activeTab === "members" ? (
-            <ObjectMembersTab stars={stars} planets={planets} arm={arm} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
+            <ObjectMembersTab stars={stars} planets={planets} arm={arm} simulation={simulationReadiness} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
           ) : activeTab === "graph" ? (
             <ObjectGraphTab arm={arm} hierarchy={publicPayload.hierarchy} system={system} selectedObject={selectedObject} onSelectObject={handleSelectObject} />
           ) : activeTab === "simulation" ? (
@@ -2350,7 +2350,7 @@ function resolveObjectFocus(detail, focus) {
   return null;
 }
 
-function ObjectFocusPanel({ object, arm, onSelectObject }) {
+function ObjectFocusPanel({ object, arm, simulation, onSelectObject }) {
   const type = object?.type || "system";
   const data = object?.data || {};
   const name = objectDisplayName(type, data);
@@ -2373,7 +2373,7 @@ function ObjectFocusPanel({ object, arm, onSelectObject }) {
         <span className="badge muted">{type} {idValue || ""}</span>
       </div>
       <div className="object-focus-grid">
-        <ObjectKeyValueTable payload={objectFocusSummary(type, data)} />
+        <ObjectKeyValueTable payload={objectFocusSummary(type, data, simulation)} />
         <div>
           <h3>Provenance</h3>
           <ObjectKeyValueTable payload={data.provenance || {}} />
@@ -2399,7 +2399,7 @@ function ObjectFocusPanel({ object, arm, onSelectObject }) {
   );
 }
 
-function objectFocusSummary(type, data) {
+function objectFocusSummary(type, data, simulation = null) {
   if (type === "component") {
     return {
       display_name: data.display_name,
@@ -2432,6 +2432,9 @@ function objectFocusSummary(type, data) {
   }
   if (type === "planet") {
     const environment = data.environment_evidence || {};
+    const resolvedSma = resolvedSimulationField(simulation, "planet", data.planet_id, "semi_major_axis_au", data.semi_major_axis_au);
+    const resolvedInsol = resolvedSimulationField(simulation, "planet", data.planet_id, "candidate_insol_earth", data.insol_earth);
+    const resolvedEqTemp = resolvedSimulationField(simulation, "planet", data.planet_id, "candidate_eq_temp_k", data.eq_temp_k);
     return {
       planet_name: data.planet_name,
       planet_id: data.planet_id,
@@ -2439,9 +2442,13 @@ function objectFocusSummary(type, data) {
       system_id: data.system_id,
       orbital_period_days: data.orbital_period_days,
       semi_major_axis_au: data.semi_major_axis_au,
+      resolved_semi_major_axis_au: resolvedFieldSummary(resolvedSma, 5),
       radius_earth: data.radius_earth,
       mass_earth: data.mass_earth,
+      insol_earth: data.insol_earth,
+      resolved_insol_earth: resolvedFieldSummary(resolvedInsol, 3),
       eq_temp_k: data.eq_temp_k,
+      resolved_eq_temp_k: resolvedFieldSummary(resolvedEqTemp, 1),
       environment_evidence_basis: environment.evidence_basis,
       candidate_eq_temp_k: environment.candidate_eq_temp_k,
       candidate_insol_earth: environment.candidate_insol_earth,
@@ -2468,6 +2475,74 @@ function objectFocusSummary(type, data) {
     planet_count: data.planet_count,
     arm_component_key: data.arm_component?.stable_component_key,
   };
+}
+
+function hasObjectScalarValue(value) {
+  if (value === null || value === undefined || value === "") return false;
+  if (typeof value === "number") return Number.isFinite(value);
+  return true;
+}
+
+function simulationRowsForType(simulation, objectType) {
+  if (objectType === "planet") return Array.isArray(simulation?.planets) ? simulation.planets : [];
+  if (objectType === "star") return Array.isArray(simulation?.stars) ? simulation.stars : [];
+  return [];
+}
+
+function simulationRowForObject(simulation, objectType, objectId) {
+  const numericId = Number(objectId);
+  if (!Number.isFinite(numericId)) return null;
+  return simulationRowsForType(simulation, objectType).find((row) => Number(row.object_id) === numericId) || null;
+}
+
+function simulationFieldForObject(simulation, objectType, objectId, fieldKey) {
+  const row = simulationRowForObject(simulation, objectType, objectId);
+  return (row?.fields || []).find((field) => String(field.key || "") === String(fieldKey || "")) || null;
+}
+
+function resolvedSimulationField(simulation, objectType, objectId, fieldKey, sourceValue) {
+  if (hasObjectScalarValue(sourceValue)) return null;
+  const field = simulationFieldForObject(simulation, objectType, objectId, fieldKey);
+  if (!field || !hasObjectScalarValue(field.value)) return null;
+  if (String(field.status || "") !== "derived" || String(field.layer || "") !== "arm") return null;
+  return field;
+}
+
+function resolvedFieldSummary(field, digits = 3) {
+  if (!field) return null;
+  return {
+    value: formatResolvedScienceNumber(field.value, digits, field.unit),
+    status: field.status || "derived",
+    layer: field.layer || "arm",
+    confidence_tier: field.confidence_tier || "unknown",
+    basis: field.basis || "n/a",
+    replacement_target: field.replacement_target || "n/a",
+  };
+}
+
+function formatResolvedScienceNumber(value, digits = 3, unit = "") {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "n/a";
+  const text = formatFloat(number, digits);
+  return unit ? `${text} ${unit}` : text;
+}
+
+function ResolvedScienceValue({ sourceValue, resolvedField, digits = 3, unit = "", details = true }) {
+  if (hasObjectScalarValue(sourceValue)) {
+    return <>{formatResolvedScienceNumber(sourceValue, digits, unit)}</>;
+  }
+  if (!resolvedField) return <>n/a</>;
+  return (
+    <span className="resolved-science-value">
+      <strong>{formatResolvedScienceNumber(resolvedField.value, digits, resolvedField.unit || unit)}</strong>
+      {details ? <span className="badge muted">derived</span> : null}
+      {details ? (
+        <span className="table-subtext">
+          {resolvedField.layer || "arm"} | {resolvedField.confidence_tier || "unknown"} | {resolvedField.basis || "n/a"}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 function objectDisplayName(type, data) {
@@ -2693,7 +2768,7 @@ function ObjectLayersTab({ detail }) {
   );
 }
 
-function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject }) {
+function ObjectMembersTab({ stars, planets, arm, simulation, selectedObject, onSelectObject }) {
   const selectedType = selectedObject?.type;
   const selectedId = selectedObject?.data?.star_id || selectedObject?.data?.planet_id || selectedObject?.data?.stable_component_key;
   const armOnlyComponents = orderedArmOnlyComponents(arm);
@@ -2731,6 +2806,10 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
             <tbody>
               {planets.slice(0, 40).map((planet) => {
                 const environment = planet.environment_evidence || {};
+                const resolvedSma = resolvedSimulationField(simulation, "planet", planet.planet_id, "semi_major_axis_au", planet.semi_major_axis_au);
+                const resolvedInsol = resolvedSimulationField(simulation, "planet", planet.planet_id, "candidate_insol_earth", planet.insol_earth);
+                const resolvedEqTemp = resolvedSimulationField(simulation, "planet", planet.planet_id, "candidate_eq_temp_k", planet.eq_temp_k);
+                const hasDerivedEnvironment = Boolean(resolvedInsol || resolvedEqTemp);
                 return (
                   <tr className={selectedType === "planet" && selectedId === planet.planet_id ? "selected-row" : ""} key={planet.planet_id}>
                     <td>
@@ -2739,18 +2818,18 @@ function ObjectMembersTab({ stars, planets, arm, selectedObject, onSelectObject 
                       </button>
                     </td>
                     <td>{formatFloat(planet.orbital_period_days, 3)} d</td>
-                    <td>{formatFloat(planet.semi_major_axis_au, 4)} au</td>
+                    <td><ResolvedScienceValue sourceValue={planet.semi_major_axis_au} resolvedField={resolvedSma} digits={5} unit="au" /></td>
                     <td>{formatFloat(planet.radius_earth, 2)} Earth</td>
                     <td>
-                      <span className={`badge ${environment.evidence_basis === "missing" ? "warn" : environment.evidence_basis === "stellar_class_luminosity_proxy" ? "muted" : "ok"}`}>
-                        {environmentEvidenceLabel(environment.evidence_basis)}
+                      <span className={`badge ${hasDerivedEnvironment ? "muted" : environment.evidence_basis === "missing" ? "warn" : environment.evidence_basis === "stellar_class_luminosity_proxy" ? "muted" : "ok"}`}>
+                        {hasDerivedEnvironment ? "derived arm" : environmentEvidenceLabel(environment.evidence_basis)}
                       </span>
-                      {environment.missing_reason ? <span className="table-subtext">{environment.missing_reason}</span> : null}
+                      {environment.missing_reason && !hasDerivedEnvironment ? <span className="table-subtext">{environment.missing_reason}</span> : null}
                     </td>
                     <td>
-                      <strong>{formatFloat(environment.candidate_eq_temp_k, 0)} K</strong>
+                      <ResolvedScienceValue sourceValue={environment.candidate_eq_temp_k} resolvedField={resolvedEqTemp} digits={1} unit="K" />
                       <span className="table-subtext">
-                        {formatFloat(environment.candidate_insol_earth, 3)} Earth flux
+                        flux <ResolvedScienceValue sourceValue={environment.candidate_insol_earth} resolvedField={resolvedInsol} digits={3} unit="Earth=1" details={false} />
                         {environment.broad_hz_candidate ? " | broad HZ" : ""}
                         {environment.nice_planet_candidate ? " | nice candidate" : ""}
                       </span>
