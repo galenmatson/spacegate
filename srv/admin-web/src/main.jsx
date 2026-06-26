@@ -773,6 +773,7 @@ function OverviewFact({ label, value }) {
 }
 
 function BuildsScreen({ csrf, openOperationsJob }) {
+  const [buildFocus, setBuildFocus] = useState("pipeline");
   const [state, setState] = useState({
     loading: true,
     status: null,
@@ -917,6 +918,13 @@ function BuildsScreen({ csrf, openOperationsJob }) {
     { label: "Snapshots", value: readableStatus(snapshot.status || "missing"), tone: statusTone(snapshot.status) },
     { label: "Temp outputs", value: formatInt(tmpBuilds.length), tone: tmpBuilds.length ? "warn" : "ok" },
   ];
+  const buildFocusItems = [
+    { key: "pipeline", label: "Pipeline", count: 5 },
+    { key: "actions", label: "Actions", count: buildActions.length },
+    { key: "presentation", label: "Presentation", count: 3 },
+    { key: "retention", label: "Retention", count: 3 },
+    { key: "reports", label: "Reports", count: 2 },
+  ];
 
   return (
     <div className="screen">
@@ -966,64 +974,126 @@ function BuildsScreen({ csrf, openOperationsJob }) {
         </div>
       </section>
 
-      <section className="builds-grid">
-        <NextActionsPanel actions={nextActions} />
-        <BuildOperationsPanel jobs={relatedBuildJobs} openOperationsJob={openOperationsJob} />
-      </section>
-
-      <section className="builds-grid">
-        <PathHealthPanel paths={pathHealth} />
-        <BuildArtifactPanel
-          title="Served Build Artifacts"
-          build={currentBuild}
-          relatedJobs={[verifyJob, publishJob].filter(Boolean)}
-          openOperationsJob={openOperationsJob}
-        />
-      </section>
-
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Build Runbook</h2>
-            <p className="muted">Sequential path: build database, verify the served or selected build, then publish download metadata only after verification is clean.</p>
-          </div>
+      <section className="panel runbook-filter-panel">
+        <div>
+          <h2>Builds Focus</h2>
+          <p className="muted">Choose the build workspace you need now. Pipeline is the short default path for readiness and next-step inspection.</p>
         </div>
-        <div className="action-grid">
-          {buildActions.map((action) => (
-            <ActionCard action={action} key={action.name} runAction={runAction} busy={busyAction === action.name} snapshotControl={snapshotControl} />
+        <div className="segmented-control">
+          {buildFocusItems.map((item) => (
+            <button
+              className={buildFocus === item.key ? "active" : ""}
+              key={item.key}
+              onClick={() => setBuildFocus(item.key)}
+              type="button"
+            >
+              {item.label}
+              <span>{formatInt(item.count)}</span>
+            </button>
           ))}
+          <button className={buildFocus === "all" ? "active" : ""} onClick={() => setBuildFocus("all")} type="button">
+            All
+            <span>{formatInt(buildFocusItems.reduce((total, item) => total + item.count, 0))}</span>
+          </button>
         </div>
       </section>
 
-      <section className="builds-grid">
-        <BuildVerificationPanel build={currentBuild} verifyJob={verifyJob} openOperationsJob={openOperationsJob} />
-        <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-      </section>
+      {["pipeline", "all"].includes(buildFocus) ? (
+        <>
+          <section className="builds-grid">
+            <NextActionsPanel actions={nextActions} />
+            <BuildOperationsPanel jobs={relatedBuildJobs} openOperationsJob={openOperationsJob} />
+          </section>
 
-      <section className="builds-grid">
-        <SnapshotOperationsPanel
-          snapshotControl={snapshotControl}
-          snapshotJob={snapshotJob}
-          openOperationsJob={openOperationsJob}
-          cancelJob={cancelJob}
-        />
-        <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-      </section>
+          <section className="builds-grid">
+            <PathHealthPanel paths={pathHealth} />
+            <BuildArtifactPanel
+              title="Served Build Artifacts"
+              build={currentBuild}
+              relatedJobs={[verifyJob, publishJob].filter(Boolean)}
+              openOperationsJob={openOperationsJob}
+            />
+          </section>
 
-      <section className="builds-grid">
-        <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} jobs={operationJobs} openOperationsJob={openOperationsJob} />
-        <RetentionPlanPanel
-          retention={retention}
-          dryRunJob={retentionDryRunJob}
-          applyJob={retentionApplyJob}
-          openOperationsJob={openOperationsJob}
-        />
-      </section>
+          <section className="builds-grid">
+            <BuildVerificationPanel build={currentBuild} verifyJob={verifyJob} openOperationsJob={openOperationsJob} />
+            <BuildReportsPanel build={currentBuild} />
+          </section>
+        </>
+      ) : null}
 
-      <section className="builds-grid">
-        <TempBuildsPanel builds={tmpBuilds} openOperationsJob={openOperationsJob} />
-        <BuildReportsPanel build={currentBuild} />
-      </section>
+      {["actions", "all"].includes(buildFocus) ? (
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h2>Build Runbook</h2>
+              <p className="muted">Sequential path: build database, verify the served or selected build, then publish download metadata only after verification is clean.</p>
+            </div>
+          </div>
+          <div className="action-grid">
+            {buildActions.map((action) => (
+              <ActionCard action={action} key={action.name} runAction={runAction} busy={busyAction === action.name} snapshotControl={snapshotControl} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {["presentation", "all"].includes(buildFocus) ? (
+        <>
+          <section className="builds-grid">
+            <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+            <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+          </section>
+
+          <section className="builds-grid">
+            <SnapshotOperationsPanel
+              snapshotControl={snapshotControl}
+              snapshotJob={snapshotJob}
+              openOperationsJob={openOperationsJob}
+              cancelJob={cancelJob}
+            />
+            <div className="panel">
+              <h2>Presentation Path</h2>
+              <p className="muted">Score coolness first, then generate snapshots for public search and detail views. Snapshot jobs write presentation artifacts only.</p>
+              <OverviewFact label="Score job" value={scoreJob?.job_id ? compactId(scoreJob.job_id, 20) : "n/a"} />
+              <OverviewFact label="Snapshot job" value={snapshotJob?.job_id ? compactId(snapshotJob.job_id, 20) : "n/a"} />
+              <OverviewFact label="View type" value={snapshot.view_type || "system_card"} />
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {["retention", "all"].includes(buildFocus) ? (
+        <>
+          <section className="builds-grid">
+            <RecentBuildsPanel builds={recentBuilds} servedBuildId={served.build_id || state.status?.build_id} jobs={operationJobs} openOperationsJob={openOperationsJob} />
+            <RetentionPlanPanel
+              retention={retention}
+              dryRunJob={retentionDryRunJob}
+              applyJob={retentionApplyJob}
+              openOperationsJob={openOperationsJob}
+            />
+          </section>
+
+          <section className="builds-grid">
+            <TempBuildsPanel builds={tmpBuilds} openOperationsJob={openOperationsJob} />
+            <div className="panel">
+              <h2>Retention Safety</h2>
+              <p className="muted">Use this workspace after successful verification and promotion. Retention must never prune raw, cooked, or served/current artifacts.</p>
+              <OverviewFact label="Apply ready" value={retention.apply_ready ? "yes" : "no"} />
+              <OverviewFact label="Dry-run job" value={retentionDryRunJob?.job_id ? compactId(retentionDryRunJob.job_id, 20) : "n/a"} />
+              <OverviewFact label="Candidate hash" value={retentionPlan.candidate_hash ? compactId(retentionPlan.candidate_hash, 18) : "n/a"} />
+            </div>
+          </section>
+        </>
+      ) : null}
+
+      {["reports", "all"].includes(buildFocus) ? (
+        <section className="builds-grid">
+          <BuildReportsPanel build={currentBuild} />
+          <PathHealthPanel paths={pathHealth} />
+        </section>
+      ) : null}
     </div>
   );
 }
