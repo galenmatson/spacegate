@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs/promises";
+import path from "node:path";
 
 const screens = [
   { key: "overview", label: "Overview", nav: null },
@@ -10,11 +11,24 @@ const screens = [
   { key: "object-diagnostics", label: "Object Diagnostics", nav: "Objects" },
 ];
 
+function adminUrl(testInfo, path = "") {
+  const baseURL = String(testInfo.project.use.baseURL || "");
+  const normalizedBase = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
+  return new URL(path, normalizedBase).toString();
+}
+
 function slug(text) {
   return String(text || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+async function artifactPath(testInfo, filename) {
+  const outputRoot = testInfo.config.metadata?.outputRoot || testInfo.outputDir;
+  const dir = path.join(outputRoot, "captures", slug(testInfo.project.name));
+  await fs.mkdir(dir, { recursive: true });
+  return path.join(dir, filename);
 }
 
 async function visibleText(page) {
@@ -24,6 +38,11 @@ async function visibleText(page) {
 async function authGateVisible(page) {
   const text = await visibleText(page);
   return /sign in|log in|login|authenticate|unauthenticated|auth required/i.test(text);
+}
+
+async function publicSiteVisible(page) {
+  const text = await visibleText(page);
+  return /CoolStars|Star Selector|Search systems by name/i.test(text);
 }
 
 async function pageLayoutMetrics(page) {
@@ -105,16 +124,19 @@ test.describe("Spacegate Admin visual sweep", () => {
       pageErrors.push(String(error?.stack || error));
     });
 
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const entryUrl = adminUrl(testInfo);
+    await page.goto(entryUrl, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
 
-    if (await authGateVisible(page)) {
-      const shotPath = testInfo.outputPath("auth-gate.png");
+    if (await publicSiteVisible(page)) {
+      const shotPath = await artifactPath(testInfo, "wrong-app.png");
       await page.screenshot({ path: shotPath, fullPage: true });
       const report = {
-        status: "auth_required",
+        status: "wrong_app",
         message:
-          "Admin auth gate is visible. Provide SPACEGATE_ADMIN_STORAGE_STATE to capture authenticated Admin screens.",
+          "Visual QA loaded the public Spacegate/CoolStars UI instead of Admin. Check SPACEGATE_ADMIN_VISUAL_BASE_URL and Admin routing.",
+        requestedUrl: entryUrl,
+        finalUrl: page.url(),
         baseURL: testInfo.project.use.baseURL,
         screenshot: shotPath,
         consoleEvents,
@@ -122,7 +144,31 @@ test.describe("Spacegate Admin visual sweep", () => {
         pageErrors,
       };
       await fs.writeFile(
-        testInfo.outputPath("visual-summary.json"),
+        await artifactPath(testInfo, "visual-summary.json"),
+        JSON.stringify(report, null, 2)
+      );
+      throw new Error(
+        `Admin visual QA loaded the public site instead of Admin: ${page.url()}`
+      );
+    }
+
+    if (await authGateVisible(page)) {
+      const shotPath = await artifactPath(testInfo, "auth-gate.png");
+      await page.screenshot({ path: shotPath, fullPage: true });
+      const report = {
+        status: "auth_required",
+        message:
+          "Admin auth gate is visible. Provide SPACEGATE_ADMIN_STORAGE_STATE to capture authenticated Admin screens.",
+        requestedUrl: entryUrl,
+        finalUrl: page.url(),
+        baseURL: testInfo.project.use.baseURL,
+        screenshot: shotPath,
+        consoleEvents,
+        requestFailures,
+        pageErrors,
+      };
+      await fs.writeFile(
+        await artifactPath(testInfo, "visual-summary.json"),
         JSON.stringify(report, null, 2)
       );
       testInfo.annotations.push({
@@ -142,7 +188,7 @@ test.describe("Spacegate Admin visual sweep", () => {
       }
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await page.waitForTimeout(500);
-      const shotPath = testInfo.outputPath(`${slug(screen.key)}.png`);
+      const shotPath = await artifactPath(testInfo, `${slug(screen.key)}.png`);
       await page.screenshot({ path: shotPath, fullPage: true });
       screenReports.push({
         ...screen,
@@ -154,6 +200,8 @@ test.describe("Spacegate Admin visual sweep", () => {
     const report = {
       status: "captured",
       project: testInfo.project.name,
+      requestedUrl: entryUrl,
+      finalUrl: page.url(),
       baseURL: testInfo.project.use.baseURL,
       screens: screenReports,
       consoleEvents,
@@ -161,7 +209,7 @@ test.describe("Spacegate Admin visual sweep", () => {
       pageErrors,
     };
     await fs.writeFile(
-      testInfo.outputPath("visual-summary.json"),
+      await artifactPath(testInfo, "visual-summary.json"),
       JSON.stringify(report, null, 2)
     );
 

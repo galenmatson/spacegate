@@ -333,6 +333,10 @@ Reports and screenshots are written outside git under:
 $SPACEGATE_STATE_DIR/reports/admin_visual/<run_id>/
 ```
 
+Durable screenshots and per-viewport summaries live in
+`captures/<viewport>/`. The harness records requested/final URLs and fails with
+`wrong_app` if routing sends it to the public CoolStars UI instead of Admin.
+
 Authentication:
 
 - Without `SPACEGATE_ADMIN_STORAGE_STATE`, the harness captures the Admin auth
