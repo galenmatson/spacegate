@@ -310,6 +310,65 @@ targets generated/admin paths under it (`admin`, `backups`, `cache`, `logs`,
 `out`, `reports`, and `served`). It deliberately does not touch `raw/` or
 `cooked/`.
 
+### Admin Visual QA
+
+Admin v2 has a Playwright visual QA harness for layout and usability checks.
+It captures desktop and mobile screenshots, browser console errors, failed
+network requests, and basic layout overflow metrics for the core Admin screens.
+
+Run:
+
+```bash
+scripts/run_admin_visual_qa.sh
+```
+
+By default the runner uses the official Playwright Docker image so Photon does
+not need browser GUI dependencies installed on the host. Use
+`scripts/run_admin_visual_qa.sh --local` after installing local Playwright
+browser dependencies.
+
+Reports and screenshots are written outside git under:
+
+```text
+$SPACEGATE_STATE_DIR/reports/admin_visual/<run_id>/
+```
+
+Authentication:
+
+- Without `SPACEGATE_ADMIN_STORAGE_STATE`, the harness captures the Admin auth
+  gate and records `auth_required`.
+- To capture authenticated screens, provide a Playwright `storageState` JSON
+  from an already authenticated Admin browser session:
+
+```bash
+SPACEGATE_ADMIN_STORAGE_STATE=/secure/local/path/admin-storage-state.json \
+  scripts/run_admin_visual_qa.sh
+```
+
+Treat the storage state file like a session secret. Keep it outside git and
+delete it when no longer needed.
+
+Execution modes:
+
+- Docker mode is the default and uses `mcr.microsoft.com/playwright` with host
+  networking and host UID/GID. It avoids installing browser libraries on
+  Photon.
+- Local mode uses the host Node/Playwright install:
+
+```bash
+scripts/run_admin_visual_qa.sh --local
+```
+
+If local mode fails on missing Chromium libraries, either install Playwright's
+browser dependencies with sudo from an interactive shell:
+
+```bash
+cd srv/admin-web
+sudo npx playwright install-deps chromium
+```
+
+or use the default Docker mode.
+
 ## Operations, Jobs, and Audit Workspace
 
 The embedded Admin UI currently exposes these operational surfaces:

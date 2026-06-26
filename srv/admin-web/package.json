@@ -6,13 +6,18 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "visual:admin": "playwright test -c playwright.admin.config.js",
+    "visual:admin:headed": "playwright test -c playwright.admin.config.js --headed",
+    "visual:admin:install": "playwright install chromium"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.2",
-    "vite": "^8.0.16",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "vite": "^8.0.16"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
 }
