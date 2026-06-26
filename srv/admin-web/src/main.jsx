@@ -361,6 +361,13 @@ function compactId(value, size = 18) {
   return `${text.slice(0, size - 1)}...`;
 }
 
+function slugText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "item";
+}
+
 function compactBuildId(value) {
   const text = String(value || "");
   if (!text) return "n/a";
@@ -4688,11 +4695,54 @@ function FullJobLogScreen({ jobId }) {
 }
 
 function RunbookTab({ actionGroups, actionsByName, runAction, busyAction }) {
+  const availableGroups = actionGroups
+    .map((group, index) => {
+      const groupKey = group.key || group.group || slugText(group.title || `group-${index + 1}`);
+      return {
+        ...group,
+        key: groupKey,
+        resolvedActions: group.actions.map((name) => actionsByName.get(name)).filter(Boolean),
+      };
+    })
+    .filter((group) => group.resolvedActions.length);
+  const [activeGroupKey, setActiveGroupKey] = useState("");
+  const activeGroupExists = activeGroupKey === "all" || availableGroups.some((group) => group.key === activeGroupKey);
+  const safeActiveKey = activeGroupKey && activeGroupExists ? activeGroupKey : availableGroups[0]?.key || "all";
+  const visibleGroups = safeActiveKey === "all"
+    ? availableGroups
+    : availableGroups.filter((group) => group.key === safeActiveKey);
+
   return (
     <div className="runbook-grid">
-      {actionGroups.map((group) => {
-        const groupActions = group.actions.map((name) => actionsByName.get(name)).filter(Boolean);
-        if (!groupActions.length) return null;
+      <section className="panel runbook-filter-panel">
+        <div>
+          <h2>Runbook Focus</h2>
+          <p className="muted">Choose one workflow group for a shorter operator path, or show every action when auditing the full control surface.</p>
+        </div>
+        <div className="segmented-control">
+          {availableGroups.map((group) => (
+            <button
+              className={safeActiveKey === group.key ? "active" : ""}
+              key={group.key}
+              onClick={() => setActiveGroupKey(group.key)}
+              type="button"
+            >
+              {group.title}
+              <span>{formatInt(group.resolvedActions.length)}</span>
+            </button>
+          ))}
+          <button
+            className={safeActiveKey === "all" ? "active" : ""}
+            onClick={() => setActiveGroupKey("all")}
+            type="button"
+          >
+            All
+            <span>{formatInt(availableGroups.reduce((total, group) => total + group.resolvedActions.length, 0))}</span>
+          </button>
+        </div>
+      </section>
+      {visibleGroups.map((group) => {
+        const groupActions = group.resolvedActions;
         return (
           <section className={`panel runbook-group ${group.key || ""}`} key={group.key}>
             <div className="runbook-head">
