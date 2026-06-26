@@ -183,6 +183,7 @@ h3 {
   background: var(--surface);
   border-radius: 8px;
   padding: 0.65rem;
+  min-width: 0;
 }
 
 .kpi span {
@@ -196,6 +197,9 @@ h3 {
   display: block;
   margin-top: 0.2rem;
   font-size: 1.2rem;
+  line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .kpi.ok strong {

@@ -8,7 +8,12 @@ const screens = [
   { key: "builds", label: "Builds", nav: "Builds" },
   { key: "dataset", label: "Dataset", nav: "Dataset" },
   { key: "operations", label: "Operations", nav: "Operations" },
-  { key: "object-diagnostics", label: "Object Diagnostics", nav: "Objects" },
+  {
+    key: "object-diagnostics",
+    label: "Object Diagnostics",
+    nav: "Objects",
+    prepare: prepareObjectDiagnostics,
+  },
 ];
 
 function adminUrl(testInfo, path = "") {
@@ -40,9 +45,37 @@ async function authGateVisible(page) {
   return /sign in|log in|login|authenticate|unauthenticated|auth required/i.test(text);
 }
 
+async function waitForAdminSettled(page) {
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+  await page
+    .waitForFunction(
+      () => {
+        const busyPattern =
+          /Loading|Refreshing|Searching|Loading diagnostics|Refreshing build state|Refreshing operations/i;
+        return !Array.from(
+          document.querySelectorAll(".boot, .status-line, button")
+        ).some((node) => busyPattern.test(String(node.textContent || "")));
+      },
+      null,
+      { timeout: 15_000 }
+    )
+    .catch(() => {});
+  await page.waitForTimeout(300);
+}
+
 async function publicSiteVisible(page) {
   const text = await visibleText(page);
   return /CoolStars|Star Selector|Search systems by name/i.test(text);
+}
+
+async function prepareObjectDiagnostics(page) {
+  const input = page.getByPlaceholder(/Sol, Mars, Ganymede/i);
+  await input.fill("Sol");
+  await page.getByRole("button", { name: /^Search$/ }).click();
+  await expect(page.locator(".status-line")).toContainText("Ready", {
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("heading", { name: "Readiness" })).toBeVisible();
 }
 
 async function pageLayoutMetrics(page) {
@@ -126,7 +159,7 @@ test.describe("Spacegate Admin visual sweep", () => {
 
     const entryUrl = adminUrl(testInfo);
     await page.goto(entryUrl, { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+    await waitForAdminSettled(page);
 
     if (await publicSiteVisible(page)) {
       const shotPath = await artifactPath(testInfo, "wrong-app.png");
@@ -186,8 +219,11 @@ test.describe("Spacegate Admin visual sweep", () => {
       if (screen.nav) {
         await page.getByRole("button", { name: screen.nav }).click();
       }
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await waitForAdminSettled(page);
+      if (screen.prepare) {
+        await screen.prepare(page);
+        await waitForAdminSettled(page);
+      }
       const shotPath = await artifactPath(testInfo, `${slug(screen.key)}.png`);
       await page.screenshot({ path: shotPath, fullPage: true });
       screenReports.push({

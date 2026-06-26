@@ -361,6 +361,14 @@ function compactId(value, size = 18) {
   return `${text.slice(0, size - 1)}...`;
 }
 
+function compactBuildId(value) {
+  const text = String(value || "");
+  if (!text) return "n/a";
+  const match = text.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})\d{2}Z/);
+  if (match) return `${match[2]}/${match[3]} ${match[4]}:${match[5]}`;
+  return compactId(text, 15);
+}
+
 function normalizeOptional(value) {
   const trimmed = String(value || "").trim();
   return trimmed ? trimmed : null;
@@ -648,7 +656,7 @@ function OverviewScreen({ auth }) {
 
   const overviewKpis = [
     { label: "API", value: state.status?.status || "n/a", tone: state.status?.status === "ok" ? "ok" : "" },
-    { label: "Build", value: compactId(state.status?.build_id, 20) },
+    { label: "Build", value: compactBuildId(state.status?.build_id) },
     { label: "Jobs active", value: runningJobs.length, tone: runningJobs.length ? "warn" : "ok" },
     { label: "Inference healthy", value: `${healthyEndpoints.length}/${state.endpoints.length}` },
     { label: "Systems", value: formatInt(counts.systems) },
@@ -897,7 +905,7 @@ function BuildsScreen({ csrf, openOperationsJob }) {
     .map((name) => enrichBuildAction(actionsByName.get(name), retentionContext))
     .filter(Boolean);
   const kpis = [
-    { label: "Served build", value: compactId(state.status?.build_id || served.build_id, 20) },
+    { label: "Served build", value: compactBuildId(state.status?.build_id || served.build_id) },
     { label: "Verification", value: readableStatus(verification.status || "unknown"), tone: statusTone(verification.status) },
     { label: "Snapshots", value: readableStatus(snapshot.status || "missing"), tone: statusTone(snapshot.status) },
     { label: "Temp outputs", value: formatInt(tmpBuilds.length), tone: tmpBuilds.length ? "warn" : "ok" },
