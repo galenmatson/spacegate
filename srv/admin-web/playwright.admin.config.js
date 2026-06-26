@@ -27,7 +27,7 @@ export default defineConfig({
   use: {
     baseURL:
       process.env.SPACEGATE_ADMIN_VISUAL_BASE_URL ||
-      "https://10.0.0.12/admin/",
+      "https://photon.spacegates.org/admin/",
     ignoreHTTPSErrors: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

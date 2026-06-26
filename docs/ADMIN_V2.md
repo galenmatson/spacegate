@@ -336,21 +336,49 @@ $SPACEGATE_STATE_DIR/reports/admin_visual/<run_id>/
 Durable screenshots and per-viewport summaries live in
 `captures/<viewport>/`. The harness records requested/final URLs and fails with
 `wrong_app` if routing sends it to the public CoolStars UI instead of Admin.
+The default target is `https://photon.spacegates.org/admin/`; Docker mode adds
+`photon.spacegates.org:10.0.0.12` to the container hosts file so local OAuth
+cookies and the tested origin match.
 
 Authentication:
 
 - Without `SPACEGATE_ADMIN_STORAGE_STATE`, the harness captures the Admin auth
   gate and records `auth_required`.
-- To capture authenticated screens, provide a Playwright `storageState` JSON
+- To capture authenticated screens, create a Playwright `storageState` JSON
   from an already authenticated Admin browser session:
+
+```bash
+scripts/create_admin_storage_state.sh
+```
+
+Then paste the Admin request `Cookie` header into the hidden prompt. The
+default output is:
+
+```text
+$SPACEGATE_STATE_DIR/admin/playwright/admin-storage-state.json
+```
+
+`scripts/run_admin_visual_qa.sh` uses that default storage state automatically
+when the file exists. To use another storage file, pass it explicitly:
 
 ```bash
 SPACEGATE_ADMIN_STORAGE_STATE=/secure/local/path/admin-storage-state.json \
   scripts/run_admin_visual_qa.sh
 ```
 
-Treat the storage state file like a session secret. Keep it outside git and
-delete it when no longer needed.
+Treat Cookie headers and storage state files like session secrets. Keep them
+outside git, do not paste them into chat or logs, and delete the storage state
+when it is no longer needed.
+
+To get the Cookie header from an authenticated browser session:
+
+1. Open `https://photon.spacegates.org/admin/` and sign in.
+2. Open browser developer tools, then the Network tab.
+3. Reload the Admin page or click an Admin API request such as
+   `/api/v2/auth/me`.
+4. Copy the request header named `Cookie`.
+5. Run `scripts/create_admin_storage_state.sh` on Photon and paste the Cookie
+   header into the hidden prompt.
 
 Execution modes:
 
