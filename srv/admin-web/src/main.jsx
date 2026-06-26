@@ -4349,7 +4349,11 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
   const summary = allowlist?.summary || {};
   const [draft, setDraft] = useState(emptyAllowlistEntry);
   const [status, setStatus] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [selectedDomains, setSelectedDomains] = useState(() => new Set());
   const tierRows = Array.isArray(summary.tiers) ? summary.tiers : [];
+  const selectedCount = sources.filter((source) => selectedDomains.has(source.domain)).length;
+  const allVisibleSelected = sources.length > 0 && selectedCount === sources.length;
 
   function editSource(source) {
     setDraft({
@@ -4363,6 +4367,7 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
       enabled: source.enabled !== false,
     });
     setStatus(`Editing ${source.domain}`);
+    setEditorOpen(true);
   }
 
   async function submit(event) {
@@ -4381,6 +4386,7 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
     if (ok) {
       setDraft(emptyAllowlistEntry);
       setStatus(`Saved ${payload.domain}`);
+      setEditorOpen(false);
     }
   }
 
@@ -4388,10 +4394,26 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
 
+  function toggleSource(domain, checked) {
+    setSelectedDomains((current) => {
+      const next = new Set(current);
+      if (checked) next.add(domain);
+      else next.delete(domain);
+      return next;
+    });
+  }
+
+  function toggleAllSources(checked) {
+    setSelectedDomains(() => checked ? new Set(sources.map((source) => source.domain)) : new Set());
+  }
+
   return (
-    <section className="agency-grid">
-      <div className="panel">
-        <h2>Manage Source</h2>
+    <section className="agency-source-allowlist-tab">
+      <details className="panel allowlist-editor-panel" open={editorOpen} onToggle={(event) => setEditorOpen(event.currentTarget.open)}>
+        <summary>
+          <span>Manage Source</span>
+          <span className="badge muted">{draft.domain ? `editing ${draft.domain}` : "add or edit"}</span>
+        </summary>
         <p className="muted">Add or update domains that Agency retrieval may use. Off-allowlist browsing remains blocked by policy.</p>
         <form className="action-fields" onSubmit={submit}>
           <label>
@@ -4438,11 +4460,19 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
             {status ? <span className="inline-status">{status}</span> : null}
           </div>
         </form>
-      </div>
+      </details>
 
-      <div className="panel">
-        <h2>Source Allowlist</h2>
-        <p className="muted">Runtime policy used by Agency retrieval and future portfolio chat context assembly.</p>
+      <div className="panel source-allowlist-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Source Allowlist</h2>
+            <p className="muted">Runtime policy used by Agency retrieval and future portfolio chat context assembly.</p>
+          </div>
+          <div className="action-meta">
+            <span className="badge muted">{formatInt(selectedCount)} selected</span>
+            <button className="button" type="button" onClick={() => setEditorOpen(true)}>Add Source</button>
+          </div>
+        </div>
         <MetricList
           rows={[
             ["Sources", `${formatInt(summary.total_sources)} total / ${formatInt(summary.enabled_sources)} enabled`],
@@ -4459,13 +4489,31 @@ function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
           </div>
         ) : null}
         {sources.length ? (
-          <table>
+          <table className="source-allowlist-table">
             <thead>
-              <tr><th>Domain</th><th>Tier</th><th>Trust</th><th>Use</th><th></th></tr>
+              <tr>
+                <th className="source-check-col">
+                  <input
+                    aria-label="Select all source allowlist rows"
+                    checked={allVisibleSelected}
+                    type="checkbox"
+                    onChange={(event) => toggleAllSources(event.target.checked)}
+                  />
+                </th>
+                <th>Domain</th><th>Tier</th><th>Trust</th><th>Use</th><th></th>
+              </tr>
             </thead>
             <tbody>
               {sources.map((source) => (
-                <tr key={source.domain}>
+                <tr className={selectedDomains.has(source.domain) ? "selected" : ""} key={source.domain}>
+                  <td className="source-check-col">
+                    <input
+                      aria-label={`Select ${source.domain}`}
+                      checked={selectedDomains.has(source.domain)}
+                      type="checkbox"
+                      onChange={(event) => toggleSource(source.domain, event.target.checked)}
+                    />
+                  </td>
                   <td>
                     <strong>{source.domain}</strong>
                     <span className="table-subtext">{source.org || "No organization"} | {source.source_type || "No type"}</span>

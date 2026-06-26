@@ -882,6 +882,79 @@ h3 {
   align-items: start;
 }
 
+.agency-source-allowlist-tab {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.allowlist-editor-panel {
+  padding: 0;
+}
+
+.allowlist-editor-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.75rem 0.8rem;
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.allowlist-editor-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.allowlist-editor-panel > summary::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.allowlist-editor-panel[open] > summary::before {
+  content: "-";
+}
+
+.allowlist-editor-panel > p,
+.allowlist-editor-panel > form {
+  margin: 0.8rem;
+}
+
+.source-allowlist-table tr.selected {
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+.source-allowlist-table th:nth-child(3),
+.source-allowlist-table td:nth-child(3) {
+  width: 4rem;
+}
+
+.source-allowlist-table th:nth-child(4),
+.source-allowlist-table td:nth-child(4) {
+  width: 4.5rem;
+}
+
+.source-allowlist-table th:nth-child(6),
+.source-allowlist-table td:nth-child(6) {
+  width: 9.5rem;
+}
+
+.source-check-col {
+  width: 2.2rem;
+  text-align: center;
+}
+
+.source-check-col input {
+  width: auto;
+}
+
 .agency-stage-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
