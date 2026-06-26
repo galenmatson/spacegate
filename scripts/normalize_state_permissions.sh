@@ -32,6 +32,7 @@ Defaults:
   - Uses SPACEGATE_STATE_DIR/SPACEGATE_DATA_DIR.
   - If run through sudo, defaults ownership to the invoking sudo user/group.
   - Otherwise defaults ownership to the current user/group.
+  - Tightens the state root itself non-recursively.
   - Targets generated/admin paths only: admin, backups, cache, logs, out,
     reports, served.
   - Does not touch raw/ or cooked/.
@@ -139,16 +140,24 @@ echo
 
 if [[ "${#TARGETS[@]}" -eq 0 ]]; then
   echo "No generated/admin state targets found."
-  exit 0
 fi
 
+printf 'State root:\n'
+printf '  %s\n' "$STATE_DIR"
 printf 'Targets:\n'
-printf '  %s\n' "${TARGETS[@]}"
+if [[ "${#TARGETS[@]}" -gt 0 ]]; then
+  printf '  %s\n' "${TARGETS[@]}"
+else
+  printf '  (none)\n'
+fi
 
 if [[ "$APPLY" -ne 1 ]]; then
   cat <<'DRYRUN'
 
 Dry run only. Re-run with --apply to execute:
+  chown OWNER state root, non-recursively
+  chmod u+rwX,g+rwX,o-rwx state root, non-recursively
+  chmod g+s on state root
   chown -R OWNER each target
   chmod -R u+rwX,g+rwX,o-rwx each target
   chmod g+s on target directories
@@ -158,6 +167,13 @@ fi
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Warning: not running as root; chown may fail for root-owned artifacts." >&2
+fi
+
+echo "Normalizing state root: $STATE_DIR"
+chown "$OWNER_SPEC" "$STATE_DIR"
+chmod "$MODE_DIR" "$STATE_DIR"
+if [[ "$SETGID" -eq 1 ]]; then
+  chmod g+s "$STATE_DIR"
 fi
 
 for path in "${TARGETS[@]}"; do

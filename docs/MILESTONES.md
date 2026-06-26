@@ -72,6 +72,37 @@ Exit criteria:
 - provenance and QC gate enforcement
 - stable public serving path
 
+### M0.5. Admin Runtime Hardening (Near-Term Backlog)
+
+Goal:
+
+- keep Photon Admin safe enough for LAN operations while preserving development
+  velocity on Admin v2.
+
+Dependencies:
+
+- M0 complete
+
+Delivered:
+
+- API container runs as the invoking host UID/GID instead of root
+- generated/admin state permission normalizer with dry-run default
+- API container drops Linux capabilities, blocks privilege escalation, and uses
+  a read-only root filesystem with explicit tmpfs scratch mounts
+
+Remaining hardening backlog:
+
+- move from operator UID to a dedicated `spacegate-run` service user with shared
+  `spacegate` group access
+- evaluate Docker `userns-remap` or rootless Docker on Photon, accounting for
+  NVIDIA/vLLM compatibility
+- move OIDC/provider secrets out of expanded Compose environment where feasible
+  and into mounted secret files or a secrets manager pattern
+- add a redacted Compose/runtime diagnostics command so operators do not
+  accidentally print secret-bearing `docker compose config` output
+- decide whether public-edge `antiproton` needs a stricter Compose profile than
+  Photon development
+
 ### M1. Gaia Galaxy Backbone Pilot (Current Critical Path)
 
 Goal:

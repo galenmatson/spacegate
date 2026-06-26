@@ -4,6 +4,12 @@ services:
       context: .
       dockerfile: docker/Dockerfile.api
     user: "${SPACEGATE_CONTAINER_UID:-1000}:${SPACEGATE_CONTAINER_GID:-1000}"
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
@@ -49,6 +55,9 @@ services:
     volumes:
       - ${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-./data}}:/data
       - ${SPACEGATE_BULK_DIR:-${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-./data}}/bulk}:${SPACEGATE_BULK_DIR:-/data/bulk}
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=1g
+      - /run:rw,nosuid,nodev,noexec,size=64m
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

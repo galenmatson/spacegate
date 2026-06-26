@@ -288,6 +288,8 @@ Runtime permission contract:
   and generated directories cooperative for the configured host group.
 - `PYTHONDONTWRITEBYTECODE=1` is set for the API container so non-root runtime
   processes do not try to create Python bytecode under `/app`.
+- The API container drops Linux capabilities, sets `no-new-privileges`, and
+  runs with a read-only root filesystem plus explicit tmpfs scratch mounts.
 
 For existing root-owned generated state, use the dry-run-first normalizer:
 
@@ -296,9 +298,10 @@ scripts/normalize_state_permissions.sh
 sudo scripts/normalize_state_permissions.sh --apply
 ```
 
-The normalizer targets generated/admin paths under `$SPACEGATE_STATE_DIR`
-(`admin`, `backups`, `cache`, `logs`, `out`, `reports`, and `served`) and
-deliberately does not touch `raw/` or `cooked/`.
+The normalizer tightens `$SPACEGATE_STATE_DIR` itself non-recursively, then
+targets generated/admin paths under it (`admin`, `backups`, `cache`, `logs`,
+`out`, `reports`, and `served`). It deliberately does not touch `raw/` or
+`cooked/`.
 
 ## Operations, Jobs, and Audit Workspace
 

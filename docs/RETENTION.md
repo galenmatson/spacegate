@@ -146,7 +146,8 @@ sudo scripts/normalize_state_permissions.sh --apply
 ```
 
 - The permission normalizer is dry-run by default and avoids `raw/` and
-  `cooked/`.
+  `cooked/`. It tightens the state root itself non-recursively, then repairs
+  generated/admin subtrees.
 - Run retention after successful promotion/verification, not during ingest.
 - If large one-off caches (for example external catalog mirrors) are stored under the state root, move them outside `out/` and `reports/` so retention remains deterministic.
 - Failed builds may be kept temporarily for diagnosis, but once the root cause is
