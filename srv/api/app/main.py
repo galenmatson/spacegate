@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import datetime
+import errno
+import grp
 import json
 import math
 import os
+import pwd
 import re
 import shutil
+import stat
 import subprocess
 import time
 import uuid
@@ -4771,6 +4775,32 @@ def _nearest_mount_point(path: Path) -> Optional[Path]:
     return current if os.path.ismount(str(current)) else None
 
 
+def _path_stat_payload(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        info = path.stat()
+    except OSError:
+        return None
+    try:
+        owner = pwd.getpwuid(info.st_uid).pw_name
+    except KeyError:
+        owner = None
+    try:
+        group = grp.getgrgid(info.st_gid).gr_name
+    except KeyError:
+        group = None
+    mode = stat.S_IMODE(info.st_mode)
+    return {
+        "uid": int(info.st_uid),
+        "gid": int(info.st_gid),
+        "owner": owner,
+        "group": group,
+        "mode_octal": f"{mode:04o}",
+        "setuid": bool(mode & stat.S_ISUID),
+        "setgid": bool(mode & stat.S_ISGID),
+        "sticky": bool(mode & stat.S_ISVTX),
+    }
+
+
 def _path_runtime_status(
     path: Path,
     *,
@@ -4921,6 +4951,7 @@ def _path_runtime_status(
         "check_status": check_status,
         "issues": issues,
         "disk": usage,
+        "stat": _path_stat_payload(path) if exists else None,
     }
 
 
@@ -5093,6 +5124,124 @@ def _git_head_short() -> Optional[str]:
         return result.stdout.strip() or None
     except Exception:
         return None
+
+
+def _parse_proc_int(value: Optional[str], default: int = 0) -> int:
+    match = re.search(r"[0-9]+", str(value or ""))
+    if not match:
+        return default
+    try:
+        return int(match.group(0))
+    except ValueError:
+        return default
+
+
+def _parse_proc_hex(value: Optional[str]) -> Optional[int]:
+    raw = str(value or "").strip().split()[0] if value else ""
+    if not raw:
+        return None
+    try:
+        return int(raw, 16)
+    except ValueError:
+        return None
+
+
+def _write_probe(path: Path) -> Dict[str, Any]:
+    probe = path / f".spacegate_runtime_probe_{os.getpid()}_{uuid.uuid4().hex}"
+    try:
+        fd = os.open(str(probe), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(fd)
+        try:
+            probe.unlink()
+        except OSError:
+            pass
+        return {"status": "writable", "path": str(path), "ok": True}
+    except OSError as exc:
+        if exc.errno == errno.EROFS:
+            status = "read_only_filesystem"
+        elif exc.errno in {errno.EACCES, errno.EPERM}:
+            status = "permission_denied"
+        else:
+            status = "blocked"
+        return {
+            "status": status,
+            "path": str(path),
+            "ok": False,
+            "errno": exc.errno,
+            "error": exc.strerror or str(exc),
+        }
+
+
+def _runtime_security_payload(proc_status: Dict[str, str], state_dir: Path) -> Dict[str, Any]:
+    effective_uid = os.geteuid()
+    effective_gid = os.getegid()
+    groups = [int(group_id) for group_id in os.getgroups()]
+    cap_eff = _parse_proc_hex(proc_status.get("CapEff"))
+    cap_prm = _parse_proc_hex(proc_status.get("CapPrm"))
+    cap_bnd = _parse_proc_hex(proc_status.get("CapBnd"))
+    no_new_privs = _parse_proc_int(proc_status.get("NoNewPrivs")) == 1
+    seccomp_mode = _parse_proc_int(proc_status.get("Seccomp"))
+    root_probe = _write_probe(ROOT_DIR)
+    tmp_probe = _write_probe(Path("/tmp"))
+    state_probe = _write_probe(state_dir)
+    try:
+        expected_uid = int(os.getenv("SPACEGATE_CONTAINER_UID", "").strip())
+    except ValueError:
+        expected_uid = None
+    try:
+        expected_gid = int(os.getenv("SPACEGATE_CONTAINER_GID", "").strip())
+    except ValueError:
+        expected_gid = None
+    uid_matches = expected_uid is None or expected_uid == effective_uid
+    gid_matches = expected_gid is None or expected_gid == effective_gid
+    hardening_checks = [
+        {"key": "non_root_user", "ok": effective_uid != 0, "label": "API process is not running as root."},
+        {"key": "expected_uid_gid", "ok": uid_matches and gid_matches, "label": "API UID/GID match launcher-provided container identity."},
+        {"key": "no_new_privileges", "ok": no_new_privs, "label": "No-new-privileges is active."},
+        {"key": "capabilities_dropped", "ok": cap_eff == 0 and cap_prm == 0, "label": "Effective/permitted Linux capabilities are empty."},
+        {"key": "seccomp_filter", "ok": seccomp_mode == 2, "label": "Seccomp filter mode is active."},
+        {"key": "read_only_rootfs", "ok": root_probe.get("status") == "read_only_filesystem", "label": "Repository filesystem write probe is blocked as read-only."},
+        {"key": "tmp_writable", "ok": tmp_probe.get("ok") is True, "label": "Scratch tmpfs is writable."},
+        {"key": "state_writable", "ok": state_probe.get("ok") is True, "label": "Configured state root is writable."},
+    ]
+    failed_checks = [item for item in hardening_checks if not item["ok"]]
+    return {
+        "effective_uid": int(effective_uid),
+        "effective_gid": int(effective_gid),
+        "groups": groups,
+        "expected_uid": expected_uid,
+        "expected_gid": expected_gid,
+        "running_as_root": effective_uid == 0,
+        "umask_configured": os.getenv("SPACEGATE_UMASK", "").strip() or None,
+        "python_bytecode_disabled": os.getenv("PYTHONDONTWRITEBYTECODE", "").strip() in {"1", "true", "True"},
+        "no_new_privileges": no_new_privs,
+        "seccomp_mode": seccomp_mode,
+        "seccomp_label": {0: "disabled", 1: "strict", 2: "filter"}.get(seccomp_mode, "unknown"),
+        "capabilities": {
+            "effective_hex": proc_status.get("CapEff"),
+            "permitted_hex": proc_status.get("CapPrm"),
+            "bounding_hex": proc_status.get("CapBnd"),
+            "effective_empty": cap_eff == 0,
+            "permitted_empty": cap_prm == 0,
+            "bounding_empty": cap_bnd == 0,
+        },
+        "write_probes": {
+            "project_root": root_probe,
+            "tmp": tmp_probe,
+            "state_dir": state_probe,
+        },
+        "hardening_checks": hardening_checks,
+        "summary": {
+            "status": "ok" if not failed_checks else "warning",
+            "passed": len(hardening_checks) - len(failed_checks),
+            "total": len(hardening_checks),
+            "failed_keys": [item["key"] for item in failed_checks],
+        },
+        "notes": [
+            "Runtime security is observed from inside the API process and does not require the Docker socket.",
+            "Docker/Compose users can still inspect container environment through Docker privileges; treat Docker access as privileged.",
+        ],
+    }
 
 
 def _runtime_status_payload() -> Dict[str, Any]:
@@ -5268,6 +5417,7 @@ def _runtime_status_payload() -> Dict[str, Any]:
             "docker_socket_readable": docker_socket.exists() and os.access(str(docker_socket), os.R_OK),
             "docker_status_note": "Docker container health is not queried from the API container unless the Docker socket is deliberately mounted.",
         },
+        "runtime_security": _runtime_security_payload(proc_status, state_dir),
         "host_runtime": {
             "cpu_count": os.cpu_count(),
             "loadavg_1m": os.getloadavg()[0] if hasattr(os, "getloadavg") else None,

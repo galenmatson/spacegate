@@ -235,6 +235,9 @@ Show:
 - sensitive key configured/missing flags
 - inference endpoint last-probe reachability summaries
 - Docker/container visibility note, without requiring the Docker socket
+- runtime hardening observations from inside the API process, including UID/GID,
+  capability masks, no-new-privileges, seccomp mode, write probes, configured
+  umask, bytecode-write status, and state-root owner/mode
 
 Runtime must emit structured filesystem alerts for configured targets that are
 missing, unreadable, untraversable, unwritable, or expected to be mounted but not

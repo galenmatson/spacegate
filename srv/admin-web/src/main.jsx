@@ -308,6 +308,18 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function formatMode(stat) {
+  if (!stat) return "mode n/a";
+  const owner = stat.owner || stat.uid;
+  const group = stat.group || stat.gid;
+  const flags = [
+    stat.setuid ? "setuid" : null,
+    stat.setgid ? "setgid" : null,
+    stat.sticky ? "sticky" : null,
+  ].filter(Boolean);
+  return `${owner}:${group} ${stat.mode_octal || "????"}${flags.length ? ` ${flags.join(", ")}` : ""}`;
+}
+
 function pctFromPart(part, total) {
   const numerator = Number(part);
   const denominator = Number(total);
@@ -5863,6 +5875,8 @@ function RuntimeScreen() {
   const authStatus = data.auth || {};
   const host = data.host_runtime || {};
   const api = data.api_process_runtime || {};
+  const security = data.runtime_security || {};
+  const securitySummary = security.summary || {};
   const paths = data.paths || {};
   const filesystemAlerts = Array.isArray(data.filesystem_alerts) ? data.filesystem_alerts : [];
   const filesystemSummary = data.filesystem_summary || {};
@@ -5905,6 +5919,7 @@ function RuntimeScreen() {
     <>
       {item.path || ""}
       {item.env_key ? <span className="table-subtext">{item.env_key}</span> : null}
+      {item.stat ? <span className="table-subtext">{formatMode(item.stat)}</span> : null}
       {item.description ? <span className="table-subtext">{item.description}</span> : null}
       {(item.issues || []).map((issue) => (
         <span className="table-subtext warning-text" key={`${key}-${issue.code}`}>
@@ -5932,6 +5947,11 @@ function RuntimeScreen() {
       label: "Filesystem",
       value: filesystemSummary.alert_count ? `${filesystemSummary.error_count || 0} error / ${filesystemSummary.warning_count || 0} warn` : "ok",
       tone: filesystemSummary.error_count ? "danger" : filesystemSummary.warning_count ? "warn" : "ok",
+    },
+    {
+      label: "Security",
+      value: securitySummary.total ? `${securitySummary.passed}/${securitySummary.total}` : "n/a",
+      tone: securitySummary.status === "ok" ? "ok" : securitySummary.status === "warning" ? "warn" : "",
     },
     { label: "API RSS", value: formatBytes(api.rss_bytes) },
   ];
@@ -5964,6 +5984,7 @@ function RuntimeScreen() {
       },
       auth: authStatus,
       container_runtime: data.container_runtime || {},
+      runtime_security: security,
       host_runtime: host,
       api_process_runtime: api,
       inference_endpoints: endpoints.map((endpoint) => ({
@@ -6059,6 +6080,43 @@ function RuntimeScreen() {
       )}
 
       <section className="runtime-grid">
+        <div className="panel runtime-security-panel">
+          <div className="panel-head">
+            <div>
+              <h2>Runtime Security</h2>
+              <p className="muted">Observed inside the API process. No Docker socket required.</p>
+            </div>
+            <span className={`badge ${securitySummary.status === "ok" ? "ok" : "warn"}`}>
+              {securitySummary.total ? `${securitySummary.passed}/${securitySummary.total}` : "unknown"}
+            </span>
+          </div>
+          <MetricList
+            rows={[
+              ["Process user", `uid=${security.effective_uid ?? "?"} gid=${security.effective_gid ?? "?"}`, `expected ${security.expected_uid ?? "?"}:${security.expected_gid ?? "?"}`],
+              ["No new privileges", security.no_new_privileges ? "active" : "not active"],
+              ["Seccomp", security.seccomp_label || "unknown", `mode=${security.seccomp_mode ?? "?"}`],
+              ["Capabilities", security.capabilities?.effective_empty && security.capabilities?.permitted_empty ? "dropped" : "present", `eff=${security.capabilities?.effective_hex || "n/a"} prm=${security.capabilities?.permitted_hex || "n/a"}`],
+              ["Root filesystem", security.write_probes?.project_root?.status || "unknown", security.write_probes?.project_root?.error || ""],
+              ["Scratch/state writes", `/tmp ${security.write_probes?.tmp?.status || "unknown"}`, `state ${security.write_probes?.state_dir?.status || "unknown"}`],
+              ["Umask / bytecode", security.umask_configured || "n/a", security.python_bytecode_disabled ? "Python bytecode disabled" : "Python bytecode may be written"],
+            ]}
+          />
+          {Array.isArray(security.hardening_checks) && security.hardening_checks.length ? (
+            <div className="check-list">
+              {security.hardening_checks.map((item) => (
+                <div className="check-row" key={item.key}>
+                  <span className={`badge ${item.ok ? "ok" : "warn"}`}>{item.ok ? "ok" : "check"}</span>
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty">Runtime security observations are unavailable.</div>
+          )}
+          <div className="hint-list">
+            {(security.notes || []).map((note) => <div key={note}>{note}</div>)}
+          </div>
+        </div>
         <div className="panel">
           <h2>Auth and OIDC</h2>
           <MetricList

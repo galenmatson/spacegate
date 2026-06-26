@@ -1039,6 +1039,24 @@ h3 {
   border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
 }
 
+.runtime-security-panel {
+  grid-column: 1 / -1;
+}
+
+.check-list {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.check-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
 .alert-list {
   display: grid;
   gap: 0.55rem;
