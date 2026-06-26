@@ -4730,6 +4730,7 @@ function ActionCard({ action, runAction, busy, snapshotControl = null }) {
   const schema = action.params_schema || {};
   const disabledReason = action.disabled_reason || "";
   const confirmationPhrase = action.confirmation_phrase || `RUN ${action.name}`;
+  const guidanceWarnings = normalizeGuidanceList(guidance.warnings || guidance.warning);
 
   useEffect(() => {
     setValues({ ...initialActionValues(action), ...loadPersistedActionDraft(action) });
@@ -4799,19 +4800,13 @@ function ActionCard({ action, runAction, busy, snapshotControl = null }) {
         </div>
       </div>
       <p>{guidance.purpose || action.description}</p>
-      <div className="hint-list">
-        {guidance.prerequisites ? <div><strong>Before:</strong> {guidance.prerequisites}</div> : null}
-        {guidance.writes_to ? <div><strong>Writes:</strong> {guidance.writes_to}</div> : null}
-        {guidance.writes ? <div><strong>Writes:</strong> {guidance.writes}</div> : null}
-        {Array.isArray(guidance.outputs) && guidance.outputs.length ? <div><strong>Outputs:</strong> {guidance.outputs.join(", ")}</div> : null}
-        {Array.isArray(guidance.success_next_actions) && guidance.success_next_actions.length ? <div><strong>Next:</strong> {guidance.success_next_actions.join(" ")}</div> : null}
-        {guidance.next ? <div><strong>Next:</strong> {guidance.next}</div> : null}
-        {guidance.expected_duration ? <div><strong>Expected:</strong> {String(guidance.expected_duration).replaceAll("_", " ")}</div> : null}
-        {guidance.duration ? <div><strong>Expected:</strong> {guidance.duration}</div> : null}
-        {Array.isArray(guidance.warnings) && guidance.warnings.length ? <div className="warning-text"><strong>Warning:</strong> {guidance.warnings.join(" ")}</div> : null}
-        {guidance.warning ? <div className="warning-text"><strong>Warning:</strong> {guidance.warning}</div> : null}
-        {disabledReason ? <div className="warning-text"><strong>Blocked:</strong> {disabledReason}</div> : null}
-      </div>
+      {guidanceWarnings.length || disabledReason ? (
+        <div className="hint-list action-warning-list">
+          {guidanceWarnings.length ? <div className="warning-text"><strong>Warning:</strong> {guidanceWarnings.join(" ")}</div> : null}
+          {disabledReason ? <div className="warning-text"><strong>Blocked:</strong> {disabledReason}</div> : null}
+        </div>
+      ) : null}
+      <ActionGuidanceDetails action={action} guidance={guidance} />
       <div className="action-fields">
         {Object.entries(schema).map(([name, spec]) => (
           <ActionParamField
@@ -4844,6 +4839,29 @@ function ActionCard({ action, runAction, busy, snapshotControl = null }) {
         {status ? <span className="inline-status">{status}</span> : null}
       </div>
     </form>
+  );
+}
+
+function ActionGuidanceDetails({ action, guidance }) {
+  const before = normalizeGuidanceList(guidance.prerequisites || guidance.before);
+  const writes = normalizeGuidanceList(guidance.writes_to || guidance.writes);
+  const outputs = normalizeGuidanceList(guidance.outputs);
+  const next = normalizeGuidanceList(guidance.success_next_actions || guidance.next);
+  const expected = normalizeGuidanceList(guidance.expected_duration || guidance.duration).map((item) => String(item).replaceAll("_", " "));
+  const roles = normalizeGuidanceList(action.required_roles);
+  if (!before.length && !writes.length && !outputs.length && !next.length && !expected.length && !roles.length) return null;
+  return (
+    <details className="action-guidance">
+      <summary>Run guidance</summary>
+      <div className="hint-list">
+        {before.length ? <div><strong>Before:</strong> {before.join(" ")}</div> : null}
+        {writes.length ? <div><strong>Writes:</strong> {writes.join(", ")}</div> : null}
+        {outputs.length ? <div><strong>Outputs:</strong> {outputs.join(", ")}</div> : null}
+        {next.length ? <div><strong>Next:</strong> {next.join(" ")}</div> : null}
+        {expected.length ? <div><strong>Expected:</strong> {expected.join(" ")}</div> : null}
+        {roles.length ? <div><strong>Required roles:</strong> {roles.join(", ")}</div> : null}
+      </div>
+    </details>
   );
 }
 

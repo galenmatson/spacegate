@@ -1035,6 +1035,32 @@ h3 {
   color: var(--text);
 }
 
+.action-warning-list {
+  padding: 0.45rem 0.55rem;
+  border: 1px dashed color-mix(in srgb, var(--danger) 30%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+}
+
+.action-guidance {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.action-guidance summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.action-guidance .hint-list {
+  margin-top: 0.45rem;
+  padding: 0.55rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
 .warning-text {
   color: var(--danger);
 }
