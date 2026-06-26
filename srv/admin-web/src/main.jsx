@@ -6002,6 +6002,7 @@ function AuditTab({
 function RuntimeScreen() {
   const [state, setState] = useState({ loading: true, data: null, message: "Loading runtime status..." });
   const [copyStatus, setCopyStatus] = useState("");
+  const [runtimeFocus, setRuntimeFocus] = useState("security");
 
   async function loadRuntime() {
     setState((current) => ({ ...current, loading: true, message: "Refreshing runtime status..." }));
@@ -6101,6 +6102,12 @@ function RuntimeScreen() {
     },
     { label: "API RSS", value: formatBytes(api.rss_bytes) },
   ];
+  const runtimeFocusItems = [
+    { key: "security", label: "Security", count: 3 },
+    { key: "filesystem", label: "Filesystem", count: Object.keys(paths).length },
+    { key: "config", label: "Config", count: Object.keys(configuredEnv).length + Object.keys(sensitiveEnv).length },
+    { key: "inference", label: "Inference", count: endpoints.length },
+  ];
 
   async function copyDiagnostics() {
     try {
@@ -6173,117 +6180,150 @@ function RuntimeScreen() {
         <div className="status-line">Filesystem targets ok: {formatInt(filesystemSummary.configured_target_count)} configured targets checked.</div>
       )}
 
-      <section className="runtime-grid">
-        <div className="panel runtime-security-panel">
+      <section className="panel runbook-filter-panel">
+        <div>
+          <h2>Runtime Focus</h2>
+          <p className="muted">Choose the runtime diagnostic surface to inspect. Security is the short default posture check.</p>
+        </div>
+        <div className="segmented-control">
+          {runtimeFocusItems.map((item) => (
+            <button
+              className={runtimeFocus === item.key ? "active" : ""}
+              key={item.key}
+              onClick={() => setRuntimeFocus(item.key)}
+              type="button"
+            >
+              {item.label}
+              <span>{formatInt(item.count)}</span>
+            </button>
+          ))}
+          <button className={runtimeFocus === "all" ? "active" : ""} onClick={() => setRuntimeFocus("all")} type="button">
+            All
+            <span>{formatInt(runtimeFocusItems.reduce((total, item) => total + item.count, 0))}</span>
+          </button>
+        </div>
+      </section>
+
+      {["security", "all"].includes(runtimeFocus) ? (
+        <section className="runtime-grid">
+          <div className="panel runtime-security-panel">
+            <div className="panel-head">
+              <div>
+                <h2>Runtime Security</h2>
+                <p className="muted">Observed inside the API process. No Docker socket required.</p>
+              </div>
+              <span className={`badge ${securitySummary.status === "ok" ? "ok" : "warn"}`}>
+                {securitySummary.total ? `${securitySummary.passed}/${securitySummary.total}` : "unknown"}
+              </span>
+            </div>
+            <MetricList
+              rows={[
+                ["Process user", `uid=${security.effective_uid ?? "?"} gid=${security.effective_gid ?? "?"}`, `expected ${security.expected_uid ?? "?"}:${security.expected_gid ?? "?"}`],
+                ["No new privileges", security.no_new_privileges ? "active" : "not active"],
+                ["Seccomp", security.seccomp_label || "unknown", `mode=${security.seccomp_mode ?? "?"}`],
+                ["Capabilities", security.capabilities?.effective_empty && security.capabilities?.permitted_empty ? "dropped" : "present", `eff=${security.capabilities?.effective_hex || "n/a"} prm=${security.capabilities?.permitted_hex || "n/a"}`],
+                ["Root filesystem", security.write_probes?.project_root?.status || "unknown", security.write_probes?.project_root?.error || ""],
+                ["Scratch/state writes", `/tmp ${security.write_probes?.tmp?.status || "unknown"}`, `state ${security.write_probes?.state_dir?.status || "unknown"}`],
+                ["Umask / bytecode", security.umask_configured || "n/a", security.python_bytecode_disabled ? "Python bytecode disabled" : "Python bytecode may be written"],
+              ]}
+            />
+            {Array.isArray(security.hardening_checks) && security.hardening_checks.length ? (
+              <div className="check-list">
+                {security.hardening_checks.map((item) => (
+                  <div className="check-row" key={item.key}>
+                    <span className={`badge ${item.ok ? "ok" : "warn"}`}>{item.ok ? "ok" : "check"}</span>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty">Runtime security observations are unavailable.</div>
+            )}
+            <div className="hint-list">
+              {(security.notes || []).map((note) => <div key={note}>{note}</div>)}
+            </div>
+          </div>
+          <div className="panel">
+            <h2>Auth and OIDC</h2>
+            <MetricList
+              rows={[
+                ["Auth", authStatus.enabled ? "enabled" : "disabled"],
+                ["Provider", authStatus.provider || "n/a"],
+                ["Issuer", authStatus.issuer || "n/a"],
+                ["Redirect URI", authStatus.redirect_uri || "n/a"],
+                ["Admin DB", authStatus.admin_db_path || "n/a"],
+              ]}
+            />
+          </div>
+          <div className="panel">
+            <h2>Container and API Process</h2>
+            <MetricList
+              rows={[
+                ["Container", data.container_runtime?.in_container ? "inside container" : "host process", data.container_runtime?.hostname || ""],
+                ["Docker socket", data.container_runtime?.docker_socket_visible ? "visible" : "not mounted", data.container_runtime?.docker_status_note || ""],
+                ["CPU load", `cores=${formatInt(host.cpu_count)}`, `1m=${formatFloat(host.loadavg_1m)} 5m=${formatFloat(host.loadavg_5m)} 15m=${formatFloat(host.loadavg_15m)}`],
+                ["Host memory", `${formatBytes(Math.max(toNumber(host.mem_total_bytes) - toNumber(host.mem_available_bytes), 0))} used`, `${formatBytes(host.mem_available_bytes)} available of ${formatBytes(host.mem_total_bytes)}`],
+                ["API process", `pid=${api.pid || "?"}, threads=${formatInt(api.threads)}`, `RSS=${formatBytes(api.rss_bytes)}, peak=${formatBytes(api.peak_rss_bytes)}`],
+                ["Process IO", `read=${formatBytes(api.io_read_bytes)}, write=${formatBytes(api.io_write_bytes)}`],
+              ]}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {["filesystem", "all"].includes(runtimeFocus) ? (
+        <section className="panel">
           <div className="panel-head">
             <div>
-              <h2>Runtime Security</h2>
-              <p className="muted">Observed inside the API process. No Docker socket required.</p>
+              <h2>Paths and Storage</h2>
+              <p className="muted">Container-visible path checks. Missing host-only paths may simply not be mounted into the API container.</p>
             </div>
-            <span className={`badge ${securitySummary.status === "ok" ? "ok" : "warn"}`}>
-              {securitySummary.total ? `${securitySummary.passed}/${securitySummary.total}` : "unknown"}
-            </span>
           </div>
-          <MetricList
-            rows={[
-              ["Process user", `uid=${security.effective_uid ?? "?"} gid=${security.effective_gid ?? "?"}`, `expected ${security.expected_uid ?? "?"}:${security.expected_gid ?? "?"}`],
-              ["No new privileges", security.no_new_privileges ? "active" : "not active"],
-              ["Seccomp", security.seccomp_label || "unknown", `mode=${security.seccomp_mode ?? "?"}`],
-              ["Capabilities", security.capabilities?.effective_empty && security.capabilities?.permitted_empty ? "dropped" : "present", `eff=${security.capabilities?.effective_hex || "n/a"} prm=${security.capabilities?.permitted_hex || "n/a"}`],
-              ["Root filesystem", security.write_probes?.project_root?.status || "unknown", security.write_probes?.project_root?.error || ""],
-              ["Scratch/state writes", `/tmp ${security.write_probes?.tmp?.status || "unknown"}`, `state ${security.write_probes?.state_dir?.status || "unknown"}`],
-              ["Umask / bytecode", security.umask_configured || "n/a", security.python_bytecode_disabled ? "Python bytecode disabled" : "Python bytecode may be written"],
-            ]}
-          />
-          {Array.isArray(security.hardening_checks) && security.hardening_checks.length ? (
-            <div className="check-list">
-              {security.hardening_checks.map((item) => (
-                <div className="check-row" key={item.key}>
-                  <span className={`badge ${item.ok ? "ok" : "warn"}`}>{item.ok ? "ok" : "check"}</span>
-                  <span>{item.label}</span>
+          <KeyValueTable rows={pathRows} columns={["Key", "Health", "Type", "Access", "Disk", "Path"]} />
+        </section>
+      ) : null}
+
+      {["config", "all"].includes(runtimeFocus) ? (
+        <>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Config Sources</h2>
+                <p className="muted">Launcher-observed env files. Later files have higher precedence; values are not shown.</p>
+              </div>
+              <span className={`badge ${configSources.unreadable_count ? "danger" : "muted"}`}>
+                {formatInt(configSources.loaded_count)} loaded / {formatInt(configSources.unreadable_count)} unreadable
+              </span>
+            </div>
+            {configSourceRows.length ? (
+              <>
+                <KeyValueTable rows={configSourceRows} columns={["Order", "Status", "Role", "Path"]} />
+                <div className="hint-list">
+                  {(configSources.notes || []).map((note) => <div key={note}>{note}</div>)}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty">Runtime security observations are unavailable.</div>
-          )}
-          <div className="hint-list">
-            {(security.notes || []).map((note) => <div key={note}>{note}</div>)}
-          </div>
-        </div>
-        <div className="panel">
-          <h2>Auth and OIDC</h2>
-          <MetricList
-            rows={[
-              ["Auth", authStatus.enabled ? "enabled" : "disabled"],
-              ["Provider", authStatus.provider || "n/a"],
-              ["Issuer", authStatus.issuer || "n/a"],
-              ["Redirect URI", authStatus.redirect_uri || "n/a"],
-              ["Admin DB", authStatus.admin_db_path || "n/a"],
-            ]}
-          />
-        </div>
-        <div className="panel">
-          <h2>Container and API Process</h2>
-          <MetricList
-            rows={[
-              ["Container", data.container_runtime?.in_container ? "inside container" : "host process", data.container_runtime?.hostname || ""],
-              ["Docker socket", data.container_runtime?.docker_socket_visible ? "visible" : "not mounted", data.container_runtime?.docker_status_note || ""],
-              ["CPU load", `cores=${formatInt(host.cpu_count)}`, `1m=${formatFloat(host.loadavg_1m)} 5m=${formatFloat(host.loadavg_5m)} 15m=${formatFloat(host.loadavg_15m)}`],
-              ["Host memory", `${formatBytes(Math.max(toNumber(host.mem_total_bytes) - toNumber(host.mem_available_bytes), 0))} used`, `${formatBytes(host.mem_available_bytes)} available of ${formatBytes(host.mem_total_bytes)}`],
-              ["API process", `pid=${api.pid || "?"}, threads=${formatInt(api.threads)}`, `RSS=${formatBytes(api.rss_bytes)}, peak=${formatBytes(api.peak_rss_bytes)}`],
-              ["Process IO", `read=${formatBytes(api.io_read_bytes)}, write=${formatBytes(api.io_write_bytes)}`],
-            ]}
-          />
-        </div>
-      </section>
+              </>
+            ) : (
+              <div className="empty">No config source metadata was passed into the API container. Start through the Spacegate launcher to populate this card.</div>
+            )}
+          </section>
 
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Paths and Storage</h2>
-            <p className="muted">Container-visible path checks. Missing host-only paths may simply not be mounted into the API container.</p>
-          </div>
-        </div>
-        <KeyValueTable rows={pathRows} columns={["Key", "Health", "Type", "Access", "Disk", "Path"]} />
-      </section>
+          <section className="panel">
+            <h2>Configured Environment</h2>
+            <KeyValueTable rows={envRows} columns={["Key", "Status", "Value"]} />
+          </section>
 
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h2>Config Sources</h2>
-            <p className="muted">Launcher-observed env files. Later files have higher precedence; values are not shown.</p>
-          </div>
-          <span className={`badge ${configSources.unreadable_count ? "danger" : "muted"}`}>
-            {formatInt(configSources.loaded_count)} loaded / {formatInt(configSources.unreadable_count)} unreadable
-          </span>
-        </div>
-        {configSourceRows.length ? (
-          <>
-            <KeyValueTable rows={configSourceRows} columns={["Order", "Status", "Role", "Path"]} />
+          <section className="panel">
+            <h2>Secret Status</h2>
+            <KeyValueTable rows={secretRows} columns={["Key", "Status", "Note"]} />
             <div className="hint-list">
-              {(configSources.notes || []).map((note) => <div key={note}>{note}</div>)}
+              {(data.environment?.notes || []).map((note) => <div key={note}>{note}</div>)}
             </div>
-          </>
-        ) : (
-          <div className="empty">No config source metadata was passed into the API container. Start through the Spacegate launcher to populate this card.</div>
-        )}
-      </section>
+          </section>
+        </>
+      ) : null}
 
-      <section className="panel">
-        <h2>Configured Environment</h2>
-        <KeyValueTable rows={envRows} columns={["Key", "Status", "Value"]} />
-      </section>
-
-      <section className="panel">
-        <h2>Secret Status</h2>
-        <KeyValueTable rows={secretRows} columns={["Key", "Status", "Note"]} />
-        <div className="hint-list">
-          {(data.environment?.notes || []).map((note) => <div key={note}>{note}</div>)}
-        </div>
-      </section>
-
-      <section className="panel">
+      {["inference", "all"].includes(runtimeFocus) ? (
+        <section className="panel">
         <div className="panel-head">
           <div>
             <h2>Inference Reachability</h2>
@@ -6325,7 +6365,8 @@ function RuntimeScreen() {
         ) : (
           <div className="empty">No inference endpoints are registered.</div>
         )}
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }
