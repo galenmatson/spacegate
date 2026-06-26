@@ -248,6 +248,12 @@ Rules:
 
 Manifest for deterministic snapshot assets.
 
+Snapshot generators may use read-only science inputs from `core` plus
+persisted, provenance-bearing `arm` derivatives when core source fields are
+missing. The manifest `source_build_inputs_hash` must include any resolved
+derived values and their source/derived status so regenerated artifacts remain
+traceable and deterministic.
+
 Required columns:
 - `stable_object_key TEXT`
 - `system_id BIGINT`

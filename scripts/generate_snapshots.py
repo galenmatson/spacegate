@@ -17,7 +17,7 @@ import duckdb
 
 
 DEFAULT_VIEW_TYPE = "system_card"
-DEFAULT_GENERATOR_VERSION = "snapshot-v1.0.4"
+DEFAULT_GENERATOR_VERSION = "snapshot-v1.0.5"
 DEFAULT_WIDTH_PX = 980
 DEFAULT_HEIGHT_PX = 560
 SYSTEM_KEY_SAFE_RE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -87,6 +87,26 @@ def _open_core_db(build_dir: Path) -> duckdb.DuckDBPyConnection:
     if not db_path.exists():
         raise SystemExit(f"Missing core.duckdb in build: {db_path}")
     return duckdb.connect(str(db_path), read_only=True)
+
+
+def _open_arm_db(build_dir: Path) -> duckdb.DuckDBPyConnection | None:
+    db_path = build_dir / "arm.duckdb"
+    if not db_path.exists():
+        return None
+    return duckdb.connect(str(db_path), read_only=True)
+
+
+def _duckdb_has_table(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
+    row = con.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE lower(table_name) = lower(?)
+        LIMIT 1
+        """,
+        [table_name],
+    ).fetchone()
+    return row is not None
 
 
 def _open_disc_db(
@@ -301,7 +321,97 @@ def _load_system_stars(core_con: duckdb.DuckDBPyConnection, system_id: int) -> L
     return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-def _load_system_planets(core_con: duckdb.DuckDBPyConnection, system_id: int) -> List[Dict[str, Any]]:
+def _derived_parameter_rows(
+    arm_con: duckdb.DuckDBPyConnection | None,
+    planet_ids: Sequence[int],
+) -> Dict[tuple[int, str], Dict[str, Any]]:
+    if arm_con is None or not planet_ids or not _duckdb_has_table(arm_con, "derived_physical_parameters"):
+        return {}
+    placeholders = ",".join(["?"] * len(planet_ids))
+    cur = arm_con.execute(
+        f"""
+        SELECT
+          planet_id,
+          parameter_key,
+          value,
+          unit,
+          derivation_method,
+          confidence_score,
+          confidence_tier,
+          basis,
+          input_parameters_json,
+          assumptions_json
+        FROM (
+          SELECT
+            planet_id,
+            parameter_key,
+            value,
+            unit,
+            derivation_method,
+            confidence_score,
+            confidence_tier,
+            'arm.derived_physical_parameters:' || COALESCE(derivation_method, 'derived') AS basis,
+            input_parameters_json,
+            assumptions_json,
+            row_number() OVER (
+              PARTITION BY planet_id, parameter_key
+              ORDER BY COALESCE(confidence_score, 0.0) DESC, derived_parameter_id ASC
+            ) AS rn
+          FROM derived_physical_parameters
+          WHERE object_type = 'planet'
+            AND parameter_key IN ('semi_major_axis_au', 'insol_earth', 'eq_temp_k')
+            AND planet_id IN ({placeholders})
+        )
+        WHERE rn = 1
+        """,
+        list(planet_ids),
+    )
+    cols = [d[0] for d in cur.description]
+    rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+    return {
+        (int(row["planet_id"]), str(row["parameter_key"])): row
+        for row in rows
+        if row.get("planet_id") is not None and row.get("parameter_key")
+    }
+
+
+def _float_or_none(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        out = float(value)
+        if math.isnan(out) or math.isinf(out):
+            return None
+        return out
+    except Exception:
+        return None
+
+
+def _resolved_planet_value(
+    planet: Dict[str, Any],
+    derived_rows: Dict[tuple[int, str], Dict[str, Any]],
+    source_key: str,
+    parameter_key: str,
+) -> tuple[float | None, str, str | None, str | None]:
+    source = _float_or_none(planet.get(source_key))
+    if source is not None:
+        return source, "source", "core", None
+    planet_id = planet.get("planet_id")
+    try:
+        derived = derived_rows.get((int(planet_id), parameter_key)) if planet_id is not None else None
+    except Exception:
+        derived = None
+    value = _float_or_none((derived or {}).get("value"))
+    if value is not None:
+        return value, "derived", "arm", (derived or {}).get("basis")
+    return None, "missing", None, None
+
+
+def _load_system_planets(
+    core_con: duckdb.DuckDBPyConnection,
+    arm_con: duckdb.DuckDBPyConnection | None,
+    system_id: int,
+) -> List[Dict[str, Any]]:
     cur = core_con.execute(
         """
         SELECT
@@ -309,8 +419,10 @@ def _load_system_planets(core_con: duckdb.DuckDBPyConnection, system_id: int) ->
           planet_name,
           semi_major_axis_au,
           orbital_period_days,
+          eccentricity,
           radius_earth,
           mass_earth,
+          insol_earth,
           eq_temp_k
         FROM planets
         WHERE system_id = ?
@@ -319,7 +431,49 @@ def _load_system_planets(core_con: duckdb.DuckDBPyConnection, system_id: int) ->
         [system_id],
     )
     cols = [d[0] for d in cur.description]
-    return [dict(zip(cols, row)) for row in cur.fetchall()]
+    planets = [dict(zip(cols, row)) for row in cur.fetchall()]
+    planet_ids = [int(row["planet_id"]) for row in planets if row.get("planet_id") is not None]
+    derived_rows = _derived_parameter_rows(arm_con, planet_ids)
+    for planet in planets:
+        sma, sma_status, sma_layer, sma_basis = _resolved_planet_value(
+            planet,
+            derived_rows,
+            "semi_major_axis_au",
+            "semi_major_axis_au",
+        )
+        insol, insol_status, insol_layer, insol_basis = _resolved_planet_value(
+            planet,
+            derived_rows,
+            "insol_earth",
+            "insol_earth",
+        )
+        eq_temp, eq_temp_status, eq_temp_layer, eq_temp_basis = _resolved_planet_value(
+            planet,
+            derived_rows,
+            "eq_temp_k",
+            "eq_temp_k",
+        )
+        planet["snapshot_semi_major_axis_au"] = sma
+        planet["snapshot_semi_major_axis_status"] = sma_status
+        planet["snapshot_semi_major_axis_layer"] = sma_layer
+        planet["snapshot_semi_major_axis_basis"] = sma_basis
+        planet["snapshot_insol_earth"] = insol
+        planet["snapshot_insol_status"] = insol_status
+        planet["snapshot_insol_layer"] = insol_layer
+        planet["snapshot_insol_basis"] = insol_basis
+        planet["snapshot_eq_temp_k"] = eq_temp
+        planet["snapshot_eq_temp_status"] = eq_temp_status
+        planet["snapshot_eq_temp_layer"] = eq_temp_layer
+        planet["snapshot_eq_temp_basis"] = eq_temp_basis
+    return sorted(
+        planets,
+        key=lambda row: (
+            _float_or_none(row.get("snapshot_semi_major_axis_au")) is None,
+            _float_or_none(row.get("snapshot_semi_major_axis_au")) or _float_or_none(row.get("orbital_period_days")) or float("inf"),
+            str(row.get("planet_name") or ""),
+            int(row.get("planet_id") or 0),
+        ),
+    )
 
 
 def _hash_seed(*parts: str) -> int:
@@ -362,6 +516,102 @@ def _planet_color(eq_temp_k: Any) -> str:
     return "#83b9ff"
 
 
+def _planet_snapshot_order_key(row: Dict[str, Any]) -> tuple[bool, float, str, int]:
+    orbit = _float_or_none(row.get("snapshot_semi_major_axis_au"))
+    period = _float_or_none(row.get("orbital_period_days"))
+    return (
+        orbit is None,
+        orbit if orbit is not None else (period if period is not None else float("inf")),
+        str(row.get("planet_name") or ""),
+        int(row.get("planet_id") or 0),
+    )
+
+
+def _orbit_radius_map(planets: Sequence[Dict[str, Any]], orbit_inner: int, orbit_step: int, max_orbits: int) -> Dict[int, float]:
+    rendered = list(planets[:18])
+    max_radius = orbit_inner + ((max_orbits - 1) * orbit_step)
+    orbit_values = [
+        _float_or_none(row.get("snapshot_semi_major_axis_au"))
+        for row in rendered
+        if _float_or_none(row.get("snapshot_semi_major_axis_au")) is not None
+        and _float_or_none(row.get("snapshot_semi_major_axis_au")) > 0
+    ]
+    out: Dict[int, float] = {}
+    if orbit_values:
+        min_log = math.log10(max(min(orbit_values), 1e-6))
+        max_log = math.log10(max(max(orbit_values), 1e-6))
+        span = max(max_log - min_log, 1e-9)
+        fallback_index = 0
+        for idx, planet in enumerate(rendered):
+            planet_id = int(planet.get("planet_id") or idx)
+            orbit = _float_or_none(planet.get("snapshot_semi_major_axis_au"))
+            if orbit is not None and orbit > 0:
+                normalized = (math.log10(max(orbit, 1e-6)) - min_log) / span if span > 1e-8 else 0.5
+                out[planet_id] = orbit_inner + (normalized * max(1.0, max_radius - orbit_inner))
+            else:
+                out[planet_id] = orbit_inner + (min(fallback_index, max_orbits - 1) * orbit_step)
+                fallback_index += 1
+        return out
+    for idx, planet in enumerate(rendered):
+        out[int(planet.get("planet_id") or idx)] = orbit_inner + (min(idx, max_orbits - 1) * orbit_step)
+    return out
+
+
+def _orbit_geometry(
+    *,
+    cx: int,
+    cy: int,
+    semi_major_px: float,
+    eccentricity: Any,
+    angle_rad: float,
+) -> Dict[str, float]:
+    ecc = _float_or_none(eccentricity)
+    if ecc is None:
+        ecc = 0.0
+    ecc = max(0.0, min(0.85, ecc))
+    semi_minor_px = semi_major_px * math.sqrt(max(0.0, 1.0 - (ecc * ecc)))
+    center_offset = -ecc * semi_major_px
+    cos_a = math.cos(angle_rad)
+    sin_a = math.sin(angle_rad)
+    center_x = float(cx) + (center_offset * cos_a)
+    center_y = float(cy) + (center_offset * sin_a)
+    return {
+        "eccentricity": ecc,
+        "semi_major_px": semi_major_px,
+        "semi_minor_px": semi_minor_px,
+        "center_x": center_x,
+        "center_y": center_y,
+        "rotation_deg": angle_rad * 180.0 / math.pi,
+    }
+
+
+def _orbit_point(
+    *,
+    cx: int,
+    cy: int,
+    semi_major_px: float,
+    eccentricity: Any,
+    apsis_angle_rad: float,
+    anomaly_rad: float,
+) -> tuple[float, float]:
+    geom = _orbit_geometry(
+        cx=cx,
+        cy=cy,
+        semi_major_px=semi_major_px,
+        eccentricity=eccentricity,
+        angle_rad=apsis_angle_rad,
+    )
+    ecc = geom["eccentricity"]
+    semi_minor_px = geom["semi_minor_px"]
+    x_local = semi_major_px * math.cos(anomaly_rad) - (ecc * semi_major_px)
+    y_local = semi_minor_px * math.sin(anomaly_rad)
+    cos_a = math.cos(apsis_angle_rad)
+    sin_a = math.sin(apsis_angle_rad)
+    x = float(cx) + (x_local * cos_a) - (y_local * sin_a)
+    y = float(cy) + (x_local * sin_a) + (y_local * cos_a)
+    return x, y
+
+
 def _render_snapshot_svg(
     system_row: Dict[str, Any],
     stars: List[Dict[str, Any]],
@@ -378,6 +628,8 @@ def _render_snapshot_svg(
     orbit_step = max(11, int(min(w, h) * 0.028))
     orbit_inner = int(min(w, h) * 0.10)
     orbit_outer = orbit_inner + (max_orbits * orbit_step)
+    planets_for_render = sorted(planets, key=_planet_snapshot_order_key)
+    orbit_radius_by_planet_id = _orbit_radius_map(planets_for_render, orbit_inner, orbit_step, max_orbits)
 
     system_name = str(system_row.get("system_name") or "Unknown system")
     stable_key = str(system_row.get("stable_object_key") or "unknown")
@@ -447,13 +699,26 @@ def _render_snapshot_svg(
         f'<circle cx="{orbit_cx}" cy="{orbit_cy}" r="{orbit_outer + 38}" fill="none" stroke="#355166" stroke-opacity="0.28" stroke-dasharray="3 8"/>'
     )
     _touch_circle(float(orbit_cx), float(orbit_cy), float(orbit_outer + 38))
-    for idx in range(max_orbits):
-        radius = orbit_inner + (idx * orbit_step)
-        opacity = 0.22 if idx % 2 == 0 else 0.14
-        scene.append(
-            f'<circle cx="{orbit_cx}" cy="{orbit_cy}" r="{radius}" fill="none" stroke="#97b5cc" stroke-opacity="{opacity:.2f}" />'
+    for idx, planet in enumerate(planets_for_render[:max_orbits]):
+        planet_id = int(planet.get("planet_id") or idx)
+        radius = orbit_radius_by_planet_id.get(planet_id, orbit_inner + (idx * orbit_step))
+        seed = _hash_seed(seed_prefix, "orbit", str(planet.get("planet_id") or idx), str(planet.get("planet_name") or ""))
+        apsis_angle = (seed % 1800) / 10.0 * (math.pi / 180.0)
+        geom = _orbit_geometry(
+            cx=orbit_cx,
+            cy=orbit_cy,
+            semi_major_px=float(radius),
+            eccentricity=planet.get("eccentricity"),
+            angle_rad=apsis_angle,
         )
-        _touch_circle(float(orbit_cx), float(orbit_cy), float(radius))
+        opacity = 0.24 if idx % 2 == 0 else 0.16
+        scene.append(
+            f'<ellipse cx="{geom["center_x"]:.2f}" cy="{geom["center_y"]:.2f}" '
+            f'rx="{geom["semi_major_px"]:.2f}" ry="{geom["semi_minor_px"]:.2f}" '
+            f'transform="rotate({geom["rotation_deg"]:.2f} {geom["center_x"]:.2f} {geom["center_y"]:.2f})" '
+            f'fill="none" stroke="#97b5cc" stroke-opacity="{opacity:.2f}" />'
+        )
+        _touch_circle(float(orbit_cx), float(orbit_cy), float(radius) * (1.0 + geom["eccentricity"]))
 
     scene.append(f'<circle cx="{orbit_cx}" cy="{orbit_cy}" r="72" fill="url(#halo)"/>')
     _touch_circle(float(orbit_cx), float(orbit_cy), 72.0)
@@ -494,22 +759,29 @@ def _render_snapshot_svg(
                     }
                 )
 
-    for idx, planet in enumerate(planets[:18]):
-        ring_index = min(idx, max_orbits - 1)
-        radius = orbit_inner + (ring_index * orbit_step)
+    for idx, planet in enumerate(planets_for_render[:18]):
+        planet_id = int(planet.get("planet_id") or idx)
+        radius = orbit_radius_by_planet_id.get(planet_id, orbit_inner + (min(idx, max_orbits - 1) * orbit_step))
         seed = _hash_seed(seed_prefix, "planet", str(planet.get("planet_id") or idx), str(planet.get("planet_name") or ""))
-        angle = (seed % 3600) / 10.0 * (math.pi / 180.0)
-        x = orbit_cx + int(math.cos(angle) * radius)
-        y = orbit_cy + int(math.sin(angle) * radius)
+        apsis_angle = (_hash_seed(seed_prefix, "orbit", str(planet.get("planet_id") or idx), str(planet.get("planet_name") or "")) % 1800) / 10.0 * (math.pi / 180.0)
+        anomaly = (seed % 3600) / 10.0 * (math.pi / 180.0)
+        x, y = _orbit_point(
+            cx=orbit_cx,
+            cy=orbit_cy,
+            semi_major_px=float(radius),
+            eccentricity=planet.get("eccentricity"),
+            apsis_angle_rad=apsis_angle,
+            anomaly_rad=anomaly,
+        )
         pr = planet.get("radius_earth")
         try:
             pr_val = float(pr) if pr is not None else 1.0
         except Exception:
             pr_val = 1.0
         dot_r = max(2.0, min(6.8, 1.8 + (pr_val ** 0.45)))
-        color = _planet_color(planet.get("eq_temp_k"))
+        color = _planet_color(planet.get("snapshot_eq_temp_k"))
         scene.append(
-            f'<circle cx="{x}" cy="{y}" r="{dot_r:.2f}" fill="{color}" stroke="#f9f9ff" stroke-opacity="0.38" stroke-width="0.55"/>'
+            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{dot_r:.2f}" fill="{color}" stroke="#f9f9ff" stroke-opacity="0.38" stroke-width="0.55"/>'
         )
         _touch_circle(float(x), float(y), float(dot_r))
         if idx < 6:
@@ -650,10 +922,21 @@ def _source_inputs_hash(
                 "planet_id": row.get("planet_id"),
                 "planet_name": row.get("planet_name"),
                 "semi_major_axis_au": row.get("semi_major_axis_au"),
+                "snapshot_semi_major_axis_au": row.get("snapshot_semi_major_axis_au"),
+                "snapshot_semi_major_axis_status": row.get("snapshot_semi_major_axis_status"),
+                "snapshot_semi_major_axis_basis": row.get("snapshot_semi_major_axis_basis"),
                 "orbital_period_days": row.get("orbital_period_days"),
+                "eccentricity": row.get("eccentricity"),
                 "radius_earth": row.get("radius_earth"),
                 "mass_earth": row.get("mass_earth"),
+                "insol_earth": row.get("insol_earth"),
+                "snapshot_insol_earth": row.get("snapshot_insol_earth"),
+                "snapshot_insol_status": row.get("snapshot_insol_status"),
+                "snapshot_insol_basis": row.get("snapshot_insol_basis"),
                 "eq_temp_k": row.get("eq_temp_k"),
+                "snapshot_eq_temp_k": row.get("snapshot_eq_temp_k"),
+                "snapshot_eq_temp_status": row.get("snapshot_eq_temp_status"),
+                "snapshot_eq_temp_basis": row.get("snapshot_eq_temp_basis"),
             }
             for row in planets
         ],
@@ -783,13 +1066,14 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     build_id, build_dir = _resolve_build_dir(state_dir, args.build_id)
 
     core_con = _open_core_db(build_dir)
+    arm_con = _open_arm_db(build_dir)
 
     params = {
         "schema": 1,
         "view_type": args.view_type,
         "width_px": int(args.width),
         "height_px": int(args.height),
-        "style": "spacegate.v1.system-only-labeled-autofit",
+        "style": "spacegate.v1.resolved-orbit-labeled-autofit",
     }
     params_hash = hashlib.sha256(_json_canonical(params).encode("utf-8")).hexdigest()[:16]
 
@@ -849,7 +1133,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
             artifact_abs.parent.mkdir(parents=True, exist_ok=True)
 
             stars = _load_system_stars(core_con, system_id)
-            planets = _load_system_planets(core_con, system_id)
+            planets = _load_system_planets(core_con, arm_con, system_id)
 
             should_generate = args.force or (not artifact_abs.exists())
             if should_generate:
@@ -996,6 +1280,8 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
             "examples": preview_entries,
         }
     finally:
+        if arm_con is not None:
+            arm_con.close()
         core_con.close()
         _finalize_disc_db(disc_con, disc_temp_path, disc_target_path)
 
