@@ -513,11 +513,51 @@ Includes:
   in runtime report locations
 - storage model guidance for hot normalized rows and cold dossier archives
 - recommended portfolio-scoped agent interaction model
+- source allowlist summary and runtime policy path
 
 Response:
 - `200` for authenticated admins.
 - `401` unauthenticated.
 - `403` authenticated non-admin.
+
+### GET /admin/agency/source-allowlist
+Returns the Agency source allowlist policy used by retrieval and future
+portfolio-context assembly.
+
+Notes:
+- Loads `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json` when present.
+- Falls back to `config/agent_source_allowlist.json` from the repo/image.
+- Includes source counts by tier and the loaded/default/runtime paths.
+
+### POST /admin/agency/source-allowlist/sources
+Adds or updates one source-domain allowlist entry.
+
+Request body:
+```json
+{
+  "domain": "ui.adsabs.harvard.edu",
+  "tier": 1,
+  "org": "NASA ADS / Harvard",
+  "source_type": "literature_index",
+  "trust_score": 1.0,
+  "allowed_uses": ["paper discovery", "citations", "bibcodes"],
+  "notes": "Best starting point for papers",
+  "enabled": true
+}
+```
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+- Audits the source-domain change.
+
+### DELETE /admin/agency/source-allowlist/sources/{domain}
+Removes one source-domain allowlist entry from the runtime JSON policy.
+
+Security:
+- Requires authenticated admin session.
+- Requires CSRF header (`X-CSRF-Token`).
+- Audits the source-domain removal.
 
 ### GET /admin/agency/seed-candidates
 Returns ranked candidate targets for creating new Evidence Portfolios.

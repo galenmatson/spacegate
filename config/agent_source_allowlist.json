@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "updated_at_utc": null,
+  "updated_by": "repo_default",
+  "policy": {
+    "min_trust_for_claims": 0.9,
+    "min_trust_for_context": 0.8,
+    "enforce_origin_domain": true,
+    "require_citation": true,
+    "domain_rules": {
+      "tier0": {"allow_core_adjacent": true},
+      "tier1": {"allow_core_adjacent": true},
+      "tier2": {"allow_core_adjacent": false, "allow_context": true},
+      "tier3": {"discovery_only": true},
+      "tier4": {"narrative_only": true}
+    },
+    "conflict_policy": {
+      "tier1_vs_tier1": "escalate_to_arm",
+      "tier1_vs_lower": "prefer_tier1",
+      "insufficient_evidence": "abstain"
+    }
+  },
+  "sources": [
+    {"domain": "cds.unistra.fr", "tier": 0, "org": "Centre de Donnees astronomiques de Strasbourg (CDS)", "source_type": "catalog_host", "trust_score": 1.0, "allowed_uses": ["identifiers", "crossmatch", "object metadata", "bibliography"], "notes": "Primary backbone for object identity", "enabled": true},
+    {"domain": "simbad.u-strasbg.fr", "tier": 0, "org": "CDS SIMBAD", "source_type": "object_database", "trust_score": 1.0, "allowed_uses": ["object identity", "aliases", "bibliography"], "notes": "", "enabled": true},
+    {"domain": "vizier.cds.unistra.fr", "tier": 0, "org": "CDS VizieR", "source_type": "catalog_archive", "trust_score": 1.0, "allowed_uses": ["catalog data", "tables", "measurements"], "notes": "", "enabled": true},
+    {"domain": "archives.esac.esa.int", "tier": 0, "org": "ESA", "source_type": "mission_archive (Gaia)", "trust_score": 1.0, "allowed_uses": ["astrometry", "distances", "motions"], "notes": "", "enabled": true},
+    {"domain": "exoplanetarchive.ipac.caltech.edu", "tier": 0, "org": "NASA Exoplanet Archive", "source_type": "catalog", "trust_score": 1.0, "allowed_uses": ["exoplanet parameters", "host associations"], "notes": "", "enabled": true},
+    {"domain": "mast.stsci.edu", "tier": 0, "org": "STScI / NASA", "source_type": "mission_archive (Hubble, Kepler, TESS)", "trust_score": 0.99, "allowed_uses": ["observational data", "light curves"], "notes": "", "enabled": true},
+    {"domain": "scixplorer.org", "tier": 1, "org": "NASA / SciX", "source_type": "literature_index", "trust_score": 0.97, "allowed_uses": ["paper discovery", "citation linking"], "notes": "Good entry point; verify PDF source", "enabled": true},
+    {"domain": "ui.adsabs.harvard.edu", "tier": 1, "org": "NASA ADS / Harvard", "source_type": "literature_index", "trust_score": 1.0, "allowed_uses": ["paper discovery", "citations", "bibcodes"], "notes": "BEST starting point for papers", "enabled": true},
+    {"domain": "arxiv.org", "tier": 1, "org": "Cornell / arXiv", "source_type": "preprint_server", "trust_score": 0.95, "allowed_uses": ["recent research", "system descriptions"], "notes": "Prefer when peer-reviewed version unavailable", "enabled": true},
+    {"domain": "iopscience.iop.org", "tier": 1, "org": "Institute of Physics", "source_type": "journal", "trust_score": 0.97, "allowed_uses": ["peer-reviewed results"], "notes": "", "enabled": true},
+    {"domain": "academic.oup.com", "tier": 1, "org": "Oxford University Press (MNRAS)", "source_type": "journal", "trust_score": 0.98, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "link.springer.com", "tier": 1, "org": "Springer Nature", "source_type": "journal", "trust_score": 0.97, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "nature.com", "tier": 1, "org": "Nature Publishing", "source_type": "journal", "trust_score": 0.99, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "science.org", "tier": 1, "org": "AAAS", "source_type": "journal", "trust_score": 0.99, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "aanda.org", "tier": 1, "org": "Astronomy & Astrophysics", "source_type": "journal", "trust_score": 0.98, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "pasp.aas.org", "tier": 1, "org": "American Astronomical Society", "source_type": "journal", "trust_score": 0.98, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "nasa.gov", "tier": 2, "org": "NASA", "source_type": "institutional", "trust_score": 0.95, "allowed_uses": ["context", "summaries", "mission data"], "notes": "", "enabled": true},
+    {"domain": "esa.int", "tier": 2, "org": "ESA", "source_type": "institutional", "trust_score": 0.95, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "noirlab.edu", "tier": 2, "org": "NSF NOIRLab", "source_type": "observatory", "trust_score": 0.93, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "eso.org", "tier": 2, "org": "European Southern Observatory", "source_type": "observatory", "trust_score": 0.95, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "stsci.edu", "tier": 2, "org": "Space Telescope Science Institute", "source_type": "observatory", "trust_score": 0.95, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "caltech.edu", "tier": 2, "org": "Caltech", "source_type": "academic", "trust_score": 0.93, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "harvard.edu", "tier": 2, "org": "Harvard", "source_type": "academic", "trust_score": 0.93, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "cam.ac.uk", "tier": 2, "org": "Cambridge", "source_type": "academic", "trust_score": 0.93, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "wikipedia.org", "tier": 3, "org": "Wikimedia", "source_type": "aggregator", "trust_score": 0.8, "allowed_uses": ["lead discovery", "references"], "notes": "MUST follow citations to primary sources", "enabled": true},
+    {"domain": "stellarium.org", "tier": 3, "org": "Stellarium", "source_type": "curated_dataset", "trust_score": 0.75, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "in-the-sky.org", "tier": 3, "org": "", "source_type": "aggregator", "trust_score": 0.7, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "heavens-above.com", "tier": 3, "org": "", "source_type": "aggregator", "trust_score": 0.7, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "space.com", "tier": 4, "org": "", "source_type": "", "trust_score": 0.6, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "universetoday.com", "tier": 4, "org": "", "source_type": "", "trust_score": 0.6, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "phys.org", "tier": 4, "org": "", "source_type": "", "trust_score": 0.65, "allowed_uses": [], "notes": "", "enabled": true},
+    {"domain": "stars.astro.illinois.edu", "tier": 4, "org": "University of Illinois (Jim Kaler)", "source_type": "academic_curated_narrative", "trust_score": 0.88, "allowed_uses": [], "notes": "", "enabled": true}
+  ]
+}

@@ -3875,22 +3875,24 @@ function spectralColor(value) {
 
 function AgencyScreen({ csrf }) {
   const [activeTab, setActiveTab] = useState("portfolios");
-  const [state, setState] = useState({ loading: true, data: null, portfolios: null, seedCandidates: null, selectedDetail: null, message: "Loading agency status..." });
+  const [state, setState] = useState({ loading: true, data: null, portfolios: null, seedCandidates: null, sourceAllowlist: null, selectedDetail: null, message: "Loading agency status..." });
   const [selectedDossierId, setSelectedDossierId] = useState("");
   const [busySeedId, setBusySeedId] = useState("");
   const headers = useMemo(() => buildCsrfHeaders(csrf), [csrf]);
 
   async function loadAgency(preferredDossierId = selectedDossierId) {
     setState((current) => ({ ...current, loading: true, message: "Refreshing agency status..." }));
-    const [statusResult, portfolioResult, seedResult] = await Promise.all([
+    const [statusResult, portfolioResult, seedResult, allowlistResult] = await Promise.all([
       fetchJson(`${ADMIN_API_BASE}/agency/status`),
       fetchJson(`${ADMIN_API_BASE}/agency/portfolios?limit=100`),
       fetchJson(`${ADMIN_API_BASE}/agency/seed-candidates?limit=50`),
+      fetchJson(`${ADMIN_API_BASE}/agency/source-allowlist`),
     ]);
     const errors = [];
     if (!statusResult.response.ok) errors.push(`agency: ${compactError(statusResult.data, statusResult.response.status)}`);
     if (!portfolioResult.response.ok) errors.push(`portfolios: ${compactError(portfolioResult.data, portfolioResult.response.status)}`);
     if (!seedResult.response.ok) errors.push(`seed candidates: ${compactError(seedResult.data, seedResult.response.status)}`);
+    if (!allowlistResult.response.ok) errors.push(`source allowlist: ${compactError(allowlistResult.data, allowlistResult.response.status)}`);
     const items = portfolioResult.response.ok && Array.isArray(portfolioResult.data.items) ? portfolioResult.data.items : [];
     const nextSelected = preferredDossierId || items[0]?.dossier_id || "";
     let selectedDetail = null;
@@ -3903,6 +3905,7 @@ function AgencyScreen({ csrf }) {
       data: statusResult.response.ok ? statusResult.data : null,
       portfolios: portfolioResult.response.ok ? portfolioResult.data : { items: [], counts_by_status: {} },
       seedCandidates: seedResult.response.ok ? seedResult.data : { items: [], message: "Seed candidates unavailable" },
+      sourceAllowlist: allowlistResult.response.ok ? allowlistResult.data : { sources: [], summary: {} },
       selectedDetail,
       message: errors.length ? errors.join(" | ") : "Ready",
     });
@@ -3956,6 +3959,36 @@ function AgencyScreen({ csrf }) {
     await loadAgency(createdId);
   }
 
+  async function saveAllowlistEntry(entry) {
+    setState((current) => ({ ...current, message: `Saving allowlist source ${entry.domain}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/source-allowlist/sources`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(entry),
+    });
+    if (!response.ok) {
+      setState((current) => ({ ...current, message: `Allowlist save failed: ${compactError(data, response.status)}` }));
+      return false;
+    }
+    setState((current) => ({ ...current, sourceAllowlist: data, message: "Ready" }));
+    return true;
+  }
+
+  async function deleteAllowlistEntry(domain) {
+    if (!domain) return;
+    if (!window.confirm(`Remove ${domain} from the Agency source allowlist?`)) return;
+    setState((current) => ({ ...current, message: `Removing allowlist source ${domain}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/source-allowlist/sources/${encodeURIComponent(domain)}`, {
+      method: "DELETE",
+      headers,
+    });
+    if (!response.ok) {
+      setState((current) => ({ ...current, message: `Allowlist delete failed: ${compactError(data, response.status)}` }));
+      return;
+    }
+    setState((current) => ({ ...current, sourceAllowlist: data, message: "Ready" }));
+  }
+
   useEffect(() => {
     loadAgency();
   }, []);
@@ -3963,6 +3996,7 @@ function AgencyScreen({ csrf }) {
   const data = state.data || {};
   const portfolios = state.portfolios || { items: [], counts_by_status: {} };
   const seedCandidates = state.seedCandidates || { items: [] };
+  const sourceAllowlist = state.sourceAllowlist || data.source_allowlist || { sources: [], summary: {} };
   const portfolioItems = Array.isArray(portfolios.items) ? portfolios.items : [];
   const readiness = data.readiness || {};
   const evalReports = data.eval_reports || {};
@@ -4035,6 +4069,7 @@ function AgencyScreen({ csrf }) {
         {[
           ["portfolios", "Portfolios"],
           ["flow", "Portfolio Flow"],
+          ["allowlist", "Source Allowlist"],
           ["anomalies", "Anomaly Inbox"],
           ["reports", "Eval Reports"],
           ["storage", "Storage Readiness"],
@@ -4059,6 +4094,12 @@ function AgencyScreen({ csrf }) {
         />
       ) : activeTab === "flow" ? (
         <AgencyPortfolioFlowTab stages={data.workflow_stages || []} />
+      ) : activeTab === "allowlist" ? (
+        <AgencySourceAllowlistTab
+          allowlist={sourceAllowlist}
+          saveEntry={saveAllowlistEntry}
+          deleteEntry={deleteAllowlistEntry}
+        />
       ) : activeTab === "anomalies" ? (
         <AgencyAnomalyTab anomalies={anomalies} />
       ) : activeTab === "reports" ? (
@@ -4287,6 +4328,165 @@ function AgencyPortfolioFlowTab({ stages }) {
             </div>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+const emptyAllowlistEntry = {
+  domain: "",
+  tier: 2,
+  org: "",
+  source_type: "",
+  trust_score: 0.9,
+  allowed_uses: "",
+  notes: "",
+  enabled: true,
+};
+
+function AgencySourceAllowlistTab({ allowlist, saveEntry, deleteEntry }) {
+  const sources = Array.isArray(allowlist?.sources) ? allowlist.sources : [];
+  const summary = allowlist?.summary || {};
+  const [draft, setDraft] = useState(emptyAllowlistEntry);
+  const [status, setStatus] = useState("");
+  const tierRows = Array.isArray(summary.tiers) ? summary.tiers : [];
+
+  function editSource(source) {
+    setDraft({
+      domain: source.domain || "",
+      tier: Number(source.tier ?? 2),
+      org: source.org || "",
+      source_type: source.source_type || "",
+      trust_score: Number(source.trust_score ?? 0.9),
+      allowed_uses: Array.isArray(source.allowed_uses) ? source.allowed_uses.join(", ") : "",
+      notes: source.notes || "",
+      enabled: source.enabled !== false,
+    });
+    setStatus(`Editing ${source.domain}`);
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const payload = {
+      ...draft,
+      tier: Number.parseInt(String(draft.tier), 10),
+      trust_score: Number.parseFloat(String(draft.trust_score)),
+      allowed_uses: String(draft.allowed_uses || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      enabled: Boolean(draft.enabled),
+    };
+    const ok = await saveEntry(payload);
+    if (ok) {
+      setDraft(emptyAllowlistEntry);
+      setStatus(`Saved ${payload.domain}`);
+    }
+  }
+
+  function updateDraft(key, value) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  return (
+    <section className="agency-grid">
+      <div className="panel">
+        <h2>Manage Source</h2>
+        <p className="muted">Add or update domains that Agency retrieval may use. Off-allowlist browsing remains blocked by policy.</p>
+        <form className="action-fields" onSubmit={submit}>
+          <label>
+            <span>Domain</span>
+            <input value={draft.domain} onChange={(event) => updateDraft("domain", event.target.value)} placeholder="ui.adsabs.harvard.edu" required />
+          </label>
+          <label>
+            <span>Tier</span>
+            <select value={draft.tier} onChange={(event) => updateDraft("tier", Number(event.target.value))}>
+              <option value={0}>0 - Canonical</option>
+              <option value={1}>1 - Scientific Literature</option>
+              <option value={2}>2 - Institutional / Observatory</option>
+              <option value={3}>3 - Curated Aggregator</option>
+              <option value={4}>4 - Context / Narrative Only</option>
+            </select>
+          </label>
+          <label>
+            <span>Trust score</span>
+            <input type="number" min="0" max="1" step="0.01" value={draft.trust_score} onChange={(event) => updateDraft("trust_score", event.target.value)} />
+          </label>
+          <label>
+            <span>Organization</span>
+            <input value={draft.org} onChange={(event) => updateDraft("org", event.target.value)} placeholder="NASA ADS / Harvard" />
+          </label>
+          <label>
+            <span>Source type</span>
+            <input value={draft.source_type} onChange={(event) => updateDraft("source_type", event.target.value)} placeholder="literature_index" />
+          </label>
+          <label>
+            <span>Allowed uses</span>
+            <input value={draft.allowed_uses} onChange={(event) => updateDraft("allowed_uses", event.target.value)} placeholder="paper discovery, citations, bibcodes" />
+          </label>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={draft.enabled} onChange={(event) => updateDraft("enabled", event.target.checked)} />
+            <span>Enabled</span>
+          </label>
+          <label>
+            <span>Notes</span>
+            <textarea rows={3} value={draft.notes} onChange={(event) => updateDraft("notes", event.target.value)} placeholder="Review guidance, limits, or citation caveats." />
+          </label>
+          <div className="form-actions">
+            <button className="button primary" type="submit">Save Source</button>
+            <button className="button" type="button" onClick={() => { setDraft(emptyAllowlistEntry); setStatus(""); }}>Clear</button>
+            {status ? <span className="inline-status">{status}</span> : null}
+          </div>
+        </form>
+      </div>
+
+      <div className="panel">
+        <h2>Source Allowlist</h2>
+        <p className="muted">Runtime policy used by Agency retrieval and future portfolio chat context assembly.</p>
+        <MetricList
+          rows={[
+            ["Sources", `${formatInt(summary.total_sources)} total / ${formatInt(summary.enabled_sources)} enabled`],
+            ["Loaded from", allowlist?.source_path || "n/a"],
+            ["Runtime override", allowlist?.runtime_override_exists ? "yes" : "no"],
+            ["Updated", allowlist?.updated_at_utc ? `${formatDate(allowlist.updated_at_utc)} by ${allowlist.updated_by || "unknown"}` : "repo default"],
+          ]}
+        />
+        {tierRows.length ? (
+          <div className="report-chip-list">
+            {tierRows.map((tier) => (
+              <span className="badge muted" key={tier.tier}>T{tier.tier}: {formatInt(tier.enabled_count)} / {formatInt(tier.count)}</span>
+            ))}
+          </div>
+        ) : null}
+        {sources.length ? (
+          <table>
+            <thead>
+              <tr><th>Domain</th><th>Tier</th><th>Trust</th><th>Use</th><th></th></tr>
+            </thead>
+            <tbody>
+              {sources.map((source) => (
+                <tr key={source.domain}>
+                  <td>
+                    <strong>{source.domain}</strong>
+                    <span className="table-subtext">{source.org || "No organization"} | {source.source_type || "No type"}</span>
+                    {source.notes ? <span className="table-subtext">{source.notes}</span> : null}
+                  </td>
+                  <td><span className={`badge ${source.enabled === false ? "muted" : source.tier <= 1 ? "ok" : source.tier === 2 ? "warn" : "muted"}`}>T{source.tier}</span></td>
+                  <td>{Number(source.trust_score ?? 0).toFixed(2)}</td>
+                  <td>{Array.isArray(source.allowed_uses) && source.allowed_uses.length ? source.allowed_uses.join(", ") : "policy default"}</td>
+                  <td>
+                    <div className="form-actions compact">
+                      <button className="button" type="button" onClick={() => editSource(source)}>Edit</button>
+                      <button className="button danger" type="button" onClick={() => deleteEntry(source.domain)}>Remove</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">No source allowlist entries are available. Add a domain before enabling retrieval agents.</div>
+        )}
       </div>
     </section>
   );

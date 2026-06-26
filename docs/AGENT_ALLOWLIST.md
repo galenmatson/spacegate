@@ -1,5 +1,12 @@
 # Allowed Internet Science Sources
 
+Machine-readable source policy lives in `config/agent_source_allowlist.json`.
+Admin v2 loads that default and writes operator changes to
+`$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json` from the Agency
+Source Allowlist tab. Agent retrieval code should read the runtime JSON first
+and fall back to the repo default. This Markdown file remains the human-readable
+policy overview and review guide.
+
 ## TIER 0 - CANONICAL
 trust >= 0.98
 These can directly support core-adjacent facts (still routed via arm → adjudication).

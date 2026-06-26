@@ -2542,6 +2542,17 @@ class AgencyPortfolioSeedRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class AgencySourceAllowlistEntryRequest(BaseModel):
+    domain: str = Field(min_length=1, max_length=253)
+    tier: int = Field(default=2, ge=0, le=4)
+    org: Optional[str] = Field(default="", max_length=240)
+    source_type: Optional[str] = Field(default="", max_length=120)
+    trust_score: float = Field(default=0.9, ge=0.0, le=1.0)
+    allowed_uses: List[str] = Field(default_factory=list)
+    notes: Optional[str] = Field(default="", max_length=1000)
+    enabled: bool = Field(default=True)
+
+
 class InferenceEndpointRequest(BaseModel):
     endpoint_key: Optional[str] = Field(default=None, min_length=1, max_length=80)
     display_name: str = Field(min_length=1, max_length=160)
@@ -3867,6 +3878,17 @@ AGENCY_ADMIN_TABLES = {
 }
 
 
+AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH = ROOT_DIR / "config" / "agent_source_allowlist.json"
+AGENT_SOURCE_ALLOWLIST_RUNTIME_REL = Path("config") / "agent_source_allowlist.json"
+AGENT_SOURCE_ALLOWLIST_TIERS = {
+    0: "canonical",
+    1: "scientific literature",
+    2: "institutional / observatory",
+    3: "curated aggregator",
+    4: "context / narrative only",
+}
+
+
 AGENCY_ARM_SIGNALS = [
     "orbital_solutions",
     "component_entities",
@@ -3874,6 +3896,159 @@ AGENCY_ARM_SIGNALS = [
     "orbit_edges",
     "stellar_parameters",
 ]
+
+
+def _agent_source_allowlist_runtime_path() -> Path:
+    return _state_dir().resolve() / AGENT_SOURCE_ALLOWLIST_RUNTIME_REL
+
+
+def _normalize_allowlist_domain(raw: Any) -> str:
+    value = str(raw or "").strip().lower()
+    if "://" in value:
+        match = re.match(r"^[a-z][a-z0-9+.-]*://([^/]+)", value)
+        value = match.group(1) if match else value
+    value = value.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+    value = value.rsplit("@", 1)[-1].split(":", 1)[0].strip().strip(".")
+    if value.startswith("www."):
+        value = value[4:]
+    labels = value.split(".")
+    if len(labels) < 2 or any(not label for label in labels):
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "Domain must be a fully qualified host name."})
+    label_pattern = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+    if not all(label_pattern.match(label) for label in labels):
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": f"Invalid domain: {raw!r}"})
+    return value
+
+
+def _normalize_allowlist_uses(raw: Any) -> List[str]:
+    items = raw if isinstance(raw, list) else []
+    out: List[str] = []
+    seen = set()
+    for item in items:
+        text = re.sub(r"\s+", " ", str(item or "").strip())
+        if not text or len(text) > 120:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out[:20]
+
+
+def _normalize_allowlist_source(raw: Dict[str, Any]) -> Dict[str, Any]:
+    domain = _normalize_allowlist_domain(raw.get("domain"))
+    tier = int(raw.get("tier", 2))
+    if tier not in AGENT_SOURCE_ALLOWLIST_TIERS:
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "tier must be between 0 and 4"})
+    trust_score = float(raw.get("trust_score", 0.0))
+    if trust_score < 0.0 or trust_score > 1.0:
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "trust_score must be between 0 and 1"})
+    return {
+        "domain": domain,
+        "tier": tier,
+        "tier_label": AGENT_SOURCE_ALLOWLIST_TIERS[tier],
+        "org": re.sub(r"\s+", " ", str(raw.get("org") or "").strip())[:240],
+        "source_type": re.sub(r"\s+", " ", str(raw.get("source_type") or raw.get("type") or "").strip())[:120],
+        "trust_score": round(trust_score, 3),
+        "allowed_uses": _normalize_allowlist_uses(raw.get("allowed_uses")),
+        "notes": str(raw.get("notes") or "").strip()[:1000],
+        "enabled": bool(raw.get("enabled", True)),
+    }
+
+
+def _normalize_agent_source_allowlist_doc(raw: Dict[str, Any]) -> Dict[str, Any]:
+    sources_raw = raw.get("sources") if isinstance(raw.get("sources"), list) else []
+    sources_by_domain: Dict[str, Dict[str, Any]] = {}
+    for item in sources_raw:
+        if not isinstance(item, dict):
+            continue
+        source = _normalize_allowlist_source(item)
+        sources_by_domain[source["domain"]] = source
+    sources = sorted(sources_by_domain.values(), key=lambda item: (int(item["tier"]), str(item["domain"])))
+    policy = raw.get("policy") if isinstance(raw.get("policy"), dict) else {}
+    return {
+        "schema_version": int(raw.get("schema_version") or 1),
+        "updated_at_utc": raw.get("updated_at_utc"),
+        "updated_by": str(raw.get("updated_by") or "unknown"),
+        "policy": policy,
+        "sources": sources,
+    }
+
+
+def _read_json_file(path: Path) -> Dict[str, Any]:
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"code": "allowlist_read_failed", "message": str(exc)})
+    if not isinstance(loaded, dict):
+        raise HTTPException(status_code=500, detail={"code": "allowlist_read_failed", "message": "Allowlist JSON root must be an object."})
+    return loaded
+
+
+def _load_agent_source_allowlist() -> Dict[str, Any]:
+    runtime_path = _agent_source_allowlist_runtime_path()
+    default_path = AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH
+    selected = runtime_path if runtime_path.exists() else default_path
+    try:
+        raw = _read_json_file(selected)
+    except FileNotFoundError:
+        raw = {"schema_version": 1, "policy": {}, "sources": []}
+    doc = _normalize_agent_source_allowlist_doc(raw)
+    doc["source_path"] = str(selected)
+    doc["default_path"] = str(default_path)
+    doc["runtime_path"] = str(runtime_path)
+    doc["runtime_override_exists"] = runtime_path.exists()
+    doc["generated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    doc["summary"] = {
+        "total_sources": len(doc["sources"]),
+        "enabled_sources": len([item for item in doc["sources"] if item.get("enabled")]),
+        "tiers": [
+            {
+                "tier": tier,
+                "label": label,
+                "count": len([item for item in doc["sources"] if int(item.get("tier", -1)) == tier]),
+                "enabled_count": len([item for item in doc["sources"] if int(item.get("tier", -1)) == tier and item.get("enabled")]),
+            }
+            for tier, label in AGENT_SOURCE_ALLOWLIST_TIERS.items()
+        ],
+    }
+    return doc
+
+
+def _write_agent_source_allowlist(doc: Dict[str, Any]) -> Dict[str, Any]:
+    runtime_path = _agent_source_allowlist_runtime_path()
+    runtime_path.parent.mkdir(parents=True, exist_ok=True)
+    normalized = _normalize_agent_source_allowlist_doc(doc)
+    tmp_path = runtime_path.with_name(f".{runtime_path.name}.{uuid.uuid4().hex}.tmp")
+    tmp_path.write_text(json.dumps(normalized, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp_path, runtime_path)
+    return _load_agent_source_allowlist()
+
+
+def _upsert_agent_source_allowlist_entry(payload: AgencySourceAllowlistEntryRequest, user: Dict[str, Any]) -> Dict[str, Any]:
+    doc = _load_agent_source_allowlist()
+    entry = _normalize_allowlist_source(payload.dict())
+    sources = [item for item in doc.get("sources", []) if item.get("domain") != entry["domain"]]
+    sources.append(entry)
+    doc["sources"] = sources
+    doc["updated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    doc["updated_by"] = str(user.get("email_norm") or user.get("email") or user.get("user_id") or "admin")
+    return _write_agent_source_allowlist(doc)
+
+
+def _delete_agent_source_allowlist_entry(domain: str, user: Dict[str, Any]) -> Dict[str, Any]:
+    clean_domain = _normalize_allowlist_domain(domain)
+    doc = _load_agent_source_allowlist()
+    sources = [item for item in doc.get("sources", []) if item.get("domain") != clean_domain]
+    if len(sources) == len(doc.get("sources", [])):
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": f"Allowlist source not found: {clean_domain}"})
+    doc["sources"] = sources
+    doc["updated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    doc["updated_by"] = str(user.get("email_norm") or user.get("email") or user.get("user_id") or "admin")
+    return _write_agent_source_allowlist(doc)
 
 
 def _utc_from_timestamp(ts: float) -> str:
@@ -4653,6 +4828,7 @@ def _agency_status_payload() -> Dict[str, Any]:
     disc = _duckdb_table_counts(disc_db_path, AGENCY_DISC_TABLES)
     arm = _duckdb_table_counts(arm_db_path, AGENCY_ARM_SIGNALS)
     eval_reports = _list_agent_eval_reports(state_dir)
+    source_allowlist = _load_agent_source_allowlist()
     admin_expected = admin_store.get("expected") or {}
     disc_expected = disc.get("expected") or {}
     live_portfolio_tables = {
@@ -4696,7 +4872,16 @@ def _agency_status_payload() -> Dict[str, Any]:
                 "Eval report anomalies are quarantine signals, not accepted science.",
                 "Portfolio chat should be scoped to retrieved sources, extraction sets, findings, proposals, and journal entries.",
                 "Public disc materialization remains separate from mutable admin workflow state.",
+                "Source allowlist edits are stored as a runtime JSON policy under state/config.",
             ],
+        },
+        "source_allowlist": {
+            "summary": source_allowlist.get("summary"),
+            "source_path": source_allowlist.get("source_path"),
+            "runtime_path": source_allowlist.get("runtime_path"),
+            "runtime_override_exists": source_allowlist.get("runtime_override_exists"),
+            "updated_at_utc": source_allowlist.get("updated_at_utc"),
+            "updated_by": source_allowlist.get("updated_by"),
         },
         "admin_store": admin_store,
         "disc": disc,
@@ -5672,6 +5857,48 @@ def admin_runtime_diagnostics(request: Request, download: bool = Query(default=F
 def admin_agency_status(request: Request):
     auth.require_admin(request)
     return _agency_status_payload()
+
+
+@admin_router.get("/agency/source-allowlist")
+def admin_agency_source_allowlist(request: Request):
+    auth.require_admin(request)
+    return _load_agent_source_allowlist()
+
+
+@admin_router.post("/agency/source-allowlist/sources")
+def admin_agency_source_allowlist_upsert(request: Request, payload: AgencySourceAllowlistEntryRequest):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    updated = _upsert_agent_source_allowlist_entry(payload, user)
+    auth.audit_event(
+        request,
+        event_type="admin.agency.source_allowlist.upsert",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={
+            "domain": _normalize_allowlist_domain(payload.domain),
+            "tier": payload.tier,
+            "trust_score": payload.trust_score,
+            "enabled": payload.enabled,
+        },
+    )
+    return updated
+
+
+@admin_router.delete("/agency/source-allowlist/sources/{domain}")
+def admin_agency_source_allowlist_delete(request: Request, domain: str):
+    user = auth.require_admin(request)
+    auth.enforce_csrf(request, user)
+    clean_domain = _normalize_allowlist_domain(domain)
+    updated = _delete_agent_source_allowlist_entry(clean_domain, user)
+    auth.audit_event(
+        request,
+        event_type="admin.agency.source_allowlist.delete",
+        result="success",
+        actor_user_id=int(user["user_id"]),
+        details={"domain": clean_domain},
+    )
+    return updated
 
 
 @admin_router.get("/agency/seed-candidates")

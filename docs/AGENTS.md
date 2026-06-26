@@ -107,7 +107,10 @@ reviewed `disc`/`arm` surfaces and never directly into `core`.
 
 ## EXPLICIT ALLOWLIST
 File: docs/AGENT_ALLOWLIST.md
-Only use these sites. Each site comes with a trust score. Do not follow links off site unless they are direct document downloads.
+Machine-readable policy: `config/agent_source_allowlist.json`, with Admin
+runtime overrides at `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json`.
+Only use these sites. Each site comes with a trust score. Do not follow links
+off site unless they are direct document downloads.
 
 ### INGESTION POLICY
 allowlist_policy:

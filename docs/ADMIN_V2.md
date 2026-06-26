@@ -201,6 +201,8 @@ Screens:
   findings, proposals, review state, publication artifacts
 - source file detail: URL, domain tier, retrieval metadata, local archive path,
   content hash, extracted sections, source notes
+- source allowlist: manage Agency retrieval domains, tier, trust score, allowed
+  uses, enabled state, and citation caveats through runtime JSON policy
 - extraction set detail: model/prompt/runtime metadata, source context, parsed
   claims, raw output, parse errors
 - proposal review: deterministic checks, adversarial review, conflict flags,
@@ -734,6 +736,9 @@ workflows see the same location as host-side tools.
    - first pass exposes `/api/v2/admin/agency/status` and a React Agency shell
      for workflow stages, storage readiness, eval reports, anomaly inbox, and
      the portfolio-scoped interaction model
+   - source allowlist management reads repo defaults from
+     `config/agent_source_allowlist.json` and writes runtime overrides to
+     `$SPACEGATE_STATE_DIR/config/agent_source_allowlist.json`
 
 6. Work queue and journal persistence
    - seed portfolios from coolness/adjudication queues
