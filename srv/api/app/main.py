@@ -5439,6 +5439,67 @@ def _runtime_status_payload() -> Dict[str, Any]:
     }
 
 
+def _redacted_env_status(rows: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    return {
+        key: {
+            "configured": bool(item.get("configured")),
+            "required": bool(item.get("required")),
+            "status": item.get("status") or "unknown",
+            "satisfied_by": item.get("satisfied_by") or [],
+            "note": item.get("note") or item.get("description") or "",
+        }
+        for key, item in rows.items()
+    }
+
+
+def _runtime_diagnostics_payload(status: Dict[str, Any]) -> Dict[str, Any]:
+    environment = status.get("environment") if isinstance(status.get("environment"), dict) else {}
+    return {
+        "kind": "spacegate.admin.runtime_diagnostics.v1",
+        "redacted": True,
+        "generated_at_utc": status.get("generated_at_utc"),
+        "build_id": status.get("build_id"),
+        "git": status.get("git") or {},
+        "filesystem_summary": status.get("filesystem_summary") or {},
+        "filesystem_alerts": status.get("filesystem_alerts") or [],
+        "paths": status.get("paths") or {},
+        "environment": {
+            "configured": _redacted_env_status(environment.get("configured") or {}),
+            "sensitive": _redacted_env_status(environment.get("sensitive") or {}),
+            "config_sources": environment.get("config_sources") or {},
+            "notes": environment.get("notes") or [],
+        },
+        "auth": status.get("auth") or {},
+        "container_runtime": status.get("container_runtime") or {},
+        "runtime_security": status.get("runtime_security") or {},
+        "host_runtime": status.get("host_runtime") or {},
+        "api_process_runtime": status.get("api_process_runtime") or {},
+        "inference_endpoints": [
+            {
+                "endpoint_key": endpoint.get("endpoint_key"),
+                "display_name": endpoint.get("display_name"),
+                "provider": endpoint.get("provider"),
+                "enabled": endpoint.get("enabled"),
+                "base_url": endpoint.get("base_url"),
+                "auth_mode": endpoint.get("auth_mode"),
+                "api_key_configured": bool(endpoint.get("api_key_configured")),
+                "default_model": endpoint.get("default_model"),
+                "model_count": endpoint.get("model_count"),
+                "last_probe_status": endpoint.get("last_probe_status"),
+                "last_probe_at": endpoint.get("last_probe_at"),
+                "last_probe_error": endpoint.get("last_probe_error"),
+            }
+            for endpoint in status.get("inference_endpoints") or []
+            if isinstance(endpoint, dict)
+        ],
+        "redaction_notes": [
+            "Environment variable values are omitted; only configured/missing/status metadata is included.",
+            "Sensitive provider, OIDC, and session secret values are never included.",
+            "Docker users can still inspect container environment through Docker privileges; treat Docker access as privileged.",
+        ],
+    }
+
+
 @admin_router.get("/status")
 def admin_status(request: Request):
     user = auth.require_admin(request)
@@ -5592,6 +5653,19 @@ def admin_object_system_detail(request: Request, system_id: int):
 def admin_runtime_status(request: Request):
     auth.require_admin(request)
     return _runtime_status_payload()
+
+
+@admin_router.get("/runtime/diagnostics")
+def admin_runtime_diagnostics(request: Request, download: bool = Query(default=False)):
+    auth.require_admin(request)
+    status = _runtime_status_payload()
+    payload = _runtime_diagnostics_payload(status)
+    text = json.dumps(payload, indent=2, sort_keys=True)
+    headers = {"Cache-Control": "no-store"}
+    if download:
+        timestamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        headers["Content-Disposition"] = f'attachment; filename="spacegate-runtime-diagnostics-{timestamp}.json"'
+    return PlainTextResponse(text, media_type="application/json", headers=headers)
 
 
 @admin_router.get("/agency/status")

@@ -254,9 +254,13 @@ Runtime environment diagnostics should distinguish:
   `SPACEGATE_OPENAI_API_KEY` satisfying the legacy `OPENAI_API_KEY` alias
 - `missing`: required by the current runtime and absent from the API container
 
-The Runtime page should offer a copyable redacted diagnostics bundle containing
+The Runtime page should offer a backend-generated redacted diagnostics bundle
+that can be copied, opened in a tab, or downloaded. The bundle should contain
 filesystem alerts, path status, env configured/missing/alias flags, container
-status, auth status, and inference reachability without secret values.
+status, runtime hardening observations, auth status, and inference reachability
+without secret values. Non-secret environment values should also be omitted from
+the shareable bundle so operators do not accidentally leak local topology or
+deployment details.
 
 Runtime should also display launcher-observed config sources. The source list is
 metadata passed into the API container by the Spacegate launcher; the API does

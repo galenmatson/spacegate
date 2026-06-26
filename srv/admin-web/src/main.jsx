@@ -5957,66 +5957,12 @@ function RuntimeScreen() {
   ];
 
   async function copyDiagnostics() {
-    const redactEnv = (rows) => Object.fromEntries(
-      Object.entries(rows || {}).map(([key, item]) => [
-        key,
-        {
-          configured: !!item.configured,
-          required: !!item.required,
-          status: item.status || "unknown",
-          satisfied_by: item.satisfied_by || [],
-          note: item.note || item.description || "",
-        },
-      ])
-    );
-    const bundle = {
-      generated_at_utc: data.generated_at_utc || null,
-      build_id: data.build_id || null,
-      git: data.git || {},
-      filesystem_summary: filesystemSummary,
-      filesystem_alerts: filesystemAlerts,
-      paths,
-      environment: {
-        configured: redactEnv(configuredEnv),
-        sensitive: redactEnv(sensitiveEnv),
-        config_sources: configSources,
-        notes: data.environment?.notes || [],
-      },
-      auth: authStatus,
-      container_runtime: data.container_runtime || {},
-      runtime_security: security,
-      host_runtime: host,
-      api_process_runtime: api,
-      inference_endpoints: endpoints.map((endpoint) => ({
-        endpoint_key: endpoint.endpoint_key,
-        display_name: endpoint.display_name,
-        provider: endpoint.provider,
-        enabled: endpoint.enabled,
-        base_url: endpoint.base_url,
-        auth_mode: endpoint.auth_mode,
-        api_key_configured: !!endpoint.api_key_configured,
-        default_model: endpoint.default_model,
-        model_count: endpoint.model_count,
-        last_probe_status: endpoint.last_probe_status,
-        last_probe_at: endpoint.last_probe_at,
-        last_probe_error: endpoint.last_probe_error,
-      })),
-    };
-    const text = JSON.stringify(bundle, null, 2);
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.setAttribute("readonly", "readonly");
-        textarea.style.position = "fixed";
-        textarea.style.left = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
+      const { response, text } = await fetchText(`${ADMIN_API_BASE}/runtime/diagnostics`);
+      if (!response.ok) {
+        throw new Error(text || `HTTP ${response.status}`);
       }
+      await copyTextToClipboard(text);
       setCopyStatus("Copied redacted diagnostics.");
     } catch (error) {
       setCopyStatus(`Copy failed: ${String(error)}`);
@@ -6032,6 +5978,8 @@ function RuntimeScreen() {
         </div>
         <div className="button-row">
           <button className="button" onClick={copyDiagnostics} disabled={!state.data}>Copy Diagnostics</button>
+          <a className="button" href={`${ADMIN_API_BASE}/runtime/diagnostics`} target="_blank" rel="noreferrer">Open Diagnostics</a>
+          <a className="button" href={`${ADMIN_API_BASE}/runtime/diagnostics?download=1`}>Download Diagnostics</a>
           <button className="button" onClick={loadRuntime}>{state.loading ? "Refreshing..." : "Refresh"}</button>
         </div>
       </header>

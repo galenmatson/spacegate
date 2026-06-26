@@ -152,6 +152,32 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /admin/runtime/diagnostics
+Returns a redacted JSON diagnostics bundle suitable for copying, downloading,
+or opening in a browser tab.
+
+Query params:
+- `download` (bool, default `false`): when true, returns the same JSON with a
+  `Content-Disposition: attachment` filename.
+
+Includes:
+- filesystem summary, alerts, path health, owner/mode, and disk checks
+- runtime hardening observations
+- auth/container/host/API process summaries
+- inference endpoint reachability summaries
+- environment configured/missing/alias status without variable values
+
+Notes:
+- Secret values are never returned.
+- Non-secret environment values are also omitted to keep shared diagnostics
+  conservative.
+- Requires authenticated admin access.
+
+Response:
+- `200` for authenticated admins.
+- `401` unauthenticated.
+- `403` authenticated non-admin.
+
 ### GET /admin/builds/status
 Returns read-only build pipeline diagnostics for the Admin Builds workspace.
 
