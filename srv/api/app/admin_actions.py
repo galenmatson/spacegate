@@ -302,7 +302,7 @@ def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.extend(["--build-id", build_id])
-    top_coolness = _normalize_integer(params.get("top_coolness", 100))
+    top_coolness = _normalize_integer(params.get("top_coolness", 1000))
     if top_coolness <= 0:
         raise ActionValidationError("top_coolness must be > 0")
     cmd.extend(["--top-coolness", str(top_coolness)])
@@ -1379,7 +1379,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "generate_snapshots": ActionSpec(
         name="generate_snapshots",
         display_name="Generate Snapshots",
-        description="Render system snapshot images for filtered top coolness-ranked systems (defaults to top 100).",
+        description="Render system snapshot images for filtered top coolness-ranked systems (defaults to top 1,000).",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -1392,7 +1392,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "top_coolness": {
                 "type": "integer",
                 "required": False,
-                "default": 100,
+                "default": 1000,
                 "min": 1,
                 "label": "Top coolness systems",
             },
