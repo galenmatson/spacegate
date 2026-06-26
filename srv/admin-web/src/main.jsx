@@ -1756,12 +1756,121 @@ function DatasetSummaryTab({ data, contributionRows }) {
   const sizes = data.sizes_bytes || {};
   const slice = data.slice_metrics || {};
   const breakdowns = data.breakdowns || {};
+  const determinism = data.determinism || {};
+  const qc = breakdowns.qc_report || {};
+  const planetEnvironment = breakdowns.planet_environment_coverage || {};
   const exotic = breakdowns.exotic_star_counts || {};
   const compact = breakdowns.compact_object_counts || {};
+  const sourceOrDerivablePct = toNumber(planetEnvironment.source_or_derivable_pct);
+  const hasArmGraph = toNumber(counts.arm_component_entities) > 0 && toNumber(counts.arm_hierarchy_edges) > 0;
+  const readiness = [
+    {
+      key: "determinism",
+      status: determinism.status === "match" ? "ok" : determinism.status === "mismatch" ? "failed" : "warning",
+      label: "Deterministic rebuild evidence",
+      detail: `${datasetDeterminismLabel(determinism)}; comparable baselines ${formatInt(determinism.comparable_baselines)}.`,
+      why: "The 3D map should be generated from a build whose science inputs and transform versions can be reproduced.",
+      next_action: determinism.status === "match" ? "Keep this baseline available for future comparisons." : "Run and keep a comparable deterministic rerun before treating this build as a stable map source.",
+    },
+    {
+      key: "qc",
+      status: qc.status === "failed" || qc.result === "failed" ? "failed" : Object.keys(qc).length ? "ok" : "missing_reports",
+      label: "QC report",
+      detail: Object.keys(qc).length ? `${qc.status || qc.result || "present"} with ${formatInt(Object.keys(qc).length)} top-level fields.` : "No qc_report.json payload was loaded for this served build.",
+      why: "Promotion and downstream presentation should be blocked by failed verification gates.",
+      next_action: Object.keys(qc).length ? "Inspect the Quality tab when counts or gates look suspicious." : "Run verify for the served build and refresh Dataset.",
+    },
+    {
+      key: "sources",
+      status: contributionRows.length ? "ok" : "warning",
+      label: "Source contribution accounting",
+      detail: `${formatInt(contributionRows.length)} catalog/domain contribution rows loaded.`,
+      why: "Administrators need to see which catalogs materially contribute to the science artifact.",
+      next_action: contributionRows.length ? "Use the Sources tab for overlap and utility details." : "Generate catalog contribution reports for this build.",
+    },
+    {
+      key: "planet-environment",
+      status: sourceOrDerivablePct >= 80 ? "ok" : sourceOrDerivablePct > 0 ? "warning" : "failed",
+      label: "Planet environment coverage",
+      detail: `${formatInt(planetEnvironment.source_or_derivable_count)} of ${formatInt(planetEnvironment.total_planets)} planets have source or derivable environment inputs (${formatPct(sourceOrDerivablePct)}).`,
+      why: "Planet coloring, habitability triage, and snapshot/3D presentation need auditable temperature or insolation inputs.",
+      next_action: sourceOrDerivablePct >= 80 ? "Use Object Diagnostics for object-level assumed/derived/source labels." : "Prioritize missing orbit, host, and luminosity proxy gaps before map polish.",
+    },
+  ];
+  const mapInputs = [
+    {
+      key: "inventory",
+      status: counts.systems && counts.stars ? "ok" : "failed",
+      label: "Core inventory",
+      detail: `${formatInt(counts.systems)} systems, ${formatInt(counts.stars)} stars, ${formatInt(counts.planets)} planets.`,
+      why: "The map runtime needs a stable system/star/planet substrate.",
+      next_action: "Use Object Diagnostics for object-level gaps before public map work.",
+    },
+    {
+      key: "graph",
+      status: hasArmGraph ? "ok" : "warning",
+      label: "Relation graph overlays",
+      detail: `${formatInt(counts.arm_component_entities)} components, ${formatInt(counts.arm_hierarchy_edges)} hierarchy edges, ${formatInt(counts.arm_orbit_edges)} orbit edges.`,
+      why: "Moons, small bodies, artificial objects, and system hierarchy are needed for richer object navigation.",
+      next_action: hasArmGraph ? "Inspect busy benchmark systems like Sol in Object Diagnostics." : "Build arm graph artifacts before relying on component navigation.",
+    },
+    {
+      key: "slice",
+      status: slice.input_backbone_rows ? "ok" : "warning",
+      label: "Product slice",
+      detail: `${formatInt(slice.sliced_in_stars)} stars retained from ${formatInt(slice.input_backbone_rows)} backbone rows; ${formatPct(slice.sliced_out_pct)} sliced out.`,
+      why: "3D map performance depends on deliberate product-slice and future deep-query behavior.",
+      next_action: "Keep slice policy visible when designing default versus deep-map views.",
+    },
+    {
+      key: "storage",
+      status: toNumber(data.disk?.free_bytes) > 100 * 1024 * 1024 * 1024 ? "ok" : "warning",
+      label: "State storage headroom",
+      detail: `${formatBytes(data.disk?.free_bytes)} free on the state partition; served build ${formatBytes(sizes.build_total)}.`,
+      why: "Map artifacts, snapshots, reports, and temporary rebuilds can grow quickly.",
+      next_action: "Use Builds retention after successful promotion and verification when free space gets tight.",
+    },
+  ];
   return (
     <section className="dataset-grid">
       <div className="panel">
-        <h2>Inventory</h2>
+        <h2>Dataset Readiness</h2>
+        <div className="readiness-list">
+          {readiness.map((item) => (
+            <div className="readiness-row" key={item.key}>
+              <span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span>
+              <div>
+                <div className="readiness-title">
+                  <strong>{item.label}</strong>
+                </div>
+                <span>{item.detail}</span>
+                <span><strong>Why:</strong> {item.why}</span>
+                <span><strong>Next:</strong> {item.next_action}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="panel">
+        <h2>3D Map Inputs</h2>
+        <div className="readiness-list">
+          {mapInputs.map((item) => (
+            <div className="readiness-row" key={item.key}>
+              <span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span>
+              <div>
+                <div className="readiness-title">
+                  <strong>{item.label}</strong>
+                </div>
+                <span>{item.detail}</span>
+                <span><strong>Why:</strong> {item.why}</span>
+                <span><strong>Next:</strong> {item.next_action}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="panel">
+        <h2>Inventory Shape</h2>
         <MetricList
           rows={[
             ["Systems / stars / planets", `${formatInt(counts.systems)} / ${formatInt(counts.stars)} / ${formatInt(counts.planets)}`],
@@ -1774,7 +1883,7 @@ function DatasetSummaryTab({ data, contributionRows }) {
         />
       </div>
       <div className="panel">
-        <h2>Build Slice</h2>
+        <h2>Product Slice</h2>
         <MetricList
           rows={[
             ["Backbone input", formatInt(slice.input_backbone_rows)],
@@ -1787,21 +1896,21 @@ function DatasetSummaryTab({ data, contributionRows }) {
         />
       </div>
       <div className="panel">
-        <h2>Top Source Catalogs</h2>
-        <DatasetBarList rows={(breakdowns.stars_by_source_catalog || []).slice(0, 10).map((row) => ({
-          label: row.source_catalog || "?",
-          value: row.star_count,
-          max: counts.stars,
-          detail: `${formatInt(row.star_count)} stars`,
-        }))} />
-      </div>
-      <div className="panel">
         <h2>Top Contribution Utility</h2>
         <DatasetBarList rows={contributionRows.slice(0, 10).map((row) => ({
           label: `${row.catalog || "?"} (${row.domain || "?"})`,
           value: row.utility_score,
           max: 100,
           detail: `${formatFloat(row.utility_score, 2)} utility`,
+        }))} />
+      </div>
+      <div className="panel">
+        <h2>Top Source Catalogs</h2>
+        <DatasetBarList rows={(breakdowns.stars_by_source_catalog || []).slice(0, 10).map((row) => ({
+          label: row.source_catalog || "?",
+          value: row.star_count,
+          max: counts.stars,
+          detail: `${formatInt(row.star_count)} stars`,
         }))} />
       </div>
     </section>
