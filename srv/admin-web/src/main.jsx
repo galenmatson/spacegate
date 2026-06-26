@@ -4467,7 +4467,15 @@ function OperationsScreen({ csrf, requestedJobId = "" }) {
   const [busyAction, setBusyAction] = useState("");
 
   const headers = useMemo(() => buildCsrfHeaders(csrf), [csrf]);
-  const actionsByName = useMemo(() => new Map(actions.map((item) => [item.name, item])), [actions]);
+  const actionsByName = useMemo(() => {
+    const retention = opsStatus?.retention || {};
+    const retentionContext = {
+      plan: retention.dry_run || {},
+      latestDryRun: retention.latest_matching_dry_run || null,
+      applyReady: Boolean(retention.apply_ready),
+    };
+    return new Map(actions.map((item) => [item.name, enrichBuildAction(item, retentionContext) || item]));
+  }, [actions, opsStatus]);
 
   async function loadActions() {
     const { response, data } = await fetchJson(`${ADMIN_API_BASE}/actions/catalog`);
@@ -4660,6 +4668,7 @@ function OperationsScreen({ csrf, requestedJobId = "" }) {
     const selectedActive = selectedJob && !terminalJobStatuses.has(String(selectedJob.status || ""));
     if (!hasActiveJob && !selectedActive) return undefined;
     const timer = window.setInterval(async () => {
+      await loadOpsStatus();
       await loadJobs();
       if (selectedJobId) {
         await loadJobDetail(selectedJobId);
@@ -4688,7 +4697,7 @@ function OperationsScreen({ csrf, requestedJobId = "" }) {
     }
     const job = data.job || {};
     setStatus(`Queued ${actionLabel(actionName)} as ${job.job_id || "job"}.`);
-    await Promise.all([loadJobs(), loadAudit({ append: false })]);
+    await Promise.all([loadOpsStatus(), loadJobs(), loadAudit({ append: false })]);
     if (job.job_id) {
       await selectJob(job.job_id);
     }
