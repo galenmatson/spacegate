@@ -908,6 +908,7 @@ function BuildsScreen({ csrf, openOperationsJob }) {
     plan: retentionPlan,
     latestDryRun: retention.latest_matching_dry_run || null,
     applyReady: Boolean(retention.apply_ready),
+    applyBlockedReasons: Array.isArray(retention.apply_blocked_reasons) ? retention.apply_blocked_reasons : [],
   };
   const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"]
     .map((name) => enrichBuildAction(actionsByName.get(name), retentionContext))
@@ -1203,6 +1204,9 @@ function enrichBuildAction(action, retentionContext) {
   if (action.name === "retention_apply") {
     const dryRun = retentionContext?.latestDryRun;
     const ready = Boolean(retentionContext?.applyReady);
+    const applyBlockedReasons = Array.isArray(retentionContext?.applyBlockedReasons)
+      ? retentionContext.applyBlockedReasons.filter(Boolean)
+      : [];
     guidance.prerequisites = dryRun
       ? `Satisfied by dry-run job ${dryRun.job_id} (${formatDate(dryRun.finished_at)}).`
       : "Run Retention Dry Run first. Apply is blocked until a matching successful dry-run exists.";
@@ -1212,10 +1216,12 @@ function enrichBuildAction(action, retentionContext) {
     ];
     guidance.warning = ready
       ? "High-risk deletion action. Type the confirmation phrase only after reviewing the candidate list and dry-run log."
-      : "Apply will fail until the matching dry-run requirement is satisfied.";
+      : applyBlockedReasons.join(" ") || "Apply will fail until the matching dry-run requirement is satisfied.";
   }
   const disabledReason = action.name === "retention_apply" && !retentionContext?.applyReady
-    ? "Run Retention Dry Run and wait for it to succeed before applying retention."
+    ? (Array.isArray(retentionContext?.applyBlockedReasons) && retentionContext.applyBlockedReasons.length
+      ? retentionContext.applyBlockedReasons.join(" ")
+      : "Run Retention Dry Run and wait for it to succeed before applying retention.")
     : "";
   return { ...action, params_schema: schema, operator_guidance: guidance, disabled_reason: disabledReason };
 }
@@ -4473,6 +4479,7 @@ function OperationsScreen({ csrf, requestedJobId = "" }) {
       plan: retention.dry_run || {},
       latestDryRun: retention.latest_matching_dry_run || null,
       applyReady: Boolean(retention.apply_ready),
+      applyBlockedReasons: Array.isArray(retention.apply_blocked_reasons) ? retention.apply_blocked_reasons : [],
     };
     return new Map(actions.map((item) => [item.name, enrichBuildAction(item, retentionContext) || item]));
   }, [actions, opsStatus]);

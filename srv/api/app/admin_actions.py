@@ -490,17 +490,30 @@ def _find_recent_retention_dry_run(
     max_age_hours: int = 6,
 ) -> Dict[str, Any] | None:
     cutoff = _utc_now() - dt.timedelta(hours=max_age_hours)
+    state_dir = _state_dir().resolve()
     for job in list_jobs(limit=200):
         if job.get("action") != "retention_dry_run" or job.get("status") != "succeeded":
             continue
         params = job.get("params") if isinstance(job.get("params"), dict) else {}
-        if str(params.get("candidate_hash") or "").strip() != candidate_hash:
-            continue
         try:
             job_keep_builds, job_keep_reports, job_prune_tmp = _normalize_retention_params(params)
         except Exception:
             continue
         if (job_keep_builds, job_keep_reports, job_prune_tmp) != (keep_builds, keep_reports, prune_tmp):
+            continue
+        job_hash = str(params.get("candidate_hash") or "").strip()
+        if not job_hash:
+            try:
+                job_plan = _retention_plan(
+                    state_dir,
+                    keep_builds=job_keep_builds,
+                    keep_reports=job_keep_reports,
+                    prune_tmp=job_prune_tmp,
+                )
+                job_hash = str(job_plan.get("candidate_hash") or "").strip()
+            except Exception:
+                continue
+        if job_hash != candidate_hash:
             continue
         finished_at = _parse_job_finished_at(job.get("finished_at"))
         if finished_at is None or finished_at < cutoff:
@@ -1930,6 +1943,15 @@ def start_job(
         user_roles=user_roles,
         confirmation=confirmation,
     )
+    if spec.name == "retention_dry_run":
+        keep_builds, keep_reports, prune_tmp = _normalize_retention_params(normalized_params)
+        retention_plan = _retention_plan(
+            _state_dir().resolve(),
+            keep_builds=keep_builds,
+            keep_reports=keep_reports,
+            prune_tmp=prune_tmp,
+        )
+        normalized_params["candidate_hash"] = str(retention_plan.get("candidate_hash") or "")
 
     jobs_dir = _ensure_jobs_dir()
     job_id = f"job_{_utc_now().strftime('%Y%m%dT%H%M%SZ')}_{secrets.token_hex(5)}"
@@ -3479,18 +3501,31 @@ def _matching_retention_dry_run_jobs(
     max_age_hours: int = 6,
 ) -> List[Dict[str, Any]]:
     cutoff = _utc_now() - dt.timedelta(hours=max_age_hours)
+    state_dir = _state_dir().resolve()
     matches: List[Dict[str, Any]] = []
     for job in jobs:
         if job.get("action") != "retention_dry_run" or job.get("status") != "succeeded":
             continue
         params = job.get("params") if isinstance(job.get("params"), dict) else {}
-        if str(params.get("candidate_hash") or "").strip() != candidate_hash:
-            continue
         try:
             job_keep_builds, job_keep_reports, job_prune_tmp = _normalize_retention_params(params)
         except Exception:
             continue
         if (job_keep_builds, job_keep_reports, job_prune_tmp) != (keep_builds, keep_reports, prune_tmp):
+            continue
+        job_hash = str(params.get("candidate_hash") or "").strip()
+        if not job_hash:
+            try:
+                job_plan = _retention_plan(
+                    state_dir,
+                    keep_builds=job_keep_builds,
+                    keep_reports=job_keep_reports,
+                    prune_tmp=job_prune_tmp,
+                )
+                job_hash = str(job_plan.get("candidate_hash") or "").strip()
+            except Exception:
+                continue
+        if job_hash != candidate_hash:
             continue
         finished_at = _parse_job_finished_at(job.get("finished_at"))
         if finished_at is None or finished_at < cutoff:
@@ -3608,6 +3643,13 @@ def _retention_summary(
         prune_tmp=True,
     )
     latest_matching = matching_dry_runs[0] if matching_dry_runs else None
+    apply_blocked_reasons = []
+    if latest_matching is None:
+        apply_blocked_reasons.append("Run Retention Dry Run and wait for it to succeed before applying retention.")
+    if int(plan.get("candidate_count") or 0) <= 0:
+        apply_blocked_reasons.append("No retention candidates are present for the current policy.")
+    if active_build_jobs:
+        apply_blocked_reasons.append("A build, verify, or publish job is active.")
     return {
         "default_keep_builds": keep_builds,
         "default_keep_reports": keep_reports,
@@ -3617,7 +3659,8 @@ def _retention_summary(
         "blocked_reasons": retention_blockers,
         "dry_run": plan,
         "latest_matching_dry_run": latest_matching,
-        "apply_ready": latest_matching is not None and int(plan.get("candidate_count") or 0) > 0,
+        "apply_ready": not apply_blocked_reasons,
+        "apply_blocked_reasons": apply_blocked_reasons,
         "notes": [
             "Retention must not prune raw/ or cooked/.",
             "Run retention only after successful promotion and verification.",
