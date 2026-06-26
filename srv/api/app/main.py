@@ -4303,14 +4303,28 @@ def _journal_entry_payload(row: Any) -> Dict[str, Any]:
     return payload
 
 
-def _list_agency_portfolios(limit: int, status: str | None = None) -> Dict[str, Any]:
+def _list_agency_portfolios(
+    limit: int,
+    status: str | None = None,
+    stable_object_key: str | None = None,
+    object_type: str | None = None,
+) -> Dict[str, Any]:
     admin_db.initialize()
     safe_limit = max(1, min(int(limit or 50), 200))
     params: List[Any] = []
-    where = ""
+    where_terms: List[str] = []
     if status:
-        where = "WHERE d.dossier_status = ?"
+        where_terms.append("d.dossier_status = ?")
         params.append(status)
+    clean_stable_key = str(stable_object_key or "").strip()
+    if clean_stable_key:
+        where_terms.append("d.stable_object_key = ?")
+        params.append(clean_stable_key)
+    clean_object_type = str(object_type or "").strip().lower()
+    if clean_object_type:
+        where_terms.append("d.object_type = ?")
+        params.append(clean_object_type)
+    where = f"WHERE {' AND '.join(where_terms)}" if where_terms else ""
     params.append(safe_limit)
     with admin_db.connection_scope() as con:
         rows = con.execute(
@@ -4341,6 +4355,11 @@ ORDER BY row_count DESC, dossier_status ASC
         "items": [_portfolio_row_payload(row) for row in rows],
         "counts_by_status": {str(row["dossier_status"]): int(row["row_count"] or 0) for row in status_rows},
         "limit": safe_limit,
+        "filters": {
+            "status": status,
+            "stable_object_key": clean_stable_key or None,
+            "object_type": clean_object_type or None,
+        },
     }
 
 
@@ -6053,10 +6072,19 @@ def admin_agency_portfolios(
     request: Request,
     limit: int = Query(default=50, ge=1, le=200),
     status: str | None = Query(default=None),
+    stable_object_key: str | None = Query(default=None),
+    object_type: str | None = Query(default=None),
 ):
     auth.require_admin(request)
     clean_status = str(status or "").strip() or None
-    return _list_agency_portfolios(limit=limit, status=clean_status)
+    clean_stable_key = str(stable_object_key or "").strip() or None
+    clean_object_type = str(object_type or "").strip().lower() or None
+    return _list_agency_portfolios(
+        limit=limit,
+        status=clean_status,
+        stable_object_key=clean_stable_key,
+        object_type=clean_object_type,
+    )
 
 
 @admin_router.post("/agency/portfolios")

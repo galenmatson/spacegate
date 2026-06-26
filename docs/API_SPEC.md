@@ -610,12 +610,16 @@ Lists Evidence Portfolio rows from the admin operational store.
 Query params:
 - `limit` integer, default `50`, max `200`
 - `status` optional dossier lifecycle status filter
+- `stable_object_key` optional exact object filter
+- `object_type` optional exact type filter (`system`, `star`, or `planet`)
 
 Notes:
 - Read-only.
 - Returns counts for attached Source Files, Extraction Sets, Findings, and
   Journal Entries.
 - These rows are admin workflow state, not public served `disc` materialization.
+- Object Diagnostics uses the exact object filters to show whether the focused
+  object already has an Evidence Portfolio.
 
 ### POST /admin/agency/portfolios
 Creates a seeded Evidence Portfolio in the admin operational store.

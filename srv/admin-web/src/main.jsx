@@ -487,6 +487,7 @@ function App() {
   const [activeScreen, setActiveScreen] = useState("overview");
   const [operationsJobRequest, setOperationsJobRequest] = useState("");
   const [objectDiagnosticsRequest, setObjectDiagnosticsRequest] = useState(null);
+  const [agencyPortfolioRequest, setAgencyPortfolioRequest] = useState(null);
   const jobLogId = new URLSearchParams(window.location.search).get("job_log");
 
   useEffect(() => {
@@ -541,6 +542,13 @@ function App() {
       focus: target?.focus || null,
     });
     setActiveScreen("objects");
+  }
+
+  function openAgencyPortfolio(dossierId) {
+    const id = String(dossierId || "").trim();
+    if (!id) return;
+    setAgencyPortfolioRequest({ id, requestedAt: Date.now() });
+    setActiveScreen("agency");
   }
 
   if (authState.loading) {
@@ -606,13 +614,13 @@ function App() {
         ) : activeScreen === "dataset" ? (
           <DatasetScreen />
         ) : activeScreen === "objects" ? (
-          <ObjectDiagnosticsScreen requested={objectDiagnosticsRequest} />
+          <ObjectDiagnosticsScreen csrf={csrf} openAgencyPortfolio={openAgencyPortfolio} requested={objectDiagnosticsRequest} />
         ) : activeScreen === "inference" ? (
           <InferenceScreen csrf={csrf} />
         ) : activeScreen === "operations" ? (
           <OperationsScreen csrf={csrf} requestedJobId={operationsJobRequest} />
         ) : activeScreen === "agency" ? (
-          <AgencyScreen csrf={csrf} openObjectDiagnostics={openObjectDiagnostics} />
+          <AgencyScreen csrf={csrf} openObjectDiagnostics={openObjectDiagnostics} requestedDossier={agencyPortfolioRequest} />
         ) : activeScreen === "runtime" ? (
           <RuntimeScreen />
         ) : (
@@ -2265,11 +2273,13 @@ function MetricList({ rows }) {
   );
 }
 
-function ObjectDiagnosticsScreen({ requested = null }) {
+function ObjectDiagnosticsScreen({ csrf, requested = null, openAgencyPortfolio }) {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedObject, setSelectedObject] = useState(null);
   const [recentObjects, setRecentObjects] = useState(() => loadObjectRecents());
+  const [portfolioState, setPortfolioState] = useState({ loading: false, targetKey: "", items: [], message: "" });
+  const headers = useMemo(() => buildCsrfHeaders(csrf), [csrf]);
   const [state, setState] = useState({
     loadingSearch: false,
     loadingDetail: false,
@@ -2335,6 +2345,81 @@ function ObjectDiagnosticsScreen({ requested = null }) {
     rememberObjectRecent(state.detail, object);
   }
 
+  async function loadAgencyPortfolioForObject(object) {
+    const target = agencyTargetFromObject(object);
+    if (!target) {
+      setPortfolioState({ loading: false, targetKey: "", items: [], message: "Agency portfolios can be seeded for systems, stars, and planets." });
+      return;
+    }
+    const targetKey = `${target.object_type}:${target.stable_object_key}`;
+    setPortfolioState((current) => ({ ...current, loading: true, targetKey, message: "Checking Agency portfolio state..." }));
+    const params = new URLSearchParams({
+      stable_object_key: target.stable_object_key,
+      object_type: target.object_type,
+      limit: "10",
+    });
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/portfolios?${params.toString()}`);
+    if (!response.ok) {
+      setPortfolioState({ loading: false, targetKey, items: [], message: `Portfolio lookup: ${compactError(data, response.status)}` });
+      return;
+    }
+    const items = Array.isArray(data.items) ? data.items : [];
+    setPortfolioState({
+      loading: false,
+      targetKey,
+      items,
+      message: items.length ? `${formatInt(items.length)} active portfolio record(s).` : "No Evidence Portfolio exists for this object.",
+    });
+  }
+
+  async function seedAgencyPortfolioForObject(object) {
+    const target = agencyTargetFromObject(object);
+    if (!target) return;
+    const targetKey = `${target.object_type}:${target.stable_object_key}`;
+    setPortfolioState((current) => ({ ...current, loading: true, targetKey, message: `Seeding portfolio for ${target.display_name}...` }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/agency/portfolios`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        stable_object_key: target.stable_object_key,
+        object_type: target.object_type,
+        display_name: target.display_name,
+        queue_reason: "object_diagnostics",
+        queue_priority: "normal",
+        source: "object_diagnostics",
+        source_build_id: state.detail?.build_id || state.detail?.diagnostics?.build_id || null,
+        metadata: target.metadata,
+      }),
+    });
+    if (!response.ok) {
+      const details = data?.detail?.details || {};
+      if (response.status === 409 && details.dossier_id) {
+        setPortfolioState({
+          loading: false,
+          targetKey,
+          items: [{
+            dossier_id: details.dossier_id,
+            dossier_status: details.dossier_status || "existing",
+            display_name: details.display_name || target.display_name,
+            stable_object_key: target.stable_object_key,
+            object_type: target.object_type,
+          }],
+          message: "An active Evidence Portfolio already exists for this object.",
+        });
+        return;
+      }
+      setPortfolioState({ loading: false, targetKey, items: [], message: `Seed failed: ${compactError(data, response.status)}` });
+      return;
+    }
+    const dossier = data?.dossier;
+    setPortfolioState({
+      loading: false,
+      targetKey,
+      items: dossier ? [dossier] : [],
+      message: "Seeded a new Evidence Portfolio. No retrieval, extraction, model call, claim, proposal, or publication step was run.",
+    });
+  }
+
   function clearObjectRecents() {
     saveObjectRecents([]);
     setRecentObjects([]);
@@ -2348,6 +2433,11 @@ function ObjectDiagnosticsScreen({ requested = null }) {
     if (!requested?.q) return;
     executeSearch(requested.q, requested.focus);
   }, [requested?.id]);
+
+  useEffect(() => {
+    if (!selectedObject) return;
+    loadAgencyPortfolioForObject(selectedObject);
+  }, [objectFocusStableDependency(selectedObject)]);
 
   const items = state.search?.items || [];
   const detail = state.detail || {};
@@ -2452,7 +2542,15 @@ function ObjectDiagnosticsScreen({ requested = null }) {
             ))}
           </div>
 
-          <ObjectFocusPanel object={selectedObject || { type: "system", data: system }} arm={arm} simulation={simulationReadiness} onSelectObject={handleSelectObject} />
+          <ObjectFocusPanel
+            object={selectedObject || { type: "system", data: system }}
+            arm={arm}
+            simulation={simulationReadiness}
+            portfolioState={portfolioState}
+            onOpenPortfolio={openAgencyPortfolio}
+            onSeedPortfolio={seedAgencyPortfolioForObject}
+            onSelectObject={handleSelectObject}
+          />
 
           <div className="tab-row">
             {[
@@ -2613,7 +2711,7 @@ function resolveObjectFocus(detail, focus) {
   return null;
 }
 
-function ObjectFocusPanel({ object, arm, simulation, onSelectObject }) {
+function ObjectFocusPanel({ object, arm, simulation, portfolioState, onOpenPortfolio, onSeedPortfolio, onSelectObject }) {
   const type = object?.type || "system";
   const data = object?.data || {};
   const name = objectDisplayName(type, data);
@@ -2642,6 +2740,12 @@ function ObjectFocusPanel({ object, arm, simulation, onSelectObject }) {
           <ObjectKeyValueTable payload={data.provenance || {}} />
         </div>
       </div>
+      <ObjectAgencyPortfolioPanel
+        object={object}
+        portfolioState={portfolioState}
+        onOpenPortfolio={onOpenPortfolio}
+        onSeedPortfolio={onSeedPortfolio}
+      />
       {componentKey ? (
         <div className="object-focus-grid">
           <ObjectRelationList
@@ -2659,6 +2763,107 @@ function ObjectFocusPanel({ object, arm, simulation, onSelectObject }) {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function objectFocusStableDependency(object) {
+  const target = agencyTargetFromObject(object);
+  if (!target) {
+    const token = objectFocusToken(object);
+    return `${token.type}:${token.key || token.id || "none"}`;
+  }
+  return `${target.object_type}:${target.stable_object_key}`;
+}
+
+function agencyTargetFromObject(object) {
+  const type = object?.type || "system";
+  const data = object?.data || {};
+  if (type === "system" && data.stable_object_key) {
+    return {
+      object_type: "system",
+      stable_object_key: String(data.stable_object_key),
+      display_name: objectDisplayName(type, data),
+      metadata: {
+        system_id: data.system_id ?? null,
+        dist_ly: data.dist_ly ?? null,
+        star_count: data.star_count ?? null,
+        planet_count: data.planet_count ?? null,
+      },
+    };
+  }
+  if (type === "star" && data.stable_object_key) {
+    return {
+      object_type: "star",
+      stable_object_key: String(data.stable_object_key),
+      display_name: objectDisplayName(type, data),
+      metadata: {
+        system_id: data.system_id ?? null,
+        star_id: data.star_id ?? null,
+        spectral_class: data.spectral_class || data.spectral_type || null,
+      },
+    };
+  }
+  if (type === "planet" && data.stable_object_key) {
+    return {
+      object_type: "planet",
+      stable_object_key: String(data.stable_object_key),
+      display_name: objectDisplayName(type, data),
+      metadata: {
+        system_id: data.system_id ?? null,
+        planet_id: data.planet_id ?? null,
+        lifecycle_status: data.lifecycle_status || null,
+        discovery_method: data.discovery_method || null,
+      },
+    };
+  }
+  return null;
+}
+
+function ObjectAgencyPortfolioPanel({ object, portfolioState, onOpenPortfolio, onSeedPortfolio }) {
+  const target = agencyTargetFromObject(object);
+  const items = Array.isArray(portfolioState?.items) ? portfolioState.items : [];
+  const loading = Boolean(portfolioState?.loading);
+  if (!target) {
+    return (
+      <div className="object-agency-panel">
+        <div>
+          <h3>Agency Portfolio</h3>
+          <p className="muted">Select a system, star, or planet to inspect or seed an Evidence Portfolio. Component-only graph nodes need a bound core object first.</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className={`object-agency-panel ${items.length ? "has-portfolio" : ""}`}>
+      <div className="panel-head compact">
+        <div>
+          <h3>Agency Portfolio</h3>
+          <p className="muted">Evidence Portfolio workflow state for {target.display_name}.</p>
+        </div>
+        <span className={`badge ${items.length ? "ok" : "muted"}`}>{loading ? "checking" : items.length ? "linked" : "not seeded"}</span>
+      </div>
+      {portfolioState?.message ? <div className={String(portfolioState.message).startsWith("Seed failed") ? "status-line danger-line" : "status-line"}>{portfolioState.message}</div> : null}
+      {items.length ? (
+        <div className="object-agency-list">
+          {items.map((item) => (
+            <div className="object-agency-row" key={item.dossier_id}>
+              <div>
+                <strong>{item.display_name || target.display_name}</strong>
+                <span>{item.dossier_status || "unknown"} | {compactId(item.dossier_id, 30)}</span>
+              </div>
+              <button className="button" type="button" onClick={() => onOpenPortfolio?.(item.dossier_id)}>Open Portfolio</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="form-actions compact">
+          <button className="button primary" disabled={loading} type="button" onClick={() => onSeedPortfolio?.(object)}>
+            {loading ? "Working..." : "Seed Portfolio"}
+          </button>
+          <span className="inline-status">Creates only admin workflow rows and a journal entry.</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -3896,7 +4101,7 @@ function spectralColor(value) {
   return colors[key] || "#64748b";
 }
 
-function AgencyScreen({ csrf, openObjectDiagnostics }) {
+function AgencyScreen({ csrf, openObjectDiagnostics, requestedDossier }) {
   const [activeTab, setActiveTab] = useState("portfolios");
   const [state, setState] = useState({ loading: true, data: null, portfolios: null, seedCandidates: null, sourceAllowlist: null, selectedDetail: null, message: "Loading agency status..." });
   const [selectedDossierId, setSelectedDossierId] = useState("");
@@ -4045,6 +4250,12 @@ function AgencyScreen({ csrf, openObjectDiagnostics }) {
   useEffect(() => {
     loadAgency();
   }, []);
+
+  useEffect(() => {
+    if (!requestedDossier?.id) return;
+    setSelectedDossierId(requestedDossier.id);
+    loadAgency(requestedDossier.id);
+  }, [requestedDossier?.requestedAt]);
 
   const data = state.data || {};
   const portfolios = state.portfolios || { items: [], counts_by_status: {} };

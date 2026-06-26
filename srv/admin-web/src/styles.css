@@ -547,6 +547,37 @@ h3 {
   align-items: start;
 }
 
+.object-agency-panel {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem;
+  background: var(--surface-soft);
+}
+
+.object-agency-panel.has-portfolio {
+  border-color: color-mix(in srgb, var(--ok) 34%, var(--border));
+}
+
+.object-agency-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.object-agency-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.object-agency-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 .object-details {
   margin-top: 0.65rem;
 }
