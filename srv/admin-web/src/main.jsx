@@ -4772,6 +4772,15 @@ function OperationsScreen({ csrf, requestedJobId = "" }) {
         {status} Admin DB backup: {formatDate(latestAdminBackup)} | Release metadata backup: {formatDate(latestReleaseBackup)}
       </div>
 
+      <OperationsTriagePanel
+        activeJobs={activeJobs}
+        failedJobs={failedJobs}
+        latestAdminBackup={latestAdminBackup}
+        latestReleaseBackup={latestReleaseBackup}
+        opsStatus={opsStatus}
+        selectJob={selectJob}
+      />
+
       <div className="tab-row">
         {[
           ["runbook", "Runbook"],
@@ -4824,6 +4833,143 @@ function OperationsScreen({ csrf, requestedJobId = "" }) {
         />
       )}
     </div>
+  );
+}
+
+function OperationsTriagePanel({ activeJobs, failedJobs, latestAdminBackup, latestReleaseBackup, opsStatus, selectJob }) {
+  const runner = opsStatus?.runner || {};
+  const latestHighRisk = opsStatus?.jobs?.latest_high_risk || null;
+  const recentJobs = opsStatus?.jobs?.recent || [];
+  const latestSuccessfulJob = recentJobs.find((job) => String(job.status || "") === "succeeded") || null;
+  const failureRows = (failedJobs || []).slice(0, 4);
+  const activeRows = (activeJobs || []).slice(0, 4);
+  const backupRows = [
+    {
+      key: "admin-db",
+      label: "Admin DB Backup",
+      status: latestAdminBackup ? "ok" : "warning",
+      detail: latestAdminBackup ? `Latest backup ${formatDate(latestAdminBackup)}.` : "No admin DB backup is visible to Operations.",
+      next: latestAdminBackup ? "Create a fresh backup before auth, registry, or recovery changes." : "Run Backup Admin DB before risky Admin changes.",
+    },
+    {
+      key: "release-metadata",
+      label: "Release Metadata Backup",
+      status: latestReleaseBackup ? "ok" : "warning",
+      detail: latestReleaseBackup ? `Latest backup ${formatDate(latestReleaseBackup)}.` : "No release metadata backup is visible to Operations.",
+      next: latestReleaseBackup ? "Create a fresh backup before public download metadata changes." : "Run Backup Release Metadata before publish or restore operations.",
+    },
+  ];
+  const nextActions = [];
+  if (failureRows.length) {
+    nextActions.push("Open the latest failed job, read the failure summary and log, then preserve artifacts until the cause is captured.");
+  }
+  if (activeRows.length) {
+    nextActions.push("Monitor active jobs before starting additional build, retention, or publish actions.");
+  }
+  if (!latestAdminBackup) {
+    nextActions.push("Create an Admin DB backup before further Admin state changes.");
+  }
+  if (!latestReleaseBackup) {
+    nextActions.push("Create release metadata backup before public release metadata changes.");
+  }
+  if (!nextActions.length) {
+    nextActions.push("Use the Runbook focus selector for the next controlled operation.");
+  }
+  return (
+    <section className="operations-triage-grid">
+      <div className="panel operations-triage-card">
+        <div className="panel-head compact">
+          <div>
+            <h2>Runner Capacity</h2>
+            <p className="muted">Current Admin job runner pressure.</p>
+          </div>
+          <span className={`badge ${toNumber(runner.active_count) ? "warn" : "ok"}`}>
+            {formatInt(runner.active_count)} active
+          </span>
+        </div>
+        <MetricList
+          rows={[
+            ["Running / queued", `${formatInt(runner.running_count)} / ${formatInt(runner.queued_count)}`],
+            ["Running slots", `${formatInt(runner.available_running_slots)} available of ${formatInt(runner.max_running_jobs)}`],
+            ["Queue limit", formatInt(runner.max_queued_jobs)],
+            ["Latest success", latestSuccessfulJob ? `${actionLabel(latestSuccessfulJob.action)} ${formatDateCompact(latestSuccessfulJob.finished_at || latestSuccessfulJob.created_at)}` : "n/a"],
+          ]}
+        />
+        {activeRows.length ? (
+          <div className="operations-mini-list">
+            {activeRows.map((job) => (
+              <button className="operations-mini-row" key={job.job_id} type="button" onClick={() => selectJob(job.job_id)}>
+                <span className={`badge ${jobStatusTone(job.status)}`}>{job.status}</span>
+                <strong>{actionLabel(job.action)}</strong>
+                <span>{formatDateCompact(job.created_at)} | {jobDuration(job)}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="panel operations-triage-card">
+        <div className="panel-head compact">
+          <div>
+            <h2>Latest Failures</h2>
+            <p className="muted">Fast path into troubleshooting context.</p>
+          </div>
+          <span className={`badge ${failureRows.length ? "danger" : "ok"}`}>{formatInt(failureRows.length)}</span>
+        </div>
+        {failureRows.length ? (
+          <div className="operations-mini-list">
+            {failureRows.map((job) => (
+              <button className="operations-mini-row danger" key={job.job_id} type="button" onClick={() => selectJob(job.job_id)}>
+                <span className={`badge ${jobStatusTone(job.status)}`}>{job.status}</span>
+                <strong>{actionLabel(job.action)}</strong>
+                <span>{compactId(job.error_message || `Exit ${job.exit_code ?? "n/a"}`, 96)}</span>
+                <span>{formatDateCompact(job.finished_at || job.created_at)} | {compactId(job.job_id, 24)}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="empty">No recent failed jobs in the Operations status window.</div>
+        )}
+      </div>
+
+      <div className="panel operations-triage-card">
+        <div className="panel-head compact">
+          <div>
+            <h2>Recovery Points</h2>
+            <p className="muted">Backups and latest high-risk operation context.</p>
+          </div>
+          <span className={`badge ${latestAdminBackup && latestReleaseBackup ? "ok" : "warn"}`}>
+            {latestAdminBackup && latestReleaseBackup ? "covered" : "check"}
+          </span>
+        </div>
+        <div className="readiness-list">
+          {backupRows.map((item) => (
+            <div className="readiness-row" key={item.key}>
+              <span className={`badge ${statusTone(item.status)}`}>{readableStatus(item.status)}</span>
+              <div>
+                <div className="readiness-title"><strong>{item.label}</strong></div>
+                <span>{item.detail}</span>
+                <span><strong>Next:</strong> {item.next}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        {latestHighRisk ? (
+          <button className="operations-mini-row" type="button" onClick={() => selectJob(latestHighRisk.job_id)}>
+            <span className={`badge ${riskTone("high")}`}>high risk</span>
+            <strong>{actionLabel(latestHighRisk.action)}</strong>
+            <span>{formatDateCompact(latestHighRisk.created_at)} | {latestHighRisk.status}</span>
+          </button>
+        ) : null}
+      </div>
+
+      <div className="panel operations-triage-card">
+        <h2>Next Actions</h2>
+        <div className="trap-list">
+          {nextActions.map((item) => <div key={item}>{item}</div>)}
+        </div>
+      </div>
+    </section>
   );
 }
 
