@@ -1185,6 +1185,14 @@ function retentionCandidateSummary(plan) {
   return `${formatInt(builds)} build dirs, ${formatInt(tmp)} temp outputs, ${formatInt(reports)} report dirs; ${formatBytes(plan?.estimated_reclaimable_bytes)} reclaimable`;
 }
 
+function retentionCandidateCount(plan) {
+  const candidates = plan?.candidates || {};
+  const builds = Array.isArray(candidates.builds) ? candidates.builds.length : 0;
+  const tmp = Array.isArray(candidates.tmp) ? candidates.tmp.length : 0;
+  const reports = Array.isArray(candidates.reports) ? candidates.reports.length : 0;
+  return builds + tmp + reports;
+}
+
 function enrichBuildAction(action, retentionContext) {
   if (!action) return null;
   if (!["retention_dry_run", "retention_apply"].includes(action.name)) return action;
@@ -1196,14 +1204,21 @@ function enrichBuildAction(action, retentionContext) {
   if (schema.candidate_hash) schema.candidate_hash = { ...schema.candidate_hash, default: retentionPlan.candidate_hash || "" };
   const guidance = { ...(action.operator_guidance || fallbackActionGuidance[action.name] || {}) };
   if (action.name === "retention_dry_run") {
+    const candidateCount = retentionCandidateCount(retentionPlan);
     guidance.outputs = [
-      `Current plan: ${retentionCandidateSummary(retentionPlan)}`,
+      candidateCount
+        ? `Current plan: ${retentionCandidateSummary(retentionPlan)}`
+        : `Current plan: no retention candidates; ${formatBytes(retentionPlan?.estimated_reclaimable_bytes)} reclaimable.`,
       `Candidate hash: ${compactId(retentionPlan.candidate_hash, 18)}`,
     ];
+    guidance.success_next_actions = candidateCount
+      ? "Review the candidate list and log before running Retention Apply."
+      : "No apply step is needed unless retention policy settings change or new stale artifacts appear.";
   }
   if (action.name === "retention_apply") {
     const dryRun = retentionContext?.latestDryRun;
     const ready = Boolean(retentionContext?.applyReady);
+    const candidateCount = retentionCandidateCount(retentionPlan);
     const applyBlockedReasons = Array.isArray(retentionContext?.applyBlockedReasons)
       ? retentionContext.applyBlockedReasons.filter(Boolean)
       : [];
@@ -1211,7 +1226,9 @@ function enrichBuildAction(action, retentionContext) {
       ? `Satisfied by dry-run job ${dryRun.job_id} (${formatDate(dryRun.finished_at)}).`
       : "Run Retention Dry Run first. Apply is blocked until a matching successful dry-run exists.";
     guidance.outputs = [
-      `Will delete: ${retentionCandidateSummary(retentionPlan)}`,
+      candidateCount
+        ? `Will delete: ${retentionCandidateSummary(retentionPlan)}`
+        : "Nothing will be deleted because the latest retention plan has zero candidates.",
       `Candidate hash: ${compactId(retentionPlan.candidate_hash, 18)}`,
     ];
     guidance.warning = ready
@@ -1576,10 +1593,17 @@ function RetentionPlanPanel({ retention, dryRunJob, applyJob, openOperationsJob 
     ...tmpCandidates.map((item) => ({ ...item, type: "tmp" })),
     ...reportCandidates.map((item) => ({ ...item, type: "report" })),
   ];
+  const hasDryRun = Boolean(dryRunJob?.job_id);
+  const noCandidates = hasDryRun && !allCandidates.length;
   return (
     <div className="panel">
       <h2>Retention Dry-Run Plan</h2>
       <p className="muted">Parsed preview of what the retention script would report. The Admin action is dry-run only and does not delete artifacts.</p>
+      {noCandidates ? (
+        <div className="status-line">
+          Dry run succeeded. No build, report, or temporary-output candidates match the current policy, so Retention Apply is disabled because there is nothing to delete.
+        </div>
+      ) : null}
       <OverviewFact label="Policy" value={`keep ${formatInt(plan.keep_builds)} builds / ${formatInt(plan.keep_reports)} report dirs`} />
       <OverviewFact label="Candidates" value={`${formatInt(buildCandidates.length)} builds / ${formatInt(tmpCandidates.length)} tmp / ${formatInt(reportCandidates.length)} reports`} />
       <OverviewFact label="Estimated reclaimable" value={formatBytes(plan.estimated_reclaimable_bytes)} />
@@ -1609,7 +1633,11 @@ function RetentionPlanPanel({ retention, dryRunJob, applyJob, openOperationsJob 
           </tbody>
         </table>
       ) : (
-        <div className="empty">Retention dry-run has no build, report, or temporary-output candidates under the current policy.</div>
+        <div className="empty">
+          {hasDryRun
+            ? "This is a successful null result: no build, report, or temporary-output candidates are present under the current policy."
+            : "Run Retention Dry Run to compute the current candidate plan."}
+        </div>
       )}
       {allCandidates.length > 18 ? <div className="status-line">{formatInt(allCandidates.length - 18)} additional candidates omitted from this compact view. Run Retention Dry Run for the full log.</div> : null}
     </div>
