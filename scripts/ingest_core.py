@@ -3230,19 +3230,6 @@ def main() -> int:
         """
     )
 
-    log("Validating Morton domain")
-    max_abs = con.execute(
-        """
-        select max(greatest(abs(x_helio_ly), abs(y_helio_ly), abs(z_helio_ly)))
-        from final_star_rows
-        """
-    ).fetchone()[0]
-    if max_abs is not None and max_abs > MORTON_MAX_ABS_LY:
-        raise SystemExit(
-            f"Morton domain exceeded: max |coord| = {max_abs:.6f} ly "
-            f"> {MORTON_MAX_ABS_LY} ly. Increase MORTON_MAX_ABS_LY or filter input."
-        )
-
     slice_conditions: list[str] = []
     if slice_max_distance_ly is not None:
         max_dist = min(slice_max_distance_ly, MORTON_MAX_ABS_LY)
@@ -3268,25 +3255,93 @@ def main() -> int:
         )
     slice_where_sql = " and ".join(slice_conditions) if slice_conditions else "true"
 
+    log("Materializing final star rows")
+    materialize_started = time.monotonic()
     con.execute(
-        f"""
-        create table stars as
-        with sliced as (
-          select *
-          from final_star_rows
-          where {slice_where_sql}
-        )
-        select
-          row_number() over (
-            order by stable_object_key, source_catalog, coalesce(wds_id, ''), coalesce(component, '')
-          )::bigint as star_id,
-          *
-        from sliced
+        """
+        create temp table final_star_rows_materialized as
+        select *
+        from final_star_rows
         """
     )
+    slice_input_star_count, max_abs = con.execute(
+        """
+        select
+          count(*)::bigint as row_count,
+          max(greatest(abs(x_helio_ly), abs(y_helio_ly), abs(z_helio_ly))) as max_abs_coord_ly
+        from final_star_rows_materialized
+        """
+    ).fetchone()
+    max_abs_label = "null" if max_abs is None else f"{float(max_abs):.6f} ly"
+    log_stage_complete(
+        "Materialize final star rows",
+        materialize_started,
+        extra=(
+            f"rows={format_count(slice_input_star_count)} "
+            f"max_abs_coord={max_abs_label}"
+        ),
+    )
 
-    slice_input_star_count = con.execute("select count(*) from final_star_rows").fetchone()[0]
-    slice_output_star_count = con.execute("select count(*) from stars").fetchone()[0]
+    log("Validating Morton domain")
+    if max_abs is not None and max_abs > MORTON_MAX_ABS_LY:
+        raise SystemExit(
+            f"Morton domain exceeded: max |coord| = {max_abs:.6f} ly "
+            f"> {MORTON_MAX_ABS_LY} ly. Increase MORTON_MAX_ABS_LY or filter input."
+        )
+    log("Morton domain validation complete")
+
+    log("Materializing sliced star rows")
+    sliced_started = time.monotonic()
+    con.execute(
+        f"""
+        create temp table sliced_star_rows as
+        select *
+        from final_star_rows_materialized
+        where {slice_where_sql}
+        """
+    )
+    slice_output_star_count = con.execute("select count(*) from sliced_star_rows").fetchone()[0]
+    log_stage_complete(
+        "Materialize sliced star rows",
+        sliced_started,
+        totals={"stars": slice_output_star_count},
+    )
+    con.execute("drop table final_star_rows_materialized")
+
+    log("Writing ordered star rows")
+    order_stars_started = time.monotonic()
+    con.execute(
+        """
+        create temp table ordered_star_rows as
+        select *
+        from sliced_star_rows
+        order by stable_object_key, source_catalog, coalesce(wds_id, ''), coalesce(component, '')
+        """
+    )
+    log_stage_complete(
+        "Write ordered star rows",
+        order_stars_started,
+        totals={"stars": slice_output_star_count},
+    )
+    con.execute("drop table sliced_star_rows")
+
+    log("Assigning star identifiers")
+    assign_star_ids_started = time.monotonic()
+    con.execute(
+        """
+        create table stars as
+        select
+          (rowid + 1)::bigint as star_id,
+          *
+        from ordered_star_rows
+        """
+    )
+    con.execute("drop table ordered_star_rows")
+    log_stage_complete(
+        "Assign star identifiers",
+        assign_star_ids_started,
+        totals={"stars": slice_output_star_count},
+    )
     slice_sliced_out_star_count = max(slice_input_star_count - slice_output_star_count, 0)
     slice_sliced_out_star_pct = (
         (float(slice_sliced_out_star_count) / float(slice_input_star_count) * 100.0)

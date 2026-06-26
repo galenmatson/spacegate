@@ -45,6 +45,64 @@ format_duration() {
   fi
 }
 
+format_bytes() {
+  local bytes="$1"
+  if ! [[ "$bytes" =~ ^[0-9]+$ ]]; then
+    printf 'unknown'
+    return
+  fi
+  awk -v bytes="$bytes" 'BEGIN {
+    split("B KiB MiB GiB TiB", units, " ");
+    value = bytes;
+    unit = 1;
+    while (value >= 1024 && unit < 5) {
+      value = value / 1024;
+      unit++;
+    }
+    if (unit == 1) {
+      printf "%d%s", value, units[unit];
+    } else {
+      printf "%.1f%s", value, units[unit];
+    }
+  }'
+}
+
+directory_size_bytes() {
+  local path="$1"
+  if [[ ! -d "$path" ]]; then
+    printf '0'
+    return
+  fi
+  du -s -B1 "$path" 2>/dev/null | awk '{print $1}'
+}
+
+cpu_ticks_for_pid() {
+  local pid="$1"
+  if [[ ! -r "/proc/$pid/stat" ]]; then
+    printf '0'
+    return
+  fi
+  awk '{print $14 + $15}' "/proc/$pid/stat"
+}
+
+extract_build_id() {
+  local previous=""
+  local arg
+  for arg in "$@"; do
+    if [[ "$previous" == "--build-id" ]]; then
+      printf '%s' "$arg"
+      return
+    fi
+    case "$arg" in
+      --build-id=*)
+        printf '%s' "${arg#--build-id=}"
+        return
+        ;;
+    esac
+    previous="$arg"
+  done
+}
+
 PYTHON_BIN=""
 if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
   PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
@@ -180,6 +238,14 @@ fi
 start_epoch="$(date +%s)"
 "$PYTHON_BIN" "$ROOT_DIR/scripts/ingest_core.py" "$@" > >(tee -a "$LOG_FILE") 2>&1 &
 ingest_pid=$!
+build_id="$(extract_build_id "$@")"
+tmp_out_dir=""
+if [[ -n "$build_id" ]]; then
+  tmp_out_dir="$STATE_DIR/out/${build_id}.tmp"
+fi
+clk_tck="$(getconf CLK_TCK 2>/dev/null || printf '100')"
+prev_cpu_ticks="$(cpu_ticks_for_pid "$ingest_pid")"
+prev_cpu_epoch="$start_epoch"
 
 while kill -0 "$ingest_pid" >/dev/null 2>&1; do
   sleep "$HEARTBEAT_S"
@@ -188,10 +254,50 @@ while kill -0 "$ingest_pid" >/dev/null 2>&1; do
   fi
   now_epoch="$(date +%s)"
   elapsed_s=$(( now_epoch - start_epoch ))
+  current_cpu_ticks="$(cpu_ticks_for_pid "$ingest_pid")"
+  cpu_delta_ticks=$(( current_cpu_ticks - prev_cpu_ticks ))
+  cpu_delta_elapsed_s=$(( now_epoch - prev_cpu_epoch ))
+  cpu_delta_s="$(
+    awk -v ticks="$cpu_delta_ticks" -v clk="$clk_tck" 'BEGIN {
+      if (clk <= 0) clk = 100;
+      printf "%.1f", ticks / clk;
+    }'
+  )"
+  cpu_cores_equiv="$(
+    awk -v ticks="$cpu_delta_ticks" -v clk="$clk_tck" -v elapsed="$cpu_delta_elapsed_s" 'BEGIN {
+      if (clk <= 0) clk = 100;
+      if (elapsed <= 0) {
+        printf "0.00";
+      } else {
+        printf "%.2f", (ticks / clk) / elapsed;
+      }
+    }'
+  )"
+  prev_cpu_ticks="$current_cpu_ticks"
+  prev_cpu_epoch="$now_epoch"
+
+  proc_state="unknown"
+  proc_cpu_avg="unknown"
+  proc_mem_pct="unknown"
+  proc_rss_kib="0"
+  proc_threads="unknown"
+  proc_wchan="unknown"
+  if IFS=' ' read -r proc_state proc_cpu_avg proc_mem_pct proc_rss_kib proc_threads proc_wchan < <(
+    ps -p "$ingest_pid" -o stat=,pcpu=,pmem=,rss=,nlwp=,wchan= 2>/dev/null
+  ); then
+    :
+  fi
+  proc_rss_bytes=$(( ${proc_rss_kib:-0} * 1024 ))
+  tmp_size_bytes="0"
+  tmp_size_label="unknown"
+  if [[ -n "$tmp_out_dir" ]]; then
+    tmp_size_bytes="$(directory_size_bytes "$tmp_out_dir")"
+    tmp_size_label="$(format_bytes "$tmp_size_bytes")"
+  fi
   last_stage="$(awk '!/Ingest heartbeat:/{line=$0} END{print line}' "$LOG_FILE")"
   last_stage="${last_stage#*Z }"
   last_stage="${last_stage//\'/}"
-  log "Ingest heartbeat: elapsed=$(format_duration "$elapsed_s") last_stage='${last_stage}'"
+  log "Ingest heartbeat: elapsed=$(format_duration "$elapsed_s") last_stage='${last_stage}' process_state=${proc_state} cpu_window=${cpu_delta_s}s cpu_cores~${cpu_cores_equiv} rss=$(format_bytes "$proc_rss_bytes") threads=${proc_threads} wchan=${proc_wchan} tmp_out=${tmp_size_label}"
 done
 
 wait "$ingest_pid"
