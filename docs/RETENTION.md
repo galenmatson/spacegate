@@ -134,7 +134,19 @@ delete Docker or model data.
 
 ## Operational Notes
 
-- If artifacts were created by root-owned container processes, run cleanup with appropriate permissions.
+- Admin/API Docker jobs are expected to run as the host operator UID/GID via
+  `scripts/compose_spacegate.sh`, with `SPACEGATE_UMASK=0002` by default. This
+  prevents new generated state from becoming root-owned on the host.
+- If older artifacts were created by root-owned container processes, normalize
+  generated/admin state before cleanup:
+
+```bash
+scripts/normalize_state_permissions.sh
+sudo scripts/normalize_state_permissions.sh --apply
+```
+
+- The permission normalizer is dry-run by default and avoids `raw/` and
+  `cooked/`.
 - Run retention after successful promotion/verification, not during ingest.
 - If large one-off caches (for example external catalog mirrors) are stored under the state root, move them outside `out/` and `reports/` so retention remains deterministic.
 - Failed builds may be kept temporarily for diagnosis, but once the root cause is

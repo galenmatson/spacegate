@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Sequence, TextIO
 
 from . import admin_db
+from .runtime_perms import apply_configured_umask
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
@@ -2022,6 +2023,7 @@ def _last_log_error_line(log_path: Path) -> str | None:
 def _run_command(command: List[str], logf: TextIO) -> tuple[int, str | None]:
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
+    env.setdefault("PYTHONDONTWRITEBYTECODE", "1")
     last_error_line: str | None = None
     last_output_line: str | None = None
     try:
@@ -2033,6 +2035,7 @@ def _run_command(command: List[str], logf: TextIO) -> tuple[int, str | None]:
             text=True,
             bufsize=1,
             env=env,
+            preexec_fn=apply_configured_umask if os.name == "posix" else None,
         )
         assert proc.stdout is not None
         for line in proc.stdout:

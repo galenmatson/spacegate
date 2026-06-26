@@ -3,8 +3,11 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
+    user: "${SPACEGATE_CONTAINER_UID:-1000}:${SPACEGATE_CONTAINER_GID:-1000}"
     restart: unless-stopped
     environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      SPACEGATE_UMASK: ${SPACEGATE_UMASK:-0002}
       SPACEGATE_STATE_DIR: /data
       SPACEGATE_CACHE_DIR: /data/cache
       SPACEGATE_LOG_DIR: /data/logs

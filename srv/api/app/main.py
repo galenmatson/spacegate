@@ -19,6 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
+from .runtime_perms import apply_configured_umask
+
+apply_configured_umask()
+
 from . import admin_actions
 from . import admin_db
 from . import auth

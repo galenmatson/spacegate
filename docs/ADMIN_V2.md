@@ -277,6 +277,29 @@ Config source ownership:
 Config precedence is low-to-high in the order above. Existing process
 environment values still override file values.
 
+Runtime permission contract:
+
+- `scripts/compose_spacegate.sh` exports `SPACEGATE_CONTAINER_UID` and
+  `SPACEGATE_CONTAINER_GID` from the invoking host user unless explicitly
+  overridden.
+- The API container runs as that UID/GID, so bind-mounted state files are not
+  created as `root`.
+- `SPACEGATE_UMASK` defaults to `0002`, making generated files group-writable
+  and generated directories cooperative for the configured host group.
+- `PYTHONDONTWRITEBYTECODE=1` is set for the API container so non-root runtime
+  processes do not try to create Python bytecode under `/app`.
+
+For existing root-owned generated state, use the dry-run-first normalizer:
+
+```bash
+scripts/normalize_state_permissions.sh
+sudo scripts/normalize_state_permissions.sh --apply
+```
+
+The normalizer targets generated/admin paths under `$SPACEGATE_STATE_DIR`
+(`admin`, `backups`, `cache`, `logs`, `out`, `reports`, and `served`) and
+deliberately does not touch `raw/` or `cooked/`.
+
 ## Operations, Jobs, and Audit Workspace
 
 The embedded Admin UI currently exposes these operational surfaces:

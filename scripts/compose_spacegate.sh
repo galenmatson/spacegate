@@ -35,6 +35,7 @@ Examples:
 Behavior:
   - Loads Spacegate env files via scripts/lib/env_loader.sh.
   - Ensures SPACEGATE_DATA_DIR defaults to SPACEGATE_STATE_DIR.
+  - Runs the API container as the invoking UID/GID unless overridden.
   - Executes docker compose with the configured compose file.
 USAGE
 }
@@ -55,6 +56,9 @@ main() {
 
   require_cmd docker
   export SPACEGATE_DATA_DIR="${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}}"
+  export SPACEGATE_CONTAINER_UID="${SPACEGATE_CONTAINER_UID:-$(id -u)}"
+  export SPACEGATE_CONTAINER_GID="${SPACEGATE_CONTAINER_GID:-$(id -g)}"
+  export SPACEGATE_UMASK="${SPACEGATE_UMASK:-0002}"
 
   exec docker compose -f "$DOCKER_COMPOSE_FILE" "$@"
 }
