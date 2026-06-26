@@ -14,6 +14,12 @@ const screens = [
     nav: "Objects",
     prepare: prepareObjectDiagnostics,
   },
+  {
+    key: "object-diagnostics-simulation",
+    label: "Object Diagnostics Simulation",
+    nav: "Objects",
+    prepare: prepareObjectDiagnosticsSimulation,
+  },
 ];
 
 function adminUrl(testInfo, path = "") {
@@ -76,6 +82,19 @@ async function prepareObjectDiagnostics(page) {
     timeout: 20_000,
   });
   await expect(page.getByRole("heading", { name: "Readiness" })).toBeVisible();
+}
+
+async function prepareObjectDiagnosticsSimulation(page) {
+  await prepareObjectDiagnostics(page);
+  const simulationTab = page.getByRole("button", { name: "Simulation" });
+  await simulationTab.scrollIntoViewIfNeeded();
+  await simulationTab.evaluate((button) => button.click());
+  await expect(page.getByRole("heading", { name: "Simulation Readiness" })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByRole("heading", { name: "Planets" })).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 async function pageLayoutMetrics(page) {

@@ -577,6 +577,106 @@ h3 {
   background: #fbfdff;
 }
 
+.simulation-object-card.has-missing {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.simulation-object-card.has-assumed {
+  border-color: color-mix(in srgb, #a16207 35%, var(--border));
+}
+
+.simulation-object-card.has-derived {
+  border-color: color-mix(in srgb, #64748b 35%, var(--border));
+}
+
+.simulation-object-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.simulation-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.6rem;
+}
+
+.simulation-field-card {
+  display: grid;
+  gap: 0.42rem;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0.62rem;
+  min-width: 0;
+}
+
+.simulation-field-card.status-source {
+  border-left-color: var(--ok);
+}
+
+.simulation-field-card.status-derived {
+  border-left-color: #64748b;
+}
+
+.simulation-field-card.status-assumed {
+  border-left-color: #a16207;
+}
+
+.simulation-field-card.status-missing {
+  border-left-color: var(--danger);
+}
+
+.simulation-field-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.simulation-field-head strong {
+  font-size: 0.9rem;
+}
+
+.simulation-field-value {
+  font-size: 1rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.simulation-field-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.simulation-field-meta span {
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  padding: 0.12rem 0.45rem;
+  font-size: 0.74rem;
+}
+
+.simulation-field-detail {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.simulation-field-detail strong {
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.simulation-field-detail span {
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
 .component-link-list {
   display: grid;
   gap: 0.4rem;

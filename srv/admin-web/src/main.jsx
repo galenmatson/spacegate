@@ -3374,6 +3374,13 @@ function ObjectSimulationTab({ simulation }) {
   const counts = simulation?.counts || {};
   const stars = Array.isArray(simulation?.stars) ? simulation.stars : [];
   const planets = Array.isArray(simulation?.planets) ? simulation.planets : [];
+  const requiredCount = toNumber(simulation?.required_field_count);
+  const fieldMixRows = [
+    { label: "Source", value: counts.source || 0, max: requiredCount || 1, detail: `${formatInt(counts.source)} source-backed`, color: "#15803d" },
+    { label: "Derived", value: counts.derived || 0, max: requiredCount || 1, detail: `${formatInt(counts.derived)} arm candidates`, color: "#64748b" },
+    { label: "Assumed", value: counts.assumed || 0, max: requiredCount || 1, detail: `${formatInt(counts.assumed)} disc defaults`, color: "#a16207" },
+    { label: "Missing", value: counts.missing || 0, max: requiredCount || 1, detail: `${formatInt(counts.missing)} replacement targets`, color: "#b42318" },
+  ];
   return (
     <section className="dataset-grid">
       <div className="panel">
@@ -3387,6 +3394,10 @@ function ObjectSimulationTab({ simulation }) {
         ]} />
       </div>
       <div className="panel">
+        <h2>Field Mix</h2>
+        <DatasetBarList rows={fieldMixRows} />
+      </div>
+      <div className="panel wide-panel">
         <h2>Layer Guidance</h2>
         <div className="trap-list">
           {(simulation?.notes || []).map((note) => <div key={note}>{note}</div>)}
@@ -3408,7 +3419,7 @@ function SimulationObjectTable({ rows }) {
   return (
     <div className="simulation-object-list">
       {rows.map((row) => (
-        <div className="simulation-object-card" key={`${row.object_type}-${row.object_id || row.stable_object_key}`}>
+        <div className={`simulation-object-card ${simulationObjectTone(row)}`} key={`${row.object_type}-${row.object_id || row.stable_object_key}`}>
           <div className="panel-head compact">
             <div>
               <h3>{row.display_name || row.stable_object_key || "Object"}</h3>
@@ -3417,29 +3428,69 @@ function SimulationObjectTable({ rows }) {
                 {row.host_display_name ? ` | host ${row.host_display_name}` : ""}
               </p>
             </div>
-            <span className="badge muted">{compactId(row.stable_object_key, 28)}</span>
+            <div className="simulation-object-meta">
+              {simulationStatusChips(row.fields)}
+              <span className="badge muted">{compactId(row.stable_object_key, 28)}</span>
+            </div>
           </div>
-          <table>
-            <thead><tr><th>Field</th><th>Value</th><th>Status</th><th>Basis</th><th>Replace With</th></tr></thead>
-            <tbody>
-              {(row.fields || []).map((field) => (
-                <tr key={field.key}>
-                  <td>{field.label || actionLabel(field.key)}</td>
-                  <td>
-                    <strong>{renderSimulationValue(field)}</strong>
-                    <span className="table-subtext">{field.layer || "n/a"} | {field.confidence_tier || "unknown"}</span>
-                  </td>
-                  <td><span className={`badge ${simulationStatusTone(field.status)}`}>{readableStatus(field.status)}</span></td>
-                  <td>{field.basis || "n/a"}</td>
-                  <td>{field.replacement_target || "n/a"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="simulation-field-grid">
+            {(row.fields || []).map((field) => (
+              <div className={`simulation-field-card ${simulationFieldClass(field.status)}`} key={field.key}>
+                <div className="simulation-field-head">
+                  <strong>{field.label || actionLabel(field.key)}</strong>
+                  <span className={`badge ${simulationStatusTone(field.status)}`}>{readableStatus(field.status)}</span>
+                </div>
+                <div className="simulation-field-value">{renderSimulationValue(field)}</div>
+                <div className="simulation-field-meta">
+                  <span>{field.layer || "n/a"}</span>
+                  <span>{field.confidence_tier || "unknown"}</span>
+                </div>
+                <div className="simulation-field-detail">
+                  <strong>Basis</strong>
+                  <span>{field.basis || "n/a"}</span>
+                </div>
+                <div className="simulation-field-detail">
+                  <strong>Replace With</strong>
+                  <span>{field.replacement_target || "n/a"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
   );
+}
+
+function simulationObjectTone(row) {
+  const counts = simulationStatusCounts(row?.fields || []);
+  if (counts.missing) return "has-missing";
+  if (counts.assumed) return "has-assumed";
+  if (counts.derived) return "has-derived";
+  return "has-source";
+}
+
+function simulationStatusCounts(fields) {
+  return (fields || []).reduce((counts, field) => {
+    const key = String(field?.status || "missing");
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, { source: 0, derived: 0, assumed: 0, missing: 0 });
+}
+
+function simulationStatusChips(fields) {
+  const counts = simulationStatusCounts(fields);
+  return ["source", "derived", "assumed", "missing"]
+    .filter((key) => counts[key])
+    .map((key) => (
+      <span className={`badge ${simulationStatusTone(key)}`} key={key}>
+        {formatInt(counts[key])} {key}
+      </span>
+    ));
+}
+
+function simulationFieldClass(status) {
+  return `status-${String(status || "missing").replace(/[^a-z0-9_-]/gi, "-").toLowerCase()}`;
 }
 
 function renderSimulationValue(field) {
