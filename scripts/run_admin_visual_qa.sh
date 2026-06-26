@@ -15,6 +15,8 @@ fi
 MODE="docker"
 ADMIN_WEB_DIR="$ROOT_DIR/srv/admin-web"
 REPORT_ROOT="${SPACEGATE_ADMIN_VISUAL_REPORT_ROOT:-${SPACEGATE_STATE_DIR:-$ROOT_DIR/data}/reports/admin_visual}"
+RUN_ID="${SPACEGATE_ADMIN_VISUAL_RUN_ID:-$(date -u +%Y-%m-%dT%H%M%S000Z)}"
+RUN_DIR="$REPORT_ROOT/$RUN_ID"
 BASE_URL="${SPACEGATE_ADMIN_VISUAL_BASE_URL:-https://photon.spacegates.org/admin/}"
 PLAYWRIGHT_IMAGE="${SPACEGATE_PLAYWRIGHT_IMAGE:-mcr.microsoft.com/playwright:v1.61.1-noble}"
 HOST_ALIAS="${SPACEGATE_ADMIN_VISUAL_HOST_ALIAS:-photon.spacegates.org:10.0.0.12}"
@@ -83,8 +85,14 @@ if [[ "$MODE" == "local" ]]; then
   cd "$ADMIN_WEB_DIR"
   export SPACEGATE_ADMIN_VISUAL_BASE_URL="$BASE_URL"
   export SPACEGATE_ADMIN_VISUAL_REPORT_ROOT="$REPORT_ROOT"
+  export SPACEGATE_ADMIN_VISUAL_RUN_ID="$RUN_ID"
   export SPACEGATE_ADMIN_STORAGE_STATE="$STORAGE_STATE"
-  exec npm run visual:admin
+  set +e
+  npm run visual:admin
+  status=$?
+  set -e
+  "$ROOT_DIR/scripts/summarize_admin_visual_qa.py" "$RUN_DIR" || true
+  exit "$status"
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -103,7 +111,8 @@ if [[ -n "$HOST_ALIAS" ]]; then
   host_args+=("--add-host" "$HOST_ALIAS")
 fi
 
-exec docker run --rm \
+set +e
+docker run --rm \
   --network host \
   --ipc=host \
   "${host_args[@]}" \
@@ -111,7 +120,7 @@ exec docker run --rm \
   -e HOME=/tmp \
   -e SPACEGATE_ADMIN_VISUAL_BASE_URL="$BASE_URL" \
   -e SPACEGATE_ADMIN_VISUAL_REPORT_ROOT="$REPORT_ROOT" \
-  -e SPACEGATE_ADMIN_VISUAL_RUN_ID="${SPACEGATE_ADMIN_VISUAL_RUN_ID:-}" \
+  -e SPACEGATE_ADMIN_VISUAL_RUN_ID="$RUN_ID" \
   -e SPACEGATE_ADMIN_STORAGE_STATE="$STORAGE_STATE" \
   -v "$ROOT_DIR:/work" \
   -v "$REPORT_ROOT:$REPORT_ROOT" \
@@ -119,3 +128,8 @@ exec docker run --rm \
   -w /work/srv/admin-web \
   "$PLAYWRIGHT_IMAGE" \
   npm run visual:admin
+status=$?
+set -e
+
+"$ROOT_DIR/scripts/summarize_admin_visual_qa.py" "$RUN_DIR" || true
+exit "$status"

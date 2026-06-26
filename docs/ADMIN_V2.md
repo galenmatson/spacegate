@@ -339,6 +339,14 @@ Durable screenshots and per-viewport summaries live in
 The default target is `https://photon.spacegates.org/admin/`; Docker mode adds
 `photon.spacegates.org:10.0.0.12` to the container hosts file so local OAuth
 cookies and the tested origin match.
+Every run prints a terminal summary with the run directory, HTML report,
+per-viewport status, screenshots, and console/network/page-error counts. The
+same summary can be replayed with:
+
+```bash
+scripts/summarize_admin_visual_qa.py \
+  "$SPACEGATE_STATE_DIR/reports/admin_visual/<run_id>"
+```
 
 Authentication:
 
