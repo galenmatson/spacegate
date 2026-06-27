@@ -695,12 +695,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     canvasRef.current?.requestPointerLock?.();
   };
 
-  const releasePointerLock = () => {
-    if (document.pointerLockElement) {
-      document.exitPointerLock?.();
-    }
-  };
-
   const systemDetailPath = (system) => (
     system?.system_id ? `/systems/${system.system_id}?from=map` : "/"
   );
@@ -788,7 +782,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             </dl>
           </>
         ) : (
-          <p>Click under the reticle or choose a priority contact.</p>
+          <p>Use Select reticle to lock the system under center view.</p>
         )}
       </aside>
 
@@ -797,9 +791,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         <div className="map-control-buttons">
           <button type="button" className="map-command-button map-pointer-lock-command" onClick={requestPointerLock}>
             Capture mouse
-          </button>
-          <button type="button" className="map-command-button ghost map-pointer-lock-command" onClick={releasePointerLock}>
-            Release mouse
           </button>
           <button
             type="button"
