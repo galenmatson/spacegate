@@ -486,7 +486,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [controlsEnabled, setControlsEnabled] = useState(false);
+  const [controlsEnabled, setControlsEnabled] = useState(true);
   const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
   const [telemetry, setTelemetry] = useState({ distLy: 0, speedLyS: 0, locked: false });
   const canvasRef = useRef(null);
@@ -542,12 +542,11 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     if (document.pointerLockElement) {
       document.exitPointerLock?.();
     }
-    setControlsEnabled(false);
   };
 
   const openSelectedSystem = () => {
     if (selectedSystem?.system_id) {
-      navigate(`/systems/${selectedSystem.system_id}`);
+      navigate(`/systems/${selectedSystem.system_id}?from=map`);
     }
   };
 
@@ -579,7 +578,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         <nav className="map-actions" aria-label="Map actions">
           <Link to="/" className="map-hud-button">Search</Link>
           {selectedSystem?.system_id && (
-            <Link to={`/systems/${selectedSystem.system_id}`} className="map-hud-button primary">
+            <Link to={`/systems/${selectedSystem.system_id}?from=map`} className="map-hud-button primary">
               Detail
             </Link>
           )}
@@ -640,10 +639,10 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         <span className="map-panel-label">Flight</span>
         <div className="map-control-buttons">
           <button type="button" className="map-command-button" onClick={requestPointerLock}>
-            Engage controls
+            Capture mouse
           </button>
           <button type="button" className="map-command-button ghost" onClick={releasePointerLock}>
-            Release
+            Release mouse
           </button>
           <button
             type="button"
@@ -653,7 +652,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Stabilize
           </button>
         </div>
-        <p>WASD fly · mouse look · Q up · Z down · Shift boost · click reticle select</p>
+        <p>WASD fly · Q up · Z down · Shift boost · capture mouse for look · Esc releases pointer</p>
         <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
       </aside>
 

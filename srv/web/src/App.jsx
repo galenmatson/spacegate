@@ -3134,9 +3134,11 @@ function ProvenanceBlock({ provenance, grouping = null }) {
 function SystemDetailPage({ buildId = "" }) {
   const { systemId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [data, setData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const fromMap = searchParams.get("from") === "map";
 
   React.useEffect(() => {
     let isActive = true;
@@ -3195,6 +3197,15 @@ function SystemDetailPage({ buildId = "" }) {
   return (
     <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail">
+        {fromMap && (
+          <div className="map-return-banner">
+            <div>
+              <strong>Opened from the 3D map</strong>
+              <span>Return to the local star map to keep exploring nearby systems.</span>
+            </div>
+            <Link to="/map" className="button map-return-button">Back to 3D map</Link>
+          </div>
+        )}
         <div className="system-identifiers-row">
           <span className="system-identifiers-name">{formatText(currentSystemDisplayName)}</span>
           <div className="id-line id-line-inline">

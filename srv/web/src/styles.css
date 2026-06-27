@@ -31,6 +31,42 @@
   font-family: var(--font-display);
 }
 
+.map-return-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--border));
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%),
+    color-mix(in srgb, var(--panel) 88%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.map-return-banner div {
+  display: grid;
+  gap: 3px;
+}
+
+.map-return-banner strong {
+  color: var(--meta-ink);
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+}
+
+.map-return-banner span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.map-return-button {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
 .map-background-grid {
   position: absolute;
   inset: 0;
@@ -426,6 +462,11 @@
 
   .map-fact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .map-return-banner {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
