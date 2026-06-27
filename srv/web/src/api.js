@@ -22,6 +22,18 @@ export async function fetchSystemDetail(systemId) {
   return res.json();
 }
 
+export async function fetchMapSystems(params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const url = `${API_BASE}/api/v1/map/systems${suffix}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Map systems failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
+
 export async function fetchHealth() {
   const url = `${API_BASE}/api/v1/health`;
   const res = await fetch(url);

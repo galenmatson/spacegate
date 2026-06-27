@@ -160,10 +160,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] API Docker runtime runs non-root with generated-state permission normalization
 - [x] API Docker runtime drops capabilities, blocks privilege escalation, and uses a read-only root filesystem with explicit tmpfs scratch mounts
 - [ ] Dedicated `spacegate-run` service user and shared group model for Admin/API runtime
+- [ ] Antiproton runtime identity cleanup: migrate `/srv/spacegate/data` from legacy `ubuntu:ubuntu` ownership to a dedicated non-login `spacegate` runtime user with shared `spacegate` group access; keep `sgdeploy` as deploy/restart account only
+- [ ] Reassess antiproton `sgdeploy` Docker-group membership and replace with a narrower deploy control path if feasible
 - [ ] Secret handling hardening beyond Compose-expanded environment variables
+- [ ] AI Astronomy Agency prompt-injection hardening fixture set
+- [ ] Agent source-text isolation and tool-boundary enforcement tests
+- [ ] Agent publication gate requiring reviewed citations, explicit claim subjects,
+  and verdict state before public `disc` materialization
 
 ## E) Product Roadmap (Post-Core Migration)
 
+- [x] Public web upgraded to React 19 for the 3D map runtime baseline
 - [x] Admin v2 architecture documented (`docs/ADMIN_V2.md`)
 - [x] Admin v2 React/Vite shell scaffolded at `/admin/`
 - [x] Admin v2 React Overview page with status/jobs/inference health summary
@@ -198,7 +205,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Initial role-based agent eval harness with seed golden cases and quarantined anomaly inbox reports
 - [ ] Local inference adjudicator cook-off with pinned TurboQuant KV-cache evaluation for long-context profiles
 - [ ] Advanced system hierarchy navigation UX (systems of systems)
-- [ ] 3D map runtime integration over Gaia-first slice
+- [x] 3D map pilot design documented (`docs/3D_MAP.md`)
+- [x] 3D map public route scaffolded at `/map` with lazy-loaded Three.js/R3F runtime
+- [x] 3D map compact 100 ly API endpoint (`/api/v1/map/systems`)
+- [x] 3D map pilot baseline controls (WASD, mouse look, `Q` up, `Z` down, Shift boost)
+- [x] 3D map pilot baseline orientation aids, priority labels, reticle selection, and detail handoff
+- [x] 3D map Playwright visual/interaction QA across desktop and mobile
+- [ ] 3D map 100 ly performance budget measurement and tuning
+- [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
+- [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
+  clusters, and background-sky context
+- [ ] Live 3D system preview/simulation scenes with deterministic static snapshot fallback
 - [ ] Rim/worldbuilding overlay expansion without core contamination
 - [x] Cross-layer system graph contract documented (containment spine + relation graph, layer ownership, generator compatibility)
 - [ ] Procedural system generator (rim-authored, seed/versioned, graph-safe) after M6/M7/M8/M9

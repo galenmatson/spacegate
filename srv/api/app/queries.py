@@ -568,6 +568,161 @@ def summarize_star_temperatures(stars: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def _parse_spectral_classes(raw: Any) -> List[str]:
+    if isinstance(raw, list):
+        return [str(token).strip().upper() for token in raw if str(token).strip()]
+    if not isinstance(raw, str) or not raw.strip():
+        return []
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(token).strip().upper() for token in parsed if str(token).strip()]
+
+
+def fetch_map_systems(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    max_dist_ly: float = 100.0,
+    limit: int = 20000,
+    disc_db_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    radius = max(0.0, min(float(max_dist_ly), 100.0))
+    row_limit = max(1, min(int(limit), 50000))
+    disc_attached = _attach_side_db(con, disc_db_path, alias="disc_db")
+    has_coolness_scores = disc_attached and _has_table(
+        con,
+        alias="disc_db",
+        table_name="coolness_scores",
+    )
+    has_snapshot_manifest = disc_attached and _has_table(
+        con,
+        alias="disc_db",
+        table_name="snapshot_manifest",
+    )
+
+    coolness_join = ""
+    coolness_select = """
+        NULL::BIGINT AS coolness_rank,
+        NULL::DOUBLE AS coolness_score,
+        NULL::VARCHAR AS dominant_spectral_class,
+        NULL::BIGINT AS nice_planet_count,
+        NULL::BIGINT AS weird_planet_count
+    """
+    if has_coolness_scores:
+        coolness_join = """
+            LEFT JOIN disc_db.coolness_scores c
+              ON c.system_id = s.system_id
+        """
+        coolness_select = """
+            c.rank AS coolness_rank,
+            c.score_total AS coolness_score,
+            c.dominant_spectral_class,
+            c.nice_planet_count,
+            c.weird_planet_count
+        """
+
+    snapshot_join = ""
+    snapshot_select = "FALSE AS has_snapshot"
+    if has_snapshot_manifest:
+        snapshot_join = """
+            LEFT JOIN (
+              SELECT DISTINCT system_id
+              FROM disc_db.snapshot_manifest
+            ) sm ON sm.system_id = s.system_id
+        """
+        snapshot_select = "sm.system_id IS NOT NULL AS has_snapshot"
+
+    cursor = con.execute(
+        f"""
+        SELECT
+          s.system_id,
+          s.stable_object_key,
+          s.system_name,
+          s.dist_ly,
+          s.x_helio_ly,
+          s.y_helio_ly,
+          s.z_helio_ly,
+          COALESCE(s.star_count, 0)::BIGINT AS star_count,
+          COALESCE(s.planet_count, 0)::BIGINT AS planet_count,
+          s.star_teff_count,
+          s.min_star_teff_k,
+          s.max_star_teff_k,
+          s.spectral_classes_json,
+          {coolness_select},
+          {snapshot_select}
+        FROM systems s
+        {coolness_join}
+        {snapshot_join}
+        WHERE s.dist_ly <= ?
+          AND s.x_helio_ly IS NOT NULL
+          AND s.y_helio_ly IS NOT NULL
+          AND s.z_helio_ly IS NOT NULL
+        ORDER BY COALESCE(coolness_rank, 9223372036854775807) ASC,
+                 s.dist_ly ASC,
+                 s.system_id ASC
+        LIMIT ?
+        """,
+        [radius, row_limit],
+    )
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    items: List[Dict[str, Any]] = []
+    spectral_counts: Dict[str, int] = {}
+    planet_systems = 0
+    multi_star_systems = 0
+
+    for row in rows:
+        item = row_to_dict(columns, row)
+        spectral_classes = _parse_spectral_classes(item.pop("spectral_classes_json", None))
+        dominant = str(item.get("dominant_spectral_class") or "").strip().upper()
+        if dominant in ("", "?"):
+            dominant = spectral_classes[0] if spectral_classes else "UNKNOWN"
+        item["spectral_classes"] = spectral_classes
+        item["dominant_spectral_class"] = dominant
+        item["star_count"] = int(item.get("star_count") or 0)
+        item["planet_count"] = int(item.get("planet_count") or 0)
+        item["nice_planet_count"] = int(item.get("nice_planet_count") or 0)
+        item["weird_planet_count"] = int(item.get("weird_planet_count") or 0)
+        item["has_snapshot"] = bool(item.get("has_snapshot"))
+        spectral_counts[dominant] = spectral_counts.get(dominant, 0) + 1
+        if item["planet_count"] > 0:
+            planet_systems += 1
+        if item["star_count"] > 1:
+            multi_star_systems += 1
+        items.append(item)
+
+    total_available = int(
+        con.execute(
+            """
+            SELECT COUNT(*)::BIGINT
+            FROM systems
+            WHERE dist_ly <= ?
+              AND x_helio_ly IS NOT NULL
+              AND y_helio_ly IS NOT NULL
+              AND z_helio_ly IS NOT NULL
+            """,
+            [radius],
+        ).fetchone()[0]
+        or 0
+    )
+    return {
+        "scope": "systems",
+        "frame": "heliocentric_icrs_j2016",
+        "max_dist_ly": radius,
+        "limit": row_limit,
+        "total_available": total_available,
+        "returned": len(items),
+        "truncated": len(items) < total_available,
+        "spectral_counts": spectral_counts,
+        "planet_systems": planet_systems,
+        "multi_star_systems": multi_star_systems,
+        "items": items,
+    }
+
+
 def fetch_aliases_for_system(
     con: duckdb.DuckDBPyConnection,
     system_id: int,

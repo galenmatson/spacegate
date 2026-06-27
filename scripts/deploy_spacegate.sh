@@ -148,6 +148,19 @@ remote_has_coolness_scores() {
   "
 }
 
+print_remote_compose_diagnostics() {
+  local -a ssh_cmd=("$@")
+  ssh_with_retry "${ssh_cmd[@]}" "$REMOTE" "
+    cd '$REMOTE_APP_DIR' &&
+    echo '--- docker compose ps ---' &&
+    scripts/compose_spacegate.sh ps || true
+    echo '--- api logs ---' &&
+    scripts/compose_spacegate.sh logs --tail=120 api || true
+    echo '--- web logs ---' &&
+    scripts/compose_spacegate.sh logs --tail=80 web || true
+  " || true
+}
+
 check_auth_enabled_json() {
   local payload="$1"
   local expected="$2"
@@ -317,6 +330,8 @@ main() {
 
   log_step "Restarting remote services..."
   if ! ssh_with_retry "${ssh_opts[@]}" "$REMOTE" "cd '$REMOTE_APP_DIR' && $compose_cmd && scripts/compose_spacegate.sh ps"; then
+    echo "Remote compose restart failed; collecting diagnostics..." >&2
+    print_remote_compose_diagnostics "${ssh_opts[@]}"
     echo "Error: remote compose restart failed on $REMOTE." >&2
     exit 1
   fi
@@ -361,12 +376,12 @@ main() {
   if [[ "$CHECK_PUBLIC" == "1" ]]; then
     log_step "Running public URL checks..."
     local public_health
-    public_health="$(curl -fsS "$PUBLIC_BASE_URL/api/v1/health")"
+    public_health="$(curl -fsSL "$PUBLIC_BASE_URL/api/v1/health")"
     echo "Public /health: $public_health"
 
     if [[ "$EXPECT_AUTH" != "skip" ]]; then
       local public_auth
-      public_auth="$(curl -fsS "$PUBLIC_BASE_URL/api/v1/auth/me")"
+      public_auth="$(curl -fsSL "$PUBLIC_BASE_URL/api/v1/auth/me")"
       echo "Public /auth/me: $public_auth"
       check_auth_enabled_json "$public_auth" "$EXPECT_AUTH"
     fi

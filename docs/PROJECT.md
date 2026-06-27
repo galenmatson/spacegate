@@ -417,6 +417,34 @@ Operational config note:
   It is the preferred host-local location for OIDC secrets, provider API keys,
   session secrets, and server-side Spacegate runtime secrets.
 
+## Public 3D Map Runtime
+
+The first 3D map pilot is active as a public web runtime slice.
+
+Design source:
+
+- `docs/3D_MAP.md`
+
+Current contract:
+
+- public route: `/map`
+- compact map endpoint: `GET /api/v1/map/systems`
+- first slice: Sol-centered systems within 100 ly
+- rendering stack: React 19 + Three.js through React Three Fiber
+- controls: WASD, mouse look, `Q` up, `Z` down, Shift boost, stabilized
+  vertical by default
+
+Layer rules:
+
+- science points come from `core` plus read-only `disc` presentation priority
+  fields
+- generated visuals, extended objects, and rim overlays must remain separate
+  render layers
+- map selection must hand off by `system_id`/`stable_object_key`, never by
+  point-array position
+- future 250 ly / 1000 ly map expansion must use explicit tile/LOD loading
+  instead of streaming the full Gaia-scale catalog to the browser
+
 ## Operational Observability (Admin v2)
 
 Spacegate now includes a dedicated Admin v2 console for build/runtime
