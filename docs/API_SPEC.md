@@ -222,6 +222,8 @@ Returns a compact system-point payload for the first public 3D map runtime.
 Query params:
 - `max_dist_ly` (float, default `100`, max `100`): pilot radius cap.
 - `limit` (int, default `20000`, max `50000`): safety cap for returned rows.
+- `compact` (bool, default `false`): when true, returns the browser render
+  profile with rounded coordinates and without diagnostic-only fields.
 
 Response:
 ```json
@@ -261,6 +263,11 @@ Notes:
 - This endpoint is a map render/selection contract, not a general search API.
 - The pilot is intentionally capped to 100 ly until tile/LOD loading exists.
 - Coordinates are core heliocentric positions at the canonical build epoch.
+- `compact=true` preserves `system_id`, display name, heliocentric render
+  coordinates, counts, dominant spectral class, coolness rank/score, and
+  snapshot availability. It omits `stable_object_key`, `spectral_classes`,
+  detailed temperature fields, and nice/weird planet counters because the v0.2
+  map renderer does not consume them.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics

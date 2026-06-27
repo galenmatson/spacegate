@@ -478,17 +478,24 @@ Delivered baseline:
 - dedicated `/api/v1/map/systems` compact 100 ly endpoint
 - lazy-loaded `/map` route
 - guided flight controls: WASD, mouse look, `Q` up, `Z` down, Shift boost
+- v0.2 mobile controls: one-finger drag-look, tap/select-reticle selection,
+  two-finger pinch flight, and two-finger pan
 - stabilized vertical, Sol marker, distance rings, sparse priority labels,
   reticle selection, HUD summary, priority contacts, and detail-page handoff
 - Playwright desktop/mobile visual checks confirm a nonblank WebGL canvas, HUD
   rendering, selected-system state, and no page errors
+- compact browser map profile (`compact=true`) trims the 100 ly local JSON
+  payload from about 5.3 MB to about 3.0 MB while preserving full diagnostic
+  records without the compact flag
+- orientation contract documented: scene up is canonical `z_helio_ly` mapped
+  onto Three.js Y and is not a galactic-north claim
 
 Remaining pilot polish:
 
-- performance budget measurement on Photon and a mid-tier browser
 - tighten map label priority and theme-specific HUD styling after visual QA
-- document the ICRS-to-scene vertical mapping and future galactic-frame
-  transform in public-facing copy where needed
+- improve fallback Gaia-label display priority for mobile selection sheets and
+  in-scene labels
+- measure real-device public load on a mid-tier mobile browser
 
 Success criteria:
 
