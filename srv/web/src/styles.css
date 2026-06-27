@@ -215,6 +215,10 @@
   background: color-mix(in srgb, var(--accent) 36%, transparent);
 }
 
+.map-fullscreen-command {
+  display: none;
+}
+
 .map-command-button.ghost {
   background: color-mix(in srgb, var(--surface-soft) 36%, transparent);
 }
@@ -570,6 +574,61 @@
 }
 
 @media (pointer: coarse) {
+  .map-hud-top {
+    top: 8px;
+    left: auto;
+    right: 8px;
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 8px;
+    max-width: calc(100vw - 16px);
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .map-title-block {
+    display: none;
+  }
+
+  .map-eyebrow,
+  .map-build {
+    display: none;
+  }
+
+  .map-actions {
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .map-hud-button,
+  .map-command-button {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 0.63rem;
+  }
+
+  .map-hud-button,
+  .map-theme-select select {
+    background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+    box-shadow: 0 1px 10px color-mix(in srgb, var(--bg) 66%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  .map-fullscreen-command {
+    display: inline-flex;
+  }
+
+  .map-theme-select select {
+    min-height: 32px;
+    max-width: 118px;
+    font-size: 0.63rem;
+  }
+
   .map-contacts-panel {
     display: none;
   }
@@ -585,6 +644,45 @@
 
   .map-desktop-hint {
     display: none;
+  }
+}
+
+@media (pointer: coarse) and (orientation: portrait) {
+  .map-hud-top {
+    left: 8px;
+    right: 8px;
+  }
+
+  .map-selection-panel {
+    top: 52px;
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) {
+  .map-selection-panel {
+    top: 52px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: min(320px, calc(50vw - 12px));
+    max-height: calc(100vh - 132px);
+    overflow: auto;
+    padding: 10px;
+  }
+
+  .map-selection-panel h2 {
+    margin-top: 4px;
+    font-size: 1.05rem;
+  }
+
+  .map-chip-row {
+    margin: 7px 0 0;
+  }
+
+  .map-chip {
+    min-height: 24px;
+    padding: 3px 7px;
+    font-size: 0.66rem;
   }
 }
 

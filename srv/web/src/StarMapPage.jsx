@@ -12,6 +12,7 @@ const KEYBOARD_BOOST_SPEED = 18;
 const TOUCH_LOOK_SENSITIVITY = 0.003;
 const TOUCH_PINCH_SPEED = 0.018;
 const TOUCH_PAN_SPEED = 0.012;
+const MOUSE_LOOK_SENSITIVITY = 0.002;
 const SPECTRAL_COLORS = {
   O: "#74a9ff",
   B: "#9fc9ff",
@@ -372,6 +373,16 @@ function FlightControls({
     primaryStart: null,
     moved: false,
   });
+  const mouseDragRef = useRef({
+    active: false,
+    pointerId: null,
+    lastX: 0,
+    lastY: 0,
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    moved: false,
+  });
 
   const selectReticleTarget = useCallback(() => {
     const target = nearestSystemToReticle(camera, systems);
@@ -441,6 +452,7 @@ function FlightControls({
   useEffect(() => {
     const canvas = gl.domElement;
     const gesture = touchGestureRef.current;
+    const mouseDrag = mouseDragRef.current;
     const activePointers = () => Array.from(gesture.pointers.values());
 
     const resetPinchState = () => {
@@ -456,6 +468,23 @@ function FlightControls({
 
     const onPointerDown = (event) => {
       if (event.pointerType === "mouse") {
+        if (event.button !== 0 || document.pointerLockElement === canvas) {
+          return;
+        }
+        event.preventDefault();
+        try {
+          canvas.setPointerCapture?.(event.pointerId);
+        } catch {
+          // Synthetic pointer events used by tests may not create capturable pointers.
+        }
+        mouseDrag.active = true;
+        mouseDrag.pointerId = event.pointerId;
+        mouseDrag.lastX = event.clientX;
+        mouseDrag.lastY = event.clientY;
+        mouseDrag.startX = event.clientX;
+        mouseDrag.startY = event.clientY;
+        mouseDrag.startTime = performance.now();
+        mouseDrag.moved = false;
         return;
       }
       event.preventDefault();
@@ -473,7 +502,21 @@ function FlightControls({
     };
 
     const onPointerMove = (event) => {
-      if (event.pointerType === "mouse" || !gesture.pointers.has(event.pointerId)) {
+      if (event.pointerType === "mouse") {
+        if (!mouseDrag.active || mouseDrag.pointerId !== event.pointerId) {
+          return;
+        }
+        event.preventDefault();
+        const deltaX = event.clientX - mouseDrag.lastX;
+        const deltaY = event.clientY - mouseDrag.lastY;
+        mouseDrag.lastX = event.clientX;
+        mouseDrag.lastY = event.clientY;
+        const totalMove = Math.hypot(event.clientX - mouseDrag.startX, event.clientY - mouseDrag.startY);
+        mouseDrag.moved = mouseDrag.moved || totalMove > 5;
+        applyLookDelta(deltaX, deltaY, MOUSE_LOOK_SENSITIVITY);
+        return;
+      }
+      if (!gesture.pointers.has(event.pointerId)) {
         return;
       }
       event.preventDefault();
@@ -513,7 +556,25 @@ function FlightControls({
     };
 
     const onPointerEnd = (event) => {
-      if (event.pointerType === "mouse" || !gesture.pointers.has(event.pointerId)) {
+      if (event.pointerType === "mouse") {
+        if (!mouseDrag.active || mouseDrag.pointerId !== event.pointerId) {
+          return;
+        }
+        event.preventDefault();
+        try {
+          canvas.releasePointerCapture?.(event.pointerId);
+        } catch {
+          // Ignore non-captured synthetic pointers.
+        }
+        const duration = performance.now() - mouseDrag.startTime;
+        if (!mouseDrag.moved && duration < 320) {
+          selectReticleTarget();
+        }
+        mouseDrag.active = false;
+        mouseDrag.pointerId = null;
+        return;
+      }
+      if (!gesture.pointers.has(event.pointerId)) {
         return;
       }
       event.preventDefault();
@@ -607,15 +668,6 @@ function StarMapScene({
       camera={{ fov: 62, near: 0.01, far: 1200, position: [0, 3.5, 17] }}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
       onCreated={({ gl }) => onCanvasReady(gl.domElement)}
-      onClick={({ camera }) => {
-        if (document.pointerLockElement) {
-          return;
-        }
-        const target = nearestSystemToReticle(camera, systems);
-        if (target) {
-          onSelect(target);
-        }
-      }}
     >
       <color attach="background" args={["#01030a"]} />
       <fog attach="fog" args={["#01030a", 80, 190]} />
@@ -646,7 +698,22 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
   const [reticleSelectRequest, setReticleSelectRequest] = useState(0);
   const [telemetry, setTelemetry] = useState({ distLy: 0, speedLyS: 0, locked: false });
+  const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const pageRef = useRef(null);
   const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const updateFullscreenState = () => {
+      setFullscreenAvailable(Boolean(document.fullscreenEnabled && pageRef.current?.requestFullscreen));
+      setIsFullscreen(document.fullscreenElement === pageRef.current);
+    };
+    updateFullscreenState();
+    document.addEventListener("fullscreenchange", updateFullscreenState);
+    return () => {
+      document.removeEventListener("fullscreenchange", updateFullscreenState);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -695,12 +762,20 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     canvasRef.current?.requestPointerLock?.();
   };
 
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+      return;
+    }
+    pageRef.current?.requestFullscreen?.({ navigationUI: "hide" });
+  };
+
   const systemDetailPath = (system) => (
     system?.system_id ? `/systems/${system.system_id}?from=map` : "/"
   );
 
   return (
-    <div className="map-page">
+    <div className="map-page" ref={pageRef}>
       <div className="map-background-grid" aria-hidden="true" />
       {systems.length > 0 && (
         <StarMapScene
@@ -731,6 +806,11 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             <Link to={systemDetailPath(selectedSystem)} className="map-hud-button primary">
               Detail
             </Link>
+          )}
+          {fullscreenAvailable && (
+            <button type="button" className="map-hud-button map-fullscreen-command" onClick={toggleFullscreen}>
+              {isFullscreen ? "Exit" : "Full"}
+            </button>
           )}
           <label className="map-theme-select">
             <span className="sr-only">Theme</span>
