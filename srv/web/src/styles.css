@@ -523,9 +523,21 @@
   .map-controls-panel {
     bottom: 10px;
     gap: 7px;
-    padding: 12px;
-    max-height: 158px;
-    overflow: auto;
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .map-controls-panel .map-panel-label {
+    display: none;
+  }
+
+  .map-control-buttons {
+    justify-content: flex-start;
   }
 
   .map-status-panel {
@@ -538,8 +550,9 @@
 
   .map-controls-panel p,
   .map-controls-panel span {
-    font-size: 0.78rem;
-    line-height: 1.32;
+    font-size: 0.74rem;
+    line-height: 1.28;
+    text-shadow: 0 1px 8px color-mix(in srgb, var(--bg) 86%, transparent);
   }
 
   .map-return-banner {
