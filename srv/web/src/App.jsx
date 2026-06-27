@@ -4,6 +4,8 @@ import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 
+const StarMapPage = React.lazy(() => import("./StarMapPage.jsx"));
+
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "D"];
 const SPECTRAL_NON_TEMP_OPTIONS = new Set(["D"]);
 const THEME_STORAGE_KEY = "spacegate.theme";
@@ -131,6 +133,7 @@ const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
 const HEADER_SOURCE_LINK = "https://github.com/galenmatson/spacegate";
 const HEADER_LINKS = [
   { label: "ABT", href: HEADER_ABOUT_LINK, title: "About this site", external: false },
+  { label: "MAP", href: "/map", title: "3D local star map", external: false },
   { label: "SPT", href: HEADER_SPONSOR_LINK, title: "Support this project", external: true },
   { label: "SRC", href: HEADER_SOURCE_LINK, title: "Source code", external: true },
   { label: "DATA", href: HEADER_DATA_LINK, title: "Source data", external: false },
@@ -3492,6 +3495,19 @@ export default function App() {
         <Route path="/" element={<SearchPage buildId={buildId} />} />
         <Route path="/about" element={<AboutPage buildId={buildId} />} />
         <Route path="/data" element={<DataPage buildId={buildId} />} />
+        <Route
+          path="/map"
+          element={(
+            <React.Suspense fallback={<div className="route-loading">Loading map...</div>}>
+              <StarMapPage
+                buildId={buildId}
+                theme={theme}
+                setTheme={setTheme}
+                themeOptions={THEME_OPTIONS}
+              />
+            </React.Suspense>
+          )}
+        />
         <Route path="/systems/:systemId" element={<SystemDetailPage buildId={buildId} />} />
       </Routes>
     </ThemeContext.Provider>

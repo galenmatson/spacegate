@@ -216,6 +216,52 @@ Response:
 - `401` unauthenticated.
 - `403` authenticated non-admin.
 
+### GET /map/systems
+Returns a compact system-point payload for the first public 3D map runtime.
+
+Query params:
+- `max_dist_ly` (float, default `100`, max `100`): pilot radius cap.
+- `limit` (int, default `20000`, max `50000`): safety cap for returned rows.
+
+Response:
+```json
+{
+  "scope": "systems",
+  "frame": "heliocentric_icrs_j2016",
+  "max_dist_ly": 100,
+  "limit": 20000,
+  "total_available": 10513,
+  "returned": 10513,
+  "truncated": false,
+  "planet_systems": 310,
+  "multi_star_systems": 443,
+  "spectral_counts": {"M": 6000},
+  "items": [
+    {
+      "system_id": 1,
+      "stable_object_key": "canon:system:...",
+      "system_name": "Example",
+      "dist_ly": 12.3,
+      "x_helio_ly": 1.0,
+      "y_helio_ly": 2.0,
+      "z_helio_ly": 3.0,
+      "star_count": 1,
+      "planet_count": 0,
+      "spectral_classes": ["M"],
+      "dominant_spectral_class": "M",
+      "coolness_rank": 42,
+      "coolness_score": 18.5,
+      "has_snapshot": true
+    }
+  ]
+}
+```
+
+Notes:
+- This endpoint is a map render/selection contract, not a general search API.
+- The pilot is intentionally capped to 100 ly until tile/LOD loading exists.
+- Coordinates are core heliocentric positions at the canonical build epoch.
+
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics
 workspace.

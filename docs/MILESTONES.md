@@ -324,6 +324,40 @@ Success criteria:
 - overnight batch profile has an explicit throughput floor and stop condition
 - accepted claims remain backed by source IDs and reviewed evidence, not opaque model reasoning
 
+### M5.75 Agent Prompt-Injection and Tool-Security Hardening
+
+Goal:
+
+- harden the AI Astronomy Agency against malicious or adversarial source text,
+  prompt injection, tool misuse, and unreviewed publication paths.
+
+Dependencies:
+
+- M5.7 evaluation harness
+- M5.8 Admin source-policy controls
+
+Deliverables:
+
+- malicious-source fixture set covering prompt injection, citation spoofing,
+  tool-call coercion, schema smuggling, hidden instructions, and cross-object
+  claim poisoning
+- source-text isolation rules for retriever/extractor/reviewer prompts
+- allowlist and source-trust enforcement tests for every retrieval and context
+  assembly path
+- tool-boundary policy so agent-generated text cannot directly trigger shell,
+  database, filesystem, deployment, or publication actions
+- publication gate requiring reviewed citations, claim subjects, and verdict
+  state before any public `disc` materialization
+- Admin-visible security findings and anomaly inbox routing for suspicious
+  sources or model behavior
+
+Success criteria:
+
+- seeded prompt-injection fixtures fail closed
+- agent roles preserve source text as evidence, not instructions
+- no agent workflow can mutate `core`, publish public claims, or execute tools
+  from untrusted source content
+
 ### M5.8 Admin v2 Control Plane
 
 Goal:
@@ -416,6 +450,100 @@ Success criteria:
 
 - interactive performance on mid-tier consumer hardware
 - stable object selection and context handoff to detail views
+
+### M8.0. 3D Map Pilot
+
+Goal:
+
+- ship a beautiful, Sol-centered 100 ly map that proves the public navigation,
+  rendering, and selection model before deep tiling.
+
+Dependencies:
+
+- M2 stable public serving path
+- React 19 public web upgrade
+
+Delivered baseline:
+
+- React 19 + Three.js/R3F stack selected for the public map
+- dedicated `/api/v1/map/systems` compact 100 ly endpoint
+- lazy-loaded `/map` route
+- guided flight controls: WASD, mouse look, `Q` up, `Z` down, Shift boost
+- stabilized vertical, Sol marker, distance rings, sparse priority labels,
+  reticle selection, HUD summary, priority contacts, and detail-page handoff
+- Playwright desktop/mobile visual checks confirm a nonblank WebGL canvas, HUD
+  rendering, selected-system state, and no page errors
+
+Remaining pilot polish:
+
+- performance budget measurement on Photon and a mid-tier browser
+- tighten map label priority and theme-specific HUD styling after visual QA
+- document the ICRS-to-scene vertical mapping and future galactic-frame
+  transform in public-facing copy where needed
+
+Success criteria:
+
+- interactive 100 ly map renders reliably without blocking search/detail users
+- visitors can fly, select, and open system details without orientation loss
+- implementation remains layer-ready for future tiled science, extended-object,
+  system-simulation, and rim overlays
+
+### M8.1. Tiled Deep Map
+
+Goal:
+
+- expand the map to 250 ly and 1000 ly using explicit tile/LOD loading rather
+  than one large browser payload.
+
+Deliverables:
+
+- tile manifest/artifact contract, likely aligned with Morton/spatial indexing
+- nearby detailed tiles plus far coarse/priority samples
+- selection handoff that remains stable across tile unload/reload
+- tile cache and loading telemetry
+
+### M8.2. Extended Objects and Background Sky
+
+Goal:
+
+- add non-stellar public landmarks without conflating them with core star
+  systems.
+
+Deliverables:
+
+- evaluated source policy for Messier/NGC/IC-style objects and nearby nebulae,
+  clusters, and galaxies
+- separate extended-object map layer with object type, position, extent,
+  confidence, provenance, and presentation assets
+- license-reviewed sky/background layer beyond the 1000 ly local sphere
+
+### M8.3. System Simulation Scenes
+
+Goal:
+
+- replace static browser snapshots with live 3D system previews where supported,
+  while keeping deterministic snapshots as fallback artifacts.
+
+Deliverables:
+
+- mesh/material scene components for stars and planets
+- explicit assumptions for generated planet surfaces and missing values
+- fallback rules for browsers or devices that cannot support 3D previews
+
+### M8.4. Time and Rim-Ready Rendering
+
+Goal:
+
+- prepare the map for client-side time flow, proper-motion/orbit presentation,
+  and rim infrastructure meshes.
+
+Deliverables:
+
+- client-side simulation clock contract
+- epoch/proper-motion rendering policy that never overwrites canonical stored
+  coordinates
+- rim render layers for gates, stations, orbital rings, elevators, routes,
+  ships, facilities, and namespace visibility controls
 
 ### M9. Rim and Worldbuilding Tooling
 

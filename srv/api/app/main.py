@@ -42,6 +42,7 @@ from .queries import (
     fetch_aliases_for_system,
     fetch_build_id,
     fetch_counts_for_system,
+    fetch_map_systems,
     fetch_planets_for_system,
     fetch_spectral_mix,
     fetch_snapshot_for_system,
@@ -2294,6 +2295,31 @@ def systems_search(
         "total_count": total_count,
         "query_time_ms": duration_ms,
     }
+
+
+@app.get("/api/v1/map/systems")
+def map_systems(
+    max_dist_ly: float = Query(default=100.0, ge=0, le=100),
+    limit: int = Query(default=20000, ge=1, le=50000),
+):
+    disc_db_path = _resolve_disc_db_path()
+    try:
+        with db.connection_scope() as con:
+            return fetch_map_systems(
+                con,
+                max_dist_ly=max_dist_ly,
+                limit=limit,
+                disc_db_path=disc_db_path,
+            )
+    except DatabaseUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "database_unavailable",
+                "message": "Database not available",
+                "details": {},
+            },
+        )
 
 
 @app.get("/api/v1/systems/{system_id}")
