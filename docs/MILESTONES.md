@@ -102,6 +102,15 @@ Remaining hardening backlog:
   accidentally print secret-bearing `docker compose config` output
 - decide whether public-edge `antiproton` needs a stricter Compose profile than
   Photon development
+- normalize `antiproton` runtime identity and data ownership:
+  current production hotfix pins containers to the legacy `ubuntu:ubuntu`
+  data-owner UID/GID so SQLite admin state can write WAL/shm files; the final
+  state should use a dedicated non-login `spacegate` runtime user,
+  `spacegate` group-owned `/srv/spacegate/data`, and `sgdeploy` only as the
+  deployment/restart account
+- reassess `sgdeploy` membership in the Docker group; broad Docker access is
+  effectively root-equivalent and should eventually become a narrower deploy
+  control path if practical
 
 ### M1. Gaia Galaxy Backbone Pilot (Current Critical Path)
 

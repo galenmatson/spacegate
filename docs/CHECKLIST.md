@@ -160,6 +160,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] API Docker runtime runs non-root with generated-state permission normalization
 - [x] API Docker runtime drops capabilities, blocks privilege escalation, and uses a read-only root filesystem with explicit tmpfs scratch mounts
 - [ ] Dedicated `spacegate-run` service user and shared group model for Admin/API runtime
+- [ ] Antiproton runtime identity cleanup: migrate `/srv/spacegate/data` from legacy `ubuntu:ubuntu` ownership to a dedicated non-login `spacegate` runtime user with shared `spacegate` group access; keep `sgdeploy` as deploy/restart account only
+- [ ] Reassess antiproton `sgdeploy` Docker-group membership and replace with a narrower deploy control path if feasible
 - [ ] Secret handling hardening beyond Compose-expanded environment variables
 - [ ] AI Astronomy Agency prompt-injection hardening fixture set
 - [ ] Agent source-text isolation and tool-boundary enforcement tests
