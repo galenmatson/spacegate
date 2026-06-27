@@ -24,14 +24,24 @@ Controls:
 - `Z`: translate down
 - Shift: boost
 - stabilized vertical on by default
+- touch-first mobile controls:
+  - one-finger drag looks around
+  - tap or `Select reticle` selects the nearest reticle target
+  - two-finger pinch flies forward/back
+  - two-finger drag pans laterally/vertically
 
 Frame note:
 
 - current map coordinates are heliocentric, ICRS/J2016-derived positions from
   core fields
-- scene vertical maps canonical `z_helio_ly` to Three.js Y for a stable first
-  navigation frame
-- true galactic-frame rendering is a future transform and must be explicit
+- scene axes are a presentation transform over canonical heliocentric ICRS:
+  - scene X = canonical `x_helio_ly`
+  - scene Y = canonical `z_helio_ly`
+  - scene Z = negative canonical `y_helio_ly`
+- scene vertical is intentionally a stable navigation convention, not a
+  galactic-north claim
+- future galactic-frame rendering/markers must apply an explicit ICRS-to-
+  galactic transform and should not reuse the scene-up convention implicitly
 
 ## Data Contract
 
@@ -43,7 +53,7 @@ Pilot constraints:
 
 - maximum radius: 100 ly
 - maximum limit: 50,000 rows
-- default request: 100 ly / 20,000 rows
+- default request: 100 ly / 20,000 rows / `compact=true`
 - not a replacement for `/api/v1/systems/search`
 
 Returned rows are compact render/selection records:
@@ -59,12 +69,35 @@ Returned rows are compact render/selection records:
   present
 - snapshot availability when `disc.snapshot_manifest` is present
 
+`compact=true` is the browser-render profile. It rounds render coordinates to
+six decimal places and omits fields not currently used by the map renderer
+(`stable_object_key`, detailed temperature fields, `spectral_classes`, and
+nice/weird planet counts). Full records remain available by omitting
+`compact=true` for diagnostics.
+
 Rules:
 
 - map selection must use stable object identity, not point-array index
 - map data must not mix science, generated presentation, and rim rows into one
   truth layer
 - future rim and extended-object rendering must be separate map layers
+
+## v0.2 Measurements
+
+Photon local API measurements for the 100 ly / 20,000 row request:
+
+- full diagnostic payload: about 5.3 MB JSON
+- `compact=true` render payload: about 3.0 MB JSON
+- local API response time remained under 1 second for both forms during v0.2
+  checks
+
+Browser QA covers:
+
+- desktop WebGL render, compact endpoint request, selected-system link, and
+  nonblank canvas
+- mobile WebGL render, non-overlapping HUD sheets, hidden pointer-lock controls
+  on coarse pointers, touch drag/pinch event handling, `Select reticle`, and
+  map-detail handoff
 
 ## Rendering Layers
 

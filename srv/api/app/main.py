@@ -2301,6 +2301,7 @@ def systems_search(
 def map_systems(
     max_dist_ly: float = Query(default=100.0, ge=0, le=100),
     limit: int = Query(default=20000, ge=1, le=50000),
+    compact: bool = Query(default=False),
 ):
     disc_db_path = _resolve_disc_db_path()
     try:
@@ -2310,6 +2311,7 @@ def map_systems(
                 max_dist_ly=max_dist_ly,
                 limit=limit,
                 disc_db_path=disc_db_path,
+                compact=compact,
             )
     except DatabaseUnavailable:
         raise HTTPException(

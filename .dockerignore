@@ -8,3 +8,4 @@ srv/web/node_modules
 srv/web/dist
 srv/admin-web/node_modules
 srv/admin-web/dist
+srv/api/.venv

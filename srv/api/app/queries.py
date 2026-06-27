@@ -588,6 +588,7 @@ def fetch_map_systems(
     max_dist_ly: float = 100.0,
     limit: int = 20000,
     disc_db_path: Optional[str] = None,
+    compact: bool = False,
 ) -> Dict[str, Any]:
     radius = max(0.0, min(float(max_dist_ly), 100.0))
     row_limit = max(1, min(int(limit), 50000))
@@ -687,6 +688,21 @@ def fetch_map_systems(
         item["nice_planet_count"] = int(item.get("nice_planet_count") or 0)
         item["weird_planet_count"] = int(item.get("weird_planet_count") or 0)
         item["has_snapshot"] = bool(item.get("has_snapshot"))
+        if compact:
+            for key in ("dist_ly", "x_helio_ly", "y_helio_ly", "z_helio_ly"):
+                value = item.get(key)
+                if value is not None:
+                    item[key] = round(float(value), 6)
+            score = item.get("coolness_score")
+            if score is not None:
+                item["coolness_score"] = round(float(score), 3)
+            item.pop("stable_object_key", None)
+            item.pop("star_teff_count", None)
+            item.pop("min_star_teff_k", None)
+            item.pop("max_star_teff_k", None)
+            item.pop("nice_planet_count", None)
+            item.pop("weird_planet_count", None)
+            item.pop("spectral_classes", None)
         spectral_counts[dominant] = spectral_counts.get(dominant, 0) + 1
         if item["planet_count"] > 0:
             planet_systems += 1

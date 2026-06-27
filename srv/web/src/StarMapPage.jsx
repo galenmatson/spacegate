@@ -7,6 +7,11 @@ import { fetchMapSystems } from "./api.js";
 const MAP_RADIUS_LY = 100;
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const KEYBOARD_BASE_SPEED = 7;
+const KEYBOARD_BOOST_SPEED = 18;
+const TOUCH_LOOK_SENSITIVITY = 0.003;
+const TOUCH_PINCH_SPEED = 0.018;
+const TOUCH_PAN_SPEED = 0.012;
 const SPECTRAL_COLORS = {
   O: "#74a9ff",
   B: "#9fc9ff",
@@ -323,7 +328,7 @@ function nearestSystemToReticle(camera, systems) {
     }
     const distanceSq = candidate.lengthSq();
     const perpSq = Math.max(0, distanceSq - along * along);
-    const threshold = Math.max(0.22, along * 0.014);
+    const threshold = Math.max(0.3, along * 0.018);
     if (perpSq > threshold * threshold) {
       continue;
     }
@@ -336,12 +341,37 @@ function nearestSystemToReticle(camera, systems) {
   return best;
 }
 
-function FlightControls({ systems, onSelect, controlsEnabled, stabilizationEnabled, onTelemetry }) {
+function pointerDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function pointerCentroid(a, b) {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  };
+}
+
+function FlightControls({
+  systems,
+  onSelect,
+  controlsEnabled,
+  stabilizationEnabled,
+  onTelemetry,
+  reticleSelectRequest,
+}) {
   const { camera, gl } = useThree();
   const keysRef = useRef(new Set());
   const yawRef = useRef(0);
   const pitchRef = useRef(-0.08);
   const telemetryClockRef = useRef(0);
+  const touchGestureRef = useRef({
+    pointers: new Map(),
+    lastPinchDistance: null,
+    lastCentroid: null,
+    primaryStart: null,
+    moved: false,
+  });
 
   const selectReticleTarget = useCallback(() => {
     const target = nearestSystemToReticle(camera, systems);
@@ -349,6 +379,19 @@ function FlightControls({ systems, onSelect, controlsEnabled, stabilizationEnabl
       onSelect(target);
     }
   }, [camera, onSelect, systems]);
+
+  useEffect(() => {
+    if (reticleSelectRequest > 0) {
+      selectReticleTarget();
+    }
+  }, [reticleSelectRequest, selectReticleTarget]);
+
+  const applyLookDelta = useCallback((deltaX, deltaY, sensitivity = 0.002) => {
+    yawRef.current -= deltaX * sensitivity;
+    pitchRef.current -= deltaY * sensitivity;
+    pitchRef.current = Math.max(-1.34, Math.min(1.34, pitchRef.current));
+    camera.rotation.set(pitchRef.current, yawRef.current, 0);
+  }, [camera]);
 
   useEffect(() => {
     camera.position.set(0, 3.5, 17);
@@ -375,10 +418,7 @@ function FlightControls({ systems, onSelect, controlsEnabled, stabilizationEnabl
       if (document.pointerLockElement !== gl.domElement) {
         return;
       }
-      yawRef.current -= event.movementX * 0.002;
-      pitchRef.current -= event.movementY * 0.002;
-      pitchRef.current = Math.max(-1.34, Math.min(1.34, pitchRef.current));
-      camera.rotation.set(pitchRef.current, yawRef.current, 0);
+      applyLookDelta(event.movementX, event.movementY);
     };
     const onMouseDown = (event) => {
       if (event.button !== 0 || document.pointerLockElement !== gl.domElement) {
@@ -396,7 +436,122 @@ function FlightControls({ systems, onSelect, controlsEnabled, stabilizationEnabl
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [camera, controlsEnabled, gl.domElement, selectReticleTarget]);
+  }, [applyLookDelta, controlsEnabled, gl.domElement, selectReticleTarget]);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const gesture = touchGestureRef.current;
+    const activePointers = () => Array.from(gesture.pointers.values());
+
+    const resetPinchState = () => {
+      const pointers = activePointers();
+      if (pointers.length === 2) {
+        gesture.lastPinchDistance = pointerDistance(pointers[0], pointers[1]);
+        gesture.lastCentroid = pointerCentroid(pointers[0], pointers[1]);
+      } else {
+        gesture.lastPinchDistance = null;
+        gesture.lastCentroid = null;
+      }
+    };
+
+    const onPointerDown = (event) => {
+      if (event.pointerType === "mouse") {
+        return;
+      }
+      event.preventDefault();
+      try {
+        canvas.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Synthetic pointer events used by tests may not create capturable pointers.
+      }
+      gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (gesture.pointers.size === 1) {
+        gesture.primaryStart = { x: event.clientX, y: event.clientY, time: performance.now() };
+        gesture.moved = false;
+      }
+      resetPinchState();
+    };
+
+    const onPointerMove = (event) => {
+      if (event.pointerType === "mouse" || !gesture.pointers.has(event.pointerId)) {
+        return;
+      }
+      event.preventDefault();
+      const previous = gesture.pointers.get(event.pointerId);
+      gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const pointers = activePointers();
+
+      if (pointers.length === 1 && previous) {
+        const deltaX = event.clientX - previous.x;
+        const deltaY = event.clientY - previous.y;
+        if (gesture.primaryStart) {
+          const totalMove = Math.hypot(event.clientX - gesture.primaryStart.x, event.clientY - gesture.primaryStart.y);
+          gesture.moved = gesture.moved || totalMove > 8;
+        }
+        applyLookDelta(deltaX, deltaY, TOUCH_LOOK_SENSITIVITY);
+        return;
+      }
+
+      if (pointers.length === 2) {
+        const nextDistance = pointerDistance(pointers[0], pointers[1]);
+        const nextCentroid = pointerCentroid(pointers[0], pointers[1]);
+        const direction = new THREE.Vector3();
+        const strafe = new THREE.Vector3();
+        camera.getWorldDirection(direction).normalize();
+        strafe.crossVectors(direction, WORLD_UP).normalize();
+
+        if (gesture.lastPinchDistance !== null) {
+          camera.position.addScaledVector(direction, (nextDistance - gesture.lastPinchDistance) * TOUCH_PINCH_SPEED);
+        }
+        if (gesture.lastCentroid) {
+          camera.position.addScaledVector(strafe, (nextCentroid.x - gesture.lastCentroid.x) * TOUCH_PAN_SPEED);
+          camera.position.addScaledVector(WORLD_UP, -(nextCentroid.y - gesture.lastCentroid.y) * TOUCH_PAN_SPEED);
+        }
+        gesture.lastPinchDistance = nextDistance;
+        gesture.lastCentroid = nextCentroid;
+      }
+    };
+
+    const onPointerEnd = (event) => {
+      if (event.pointerType === "mouse" || !gesture.pointers.has(event.pointerId)) {
+        return;
+      }
+      event.preventDefault();
+      const hadSinglePointer = gesture.pointers.size === 1;
+      gesture.pointers.delete(event.pointerId);
+      try {
+        canvas.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Ignore non-captured synthetic pointers.
+      }
+      if (hadSinglePointer && gesture.primaryStart) {
+        const duration = performance.now() - gesture.primaryStart.time;
+        if (!gesture.moved && duration < 320) {
+          selectReticleTarget();
+        }
+      }
+      if (gesture.pointers.size === 1) {
+        const [remaining] = activePointers();
+        gesture.primaryStart = { x: remaining.x, y: remaining.y, time: performance.now() };
+        gesture.moved = false;
+      } else if (gesture.pointers.size === 0) {
+        gesture.primaryStart = null;
+        gesture.moved = false;
+      }
+      resetPinchState();
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
+    canvas.addEventListener("pointermove", onPointerMove, { passive: false });
+    canvas.addEventListener("pointerup", onPointerEnd, { passive: false });
+    canvas.addEventListener("pointercancel", onPointerEnd, { passive: false });
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerEnd);
+      canvas.removeEventListener("pointercancel", onPointerEnd);
+    };
+  }, [applyLookDelta, camera, gl.domElement, selectReticleTarget]);
 
   useFrame((_, delta) => {
     if (!controlsEnabled && document.pointerLockElement !== gl.domElement) {
@@ -411,7 +566,7 @@ function FlightControls({ systems, onSelect, controlsEnabled, stabilizationEnabl
     const movement = new THREE.Vector3();
     camera.getWorldDirection(direction).normalize();
     strafe.crossVectors(direction, WORLD_UP).normalize();
-    const baseSpeed = keys.has("shift") ? 18 : 7;
+    const baseSpeed = keys.has("shift") ? KEYBOARD_BOOST_SPEED : KEYBOARD_BASE_SPEED;
     if (keys.has("w")) movement.add(direction);
     if (keys.has("s")) movement.sub(direction);
     if (keys.has("d")) movement.add(strafe);
@@ -444,6 +599,7 @@ function StarMapScene({
   stabilizationEnabled,
   onTelemetry,
   onCanvasReady,
+  reticleSelectRequest,
 }) {
   return (
     <Canvas
@@ -474,6 +630,7 @@ function StarMapScene({
         controlsEnabled={controlsEnabled}
         stabilizationEnabled={stabilizationEnabled}
         onTelemetry={onTelemetry}
+        reticleSelectRequest={reticleSelectRequest}
       />
     </Canvas>
   );
@@ -487,6 +644,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [error, setError] = useState("");
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
+  const [reticleSelectRequest, setReticleSelectRequest] = useState(0);
   const [telemetry, setTelemetry] = useState({ distLy: 0, speedLyS: 0, locked: false });
   const canvasRef = useRef(null);
 
@@ -494,7 +652,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     let active = true;
     setLoading(true);
     setError("");
-    fetchMapSystems({ max_dist_ly: String(MAP_RADIUS_LY), limit: "20000" })
+    fetchMapSystems({ max_dist_ly: String(MAP_RADIUS_LY), limit: "20000", compact: "true" })
       .then((payload) => {
         if (!active) {
           return;
@@ -561,6 +719,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           onCanvasReady={(canvas) => {
             canvasRef.current = canvas;
           }}
+          reticleSelectRequest={reticleSelectRequest}
         />
       )}
 
@@ -636,11 +795,18 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       <aside className="map-hud map-controls-panel">
         <span className="map-panel-label">Flight</span>
         <div className="map-control-buttons">
-          <button type="button" className="map-command-button" onClick={requestPointerLock}>
+          <button type="button" className="map-command-button map-pointer-lock-command" onClick={requestPointerLock}>
             Capture mouse
           </button>
-          <button type="button" className="map-command-button ghost" onClick={releasePointerLock}>
+          <button type="button" className="map-command-button ghost map-pointer-lock-command" onClick={releasePointerLock}>
             Release mouse
+          </button>
+          <button
+            type="button"
+            className="map-command-button ghost"
+            onClick={() => setReticleSelectRequest((value) => value + 1)}
+          >
+            Select reticle
           </button>
           <button
             type="button"
@@ -650,7 +816,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Stabilize
           </button>
         </div>
-        <p>WASD fly · Q up · Z down · Shift boost · capture mouse for look · Esc releases pointer</p>
+        <p className="map-desktop-hint">Desktop: WASD fly · Q up · Z down · Shift boost · capture mouse for look · Esc releases pointer</p>
+        <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
         <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
       </aside>
 

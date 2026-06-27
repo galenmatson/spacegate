@@ -432,7 +432,11 @@ Current contract:
 - first slice: Sol-centered systems within 100 ly
 - rendering stack: React 19 + Three.js through React Three Fiber
 - controls: WASD, mouse look, `Q` up, `Z` down, Shift boost, stabilized
-  vertical by default
+  vertical by default; v0.2 adds touch-first phone/tablet controls with
+  drag-look, tap/select-reticle, two-finger pinch flight, and two-finger pan
+- performance profile: the public map requests `compact=true`, reducing the
+  current 100 ly JSON payload from about 5.3 MB to about 3.0 MB in Photon local
+  checks while leaving full diagnostic records available
 
 Layer rules:
 

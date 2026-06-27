@@ -209,9 +209,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map public route scaffolded at `/map` with lazy-loaded Three.js/R3F runtime
 - [x] 3D map compact 100 ly API endpoint (`/api/v1/map/systems`)
 - [x] 3D map pilot baseline controls (WASD, mouse look, `Q` up, `Z` down, Shift boost)
+- [x] 3D map v0.2 touch controls (drag-look, tap/select-reticle, two-finger pinch flight, two-finger pan)
+- [x] 3D map v0.2 mobile HUD layout with non-overlap Playwright checks
 - [x] 3D map pilot baseline orientation aids, priority labels, reticle selection, and detail handoff
 - [x] 3D map Playwright visual/interaction QA across desktop and mobile
-- [ ] 3D map 100 ly performance budget measurement and tuning
+- [x] 3D map 100 ly performance budget measurement and compact render payload tuning
+- [ ] 3D map fallback Gaia-label priority and mobile label-display polish
+- [ ] 3D map real-device mid-tier mobile performance check
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
   clusters, and background-sky context

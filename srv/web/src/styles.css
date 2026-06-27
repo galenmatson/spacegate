@@ -10,6 +10,10 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
+  touch-action: none;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  user-select: none;
   color: var(--ink);
   background:
     radial-gradient(circle at 50% 52%, rgba(85, 119, 180, 0.16), transparent 32%),
@@ -87,6 +91,7 @@
   width: 100%;
   height: 100%;
   cursor: crosshair;
+  touch-action: none;
 }
 
 .map-reticle {
@@ -251,6 +256,7 @@
   margin-top: 8px;
   font-size: 1.35rem;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .map-selection-title-link {
@@ -457,14 +463,69 @@
 
   .map-hud-top {
     top: 10px;
+    gap: 10px;
+    min-height: 0;
+    padding: 10px;
+  }
+
+  .map-title-block h1 {
+    font-size: 1.42rem;
+  }
+
+  .map-eyebrow,
+  .map-panel-label,
+  .map-build {
+    font-size: 0.58rem;
+  }
+
+  .map-actions {
+    gap: 7px;
+  }
+
+  .map-hud-button,
+  .map-command-button {
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 0.68rem;
+  }
+
+  .map-theme-select select {
+    min-height: 34px;
+    max-width: 154px;
+    font-size: 0.68rem;
   }
 
   .map-selection-panel {
-    bottom: 172px;
+    top: 152px;
+    bottom: auto;
+    max-height: 172px;
+    overflow: auto;
+    padding: 10px;
+  }
+
+  .map-selection-panel h2 {
+    margin-top: 5px;
+    font-size: 1.05rem;
+    line-height: 1.08;
+  }
+
+  .map-chip-row {
+    gap: 5px;
+    margin: 8px 0 0;
+  }
+
+  .map-chip {
+    min-height: 24px;
+    padding: 3px 7px;
+    font-size: 0.66rem;
   }
 
   .map-controls-panel {
     bottom: 10px;
+    gap: 7px;
+    padding: 12px;
+    max-height: 158px;
+    overflow: auto;
   }
 
   .map-status-panel {
@@ -472,12 +533,28 @@
   }
 
   .map-fact-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: none;
+  }
+
+  .map-controls-panel p,
+  .map-controls-panel span {
+    font-size: 0.78rem;
+    line-height: 1.32;
   }
 
   .map-return-banner {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (pointer: coarse) {
+  .map-pointer-lock-command {
+    display: none;
+  }
+
+  .map-desktop-hint {
+    display: none;
   }
 }
 
