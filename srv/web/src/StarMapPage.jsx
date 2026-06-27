@@ -78,6 +78,25 @@ function prepareMapItems(rawItems) {
     .filter((item) => item.scene_position.every((value) => Number.isFinite(value)));
 }
 
+function createPointTexture() {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = size;
+  canvas.height = size;
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.48, "rgba(255,255,255,0.92)");
+  gradient.addColorStop(0.72, "rgba(255,255,255,0.28)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function StarField({ systems }) {
   const geometry = useMemo(() => {
     const positions = new Float32Array(systems.length * 3);
@@ -101,17 +120,21 @@ function StarField({ systems }) {
     next.computeBoundingSphere();
     return next;
   }, [systems]);
+  const pointTexture = useMemo(() => createPointTexture(), []);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => pointTexture.dispose(), [pointTexture]);
 
   return (
     <points geometry={geometry}>
       <pointsMaterial
+        map={pointTexture}
         size={0.16}
         sizeAttenuation
         vertexColors
         transparent
         opacity={0.86}
+        alphaTest={0.04}
         depthWrite={false}
       />
     </points>
@@ -313,10 +336,7 @@ function SelectionMarker({ system }) {
   );
 }
 
-function nearestSystemToReticle(camera, systems) {
-  const origin = camera.position;
-  const direction = new THREE.Vector3();
-  camera.getWorldDirection(direction);
+function nearestSystemAlongRay(origin, direction, systems) {
   let best = null;
   let bestScore = Infinity;
   const candidate = new THREE.Vector3();
@@ -340,6 +360,23 @@ function nearestSystemToReticle(camera, systems) {
     }
   }
   return best;
+}
+
+function nearestSystemToReticle(camera, systems) {
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  return nearestSystemAlongRay(camera.position, direction, systems);
+}
+
+function nearestSystemToPointer(camera, canvas, clientX, clientY, systems) {
+  const rect = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector3(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -(((clientY - rect.top) / rect.height) * 2 - 1),
+    0.5,
+  );
+  const direction = ndc.unproject(camera).sub(camera.position).normalize();
+  return nearestSystemAlongRay(camera.position, direction, systems);
 }
 
 function pointerDistance(a, b) {
@@ -390,6 +427,13 @@ function FlightControls({
       onSelect(target);
     }
   }, [camera, onSelect, systems]);
+
+  const selectPointerTarget = useCallback((clientX, clientY) => {
+    const target = nearestSystemToPointer(camera, gl.domElement, clientX, clientY, systems);
+    if (target) {
+      onSelect(target);
+    }
+  }, [camera, gl.domElement, onSelect, systems]);
 
   useEffect(() => {
     if (reticleSelectRequest > 0) {
@@ -568,7 +612,7 @@ function FlightControls({
         }
         const duration = performance.now() - mouseDrag.startTime;
         if (!mouseDrag.moved && duration < 320) {
-          selectReticleTarget();
+          selectPointerTarget(event.clientX, event.clientY);
         }
         mouseDrag.active = false;
         mouseDrag.pointerId = null;
@@ -612,7 +656,7 @@ function FlightControls({
       canvas.removeEventListener("pointerup", onPointerEnd);
       canvas.removeEventListener("pointercancel", onPointerEnd);
     };
-  }, [applyLookDelta, camera, gl.domElement, selectReticleTarget]);
+  }, [applyLookDelta, camera, gl.domElement, selectPointerTarget, selectReticleTarget]);
 
   useFrame((_, delta) => {
     if (!controlsEnabled && document.pointerLockElement !== gl.domElement) {
@@ -775,7 +819,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   );
 
   return (
-    <div className="map-page" ref={pageRef}>
+    <div className={`map-page ${telemetry.locked ? "reticle-active" : ""}`} ref={pageRef}>
       <div className="map-background-grid" aria-hidden="true" />
       {systems.length > 0 && (
         <StarMapScene
@@ -862,7 +906,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             </dl>
           </>
         ) : (
-          <p>Use Select reticle to lock the system under center view.</p>
+          <p>Click a star or use Select reticle to lock the center view.</p>
         )}
       </aside>
 
@@ -874,7 +918,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           </button>
           <button
             type="button"
-            className="map-command-button ghost"
+            className="map-command-button ghost map-reticle-command"
             onClick={() => setReticleSelectRequest((value) => value + 1)}
           >
             Select reticle
@@ -887,7 +931,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Stabilize
           </button>
         </div>
-        <p className="map-desktop-hint">Desktop: WASD fly · Q up · Z down · Shift boost · capture mouse for look · Esc releases pointer</p>
+        <p className="map-desktop-hint">Desktop: drag canvas to look · click to select · WASD fly · Q/Z vertical · capture mouse for reticle flight</p>
         <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
         <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
       </aside>
