@@ -2983,8 +2983,17 @@ def _determinism_status_payload(
         "build_layer": None,
         "slice_profile_id": None,
         "slice_profile_version": None,
+        "current_report_error": None,
     }
-    current = _read_json_file(reports_dir / "determinism_report.json")
+    current_report_path = reports_dir / "determinism_report.json"
+    if not current_report_path.exists():
+        return output
+    try:
+        current = _read_json_file(current_report_path)
+    except Exception as exc:
+        output["status"] = "current_report_unreadable"
+        output["current_report_error"] = str(exc)
+        return output
     if not current:
         return output
 
@@ -3006,7 +3015,13 @@ def _determinism_status_payload(
             baseline_build_id = child.name
             if baseline_build_id == build_id:
                 continue
-            report = _read_json_file(child / "determinism_report.json")
+            report_path = child / "determinism_report.json"
+            if not report_path.exists():
+                continue
+            try:
+                report = _read_json_file(report_path)
+            except Exception:
+                continue
             if not report:
                 continue
             if _determinism_key(report) != current_key:
