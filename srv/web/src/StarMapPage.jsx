@@ -7,8 +7,6 @@ import { fetchMapSystems } from "./api.js";
 const MAP_RADIUS_LY = 100;
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const GALACTIC_NORTH_SCENE = new THREE.Vector3(-0.867666149, 0.455983776, 0.198076373).normalize();
-const GALACTIC_SPINWARD_SCENE = new THREE.Vector3(0.494109428, 0.746982244, 0.44482963).normalize();
 const SPECTRAL_COLORS = {
   O: "#74a9ff",
   B: "#9fc9ff",
@@ -172,41 +170,6 @@ function OrientationAxes() {
         </bufferGeometry>
         <lineBasicMaterial color="#ff8fd8" transparent opacity={0.18} />
       </line>
-      <DirectionArrow
-        label="Galactic North"
-        direction={GALACTIC_NORTH_SCENE}
-        color="#82ffc5"
-        radius={13}
-      />
-      <DirectionArrow
-        label="Spinward"
-        direction={GALACTIC_SPINWARD_SCENE}
-        color="#f6c46f"
-        radius={11}
-      />
-    </group>
-  );
-}
-
-function DirectionArrow({ label, direction, color, radius }) {
-  const quaternion = useMemo(() => (
-    new THREE.Quaternion().setFromUnitVectors(WORLD_UP, direction.clone().normalize())
-  ), [direction]);
-  const mid = direction.clone().multiplyScalar(radius * 0.5);
-  const tip = direction.clone().multiplyScalar(radius);
-  const labelPosition = direction.clone().multiplyScalar(radius + 1.7);
-
-  return (
-    <group>
-      <mesh position={mid} quaternion={quaternion}>
-        <cylinderGeometry args={[0.035, 0.035, radius, 10]} />
-        <meshBasicMaterial color={color} transparent opacity={0.34} depthWrite={false} />
-      </mesh>
-      <mesh position={tip} quaternion={quaternion}>
-        <coneGeometry args={[0.32, 0.9, 18]} />
-        <meshBasicMaterial color={color} transparent opacity={0.54} depthWrite={false} />
-      </mesh>
-      <LabelSprite label={label} position={labelPosition.toArray()} tone="axis" />
     </group>
   );
 }
@@ -602,16 +565,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       )}
 
       <div className="map-reticle" aria-hidden="true" />
-      <div className="map-orientation-cues" aria-label="Map orientation">
-        <span className="map-orientation-cue north">
-          <span className="map-orientation-arrow" aria-hidden="true" />
-          Galactic North
-        </span>
-        <span className="map-orientation-cue spinward">
-          <span className="map-orientation-arrow" aria-hidden="true" />
-          Spinward
-        </span>
-      </div>
 
       <header className="map-hud map-hud-top">
         <div className="map-title-block">
