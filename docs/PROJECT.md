@@ -77,6 +77,11 @@ Core must not become a dump of every source catalog's native ontology. Arm may
 store source-native science rows because they are evidence for Spacegate's
 canonical model, not automatically canonical Spacegate object facts.
 
+Planet orbits follow that rule. `core.planets` may keep promoted scalar orbit
+summaries for search/detail stability, but source-native orbit edges,
+simulation-ready orbital solutions, fit metadata, uncertainty, epochs, and
+future alternate solutions belong in `arm`.
+
 ### Galaxy (immutable canonical astronomy)
 Authoritative full-science inventory per build:
 

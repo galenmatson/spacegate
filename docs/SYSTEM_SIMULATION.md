@@ -15,6 +15,8 @@ Already in place:
   `source`, `derived`, `assumed`, or `missing`
 - additive `render_scene_v0.2` payload for live previews with renderer-ready
   star bodies, planet bodies, binary orbit groups, and provenance-bearing fields
+- ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
+  currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and
   curated artificial objects
 - React 19 + Three.js/R3F runtime foundations from the 3D map
@@ -190,6 +192,9 @@ Success criteria:
 - browser QA covers at least one live-preview scene path
 - planet motion uses source orbital periods when present and deterministic
   seeded phases for reproducible non-aligned starting positions
+- TRAPPIST-1 benchmark scenes source period, semi-major axis, eccentricity, and
+  inclination from `arm.orbital_solutions` before falling back to promoted
+  `core.planets` summary scalars
 - multi-star previews render ARM hierarchy/orbit evidence as barycentric visual
   groups when connected binary edges are available
 - source/derived/assumed/missing fields surface as visible provenance pills

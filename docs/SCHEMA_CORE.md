@@ -48,6 +48,11 @@ Core/arm promotion contract:
 - A value being source-native does not automatically make it core. Source-native
   rows may remain in `arm` when they represent support evidence, competing
   claims, source ontology, or non-hot-path simulation inputs.
+- Current `core.planets` orbital scalar columns (`orbital_period_days`,
+  `semi_major_axis_au`, `eccentricity`, `inclination_deg`) are retained as
+  promoted serving summaries during the migration. The normalized orbit edge,
+  source-solution, uncertainty, epoch, ranking, and simulation contract lives in
+  `arm.orbit_edges` and `arm.orbital_solutions`.
 
 Transitional note:
 

@@ -225,6 +225,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   (`/api/v1/systems/{system_id}/simulation-scene`)
 - [x] System simulation contract and orbital source-refresh strategy documented
   (`docs/SYSTEM_SIMULATION.md`)
+- [x] Normalize host-linked planet orbits into ARM `planetary_orbit` edges and
+  `source_native_planet_orbit` rows while keeping `core.planets` orbit scalars
+  as promoted serving summaries
 - [x] First lazy-loaded live system preview renderer on system detail pages
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
 - [ ] Fix common-name alias regression: `Castor` should resolve to
@@ -243,8 +246,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and rerun hierarchy/orbit goldens
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
-- [ ] Reconcile system-simulation orbital-source policy across NASA
+- [x] Reconcile initial system-simulation orbital-source policy across NASA
   `ps`/`pscomppars`, Gaia NSS, WDS/ORB6, SBX, MSC, and JPL Horizons/SBDB
+- [ ] Ingest alternate planet orbital solutions from NASA `ps` and preserve
+  ranked solution candidates instead of relying only on `pscomppars` defaults
 - [x] Live System Preview v0.2 renderer-ready payload, multi-star binary visual
   groups, and preview provenance pills
 - [ ] Persist reviewed visualization assumptions in `disc.simulation_assumptions`

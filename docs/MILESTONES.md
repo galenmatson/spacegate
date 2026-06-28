@@ -565,6 +565,9 @@ Deliverables:
 - orbital-source refresh plan for NASA Exoplanet Archive `ps`/`pscomppars`,
   Gaia DR3 NSS now and Gaia DR4 transition planning, WDS/ORB6, MSC, SBX, and
   JPL Horizons/SBDB
+- ARM-normalized planet orbit edges and `source_native_planet_orbit` solutions
+  for host-linked NASA Exoplanet Archive and Sol authority planet rows, with
+  `core.planets` orbital scalars retained as promoted serving summaries
 - mesh/material scene components for stars and planets
 - explicit assumptions for generated planet surfaces and missing values
 - visible provenance pills for preview fields, including deterministic
@@ -581,8 +584,14 @@ Readiness gaps:
   scratch verification on June 28, 2026 passed strengthened Castor goldens for
   nested containment, source orbital periods, and endpoint physical-evidence
   policy
+- Planet orbit normalization scratch verification on June 28, 2026 passed for
+  TRAPPIST-1 source periods/order, 55 Cancri canonical planet coverage, Sol
+  planet/moon orbit rows, Castor regression coverage, API smoke checks, and no
+  duplicate planet-orbit solution fanout
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
+- NASA `ps` alternate solution ingestion is not implemented yet; current ARM
+  planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and
   future barycentric nested-subsystem animation, but the general MSC
   materialization gap is no longer a known data-loss issue in the builder

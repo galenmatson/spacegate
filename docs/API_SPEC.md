@@ -328,6 +328,10 @@ Contract notes:
 - `core` supplies canonical/source-faithful rows.
 - `arm` supplies deterministic hierarchy, orbit, stellar-parameter, and derived
   science support rows.
+- Planet render fields prefer ARM `planetary_orbit` +
+  `orbital_solutions` values for period, semi-major axis, eccentricity, and
+  inclination. If a linked ARM solution is absent, the endpoint may fall back to
+  promoted `core.planets` scalar summaries and labels that basis explicitly.
 - `disc` is the future home for visualization-only assumptions and static
   fallback artifacts.
 - `render_scene` is an additive renderer-ready view over the source payload.

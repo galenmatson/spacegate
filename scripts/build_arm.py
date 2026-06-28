@@ -151,6 +151,7 @@ def main() -> int:
     gaia_nss_manifest = load_manifest_entry(
         gaia_nss_manifest_path, "gaia_dr3_nss_two_body_orbit"
     )
+    nasa_pscomppars_manifest = load_manifest_entry(core_manifest_path, "pscomppars")
     msc_version = str(msc_manifest.get("source_version") or MSC_VERSION_FALLBACK)
     msc_checksum = str(msc_manifest.get("sha256") or "")
     msc_retrieved = str(msc_manifest.get("retrieved_at") or "")
@@ -200,10 +201,12 @@ def main() -> int:
     gaia_nss_checksum = str(gaia_nss_manifest.get("sha256") or "")
     gaia_nss_retrieved = str(gaia_nss_manifest.get("retrieved_at") or "")
     gaia_nss_url = str(gaia_nss_manifest.get("url") or GAIA_NSS_URL_FALLBACK)
-    nasa_pscomppars_version = NASA_PSCOMPPARS_VERSION_FALLBACK
-    nasa_pscomppars_checksum = ""
-    nasa_pscomppars_retrieved = ""
-    nasa_pscomppars_url = NASA_PSCOMPPARS_URL_FALLBACK
+    nasa_pscomppars_version = str(
+        nasa_pscomppars_manifest.get("source_version") or NASA_PSCOMPPARS_VERSION_FALLBACK
+    )
+    nasa_pscomppars_checksum = str(nasa_pscomppars_manifest.get("sha256") or "")
+    nasa_pscomppars_retrieved = str(nasa_pscomppars_manifest.get("retrieved_at") or "")
+    nasa_pscomppars_url = str(nasa_pscomppars_manifest.get("url") or NASA_PSCOMPPARS_URL_FALLBACK)
 
     log(f"Arm build start (build_id={args.build_id}, core_db={core_db}, arm_db={arm_db})")
     con = duckdb.connect(str(arm_db))
@@ -3131,6 +3134,47 @@ def main() -> int:
           from gaia_nss_best n
           join core.stars st on st.gaia_id = n.gaia_id
           join core.systems sys on sys.system_id = st.system_id
+        ), planet_orbit_edges as (
+          select
+            'comp:system:' || sys.stable_object_key as host_component_key,
+            case
+              when host.stable_object_key is not null then 'comp:star:' || host.stable_object_key
+              else 'comp:system:' || sys.stable_object_key
+            end as primary_component_key,
+            'comp:planet:' || p.stable_object_key as secondary_component_key,
+            'planetary_orbit'::varchar as relation_kind,
+            cast(null as varchar) as barycenter_key,
+            cast(null as bigint) as preferred_solution_id,
+            case
+              when p.source_catalog = 'sol_authority' then 0.995
+              when coalesce(p.match_confidence, 0.0) >= 0.95 then 0.94
+              when coalesce(p.match_confidence, 0.0) >= 0.80 then 0.88
+              when coalesce(p.match_confidence, 0.0) > 0.0 then 0.72
+              else 0.60
+            end::double as confidence_score,
+            case
+              when p.source_catalog = 'sol_authority' then 'high'
+              when coalesce(p.match_confidence, 0.0) >= 0.80 then 'medium'
+              when coalesce(p.match_confidence, 0.0) > 0.0 then 'low'
+              else 'illustrative'
+            end::varchar as confidence_tier,
+            json_array(coalesce(p.source_catalog, 'core_planet_inventory'))::varchar as evidence_catalogs_json,
+            json_object(
+              'system_id', p.system_id,
+              'star_id', p.star_id,
+              'planet_id', p.planet_id,
+              'planet_stable_object_key', p.stable_object_key
+            ) as evidence_ids_json,
+            coalesce(p.source_catalog, 'core_planet_inventory') as source_catalog,
+            coalesce(p.source_version, {sql_literal(args.transform_version)}) as source_version,
+            cast(coalesce(p.stable_object_key, cast(p.source_pk as varchar)) as varchar) as source_pk,
+            p.source_row_hash as source_row_hash,
+            coalesce(p.retrieval_checksum, '') as retrieval_checksum,
+            coalesce(p.retrieved_at, '') as retrieved_at
+          from core.planets p
+          join core.systems sys on sys.system_id = p.system_id
+          left join core.stars host on host.star_id = p.star_id
+          where p.stable_object_key is not null
         ), sol_satellite_pairs as (
           select
             'comp:planet:' || s.parent_planet_key as host_component_key,
@@ -3211,6 +3255,8 @@ def main() -> int:
           select * from msc_pairs
           union all
           select * from gaia_nss_pairs
+          union all
+          select * from planet_orbit_edges
           union all
           select * from sol_satellite_pairs
           union all
@@ -3664,6 +3710,128 @@ def main() -> int:
           ) o
           join orb6_system_edge_match m on m.wds_id = o.wds_id
           where m.orbit_edge_id is not null
+        ), nasa_planet_orbit_source as (
+          select *
+          from (
+            select
+              n.*,
+              lower(
+                trim(
+                  regexp_replace(
+                    regexp_replace(coalesce(n.pl_name, ''), '[^0-9A-Za-z]+', ' ', 'g'),
+                    '\\s+',
+                    ' ',
+                    'g'
+                  )
+                )
+              ) as planet_name_norm,
+              row_number() over (
+                partition by lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(coalesce(n.pl_name, ''), '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                )
+                order by try_cast(nullif(n.objectid, '') as bigint) asc nulls last
+              ) as rn
+            from nasa_pscomppars_raw n
+            where nullif(n.pl_name, '') is not null
+          ) q
+          where rn = 1
+        ), planet_orbit_rows as (
+          select
+            e.orbit_edge_id,
+            coalesce(nullif(n.objectid, ''), p.stable_object_key, cast(p.source_pk as varchar)) as source_pk,
+            cast(null as double) as epoch_tdb_jd,
+            coalesce(try_cast(nullif(n.pl_orbper, '') as double), p.orbital_period_days) as orbital_period_days,
+            coalesce(try_cast(nullif(n.pl_orbsmax, '') as double), p.semi_major_axis_au) as semi_major_axis_au,
+            coalesce(try_cast(nullif(n.pl_orbeccen, '') as double), p.eccentricity) as eccentricity,
+            coalesce(try_cast(nullif(n.pl_orbincl, '') as double), p.inclination_deg) as inclination_deg,
+            p.source_row_hash,
+            case
+              when p.source_catalog = 'nasa_exoplanet_archive' then 'nasa_pscomppars'
+              when p.source_catalog = 'sol_authority' then 'horizons_elements_planet_inventory'
+              else coalesce(p.source_catalog, 'core_planet_inventory')
+            end::varchar as solver,
+            case
+              when p.source_catalog = 'sol_authority' then 'heliocentric'
+              else 'host_centered'
+            end::varchar as frame,
+            case
+              when p.source_catalog = 'sol_authority' then 0.995
+              when coalesce(p.match_confidence, 0.0) >= 0.95 then 0.94
+              when coalesce(p.match_confidence, 0.0) >= 0.80 then 0.88
+              when coalesce(p.match_confidence, 0.0) > 0.0 then 0.72
+              else 0.60
+            end::double as confidence_score,
+            coalesce(p.source_catalog, 'core_planet_inventory') as source_catalog,
+            coalesce(p.source_version, {sql_literal(nasa_pscomppars_version)}) as source_version,
+            coalesce(p.retrieval_checksum, {sql_literal(nasa_pscomppars_checksum)}) as retrieval_checksum,
+            coalesce(p.retrieved_at, {sql_literal(nasa_pscomppars_retrieved)}) as retrieved_at,
+            cast(null as double) as center_of_mass_velocity_kms,
+            try_cast(nullif(n.pl_rvamp, '') as double) as semi_amplitude_primary_kms,
+            cast(null as double) as mass_ratio,
+            cast(null as bigint) as flags,
+            cast(null as double) as significance,
+            1::int as solution_rank,
+            cast(null as double) as semi_major_axis_arcsec,
+            cast(null as double) as node_deg,
+            try_cast(nullif(n.pl_orblper, '') as double) as long_periastron_deg,
+            try_cast(nullif(n.pl_orbtper, '') as double) as time_periastron_jd,
+            cast(null as double) as reference_epoch_jyear,
+            cast(null as double) as reference_epoch_mjd,
+            coalesce(try_cast(nullif(n.pl_orbper, '') as double), p.orbital_period_days) as period_value,
+            'd'::varchar as period_unit,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbpererr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbpererr2, '') as double))
+            ) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbsmaxerr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbsmaxerr2, '') as double))
+            ) as axis_error,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbinclerr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbinclerr2, '') as double))
+            ) as inclination_error,
+            cast(null as double) as node_error,
+            try_cast(nullif(n.pl_orbtper, '') as double) as periastron_epoch,
+            nullif(n.pl_orbtper_systemref, '') as epoch_unit,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbeccenerr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbeccenerr2, '') as double))
+            ) as eccentricity_error,
+            greatest(
+              abs(try_cast(nullif(n.pl_orblpererr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orblpererr2, '') as double))
+            ) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            nullif(n.ttv_flag, '') as notes_flag,
+            coalesce(
+              nullif(n.pl_orbper_reflink, ''),
+              nullif(n.pl_orbsmax_reflink, ''),
+              nullif(n.pl_orbeccen_reflink, ''),
+              nullif(n.pl_orbincl_reflink, '')
+            ) as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
+          from core.planets p
+          join orbit_edges e
+            on e.relation_kind = 'planetary_orbit'
+           and e.secondary_component_key = 'comp:planet:' || p.stable_object_key
+          left join nasa_planet_orbit_source n
+            on p.source_catalog = 'nasa_exoplanet_archive'
+           and n.planet_name_norm = p.planet_name_norm
+          where coalesce(try_cast(nullif(n.pl_orbper, '') as double), p.orbital_period_days) is not null
+             or coalesce(try_cast(nullif(n.pl_orbsmax, '') as double), p.semi_major_axis_au) is not null
+             or coalesce(try_cast(nullif(n.pl_orbeccen, '') as double), p.eccentricity) is not null
+             or coalesce(try_cast(nullif(n.pl_orbincl, '') as double), p.inclination_deg) is not null
         ), sol_rows as (
           select * from sol_satellite_rows
           union all
@@ -3676,6 +3844,8 @@ def main() -> int:
           select * from msc_orbit_rows
           union all
           select * from orb6_rows
+          union all
+          select * from planet_orbit_rows
         )
         select
           row_number() over (
@@ -3731,7 +3901,11 @@ def main() -> int:
             'png_file', png_file,
             'last_observed_year', last_observed_year
           ) as fit_quality_json,
-          'source_native'::varchar as normalization_method,
+          case
+            when solver = 'nasa_pscomppars' then 'source_native_planet_orbit'
+            when solver = 'horizons_elements_planet_inventory' then 'source_native_planet_orbit'
+            else 'source_native'
+          end::varchar as normalization_method,
           case
             when confidence_score >= 0.95 then 'high'
             when confidence_score >= 0.80 then 'medium'
@@ -4370,6 +4544,27 @@ def main() -> int:
     component_count = int(con.execute("select count(*) from component_entities").fetchone()[0] or 0)
     hierarchy_count = int(con.execute("select count(*) from system_hierarchy_edges").fetchone()[0] or 0)
     orbit_count = int(con.execute("select count(*) from orbit_edges").fetchone()[0] or 0)
+    planet_orbit_edge_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbit_edges
+            where relation_kind = 'planetary_orbit'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    planet_orbital_solution_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbital_solutions o
+            join orbit_edges e on e.orbit_edge_id = o.orbit_edge_id
+            where e.relation_kind = 'planetary_orbit'
+            """
+        ).fetchone()[0]
+        or 0
+    )
     msc_component_detail_count = int(
         con.execute("select count(*) from msc_component_details").fetchone()[0] or 0
     )
@@ -4720,6 +4915,8 @@ def main() -> int:
             "component_entities": component_count,
             "system_hierarchy_edges": hierarchy_count,
             "orbit_edges": orbit_count,
+            "planet_orbit_edges": planet_orbit_edge_count,
+            "planet_orbital_solutions": planet_orbital_solution_count,
             "msc_component_details": msc_component_detail_count,
             "msc_system_details": msc_system_detail_count,
             "msc_orbit_details": msc_orbit_detail_count,
@@ -4781,6 +4978,7 @@ def main() -> int:
             "VSX variability is stored as arm overlay rows keyed by core stable_object_key via Gaia-ID exact joins.",
             "UltracoolSheet rows are stored in arm and linked to core stars when Gaia IDs align.",
             "Exoplanet lifecycle audit tables are mirrored from core into arm for lineage/diff workflows.",
+            "Planetary orbit edges and source-native pscomppars/Sol orbital summaries are materialized in arm.orbit_edges and arm.orbital_solutions; core.planets orbit scalars remain promoted hot-path summaries during the migration.",
             "Sol S2 moon hierarchy/orbit rows are sourced from JPL Horizons sol_authority and remain outside core hot paths.",
             "Sol S3 named minor bodies are materialized in arm with deterministic staleness metadata by body family.",
             "Sol S4 artificial stations/probes/orbiters are materialized in arm with parent linkage and staleness metadata.",
@@ -4800,6 +4998,7 @@ def main() -> int:
         f"msc_details={msc_component_detail_count:,}, msc_systems={msc_system_detail_count:,}, "
         f"msc_orbit_rows={msc_orbit_detail_count:,}, wds_obs={wds_component_observation_count:,}, "
         f"stellar_parameters={stellar_parameter_count:,}, derived_parameters={derived_parameter_count:,}, "
+        f"planet_orbits={planet_orbital_solution_count:,}, "
         f"gaia_nss_orbits={gaia_nss_solution_count:,}, msc_orbits={msc_solution_count:,}, "
         f"orb6_orbits={orb6_solution_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "

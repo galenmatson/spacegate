@@ -652,6 +652,7 @@ def _planet_simulation_fields(
     star_fields_by_id: Dict[int, Dict[str, Any]],
     default_star_fields: Optional[Dict[str, Any]],
     derived_lookup: Dict[tuple[str, int, str], Dict[str, Any]],
+    arm_orbit_solution: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     try:
         star_id = int(planet.get("star_id")) if planet.get("star_id") is not None else None
@@ -661,8 +662,17 @@ def _planet_simulation_fields(
     host_fields = (host or {}).get("fields") or []
     host_mass = _field_value(host_fields, "mass_msun")
     host_mass_field = next((field for field in host_fields if field.get("key") == "mass_msun"), {})
-    period_days = _float_or_none(planet.get("orbital_period_days"))
+    arm_orbit_solution = arm_orbit_solution or {}
+    arm_period_days = _float_or_none(arm_orbit_solution.get("period_days"))
+    arm_sma = _float_or_none(arm_orbit_solution.get("semi_major_axis_au"))
+    arm_ecc = _float_or_none(arm_orbit_solution.get("eccentricity"))
+    arm_inc = _float_or_none(arm_orbit_solution.get("inclination_deg"))
+    arm_source_catalog = arm_orbit_solution.get("solution_source_catalog") or arm_orbit_solution.get("source_catalog")
+    arm_confidence_tier = arm_orbit_solution.get("confidence_tier") or "medium"
+    arm_confidence = _float_or_none(arm_orbit_solution.get("confidence_score"))
+    period_days = arm_period_days if arm_period_days is not None else _float_or_none(planet.get("orbital_period_days"))
     source_sma = _float_or_none(planet.get("semi_major_axis_au"))
+    selected_sma = arm_sma if arm_sma is not None else source_sma
     planet_id = int(planet["planet_id"]) if planet.get("planet_id") is not None else -1
     arm_sma_field = _derived_parameter_field(
         derived_lookup.get(("planet", planet_id, "semi_major_axis_au")),
@@ -698,19 +708,29 @@ def _planet_simulation_fields(
             value=period_days,
             unit="days",
             status="source" if period_days is not None else "missing",
-            basis="core/source orbital_period_days" if period_days is not None else "no period source value",
-            layer="core" if period_days is not None else "none",
-            confidence_tier="high" if period_days is not None else "missing",
+            basis=(
+                f"arm.orbital_solutions:{arm_source_catalog or 'source'}"
+                if arm_period_days is not None
+                else "core.planets:promoted_orbital_period_days_summary"
+                if period_days is not None
+                else "no period source value"
+            ),
+            layer="arm" if arm_period_days is not None else ("core" if period_days is not None else "none"),
+            confidence_tier=arm_confidence_tier if arm_period_days is not None else ("high" if period_days is not None else "missing"),
             replacement_target="source orbital period with uncertainty",
+            source_catalog=str(arm_source_catalog) if arm_period_days is not None and arm_source_catalog else None,
+            confidence=arm_confidence if arm_period_days is not None else None,
         ),
         _simulation_field(
             key="semi_major_axis_au",
             label="Semi-major axis",
-            value=source_sma if source_sma is not None else ((arm_sma_field or {}).get("value") if arm_sma_field else derived_sma),
+            value=selected_sma if selected_sma is not None else ((arm_sma_field or {}).get("value") if arm_sma_field else derived_sma),
             unit="au",
-            status="source" if source_sma is not None else ("derived" if arm_sma_field is not None or derived_sma is not None else "missing"),
+            status="source" if selected_sma is not None else ("derived" if arm_sma_field is not None or derived_sma is not None else "missing"),
             basis=(
-                "core/source semi_major_axis_au"
+                f"arm.orbital_solutions:{arm_source_catalog or 'source'}"
+                if arm_sma is not None
+                else "core.planets:promoted_semi_major_axis_au_summary"
                 if source_sma is not None
                 else (
                     (arm_sma_field or {}).get("basis")
@@ -720,20 +740,49 @@ def _planet_simulation_fields(
                     else "no semi-major axis and insufficient period/host-mass inputs"
                 )
             ),
-            layer="core" if source_sma is not None else ("arm" if arm_sma_field else ("arm_candidate" if derived_sma is not None else "none")),
-            confidence_tier="high" if source_sma is not None else ((arm_sma_field or {}).get("confidence_tier") if arm_sma_field else ("medium" if host_mass_field.get("status") == "source" else ("low" if derived_sma is not None else "missing"))),
+            layer="arm" if arm_sma is not None else ("core" if source_sma is not None else ("arm" if arm_sma_field else ("arm_candidate" if derived_sma is not None else "none"))),
+            confidence_tier=arm_confidence_tier if arm_sma is not None else ("high" if source_sma is not None else ((arm_sma_field or {}).get("confidence_tier") if arm_sma_field else ("medium" if host_mass_field.get("status") == "source" else ("low" if derived_sma is not None else "missing")))),
             replacement_target="source semi-major axis or full orbital solution",
+            source_catalog=str(arm_source_catalog) if arm_sma is not None and arm_source_catalog else None,
+            confidence=arm_confidence if arm_sma is not None else None,
         ),
         _simulation_field(
             key="eccentricity",
             label="Eccentricity",
-            value=_float_or_none(planet.get("eccentricity")) if _float_or_none(planet.get("eccentricity")) is not None else 0.0,
+            value=arm_ecc if arm_ecc is not None else (_float_or_none(planet.get("eccentricity")) if _float_or_none(planet.get("eccentricity")) is not None else 0.0),
             unit=None,
-            status="source" if _float_or_none(planet.get("eccentricity")) is not None else "assumed",
-            basis="core/source eccentricity" if _float_or_none(planet.get("eccentricity")) is not None else "circular orbit visualization default",
-            layer="core" if _float_or_none(planet.get("eccentricity")) is not None else "disc_assumption",
-            confidence_tier="high" if _float_or_none(planet.get("eccentricity")) is not None else "illustrative",
+            status="source" if arm_ecc is not None or _float_or_none(planet.get("eccentricity")) is not None else "assumed",
+            basis=(
+                f"arm.orbital_solutions:{arm_source_catalog or 'source'}"
+                if arm_ecc is not None
+                else "core.planets:promoted_eccentricity_summary"
+                if _float_or_none(planet.get("eccentricity")) is not None
+                else "circular orbit visualization default"
+            ),
+            layer="arm" if arm_ecc is not None else ("core" if _float_or_none(planet.get("eccentricity")) is not None else "disc_assumption"),
+            confidence_tier=arm_confidence_tier if arm_ecc is not None else ("high" if _float_or_none(planet.get("eccentricity")) is not None else "illustrative"),
             replacement_target="source eccentricity or reviewed orbital solution",
+            source_catalog=str(arm_source_catalog) if arm_ecc is not None and arm_source_catalog else None,
+            confidence=arm_confidence if arm_ecc is not None else None,
+        ),
+        _simulation_field(
+            key="inclination_deg",
+            label="Inclination",
+            value=arm_inc if arm_inc is not None else _float_or_none(planet.get("inclination_deg")),
+            unit="deg",
+            status="source" if arm_inc is not None or _float_or_none(planet.get("inclination_deg")) is not None else "missing",
+            basis=(
+                f"arm.orbital_solutions:{arm_source_catalog or 'source'}"
+                if arm_inc is not None
+                else "core.planets:promoted_inclination_deg_summary"
+                if _float_or_none(planet.get("inclination_deg")) is not None
+                else "no inclination source value"
+            ),
+            layer="arm" if arm_inc is not None else ("core" if _float_or_none(planet.get("inclination_deg")) is not None else "none"),
+            confidence_tier=arm_confidence_tier if arm_inc is not None else ("high" if _float_or_none(planet.get("inclination_deg")) is not None else "missing"),
+            replacement_target="source planet inclination",
+            source_catalog=str(arm_source_catalog) if arm_inc is not None and arm_source_catalog else None,
+            confidence=arm_confidence if arm_inc is not None else None,
         ),
         _simulation_field(
             key="radius_earth",
@@ -798,6 +847,7 @@ def _simulation_readiness_diagnostics(
 ) -> Dict[str, Any]:
     params_by_star_id = _best_stellar_parameters_by_star_id(arm)
     derived_lookup = _derived_parameter_lookup(arm)
+    planet_orbit_lookup = _planet_orbit_solutions_by_stable_key(arm)
     star_rows = [
         _star_simulation_fields(star, params_by_star_id.get(int(star["star_id"])), derived_lookup)
         for star in stars
@@ -805,7 +855,16 @@ def _simulation_readiness_diagnostics(
     ]
     star_fields_by_id = {int(row["object_id"]): row for row in star_rows if row.get("object_id") is not None}
     default_star_fields = star_rows[0] if star_rows else None
-    planet_rows = [_planet_simulation_fields(planet, star_fields_by_id, default_star_fields, derived_lookup) for planet in planets]
+    planet_rows = [
+        _planet_simulation_fields(
+            planet,
+            star_fields_by_id,
+            default_star_fields,
+            derived_lookup,
+            planet_orbit_lookup.get(str(planet.get("stable_object_key") or "")),
+        )
+        for planet in planets
+    ]
     all_fields = [field for row in [*star_rows, *planet_rows] for field in row.get("fields", [])]
     counts: Dict[str, int] = {"source": 0, "derived": 0, "assumed": 0, "missing": 0}
     for field in all_fields:
@@ -919,6 +978,28 @@ def _solution_by_orbit_edge_id(arm: Dict[str, Any]) -> Dict[int, Dict[str, Any]]
         current = out.get(orbit_edge_id)
         if current is None or int(row.get("solution_rank") or 9999) < int(current.get("solution_rank") or 9999):
             out[orbit_edge_id] = row
+    return out
+
+
+def _planet_orbit_solutions_by_stable_key(arm: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    solution_by_edge_id = _solution_by_orbit_edge_id(arm)
+    out: Dict[str, Dict[str, Any]] = {}
+    for edge in ((arm.get("orbit_edges") or {}).get("items") or []):
+        if str(edge.get("relation_kind") or "") != "planetary_orbit":
+            continue
+        secondary_key = str(edge.get("secondary_component_key") or "")
+        prefix = "comp:planet:"
+        if not secondary_key.startswith(prefix):
+            continue
+        try:
+            orbit_edge_id = int(edge.get("orbit_edge_id"))
+        except Exception:
+            continue
+        solution = solution_by_edge_id.get(orbit_edge_id)
+        if not solution:
+            continue
+        stable_key = secondary_key[len(prefix):]
+        out[stable_key] = solution
     return out
 
 

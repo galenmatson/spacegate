@@ -109,7 +109,7 @@ Columns:
 - `host_component_key TEXT` (often subsystem or barycenter-hosting group)
 - `primary_component_key TEXT`
 - `secondary_component_key TEXT`
-- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|satellite|orbits|artificial_orbit|co_orbit`)
+- `relation_kind TEXT` (`binary|circumbinary|hierarchical_pair|bound_companion|planetary_orbit|satellite|orbits|artificial_orbit|co_orbit`)
 - `barycenter_key TEXT` (nullable)
 - `preferred_solution_id BIGINT` (nullable FK to `orbital_solutions`)
 - `confidence_score DOUBLE`
@@ -120,6 +120,8 @@ Columns:
 
 Notes:
 - Gaia NSS unresolved binaries may emit synthetic companion component keys so source-native orbital evidence can be narrated without fabricating canonical core stars.
+- Planet rows emit `planetary_orbit` edges from the host system/star component
+  to the planet component when a core planet has a resolved system binding.
 
 ## `orbital_solutions`
 
@@ -128,7 +130,7 @@ Catalog-normalized orbital element records.
 Columns:
 - `orbital_solution_id BIGINT`
 - `orbit_edge_id BIGINT`
-- `solution_source_catalog TEXT` (`gaia_nss|orb6|msc|wds|...`)
+- `solution_source_catalog TEXT` (`nasa_exoplanet_archive|sol_authority|gaia_nss|orb6|msc|wds|...`)
 - `solution_rank INTEGER` (1 = best/preferred within source)
 - `reference_epoch_jyear DOUBLE` (or `reference_epoch_mjd DOUBLE`)
 - `period_days DOUBLE` (nullable)
@@ -157,6 +159,10 @@ Rule:
   same policy: a promoted scalar may appear in `core` for hot-path display, but
   source-native solution rows, alternates, epochs, fit-quality fields, and
   simulation-ready element sets belong here.
+- NASA Exoplanet Archive `pscomppars` and Sol authority planet orbital values
+  are materialized as `normalization_method='source_native_planet_orbit'`.
+  This is the first normalization step; ingesting richer alternate planet
+  solutions from NASA `ps` remains future work.
 - ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.
