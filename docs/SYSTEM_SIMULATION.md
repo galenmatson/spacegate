@@ -143,7 +143,10 @@ Near-term source priorities:
   places `sys.tsv`, `orb.tsv`, and `comp.tsv` at the archive root; the cooker
   accepts both that layout and the older `export/*.tsv` layout. Local canonical
   build `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed the
-  required multiplicity golden checks.
+  required multiplicity golden checks. Preview QA on Castor showed that the
+  existing golden is too shallow: it can pass while MSC `sys.tsv` hierarchy rows
+  and `orb.tsv` orbital solutions are only counted, not materialized for ARM
+  graph/orbit construction.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
   checks pass.

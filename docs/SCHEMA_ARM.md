@@ -577,6 +577,11 @@ Build fails when:
 ## MSC Policy
 
 MSC is mandatory in default science ingest and arm hierarchy/orbit derivation.
+MSC `comp.tsv`, `sys.tsv`, and `orb.tsv` must all be preserved as deterministic
+cooked inputs. `sys.tsv` supplies source-native subsystem membership and parent
+relationships; `orb.tsv` supplies source-native orbit solutions. ARM builders
+must not reconstruct complex hierarchy solely from component counts or suffix
+pair inference when source subsystem/orbit rows are available.
 
 If MSC retrieval/cook fails:
 - ingest must fail

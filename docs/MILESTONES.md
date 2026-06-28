@@ -579,8 +579,10 @@ Readiness gaps:
   hierarchy/orbit goldens on June 28, 2026
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
-- Castor remains a hierarchy-quality watch item: common-name alias resolution
-  and nested AB/C subsystem structure need repair beyond the preview renderer
+- Castor remains a hierarchy-quality watch item and exposed a general MSC
+  materialization gap: `sys.tsv` nested subsystem rows and `orb.tsv` orbital
+  solutions must be carried into cooked/arm artifacts instead of reducing MSC
+  to component rows plus subsystem/orbit counts
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

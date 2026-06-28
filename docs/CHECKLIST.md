@@ -229,8 +229,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
 - [ ] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
-- [ ] Fix Castor nested hierarchy regression/shortfall: represent the wider
-  AB subsystem and distant C binary instead of only three sibling MSC binaries
+- [ ] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
+  nested subsystems, outer pairs, and source periods/separations are preserved
+  instead of flattened from subsystem counts
+- [ ] Strengthen multiplicity goldens: Castor must verify AB/C nesting,
+  A/B outer orbit evidence, per-leaf physical evidence policy, and source
+  orbital-solution coverage, not only six labels plus three inner binary pairs
 - [ ] 3D map real-device mid-tier mobile performance check
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
