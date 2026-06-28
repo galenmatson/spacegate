@@ -27,7 +27,10 @@ Controls:
 - desktop free-cursor mode:
   - left-click selects the system under the cursor ray
   - left-drag free-looks without pointer lock
-  - right-click opens an ephemeral route/distance context menu
+- right-click opens an ephemeral route/distance context menu
+- selection history is shown as compact pills with distance/class metadata
+- long catalog identifiers are truncated in the HUD and expandable via
+  hover/focus/tap popovers with copy actions
 - captured-pointer mode:
   - reticle selects the nearest center-view target
   - `Esc` releases pointer lock
@@ -120,6 +123,16 @@ Initial layers:
   - rendered route segments show per-leg light-year distance and total route
   - not persisted and not a Rim/worldbuilding route record
 - HUD panels for selection, controls, status, and priority contacts
+- compact beta HUD:
+  - dense header instrument strip with system/planet-host/multiple counts
+  - selection history pills instead of wide priority-contact cards
+  - selected-system title link to public detail
+  - long-ID metadata popovers and copy controls
+  - route summary with recent leg list, total distance, undo, and clear
+- public system-simulation scene-readiness API:
+  - `GET /api/v1/systems/{system_id}/simulation-scene`
+  - exposes current hierarchy, arm graph/orbit rows, and readiness fields for
+    future live 3D system previews
 
 Planned layers:
 
@@ -128,6 +141,13 @@ Planned layers:
 - system simulation meshes for stars and planets
 - sky/background layer beyond the local 1000 ly sphere
 - rim meshes, routes, and infrastructure overlays
+
+Route-measurement boundary:
+
+- map route lines are temporary browser state
+- they do not write `rim` rows
+- they may later become the seed for rim routes after an explicit save/export
+  workflow exists
 
 ## Deferred Decisions
 

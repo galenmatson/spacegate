@@ -54,7 +54,7 @@ Interpretation note:
 | Gaia DR3 backbone (`gaia_source`) | mandatory | on in Gaia-first profile | `SPACEGATE_ENABLE_GAIA_BACKBONE=1` | canonical star inventory substrate |
 | Sol authority bootstrap (`sol_authority`) | mandatory (S1/S2 release gate) | on | `SPACEGATE_ENABLE_SOL_AUTHORITY` | guarantees Sol/Sun/major-planet coverage plus arm moon/barycenter hierarchy from authoritative JPL source |
 | Sol artificial overlay (`sol_artificial`) | default-on (`arm` overlay) | on | `SPACEGATE_ENABLE_SOL_ARTIFICIAL` | curated Sol stations/probes/orbiters with freshness windows for arm/UI overlays |
-| NASA Exoplanet Archive (`pscomppars`) | mandatory | on | (always in core catalog set) | canonical planet baseline |
+| NASA Exoplanet Archive (`ps` / `pscomppars`) | mandatory | on | (always in core catalog set) | canonical planet baseline; use `ps` for source-specific solutions and `pscomppars` for display/default composites |
 | MSC | mandatory | on | `SPACEGATE_ENABLE_MSC` (must remain `1`) | required multiplicity hierarchy evidence; ingest blocks when off |
 | WDS | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | broad multiplicity support evidence |
 | ORB6 | mandatory (current default science ingest) | on | (always in Gaia-first core catalog set) | orbit-quality support evidence |
@@ -82,6 +82,20 @@ Interpretation note:
 - `HWC`: habitability reference and supplemental planet evidence; used as non-canonical feature support.
 - `OEC`: alias/crosswalk source for lifecycle matching; improves match coverage by resolving naming drift across catalogs.
 - `EMAC TT9`: removed from active ingest pipeline because current endpoint is a resource page without deterministic bulk candidate rows.
+
+### 2026 Source-Refresh Watchlist
+
+- Gaia DR3 remains the current Spacegate backbone; Gaia DR4 is scheduled for
+  December 2, 2026 and should become an explicit transition milestone.
+- MSC is mandatory hierarchy evidence. The current Spacegate fallback version is
+  `2024-01-01`, while the upstream MSC archive advertises a June 19, 2026
+  update. Refresh MSC before treating system-simulation hierarchy as beta-grade.
+- SBX is the active spectroscopic-binary support path; keep SB9 as historical
+  context only unless an explicit regression/comparison task needs it.
+- WDS and ORB6 remain default visual-binary support sources, but ORB6 rows must
+  only attach to unique, confidence-gated binary edges.
+- JPL Horizons/SBDB remain the Sol-system orbital authority path for volatile
+  small-body and satellite data.
 
 ## Mandatory Retrieval Metadata
 

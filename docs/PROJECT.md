@@ -49,6 +49,8 @@ Reason:
 Operational runbook:
 
 - ingest failure recovery + runtime tuning: `docs/INGEST_RECOVERY.md`
+- 3D map runtime: `docs/3D_MAP.md`
+- system simulation contract: `docs/SYSTEM_SIMULATION.md`
 
 ## Data Layers (`galaxy` / `core` / `halo` / `arm` / `disc` / `rim`)
 
@@ -123,6 +125,8 @@ Required behavior:
 - persist source links/citation context in `disc` so generated narratives and factsheets remain auditable
 - persist agent-proposed resolutions and missing-field candidates in `arm` with confidence and provenance
 - abstain when evidence is conflicting or weak; uncertain cases must remain proposals, not canonical truth
+- never allow untrusted publication text or model output to directly command
+  tools, mutate canonical science rows, or bypass source/adjudication gates
 
 Design implication:
 
@@ -134,6 +138,10 @@ Implementation note:
 
 - canonical ingest is documented in `docs/CANONICAL_INGEST.md`; full build wrappers promote the canonical database build emitted from the bootstrap science projection
 - the first deterministic sloppy-system queue baseline is emitted by `scripts/ingest/build_adjudication_queue.py`
+- public system-simulation scene readiness is exposed through
+  `/api/v1/systems/{system_id}/simulation-scene`; it assembles current core
+  detail, hierarchy, arm graph/orbit rows, and readiness diagnostics without
+  persisting visualization assumptions
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.

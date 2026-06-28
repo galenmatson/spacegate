@@ -1433,6 +1433,51 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
     }
 
 
+def _system_simulation_scene_payload(system_id: int) -> Dict[str, Any]:
+    public = _object_public_system_payload(system_id)
+    system = public["system"]
+    stars = public["stars"]
+    planets = public["planets"]
+    arm = _arm_object_diagnostics(stars, planets, system)
+    simulation_readiness = _simulation_readiness_diagnostics(stars, planets, arm)
+    arm_public = {
+        "components": arm.get("components") or {"count": 0, "items": []},
+        "hierarchy_edges": arm.get("hierarchy_edges") or {"count": 0, "items": []},
+        "orbit_edges": arm.get("orbit_edges") or {"count": 0, "items": []},
+        "orbital_solutions": arm.get("orbital_solutions") or {"count": 0, "items": []},
+        "stellar_parameters": arm.get("stellar_parameters") or {"count": 0, "items": []},
+        "derived_physical_parameters": arm.get("derived_physical_parameters") or {"count": 0, "items": []},
+        "errors": arm.get("errors") or [],
+    }
+    return {
+        "schema_version": "simulation_scene_v0",
+        "scope": "system_simulation_scene",
+        "generated_at_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "frame": "heliocentric_icrs_j2016",
+        "system": system,
+        "bodies": {
+            "stars": stars,
+            "planets": planets,
+        },
+        "hierarchy": public.get("hierarchy"),
+        "arm": arm_public,
+        "simulation_readiness": simulation_readiness,
+        "policy": {
+            "canonical_layer": "core",
+            "derived_layer": "arm",
+            "presentation_assumption_layer": "disc",
+            "fiction_overlay_layer": "rim",
+            "time_policy": "static_epoch_scene_until_client_simulation_clock_contract",
+            "missing_orbit_policy": "do_not_invent_canonical_orbits",
+            "agency_policy": "unreviewed_agency_output_must_not_write_core",
+        },
+        "links": {
+            "detail": f"/api/v1/systems/{system_id}",
+            "public_detail": f"/systems/{system_id}",
+        },
+    }
+
+
 def _admin_search_system_by_id(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -2320,6 +2365,21 @@ def map_systems(
                 "code": "database_unavailable",
                 "message": "Database not available",
                 "details": {},
+            },
+        )
+
+
+@app.get("/api/v1/systems/{system_id}/simulation-scene")
+def system_simulation_scene(system_id: int):
+    try:
+        return _system_simulation_scene_payload(system_id)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "System not found",
+                "details": {"system_id": system_id},
             },
         )
 

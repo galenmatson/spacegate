@@ -259,6 +259,66 @@ Response:
 }
 ```
 
+### GET /systems/{system_id}/simulation-scene
+Returns the beta scene-readiness payload for live 3D system previews and future
+system simulation rendering.
+
+This endpoint is read-only. It assembles existing public detail rows,
+hierarchy, arm graph/orbit rows, and simulation-readiness diagnostics. It does
+not persist generated assumptions and does not promote Agency output.
+
+Response:
+```json
+{
+  "schema_version": "simulation_scene_v0",
+  "scope": "system_simulation_scene",
+  "generated_at_utc": "2026-06-28T00:00:00Z",
+  "frame": "heliocentric_icrs_j2016",
+  "system": {},
+  "bodies": {
+    "stars": [],
+    "planets": []
+  },
+  "hierarchy": {},
+  "arm": {
+    "components": {"count": 0, "items": []},
+    "hierarchy_edges": {"count": 0, "items": []},
+    "orbit_edges": {"count": 0, "items": []},
+    "orbital_solutions": {"count": 0, "items": []},
+    "stellar_parameters": {"count": 0, "items": []},
+    "derived_physical_parameters": {"count": 0, "items": []}
+  },
+  "simulation_readiness": {
+    "score": 0.0,
+    "counts": {"source": 0, "derived": 0, "assumed": 0, "missing": 0},
+    "required_field_count": 0,
+    "status": "missing",
+    "stars": [],
+    "planets": []
+  },
+  "policy": {
+    "canonical_layer": "core",
+    "derived_layer": "arm",
+    "presentation_assumption_layer": "disc",
+    "fiction_overlay_layer": "rim",
+    "time_policy": "static_epoch_scene_until_client_simulation_clock_contract",
+    "missing_orbit_policy": "do_not_invent_canonical_orbits",
+    "agency_policy": "unreviewed_agency_output_must_not_write_core"
+  }
+}
+```
+
+Contract notes:
+
+- `core` supplies canonical/source-faithful rows.
+- `arm` supplies deterministic hierarchy, orbit, stellar-parameter, and derived
+  science support rows.
+- `disc` is the future home for visualization-only assumptions and static
+  fallback artifacts.
+- `rim` remains excluded from this science endpoint.
+- Missing orbital elements are exposed as missing/assumed readiness fields
+  rather than silently filled as canonical data.
+
 Notes:
 - This endpoint is a map render/selection contract, not a general search API.
 - The pilot is intentionally capped to 100 ly until tile/LOD loading exists.

@@ -6,6 +6,8 @@ Purpose:
 - store deterministic, provenance-bound science derivatives outside core hot paths
 - materialize multiplicity hierarchy as explicit graph edges
 - normalize orbital solutions for UI reconstruction and animation readiness scoring
+- supply the science-side inputs for `docs/SYSTEM_SIMULATION.md` without storing
+  visualization-only assumptions
 
 Out of scope:
 - editable fiction/user overlays (`SCHEMA_RIM.md`, rim layer)
@@ -140,6 +142,8 @@ Columns:
 Rule:
 - never overwrite source-native measurements; normalized columns are additive transforms with lineage.
 - ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
+- illustrative orbit defaults for rendering belong in `disc` assumptions until
+  they are backed by reviewed source or derived `arm` rows.
 
 ## `stellar_parameters`
 

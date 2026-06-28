@@ -216,11 +216,21 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map 100 ly performance budget measurement and compact render payload tuning
 - [x] 3D map ephemeral route measurement overlay (right-click context menu,
   per-leg line labels, route total, undo/clear)
+- [x] 3D map beta desktop declutter with compact header readouts, selection
+  history pills, route leg list, and long-ID popover/copy controls
+- [x] Public system simulation scene-readiness API
+  (`/api/v1/systems/{system_id}/simulation-scene`)
+- [x] System simulation contract and orbital source-refresh strategy documented
+  (`docs/SYSTEM_SIMULATION.md`)
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
 - [ ] 3D map real-device mid-tier mobile performance check
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
   clusters, and background-sky context
+- [ ] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive
+  and rerun hierarchy/orbit goldens
+- [ ] Reconcile system-simulation orbital-source policy across NASA
+  `ps`/`pscomppars`, Gaia NSS, WDS/ORB6, SBX, MSC, and JPL Horizons/SBDB
 - [ ] Live 3D system preview/simulation scenes with deterministic static snapshot fallback
 - [ ] Rim/worldbuilding overlay expansion without core contamination
 - [x] Cross-layer system graph contract documented (containment spine + relation graph, layer ownership, generator compatibility)

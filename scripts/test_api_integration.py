@@ -100,6 +100,30 @@ def main():
     require_keys(detail_json, ["system", "stars", "planets"], "detail")
     require_keys(detail_json["system"], ["system_id", "system_name", "provenance"], "detail.system")
 
+    _, scene_json = get_json(
+        base_url,
+        f"/systems/{first['system_id']}/simulation-scene",
+        label="simulation scene",
+    )
+    require_keys(
+        scene_json,
+        ["schema_version", "scope", "frame", "system", "bodies", "arm", "simulation_readiness", "policy"],
+        "simulation scene",
+    )
+    if scene_json["schema_version"] != "simulation_scene_v0":
+        raise AssertionError(f"unexpected simulation scene schema_version: {scene_json['schema_version']!r}")
+    require_keys(scene_json["bodies"], ["stars", "planets"], "simulation scene.bodies")
+    require_keys(
+        scene_json["arm"],
+        ["components", "hierarchy_edges", "orbit_edges", "orbital_solutions"],
+        "simulation scene.arm",
+    )
+    require_keys(
+        scene_json["simulation_readiness"],
+        ["score", "counts", "required_field_count", "status", "stars", "planets"],
+        "simulation scene.simulation_readiness",
+    )
+
     _, name_page = get_json(
         base_url,
         "/systems/search",

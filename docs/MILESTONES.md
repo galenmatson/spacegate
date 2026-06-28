@@ -481,10 +481,16 @@ Delivered baseline:
 - v0.2 mobile controls: one-finger drag-look, tap/select-reticle selection,
   two-finger pinch flight, and two-finger pan
 - stabilized vertical, Sol marker, distance rings, sparse priority labels,
-  reticle selection, HUD summary, priority contacts, and detail-page handoff
+  reticle selection, compact header readouts, selection history pills, and
+  detail-page handoff
+- beta HUD declutter: long-ID truncation with hover/tap metadata popovers and
+  copy controls, selected-name detail links, and tighter desktop/mobile layouts
 - ephemeral route measurement overlay: right-click a target system, measure
-  from the selected system, draw per-leg distance lines, and show route total
-  without persisting Rim/worldbuilding route data
+  from the selected system, draw per-leg distance lines, show recent leg list
+  and total distance, and undo/clear without persisting Rim/worldbuilding route
+  data
+- public system simulation scene-readiness endpoint:
+  `/api/v1/systems/{system_id}/simulation-scene`
 - Playwright desktop/mobile visual checks confirm a nonblank WebGL canvas, HUD
   rendering, selected-system state, and no page errors
 - compact browser map profile (`compact=true`) trims the 100 ly local JSON
@@ -498,6 +504,7 @@ Remaining pilot polish:
 - tighten map label priority and theme-specific HUD styling after visual QA
 - improve fallback Gaia-label display priority for mobile selection sheets and
   in-scene labels
+- refine route measurement dismissal/edit affordances after public beta use
 - measure real-device public load on a mid-tier mobile browser
 
 Success criteria:
@@ -545,9 +552,25 @@ Goal:
 
 Deliverables:
 
+- public scene-readiness contract over current detail, hierarchy, arm graph,
+  orbital solutions, and readiness diagnostics
+- deterministic body hierarchy model using containment edges plus separate
+  dynamic orbit edges
+- orbital-source refresh plan for NASA Exoplanet Archive `ps`/`pscomppars`,
+  Gaia DR3 NSS now and Gaia DR4 transition planning, WDS/ORB6, MSC, SBX, and
+  JPL Horizons/SBDB
 - mesh/material scene components for stars and planets
 - explicit assumptions for generated planet surfaces and missing values
+- persisted `disc` assumption rows for visualization-only defaults
 - fallback rules for browsers or devices that cannot support 3D previews
+
+Readiness gaps:
+
+- MSC fallback version is stale relative to the upstream June 19, 2026 archive
+- full renderer, client simulation clock, uncertainty visualization, and scale
+  policy are not implemented yet
+- Agency-suggested orbital/physical parameters must remain proposals until
+  reviewed and materialized through `arm`/`disc` gates
 
 ### M8.4. Time and Rim-Ready Rendering
 

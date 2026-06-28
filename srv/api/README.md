@@ -47,6 +47,7 @@ Optional:
 - `GET /api/v1/health`
 - `GET /api/v1/systems/search`
 - `GET /api/v1/systems/{system_id}`
+- `GET /api/v1/systems/{system_id}/simulation-scene`
 - `GET /api/v1/systems/by-key/{stable_object_key}`
 - `GET /api/v1/snapshots/{build_id}/{artifact_path}`
 - `GET /api/v2/auth/login/google`
