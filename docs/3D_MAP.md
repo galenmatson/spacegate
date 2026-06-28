@@ -137,11 +137,13 @@ Initial layers:
     future live 3D system previews
 - first live system preview renderer:
   - lazy-loaded on system detail pages
-  - renders source/derived scene bodies from `simulation-scene`
-  - uses static orbit rings and planet/star meshes as a beta visualization
+  - renders source/derived/assumed scene bodies from `simulation-scene`
+  - consumes additive `render_scene_v0.2` bodies/orbits when available
+  - uses barycentric visual groups for connected binary/multiple-star edges
   - animates planets from source `orbital_period_days` when present
   - assigns deterministic per-body starting phases so planets do not begin
     aligned while keeping reloads reproducible
+  - surfaces source/derived/assumed/missing provenance pills in the preview
   - deterministic snapshots remain the fallback/reference artifact
 
 Planned layers:

@@ -13,13 +13,14 @@ Already in place:
   and `arm.orbital_solutions`
 - Admin Object Diagnostics simulation-readiness fields that classify inputs as
   `source`, `derived`, `assumed`, or `missing`
+- additive `render_scene_v0.2` payload for live previews with renderer-ready
+  star bodies, planet bodies, binary orbit groups, and provenance-bearing fields
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and
   curated artificial objects
 - React 19 + Three.js/R3F runtime foundations from the 3D map
 
 Not ready yet:
 
-- a full renderer for stars/planets/orbits
 - a client simulation clock and propagation policy
 - source-refresh verification for stale multiplicity/orbital inputs
 - uncertainty visualization
@@ -63,6 +64,12 @@ Response shape:
     "stars": [],
     "planets": []
   },
+  "render_scene": {
+    "schema_version": "render_scene_v0.2",
+    "assumption_generator_version": "procedural_prior_v1",
+    "bodies": {"stars": [], "planets": []},
+    "orbits": []
+  },
   "policy": {
     "canonical_layer": "core",
     "derived_layer": "arm",
@@ -85,6 +92,9 @@ Rules:
 - `rim` rows are fictional/worldbuilding overlays only.
 - Missing orbital data must not be silently replaced with canonical-looking
   values. Visualization defaults belong in `disc` and must be labeled.
+- `render_scene_v0.2` may emit transient deterministic assumptions using
+  `procedural_prior_v1`; persistent assumption rows remain future
+  `disc.simulation_assumptions` work.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 
@@ -169,6 +179,9 @@ Success criteria:
 - browser QA covers at least one live-preview scene path
 - planet motion uses source orbital periods when present and deterministic
   seeded phases for reproducible non-aligned starting positions
+- multi-star previews render ARM hierarchy/orbit evidence as barycentric visual
+  groups when connected binary edges are available
+- source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness payload
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes

@@ -227,6 +227,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   (`docs/SYSTEM_SIMULATION.md`)
 - [x] First lazy-loaded live system preview renderer on system detail pages
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
+- [ ] Fix common-name alias regression: `Castor` should resolve to
+  `66alp Gem` / WDS 07346+3153 in search and system detail aliases
+- [ ] Fix Castor nested hierarchy regression/shortfall: represent the wider
+  AB subsystem and distant C binary instead of only three sibling MSC binaries
 - [ ] 3D map real-device mid-tier mobile performance check
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
@@ -237,6 +241,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
 - [ ] Reconcile system-simulation orbital-source policy across NASA
   `ps`/`pscomppars`, Gaia NSS, WDS/ORB6, SBX, MSC, and JPL Horizons/SBDB
+- [x] Live System Preview v0.2 renderer-ready payload, multi-star binary visual
+  groups, and preview provenance pills
+- [ ] Persist reviewed visualization assumptions in `disc.simulation_assumptions`
 - [ ] Live 3D system preview/simulation scenes with deterministic static snapshot fallback
 - [ ] Rim/worldbuilding overlay expansion without core contamination
 - [x] Cross-layer system graph contract documented (containment spine + relation graph, layer ownership, generator compatibility)

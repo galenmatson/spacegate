@@ -296,6 +296,20 @@ Response:
     "stars": [],
     "planets": []
   },
+  "render_scene": {
+    "schema_version": "render_scene_v0.2",
+    "assumption_generator_version": "procedural_prior_v1",
+    "preferred_visualization": "live_3d",
+    "fallback_visualization": "deterministic_snapshot",
+    "bodies": {"stars": [], "planets": []},
+    "orbits": [],
+    "provenance_legend": {
+      "source": "Catalog/source value from core or arm.",
+      "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
+      "assumed": "Deterministic disc-layer visualization prior only.",
+      "missing": "Required value not available."
+    }
+  },
   "policy": {
     "canonical_layer": "core",
     "derived_layer": "arm",
@@ -315,6 +329,10 @@ Contract notes:
   science support rows.
 - `disc` is the future home for visualization-only assumptions and static
   fallback artifacts.
+- `render_scene` is an additive renderer-ready view over the source payload.
+  It may include deterministic procedural fields with `status="assumed"`,
+  `layer="disc_assumption"`, `basis="procedural_prior_v1:..."`, and a stable
+  `seed`. These values are visual defaults only; they are not canonical science.
 - `rim` remains excluded from this science endpoint.
 - Missing orbital elements are exposed as missing/assumed readiness fields
   rather than silently filled as canonical data.

@@ -143,8 +143,9 @@ Implementation note:
   detail, hierarchy, arm graph/orbit rows, and readiness diagnostics without
   persisting visualization assumptions
 - the first live system preview renderer is lazy-loaded on system detail pages
-  and uses the scene-readiness endpoint; deterministic snapshots remain the
-  fallback/reference artifact
+  and uses the scene-readiness endpoint; `render_scene_v0.2` adds renderer-ready
+  bodies/orbits and provenance-bearing source/derived/assumed/missing fields;
+  deterministic snapshots remain the fallback/reference artifact
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.

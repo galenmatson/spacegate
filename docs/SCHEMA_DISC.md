@@ -246,6 +246,9 @@ Rules:
 - Agency enrichment should treat active assumptions as search targets for real
   values, but conversations or generated prose must not silently convert an
   assumption into a science claim.
+- Live System Preview v0.2 currently emits transient `procedural_prior_v1`
+  assumption fields in the API `render_scene` payload. Persisting those fields
+  here is a later materialization step, not a current science ingest.
 
 ## snapshot_manifest
 

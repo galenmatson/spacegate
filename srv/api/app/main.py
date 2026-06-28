@@ -68,6 +68,7 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
 SUPPORTED_SEARCH_SORTS = {"name", "distance", "coolness"}
 SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
+SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 
 COOLNESS_WEIGHT_KEYS = [
     ("luminosity", "luminosity_feature"),
@@ -411,8 +412,14 @@ def _simulation_field(
     layer: str,
     confidence_tier: str,
     replacement_target: str,
+    source_catalog: Optional[str] = None,
+    source_reference: Optional[str] = None,
+    seed: Optional[str] = None,
+    generator_version: Optional[str] = None,
+    confidence: Optional[float] = None,
+    notes: Optional[str] = None,
 ) -> Dict[str, Any]:
-    return {
+    out: Dict[str, Any] = {
         "key": key,
         "label": label,
         "value": value,
@@ -423,6 +430,63 @@ def _simulation_field(
         "confidence_tier": confidence_tier,
         "replacement_target": replacement_target,
     }
+    if source_catalog:
+        out["source_catalog"] = source_catalog
+    if source_reference:
+        out["source_reference"] = source_reference
+    if seed:
+        out["seed"] = seed
+    if generator_version:
+        out["generator_version"] = generator_version
+    if confidence is not None:
+        out["confidence"] = confidence
+    if notes:
+        out["notes"] = notes
+    return out
+
+
+def _stable_seed(*parts: Any) -> str:
+    text = "|".join(str(part or "") for part in parts)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def _seed_unit(seed: str, salt: str = "") -> float:
+    digest = hashlib.sha256(f"{seed}|{salt}".encode("utf-8")).hexdigest()
+    return int(digest[:12], 16) / float(0xFFFFFFFFFFFF)
+
+
+def _seed_centered(seed: str, salt: str = "") -> float:
+    value = (_seed_unit(seed, f"{salt}:a") + _seed_unit(seed, f"{salt}:b") + _seed_unit(seed, f"{salt}:c")) / 3.0
+    return max(-1.0, min(1.0, (value - 0.5) * 2.0))
+
+
+def _procedural_field(
+    *,
+    key: str,
+    label: str,
+    value: Any,
+    unit: Optional[str],
+    basis: str,
+    seed: str,
+    confidence_tier: str = "illustrative",
+    confidence: float = 0.25,
+    replacement_target: str,
+) -> Dict[str, Any]:
+    return _simulation_field(
+        key=key,
+        label=label,
+        value=value,
+        unit=unit,
+        status="assumed",
+        basis=f"{SIM_PROCEDURAL_ASSUMPTION_VERSION}:{basis}",
+        layer="disc_assumption",
+        confidence_tier=confidence_tier,
+        replacement_target=replacement_target,
+        seed=seed,
+        generator_version=SIM_PROCEDURAL_ASSUMPTION_VERSION,
+        confidence=confidence,
+        notes="Deterministic visualization prior only; not canonical astronomy.",
+    )
 
 
 def _best_stellar_parameters_by_star_id(arm: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
@@ -764,6 +828,443 @@ def _simulation_readiness_diagnostics(
     }
 
 
+def _field_by_key(fields: List[Dict[str, Any]], key: str) -> Optional[Dict[str, Any]]:
+    for field in fields or []:
+        if field.get("key") == key:
+            return field
+    return None
+
+
+def _field_map(fields: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    return {str(field.get("key")): field for field in fields or [] if field.get("key")}
+
+
+def _visual_star_color_class(star: Dict[str, Any], fallback: Optional[str] = None) -> str:
+    value = str(star.get("spectral_class") or fallback or "").strip().upper()
+    return value[:1] if value[:1] in {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"} else "M"
+
+
+def _clone_assumed_visual_field(
+    *,
+    source_field: Optional[Dict[str, Any]],
+    key: str,
+    label: str,
+    fallback_value: float,
+    unit: Optional[str],
+    seed: str,
+    basis: str,
+    scale: float = 1.0,
+) -> Dict[str, Any]:
+    value = _float_or_none((source_field or {}).get("value"))
+    if value is None:
+        value = fallback_value
+    return _procedural_field(
+        key=key,
+        label=label,
+        value=round(value * scale, 6),
+        unit=unit,
+        basis=basis,
+        seed=seed,
+        confidence=0.2,
+        replacement_target=f"source {label.lower()} for this component",
+    )
+
+
+def _solution_by_orbit_edge_id(arm: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+    out: Dict[int, Dict[str, Any]] = {}
+    for row in ((arm.get("orbital_solutions") or {}).get("items") or []):
+        try:
+            orbit_edge_id = int(row.get("orbit_edge_id"))
+        except Exception:
+            continue
+        current = out.get(orbit_edge_id)
+        if current is None or int(row.get("solution_rank") or 9999) < int(current.get("solution_rank") or 9999):
+            out[orbit_edge_id] = row
+    return out
+
+
+def _render_scene_contract(
+    system: Dict[str, Any],
+    stars: List[Dict[str, Any]],
+    planets: List[Dict[str, Any]],
+    arm: Dict[str, Any],
+    simulation_readiness: Dict[str, Any],
+) -> Dict[str, Any]:
+    star_readiness_by_id = {
+        int(row["object_id"]): row
+        for row in simulation_readiness.get("stars", [])
+        if row.get("object_id") is not None
+    }
+    planet_readiness_by_id = {
+        int(row["object_id"]): row
+        for row in simulation_readiness.get("planets", [])
+        if row.get("object_id") is not None
+    }
+    core_star_by_id = {int(row["star_id"]): row for row in stars if row.get("star_id") is not None}
+    core_star_by_role = {
+        str(row.get("component") or "").strip().upper()[:1]: row
+        for row in stars
+        if str(row.get("component") or "").strip()
+    }
+    component_rows = ((arm.get("components") or {}).get("items") or [])
+    orbit_rows = ((arm.get("orbit_edges") or {}).get("items") or [])
+    solution_by_edge_id = _solution_by_orbit_edge_id(arm)
+    orbit_component_keys = {
+        str(edge.get(key) or "")
+        for edge in orbit_rows
+        for key in ("primary_component_key", "secondary_component_key")
+        if edge.get(key)
+    }
+    components_by_key = {
+        str(row.get("stable_component_key") or ""): row
+        for row in component_rows
+        if row.get("stable_component_key")
+    }
+
+    render_stars: Dict[str, Dict[str, Any]] = {}
+
+    def add_core_star(star: Dict[str, Any]) -> str:
+        star_id = int(star.get("star_id") or -1)
+        render_key = str(star.get("stable_object_key") or f"star:{star_id}")
+        if render_key in render_stars:
+            return render_key
+        readiness = star_readiness_by_id.get(star_id) or {}
+        fields = _field_map(readiness.get("fields") or [])
+        render_stars[render_key] = {
+            "render_key": render_key,
+            "source_component_key": None,
+            "object_type": "star",
+            "display_name": star.get("display_name") or star.get("star_name") or render_key,
+            "component": star.get("component"),
+            "spectral_class": _visual_star_color_class(star),
+            "fields": fields,
+            "source": {
+                "layer": "core",
+                "stable_object_key": star.get("stable_object_key"),
+                "star_id": star.get("star_id"),
+            },
+        }
+        return render_key
+
+    def add_component_star(component: Dict[str, Any]) -> str:
+        component_key = str(component.get("stable_component_key") or "")
+        if not component_key:
+            return ""
+        if component_key in render_stars:
+            return component_key
+        core_id = component.get("core_object_id")
+        if str(component.get("core_object_type") or "") == "star" and core_id is not None:
+            try:
+                star = core_star_by_id.get(int(core_id))
+            except Exception:
+                star = None
+            if star:
+                core_key = add_core_star(star)
+                render_stars[component_key] = dict(render_stars[core_key])
+                render_stars[component_key]["render_key"] = component_key
+                render_stars[component_key]["source_component_key"] = component_key
+                render_stars[component_key]["display_name"] = component.get("display_name") or render_stars[core_key]["display_name"]
+                return component_key
+
+        label = str(component.get("catalog_component_label") or "").strip().upper()
+        parent_role = label[:1]
+        parent_star = core_star_by_role.get(parent_role) or (stars[0] if stars else {})
+        parent_readiness = star_readiness_by_id.get(int(parent_star.get("star_id") or -1), {})
+        parent_fields = _field_map(parent_readiness.get("fields") or [])
+        seed = _stable_seed(system.get("stable_object_key"), component_key, "star_visual")
+        split_scale = 0.52 + 0.16 * _seed_unit(seed, "split_scale")
+        render_stars[component_key] = {
+            "render_key": component_key,
+            "source_component_key": component_key,
+            "object_type": "star",
+            "display_name": component.get("display_name") or component.get("catalog_component_label") or component_key,
+            "component": component.get("catalog_component_label"),
+            "spectral_class": _visual_star_color_class(parent_star),
+            "fields": {
+                "teff_k": _clone_assumed_visual_field(
+                    source_field=parent_fields.get("teff_k"),
+                    key="teff_k",
+                    label="Effective temperature",
+                    fallback_value=3200.0,
+                    unit="K",
+                    seed=seed,
+                    basis="split_component_visual_proxy_from_parent_role",
+                ),
+                "mass_msun": _clone_assumed_visual_field(
+                    source_field=parent_fields.get("mass_msun"),
+                    key="mass_msun",
+                    label="Mass",
+                    fallback_value=0.35,
+                    unit="Msun",
+                    seed=seed,
+                    basis="bounded_split_component_visual_proxy_from_parent_role",
+                    scale=split_scale,
+                ),
+                "radius_rsun": _clone_assumed_visual_field(
+                    source_field=parent_fields.get("radius_rsun"),
+                    key="radius_rsun",
+                    label="Radius",
+                    fallback_value=0.35,
+                    unit="Rsun",
+                    seed=seed,
+                    basis="bounded_split_component_visual_proxy_from_parent_role",
+                    scale=split_scale,
+                ),
+            },
+            "source": {
+                "layer": "arm",
+                "stable_component_key": component_key,
+                "parent_role": parent_role or None,
+            },
+        }
+        return component_key
+
+    for edge in orbit_rows:
+        for key_name in ("primary_component_key", "secondary_component_key"):
+            component_key = str(edge.get(key_name) or "")
+            component = components_by_key.get(component_key)
+            if component and str(component.get("component_type") or "") == "star":
+                add_component_star(component)
+
+    if not render_stars:
+        for star in stars:
+            add_core_star(star)
+    else:
+        for star in stars:
+            if len(render_stars) < max(2, len(stars)) and not orbit_component_keys:
+                add_core_star(star)
+
+    render_orbits: List[Dict[str, Any]] = []
+    for idx, edge in enumerate(orbit_rows):
+        primary_key = str(edge.get("primary_component_key") or "")
+        secondary_key = str(edge.get("secondary_component_key") or "")
+        if primary_key not in render_stars or secondary_key not in render_stars:
+            continue
+        try:
+            orbit_edge_id = int(edge.get("orbit_edge_id"))
+        except Exception:
+            orbit_edge_id = idx
+        solution = solution_by_edge_id.get(orbit_edge_id) or {}
+        seed = _stable_seed(system.get("stable_object_key"), orbit_edge_id, primary_key, secondary_key)
+        source_period = _float_or_none(solution.get("period_days"))
+        source_sma = _float_or_none(solution.get("semi_major_axis_au"))
+        source_ecc = _float_or_none(solution.get("eccentricity"))
+        source_inc = _float_or_none(solution.get("inclination_deg"))
+        assumed_period = round(0.65 + 24.0 * _seed_unit(seed, "period"), 6)
+        assumed_radius = round(0.72 + 0.46 * _seed_unit(seed, "display_radius"), 6)
+        render_orbits.append(
+            {
+                "orbit_key": f"orbit:{orbit_edge_id}",
+                "orbit_edge_id": edge.get("orbit_edge_id"),
+                "relation_kind": edge.get("relation_kind") or "binary",
+                "primary_body_key": primary_key,
+                "secondary_body_key": secondary_key,
+                "barycenter_key": edge.get("barycenter_key"),
+                "cluster_phase_rad": round(_seed_unit(seed, "cluster_phase") * math.pi * 2.0, 6),
+                "display_radius_scene": assumed_radius,
+                "fields": {
+                    "period_days": (
+                        _simulation_field(
+                            key="period_days",
+                            label="Orbital period",
+                            value=source_period,
+                            unit="days",
+                            status="source",
+                            basis=f"arm.orbital_solutions:{solution.get('solution_source_catalog') or 'source'}",
+                            layer="arm",
+                            confidence_tier=solution.get("confidence_tier") or "medium",
+                            replacement_target="reviewed orbital period",
+                            source_catalog=solution.get("solution_source_catalog") or solution.get("source_catalog"),
+                            confidence=_float_or_none(solution.get("confidence_score")),
+                        )
+                        if source_period is not None
+                        else _procedural_field(
+                            key="period_days",
+                            label="Orbital period",
+                            value=assumed_period,
+                            unit="days",
+                            basis="bounded_binary_visual_period",
+                            seed=seed,
+                            replacement_target="source binary orbital period",
+                        )
+                    ),
+                    "semi_major_axis_au": (
+                        _simulation_field(
+                            key="semi_major_axis_au",
+                            label="Semi-major axis",
+                            value=source_sma,
+                            unit="au",
+                            status="source",
+                            basis=f"arm.orbital_solutions:{solution.get('solution_source_catalog') or 'source'}",
+                            layer="arm",
+                            confidence_tier=solution.get("confidence_tier") or "medium",
+                            replacement_target="reviewed semi-major axis",
+                            source_catalog=solution.get("solution_source_catalog") or solution.get("source_catalog"),
+                            confidence=_float_or_none(solution.get("confidence_score")),
+                        )
+                        if source_sma is not None
+                        else _procedural_field(
+                            key="semi_major_axis_au",
+                            label="Semi-major axis",
+                            value=None,
+                            unit="au",
+                            basis="visual_separation_only_no_science_axis",
+                            seed=seed,
+                            confidence=0.0,
+                            replacement_target="source binary semi-major axis",
+                        )
+                    ),
+                    "eccentricity": (
+                        _simulation_field(
+                            key="eccentricity",
+                            label="Eccentricity",
+                            value=source_ecc,
+                            unit=None,
+                            status="source",
+                            basis=f"arm.orbital_solutions:{solution.get('solution_source_catalog') or 'source'}",
+                            layer="arm",
+                            confidence_tier=solution.get("confidence_tier") or "medium",
+                            replacement_target="reviewed eccentricity",
+                            source_catalog=solution.get("solution_source_catalog") or solution.get("source_catalog"),
+                            confidence=_float_or_none(solution.get("confidence_score")),
+                        )
+                        if source_ecc is not None
+                        else _procedural_field(
+                            key="eccentricity",
+                            label="Eccentricity",
+                            value=round(max(0.0, min(0.22, 0.08 + 0.07 * _seed_centered(seed, "ecc"))), 6),
+                            unit=None,
+                            basis="centered_low_eccentricity_visual_prior",
+                            seed=seed,
+                            replacement_target="source binary eccentricity",
+                        )
+                    ),
+                    "inclination_deg": (
+                        _simulation_field(
+                            key="inclination_deg",
+                            label="Inclination",
+                            value=source_inc,
+                            unit="deg",
+                            status="source",
+                            basis=f"arm.orbital_solutions:{solution.get('solution_source_catalog') or 'source'}",
+                            layer="arm",
+                            confidence_tier=solution.get("confidence_tier") or "medium",
+                            replacement_target="reviewed inclination",
+                            source_catalog=solution.get("solution_source_catalog") or solution.get("source_catalog"),
+                            confidence=_float_or_none(solution.get("confidence_score")),
+                        )
+                        if source_inc is not None
+                        else _procedural_field(
+                            key="inclination_deg",
+                            label="Inclination",
+                            value=round(8.0 * _seed_centered(seed, "inc"), 6),
+                            unit="deg",
+                            basis="centered_low_inclination_visual_prior",
+                            seed=seed,
+                            replacement_target="source binary inclination",
+                        )
+                    ),
+                    "phase_rad": _procedural_field(
+                        key="phase_rad",
+                        label="Orbital phase",
+                        value=round(_seed_unit(seed, "phase") * math.pi * 2.0, 6),
+                        unit="rad",
+                        basis="deterministic_visual_start_phase",
+                        seed=seed,
+                        confidence=0.0,
+                        replacement_target="source epoch/periastron/mean anomaly",
+                    ),
+                },
+                "source": {
+                    "layer": "arm",
+                    "source_catalog": edge.get("source_catalog"),
+                    "confidence_tier": edge.get("confidence_tier"),
+                    "confidence_score": edge.get("confidence_score"),
+                },
+            }
+        )
+
+    render_planets: List[Dict[str, Any]] = []
+    for idx, planet in enumerate(planets):
+        planet_id = int(planet.get("planet_id") or -1)
+        readiness = planet_readiness_by_id.get(planet_id) or {}
+        fields = _field_map(readiness.get("fields") or [])
+        seed = _stable_seed(system.get("stable_object_key"), planet.get("stable_object_key"), "planet_visual")
+        if "phase_rad" not in fields:
+            fields["phase_rad"] = _procedural_field(
+                key="phase_rad",
+                label="Orbital phase",
+                value=round(_seed_unit(seed, "phase") * math.pi * 2.0, 6),
+                unit="rad",
+                basis="deterministic_visual_start_phase",
+                seed=seed,
+                confidence=0.0,
+                replacement_target="source transit epoch/periastron/mean anomaly",
+            )
+        if "inclination_deg" not in fields:
+            inc = _float_or_none(planet.get("inclination_deg"))
+            fields["inclination_deg"] = (
+                _simulation_field(
+                    key="inclination_deg",
+                    label="Inclination",
+                    value=inc,
+                    unit="deg",
+                    status="source",
+                    basis="core/source inclination_deg",
+                    layer="core",
+                    confidence_tier="high",
+                    replacement_target="source inclination with uncertainty",
+                )
+                if inc is not None
+                else _procedural_field(
+                    key="inclination_deg",
+                    label="Inclination",
+                    value=round(3.0 * _seed_centered(seed, "inc"), 6),
+                    unit="deg",
+                    basis="centered_low_inclination_visual_prior",
+                    seed=seed,
+                    replacement_target="source planet inclination",
+                )
+            )
+        render_planets.append(
+            {
+                "render_key": str(planet.get("stable_object_key") or f"planet:{planet_id}"),
+                "object_type": "planet",
+                "display_name": planet.get("planet_name") or planet.get("stable_object_key"),
+                "host_star_id": planet.get("star_id"),
+                "fields": fields,
+                "source": {
+                    "layer": "core",
+                    "stable_object_key": planet.get("stable_object_key"),
+                    "planet_id": planet.get("planet_id"),
+                },
+                "sort_index": idx,
+            }
+        )
+
+    return {
+        "schema_version": "render_scene_v0.2",
+        "assumption_generator_version": SIM_PROCEDURAL_ASSUMPTION_VERSION,
+        "preferred_visualization": "live_3d",
+        "fallback_visualization": "deterministic_snapshot",
+        "time": {
+            "default_days_per_second": 0.7,
+            "phase_policy": "source epoch when present; otherwise deterministic disc visual prior",
+        },
+        "bodies": {
+            "stars": list(render_stars.values()),
+            "planets": render_planets,
+        },
+        "orbits": render_orbits,
+        "provenance_legend": {
+            "source": "Catalog/source value from core or arm.",
+            "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
+            "assumed": "Deterministic disc-layer visualization prior only.",
+            "missing": "Required value not available.",
+        },
+    }
+
+
 def _planet_environment_evidence(planet: Dict[str, Any], host_star: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     eq_temp = planet.get("eq_temp_k")
     insolation = planet.get("insol_earth")
@@ -1080,6 +1581,14 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         if planet_ids:
             component_filters.append(f"(core_object_type = 'planet' AND core_object_id IN ({','.join(['?'] * len(planet_ids))}))")
             component_params.extend(planet_ids)
+        wds_id = str(system.get("wds_id") or "").strip()
+        if wds_id:
+            component_filters.append("stable_component_key = ?")
+            component_params.append(f"comp:msc_system:wds:{wds_id}")
+            component_filters.append("stable_component_key LIKE ?")
+            component_params.append(f"comp:msc:wds:{wds_id}:%")
+            component_filters.append("stable_component_key LIKE ?")
+            component_params.append(f"comp:star:star:wds:{wds_id}:%")
         component_keys: List[str] = []
         if _duckdb_has_table(con, "component_entities"):
             rows = _rows_to_dicts(
@@ -1440,6 +1949,7 @@ def _system_simulation_scene_payload(system_id: int) -> Dict[str, Any]:
     planets = public["planets"]
     arm = _arm_object_diagnostics(stars, planets, system)
     simulation_readiness = _simulation_readiness_diagnostics(stars, planets, arm)
+    render_scene = _render_scene_contract(system, stars, planets, arm, simulation_readiness)
     arm_public = {
         "components": arm.get("components") or {"count": 0, "items": []},
         "hierarchy_edges": arm.get("hierarchy_edges") or {"count": 0, "items": []},
@@ -1462,6 +1972,7 @@ def _system_simulation_scene_payload(system_id: int) -> Dict[str, Any]:
         "hierarchy": public.get("hierarchy"),
         "arm": arm_public,
         "simulation_readiness": simulation_readiness,
+        "render_scene": render_scene,
         "policy": {
             "canonical_layer": "core",
             "derived_layer": "arm",

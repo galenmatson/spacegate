@@ -558,6 +558,8 @@ Deliverables:
 
 - public scene-readiness contract over current detail, hierarchy, arm graph,
   orbital solutions, and readiness diagnostics
+- renderer-ready `render_scene_v0.2` contract with source/derived/assumed/
+  missing provenance fields
 - deterministic body hierarchy model using containment edges plus separate
   dynamic orbit edges
 - orbital-source refresh plan for NASA Exoplanet Archive `ps`/`pscomppars`,
@@ -565,6 +567,8 @@ Deliverables:
   JPL Horizons/SBDB
 - mesh/material scene components for stars and planets
 - explicit assumptions for generated planet surfaces and missing values
+- visible provenance pills for preview fields, including deterministic
+  `ASSUMED` visual priors
 - persisted `disc` assumption rows for visualization-only defaults
 - fallback rules for browsers or devices that cannot support 3D previews
 
@@ -573,8 +577,10 @@ Readiness gaps:
 - MSC source constants now target the upstream June 19, 2026 archive; local
   canonical build `20260628T1210Z_msc20260619` promoted and passed required
   hierarchy/orbit goldens on June 28, 2026
-- full renderer, client simulation clock, uncertainty visualization, and scale
-  policy are not implemented yet
+- client simulation clock, uncertainty visualization, persisted assumption
+  materialization, and final scale policy are not implemented yet
+- Castor remains a hierarchy-quality watch item: common-name alias resolution
+  and nested AB/C subsystem structure need repair beyond the preview renderer
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

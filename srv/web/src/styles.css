@@ -4816,6 +4816,92 @@ main {
   text-transform: uppercase;
 }
 
+.system-preview-readout .system-preview-evidence {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.system-preview-evidence ul {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.system-preview-evidence li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.evidence-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 66px;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-soft) 72%, transparent);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  cursor: copy;
+  outline: none;
+}
+
+.evidence-pill.source {
+  border-color: color-mix(in srgb, #58c78f 64%, var(--border));
+}
+
+.evidence-pill.derived {
+  border-color: color-mix(in srgb, #69a8ff 62%, var(--border));
+}
+
+.evidence-pill.assumed {
+  border-color: color-mix(in srgb, #f0bf55 70%, var(--border));
+}
+
+.evidence-pill.missing {
+  border-color: color-mix(in srgb, #cc6236 65%, var(--border));
+}
+
+.evidence-pill:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.evidence-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 18;
+  display: grid;
+  gap: 5px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 8px;
+  background: var(--tooltip-bg);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.34);
+  color: var(--tooltip-ink);
+  text-align: left;
+  text-transform: none;
+}
+
+.evidence-popover strong,
+.evidence-popover span {
+  color: var(--tooltip-ink);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: none;
+}
+
 .snapshot-panel-layout {
   display: grid;
   grid-template-columns: minmax(280px, 34%) 1fr;

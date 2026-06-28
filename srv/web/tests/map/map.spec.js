@@ -85,5 +85,31 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
+    await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
+    await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
+  });
+
+  test("multi-star system preview exposes binary render orbits and assumed provenance", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "multi-star renderer smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "66alp Gem", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "66alp Gem system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    expect(scenePayload.render_scene?.schema_version).toBe("render_scene_v0.2");
+    expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(6);
+    expect(scenePayload.render_scene?.orbits?.length).toBeGreaterThanOrEqual(3);
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(page.locator(".system-preview-readout")).toContainText(/rendered orbits/i);
+    await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
   });
 });
