@@ -5,6 +5,7 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 
 const StarMapPage = React.lazy(() => import("./StarMapPage.jsx"));
+const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 
 const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "D"];
 const SPECTRAL_NON_TEMP_OPTIONS = new Set(["D"]);
@@ -3225,6 +3226,10 @@ function SystemDetailPage({ buildId = "" }) {
             <SnapshotVisual snapshot={system.snapshot} systemName={currentSystemDisplayName} eager />
           </div>
         </section>
+
+        <React.Suspense fallback={<section className="panel system-preview-panel">Loading live system preview...</section>}>
+          <SystemPreviewPanel systemId={system.system_id} systemName={currentSystemDisplayName} />
+        </React.Suspense>
 
         <div className="quick-facts">
           <div>

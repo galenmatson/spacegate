@@ -87,9 +87,11 @@ Interpretation note:
 
 - Gaia DR3 remains the current Spacegate backbone; Gaia DR4 is scheduled for
   December 2, 2026 and should become an explicit transition milestone.
-- MSC is mandatory hierarchy evidence. The current Spacegate fallback version is
-  `2024-01-01`, while the upstream MSC archive advertises a June 19, 2026
-  update. Refresh MSC before treating system-simulation hierarchy as beta-grade.
+- MSC is mandatory hierarchy evidence. Spacegate now targets the upstream June
+  19, 2026 archive (`newmsc-20260619.tar.gz`) and verifies insecure fallback
+  downloads with an explicit SHA-256 pin when CTIO TLS is not usable. Local
+  canonical build `20260628T1210Z_msc20260619` was promoted on June 28, 2026
+  after passing required multiplicity golden checks.
 - SBX is the active spectroscopic-binary support path; keep SB9 as historical
   context only unless an explicit regression/comparison task needs it.
 - WDS and ORB6 remain default visual-binary support sources, but ORB6 rows must
@@ -320,7 +322,7 @@ Policy:
 Security/transport note:
 
 - historical retrieval context requires explicit caution
-- preferred mirror path, when published on the public bootstrap host, is `SPACEGATE_PUBLIC_BASE_URL/dl/catalogs/current/raw/msc/newmsc-20240101.tar.gz`
+- preferred mirror path, when published on the public bootstrap host, is `SPACEGATE_PUBLIC_BASE_URL/dl/catalogs/current/raw/msc/newmsc-20260619.tar.gz`
 - default code should support overriding MSC retrieval to that mirror without changing source provenance
 - preserve the CTIO/NOIRLab MSC export URL as authoritative source provenance
 - maintain mirrored/pinned retrieval strategy for production stability

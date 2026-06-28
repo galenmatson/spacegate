@@ -485,12 +485,16 @@ Delivered baseline:
   detail-page handoff
 - beta HUD declutter: long-ID truncation with hover/tap metadata popovers and
   copy controls, selected-name detail links, and tighter desktop/mobile layouts
+- selected-system snapshot preview on the map: `Snapshot Ready` hover/focus
+  lazy-loads the deterministic snapshot from system detail metadata
 - ephemeral route measurement overlay: right-click a target system, measure
   from the selected system, draw per-leg distance lines, show recent leg list
   and total distance, and undo/clear without persisting Rim/worldbuilding route
   data
 - public system simulation scene-readiness endpoint:
   `/api/v1/systems/{system_id}/simulation-scene`
+- first lazy-loaded live system preview panel on system detail pages, backed by
+  the scene-readiness endpoint and covered by browser smoke tests
 - Playwright desktop/mobile visual checks confirm a nonblank WebGL canvas, HUD
   rendering, selected-system state, and no page errors
 - compact browser map profile (`compact=true`) trims the 100 ly local JSON
@@ -566,7 +570,9 @@ Deliverables:
 
 Readiness gaps:
 
-- MSC fallback version is stale relative to the upstream June 19, 2026 archive
+- MSC source constants now target the upstream June 19, 2026 archive; local
+  canonical build `20260628T1210Z_msc20260619` promoted and passed required
+  hierarchy/orbit goldens on June 28, 2026
 - full renderer, client simulation clock, uncertainty visualization, and scale
   policy are not implemented yet
 - Agency-suggested orbital/physical parameters must remain proposals until

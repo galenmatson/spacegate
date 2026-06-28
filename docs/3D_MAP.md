@@ -128,11 +128,18 @@ Initial layers:
   - selection history pills instead of wide priority-contact cards
   - selected-system title link to public detail
   - long-ID metadata popovers and copy controls
+  - selected-system snapshot chip that lazy-loads the deterministic snapshot
+    preview on hover/focus when the map payload says a snapshot is ready
   - route summary with recent leg list, total distance, undo, and clear
 - public system-simulation scene-readiness API:
   - `GET /api/v1/systems/{system_id}/simulation-scene`
   - exposes current hierarchy, arm graph/orbit rows, and readiness fields for
     future live 3D system previews
+- first live system preview renderer:
+  - lazy-loaded on system detail pages
+  - renders source/derived scene bodies from `simulation-scene`
+  - uses static orbit rings and planet/star meshes as a beta visualization
+  - deterministic snapshots remain the fallback/reference artifact
 
 Planned layers:
 
@@ -148,6 +155,13 @@ Route-measurement boundary:
 - they do not write `rim` rows
 - they may later become the seed for rim routes after an explicit save/export
   workflow exists
+
+Checked-in browser QA:
+
+- `srv/web/tests/map/map.spec.js`
+- `npm run test:map`
+- covers route create/undo/clear, selected snapshot hover preview, mobile HUD
+  compaction, and the live system-preview renderer smoke path
 
 ## Deferred Decisions
 

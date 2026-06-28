@@ -142,6 +142,9 @@ Implementation note:
   `/api/v1/systems/{system_id}/simulation-scene`; it assembles current core
   detail, hierarchy, arm graph/orbit rows, and readiness diagnostics without
   persisting visualization assumptions
+- the first live system preview renderer is lazy-loaded on system detail pages
+  and uses the scene-readiness endpoint; deterministic snapshots remain the
+  fallback/reference artifact
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
@@ -223,6 +226,11 @@ Current rules:
 - proximity grouping stays nondefault
 - WDS-Gaia path stays optional and confidence-gated
 - MSC is mandatory in default science ingest (missing MSC is a build/promotion blocker)
+- MSC source constants target the June 19, 2026 upstream archive
+  (`newmsc-20260619.tar.gz`); CTIO TLS failures require explicit
+  SHA-256-pinned fallback handling; local canonical build
+  `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed required
+  multiplicity golden checks
 - SBX is default-on support evidence (`SPACEGATE_ENABLE_SBX`) for spectroscopic-binary coverage
 - physical consistency gating is required for WDS-linked grouping via bridge:
   - distance spread threshold

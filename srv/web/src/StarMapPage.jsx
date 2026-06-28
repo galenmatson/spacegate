@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { fetchMapSystems } from "./api.js";
+import { apiUrl, fetchMapSystems, fetchSystemDetail } from "./api.js";
 
 const MAP_RADIUS_LY = 100;
 const LY_TO_SCENE = 0.55;
@@ -151,6 +151,73 @@ function SystemNameDisplay({ system, linkTo = null, className = "" }) {
           <button type="button" className="map-popover-copy" onClick={copyName}>
             {copied ? "Copied" : "Copy full ID"}
           </button>
+        </span>
+      )}
+    </span>
+  );
+}
+
+function SnapshotStatusChip({ system }) {
+  const [open, setOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState(null);
+  const [status, setStatus] = useState("idle");
+  const hasSnapshot = Boolean(system?.has_snapshot);
+  const systemId = system?.system_id;
+
+  useEffect(() => {
+    setSnapshot(null);
+    setStatus("idle");
+    setOpen(false);
+  }, [systemId]);
+
+  useEffect(() => {
+    if (!open || !hasSnapshot || !systemId || snapshot) {
+      return;
+    }
+    let active = true;
+    setStatus("loading");
+    fetchSystemDetail(systemId)
+      .then((payload) => {
+        if (!active) {
+          return;
+        }
+        setSnapshot(payload?.system?.snapshot || null);
+        setStatus(payload?.system?.snapshot?.url ? "ready" : "missing");
+      })
+      .catch(() => {
+        if (active) {
+          setStatus("error");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [hasSnapshot, open, snapshot, systemId]);
+
+  const showPopover = open && hasSnapshot;
+  const snapshotUrl = snapshot?.url ? apiUrl(snapshot.url) : "";
+  return (
+    <span
+      className={`map-snapshot-chip ${hasSnapshot ? "ready" : "pending"}`}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+      tabIndex={0}
+    >
+      <span>Snapshot</span>
+      <strong>{hasSnapshot ? "Ready" : "Pending"}</strong>
+      {showPopover && (
+        <span className="map-snapshot-popover" role="tooltip">
+          {status === "loading" && <span>Loading snapshot...</span>}
+          {status === "error" && <span>Snapshot metadata unavailable.</span>}
+          {(status === "missing" || (status === "ready" && !snapshotUrl)) && <span>Snapshot manifest missing.</span>}
+          {status === "ready" && snapshotUrl && (
+            <>
+              <img src={snapshotUrl} alt={`${formatName(system?.display_name || system?.system_name)} deterministic snapshot`} />
+              <span>{snapshot.view_type || "system_card"} / {String(snapshot.params_hash || "").slice(0, 8) || "current"}</span>
+            </>
+          )}
         </span>
       )}
     </span>
@@ -1150,7 +1217,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             <dl className="map-fact-grid">
               <div><dt>Coolness</dt><dd>{formatNumber(selectedSystem.coolness_score, 2)}</dd></div>
               <div><dt>Rank</dt><dd>{formatNumber(selectedSystem.coolness_rank, 0)}</dd></div>
-              <div><dt>Snapshot</dt><dd>{selectedSystem.has_snapshot ? "Ready" : "Pending"}</dd></div>
+              <div><dt>Snapshot</dt><dd><SnapshotStatusChip system={selectedSystem} /></dd></div>
             </dl>
           </>
         ) : (

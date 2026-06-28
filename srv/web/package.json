@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:map": "playwright test -c playwright.map.config.js",
+    "test:map:headed": "playwright test -c playwright.map.config.js --headed",
+    "test:map:install": "playwright install chromium"
   },
   "dependencies": {
     "@react-three/fiber": "^9.6.1",
@@ -18,6 +21,7 @@
     "three": "^0.185.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-react": "^6.0.2",
     "vite": "^8.0.16"
   }

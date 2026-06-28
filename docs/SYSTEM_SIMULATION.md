@@ -128,10 +128,12 @@ Near-term source priorities:
   a planned ingest transition rather than an assumption that DR3 remains final.
 - WDS and ORB6: visual-binary support evidence and orbital solutions, mapped
   only when Spacegate can attach rows to a unique, confidence-gated system edge.
-- MSC: mandatory multiplicity hierarchy evidence. The current Spacegate fallback
-  version is `2024-01-01`; the upstream MSC archive advertises a June 19, 2026
-  update and should be refreshed before system-simulation beta work depends on
-  its hierarchy.
+- MSC: mandatory multiplicity hierarchy evidence. Spacegate now targets the
+  upstream June 19, 2026 archive (`newmsc-20260619.tar.gz`). The current archive
+  places `sys.tsv`, `orb.tsv`, and `comp.tsv` at the archive root; the cooker
+  accepts both that layout and the older `export/*.tsv` layout. Local canonical
+  build `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed the
+  required multiplicity golden checks.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
   checks pass.
@@ -163,6 +165,8 @@ Build a system preview renderer for a small target set:
 Success criteria:
 
 - each scene renders without blocking the map
+- the renderer is lazy-loaded from system detail pages
+- browser QA covers at least one live-preview scene path
 - every rendered assumption is visible in the readiness payload
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
