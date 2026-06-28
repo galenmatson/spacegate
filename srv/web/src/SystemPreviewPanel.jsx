@@ -186,22 +186,37 @@ function PlanetObject({ planet, orbitRadius, color }) {
   const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
   const phaseRad = numericField(planet.fields, "phase_rad") || Number(planet.phaseRad) || 0;
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
+  const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
+
+  const positionAtPhase = useCallback((phase) => {
+    const radiusScale = (1 - eccentricity ** 2) / (1 + eccentricity * Math.cos(phase));
+    const x = Math.cos(phase) * orbitRadius * radiusScale;
+    const planeZ = Math.sin(phase) * orbitRadius * radiusScale;
+    return [x, -planeZ * Math.sin(inclinationRad), planeZ * Math.cos(inclinationRad)];
+  }, [eccentricity, inclinationRad, orbitRadius]);
 
   useFrame(({ clock }) => {
     if (!meshRef.current) {
       return;
     }
     const meanAnomaly = phaseRad + ((clock.elapsedTime * SIM_DAYS_PER_SECOND) / periodDays) * Math.PI * 2;
-    const radiusScale = (1 - eccentricity ** 2) / (1 + eccentricity * Math.cos(meanAnomaly));
-    const x = Math.cos(meanAnomaly) * orbitRadius * radiusScale;
-    const z = Math.sin(meanAnomaly) * orbitRadius * radiusScale * Math.cos(THREE.MathUtils.degToRad(inclinationDeg));
-    meshRef.current.position.set(x, 0, z);
+    meshRef.current.position.set(...positionAtPhase(meanAnomaly));
   });
 
   return (
-    <mesh ref={meshRef} position={[Math.cos(phaseRad) * orbitRadius, 0, Math.sin(phaseRad) * orbitRadius]}>
+    <mesh ref={meshRef} position={positionAtPhase(phaseRad)}>
       <sphereGeometry args={[planet.radius, 18, 14]} />
       <meshStandardMaterial color={color} roughness={0.58} metalness={0.08} />
+    </mesh>
+  );
+}
+
+function PlanetOrbitRing({ planet, orbitRadius }) {
+  const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
+  return (
+    <mesh rotation={[Math.PI / 2 + THREE.MathUtils.degToRad(inclinationDeg), 0, 0]}>
+      <torusGeometry args={[orbitRadius, 0.006, 8, 128]} />
+      <meshBasicMaterial color="#b1d6ff" transparent opacity={0.42} />
     </mesh>
   );
 }
@@ -234,10 +249,7 @@ function PreviewObjects({ stars, planets }) {
         const orbitRadius = 1.8 + Math.sqrt((planet.orbitAu || 0.08) / maxOrbit) * 5.6;
         return (
           <React.Fragment key={planet.key}>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[orbitRadius, 0.006, 8, 128]} />
-              <meshBasicMaterial color="#b1d6ff" transparent opacity={0.42} />
-            </mesh>
+            <PlanetOrbitRing planet={planet} orbitRadius={orbitRadius} />
             <PlanetObject planet={planet} orbitRadius={orbitRadius} color={PLANET_COLORS[idx % PLANET_COLORS.length]} />
           </React.Fragment>
         );

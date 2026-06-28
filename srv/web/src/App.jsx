@@ -1677,7 +1677,7 @@ function HierarchyNodeCard({ node, depth = 0 }) {
                 })}
               </div>
             ) : null}
-            {(node?.component_family || node?.component_type) === "star" ? (
+            {displayType === "star" ? (
               <HierarchyFactChips node={node} />
             ) : null}
           </div>

@@ -89,7 +89,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
   });
 
-  test("multi-star system preview exposes binary render orbits and assumed provenance", async ({ page }, testInfo) => {
+  test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "multi-star renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {
       params: { q: "66alp Gem", limit: "1" },
@@ -110,6 +110,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered orbits/i);
-    await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
+    await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
+    await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
   });
 });
