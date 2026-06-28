@@ -588,6 +588,11 @@ Readiness gaps:
   TRAPPIST-1 source periods/order, 55 Cancri canonical planet coverage, Sol
   planet/moon orbit rows, Castor regression coverage, API smoke checks, and no
   duplicate planet-orbit solution fanout
+- Canonical build `20260628T210227Z_bef21ee_fix1` verified on June 28, 2026:
+  canonical emit now rebuilds ARM against canonical core keys, full
+  `verify_build.sh` passes, TRAPPIST-1 exposes seven ARM planetary orbit
+  solutions through `/simulation-scene`, and Nu Sco effective star count is
+  preserved at seven through the MSC leaf hierarchy bridge
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM

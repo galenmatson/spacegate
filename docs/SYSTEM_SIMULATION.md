@@ -156,7 +156,11 @@ Near-term source priorities:
   hierarchy/orbit edges and source-native `arm.orbital_solutions` where
   supported endpoint keys exist. Castor is the primary regression benchmark for
   nested AB/C hierarchy, inner binary periods, and no unsafe spectral
-  inheritance.
+  inheritance. Canonical hierarchy emit must bridge source-native nested MSC
+  subsystem edges back into descendant-aware canonical hierarchy leaves, so
+  systems such as Nu Sco retain effective star counts even when some source
+  leaves are represented as inferred MSC components rather than direct core
+  star rows.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
   checks pass.

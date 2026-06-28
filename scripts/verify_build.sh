@@ -401,10 +401,15 @@ earth_moon_edge_count = int(
     con.execute(
         """
         select count(*)::bigint
-        from system_hierarchy_edges
-        where parent_component_key = 'comp:planet:planet:sol:earth'
-          and child_component_key = 'comp:moon:sol:moon'
-          and source_catalog = 'sol_authority'
+        from system_hierarchy_edges e
+        join component_entities parent_ce
+          on parent_ce.stable_component_key = e.parent_component_key
+        join component_entities child_ce
+          on child_ce.stable_component_key = e.child_component_key
+        where parent_ce.component_type = 'planet'
+          and lower(coalesce(parent_ce.display_name, '')) = 'earth'
+          and child_ce.stable_component_key = 'comp:moon:sol:moon'
+          and e.source_catalog = 'sol_authority'
         """
     ).fetchone()[0]
     or 0

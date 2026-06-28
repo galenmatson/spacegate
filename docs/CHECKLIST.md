@@ -238,6 +238,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Strengthen multiplicity goldens: Castor must verify AB/C nesting,
   A/B outer orbit evidence, per-leaf physical evidence policy, and source
   orbital-solution coverage, not only six labels plus three inner binary pairs
+- [x] Rebuild canonical `arm.duckdb` from canonical `core.duckdb` during
+  canonical emit, rather than copying bootstrap ARM with pre-canonical keys
+- [x] Preserve MSC inferred leaf hierarchy through canonical hierarchy emit
+  after the ARM builder moved to source-native nested MSC subsystem edges
 - [ ] 3D map real-device mid-tier mobile performance check
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,

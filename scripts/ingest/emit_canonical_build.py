@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -155,14 +156,12 @@ def emit_canonical_build(
     canonical_core = tmp_dir / "core.duckdb"
     canonical_hierarchy = tmp_dir / "canonical_hierarchy.duckdb"
     canonical_arm = tmp_dir / "arm.duckdb"
+    canonical_arm_report = tmp_dir / "arm_report.json"
     parquet_dir = tmp_dir / "parquet"
     parquet_dir.mkdir(parents=True, exist_ok=True)
 
     shutil.copy2(source_core, canonical_core)
     shutil.copy2(source_hierarchy, canonical_hierarchy)
-    if canonical_arm.exists() or canonical_arm.is_symlink():
-        canonical_arm.unlink()
-    shutil.copy2(source_arm, canonical_arm)
 
     con = duckdb.connect(str(canonical_core))
     report: dict[str, object] | None = None
@@ -885,6 +884,28 @@ def emit_canonical_build(
     if report is None:
         raise RuntimeError("canonical build failed before report generation")
 
+    subprocess.check_call(
+        [
+            sys.executable,
+            str(root / "scripts" / "build_arm.py"),
+            "--core-db",
+            str(canonical_core),
+            "--arm-db",
+            str(canonical_arm),
+            "--state-dir",
+            str(state),
+            "--build-id",
+            canonical_build_id,
+            "--ingested-at",
+            str(report["generated_at"]),
+            "--transform-version",
+            "ingest_canonical_build",
+            "--report-path",
+            str(canonical_arm_report),
+        ],
+        cwd=str(root),
+    )
+
     reports_dir = state / "reports" / canonical_build_id
     reports_dir.mkdir(parents=True, exist_ok=True)
     source_reports_dir = state / "reports" / source_build_id
@@ -918,6 +939,8 @@ def emit_canonical_build(
                     shutil.copy2(source_report, dest_report)
             else:
                 shutil.copy2(source_report, dest_report)
+    if canonical_arm_report.exists():
+        shutil.copy2(canonical_arm_report, reports_dir / "arm_report.json")
     report_path = reports_dir / "canonical_build_report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if determinism_report is not None:

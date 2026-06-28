@@ -53,6 +53,9 @@ Core/arm promotion contract:
   promoted serving summaries during the migration. The normalized orbit edge,
   source-solution, uncertainty, epoch, ranking, and simulation contract lives in
   `arm.orbit_edges` and `arm.orbital_solutions`.
+- Canonical builds must rebuild `arm.duckdb` from the emitted canonical
+  `core.duckdb`. Copying bootstrap ARM into a canonical build is invalid
+  because component keys would still reference pre-canonical stable object keys.
 
 Transitional note:
 

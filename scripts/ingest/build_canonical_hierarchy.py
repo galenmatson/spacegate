@@ -219,16 +219,13 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             create temp table msc_role_candidates as
             select
               sys_map.canonical_system_key,
-              nullif(lower(trim(e.member_role)), '') as member_role
-            from arm.system_hierarchy_edges e
-            join arm.component_entities parent_ce on parent_ce.stable_component_key = e.parent_component_key
-            join arm.component_entities child_ce on child_ce.stable_component_key = e.child_component_key
+              lower(substr(nullif(ce.catalog_component_label, ''), 1, 1)) as member_role
+            from arm.component_entities ce
             join red.canonical_system_groups sys_map
-              on sys_map.wds_id = replace(parent_ce.stable_component_key, 'comp:msc_system:wds:', '')
-            where parent_ce.stable_component_key like 'comp:msc_system:wds:%'
-              and child_ce.stable_component_key like 'comp:msc:wds:%'
-              and e.edge_kind = 'contains'
-              and nullif(lower(trim(e.member_role)), '') is not null
+              on sys_map.wds_id = split_part(ce.stable_component_key, ':', 4)
+            where ce.stable_component_key like 'comp:msc:wds:%'
+              and length(coalesce(ce.catalog_component_label, '')) >= 2
+              and lower(substr(nullif(ce.catalog_component_label, ''), 1, 1)) between 'a' and 'z'
             group by 1, 2
             """
         )
@@ -340,23 +337,64 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
         con.execute(
             """
             create temp table msc_leaf_nodes as
-            with raw as (
+            with recursive msc_walk as (
+              select
+                sys_map.canonical_system_key,
+                e.parent_component_key,
+                e.child_component_key,
+                greatest(coalesce(e.depth_hint, 1), 1)::int as depth,
+                coalesce(e.confidence_score, 0.72)::double as path_confidence_score
+              from arm.system_hierarchy_edges e
+              join arm.component_entities parent_ce on parent_ce.stable_component_key = e.parent_component_key
+              join red.canonical_system_groups sys_map on sys_map.wds_id = replace(parent_ce.stable_component_key, 'comp:msc_system:wds:', '')
+              where parent_ce.stable_component_key like 'comp:msc_system:wds:%'
+                and e.edge_kind = 'contains'
+              union all
+              select
+                walk.canonical_system_key,
+                e.parent_component_key,
+                e.child_component_key,
+                walk.depth + 1 as depth,
+                least(walk.path_confidence_score, coalesce(e.confidence_score, 0.72))::double as path_confidence_score
+              from msc_walk walk
+              join arm.system_hierarchy_edges e on e.parent_component_key = walk.child_component_key
+              where e.edge_kind = 'contains'
+                and walk.depth < 8
+            ),
+            path_leaf as (
+              select
+                walk.canonical_system_key,
+                ce.stable_component_key,
+                lower(nullif(ce.catalog_component_label, '')) as catalog_component_label,
+                lower(substr(nullif(ce.catalog_component_label, ''), 1, 1)) as member_role,
+                ce.display_name,
+                max(walk.path_confidence_score) as confidence_score,
+                'medium'::varchar as confidence_tier
+              from msc_walk walk
+              join arm.component_entities ce on ce.stable_component_key = walk.child_component_key
+              where ce.stable_component_key like 'comp:msc:wds:%'
+                and length(coalesce(ce.catalog_component_label, '')) >= 2
+              group by 1, 2, 3, 4, 5
+            ),
+            component_leaf as (
               select
                 sys_map.canonical_system_key,
                 ce.stable_component_key,
                 lower(nullif(ce.catalog_component_label, '')) as catalog_component_label,
-                nullif(lower(trim(e.member_role)), '') as member_role,
+                lower(substr(nullif(ce.catalog_component_label, ''), 1, 1)) as member_role,
                 ce.display_name,
-                max(e.confidence_score) as confidence_score,
-                min(e.confidence_tier) as confidence_tier
-              from arm.system_hierarchy_edges e
-              join arm.component_entities parent_ce on parent_ce.stable_component_key = e.parent_component_key
-              join arm.component_entities ce on ce.stable_component_key = e.child_component_key
-              join red.canonical_system_groups sys_map on sys_map.wds_id = replace(parent_ce.stable_component_key, 'comp:msc_system:wds:', '')
-              where parent_ce.stable_component_key like 'comp:msc_system:wds:%'
-                and ce.stable_component_key like 'comp:msc:wds:%'
-                and e.edge_kind = 'contains'
-              group by 1,2,3,4,5
+                0.72::double as confidence_score,
+                'low'::varchar as confidence_tier
+              from arm.component_entities ce
+              join red.canonical_system_groups sys_map
+                on sys_map.wds_id = split_part(ce.stable_component_key, ':', 4)
+              where ce.stable_component_key like 'comp:msc:wds:%'
+                and length(coalesce(ce.catalog_component_label, '')) >= 2
+            ),
+            raw as (
+              select * from path_leaf
+              union all
+              select * from component_leaf
             )
             select
               'canon:leaf:msc:' || replace(stable_component_key, 'comp:msc:wds:', '') as hierarchy_node_key,
@@ -365,9 +403,14 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
               catalog_component_label,
               member_role,
               display_name,
-              confidence_score,
-              confidence_tier
+              max(confidence_score) as confidence_score,
+              case
+                when max(confidence_score) >= 0.80 then 'medium'
+                else 'low'
+              end::varchar as confidence_tier
             from raw
+            where member_role between 'a' and 'z'
+            group by 1, 2, 3, 4, 5, 6
             """
         )
 

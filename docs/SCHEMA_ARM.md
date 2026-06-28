@@ -675,6 +675,13 @@ relationships; `orb.tsv` supplies source-native orbit solutions. ARM builders
 must not reconstruct complex hierarchy solely from component counts or suffix
 pair inference when source subsystem/orbit rows are available.
 
+Canonical hierarchy emission consumes both source-native nested MSC subsystem
+edges and MSC inferred leaf components. When ARM preserves a nested source tree
+rather than direct root-to-leaf edges, canonical hierarchy must still expose
+auditable descendant leaves for benchmark systems where MSC/WDS evidence
+supports them. These leaves remain ARM/canonical-hierarchy support evidence;
+they are not silently promoted into flat `core.stars` rows.
+
 If MSC retrieval/cook fails:
 - ingest must fail
 - promotion must not proceed
