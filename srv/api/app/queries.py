@@ -582,6 +582,20 @@ def _parse_spectral_classes(raw: Any) -> List[str]:
     return [str(token).strip().upper() for token in parsed if str(token).strip()]
 
 
+def _spectral_class_from_type(raw: Any) -> Optional[str]:
+    value = str(raw or "").strip().upper()
+    if not value:
+        return None
+    for prefix in ("ESD", "USD", "SD"):
+        if value.startswith(prefix) and len(value) > len(prefix):
+            value = value[len(prefix):]
+            break
+    if value[:1] in SPECTRAL_CLASS_MASKS:
+        return value[:1]
+    match = re.search(r"[^A-Z]([OBAFGKMLTYD])", value)
+    return match.group(1) if match else None
+
+
 def fetch_map_systems(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -1610,10 +1624,63 @@ def _enrich_hierarchy_star_nodes(
                 facts = star_facts.setdefault(node_key, {})
                 if not facts.get("spectral_type_raw"):
                     facts["spectral_type_raw"] = _clean_name(spectral_type_raw) or None
-                if facts.get("vmag") is None and vmag is not None:
+                if not facts.get("spectral_class"):
+                    facts["spectral_class"] = _spectral_class_from_type(spectral_type_raw)
+                if facts.get("vmag") is None and vmag is not None and float(vmag) > 0.0:
                     facts["vmag"] = float(vmag)
                 if sep_arcsec is not None:
                     facts["sep_arcsec"] = float(sep_arcsec)
+
+    if msc_keys and arm_attached and _has_table(con, alias="arm_db", table_name="msc_system_details"):
+        placeholders = ",".join(["?"] * len(msc_keys))
+        endpoint_rows = con.execute(
+            f"""
+            SELECT
+              primary_component_key,
+              secondary_component_key,
+              spectral_type_primary,
+              spectral_type_secondary,
+              mass_primary_msun,
+              mass_secondary_msun,
+              vmag_primary,
+              vmag_secondary
+            FROM arm_db.msc_system_details
+            WHERE primary_component_key IN ({placeholders})
+               OR secondary_component_key IN ({placeholders})
+            """,
+            msc_keys + msc_keys,
+        ).fetchall()
+        node_keys_by_component_key: Dict[str, List[str]] = defaultdict(list)
+        for node_key, component_key in msc_lookup_by_node_key.items():
+            node_keys_by_component_key[component_key].append(node_key)
+
+        for (
+            primary_component_key,
+            secondary_component_key,
+            spectral_type_primary,
+            spectral_type_secondary,
+            mass_primary_msun,
+            mass_secondary_msun,
+            vmag_primary,
+            vmag_secondary,
+        ) in endpoint_rows:
+            for component_key, spectral_type_raw, mass_msun, vmag in (
+                (primary_component_key, spectral_type_primary, mass_primary_msun, vmag_primary),
+                (secondary_component_key, spectral_type_secondary, mass_secondary_msun, vmag_secondary),
+            ):
+                component_key = _clean_name(component_key)
+                if not component_key:
+                    continue
+                for node_key in node_keys_by_component_key.get(component_key, []):
+                    facts = star_facts.setdefault(node_key, {})
+                    if not facts.get("spectral_type_raw"):
+                        facts["spectral_type_raw"] = _clean_name(spectral_type_raw) or None
+                    if not facts.get("spectral_class"):
+                        facts["spectral_class"] = _spectral_class_from_type(spectral_type_raw)
+                    if facts.get("mass_msun") is None and mass_msun is not None:
+                        facts["mass_msun"] = float(mass_msun)
+                    if facts.get("vmag") is None and vmag is not None and float(vmag) > 0.0:
+                        facts["vmag"] = float(vmag)
 
     for node_key, facts in star_facts.items():
         if node_key not in node_map:

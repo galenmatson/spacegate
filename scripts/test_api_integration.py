@@ -55,6 +55,13 @@ def assert_non_decreasing(values: list[float], label: str) -> None:
             raise AssertionError(f"{label} not sorted ascending: {prev} then {current}")
 
 
+def iter_hierarchy_nodes(node: Dict[str, Any]):
+    yield node
+    for child in node.get("children") or []:
+        if isinstance(child, dict):
+            yield from iter_hierarchy_nodes(child)
+
+
 def main():
     base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000/api/v1"
 
@@ -222,6 +229,57 @@ def main():
             raise AssertionError(
                 f"total_count should be >= items length ({total_count} < {len(total_page.get('items', []))})"
             )
+
+    _, castor_search = get_json(
+        base_url,
+        "/systems/search",
+        params={"q": "WDS 07346+3153", "limit": 5},
+        label="search Castor WDS",
+    )
+    castor_item = next(
+        (item for item in castor_search.get("items", []) if item.get("wds_id") == "07346+3153"),
+        None,
+    )
+    if castor_item is None:
+        raise AssertionError("Castor WDS lookup returned no 07346+3153 result")
+    _, castor_detail = get_json(
+        base_url,
+        f"/systems/{castor_item['system_id']}",
+        label="Castor detail",
+    )
+    castor_root = (castor_detail.get("hierarchy") or {}).get("root")
+    if not isinstance(castor_root, dict):
+        raise AssertionError("Castor detail missing hierarchy root")
+    castor_leaf_facts = {
+        str(node.get("display_name")): node.get("quick_facts")
+        for node in iter_hierarchy_nodes(castor_root)
+        if str(node.get("node_kind") or "") == "inferred_star_leaf"
+    }
+    required_castor_leaf_facts = {
+        "Castor AA": {"spectral_type_raw": "A1V", "mass_msun": 2.37, "vmag": 1.98},
+        "Castor BA": {"spectral_type_raw": "A2Vm", "mass_msun": 1.79, "vmag": 2.88},
+        "Castor CA": {"spectral_type_raw": "M0.5V", "mass_msun": 0.6, "vmag": 9.77},
+        "Castor AB": {"mass_msun": 0.39},
+        "Castor BB": {"mass_msun": 0.39},
+        "Castor CB": {"mass_msun": 0.6, "vmag": 9.77},
+    }
+    for leaf_name, expected_facts in required_castor_leaf_facts.items():
+        facts = castor_leaf_facts.get(leaf_name)
+        if not isinstance(facts, dict):
+            raise AssertionError(f"Castor leaf {leaf_name} missing quick_facts")
+        for fact_key, expected_value in expected_facts.items():
+            value = facts.get(fact_key)
+            if isinstance(expected_value, float):
+                if value is None or abs(float(value) - expected_value) > 1e-6:
+                    raise AssertionError(
+                        f"Castor leaf {leaf_name} expected {fact_key}={expected_value}, got {value!r}"
+                    )
+            elif value != expected_value:
+                raise AssertionError(
+                    f"Castor leaf {leaf_name} expected {fact_key}={expected_value!r}, got {value!r}"
+                )
+        if facts.get("vmag") == 0:
+            raise AssertionError(f"Castor leaf {leaf_name} has placeholder Vmag 0.0")
 
     _, planets_true = get_json(
         base_url,
