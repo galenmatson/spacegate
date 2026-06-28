@@ -196,6 +196,9 @@
 
 .map-hud-button,
 .map-command-button,
+.map-mini-command,
+.map-context-command,
+.map-context-close,
 .map-contact-list button {
   border: 1px solid var(--map-hud-border);
   color: var(--map-hud-strong);
@@ -227,6 +230,33 @@
 
 .map-command-button.ghost {
   background: color-mix(in srgb, var(--surface-soft) 18%, transparent);
+}
+
+.map-mini-command,
+.map-context-command,
+.map-context-close {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.map-mini-command,
+.map-context-command.ghost,
+.map-context-close {
+  background: color-mix(in srgb, var(--surface-soft) 18%, transparent);
+}
+
+.map-mini-command {
+  background: color-mix(in srgb, var(--panel) 48%, transparent);
+  box-shadow: 0 1px 10px color-mix(in srgb, var(--bg) 60%, transparent);
+}
+
+.map-context-command:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .map-theme-select select {
@@ -366,9 +396,56 @@
   text-shadow: 0 1px 8px color-mix(in srgb, var(--bg) 86%, transparent);
 }
 
+.map-route-summary {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  margin-top: 2px;
+}
+
+.map-route-summary div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .map-touch-hint,
 .map-reticle-command {
   display: none;
+}
+
+.map-context-menu {
+  position: absolute;
+  z-index: 14;
+  display: grid;
+  gap: 7px;
+  width: min(260px, calc(100vw - 20px));
+  padding: 10px;
+  border: 1px solid var(--map-hud-border);
+  border-radius: 8px;
+  color: var(--map-hud-strong);
+  background: color-mix(in srgb, var(--panel) 58%, transparent);
+  box-shadow: 0 0 24px var(--map-hud-glow);
+  backdrop-filter: blur(10px);
+}
+
+.map-context-menu strong,
+.map-context-menu span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-context-menu strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1.08;
+}
+
+.map-context-menu span {
+  color: var(--map-hud-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 .map-contacts-panel {
@@ -516,7 +593,10 @@
   }
 
   .map-hud-button,
-  .map-command-button {
+  .map-command-button,
+  .map-mini-command,
+  .map-context-command,
+  .map-context-close {
     min-height: 34px;
     padding: 7px 10px;
     font-size: 0.68rem;
@@ -578,6 +658,14 @@
     line-height: 1.28;
   }
 
+  .map-route-summary {
+    justify-items: start;
+  }
+
+  .map-route-summary div {
+    justify-content: flex-start;
+  }
+
   .map-return-banner {
     align-items: stretch;
     flex-direction: column;
@@ -617,7 +705,10 @@
   }
 
   .map-hud-button,
-  .map-command-button {
+  .map-command-button,
+  .map-mini-command,
+  .map-context-command,
+  .map-context-close {
     min-height: 32px;
     padding: 6px 8px;
     font-size: 0.63rem;

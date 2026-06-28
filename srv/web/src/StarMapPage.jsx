@@ -45,6 +45,16 @@ function isCatalogFallbackName(value) {
   return /^(gaia|canon:|star:|system:)/i.test(String(value || "").trim());
 }
 
+function distanceBetweenSystems(a, b) {
+  if (!a || !b) {
+    return 0;
+  }
+  const dx = Number(a.x_helio_ly || 0) - Number(b.x_helio_ly || 0);
+  const dy = Number(a.y_helio_ly || 0) - Number(b.y_helio_ly || 0);
+  const dz = Number(a.z_helio_ly || 0) - Number(b.z_helio_ly || 0);
+  return Math.hypot(dx, dy, dz);
+}
+
 function mapToScenePosition(item) {
   const x = Number(item.x_helio_ly || 0) * LY_TO_SCENE;
   const y = Number(item.z_helio_ly || 0) * LY_TO_SCENE;
@@ -224,11 +234,17 @@ function createLabelTexture(label, { selected = false, tone = "default" } = {}) 
 
   const border = tone === "sol"
     ? "rgba(255,245,184,0.86)"
+    : tone === "route"
+      ? "rgba(151,255,207,0.9)"
     : selected
       ? "rgba(125,251,255,0.9)"
       : "rgba(158,221,255,0.52)";
-  const fill = selected ? "rgba(7,27,44,0.9)" : "rgba(4,10,22,0.78)";
-  const ink = tone === "sol" ? "#fff5b8" : "#eef9ff";
+  const fill = tone === "route"
+    ? "rgba(5,29,24,0.82)"
+    : selected
+      ? "rgba(7,27,44,0.9)"
+      : "rgba(4,10,22,0.78)";
+  const ink = tone === "sol" ? "#fff5b8" : tone === "route" ? "#d9fff0" : "#eef9ff";
 
   ctx.fillStyle = fill;
   ctx.strokeStyle = border;
@@ -336,6 +352,69 @@ function SelectionMarker({ system }) {
   );
 }
 
+function RouteSegmentLine({ segment }) {
+  const geometry = useMemo(() => {
+    const positions = new Float32Array([
+      ...segment.from.scene_position,
+      ...segment.to.scene_position,
+    ]);
+    const next = new THREE.BufferGeometry();
+    next.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    next.computeBoundingSphere();
+    return next;
+  }, [segment.from.scene_position, segment.to.scene_position]);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  return (
+    <line geometry={geometry}>
+      <lineBasicMaterial color="#97ffcf" transparent opacity={0.72} depthWrite={false} />
+    </line>
+  );
+}
+
+function RouteOverlays({ segments }) {
+  if (!segments.length) {
+    return null;
+  }
+  const total = segments.reduce((sum, segment) => sum + segment.distance_ly, 0);
+  const last = segments[segments.length - 1];
+  const totalPosition = [
+    last.to.scene_position[0],
+    last.to.scene_position[1] + 1.2,
+    last.to.scene_position[2],
+  ];
+
+  return (
+    <group>
+      {segments.map((segment, index) => {
+        const midpoint = [
+          (segment.from.scene_position[0] + segment.to.scene_position[0]) / 2,
+          (segment.from.scene_position[1] + segment.to.scene_position[1]) / 2 + 0.45,
+          (segment.from.scene_position[2] + segment.to.scene_position[2]) / 2,
+        ];
+        return (
+          <group key={segment.id}>
+            <RouteSegmentLine segment={segment} />
+            <LabelSprite
+              label={`${formatNumber(segment.distance_ly, 2)} ly`}
+              position={midpoint}
+              tone="route"
+            />
+            {index === segments.length - 1 && (
+              <LabelSprite
+                label={`Route ${formatNumber(total, 2)} ly`}
+                position={totalPosition}
+                tone="route"
+              />
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 function nearestSystemAlongRay(origin, direction, systems) {
   let best = null;
   let bestScore = Infinity;
@@ -393,6 +472,7 @@ function pointerCentroid(a, b) {
 function FlightControls({
   systems,
   onSelect,
+  onRouteContext,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -434,6 +514,16 @@ function FlightControls({
       onSelect(target);
     }
   }, [camera, gl.domElement, onSelect, systems]);
+
+  const openRouteContext = useCallback((event) => {
+    event.preventDefault();
+    const target = nearestSystemToPointer(camera, gl.domElement, event.clientX, event.clientY, systems);
+    onRouteContext({
+      x: Math.min(event.clientX, window.innerWidth - 264),
+      y: Math.min(event.clientY, window.innerHeight - 180),
+      target,
+    });
+  }, [camera, gl.domElement, onRouteContext, systems]);
 
   useEffect(() => {
     if (reticleSelectRequest > 0) {
@@ -650,13 +740,15 @@ function FlightControls({
     canvas.addEventListener("pointermove", onPointerMove, { passive: false });
     canvas.addEventListener("pointerup", onPointerEnd, { passive: false });
     canvas.addEventListener("pointercancel", onPointerEnd, { passive: false });
+    canvas.addEventListener("contextmenu", openRouteContext);
     return () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerEnd);
       canvas.removeEventListener("pointercancel", onPointerEnd);
+      canvas.removeEventListener("contextmenu", openRouteContext);
     };
-  }, [applyLookDelta, camera, gl.domElement, selectPointerTarget, selectReticleTarget]);
+  }, [applyLookDelta, camera, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget]);
 
   useFrame((_, delta) => {
     if (!controlsEnabled && document.pointerLockElement !== gl.domElement) {
@@ -700,6 +792,8 @@ function StarMapScene({
   systems,
   selectedSystem,
   onSelect,
+  onRouteContext,
+  routeSegments,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -719,10 +813,12 @@ function StarMapScene({
       <OrientationAxes />
       <StarField systems={systems} />
       <PriorityLabels systems={systems} selectedSystem={selectedSystem} onSelect={onSelect} />
+      <RouteOverlays segments={routeSegments} />
       <SelectionMarker system={selectedSystem} />
       <FlightControls
         systems={systems}
         onSelect={onSelect}
+        onRouteContext={onRouteContext}
         controlsEnabled={controlsEnabled}
         stabilizationEnabled={stabilizationEnabled}
         onTelemetry={onTelemetry}
@@ -744,6 +840,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [telemetry, setTelemetry] = useState({ distLy: 0, speedLyS: 0, locked: false });
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [routeSegments, setRouteSegments] = useState([]);
+  const [routeMenu, setRouteMenu] = useState(null);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -756,6 +854,18 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     document.addEventListener("fullscreenchange", updateFullscreenState);
     return () => {
       document.removeEventListener("fullscreenchange", updateFullscreenState);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setRouteMenu(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 
@@ -801,6 +911,41 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     [systems],
   );
 
+  const routeTotalLy = useMemo(
+    () => routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
+    [routeSegments],
+  );
+
+  const addRouteSegment = () => {
+    const target = routeMenu?.target;
+    if (!selectedSystem || !target || selectedSystem.system_id === target.system_id) {
+      setRouteMenu(null);
+      return;
+    }
+    const distanceLy = distanceBetweenSystems(selectedSystem, target);
+    setRouteSegments((segments) => [
+      ...segments,
+      {
+        id: `${selectedSystem.system_id}-${target.system_id}-${Date.now()}`,
+        from: selectedSystem,
+        to: target,
+        distance_ly: distanceLy,
+      },
+    ]);
+    setSelectedSystem(target);
+    setRouteMenu(null);
+  };
+
+  const undoRouteSegment = () => {
+    setRouteSegments((segments) => segments.slice(0, -1));
+    setRouteMenu(null);
+  };
+
+  const clearRoute = () => {
+    setRouteSegments([]);
+    setRouteMenu(null);
+  };
+
   const requestPointerLock = () => {
     setControlsEnabled(true);
     canvasRef.current?.requestPointerLock?.();
@@ -826,6 +971,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           systems={systems}
           selectedSystem={selectedSystem}
           onSelect={setSelectedSystem}
+          onRouteContext={setRouteMenu}
+          routeSegments={routeSegments}
           controlsEnabled={controlsEnabled}
           stabilizationEnabled={stabilizationEnabled}
           onTelemetry={setTelemetry}
@@ -934,6 +1081,19 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         <p className="map-desktop-hint">Desktop: drag canvas to look · click to select · WASD fly · Q/Z vertical · capture mouse for reticle flight</p>
         <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
         <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
+        {routeSegments.length > 0 && (
+          <div className="map-route-summary">
+            <span>{routeSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>
+            <div>
+              <button type="button" className="map-mini-command" onClick={undoRouteSegment}>
+                Undo
+              </button>
+              <button type="button" className="map-mini-command" onClick={clearRoute}>
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
       <aside className="map-hud map-contacts-panel">
@@ -952,6 +1112,65 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           ))}
         </div>
       </aside>
+
+      {routeMenu && (
+        <div
+          className="map-context-menu"
+          style={{ left: `${routeMenu.x}px`, top: `${routeMenu.y}px` }}
+          role="menu"
+        >
+          {routeMenu.target ? (
+            <>
+              <span className="map-panel-label">Route Tool</span>
+              <strong>{routeMenu.target.display_name}</strong>
+              <span>
+                {formatNumber(routeMenu.target.dist_ly, 2)} ly from Sol · {routeMenu.target.dominant_spectral_class}
+              </span>
+              {selectedSystem && selectedSystem.system_id !== routeMenu.target.system_id && (
+                <span>
+                  {formatNumber(distanceBetweenSystems(selectedSystem, routeMenu.target), 2)} ly from {selectedSystem.display_name}
+                </span>
+              )}
+              <button
+                type="button"
+                className="map-context-command"
+                disabled={!selectedSystem || selectedSystem.system_id === routeMenu.target.system_id}
+                onClick={addRouteSegment}
+              >
+                Measure from selected
+              </button>
+              <button
+                type="button"
+                className="map-context-command ghost"
+                onClick={() => {
+                  setSelectedSystem(routeMenu.target);
+                  setRouteMenu(null);
+                }}
+              >
+                Select system
+              </button>
+              {routeSegments.length > 0 && (
+                <button type="button" className="map-context-command ghost" onClick={clearRoute}>
+                  Clear route
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="map-panel-label">Route Tool</span>
+              <span>No system under cursor.</span>
+              {routeSegments.length > 0 && (
+                <button type="button" className="map-context-command ghost" onClick={clearRoute}>
+                  Clear route
+                </button>
+              )}
+            </>
+          )}
+          <button type="button" className="map-context-close" onClick={() => setRouteMenu(null)}>
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }

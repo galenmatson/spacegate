@@ -434,6 +434,9 @@ Current contract:
 - controls: WASD, mouse look, `Q` up, `Z` down, Shift boost, stabilized
   vertical by default; v0.2 adds touch-first phone/tablet controls with
   drag-look, tap/select-reticle, two-finger pinch flight, and two-finger pan
+- ephemeral route measurement: desktop right-click can measure from the
+  selected system to a target, draw client-side per-leg distance lines, and
+  show total route length; this is a map tool, not persisted Rim route data
 - performance profile: the public map requests `compact=true`, reducing the
   current 100 ly JSON payload from about 5.3 MB to about 3.0 MB in Photon local
   checks while leaving full diagnostic records available

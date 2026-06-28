@@ -24,6 +24,13 @@ Controls:
 - `Z`: translate down
 - Shift: boost
 - stabilized vertical on by default
+- desktop free-cursor mode:
+  - left-click selects the system under the cursor ray
+  - left-drag free-looks without pointer lock
+  - right-click opens an ephemeral route/distance context menu
+- captured-pointer mode:
+  - reticle selects the nearest center-view target
+  - `Esc` releases pointer lock
 - touch-first mobile controls:
   - one-finger drag looks around
   - tap or `Select reticle` selects the nearest reticle target
@@ -108,6 +115,10 @@ Initial layers:
 - distance rings
 - sparse priority labels
 - reticle and selection marker
+- ephemeral client-side route measurement overlay:
+  - right-click target system and choose `Measure from selected`
+  - rendered route segments show per-leg light-year distance and total route
+  - not persisted and not a Rim/worldbuilding route record
 - HUD panels for selection, controls, status, and priority contacts
 
 Planned layers:

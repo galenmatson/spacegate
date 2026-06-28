@@ -482,6 +482,9 @@ Delivered baseline:
   two-finger pinch flight, and two-finger pan
 - stabilized vertical, Sol marker, distance rings, sparse priority labels,
   reticle selection, HUD summary, priority contacts, and detail-page handoff
+- ephemeral route measurement overlay: right-click a target system, measure
+  from the selected system, draw per-leg distance lines, and show route total
+  without persisting Rim/worldbuilding route data
 - Playwright desktop/mobile visual checks confirm a nonblank WebGL canvas, HUD
   rendering, selected-system state, and no page errors
 - compact browser map profile (`compact=true`) trims the 100 ly local JSON

@@ -214,6 +214,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map pilot baseline orientation aids, priority labels, reticle selection, and detail handoff
 - [x] 3D map Playwright visual/interaction QA across desktop and mobile
 - [x] 3D map 100 ly performance budget measurement and compact render payload tuning
+- [x] 3D map ephemeral route measurement overlay (right-click context menu,
+  per-leg line labels, route total, undo/clear)
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
 - [ ] 3D map real-device mid-tier mobile performance check
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
