@@ -45,6 +45,40 @@ function isCatalogFallbackName(value) {
   return /^(gaia|canon:|star:|system:)/i.test(String(value || "").trim());
 }
 
+function catalogFamily(value) {
+  const text = String(value || "").trim();
+  if (/^gaia/i.test(text)) return "Gaia source";
+  if (/^wds/i.test(text)) return "WDS double-star";
+  if (/^hip/i.test(text)) return "Hipparcos";
+  if (/^hd/i.test(text)) return "Henry Draper";
+  if (/^gj/i.test(text)) return "Gliese-Jahreiß";
+  return "Display name";
+}
+
+function shortDisplayName(value) {
+  const text = formatName(value);
+  const gaia = text.match(/^(Gaia\s+DR\d+\s+)(\d{8,})$/i);
+  if (gaia) {
+    return `${gaia[1]}…${gaia[2].slice(-5)}`;
+  }
+  if (text.length > 28) {
+    return `${text.slice(0, 16)}…${text.slice(-7)}`;
+  }
+  return text;
+}
+
+function shouldTruncateName(value) {
+  return shortDisplayName(value) !== formatName(value);
+}
+
+async function copyText(value) {
+  if (!navigator.clipboard) {
+    return false;
+  }
+  await navigator.clipboard.writeText(value);
+  return true;
+}
+
 function distanceBetweenSystems(a, b) {
   if (!a || !b) {
     return 0;
@@ -53,6 +87,74 @@ function distanceBetweenSystems(a, b) {
   const dy = Number(a.y_helio_ly || 0) - Number(b.y_helio_ly || 0);
   const dz = Number(a.z_helio_ly || 0) - Number(b.z_helio_ly || 0);
   return Math.hypot(dx, dy, dz);
+}
+
+function SystemNameDisplay({ system, linkTo = null, className = "" }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  if (!system) {
+    return null;
+  }
+  const fullName = formatName(system.display_name || system.system_name);
+  const shortName = shortDisplayName(fullName);
+  const isTruncated = shouldTruncateName(fullName);
+  const copyName = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const ok = await copyText(fullName).catch(() => false);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1100);
+    }
+  };
+  const nameNode = linkTo ? (
+    <Link className="map-selection-title-link" to={linkTo}>
+      {shortName}
+    </Link>
+  ) : (
+    <span>{shortName}</span>
+  );
+  return (
+    <span
+      className={`map-name-wrap ${isTruncated ? "truncated" : ""} ${className}`}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocusCapture={() => setOpen(true)}
+      onBlurCapture={() => setOpen(false)}
+    >
+      {nameNode}
+      {isTruncated && (
+        <button type="button" className="map-name-copy" onClick={copyName} aria-label={`Copy ${fullName}`}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+      )}
+      {isTruncated && (
+        <button
+          type="button"
+          className="map-name-info"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen((value) => !value);
+          }}
+          aria-label={`Show metadata for ${fullName}`}
+        >
+          i
+        </button>
+      )}
+      {open && (
+        <span className="map-name-popover" role="tooltip">
+          <strong>{fullName}</strong>
+          <span>{catalogFamily(fullName)} · system {system.system_id}</span>
+          <span>{formatNumber(system.dist_ly, 2)} ly · {system.dominant_spectral_class} · {formatNumber(system.star_count, 0)} stars · {formatNumber(system.planet_count, 0)} planets</span>
+          <span>XYZ {formatNumber(system.x_helio_ly, 2)}, {formatNumber(system.y_helio_ly, 2)}, {formatNumber(system.z_helio_ly, 2)} ly</span>
+          <button type="button" className="map-popover-copy" onClick={copyName}>
+            {copied ? "Copied" : "Copy full ID"}
+          </button>
+        </span>
+      )}
+    </span>
+  );
 }
 
 function mapToScenePosition(item) {
@@ -842,8 +944,21 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
+  const [selectionHistory, setSelectionHistory] = useState([]);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
+
+  const selectSystem = useCallback((system) => {
+    if (!system) {
+      setSelectedSystem(null);
+      return;
+    }
+    setSelectedSystem(system);
+    setSelectionHistory((history) => [
+      system,
+      ...history.filter((item) => item.system_id !== system.system_id),
+    ].slice(0, 8));
+  }, []);
 
   useEffect(() => {
     const updateFullscreenState = () => {
@@ -886,6 +1001,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           || prepared[0]
           || null;
         setSelectedSystem(initial);
+        setSelectionHistory(initial ? [initial] : []);
       })
       .catch((exc) => {
         if (!active) {
@@ -902,14 +1018,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       active = false;
     };
   }, []);
-
-  const priorityContacts = useMemo(
-    () => systems
-      .filter((system) => !isCatalogFallbackName(system.display_name))
-      .sort((a, b) => b.map_priority - a.map_priority)
-      .slice(0, 9),
-    [systems],
-  );
 
   const routeTotalLy = useMemo(
     () => routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
@@ -932,7 +1040,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         distance_ly: distanceLy,
       },
     ]);
-    setSelectedSystem(target);
+    selectSystem(target);
     setRouteMenu(null);
   };
 
@@ -970,7 +1078,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         <StarMapScene
           systems={systems}
           selectedSystem={selectedSystem}
-          onSelect={setSelectedSystem}
+          onSelect={selectSystem}
           onRouteContext={setRouteMenu}
           routeSegments={routeSegments}
           controlsEnabled={controlsEnabled}
@@ -990,6 +1098,18 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           <span className="map-eyebrow">Spacegate 3D Pilot</span>
           <h1>Local Star Map</h1>
           <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
+        </div>
+        <div className="map-header-readout" aria-live="polite">
+          {loading && <span>Loading 100 ly map</span>}
+          {error && <span>Map data unavailable</span>}
+          {!loading && !error && summary && (
+            <>
+              <span>{formatNumber(summary.returned, 0)} systems</span>
+              <span>{formatNumber(summary.planet_systems, 0)} planet hosts</span>
+              <span>{formatNumber(summary.multi_star_systems, 0)} multi-star</span>
+              <span>ICRS J2016</span>
+            </>
+          )}
         </div>
         <nav className="map-actions" aria-label="Map actions">
           <Link to="/" className="map-hud-button">Search</Link>
@@ -1014,31 +1134,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         </nav>
       </header>
 
-      <aside className="map-hud map-status-panel">
-        {loading && <strong>Loading 100 ly map...</strong>}
-        {error && (
-          <>
-            <strong>Map data unavailable</strong>
-            <span>{error}</span>
-          </>
-        )}
-        {!loading && !error && summary && (
-          <>
-            <strong>{formatNumber(summary.returned, 0)} systems rendered</strong>
-            <span>{formatNumber(summary.planet_systems, 0)} planet hosts · {formatNumber(summary.multi_star_systems, 0)} multi-star systems</span>
-            <span>Frame: ICRS J2016, heliocentric, stabilized vertical</span>
-          </>
-        )}
-      </aside>
-
       <aside className="map-hud map-selection-panel">
         <span className="map-panel-label">Selected System</span>
         {selectedSystem ? (
           <>
             <h2>
-              <Link className="map-selection-title-link" to={systemDetailPath(selectedSystem)}>
-                {selectedSystem.display_name}
-              </Link>
+              <SystemNameDisplay system={selectedSystem} linkTo={systemDetailPath(selectedSystem)} />
             </h2>
             <div className="map-chip-row">
               <span className="map-chip">{formatNumber(selectedSystem.dist_ly, 2)} ly</span>
@@ -1084,6 +1185,16 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         {routeSegments.length > 0 && (
           <div className="map-route-summary">
             <span>{routeSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>
+            <ol className="map-route-leg-list">
+              {routeSegments.slice(-4).map((segment) => (
+                <li key={segment.id}>
+                  <span>{shortDisplayName(segment.from.display_name)}</span>
+                  <span>→</span>
+                  <span>{shortDisplayName(segment.to.display_name)}</span>
+                  <strong>{formatNumber(segment.distance_ly, 2)} ly</strong>
+                </li>
+              ))}
+            </ol>
             <div>
               <button type="button" className="map-mini-command" onClick={undoRouteSegment}>
                 Undo
@@ -1097,18 +1208,27 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       </aside>
 
       <aside className="map-hud map-contacts-panel">
-        <span className="map-panel-label">Priority Contacts</span>
-        <div className="map-contact-list">
-          {priorityContacts.map((system) => (
-            <button
+        <span className="map-panel-label">Selection History</span>
+        <div className="map-history-list">
+          {selectionHistory.map((system) => (
+            <div
               key={system.system_id}
-              type="button"
-              className={selectedSystem?.system_id === system.system_id ? "active" : ""}
-              onClick={() => setSelectedSystem(system)}
+              role="button"
+              tabIndex={0}
+              className={`map-history-pill ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
+              onClick={() => selectSystem(system)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  selectSystem(system);
+                }
+              }}
             >
-              <span>{system.display_name}</span>
-              <small>{formatNumber(system.dist_ly, 1)} ly · {system.dominant_spectral_class}</small>
-            </button>
+              <SystemNameDisplay system={system} />
+              <span>{formatNumber(system.dist_ly, 1)} ly</span>
+              <span>{system.dominant_spectral_class}</span>
+              <span>{formatNumber(system.planet_count, 0)}p</span>
+            </div>
           ))}
         </div>
       </aside>
@@ -1122,13 +1242,13 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           {routeMenu.target ? (
             <>
               <span className="map-panel-label">Route Tool</span>
-              <strong>{routeMenu.target.display_name}</strong>
+              <strong><SystemNameDisplay system={routeMenu.target} /></strong>
               <span>
                 {formatNumber(routeMenu.target.dist_ly, 2)} ly from Sol · {routeMenu.target.dominant_spectral_class}
               </span>
               {selectedSystem && selectedSystem.system_id !== routeMenu.target.system_id && (
                 <span>
-                  {formatNumber(distanceBetweenSystems(selectedSystem, routeMenu.target), 2)} ly from {selectedSystem.display_name}
+                  {formatNumber(distanceBetweenSystems(selectedSystem, routeMenu.target), 2)} ly from {shortDisplayName(selectedSystem.display_name)}
                 </span>
               )}
               <button
@@ -1143,7 +1263,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 type="button"
                 className="map-context-command ghost"
                 onClick={() => {
-                  setSelectedSystem(routeMenu.target);
+                  selectSystem(routeMenu.target);
                   setRouteMenu(null);
                 }}
               >
