@@ -167,6 +167,8 @@ Success criteria:
 - each scene renders without blocking the map
 - the renderer is lazy-loaded from system detail pages
 - browser QA covers at least one live-preview scene path
+- planet motion uses source orbital periods when present and deterministic
+  seeded phases for reproducible non-aligned starting positions
 - every rendered assumption is visible in the readiness payload
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes

@@ -233,6 +233,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   clusters, and background-sky context
 - [x] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive
   and rerun hierarchy/orbit goldens
+- [x] Publish refreshed MSC archive into local Spacegate catalog mirror
+- [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
 - [ ] Reconcile system-simulation orbital-source policy across NASA
   `ps`/`pscomppars`, Gaia NSS, WDS/ORB6, SBX, MSC, and JPL Horizons/SBDB
 - [ ] Live 3D system preview/simulation scenes with deterministic static snapshot fallback

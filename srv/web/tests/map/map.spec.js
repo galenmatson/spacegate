@@ -44,6 +44,11 @@ test.describe("public 3D map beta", () => {
     await expect(chip).toBeVisible();
     await chip.hover();
     await expect(page.locator(".map-snapshot-popover img")).toBeVisible();
+    const popoverBox = await page.locator(".map-snapshot-popover").boundingBox();
+    const viewport = page.viewportSize();
+    expect(popoverBox, "snapshot popover bounds").toBeTruthy();
+    expect(popoverBox.x).toBeGreaterThanOrEqual(0);
+    expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewport.width);
   });
 
   test("mobile layout keeps map controls compact", async ({ page }, testInfo) => {

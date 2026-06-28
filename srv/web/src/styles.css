@@ -497,12 +497,12 @@
 
 .map-snapshot-popover {
   position: absolute;
-  left: 0;
+  right: 0;
   top: calc(100% + 8px);
   z-index: 16;
   display: grid;
   gap: 7px;
-  width: min(300px, 72vw);
+  width: min(300px, calc(100vw - 32px));
   padding: 9px;
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 82%, transparent);
   border-radius: 8px;

@@ -139,6 +139,9 @@ Initial layers:
   - lazy-loaded on system detail pages
   - renders source/derived scene bodies from `simulation-scene`
   - uses static orbit rings and planet/star meshes as a beta visualization
+  - animates planets from source `orbital_period_days` when present
+  - assigns deterministic per-body starting phases so planets do not begin
+    aligned while keeping reloads reproducible
   - deterministic snapshots remain the fallback/reference artifact
 
 Planned layers:

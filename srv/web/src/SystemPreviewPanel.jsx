@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { fetchSystemSimulationScene } from "./api.js";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
+const SIM_DAYS_PER_SECOND = 0.7;
 const STAR_COLOR_BY_TEMP = [
   [10000, "#b8d7ff"],
   [7500, "#dceaff"],
@@ -49,21 +50,38 @@ function starColor(teffK) {
   return STAR_COLOR_BY_TEMP.find(([threshold]) => temp >= threshold)?.[1] || "#ff6f5e";
 }
 
-function PreviewObjects({ stars, planets }) {
-  const groupRef = React.useRef(null);
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.045;
+function PlanetObject({ planet, orbitRadius, color }) {
+  const meshRef = React.useRef(null);
+  const periodDays = Math.max(0.05, Number(planet.periodDays) || 8 + orbitRadius * 2.2);
+  const eccentricity = Math.min(0.85, Math.max(0, Number(planet.eccentricity) || 0));
+
+  useFrame(({ clock }) => {
+    if (!meshRef.current) {
+      return;
     }
+    const meanAnomaly = planet.phaseRad + ((clock.elapsedTime * SIM_DAYS_PER_SECOND) / periodDays) * Math.PI * 2;
+    const radiusScale = (1 - eccentricity ** 2) / (1 + eccentricity * Math.cos(meanAnomaly));
+    const x = Math.cos(meanAnomaly) * orbitRadius * radiusScale;
+    const z = Math.sin(meanAnomaly) * orbitRadius * radiusScale;
+    meshRef.current.position.set(x, 0, z);
   });
 
+  return (
+    <mesh ref={meshRef} position={[Math.cos(planet.phaseRad) * orbitRadius, 0, Math.sin(planet.phaseRad) * orbitRadius]}>
+      <sphereGeometry args={[planet.radius, 18, 14]} />
+      <meshStandardMaterial color={color} roughness={0.58} metalness={0.08} />
+    </mesh>
+  );
+}
+
+function PreviewObjects({ stars, planets }) {
   const maxOrbit = Math.max(
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
   );
 
   return (
-    <group ref={groupRef}>
+    <group>
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
       {stars.map((star, idx) => {
@@ -78,20 +96,13 @@ function PreviewObjects({ stars, planets }) {
       })}
       {planets.map((planet, idx) => {
         const orbitRadius = 1.8 + Math.sqrt((planet.orbitAu || 0.08) / maxOrbit) * 5.6;
-        const angle = hashAngle(planet.key || planet.name);
-        const x = Math.cos(angle) * orbitRadius;
-        const z = Math.sin(angle) * orbitRadius;
-        const radius = Math.min(0.28, Math.max(0.08, Math.sqrt(planet.radiusEarth || 1) * 0.065));
         return (
           <React.Fragment key={planet.key}>
             <mesh rotation={[Math.PI / 2, 0, 0]}>
               <torusGeometry args={[orbitRadius, 0.006, 8, 128]} />
               <meshBasicMaterial color="#b1d6ff" transparent opacity={0.42} />
             </mesh>
-            <mesh position={[x, 0, z]}>
-              <sphereGeometry args={[radius, 18, 14]} />
-              <meshStandardMaterial color={PLANET_COLORS[idx % PLANET_COLORS.length]} roughness={0.58} metalness={0.08} />
-            </mesh>
+            <PlanetObject planet={planet} orbitRadius={orbitRadius} color={PLANET_COLORS[idx % PLANET_COLORS.length]} />
           </React.Fragment>
         );
       })}
@@ -125,6 +136,10 @@ function SceneCanvas({ scene }) {
         key: planet.stable_object_key || planet.object_id || planet.planet_id || `planet-${idx}`,
         name: planet.display_name || planet.planet_name || `Planet ${idx + 1}`,
         orbitAu: numericField(fields, "semi_major_axis_au") || Number(planet.semi_major_axis_au || 0.08 + idx * 0.08),
+        periodDays: numericField(fields, "orbital_period_days") || Number(planet.orbital_period_days || 0),
+        eccentricity: numericField(fields, "eccentricity") || Number(planet.eccentricity || 0),
+        phaseRad: hashAngle(`${planet.stable_object_key || planet.object_id || planet.planet_id || planet.planet_name || idx}:phase`),
+        radius: Math.min(0.28, Math.max(0.08, Math.sqrt(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1)) * 0.065)),
         radiusEarth: numericField(fields, "radius_earth") || Number(planet.radius_earth || 1),
         orbitStatus: fieldStatus(fields, "semi_major_axis_au"),
       };

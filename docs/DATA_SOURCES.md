@@ -91,7 +91,10 @@ Interpretation note:
   19, 2026 archive (`newmsc-20260619.tar.gz`) and verifies insecure fallback
   downloads with an explicit SHA-256 pin when CTIO TLS is not usable. Local
   canonical build `20260628T1210Z_msc20260619` was promoted on June 28, 2026
-  after passing required multiplicity golden checks.
+  after passing required multiplicity golden checks. Local bootstrap mirror
+  snapshot `20260628T1210Z_msc20260619` now contains refreshed MSC raw and
+  cooked artifacts; sync this mirror to `spacegates.org` during the next public
+  deployment.
 - SBX is the active spectroscopic-binary support path; keep SB9 as historical
   context only unless an explicit regression/comparison task needs it.
 - WDS and ORB6 remain default visual-binary support sources, but ORB6 rows must
