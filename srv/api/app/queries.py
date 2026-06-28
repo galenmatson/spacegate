@@ -1232,14 +1232,22 @@ def fetch_sol_hierarchy_for_system(
 def _arm_star_overlay_expr(system_alias: str = "s") -> str:
     return (
         "COALESCE(("
+        "WITH RECURSIVE descendants(component_key) AS ("
+        "  SELECT h.child_component_key "
+        "  FROM arm_db.system_hierarchy_edges h "
+        "  WHERE "
+        f"    {system_alias}.wds_id IS NOT NULL "
+        f"    AND h.parent_component_key = ('comp:msc_system:wds:' || {system_alias}.wds_id) "
+        "  UNION ALL "
+        "  SELECT h.child_component_key "
+        "  FROM arm_db.system_hierarchy_edges h "
+        "  JOIN descendants d ON d.component_key = h.parent_component_key"
+        ") "
         "SELECT COUNT(*)::BIGINT "
-        "FROM arm_db.system_hierarchy_edges h "
+        "FROM descendants d "
         "JOIN arm_db.component_entities ce "
-        "  ON ce.stable_component_key = h.child_component_key "
-        "WHERE "
-        f"{system_alias}.wds_id IS NOT NULL "
-        f"AND h.parent_component_key = ('comp:msc_system:wds:' || {system_alias}.wds_id) "
-        "AND ce.component_type = 'star'"
+        "  ON ce.stable_component_key = d.component_key "
+        "WHERE ce.component_type = 'star'"
         "), 0)"
     )
 
@@ -1275,19 +1283,31 @@ def _fetch_arm_star_overlay_counts_for_systems(
         bind_params.extend([system_id, wds_id])
     rows = con.execute(
         f"""
-        WITH ref(system_id, wds_id) AS (
+        WITH RECURSIVE ref(system_id, wds_id) AS (
           VALUES {values_sql}
+        ), descendants(system_id, component_key) AS (
+          SELECT
+            ref.system_id,
+            h.child_component_key
+          FROM ref
+          JOIN arm_db.system_hierarchy_edges h
+            ON h.parent_component_key = ('comp:msc_system:wds:' || ref.wds_id)
+          UNION ALL
+          SELECT
+            d.system_id,
+            h.child_component_key
+          FROM descendants d
+          JOIN arm_db.system_hierarchy_edges h
+            ON h.parent_component_key = d.component_key
         )
         SELECT
-          ref.system_id,
+          d.system_id,
           COUNT(*)::BIGINT AS overlay_star_count
-        FROM ref
-        JOIN arm_db.system_hierarchy_edges h
-          ON h.parent_component_key = ('comp:msc_system:wds:' || ref.wds_id)
+        FROM descendants d
         JOIN arm_db.component_entities ce
-          ON ce.stable_component_key = h.child_component_key
+          ON ce.stable_component_key = d.component_key
          AND ce.component_type = 'star'
-        GROUP BY ref.system_id
+        GROUP BY d.system_id
         """,
         bind_params,
     ).fetchall()

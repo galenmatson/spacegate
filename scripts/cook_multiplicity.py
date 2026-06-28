@@ -233,6 +233,8 @@ def cook_wds(raw_path: Path, cooked_path: Path) -> int:
 
 def cook_msc(raw_path: Path, cooked_path: Path) -> int:
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
+    cooked_systems_path = cooked_path.parent / "msc_systems.csv"
+    cooked_orbits_path = cooked_path.parent / "msc_orbits.csv"
     max_archive_bytes = int(os.getenv("SPACEGATE_MSC_MAX_ARCHIVE_BYTES", str(128 * 1024 * 1024)))
     max_member_bytes = int(os.getenv("SPACEGATE_MSC_MAX_MEMBER_BYTES", str(64 * 1024 * 1024)))
     expected_member_sets = (
@@ -287,10 +289,39 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
         sys_name, orb_name, comp_name = selected_members
 
         sys_member = require_member(archive, sys_name)
-        with archive.extractfile(sys_member) as sys_f:
+        with archive.extractfile(sys_member) as sys_f, cooked_systems_path.open(
+            "w", newline="", encoding="utf-8"
+        ) as sys_out_f:
             if sys_f is None:
                 raise SystemExit(f"MSC archive missing {sys_name}")
-            for raw_line in iter_member_lines(sys_f):
+            sys_writer = csv.DictWriter(
+                sys_out_f,
+                fieldnames=[
+                    "wds_id",
+                    "primary_label",
+                    "secondary_label",
+                    "parent_label",
+                    "system_type",
+                    "period_value",
+                    "period_unit",
+                    "separation_value",
+                    "separation_unit",
+                    "position_angle_deg",
+                    "vmag_primary",
+                    "spectral_type_primary",
+                    "vmag_secondary",
+                    "spectral_type_secondary",
+                    "mass_primary_msun",
+                    "mass_code_primary",
+                    "mass_secondary_msun",
+                    "mass_code_secondary",
+                    "comment",
+                    "source_line_number",
+                    "raw_row",
+                ],
+            )
+            sys_writer.writeheader()
+            for source_line_number, raw_line in enumerate(iter_member_lines(sys_f), start=1):
                 if not raw_line.strip():
                     continue
                 fields = raw_line.split("|")
@@ -299,12 +330,64 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 wds_id = fields[0].strip()
                 if wds_id:
                     subsystem_count[wds_id] = subsystem_count.get(wds_id, 0) + 1
+                    sys_writer.writerow(
+                        {
+                            "wds_id": wds_id,
+                            "primary_label": fields[1].strip() if len(fields) > 1 else "",
+                            "secondary_label": fields[2].strip() if len(fields) > 2 else "",
+                            "parent_label": fields[3].strip() if len(fields) > 3 else "",
+                            "system_type": fields[4].strip() if len(fields) > 4 else "",
+                            "period_value": parse_float(fields[5]) if len(fields) > 5 else None,
+                            "period_unit": fields[6].strip() if len(fields) > 6 else "",
+                            "separation_value": parse_float(fields[7]) if len(fields) > 7 else None,
+                            "separation_unit": fields[8].strip() if len(fields) > 8 else "",
+                            "position_angle_deg": parse_float(fields[9]) if len(fields) > 9 else None,
+                            "vmag_primary": parse_float(fields[10]) if len(fields) > 10 else None,
+                            "spectral_type_primary": fields[11].strip() if len(fields) > 11 else "",
+                            "vmag_secondary": parse_float(fields[12]) if len(fields) > 12 else None,
+                            "spectral_type_secondary": fields[13].strip() if len(fields) > 13 else "",
+                            "mass_primary_msun": parse_float(fields[14]) if len(fields) > 14 else None,
+                            "mass_code_primary": fields[15].strip() if len(fields) > 15 else "",
+                            "mass_secondary_msun": parse_float(fields[16]) if len(fields) > 16 else None,
+                            "mass_code_secondary": fields[17].strip() if len(fields) > 17 else "",
+                            "comment": fields[18].strip() if len(fields) > 18 else "",
+                            "source_line_number": source_line_number,
+                            "raw_row": raw_line,
+                        }
+                    )
 
         orb_member = require_member(archive, orb_name)
-        with archive.extractfile(orb_member) as orb_f:
+        with archive.extractfile(orb_member) as orb_f, cooked_orbits_path.open(
+            "w", newline="", encoding="utf-8"
+        ) as orb_out_f:
             if orb_f is None:
                 raise SystemExit(f"MSC archive missing {orb_name}")
-            for raw_line in iter_member_lines(orb_f):
+            orb_writer = csv.DictWriter(
+                orb_out_f,
+                fieldnames=[
+                    "wds_id",
+                    "system_label",
+                    "primary_label",
+                    "secondary_label",
+                    "period_value",
+                    "periastron_epoch",
+                    "eccentricity",
+                    "semi_major_axis_arcsec",
+                    "node_deg",
+                    "longitude_periastron_deg",
+                    "inclination_deg",
+                    "semi_amplitude_primary_kms",
+                    "semi_amplitude_secondary_kms",
+                    "center_of_mass_velocity_kms",
+                    "node_flag",
+                    "period_unit",
+                    "note",
+                    "source_line_number",
+                    "raw_row",
+                ],
+            )
+            orb_writer.writeheader()
+            for source_line_number, raw_line in enumerate(iter_member_lines(orb_f), start=1):
                 if not raw_line.strip():
                     continue
                 fields = raw_line.split("|")
@@ -313,6 +396,35 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 wds_id = fields[0].strip()
                 if wds_id:
                     orbit_count[wds_id] = orbit_count.get(wds_id, 0) + 1
+                    system_label = fields[1].strip() if len(fields) > 1 else ""
+                    pair_parts = [
+                        part.strip()
+                        for part in re.split(r"[,.;+]", system_label)
+                        if part.strip()
+                    ]
+                    orb_writer.writerow(
+                        {
+                            "wds_id": wds_id,
+                            "system_label": system_label,
+                            "primary_label": pair_parts[0] if len(pair_parts) > 0 else "",
+                            "secondary_label": pair_parts[1] if len(pair_parts) > 1 else "",
+                            "period_value": parse_float(fields[2]) if len(fields) > 2 else None,
+                            "periastron_epoch": parse_float(fields[3]) if len(fields) > 3 else None,
+                            "eccentricity": parse_float(fields[4]) if len(fields) > 4 else None,
+                            "semi_major_axis_arcsec": parse_float(fields[5]) if len(fields) > 5 else None,
+                            "node_deg": parse_float(fields[6]) if len(fields) > 6 else None,
+                            "longitude_periastron_deg": parse_float(fields[7]) if len(fields) > 7 else None,
+                            "inclination_deg": parse_float(fields[8]) if len(fields) > 8 else None,
+                            "semi_amplitude_primary_kms": parse_float(fields[9]) if len(fields) > 9 else None,
+                            "semi_amplitude_secondary_kms": parse_float(fields[10]) if len(fields) > 10 else None,
+                            "center_of_mass_velocity_kms": parse_float(fields[11]) if len(fields) > 11 else None,
+                            "node_flag": fields[12].strip() if len(fields) > 12 else "",
+                            "period_unit": fields[13].strip() if len(fields) > 13 else "",
+                            "note": fields[14].strip() if len(fields) > 14 else "",
+                            "source_line_number": source_line_number,
+                            "raw_row": raw_line,
+                        }
+                    )
 
         comp_member = require_member(archive, comp_name)
         with archive.extractfile(comp_member) as comp_f, cooked_path.open(

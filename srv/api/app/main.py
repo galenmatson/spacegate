@@ -844,6 +844,45 @@ def _visual_star_color_class(star: Dict[str, Any], fallback: Optional[str] = Non
     return value[:1] if value[:1] in {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"} else "M"
 
 
+def _teff_from_spectral_type(spectral_type: Any) -> Optional[float]:
+    token = str(spectral_type or "").strip().upper()[:1]
+    return {
+        "O": 32000.0,
+        "B": 18000.0,
+        "A": 8500.0,
+        "F": 6500.0,
+        "G": 5600.0,
+        "K": 4400.0,
+        "M": 3300.0,
+        "L": 2200.0,
+        "T": 1200.0,
+        "Y": 500.0,
+        "D": 9000.0,
+    }.get(token)
+
+
+def _teff_from_mass_visual_proxy(mass_msun: Optional[float]) -> Optional[float]:
+    if mass_msun is None:
+        return None
+    if mass_msun <= 0.08:
+        return 2200.0
+    if mass_msun <= 0.65:
+        return 3300.0
+    if mass_msun <= 0.9:
+        return 4800.0
+    if mass_msun <= 1.2:
+        return 5800.0
+    if mass_msun <= 1.7:
+        return 7000.0
+    return 8500.0
+
+
+def _radius_from_mass_visual_proxy(mass_msun: Optional[float]) -> Optional[float]:
+    if mass_msun is None:
+        return None
+    return round(max(0.08, min(2.8, mass_msun ** 0.8)), 6)
+
+
 def _clone_assumed_visual_field(
     *,
     source_field: Optional[Dict[str, Any]],
@@ -920,6 +959,30 @@ def _render_scene_contract(
         for row in component_rows
         if row.get("stable_component_key")
     }
+    msc_endpoint_evidence_by_key: Dict[str, Dict[str, Any]] = {}
+    for row in ((arm.get("msc_system_details") or {}).get("items") or []):
+        for side in ("primary", "secondary"):
+            component_key = str(row.get(f"{side}_component_key") or "")
+            if not component_key or ":msc:wds:" not in component_key:
+                continue
+            mass = _float_or_none(row.get(f"mass_{side}_msun"))
+            spectral_type = str(row.get(f"spectral_type_{side}") or "").strip()
+            vmag = _float_or_none(row.get(f"vmag_{side}"))
+            existing = msc_endpoint_evidence_by_key.get(component_key)
+            existing_score = 0 if existing is None else sum(
+                1 for key in ("spectral_type_raw", "mass_msun", "vmag") if existing.get(key) not in (None, "")
+            )
+            score = sum(1 for value in (spectral_type, mass, vmag) if value not in (None, ""))
+            if existing is None or score > existing_score:
+                msc_endpoint_evidence_by_key[component_key] = {
+                    "spectral_type_raw": spectral_type or None,
+                    "mass_msun": mass,
+                    "mass_code": row.get(f"mass_code_{side}"),
+                    "vmag": vmag,
+                    "source_catalog": row.get("source_catalog") or "msc",
+                    "source_reference": row.get("source_pk") or row.get("comment"),
+                    "confidence": 0.85,
+                }
 
     render_stars: Dict[str, Dict[str, Any]] = {}
 
@@ -967,54 +1030,156 @@ def _render_scene_contract(
                 return component_key
 
         label = str(component.get("catalog_component_label") or "").strip().upper()
-        parent_role = label[:1]
-        parent_star = core_star_by_role.get(parent_role) or (stars[0] if stars else {})
-        parent_readiness = star_readiness_by_id.get(int(parent_star.get("star_id") or -1), {})
-        parent_fields = _field_map(parent_readiness.get("fields") or [])
+        evidence = msc_endpoint_evidence_by_key.get(component_key) or {}
         seed = _stable_seed(system.get("stable_object_key"), component_key, "star_visual")
-        split_scale = 0.52 + 0.16 * _seed_unit(seed, "split_scale")
+        spectral_type_raw = evidence.get("spectral_type_raw")
+        source_mass = _float_or_none(evidence.get("mass_msun"))
+        source_teff = _teff_from_spectral_type(spectral_type_raw)
+        mass_proxy_teff = _teff_from_mass_visual_proxy(source_mass)
+        radius_proxy = _radius_from_mass_visual_proxy(source_mass)
+        spectral_class = _visual_star_color_class({}, fallback=spectral_type_raw) if spectral_type_raw else (
+            _visual_star_color_class({}, fallback="M") if source_mass is not None and source_mass <= 0.65 else None
+        )
         render_stars[component_key] = {
             "render_key": component_key,
             "source_component_key": component_key,
             "object_type": "star",
             "display_name": component.get("display_name") or component.get("catalog_component_label") or component_key,
             "component": component.get("catalog_component_label"),
-            "spectral_class": _visual_star_color_class(parent_star),
+            "spectral_class": spectral_class,
             "fields": {
-                "teff_k": _clone_assumed_visual_field(
-                    source_field=parent_fields.get("teff_k"),
-                    key="teff_k",
-                    label="Effective temperature",
-                    fallback_value=3200.0,
-                    unit="K",
-                    seed=seed,
-                    basis="split_component_visual_proxy_from_parent_role",
+                "spectral_type_raw": (
+                    _simulation_field(
+                        key="spectral_type_raw",
+                        label="Spectral type",
+                        value=spectral_type_raw,
+                        unit=None,
+                        status="source",
+                        basis="arm.msc_system_details:endpoint_spectral_type",
+                        layer="arm",
+                        confidence_tier="medium",
+                        replacement_target="component-specific reviewed spectral type",
+                        source_catalog=evidence.get("source_catalog") or "msc",
+                        source_reference=evidence.get("source_reference"),
+                        confidence=_float_or_none(evidence.get("confidence")),
+                    )
+                    if spectral_type_raw
+                    else _simulation_field(
+                        key="spectral_type_raw",
+                        label="Spectral type",
+                        value=None,
+                        unit=None,
+                        status="missing",
+                        basis="no_component_specific_spectral_type",
+                        layer="arm",
+                        confidence_tier="illustrative",
+                        replacement_target="component-specific spectral type",
+                    )
                 ),
-                "mass_msun": _clone_assumed_visual_field(
-                    source_field=parent_fields.get("mass_msun"),
-                    key="mass_msun",
-                    label="Mass",
-                    fallback_value=0.35,
-                    unit="Msun",
-                    seed=seed,
-                    basis="bounded_split_component_visual_proxy_from_parent_role",
-                    scale=split_scale,
+                "teff_k": (
+                    _simulation_field(
+                        key="teff_k",
+                        label="Effective temperature",
+                        value=source_teff,
+                        unit="K",
+                        status="derived",
+                        basis="arm.msc_system_details:spectral_type_visual_proxy",
+                        layer="arm",
+                        confidence_tier="medium",
+                        replacement_target="source effective temperature for this component",
+                        source_catalog=evidence.get("source_catalog") or "msc",
+                        source_reference=evidence.get("source_reference"),
+                        confidence=0.45,
+                    )
+                    if source_teff is not None
+                    else (
+                        _simulation_field(
+                            key="teff_k",
+                            label="Effective temperature",
+                            value=mass_proxy_teff,
+                            unit="K",
+                            status="derived",
+                            basis="arm.msc_system_details:mass_visual_proxy",
+                            layer="arm",
+                            confidence_tier="illustrative",
+                            replacement_target="source effective temperature for this component",
+                            source_catalog=evidence.get("source_catalog") or "msc",
+                            source_reference=evidence.get("source_reference"),
+                            confidence=0.25,
+                        )
+                        if mass_proxy_teff is not None
+                        else _procedural_field(
+                            key="teff_k",
+                            label="Effective temperature",
+                            value=3200.0,
+                            unit="K",
+                            seed=seed,
+                            basis="unknown_component_cool_visual_default",
+                            confidence=0.1,
+                            replacement_target="component-specific effective temperature",
+                        )
+                    )
                 ),
-                "radius_rsun": _clone_assumed_visual_field(
-                    source_field=parent_fields.get("radius_rsun"),
-                    key="radius_rsun",
-                    label="Radius",
-                    fallback_value=0.35,
-                    unit="Rsun",
-                    seed=seed,
-                    basis="bounded_split_component_visual_proxy_from_parent_role",
-                    scale=split_scale,
+                "mass_msun": (
+                    _simulation_field(
+                        key="mass_msun",
+                        label="Mass",
+                        value=source_mass,
+                        unit="Msun",
+                        status="source",
+                        basis="arm.msc_system_details:endpoint_mass",
+                        layer="arm",
+                        confidence_tier="medium",
+                        replacement_target="component-specific reviewed mass",
+                        source_catalog=evidence.get("source_catalog") or "msc",
+                        source_reference=evidence.get("source_reference"),
+                        confidence=0.75,
+                        notes=f"MSC mass code: {evidence.get('mass_code')}" if evidence.get("mass_code") else None,
+                    )
+                    if source_mass is not None
+                    else _procedural_field(
+                        key="mass_msun",
+                        label="Mass",
+                        value=0.35,
+                        unit="Msun",
+                        seed=seed,
+                        basis="unknown_component_cool_visual_default",
+                        confidence=0.1,
+                        replacement_target="component-specific mass",
+                    )
+                ),
+                "radius_rsun": (
+                    _simulation_field(
+                        key="radius_rsun",
+                        label="Radius",
+                        value=radius_proxy,
+                        unit="Rsun",
+                        status="derived",
+                        basis="arm.msc_system_details:mass_radius_visual_proxy",
+                        layer="arm",
+                        confidence_tier="illustrative",
+                        replacement_target="source radius for this component",
+                        source_catalog=evidence.get("source_catalog") or "msc",
+                        source_reference=evidence.get("source_reference"),
+                        confidence=0.25,
+                    )
+                    if radius_proxy is not None
+                    else _procedural_field(
+                        key="radius_rsun",
+                        label="Radius",
+                        value=0.35,
+                        unit="Rsun",
+                        seed=seed,
+                        basis="unknown_component_cool_visual_default",
+                        confidence=0.1,
+                        replacement_target="component-specific radius",
+                    )
                 ),
             },
             "source": {
                 "layer": "arm",
                 "stable_component_key": component_key,
-                "parent_role": parent_role or None,
+                "physical_evidence": "msc_system_details" if evidence else "missing_component_specific_evidence",
             },
         }
         return component_key
@@ -1560,6 +1725,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         "hierarchy_edges": {"count": 0, "items": []},
         "orbit_edges": {"count": 0, "items": []},
         "orbital_solutions": {"count": 0, "items": []},
+        "msc_system_details": {"count": 0, "items": []},
         "stellar_parameters": {"count": 0, "items": []},
         "derived_physical_parameters": {"count": 0, "items": []},
         "errors": [],
@@ -1723,6 +1889,28 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 row["host_display_name"] = edge.get("host_display_name")
                 row["relation_kind"] = edge.get("relation_kind")
             output["orbital_solutions"] = {"count": len(rows), "items": rows[:80]}
+        if wds_id and _duckdb_has_table(con, "msc_system_details"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    """
+                    SELECT msc_system_detail_id, wds_id, primary_label, secondary_label,
+                           parent_label, parent_component_key, primary_component_key,
+                           secondary_component_key, system_type, period_days,
+                           separation_arcsec, separation_mas, position_angle_deg,
+                           vmag_primary, spectral_type_primary, vmag_secondary,
+                           spectral_type_secondary, mass_primary_msun,
+                           mass_code_primary, mass_secondary_msun,
+                           mass_code_secondary, comment, source_catalog,
+                           source_version, source_pk
+                    FROM msc_system_details
+                    WHERE wds_id = ?
+                    ORDER BY parent_label ASC, primary_label ASC, secondary_label ASC
+                    LIMIT 160
+                    """,
+                    [wds_id],
+                )
+            )
+            output["msc_system_details"] = {"count": len(rows), "items": rows[:120]}
         if star_ids and _duckdb_has_table(con, "stellar_parameters"):
             placeholders = ",".join(["?"] * len(star_ids))
             rows = _rows_to_dicts(
@@ -1955,6 +2143,7 @@ def _system_simulation_scene_payload(system_id: int) -> Dict[str, Any]:
         "hierarchy_edges": arm.get("hierarchy_edges") or {"count": 0, "items": []},
         "orbit_edges": arm.get("orbit_edges") or {"count": 0, "items": []},
         "orbital_solutions": arm.get("orbital_solutions") or {"count": 0, "items": []},
+        "msc_system_details": arm.get("msc_system_details") or {"count": 0, "items": []},
         "stellar_parameters": arm.get("stellar_parameters") or {"count": 0, "items": []},
         "derived_physical_parameters": arm.get("derived_physical_parameters") or {"count": 0, "items": []},
         "errors": arm.get("errors") or [],

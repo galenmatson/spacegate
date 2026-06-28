@@ -285,6 +285,7 @@ Response:
     "hierarchy_edges": {"count": 0, "items": []},
     "orbit_edges": {"count": 0, "items": []},
     "orbital_solutions": {"count": 0, "items": []},
+    "msc_system_details": {"count": 0, "items": []},
     "stellar_parameters": {"count": 0, "items": []},
     "derived_physical_parameters": {"count": 0, "items": []}
   },

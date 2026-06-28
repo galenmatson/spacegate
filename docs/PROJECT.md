@@ -228,6 +228,9 @@ Current rules:
 - WDS-Gaia path stays optional and confidence-gated
 - MSC is mandatory in default science ingest (missing MSC is a build/promotion blocker)
 - MSC source constants target the June 19, 2026 upstream archive
+- MSC `comp.tsv`, `sys.tsv`, and `orb.tsv` are preserved into cooked artifacts;
+  ARM materializes source-native subsystem details, hierarchy/orbit edges, and
+  MSC orbital solutions where endpoint keys are supported
   (`newmsc-20260619.tar.gz`); CTIO TLS failures require explicit
   SHA-256-pinned fallback handling; local canonical build
   `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed required

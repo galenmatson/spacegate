@@ -87,19 +87,28 @@ def pass_result(results: dict[str, Any], system_id: str, details: dict[str, Any]
 def find_component_rows(
     arm: duckdb.DuckDBPyConnection,
     label_token: str,
+    *,
+    component_type: str | None = None,
 ) -> list[tuple[str, str, str]]:
     token = normalize_label(label_token)
+    type_filter = "and component_type = ?" if component_type else ""
+    params = [token, f"% {token}%"]
+    if component_type:
+        params.append(component_type)
     rows = arm.execute(
-        """
+        f"""
         select
           stable_component_key,
           coalesce(display_name, '') as display_name,
           lower(coalesce(catalog_component_label, '')) as component_label
         from component_entities
-        where lower(coalesce(catalog_component_label, '')) = ?
-           or lower(coalesce(display_name, '')) like ?
+        where (
+             lower(coalesce(catalog_component_label, '')) = ?
+          or lower(coalesce(display_name, '')) like ?
+        )
+        {type_filter}
         """,
-        [token, f"% {token}%"],
+        params,
     ).fetchall()
     return [(str(r[0]), str(r[1]), str(r[2])) for r in rows]
 
@@ -119,6 +128,100 @@ def pick_component_row(
             if alias and alias in display_norm:
                 return row
     return rows[0]
+
+
+def check_containment_edges(
+    arm: duckdb.DuckDBPyConnection,
+    system_cfg: dict[str, Any],
+) -> list[str]:
+    failures: list[str] = []
+    wds_id = str(system_cfg.get("wds_id") or "").strip()
+    key_scope = f"%{wds_id}%" if wds_id else "%"
+    for edge in system_cfg.get("expected_containment_edges") or []:
+        if not isinstance(edge, list) or len(edge) != 2:
+            failures.append(f"invalid containment edge: {edge!r}")
+            continue
+        parent_label = normalize_label(edge[0])
+        child_label = normalize_label(edge[1])
+        if parent_label == "root":
+            count = arm.execute(
+                """
+                select count(*)
+                from system_hierarchy_edges h
+                join component_entities parent_ce on parent_ce.stable_component_key = h.parent_component_key
+                join component_entities child_ce on child_ce.stable_component_key = h.child_component_key
+                where parent_ce.stable_component_key like 'comp:msc_system:wds:%'
+                  and parent_ce.stable_component_key like ?
+                  and lower(coalesce(child_ce.catalog_component_label, '')) = ?
+                  and h.edge_kind = 'contains'
+                """,
+                [key_scope, child_label],
+            ).fetchone()[0]
+        else:
+            count = arm.execute(
+                """
+                select count(*)
+                from system_hierarchy_edges h
+                join component_entities parent_ce on parent_ce.stable_component_key = h.parent_component_key
+                join component_entities child_ce on child_ce.stable_component_key = h.child_component_key
+                where lower(coalesce(parent_ce.catalog_component_label, '')) = ?
+                  and lower(coalesce(child_ce.catalog_component_label, '')) = ?
+                  and parent_ce.stable_component_key like ?
+                  and h.edge_kind = 'contains'
+                """,
+                [parent_label, child_label, key_scope],
+            ).fetchone()[0]
+        if int(count or 0) < 1:
+            failures.append(f"{parent_label}->{child_label}: containment edge missing")
+    return failures
+
+
+def check_orbital_solution_periods(
+    arm: duckdb.DuckDBPyConnection,
+    system_cfg: dict[str, Any],
+) -> list[str]:
+    failures: list[str] = []
+    wds_id = str(system_cfg.get("wds_id") or "").strip()
+    key_scope = f"%{wds_id}%" if wds_id else "%"
+    for item in system_cfg.get("expected_msc_orbital_periods_days") or []:
+        pair = item.get("pair") if isinstance(item, dict) else None
+        if not isinstance(pair, list) or len(pair) != 2:
+            failures.append(f"invalid period check: {item!r}")
+            continue
+        a = normalize_label(pair[0])
+        b = normalize_label(pair[1])
+        expected = float(item.get("period_days"))
+        tolerance = float(item.get("tolerance_days", 0.01))
+        rows = arm.execute(
+            """
+            select os.period_days
+            from orbit_edges e
+            join component_entities p on p.stable_component_key = e.primary_component_key
+            join component_entities s on s.stable_component_key = e.secondary_component_key
+            join orbital_solutions os on os.orbit_edge_id = e.orbit_edge_id
+            where os.solution_source_catalog = 'msc'
+              and e.host_component_key like ?
+              and (
+                (
+                  lower(coalesce(p.catalog_component_label, '')) = ?
+                  and lower(coalesce(s.catalog_component_label, '')) = ?
+                )
+                or
+                (
+                  lower(coalesce(p.catalog_component_label, '')) = ?
+                  and lower(coalesce(s.catalog_component_label, '')) = ?
+                )
+              )
+            """,
+            [key_scope, a, b, b, a],
+        ).fetchall()
+        if not rows:
+            failures.append(f"{a}-{b}: MSC orbital solution missing")
+            continue
+        if not any(r[0] is not None and abs(float(r[0]) - expected) <= tolerance for r in rows):
+            values = ", ".join(str(r[0]) for r in rows)
+            failures.append(f"{a}-{b}: expected {expected} +/- {tolerance} days, got {values}")
+    return failures
 
 
 def find_system_ids_from_aliases(
@@ -301,7 +404,7 @@ def check_system(
     component_keys: dict[str, str] = {}
     missing_labels: list[str] = []
     for label in expected_components:
-        rows = find_component_rows(arm, label)
+        rows = find_component_rows(arm, label, component_type="star")
         label_matches[label] = rows
         if not rows:
             missing_labels.append(label)
@@ -350,6 +453,16 @@ def check_system(
 
     if pair_failures:
         fail(results, system_id, "Pair checks failed: " + "; ".join(pair_failures))
+        return
+
+    containment_failures = check_containment_edges(arm, system_cfg)
+    if containment_failures:
+        fail(results, system_id, "Containment checks failed: " + "; ".join(containment_failures))
+        return
+
+    period_failures = check_orbital_solution_periods(arm, system_cfg)
+    if period_failures:
+        fail(results, system_id, "Orbital solution checks failed: " + "; ".join(period_failures))
         return
 
     key_values = list(component_keys.values())
@@ -407,6 +520,8 @@ def check_system(
             "scope": str(system_cfg.get("scope") or "core"),
             "component_count": len(component_keys),
             "pairs_checked": len(expected_pairs),
+            "containment_edges_checked": len(system_cfg.get("expected_containment_edges") or []),
+            "orbital_periods_checked": len(system_cfg.get("expected_msc_orbital_periods_days") or []),
             "minimum_tier_rank": min(ranks),
         },
     )

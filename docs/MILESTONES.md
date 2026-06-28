@@ -577,12 +577,15 @@ Readiness gaps:
 - MSC source constants now target the upstream June 19, 2026 archive; local
   canonical build `20260628T1210Z_msc20260619` promoted and passed required
   hierarchy/orbit goldens on June 28, 2026
+- MSC `sys.tsv` and `orb.tsv` materialization is implemented in the ARM builder:
+  scratch verification on June 28, 2026 passed strengthened Castor goldens for
+  nested containment, source orbital periods, and endpoint physical-evidence
+  policy
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
-- Castor remains a hierarchy-quality watch item and exposed a general MSC
-  materialization gap: `sys.tsv` nested subsystem rows and `orb.tsv` orbital
-  solutions must be carried into cooked/arm artifacts instead of reducing MSC
-  to component rows plus subsystem/orbit counts
+- Castor remains a hierarchy-quality watch item for browser rendering and
+  future barycentric nested-subsystem animation, but the general MSC
+  materialization gap is no longer a known data-loss issue in the builder
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

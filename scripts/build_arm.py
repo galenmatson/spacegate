@@ -91,6 +91,8 @@ def main() -> int:
     arm_db = Path(args.arm_db).resolve()
     state_dir = Path(args.state_dir).resolve()
     cooked_msc = state_dir / "cooked" / "msc" / "msc_components.csv"
+    cooked_msc_systems = state_dir / "cooked" / "msc" / "msc_systems.csv"
+    cooked_msc_orbits = state_dir / "cooked" / "msc" / "msc_orbits.csv"
     cooked_wds = state_dir / "cooked" / "wds" / "wds_summary.csv"
     cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
     cooked_vsx = state_dir / "cooked" / "vsx" / "vsx_variability.csv"
@@ -259,6 +261,89 @@ def main() -> int:
               wds_id, ra_deg, dec_deg, parallax_mas, parallax_ref, pm_ra_mas_yr, pm_dec_mas_yr,
               radial_velocity_kms, component, sep_arcsec, spectral_type_raw, hip_id, hd_id, bmag, vmag, imag,
               jmag, hmag, kmag, ncomp, grade, other_identifiers, subsystem_count, orbit_count
+            )
+            where false
+            """
+        )
+
+    if cooked_msc_systems.exists():
+        con.execute(
+            f"""
+            create or replace temp view msc_systems_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_msc_systems))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view msc_systems_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar)
+                )
+            ) as t(
+              wds_id, primary_label, secondary_label, parent_label, system_type, period_value, period_unit,
+              separation_value, separation_unit, position_angle_deg, vmag_primary, spectral_type_primary,
+              vmag_secondary, spectral_type_secondary, mass_primary_msun, mass_code_primary,
+              mass_secondary_msun, mass_code_secondary, comment, source_line_number, raw_row
+            )
+            where false
+            """
+        )
+
+    if cooked_msc_orbits.exists():
+        con.execute(
+            f"""
+            create or replace temp view msc_orbits_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_msc_orbits))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view msc_orbits_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              wds_id, system_label, primary_label, secondary_label, period_value, periastron_epoch,
+              eccentricity, semi_major_axis_arcsec, node_deg, longitude_periastron_deg, inclination_deg,
+              semi_amplitude_primary_kms, semi_amplitude_secondary_kms, center_of_mass_velocity_kms,
+              node_flag, period_unit, note, source_line_number, raw_row
             )
             where false
             """
@@ -1757,6 +1842,86 @@ def main() -> int:
     log(f"Arm stage complete: msc_inferred_leaves ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
+    log("Arm stage: creating msc_source_rows")
+    con.execute(
+        """
+        create temp table msc_source_system_rows as
+        select
+          nullif(wds_id, '') as wds_id,
+          nullif(primary_label, '') as primary_label_raw,
+          nullif(secondary_label, '') as secondary_label_raw,
+          nullif(parent_label, '') as parent_label_raw,
+          lower(regexp_replace(coalesce(primary_label, ''), '[^0-9A-Za-z]+', '', 'g')) as primary_label,
+          lower(regexp_replace(coalesce(secondary_label, ''), '[^0-9A-Za-z]+', '', 'g')) as secondary_label,
+          case
+            when lower(trim(coalesce(parent_label, ''))) in ('', '*', 't') then lower(trim(coalesce(parent_label, '')))
+            else lower(regexp_replace(coalesce(parent_label, ''), '[^0-9A-Za-z]+', '', 'g'))
+          end as parent_label,
+          nullif(system_type, '') as system_type,
+          try_cast(nullif(period_value, '') as double) as period_value,
+          nullif(period_unit, '') as period_unit,
+          try_cast(nullif(separation_value, '') as double) as separation_value,
+          nullif(separation_unit, '') as separation_unit,
+          try_cast(nullif(position_angle_deg, '') as double) as position_angle_deg,
+          try_cast(nullif(vmag_primary, '') as double) as vmag_primary,
+          nullif(spectral_type_primary, '') as spectral_type_primary,
+          try_cast(nullif(vmag_secondary, '') as double) as vmag_secondary,
+          nullif(spectral_type_secondary, '') as spectral_type_secondary,
+          try_cast(nullif(mass_primary_msun, '') as double) as mass_primary_msun,
+          nullif(mass_code_primary, '') as mass_code_primary,
+          try_cast(nullif(mass_secondary_msun, '') as double) as mass_secondary_msun,
+          nullif(mass_code_secondary, '') as mass_code_secondary,
+          nullif(comment, '') as comment,
+          try_cast(nullif(source_line_number, '') as bigint) as source_line_number,
+          nullif(raw_row, '') as raw_row
+        from msc_systems_raw
+        where nullif(wds_id, '') is not null
+          and nullif(primary_label, '') is not null
+          and nullif(secondary_label, '') is not null
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_source_orbit_rows as
+        select
+          nullif(wds_id, '') as wds_id,
+          nullif(system_label, '') as system_label,
+          nullif(primary_label, '') as primary_label_raw,
+          nullif(secondary_label, '') as secondary_label_raw,
+          lower(regexp_replace(coalesce(primary_label, ''), '[^0-9A-Za-z]+', '', 'g')) as primary_label,
+          lower(regexp_replace(coalesce(secondary_label, ''), '[^0-9A-Za-z]+', '', 'g')) as secondary_label,
+          try_cast(nullif(period_value, '') as double) as period_value,
+          try_cast(nullif(periastron_epoch, '') as double) as periastron_epoch,
+          try_cast(nullif(eccentricity, '') as double) as eccentricity,
+          try_cast(nullif(semi_major_axis_arcsec, '') as double) as semi_major_axis_arcsec,
+          try_cast(nullif(node_deg, '') as double) as node_deg,
+          try_cast(nullif(longitude_periastron_deg, '') as double) as longitude_periastron_deg,
+          try_cast(nullif(inclination_deg, '') as double) as inclination_deg,
+          try_cast(nullif(semi_amplitude_primary_kms, '') as double) as semi_amplitude_primary_kms,
+          try_cast(nullif(semi_amplitude_secondary_kms, '') as double) as semi_amplitude_secondary_kms,
+          try_cast(nullif(center_of_mass_velocity_kms, '') as double) as center_of_mass_velocity_kms,
+          nullif(node_flag, '') as node_flag,
+          nullif(period_unit, '') as period_unit,
+          nullif(note, '') as note,
+          try_cast(nullif(source_line_number, '') as bigint) as source_line_number,
+          nullif(raw_row, '') as raw_row
+        from msc_orbits_raw
+        where nullif(wds_id, '') is not null
+          and nullif(primary_label, '') is not null
+          and nullif(secondary_label, '') is not null
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_source_group_labels as
+        select distinct wds_id, parent_label as component_label
+        from msc_source_system_rows
+        where parent_label not in ('', '*', 't')
+        """
+    )
+    log(f"Arm stage complete: msc_source_rows ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating sol_authority_typed")
     con.execute(
         """
@@ -2200,6 +2365,27 @@ def main() -> int:
             {sql_literal(args.ingested_at)} as ingested_at,
             {sql_literal(args.transform_version)} as transform_version
           from msc_system_roots r
+        ), msc_group_components as (
+          select
+            'comp:msc_group:wds:' || g.wds_id || ':' || g.component_label as stable_component_key,
+            'subsystem'::varchar as component_type,
+            cast(null as varchar) as core_object_type,
+            cast(null as bigint) as core_object_id,
+            coalesce(r.system_display_name, 'WDS ' || g.wds_id) || ' ' || upper(g.component_label) as display_name,
+            g.component_label as catalog_component_label,
+            cast(null as double) as ra_deg,
+            cast(null as double) as dec_deg,
+            cast(null as double) as dist_pc,
+            'msc'::varchar as source_catalog,
+            {sql_literal(msc_version)} as source_version,
+            g.wds_id || ':' || g.component_label as source_pk,
+            cast(null as varchar) as source_row_hash,
+            {sql_literal(msc_checksum)} as retrieval_checksum,
+            {sql_literal(msc_retrieved)} as retrieved_at,
+            {sql_literal(args.ingested_at)} as ingested_at,
+            {sql_literal(args.transform_version)} as transform_version
+          from msc_source_group_labels g
+          left join msc_system_roots r on r.wds_id = g.wds_id
         ), msc_leaf_components as (
           select
             'comp:msc:wds:' || l.wds_id || ':' || l.component_label as stable_component_key,
@@ -2237,6 +2423,8 @@ def main() -> int:
           union all
           select * from msc_system_components
           union all
+          select * from msc_group_components
+          union all
           select * from msc_leaf_components
         )
         select
@@ -2262,6 +2450,165 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: component_entities ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: creating msc_system_details")
+    con.execute(
+        f"""
+        create table msc_system_details as
+        with keyed as (
+          select
+            r.*,
+            case
+              when r.parent_label in ('', '*', 't') then 'comp:msc_system:wds:' || r.wds_id
+              else 'comp:msc_group:wds:' || r.wds_id || ':' || r.parent_label
+            end as parent_component_key,
+            case
+              when lp.component_label is not null and coalesce(r.primary_label_raw, '') <> upper(coalesce(r.primary_label_raw, '')) then 'comp:msc:wds:' || r.wds_id || ':' || r.primary_label
+              when gp.component_label is not null then 'comp:msc_group:wds:' || r.wds_id || ':' || r.primary_label
+              when lp.component_label is not null then 'comp:msc:wds:' || r.wds_id || ':' || r.primary_label
+              else cast(null as varchar)
+            end as primary_component_key,
+            case
+              when ls.component_label is not null and coalesce(r.secondary_label_raw, '') <> upper(coalesce(r.secondary_label_raw, '')) then 'comp:msc:wds:' || r.wds_id || ':' || r.secondary_label
+              when gs.component_label is not null then 'comp:msc_group:wds:' || r.wds_id || ':' || r.secondary_label
+              when ls.component_label is not null then 'comp:msc:wds:' || r.wds_id || ':' || r.secondary_label
+              else cast(null as varchar)
+            end as secondary_component_key
+          from msc_source_system_rows r
+          left join msc_source_group_labels gp
+            on gp.wds_id = r.wds_id and gp.component_label = r.primary_label
+          left join msc_source_group_labels gs
+            on gs.wds_id = r.wds_id and gs.component_label = r.secondary_label
+          left join msc_inferred_leaves lp
+            on lp.wds_id = r.wds_id and lp.component_label = r.primary_label
+          left join msc_inferred_leaves ls
+            on ls.wds_id = r.wds_id and ls.component_label = r.secondary_label
+        )
+        select
+          row_number() over (order by wds_id, coalesce(source_line_number, 0), primary_label, secondary_label)::bigint as msc_system_detail_id,
+          wds_id,
+          primary_label,
+          secondary_label,
+          parent_label,
+          parent_component_key,
+          primary_component_key,
+          secondary_component_key,
+          system_type,
+          period_value,
+          period_unit,
+          case lower(coalesce(period_unit, ''))
+            when 'd' then nullif(period_value, 0)
+            when 'y' then nullif(period_value, 0) * 365.25
+            when 'k' then nullif(period_value, 0) * 365250.0
+            when 'm' then nullif(period_value, 0) * 36525000.0
+            else null
+          end as period_days,
+          separation_value,
+          separation_unit,
+          case when separation_unit = '"' then nullif(separation_value, 0) else null end as separation_arcsec,
+          case when lower(coalesce(separation_unit, '')) = 'm' then nullif(separation_value, 0) else null end as separation_mas,
+          position_angle_deg,
+          vmag_primary,
+          spectral_type_primary,
+          vmag_secondary,
+          spectral_type_secondary,
+          mass_primary_msun,
+          mass_code_primary,
+          mass_secondary_msun,
+          mass_code_secondary,
+          comment,
+          source_line_number,
+          raw_row,
+          'msc'::varchar as source_catalog,
+          {sql_literal(msc_version)}::varchar as source_version,
+          wds_id || ':sys:' || coalesce(cast(source_line_number as varchar), primary_label || '-' || secondary_label) as source_pk,
+          cast(null as varchar) as source_row_hash,
+          {sql_literal(msc_checksum)}::varchar as retrieval_checksum,
+          {sql_literal(msc_retrieved)}::varchar as retrieved_at,
+          {sql_literal(args.ingested_at)}::varchar as ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version
+        from keyed
+        """
+    )
+    log(f"Arm stage complete: msc_system_details ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: creating msc_orbit_details")
+    con.execute(
+        f"""
+        create table msc_orbit_details as
+        with keyed as (
+          select
+            r.*,
+            coalesce(sys.parent_component_key, 'comp:msc_system:wds:' || r.wds_id) as host_component_key,
+            case
+              when lp.component_label is not null and coalesce(r.primary_label_raw, '') <> upper(coalesce(r.primary_label_raw, '')) then 'comp:msc:wds:' || r.wds_id || ':' || r.primary_label
+              when gp.component_label is not null then 'comp:msc_group:wds:' || r.wds_id || ':' || r.primary_label
+              when lp.component_label is not null then 'comp:msc:wds:' || r.wds_id || ':' || r.primary_label
+              else cast(null as varchar)
+            end as primary_component_key,
+            case
+              when ls.component_label is not null and coalesce(r.secondary_label_raw, '') <> upper(coalesce(r.secondary_label_raw, '')) then 'comp:msc:wds:' || r.wds_id || ':' || r.secondary_label
+              when gs.component_label is not null then 'comp:msc_group:wds:' || r.wds_id || ':' || r.secondary_label
+              when ls.component_label is not null then 'comp:msc:wds:' || r.wds_id || ':' || r.secondary_label
+              else cast(null as varchar)
+            end as secondary_component_key
+          from msc_source_orbit_rows r
+          left join msc_system_details sys
+            on sys.wds_id = r.wds_id
+           and sys.primary_label = r.primary_label
+           and sys.secondary_label = r.secondary_label
+          left join msc_source_group_labels gp
+            on gp.wds_id = r.wds_id and gp.component_label = r.primary_label
+          left join msc_source_group_labels gs
+            on gs.wds_id = r.wds_id and gs.component_label = r.secondary_label
+          left join msc_inferred_leaves lp
+            on lp.wds_id = r.wds_id and lp.component_label = r.primary_label
+          left join msc_inferred_leaves ls
+            on ls.wds_id = r.wds_id and ls.component_label = r.secondary_label
+        )
+        select
+          row_number() over (order by wds_id, coalesce(source_line_number, 0), system_label)::bigint as msc_orbit_detail_id,
+          wds_id,
+          system_label,
+          primary_label,
+          secondary_label,
+          host_component_key,
+          primary_component_key,
+          secondary_component_key,
+          period_value,
+          period_unit,
+          case lower(coalesce(period_unit, ''))
+            when 'd' then nullif(period_value, 0)
+            when 'y' then nullif(period_value, 0) * 365.25
+            else null
+          end as period_days,
+          periastron_epoch,
+          eccentricity,
+          semi_major_axis_arcsec,
+          node_deg,
+          longitude_periastron_deg,
+          inclination_deg,
+          semi_amplitude_primary_kms,
+          semi_amplitude_secondary_kms,
+          center_of_mass_velocity_kms,
+          node_flag,
+          note,
+          source_line_number,
+          raw_row,
+          'msc'::varchar as source_catalog,
+          {sql_literal(msc_version)}::varchar as source_version,
+          wds_id || ':orb:' || coalesce(cast(source_line_number as varchar), system_label) as source_pk,
+          cast(null as varchar) as source_row_hash,
+          {sql_literal(msc_checksum)}::varchar as retrieval_checksum,
+          {sql_literal(msc_retrieved)}::varchar as retrieved_at,
+          {sql_literal(args.ingested_at)}::varchar as ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version
+        from keyed
+        """
+    )
+    log(f"Arm stage complete: msc_orbit_details ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
     log("Arm stage: creating msc_component_details")
@@ -2571,27 +2918,57 @@ def main() -> int:
             {sql_literal(args.ingested_at)} as ingested_at,
             {sql_literal(args.transform_version)} as transform_version
           from sol_artificial_orbits s
+        ), msc_edge_endpoints as (
+          select
+            d.parent_component_key,
+            d.primary_component_key as child_component_key,
+            'contains'::varchar as edge_kind,
+            d.primary_label as member_role,
+            d.*
+          from msc_system_details d
+          where d.primary_component_key is not null
+          union all
+          select
+            d.parent_component_key,
+            d.secondary_component_key as child_component_key,
+            'contains'::varchar as edge_kind,
+            d.secondary_label as member_role,
+            d.*
+          from msc_system_details d
+          where d.secondary_component_key is not null
         ), msc_edges as (
           select
-            'comp:msc_system:wds:' || l.wds_id as parent_component_key,
-            'comp:msc:wds:' || l.wds_id || ':' || l.component_label as child_component_key,
-            'contains'::varchar as edge_kind,
-            l.component_stem as member_role,
-            'msc_inferred_subsystem'::varchar as catalog_relation_label,
-            1::int as depth_hint,
-            0.84::double as confidence_score,
+            e.parent_component_key,
+            e.child_component_key,
+            e.edge_kind,
+            e.member_role,
+            'msc_source_subsystem'::varchar as catalog_relation_label,
+            case
+              when e.parent_label in ('', '*', 't') then 1
+              else 2
+            end::int as depth_hint,
+            0.90::double as confidence_score,
             'medium'::varchar as confidence_tier,
             '["msc"]'::varchar as evidence_catalogs_json,
-            json_object('wds_id', l.wds_id, 'component_label', l.component_label) as evidence_ids_json,
+            json_object(
+              'wds_id', e.wds_id,
+              'primary_label', e.primary_label,
+              'secondary_label', e.secondary_label,
+              'parent_label', e.parent_label,
+              'system_type', e.system_type,
+              'source_line_number', e.source_line_number
+            ) as evidence_ids_json,
             'msc'::varchar as source_catalog,
             {sql_literal(msc_version)} as source_version,
-            l.wds_id || ':' || l.component_label as source_pk,
-            cast(null as varchar) as source_row_hash,
+            e.source_pk as source_pk,
+            e.source_row_hash as source_row_hash,
             {sql_literal(msc_checksum)} as retrieval_checksum,
             {sql_literal(msc_retrieved)} as retrieved_at,
             {sql_literal(args.ingested_at)} as ingested_at,
             {sql_literal(args.transform_version)} as transform_version
-          from msc_inferred_leaves l
+          from msc_edge_endpoints e
+          join component_entities parent_ce on parent_ce.stable_component_key = e.parent_component_key
+          join component_entities child_ce on child_ce.stable_component_key = e.child_component_key
         ), unioned as (
           select * from core_star_edges
           union all
@@ -2686,29 +3063,38 @@ def main() -> int:
            and a.component_key < b.component_key
         ), msc_pairs as (
           select
-            'comp:msc_system:wds:' || a.wds_id as host_component_key,
-            'comp:msc:wds:' || a.wds_id || ':' || a.component_label as primary_component_key,
-            'comp:msc:wds:' || b.wds_id || ':' || b.component_label as secondary_component_key,
-            'binary'::varchar as relation_kind,
-            'bary:center:msc:' || a.wds_id || ':' || a.component_stem as barycenter_key,
+            d.parent_component_key as host_component_key,
+            d.primary_component_key,
+            d.secondary_component_key,
+            case
+              when p.component_type = 'subsystem' or s.component_type = 'subsystem' then 'hierarchical_pair'
+              else 'binary'
+            end::varchar as relation_kind,
+            'bary:center:msc:' || d.wds_id || ':' || d.primary_label || '-' || d.secondary_label as barycenter_key,
             cast(null as bigint) as preferred_solution_id,
-            0.84::double as confidence_score,
+            0.90::double as confidence_score,
             'medium'::varchar as confidence_tier,
             '["msc"]'::varchar as evidence_catalogs_json,
-            json_object('wds_id', a.wds_id, 'component_stem', a.component_stem) as evidence_ids_json,
+            json_object(
+              'wds_id', d.wds_id,
+              'primary_label', d.primary_label,
+              'secondary_label', d.secondary_label,
+              'parent_label', d.parent_label,
+              'system_type', d.system_type,
+              'source_line_number', d.source_line_number
+            ) as evidence_ids_json,
             'msc'::varchar as source_catalog,
             {sql_literal(msc_version)} as source_version,
-            a.wds_id || ':' || a.component_stem || 'ab' as source_pk,
-            cast(null as varchar) as source_row_hash,
+            d.source_pk as source_pk,
+            d.source_row_hash as source_row_hash,
             {sql_literal(msc_checksum)} as retrieval_checksum,
             {sql_literal(msc_retrieved)} as retrieved_at
-          from msc_inferred_leaves a
-          join msc_inferred_leaves b
-            on a.wds_id = b.wds_id
-           and a.component_stem = b.component_stem
-           and right(a.component_label, 1) = 'a'
-           and right(b.component_label, 1) = 'b'
-           and a.component_label < b.component_label
+          from msc_system_details d
+          join component_entities host on host.stable_component_key = d.parent_component_key
+          join component_entities p on p.stable_component_key = d.primary_component_key
+          join component_entities s on s.stable_component_key = d.secondary_component_key
+          where d.primary_component_key is not null
+            and d.secondary_component_key is not null
         ), gaia_nss_pairs as (
           select
             'comp:system:' || sys.stable_object_key as host_component_key,
@@ -3102,6 +3488,69 @@ def main() -> int:
           join orbit_edges e
             on e.source_catalog = 'gaia_nss'
            and cast(e.source_pk as bigint) = n.gaia_id
+        ), msc_orbit_rows as (
+          select
+            e.orbit_edge_id,
+            o.source_pk,
+            cast(null as double) as epoch_tdb_jd,
+            o.period_days as orbital_period_days,
+            cast(null as double) as semi_major_axis_au,
+            nullif(o.eccentricity, 0) as eccentricity,
+            nullif(o.inclination_deg, 0) as inclination_deg,
+            o.source_row_hash,
+            'msc'::varchar as solver,
+            'source_native_hierarchical_multiple'::varchar as frame,
+            0.90::double as confidence_score,
+            'msc'::varchar as source_catalog,
+            {sql_literal(msc_version)}::varchar as source_version,
+            {sql_literal(msc_checksum)}::varchar as retrieval_checksum,
+            {sql_literal(msc_retrieved)}::varchar as retrieved_at,
+            o.center_of_mass_velocity_kms,
+            o.semi_amplitude_primary_kms,
+            cast(null as double) as mass_ratio,
+            cast(null as bigint) as flags,
+            cast(null as double) as significance,
+            row_number() over (
+              partition by e.orbit_edge_id
+              order by
+                case when o.period_days is not null then 0 else 1 end,
+                case when nullif(o.semi_major_axis_arcsec, 0) is not null then 0 else 1 end,
+                coalesce(o.source_line_number, 999999)
+            )::int as solution_rank,
+            nullif(o.semi_major_axis_arcsec, 0) as semi_major_axis_arcsec,
+            nullif(o.node_deg, 0) as node_deg,
+            nullif(o.longitude_periastron_deg, 0) as long_periastron_deg,
+            cast(null as double) as time_periastron_jd,
+            case
+              when o.periastron_epoch is not null and o.periastron_epoch < 3000 then o.periastron_epoch
+              else null
+            end as reference_epoch_jyear,
+            case
+              when o.periastron_epoch is not null and o.periastron_epoch >= 3000 then o.periastron_epoch
+              else null
+            end as reference_epoch_mjd,
+            o.period_value,
+            o.period_unit,
+            cast(null as double) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            cast(null as double) as axis_error,
+            cast(null as double) as inclination_error,
+            cast(null as double) as node_error,
+            o.periastron_epoch,
+            cast(null as varchar) as epoch_unit,
+            cast(null as double) as eccentricity_error,
+            cast(null as double) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            cast(null as varchar) as notes_flag,
+            o.note as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
+          from msc_orbit_details o
+          join orbit_edges e
+            on e.source_catalog = 'msc'
+           and e.primary_component_key = o.primary_component_key
+           and e.secondary_component_key = o.secondary_component_key
         ), orb6_system_edge_match as (
           select
             s.wds_id,
@@ -3223,6 +3672,8 @@ def main() -> int:
           select * from sol_artificial_rows
           union all
           select * from gaia_nss_rows
+          union all
+          select * from msc_orbit_rows
           union all
           select * from orb6_rows
         )
@@ -3922,6 +4373,12 @@ def main() -> int:
     msc_component_detail_count = int(
         con.execute("select count(*) from msc_component_details").fetchone()[0] or 0
     )
+    msc_system_detail_count = int(
+        con.execute("select count(*) from msc_system_details").fetchone()[0] or 0
+    )
+    msc_orbit_detail_count = int(
+        con.execute("select count(*) from msc_orbit_details").fetchone()[0] or 0
+    )
     wds_component_observation_count = int(
         con.execute("select count(*) from wds_component_observations").fetchone()[0] or 0
     )
@@ -4149,6 +4606,16 @@ def main() -> int:
         ).fetchone()[0]
         or 0
     )
+    msc_solution_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbital_solutions
+            where source_catalog = 'msc'
+            """
+        ).fetchone()[0]
+        or 0
+    )
     sol_small_body_table_count = int(
         con.execute("select count(*) from sol_small_body_objects").fetchone()[0] or 0
     )
@@ -4247,11 +4714,15 @@ def main() -> int:
         "core_db_path": str(core_db),
         "arm_db_path": str(arm_db),
         "msc_csv_path": str(cooked_msc) if cooked_msc.exists() else None,
+        "msc_systems_csv_path": str(cooked_msc_systems) if cooked_msc_systems.exists() else None,
+        "msc_orbits_csv_path": str(cooked_msc_orbits) if cooked_msc_orbits.exists() else None,
         "counts": {
             "component_entities": component_count,
             "system_hierarchy_edges": hierarchy_count,
             "orbit_edges": orbit_count,
             "msc_component_details": msc_component_detail_count,
+            "msc_system_details": msc_system_detail_count,
+            "msc_orbit_details": msc_orbit_detail_count,
             "wds_component_observations": wds_component_observation_count,
             "stellar_parameters_rows": stellar_parameter_count,
             "derived_physical_parameters_rows": derived_parameter_count,
@@ -4288,6 +4759,7 @@ def main() -> int:
             "gaia_nss_companion_components": gaia_nss_companion_count,
             "gaia_nss_orbit_edges": gaia_nss_orbit_edge_count,
             "gaia_nss_orbital_solutions": gaia_nss_solution_count,
+            "msc_orbital_solutions": msc_solution_count,
             "orb6_orbital_solutions": orb6_solution_count,
             "sol_artificial_components": sol_artificial_component_count,
             "sol_artificial_hierarchy_edges": sol_artificial_hierarchy_edge_count,
@@ -4298,12 +4770,13 @@ def main() -> int:
         },
         "notes": [
             "Arm graph includes core system->star containment edges.",
-            "MSC subsystem_count inference synthesizes lettered leaf labels (Aa/Ab...) for unresolved hierarchy depth.",
-            "Orbit edges currently include core two-letter component pairs and inferred MSC leaf pairs.",
+            "MSC subsystem_count inference still seeds unresolved lettered leaf labels where source rows support them.",
+            "MSC sys.tsv rows materialize source-native hierarchy and orbit edges where supported endpoint keys exist.",
+            "MSC orb.tsv rows materialize source-native orbital_solutions linked to matching MSC orbit edges.",
             "Arm stellar_parameters materializes source-native Gaia DR3 and NASA host-star values for narration/filtering workflows.",
             "Arm derived_physical_parameters materializes deterministic source-input physical candidates; source-native values supersede these rows.",
             "Gaia NSS rows materialize inferred unresolved companions plus source-native orbital summaries in arm.orbital_solutions.",
-            "WDS and MSC catalog detail tables preserve observation history, component photometry, grades, and notes outside core hot paths.",
+            "WDS and MSC catalog detail tables preserve observation history, component photometry, hierarchy, orbital rows, grades, and notes outside core hot paths.",
             "ORB6 rows are folded into arm.orbital_solutions when they can be mapped safely to a unique binary edge for a WDS-linked system.",
             "VSX variability is stored as arm overlay rows keyed by core stable_object_key via Gaia-ID exact joins.",
             "UltracoolSheet rows are stored in arm and linked to core stars when Gaia IDs align.",
@@ -4324,9 +4797,11 @@ def main() -> int:
     log(
         "Arm build complete "
         f"(components={component_count:,}, hierarchy_edges={hierarchy_count:,}, orbit_edges={orbit_count:,}, "
-        f"msc_details={msc_component_detail_count:,}, wds_obs={wds_component_observation_count:,}, "
+        f"msc_details={msc_component_detail_count:,}, msc_systems={msc_system_detail_count:,}, "
+        f"msc_orbit_rows={msc_orbit_detail_count:,}, wds_obs={wds_component_observation_count:,}, "
         f"stellar_parameters={stellar_parameter_count:,}, derived_parameters={derived_parameter_count:,}, "
-        f"gaia_nss_orbits={gaia_nss_solution_count:,}, orb6_orbits={orb6_solution_count:,}, "
+        f"gaia_nss_orbits={gaia_nss_solution_count:,}, msc_orbits={msc_solution_count:,}, "
+        f"orb6_orbits={orb6_solution_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "
         f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
         f"msc_inferred_leaves={inferred_leaf_count:,}, sol_moons={sol_moon_component_count:,}, "

@@ -53,6 +53,7 @@ Response shape:
     "hierarchy_edges": {"count": 0, "items": []},
     "orbit_edges": {"count": 0, "items": []},
     "orbital_solutions": {"count": 0, "items": []},
+    "msc_system_details": {"count": 0, "items": []},
     "stellar_parameters": {"count": 0, "items": []},
     "derived_physical_parameters": {"count": 0, "items": []}
   },
@@ -143,10 +144,12 @@ Near-term source priorities:
   places `sys.tsv`, `orb.tsv`, and `comp.tsv` at the archive root; the cooker
   accepts both that layout and the older `export/*.tsv` layout. Local canonical
   build `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed the
-  required multiplicity golden checks. Preview QA on Castor showed that the
-  existing golden is too shallow: it can pass while MSC `sys.tsv` hierarchy rows
-  and `orb.tsv` orbital solutions are only counted, not materialized for ARM
-  graph/orbit construction.
+  required multiplicity golden checks. Spacegate now preserves `sys.tsv` as
+  `msc_system_details` and `orb.tsv` as `msc_orbit_details`, materializing MSC
+  hierarchy/orbit edges and source-native `arm.orbital_solutions` where
+  supported endpoint keys exist. Castor is the primary regression benchmark for
+  nested AB/C hierarchy, inner binary periods, and no unsafe spectral
+  inheritance.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
   checks pass.

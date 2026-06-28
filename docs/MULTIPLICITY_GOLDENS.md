@@ -20,6 +20,9 @@ Minimum exam checks:
 - component count: exactly 6 stellar leaf components
 - all component labels present
 - all three inner binary pair edges present
+- nested containment edges for Castor AB/C, A/B, A->Aa/Ab, B->Ba/Bb,
+  and Cab->Ca/Cb
+- MSC source orbital-solution periods for Aa-Ab, Ba-Bb, Ca-Cb, A-B, and AB-C
 - evidence/provenance populated on hierarchy and orbit edges
 - confidence tier not below configured floor
 

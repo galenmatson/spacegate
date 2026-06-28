@@ -229,10 +229,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
 - [ ] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
-- [ ] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
+- [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts
-- [ ] Strengthen multiplicity goldens: Castor must verify AB/C nesting,
+- [x] Strengthen multiplicity goldens: Castor must verify AB/C nesting,
   A/B outer orbit evidence, per-leaf physical evidence policy, and source
   orbital-solution coverage, not only six labels plus three inner binary pairs
 - [ ] 3D map real-device mid-tier mobile performance check

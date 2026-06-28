@@ -6,6 +6,7 @@
       "mode": "hierarchy",
       "scope": "core",
       "required": true,
+      "wds_id": "07346+3153",
       "name_aliases": ["castor", "alpha gem", "yy gem"],
       "expected_stellar_components": ["aa", "ab", "ba", "bb", "ca", "cb"],
       "expected_stellar_component_count": 6,
@@ -13,6 +14,25 @@
         ["aa", "ab"],
         ["ba", "bb"],
         ["ca", "cb"]
+      ],
+      "expected_containment_edges": [
+        ["root", "ab"],
+        ["root", "c"],
+        ["ab", "a"],
+        ["ab", "b"],
+        ["a", "aa"],
+        ["a", "ab"],
+        ["b", "ba"],
+        ["b", "bb"],
+        ["cab", "ca"],
+        ["cab", "cb"]
+      ],
+      "expected_msc_orbital_periods_days": [
+        {"pair": ["aa", "ab"], "period_days": 9.2128, "tolerance_days": 0.02},
+        {"pair": ["ba", "bb"], "period_days": 2.9283, "tolerance_days": 0.02},
+        {"pair": ["ca", "cb"], "period_days": 0.8143, "tolerance_days": 0.02},
+        {"pair": ["a", "b"], "period_days": 167686.275, "tolerance_days": 2.0},
+        {"pair": ["ab", "c"], "period_days": 49153575.0, "tolerance_days": 400000.0}
       ],
       "minimum_confidence_tier": "medium"
     },

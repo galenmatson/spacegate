@@ -255,6 +255,76 @@ Columns:
 - `orbit_count BIGINT` (nullable)
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
 
+## `msc_system_details`
+
+MSC `sys.tsv` subsystem rows for source-native hierarchy and endpoint physical
+evidence.
+
+Columns:
+- `msc_system_detail_id BIGINT`
+- `wds_id TEXT`
+- `primary_label TEXT`
+- `secondary_label TEXT`
+- `parent_label TEXT`
+- `parent_component_key TEXT`
+- `primary_component_key TEXT` (nullable when endpoint policy does not support materialization)
+- `secondary_component_key TEXT` (nullable when endpoint policy does not support materialization)
+- `system_type TEXT`
+- `period_value DOUBLE`
+- `period_unit TEXT`
+- `period_days DOUBLE` (nullable normalized helper)
+- `separation_value DOUBLE`
+- `separation_unit TEXT`
+- `separation_arcsec DOUBLE`
+- `separation_mas DOUBLE`
+- `position_angle_deg DOUBLE`
+- endpoint physical hints: `vmag_primary`, `spectral_type_primary`,
+  `vmag_secondary`, `spectral_type_secondary`, `mass_primary_msun`,
+  `mass_code_primary`, `mass_secondary_msun`, `mass_code_secondary`
+- `comment TEXT`
+- `source_line_number BIGINT`
+- `raw_row TEXT`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
+Rules:
+- source labels are case-sensitive before normalization: `AB` is a subsystem
+  label while `Ab` is a leaf label.
+- `sys.tsv` endpoint spectral/mass hints attach to the endpoint component or
+  subsystem they describe; builders and renderers must not blindly inherit a
+  parent spectral class onto all descendants.
+
+## `msc_orbit_details`
+
+MSC `orb.tsv` orbital-element rows for source-native orbit solution
+materialization.
+
+Columns:
+- `msc_orbit_detail_id BIGINT`
+- `wds_id TEXT`
+- `system_label TEXT`
+- `primary_label TEXT`
+- `secondary_label TEXT`
+- `host_component_key TEXT`
+- `primary_component_key TEXT` (nullable when endpoint policy does not support materialization)
+- `secondary_component_key TEXT` (nullable when endpoint policy does not support materialization)
+- `period_value DOUBLE`
+- `period_unit TEXT`
+- `period_days DOUBLE`
+- `periastron_epoch DOUBLE`
+- `eccentricity DOUBLE`
+- `semi_major_axis_arcsec DOUBLE`
+- `node_deg DOUBLE`
+- `longitude_periastron_deg DOUBLE`
+- `inclination_deg DOUBLE`
+- `semi_amplitude_primary_kms DOUBLE`
+- `semi_amplitude_secondary_kms DOUBLE`
+- `center_of_mass_velocity_kms DOUBLE`
+- `node_flag TEXT`
+- `note TEXT`
+- `source_line_number BIGINT`
+- `raw_row TEXT`
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
 ## `wds_component_observations`
 
 WDS summary observations and pair-history context for narrated binaries/multiples.
