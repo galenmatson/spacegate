@@ -31,9 +31,9 @@ WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
 SBX_URL = "https://astro.ulb.ac.be/sbx/tap/sync"
 SBX_VERSION = "sbx_tap_parallax_gte_3.26156"
 PUBLIC_BASE_URL = (os.getenv("SPACEGATE_PUBLIC_BASE_URL") or "https://spacegates.org").rstrip("/")
-MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz"
 MSC_URL = os.getenv("MSC_URL") or os.getenv("SPACEGATE_MSC_MIRROR_URL") or MSC_SOURCE_URL
-MSC_VERSION = "2024-01-01"
+MSC_VERSION = "2026-06-19"
 GAIA_CLASSPROB_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 GAIA_CLASSPROB_VERSION = "dr3_astrophysical_parameters_parallax_gte_3.26156"
 ATNF_URL = "https://www.atnf.csiro.au/research/pulsar/psrcat/"
@@ -1132,7 +1132,7 @@ def main() -> int:
     )
     wds_manifest = require_manifest_entry(manifest, "wdsweb_summ2", "WDS")
     orb6_manifest = require_manifest_entry(manifest, "orb6orbits", "ORB6")
-    msc_manifest = require_manifest_entry(manifest, "newmsc_20240101", "MSC")
+    msc_manifest = require_manifest_entry(manifest, "newmsc_20260619", "MSC")
     gaia_nss_non_single_manifest = (
         require_manifest_entry(manifest, "gaia_dr3_non_single_star", "Gaia DR3 non_single_star")
         if enable_gaia_nss

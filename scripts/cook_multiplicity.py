@@ -235,7 +235,10 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
     max_archive_bytes = int(os.getenv("SPACEGATE_MSC_MAX_ARCHIVE_BYTES", str(128 * 1024 * 1024)))
     max_member_bytes = int(os.getenv("SPACEGATE_MSC_MAX_MEMBER_BYTES", str(64 * 1024 * 1024)))
-    expected_members = ("export/sys.tsv", "export/orb.tsv", "export/comp.tsv")
+    expected_member_sets = (
+        ("export/sys.tsv", "export/orb.tsv", "export/comp.tsv"),
+        ("sys.tsv", "orb.tsv", "comp.tsv"),
+    )
     archive_bytes = raw_path.stat().st_size
     if archive_bytes > max_archive_bytes:
         raise SystemExit(
@@ -270,14 +273,23 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
     line_count = 0
     with tarfile.open(raw_path, "r:gz") as archive:
         archive_member_names = {member.name for member in archive.getmembers()}
-        missing = [name for name in expected_members if name not in archive_member_names]
-        if missing:
-            raise SystemExit(f"MSC archive missing expected members: {', '.join(missing)}")
+        selected_members = next(
+            (
+                member_set
+                for member_set in expected_member_sets
+                if all(name in archive_member_names for name in member_set)
+            ),
+            None,
+        )
+        if selected_members is None:
+            expected = " or ".join("{" + ", ".join(member_set) + "}" for member_set in expected_member_sets)
+            raise SystemExit(f"MSC archive missing expected members: {expected}")
+        sys_name, orb_name, comp_name = selected_members
 
-        sys_member = require_member(archive, "export/sys.tsv")
+        sys_member = require_member(archive, sys_name)
         with archive.extractfile(sys_member) as sys_f:
             if sys_f is None:
-                raise SystemExit("MSC archive missing export/sys.tsv")
+                raise SystemExit(f"MSC archive missing {sys_name}")
             for raw_line in iter_member_lines(sys_f):
                 if not raw_line.strip():
                     continue
@@ -288,10 +300,10 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 if wds_id:
                     subsystem_count[wds_id] = subsystem_count.get(wds_id, 0) + 1
 
-        orb_member = require_member(archive, "export/orb.tsv")
+        orb_member = require_member(archive, orb_name)
         with archive.extractfile(orb_member) as orb_f:
             if orb_f is None:
-                raise SystemExit("MSC archive missing export/orb.tsv")
+                raise SystemExit(f"MSC archive missing {orb_name}")
             for raw_line in iter_member_lines(orb_f):
                 if not raw_line.strip():
                     continue
@@ -302,12 +314,12 @@ def cook_msc(raw_path: Path, cooked_path: Path) -> int:
                 if wds_id:
                     orbit_count[wds_id] = orbit_count.get(wds_id, 0) + 1
 
-        comp_member = require_member(archive, "export/comp.tsv")
+        comp_member = require_member(archive, comp_name)
         with archive.extractfile(comp_member) as comp_f, cooked_path.open(
             "w", newline="", encoding="utf-8"
         ) as out_f:
             if comp_f is None:
-                raise SystemExit("MSC archive missing export/comp.tsv")
+                raise SystemExit(f"MSC archive missing {comp_name}")
             writer = csv.DictWriter(
                 out_f,
                 fieldnames=[
@@ -803,7 +815,7 @@ def main() -> int:
 
     jobs = [
         ("wds", raw_dir / "wds" / "wdsweb_summ2.txt", cooked_dir / "wds" / "wds_summary.csv", cook_wds),
-        ("msc", raw_dir / "msc" / "newmsc-20240101.tar.gz", cooked_dir / "msc" / "msc_components.csv", cook_msc),
+        ("msc", raw_dir / "msc" / "newmsc-20260619.tar.gz", cooked_dir / "msc" / "msc_components.csv", cook_msc),
         ("orb6", raw_dir / "orb6" / "orb6orbits.sql", cooked_dir / "orb6" / "orb6_orbits.csv", cook_orb6),
         (
             "gaia_nss_non_single",

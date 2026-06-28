@@ -33,10 +33,10 @@ OPEN_EXOPLANET_CATALOGUE_URL="${OPEN_EXOPLANET_CATALOGUE_URL:-https://codeload.g
 HWC_URL="${HWC_URL:-https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv}"
 
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
-MSC_UPSTREAM_URL="${MSC_UPSTREAM_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
-MSC_MIRROR_URL="${SPACEGATE_MSC_MIRROR_URL:-${PUBLIC_BASE_URL}/dl/catalogs/current/raw/msc/newmsc-20240101.tar.gz}"
+MSC_UPSTREAM_URL="${MSC_UPSTREAM_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz}"
+MSC_MIRROR_URL="${SPACEGATE_MSC_MIRROR_URL:-${PUBLIC_BASE_URL}/dl/catalogs/current/raw/msc/newmsc-20260619.tar.gz}"
 MSC_URL="${MSC_URL:-${SPACEGATE_MSC_MIRROR_URL:-$MSC_UPSTREAM_URL}}"
-MSC_HTTP_URL="${MSC_HTTP_URL:-http://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz}"
+MSC_HTTP_URL="${MSC_HTTP_URL:-http://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz}"
 ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
 DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
 CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
@@ -229,7 +229,7 @@ catalog_sources() {
       printf '%s\n' "wds|wdsweb_summ2|$WDS_URL|raw/wds/wdsweb_summ2.txt"
       ;;
     msc)
-      printf '%s\n' "msc|newmsc_20240101|$MSC_URL|raw/msc/newmsc-20240101.tar.gz"
+      printf '%s\n' "msc|newmsc_20260619|$MSC_URL|raw/msc/newmsc-20260619.tar.gz"
       ;;
     orb6)
       printf '%s\n' "orb6|orb6orbits|$ORB6_URL|raw/orb6/orb6orbits.sql"
@@ -480,7 +480,7 @@ main() {
     url="${url%%|*}"
     dest="${entry##*|}"
 
-    if [[ "$source_name" == "newmsc_20240101" ]]; then
+    if [[ "$source_name" == "newmsc_20260619" ]]; then
       if [[ "$url" =~ ^http:// ]]; then
         if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
           echo "Error: MSC URL is insecure HTTP but SPACEGATE_MSC_ALLOW_INSECURE_HTTP is not enabled." >&2
@@ -638,7 +638,7 @@ main() {
 
     local sha
     sha="$(sha256_file "$dest_abs")"
-    if [[ "$source_name" == "newmsc_20240101" && "$url" =~ ^http:// ]]; then
+    if [[ "$source_name" == "newmsc_20260619" && "$url" =~ ^http:// ]]; then
       if [[ "${SPACEGATE_MSC_ALLOW_INSECURE_HTTP:-0}" != "1" ]]; then
         log "Error: MSC was downloaded over insecure HTTP without explicit opt-in."
         size_ok=0

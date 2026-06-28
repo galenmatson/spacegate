@@ -19,7 +19,7 @@ GAIA_TAP_SYNC_URL = "https://gea.esac.esa.int/tap-server/tap/sync"
 SBX_TAP_SYNC_URL = "https://astro.ulb.ac.be/sbx/tap/sync"
 WDS_URL = "https://astro.gsu.edu/wds/wdsweb_summ2.txt"
 PUBLIC_BASE_URL = (os.getenv("SPACEGATE_PUBLIC_BASE_URL") or "https://spacegates.org").rstrip("/")
-MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20240101.tar.gz"
+MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz"
 MSC_URL = os.getenv("MSC_URL") or os.getenv("SPACEGATE_MSC_MIRROR_URL") or MSC_SOURCE_URL
 MSC_SAMPLE_ALLOW_INSECURE_TLS = (
     os.getenv("SPACEGATE_MSC_SAMPLE_ALLOW_INSECURE_TLS", "0").strip() == "1"
@@ -470,7 +470,7 @@ def fetch_wds_sample(state_dir: Path) -> dict:
 
 
 def fetch_msc_sample(state_dir: Path) -> dict:
-    raw_path = state_dir / "raw" / "msc" / "newmsc-20240101.tar.gz"
+    raw_path = state_dir / "raw" / "msc" / "newmsc-20260619.tar.gz"
     cooked_path = state_dir / "cooked" / "msc" / "msc_components.csv"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     cooked_path.parent.mkdir(parents=True, exist_ok=True)

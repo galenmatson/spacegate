@@ -11,7 +11,7 @@ from typing import Any
 
 import duckdb
 
-MSC_VERSION_FALLBACK = "2024-01-01"
+MSC_VERSION_FALLBACK = "2026-06-19"
 WDS_VERSION_FALLBACK = "wdsweb_summ2"
 ORB6_VERSION_FALLBACK = "orb6orbits"
 VSX_VERSION_FALLBACK = "vsx_dat"
@@ -129,7 +129,7 @@ def main() -> int:
     if arm_db.exists():
         arm_db.unlink()
 
-    msc_manifest = load_manifest_entry(msc_manifest_path, "newmsc_20240101")
+    msc_manifest = load_manifest_entry(msc_manifest_path, "newmsc_20260619")
     if not msc_manifest:
         msc_manifest = load_manifest_entry(core_manifest_path, "msc")
     wds_manifest = load_manifest_entry(wds_manifest_path, "wdsweb_summ2")
