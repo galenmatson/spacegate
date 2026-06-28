@@ -10,7 +10,7 @@ Scope:
 
 Out of scope:
 
-- immutable supplemental science side tables (`SCHEMA_ARM.md`, arm layer)
+- immutable science evidence/support side tables (`SCHEMA_ARM.md`, arm layer)
 - generated exposition/images (`SCHEMA_DISC.md`, disc layer)
 - editable fiction/worldbuilding overlays (`SCHEMA_RIM.md`, rim layer)
 
@@ -37,6 +37,17 @@ Gaia-first contract:
 1. Canonical star inventory originates from Gaia.
 2. Crosswalk catalogs may enrich identifiers/aliases but do not define canonical star existence.
 3. Multiplicity catalogs define evidence/edges and grouping confidence, not hidden row mutation.
+
+Core/arm promotion contract:
+
+- `core` owns accepted canonical inventory rows and promoted hot-path scalar
+  facts.
+- `arm` owns source-native evidence/support rows, alternate solutions,
+  confidence-ranked graph/orbit structures, and deterministic science
+  derivatives.
+- A value being source-native does not automatically make it core. Source-native
+  rows may remain in `arm` when they represent support evidence, competing
+  claims, source ontology, or non-hot-path simulation inputs.
 
 Transitional note:
 
@@ -537,6 +548,12 @@ Contract notes:
 - `retracted` records may be retained only with `is_tombstoned=true` and `is_default_visible=false`.
 - status/taxonomy/habitability/resource tags are deterministic derived fields and must carry explicit versioning.
 - canonical science classifications must remain source-faithful; any UI/navigation supergrouping (for example `subplanet`) belongs in derived/structural tags and must not overwrite authoritative class semantics.
+- Planet rows are canonical inventory after lifecycle/host adjudication, but
+  detailed orbital solution evidence is not automatically core. Core may expose
+  promoted source/default scalar fields for browse/search/detail; alternate
+  source solutions, reference epochs, fit quality, uncertainty, and
+  simulation-oriented orbit contracts belong in `arm.orbit_edges` and
+  `arm.orbital_solutions`.
 
 ## Planet Lifecycle and Re-Evaluation Contract
 

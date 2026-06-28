@@ -32,8 +32,10 @@ Reason:
    - `galaxy`: immutable canonical science corpus
    - `core`: fast default science projection
    - `halo`: explicit opt-in science projection (complement to core)
-   - `arm`: immutable supplemental science (observational side tables outside core hot paths, including narration-oriented stellar parameters and orbital evidence)
-   - `disc`: reproducible derivatives
+   - `arm`: immutable science evidence/support layer (source-native support
+     rows, adjudication candidates, graph/orbit evidence, deterministic
+     science derivatives outside core hot paths)
+   - `disc`: reproducible presentation derivatives and labeled assumptions
    - `rim`: editable fiction
 5. Explicit confidence for joins/groupings; avoid silent inference.
 6. Security-first ingestion: no required insecure transport dependencies.
@@ -54,6 +56,27 @@ Operational runbook:
 
 ## Data Layers (`galaxy` / `core` / `halo` / `arm` / `disc` / `rim`)
 
+Layer ownership is decided by **role in Spacegate**, not only by whether a value
+comes directly from a source catalog.
+
+- `core` owns conservative canonical inventory/projection rows and promoted
+  hot-path scalar facts.
+- `arm` owns source-native evidence/support rows, alternate solutions,
+  confidence-gated graph/orbit structures, and deterministic science
+  derivatives that are not canonical inventory.
+- `disc` owns reproducible presentation products, prioritization, generated
+  artifacts, and explicitly labeled assumptions.
+- `rim` owns optional fictional/user-authored overlays.
+
+Promotion rule:
+
+`source catalog -> cooked source rows -> arm evidence/support graph -> reviewed
+promotion -> selected canonical core facts`
+
+Core must not become a dump of every source catalog's native ontology. Arm may
+store source-native science rows because they are evidence for Spacegate's
+canonical model, not automatically canonical Spacegate object facts.
+
 ### Galaxy (immutable canonical astronomy)
 Authoritative full-science inventory per build:
 
@@ -65,6 +88,8 @@ Authoritative full-science inventory per build:
 Fast default serving projection for common browse/search/detail traffic.
 
 Core is generated deterministically from `galaxy` and a versioned slice profile.
+It should stay conservative: accepted object identity, accepted host/membership
+links, and selected hot-path scalar facts only.
 
 ### Halo (immutable astronomy complement)
 Explicit opt-in serving projection containing scientific rows excluded from core by policy.
@@ -84,12 +109,19 @@ Rules:
 
 Core/halo must remain free of generated prose/images/rim overlays.
 
-### Arm (immutable supplemental science)
+### Arm (immutable science evidence/support)
 
-- observational/support datasets that are still scientific and provenance-bound
-- examples: variability families, dense diagnostics, and other non-hot-path science tables
+- source-native evidence/support datasets that are still scientific and
+  provenance-bound
+- deterministic science derivatives and normalized graph/orbit structures used
+  for adjudication, diagnostics, simulation, and narration
+- examples: MSC/WDS/ORB6/SBX/Gaia NSS support rows, variability families, dense
+  diagnostics, source-native orbital solutions, and non-hot-path science tables
 
-Arm rows follow the same immutability and provenance rules as core, but are separated to keep core performant.
+Arm rows follow the same immutability and provenance rules as core, but are
+separated because they are support/evidence, may contain alternate or
+confidence-ranked claims, and should not imply canonical Spacegate inventory
+acceptance.
 
 ### Disc (rebuildable derived artifacts)
 
@@ -267,6 +299,22 @@ Priority:
 3. deterministic name fallback (flagged lower confidence)
 
 No hidden fuzzy merge into canonical rows.
+
+## Planet Inventory and Orbit Boundary
+
+Planet rows may be canonical inventory once Spacegate accepts the source
+lifecycle state and host match, but detailed planet orbital solutions are not
+automatically core facts.
+
+Core may carry selected source-native/hot-path planet scalars such as period,
+semi-major axis, eccentricity, radius, or mass when they are the promoted
+display/default values for the canonical planet row. Competing source solutions,
+full element sets, reference epochs, fit quality, uncertainty, derived
+simulation state, and historical source observations belong in `arm` as
+evidence rows attached to graph/orbit structures.
+
+This mirrors the multiplicity policy: a planet can be in canonical inventory
+without every source-native orbit solution becoming canonical core.
 
 ## Exoplanet Lifecycle Policy
 
@@ -643,7 +691,7 @@ Operational status:
 ## Documentation Map
 
 - `docs/SCHEMA_CORE.md`: canonical core schema contract
-- `docs/SCHEMA_ARM.md`: supplemental science graph/orbit contract
+- `docs/SCHEMA_ARM.md`: science evidence/support graph/orbit contract
 - `docs/SCHEMA_DISC.md`: disc contract
 - `docs/SCHEMA_RIM.md`: rim contract
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates

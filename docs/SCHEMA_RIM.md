@@ -5,7 +5,8 @@ Rim data is intentionally separate from core science and disc derived artifacts.
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
-- `docs/SCHEMA_ARM.md`: audited supplemental science, proposals, and accepted overlays
+- `docs/SCHEMA_ARM.md`: immutable science evidence/support graph, orbit, and
+  deterministic derivative rows
 - `docs/SCHEMA_DISC.md`: reproducible disc artifacts
 - `docs/SCHEMA_RIM.md`: editable fictional/user-authored rim overlays (this document)
 
@@ -18,7 +19,8 @@ Purpose:
 
 Hard constraints:
 - Rim must never modify scientific values in core.
-- Rim may reference core objects, but core remains authoritative.
+- Rim may reference core/arm science objects, but science layers remain
+  authoritative and must not depend on Rim.
 - Rim must be optional to load/render.
 - Rim should reuse shared graph vocabulary from `docs/SYSTEM_GRAPH_ARCHITECTURE.md` where possible.
 

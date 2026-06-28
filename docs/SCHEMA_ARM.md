@@ -1,9 +1,12 @@
 # Spacegate Arm Schema Contract
 
-This document defines the immutable supplemental science layer (`arm`).
+This document defines the immutable science evidence/support layer (`arm`).
 
 Purpose:
-- store deterministic, provenance-bound science derivatives outside core hot paths
+- store deterministic, provenance-bound science support rows outside core hot
+  paths
+- preserve source-native evidence rows whose ontology should not be promoted
+  directly into canonical core
 - materialize multiplicity hierarchy as explicit graph edges
 - normalize orbital solutions for UI reconstruction and animation readiness scoring
 - supply the science-side inputs for `docs/SYSTEM_SIMULATION.md` without storing
@@ -13,6 +16,15 @@ Out of scope:
 - editable fiction/user overlays (`SCHEMA_RIM.md`, rim layer)
 - generated prose/images/snapshots (`SCHEMA_DISC.md`, disc layer)
 - canonical star/system/planet inventory (`SCHEMA_CORE.md`)
+
+Layer rule:
+
+- `arm` can contain source-native rows. That does not make those rows canonical
+  inventory; it makes them auditable evidence for Spacegate's canonical model.
+- `arm` can contain deterministic derivatives. Those rows must retain input
+  lineage, method/version, and confidence.
+- promoted canonical summaries may be copied or projected into `core`, but the
+  source evidence and competing/alternate solutions should remain in `arm`.
 
 ## Artifact Contract
 
@@ -141,6 +153,10 @@ Columns:
 
 Rule:
 - never overwrite source-native measurements; normalized columns are additive transforms with lineage.
+- planet, moon, binary, and artificial-object orbital solutions all follow the
+  same policy: a promoted scalar may appear in `core` for hot-path display, but
+  source-native solution rows, alternates, epochs, fit-quality fields, and
+  simulation-ready element sets belong here.
 - ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.

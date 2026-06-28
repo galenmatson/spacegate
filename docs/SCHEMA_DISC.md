@@ -5,7 +5,8 @@ Disc data is reproducible and regenerated from core/arm/packs; it is not edited 
 
 Schema family:
 - `docs/SCHEMA_CORE.md`: immutable scientific astronomy data
-- `docs/SCHEMA_ARM.md`: immutable supplemental science graph/orbit derivatives
+- `docs/SCHEMA_ARM.md`: immutable science evidence/support graph, orbit, and
+  deterministic derivative rows
 - `docs/SCHEMA_DISC.md`: disc artifacts for ranking, UX, and enrichment (this document)
 - `docs/SCHEMA_RIM.md`: rim overlays
 
@@ -18,6 +19,8 @@ Purpose:
 
 Hard constraints:
 - Disc must never overwrite or alter core rows.
+- Disc must not promote assumptions into science claims; stronger `core` or
+  `arm` evidence supersedes disc presentation defaults.
 - Disc rows must be reproducible from explicit inputs and versions.
 - Cultural/fictional metadata must not alter scientific core values.
 

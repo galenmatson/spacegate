@@ -87,7 +87,8 @@ Rules:
 
 - `core` rows are source-faithful canonical inventory/projection rows.
 - `arm` rows are deterministic science support, adjudication, hierarchy, and
-  orbital-solution rows.
+  orbital-solution rows. Arm may hold source-native rows when they are evidence
+  for a canonical model rather than canonical inventory themselves.
 - `disc` rows may hold generated rendering assumptions and reproducible
   presentation artifacts.
 - `rim` rows are fictional/worldbuilding overlays only.
@@ -123,6 +124,10 @@ Minimum orbit model:
 - attach orbit elements to an `orbit_edge_id`, not only to a body
 - include units, reference epoch, and confidence/provenance when present
 - support absent elements without fabricating a canonical solution
+- treat planet orbits like multiplicity orbits: promoted/default scalar fields
+  may exist on core planet rows for serving, but full source-native solutions,
+  alternate fits, epochs, uncertainty, and simulation-ready elements belong in
+  `arm.orbital_solutions`
 - start with static ellipses and clearly labeled uncertainty
 - defer true N-body simulation; client animation should be Keplerian/teaching
   grade until a stronger numerical contract exists
