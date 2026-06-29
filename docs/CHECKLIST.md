@@ -271,6 +271,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   planets, and orbit paths
 - [x] Add Live System Preview camera orbit/zoom/pan controls with reset-view
   Playwright coverage
+- [x] Add draggable/touch-safe canvas affordance and drag-orbit browser
+  coverage for the Live System Preview
 - [x] Add deterministic procedural star/planet materials and clarity-scale
   planet radius caps/floors to the Live System Preview without persisting them
   as science data

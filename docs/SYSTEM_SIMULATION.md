@@ -24,7 +24,8 @@ Already in place:
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - the beta browser renderer adds speed control, reset, orbit-trace visibility
   toggle, camera orbit/zoom/pan controls with reset-view support, click/tap
-  pinned inspection, and copyable render/source identifiers
+  pinned inspection, copyable render/source identifiers, and touch-safe canvas
+  gesture handling
 - the browser renderer checks WebGL capability before mounting R3F and falls
   back inside the preview panel to the deterministic snapshot artifact when 3D
   is unavailable or the live scene load fails

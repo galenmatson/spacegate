@@ -4827,6 +4827,12 @@ main {
 
 .system-preview-canvas canvas {
   display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+.system-preview-canvas canvas:active {
+  cursor: grabbing;
 }
 
 .system-preview-fallback {

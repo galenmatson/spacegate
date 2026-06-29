@@ -122,6 +122,15 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || ""), { timeout: 3000 })
       .not.toBe(zoomedCamera);
+    const resetCamera = await previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || "");
+    await page.mouse.move(viewBox.x + viewBox.width / 2, viewBox.y + viewBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(viewBox.x + viewBox.width / 2 + 120, viewBox.y + viewBox.height / 2 + 55, { steps: 8 });
+    await page.mouse.up();
+    await expect
+      .poll(() => previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || ""), { timeout: 3000 })
+      .not.toBe(resetCamera);
+    await page.getByRole("button", { name: /reset/i }).click();
     await page.getByRole("button", { name: /start/i }).click();
 
     await page.getByRole("button", { name: /orbits on/i }).click();
