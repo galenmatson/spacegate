@@ -686,6 +686,10 @@ Readiness gaps:
   inspected from useful angles without changing the simulation scene contract.
 - June 29, 2026 camera-affordance pass adds draggable/touch-safe canvas
   behavior and browser coverage for both wheel zoom and drag orbit.
+- June 29, 2026 assumption-export pass adds `render_scene.assumptions`, a
+  structured transient export of every rendered `ASSUMED` field using the
+  planned `disc.simulation_assumptions` binding shape, plus API benchmark
+  coverage for TRAPPIST-1 phase assumptions.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet

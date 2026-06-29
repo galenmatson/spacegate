@@ -88,7 +88,9 @@ Response shape:
     "schema_version": "render_scene_v0.2",
     "assumption_generator_version": "procedural_prior_v1",
     "bodies": {"stars": [], "planets": []},
-    "orbits": []
+    "orbits": [],
+    "assumptions": [],
+    "assumption_count": 0
   },
   "policy": {
     "canonical_layer": "core",
@@ -116,6 +118,10 @@ Rules:
 - `render_scene_v0.2` may emit transient deterministic assumptions using
   `procedural_prior_v1`; persistent assumption rows remain future
   `disc.simulation_assumptions` work.
+- `render_scene_v0.2` also exports every rendered `status="assumed"` field in
+  `render_scene.assumptions` using the planned `disc.simulation_assumptions`
+  object-binding shape. This is an audit/export path only; it does not persist
+  assumptions or make them science facts.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 
@@ -242,7 +248,10 @@ Success criteria:
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - source/derived/assumed/missing fields surface as visible provenance pills
-- every rendered assumption is visible in the readiness payload
+- every rendered assumption is visible in the readiness/render payloads
+- every rendered assumption is exported as a structured render-scene assumption
+  record suitable for later reviewed `disc.simulation_assumptions`
+  materialization
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 

@@ -273,6 +273,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Playwright coverage
 - [x] Add draggable/touch-safe canvas affordance and drag-orbit browser
   coverage for the Live System Preview
+- [x] Export rendered simulator assumptions as structured
+  `render_scene.assumptions` records shaped for future
+  `disc.simulation_assumptions` persistence
 - [x] Add deterministic procedural star/planet materials and clarity-scale
   planet radius caps/floors to the Live System Preview without persisting them
   as science data

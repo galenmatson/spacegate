@@ -1071,6 +1071,70 @@ def _planet_orbit_solutions_by_stable_key(arm: Dict[str, Any]) -> Dict[str, Dict
     return out
 
 
+def _render_assumption_kind(field_key: str) -> str:
+    if field_key in {"phase_rad", "inclination_deg", "eccentricity", "period_days", "orbital_period_days"}:
+        return "simulation_default"
+    if field_key in {"spectral_type_raw", "teff_k", "mass_msun"}:
+        return "classification_hint"
+    return "visual_default"
+
+
+def _render_assumption_records(
+    *,
+    system: Dict[str, Any],
+    owner_type: str,
+    owner_key: str,
+    display_name: Optional[str],
+    fields: Dict[str, Any],
+    source: Optional[Dict[str, Any]] = None,
+    orbit_edge_id: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    records: List[Dict[str, Any]] = []
+    source = source or {}
+    for field_key, field in sorted((fields or {}).items()):
+        if not isinstance(field, dict) or str(field.get("status") or "").lower() != "assumed":
+            continue
+        input_context = {
+            "render_key": owner_key,
+            "field_key": field_key,
+            "seed": field.get("seed"),
+            "basis": field.get("basis"),
+            "source_layer": source.get("layer"),
+        }
+        records.append(
+            {
+                "object_type": owner_type,
+                "system_id": system.get("system_id"),
+                "star_id": source.get("star_id") if owner_type == "star" else None,
+                "planet_id": source.get("planet_id") if owner_type == "planet" else None,
+                "orbit_edge_id": orbit_edge_id if owner_type == "orbit" else None,
+                "stable_object_key": source.get("stable_object_key"),
+                "stable_component_key": source.get("stable_component_key") or source.get("source_component_key"),
+                "render_key": owner_key,
+                "display_name": display_name,
+                "parameter_key": field.get("key") or field_key,
+                "value": field.get("value"),
+                "value_json": json.dumps(field.get("value"), sort_keys=True),
+                "unit": field.get("unit"),
+                "assumption_kind": _render_assumption_kind(str(field.get("key") or field_key)),
+                "assumption_method": field.get("basis"),
+                "assumption_version": field.get("generator_version") or SIM_PROCEDURAL_ASSUMPTION_VERSION,
+                "input_context": input_context,
+                "input_context_json": json.dumps(input_context, sort_keys=True),
+                "replacement_target": field.get("replacement_target"),
+                "visibility_label": "assumed",
+                "layer": field.get("layer") or "disc_assumption",
+                "seed": field.get("seed"),
+                "generator_version": field.get("generator_version") or SIM_PROCEDURAL_ASSUMPTION_VERSION,
+                "confidence": field.get("confidence"),
+                "confidence_tier": field.get("confidence_tier"),
+                "notes": field.get("notes"),
+                "field": field,
+            }
+        )
+    return records
+
+
 def _render_scene_contract(
     system: Dict[str, Any],
     stars: List[Dict[str, Any]],
@@ -1931,6 +1995,45 @@ def _render_scene_contract(
             if len(render_planets) >= hierarchy_planet_count:
                 break
 
+    assumption_records: List[Dict[str, Any]] = []
+    for star in render_stars.values():
+        assumption_records.extend(
+            _render_assumption_records(
+                system=system,
+                owner_type="star",
+                owner_key=str(star.get("render_key") or ""),
+                display_name=star.get("display_name"),
+                fields=star.get("fields") or {},
+                source={
+                    **(star.get("source") or {}),
+                    "source_component_key": star.get("source_component_key"),
+                },
+            )
+        )
+    for planet in render_planets:
+        assumption_records.extend(
+            _render_assumption_records(
+                system=system,
+                owner_type="planet",
+                owner_key=str(planet.get("render_key") or ""),
+                display_name=planet.get("display_name"),
+                fields=planet.get("fields") or {},
+                source=planet.get("source") or {},
+            )
+        )
+    for orbit in render_orbits:
+        assumption_records.extend(
+            _render_assumption_records(
+                system=system,
+                owner_type="orbit",
+                owner_key=str(orbit.get("orbit_key") or ""),
+                display_name=orbit.get("orbit_key"),
+                fields=orbit.get("fields") or {},
+                source=orbit.get("source") or {},
+                orbit_edge_id=orbit.get("orbit_edge_id"),
+            )
+        )
+
     return {
         "schema_version": "render_scene_v0.2",
         "assumption_generator_version": SIM_PROCEDURAL_ASSUMPTION_VERSION,
@@ -1945,6 +2048,8 @@ def _render_scene_contract(
             "planets": render_planets,
         },
         "orbits": render_orbits,
+        "assumptions": assumption_records,
+        "assumption_count": len(assumption_records),
         "provenance_legend": {
             "source": "Catalog/source value from core or arm.",
             "derived": "Deterministic derived value; should be reviewed before stronger science claims.",

@@ -121,6 +121,14 @@ def main():
         raise AssertionError(f"unexpected simulation scene schema_version: {scene_json['schema_version']!r}")
     require_keys(scene_json["bodies"], ["stars", "planets"], "simulation scene.bodies")
     require_keys(
+        scene_json.get("render_scene") or {},
+        ["schema_version", "bodies", "orbits", "assumptions", "assumption_count"],
+        "simulation scene.render_scene",
+    )
+    render_assumptions = scene_json.get("render_scene", {}).get("assumptions") or []
+    if scene_json.get("render_scene", {}).get("assumption_count") != len(render_assumptions):
+        raise AssertionError("simulation scene render assumption_count mismatch")
+    require_keys(
         scene_json["arm"],
         ["components", "hierarchy_edges", "orbit_edges", "orbital_solutions"],
         "simulation scene.arm",

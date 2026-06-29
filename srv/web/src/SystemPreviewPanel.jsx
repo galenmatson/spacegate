@@ -1427,6 +1427,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const planetReadiness = scene?.simulation_readiness?.planets || [];
   const assumedOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "assumed").length;
   const missingOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "missing").length;
+  const renderedAssumptionCount = Number.isFinite(Number(renderScene.assumption_count))
+    ? Number(renderScene.assumption_count)
+    : (counts.assumed || 0) + assumedOrbitCount;
 
   return (
     <section className="panel system-preview-panel" data-testid="system-preview-panel">
@@ -1524,7 +1527,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             <span>derived fields</span>
           </div>
           <div>
-            <strong>{formatNumber((counts.assumed || 0) + assumedOrbitCount, 0)}</strong>
+            <strong>{formatNumber(renderedAssumptionCount, 0)}</strong>
             <span>assumptions</span>
           </div>
           <div>

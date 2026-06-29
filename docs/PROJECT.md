@@ -194,6 +194,9 @@ Implementation note:
   than collapsed into direct binary star orbits; the browser preview uses those
   group-pair edges for deterministic visual-scale child-cluster motion while
   leaving source-scaled barycentric propagation for a later precision pass; the
+  payload now exports every rendered `ASSUMED` value as a structured
+  `render_scene.assumptions` record shaped for later reviewed
+  `disc.simulation_assumptions` persistence; the
   public preview now supports pause/start, speed, reset, orbit visibility,
   camera orbit/zoom/pan with reset-view support, hover, pinned copyable
   readouts with in-scene selected-object feedback, and deterministic

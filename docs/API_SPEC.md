@@ -304,6 +304,8 @@ Response:
     "fallback_visualization": "deterministic_snapshot",
     "bodies": {"stars": [], "planets": []},
     "orbits": [],
+    "assumptions": [],
+    "assumption_count": 0,
     "provenance_legend": {
       "source": "Catalog/source value from core or arm.",
       "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
@@ -348,6 +350,13 @@ Contract notes:
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
   cluster orbit guides and browser-side visual child-cluster transforms.
+- `render_scene.assumptions` is an additive export of every rendered field with
+  `status="assumed"`. Each record is shaped for later
+  `disc.simulation_assumptions` materialization and includes object binding,
+  `parameter_key`, `value_json`, `assumption_kind`, `assumption_method`,
+  `assumption_version`, `replacement_target`, `visibility_label`, seed,
+  generator version, and the original field provenance object. These rows are
+  transient API records until explicitly persisted in `disc`.
   Group-pair display transforms are presentation scale only; source orbital
   evidence remains in `arm.orbit_edges` and `arm.orbital_solutions`.
   It may include deterministic procedural fields with `status="assumed"`,

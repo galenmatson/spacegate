@@ -166,6 +166,28 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
     bodies = render_scene.get("bodies") or {}
     scene_stars = bodies.get("stars") or []
     scene_planets = bodies.get("planets") or []
+    assumptions = render_scene.get("assumptions") or []
+    if render_scene.get("assumption_count") != len(assumptions):
+        raise AssertionError(
+            f"{case.query}: render_scene.assumption_count does not match assumptions list length"
+        )
+    for assumption in assumptions:
+        required_keys = {
+            "object_type",
+            "parameter_key",
+            "assumption_version",
+            "visibility_label",
+            "input_context_json",
+            "field",
+        }
+        missing = sorted(key for key in required_keys if key not in assumption)
+        if missing:
+            raise AssertionError(f"{case.query}: render assumption missing keys {missing}: {assumption}")
+        if assumption.get("visibility_label") != "assumed":
+            raise AssertionError(f"{case.query}: unexpected assumption visibility {assumption.get('visibility_label')!r}")
+        field = assumption.get("field") or {}
+        if field.get("status") != "assumed":
+            raise AssertionError(f"{case.query}: assumption record field is not marked assumed: {field}")
     if case.min_scene_stars is not None and len(scene_stars) < case.min_scene_stars:
         raise AssertionError(f"{case.query}: expected at least {case.min_scene_stars} preview stars, got {len(scene_stars)}")
     if case.min_scene_planets is not None and len(scene_planets) < case.min_scene_planets:
@@ -184,6 +206,15 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         bad_statuses = [field.get("status") for field in period_fields if field and field.get("status") != "source"]
         if bad_statuses:
             raise AssertionError(f"{case.query}: rendered planet periods should be source-backed, got {bad_statuses}")
+        phase_assumptions = [
+            assumption
+            for assumption in assumptions
+            if assumption.get("object_type") == "planet" and assumption.get("parameter_key") == "phase_rad"
+        ]
+        if len(phase_assumptions) < 7:
+            raise AssertionError(
+                f"{case.query}: expected explicit phase assumptions for seven rendered planets, got {len(phase_assumptions)}"
+            )
 
     if query_norm in {"55 cnc", "sol"}:
         source_periods = [
