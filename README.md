@@ -257,6 +257,20 @@ scripts/push_published_db.sh --remote sgdeploy@antiproton --ssh-key ~/.ssh/space
 Use `--skip-catalogs` if you want to push only DB/reports and leave the remote
 catalog mirror untouched.
 
+### 3.2a) Verify known public benchmark systems
+
+After a database publish or API deployment, run the benchmark-system API check
+against the target service:
+
+```bash
+scripts/verify_known_systems_api.py https://coolstars.org/api/v1
+```
+
+This verifies search/detail/hierarchy/simulation-scene behavior for Castor,
+Nu Sco, Alpha Centauri, Sirius, TRAPPIST-1, 55 Cnc, Sol, and 16 Cyg. Preview
+body-count mismatches are warnings by default because the live preview is still
+catching up with the richer hierarchy model.
+
 ### 3.3) Deploy app code to antiproton safely (preserve remote auth env)
 
 To sync the app and restart containers without overwriting remote secrets:

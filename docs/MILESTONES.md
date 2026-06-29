@@ -611,6 +611,10 @@ Readiness gaps:
   `verify_build.sh` passes, TRAPPIST-1 exposes seven ARM planetary orbit
   solutions through `/simulation-scene`, and Nu Sco effective star count is
   preserved at seven through the MSC leaf hierarchy bridge
+- Known-system API benchmark `scripts/verify_known_systems_api.py` now checks
+  search, aliases, detail hierarchy, vital hierarchy facts, and simulation
+  scene availability for Castor, Nu Sco, Alpha Centauri, Sirius, TRAPPIST-1,
+  55 Cnc, Sol, and 16 Cyg.
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
@@ -618,6 +622,10 @@ Readiness gaps:
 - Castor remains a hierarchy-quality watch item for browser rendering and
   future barycentric nested-subsystem animation, but the general MSC
   materialization gap is no longer a known data-loss issue in the builder
+- Live System Preview body generation still trails the richer hierarchy for
+  complex multiples; the benchmark currently warns when hierarchy star/planet
+  counts exceed preview bodies, including Castor, Nu Sco, Alpha Centauri, and
+  16 Cyg.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

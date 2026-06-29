@@ -82,7 +82,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Implement/verify hierarchy confidence tiers
 - [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)
 - [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)
-- [ ] Benchmark system validation set passes (Castor, 16 Cyg, Sol-neighborhood checks)
+- [x] Benchmark system validation set passes (Castor, Nu Sco, Alpha Centauri,
+  Sirius, TRAPPIST-1, 55 Cnc, Sol, and 16 Cyg via
+  `scripts/verify_known_systems_api.py`)
 - [ ] Expand multiplicity goldens with AR Cas / HD 221253 and Nu Scorpii / HD 145502; keep HD 235299 and Gamma Cas as adjudication/watchlist systems until evidence policy is explicit
 - [x] Suppress singleton MSC leaf inference in canonical hierarchy to avoid Bet Mon-style overfit
 
@@ -235,6 +237,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add alias-search build gate covering restored AT-HYG common names,
   expanded Bayer lookups such as `Alpha Centauri`, and benchmark systems such
   as Castor, Sirius, Jabbah, and Copernicus
+- [ ] Reconcile Live System Preview body generation with richer hierarchy
+  counts for complex multiples and planet-bearing multiple systems flagged by
+  `scripts/verify_known_systems_api.py`
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts
