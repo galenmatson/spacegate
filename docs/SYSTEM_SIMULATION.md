@@ -23,7 +23,8 @@ Already in place:
 - the first browser renderer has a pauseable local animation clock, sampled
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - the beta browser renderer adds speed control, reset, orbit-trace visibility
-  toggle, click/tap pinned inspection, and copyable render/source identifiers
+  toggle, camera orbit/zoom/pan controls with reset-view support, click/tap
+  pinned inspection, and copyable render/source identifiers
 - the browser renderer checks WebGL capability before mounting R3F and falls
   back inside the preview panel to the deterministic snapshot artifact when 3D
   is unavailable or the live scene load fails
@@ -224,7 +225,8 @@ Success criteria:
 - single-star scenes can render a human system alias as the body display name
   while preserving the canonical star key and exposing the display-name basis
 - users can pause/start, change speed, reset the local clock, hide/show orbit
-  traces, hover bodies/orbits, and pin a copyable object/orbit readout
+  traces, orbit/zoom/pan the preview camera, reset the view, hover
+  bodies/orbits, and pin a copyable object/orbit readout
 - pinned stars, planets, and orbit paths also receive in-scene visual feedback
   so the selected readout has a visible target in the 3D view
 - hover and pinned readouts use the same source/derived/assumed/missing

@@ -103,6 +103,27 @@ test.describe("public 3D map beta", () => {
     await expect(page.getByLabel(/speed/i)).toBeVisible();
     await page.getByLabel(/speed/i).selectOption("5");
     await page.getByRole("button", { name: /reset/i }).click();
+
+    await page.getByRole("button", { name: /pause/i }).click();
+    await expect(page.getByRole("button", { name: /start/i })).toBeVisible();
+    const previewCanvasForView = page.locator(".system-preview-canvas canvas");
+    await previewCanvasForView.scrollIntoViewIfNeeded();
+    const viewBox = await previewCanvasForView.boundingBox();
+    expect(viewBox, "system preview canvas box for view controls").toBeTruthy();
+    const initialCamera = await previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || "");
+    expect(initialCamera).toBeTruthy();
+    await page.mouse.move(viewBox.x + viewBox.width / 2, viewBox.y + viewBox.height / 2);
+    await page.mouse.wheel(0, -700);
+    await expect
+      .poll(() => previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || ""), { timeout: 3000 })
+      .not.toBe(initialCamera);
+    const zoomedCamera = await previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || "");
+    await page.getByRole("button", { name: /reset/i }).click();
+    await expect
+      .poll(() => previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || ""), { timeout: 3000 })
+      .not.toBe(zoomedCamera);
+    await page.getByRole("button", { name: /start/i }).click();
+
     await page.getByRole("button", { name: /orbits on/i }).click();
     await expect(page.getByRole("button", { name: /orbits off/i })).toBeVisible();
     await page.getByRole("button", { name: /orbits off/i }).click();

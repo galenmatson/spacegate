@@ -195,9 +195,10 @@ Implementation note:
   group-pair edges for deterministic visual-scale child-cluster motion while
   leaving source-scaled barycentric propagation for a later precision pass; the
   public preview now supports pause/start, speed, reset, orbit visibility,
-  hover, pinned copyable readouts with in-scene selected-object feedback, and
-  deterministic procedural star/planet surface materials for visual clarity;
-  these materials are transient
+  camera orbit/zoom/pan with reset-view support, hover, pinned copyable
+  readouts with in-scene selected-object feedback, and deterministic
+  procedural star/planet surface materials for visual clarity; these materials
+  are transient
   presentation transforms over existing scene fields, not source surface maps;
   deterministic snapshots remain the fallback/reference artifact
 

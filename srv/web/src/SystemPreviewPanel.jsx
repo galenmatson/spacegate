@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
@@ -927,6 +928,59 @@ function CanvasHoverRaycaster({ onHover }) {
   return null;
 }
 
+function CameraControls({ resetToken = 0 }) {
+  const { camera, gl } = useThree();
+  const controlsRef = React.useRef(null);
+  const writeCameraState = useCallback(() => {
+    gl.domElement.dataset.cameraPosition = [
+      camera.position.x.toFixed(3),
+      camera.position.y.toFixed(3),
+      camera.position.z.toFixed(3),
+    ].join(",");
+  }, [camera, gl]);
+
+  useEffect(() => {
+    const controls = new OrbitControls(camera, gl.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = true;
+    controls.minDistance = 3.8;
+    controls.maxDistance = 34;
+    controls.rotateSpeed = 0.62;
+    controls.zoomSpeed = 0.72;
+    controls.panSpeed = 0.55;
+    controls.target.set(0, 0, 0);
+    controls.saveState();
+    controlsRef.current = controls;
+    writeCameraState();
+    return () => {
+      controls.dispose();
+      controlsRef.current = null;
+    };
+  }, [camera, gl, writeCameraState]);
+
+  useEffect(() => {
+    if (!controlsRef.current) {
+      return;
+    }
+    camera.position.set(0, 6.2, 10.8);
+    controlsRef.current.target.set(0, 0, 0);
+    controlsRef.current.saveState();
+    controlsRef.current.reset();
+    controlsRef.current.update();
+    writeCameraState();
+  }, [camera, resetToken, writeCameraState]);
+
+  useFrame(() => {
+    if (controlsRef.current) {
+      controlsRef.current.update();
+      writeCameraState();
+    }
+  });
+
+  return null;
+}
+
 function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
@@ -1185,6 +1239,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
   return (
     <Canvas camera={{ position: [0, 6.2, 10.8], fov: 43 }} dpr={[1, 1.75]}>
       <color attach="background" args={["#050b12"]} />
+      <CameraControls resetToken={resetToken} />
       <CanvasHoverRaycaster onHover={onHover} />
       <PreviewObjects
         stars={stars}
