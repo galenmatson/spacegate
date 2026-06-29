@@ -122,6 +122,10 @@ Notes:
 - Gaia NSS unresolved binaries may emit synthetic companion component keys so source-native orbital evidence can be narrated without fabricating canonical core stars.
 - Planet rows emit `planetary_orbit` edges from the host system/star component
   to the planet component when a core planet has a resolved system binding.
+- `hierarchical_pair` edges may connect subsystem/group component keys rather
+  than physical leaf stars. Renderers must preserve that distinction, for
+  example by drawing cluster orbit guides instead of reclassifying a group edge
+  as a direct binary star orbit.
 
 ## `orbital_solutions`
 

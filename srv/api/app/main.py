@@ -1510,11 +1510,43 @@ def _render_scene_contract(
                 break
             add_hierarchy_star(node)
 
+    def resolve_render_child_keys(component_key: str) -> List[str]:
+        if component_key in render_stars:
+            return [component_key]
+        prefix = "comp:msc_group:wds:"
+        if not component_key.startswith(prefix):
+            return []
+        group_ref = component_key[len(prefix):]
+        if ":" not in group_ref:
+            return []
+        wds_id, group_label = group_ref.rsplit(":", 1)
+        labels = {group_label.lower()}
+        if group_label.lower() == "ab":
+            labels = {"a", "b"}
+        star_prefix = f"comp:msc:wds:{wds_id}:"
+        resolved = []
+        for render_key in sorted(render_stars):
+            if not render_key.startswith(star_prefix):
+                continue
+            component_label = render_key[len(star_prefix):].lower()
+            if any(component_label.startswith(label) for label in labels):
+                resolved.append(render_key)
+        return resolved
+
     render_orbits: List[Dict[str, Any]] = []
     for idx, edge in enumerate(orbit_rows):
         primary_key = str(edge.get("primary_component_key") or "")
         secondary_key = str(edge.get("secondary_component_key") or "")
-        if primary_key not in render_stars or secondary_key not in render_stars:
+        primary_child_keys = resolve_render_child_keys(primary_key)
+        secondary_child_keys = resolve_render_child_keys(secondary_key)
+        is_direct_star_orbit = primary_key in render_stars and secondary_key in render_stars
+        is_group_orbit = (
+            not is_direct_star_orbit
+            and str(edge.get("relation_kind") or "") == "hierarchical_pair"
+            and primary_child_keys
+            and secondary_child_keys
+        )
+        if not is_direct_star_orbit and not is_group_orbit:
             continue
         try:
             orbit_edge_id = int(edge.get("orbit_edge_id"))
@@ -1535,9 +1567,12 @@ def _render_scene_contract(
                 "relation_kind": edge.get("relation_kind") or "binary",
                 "primary_body_key": primary_key,
                 "secondary_body_key": secondary_key,
+                "endpoint_kind": "star_pair" if is_direct_star_orbit else "group_pair",
+                "primary_child_body_keys": primary_child_keys,
+                "secondary_child_body_keys": secondary_child_keys,
                 "barycenter_key": edge.get("barycenter_key"),
                 "cluster_phase_rad": round(_seed_unit(seed, "cluster_phase") * math.pi * 2.0, 6),
-                "display_radius_scene": assumed_radius,
+                "display_radius_scene": assumed_radius if is_direct_star_orbit else round(1.45 + 0.72 * _seed_unit(seed, "display_radius"), 6),
                 "fields": {
                     "period_days": (
                         _simulation_field(

@@ -5,6 +5,12 @@ import { fetchSystemSimulationScene } from "./api.js";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const SIM_DAYS_PER_SECOND = 0.7;
+const SIM_SPEED_OPTIONS = [
+  ["0.25", "0.25x"],
+  ["1", "1x"],
+  ["5", "5x"],
+  ["20", "20x"],
+];
 const STAR_COLORS = {
   O: "#9fc7ff",
   B: "#b8d7ff",
@@ -109,6 +115,8 @@ function objectHoverPayload(kind, body) {
     return {
       kind: "Star",
       name: body.display_name || body.name || "Unnamed star",
+      id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
+      sourceLayer: body.source?.layer || "unknown",
       rows: [
         ["Class", body.spectral_class || "Unknown", "SOURCE"],
         ["Temp", fieldSummary(body.fields, "teff_k", "Unknown", 0), fieldStatusSummary(body.fields, "teff_k")],
@@ -120,11 +128,31 @@ function objectHoverPayload(kind, body) {
   return {
     kind: "Planet",
     name: body.display_name || body.name || "Unnamed planet",
+    id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
+    sourceLayer: body.source?.layer || "unknown",
     rows: [
       ["Period", fieldSummary(body.fields, "orbital_period_days", "Unknown", 3), fieldStatusSummary(body.fields, "orbital_period_days")],
       ["Orbit", fieldSummary(body.fields, "semi_major_axis_au", "Unknown", 4), fieldStatusSummary(body.fields, "semi_major_axis_au")],
       ["Ecc.", fieldSummary(body.fields, "eccentricity", "Unknown", 3), fieldStatusSummary(body.fields, "eccentricity")],
       ["Radius", fieldSummary(body.fields, "radius_earth", "Unknown", 2), fieldStatusSummary(body.fields, "radius_earth")],
+    ],
+  };
+}
+
+function orbitHoverPayload(orbit) {
+  if (!orbit) {
+    return null;
+  }
+  return {
+    kind: String(orbit.relation_kind || "Orbit"),
+    name: orbit.orbit_key || "Orbit",
+    id: orbit.orbit_key || String(orbit.orbit_edge_id || ""),
+    sourceLayer: orbit.source?.layer || "arm",
+    rows: [
+      ["Period", fieldSummary(orbit.fields, "period_days", "Unknown", 3), fieldStatusSummary(orbit.fields, "period_days")],
+      ["Axis", fieldSummary(orbit.fields, "semi_major_axis_au", "Visual", 4), fieldStatusSummary(orbit.fields, "semi_major_axis_au")],
+      ["Ecc.", fieldSummary(orbit.fields, "eccentricity", "Unknown", 3), fieldStatusSummary(orbit.fields, "eccentricity")],
+      ["Incl.", fieldSummary(orbit.fields, "inclination_deg", "Unknown", 2), fieldStatusSummary(orbit.fields, "inclination_deg")],
     ],
   };
 }
@@ -200,7 +228,7 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   );
 }
 
-function StarSphere({ star, position = [0, 0, 0], onHover }) {
+function StarSphere({ star, position = [0, 0, 0], onHover, onSelect }) {
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || 0.55);
   const radius = Math.min(1.35, Math.max(0.18, Math.sqrt(radiusRsun || 0.55) * 0.45));
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
@@ -218,6 +246,10 @@ function StarSphere({ star, position = [0, 0, 0], onHover }) {
     onPointerOut: (event) => {
       event.stopPropagation();
       onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(hoverPayload);
     },
   };
   return (
@@ -371,8 +403,10 @@ function buildStarLayout(stars, hierarchy, binaryOrbits) {
   return { canonicalKeyByAlias, starPositions, orbitCenters, orbitStarKeys };
 }
 
-function BinaryOrbit({ orbit, starsByKey, center = [0, 0, 0], running = true, onHover }) {
+function BinaryOrbit({ orbit, starsByKey, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
   const groupRef = React.useRef(null);
+  const primaryRef = React.useRef(null);
+  const secondaryRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const primary = starsByKey.get(orbit.primary_body_key);
   const secondary = starsByKey.get(orbit.secondary_body_key);
@@ -383,36 +417,125 @@ function BinaryOrbit({ orbit, starsByKey, center = [0, 0, 0], running = true, on
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const orbitRadius = Number(orbit.display_radius_scene) || 0.9;
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 192), [orbitRadius, eccentricity, inclinationRad]);
+  const orbitPayload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
+  const orbitHandlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(orbitPayload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(orbitPayload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(orbitPayload);
+    },
+  };
+
+  useEffect(() => {
+    simRef.current = { days: 0, lastElapsedSeconds: null };
+  }, [resetToken]);
 
   useFrame(({ clock }) => {
-    if (!groupRef.current) {
+    if (!groupRef.current || !primaryRef.current || !secondaryRef.current) {
       return;
     }
-    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running);
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running) * speedMultiplier;
     const theta = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    groupRef.current.rotation.set(0, -theta, 0);
     groupRef.current.position.set(center[0], center[1], center[2]);
+    const relative = orbitalPosition(theta, orbitRadius, eccentricity, inclinationRad);
+    primaryRef.current.position.set(...scaledVector(relative, -0.5));
+    secondaryRef.current.position.set(...scaledVector(relative, 0.5));
   });
 
   if (!primary || !secondary) {
     return null;
   }
-  const displayRadius = orbitRadius * (1 + eccentricity * 0.18);
   return (
     <group ref={groupRef} data-testid="system-preview-binary-orbit">
-      <lineLoop>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial color="#ffdca8" transparent opacity={0.5} />
-      </lineLoop>
-      <StarSphere star={primary} position={[-displayRadius * 0.5, 0, 0]} onHover={onHover} />
-      <StarSphere star={secondary} position={[displayRadius * 0.5, 0, 0]} onHover={onHover} />
+      {showOrbits && (
+        <lineLoop {...orbitHandlers}>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial color="#ffdca8" transparent opacity={0.5} />
+        </lineLoop>
+      )}
+      <group ref={primaryRef}>
+        <StarSphere star={primary} onHover={onHover} onSelect={onSelect} />
+      </group>
+      <group ref={secondaryRef}>
+        <StarSphere star={secondary} onHover={onHover} onSelect={onSelect} />
+      </group>
     </group>
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], running = true, onHover }) {
+function centerForBodyKeys(keys, layout, starsByKey) {
+  const positions = (keys || [])
+    .map((key) => {
+      const mappedKey = layout.canonicalKeyByAlias.get(key) || key;
+      if (layout.starPositions.has(mappedKey)) {
+        return layout.starPositions.get(mappedKey);
+      }
+      const star = starsByKey.get(mappedKey);
+      const starKey = star?.render_key || star?.key;
+      return starKey && layout.starPositions.has(starKey) ? layout.starPositions.get(starKey) : null;
+    })
+    .filter(Boolean);
+  if (!positions.length) {
+    return null;
+  }
+  return scaledVector(positions.reduce((sum, position) => addVector(sum, position), [0, 0, 0]), 1 / positions.length);
+}
+
+function GroupOrbitGuide({ orbit, layout, starsByKey, showOrbits = true, onHover, onSelect }) {
+  const primaryCenter = centerForBodyKeys(orbit.primary_child_body_keys, layout, starsByKey);
+  const secondaryCenter = centerForBodyKeys(orbit.secondary_child_body_keys, layout, starsByKey);
+  const eccentricity = Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0));
+  const inclinationDeg = numericField(orbit.fields, "inclination_deg") || 0;
+  const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
+  const orbitRadius = Number(orbit.display_radius_scene) || 1.6;
+  const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
+  const payload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
+  if (!showOrbits || !primaryCenter || !secondaryCenter) {
+    return null;
+  }
+  const center = scaledVector(addVector(primaryCenter, secondaryCenter), 0.5);
+  const handlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(payload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(payload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(payload);
+    },
+  };
+  return (
+    <lineLoop position={center} {...handlers}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+      </bufferGeometry>
+      <lineBasicMaterial color="#f0bf55" transparent opacity={0.34} />
+    </lineLoop>
+  );
+}
+
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
@@ -434,13 +557,21 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], running 
       event.stopPropagation();
       onHover?.(null);
     },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(hoverPayload);
+    },
   };
+
+  useEffect(() => {
+    simRef.current = { days: 0, lastElapsedSeconds: null };
+  }, [resetToken]);
 
   useFrame(({ clock }) => {
     if (!groupRef.current) {
       return;
     }
-    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running);
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running) * speedMultiplier;
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
     groupRef.current.position.set(...addVector(center, orbitalPosition(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
   });
@@ -501,13 +632,43 @@ function CanvasHoverRaycaster({ onHover }) {
   return null;
 }
 
-function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0] }) {
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], onHover, onSelect }) {
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
+  const payload = useMemo(() => ({
+    kind: "Planet orbit",
+    name: `${planet.display_name || planet.name || "Planet"} orbit`,
+    id: `${planet.render_key || planet.key || "planet"}:orbit`,
+    sourceLayer: planet.source?.layer || "core",
+    rows: [
+      ["Period", fieldSummary(planet.fields, "orbital_period_days", "Unknown", 3), fieldStatusSummary(planet.fields, "orbital_period_days")],
+      ["Orbit", fieldSummary(planet.fields, "semi_major_axis_au", "Unknown", 4), fieldStatusSummary(planet.fields, "semi_major_axis_au")],
+      ["Ecc.", fieldSummary(planet.fields, "eccentricity", "Unknown", 3), fieldStatusSummary(planet.fields, "eccentricity")],
+      ["Incl.", fieldSummary(planet.fields, "inclination_deg", "Unknown", 2), fieldStatusSummary(planet.fields, "inclination_deg")],
+    ],
+  }), [planet]);
+  const handlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(payload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(payload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(payload);
+    },
+  };
   return (
-    <lineLoop position={center}>
+    <lineLoop position={center} {...handlers}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
@@ -516,8 +677,10 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0] }) {
   );
 }
 
-function PreviewObjects({ stars, planets, hierarchy, running = true, onHover }) {
-  const binaryOrbits = planets.renderOrbits || [];
+function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+  const renderOrbits = planets.renderOrbits || [];
+  const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
+  const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
   const layout = useMemo(() => buildStarLayout(stars, hierarchy, binaryOrbits), [stars, hierarchy, binaryOrbits]);
   const starsByKey = useMemo(() => {
     const out = new Map();
@@ -573,7 +736,11 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, onHover }) 
           starsByKey={starsByKey}
           center={layout.orbitCenters.get(orbit.orbit_key || `orbit-${idx}`) || [0, 0, 0]}
           running={running}
+          speedMultiplier={speedMultiplier}
+          resetToken={resetToken}
+          showOrbits={showOrbits}
           onHover={onHover}
+          onSelect={onSelect}
         />
       ))}
       {looseStars.map((star) => (
@@ -582,6 +749,18 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, onHover }) 
           star={star}
           position={layout.starPositions.get(star.render_key || star.key) || [0, 0, 0]}
           onHover={onHover}
+          onSelect={onSelect}
+        />
+      ))}
+      {groupOrbits.map((orbit, idx) => (
+        <GroupOrbitGuide
+          key={orbit.orbit_key || `group-orbit-${idx}`}
+          orbit={orbit}
+          layout={layout}
+          starsByKey={starsByKey}
+          showOrbits={showOrbits}
+          onHover={onHover}
+          onSelect={onSelect}
         />
       ))}
       {planets.map((planet, idx) => {
@@ -589,14 +768,17 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, onHover }) 
         const center = hostCenterForPlanet(planet);
         return (
           <React.Fragment key={planet.key}>
-            <PlanetOrbitRing planet={planet} orbitRadius={orbitRadius} center={center} />
+            {showOrbits && <PlanetOrbitRing planet={planet} orbitRadius={orbitRadius} center={center} onHover={onHover} onSelect={onSelect} />}
             <PlanetObject
               planet={planet}
               orbitRadius={orbitRadius}
               center={center}
               color={PLANET_COLORS[idx % PLANET_COLORS.length]}
               running={running}
+              speedMultiplier={speedMultiplier}
+              resetToken={resetToken}
               onHover={onHover}
+              onSelect={onSelect}
             />
           </React.Fragment>
         );
@@ -605,7 +787,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, onHover }) 
   );
 }
 
-function SceneCanvas({ scene, running = true, onHover }) {
+function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
@@ -661,7 +843,17 @@ function SceneCanvas({ scene, running = true, onHover }) {
     <Canvas camera={{ position: [0, 6.2, 10.8], fov: 43 }} dpr={[1, 1.75]}>
       <color attach="background" args={["#050b12"]} />
       <CanvasHoverRaycaster onHover={onHover} />
-      <PreviewObjects stars={stars} planets={planets} hierarchy={scene?.hierarchy} running={running} onHover={onHover} />
+      <PreviewObjects
+        stars={stars}
+        planets={planets}
+        hierarchy={scene?.hierarchy}
+        running={running}
+        speedMultiplier={speedMultiplier}
+        resetToken={resetToken}
+        showOrbits={showOrbits}
+        onHover={onHover}
+        onSelect={onSelect}
+      />
     </Canvas>
   );
 }
@@ -676,6 +868,50 @@ function HoverReadout({ object }) {
         <strong>{object.name}</strong>
         <span>{object.kind}</span>
       </div>
+      <dl>
+        {object.rows.map(([label, value, status]) => (
+          <React.Fragment key={label}>
+            <dt>{label}</dt>
+            <dd>
+              <span>{value}</span>
+              <em>{status}</em>
+            </dd>
+          </React.Fragment>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function PinnedReadout({ object, onClose }) {
+  const [copied, setCopied] = useState(false);
+  if (!object) {
+    return null;
+  }
+  const copyId = () => {
+    if (!navigator?.clipboard || !object.id) {
+      return;
+    }
+    navigator.clipboard.writeText(String(object.id)).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    }).catch(() => {});
+  };
+  return (
+    <div className="system-preview-pinned" data-testid="system-preview-pinned">
+      <div className="system-preview-pinned-title">
+        <div>
+          <strong>{object.name}</strong>
+          <span>{object.kind} - {String(object.sourceLayer || "unknown").toUpperCase()}</span>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close pinned simulator readout">x</button>
+      </div>
+      {object.id ? (
+        <button className="system-preview-id-copy" type="button" onClick={copyId}>
+          <span>{object.id}</span>
+          <em>{copied ? "Copied" : "Copy"}</em>
+        </button>
+      ) : null}
       <dl>
         {object.rows.map(([label, value, status]) => (
           <React.Fragment key={label}>
@@ -715,13 +951,18 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [running, setRunning] = useState(true);
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);
+  const [resetToken, setResetToken] = useState(0);
+  const [showOrbits, setShowOrbits] = useState(true);
   const [hoveredObject, setHoveredObject] = useState(null);
+  const [pinnedObject, setPinnedObject] = useState(null);
 
   useEffect(() => {
     let active = true;
     setStatus("loading");
     setScene(null);
     setHoveredObject(null);
+    setPinnedObject(null);
     fetchSystemSimulationScene(systemId)
       .then((payload) => {
         if (active) {
@@ -767,15 +1008,53 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
           >
             {running ? "Pause" : "Start"}
           </button>
+          <label className="system-preview-speed">
+            <span>Speed</span>
+            <select
+              value={String(speedMultiplier)}
+              onChange={(event) => setSpeedMultiplier(Number(event.target.value) || 1)}
+              disabled={status !== "ready"}
+            >
+              {SIM_SPEED_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => setResetToken((value) => value + 1)}
+            disabled={status !== "ready"}
+          >
+            Reset
+          </button>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => setShowOrbits((value) => !value)}
+            aria-pressed={showOrbits}
+            disabled={status !== "ready"}
+          >
+            {showOrbits ? "Orbits On" : "Orbits Off"}
+          </button>
           {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
         </div>
       </div>
       <div className="system-preview-layout">
         <div className="system-preview-canvas" aria-label={`${systemName} live system preview`}>
           {status === "ready" && scene
-            ? <SceneCanvas scene={scene} running={running} onHover={setHoveredObject} />
+            ? (
+              <SceneCanvas
+                scene={scene}
+                running={running}
+                speedMultiplier={speedMultiplier}
+                resetToken={resetToken}
+                showOrbits={showOrbits}
+                onHover={setHoveredObject}
+                onSelect={setPinnedObject}
+              />
+            )
             : <div className="system-preview-fallback">{status === "error" ? "Preview unavailable" : "Loading preview..."}</div>}
-          <HoverReadout object={hoveredObject} />
+          <HoverReadout object={hoveredObject && !pinnedObject ? hoveredObject : null} />
+          <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
         </div>
         <div className="system-preview-readout">
           <div>

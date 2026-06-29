@@ -190,6 +190,10 @@ Implementation note:
 - the first live system preview renderer is lazy-loaded on system detail pages
   and uses the scene-readiness endpoint; `render_scene_v0.2` adds renderer-ready
   bodies/orbits and provenance-bearing source/derived/assumed/missing fields;
+  hierarchical subsystem orbit edges are exposed as group-pair guides rather
+  than collapsed into direct binary star orbits; the public preview now supports
+  pause/start, speed, reset, orbit visibility, hover, and pinned copyable
+  readouts;
   deterministic snapshots remain the fallback/reference artifact
 
 ### Rim (editable overlays)

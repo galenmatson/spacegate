@@ -44,7 +44,7 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
             HierarchyFact("Castor BB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.39}),
             HierarchyFact("Castor CB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.6}),
         ),
-        min_scene_stars=3,
+        min_scene_stars=6,
     ),
     BenchmarkCase(
         "Nu Sco",
@@ -56,7 +56,7 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
             HierarchyFact("14nu Sco AA", {"spectral_type_raw": "B3V", "spectral_class": "B", "mass_msun": 6.07}),
             HierarchyFact("14nu Sco AB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 2.28}),
         ),
-        min_scene_stars=3,
+        min_scene_stars=7,
     ),
     BenchmarkCase(
         "Alpha Centauri",
@@ -139,6 +139,61 @@ def assert_fact_matches(label: str, fact_key: str, expected: Any, actual: Any) -
         raise AssertionError(f"{label} expected {fact_key}={expected!r}, got {actual!r}")
 
 
+def field_by_key(fields: Any, key: str) -> dict[str, Any] | None:
+    if isinstance(fields, dict):
+        field = fields.get(key)
+        return field if isinstance(field, dict) else None
+    if isinstance(fields, list):
+        for field in fields:
+            if isinstance(field, dict) and field.get("key") == key:
+                return field
+    return None
+
+
+def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> None:
+    render_scene = scene.get("render_scene") or {}
+    if render_scene.get("schema_version") != "render_scene_v0.2":
+        raise AssertionError(f"{case.query}: unexpected render_scene schema {render_scene.get('schema_version')!r}")
+    bodies = render_scene.get("bodies") or {}
+    scene_stars = bodies.get("stars") or []
+    scene_planets = bodies.get("planets") or []
+    if case.min_scene_stars is not None and len(scene_stars) < case.min_scene_stars:
+        raise AssertionError(f"{case.query}: expected at least {case.min_scene_stars} preview stars, got {len(scene_stars)}")
+    if case.min_scene_planets is not None and len(scene_planets) < case.min_scene_planets:
+        raise AssertionError(
+            f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
+        )
+
+    query_norm = normalize(case.query)
+    if query_norm == "trappist-1":
+        period_fields = [field_by_key(planet.get("fields"), "orbital_period_days") for planet in scene_planets]
+        period_values = [float(field["value"]) for field in period_fields if field and field.get("value") is not None]
+        if len(period_values) < 7:
+            raise AssertionError(f"{case.query}: expected seven rendered planet periods, got {len(period_values)}")
+        if period_values != sorted(period_values):
+            raise AssertionError(f"{case.query}: rendered planet periods should be sorted in orbital order: {period_values}")
+        bad_statuses = [field.get("status") for field in period_fields if field and field.get("status") != "source"]
+        if bad_statuses:
+            raise AssertionError(f"{case.query}: rendered planet periods should be source-backed, got {bad_statuses}")
+
+    if query_norm in {"55 cnc", "sol"}:
+        source_periods = [
+            field
+            for planet in scene_planets
+            if (field := field_by_key(planet.get("fields"), "orbital_period_days"))
+            and field.get("value") is not None
+            and field.get("status") == "source"
+        ]
+        expected = case.min_scene_planets or 1
+        if len(source_periods) < expected:
+            raise AssertionError(f"{case.query}: expected at least {expected} source-backed rendered planet periods, got {len(source_periods)}")
+
+    if query_norm == "castor":
+        orbit_count = len(render_scene.get("orbits") or [])
+        if orbit_count < 5:
+            raise AssertionError(f"{case.query}: expected at least five rendered stellar orbit entries, got {orbit_count}")
+
+
 def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
     search = get_json(base_url, "/systems/search", params={"q": case.query, "limit": 5})
     items = search.get("items") or []
@@ -207,6 +262,7 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
                 )
 
     scene = get_json(base_url, f"/systems/{system_id}/simulation-scene")
+    assert_render_scene_contract(case, scene)
     render_scene = scene.get("render_scene") or {}
     bodies = render_scene.get("bodies") or scene.get("bodies") or {}
     scene_stars = bodies.get("stars") or []

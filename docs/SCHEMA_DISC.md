@@ -252,6 +252,10 @@ Rules:
 - Live System Preview v0.2 currently emits transient `procedural_prior_v1`
   assumption fields in the API `render_scene` payload. Persisting those fields
   here is a later materialization step, not a current science ingest.
+- The beta renderer may also use transient visual layout values such as scene
+  radii, deterministic phase, and cluster guide placement for `group_pair`
+  orbit edges. These are presentation defaults unless backed by source or
+  derived ARM fields.
 
 ## snapshot_manifest
 

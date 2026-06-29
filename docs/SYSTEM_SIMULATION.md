@@ -22,6 +22,11 @@ Already in place:
   centers and hosts nested planets around their render host/body group
 - the first browser renderer has a pauseable local animation clock, sampled
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
+- the beta browser renderer adds speed control, reset, orbit-trace visibility
+  toggle, click/tap pinned inspection, and copyable render/source identifiers
+- `render_scene_v0.2` includes `endpoint_kind='group_pair'` orbit entries for
+  hierarchical subsystem pairs such as Castor A-B and AB-C; these render as
+  cluster orbit guides rather than false individual-star binaries
 - ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
   currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and
@@ -208,6 +213,10 @@ Success criteria:
   `core.planets` summary scalars
 - multi-star previews render ARM hierarchy/orbit evidence as barycentric visual
   groups when connected binary edges are available
+- hierarchical subsystem orbit edges render as distinct group-pair guides so
+  nested structure is visible without flattening the system into sibling stars
+- users can pause/start, change speed, reset the local clock, hide/show orbit
+  traces, hover bodies/orbits, and pin a copyable object/orbit readout
 - source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness payload
 - static snapshots remain the fallback for browsers/devices without usable 3D

@@ -100,6 +100,21 @@ test.describe("public 3D map beta", () => {
     await expect(page.getByRole("button", { name: /start/i })).toBeVisible();
     await page.getByRole("button", { name: /start/i }).click();
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
+    await expect(page.getByLabel(/speed/i)).toBeVisible();
+    await page.getByLabel(/speed/i).selectOption("5");
+    await page.getByRole("button", { name: /reset/i }).click();
+    await page.getByRole("button", { name: /orbits on/i }).click();
+    await expect(page.getByRole("button", { name: /orbits off/i })).toBeVisible();
+    await page.getByRole("button", { name: /orbits off/i }).click();
+    await expect(page.getByRole("button", { name: /orbits on/i })).toBeVisible();
+
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await previewCanvas.scrollIntoViewIfNeeded();
+    const previewBox = await previewCanvas.boundingBox();
+    expect(previewBox, "system preview canvas box").toBeTruthy();
+    await page.mouse.click(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
+    await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-pinned']")).toContainText(/star|planet|orbit/i);
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

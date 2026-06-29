@@ -338,6 +338,10 @@ Contract notes:
   It uses direct core rows and ARM orbit endpoints first, then reconciles
   renderer-ready bodies against canonical hierarchy when hierarchy exposes
   nested stars or planets not present in the direct selected-system body lists.
+  Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
+  body pairs, while `group_pair` entries represent hierarchical subsystem
+  edges with `primary_child_body_keys` and `secondary_child_body_keys` for
+  cluster orbit guides.
   It may include deterministic procedural fields with `status="assumed"`,
   `layer="disc_assumption"`, `basis="procedural_prior_v1:..."`, and a stable
   `seed`. These values are visual defaults only; they are not canonical science.

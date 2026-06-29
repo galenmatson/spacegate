@@ -253,6 +253,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and nested planet hosts render as structured groups instead of one flat ring
 - [x] Add pause/start controls, sampled eccentric/inclined orbit guide paths,
   and hover vitals to the Live System Preview
+- [x] Add Live System Preview beta controls: speed, reset, orbit-trace toggle,
+  click/tap pinned inspection, and copyable render/source IDs
+- [x] Render hierarchical subsystem orbit edges as group-pair guides in the
+  Live System Preview instead of flattening them into direct star binaries
+- [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
+  TRAPPIST-1 source-backed periods, and 55 Cnc/Sol source-backed planet periods
+- [ ] Implement true nested barycentric subsystem propagation for hierarchical
+  multi-star systems after source epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage for current public
   side-sliced builds so map snapshot hover checks exercise real fallback assets
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so

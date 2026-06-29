@@ -646,8 +646,15 @@ Readiness gaps:
 - June 29, 2026 interaction pass adds a pauseable local preview clock, sampled
   eccentric/inclined orbit guide paths that match planet motion, and hover
   vitals for rendered stars and planets.
-- full client time controls, uncertainty visualization, persisted assumption
-  materialization, and final scale policy are not implemented yet
+- June 29, 2026 beta simulator pass adds speed control, reset, orbit-trace
+  visibility, click/tap pinned inspection with copyable render/source IDs, and
+  `group_pair` orbit-guide rendering for hierarchical subsystem edges such as
+  Castor A-B and AB-C. Known-system API benchmarks now assert Castor six-star
+  render coverage, five Castor orbit entries, TRAPPIST-1 source-backed planet
+  periods, and source-backed 55 Cnc/Sol rendered planet periods.
+- full client epoch/time controls, uncertainty visualization, persisted
+  assumption materialization, true nested barycentric subsystem propagation,
+  and final scale policy are not implemented yet
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and

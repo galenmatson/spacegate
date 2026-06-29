@@ -4763,9 +4763,11 @@ main {
   justify-content: flex-end;
   gap: 8px;
   flex: 0 0 auto;
+  flex-wrap: wrap;
 }
 
-.system-preview-toggle {
+.system-preview-toggle,
+.system-preview-speed select {
   min-height: 30px;
   padding: 5px 10px;
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
@@ -4778,13 +4780,31 @@ main {
   cursor: pointer;
 }
 
+.system-preview-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--subtle-ink);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.system-preview-speed select {
+  min-width: 72px;
+  color: var(--ink);
+}
+
 .system-preview-toggle:hover,
-.system-preview-toggle:focus-visible {
+.system-preview-toggle:focus-visible,
+.system-preview-speed select:hover,
+.system-preview-speed select:focus-visible {
   border-color: var(--accent);
   outline: none;
 }
 
-.system-preview-toggle:disabled {
+.system-preview-toggle:disabled,
+.system-preview-speed select:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
@@ -4899,6 +4919,134 @@ main {
   flex: 0 0 auto;
   color: var(--accent);
   font-size: 0.58rem;
+}
+
+.system-preview-pinned {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  width: min(320px, calc(100% - 20px));
+  max-height: calc(100% - 20px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, #07111c 90%, transparent);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(12px);
+}
+
+.system-preview-pinned-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.system-preview-pinned-title div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.system-preview-pinned-title strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.96rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-preview-pinned-title span {
+  color: #a9bed0;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.system-preview-pinned-title button {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.system-preview-id-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px dashed color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-muted) 52%, transparent);
+  color: var(--ink);
+  cursor: copy;
+}
+
+.system-preview-id-copy span {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-preview-id-copy em {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.system-preview-pinned dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 5px 10px;
+  margin: 0;
+}
+
+.system-preview-pinned dt {
+  color: #8fa9be;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.system-preview-pinned dd {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: #eef6ff;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.system-preview-pinned dd span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-preview-pinned dd em {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-style: normal;
+  text-transform: uppercase;
 }
 
 .system-preview-readout {
@@ -5320,9 +5468,23 @@ main {
     grid-template-columns: 1fr;
   }
 
+  .system-preview-header {
+    flex-direction: column;
+  }
+
+  .system-preview-actions {
+    justify-content: flex-start;
+  }
+
   .system-preview-canvas,
   .system-preview-fallback {
     min-height: 240px;
+  }
+
+  .system-preview-pinned {
+    right: 8px;
+    bottom: 8px;
+    width: min(300px, calc(100% - 16px));
   }
 
   .header-main {
