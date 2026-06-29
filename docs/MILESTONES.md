@@ -668,6 +668,11 @@ Readiness gaps:
   the reusable evidence-pill UI so inspected values expose SOURCE, DERIVED,
   ASSUMED, or MISSING status and pinned readouts provide focusable provenance
   popovers.
+- June 29, 2026 visual-material pass adds deterministic procedural star and
+  planet surface materials plus bounded visual-scale planet sizing so live
+  system previews read as deliberate 3D scenes. These are renderer-only
+  presentation transforms over scene fields; they are not source texture maps
+  and are not persisted as science-layer values.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet

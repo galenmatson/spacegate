@@ -256,6 +256,11 @@ Rules:
   radii, deterministic phase, and cluster guide placement for `group_pair`
   orbit edges. These are presentation defaults unless backed by source or
   derived ARM fields.
+- The beta renderer may use transient deterministic procedural star/planet
+  surface materials and bounded visual-scale radius transforms. Persisting
+  those choices requires `simulation_assumptions` rows with generator version,
+  seed/input context, replacement target, and visible `ASSUMED`/illustrative
+  labeling.
 
 ## snapshot_manifest
 

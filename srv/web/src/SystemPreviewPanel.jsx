@@ -32,6 +32,13 @@ const STAR_COLOR_BY_TEMP = [
   [3500, "#ff9d6b"],
   [0, "#ff6f5e"],
 ];
+const PLANET_VISUAL_PALETTES = {
+  gas_giant: ["#d6b16d", "#9f714f", "#f0d697", "#6f5146"],
+  ice_giant: ["#7ed6e8", "#3d8fba", "#b4f0ff", "#316f8c"],
+  hot_rock: ["#3b2521", "#d15a2c", "#f2b06a", "#120e12"],
+  temperate_rock: ["#3f7faa", "#6e9d68", "#d3c087", "#25354a"],
+  cold_rock: ["#8b9caf", "#d6dee6", "#59687a", "#2f3a48"],
+};
 
 function numericField(fields, key) {
   const field = fieldRecord(fields, key);
@@ -63,6 +70,16 @@ function hashAngle(value) {
   return (hash / 0xffffffff) * Math.PI * 2;
 }
 
+function hashUnit(value, salt = "") {
+  const text = `${value || ""}:${salt}`;
+  let hash = 2166136261;
+  for (let idx = 0; idx < text.length; idx += 1) {
+    hash ^= text.charCodeAt(idx);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash / 0xffffffff;
+}
+
 function formatNumber(value, digits = 1) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -77,6 +94,114 @@ function starColor(teffK) {
     return "#ff9d6b";
   }
   return STAR_COLOR_BY_TEMP.find(([threshold]) => temp >= threshold)?.[1] || "#ff6f5e";
+}
+
+function planetVisualKind(planet) {
+  const radiusEarth = numericField(planet.fields, "radius_earth") || planet.radiusEarth || 1;
+  const eqTempK = numericField(planet.fields, "candidate_eq_temp_k");
+  const insolEarth = numericField(planet.fields, "candidate_insol_earth");
+  if (radiusEarth >= 6) {
+    return "gas_giant";
+  }
+  if (radiusEarth >= 2.1) {
+    return "ice_giant";
+  }
+  if ((eqTempK && eqTempK >= 650) || (insolEarth && insolEarth >= 15)) {
+    return "hot_rock";
+  }
+  if ((eqTempK && eqTempK <= 180) || (insolEarth && insolEarth <= 0.35)) {
+    return "cold_rock";
+  }
+  return "temperate_rock";
+}
+
+function makeCanvasTexture(draw, size = 128) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+  draw(context, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+function createStarTexture(seed, baseColor) {
+  return makeCanvasTexture((context, size) => {
+    context.fillStyle = baseColor;
+    context.fillRect(0, 0, size, size);
+    for (let idx = 0; idx < 260; idx += 1) {
+      const x = hashUnit(seed, `sx-${idx}`) * size;
+      const y = hashUnit(seed, `sy-${idx}`) * size;
+      const radius = 0.6 + hashUnit(seed, `sr-${idx}`) * 2.4;
+      const alpha = 0.05 + hashUnit(seed, `sa-${idx}`) * 0.13;
+      context.fillStyle = idx % 3 === 0 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha * 0.42})`;
+      context.beginPath();
+      context.arc(x, y, radius, 0, Math.PI * 2);
+      context.fill();
+    }
+    const gradient = context.createRadialGradient(size * 0.38, size * 0.34, size * 0.05, size * 0.5, size * 0.5, size * 0.72);
+    gradient.addColorStop(0, "rgba(255,255,255,0.36)");
+    gradient.addColorStop(0.45, "rgba(255,255,255,0.06)");
+    gradient.addColorStop(1, "rgba(0,0,0,0.34)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+  }, 128);
+}
+
+function createPlanetTexture(seed, kind) {
+  const palette = PLANET_VISUAL_PALETTES[kind] || PLANET_VISUAL_PALETTES.temperate_rock;
+  return makeCanvasTexture((context, size) => {
+    const gradient = context.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, palette[0]);
+    gradient.addColorStop(0.55, palette[1]);
+    gradient.addColorStop(1, palette[3]);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+
+    if (kind === "gas_giant" || kind === "ice_giant") {
+      for (let band = 0; band < 13; band += 1) {
+        const y = (band / 13) * size + hashUnit(seed, `band-y-${band}`) * 8 - 4;
+        const height = 5 + hashUnit(seed, `band-h-${band}`) * 12;
+        const color = palette[band % palette.length];
+        context.fillStyle = color;
+        context.globalAlpha = 0.26 + hashUnit(seed, `band-a-${band}`) * 0.28;
+        context.fillRect(0, y, size, height);
+      }
+      context.globalAlpha = 0.4;
+      context.fillStyle = palette[2];
+      context.beginPath();
+      context.ellipse(size * (0.35 + hashUnit(seed, "storm-x") * 0.35), size * 0.58, size * 0.08, size * 0.035, -0.25, 0, Math.PI * 2);
+      context.fill();
+    } else {
+      for (let idx = 0; idx < 84; idx += 1) {
+        const x = hashUnit(seed, `px-${idx}`) * size;
+        const y = hashUnit(seed, `py-${idx}`) * size;
+        const radius = 2 + hashUnit(seed, `pr-${idx}`) * 12;
+        context.fillStyle = palette[idx % palette.length];
+        context.globalAlpha = 0.09 + hashUnit(seed, `pa-${idx}`) * 0.24;
+        context.beginPath();
+        context.ellipse(x, y, radius, radius * (0.45 + hashUnit(seed, `pe-${idx}`)), hashUnit(seed, `rot-${idx}`) * Math.PI, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+    context.globalAlpha = 1;
+    const limb = context.createRadialGradient(size * 0.35, size * 0.3, size * 0.08, size * 0.5, size * 0.5, size * 0.72);
+    limb.addColorStop(0, "rgba(255,255,255,0.28)");
+    limb.addColorStop(0.55, "rgba(255,255,255,0.02)");
+    limb.addColorStop(1, "rgba(0,0,0,0.48)");
+    context.fillStyle = limb;
+    context.fillRect(0, 0, size, size);
+  }, 128);
 }
 
 function statusLabel(status) {
@@ -242,6 +367,8 @@ function StarSphere({ star, position = [0, 0, 0], onHover, onSelect }) {
   const radius = Math.min(1.35, Math.max(0.18, Math.sqrt(radiusRsun || 0.55) * 0.45));
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
   const color = teffK ? starColor(teffK) : (STAR_COLORS[String(star.spectral_class || "").slice(0, 1)] || "#ff9d6b");
+  const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
+  useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("star", star), [star]);
   const hoverHandlers = {
     onPointerOver: (event) => {
@@ -265,7 +392,11 @@ function StarSphere({ star, position = [0, 0, 0], onHover, onSelect }) {
     <group position={position}>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[radius, 32, 24]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.88} roughness={0.45} />
+        <meshStandardMaterial color={color} map={texture || null} emissive={color} emissiveIntensity={0.9} roughness={0.52} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[Math.max(radius * 1.75, radius + 0.18), 32, 20]} />
+        <meshBasicMaterial color={color} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[Math.max(radius * 1.8, 0.34), 16, 12]} />
@@ -670,6 +801,9 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
   const phaseRad = numericField(planet.fields, "phase_rad") || Number(planet.phaseRad) || 0;
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
+  const visualKind = planetVisualKind(planet);
+  const texture = useMemo(() => createPlanetTexture(planet.render_key || planet.key || planet.display_name || planet.name, visualKind), [planet, visualKind]);
+  useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("planet", planet), [planet]);
   const hoverHandlers = {
     onPointerOver: (event) => {
@@ -708,7 +842,11 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
     <group ref={groupRef} position={addVector(center, orbitalPosition(phaseRad, orbitRadius, eccentricity, inclinationRad))}>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[planet.radius, 18, 14]} />
-        <meshStandardMaterial color={color} roughness={0.58} metalness={0.08} />
+        <meshStandardMaterial color={color} map={texture || null} roughness={0.72} metalness={0.03} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[planet.radius * 1.08, 18, 14]} />
+        <meshBasicMaterial color="#b7e2ff" transparent opacity={visualKind === "gas_giant" ? 0.05 : 0.09} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[Math.max(planet.radius * 2.1, 0.2), 14, 10]} />
@@ -986,7 +1124,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         ...planet,
         key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
         orbitAu: numericField(planet.fields, "semi_major_axis_au") || 0.08 + idx * 0.08,
-        radius: Math.min(0.28, Math.max(0.08, Math.sqrt(numericField(planet.fields, "radius_earth") || 1) * 0.065)),
+        radius: Math.min(0.34, Math.max(0.105, Math.sqrt(numericField(planet.fields, "radius_earth") || 1) * 0.085)),
       }));
       mapped.renderOrbits = renderScene?.orbits || [];
       return mapped;
@@ -1002,7 +1140,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         periodDays: numericField(fields, "orbital_period_days") || Number(planet.orbital_period_days || 0),
         eccentricity: numericField(fields, "eccentricity") || Number(planet.eccentricity || 0),
         phaseRad: hashAngle(`${planet.stable_object_key || planet.object_id || planet.planet_id || planet.planet_name || idx}:phase`),
-        radius: Math.min(0.28, Math.max(0.08, Math.sqrt(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1)) * 0.065)),
+        radius: Math.min(0.34, Math.max(0.105, Math.sqrt(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1)) * 0.085)),
         radiusEarth: numericField(fields, "radius_earth") || Number(planet.radius_earth || 1),
         orbitStatus: fieldStatus(fields, "semi_major_axis_au"),
       };

@@ -228,6 +228,12 @@ Success criteria:
 - hover and pinned readouts use the same source/derived/assumed/missing
   evidence-pill affordance as the summary panel, including focusable provenance
   popovers in pinned readouts
+- star and planet surfaces use deterministic procedural renderer materials
+  based on existing scene fields and stable object keys; they are visual
+  presentation only, not source surface maps or persisted assumptions
+- planet radii use bounded clarity-scale caps/floors so compact systems remain
+  inspectable in the beta preview; physical-scale rendering remains future
+  policy work
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - source/derived/assumed/missing fields surface as visible provenance pills
