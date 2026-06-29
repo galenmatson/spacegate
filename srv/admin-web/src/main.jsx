@@ -595,6 +595,7 @@ function App() {
         <nav>
           <button className={activeScreen === "overview" ? "active" : ""} onClick={() => setActiveScreen("overview")}>Overview</button>
           <button className={activeScreen === "builds" ? "active" : ""} onClick={() => setActiveScreen("builds")}>Builds</button>
+          <button className={activeScreen === "presentation" ? "active" : ""} onClick={() => setActiveScreen("presentation")}>Presentation</button>
           <button className={activeScreen === "dataset" ? "active" : ""} onClick={() => setActiveScreen("dataset")}>Dataset</button>
           <button className={activeScreen === "objects" ? "active" : ""} onClick={() => setActiveScreen("objects")}>Objects</button>
           <button className={activeScreen === "inference" ? "active" : ""} onClick={() => setActiveScreen("inference")}>Inference</button>
@@ -611,6 +612,8 @@ function App() {
           <OverviewScreen auth={auth} />
         ) : activeScreen === "builds" ? (
           <BuildsScreen csrf={csrf} openOperationsJob={openOperationsJob} />
+        ) : activeScreen === "presentation" ? (
+          <BuildsScreen csrf={csrf} openOperationsJob={openOperationsJob} presentationOnly />
         ) : activeScreen === "dataset" ? (
           <DatasetScreen />
         ) : activeScreen === "objects" ? (
@@ -792,7 +795,7 @@ function OverviewFact({ label, value }) {
   );
 }
 
-function BuildsScreen({ csrf, openOperationsJob }) {
+function BuildsScreen({ csrf, openOperationsJob, presentationOnly = false }) {
   const [buildFocus, setBuildFocus] = useState("pipeline");
   const [state, setState] = useState({
     loading: true,
@@ -968,6 +971,50 @@ function BuildsScreen({ csrf, openOperationsJob }) {
     { key: "reports", label: "Reports", count: 2 },
   ];
 
+  if (presentationOnly) {
+    return (
+      <div className="screen">
+        <header className="page-header">
+          <div>
+            <h1>Presentation</h1>
+            <p className="muted">Coolness scoring and snapshot generation for public ranking and visual artifacts.</p>
+          </div>
+          <button className="button" onClick={loadBuilds}>{state.loading ? "Refreshing..." : "Refresh"}</button>
+        </header>
+
+        <div className="kpi-row">
+          {[
+            { label: "Served build", value: compactBuildId(state.status?.build_id || served.build_id) },
+            { label: "Coolness", value: readableStatus(coolness.status || "missing"), tone: statusTone(coolness.status || "missing") },
+            { label: "Snapshots", value: readableStatus(snapshot.status || "missing"), tone: statusTone(snapshot.status || "missing") },
+            { label: "Verification", value: readableStatus(verification.status || "unknown"), tone: statusTone(verification.status) },
+          ].map((item) => (
+            <div className={`kpi ${item.tone || ""}`} key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className={state.message === "Ready" ? "status-line" : "status-line danger-line"}>{state.message}</div>
+
+        <PresentationWorkspace
+          coolness={coolness}
+          currentBuild={currentBuild}
+          presentationActions={presentationActions}
+          snapshot={snapshot}
+          snapshotControl={snapshotControl}
+          snapshotJob={snapshotJob}
+          scoreJob={scoreJob}
+          busyAction={busyAction}
+          cancelJob={cancelJob}
+          openOperationsJob={openOperationsJob}
+          runAction={runAction}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="screen">
       <header className="page-header">
@@ -1019,63 +1066,10 @@ function BuildsScreen({ csrf, openOperationsJob }) {
         </div>
       </section>
 
-      <section className="builds-presentation-panel">
-        <div className="panel-head">
-          <div>
-            <h2>Presentation</h2>
-            <p className="muted">Coolness scoring and snapshot generation for public ranking and visual artifacts.</p>
-          </div>
-          <div className="artifact-flags">
-            <span className={`badge ${statusTone(coolness.status || "missing")}`}>Coolness {readableStatus(coolness.status || "missing")}</span>
-            <span className={`badge ${statusTone(snapshot.status || "missing")}`}>Snapshots {readableStatus(snapshot.status || "missing")}</span>
-          </div>
-        </div>
-
-        <div className="builds-grid">
-          <div className="panel panel-subsection">
-            <div className="panel-head compact">
-              <div>
-                <h3>Presentation Jobs</h3>
-                <p className="muted">Run coolness scoring and snapshot generation for the served build. These jobs write presentation artifacts only.</p>
-              </div>
-            </div>
-            <div className="action-grid">
-              {presentationActions.map((action) => (
-                <ActionCard
-                  action={action}
-                  key={action.name}
-                  runAction={runAction}
-                  busy={busyAction === action.name}
-                  snapshotControl={snapshotControl}
-                />
-              ))}
-            </div>
-          </div>
-          <SnapshotOperationsPanel
-            snapshotControl={snapshotControl}
-            snapshotJob={snapshotJob}
-            openOperationsJob={openOperationsJob}
-            cancelJob={cancelJob}
-          />
-        </div>
-
-        <div className="builds-grid">
-          <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-          <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-        </div>
-
-        <div className="panel-subsection presentation-path-strip">
-          <h3>Presentation Path</h3>
-          <OverviewFact label="Score job" value={scoreJob?.job_id ? compactId(scoreJob.job_id, 20) : "n/a"} />
-          <OverviewFact label="Snapshot job" value={snapshotJob?.job_id ? compactId(snapshotJob.job_id, 20) : "n/a"} />
-          <OverviewFact label="View type" value={snapshot.view_type || "system_card"} />
-        </div>
-      </section>
-
       <section className="panel runbook-filter-panel">
         <div>
           <h2>Builds Focus</h2>
-          <p className="muted">Choose the build workspace you need now. Presentation controls stay visible because they are part of normal public-site tuning.</p>
+          <p className="muted">Choose the build workspace you need now. Coolness and snapshots are in the Presentation sidebar workspace.</p>
         </div>
         <div className="segmented-control">
           {buildFocusItems.map((item) => (
@@ -1168,6 +1162,75 @@ function BuildsScreen({ csrf, openOperationsJob }) {
         </section>
       ) : null}
     </div>
+  );
+}
+
+function PresentationWorkspace({
+  coolness,
+  currentBuild,
+  presentationActions,
+  snapshot,
+  snapshotControl,
+  snapshotJob,
+  scoreJob,
+  busyAction,
+  cancelJob,
+  openOperationsJob,
+  runAction,
+}) {
+  return (
+    <section className="builds-presentation-panel">
+      <div className="panel-head">
+        <div>
+          <h2>Presentation Control</h2>
+          <p className="muted">Tune the public discovery ranking, inspect scoring output, and generate visual snapshot artifacts.</p>
+        </div>
+        <div className="artifact-flags">
+          <span className={`badge ${statusTone(coolness.status || "missing")}`}>Coolness {readableStatus(coolness.status || "missing")}</span>
+          <span className={`badge ${statusTone(snapshot.status || "missing")}`}>Snapshots {readableStatus(snapshot.status || "missing")}</span>
+        </div>
+      </div>
+
+      <div className="builds-grid">
+        <div className="panel panel-subsection">
+          <div className="panel-head compact">
+            <div>
+              <h3>Presentation Jobs</h3>
+              <p className="muted">Run coolness scoring and snapshot generation for the served build. These jobs write presentation artifacts only.</p>
+            </div>
+          </div>
+          <div className="action-grid">
+            {presentationActions.map((action) => (
+              <ActionCard
+                action={action}
+                key={action.name}
+                runAction={runAction}
+                busy={busyAction === action.name}
+                snapshotControl={snapshotControl}
+              />
+            ))}
+          </div>
+        </div>
+        <SnapshotOperationsPanel
+          snapshotControl={snapshotControl}
+          snapshotJob={snapshotJob}
+          openOperationsJob={openOperationsJob}
+          cancelJob={cancelJob}
+        />
+      </div>
+
+      <div className="builds-grid">
+        <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+        <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+      </div>
+
+      <div className="panel-subsection presentation-path-strip">
+        <h3>Presentation Path</h3>
+        <OverviewFact label="Score job" value={scoreJob?.job_id ? compactId(scoreJob.job_id, 20) : "n/a"} />
+        <OverviewFact label="Snapshot job" value={snapshotJob?.job_id ? compactId(snapshotJob.job_id, 20) : "n/a"} />
+        <OverviewFact label="View type" value={snapshot.view_type || "system_card"} />
+      </div>
+    </section>
   );
 }
 
