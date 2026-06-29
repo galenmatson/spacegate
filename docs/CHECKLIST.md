@@ -276,6 +276,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Export rendered simulator assumptions as structured
   `render_scene.assumptions` records shaped for future
   `disc.simulation_assumptions` persistence
+- [x] Add selected-system `disc.simulation_assumptions` materialization with
+  stable assumption keys, Parquet export, and API transient/persisted status
 - [x] Add deterministic procedural star/planet materials and clarity-scale
   planet radius caps/floors to the Live System Preview without persisting them
   as science data
@@ -317,7 +319,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   ranked solution candidates instead of relying only on `pscomppars` defaults
 - [x] Live System Preview v0.2 renderer-ready payload, multi-star binary visual
   groups, and preview provenance pills
-- [ ] Persist reviewed visualization assumptions in `disc.simulation_assumptions`
+- [ ] Add reviewed-curation workflow and broader batch policy for
+  `disc.simulation_assumptions`
 - [ ] Live 3D system preview/simulation scenes with deterministic static snapshot fallback
 - [ ] Rim/worldbuilding overlay expansion without core contamination
 - [x] Cross-layer system graph contract documented (containment spine + relation graph, layer ownership, generator compatibility)

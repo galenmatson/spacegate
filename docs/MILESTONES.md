@@ -694,9 +694,14 @@ Readiness gaps:
   `render_scene`, makes the browser consume the policy for star radius, planet
   radius, planet orbit spacing, and group orbit motion scale, and labels the
   preview readout as clarity-scaled rather than physical scale.
-- full client epoch/time controls, uncertainty visualization, persisted
-  assumption materialization, true nested barycentric subsystem propagation,
-  and physical-scale/precision display modes are not implemented yet
+- June 29, 2026 simulator assumption materialization pass adds
+  `scripts/materialize_simulation_assumptions.py`, creates
+  `disc.simulation_assumptions` rows and Parquet for selected/benchmark
+  systems, and annotates API assumption records as transient or persisted.
+- full client epoch/time controls, uncertainty visualization, reviewed
+  assumption curation/batch policy, true nested barycentric subsystem
+  propagation, and physical-scale/precision display modes are not implemented
+  yet
 - Sirius B / compact-object companion representation is still a source
   hierarchy gap; the renderer must not invent missing Sirius A/B structure as a
   visual-only child. June 29, 2026 audit found the current public side-sliced

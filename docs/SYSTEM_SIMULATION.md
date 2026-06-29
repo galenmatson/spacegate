@@ -29,6 +29,9 @@ Already in place:
 - the beta scene contract includes `visual_scale_beta_v1`, an explicit
   clarity-scale policy for star radii, planet radii, planet orbit spacing, and
   binary/group orbit display radii
+- selected-system `disc.simulation_assumptions` materialization is available
+  through `scripts/materialize_simulation_assumptions.py`; the API annotates
+  matching rendered assumptions with `persistence_status="persisted"`
 - the browser renderer checks WebGL capability before mounting R3F and falls
   back inside the preview panel to the deterministic snapshot artifact when 3D
   is unavailable or the live scene load fails
@@ -98,7 +101,8 @@ Response shape:
     "bodies": {"stars": [], "planets": []},
     "orbits": [],
     "assumptions": [],
-    "assumption_count": 0
+    "assumption_count": 0,
+    "persisted_assumption_count": 0
   },
   "policy": {
     "canonical_layer": "core",
@@ -123,13 +127,14 @@ Rules:
 - `rim` rows are fictional/worldbuilding overlays only.
 - Missing orbital data must not be silently replaced with canonical-looking
   values. Visualization defaults belong in `disc` and must be labeled.
-- `render_scene_v0.2` may emit transient deterministic assumptions using
-  `procedural_prior_v1`; persistent assumption rows remain future
-  `disc.simulation_assumptions` work.
+- `render_scene_v0.2` may emit deterministic assumptions using
+  `procedural_prior_v1`; selected systems can be persisted into
+  `disc.simulation_assumptions` by `scripts/materialize_simulation_assumptions.py`.
 - `render_scene_v0.2` also exports every rendered `status="assumed"` field in
-  `render_scene.assumptions` using the planned `disc.simulation_assumptions`
-  object-binding shape. This is an audit/export path only; it does not persist
-  assumptions or make them science facts.
+  `render_scene.assumptions` using the `disc.simulation_assumptions`
+  object-binding shape. API records include a stable `assumption_key` and
+  `persistence_status`; persisted rows remain presentation assumptions and do
+  not become science facts.
 - `visual_scale_beta_v1` is a presentation contract. It tells clients how the
   beta renderer exaggerates/normalizes radii and orbit spacing for clarity, and
   must not be interpreted as source physical scale.
@@ -261,8 +266,11 @@ Success criteria:
 - source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness/render payloads
 - every rendered assumption is exported as a structured render-scene assumption
-  record suitable for later reviewed `disc.simulation_assumptions`
+  record suitable for selected-system `disc.simulation_assumptions`
   materialization
+- benchmark simulator assumptions are materialized in the current DISC artifact
+  with `simulation_assumptions_materializer_v1`; broader reviewed curation and
+  batch policy remain future work
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 

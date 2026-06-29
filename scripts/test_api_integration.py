@@ -130,6 +130,18 @@ def main():
     render_assumptions = scene_json.get("render_scene", {}).get("assumptions") or []
     if scene_json.get("render_scene", {}).get("assumption_count") != len(render_assumptions):
         raise AssertionError("simulation scene render assumption_count mismatch")
+    if scene_json.get("render_scene", {}).get("persisted_assumption_count") is None:
+        raise AssertionError("simulation scene render persisted_assumption_count missing")
+    for assumption in render_assumptions:
+        require_keys(
+            assumption,
+            ["assumption_key", "parameter_key", "input_context_json", "persistence_status"],
+            "simulation scene.render_scene.assumption",
+        )
+        if assumption.get("persistence_status") not in {"transient", "persisted"}:
+            raise AssertionError(
+                f"unexpected simulation assumption persistence_status: {assumption.get('persistence_status')!r}"
+            )
     require_keys(
         scene_json["arm"],
         ["components", "hierarchy_edges", "orbit_edges", "orbital_solutions"],

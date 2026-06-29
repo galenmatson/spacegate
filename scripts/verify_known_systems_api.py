@@ -179,11 +179,13 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         )
     for assumption in assumptions:
         required_keys = {
+            "assumption_key",
             "object_type",
             "parameter_key",
             "assumption_version",
             "visibility_label",
             "input_context_json",
+            "persistence_status",
             "field",
         }
         missing = sorted(key for key in required_keys if key not in assumption)
@@ -191,6 +193,10 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
             raise AssertionError(f"{case.query}: render assumption missing keys {missing}: {assumption}")
         if assumption.get("visibility_label") != "assumed":
             raise AssertionError(f"{case.query}: unexpected assumption visibility {assumption.get('visibility_label')!r}")
+        if assumption.get("persistence_status") not in {"transient", "persisted"}:
+            raise AssertionError(
+                f"{case.query}: unexpected assumption persistence status {assumption.get('persistence_status')!r}"
+            )
         field = assumption.get("field") or {}
         if field.get("status") != "assumed":
             raise AssertionError(f"{case.query}: assumption record field is not marked assumed: {field}")

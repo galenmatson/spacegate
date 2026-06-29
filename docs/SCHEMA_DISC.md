@@ -61,7 +61,9 @@ Current status snapshot:
 - `system_neighbors`: planned
 - `system_tags`: planned
 - `snapshot_manifest`: implemented (`scripts/generate_snapshots.py`)
-- `simulation_assumptions`: planned
+- `simulation_assumptions`: implemented for selected-system simulator
+  materialization (`scripts/materialize_simulation_assumptions.py`); broader
+  reviewed curation workflow remains planned
 - `external_reference_links`: planned
 - `source_evidence_links`: planned
 - Evidence Portfolio operational store: implemented in the Admin DB as mutable
@@ -210,19 +212,24 @@ Required columns:
 - `generator_version TEXT`
 - `created_at TIMESTAMP`
 
-## simulation_assumptions (planned)
+## simulation_assumptions
 
 Reproducible presentation/simulation defaults used when a visual or 3D scene
 needs a value but no source-backed or defensible `arm` derivative is available.
 
 Required columns:
+- durable identity:
+  - `assumption_key TEXT`
 - object binding:
   - `object_type TEXT` (`system|star|planet|component|orbit`)
   - `system_id BIGINT` (nullable)
   - `star_id BIGINT` (nullable)
   - `planet_id BIGINT` (nullable)
+  - `orbit_edge_id BIGINT` (nullable)
   - `stable_object_key TEXT` (nullable)
   - `stable_component_key TEXT` (nullable)
+  - `render_key TEXT` (nullable)
+  - `display_name TEXT` (nullable)
 - assumption:
   - `parameter_key TEXT` (for example `eccentricity`, `inclination_deg`,
     `render_albedo`, `surface_palette`, `cloud_fraction`)
@@ -234,9 +241,18 @@ Required columns:
   - `input_context_json TEXT`
   - `replacement_target TEXT`
   - `visibility_label TEXT` (`assumed|illustrative|placeholder`)
+  - `layer TEXT`
+  - `seed TEXT` (nullable)
+  - `confidence DOUBLE` (nullable)
+  - `confidence_tier TEXT` (nullable)
+  - `notes TEXT` (nullable)
+  - `field_json TEXT`
 - build/version:
   - `build_id TEXT`
   - `generator_version TEXT`
+  - `source_scene_schema_version TEXT`
+  - `render_scene_schema_version TEXT`
+  - `materialization_version TEXT`
   - `created_at TIMESTAMP`
 
 Rules:
@@ -249,16 +265,18 @@ Rules:
 - Agency enrichment should treat active assumptions as search targets for real
   values, but conversations or generated prose must not silently convert an
   assumption into a science claim.
-- Live System Preview v0.2 currently emits transient `procedural_prior_v1`
+- Live System Preview v0.2 emits deterministic `procedural_prior_v1`
   assumption fields in the API `render_scene` payload and mirrors every
   rendered `status="assumed"` field into `render_scene.assumptions` using this
-  table's object-binding shape. Persisting those records here is a later
-  materialization step, not a current science ingest.
+  table's object-binding shape. `scripts/materialize_simulation_assumptions.py`
+  persists selected system records into this table and exports
+  `disc/simulation_assumptions.parquet`; those rows remain presentation-layer
+  assumptions, not science ingest.
 - The beta renderer may also use transient visual layout values such as scene
   radii, deterministic phase, and cluster guide placement for `group_pair`
   orbit edges. These are presentation defaults unless backed by source or
   derived ARM fields.
-- The beta renderer may use transient deterministic procedural star/planet
+- The beta renderer may use deterministic procedural star/planet
   surface materials and bounded visual-scale radius transforms. Persisting
   those choices requires `simulation_assumptions` rows with generator version,
   seed/input context, replacement target, and visible `ASSUMED`/illustrative

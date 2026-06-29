@@ -311,6 +311,7 @@ Response:
     "orbits": [],
     "assumptions": [],
     "assumption_count": 0,
+    "persisted_assumption_count": 0,
     "provenance_legend": {
       "source": "Catalog/source value from core or arm.",
       "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
@@ -361,12 +362,16 @@ Contract notes:
   physical distance or radius units; source science values remain in the
   individual field provenance objects and core/arm rows.
 - `render_scene.assumptions` is an additive export of every rendered field with
-  `status="assumed"`. Each record is shaped for later
-  `disc.simulation_assumptions` materialization and includes object binding,
-  `parameter_key`, `value_json`, `assumption_kind`, `assumption_method`,
-  `assumption_version`, `replacement_target`, `visibility_label`, seed,
-  generator version, and the original field provenance object. These rows are
-  transient API records until explicitly persisted in `disc`.
+  `status="assumed"`. Each record is shaped for
+  `disc.simulation_assumptions` materialization and includes `assumption_key`,
+  object binding, `parameter_key`, `value_json`, `assumption_kind`,
+  `assumption_method`, `assumption_version`, `replacement_target`,
+  `visibility_label`, seed, generator version, persistence status, and the
+  original field provenance object. `persistence_status` is `transient` until
+  the selected-system materializer writes a matching
+  `disc.simulation_assumptions` row, then `persisted`.
+  `persisted_assumption_count` reports how many current rendered assumptions
+  matched the served `disc` table.
   Group-pair display transforms are presentation scale only; source orbital
   evidence remains in `arm.orbit_edges` and `arm.orbital_solutions`.
   It may include deterministic procedural fields with `status="assumed"`,
