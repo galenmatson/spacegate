@@ -2896,7 +2896,33 @@ def _report_presence(reports_dir: Path, names: Sequence[str]) -> List[Dict[str, 
     return out
 
 
-def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, Any]:
+def _compact_verification_job_ref(job: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if not job:
+        return None
+    return {
+        "job_id": job.get("job_id"),
+        "action": job.get("action"),
+        "status": job.get("status"),
+        "created_at": job.get("created_at"),
+        "started_at": job.get("started_at"),
+        "finished_at": job.get("finished_at"),
+        "exit_code": job.get("exit_code"),
+        "log_path": job.get("log_path"),
+    }
+
+
+def _latest_verification_job_for_build(jobs: Sequence[Dict[str, Any]], build_id: str) -> Dict[str, Any] | None:
+    if not build_id:
+        return None
+    for job in jobs:
+        if job.get("action") != "verify_build":
+            continue
+        if _job_mentions_build(job, build_id):
+            return job
+    return None
+
+
+def _build_verification_summary(reports_dir: Path, build_id: str, jobs: Sequence[Dict[str, Any]] | None = None) -> Dict[str, Any]:
     required_names = ("qc_report.json", "match_report.json", "provenance_report.json")
     supplemental_names = (
         "duplicate_trap_report.json",
@@ -2911,9 +2937,11 @@ def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, A
     issues: List[str] = []
     warnings: List[str] = []
     checks: Dict[str, Any] = {}
+    verification_job = _latest_verification_job_for_build(jobs or [], build_id)
+    verification_job_ref = _compact_verification_job_ref(verification_job)
 
     if not reports_dir.exists() or not reports_dir.is_dir():
-        issues.append("Report directory is missing.")
+        warnings.append("Report directory is missing.")
     if missing_required:
         warnings.append(
             "Legacy verify reports are absent for this build; verify_build.sh "
@@ -2998,8 +3026,19 @@ def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, A
     else:
         warnings.append("duplicate_trap_report.json is absent; default verification may allow this, strict verification may not.")
 
+    if verification_job_ref:
+        checks["latest_verify_job"] = verification_job_ref
+
+    verify_job_succeeded = verification_job is not None and verification_job.get("status") == "succeeded"
+    verify_job_failed = verification_job is not None and verification_job.get("status") == "failed"
+
+    if verify_job_failed:
+        issues.append(f"Latest Verify Build job failed: {verification_job.get('job_id')}.")
+
     if issues:
         status = "failed"
+    elif verify_job_succeeded:
+        status = "passed_job"
     elif missing_required or warnings:
         status = "attention"
     elif all(item["exists"] for item in required):
@@ -3015,6 +3054,7 @@ def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, A
         "issues": issues,
         "warnings": warnings,
         "checks": checks,
+        "latest_verify_job": verification_job_ref,
     }
 
 
@@ -3320,7 +3360,7 @@ def _path_health(path: Path, *, label: str, required: bool = True, require_writa
     }
 
 
-def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
+def _build_artifact_summary(state_dir: Path, build_dir: Path, jobs: Sequence[Dict[str, Any]] | None = None) -> Dict[str, Any]:
     build_id = build_dir.name
     reports_dir = state_dir / "reports" / build_id
     core_db = build_dir / "core.duckdb"
@@ -3371,13 +3411,13 @@ def _build_artifact_summary(state_dir: Path, build_dir: Path) -> Dict[str, Any]:
         "missing_required": missing_required + missing_parquet,
         "missing_artifacts": missing_required,
         "missing_parquet": missing_parquet,
-        "verification": _build_verification_summary(reports_dir, build_id),
+        "verification": _build_verification_summary(reports_dir, build_id, jobs=jobs),
         "snapshot": _snapshot_report_summary(reports_dir),
         "coolness": _coolness_report_summary(reports_dir),
     }
 
 
-def _recent_builds(state_dir: Path, limit: int = 12) -> List[Dict[str, Any]]:
+def _recent_builds(state_dir: Path, limit: int = 12, jobs: Sequence[Dict[str, Any]] | None = None) -> List[Dict[str, Any]]:
     out_dir = state_dir / "out"
     if not out_dir.exists() or not out_dir.is_dir():
         return []
@@ -3386,7 +3426,7 @@ def _recent_builds(state_dir: Path, limit: int = 12) -> List[Dict[str, Any]]:
         if path.is_dir() and not path.name.endswith(".tmp")
     ]
     candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
-    return [_build_artifact_summary(state_dir, path) for path in candidates[: max(1, limit)]]
+    return [_build_artifact_summary(state_dir, path, jobs=jobs) for path in candidates[: max(1, limit)]]
 
 
 def _compact_job_ref(job: Dict[str, Any] | None) -> Dict[str, Any] | None:
@@ -3722,7 +3762,7 @@ def _build_next_actions(
                     "action": "Rebuild or restore before publishing/deploying.",
                 }
             )
-        if verification.get("status") not in {"passed_reports", "attention"}:
+        if verification.get("status") not in {"passed_reports", "passed_job", "attention"}:
             actions.append(
                 {
                     "priority": "high",
@@ -3785,7 +3825,7 @@ def _build_next_actions(
                 "action": "Capture the failure cause before pruning .tmp outputs.",
             }
         )
-    elif retention.get("can_run_now") and current_build and (current_build.get("verification") or {}).get("status") in {"passed_reports", "attention"}:
+    elif retention.get("can_run_now") and current_build and (current_build.get("verification") or {}).get("status") in {"passed_reports", "passed_job", "attention"}:
         actions.append(
             {
                 "priority": "low",
@@ -3815,7 +3855,7 @@ def builds_status() -> Dict[str, Any]:
         jobs_error = str(exc)
     active_build_jobs = _build_related_jobs(jobs)
     served = _served_current_target(state_dir)
-    recent_builds = _recent_builds(state_dir, limit=16)
+    recent_builds = _recent_builds(state_dir, limit=16, jobs=jobs)
     tmp_builds = _tmp_builds(state_dir, limit=20, jobs=jobs)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
     current_build = next((item for item in recent_builds if item.get("build_id") == served.get("build_id")), None)
@@ -3891,7 +3931,7 @@ def operations_status() -> Dict[str, Any]:
             break
     admin_backups = backups.get("admin_db") or []
     release_backups = backups.get("release_metadata") or []
-    recent_builds = _recent_builds(state_dir, limit=12)
+    recent_builds = _recent_builds(state_dir, limit=12, jobs=jobs)
     tmp_builds = _tmp_builds(state_dir, limit=20, jobs=jobs)
     incomplete_builds = [item for item in recent_builds if not item.get("promotable")]
     served = _served_current_target(state_dir)

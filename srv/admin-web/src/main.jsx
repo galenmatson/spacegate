@@ -1147,7 +1147,7 @@ function readableStatus(value) {
 
 function statusTone(value) {
   const status = String(value || "").toLowerCase();
-  if (["ok", "passed", "passed_reports", "generated", "reused", "present", "ready"].includes(status)) return "ok";
+  if (["ok", "passed", "passed_reports", "passed_job", "generated", "reused", "present", "ready"].includes(status)) return "ok";
   if (["failed", "error", "parse_error", "missing_reports"].includes(status)) return "danger";
   if (["unknown", "", "null_result", "not_applicable"].includes(status)) return "muted";
   return "warn";
