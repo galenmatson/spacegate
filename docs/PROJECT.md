@@ -584,6 +584,10 @@ Implementation constraints:
   Diagnostics, Inference, Agency, Runtime, Operations/Jobs, Audit
 - Admin v2 routes mutating work through authenticated, CSRF-protected,
   allowlisted jobs with audit records
+- Public-edge Admin should receive a reverse-proxy hardening pass before broader
+  promotion: gate `/admin` and `/api/v2/admin/*` with an outer control such as
+  VPN/Tailscale, IP allowlist, or basic auth. Obscuring the visible Admin path
+  is acceptable as bot-noise reduction only, not as the security boundary.
 
 ## Dataset Slice Policy (Admin Dataset Panel)
 

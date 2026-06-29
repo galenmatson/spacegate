@@ -169,6 +169,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Dedicated `spacegate-run` service user and shared group model for Admin/API runtime
 - [ ] Antiproton runtime identity cleanup: migrate `/srv/spacegate/data` from legacy `ubuntu:ubuntu` ownership to a dedicated non-login `spacegate` runtime user with shared `spacegate` group access; keep `sgdeploy` as deploy/restart account only
 - [ ] Reassess antiproton `sgdeploy` Docker-group membership and replace with a narrower deploy control path if feasible
+- [ ] Public-edge Admin route hardening: reverse-proxy gate `/admin` and
+  `/api/v2/admin/*` with VPN/Tailscale, IP allowlist, or basic auth; optional
+  obscure Admin path only as bot-noise reduction
 - [ ] Secret handling hardening beyond Compose-expanded environment variables
 - [ ] AI Astronomy Agency prompt-injection hardening fixture set
 - [ ] Agent source-text isolation and tool-boundary enforcement tests

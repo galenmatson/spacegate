@@ -102,6 +102,10 @@ Remaining hardening backlog:
   accidentally print secret-bearing `docker compose config` output
 - decide whether public-edge `antiproton` needs a stricter Compose profile than
   Photon development
+- gate public-edge Admin routes at the reverse proxy layer: protect `/admin`
+  and `/api/v2/admin/*` with an outer control such as VPN/Tailscale, IP
+  allowlist, or basic auth; optional path obfuscation can reduce bot noise but
+  must not be treated as the security boundary
 - normalize `antiproton` runtime identity and data ownership:
   current production hotfix pins containers to the legacy `ubuntu:ubuntu`
   data-owner UID/GID so SQLite admin state can write WAL/shm files; the final
