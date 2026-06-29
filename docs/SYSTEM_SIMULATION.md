@@ -20,6 +20,8 @@ Already in place:
   orbit endpoints alone
 - the first browser renderer uses the hierarchy tree for stable visual cluster
   centers and hosts nested planets around their render host/body group
+- the first browser renderer has a pauseable local animation clock, sampled
+  eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
   currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and
@@ -28,7 +30,7 @@ Already in place:
 
 Not ready yet:
 
-- a client simulation clock and propagation policy
+- a full client simulation clock, epoch controls, and propagation policy
 - source-refresh verification for stale multiplicity/orbital inputs
 - uncertainty visualization
 - final scale policy for stellar radii, planetary radii, orbital distances,

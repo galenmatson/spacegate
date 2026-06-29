@@ -145,6 +145,10 @@ Initial layers:
   - places planet orbits around their render host/body group when the scene
     exposes nested planet hosts such as Proxima inside Alpha Centauri
   - animates planets from source `orbital_period_days` when present
+  - samples orbit-guide paths from the same eccentric/inclined position math
+    used by animated planets, so guide lines match traced motion
+  - supports start/pause controls for the local preview clock
+  - exposes hover vitals for rendered stars and planets inside the preview
   - assigns deterministic per-body starting phases so planets do not begin
     aligned while keeping reloads reproducible
   - surfaces source/derived/assumed/missing provenance pills in the preview

@@ -95,6 +95,11 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
+    await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
+    await page.getByRole("button", { name: /pause/i }).click();
+    await expect(page.getByRole("button", { name: /start/i })).toBeVisible();
+    await page.getByRole("button", { name: /start/i }).click();
+    await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

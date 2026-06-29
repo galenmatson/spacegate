@@ -637,7 +637,10 @@ Readiness gaps:
   centers, keeps binary orbit animation within those clusters, and hosts nested
   planet orbits around their render body/group. Playwright now covers Alpha
   Centauri's nested Proxima planet preview path.
-- client simulation clock, uncertainty visualization, persisted assumption
+- June 29, 2026 interaction pass adds a pauseable local preview clock, sampled
+  eccentric/inclined orbit guide paths that match planet motion, and hover
+  vitals for rendered stars and planets.
+- full client time controls, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
