@@ -263,7 +263,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   deterministic system snapshot artifact
 - [x] Add mobile Playwright coverage for the system-detail Live System Preview
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
-  TRAPPIST-1 source-backed periods, and 55 Cnc/Sol source-backed planet periods
+  Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
+  55 Cnc/Sol source-backed planet periods
+- [ ] Restore Sirius B / compact-object companion representation in source
+  hierarchy and simulator benchmark coverage without fabricating renderer-only
+  stars
 - [ ] Implement true nested barycentric subsystem propagation for hierarchical
   multi-star systems after source epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage for current public

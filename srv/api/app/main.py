@@ -1143,6 +1143,30 @@ def _render_scene_contract(
     rendered_core_star_ids: set[int] = set()
     rendered_display_names: set[str] = set()
 
+    def single_star_display_name() -> tuple[Optional[str], Optional[str]]:
+        if len(stars) != 1:
+            return None, None
+        aliases = system.get("aliases") if isinstance(system.get("aliases"), list) else []
+        preferred_alias_kinds = (
+            "proper_name",
+            "member_proper_name",
+            "common_name",
+            "iau_name",
+            "planet_host_name",
+        )
+        for alias_kind in preferred_alias_kinds:
+            for alias in aliases:
+                if not isinstance(alias, dict) or str(alias.get("alias_kind") or "") != alias_kind:
+                    continue
+                value = str(alias.get("alias_raw") or "").strip()
+                if value:
+                    return value, f"system_alias:{alias_kind}"
+        for key in ("display_name", "system_name"):
+            value = str(system.get(key) or "").strip()
+            if value:
+                return value, f"system:{key}"
+        return None, None
+
     def add_core_star(star: Dict[str, Any]) -> str:
         star_id = int(star.get("star_id") or -1)
         render_key = str(star.get("stable_object_key") or f"star:{star_id}")
@@ -1150,11 +1174,15 @@ def _render_scene_contract(
             return render_key
         readiness = star_readiness_by_id.get(star_id) or {}
         fields = _field_map(readiness.get("fields") or [])
+        display_name, display_name_basis = single_star_display_name()
+        if not display_name:
+            display_name = star.get("display_name") or star.get("star_name") or render_key
+            display_name_basis = "core.star_name"
         render_stars[render_key] = {
             "render_key": render_key,
             "source_component_key": None,
             "object_type": "star",
-            "display_name": star.get("display_name") or star.get("star_name") or render_key,
+            "display_name": display_name,
             "component": star.get("component"),
             "spectral_class": _visual_star_color_class(star),
             "fields": fields,
@@ -1162,6 +1190,7 @@ def _render_scene_contract(
                 "layer": "core",
                 "stable_object_key": star.get("stable_object_key"),
                 "star_id": star.get("star_id"),
+                "display_name_basis": display_name_basis,
             },
         }
         if star_id >= 0:
@@ -1187,7 +1216,8 @@ def _render_scene_contract(
                 render_stars[component_key] = dict(render_stars[core_key])
                 render_stars[component_key]["render_key"] = component_key
                 render_stars[component_key]["source_component_key"] = component_key
-                render_stars[component_key]["display_name"] = component.get("display_name") or render_stars[core_key]["display_name"]
+                if len(stars) != 1:
+                    render_stars[component_key]["display_name"] = component.get("display_name") or render_stars[core_key]["display_name"]
                 if core_key != component_key:
                     render_stars.pop(core_key, None)
                 if component.get("display_name"):

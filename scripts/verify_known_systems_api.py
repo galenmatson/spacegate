@@ -74,6 +74,15 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         min_scene_stars=1,
     ),
     BenchmarkCase(
+        "Proxima Centauri",
+        max_dist_ly=5.0,
+        min_star_count=1,
+        min_planet_count=2,
+        expected_aliases=("Proxima Centauri",),
+        min_scene_stars=1,
+        min_scene_planets=2,
+    ),
+    BenchmarkCase(
         "TRAPPIST-1",
         max_dist_ly=45.0,
         min_star_count=1,
@@ -187,6 +196,20 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         expected = case.min_scene_planets or 1
         if len(source_periods) < expected:
             raise AssertionError(f"{case.query}: expected at least {expected} source-backed rendered planet periods, got {len(source_periods)}")
+
+    if query_norm == "proxima centauri":
+        star_names = [normalize(star.get("display_name")) for star in scene_stars]
+        if not any("proxima" in name for name in star_names):
+            raise AssertionError(f"{case.query}: expected rendered star display name to include Proxima, got {star_names}")
+        source_periods = [
+            field
+            for planet in scene_planets
+            if (field := field_by_key(planet.get("fields"), "orbital_period_days"))
+            and field.get("value") is not None
+            and field.get("status") == "source"
+        ]
+        if len(source_periods) < 2:
+            raise AssertionError(f"{case.query}: expected two source-backed rendered planet periods, got {len(source_periods)}")
 
     if query_norm == "castor":
         render_orbits = render_scene.get("orbits") or []

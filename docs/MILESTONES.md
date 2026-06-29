@@ -660,9 +660,16 @@ Readiness gaps:
 - June 29, 2026 fallback/mobile pass adds live-preview WebGL capability
   detection, in-panel deterministic snapshot fallback, and mobile Playwright
   coverage for the system-detail preview canvas/readout/pin flow.
+- June 29, 2026 benchmark-label pass preserves canonical star keys while using
+  the best system human alias for single-star preview display names. Proxima
+  Centauri now has explicit simulator benchmark coverage for its rendered star
+  label and two source-backed planet periods.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet
+- Sirius B / compact-object companion representation is still a source
+  hierarchy gap; the renderer must not invent the white dwarf as a visual-only
+  child
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and

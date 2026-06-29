@@ -221,6 +221,8 @@ Success criteria:
 - group-pair edges also drive deterministic visual-scale child-cluster motion in
   the browser preview; this is a presentation transform over ARM evidence, not a
   source-scaled barycentric solution
+- single-star scenes can render a human system alias as the body display name
+  while preserving the canonical star key and exposing the display-name basis
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, hover bodies/orbits, and pin a copyable object/orbit readout
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
