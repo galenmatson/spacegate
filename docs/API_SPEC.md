@@ -334,6 +334,9 @@ Contract notes:
   promoted `core.planets` scalar summaries and labels that basis explicitly.
 - `disc` is the future home for visualization-only assumptions and static
   fallback artifacts.
+- Browser clients should use `render_scene` when WebGL/R3F is available and
+  fall back to the detail payload's deterministic `snapshot.url` when WebGL is
+  unavailable or the live preview fails to initialize.
 - `render_scene` is an additive renderer-ready view over the source payload.
   It uses direct core rows and ARM orbit endpoints first, then reconciles
   renderer-ready bodies against canonical hierarchy when hierarchy exposes

@@ -657,6 +657,9 @@ Readiness gaps:
   binaries can now ride the A-B group motion while the AB cluster rides the
   outer AB-C relation, without rewriting ARM evidence or treating display scale
   as science.
+- June 29, 2026 fallback/mobile pass adds live-preview WebGL capability
+  detection, in-panel deterministic snapshot fallback, and mobile Playwright
+  coverage for the system-detail preview canvas/readout/pin flow.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet

@@ -4839,6 +4839,51 @@ main {
   text-transform: uppercase;
 }
 
+.system-preview-snapshot-fallback {
+  position: relative;
+  min-height: 310px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(75, 139, 204, 0.18), transparent 46%),
+    #050b12;
+}
+
+.system-preview-snapshot-fallback img {
+  width: 100%;
+  height: 100%;
+  min-height: 310px;
+  object-fit: cover;
+  opacity: 0.82;
+}
+
+.system-preview-snapshot-fallback > div:last-child {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: grid;
+  gap: 3px;
+  max-width: calc(100% - 20px);
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #07111c 84%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.system-preview-snapshot-fallback strong,
+.system-preview-snapshot-fallback span {
+  color: #eef6ff;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.system-preview-snapshot-fallback span {
+  color: #9fb8cb;
+}
+
 .system-preview-hover {
   position: absolute;
   left: 10px;
@@ -5477,7 +5522,9 @@ main {
   }
 
   .system-preview-canvas,
-  .system-preview-fallback {
+  .system-preview-fallback,
+  .system-preview-snapshot-fallback,
+  .system-preview-snapshot-fallback img {
     min-height: 240px;
   }
 

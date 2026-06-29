@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { fetchSystemSimulationScene } from "./api.js";
+import { apiUrl, fetchSystemSimulationScene } from "./api.js";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const SIM_DAYS_PER_SECOND = 0.7;
@@ -1108,9 +1108,39 @@ function collectEvidenceFields(scene) {
   return items.filter(([, field]) => field).slice(0, 5);
 }
 
-export default function SystemPreviewPanel({ systemId, systemName }) {
+function hasUsableWebGL() {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl"));
+  } catch {
+    return false;
+  }
+}
+
+function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavailable" }) {
+  const snapshotUrl = snapshot?.url ? apiUrl(snapshot.url) : "";
+  return (
+    <div className="system-preview-snapshot-fallback" data-testid="system-preview-snapshot-fallback">
+      {snapshotUrl ? (
+        <img src={snapshotUrl} alt={`${systemName || "System"} deterministic snapshot fallback`} />
+      ) : (
+        <div className="system-preview-fallback">Snapshot fallback pending</div>
+      )}
+      <div>
+        <strong>{reason}</strong>
+        <span>Deterministic snapshot fallback</span>
+      </div>
+    </div>
+  );
+}
+
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [webglReady, setWebglReady] = useState(null);
   const [running, setRunning] = useState(true);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
@@ -1120,10 +1150,18 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
 
   useEffect(() => {
     let active = true;
+    const canRenderWebGL = hasUsableWebGL();
+    setWebglReady(canRenderWebGL);
     setStatus("loading");
     setScene(null);
     setHoveredObject(null);
     setPinnedObject(null);
+    if (!canRenderWebGL) {
+      setStatus("fallback");
+      return () => {
+        active = false;
+      };
+    }
     fetchSystemSimulationScene(systemId)
       .then((payload) => {
         if (active) {
@@ -1165,7 +1203,7 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
             type="button"
             onClick={() => setRunning((value) => !value)}
             aria-pressed={!running}
-            disabled={status !== "ready"}
+            disabled={status !== "ready" || webglReady === false}
           >
             {running ? "Pause" : "Start"}
           </button>
@@ -1174,7 +1212,7 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
             <select
               value={String(speedMultiplier)}
               onChange={(event) => setSpeedMultiplier(Number(event.target.value) || 1)}
-              disabled={status !== "ready"}
+              disabled={status !== "ready" || webglReady === false}
             >
               {SIM_SPEED_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
@@ -1183,7 +1221,7 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
             className="system-preview-toggle"
             type="button"
             onClick={() => setResetToken((value) => value + 1)}
-            disabled={status !== "ready"}
+            disabled={status !== "ready" || webglReady === false}
           >
             Reset
           </button>
@@ -1192,7 +1230,7 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
             type="button"
             onClick={() => setShowOrbits((value) => !value)}
             aria-pressed={showOrbits}
-            disabled={status !== "ready"}
+            disabled={status !== "ready" || webglReady === false}
           >
             {showOrbits ? "Orbits On" : "Orbits Off"}
           </button>
@@ -1201,7 +1239,9 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
       </div>
       <div className="system-preview-layout">
         <div className="system-preview-canvas" aria-label={`${systemName} live system preview`}>
-          {status === "ready" && scene
+          {status === "fallback" || webglReady === false
+            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="WebGL unavailable" />
+            : status === "ready" && scene
             ? (
               <SceneCanvas
                 scene={scene}
@@ -1213,7 +1253,9 @@ export default function SystemPreviewPanel({ systemId, systemName }) {
                 onSelect={setPinnedObject}
               />
             )
-            : <div className="system-preview-fallback">{status === "error" ? "Preview unavailable" : "Loading preview..."}</div>}
+            : (status === "error"
+              ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="Live preview unavailable" />
+              : <div className="system-preview-fallback">Loading preview...</div>)}
           <HoverReadout object={hoveredObject && !pinnedObject ? hoveredObject : null} />
           <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
         </div>

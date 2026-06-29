@@ -117,6 +117,72 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-pinned']")).toContainText(/star|planet|orbit/i);
   });
 
+  test("system preview falls back to deterministic snapshot when WebGL is unavailable", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "fallback smoke only needs one browser project");
+    await page.addInitScript(() => {
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function patchedGetContext(type, ...args) {
+        const contextType = String(type || "").toLowerCase();
+        if (contextType === "webgl" || contextType === "webgl2" || contextType === "experimental-webgl") {
+          return null;
+        }
+        return originalGetContext.call(this, type, ...args);
+      };
+    });
+
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "TRAPPIST-1", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-snapshot-fallback']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-snapshot-fallback'] img")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toHaveCount(0);
+    await expect(page.locator("[data-testid='system-preview-snapshot-fallback']")).toContainText(/WebGL unavailable/i);
+  });
+
+  test("mobile system detail keeps live preview usable", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only simulator layout check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "TRAPPIST-1", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(page.locator(".system-preview-readout")).toContainText(/rendered planets/i);
+
+    const metrics = await page.evaluate(() => {
+      const canvas = document.querySelector(".system-preview-canvas")?.getBoundingClientRect();
+      const readout = document.querySelector(".system-preview-readout")?.getBoundingClientRect();
+      return {
+        canvasWidth: canvas?.width || 0,
+        canvasHeight: canvas?.height || 0,
+        readoutTop: readout?.top || 0,
+        canvasBottom: canvas?.bottom || 0,
+      };
+    });
+    expect(metrics.canvasWidth).toBeGreaterThan(100);
+    expect(metrics.canvasHeight).toBeGreaterThan(220);
+    expect(metrics.readoutTop).toBeGreaterThanOrEqual(metrics.canvasBottom - 1);
+
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await previewCanvas.scrollIntoViewIfNeeded();
+    const previewBox = await previewCanvas.boundingBox();
+    expect(previewBox, "mobile system preview canvas box").toBeTruthy();
+    await page.touchscreen.tap(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
+    await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
+  });
+
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "multi-star renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {

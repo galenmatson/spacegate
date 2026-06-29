@@ -24,6 +24,9 @@ Already in place:
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - the beta browser renderer adds speed control, reset, orbit-trace visibility
   toggle, click/tap pinned inspection, and copyable render/source identifiers
+- the browser renderer checks WebGL capability before mounting R3F and falls
+  back inside the preview panel to the deterministic snapshot artifact when 3D
+  is unavailable or the live scene load fails
 - `render_scene_v0.2` includes `endpoint_kind='group_pair'` orbit entries for
   hierarchical subsystem pairs such as Castor A-B and AB-C; these render as
   cluster orbit guides rather than false individual-star binaries
@@ -220,6 +223,8 @@ Success criteria:
   source-scaled barycentric solution
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, hover bodies/orbits, and pin a copyable object/orbit readout
+- WebGL-disabled browsers receive the deterministic system snapshot in the live
+  preview panel instead of a blank or broken canvas
 - source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness payload
 - static snapshots remain the fallback for browsers/devices without usable 3D
