@@ -18,6 +18,8 @@ Already in place:
 - `render_scene_v0.2` reconciles body lists against canonical hierarchy when
   hierarchy exposes richer physical membership than direct core rows or ARM
   orbit endpoints alone
+- the first browser renderer uses the hierarchy tree for stable visual cluster
+  centers and hosts nested planets around their render host/body group
 - ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
   currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and

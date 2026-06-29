@@ -142,7 +142,144 @@ function StarSphere({ star, position = [0, 0, 0] }) {
   );
 }
 
-function BinaryOrbit({ orbit, starsByKey, index, total }) {
+function hierarchyRenderKey(node) {
+  const key = String(node?.stable_component_key || "");
+  if (key.startsWith("canon:leaf:msc:")) {
+    return `comp:msc:wds:${key.slice("canon:leaf:msc:".length)}`;
+  }
+  if (key.startsWith("canon:star:")) {
+    return `comp:star:${key}`;
+  }
+  if (key.startsWith("canon:planet:")) {
+    return `comp:planet:${key}`;
+  }
+  return key;
+}
+
+function keyAliasesForBody(body) {
+  const aliases = new Set();
+  const add = (value) => {
+    const text = String(value || "").trim();
+    if (text) {
+      aliases.add(text);
+    }
+  };
+  add(body?.render_key);
+  add(body?.key);
+  add(body?.stable_object_key);
+  add(body?.source?.stable_component_key);
+  add(body?.source?.stable_object_key);
+  add(body?.source?.canonical_key);
+  if (body?.source?.canonical_key) {
+    add(`comp:star:${body.source.canonical_key}`);
+    add(`comp:planet:${body.source.canonical_key}`);
+  }
+  if (body?.stable_object_key) {
+    add(`comp:star:${body.stable_object_key}`);
+    add(`comp:planet:${body.stable_object_key}`);
+  }
+  return aliases;
+}
+
+function addVector(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function scaledVector(a, scale) {
+  return [a[0] * scale, a[1] * scale, a[2] * scale];
+}
+
+function buildStarLayout(stars, hierarchy, binaryOrbits) {
+  const canonicalKeyByAlias = new Map();
+  stars.forEach((star) => {
+    const canonicalKey = star.render_key || star.key;
+    keyAliasesForBody(star).forEach((alias) => {
+      canonicalKeyByAlias.set(alias, canonicalKey);
+    });
+  });
+
+  const collectStarKeys = (node) => {
+    if (!node) {
+      return [];
+    }
+    const childKeys = (node.children || []).flatMap((child) => collectStarKeys(child));
+    const nodeKey = hierarchyRenderKey(node);
+    const mappedKey = canonicalKeyByAlias.get(nodeKey);
+    const isStar = ["star", "stellar_component"].includes(String(node.component_type || node.component_family || ""))
+      || ["star", "inferred_star_leaf"].includes(String(node.node_kind || ""));
+    if (!isStar || childKeys.length) {
+      return [...new Set(childKeys)];
+    }
+    return mappedKey ? [mappedKey] : [];
+  };
+
+  const root = hierarchy?.root;
+  const groups = (root?.children || [])
+    .map((child) => ({
+      key: hierarchyRenderKey(child) || child.display_name,
+      label: child.display_name,
+      starKeys: collectStarKeys(child),
+    }))
+    .filter((group) => group.starKeys.length > 0);
+
+  const groupedKeys = new Set(groups.flatMap((group) => group.starKeys));
+  const ungroupedKeys = stars
+    .map((star) => star.render_key || star.key)
+    .filter((key) => key && !groupedKeys.has(key));
+  if (ungroupedKeys.length) {
+    groups.push({ key: "ungrouped", label: "Ungrouped", starKeys: ungroupedKeys });
+  }
+  if (!groups.length) {
+    groups.push({ key: "root", label: "System", starKeys: stars.map((star) => star.render_key || star.key).filter(Boolean) });
+  }
+
+  const starToGroup = new Map();
+  const groupCenters = new Map();
+  const starPositions = new Map();
+  const groupRadius = groups.length > 1 ? Math.min(4.7, 2.6 + groups.length * 0.4) : 0;
+
+  groups.forEach((group, groupIndex) => {
+    const angle = groups.length > 1 ? (groupIndex / groups.length) * Math.PI * 2 + Math.PI / 8 : 0;
+    const center = [Math.cos(angle) * groupRadius, 0, Math.sin(angle) * groupRadius];
+    groupCenters.set(group.key, center);
+    group.starKeys.forEach((key) => starToGroup.set(key, group.key));
+
+    const localRadius = group.starKeys.length > 1 ? Math.min(1.05, 0.44 + group.starKeys.length * 0.1) : 0;
+    group.starKeys.forEach((key, idx) => {
+      const localAngle = group.starKeys.length > 1 ? (idx / group.starKeys.length) * Math.PI * 2 : 0;
+      starPositions.set(key, addVector(center, [Math.cos(localAngle) * localRadius, 0, Math.sin(localAngle) * localRadius]));
+    });
+  });
+
+  const orbitCenters = new Map();
+  const orbitStarKeys = new Set();
+  binaryOrbits.forEach((orbit, idx) => {
+    const primaryKey = canonicalKeyByAlias.get(orbit.primary_body_key) || orbit.primary_body_key;
+    const secondaryKey = canonicalKeyByAlias.get(orbit.secondary_body_key) || orbit.secondary_body_key;
+    const primaryGroup = starToGroup.get(primaryKey);
+    const secondaryGroup = starToGroup.get(secondaryKey);
+    const primaryCenter = primaryGroup ? groupCenters.get(primaryGroup) : starPositions.get(primaryKey);
+    const secondaryCenter = secondaryGroup ? groupCenters.get(secondaryGroup) : starPositions.get(secondaryKey);
+    let center = [0, 0, 0];
+    if (primaryGroup && primaryGroup === secondaryGroup) {
+      center = groupCenters.get(primaryGroup) || center;
+    } else if (primaryCenter && secondaryCenter) {
+      center = scaledVector(addVector(primaryCenter, secondaryCenter), 0.5);
+    } else if (primaryCenter || secondaryCenter) {
+      center = primaryCenter || secondaryCenter;
+    } else if (binaryOrbits.length > 1) {
+      const angle = (idx / binaryOrbits.length) * Math.PI * 2;
+      center = [Math.cos(angle) * 2.2, 0, Math.sin(angle) * 2.2];
+    }
+    orbitCenters.set(orbit.orbit_key || `orbit-${idx}`, center);
+    orbitStarKeys.add(primaryKey);
+    orbitStarKeys.add(secondaryKey);
+  });
+
+  return { canonicalKeyByAlias, starPositions, orbitCenters, orbitStarKeys };
+}
+
+function BinaryOrbit({ orbit, starsByKey, center = [0, 0, 0] }) {
   const groupRef = React.useRef(null);
   const primary = starsByKey.get(orbit.primary_body_key);
   const secondary = starsByKey.get(orbit.secondary_body_key);
@@ -151,9 +288,6 @@ function BinaryOrbit({ orbit, starsByKey, index, total }) {
   const phaseRad = numericField(orbit.fields, "phase_rad") || 0;
   const inclinationDeg = numericField(orbit.fields, "inclination_deg") || 0;
   const orbitRadius = Number(orbit.display_radius_scene) || 0.9;
-  const clusterRadius = total > 1 ? 2.15 : 0;
-  const clusterAngle = Number(orbit.cluster_phase_rad) || ((index / Math.max(1, total)) * Math.PI * 2);
-  const center = [Math.cos(clusterAngle) * clusterRadius, 0, Math.sin(clusterAngle) * clusterRadius];
 
   useFrame(({ clock }) => {
     if (!groupRef.current) {
@@ -180,7 +314,7 @@ function BinaryOrbit({ orbit, starsByKey, index, total }) {
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0] }) {
   const meshRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
@@ -200,57 +334,99 @@ function PlanetObject({ planet, orbitRadius, color }) {
       return;
     }
     const meanAnomaly = phaseRad + ((clock.elapsedTime * SIM_DAYS_PER_SECOND) / periodDays) * Math.PI * 2;
-    meshRef.current.position.set(...positionAtPhase(meanAnomaly));
+    meshRef.current.position.set(...addVector(center, positionAtPhase(meanAnomaly)));
   });
 
   return (
-    <mesh ref={meshRef} position={positionAtPhase(phaseRad)}>
+    <mesh ref={meshRef} position={addVector(center, positionAtPhase(phaseRad))}>
       <sphereGeometry args={[planet.radius, 18, 14]} />
       <meshStandardMaterial color={color} roughness={0.58} metalness={0.08} />
     </mesh>
   );
 }
 
-function PlanetOrbitRing({ planet, orbitRadius }) {
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0] }) {
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   return (
-    <mesh rotation={[Math.PI / 2 + THREE.MathUtils.degToRad(inclinationDeg), 0, 0]}>
+    <mesh position={center} rotation={[Math.PI / 2 + THREE.MathUtils.degToRad(inclinationDeg), 0, 0]}>
       <torusGeometry args={[orbitRadius, 0.006, 8, 128]} />
       <meshBasicMaterial color="#b1d6ff" transparent opacity={0.42} />
     </mesh>
   );
 }
 
-function PreviewObjects({ stars, planets }) {
-  const starsByKey = useMemo(() => new Map(stars.map((star) => [star.render_key || star.key, star])), [stars]);
+function PreviewObjects({ stars, planets, hierarchy }) {
   const binaryOrbits = planets.renderOrbits || [];
-  const orbitStarKeys = new Set(binaryOrbits.flatMap((orbit) => [orbit.primary_body_key, orbit.secondary_body_key]));
-  const looseStars = stars.filter((star) => !orbitStarKeys.has(star.render_key || star.key));
+  const layout = useMemo(() => buildStarLayout(stars, hierarchy, binaryOrbits), [stars, hierarchy, binaryOrbits]);
+  const starsByKey = useMemo(() => {
+    const out = new Map();
+    stars.forEach((star) => {
+      const canonicalKey = star.render_key || star.key;
+      keyAliasesForBody(star).forEach((alias) => out.set(alias, star));
+      if (canonicalKey) {
+        out.set(canonicalKey, star);
+      }
+    });
+    return out;
+  }, [stars]);
+  const looseStars = stars.filter((star) => !layout.orbitStarKeys.has(star.render_key || star.key));
+  const starCenterByCoreId = new Map();
+  stars.forEach((star) => {
+    const starId = star?.source?.star_id;
+    const key = star.render_key || star.key;
+    if (starId !== undefined && starId !== null && key && layout.starPositions.has(key)) {
+      starCenterByCoreId.set(Number(starId), layout.starPositions.get(key));
+    }
+  });
   const maxOrbit = Math.max(
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
   );
+  const hostCenterForPlanet = (planet) => {
+    const hostKey = layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key;
+    if (hostKey && layout.starPositions.has(hostKey)) {
+      return layout.starPositions.get(hostKey);
+    }
+    if (hostKey) {
+      const star = starsByKey.get(hostKey);
+      const starKey = star?.render_key || star?.key;
+      if (starKey && layout.starPositions.has(starKey)) {
+        return layout.starPositions.get(starKey);
+      }
+    }
+    const hostStarId = Number(planet.host_star_id);
+    if (Number.isFinite(hostStarId) && starCenterByCoreId.has(hostStarId)) {
+      return starCenterByCoreId.get(hostStarId);
+    }
+    return [0, 0, 0];
+  };
 
   return (
     <group>
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
       {binaryOrbits.map((orbit, idx) => (
-        <BinaryOrbit key={orbit.orbit_key || idx} orbit={orbit} starsByKey={starsByKey} index={idx} total={binaryOrbits.length} />
+        <BinaryOrbit
+          key={orbit.orbit_key || idx}
+          orbit={orbit}
+          starsByKey={starsByKey}
+          center={layout.orbitCenters.get(orbit.orbit_key || `orbit-${idx}`) || [0, 0, 0]}
+        />
       ))}
-      {looseStars.map((star, idx) => {
-        const angle = looseStars.length > 1 ? (idx / looseStars.length) * Math.PI * 2 : 0;
-        const distance = looseStars.length > 1 ? 1.4 : 0;
-        return (
-          <StarSphere key={star.render_key || star.key} star={star} position={[Math.cos(angle) * distance, 0, Math.sin(angle) * distance]} />
-        );
-      })}
+      {looseStars.map((star) => (
+        <StarSphere
+          key={star.render_key || star.key}
+          star={star}
+          position={layout.starPositions.get(star.render_key || star.key) || [0, 0, 0]}
+        />
+      ))}
       {planets.map((planet, idx) => {
-        const orbitRadius = 1.8 + Math.sqrt((planet.orbitAu || 0.08) / maxOrbit) * 5.6;
+        const orbitRadius = 0.75 + Math.sqrt((planet.orbitAu || 0.08) / maxOrbit) * 2.7;
+        const center = hostCenterForPlanet(planet);
         return (
           <React.Fragment key={planet.key}>
-            <PlanetOrbitRing planet={planet} orbitRadius={orbitRadius} />
-            <PlanetObject planet={planet} orbitRadius={orbitRadius} color={PLANET_COLORS[idx % PLANET_COLORS.length]} />
+            <PlanetOrbitRing planet={planet} orbitRadius={orbitRadius} center={center} />
+            <PlanetObject planet={planet} orbitRadius={orbitRadius} center={center} color={PLANET_COLORS[idx % PLANET_COLORS.length]} />
           </React.Fragment>
         );
       })}
@@ -313,7 +489,7 @@ function SceneCanvas({ scene }) {
   return (
     <Canvas camera={{ position: [0, 6.2, 10.8], fov: 43 }} dpr={[1, 1.75]}>
       <color attach="background" args={["#050b12"]} />
-      <PreviewObjects stars={stars} planets={planets} />
+      <PreviewObjects stars={stars} planets={planets} hierarchy={scene?.hierarchy} />
     </Canvas>
   );
 }

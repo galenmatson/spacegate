@@ -244,6 +244,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Reconcile Live System Preview body generation with richer hierarchy
   counts for complex multiples and planet-bearing multiple systems flagged by
   `scripts/verify_known_systems_api.py`
+- [x] Add hierarchy-centered Live System Preview layout so complex multiples
+  and nested planet hosts render as structured groups instead of one flat ring
 - [ ] Restore deterministic snapshot manifest coverage for current public
   side-sliced builds so map snapshot hover checks exercise real fallback assets
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so

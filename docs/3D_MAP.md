@@ -140,6 +140,10 @@ Initial layers:
   - renders source/derived/assumed scene bodies from `simulation-scene`
   - consumes additive `render_scene_v0.2` bodies/orbits when available
   - uses barycentric visual groups for connected binary/multiple-star edges
+  - places star clusters from the hierarchy tree when available, so sparse
+    orbit evidence does not collapse complex systems into one flat ring
+  - places planet orbits around their render host/body group when the scene
+    exposes nested planet hosts such as Proxima inside Alpha Centauri
   - animates planets from source `orbital_period_days` when present
   - assigns deterministic per-body starting phases so planets do not begin
     aligned while keeping reloads reproducible

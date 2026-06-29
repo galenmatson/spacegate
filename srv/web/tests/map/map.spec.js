@@ -121,4 +121,27 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
   });
+
+  test("nested planet-host preview renders hierarchy planets", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "preview renderer smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Alpha Centauri", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Alpha Centauri system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(4);
+    expect(scenePayload.render_scene?.bodies?.planets?.length).toBeGreaterThanOrEqual(2);
+    expect(scenePayload.render_scene?.bodies?.planets?.some((planet) => planet.host_body_key)).toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(page.locator(".system-preview-readout")).toContainText(/2\s*rendered planets/i);
+  });
 });

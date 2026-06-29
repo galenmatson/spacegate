@@ -633,6 +633,10 @@ Readiness gaps:
   hierarchy is richer than direct core membership. Local strict benchmark now
   passes for Castor, Nu Sco, Alpha Centauri, TRAPPIST-1, 55 Cnc, Sol, and
   16 Cyg, including Alpha Centauri's nested Proxima planets.
+- June 29, 2026 renderer pass uses hierarchy branches as stable visual cluster
+  centers, keeps binary orbit animation within those clusters, and hosts nested
+  planet orbits around their render body/group. Playwright now covers Alpha
+  Centauri's nested Proxima planet preview path.
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
