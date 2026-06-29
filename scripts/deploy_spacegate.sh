@@ -148,6 +148,47 @@ remote_has_coolness_scores() {
   "
 }
 
+grant_remote_presentation_acl() {
+  local -a ssh_cmd=("$@")
+  ssh_with_retry "${ssh_cmd[@]}" "$REMOTE" "
+    cd '$REMOTE_APP_DIR' &&
+    bash -lc '
+      set -euo pipefail
+      if [[ -f scripts/lib/env_loader.sh ]]; then
+        source scripts/lib/env_loader.sh
+        spacegate_init_env \"$REMOTE_APP_DIR\"
+      fi
+      require_setfacl() {
+        command -v setfacl >/dev/null 2>&1 || {
+          echo \"Error: setfacl is required to grant runtime write access for presentation artifacts.\" >&2
+          exit 1
+        }
+      }
+      require_setfacl
+      runtime_uid=\"\$(scripts/compose_spacegate.sh exec -T api id -u | tr -d \"[:space:]\")\"
+      [[ \"\$runtime_uid\" =~ ^[0-9]+$ ]] || {
+        echo \"Error: could not determine API runtime UID: \$runtime_uid\" >&2
+        exit 1
+      }
+      state_dir=\"\${SPACEGATE_DATA_DIR:-\${SPACEGATE_STATE_DIR:-$REMOTE_APP_DIR/data}}\"
+      served=\"\$(readlink -f \"\$state_dir/served/current\")\"
+      [[ -n \"\$served\" && -d \"\$served\" ]] || {
+        echo \"Error: served build is missing: \$state_dir/served/current\" >&2
+        exit 1
+      }
+      for path in \"\$served/disc\" \"\$served/snapshots\"; do
+        [[ -e \"\$path\" ]] || continue
+        setfacl -Rm \"u:\$runtime_uid:rwX,d:u:\$runtime_uid:rwX\" \"\$path\" 2>/dev/null || true
+      done
+      for path in \"\$served/disc.duckdb\" \"\$served/snapshot_manifest.parquet\"; do
+        [[ -e \"\$path\" ]] || continue
+        setfacl -m \"u:\$runtime_uid:rw\" \"\$path\" 2>/dev/null || true
+      done
+      scripts/compose_spacegate.sh exec -T api sh -lc \"test -w /data/served/current/disc && test -w /data/served/current/disc.duckdb\"
+    '
+  "
+}
+
 print_remote_compose_diagnostics() {
   local -a ssh_cmd=("$@")
   ssh_with_retry "${ssh_cmd[@]}" "$REMOTE" "
@@ -336,6 +377,13 @@ main() {
     exit 1
   fi
   log_step "Remote services restarted."
+
+  log_step "Granting remote runtime write access for presentation artifacts..."
+  if ! grant_remote_presentation_acl "${ssh_opts[@]}"; then
+    echo "Error: remote presentation artifact permission grant failed." >&2
+    exit 1
+  fi
+  log_step "Remote presentation artifact permissions ready."
 
   if [[ "$AUTO_SCORE_COOLNESS" == "1" ]]; then
     log_step "Checking remote coolness outputs..."

@@ -313,6 +313,12 @@ targets generated/admin paths under it (`admin`, `backups`, `cache`, `logs`,
 `out`, `reports`, and `served`). It deliberately does not touch `raw/` or
 `cooked/`.
 
+Production deploys grant a narrow ACL for the API runtime UID on served-build
+presentation artifacts before deploy-time presentation checks. This keeps
+mutable outputs such as `disc/coolness_scores.parquet` and snapshot manifests
+writable by the non-root API process without making catalog source directories
+mutable.
+
 ### Admin Visual QA
 
 Admin v2 has a Playwright visual QA harness for layout and usability checks.
