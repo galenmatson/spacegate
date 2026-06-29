@@ -280,6 +280,9 @@ Known benchmark blocker:
   side-sliced build resolves `Sirius` to a single Gaia white-dwarf row
   (`Gaia DR3 2947050466531873024`) carrying Sirius/Alpha CMa/HIP/HD aliases,
   with Sirius A absent from core inventory and no WDS/MSC hierarchy or A-B orbit
-  edge in ARM. The simulator must continue to render the payload honestly; the
-  fix belongs in bright-star/common-name authority and compact-companion source
-  reconciliation, not in renderer-only fabrication.
+  edge in ARM. The ingest guard now prevents non-compact AT-HYG positional rows
+  from attaching aliases/identifiers to compact-object targets on future builds,
+  but served artifacts need a rebuild and Sirius A needs an accepted inventory
+  source/supplement path. The simulator must continue to render the payload
+  honestly; the fix belongs in bright-star/common-name authority and
+  compact-companion source reconciliation, not in renderer-only fabrication.

@@ -107,6 +107,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Add bright-star/compact-companion reconciliation gates so systems such as
   Sirius cannot bind primary-star aliases and HIP/HD identifiers only to the
   Gaia white-dwarf companion while the bright primary is absent
+- [x] Add AT-HYG alias-crosswalk guard preventing non-compact positional alias
+  rows from attaching to compact-object/white-dwarf Gaia targets or promoting
+  weak positional matches into HIP/HD/HR/GL/TYC/HYG identifiers
 - [x] Let member-star names participate in search result display/ranking so variable-star lookups like `AR Cas` title the correct system card
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates

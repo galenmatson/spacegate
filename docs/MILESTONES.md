@@ -227,6 +227,10 @@ Deliverables:
     exposes this failure mode because the served build binds Sirius/Alpha CMa
     aliases, HIP 32349, and HD 48915 to the Gaia white dwarf row while Sirius A
     is absent
+  - June 29, 2026 ingest guard prevents non-compact AT-HYG positional alias
+    rows from matching compact-object/white-dwarf Gaia targets and prevents
+    weak positional AT-HYG matches from promoting HIP/HD/HR/GL/TYC/HYG
+    identifiers; a rebuild is still required to repair served Sirius rows
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
@@ -707,7 +711,9 @@ Readiness gaps:
   visual-only child. June 29, 2026 audit found the current public side-sliced
   build contains only the Gaia white dwarf row for Sirius
   (`Gaia DR3 2947050466531873024`) and no WDS/MSC hierarchy/orbit evidence
-  attached to the system.
+  attached to the system. The ingest guard now blocks the unsafe AT-HYG
+  Sirius-A-to-white-dwarf alias/identifier attachment on future builds, but
+  Sirius A still needs a canonical inventory source or accepted supplement path.
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and

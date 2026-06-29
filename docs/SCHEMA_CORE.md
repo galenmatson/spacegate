@@ -415,7 +415,13 @@ Contract notes:
 - alias rows enrich lookup and UX only; they do not define canonical star existence.
 - duplicate aliases must be deduplicated per `(target_type, target_id, alias_norm)` by deterministic precedence.
 - search must resolve against normalized aliases first-class alongside canonical names.
-- Gaia-first builds may use constrained positional matching for named AT-HYG rows without Gaia IDs to recover legacy/common aliases (with tight angular and distance gates).
+- Gaia-first builds may use constrained positional matching for named AT-HYG
+  rows without Gaia IDs to recover legacy/common aliases, with tight angular and
+  distance gates.
+- Positional AT-HYG matches are weak alias hints, not catalog identifier
+  equivalence: they must not promote HIP/HD/HR/GL/TYC/HYG identifiers into
+  core stars. Non-compact AT-HYG rows must not be positional-matched onto
+  compact-object or white-dwarf targets.
 - Gaia-fallback display names may be promoted from matched exoplanet host labels when canonical/common stellar labels are absent.
 - host-label precedence in Gaia-fallback promotion should prefer:
   - human/common labels

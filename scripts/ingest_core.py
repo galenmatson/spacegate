@@ -3653,6 +3653,7 @@ def main() -> int:
                 nullif(tyc, '') as tyc_id,
                 cast(nullif(nullif(hyg, ''), '0') as bigint) as hyg_id,
                 nullif(proper, '') as proper_name,
+                nullif(spect, '') as spectral_type_raw,
                 nullif(bayer, '') as bayer,
                 nullif(regexp_replace(coalesce(bayer, ''), '-.*$', ''), '') as bayer_root,
                 gm.greek_name as bayer_greek_name,
@@ -3676,6 +3677,7 @@ def main() -> int:
                 tyc_id,
                 hyg_id,
                 proper_name,
+                spectral_type_raw,
                 case
                   when bayer is not null and constellation is not null then bayer || ' ' || constellation
                   else null
@@ -3708,6 +3710,7 @@ def main() -> int:
                 nullif(tyc, '') as tyc_id,
                 cast(nullif(nullif(hyg, ''), '0') as bigint) as hyg_id,
                 nullif(proper, '') as proper_name,
+                nullif(spect, '') as spectral_type_raw,
                 nullif(bayer, '') as bayer,
                 nullif(regexp_replace(coalesce(bayer, ''), '-.*$', ''), '') as bayer_root,
                 gm.greek_name as bayer_greek_name,
@@ -3743,6 +3746,7 @@ def main() -> int:
                 tyc_id,
                 hyg_id,
                 proper_name,
+                spectral_type_raw,
                 case
                   when bayer is not null and constellation is not null then bayer || ' ' || constellation
                   else null
@@ -3789,6 +3793,7 @@ def main() -> int:
                 n.tyc_id,
                 n.hyg_id,
                 n.proper_name,
+                n.spectral_type_raw,
                 n.bayer_name,
                 n.bayer_root_name,
                 n.bayer_greek_abbrev_name,
@@ -3805,11 +3810,22 @@ def main() -> int:
               from nogaia_named n
               join stars s on s.gaia_id is not null
               where (
-                n.hip_id is not null
-                and s.hip_id = n.hip_id
-              ) or (
-                n.hd_id is not null
-                and s.hd_id = n.hd_id
+                (
+                  n.hip_id is not null
+                  and s.hip_id = n.hip_id
+                ) or (
+                  n.hd_id is not null
+                  and s.hd_id = n.hd_id
+                )
+              )
+              and not (
+                coalesce(upper(n.spectral_type_raw), '') not like 'D%'
+                and (
+                  coalesce(s.object_family, '') in ('white_dwarf', 'neutron_star')
+                  or coalesce(s.object_type, '') in ('white_dwarf', 'neutron_star')
+                  or upper(coalesce(s.spectral_type_raw, '')) like 'D%'
+                  or coalesce(s.spectral_class, '') = 'D'
+                )
               )
 
               union all
@@ -3824,6 +3840,7 @@ def main() -> int:
                 n.tyc_id,
                 n.hyg_id,
                 n.proper_name,
+                n.spectral_type_raw,
                 n.bayer_name,
                 n.bayer_root_name,
                 n.bayer_greek_abbrev_name,
@@ -3847,6 +3864,15 @@ def main() -> int:
               where abs(s.ra_deg - n.ra_deg) <= {ALIAS_POS_MAX_DELTA_RA_DEG}
                 and abs(s.dec_deg - n.dec_deg) <= {ALIAS_POS_MAX_DELTA_DEC_DEG}
                 and abs(s.dist_ly - n.dist_ly) <= {ALIAS_POS_MAX_DELTA_DIST_LY}
+                and not (
+                  coalesce(upper(n.spectral_type_raw), '') not like 'D%'
+                  and (
+                    coalesce(s.object_family, '') in ('white_dwarf', 'neutron_star')
+                    or coalesce(s.object_type, '') in ('white_dwarf', 'neutron_star')
+                    or upper(coalesce(s.spectral_type_raw, '')) like 'D%'
+                    or coalesce(s.spectral_class, '') = 'D'
+                  )
+                )
             ), positional_best as (
               select
                 source_pk,
@@ -3858,6 +3884,7 @@ def main() -> int:
                 tyc_id,
                 hyg_id,
                 proper_name,
+                spectral_type_raw,
                 bayer_name,
                 bayer_root_name,
                 bayer_greek_abbrev_name,
@@ -3882,6 +3909,7 @@ def main() -> int:
                 tyc_id,
                 hyg_id,
                 proper_name,
+                spectral_type_raw,
                 bayer_name,
                 bayer_root_name,
                 bayer_greek_abbrev_name,
@@ -3900,6 +3928,7 @@ def main() -> int:
                 tyc_id,
                 hyg_id,
                 proper_name,
+                spectral_type_raw,
                 bayer_name,
                 bayer_root_name,
                 bayer_greek_abbrev_name,
@@ -3934,12 +3963,14 @@ def main() -> int:
               tyc_id,
               hyg_id,
               proper_name,
+              spectral_type_raw,
               bayer_name,
               bayer_root_name,
               bayer_greek_abbrev_name,
               bayer_greek_genitive_name,
               flam_name,
-              coalesce(proper_name, bayer_name, flam_name) as preferred_name
+              coalesce(proper_name, bayer_name, flam_name) as preferred_name,
+              source_priority
             from ranked
             where rn = 1
             """
@@ -3967,8 +3998,14 @@ def main() -> int:
             """
             update stars
             set
-              hip_id = coalesce(stars.hip_id, a.hip_id),
-              hd_id = coalesce(stars.hd_id, a.hd_id),
+              hip_id = case
+                when coalesce(a.source_priority, 0) <= 1 then coalesce(stars.hip_id, a.hip_id)
+                else stars.hip_id
+              end,
+              hd_id = case
+                when coalesce(a.source_priority, 0) <= 1 then coalesce(stars.hd_id, a.hd_id)
+                else stars.hd_id
+              end,
               star_name = case
                 when (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
                   and a.preferred_name is not null
@@ -3993,12 +4030,30 @@ def main() -> int:
               end,
               catalog_ids_json = json_object(
                 'gaia', coalesce(stars.gaia_id, a.gaia_id),
-                'hip', coalesce(stars.hip_id, a.hip_id),
-                'hd', coalesce(stars.hd_id, a.hd_id),
-                'hr', coalesce(a.hr_id, cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint)),
-                'gl', coalesce(a.gl_id, json_extract_string(stars.catalog_ids_json, '$.gl')),
-                'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
-                'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
+                'hip', case
+                  when coalesce(a.source_priority, 0) <= 1 then coalesce(stars.hip_id, a.hip_id)
+                  else stars.hip_id
+                end,
+                'hd', case
+                  when coalesce(a.source_priority, 0) <= 1 then coalesce(stars.hd_id, a.hd_id)
+                  else stars.hd_id
+                end,
+                'hr', case
+                  when coalesce(a.source_priority, 0) <= 1 then coalesce(a.hr_id, cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint))
+                  else cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint)
+                end,
+                'gl', case
+                  when coalesce(a.source_priority, 0) <= 1 then coalesce(a.gl_id, json_extract_string(stars.catalog_ids_json, '$.gl'))
+                  else json_extract_string(stars.catalog_ids_json, '$.gl')
+                end,
+                'tyc', case
+                  when coalesce(a.source_priority, 0) <= 1 then coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc'))
+                  else json_extract_string(stars.catalog_ids_json, '$.tyc')
+                end,
+                'hyg', case
+                  when coalesce(a.source_priority, 0) <= 1 then coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint))
+                  else cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)
+                end,
                 'wds', coalesce(stars.wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
                 'wds_component', coalesce(stars.component, json_extract_string(stars.catalog_ids_json, '$.wds_component')),
                 'sbx_sn', stars.sbx_sn
@@ -4023,12 +4078,14 @@ def main() -> int:
                   cast(null as bigint), cast(null as bigint), cast(null as bigint), cast(null as bigint),
                   cast(null as bigint), cast(null as varchar), cast(null as varchar), cast(null as bigint),
                   cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
-                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as integer)
                 )
             ) as t(
               source_pk, gaia_id, hip_id, hd_id, hr_id, gl_id, tyc_id, hyg_id,
-              proper_name, bayer_name, bayer_root_name, bayer_greek_abbrev_name,
-              bayer_greek_genitive_name, flam_name, preferred_name
+              proper_name, spectral_type_raw, bayer_name, bayer_root_name,
+              bayer_greek_abbrev_name, bayer_greek_genitive_name, flam_name,
+              preferred_name, source_priority
             )
             where false
             """
@@ -7679,6 +7736,7 @@ def main() -> int:
             from athyg_alias_candidates a
             join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.hr_id is not null
+              and coalesce(a.source_priority, 0) <= 1
 
             union all
 
@@ -7696,6 +7754,7 @@ def main() -> int:
             from athyg_alias_candidates a
             join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.gl_id is not null
+              and coalesce(a.source_priority, 0) <= 1
 
             union all
 
@@ -7713,6 +7772,7 @@ def main() -> int:
             from athyg_alias_candidates a
             join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.tyc_id is not null
+              and coalesce(a.source_priority, 0) <= 1
 
             union all
 
@@ -7730,6 +7790,7 @@ def main() -> int:
             from athyg_alias_candidates a
             join athyg_alias_star_resolution r on r.source_pk = a.source_pk
             where a.hyg_id is not null
+              and coalesce(a.source_priority, 0) <= 1
             """
         )
         con.execute(
