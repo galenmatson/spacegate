@@ -807,6 +807,19 @@ These are preserved product ideas from earlier planning notes, reordered by like
   - public coolness profile presets
   - community ranking overlays isolated from canonical science ranking
 
+### Coolness Ranking Retool
+
+Coolness ranking is central to CoolStars discovery and should be revisited as a
+dedicated milestone. The first ranking model was useful for the prototype, but
+the current database is much larger and more comprehensive. The next scoring
+system should support reviewed profile presets, object-scoped scoring for
+systems/stars/planets, explainable weighted feature families, operator-visible
+result breakdowns after weight changes, and clear separation from canonical
+science. Candidate signal families include proximity, luminosity, proper
+motion, multiplicity, stellar rarity, giant/supergiant status, planet interest,
+system complexity, source quality, public recognizability, and narrative or
+Agency prioritization value.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

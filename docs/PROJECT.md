@@ -138,6 +138,15 @@ acceptance.
 
 Disc is always regenerable from core/arm plus pinned generators.
 
+Coolness is a core CoolStars discovery surface, not a cosmetic add-on. The
+current ranking model was designed against an earlier, smaller database and
+must be retooled for the larger public build. The next version should combine
+explainable weighted signals such as proximity, luminosity, proper motion,
+multiplicity, stellar rarity, giant/supergiant status, planet interest,
+system complexity, data quality, and narrative/scientific value. It should
+show per-object contribution breakdowns so operators can tune weights without
+turning the ranking into an opaque popularity score.
+
 ## Agent-Assisted Enrichment Policy
 
 Agent outputs must not mutate `core` directly.

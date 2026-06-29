@@ -517,6 +517,13 @@ Do not present all actions as one flat list. Group by operator intent:
 - Service control: `restart_services`, `stop_services`
 - Advanced/hidden: sliced builds and future one-off maintenance actions
 
+Because coolness scoring and snapshot generation are frequent CoolStars
+operations, Builds should expose a first-class Presentation panel rather than
+burying those actions behind the general runbook. The panel should show the
+current coolness/snapshot report state, launch `score_coolness` and
+`generate_snapshots`, and display the normalized Coolness Score Weights
+breakdown before operators run a scoring job.
+
 The action catalog should eventually grow structured metadata instead of
 forcing the React UI to hardcode guidance:
 

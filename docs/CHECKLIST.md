@@ -203,6 +203,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Factsheets + exposition generation with confidence metadata
 - [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues
 - [ ] Fold stellar gigantism into coolness/search ranking so giants and supergiants are not buried with ordinary stars
+- [ ] Retool CoolStars coolness scoring for the larger public database with explainable weighted signals, operator-visible contribution breakdowns, and reviewed profile presets
 - [x] Canonical ingest design doc + deterministic adjudication queue baseline for sloppy-system triage
 - [x] Canonical ingest artifacts for normalized sources, identity graph, and canonical reduction
 - [x] Canonical hierarchy artifact from canonical objects + arm role evidence

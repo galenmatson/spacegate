@@ -964,7 +964,6 @@ function BuildsScreen({ csrf, openOperationsJob }) {
   const buildFocusItems = [
     { key: "pipeline", label: "Pipeline", count: 5 },
     { key: "actions", label: "Actions", count: buildActions.length },
-    { key: "presentation", label: "Presentation", count: 4 },
     { key: "retention", label: "Retention", count: 3 },
     { key: "reports", label: "Reports", count: 2 },
   ];
@@ -1020,10 +1019,63 @@ function BuildsScreen({ csrf, openOperationsJob }) {
         </div>
       </section>
 
+      <section className="builds-presentation-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Presentation</h2>
+            <p className="muted">Coolness scoring and snapshot generation for public ranking and visual artifacts.</p>
+          </div>
+          <div className="artifact-flags">
+            <span className={`badge ${statusTone(coolness.status || "missing")}`}>Coolness {readableStatus(coolness.status || "missing")}</span>
+            <span className={`badge ${statusTone(snapshot.status || "missing")}`}>Snapshots {readableStatus(snapshot.status || "missing")}</span>
+          </div>
+        </div>
+
+        <div className="builds-grid">
+          <div className="panel panel-subsection">
+            <div className="panel-head compact">
+              <div>
+                <h3>Presentation Jobs</h3>
+                <p className="muted">Run coolness scoring and snapshot generation for the served build. These jobs write presentation artifacts only.</p>
+              </div>
+            </div>
+            <div className="action-grid">
+              {presentationActions.map((action) => (
+                <ActionCard
+                  action={action}
+                  key={action.name}
+                  runAction={runAction}
+                  busy={busyAction === action.name}
+                  snapshotControl={snapshotControl}
+                />
+              ))}
+            </div>
+          </div>
+          <SnapshotOperationsPanel
+            snapshotControl={snapshotControl}
+            snapshotJob={snapshotJob}
+            openOperationsJob={openOperationsJob}
+            cancelJob={cancelJob}
+          />
+        </div>
+
+        <div className="builds-grid">
+          <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+          <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+        </div>
+
+        <div className="panel-subsection presentation-path-strip">
+          <h3>Presentation Path</h3>
+          <OverviewFact label="Score job" value={scoreJob?.job_id ? compactId(scoreJob.job_id, 20) : "n/a"} />
+          <OverviewFact label="Snapshot job" value={snapshotJob?.job_id ? compactId(snapshotJob.job_id, 20) : "n/a"} />
+          <OverviewFact label="View type" value={snapshot.view_type || "system_card"} />
+        </div>
+      </section>
+
       <section className="panel runbook-filter-panel">
         <div>
           <h2>Builds Focus</h2>
-          <p className="muted">Choose the build workspace you need now. Pipeline is the short default path for readiness and next-step inspection.</p>
+          <p className="muted">Choose the build workspace you need now. Presentation controls stay visible because they are part of normal public-site tuning.</p>
         </div>
         <div className="segmented-control">
           {buildFocusItems.map((item) => (
@@ -1082,53 +1134,6 @@ function BuildsScreen({ csrf, openOperationsJob }) {
             ))}
           </div>
         </section>
-      ) : null}
-
-      {["presentation", "all"].includes(buildFocus) ? (
-        <>
-          <section className="builds-grid">
-            <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-            <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
-          </section>
-
-          <section className="builds-grid">
-            <div className="panel">
-              <div className="panel-head">
-                <div>
-                  <h2>Presentation Jobs</h2>
-                  <p className="muted">Run coolness scoring and snapshot generation for the served build. These jobs write presentation artifacts only.</p>
-                </div>
-              </div>
-              <div className="action-grid">
-                {presentationActions.map((action) => (
-                  <ActionCard
-                    action={action}
-                    key={action.name}
-                    runAction={runAction}
-                    busy={busyAction === action.name}
-                    snapshotControl={snapshotControl}
-                  />
-                ))}
-              </div>
-            </div>
-            <SnapshotOperationsPanel
-              snapshotControl={snapshotControl}
-              snapshotJob={snapshotJob}
-              openOperationsJob={openOperationsJob}
-              cancelJob={cancelJob}
-            />
-          </section>
-
-          <section className="builds-grid">
-            <div className="panel">
-              <h2>Presentation Path</h2>
-              <p className="muted">Score coolness first, then generate snapshots for public search and detail views. Snapshot jobs write presentation artifacts only.</p>
-              <OverviewFact label="Score job" value={scoreJob?.job_id ? compactId(scoreJob.job_id, 20) : "n/a"} />
-              <OverviewFact label="Snapshot job" value={snapshotJob?.job_id ? compactId(snapshotJob.job_id, 20) : "n/a"} />
-              <OverviewFact label="View type" value={snapshot.view_type || "system_card"} />
-            </div>
-          </section>
-        </>
       ) : null}
 
       {["retention", "all"].includes(buildFocus) ? (
@@ -6107,6 +6112,8 @@ function CoolnessWeightsField({ collapsed = false, label, name, sliderDraft, val
   const [sliders, setSliders] = useState(() => validCoolnessSliderDraft(sliderDraft) || slidersFromWeightsJson(value));
   const usingOverride = Boolean(String(value || "").trim());
   const normalized = weightsJsonFromSliders(sliders);
+  const normalizedWeights = JSON.parse(normalized);
+  const sliderTotal = coolnessWeightMeta.reduce((sum, [key]) => sum + Math.max(1, Math.min(10, Number(sliders[key]) || 1)), 0);
 
   useEffect(() => {
     const draft = validCoolnessSliderDraft(sliderDraft);
@@ -6165,6 +6172,26 @@ function CoolnessWeightsField({ collapsed = false, label, name, sliderDraft, val
       </div>
       <div className="status-line">
         {usingOverride ? "Using slider override for this job." : "No override: this job will use the selected profile/default weights."}
+      </div>
+      <div className="coolness-weight-breakdown">
+        <div>
+          <strong>Resulting contribution breakdown</strong>
+          <span className="table-subtext">Slider total {formatInt(sliderTotal)}. Percentages show the normalized scoring mix that will be sent to the job.</span>
+        </div>
+        <div className="coolness-weight-breakdown-list">
+          {coolnessWeightMeta.map(([key, itemLabel]) => {
+            const weight = Number(normalizedWeights[key] || 0);
+            return (
+              <div className="coolness-weight-breakdown-row" key={key}>
+                <span>{itemLabel}</span>
+                <div className="coolness-weight-bar" aria-hidden="true">
+                  <span style={{ width: `${Math.max(2, Math.min(100, weight * 100))}%` }} />
+                </div>
+                <strong>{formatPct(weight * 100)}</strong>
+              </div>
+            );
+          })}
+        </div>
       </div>
       {usingOverride ? (
         <details>
