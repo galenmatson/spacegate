@@ -215,6 +215,9 @@ Success criteria:
   groups when connected binary edges are available
 - hierarchical subsystem orbit edges render as distinct group-pair guides so
   nested structure is visible without flattening the system into sibling stars
+- group-pair edges also drive deterministic visual-scale child-cluster motion in
+  the browser preview; this is a presentation transform over ARM evidence, not a
+  source-scaled barycentric solution
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, hover bodies/orbits, and pin a copyable object/orbit readout
 - source/derived/assumed/missing fields surface as visible provenance pills

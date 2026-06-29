@@ -652,6 +652,11 @@ Readiness gaps:
   Castor A-B and AB-C. Known-system API benchmarks now assert Castor six-star
   render coverage, five Castor orbit entries, TRAPPIST-1 source-backed planet
   periods, and source-backed 55 Cnc/Sol rendered planet periods.
+- June 29, 2026 nested-motion pass applies `group_pair` orbit entries as
+  visual-scale client transforms for their child clusters. Castor's A/B inner
+  binaries can now ride the A-B group motion while the AB cluster rides the
+  outer AB-C relation, without rewriting ARM evidence or treating display scale
+  as science.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet

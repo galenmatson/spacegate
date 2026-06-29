@@ -341,7 +341,9 @@ Contract notes:
   Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
-  cluster orbit guides.
+  cluster orbit guides and browser-side visual child-cluster transforms.
+  Group-pair display transforms are presentation scale only; source orbital
+  evidence remains in `arm.orbit_edges` and `arm.orbital_solutions`.
   It may include deterministic procedural fields with `status="assumed"`,
   `layer="disc_assumption"`, `basis="procedural_prior_v1:..."`, and a stable
   `seed`. These values are visual defaults only; they are not canonical science.

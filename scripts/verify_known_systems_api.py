@@ -189,9 +189,17 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
             raise AssertionError(f"{case.query}: expected at least {expected} source-backed rendered planet periods, got {len(source_periods)}")
 
     if query_norm == "castor":
-        orbit_count = len(render_scene.get("orbits") or [])
+        render_orbits = render_scene.get("orbits") or []
+        orbit_count = len(render_orbits)
         if orbit_count < 5:
             raise AssertionError(f"{case.query}: expected at least five rendered stellar orbit entries, got {orbit_count}")
+        star_pair_count = sum(1 for orbit in render_orbits if orbit.get("endpoint_kind") == "star_pair")
+        group_pair_count = sum(1 for orbit in render_orbits if orbit.get("endpoint_kind") == "group_pair")
+        if star_pair_count < 3 or group_pair_count < 2:
+            raise AssertionError(
+                f"{case.query}: expected at least three direct binary and two hierarchical group-pair orbits, "
+                f"got star_pair={star_pair_count}, group_pair={group_pair_count}"
+            )
 
 
 def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:

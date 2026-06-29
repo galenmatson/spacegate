@@ -173,14 +173,14 @@ function sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, samples =
   return new Float32Array(vertices);
 }
 
-function advanceSimulationDays(ref, elapsedSeconds, running) {
+function advanceSimulationDays(ref, elapsedSeconds, running, speedMultiplier = 1) {
   if (ref.lastElapsedSeconds === null || ref.lastElapsedSeconds === undefined) {
     ref.lastElapsedSeconds = elapsedSeconds;
   }
   const delta = Math.max(0, elapsedSeconds - ref.lastElapsedSeconds);
   ref.lastElapsedSeconds = elapsedSeconds;
   if (running) {
-    ref.days += delta * SIM_DAYS_PER_SECOND;
+    ref.days += delta * SIM_DAYS_PER_SECOND * speedMultiplier;
   }
   return ref.days;
 }
@@ -313,6 +313,14 @@ function scaledVector(a, scale) {
   return [a[0] * scale, a[1] * scale, a[2] * scale];
 }
 
+function averageVector(vectors) {
+  const clean = vectors.filter(Boolean);
+  if (!clean.length) {
+    return [0, 0, 0];
+  }
+  return scaledVector(clean.reduce((sum, position) => addVector(sum, position), [0, 0, 0]), 1 / clean.length);
+}
+
 function buildStarLayout(stars, hierarchy, binaryOrbits) {
   const canonicalKeyByAlias = new Map();
   stars.forEach((star) => {
@@ -400,10 +408,100 @@ function buildStarLayout(stars, hierarchy, binaryOrbits) {
     orbitStarKeys.add(secondaryKey);
   });
 
-  return { canonicalKeyByAlias, starPositions, orbitCenters, orbitStarKeys };
+  return { canonicalKeyByAlias, starPositions, orbitCenters, orbitStarKeys, starToGroup, groupCenters };
 }
 
-function BinaryOrbit({ orbit, starsByKey, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+function groupKeysForBodyKeys(keys, layout) {
+  const groupKeys = new Set();
+  (keys || []).forEach((key) => {
+    const starKey = layout.canonicalKeyByAlias.get(key) || key;
+    const groupKey = layout.starToGroup.get(starKey);
+    if (groupKey) {
+      groupKeys.add(groupKey);
+    }
+  });
+  return [...groupKeys];
+}
+
+function buildGroupMotionSpecs(groupOrbits, layout) {
+  return (groupOrbits || [])
+    .map((orbit) => {
+      const primaryGroupKeys = groupKeysForBodyKeys(orbit.primary_child_body_keys, layout);
+      const secondaryGroupKeys = groupKeysForBodyKeys(orbit.secondary_child_body_keys, layout);
+      const primarySet = new Set(primaryGroupKeys);
+      const secondarySet = new Set(secondaryGroupKeys);
+      const overlap = [...primarySet].some((key) => secondarySet.has(key));
+      if (!primaryGroupKeys.length || !secondaryGroupKeys.length || overlap) {
+        return null;
+      }
+      return {
+        orbit,
+        primaryGroupKeys,
+        secondaryGroupKeys,
+        periodDays: Math.max(0.05, numericField(orbit.fields, "period_days") || 80),
+        phaseRad: numericField(orbit.fields, "phase_rad") || 0,
+        eccentricity: Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0)),
+        inclinationRad: THREE.MathUtils.degToRad(numericField(orbit.fields, "inclination_deg") || 0),
+        orbitRadius: (Number(orbit.display_radius_scene) || 1.6) * 0.55,
+      };
+    })
+    .filter(Boolean);
+}
+
+function groupOffsetAt(groupKey, groupMotionSpecs, simDays) {
+  if (!groupKey || !groupMotionSpecs?.length) {
+    return [0, 0, 0];
+  }
+  return groupMotionSpecs.reduce((offset, spec) => {
+    const side = spec.primaryGroupKeys.includes(groupKey) ? -0.5 : (spec.secondaryGroupKeys.includes(groupKey) ? 0.5 : 0);
+    if (!side) {
+      return offset;
+    }
+    const phase = spec.phaseRad + (simDays / spec.periodDays) * Math.PI * 2;
+    return addVector(offset, scaledVector(orbitalPosition(phase, spec.orbitRadius, spec.eccentricity, spec.inclinationRad), side));
+  }, [0, 0, 0]);
+}
+
+function averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays) {
+  const uniqueKeys = [...new Set((groupKeys || []).filter(Boolean))];
+  return averageVector(uniqueKeys.map((key) => groupOffsetAt(key, groupMotionSpecs, simDays)));
+}
+
+function groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays) {
+  return averageVector([
+    averageGroupOffsetAt(primaryGroupKeys, groupMotionSpecs, simDays),
+    averageGroupOffsetAt(secondaryGroupKeys, groupMotionSpecs, simDays),
+  ]);
+}
+
+function groupKeysForStarKeys(starKeys, layout) {
+  return [...new Set((starKeys || []).map((key) => layout.starToGroup.get(layout.canonicalKeyByAlias.get(key) || key)).filter(Boolean))];
+}
+
+function AnimatedStarSphere({ star, position = [0, 0, 0], groupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
+  const groupRef = React.useRef(null);
+  const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
+
+  useEffect(() => {
+    simRef.current = { days: 0, lastElapsedSeconds: null };
+  }, [resetToken]);
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) {
+      return;
+    }
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
+    groupRef.current.position.set(...addVector(position, groupOffsetAt(groupKey, groupMotionSpecs, simDays)));
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      <StarSphere star={star} onHover={onHover} onSelect={onSelect} />
+    </group>
+  );
+}
+
+function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const primaryRef = React.useRef(null);
   const secondaryRef = React.useRef(null);
@@ -445,9 +543,11 @@ function BinaryOrbit({ orbit, starsByKey, center = [0, 0, 0], running = true, sp
     if (!groupRef.current || !primaryRef.current || !secondaryRef.current) {
       return;
     }
-    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running) * speedMultiplier;
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
     const theta = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    groupRef.current.position.set(center[0], center[1], center[2]);
+    const motionGroupKeys = groupKeysForStarKeys([orbit.primary_body_key, orbit.secondary_body_key], layout);
+    const centerOffset = averageGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays);
+    groupRef.current.position.set(...addVector(center, centerOffset));
     const relative = orbitalPosition(theta, orbitRadius, eccentricity, inclinationRad);
     primaryRef.current.position.set(...scaledVector(relative, -0.5));
     secondaryRef.current.position.set(...scaledVector(relative, 0.5));
@@ -494,7 +594,9 @@ function centerForBodyKeys(keys, layout, starsByKey) {
   return scaledVector(positions.reduce((sum, position) => addVector(sum, position), [0, 0, 0]), 1 / positions.length);
 }
 
-function GroupOrbitGuide({ orbit, layout, starsByKey, showOrbits = true, onHover, onSelect }) {
+function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+  const lineRef = React.useRef(null);
+  const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const primaryCenter = centerForBodyKeys(orbit.primary_child_body_keys, layout, starsByKey);
   const secondaryCenter = centerForBodyKeys(orbit.secondary_child_body_keys, layout, starsByKey);
   const eccentricity = Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0));
@@ -503,10 +605,26 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, showOrbits = true, onHover
   const orbitRadius = Number(orbit.display_radius_scene) || 1.6;
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
   const payload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
+  const center = primaryCenter && secondaryCenter ? scaledVector(addVector(primaryCenter, secondaryCenter), 0.5) : [0, 0, 0];
+  const primaryGroupKeys = groupKeysForBodyKeys(orbit.primary_child_body_keys, layout);
+  const secondaryGroupKeys = groupKeysForBodyKeys(orbit.secondary_child_body_keys, layout);
+
+  useEffect(() => {
+    simRef.current = { days: 0, lastElapsedSeconds: null };
+  }, [resetToken]);
+
+  useFrame(({ clock }) => {
+    if (!lineRef.current) {
+      return;
+    }
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
+    lineRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays)));
+  });
+
   if (!showOrbits || !primaryCenter || !secondaryCenter) {
     return null;
   }
-  const center = scaledVector(addVector(primaryCenter, secondaryCenter), 0.5);
+
   const handlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -526,7 +644,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, showOrbits = true, onHover
     },
   };
   return (
-    <lineLoop position={center} {...handlers}>
+    <lineLoop ref={lineRef} position={center} {...handlers}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
@@ -535,7 +653,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, showOrbits = true, onHover
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
@@ -571,9 +689,10 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], running 
     if (!groupRef.current) {
       return;
     }
-    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running) * speedMultiplier;
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    groupRef.current.position.set(...addVector(center, orbitalPosition(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
+    const movingCenter = addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays));
+    groupRef.current.position.set(...addVector(movingCenter, orbitalPosition(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
   });
 
   return (
@@ -632,7 +751,9 @@ function CanvasHoverRaycaster({ onHover }) {
   return null;
 }
 
-function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], onHover, onSelect }) {
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
+  const lineRef = React.useRef(null);
+  const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
@@ -667,8 +788,21 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], onHover, onS
       onSelect?.(payload);
     },
   };
+
+  useEffect(() => {
+    simRef.current = { days: 0, lastElapsedSeconds: null };
+  }, [resetToken]);
+
+  useFrame(({ clock }) => {
+    if (!lineRef.current) {
+      return;
+    }
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
+    lineRef.current.position.set(...addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays)));
+  });
+
   return (
-    <lineLoop position={center} {...handlers}>
+    <lineLoop ref={lineRef} position={center} {...handlers}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
@@ -682,6 +816,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
   const layout = useMemo(() => buildStarLayout(stars, hierarchy, binaryOrbits), [stars, hierarchy, binaryOrbits]);
+  const groupMotionSpecs = useMemo(() => buildGroupMotionSpecs(groupOrbits, layout), [groupOrbits, layout]);
   const starsByKey = useMemo(() => {
     const out = new Map();
     stars.forEach((star) => {
@@ -706,23 +841,23 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
   );
-  const hostCenterForPlanet = (planet) => {
+  const hostPlacementForPlanet = (planet) => {
     const hostKey = layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key;
     if (hostKey && layout.starPositions.has(hostKey)) {
-      return layout.starPositions.get(hostKey);
+      return { center: layout.starPositions.get(hostKey), groupKey: layout.starToGroup.get(hostKey) };
     }
     if (hostKey) {
       const star = starsByKey.get(hostKey);
       const starKey = star?.render_key || star?.key;
       if (starKey && layout.starPositions.has(starKey)) {
-        return layout.starPositions.get(starKey);
+        return { center: layout.starPositions.get(starKey), groupKey: layout.starToGroup.get(starKey) };
       }
     }
     const hostStarId = Number(planet.host_star_id);
     if (Number.isFinite(hostStarId) && starCenterByCoreId.has(hostStarId)) {
-      return starCenterByCoreId.get(hostStarId);
+      return { center: starCenterByCoreId.get(hostStarId), groupKey: null };
     }
-    return [0, 0, 0];
+    return { center: [0, 0, 0], groupKey: null };
   };
 
   return (
@@ -734,6 +869,8 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
           key={orbit.orbit_key || idx}
           orbit={orbit}
           starsByKey={starsByKey}
+          layout={layout}
+          groupMotionSpecs={groupMotionSpecs}
           center={layout.orbitCenters.get(orbit.orbit_key || `orbit-${idx}`) || [0, 0, 0]}
           running={running}
           speedMultiplier={speedMultiplier}
@@ -744,10 +881,15 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
         />
       ))}
       {looseStars.map((star) => (
-        <StarSphere
+        <AnimatedStarSphere
           key={star.render_key || star.key}
           star={star}
           position={layout.starPositions.get(star.render_key || star.key) || [0, 0, 0]}
+          groupKey={layout.starToGroup.get(star.render_key || star.key)}
+          groupMotionSpecs={groupMotionSpecs}
+          running={running}
+          speedMultiplier={speedMultiplier}
+          resetToken={resetToken}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -758,6 +900,10 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
           orbit={orbit}
           layout={layout}
           starsByKey={starsByKey}
+          groupMotionSpecs={groupMotionSpecs}
+          running={running}
+          speedMultiplier={speedMultiplier}
+          resetToken={resetToken}
           showOrbits={showOrbits}
           onHover={onHover}
           onSelect={onSelect}
@@ -765,14 +911,29 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
       ))}
       {planets.map((planet, idx) => {
         const orbitRadius = 0.75 + Math.sqrt((planet.orbitAu || 0.08) / maxOrbit) * 2.7;
-        const center = hostCenterForPlanet(planet);
+        const placement = hostPlacementForPlanet(planet);
         return (
           <React.Fragment key={planet.key}>
-            {showOrbits && <PlanetOrbitRing planet={planet} orbitRadius={orbitRadius} center={center} onHover={onHover} onSelect={onSelect} />}
+            {showOrbits && (
+              <PlanetOrbitRing
+                planet={planet}
+                orbitRadius={orbitRadius}
+                center={placement.center}
+                motionGroupKey={placement.groupKey}
+                groupMotionSpecs={groupMotionSpecs}
+                running={running}
+                speedMultiplier={speedMultiplier}
+                resetToken={resetToken}
+                onHover={onHover}
+                onSelect={onSelect}
+              />
+            )}
             <PlanetObject
               planet={planet}
               orbitRadius={orbitRadius}
-              center={center}
+              center={placement.center}
+              motionGroupKey={placement.groupKey}
+              groupMotionSpecs={groupMotionSpecs}
               color={PLANET_COLORS[idx % PLANET_COLORS.length]}
               running={running}
               speedMultiplier={speedMultiplier}

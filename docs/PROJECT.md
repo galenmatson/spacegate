@@ -191,9 +191,11 @@ Implementation note:
   and uses the scene-readiness endpoint; `render_scene_v0.2` adds renderer-ready
   bodies/orbits and provenance-bearing source/derived/assumed/missing fields;
   hierarchical subsystem orbit edges are exposed as group-pair guides rather
-  than collapsed into direct binary star orbits; the public preview now supports
-  pause/start, speed, reset, orbit visibility, hover, and pinned copyable
-  readouts;
+  than collapsed into direct binary star orbits; the browser preview uses those
+  group-pair edges for deterministic visual-scale child-cluster motion while
+  leaving source-scaled barycentric propagation for a later precision pass; the
+  public preview now supports pause/start, speed, reset, orbit visibility,
+  hover, and pinned copyable readouts;
   deterministic snapshots remain the fallback/reference artifact
 
 ### Rim (editable overlays)

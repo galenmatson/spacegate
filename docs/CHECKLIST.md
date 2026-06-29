@@ -257,6 +257,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   click/tap pinned inspection, and copyable render/source IDs
 - [x] Render hierarchical subsystem orbit edges as group-pair guides in the
   Live System Preview instead of flattening them into direct star binaries
+- [x] Use hierarchical group-pair edges for deterministic visual-scale
+  child-cluster motion in the Live System Preview
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   TRAPPIST-1 source-backed periods, and 55 Cnc/Sol source-backed planet periods
 - [ ] Implement true nested barycentric subsystem propagation for hierarchical
