@@ -162,6 +162,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
 - [x] Logged database build wrapper preserves build exit status and host state-dir environment (`scripts/build_database_logged.sh`)
 - [x] Photon generous retention and bulk research storage policy documented (`/mnt/space/spacegate`)
+- [x] Public antiproton deployment runbook documents sliced DB publish, activation, SSH cooldown, verification, and rollback (`docs/PUBLIC_DEPLOYMENT.md`)
 - [x] API Docker runtime runs non-root with generated-state permission normalization
 - [x] API Docker runtime drops capabilities, blocks privilege escalation, and uses a read-only root filesystem with explicit tmpfs scratch mounts
 - [ ] Dedicated `spacegate-run` service user and shared group model for Admin/API runtime

@@ -168,6 +168,9 @@ Current status:
   reduces ARM from 5.5 GiB to about 2.9 GiB, canonical hierarchy from 1.4 GiB
   to about 568 MiB, and disc from about 971 MiB to about 597 MiB while passing
   Sol S2-S4, Castor multiplicity, alias-search, and known-system API gates.
+- `docs/PUBLIC_DEPLOYMENT.md` now documents the Photon-to-antiproton public
+  path: publish archive, activate runtime DB, deploy code, verify public API,
+  keep rollback build, and use SSH cooldown discipline for UFW/fail2ban.
 
 ### M3. Multiplicity and Systems-of-Systems
 

@@ -702,6 +702,7 @@ Operational status:
 - `docs/SCHEMA_DISC.md`: disc contract
 - `docs/SCHEMA_RIM.md`: rim contract
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
+- `docs/PUBLIC_DEPLOYMENT.md`: Photon-to-antiproton public deployment runbook
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/SOL_AUTHORITY.md`: Sol-system authoritative ingest contract and release gates
 - `docs/SYSTEM_GRAPH_ARCHITECTURE.md`: cross-layer node/edge model, containment-vs-relation rules, and generator compatibility
