@@ -792,6 +792,12 @@ Notes:
   proper-name coverage, expanded Bayer coverage, and benchmark lookups such as
   Castor, Alpha Geminorum, Alpha Centauri, Toliman, Sirius, Jabbah, and
   Copernicus.
+- Build verification also includes a compact-alias safety verifier
+  (`scripts/verify_compact_alias_safety.py`) for Sirius-class hazards where a
+  compact-object row without a non-compact sibling carries bright-primary
+  AT-HYG aliases plus HD/WDS or non-proper primary aliases. It is warn-only
+  until the current served artifacts are rebuilt clean, then should run as a
+  strict gate with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
 - Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
   - exact Gaia ID
   - Gaia legacy remap via unique HIP/HD agreement

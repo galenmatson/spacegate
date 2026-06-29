@@ -16,6 +16,7 @@ PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-}"
 REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
 VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
 VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
+VERIFY_COMPACT_ALIAS_SAFETY="${SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY:-0}"
 
 usage() {
   cat <<'USAGE'
@@ -359,6 +360,17 @@ PY
     exit 1
   fi
   "$PYTHON_BIN" "$alias_search_script" --core-db "$core_db"
+
+  local compact_alias_safety_script="$ROOT_DIR/scripts/verify_compact_alias_safety.py"
+  if [[ ! -x "$compact_alias_safety_script" ]]; then
+    echo "Error: missing executable $compact_alias_safety_script" >&2
+    exit 1
+  fi
+  if [[ "$VERIFY_COMPACT_ALIAS_SAFETY" == "1" ]]; then
+    "$PYTHON_BIN" "$compact_alias_safety_script" --core-db "$core_db"
+  else
+    "$PYTHON_BIN" "$compact_alias_safety_script" --core-db "$core_db" --warn-only
+  fi
 
   local arm_db="$build_dir/arm.duckdb"
   if [[ -f "$arm_db" ]]; then

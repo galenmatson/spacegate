@@ -422,6 +422,11 @@ Contract notes:
   equivalence: they must not promote HIP/HD/HR/GL/TYC/HYG identifiers into
   core stars. Non-compact AT-HYG rows must not be positional-matched onto
   compact-object or white-dwarf targets.
+- Build verification includes a compact-alias safety check for Sirius-class
+  hazards: a compact-object row without a non-compact sibling must not carry
+  bright-primary AT-HYG aliases plus HD/WDS or non-proper primary aliases. The
+  check is warn-only during the current served-artifact repair window and can
+  be made strict with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
 - Gaia-fallback display names may be promoted from matched exoplanet host labels when canonical/common stellar labels are absent.
 - host-label precedence in Gaia-fallback promotion should prefer:
   - human/common labels

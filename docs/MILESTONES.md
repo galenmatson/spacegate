@@ -231,6 +231,13 @@ Deliverables:
     rows from matching compact-object/white-dwarf Gaia targets and prevents
     weak positional AT-HYG matches from promoting HIP/HD/HR/GL/TYC/HYG
     identifiers; a rebuild is still required to repair served Sirius rows
+  - June 29, 2026 compact-alias safety verifier
+    (`scripts/verify_compact_alias_safety.py`) detects Sirius-class builds
+    where a compact-object row with no non-compact sibling carries
+    bright-primary AT-HYG aliases plus HD/WDS or non-proper primary aliases.
+    `scripts/verify_build.sh` runs it in warn-only mode by default; set
+    `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1` after rebuilding clean artifacts
+    to make the gate strict.
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
@@ -714,6 +721,8 @@ Readiness gaps:
   attached to the system. The ingest guard now blocks the unsafe AT-HYG
   Sirius-A-to-white-dwarf alias/identifier attachment on future builds, but
   Sirius A still needs a canonical inventory source or accepted supplement path.
+  The compact-alias verifier keeps this failure mode visible in build
+  verification until rebuilt artifacts are clean enough for strict gating.
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and

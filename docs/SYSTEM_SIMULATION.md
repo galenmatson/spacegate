@@ -286,3 +286,6 @@ Known benchmark blocker:
   source/supplement path. The simulator must continue to render the payload
   honestly; the fix belongs in bright-star/common-name authority and
   compact-companion source reconciliation, not in renderer-only fabrication.
+  `scripts/verify_compact_alias_safety.py` detects this class of bad artifact
+  during build verification; it should become a strict gate after the next clean
+  rebuild.
