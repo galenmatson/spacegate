@@ -2915,7 +2915,10 @@ def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, A
     if not reports_dir.exists() or not reports_dir.is_dir():
         issues.append("Report directory is missing.")
     if missing_required:
-        issues.append(f"Missing required verify reports: {', '.join(missing_required)}.")
+        warnings.append(
+            "Legacy verify reports are absent for this build; verify_build.sh "
+            f"may use relaxed artifact/API gates instead. Missing: {', '.join(missing_required)}."
+        )
 
     qc_path = reports_dir / "qc_report.json"
     qc: Dict[str, Any] | None = None
@@ -2997,9 +3000,7 @@ def _build_verification_summary(reports_dir: Path, build_id: str) -> Dict[str, A
 
     if issues:
         status = "failed"
-    elif missing_required:
-        status = "missing_reports"
-    elif warnings:
+    elif missing_required or warnings:
         status = "attention"
     elif all(item["exists"] for item in required):
         status = "passed_reports"

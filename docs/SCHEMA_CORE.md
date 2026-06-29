@@ -18,9 +18,7 @@ Out of scope:
 
 Per build:
 
-- `$SPACEGATE_STATE_DIR/out/<build_id>/galaxy.duckdb` (target-state full canonical astronomy corpus)
-- `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb` (default fast astronomy projection)
-- `$SPACEGATE_STATE_DIR/out/<build_id>/halo.duckdb` (complementary opt-in astronomy projection)
+- `$SPACEGATE_STATE_DIR/out/<build_id>/core.duckdb` (served canonical astronomy inventory/projection)
 - `$SPACEGATE_STATE_DIR/out/<build_id>/parquet/{stars,systems,planets}.parquet` (projection-specific export set)
 - `$SPACEGATE_STATE_DIR/reports/<build_id>/*.json`
 
@@ -28,7 +26,9 @@ Build IDs are immutable and deterministic for pinned inputs and transforms.
 
 Transition note:
 
-- current runtime may still emit only `core.duckdb` while `galaxy`/`halo` artifact materialization is finalized.
+- Earlier Galaxy/Halo complement artifacts are retired from the active contract.
+  The `halo` name is reserved for a possible future larger/full-Gaia product,
+  not the old complement projection.
 
 ## Canonical Inventory Policy
 

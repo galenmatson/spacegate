@@ -4412,6 +4412,18 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         star_has_sbx = "sbx_sn" in star_cols
         system_has_sbx = "has_sbx_evidence" in system_cols
 
+        basic_counts_row = _timed(
+            "basic_dataset_counts",
+            lambda: con.execute(
+                """
+                SELECT
+                  (SELECT COUNT(*)::bigint FROM systems) AS systems,
+                  (SELECT COUNT(*)::bigint FROM stars) AS stars,
+                  (SELECT COUNT(*)::bigint FROM planets) AS planets
+                """
+            ).fetchone(),
+        )
+
         source_breakdown_rows = _timed(
             "stars_by_source_catalog",
             lambda: con.execute(
@@ -4955,9 +4967,15 @@ def _dataset_status_payload(*, force_refresh: bool) -> Dict[str, Any]:
         "compact_total": int(compact_row[4] or 0),
     }
 
-    stars_count = int(((qc_report.get("counts") or {}).get("stars")) or 0)
-    systems_count = int(((qc_report.get("counts") or {}).get("systems")) or 0)
-    planets_count = int(((qc_report.get("counts") or {}).get("planets")) or 0)
+    basic_counts = {
+        "systems": int((basic_counts_row or [0, 0, 0])[0] or 0),
+        "stars": int((basic_counts_row or [0, 0, 0])[1] or 0),
+        "planets": int((basic_counts_row or [0, 0, 0])[2] or 0),
+    }
+    qc_counts = qc_report.get("counts") if isinstance(qc_report.get("counts"), dict) else {}
+    stars_count = int(qc_counts.get("stars") or basic_counts["stars"])
+    systems_count = int(qc_counts.get("systems") or basic_counts["systems"])
+    planets_count = int(qc_counts.get("planets") or basic_counts["planets"])
     multi_systems_count = int(system_grouping_report.get("multi_star_systems") or 0)
     single_systems_count = max(systems_count - multi_systems_count, 0)
 
@@ -5293,7 +5311,7 @@ def _normalize_agent_source_allowlist_doc(raw: Dict[str, Any]) -> Dict[str, Any]
     }
 
 
-def _read_json_file(path: Path) -> Dict[str, Any]:
+def _read_agent_source_allowlist_json_file(path: Path) -> Dict[str, Any]:
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -5314,7 +5332,7 @@ def _backup_agent_source_allowlist(reason: str) -> Dict[str, Any] | None:
     runtime_path = _agent_source_allowlist_runtime_path()
     if not runtime_path.exists():
         return None
-    raw = _read_json_file(runtime_path)
+    raw = _read_agent_source_allowlist_json_file(runtime_path)
     normalized = _normalize_agent_source_allowlist_doc(raw)
     normalized["backup_reason"] = re.sub(r"\s+", "_", str(reason or "change").strip().lower())[:80] or "change"
     normalized["backed_up_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -5355,10 +5373,11 @@ def _list_agent_source_allowlist_versions(limit: int = 30) -> List[Dict[str, Any
             backup_reason = ""
             updated_at = None
             try:
-                doc = _normalize_agent_source_allowlist_doc(_read_json_file(path))
+                raw = _read_agent_source_allowlist_json_file(path)
+                doc = _normalize_agent_source_allowlist_doc(raw)
                 source_count = len(doc.get("sources", []))
                 enabled_count = len([item for item in doc.get("sources", []) if item.get("enabled")])
-                backup_reason = str(_read_json_file(path).get("backup_reason") or "")
+                backup_reason = str(raw.get("backup_reason") or "")
                 updated_at = doc.get("updated_at_utc")
             except Exception:
                 pass
@@ -5383,7 +5402,7 @@ def _load_agent_source_allowlist() -> Dict[str, Any]:
     default_path = AGENT_SOURCE_ALLOWLIST_DEFAULT_PATH
     selected = runtime_path if runtime_path.exists() else default_path
     try:
-        raw = _read_json_file(selected)
+        raw = _read_agent_source_allowlist_json_file(selected)
     except FileNotFoundError:
         raw = {"schema_version": 1, "policy": {}, "sources": []}
     doc = _normalize_agent_source_allowlist_doc(raw)
@@ -5459,7 +5478,7 @@ def _restore_agent_source_allowlist_version(version_id: str, user: Dict[str, Any
     source_path = _agent_source_allowlist_history_dir() / clean_version_id
     if not source_path.exists() or not source_path.is_file():
         raise HTTPException(status_code=404, detail={"code": "not_found", "message": f"Allowlist version not found: {clean_version_id}"})
-    raw = _read_json_file(source_path)
+    raw = _read_agent_source_allowlist_json_file(source_path)
     doc = _normalize_agent_source_allowlist_doc(raw)
     doc["updated_at_utc"] = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
     doc["updated_by"] = str(user.get("email_norm") or user.get("email") or user.get("user_id") or "admin")

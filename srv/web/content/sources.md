@@ -6,9 +6,7 @@ Spacegate is now Gaia-first. We preserve source-native records with provenance, 
 
 ## Layer Model
 
-- `galaxy`: full canonical scientific inventory (immutable)
-- `core`: fast canonical projection for default browse/search
-- `halo`: opt-in canonical projection excluded from core
+- `core`: canonical served inventory/projection for default browse/search
 - `arm`: supplemental science overlays (hierarchy, orbital/variability support, Sol authority overlays)
 - `disc`: reproducible derived outputs (scores, snapshots, enrichments)
 - `rim`: user-editable worldbuilding overlays
@@ -53,7 +51,7 @@ Spacegate is now Gaia-first. We preserve source-native records with provenance, 
 - Provenance first: source catalog, version, retrieval checksum, and retrieval timestamp are retained.
 - Deterministic transforms: cooked outputs are reproducible from raw manifests.
 - Conservative matching: confidence-gated cross-catalog joins avoid speculative merges.
-- Canonical separation: immutable science layers (`galaxy/core/halo/arm`) remain distinct from generated/user layers (`disc/rim`).
+- Canonical separation: immutable science layers (`core/arm`) remain distinct from generated/user layers (`disc/rim`).
 
 ## Transport and Security Notes
 

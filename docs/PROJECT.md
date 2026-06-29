@@ -29,9 +29,8 @@ Reason:
 2. Provenance on every served row.
 3. Deterministic builds and deterministic promotion.
 4. Clear layer boundaries:
-   - `galaxy`: immutable canonical science corpus
-   - `core`: fast default science projection
-   - `halo`: explicit opt-in science projection (complement to core)
+   - `core`: immutable served canonical science inventory/projection and
+     selected hot-path scalar facts
    - `arm`: immutable science evidence/support layer (source-native support
      rows, adjudication candidates, graph/orbit evidence, deterministic
      science derivatives outside core hot paths)
@@ -45,7 +44,7 @@ Reason:
    - additional typed relation edges for cross-links and dynamic relationships
    - no requirement that all node/edge vocabulary lives in `core`
 9. Classification discipline:
-   - scientific classifications in `galaxy/core/halo` must remain source-faithful
+   - scientific classifications in `core` and `arm` must remain source-faithful
    - UX supergroups (for example `subplanet`) are allowed but may not overwrite canonical science fields
 
 Operational runbook:
@@ -54,7 +53,7 @@ Operational runbook:
 - 3D map runtime: `docs/3D_MAP.md`
 - system simulation contract: `docs/SYSTEM_SIMULATION.md`
 
-## Data Layers (`galaxy` / `core` / `halo` / `arm` / `disc` / `rim`)
+## Data Layers (`core` / `arm` / `disc` / `rim`)
 
 Layer ownership is decided by **role in Spacegate**, not only by whether a value
 comes directly from a source catalog.
@@ -83,36 +82,36 @@ simulation-ready orbital solutions, fit metadata, uncertainty, epochs, and
 future alternate solutions belong in `arm`.
 
 ### Galaxy (immutable canonical astronomy)
-Authoritative full-science inventory per build:
+Retired as an active database layer. The earlier `galaxy.duckdb` plan treated a
+full canonical science corpus as a separate build artifact, with `core` and
+`halo` projected from it. Current Spacegate builds instead materialize the
+served canonical inventory directly as `core.duckdb`, with source-native
+evidence and graph/orbit support in `arm.duckdb`.
 
-- all scientific rows retained
-- full provenance contract enforced
-- not the default hot-path serving tier
+The term may be reused later for a different large-scale or full-sky product,
+but it is not an active Admin/API layer.
 
 ### Core (immutable astronomy)
 Fast default serving projection for common browse/search/detail traffic.
 
-Core is generated deterministically from `galaxy` and a versioned slice profile.
+Core is generated deterministically from pinned source snapshots, cooked source
+rows, and a versioned slice/profile policy.
 It should stay conservative: accepted object identity, accepted host/membership
 links, and selected hot-path scalar facts only.
 
 ### Halo (immutable astronomy complement)
-Explicit opt-in serving projection containing scientific rows excluded from core by policy.
+Retired as an active complement-to-core database layer. The `halo` name is
+reserved for possible future use, likely a larger extended/full-Gaia astronomy
+store rather than the old complement projection.
 
-Rules:
-
-- `core` and `halo` are complementary projections from the same `galaxy` build
-- no destructive row movement; projection rebuilds only
-- same `stable_object_key` identity across tiers
-
-### Core/Halo canonical tables
+### Core canonical tables
 
 - `systems`
 - `stars`
 - `planets`
 - `build_metadata`
 
-Core/halo must remain free of generated prose/images/rim overlays.
+Core must remain free of generated prose/images/rim overlays.
 
 ### Arm (immutable science evidence/support)
 
@@ -191,11 +190,12 @@ User/worldbuilder entities and relationships keyed by `stable_object_key`.
 
 ## Gaia-First Architecture
 
-Spacegate will use a three-tier astronomy runtime:
+Spacegate uses a layered astronomy runtime:
 
-1. `galaxy` (canonical inventory substrate; Gaia-first)
-2. `core_product_slice` (default served subset for UX/performance)
-3. `halo_complement` (opt-in long-tail subset)
+1. `core` (served canonical inventory/projection; Gaia-first)
+2. `arm` (source-native evidence/support, graph/orbit contracts, diagnostics)
+3. `disc` (deterministic presentation products and explicit assumptions)
+4. `rim` (fiction/worldbuilding overlays)
 
 Catalog crosswalks and multiplicity catalogs attach to backbone IDs; they are not primary object inventory sources.
 
@@ -580,7 +580,8 @@ Implementation constraints:
 
 Definition:
 
-- A **slice** is a deterministic row-selection policy applied at ingest to produce `core` and complementary `halo` from `galaxy`.
+- A **slice** is a deterministic row-selection policy applied at ingest to produce
+  the served `core` build for a target runtime profile.
 - Slice policy is recorded in `build_metadata` and emitted to `reports/<build_id>/slice_policy_report.json`.
 
 Current slice controls (admin):
@@ -594,7 +595,8 @@ Execution model:
 
 - Preview endpoint estimates retained/sliced counts against current served build.
 - Build action applies policy through `scripts/build_database_slice.sh` and publishes a new immutable build set.
-- Projection reversibility is handled by rebuilding from `galaxy` with a different slice profile, not by mutating rows.
+- Projection reversibility is handled by rebuilding from pinned raw/cooked source
+  snapshots with a different slice profile, not by mutating served rows.
 
 Performance model:
 
@@ -611,7 +613,6 @@ Rules:
 
 - `core` profile must be selected by explicit name/version.
 - promotion gates require SLO pass for the active profile.
-- `halo` remains queryable only with explicit user intent.
 - constrained public hosts may use a documented public slice profile that keeps a `parallax_over_error` floor but avoids a hard RUWE gate when that gate removes important multiplicity/remnant companions.
 
 ## Milestones (Gaia-First Program)
@@ -785,25 +786,25 @@ Notes:
 ## Immediate Next Actions
 
 1. Enforce SLO gating in promotion for active core profile.
-2. Expose explicit deep-query routing over `halo`/`galaxy` in API/UI.
-3. Re-run multiplicity comparison modes against Gaia-backed `galaxy` IDs.
+2. Add Admin controls to verify, promote, and roll back available immutable
+   build directories with explicit safeguards.
+3. Re-run multiplicity comparison modes against Gaia-backed core IDs.
 
 ## Layered Restabilization Status (March 6, 2026)
 
-Completed:
+Retired direction:
 
-- `galaxy` alias materialization script: `scripts/materialize_galaxy.sh`
-- sliced core profile metadata wiring in ingest:
+- `galaxy` alias materialization and `halo` complement materialization were
+  useful prototypes, but are no longer the active database architecture.
+- sliced core profile metadata wiring in ingest remains active:
   - `slice_profile_id`
   - `slice_profile_version`
   - `build_layer`
   - `source_galaxy_build_id`
-- `halo` complement materialization script pair:
-  - `scripts/build_halo.sh`
-  - `scripts/build_halo_from_galaxy.py`
 
 Current operational pattern:
 
-1. materialize current full build as `galaxy`
-2. rebuild/promote sliced `core` with explicit profile id/version
-3. build `halo` complement from (`galaxy`, `core`) pair
+1. rebuild/promote sliced `core` with explicit profile id/version
+2. rebuild `arm`, `disc`, and canonical hierarchy artifacts against that served
+   core
+3. publish/deploy the verified build artifact set

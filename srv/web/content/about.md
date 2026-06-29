@@ -37,7 +37,7 @@ Raw source files are preserved in immutable snapshots. From there, deterministic
 
 - Normalize identifiers and aliases
 - Resolve star/system joins with confidence gates
-- Build canonical `core` plus opt-in `halo` and supplemental `arm` science overlays
+- Build canonical `core` plus supplemental `arm` science overlays
 - Attach provenance and retrieval metadata for each transformed record
 
 Each build produces:

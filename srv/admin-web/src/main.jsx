@@ -899,7 +899,7 @@ function BuildsScreen({ csrf, openOperationsJob }) {
   const dataset = state.dataset || {};
   const buildStatus = state.buildStatus || {};
   const operations = state.operations || {};
-  const sizes = dataset.sizes_bytes || {};
+  const datasetSizes = dataset.sizes_bytes || {};
   const counts = dataset.dataset_counts || {};
   const disk = dataset.disk || {};
   const legacyBuilds = operations.builds || {};
@@ -912,6 +912,25 @@ function BuildsScreen({ csrf, openOperationsJob }) {
   const verification = currentBuild?.verification || {};
   const snapshot = currentBuild?.snapshot || {};
   const coolness = currentBuild?.coolness || {};
+  const buildArtifactSizes = currentBuild?.artifact_sizes_bytes || {};
+  const sizes = {
+    ...datasetSizes,
+    core_db: buildArtifactSizes.core_db ?? datasetSizes.core_db,
+    arm_db: buildArtifactSizes.arm_db ?? datasetSizes.arm_db,
+    disc_db: buildArtifactSizes.disc_db ?? datasetSizes.disc_db,
+  };
+  const hasDatasetStatus = Boolean(state.dataset);
+  const hasDiskUsage = Number.isFinite(Number(disk.free_bytes)) && Number.isFinite(Number(disk.used_pct));
+  const hasDatasetCounts = ["systems", "stars", "planets"].some((key) => Number.isFinite(Number(counts[key])));
+  const coreArmDiscText = [sizes.core_db, sizes.arm_db, sizes.disc_db]
+    .map((value) => (Number.isFinite(Number(value)) ? formatBytes(value) : "n/a"))
+    .join(" / ");
+  const systemStarPlanetText = hasDatasetCounts
+    ? `${formatInt(counts.systems)} / ${formatInt(counts.stars)} / ${formatInt(counts.planets)}`
+    : "n/a";
+  const dataFreeText = hasDiskUsage
+    ? `${formatBytes(disk.free_bytes)} (${formatPct(100 - Number(disk.used_pct || 0))} free)`
+    : "n/a";
   const pathHealth = buildStatus.path_health || {};
   const nextActions = Array.isArray(buildStatus.next_actions) ? buildStatus.next_actions : [];
   const operationJobs = operationJobsFromStatus(operations);
@@ -974,9 +993,12 @@ function BuildsScreen({ csrf, openOperationsJob }) {
           <OverviewFact label="Build ID" value={state.status?.build_id || served.build_id || "n/a"} />
           <OverviewFact label="Served target" value={served.target || "n/a"} />
           <OverviewFact label="Build dirs / report dirs" value={`${formatInt(buildStatus.out_count || recentBuilds.length)} / ${formatInt(buildStatus.report_build_count)}`} />
-          <OverviewFact label="Core / Arm / Disc" value={`${formatBytes(sizes.core_db)} / ${formatBytes(sizes.arm_db)} / ${formatBytes(sizes.disc_db)}`} />
-          <OverviewFact label="Systems / Stars / Planets" value={`${formatInt(counts.systems)} / ${formatInt(counts.stars)} / ${formatInt(counts.planets)}`} />
-          <OverviewFact label="/data free" value={`${formatBytes(disk.free_bytes)} (${formatPct(100 - Number(disk.used_pct || 0))} free)`} />
+          <OverviewFact label="Core / Arm / Disc" value={coreArmDiscText} />
+          <OverviewFact label="Systems / Stars / Planets" value={systemStarPlanetText} />
+          <OverviewFact label="/data free" value={dataFreeText} />
+          {!hasDatasetStatus && (
+            <p className="muted">Dataset status is unavailable; build artifact facts are loaded from Builds status.</p>
+          )}
         </div>
 
         <div className="panel">

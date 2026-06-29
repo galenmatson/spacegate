@@ -4,7 +4,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ## A) Platform Foundations
 
-- [x] Galaxy/core/halo/arm/disc/rim layer model documented (legacy aliases retained during transition)
+- [x] Core/arm/disc/rim layer model documented
 - [x] Immutable build output model (`out/<build_id>`, promoted `served/current`)
 - [x] Deterministic `download -> cook -> ingest -> promote -> verify` scripts
 - [x] Arm graph artifact emitted during ingest (`arm.duckdb`) with report (`arm_report.json`)
@@ -62,14 +62,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add compact/superstellar side catalogs (ATNF pulsars, McGill magnetars, open clusters, Galactic SNR)
 - [x] Tag Gaia stars with open-cluster memberships where catalog IDs overlap (probability thresholded)
 
-### C3. Phase B - Core/Halo Product Slice
+### C3. Phase B - Core Product Slice
 
 - [x] Define deterministic `core_product_slice` policy over backbone
-- [x] Materialize complementary `halo` artifacts from `galaxy` + sliced `core` builds
+- [x] Retire the old Galaxy/Halo complement plan from active docs/Admin surface
 - [x] Slice public side artifacts (`arm.duckdb`, `canonical_hierarchy.duckdb`,
   and `disc.duckdb`) with the public core profile so antiproton does not carry
   the full Photon working graph
-- [ ] Add explicit deep-query plumbing over `halo`/`galaxy` in API/UI
+- [ ] Add guarded Admin promote/rollback controls for available immutable build
+  directories
 - [x] Enforce profile-specific SLO gates during promote
 - [x] Validate p95/p99 search and detail latency on proton
 
@@ -109,7 +110,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Align Sol canonical class storage to source-faithful `dwarf_planet` semantics while preserving UI structural supergroup `subplanet`
 - [x] Implement Sol S3 initial named small-body arm layer (asteroid/TNO/comet families) with staleness metadata + verify gate
 - [x] Expand Sol S3 deterministic small-body coverage (broader asteroid/TNO families, including Ixion-class objects)
-- [x] Implement Sol S3 arm-to-halo projection path for sliced builds
+- [x] Retire Sol S3 arm-to-halo projection path from the active product plan
 - [x] Implement Sol S4 arm layer for curated artificial stations/probes/orbiters with verify gates
 - [x] Surface Sol arm hierarchy overlays (moons, small bodies, artificial objects) in system detail API/UI
 - [x] Add scheduled volatile Sol refresh + staleness monitoring scripts (`refresh_sol_volatile.sh`, `report_sol_volatile.py`)

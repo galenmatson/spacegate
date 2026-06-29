@@ -41,8 +41,8 @@ Fiction overlays are first-class product features, but must remain fully separat
 
 ## Dependency Graph (High Level)
 
-1. Gaia-first canonical `galaxy`
-2. Deterministic `core` + `halo` projections and API performance
+1. Gaia-first canonical `core`
+2. Deterministic served slices and API performance
 3. Multiplicity hierarchy reliability
 4. Disc factual layer (scores/facts/links)
 5. Visual storytelling (snapshots + generated imagery)
@@ -112,11 +112,12 @@ Remaining hardening backlog:
   effectively root-equivalent and should eventually become a narrower deploy
   control path if practical
 
-### M1. Gaia Galaxy Backbone Pilot (Current Critical Path)
+### M1. Gaia Core Backbone Pilot (Current Critical Path)
 
 Goal:
 
-- establish Gaia as canonical star inventory substrate for `<1000 ly` `galaxy`.
+- establish Gaia as canonical star inventory substrate for `<1000 ly` core
+  builds.
 
 Dependencies:
 
@@ -125,7 +126,7 @@ Dependencies:
 Deliverables:
 
 - `gaia_backbone` download/cook/ingest path
-- immutable `galaxy` artifact contract for build outputs
+- immutable `core` artifact contract for build outputs
 - quality-tier metadata (`poe`, `ruwe`, astrometry flags)
 - `gaia_backbone_report.json` with counts/runtime/storage
 
@@ -135,11 +136,11 @@ Success criteria:
 - clear quality-band accounting
 - acceptable proton runtime/memory envelope
 
-### M2. Core/Halo Product Slice and API Transition
+### M2. Core Product Slice and API Transition
 
 Goal:
 
-- serve fast, stable UX from deterministic `core` with opt-in `halo`.
+- serve fast, stable UX from deterministic `core` slices.
 
 Dependencies:
 
@@ -147,11 +148,12 @@ Dependencies:
 
 Deliverables:
 
-- `core_product_slice` policy and `halo_complement` materialization
+- `core_product_slice` policy
 - versioned slice profile catalog and profile selection contract
 - profile-scoped SLO gates wired into promotion decisions
 - API compatibility review and migration notes
-- deep-query mode against `halo`/`galaxy`
+- documented path for future larger/deeper data products without changing the
+  default public hot path
 
 Success criteria:
 
@@ -252,7 +254,7 @@ Dependencies:
 Deliverables:
 
 - parallel-run comparison report (legacy vs Gaia-first)
-- removal of AT-HYG canonical inventory dependence in `galaxy` build path
+- removal of AT-HYG canonical inventory dependence in the core build path
 - cleanup of deprecated code paths/docs
 
 Success criteria:
