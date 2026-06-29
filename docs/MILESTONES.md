@@ -159,6 +159,16 @@ Success criteria:
 - no functional regressions in search/detail workflows
 - explicit documented slice/SLO policy and pass/fail evidence per promoted build
 
+Current status:
+
+- June 29, 2026 public slice build `20260629T_public_aliasfix_v3_side`
+  applies `core.public@v3` trimming to `core.duckdb` and also slices
+  `arm.duckdb`, `canonical_hierarchy.duckdb`, and `disc.duckdb` side artifacts
+  for antiproton deployment. The build retains about 5.87M systems/stars,
+  reduces ARM from 5.5 GiB to about 2.9 GiB, canonical hierarchy from 1.4 GiB
+  to about 568 MiB, and disc from about 971 MiB to about 597 MiB while passing
+  Sol S2-S4, Castor multiplicity, alias-search, and known-system API gates.
+
 ### M3. Multiplicity and Systems-of-Systems
 
 Goal:

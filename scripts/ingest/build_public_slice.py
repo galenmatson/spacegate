@@ -49,6 +49,503 @@ def sql_literal(value: str | None) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def table_exists(con: duckdb.DuckDBPyConnection, alias: str, table_name: str) -> bool:
+    return bool(
+        con.execute(
+            """
+            select 1
+            from information_schema.tables
+            where table_catalog = ? and table_schema = 'main' and table_name = ?
+            limit 1
+            """,
+            [alias, table_name],
+        ).fetchone()
+    )
+
+
+def table_columns(con: duckdb.DuckDBPyConnection, alias: str, table_name: str) -> set[str]:
+    rows = con.execute(f"describe {alias}.{table_name}").fetchall()
+    return {str(row[0]) for row in rows}
+
+
+def count_table(con: duckdb.DuckDBPyConnection, table_name: str, alias: str = "main") -> int:
+    return int(con.execute(f"select count(*)::bigint from {alias}.{table_name}").fetchone()[0] or 0)
+
+
+def emit_build_metadata(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_alias: str,
+    slice_build_id: str,
+    source_build_id: str,
+    artifact_kind: str,
+) -> None:
+    if table_exists(con, source_alias, "build_metadata"):
+        con.execute(f"create table build_metadata as select * from {source_alias}.build_metadata")
+        columns = table_columns(con, "main", "build_metadata")
+        if not {"key", "value"}.issubset(columns):
+            return
+        con.execute(
+            """
+            delete from build_metadata
+            where key in (
+              'build_id',
+              'bootstrap_source_build_id',
+              'slice_side_artifacts_sliced',
+              'slice_side_artifact_kind'
+            )
+            """
+        )
+    else:
+        con.execute("create table build_metadata(key varchar, value varchar)")
+    con.executemany(
+        "insert into build_metadata values (?, ?)",
+        [
+            ("build_id", slice_build_id),
+            ("bootstrap_source_build_id", source_build_id),
+            ("slice_side_artifacts_sliced", "1"),
+            ("slice_side_artifact_kind", artifact_kind),
+        ],
+    )
+
+
+def generic_core_retention_predicate(columns: set[str], *, component_column: str = "stable_component_key") -> str:
+    predicates: list[str] = []
+    if "wds_id" in columns:
+        predicates.append("(wds_id is null or wds_id in (select wds_id from retained_wds_ids))")
+    if "system_id" in columns:
+        predicates.append("(system_id is null or system_id in (select system_id from core.systems))")
+    if "star_id" in columns:
+        predicates.append("(star_id is null or star_id in (select star_id from core.stars))")
+    if "planet_id" in columns:
+        predicates.append("(planet_id is null or planet_id in (select planet_id from core.planets))")
+    if "stable_object_key" in columns:
+        predicates.append(
+            "(stable_object_key is null or stable_object_key in (select stable_object_key from retained_stable_object_keys))"
+        )
+    if component_column in columns:
+        predicates.append(
+            f"({component_column} is null or {component_column} in (select stable_component_key from retained_component_keys))"
+        )
+    if "orbit_edge_id" in columns:
+        predicates.append("(orbit_edge_id is null or orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids))")
+    for col in ("host_component_key", "primary_component_key", "secondary_component_key"):
+        if col in columns:
+            predicates.append(f"({col} is null or {col} in (select stable_component_key from retained_component_keys))")
+    return " and ".join(predicates) if predicates else "true"
+
+
+def build_sliced_arm(
+    *,
+    source_build_dir: Path,
+    tmp_dir: Path,
+    core_dst: Path,
+    source_build_id: str,
+    slice_build_id: str,
+) -> dict[str, object] | None:
+    source_arm = source_build_dir / "arm.duckdb"
+    if not source_arm.exists():
+        return None
+
+    arm_dst = tmp_dir / "arm.duckdb"
+    con = duckdb.connect(str(arm_dst))
+    table_report: dict[str, dict[str, int]] = {}
+    try:
+        con.execute(f"attach {sql_literal(str(source_arm))} as src (read_only)")
+        con.execute(f"attach {sql_literal(str(core_dst))} as core (read_only)")
+        emit_build_metadata(
+            con,
+            source_alias="src",
+            slice_build_id=slice_build_id,
+            source_build_id=source_build_id,
+            artifact_kind="arm",
+        )
+
+        con.execute(
+            """
+            create temp table retained_stable_object_keys as
+            select stable_object_key from core.systems where stable_object_key is not null
+            union
+            select stable_object_key from core.stars where stable_object_key is not null
+            union
+            select stable_object_key from core.planets where stable_object_key is not null
+            """
+        )
+        con.execute(
+            """
+            create temp table retained_wds_ids as
+            select distinct wds_id
+            from core.systems
+            where wds_id is not null
+            """
+        )
+        con.execute(
+            """
+            create temp table retained_sol_component_keys as
+            select stable_component_key
+            from src.sol_small_body_objects
+            where stable_component_key is not null
+            union
+            select host_component_key
+            from src.sol_small_body_objects
+            where host_component_key is not null
+            union
+            select primary_component_key
+            from src.sol_small_body_objects
+            where primary_component_key is not null
+            union
+            select secondary_component_key
+            from src.sol_small_body_objects
+            where secondary_component_key is not null
+            union
+            select stable_component_key
+            from src.sol_artificial_objects
+            where stable_component_key is not null
+            union
+            select host_component_key
+            from src.sol_artificial_objects
+            where host_component_key is not null
+            union
+            select primary_component_key
+            from src.sol_artificial_objects
+            where primary_component_key is not null
+            union
+            select secondary_component_key
+            from src.sol_artificial_objects
+            where secondary_component_key is not null
+            """
+        )
+        con.execute(
+            """
+            create temp table retained_component_keys as
+            select stable_component_key
+            from (
+              select ce.stable_component_key
+              from src.component_entities ce
+              where ce.stable_component_key is not null
+                and (
+                  (ce.core_object_type = 'system' and ce.core_object_id in (select system_id from core.systems))
+                  or (ce.core_object_type = 'star' and ce.core_object_id in (select star_id from core.stars))
+                  or (ce.core_object_type in ('planet', 'subplanet') and ce.core_object_id in (select planet_id from core.planets))
+                  or ce.stable_component_key in (select stable_object_key from retained_stable_object_keys)
+                )
+              union
+              select stable_component_key
+              from retained_sol_component_keys
+              union
+              select ce.stable_component_key
+              from src.component_entities ce
+              where ce.stable_component_key in (select stable_component_key from retained_sol_component_keys)
+              union
+              select ce.stable_component_key
+              from src.component_entities ce
+              join retained_wds_ids w
+                on split_part(split_part(ce.stable_component_key, 'wds:', 2), ':', 1) = w.wds_id
+              where ce.stable_component_key is not null
+                and ce.source_catalog = 'msc'
+            )
+            """
+        )
+        for _ in range(8):
+            con.execute(
+                """
+                create or replace temp table new_retained_component_keys as
+                select distinct h.child_component_key as stable_component_key
+                from src.system_hierarchy_edges h
+                join retained_component_keys parent
+                  on parent.stable_component_key = h.parent_component_key
+                left join retained_component_keys existing
+                  on existing.stable_component_key = h.child_component_key
+                where h.child_component_key is not null
+                  and existing.stable_component_key is null
+                """
+            )
+            new_count = count_table(con, "new_retained_component_keys")
+            if new_count == 0:
+                break
+            con.execute(
+                """
+                insert into retained_component_keys
+                select stable_component_key
+                from new_retained_component_keys
+                """
+            )
+        con.execute(
+            """
+            create temp table retained_orbit_edge_ids as
+            select oe.orbit_edge_id
+            from src.orbit_edges oe
+            where oe.orbit_edge_id is not null
+              and (oe.host_component_key is null or oe.host_component_key in (select stable_component_key from retained_component_keys))
+              and (oe.primary_component_key is null or oe.primary_component_key in (select stable_component_key from retained_component_keys))
+              and (oe.secondary_component_key is null or oe.secondary_component_key in (select stable_component_key from retained_component_keys))
+            """
+        )
+        con.execute(
+            """
+            create temp table retained_barycenter_keys as
+            select distinct barycenter_key
+            from src.orbit_edges
+            where barycenter_key is not null
+              and orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids)
+            """
+        )
+
+        table_names = [
+            row[0]
+            for row in con.execute(
+                """
+                select table_name
+                from information_schema.tables
+                where table_catalog = 'src' and table_schema = 'main'
+                order by table_name
+                """
+            ).fetchall()
+        ]
+        predicates = {
+            "build_metadata": None,
+            "component_entities": "stable_component_key in (select stable_component_key from retained_component_keys)",
+            "system_hierarchy_edges": (
+                "parent_component_key in (select stable_component_key from retained_component_keys) "
+                "and child_component_key in (select stable_component_key from retained_component_keys)"
+            ),
+            "orbit_edges": "orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids)",
+            "orbital_solutions": "orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids)",
+            "barycenters": "true",
+            "animation_readiness": (
+                "(component_key is not null and component_key in (select stable_component_key from retained_component_keys)) "
+                "or (orbit_edge_id is not null and orbit_edge_id in (select orbit_edge_id from retained_orbit_edge_ids))"
+            ),
+            "msc_system_details": (
+                "wds_id in (select wds_id from retained_wds_ids) "
+                "or coalesce(parent_component_key, '') in (select stable_component_key from retained_component_keys) "
+                "or coalesce(primary_component_key, '') in (select stable_component_key from retained_component_keys) "
+                "or coalesce(secondary_component_key, '') in (select stable_component_key from retained_component_keys)"
+            ),
+            "msc_orbit_details": (
+                "wds_id in (select wds_id from retained_wds_ids) "
+                "or coalesce(host_component_key, '') in (select stable_component_key from retained_component_keys) "
+                "or coalesce(primary_component_key, '') in (select stable_component_key from retained_component_keys) "
+                "or coalesce(secondary_component_key, '') in (select stable_component_key from retained_component_keys)"
+            ),
+            "sol_small_body_objects": "true",
+            "sol_artificial_objects": "true",
+        }
+
+        for table_name in table_names:
+            if table_name == "build_metadata":
+                table_report[table_name] = {"before": count_table(con, table_name, alias="src"), "after": count_table(con, table_name)}
+                continue
+            columns = table_columns(con, "src", table_name)
+            predicate = predicates.get(table_name)
+            if predicate is None:
+                predicate = generic_core_retention_predicate(columns)
+            con.execute(f"create table {table_name} as select * from src.{table_name} where {predicate}")
+            table_report[table_name] = {
+                "before": count_table(con, table_name, alias="src"),
+                "after": count_table(con, table_name),
+            }
+        con.execute("checkpoint")
+        con.execute("vacuum")
+    finally:
+        con.close()
+
+    return {
+        "db_bytes": arm_dst.stat().st_size,
+        "tables": table_report,
+    }
+
+
+def build_sliced_canonical_hierarchy(
+    *,
+    source_build_dir: Path,
+    tmp_dir: Path,
+    core_dst: Path,
+    source_build_id: str,
+    slice_build_id: str,
+) -> dict[str, object] | None:
+    source_hierarchy = source_build_dir / "canonical_hierarchy.duckdb"
+    if not source_hierarchy.exists():
+        return None
+
+    hierarchy_dst = tmp_dir / "canonical_hierarchy.duckdb"
+    con = duckdb.connect(str(hierarchy_dst))
+    try:
+        con.execute(f"attach {sql_literal(str(source_hierarchy))} as src (read_only)")
+        con.execute(f"attach {sql_literal(str(core_dst))} as core (read_only)")
+        emit_build_metadata(
+            con,
+            source_alias="src",
+            slice_build_id=slice_build_id,
+            source_build_id=source_build_id,
+            artifact_kind="canonical_hierarchy",
+        )
+        con.execute(
+            """
+            create temp table retained_hierarchy_node_keys as
+            select distinct hn.hierarchy_node_key
+            from src.hierarchy_nodes hn
+            where hn.hierarchy_node_key is not null
+              and (
+                hn.hierarchy_node_key in (select stable_object_key from core.systems)
+                or hn.canonical_key in (select stable_object_key from core.systems)
+                or hn.canonical_key in (select stable_object_key from core.stars)
+                or hn.canonical_key in (select stable_object_key from core.planets)
+              )
+            """
+        )
+        for _ in range(8):
+            con.execute(
+                """
+                create or replace temp table new_retained_hierarchy_node_keys as
+                select distinct e.child_node_key as hierarchy_node_key
+                from src.hierarchy_edges e
+                join retained_hierarchy_node_keys parent
+                  on parent.hierarchy_node_key = e.parent_node_key
+                left join retained_hierarchy_node_keys existing
+                  on existing.hierarchy_node_key = e.child_node_key
+                where e.child_node_key is not null
+                  and existing.hierarchy_node_key is null
+                """
+            )
+            new_count = count_table(con, "new_retained_hierarchy_node_keys")
+            if new_count == 0:
+                break
+            con.execute(
+                """
+                insert into retained_hierarchy_node_keys
+                select hierarchy_node_key
+                from new_retained_hierarchy_node_keys
+                """
+            )
+        nodes_before = count_table(con, "hierarchy_nodes", alias="src")
+        edges_before = count_table(con, "hierarchy_edges", alias="src")
+        con.execute(
+            """
+            create table hierarchy_nodes as
+            select *
+            from src.hierarchy_nodes
+            where hierarchy_node_key in (select hierarchy_node_key from retained_hierarchy_node_keys)
+            """
+        )
+        con.execute(
+            """
+            create table hierarchy_edges as
+            select *
+            from src.hierarchy_edges
+            where parent_node_key in (select hierarchy_node_key from retained_hierarchy_node_keys)
+              and child_node_key in (select hierarchy_node_key from retained_hierarchy_node_keys)
+            """
+        )
+        con.execute("checkpoint")
+        con.execute("vacuum")
+        return {
+            "db_bytes": hierarchy_dst.stat().st_size,
+            "tables": {
+                "hierarchy_nodes": {"before": nodes_before, "after": count_table(con, "hierarchy_nodes")},
+                "hierarchy_edges": {"before": edges_before, "after": count_table(con, "hierarchy_edges")},
+            },
+        }
+    finally:
+        con.close()
+
+
+def build_sliced_disc(
+    *,
+    source_build_dir: Path,
+    tmp_dir: Path,
+    core_dst: Path,
+    source_build_id: str,
+    slice_build_id: str,
+) -> dict[str, object] | None:
+    source_disc = source_build_dir / "disc.duckdb"
+    if not source_disc.exists():
+        return None
+
+    disc_dst = tmp_dir / "disc.duckdb"
+    disc_parquet_dir = tmp_dir / "disc"
+    disc_parquet_dir.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect(str(disc_dst))
+    table_report: dict[str, dict[str, int]] = {}
+    try:
+        con.execute(f"attach {sql_literal(str(source_disc))} as src (read_only)")
+        con.execute(f"attach {sql_literal(str(core_dst))} as core (read_only)")
+        con.execute(
+            """
+            create temp table retained_stable_object_keys as
+            select stable_object_key from core.systems where stable_object_key is not null
+            union
+            select stable_object_key from core.stars where stable_object_key is not null
+            union
+            select stable_object_key from core.planets where stable_object_key is not null
+            """
+        )
+        table_names = [
+            row[0]
+            for row in con.execute(
+                """
+                select table_name
+                from information_schema.tables
+                where table_catalog = 'src' and table_schema = 'main'
+                order by table_name
+                """
+            ).fetchall()
+        ]
+        for table_name in table_names:
+            if table_name == "build_metadata":
+                emit_build_metadata(
+                    con,
+                    source_alias="src",
+                    slice_build_id=slice_build_id,
+                    source_build_id=source_build_id,
+                    artifact_kind="disc",
+                )
+                table_report[table_name] = {"before": count_table(con, table_name, alias="src"), "after": count_table(con, table_name)}
+                continue
+            columns = table_columns(con, "src", table_name)
+            predicates: list[str] = []
+            if "system_id" in columns:
+                predicates.append("(system_id is null or system_id in (select system_id from core.systems))")
+            if "star_id" in columns:
+                predicates.append("(star_id is null or star_id in (select star_id from core.stars))")
+            if "planet_id" in columns:
+                predicates.append("(planet_id is null or planet_id in (select planet_id from core.planets))")
+            if "stable_object_key" in columns:
+                predicates.append(
+                    "(stable_object_key is null or stable_object_key in (select stable_object_key from retained_stable_object_keys))"
+                )
+            predicate = " and ".join(predicates) if predicates else "true"
+            con.execute(f"create table {table_name} as select * from src.{table_name} where {predicate}")
+            table_report[table_name] = {
+                "before": count_table(con, table_name, alias="src"),
+                "after": count_table(con, table_name),
+            }
+            con.execute(
+                f"copy (select * from {table_name}) to {sql_literal(str(disc_parquet_dir / f'{table_name}.parquet'))} (format parquet)"
+            )
+        if "build_metadata" not in table_names:
+            con.execute("create table build_metadata(key varchar, value varchar)")
+            con.executemany(
+                "insert into build_metadata values (?, ?)",
+                [
+                    ("build_id", slice_build_id),
+                    ("bootstrap_source_build_id", source_build_id),
+                    ("slice_side_artifacts_sliced", "1"),
+                    ("slice_side_artifact_kind", "disc"),
+                ],
+            )
+        con.execute("checkpoint")
+        con.execute("vacuum")
+    finally:
+        con.close()
+
+    return {
+        "db_bytes": disc_dst.stat().st_size,
+        "parquet_bytes": sum(path.stat().st_size for path in disc_parquet_dir.glob("*.parquet")),
+        "tables": table_report,
+    }
+
+
 def build_slice(
     *,
     root: Path,
@@ -361,21 +858,29 @@ def build_slice(
     finally:
         con.close()
 
-    for rel_path in [
-        Path("arm.duckdb"),
-        Path("disc.duckdb"),
-        Path("disc"),
-        Path("canonical_hierarchy.duckdb"),
-    ]:
-        src = source_build_dir / rel_path
-        dst = tmp_dir / rel_path
-        if not src.exists():
-            continue
-        if src.is_dir():
-            shutil.copytree(src, dst, dirs_exist_ok=True)
-        else:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+    side_artifacts = {
+        "arm": build_sliced_arm(
+            source_build_dir=source_build_dir,
+            tmp_dir=tmp_dir,
+            core_dst=core_dst,
+            source_build_id=source_build_id,
+            slice_build_id=slice_build_id,
+        ),
+        "canonical_hierarchy": build_sliced_canonical_hierarchy(
+            source_build_dir=source_build_dir,
+            tmp_dir=tmp_dir,
+            core_dst=core_dst,
+            source_build_id=source_build_id,
+            slice_build_id=slice_build_id,
+        ),
+        "disc": build_sliced_disc(
+            source_build_dir=source_build_dir,
+            tmp_dir=tmp_dir,
+            core_dst=core_dst,
+            source_build_id=source_build_id,
+            slice_build_id=slice_build_id,
+        ),
+    }
 
     report = {
         "generated_at": utc_now(),
@@ -413,6 +918,7 @@ def build_slice(
             "system_search_terms": int(counts_after[4]),
         },
         "core_db_bytes": core_dst.stat().st_size,
+        "side_artifacts": side_artifacts,
     }
 
     reports_dir.mkdir(parents=True, exist_ok=True)

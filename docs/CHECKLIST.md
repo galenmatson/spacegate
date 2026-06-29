@@ -66,6 +66,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [x] Define deterministic `core_product_slice` policy over backbone
 - [x] Materialize complementary `halo` artifacts from `galaxy` + sliced `core` builds
+- [x] Slice public side artifacts (`arm.duckdb`, `canonical_hierarchy.duckdb`,
+  and `disc.duckdb`) with the public core profile so antiproton does not carry
+  the full Photon working graph
 - [ ] Add explicit deep-query plumbing over `halo`/`galaxy` in API/UI
 - [x] Enforce profile-specific SLO gates during promote
 - [x] Validate p95/p99 search and detail latency on proton

@@ -118,6 +118,27 @@ Expected scale band:
 - approximately one third of the current full `<1000 ly` served star set
 - designed to keep named/common objects out to `1000 ly` while removing the largest low-interest public-host scan burden
 
+Side-artifact policy:
+
+- public slice builds must slice `arm.duckdb`, `canonical_hierarchy.duckdb`,
+  and `disc.duckdb` alongside `core.duckdb`
+- retained ARM rows are seeded from retained core systems/stars/planets,
+  retained source-native MSC/WDS components for in-slice WDS systems, and
+  Sol small/artificial object component keys required by Sol S2-S4 gates
+- retained canonical hierarchy rows are descendants of in-slice canonical
+  system roots
+- retained disc rows are limited to in-slice systems and are normally rescored
+  after promotion
+
+Measured build:
+
+- `20260629T_public_aliasfix_v3_side` retained 5,869,227 systems and 5,874,860
+  stars from source build `20260628T234531Z_da18d11_aliasfix`
+- side artifacts reduced from full-copy public slice sizes to approximately:
+  `arm.duckdb` 2.9 GiB, `canonical_hierarchy.duckdb` 568 MiB,
+  `disc.duckdb` 597 MiB, with Castor multiplicity, Nu Sco count, TRAPPIST-1,
+  55 Cnc, Sol S2-S4, and alias-search gates passing
+
 ### `core.performance@v1`
 
 Intent:
