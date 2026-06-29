@@ -279,6 +279,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add deterministic procedural star/planet materials and clarity-scale
   planet radius caps/floors to the Live System Preview without persisting them
   as science data
+- [x] Add `visual_scale_beta_v1` to the simulator payload and consume it in
+  the browser for clarity-scaled radii/orbit spacing
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
   55 Cnc/Sol source-backed planet periods

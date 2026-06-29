@@ -690,9 +690,13 @@ Readiness gaps:
   structured transient export of every rendered `ASSUMED` field using the
   planned `disc.simulation_assumptions` binding shape, plus API benchmark
   coverage for TRAPPIST-1 phase assumptions.
+- June 29, 2026 visual-scale policy pass adds `visual_scale_beta_v1` to
+  `render_scene`, makes the browser consume the policy for star radius, planet
+  radius, planet orbit spacing, and group orbit motion scale, and labels the
+  preview readout as clarity-scaled rather than physical scale.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
-  and final scale policy are not implemented yet
+  and physical-scale/precision display modes are not implemented yet
 - Sirius B / compact-object companion representation is still a source
   hierarchy gap; the renderer must not invent missing Sirius A/B structure as a
   visual-only child. June 29, 2026 audit found the current public side-sliced

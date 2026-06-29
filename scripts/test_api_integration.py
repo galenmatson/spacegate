@@ -122,9 +122,11 @@ def main():
     require_keys(scene_json["bodies"], ["stars", "planets"], "simulation scene.bodies")
     require_keys(
         scene_json.get("render_scene") or {},
-        ["schema_version", "bodies", "orbits", "assumptions", "assumption_count"],
+        ["schema_version", "bodies", "orbits", "visual_scale", "assumptions", "assumption_count"],
         "simulation scene.render_scene",
     )
+    if scene_json.get("render_scene", {}).get("visual_scale", {}).get("schema_version") != "visual_scale_beta_v1":
+        raise AssertionError("simulation scene render visual scale policy missing")
     render_assumptions = scene_json.get("render_scene", {}).get("assumptions") or []
     if scene_json.get("render_scene", {}).get("assumption_count") != len(render_assumptions):
         raise AssertionError("simulation scene render assumption_count mismatch")

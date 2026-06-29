@@ -69,6 +69,47 @@ SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
 SUPPORTED_SEARCH_SORTS = {"name", "distance", "coolness"}
 SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
 SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
+SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_beta_v1"
+SIM_VISUAL_SCALE_POLICY = {
+    "schema_version": SIM_VISUAL_SCALE_POLICY_VERSION,
+    "scale_mode": "clarity_scaled_not_physical",
+    "scene_unit": "arbitrary_scene_unit",
+    "policy_note": (
+        "Radii, orbit spacing, and subsystem guide radii are presentation-scale "
+        "transforms for inspectability. Source physical values remain in fields "
+        "and arm/core rows."
+    ),
+    "star_radius": {
+        "source_field": "radius_rsun",
+        "transform": "clamp(sqrt(radius_rsun_or_fallback) * factor, min_scene, max_scene)",
+        "fallback_rsun": 0.55,
+        "factor": 0.45,
+        "min_scene": 0.18,
+        "max_scene": 1.35,
+    },
+    "planet_radius": {
+        "source_field": "radius_earth",
+        "transform": "clamp(sqrt(radius_earth_or_fallback) * factor, min_scene, max_scene)",
+        "fallback_rearth": 1.0,
+        "factor": 0.085,
+        "min_scene": 0.105,
+        "max_scene": 0.34,
+    },
+    "planet_orbit_radius": {
+        "source_field": "semi_major_axis_au",
+        "transform": "min_scene + sqrt(semi_major_axis_au_or_fallback / max_scene_au) * span_scene",
+        "fallback_au": 0.08,
+        "min_scene": 0.75,
+        "span_scene": 2.7,
+        "normalization": "per_scene_max_planet_semi_major_axis",
+    },
+    "binary_orbit_radius": {
+        "source_field": "render_scene.orbits.display_radius_scene",
+        "transform": "source-aware display radius when available; deterministic presentation radius otherwise",
+        "direct_pair_multiplier": 1.0,
+        "group_pair_motion_multiplier": 0.55,
+    },
+}
 
 COOLNESS_WEIGHT_KEYS = [
     ("luminosity", "luminosity_feature"),
@@ -2043,6 +2084,7 @@ def _render_scene_contract(
             "default_days_per_second": 0.7,
             "phase_policy": "source epoch when present; otherwise deterministic disc visual prior",
         },
+        "visual_scale": SIM_VISUAL_SCALE_POLICY,
         "bodies": {
             "stars": list(render_stars.values()),
             "planets": render_planets,

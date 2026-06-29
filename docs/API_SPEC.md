@@ -302,6 +302,11 @@ Response:
     "assumption_generator_version": "procedural_prior_v1",
     "preferred_visualization": "live_3d",
     "fallback_visualization": "deterministic_snapshot",
+    "visual_scale": {
+      "schema_version": "visual_scale_beta_v1",
+      "scale_mode": "clarity_scaled_not_physical",
+      "scene_unit": "arbitrary_scene_unit"
+    },
     "bodies": {"stars": [], "planets": []},
     "orbits": [],
     "assumptions": [],
@@ -350,6 +355,11 @@ Contract notes:
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
   cluster orbit guides and browser-side visual child-cluster transforms.
+- `render_scene.visual_scale` documents the beta renderer's clarity-scale
+  transforms for star radii, planet radii, planet orbit spacing, and binary
+  orbit display radii. Scene units are arbitrary presentation units, not
+  physical distance or radius units; source science values remain in the
+  individual field provenance objects and core/arm rows.
 - `render_scene.assumptions` is an additive export of every rendered field with
   `status="assumed"`. Each record is shaped for later
   `disc.simulation_assumptions` materialization and includes object binding,

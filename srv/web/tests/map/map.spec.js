@@ -93,6 +93,8 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
+    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
+    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/clarity/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();

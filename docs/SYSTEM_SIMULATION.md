@@ -26,6 +26,9 @@ Already in place:
   toggle, camera orbit/zoom/pan controls with reset-view support, click/tap
   pinned inspection, copyable render/source identifiers, and touch-safe canvas
   gesture handling
+- the beta scene contract includes `visual_scale_beta_v1`, an explicit
+  clarity-scale policy for star radii, planet radii, planet orbit spacing, and
+  binary/group orbit display radii
 - the browser renderer checks WebGL capability before mounting R3F and falls
   back inside the preview panel to the deterministic snapshot artifact when 3D
   is unavailable or the live scene load fails
@@ -43,8 +46,8 @@ Not ready yet:
 - a full client simulation clock, epoch controls, and propagation policy
 - source-refresh verification for stale multiplicity/orbital inputs
 - uncertainty visualization
-- final scale policy for stellar radii, planetary radii, orbital distances,
-  labels, and time acceleration
+- physical-scale/precision display modes for stellar radii, planetary radii,
+  orbital distances, labels, and time acceleration
 - persisted `disc` assumption rows for visualization-only defaults
 
 ## Public API
@@ -87,6 +90,11 @@ Response shape:
   "render_scene": {
     "schema_version": "render_scene_v0.2",
     "assumption_generator_version": "procedural_prior_v1",
+    "visual_scale": {
+      "schema_version": "visual_scale_beta_v1",
+      "scale_mode": "clarity_scaled_not_physical",
+      "scene_unit": "arbitrary_scene_unit"
+    },
     "bodies": {"stars": [], "planets": []},
     "orbits": [],
     "assumptions": [],
@@ -122,6 +130,9 @@ Rules:
   `render_scene.assumptions` using the planned `disc.simulation_assumptions`
   object-binding shape. This is an audit/export path only; it does not persist
   assumptions or make them science facts.
+- `visual_scale_beta_v1` is a presentation contract. It tells clients how the
+  beta renderer exaggerates/normalizes radii and orbit spacing for clarity, and
+  must not be interpreted as source physical scale.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 
@@ -243,8 +254,8 @@ Success criteria:
   based on existing scene fields and stable object keys; they are visual
   presentation only, not source surface maps or persisted assumptions
 - planet radii use bounded clarity-scale caps/floors so compact systems remain
-  inspectable in the beta preview; physical-scale rendering remains future
-  policy work
+  inspectable in the beta preview; `visual_scale_beta_v1` documents the active
+  transform and physical-scale rendering remains future work
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - source/derived/assumed/missing fields surface as visible provenance pills

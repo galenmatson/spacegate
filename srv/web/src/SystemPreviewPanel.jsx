@@ -12,6 +12,14 @@ const SIM_SPEED_OPTIONS = [
   ["5", "5x"],
   ["20", "20x"],
 ];
+const DEFAULT_VISUAL_SCALE = {
+  schema_version: "visual_scale_beta_v1",
+  scale_mode: "clarity_scaled_not_physical",
+  star_radius: { fallback_rsun: 0.55, factor: 0.45, min_scene: 0.18, max_scene: 1.35 },
+  planet_radius: { fallback_rearth: 1, factor: 0.085, min_scene: 0.105, max_scene: 0.34 },
+  planet_orbit_radius: { fallback_au: 0.08, min_scene: 0.75, span_scene: 2.7 },
+  binary_orbit_radius: { direct_pair_multiplier: 1, group_pair_motion_multiplier: 0.55 },
+};
 const STAR_COLORS = {
   O: "#9fc7ff",
   B: "#b8d7ff",
@@ -95,6 +103,43 @@ function starColor(teffK) {
     return "#ff9d6b";
   }
   return STAR_COLOR_BY_TEMP.find(([threshold]) => temp >= threshold)?.[1] || "#ff6f5e";
+}
+
+function clampNumber(value, minValue, maxValue) {
+  return Math.min(maxValue, Math.max(minValue, value));
+}
+
+function mergeVisualScale(scale) {
+  return {
+    ...DEFAULT_VISUAL_SCALE,
+    ...(scale || {}),
+    star_radius: { ...DEFAULT_VISUAL_SCALE.star_radius, ...(scale?.star_radius || {}) },
+    planet_radius: { ...DEFAULT_VISUAL_SCALE.planet_radius, ...(scale?.planet_radius || {}) },
+    planet_orbit_radius: { ...DEFAULT_VISUAL_SCALE.planet_orbit_radius, ...(scale?.planet_orbit_radius || {}) },
+    binary_orbit_radius: { ...DEFAULT_VISUAL_SCALE.binary_orbit_radius, ...(scale?.binary_orbit_radius || {}) },
+  };
+}
+
+function scaledStarRadius(radiusRsun, visualScale = DEFAULT_VISUAL_SCALE) {
+  const policy = visualScale.star_radius || DEFAULT_VISUAL_SCALE.star_radius;
+  const radius = Number(radiusRsun);
+  const source = Number.isFinite(radius) && radius > 0 ? radius : Number(policy.fallback_rsun || 0.55);
+  return clampNumber(Math.sqrt(source) * Number(policy.factor || 0.45), Number(policy.min_scene || 0.18), Number(policy.max_scene || 1.35));
+}
+
+function scaledPlanetRadius(radiusEarth, visualScale = DEFAULT_VISUAL_SCALE) {
+  const policy = visualScale.planet_radius || DEFAULT_VISUAL_SCALE.planet_radius;
+  const radius = Number(radiusEarth);
+  const source = Number.isFinite(radius) && radius > 0 ? radius : Number(policy.fallback_rearth || 1);
+  return clampNumber(Math.sqrt(source) * Number(policy.factor || 0.085), Number(policy.min_scene || 0.105), Number(policy.max_scene || 0.34));
+}
+
+function scaledPlanetOrbitRadius(orbitAu, maxOrbitAu, visualScale = DEFAULT_VISUAL_SCALE) {
+  const policy = visualScale.planet_orbit_radius || DEFAULT_VISUAL_SCALE.planet_orbit_radius;
+  const orbit = Number(orbitAu);
+  const maxOrbit = Math.max(Number(policy.fallback_au || 0.08), Number(maxOrbitAu) || Number(policy.fallback_au || 0.08));
+  const source = Number.isFinite(orbit) && orbit > 0 ? orbit : Number(policy.fallback_au || 0.08);
+  return Number(policy.min_scene || 0.75) + Math.sqrt(source / maxOrbit) * Number(policy.span_scene || 2.7);
 }
 
 function planetVisualKind(planet) {
@@ -388,7 +433,7 @@ function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
 
 function StarSphere({ star, position = [0, 0, 0], selectedObjectId = "", onHover, onSelect }) {
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || 0.55);
-  const radius = Math.min(1.35, Math.max(0.18, Math.sqrt(radiusRsun || 0.55) * 0.45));
+  const radius = Number(star.display_radius_scene) || scaledStarRadius(radiusRsun, star.visualScale);
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
   const color = teffK ? starColor(teffK) : (STAR_COLORS[String(star.spectral_class || "").slice(0, 1)] || "#ff9d6b");
   const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
@@ -589,7 +634,8 @@ function groupKeysForBodyKeys(keys, layout) {
   return [...groupKeys];
 }
 
-function buildGroupMotionSpecs(groupOrbits, layout) {
+function buildGroupMotionSpecs(groupOrbits, layout, visualScale = DEFAULT_VISUAL_SCALE) {
+  const multiplier = Number(visualScale.binary_orbit_radius?.group_pair_motion_multiplier || 0.55);
   return (groupOrbits || [])
     .map((orbit) => {
       const primaryGroupKeys = groupKeysForBodyKeys(orbit.primary_child_body_keys, layout);
@@ -608,7 +654,7 @@ function buildGroupMotionSpecs(groupOrbits, layout) {
         phaseRad: numericField(orbit.fields, "phase_rad") || 0,
         eccentricity: Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0)),
         inclinationRad: THREE.MathUtils.degToRad(numericField(orbit.fields, "inclination_deg") || 0),
-        orbitRadius: (Number(orbit.display_radius_scene) || 1.6) * 0.55,
+        orbitRadius: (Number(orbit.display_radius_scene) || 1.6) * multiplier,
       };
     })
     .filter(Boolean);
@@ -1042,12 +1088,12 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   );
 }
 
-function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+function PreviewObjects({ stars, planets, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const renderOrbits = planets.renderOrbits || [];
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
   const layout = useMemo(() => buildStarLayout(stars, hierarchy, binaryOrbits), [stars, hierarchy, binaryOrbits]);
-  const groupMotionSpecs = useMemo(() => buildGroupMotionSpecs(groupOrbits, layout), [groupOrbits, layout]);
+  const groupMotionSpecs = useMemo(() => buildGroupMotionSpecs(groupOrbits, layout, visualScale), [groupOrbits, layout, visualScale]);
   const starsByKey = useMemo(() => {
     const out = new Map();
     stars.forEach((star) => {
@@ -1144,7 +1190,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
         />
       ))}
       {planets.map((planet, idx) => {
-        const orbitRadius = 0.75 + Math.sqrt((planet.orbitAu || 0.08) / maxOrbit) * 2.7;
+        const orbitRadius = scaledPlanetOrbitRadius(planet.orbitAu, maxOrbit, visualScale);
         const placement = hostPlacementForPlanet(planet);
         return (
           <React.Fragment key={planet.key}>
@@ -1185,10 +1231,15 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
 }
 
 function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+  const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
-      return renderStars;
+      return renderStars.map((star) => ({
+        ...star,
+        visualScale,
+        display_radius_scene: Number(star.display_radius_scene) || scaledStarRadius(numericField(star.fields, "radius_rsun"), visualScale),
+      }));
     }
     const readinessStars = scene?.simulation_readiness?.stars || [];
     const bodyStars = scene?.bodies?.stars || [];
@@ -1199,11 +1250,13 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         key: star.stable_object_key || star.object_id || star.star_id || `star-${idx}`,
         name: star.display_name || star.star_name || `Star ${idx + 1}`,
         radiusRsun: numericField(fields, "radius_rsun") || Number(star.radius_rsun || 0.55),
+        display_radius_scene: scaledStarRadius(numericField(fields, "radius_rsun") || Number(star.radius_rsun || 0.55), visualScale),
+        visualScale,
         teffK,
         color: starColor(teffK),
       };
     });
-  }, [scene]);
+  }, [scene, visualScale]);
 
   const planets = useMemo(() => {
     const renderScene = scene?.render_scene;
@@ -1213,7 +1266,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         ...planet,
         key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
         orbitAu: numericField(planet.fields, "semi_major_axis_au") || 0.08 + idx * 0.08,
-        radius: Math.min(0.34, Math.max(0.105, Math.sqrt(numericField(planet.fields, "radius_earth") || 1) * 0.085)),
+        radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale),
       }));
       mapped.renderOrbits = renderScene?.orbits || [];
       return mapped;
@@ -1229,12 +1282,12 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         periodDays: numericField(fields, "orbital_period_days") || Number(planet.orbital_period_days || 0),
         eccentricity: numericField(fields, "eccentricity") || Number(planet.eccentricity || 0),
         phaseRad: hashAngle(`${planet.stable_object_key || planet.object_id || planet.planet_id || planet.planet_name || idx}:phase`),
-        radius: Math.min(0.34, Math.max(0.105, Math.sqrt(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1)) * 0.085)),
+        radius: scaledPlanetRadius(numericField(fields, "radius_earth") || Number(planet.radius_earth || 1), visualScale),
         radiusEarth: numericField(fields, "radius_earth") || Number(planet.radius_earth || 1),
         orbitStatus: fieldStatus(fields, "semi_major_axis_au"),
       };
     });
-  }, [scene]);
+  }, [scene, visualScale]);
 
   return (
     <Canvas camera={{ position: [0, 6.2, 10.8], fov: 43 }} dpr={[1, 1.75]}>
@@ -1245,6 +1298,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         stars={stars}
         planets={planets}
         hierarchy={scene?.hierarchy}
+        visualScale={visualScale}
         running={running}
         speedMultiplier={speedMultiplier}
         resetToken={resetToken}
@@ -1423,6 +1477,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const renderScene = scene?.render_scene || {};
   const renderBodies = renderScene.bodies || {};
   const renderOrbits = renderScene.orbits || [];
+  const visualScale = renderScene.visual_scale || {};
   const evidenceFields = collectEvidenceFields(scene);
   const planetReadiness = scene?.simulation_readiness?.planets || [];
   const assumedOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "assumed").length;
@@ -1517,6 +1572,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           <div>
             <strong>{formatNumber((readiness.score || 0) * 100, 0)}%</strong>
             <span>readiness</span>
+          </div>
+          <div data-testid="system-preview-visual-scale">
+            <strong>{visualScale.scale_mode === "clarity_scaled_not_physical" ? "Clarity" : "Beta"}</strong>
+            <span>visual scale</span>
           </div>
           <div>
             <strong>{formatNumber(counts.source || 0, 0)}</strong>

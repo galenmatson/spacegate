@@ -167,6 +167,12 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
     scene_stars = bodies.get("stars") or []
     scene_planets = bodies.get("planets") or []
     assumptions = render_scene.get("assumptions") or []
+    visual_scale = render_scene.get("visual_scale") or {}
+    if visual_scale.get("schema_version") != "visual_scale_beta_v1":
+        raise AssertionError(f"{case.query}: missing visual_scale_beta_v1 policy")
+    for scale_key in ("star_radius", "planet_radius", "planet_orbit_radius", "binary_orbit_radius"):
+        if not isinstance(visual_scale.get(scale_key), dict):
+            raise AssertionError(f"{case.query}: visual scale policy missing {scale_key}")
     if render_scene.get("assumption_count") != len(assumptions):
         raise AssertionError(
             f"{case.query}: render_scene.assumption_count does not match assumptions list length"
