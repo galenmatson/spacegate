@@ -225,6 +225,8 @@ Success criteria:
   while preserving the canonical star key and exposing the display-name basis
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, hover bodies/orbits, and pin a copyable object/orbit readout
+- pinned stars, planets, and orbit paths also receive in-scene visual feedback
+  so the selected readout has a visible target in the 3D view
 - hover and pinned readouts use the same source/derived/assumed/missing
   evidence-pill affordance as the summary panel, including focusable provenance
   popovers in pinned readouts

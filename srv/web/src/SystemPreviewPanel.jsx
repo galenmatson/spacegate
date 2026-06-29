@@ -241,6 +241,10 @@ function staticReadoutRow(label, value, status = "source", field = null) {
   return [label, value, statusLabel(status), field];
 }
 
+function payloadId(payload) {
+  return String(payload?.id || "");
+}
+
 function objectHoverPayload(kind, body) {
   if (!body) {
     return null;
@@ -362,7 +366,26 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   );
 }
 
-function StarSphere({ star, position = [0, 0, 0], onHover, onSelect }) {
+function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
+  const ref = React.useRef(null);
+
+  useFrame(({ clock }) => {
+    if (!pulse || !ref.current) {
+      return;
+    }
+    const scale = 1 + Math.sin(clock.elapsedTime * 4.2) * 0.045;
+    ref.current.scale.setScalar(scale);
+  });
+
+  return (
+    <mesh ref={ref}>
+      <sphereGeometry args={[radius, 32, 18]} />
+      <meshBasicMaterial color={color} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
+    </mesh>
+  );
+}
+
+function StarSphere({ star, position = [0, 0, 0], selectedObjectId = "", onHover, onSelect }) {
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || 0.55);
   const radius = Math.min(1.35, Math.max(0.18, Math.sqrt(radiusRsun || 0.55) * 0.45));
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
@@ -370,6 +393,7 @@ function StarSphere({ star, position = [0, 0, 0], onHover, onSelect }) {
   const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("star", star), [star]);
+  const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
   const hoverHandlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -396,8 +420,9 @@ function StarSphere({ star, position = [0, 0, 0], onHover, onSelect }) {
       </mesh>
       <mesh>
         <sphereGeometry args={[Math.max(radius * 1.75, radius + 0.18), 32, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color={color} transparent opacity={selected ? 0.24 : 0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
+      {selected && <SelectionHalo radius={Math.max(radius * 1.82, radius + 0.28)} color="#fff2b7" pulse />}
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[Math.max(radius * 1.8, 0.34), 16, 12]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -618,7 +643,7 @@ function groupKeysForStarKeys(starKeys, layout) {
   return [...new Set((starKeys || []).map((key) => layout.starToGroup.get(layout.canonicalKeyByAlias.get(key) || key)).filter(Boolean))];
 }
 
-function AnimatedStarSphere({ star, position = [0, 0, 0], groupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
+function AnimatedStarSphere({ star, position = [0, 0, 0], groupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
 
@@ -636,12 +661,12 @@ function AnimatedStarSphere({ star, position = [0, 0, 0], groupKey, groupMotionS
 
   return (
     <group ref={groupRef} position={position}>
-      <StarSphere star={star} onHover={onHover} onSelect={onSelect} />
+      <StarSphere star={star} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
     </group>
   );
 }
 
-function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0, 0, 0], running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const primaryRef = React.useRef(null);
   const secondaryRef = React.useRef(null);
@@ -656,6 +681,7 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
   const orbitRadius = Number(orbit.display_radius_scene) || 0.9;
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 192), [orbitRadius, eccentricity, inclinationRad]);
   const orbitPayload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
+  const selected = Boolean(selectedObjectId && payloadId(orbitPayload) === selectedObjectId);
   const orbitHandlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -703,14 +729,14 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
           </bufferGeometry>
-          <lineBasicMaterial color="#ffdca8" transparent opacity={0.5} />
+          <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.92 : 0.5} />
         </lineLoop>
       )}
       <group ref={primaryRef}>
-        <StarSphere star={primary} onHover={onHover} onSelect={onSelect} />
+        <StarSphere star={primary} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
       </group>
       <group ref={secondaryRef}>
-        <StarSphere star={secondary} onHover={onHover} onSelect={onSelect} />
+        <StarSphere star={secondary} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
       </group>
     </group>
   );
@@ -734,7 +760,7 @@ function centerForBodyKeys(keys, layout, starsByKey) {
   return scaledVector(positions.reduce((sum, position) => addVector(sum, position), [0, 0, 0]), 1 / positions.length);
 }
 
-function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const primaryCenter = centerForBodyKeys(orbit.primary_child_body_keys, layout, starsByKey);
@@ -745,6 +771,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
   const orbitRadius = Number(orbit.display_radius_scene) || 1.6;
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
   const payload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
+  const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const center = primaryCenter && secondaryCenter ? scaledVector(addVector(primaryCenter, secondaryCenter), 0.5) : [0, 0, 0];
   const primaryGroupKeys = groupKeysForBodyKeys(orbit.primary_child_body_keys, layout);
   const secondaryGroupKeys = groupKeysForBodyKeys(orbit.secondary_child_body_keys, layout);
@@ -788,12 +815,12 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
-      <lineBasicMaterial color="#f0bf55" transparent opacity={0.34} />
+      <lineBasicMaterial color={selected ? "#fff4c4" : "#f0bf55"} transparent opacity={selected ? 0.82 : 0.34} />
     </lineLoop>
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
@@ -805,6 +832,7 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
   const texture = useMemo(() => createPlanetTexture(planet.render_key || planet.key || planet.display_name || planet.name, visualKind), [planet, visualKind]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("planet", planet), [planet]);
+  const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
   const hoverHandlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -846,8 +874,9 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
       </mesh>
       <mesh>
         <sphereGeometry args={[planet.radius * 1.08, 18, 14]} />
-        <meshBasicMaterial color="#b7e2ff" transparent opacity={visualKind === "gas_giant" ? 0.05 : 0.09} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color="#b7e2ff" transparent opacity={selected ? 0.2 : (visualKind === "gas_giant" ? 0.05 : 0.09)} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
+      {selected && <SelectionHalo radius={Math.max(planet.radius * 2.1, 0.22)} color="#b7e2ff" pulse />}
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[Math.max(planet.radius * 2.1, 0.2), 14, 10]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -898,7 +927,7 @@ function CanvasHoverRaycaster({ onHover }) {
   return null;
 }
 
-function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, onHover, onSelect }) {
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
@@ -917,6 +946,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       ["Incl.", fieldSummary(planet.fields, "inclination_deg", "Unknown", 2), fieldStatusSummary(planet.fields, "inclination_deg")],
     ],
   }), [planet]);
+  const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const handlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
@@ -953,12 +983,12 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
-      <lineBasicMaterial color="#b1d6ff" transparent opacity={0.5} />
+      <lineBasicMaterial color={selected ? "#e6f6ff" : "#b1d6ff"} transparent opacity={selected ? 0.9 : 0.5} />
     </lineLoop>
   );
 }
 
-function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const renderOrbits = planets.renderOrbits || [];
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -1023,6 +1053,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
           speedMultiplier={speedMultiplier}
           resetToken={resetToken}
           showOrbits={showOrbits}
+          selectedObjectId={selectedObjectId}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -1037,6 +1068,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
           running={running}
           speedMultiplier={speedMultiplier}
           resetToken={resetToken}
+          selectedObjectId={selectedObjectId}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -1052,6 +1084,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
           speedMultiplier={speedMultiplier}
           resetToken={resetToken}
           showOrbits={showOrbits}
+          selectedObjectId={selectedObjectId}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -1071,6 +1104,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
                 running={running}
                 speedMultiplier={speedMultiplier}
                 resetToken={resetToken}
+                selectedObjectId={selectedObjectId}
                 onHover={onHover}
                 onSelect={onSelect}
               />
@@ -1085,6 +1119,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
               running={running}
               speedMultiplier={speedMultiplier}
               resetToken={resetToken}
+              selectedObjectId={selectedObjectId}
               onHover={onHover}
               onSelect={onSelect}
             />
@@ -1095,7 +1130,7 @@ function PreviewObjects({ stars, planets, hierarchy, running = true, speedMultip
   );
 }
 
-function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, onHover, onSelect }) {
+function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
@@ -1159,6 +1194,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         speedMultiplier={speedMultiplier}
         resetToken={resetToken}
         showOrbits={showOrbits}
+        selectedObjectId={selectedObjectId}
         onHover={onHover}
         onSelect={onSelect}
       />
@@ -1396,6 +1432,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 speedMultiplier={speedMultiplier}
                 resetToken={resetToken}
                 showOrbits={showOrbits}
+                selectedObjectId={payloadId(pinnedObject)}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
               />

@@ -678,6 +678,9 @@ Readiness gaps:
   system previews read as deliberate 3D scenes. These are renderer-only
   presentation transforms over scene fields; they are not source texture maps
   and are not persisted as science-layer values.
+- June 29, 2026 selection-feedback pass ties pinned simulator readouts back to
+  the WebGL scene: selected stars/planets receive a soft pulsing halo and
+  selected orbit traces brighten without changing simulation data.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet

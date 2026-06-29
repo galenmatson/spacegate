@@ -267,6 +267,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add mobile Playwright coverage for the system-detail Live System Preview
 - [x] Add reusable provenance pills and focus popovers to pinned simulator
   readout facts
+- [x] Add in-scene selected-object feedback for pinned simulator stars,
+  planets, and orbit paths
 - [x] Add deterministic procedural star/planet materials and clarity-scale
   planet radius caps/floors to the Live System Preview without persisting them
   as science data
