@@ -952,6 +952,9 @@ function BuildsScreen({ csrf, openOperationsJob }) {
   const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"]
     .map((name) => enrichBuildAction(actionsByName.get(name), retentionContext))
     .filter(Boolean);
+  const presentationActions = ["score_coolness", "generate_snapshots"]
+    .map((name) => actionsByName.get(name))
+    .filter(Boolean);
   const kpis = [
     { label: "Served build", value: compactBuildId(state.status?.build_id || served.build_id) },
     { label: "Verification", value: readableStatus(verification.status || "unknown"), tone: statusTone(verification.status) },
@@ -961,7 +964,7 @@ function BuildsScreen({ csrf, openOperationsJob }) {
   const buildFocusItems = [
     { key: "pipeline", label: "Pipeline", count: 5 },
     { key: "actions", label: "Actions", count: buildActions.length },
-    { key: "presentation", label: "Presentation", count: 3 },
+    { key: "presentation", label: "Presentation", count: 4 },
     { key: "retention", label: "Retention", count: 3 },
     { key: "reports", label: "Reports", count: 2 },
   ];
@@ -1089,12 +1092,34 @@ function BuildsScreen({ csrf, openOperationsJob }) {
           </section>
 
           <section className="builds-grid">
+            <div className="panel">
+              <div className="panel-head">
+                <div>
+                  <h2>Presentation Jobs</h2>
+                  <p className="muted">Run coolness scoring and snapshot generation for the served build. These jobs write presentation artifacts only.</p>
+                </div>
+              </div>
+              <div className="action-grid">
+                {presentationActions.map((action) => (
+                  <ActionCard
+                    action={action}
+                    key={action.name}
+                    runAction={runAction}
+                    busy={busyAction === action.name}
+                    snapshotControl={snapshotControl}
+                  />
+                ))}
+              </div>
+            </div>
             <SnapshotOperationsPanel
               snapshotControl={snapshotControl}
               snapshotJob={snapshotJob}
               openOperationsJob={openOperationsJob}
               cancelJob={cancelJob}
             />
+          </section>
+
+          <section className="builds-grid">
             <div className="panel">
               <h2>Presentation Path</h2>
               <p className="muted">Score coolness first, then generate snapshots for public search and detail views. Snapshot jobs write presentation artifacts only.</p>
