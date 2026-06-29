@@ -240,3 +240,13 @@ Success criteria:
 - every rendered assumption is visible in the readiness payload
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
+
+Known benchmark blocker:
+
+- Sirius is not yet a valid compact-object system benchmark. The current public
+  side-sliced build resolves `Sirius` to a single Gaia white-dwarf row
+  (`Gaia DR3 2947050466531873024`) carrying Sirius/Alpha CMa/HIP/HD aliases,
+  with Sirius A absent from core inventory and no WDS/MSC hierarchy or A-B orbit
+  edge in ARM. The simulator must continue to render the payload honestly; the
+  fix belongs in bright-star/common-name authority and compact-companion source
+  reconciliation, not in renderer-only fabrication.

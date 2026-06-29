@@ -222,6 +222,11 @@ Deliverables:
   - bright-star/common-name authority source with explicit provenance
   - deterministic precedence, dedupe, and conflict handling across proper/common names, Bayer/Flamsteed, and catalog IDs
   - fuzzy/common-name lookup acceptance set for benchmark objects (for example Aldebaran-class misses)
+  - guardrails for bright primary plus compact companion systems where Gaia may
+    include the companion but not the naked-eye primary; Sirius currently
+    exposes this failure mode because the served build binds Sirius/Alpha CMa
+    aliases, HIP 32349, and HD 48915 to the Gaia white dwarf row while Sirius A
+    is absent
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
@@ -677,8 +682,11 @@ Readiness gaps:
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet
 - Sirius B / compact-object companion representation is still a source
-  hierarchy gap; the renderer must not invent the white dwarf as a visual-only
-  child
+  hierarchy gap; the renderer must not invent missing Sirius A/B structure as a
+  visual-only child. June 29, 2026 audit found the current public side-sliced
+  build contains only the Gaia white dwarf row for Sirius
+  (`Gaia DR3 2947050466531873024`) and no WDS/MSC hierarchy/orbit evidence
+  attached to the system.
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and

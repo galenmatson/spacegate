@@ -104,6 +104,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Use generic `arm` hierarchy payloads in detail/search paths and descendant-aware star counts for multiplicity-heavy systems
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Add benchmarked common-name fuzzy matching for bright/common objects (for example Aldebaran-class lookups) with alias-aware ranking
+- [ ] Add bright-star/compact-companion reconciliation gates so systems such as
+  Sirius cannot bind primary-star aliases and HIP/HD identifiers only to the
+  Gaia white-dwarf companion while the bright primary is absent
 - [x] Let member-star names participate in search result display/ranking so variable-star lookups like `AR Cas` title the correct system card
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates
@@ -272,7 +275,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   55 Cnc/Sol source-backed planet periods
 - [ ] Restore Sirius B / compact-object companion representation in source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
-  stars
+  stars; current public side-sliced build resolves `Sirius` to the Gaia white
+  dwarf row (`Gaia DR3 2947050466531873024`) and has no Sirius A inventory,
+  WDS/MSC hierarchy, or A-B orbit edge
 - [ ] Implement true nested barycentric subsystem propagation for hierarchical
   multi-star systems after source epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage for current public
