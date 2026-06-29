@@ -1021,6 +1021,11 @@ Matching rules (when `q` is provided):
 Implementation notes:
 - rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
 - rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
+- current Gaia-first production builds use transitional AT-HYG alias
+  crosswalks plus deterministic Bayer expansion for public name coverage; this
+  supports lookups such as `Castor`, `Alpha Geminorum`, `Alpha Centauri`,
+  `Toliman`, `Sirius`, `Jabbah`, and `Copernicus` without making AT-HYG a
+  canonical inventory authority.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
 - when `arm` exposes a richer multiplicity root (for example WDS/MSC synthetic system roots), star-count filters and returned `star_count` values use the larger effective descendant-star count instead of only counting direct `core.stars` rows.
 
@@ -1250,7 +1255,9 @@ Response 200:
 
 Display-name behavior:
 - `display_name` prefers human-friendly naming over Gaia placeholders.
-- Alias precedence is deterministic: proper/common name, Bayer, Flamsteed, then major catalog IDs (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
+- Alias precedence is deterministic: proper/common name, Bayer including
+  expanded Greek-letter/constellation forms, Flamsteed, then major catalog IDs
+  (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
 - `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
 - `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
 - `system.star_count` and search `star_count` filters are descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list.

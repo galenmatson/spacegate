@@ -353,6 +353,13 @@ if sol_planet_count < 8:
 print(f"OK: Sol gate (system_id={sol_system_id}, planets={sol_planet_count}, sun_rows={sun_count})")
 PY
 
+  local alias_search_script="$ROOT_DIR/scripts/verify_alias_search.py"
+  if [[ ! -x "$alias_search_script" ]]; then
+    echo "Error: missing executable $alias_search_script" >&2
+    exit 1
+  fi
+  "$PYTHON_BIN" "$alias_search_script" --core-db "$core_db"
+
   local arm_db="$build_dir/arm.duckdb"
   if [[ -f "$arm_db" ]]; then
     "$PYTHON_BIN" - <<'PY' "$arm_db" "${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"

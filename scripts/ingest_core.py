@@ -81,6 +81,122 @@ ALIAS_POS_MAX_DELTA_RA_DEG = 0.12
 ALIAS_POS_MAX_DELTA_DEC_DEG = 0.12
 ALIAS_POS_MAX_DELTA_DIST_LY = 1.0
 ALIAS_POS_MAX_ANG_SEP_ARCSEC = 45.0
+GREEK_BAYER_ABBREVIATIONS = {
+    "ALP": "Alpha",
+    "BET": "Beta",
+    "GAM": "Gamma",
+    "DEL": "Delta",
+    "EPS": "Epsilon",
+    "ZET": "Zeta",
+    "ETA": "Eta",
+    "THE": "Theta",
+    "IOT": "Iota",
+    "KAP": "Kappa",
+    "LAM": "Lambda",
+    "MU": "Mu",
+    "NU": "Nu",
+    "XI": "Xi",
+    "OMI": "Omicron",
+    "PI": "Pi",
+    "RHO": "Rho",
+    "SIG": "Sigma",
+    "TAU": "Tau",
+    "UPS": "Upsilon",
+    "PHI": "Phi",
+    "CHI": "Chi",
+    "PSI": "Psi",
+    "OME": "Omega",
+}
+CONSTELLATION_GENITIVE_BY_ABBR = {
+    "And": "Andromedae",
+    "Ant": "Antliae",
+    "Aps": "Apodis",
+    "Aql": "Aquilae",
+    "Aqr": "Aquarii",
+    "Ara": "Arae",
+    "Ari": "Arietis",
+    "Aur": "Aurigae",
+    "Boo": "Bootis",
+    "CMa": "Canis Majoris",
+    "CMi": "Canis Minoris",
+    "CVn": "Canum Venaticorum",
+    "Cae": "Caeli",
+    "Cam": "Camelopardalis",
+    "Cap": "Capricorni",
+    "Car": "Carinae",
+    "Cas": "Cassiopeiae",
+    "Cen": "Centauri",
+    "Cep": "Cephei",
+    "Cet": "Ceti",
+    "Cha": "Chamaeleontis",
+    "Cir": "Circini",
+    "Cnc": "Cancri",
+    "Col": "Columbae",
+    "Com": "Comae Berenices",
+    "CrA": "Coronae Australis",
+    "CrB": "Coronae Borealis",
+    "Crt": "Crateris",
+    "Cru": "Crucis",
+    "Crv": "Corvi",
+    "Cyg": "Cygni",
+    "Del": "Delphini",
+    "Dor": "Doradus",
+    "Dra": "Draconis",
+    "Equ": "Equulei",
+    "Eri": "Eridani",
+    "For": "Fornacis",
+    "Gem": "Geminorum",
+    "Gru": "Gruis",
+    "Her": "Herculis",
+    "Hor": "Horologii",
+    "Hya": "Hydrae",
+    "Hyi": "Hydri",
+    "Ind": "Indi",
+    "LMi": "Leonis Minoris",
+    "Lac": "Lacertae",
+    "Leo": "Leonis",
+    "Lep": "Leporis",
+    "Lib": "Librae",
+    "Lup": "Lupi",
+    "Lyn": "Lyncis",
+    "Lyr": "Lyrae",
+    "Men": "Mensae",
+    "Mic": "Microscopii",
+    "Mon": "Monocerotis",
+    "Mus": "Muscae",
+    "Nor": "Normae",
+    "Oct": "Octantis",
+    "Oph": "Ophiuchi",
+    "Ori": "Orionis",
+    "Pav": "Pavonis",
+    "Peg": "Pegasi",
+    "Per": "Persei",
+    "Phe": "Phoenicis",
+    "Pic": "Pictoris",
+    "PsA": "Piscis Austrini",
+    "Psc": "Piscium",
+    "Pup": "Puppis",
+    "Pyx": "Pyxidis",
+    "Ret": "Reticuli",
+    "Scl": "Sculptoris",
+    "Sco": "Scorpii",
+    "Sct": "Scuti",
+    "Ser": "Serpentis",
+    "Sex": "Sextantis",
+    "Sge": "Sagittae",
+    "Sgr": "Sagittarii",
+    "Tau": "Tauri",
+    "Tel": "Telescopii",
+    "TrA": "Trianguli Australis",
+    "Tri": "Trianguli",
+    "Tuc": "Tucanae",
+    "UMa": "Ursae Majoris",
+    "UMi": "Ursae Minoris",
+    "Vel": "Velorum",
+    "Vir": "Virginis",
+    "Vol": "Volantis",
+    "Vul": "Vulpeculae",
+}
 ATHYG_MERGE_SKY_BIN_FACTOR = 4.0  # 0.25 degree bins
 ATHYG_MERGE_POSITIONAL_CONFIDENCE_NAMED = 0.90
 ATHYG_MERGE_POSITIONAL_CONFIDENCE_NUMERIC = 0.88
@@ -304,6 +420,13 @@ def sql_literal(value: str | None) -> str:
     if value is None:
         return "NULL"
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def sql_values_pairs(items: dict[str, str]) -> str:
+    return ",\n".join(
+        f"({sql_literal(key)}, {sql_literal(value)})"
+        for key, value in sorted(items.items())
+    )
 
 
 def parse_positive_float_env(name: str, default: float) -> float:
@@ -3497,6 +3620,20 @@ def main() -> int:
     athyg_merge_positional_ambiguous_count = 0
     object_identifier_count = 0
     identifier_gaia_collision_count = 0
+    con.execute(
+        f"""
+        create or replace temp table greek_bayer_alias_map(abbr, greek_name) as
+        values
+          {sql_values_pairs(GREEK_BAYER_ABBREVIATIONS)}
+        """
+    )
+    con.execute(
+        f"""
+        create or replace temp table constellation_genitive_alias_map(abbr, genitive_name) as
+        values
+          {sql_values_pairs(CONSTELLATION_GENITIVE_BY_ABBR)}
+        """
+    )
     identifier_hip_collision_count = 0
     identifier_hd_collision_count = 0
     identifier_quarantine_count = 0
@@ -3517,9 +3654,16 @@ def main() -> int:
                 cast(nullif(nullif(hyg, ''), '0') as bigint) as hyg_id,
                 nullif(proper, '') as proper_name,
                 nullif(bayer, '') as bayer,
+                nullif(regexp_replace(coalesce(bayer, ''), '-.*$', ''), '') as bayer_root,
+                gm.greek_name as bayer_greek_name,
                 nullif(flam, '') as flam,
-                nullif(con, '') as constellation
-              from athyg_alias_raw
+                nullif(con, '') as constellation,
+                cm.genitive_name as constellation_genitive
+              from athyg_alias_raw raw
+              left join greek_bayer_alias_map gm
+                on upper(nullif(regexp_replace(coalesce(raw.bayer, ''), '-.*$', ''), '')) = gm.abbr
+              left join constellation_genitive_alias_map cm
+                on nullif(raw.con, '') = cm.abbr
               where cast(nullif(gaia, '') as bigint) is not null
             ), gaia_named as (
               select
@@ -3537,6 +3681,18 @@ def main() -> int:
                   else null
                 end as bayer_name,
                 case
+                  when bayer_root is not null and constellation is not null then bayer_root || ' ' || constellation
+                  else null
+                end as bayer_root_name,
+                case
+                  when bayer_greek_name is not null and constellation is not null then bayer_greek_name || ' ' || constellation
+                  else null
+                end as bayer_greek_abbrev_name,
+                case
+                  when bayer_greek_name is not null and constellation_genitive is not null then bayer_greek_name || ' ' || constellation_genitive
+                  else null
+                end as bayer_greek_genitive_name,
+                case
                   when flam is not null and constellation is not null then flam || ' ' || constellation
                   else null
                 end as flam_name,
@@ -3553,15 +3709,22 @@ def main() -> int:
                 cast(nullif(nullif(hyg, ''), '0') as bigint) as hyg_id,
                 nullif(proper, '') as proper_name,
                 nullif(bayer, '') as bayer,
+                nullif(regexp_replace(coalesce(bayer, ''), '-.*$', ''), '') as bayer_root,
+                gm.greek_name as bayer_greek_name,
                 nullif(flam, '') as flam,
                 nullif(con, '') as constellation,
+                cm.genitive_name as constellation_genitive,
                 case
                   when cast(nullif(ra, '') as double) between 0.0 and 24.0 then cast(nullif(ra, '') as double) * 15.0
                   else cast(nullif(ra, '') as double)
                 end as ra_deg,
                 cast(nullif(dec, '') as double) as dec_deg,
                 cast(nullif(dist, '') as double) * {PC_TO_LY} as dist_ly
-              from athyg_alias_raw
+              from athyg_alias_raw raw
+              left join greek_bayer_alias_map gm
+                on upper(nullif(regexp_replace(coalesce(raw.bayer, ''), '-.*$', ''), '')) = gm.abbr
+              left join constellation_genitive_alias_map cm
+                on nullif(raw.con, '') = cm.abbr
               where cast(nullif(gaia, '') as bigint) is null
                 and (
                   nullif(proper, '') is not null
@@ -3584,6 +3747,18 @@ def main() -> int:
                   when bayer is not null and constellation is not null then bayer || ' ' || constellation
                   else null
                 end as bayer_name,
+                case
+                  when bayer_root is not null and constellation is not null then bayer_root || ' ' || constellation
+                  else null
+                end as bayer_root_name,
+                case
+                  when bayer_greek_name is not null and constellation is not null then bayer_greek_name || ' ' || constellation
+                  else null
+                end as bayer_greek_abbrev_name,
+                case
+                  when bayer_greek_name is not null and constellation_genitive is not null then bayer_greek_name || ' ' || constellation_genitive
+                  else null
+                end as bayer_greek_genitive_name,
                 case
                   when flam is not null and constellation is not null then flam || ' ' || constellation
                   else null
@@ -3615,6 +3790,9 @@ def main() -> int:
                 n.hyg_id,
                 n.proper_name,
                 n.bayer_name,
+                n.bayer_root_name,
+                n.bayer_greek_abbrev_name,
+                n.bayer_greek_genitive_name,
                 n.flam_name,
                 1 as source_priority,
                 case
@@ -3647,6 +3825,9 @@ def main() -> int:
                 n.hyg_id,
                 n.proper_name,
                 n.bayer_name,
+                n.bayer_root_name,
+                n.bayer_greek_abbrev_name,
+                n.bayer_greek_genitive_name,
                 n.flam_name,
                 2 as source_priority,
                 9 as identifier_match_rank,
@@ -3678,6 +3859,9 @@ def main() -> int:
                 hyg_id,
                 proper_name,
                 bayer_name,
+                bayer_root_name,
+                bayer_greek_abbrev_name,
+                bayer_greek_genitive_name,
                 flam_name,
                 source_priority,
                 row_number() over (
@@ -3699,6 +3883,9 @@ def main() -> int:
                 hyg_id,
                 proper_name,
                 bayer_name,
+                bayer_root_name,
+                bayer_greek_abbrev_name,
+                bayer_greek_genitive_name,
                 flam_name,
                 source_priority
               from gaia_named
@@ -3714,6 +3901,9 @@ def main() -> int:
                 hyg_id,
                 proper_name,
                 bayer_name,
+                bayer_root_name,
+                bayer_greek_abbrev_name,
+                bayer_greek_genitive_name,
                 flam_name,
                 source_priority
               from positional_best
@@ -3745,6 +3935,9 @@ def main() -> int:
               hyg_id,
               proper_name,
               bayer_name,
+              bayer_root_name,
+              bayer_greek_abbrev_name,
+              bayer_greek_genitive_name,
               flam_name,
               coalesce(proper_name, bayer_name, flam_name) as preferred_name
             from ranked
@@ -3829,11 +4022,13 @@ def main() -> int:
                 (
                   cast(null as bigint), cast(null as bigint), cast(null as bigint), cast(null as bigint),
                   cast(null as bigint), cast(null as varchar), cast(null as varchar), cast(null as bigint),
-                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
                 )
             ) as t(
               source_pk, gaia_id, hip_id, hd_id, hr_id, gl_id, tyc_id, hyg_id,
-              proper_name, bayer_name, flam_name, preferred_name
+              proper_name, bayer_name, bayer_root_name, bayer_greek_abbrev_name,
+              bayer_greek_genitive_name, flam_name, preferred_name
             )
             where false
             """
@@ -7407,6 +7602,57 @@ def main() -> int:
               r.star_id,
               r.system_id,
               r.star_id,
+              a.bayer_root_name as alias_raw,
+              'bayer_root_name',
+              2,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
+            where a.bayer_root_name is not null
+
+            union all
+
+            select
+              'star',
+              r.star_id,
+              r.system_id,
+              r.star_id,
+              a.bayer_greek_abbrev_name as alias_raw,
+              'bayer_expanded_name',
+              2,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
+            where a.bayer_greek_abbrev_name is not null
+
+            union all
+
+            select
+              'star',
+              r.star_id,
+              r.system_id,
+              r.star_id,
+              a.bayer_greek_genitive_name as alias_raw,
+              'bayer_expanded_name',
+              2,
+              'athyg_crosswalk',
+              'v3.3',
+              a.source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_star_resolution r on r.source_pk = a.source_pk
+            where a.bayer_greek_genitive_name is not null
+
+            union all
+
+            select
+              'star',
+              r.star_id,
+              r.system_id,
+              r.star_id,
               a.flam_name as alias_raw,
               'flamsteed_name',
               3,
@@ -7562,6 +7808,57 @@ def main() -> int:
               r.system_id,
               r.system_id,
               null::bigint as star_id,
+              a.bayer_root_name as alias_raw,
+              'member_bayer_root_name',
+              22 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_system_resolution r on r.source_pk = a.source_pk
+            where a.bayer_root_name is not null
+
+            union all
+
+            select
+              'system',
+              r.system_id,
+              r.system_id,
+              null::bigint as star_id,
+              a.bayer_greek_abbrev_name as alias_raw,
+              'member_bayer_expanded_name',
+              22 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_system_resolution r on r.source_pk = a.source_pk
+            where a.bayer_greek_abbrev_name is not null
+
+            union all
+
+            select
+              'system',
+              r.system_id,
+              r.system_id,
+              null::bigint as star_id,
+              a.bayer_greek_genitive_name as alias_raw,
+              'member_bayer_expanded_name',
+              22 as alias_priority,
+              'athyg_crosswalk' as source_catalog,
+              'v3.3' as source_version,
+              a.source_pk as source_pk
+            from athyg_alias_candidates a
+            join athyg_alias_system_resolution r on r.source_pk = a.source_pk
+            where a.bayer_greek_genitive_name is not null
+
+            union all
+
+            select
+              'system',
+              r.system_id,
+              r.system_id,
+              null::bigint as star_id,
               a.flam_name as alias_raw,
               'member_flamsteed_name' as alias_kind,
               23 as alias_priority,
@@ -7586,7 +7883,13 @@ def main() -> int:
               sa.source_version,
               sa.source_pk
             from star_alias_crosswalk_seed sa
-            where sa.alias_kind in ('proper_name', 'bayer_name', 'flamsteed_name')
+            where sa.alias_kind in (
+                'proper_name',
+                'bayer_name',
+                'bayer_root_name',
+                'bayer_expanded_name',
+                'flamsteed_name'
+              )
               and sa.system_id is not null
               and sa.alias_raw is not null
 

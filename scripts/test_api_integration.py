@@ -281,6 +281,49 @@ def main():
         if facts.get("vmag") == 0:
             raise AssertionError(f"Castor leaf {leaf_name} has placeholder Vmag 0.0")
 
+    common_name_cases = [
+        ("Castor", "07346+3153", None, None, "Castor"),
+        ("Alpha Geminorum", "07346+3153", None, None, None),
+        ("Toliman", "14396-6050", None, None, "Toliman"),
+        ("Alpha Centauri", "14396-6050", None, None, "Alpha Centauri"),
+        ("Sirius", None, 10.0, None, "Sirius"),
+        ("Jabbah", "16120-1928", None, None, "Jabbah"),
+        ("Copernicus", None, None, 5, "Copernicus"),
+    ]
+    for query, expected_wds_id, max_dist_ly, min_planet_count, expected_display_name in common_name_cases:
+        _, payload = get_json(
+            base_url,
+            "/systems/search",
+            params={"q": query, "limit": 5},
+            label=f"search common name {query}",
+        )
+        items = payload.get("items") or []
+        if not items:
+            raise AssertionError(f"common-name search {query!r} returned no items")
+        first_item = items[0]
+        if expected_wds_id and first_item.get("wds_id") != expected_wds_id:
+            raise AssertionError(
+                f"common-name search {query!r} expected WDS {expected_wds_id}, got {first_item.get('wds_id')!r}"
+            )
+        if max_dist_ly is not None:
+            dist_ly = first_item.get("dist_ly")
+            if dist_ly is None or float(dist_ly) > max_dist_ly:
+                raise AssertionError(
+                    f"common-name search {query!r} expected distance <= {max_dist_ly}, got {dist_ly!r}"
+                )
+        if min_planet_count is not None and int(first_item.get("planet_count") or 0) < min_planet_count:
+            raise AssertionError(
+                f"common-name search {query!r} expected >= {min_planet_count} planets, "
+                f"got {first_item.get('planet_count')!r}"
+            )
+        if expected_display_name and str(first_item.get("display_name") or "").lower() != expected_display_name.lower():
+            aliases = [str(value).lower() for value in first_item.get("display_aliases") or []]
+            if expected_display_name.lower() not in aliases:
+                raise AssertionError(
+                    f"common-name search {query!r} expected display name or alias {expected_display_name!r}, "
+                    f"got display={first_item.get('display_name')!r}, aliases={first_item.get('display_aliases')!r}"
+                )
+
     _, planets_true = get_json(
         base_url,
         "/systems/search",

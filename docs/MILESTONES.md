@@ -194,6 +194,11 @@ Dependencies:
 Deliverables:
 
 - replacement alias/ID crosswalk ingestion
+- transitional AT-HYG alias crosswalk remains enabled for production-quality
+  naming coverage until replacement common-name and identifier authorities are
+  ready; AT-HYG does not contribute canonical inventory rows
+- deterministic Bayer expansion for search/display ergonomics, including
+  Greek-letter plus constellation-genitive forms such as `Alpha Centauri`
 - common-name authority ingestion and merge policy:
   - bright-star/common-name authority source with explicit provenance
   - deterministic precedence, dedupe, and conflict handling across proper/common names, Bayer/Flamsteed, and catalog IDs
@@ -207,6 +212,19 @@ Success criteria:
 - no critical identifier regressions
 - benchmark common-name lookups resolve reliably with fuzzy matching and alias-aware ranking
 - benchmark lookup ergonomics maintained or improved
+
+Current status:
+
+- June 29, 2026 local canonical build `20260628T234531Z_da18d11_aliasfix`
+  restored AT-HYG common-name alias coverage, materialized expanded Bayer
+  aliases, promoted 1,017,911 aliases and 18,603,929 system search terms, and
+  passed the alias-search gate for Castor, Alpha Geminorum, Alpha Centauri,
+  Toliman, Sirius, Jabbah, and Copernicus.
+- The alias-search gate now runs from `scripts/verify_build.sh` so future builds
+  fail when the broad alias corpus or benchmark common-name lookups regress.
+- Full common-name authority ingestion and conflict policy remain future work;
+  restored AT-HYG aliases are a transitional compatibility layer, not the final
+  naming authority.
 
 ### M5. AT-HYG Retirement
 

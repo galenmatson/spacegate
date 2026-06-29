@@ -230,8 +230,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   as promoted serving summaries
 - [x] First lazy-loaded live system preview renderer on system detail pages
 - [ ] 3D map fallback Gaia-label priority and mobile label-display polish
-- [ ] Fix common-name alias regression: `Castor` should resolve to
+- [x] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
+- [x] Add alias-search build gate covering restored AT-HYG common names,
+  expanded Bayer lookups such as `Alpha Centauri`, and benchmark systems such
+  as Castor, Sirius, Jabbah, and Copernicus
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts
