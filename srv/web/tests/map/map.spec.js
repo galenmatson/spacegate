@@ -115,6 +115,10 @@ test.describe("public 3D map beta", () => {
     await page.mouse.click(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
     await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-pinned']")).toContainText(/star|planet|orbit/i);
+    await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-pill").first()).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-pinned']")).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
+    await page.locator("[data-testid='system-preview-pinned'] .evidence-pill").first().focus();
+    await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-popover").first()).toBeVisible();
   });
 
   test("system preview falls back to deterministic snapshot when WebGL is unavailable", async ({ page }, testInfo) => {
@@ -181,6 +185,7 @@ test.describe("public 3D map beta", () => {
     expect(previewBox, "mobile system preview canvas box").toBeTruthy();
     await page.touchscreen.tap(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
     await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-pill").first()).toBeVisible();
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

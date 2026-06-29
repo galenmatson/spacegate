@@ -262,6 +262,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add WebGL capability fallback from the Live System Preview to the
   deterministic system snapshot artifact
 - [x] Add mobile Playwright coverage for the system-detail Live System Preview
+- [x] Add reusable provenance pills and focus popovers to pinned simulator
+  readout facts
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
   55 Cnc/Sol source-backed planet periods

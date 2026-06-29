@@ -225,6 +225,9 @@ Success criteria:
   while preserving the canonical star key and exposing the display-name basis
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, hover bodies/orbits, and pin a copyable object/orbit readout
+- hover and pinned readouts use the same source/derived/assumed/missing
+  evidence-pill affordance as the summary panel, including focusable provenance
+  popovers in pinned readouts
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - source/derived/assumed/missing fields surface as visible provenance pills

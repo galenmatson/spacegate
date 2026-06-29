@@ -664,6 +664,10 @@ Readiness gaps:
   the best system human alias for single-star preview display names. Proxima
   Centauri now has explicit simulator benchmark coverage for its rendered star
   label and two source-backed planet periods.
+- June 29, 2026 provenance-readout pass moves simulator hover/pinned facts onto
+  the reusable evidence-pill UI so inspected values expose SOURCE, DERIVED,
+  ASSUMED, or MISSING status and pinned readouts provide focusable provenance
+  popovers.
 - full client epoch/time controls, uncertainty visualization, persisted
   assumption materialization, true nested barycentric subsystem propagation,
   and final scale policy are not implemented yet

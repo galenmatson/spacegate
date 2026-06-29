@@ -107,6 +107,15 @@ function fieldStatusSummary(fields, key) {
   return statusLabel(field?.status || "missing");
 }
 
+function readoutRow(fields, key, label, fallback = "Unknown", digits = 2) {
+  const field = fieldRecord(fields, key);
+  return [label, fieldSummary(fields, key, fallback, digits), fieldStatusSummary(fields, key), field];
+}
+
+function staticReadoutRow(label, value, status = "source", field = null) {
+  return [label, value, statusLabel(status), field];
+}
+
 function objectHoverPayload(kind, body) {
   if (!body) {
     return null;
@@ -118,10 +127,10 @@ function objectHoverPayload(kind, body) {
       id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
       sourceLayer: body.source?.layer || "unknown",
       rows: [
-        ["Class", body.spectral_class || "Unknown", "SOURCE"],
-        ["Temp", fieldSummary(body.fields, "teff_k", "Unknown", 0), fieldStatusSummary(body.fields, "teff_k")],
-        ["Mass", fieldSummary(body.fields, "mass_msun", "Unknown", 3), fieldStatusSummary(body.fields, "mass_msun")],
-        ["Radius", fieldSummary(body.fields, "radius_rsun", "Unknown", 3), fieldStatusSummary(body.fields, "radius_rsun")],
+        staticReadoutRow("Class", body.spectral_class || "Unknown", body.spectral_class ? "source" : "missing"),
+        readoutRow(body.fields, "teff_k", "Temp", "Unknown", 0),
+        readoutRow(body.fields, "mass_msun", "Mass", "Unknown", 3),
+        readoutRow(body.fields, "radius_rsun", "Radius", "Unknown", 3),
       ],
     };
   }
@@ -131,10 +140,10 @@ function objectHoverPayload(kind, body) {
     id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
     sourceLayer: body.source?.layer || "unknown",
     rows: [
-      ["Period", fieldSummary(body.fields, "orbital_period_days", "Unknown", 3), fieldStatusSummary(body.fields, "orbital_period_days")],
-      ["Orbit", fieldSummary(body.fields, "semi_major_axis_au", "Unknown", 4), fieldStatusSummary(body.fields, "semi_major_axis_au")],
-      ["Ecc.", fieldSummary(body.fields, "eccentricity", "Unknown", 3), fieldStatusSummary(body.fields, "eccentricity")],
-      ["Radius", fieldSummary(body.fields, "radius_earth", "Unknown", 2), fieldStatusSummary(body.fields, "radius_earth")],
+      readoutRow(body.fields, "orbital_period_days", "Period", "Unknown", 3),
+      readoutRow(body.fields, "semi_major_axis_au", "Orbit", "Unknown", 4),
+      readoutRow(body.fields, "eccentricity", "Ecc.", "Unknown", 3),
+      readoutRow(body.fields, "radius_earth", "Radius", "Unknown", 2),
     ],
   };
 }
@@ -149,10 +158,10 @@ function orbitHoverPayload(orbit) {
     id: orbit.orbit_key || String(orbit.orbit_edge_id || ""),
     sourceLayer: orbit.source?.layer || "arm",
     rows: [
-      ["Period", fieldSummary(orbit.fields, "period_days", "Unknown", 3), fieldStatusSummary(orbit.fields, "period_days")],
-      ["Axis", fieldSummary(orbit.fields, "semi_major_axis_au", "Visual", 4), fieldStatusSummary(orbit.fields, "semi_major_axis_au")],
-      ["Ecc.", fieldSummary(orbit.fields, "eccentricity", "Unknown", 3), fieldStatusSummary(orbit.fields, "eccentricity")],
-      ["Incl.", fieldSummary(orbit.fields, "inclination_deg", "Unknown", 2), fieldStatusSummary(orbit.fields, "inclination_deg")],
+      readoutRow(orbit.fields, "period_days", "Period", "Unknown", 3),
+      readoutRow(orbit.fields, "semi_major_axis_au", "Axis", "Visual", 4),
+      readoutRow(orbit.fields, "eccentricity", "Ecc.", "Unknown", 3),
+      readoutRow(orbit.fields, "inclination_deg", "Incl.", "Unknown", 2),
     ],
   };
 }
@@ -1030,12 +1039,12 @@ function HoverReadout({ object }) {
         <span>{object.kind}</span>
       </div>
       <dl>
-        {object.rows.map(([label, value, status]) => (
+        {object.rows.map(([label, value, status, field]) => (
           <React.Fragment key={label}>
             <dt>{label}</dt>
             <dd>
               <span>{value}</span>
-              <em>{status}</em>
+              <EvidencePill field={field} fallbackStatus={String(status || "missing").toLowerCase()} />
             </dd>
           </React.Fragment>
         ))}
@@ -1074,12 +1083,12 @@ function PinnedReadout({ object, onClose }) {
         </button>
       ) : null}
       <dl>
-        {object.rows.map(([label, value, status]) => (
+        {object.rows.map(([label, value, status, field]) => (
           <React.Fragment key={label}>
             <dt>{label}</dt>
             <dd>
               <span>{value}</span>
-              <em>{status}</em>
+              <EvidencePill field={field} fallbackStatus={String(status || "missing").toLowerCase()} />
             </dd>
           </React.Fragment>
         ))}

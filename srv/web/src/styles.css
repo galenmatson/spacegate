@@ -4966,6 +4966,13 @@ main {
   font-size: 0.58rem;
 }
 
+.system-preview-hover .evidence-pill,
+.system-preview-pinned .evidence-pill {
+  min-width: 58px;
+  padding: 2px 6px;
+  font-size: 0.56rem;
+}
+
 .system-preview-pinned {
   position: absolute;
   right: 10px;
@@ -5092,6 +5099,11 @@ main {
   font-size: 0.58rem;
   font-style: normal;
   text-transform: uppercase;
+}
+
+.system-preview-pinned .evidence-popover {
+  right: 0;
+  bottom: calc(100% + 6px);
 }
 
 .system-preview-readout {
