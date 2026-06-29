@@ -628,6 +628,11 @@ Readiness gaps:
   search, aliases, detail hierarchy, vital hierarchy facts, and simulation
   scene availability for Castor, Nu Sco, Alpha Centauri, Sirius, TRAPPIST-1,
   55 Cnc, Sol, and 16 Cyg.
+- June 29, 2026 Live System Preview API patch makes `render_scene_v0.2`
+  reconcile renderer-ready star/planet bodies against canonical hierarchy when
+  hierarchy is richer than direct core membership. Local strict benchmark now
+  passes for Castor, Nu Sco, Alpha Centauri, TRAPPIST-1, 55 Cnc, Sol, and
+  16 Cyg, including Alpha Centauri's nested Proxima planets.
 - client simulation clock, uncertainty visualization, persisted assumption
   materialization, and final scale policy are not implemented yet
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
@@ -635,10 +640,9 @@ Readiness gaps:
 - Castor remains a hierarchy-quality watch item for browser rendering and
   future barycentric nested-subsystem animation, but the general MSC
   materialization gap is no longer a known data-loss issue in the builder
-- Live System Preview body generation still trails the richer hierarchy for
-  complex multiples; the benchmark currently warns when hierarchy star/planet
-  counts exceed preview bodies, including Castor, Nu Sco, Alpha Centauri, and
-  16 Cyg.
+- Current public side-sliced build does not include `disc.snapshot_manifest`;
+  deterministic snapshot fallback coverage must be regenerated/restored before
+  map snapshot hover checks can exercise real fallback assets again.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

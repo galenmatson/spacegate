@@ -15,6 +15,9 @@ Already in place:
   `source`, `derived`, `assumed`, or `missing`
 - additive `render_scene_v0.2` payload for live previews with renderer-ready
   star bodies, planet bodies, binary orbit groups, and provenance-bearing fields
+- `render_scene_v0.2` reconciles body lists against canonical hierarchy when
+  hierarchy exposes richer physical membership than direct core rows or ARM
+  orbit endpoints alone
 - ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
   currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and

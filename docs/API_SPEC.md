@@ -335,6 +335,9 @@ Contract notes:
 - `disc` is the future home for visualization-only assumptions and static
   fallback artifacts.
 - `render_scene` is an additive renderer-ready view over the source payload.
+  It uses direct core rows and ARM orbit endpoints first, then reconciles
+  renderer-ready bodies against canonical hierarchy when hierarchy exposes
+  nested stars or planets not present in the direct selected-system body lists.
   It may include deterministic procedural fields with `status="assumed"`,
   `layer="disc_assumption"`, `basis="procedural_prior_v1:..."`, and a stable
   `seed`. These values are visual defaults only; they are not canonical science.

@@ -241,9 +241,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add alias-search build gate covering restored AT-HYG common names,
   expanded Bayer lookups such as `Alpha Centauri`, and benchmark systems such
   as Castor, Sirius, Jabbah, and Copernicus
-- [ ] Reconcile Live System Preview body generation with richer hierarchy
+- [x] Reconcile Live System Preview body generation with richer hierarchy
   counts for complex multiples and planet-bearing multiple systems flagged by
   `scripts/verify_known_systems_api.py`
+- [ ] Restore deterministic snapshot manifest coverage for current public
+  side-sliced builds so map snapshot hover checks exercise real fallback assets
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts

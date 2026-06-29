@@ -207,7 +207,8 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
                 )
 
     scene = get_json(base_url, f"/systems/{system_id}/simulation-scene")
-    bodies = scene.get("bodies") or {}
+    render_scene = scene.get("render_scene") or {}
+    bodies = render_scene.get("bodies") or scene.get("bodies") or {}
     scene_stars = bodies.get("stars") or []
     scene_planets = bodies.get("planets") or []
     if case.min_scene_stars is not None and len(scene_stars) < case.min_scene_stars:

@@ -39,6 +39,14 @@ test.describe("public 3D map beta", () => {
 
   test("selected snapshot chip opens deterministic snapshot preview", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "hover preview is a desktop affordance");
+    const mapResponse = await page.request.get("/api/v1/map/systems", {
+      params: { radius_ly: "100", limit: "20000", compact: "true" },
+    });
+    expect(mapResponse.ok()).toBeTruthy();
+    const mapPayload = await mapResponse.json();
+    const hasSnapshot = (mapPayload.items || []).some((item) => item.has_snapshot);
+    test.skip(!hasSnapshot, "served build has no map systems with deterministic snapshots");
+
     await openMap(page);
     const chip = page.locator(".map-snapshot-chip.ready").first();
     await expect(chip).toBeVisible();
