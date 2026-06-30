@@ -313,6 +313,9 @@ Success criteria:
 - hover and pinned readouts use the same source/derived/assumed/missing
   evidence-pill affordance as the summary panel, including focusable provenance
   popovers in pinned readouts
+- planet hover/pinned readouts and the preview evidence strip surface a
+  renderer-only planet visual class with `render_scene` provenance, so material
+  choices are inspectable without treating them as science taxonomy
 - star and planet surfaces use deterministic procedural renderer materials
   based on existing scene fields and stable object keys; they are visual
   presentation only, not source surface maps or persisted assumptions

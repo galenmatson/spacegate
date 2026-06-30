@@ -174,6 +174,42 @@ function planetVisualKind(planet) {
   return "temperate_rock";
 }
 
+function planetVisualKindLabel(kind) {
+  return String(kind || "temperate_rock").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function planetVisualKindField(planet) {
+  const kind = planetVisualKind(planet);
+  const radiusField = fieldRecord(planet.fields, "radius_earth");
+  const tempField = fieldRecord(planet.fields, "candidate_eq_temp_k");
+  const insolField = fieldRecord(planet.fields, "candidate_insol_earth");
+  const usableField = (field) => (field?.value !== null && field?.value !== undefined && field?.value !== "" ? field : null);
+  const sourceField = kind === "gas_giant" || kind === "ice_giant"
+    ? usableField(radiusField)
+    : (usableField(tempField) || usableField(insolField) || usableField(radiusField));
+  const status = sourceField ? "derived" : "assumed";
+  return {
+    key: "planet_visual_class",
+    label: "Visual class",
+    value: planetVisualKindLabel(kind),
+    unit: null,
+    status,
+    layer: "render_scene",
+    source_catalog: sourceField?.source_catalog,
+    source_reference: sourceField?.source_reference,
+    basis: sourceField
+      ? `renderer:${kind}:from_${sourceField.key || "available_planet_fields"}`
+      : `renderer:${kind}:fallback_visual_prior`,
+    seed: sourceField ? null : String(planet.render_key || planet.key || planet.display_name || planet.name || ""),
+    generator_version: "system_preview_planet_visual_class_v1",
+    confidence: sourceField ? 0.55 : 0.2,
+    notes: sourceField
+      ? "Presentation-only visual material class derived from available planet radius, temperature, or insolation fields."
+      : "Presentation-only visual material class using fallback renderer defaults because class-driving planet fields are missing.",
+    replacement_target: "reviewed planet class or atmospheric/rendering model",
+  };
+}
+
 function makeCanvasTexture(draw, size = 128) {
   if (typeof document === "undefined") {
     return null;
@@ -384,12 +420,14 @@ function objectHoverPayload(kind, body) {
       ],
     };
   }
+  const visualClassField = planetVisualKindField(body);
   return {
     kind: "Planet",
     name: body.display_name || body.name || "Unnamed planet",
     id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
     sourceLayer: body.source?.layer || "unknown",
     rows: [
+      staticReadoutRow("Class", String(visualClassField.value), visualClassField.status, visualClassField),
       readoutRow(body.fields, "orbital_period_days", "Period", "Unknown", 3),
       readoutRow(body.fields, "semi_major_axis_au", "Orbit", "Unknown", 4),
       readoutRow(body.fields, "eccentricity", "Ecc.", "Unknown", 3),
@@ -1826,6 +1864,7 @@ function collectEvidenceFields(scene) {
   }
   const firstPlanet = renderScene.bodies?.planets?.[0];
   if (firstPlanet?.fields) {
+    items.push(["Planet class", planetVisualKindField(firstPlanet)]);
     items.push(["Planet period", fieldRecord(firstPlanet.fields, "orbital_period_days")]);
     items.push(["Planet phase", fieldRecord(firstPlanet.fields, "phase_rad")]);
   }
