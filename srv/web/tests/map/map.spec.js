@@ -92,6 +92,15 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    const sharedClockCanvas = page.locator(".system-preview-canvas canvas");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationClockMode || ""),
+      { timeout: 3000 }
+    ).toBe("shared_local_beta");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(0);
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/clarity/i);

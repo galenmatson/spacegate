@@ -812,6 +812,9 @@ Readiness gaps:
 - June 30, 2026 provenance popover patch surfaces confidence, source
   references, notes, and procedural assumption metadata from existing
   simulation field provenance objects.
+- June 30, 2026 shared-clock patch refactors live preview stars, planets,
+  orbit guides, and subsystem handles onto one local beta animation clock with
+  browser diagnostics, while leaving science-grade epoch controls pending.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
