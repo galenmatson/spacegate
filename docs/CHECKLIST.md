@@ -291,6 +291,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   controls pending
 - [x] Add Playwright coverage proving Pause freezes and Start resumes the
   shared local simulator clock
+- [x] Draw direct binary orbit traces as rendered barycentric body paths,
+  mass-weighted when possible and explicitly equal-mass fallback otherwise
 - [x] Render hierarchical subsystem orbit edges as group-pair guides in the
   Live System Preview instead of flattening them into direct star binaries
 - [x] Add inspectable subsystem render bodies/markers for hierarchy nodes with

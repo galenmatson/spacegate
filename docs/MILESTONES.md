@@ -817,6 +817,10 @@ Readiness gaps:
   animation clock with browser diagnostics, while leaving science-grade epoch
   controls pending. Browser coverage now verifies that Pause freezes this
   shared clock and Start resumes it.
+- June 30, 2026 direct-binary trace patch changes binary orbit traces from a
+  full relative-separation guide to rendered barycentric body paths, using
+  source mass ratios when available and explicit equal-mass visual fallback
+  otherwise.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

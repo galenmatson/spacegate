@@ -323,6 +323,10 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
     await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.directOrbitTraceCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(6);
+    await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupOrbitGuideCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(2);
@@ -360,6 +364,10 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/1\s*rendered orbits/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
+    await expect.poll(
+      () => page.locator(".system-preview-canvas canvas").evaluate((canvas) => Number(canvas.dataset.directOrbitTraceCount || 0)),
+      { timeout: 3000 }
+    ).toBe(2);
   });
 
   test("planet-host preview renders hosted planets in a multi-star scene", async ({ page }, testInfo) => {

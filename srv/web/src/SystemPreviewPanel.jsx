@@ -417,6 +417,28 @@ function sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, samples =
   return new Float32Array(vertices);
 }
 
+function scaledOrbitPoints(points, scale) {
+  return new Float32Array(Array.from(points, (value) => value * scale));
+}
+
+function binaryMassFractions(primary, secondary) {
+  const primaryMass = numericField(primary?.fields, "mass_msun");
+  const secondaryMass = numericField(secondary?.fields, "mass_msun");
+  if (primaryMass && secondaryMass && primaryMass > 0 && secondaryMass > 0) {
+    const total = primaryMass + secondaryMass;
+    return {
+      primary: secondaryMass / total,
+      secondary: primaryMass / total,
+      basis: "source_mass_ratio",
+    };
+  }
+  return {
+    primary: 0.5,
+    secondary: 0.5,
+    basis: "equal_mass_visual_fallback",
+  };
+}
+
 function advanceSimulationDays(ref, elapsedSeconds, running, speedMultiplier = 1) {
   if (ref.lastElapsedSeconds === null || ref.lastElapsedSeconds === undefined) {
     ref.lastElapsedSeconds = elapsedSeconds;
@@ -926,8 +948,27 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
   const inclinationDeg = numericField(orbit.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const orbitRadius = Number(orbit.display_radius_scene) || 0.9;
-  const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 192), [orbitRadius, eccentricity, inclinationRad]);
-  const orbitPayload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
+  const massFractions = useMemo(() => binaryMassFractions(primary, secondary), [primary, secondary]);
+  const relativePathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 192), [orbitRadius, eccentricity, inclinationRad]);
+  const primaryPathPoints = useMemo(() => scaledOrbitPoints(relativePathPoints, -massFractions.primary), [relativePathPoints, massFractions.primary]);
+  const secondaryPathPoints = useMemo(() => scaledOrbitPoints(relativePathPoints, massFractions.secondary), [relativePathPoints, massFractions.secondary]);
+  const orbitPayload = useMemo(() => {
+    const payload = orbitHoverPayload(orbit);
+    if (!payload) {
+      return null;
+    }
+    return {
+      ...payload,
+      rows: [
+        ...payload.rows,
+        staticReadoutRow(
+          "Trace",
+          massFractions.basis === "source_mass_ratio" ? "Mass-weighted barycentric" : "Equal-mass visual fallback",
+          massFractions.basis === "source_mass_ratio" ? "derived" : "assumed",
+        ),
+      ],
+    };
+  }, [orbit, massFractions.basis]);
   const selected = Boolean(selectedObjectId && payloadId(orbitPayload) === selectedObjectId);
   const orbitHandlers = {
     onPointerOver: (event) => {
@@ -958,8 +999,8 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
     const centerOffset = combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout);
     groupRef.current.position.set(...addVector(center, centerOffset));
     const relative = orbitalPosition(theta, orbitRadius, eccentricity, inclinationRad);
-    primaryRef.current.position.set(...scaledVector(relative, -0.5));
-    secondaryRef.current.position.set(...scaledVector(relative, 0.5));
+    primaryRef.current.position.set(...scaledVector(relative, -massFractions.primary));
+    secondaryRef.current.position.set(...scaledVector(relative, massFractions.secondary));
   });
 
   if (!primary || !secondary) {
@@ -971,15 +1012,15 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
         <>
           <lineLoop {...orbitHandlers}>
             <bufferGeometry>
-              <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+              <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.95 : 0.58} />
+            <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.95 : 0.62} />
           </lineLoop>
           <lineLoop {...orbitHandlers}>
             <bufferGeometry>
-              <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+              <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
             </bufferGeometry>
-            <lineBasicMaterial color="#fff4c4" transparent opacity={selected ? 0.18 : 0.08} />
+            <lineBasicMaterial color={massFractions.basis === "source_mass_ratio" ? "#f6c971" : "#fff4c4"} transparent opacity={selected ? 0.72 : 0.34} />
           </lineLoop>
         </>
       )}
@@ -1294,6 +1335,7 @@ function SceneMotionMetrics({ directOrbitCount = 0, groupOrbitCount = 0, subsyst
     gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
+    gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
     gl.domElement.dataset.groupOrbitGuideCount = String(groupOrbitCount || 0);
     gl.domElement.dataset.subsystemMarkerCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.simulationClockMode = "shared_local_beta";

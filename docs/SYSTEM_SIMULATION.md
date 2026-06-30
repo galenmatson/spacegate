@@ -36,6 +36,9 @@ Already in place:
   animation clock for all moving scene objects, sampled eccentric/inclined
   orbit guide paths, and hover vitals for rendered bodies; Pause freezes this
   local clock and Start resumes it from the same simulation day
+- direct binary orbit traces are drawn as the two rendered body paths around
+  the visual barycenter, using source mass ratios when both stellar masses are
+  available and an explicit equal-mass visual fallback when they are not
 - rendered planets are ordered by semi-major axis when available, then orbital
   period, so Sol/TRAPPIST-like systems present in orbital order rather than
   catalog/name order
@@ -291,6 +294,10 @@ Success criteria:
   source-scaled barycentric solution
 - single-star scenes can render a human system alias as the body display name
   while preserving the canonical star key and exposing the display-name basis
+- direct binary stars follow the same rendered body-path traces that are shown
+  in the preview, rather than a full relative-separation guide; mass-weighted
+  traces are a derived presentation transform and equal-mass traces are labeled
+  as an assumed visual fallback
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, orbit/zoom/pan the preview camera, reset the view, hover
   bodies/orbits, and pin a copyable object/orbit readout
