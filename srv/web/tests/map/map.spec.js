@@ -550,6 +550,51 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
+  test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "hierarchical barycentric motion smoke uses desktop detail layout");
+    const cases = ["HD 213885", "HD 79210"];
+    const fieldValue = (owner, key) => owner?.fields?.[key]?.value;
+
+    for (const query of cases) {
+      await test.step(query, async () => {
+        const response = await page.request.get("/api/v1/systems/search", {
+          params: { q: query, limit: "1" },
+        });
+        expect(response.ok()).toBeTruthy();
+        const payload = await response.json();
+        const systemId = payload.items?.[0]?.system_id;
+        expect(systemId, `${query} system_id`).toBeTruthy();
+
+        const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+        expect(sceneResponse.ok()).toBeTruthy();
+        const scenePayload = await sceneResponse.json();
+        const stars = scenePayload.render_scene?.bodies?.stars || [];
+        const starsByKey = new Map(stars.map((star) => [star.render_key, star]));
+        const groupOrbit = (scenePayload.render_scene?.orbits || []).find((orbit) => orbit.endpoint_kind === "group_pair");
+        expect(groupOrbit, `${query} group-pair orbit`).toBeTruthy();
+        const sideMass = (keys) => (keys || [])
+          .map((key) => Number(fieldValue(starsByKey.get(key), "mass_msun")))
+          .filter((mass) => Number.isFinite(mass) && mass > 0)
+          .reduce((sum, mass) => sum + mass, 0);
+        expect(sideMass(groupOrbit.primary_child_body_keys), `${query} primary side mass`).toBeGreaterThan(0);
+        expect(sideMass(groupOrbit.secondary_child_body_keys), `${query} secondary side mass`).toBeGreaterThan(0);
+
+        await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+        await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+        const previewCanvas = page.locator(".system-preview-canvas canvas");
+        await expect(previewCanvas).toBeVisible();
+        await expect.poll(
+          () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupMotionCount || 0)),
+          { timeout: 3000 }
+        ).toBeGreaterThanOrEqual(1);
+        await expect.poll(
+          () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.massWeightedGroupMotionCount || 0)),
+          { timeout: 3000 }
+        ).toBeGreaterThanOrEqual(1);
+      });
+    }
+  });
+
   test("messy hierarchy preview preserves Nu Sco source-native leaves", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "messy hierarchy renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {

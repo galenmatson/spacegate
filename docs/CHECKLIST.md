@@ -299,6 +299,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   multiple rendered stellar descendants, with Castor benchmark coverage
 - [x] Use hierarchical group-pair edges for deterministic visual-scale
   child-cluster motion in the Live System Preview
+- [x] Make hierarchical group-pair motion mass-weighted around the rendered
+  barycenter when positive side masses exist, with HD 213885 and HD 79210
+  browser coverage
+- [x] Advance animated preview bodies by mean anomaly with a Kepler solve for
+  true anomaly before placement, keeping full N-body propagation out of scope
 - [x] Add WebGL capability fallback from the Live System Preview to the
   deterministic system snapshot artifact
 - [x] Add mobile Playwright coverage for the system-detail Live System Preview
@@ -401,8 +406,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   two-star scenes with no source orbit edge, with Sirius Playwright and
   known-system verifier coverage
 - [ ] Define science-grade epoch/propagation controls beyond the current
-  clarity-scaled nested group animation for multi-star systems after source
-  epochs/scale policy are defined
+  clarity-scaled Keplerian nested group animation for multi-star systems after
+  source epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage on the current public
   side-sliced deployment so map snapshot hover checks exercise real fallback
   assets on antiproton

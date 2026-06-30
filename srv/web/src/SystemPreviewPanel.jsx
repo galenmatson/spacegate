@@ -719,11 +719,39 @@ function orbitHoverPayload(orbit) {
   };
 }
 
-function orbitalPosition(phase, orbitRadius, eccentricity = 0, inclinationRad = 0) {
-  const radiusScale = (1 - eccentricity ** 2) / (1 + eccentricity * Math.cos(phase));
-  const x = Math.cos(phase) * orbitRadius * radiusScale;
-  const planeZ = Math.sin(phase) * orbitRadius * radiusScale;
+function normalizeRadians(angle) {
+  const twoPi = Math.PI * 2;
+  return ((angle % twoPi) + twoPi) % twoPi;
+}
+
+function trueAnomalyFromMeanAnomaly(meanAnomaly, eccentricity = 0) {
+  const e = Math.min(0.95, Math.max(0, Number(eccentricity) || 0));
+  const mean = normalizeRadians(meanAnomaly);
+  if (e < 1e-6) {
+    return mean;
+  }
+  let eccentricAnomaly = e < 0.8 ? mean : Math.PI;
+  for (let idx = 0; idx < 8; idx += 1) {
+    const delta = (eccentricAnomaly - e * Math.sin(eccentricAnomaly) - mean) / (1 - e * Math.cos(eccentricAnomaly));
+    eccentricAnomaly -= delta;
+    if (Math.abs(delta) < 1e-7) {
+      break;
+    }
+  }
+  const sinHalf = Math.sqrt(1 + e) * Math.sin(eccentricAnomaly / 2);
+  const cosHalf = Math.sqrt(1 - e) * Math.cos(eccentricAnomaly / 2);
+  return normalizeRadians(2 * Math.atan2(sinHalf, cosHalf));
+}
+
+function orbitalPosition(trueAnomaly, orbitRadius, eccentricity = 0, inclinationRad = 0) {
+  const radiusScale = (1 - eccentricity ** 2) / (1 + eccentricity * Math.cos(trueAnomaly));
+  const x = Math.cos(trueAnomaly) * orbitRadius * radiusScale;
+  const planeZ = Math.sin(trueAnomaly) * orbitRadius * radiusScale;
   return [x, -planeZ * Math.sin(inclinationRad), planeZ * Math.cos(inclinationRad)];
+}
+
+function orbitalPositionFromMeanAnomaly(meanAnomaly, orbitRadius, eccentricity = 0, inclinationRad = 0) {
+  return orbitalPosition(trueAnomalyFromMeanAnomaly(meanAnomaly, eccentricity), orbitRadius, eccentricity, inclinationRad);
 }
 
 function sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, samples = 192) {
@@ -861,41 +889,105 @@ function scaledOrbitPoints(points, scale) {
 }
 
 function binaryMassFractions(primary, secondary) {
-  const primaryMass = numericField(primary?.fields, "mass_msun");
-  const secondaryMass = numericField(secondary?.fields, "mass_msun");
+  return barycentricMassFractions(
+    positiveStellarMass(primary),
+    positiveStellarMass(secondary),
+  );
+}
+
+function positiveStellarMass(body) {
+  const field = fieldRecord(body?.fields, "mass_msun");
+  const mass = numericField(body?.fields, "mass_msun");
+  if (!Number.isFinite(mass) || mass <= 0) {
+    return null;
+  }
+  return {
+    mass,
+    status: field?.status || "missing",
+  };
+}
+
+function massForBodyKeys(keys, starsByKey) {
+  const uniqueKeys = [...new Set((keys || []).filter(Boolean))];
+  const records = uniqueKeys
+    .map((key) => positiveStellarMass(starsByKey.get(key)))
+    .filter((record) => Number.isFinite(record?.mass) && record.mass > 0);
+  if (!records.length) {
+    return null;
+  }
+  return {
+    mass: records.reduce((sum, record) => sum + record.mass, 0),
+    status: weakestMassStatus(records.map((record) => record.status)),
+  };
+}
+
+function weakestMassStatus(statuses = []) {
+  if (statuses.some((status) => status === "assumed")) {
+    return "assumed";
+  }
+  if (statuses.some((status) => status === "missing")) {
+    return "missing";
+  }
+  if (statuses.some((status) => status === "derived")) {
+    return "derived";
+  }
+  return statuses.length ? "source" : "missing";
+}
+
+function massRatioBasis(primaryMassRecord, secondaryMassRecord) {
+  const status = weakestMassStatus([primaryMassRecord?.status, secondaryMassRecord?.status].filter(Boolean));
+  if (status === "assumed") {
+    return "assumed_mass_ratio";
+  }
+  if (status === "derived") {
+    return "derived_mass_ratio";
+  }
+  return "source_mass_ratio";
+}
+
+function barycentricMassFractions(primaryMassRecord, secondaryMassRecord) {
+  const primaryMass = primaryMassRecord?.mass;
+  const secondaryMass = secondaryMassRecord?.mass;
   if (primaryMass && secondaryMass && primaryMass > 0 && secondaryMass > 0) {
     const total = primaryMass + secondaryMass;
     return {
       primary: secondaryMass / total,
       secondary: primaryMass / total,
-      basis: "source_mass_ratio",
+      basis: massRatioBasis(primaryMassRecord, secondaryMassRecord),
+      primaryMass,
+      secondaryMass,
     };
   }
   return {
     primary: 0.5,
     secondary: 0.5,
     basis: "equal_mass_visual_fallback",
+    primaryMass: primaryMass || null,
+    secondaryMass: secondaryMass || null,
   };
 }
 
 function binaryTraceProvenanceField(massFractions) {
-  const sourceMassRatio = massFractions?.basis === "source_mass_ratio";
+  const massWeighted = ["source_mass_ratio", "derived_mass_ratio", "assumed_mass_ratio"].includes(massFractions?.basis);
+  const sourceBacked = massFractions?.basis === "source_mass_ratio" || massFractions?.basis === "derived_mass_ratio";
   return {
     key: "binary_body_paths",
     label: "Body paths",
-    value: sourceMassRatio ? "Mass-weighted barycentric" : "Equal-mass visual fallback",
+    value: massWeighted ? "Mass-weighted barycentric" : "Equal-mass visual fallback",
     unit: null,
-    status: sourceMassRatio ? "derived" : "assumed",
+    status: sourceBacked ? "derived" : "assumed",
     layer: "render_scene",
-    source_catalog: sourceMassRatio ? "core_star_mass_fields" : null,
+    source_catalog: sourceBacked ? "stellar_mass_fields" : null,
     source_reference: null,
     basis: massFractions?.basis || "unknown",
     seed: null,
     generator_version: "system_preview_binary_trace_v1",
-    confidence: sourceMassRatio ? 0.85 : 0.35,
-    notes: sourceMassRatio
+    confidence: sourceBacked ? 0.85 : (massWeighted ? 0.45 : 0.35),
+    notes: sourceBacked
       ? "Rendered body paths use available stellar masses to split the visual relative orbit around the barycenter."
-      : "Rendered body paths assume equal visual masses because one or both stellar masses are missing.",
+      : (massWeighted
+        ? "Rendered body paths use deterministic assumed stellar masses because one or more source masses are missing."
+        : "Rendered body paths assume equal visual masses because one or both stellar masses are missing."),
   };
 }
 
@@ -1459,24 +1551,55 @@ function groupKeysForOrbitSide(bodyKey, childKeys, layout) {
   return groupKeysContainingBodyKeys(childKeys, layout);
 }
 
-function buildGroupMotionSpecs(groupOrbits, layout, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure") {
+function starKeysForOrbitSide(bodyKey, childKeys, layout) {
+  const mappedBodyKey = layout.canonicalKeyByAlias.get(bodyKey) || bodyKey;
+  if (mappedBodyKey && layout.starPositions.has(mappedBodyKey)) {
+    return [mappedBodyKey];
+  }
+  if (mappedBodyKey && layout.hierarchyGroups.has(mappedBodyKey)) {
+    return layout.hierarchyGroups.get(mappedBodyKey)?.starKeys || [];
+  }
+  const childStarKeys = (childKeys || [])
+    .flatMap((key) => {
+      const mappedKey = layout.canonicalKeyByAlias.get(key) || key;
+      if (layout.starPositions.has(mappedKey)) {
+        return [mappedKey];
+      }
+      if (layout.hierarchyGroups.has(mappedKey)) {
+        return layout.hierarchyGroups.get(mappedKey)?.starKeys || [];
+      }
+      return [];
+    });
+  return [...new Set(childStarKeys)];
+}
+
+function buildGroupMotionSpecs(groupOrbits, layout, starsByKey, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure") {
   const multiplier = Number(visualScale.binary_orbit_radius?.group_pair_motion_multiplier || 0.55);
   return (groupOrbits || [])
     .map((orbit) => {
       const primaryGroupKeys = groupKeysForOrbitSide(orbit.primary_body_key, orbit.primary_child_body_keys, layout);
       const secondaryGroupKeys = groupKeysForOrbitSide(orbit.secondary_body_key, orbit.secondary_child_body_keys, layout);
+      const primaryStarKeys = starKeysForOrbitSide(orbit.primary_body_key, orbit.primary_child_body_keys, layout);
+      const secondaryStarKeys = starKeysForOrbitSide(orbit.secondary_body_key, orbit.secondary_child_body_keys, layout);
       const primarySet = new Set(primaryGroupKeys);
       const secondarySet = new Set(secondaryGroupKeys);
       const overlap = [...primarySet].some((key) => secondarySet.has(key));
       if (!primaryGroupKeys.length || !secondaryGroupKeys.length || overlap) {
         return null;
       }
+      const massFractions = barycentricMassFractions(
+        massForBodyKeys(primaryStarKeys, starsByKey),
+        massForBodyKeys(secondaryStarKeys, starsByKey),
+      );
       return {
         orbit,
         primaryGroupKeys,
         secondaryGroupKeys,
+        primaryStarKeys,
+        secondaryStarKeys,
         primaryAncestorGroupKeys: [...new Set(primaryGroupKeys.flatMap((key) => layout.groupAncestorKeys.get(key) || []))],
         secondaryAncestorGroupKeys: [...new Set(secondaryGroupKeys.flatMap((key) => layout.groupAncestorKeys.get(key) || []))],
+        massFractions,
         periodDays: Math.max(0.05, numericField(orbit.fields, "period_days") || 80),
         phaseRad: numericField(orbit.fields, "phase_rad") || 0,
         eccentricity: Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0)),
@@ -1487,28 +1610,33 @@ function buildGroupMotionSpecs(groupOrbits, layout, visualScale = DEFAULT_VISUAL
     .filter(Boolean);
 }
 
-function directGroupOffsetAt(groupKey, groupMotionSpecs, simDays) {
+function directGroupOffsetAt(groupKey, groupMotionSpecs, simDays, excludeOrbitKey = null) {
   if (!groupKey || !groupMotionSpecs?.length) {
     return [0, 0, 0];
   }
   return groupMotionSpecs.reduce((offset, spec) => {
-    const side = spec.primaryGroupKeys.includes(groupKey) ? -0.5 : (spec.secondaryGroupKeys.includes(groupKey) ? 0.5 : 0);
+    if (excludeOrbitKey && spec.orbit?.orbit_key === excludeOrbitKey) {
+      return offset;
+    }
+    const side = spec.primaryGroupKeys.includes(groupKey)
+      ? -spec.massFractions.primary
+      : (spec.secondaryGroupKeys.includes(groupKey) ? spec.massFractions.secondary : 0);
     if (!side) {
       return offset;
     }
     const phase = spec.phaseRad + (simDays / spec.periodDays) * Math.PI * 2;
-    return addVector(offset, scaledVector(orbitalPosition(phase, spec.orbitRadius, spec.eccentricity, spec.inclinationRad), side));
+    return addVector(offset, scaledVector(orbitalPositionFromMeanAnomaly(phase, spec.orbitRadius, spec.eccentricity, spec.inclinationRad), side));
   }, [0, 0, 0]);
 }
 
-function groupOffsetAt(groupKey, groupMotionSpecs, simDays, layout = null) {
+function groupOffsetAt(groupKey, groupMotionSpecs, simDays, layout = null, excludeOrbitKey = null) {
   if (!groupKey) {
     return [0, 0, 0];
   }
   const ancestorKeys = layout?.groupAncestorKeys?.get(groupKey) || [];
   return sumVectors([
-    directGroupOffsetAt(groupKey, groupMotionSpecs, simDays),
-    ...ancestorKeys.map((ancestorKey) => directGroupOffsetAt(ancestorKey, groupMotionSpecs, simDays)),
+    directGroupOffsetAt(groupKey, groupMotionSpecs, simDays, excludeOrbitKey),
+    ...ancestorKeys.map((ancestorKey) => directGroupOffsetAt(ancestorKey, groupMotionSpecs, simDays, excludeOrbitKey)),
   ]);
 }
 
@@ -1523,15 +1651,15 @@ function combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout = nu
   return sumVectors([...keysWithAncestors].map((key) => directGroupOffsetAt(key, groupMotionSpecs, simDays)));
 }
 
-function averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout = null) {
+function averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout = null, excludeOrbitKey = null) {
   const uniqueKeys = [...new Set((groupKeys || []).filter(Boolean))];
-  return averageVector(uniqueKeys.map((key) => groupOffsetAt(key, groupMotionSpecs, simDays, layout)));
+  return averageVector(uniqueKeys.map((key) => groupOffsetAt(key, groupMotionSpecs, simDays, layout, excludeOrbitKey)));
 }
 
-function groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout = null) {
+function groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout = null, excludeOrbitKey = null) {
   return averageVector([
-    averageGroupOffsetAt(primaryGroupKeys, groupMotionSpecs, simDays, layout),
-    averageGroupOffsetAt(secondaryGroupKeys, groupMotionSpecs, simDays, layout),
+    averageGroupOffsetAt(primaryGroupKeys, groupMotionSpecs, simDays, layout, excludeOrbitKey),
+    averageGroupOffsetAt(secondaryGroupKeys, groupMotionSpecs, simDays, layout, excludeOrbitKey),
   ]);
 }
 
@@ -1635,7 +1763,7 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale 
     const motionGroupKeys = groupKeysForStarKeys([orbit.primary_body_key, orbit.secondary_body_key], layout);
     const centerOffset = combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout);
     groupRef.current.position.set(...addVector(center, centerOffset));
-    const relative = orbitalPosition(theta, orbitRadius, eccentricity, inclinationRad);
+    const relative = orbitalPositionFromMeanAnomaly(theta, orbitRadius, eccentricity, inclinationRad);
     primaryRef.current.position.set(...scaledVector(relative, -massFractions.primary));
     secondaryRef.current.position.set(...scaledVector(relative, massFractions.secondary));
   });
@@ -1697,20 +1825,39 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualSc
   const inclinationDeg = numericField(orbit.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const orbitRadius = scaledBinaryOrbitRadius(orbit, visualScale, scaleMode, 1.6);
-  const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
-  const haloPathPoints = useMemo(() => sampledOrbitPoints(orbitRadius * 1.045, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
   const payload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
-  const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const center = primaryCenter && secondaryCenter ? scaledVector(addVector(primaryCenter, secondaryCenter), 0.5) : [0, 0, 0];
   const primaryGroupKeys = groupKeysForOrbitSide(orbit.primary_body_key, orbit.primary_child_body_keys, layout);
   const secondaryGroupKeys = groupKeysForOrbitSide(orbit.secondary_body_key, orbit.secondary_child_body_keys, layout);
+  const motionSpec = useMemo(
+    () => (groupMotionSpecs || []).find((spec) => spec.orbit?.orbit_key === orbit.orbit_key) || null,
+    [groupMotionSpecs, orbit],
+  );
+  const massFractions = motionSpec?.massFractions || { primary: 0.5, secondary: 0.5, basis: "equal_mass_visual_fallback" };
+  const relativePathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
+  const primaryPathPoints = useMemo(() => scaledOrbitPoints(relativePathPoints, -massFractions.primary), [relativePathPoints, massFractions.primary]);
+  const secondaryPathPoints = useMemo(() => scaledOrbitPoints(relativePathPoints, massFractions.secondary), [relativePathPoints, massFractions.secondary]);
+  const orbitPayload = useMemo(() => {
+    if (!payload) {
+      return null;
+    }
+    const traceField = binaryTraceProvenanceField(massFractions);
+    return {
+      ...payload,
+      rows: [
+        ...payload.rows,
+        staticReadoutRow("Trace", String(traceField.value), traceField.status, traceField),
+      ],
+    };
+  }, [payload, massFractions]);
+  const selected = Boolean(selectedObjectId && payloadId(orbitPayload) === selectedObjectId);
 
   useFrame(() => {
     if (!groupRef.current) {
       return;
     }
     const simDays = currentSimulationDays(simClockRef);
-    groupRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout)));
+    groupRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout, orbit.orbit_key)));
   });
 
   if (!showOrbits || !primaryCenter || !secondaryCenter) {
@@ -1720,11 +1867,11 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualSc
   const handlers = {
     onPointerOver: (event) => {
       event.stopPropagation();
-      onHover?.(payload);
+      onHover?.(orbitPayload);
     },
     onPointerMove: (event) => {
       event.stopPropagation();
-      onHover?.(payload);
+      onHover?.(orbitPayload);
     },
     onPointerOut: (event) => {
       event.stopPropagation();
@@ -1732,22 +1879,22 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualSc
     },
     onClick: (event) => {
       event.stopPropagation();
-      onSelect?.(payload);
+      onSelect?.(orbitPayload);
     },
   };
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-group-orbit-guide">
-      <lineLoop {...handlers} userData={{ hoverPayload: payload }}>
+      <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[haloPathPoints, 3]} />
+          <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.32 : 0.14} />
+        <lineBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.52 : 0.24} />
       </lineLoop>
-      <lineLoop {...handlers} userData={{ hoverPayload: payload }}>
+      <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+          <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color={selected ? "#fff4c4" : "#f0bf55"} transparent opacity={selected ? 0.88 : 0.44} />
+        <lineBasicMaterial color={massFractions.basis === "source_mass_ratio" ? "#f0bf55" : "#fff4c4"} transparent opacity={selected ? 0.88 : 0.44} />
       </lineLoop>
     </group>
   );
@@ -1849,11 +1996,11 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
     const simDays = currentSimulationDays(simClockRef);
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
     const movingCenter = addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
-    groupRef.current.position.set(...addVector(movingCenter, orbitalPosition(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
+    groupRef.current.position.set(...addVector(movingCenter, orbitalPositionFromMeanAnomaly(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
   });
 
   return (
-    <group ref={groupRef} position={addVector(center, orbitalPosition(phaseRad, orbitRadius, eccentricity, inclinationRad))}>
+    <group ref={groupRef} position={addVector(center, orbitalPositionFromMeanAnomaly(phaseRad, orbitRadius, eccentricity, inclinationRad))}>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[planet.radius, 18, 14]} />
         <meshStandardMaterial color={color} map={texture || null} roughness={0.72} metalness={0.03} />
@@ -2012,6 +2159,9 @@ function SceneMotionMetrics({
       || (spec.secondaryAncestorGroupKeys || []).length > 0
     )).length
   ), [groupMotionSpecs]);
+  const massWeightedGroupMotionCount = useMemo(() => (
+    (groupMotionSpecs || []).filter((spec) => ["source_mass_ratio", "derived_mass_ratio", "assumed_mass_ratio"].includes(spec.massFractions?.basis)).length
+  ), [groupMotionSpecs]);
   const inspectableOrbitCount = (directOrbitCount || 0) + (groupOrbitCount || 0) + (planetOrbitCount || 0);
   const inspectableTargetKinds = [
     starCount > 0 ? "star" : null,
@@ -2023,6 +2173,7 @@ function SceneMotionMetrics({
   useEffect(() => {
     gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
     gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
+    gl.domElement.dataset.massWeightedGroupMotionCount = String(massWeightedGroupMotionCount);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
@@ -2060,6 +2211,7 @@ function SceneMotionMetrics({
     habitableZoneCount,
     habitableZoneMaxPlaneInclinationDeg,
     labelCount,
+    massWeightedGroupMotionCount,
     groupOrbitCount,
     inspectableOrbitCount,
     inspectableTargetKinds,
@@ -2173,7 +2325,7 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
     const points = new Float32Array(sampleCount * 3);
     for (let idx = 0; idx < sampleCount; idx += 1) {
       const t = idx / Math.max(1, sampleCount - 1);
-      const position = orbitalPosition(phaseRad - trailArc * t, orbitRadius, eccentricity, inclinationRad);
+      const position = orbitalPositionFromMeanAnomaly(phaseRad - trailArc * t, orbitRadius, eccentricity, inclinationRad);
       points[idx * 3] = position[0];
       points[idx * 3 + 1] = position[1];
       points[idx * 3 + 2] = position[2];
@@ -2192,7 +2344,7 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
     const array = attributeRef.current.array;
     for (let idx = 0; idx < sampleCount; idx += 1) {
       const t = idx / Math.max(1, sampleCount - 1);
-      const position = orbitalPosition(theta - trailArc * t, orbitRadius, eccentricity, inclinationRad);
+      const position = orbitalPositionFromMeanAnomaly(theta - trailArc * t, orbitRadius, eccentricity, inclinationRad);
       array[idx * 3] = position[0];
       array[idx * 3 + 1] = position[1];
       array[idx * 3 + 2] = position[2];
@@ -2286,7 +2438,6 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     applyCollisionSafeStarRadii(stars, separationDiagnostics, visualScale, activeScaleMode)
   ), [stars, separationDiagnostics, visualScale, activeScaleMode]);
   const displayStars = collisionScale.stars;
-  const groupMotionSpecs = useMemo(() => buildGroupMotionSpecs(groupOrbits, layout, visualScale, activeScaleMode), [groupOrbits, layout, visualScale, activeScaleMode]);
   const simClockRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   useEffect(() => {
     simClockRef.current = { days: 0, lastElapsedSeconds: null };
@@ -2302,6 +2453,10 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     });
     return out;
   }, [displayStars]);
+  const groupMotionSpecs = useMemo(
+    () => buildGroupMotionSpecs(groupOrbits, layout, starsByKey, visualScale, activeScaleMode),
+    [groupOrbits, layout, starsByKey, visualScale, activeScaleMode],
+  );
   const looseStars = displayStars.filter((star) => !layout.orbitStarKeys.has(star.render_key || star.key));
   const starCenterByCoreId = new Map();
   const starKeyByCoreId = new Map();

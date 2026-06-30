@@ -1565,6 +1565,8 @@ def _render_scene_contract(
             if not component_key or ":msc:wds:" not in component_key:
                 continue
             mass = _float_or_none(row.get(f"mass_{side}_msun"))
+            if mass is not None and mass <= 0:
+                mass = None
             spectral_type = str(row.get(f"spectral_type_{side}") or "").strip()
             vmag = _float_or_none(row.get(f"vmag_{side}"))
             existing = msc_endpoint_evidence_by_key.get(component_key)

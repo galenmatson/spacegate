@@ -50,6 +50,16 @@ Already in place:
   the visual barycenter, using source mass ratios when both stellar masses are
   available and an explicit equal-mass visual fallback when they are not; the
   trace basis is exposed as a structured simulator provenance field
+- hierarchical group-pair motion is also split around the rendered barycenter
+  by the summed positive rendered masses of each side when available. If any
+  mass is deterministic/procedural rather than source-backed, the trace
+  provenance is `ASSUMED`; if either side has no usable mass at all, the
+  preview falls back to an explicit equal-mass visual prior. Non-positive
+  source mass placeholders are treated as missing in render-scene fields.
+- animated bodies advance by mean anomaly and solve Kepler's equation for true
+  anomaly before placement, so eccentric preview motion follows the rendered
+  orbit path with physically plausible speed variation. This remains a
+  presentation-scale Keplerian preview, not a full N-body integration.
 - rendered planets are ordered by semi-major axis when available, then orbital
   period, so Sol/TRAPPIST-like systems present in orbital order rather than
   catalog/name order
@@ -349,8 +359,9 @@ Success criteria:
   leaves, subsystem handles, direct/group orbit guides, and unresolved children
   without inherited source-like spectral facts
 - group-pair edges also drive deterministic visual-scale child-cluster motion in
-  the browser preview; this is a presentation transform over ARM evidence, not a
-  source-scaled barycentric solution
+  the browser preview. This is a mass-weighted presentation transform over ARM
+  evidence when positive side masses are available, not a source-scaled
+  ephemeris or full N-body solution
 - single-star scenes can render a human system alias as the body display name
   while preserving the canonical star key and exposing the display-name basis
 - direct binary stars follow the same rendered body-path traces that are shown

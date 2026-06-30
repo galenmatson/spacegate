@@ -804,9 +804,9 @@ Readiness gaps:
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark
   systems, and annotates API assumption records as transient or persisted.
 - full client epoch/time controls, uncertainty visualization, reviewed
-  assumption curation/batch policy, true nested barycentric subsystem
-  propagation, and physical-scale/precision display modes are not implemented
-  yet
+  assumption curation/batch policy, science-grade ephemeris propagation, and
+  physical-scale/precision display modes are not implemented yet. The browser
+  preview now has presentation-scale nested barycentric group motion.
 - Sirius became a valid compact-companion benchmark on local build
   `20260630T_sim_beta_api_alias_v4` and remains valid on current served build
   `20260630T_sim_beta_sol_smallbody_v1`: Sirius A is a reviewed
@@ -878,6 +878,12 @@ Readiness gaps:
   full relative-separation guide to rendered barycentric body paths, using
   source mass ratios when available and explicit equal-mass visual fallback
   otherwise.
+- June 30, 2026 hierarchical motion patch changes group-pair subsystem motion
+  from equal-offset animation to mass-weighted barycentric motion using summed
+  positive side masses where available, treats non-positive MSC endpoint masses
+  as missing in the render contract, and advances animated bodies via
+  mean-anomaly Kepler solves. HD 213885 and HD 79210 are browser regression
+  benchmarks.
 - June 30, 2026 compact-body render patch preserves source-backed compact
   object classification in stellar render bodies through `body_class`,
   `compact_type`, and object-type provenance fields, with Sirius B as the
