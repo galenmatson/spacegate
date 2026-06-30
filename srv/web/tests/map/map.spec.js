@@ -730,6 +730,15 @@ test.describe("public 3D map beta", () => {
         ).toBeGreaterThanOrEqual(benchmark.minStars);
         if (benchmark.query === "Sol") {
           await expect.poll(
+            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
+            { timeout: 3000 }
+          ).toBe(0);
+          await page.getByRole("button", { name: /HZ Off/i }).click();
+          await expect.poll(
+            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
+            { timeout: 3000 }
+          ).toBeGreaterThanOrEqual(1);
+          await expect.poll(
             () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.planetDisplayEccentricityCappedCount || 0)),
             { timeout: 3000 }
           ).toBeGreaterThanOrEqual(1);

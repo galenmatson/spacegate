@@ -60,6 +60,9 @@ Already in place:
   and touch-safe canvas gesture handling
 - planet bodies include short animated trail lines in the live preview so
   small bodies remain findable in stricter body-scale views
+- habitable-zone bands can be toggled in the live preview. They are derived
+  render-scene guides from stellar `luminosity_lsun` and broad 0.35-1.70 Earth
+  flux bounds, not climate models or canonical habitability claims.
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
   pills can be focused/copied from orbit paths as well as bodies; popovers
@@ -389,6 +392,10 @@ Success criteria:
   visible paths cross. Source eccentricity remains unchanged in the provenance
   readout; the capped display eccentricity is labeled as a `render_scene`
   derived presentation value.
+- toggled habitable-zone overlays are inspectable presentation aids. Their
+  readouts must show the source/derived luminosity field, inner/outer AU bounds,
+  and the broad-flux basis so users can distinguish them from planet
+  habitability verdicts.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises

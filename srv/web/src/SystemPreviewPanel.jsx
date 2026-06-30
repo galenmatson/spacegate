@@ -715,6 +715,51 @@ function planetDisplayEccentricityField(planet) {
   };
 }
 
+function habitableZoneBoundsAu(star) {
+  const luminosity = numericField(star?.fields, "luminosity_lsun");
+  if (!Number.isFinite(luminosity) || luminosity <= 0) {
+    return null;
+  }
+  return {
+    luminosity,
+    innerAu: Math.sqrt(luminosity / 1.7),
+    outerAu: Math.sqrt(luminosity / 0.35),
+  };
+}
+
+function habitableZoneGuideField(star, bounds) {
+  const luminosityField = fieldRecord(star?.fields, "luminosity_lsun");
+  return {
+    key: "habitable_zone_broad_flux_guide",
+    label: "Habitable zone",
+    value: "Broad flux guide",
+    unit: null,
+    status: luminosityField?.status === "missing" ? "missing" : "derived",
+    layer: "render_scene",
+    source_catalog: luminosityField?.source_catalog || "spacegate_renderer",
+    source_reference: luminosityField?.source_reference,
+    basis: "sqrt(luminosity_lsun / stellar_flux_bounds_earth)",
+    confidence: luminosityField?.confidence ?? null,
+    notes: `Presentation guide from broad insolation bounds 0.35-1.70 Earth flux; inner=${formatNumber(bounds?.innerAu, 3)} AU outer=${formatNumber(bounds?.outerAu, 3)} AU. This is not a climate model or canonical habitability claim.`,
+  };
+}
+
+function habitableZoneHoverPayload(star, bounds) {
+  const guideField = habitableZoneGuideField(star, bounds);
+  return {
+    kind: "Habitable zone",
+    name: `${star.display_name || star.name || "Star"} broad HZ`,
+    id: `${star.render_key || star.key || "star"}:habitable-zone`,
+    sourceLayer: "render_scene",
+    rows: [
+      readoutRow(star.fields, "luminosity_lsun", "Luminosity", "Unknown", 3),
+      staticReadoutRow("Inner edge", `${formatNumber(bounds.innerAu, 3)} AU`, "derived", guideField),
+      staticReadoutRow("Outer edge", `${formatNumber(bounds.outerAu, 3)} AU`, "derived", guideField),
+      staticReadoutRow("Basis", "0.35-1.70 Earth flux", "derived", guideField),
+    ],
+  };
+}
+
 function scaledOrbitPoints(points, scale) {
   return new Float32Array(Array.from(points, (value) => value * scale));
 }
@@ -1811,6 +1856,7 @@ function SceneMotionMetrics({
   planetOrbitCount = 0,
   planetTrailCount = 0,
   planetDisplayEccentricityCappedCount = 0,
+  habitableZoneCount = 0,
   starClassStatusCounts = {},
   scaleMode = "structure",
   collisionAdjustedStarCount = 0,
@@ -1851,6 +1897,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.inspectablePlanetCount = String(planetCount || 0);
     gl.domElement.dataset.planetTrailCount = String(planetTrailCount || 0);
     gl.domElement.dataset.planetDisplayEccentricityCappedCount = String(planetDisplayEccentricityCappedCount || 0);
+    gl.domElement.dataset.habitableZoneCount = String(habitableZoneCount || 0);
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
@@ -1873,6 +1920,7 @@ function SceneMotionMetrics({
     gl,
     directOrbitCount,
     groupMotionSpecs,
+    habitableZoneCount,
     groupOrbitCount,
     inspectableOrbitCount,
     inspectableTargetKinds,
@@ -2023,7 +2071,79 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, simClockRef, selectedObjectId = "", onHover, onSelect }) {
+  const groupRef = React.useRef(null);
+  const bounds = useMemo(() => habitableZoneBoundsAu(star), [star]);
+  const innerRadiusRaw = bounds ? scaledPlanetOrbitRadius(bounds.innerAu, maxOrbit, visualScale, scaleMode) : 0;
+  const outerRadiusRaw = bounds ? scaledPlanetOrbitRadius(bounds.outerAu, maxOrbit, visualScale, scaleMode) : 0;
+  const [innerRadius, outerRadius] = useMemo(() => {
+    const inner = Math.min(innerRadiusRaw, outerRadiusRaw);
+    const outer = Math.max(innerRadiusRaw, outerRadiusRaw);
+    const minWidth = normalizeScaleMode(scaleMode) === "true_orbits" ? 0.045 : 0.075;
+    if (outer - inner >= minWidth) {
+      return [inner, outer];
+    }
+    const mid = (inner + outer) / 2;
+    return [Math.max(0.02, mid - minWidth / 2), mid + minWidth / 2];
+  }, [innerRadiusRaw, outerRadiusRaw, scaleMode]);
+  const innerPoints = useMemo(() => sampledOrbitPoints(innerRadius, 0, 0, 192), [innerRadius]);
+  const outerPoints = useMemo(() => sampledOrbitPoints(outerRadius, 0, 0, 192), [outerRadius]);
+  const hoverPayload = useMemo(() => (bounds ? habitableZoneHoverPayload(star, bounds) : null), [star, bounds]);
+  const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
+  const handlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(hoverPayload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(hoverPayload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(hoverPayload);
+    },
+  };
+
+  useFrame(() => {
+    if (!groupRef.current) {
+      return;
+    }
+    const simDays = currentSimulationDays(simClockRef);
+    groupRef.current.position.set(...addVector(center, combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout)));
+  });
+
+  if (!bounds || outerRadius <= innerRadius) {
+    return null;
+  }
+
+  return (
+    <group ref={groupRef} position={center} data-testid="system-preview-habitable-zone">
+      <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]} userData={{ hoverPayload }}>
+        <ringGeometry args={[innerRadius, outerRadius, 128]} />
+        <meshBasicMaterial color="#76d78f" transparent opacity={selected ? 0.18 : 0.095} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <lineLoop {...handlers} userData={{ hoverPayload }}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[innerPoints, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color="#d6ff9f" transparent opacity={selected ? 0.78 : 0.38} />
+      </lineLoop>
+      <lineLoop {...handlers} userData={{ hoverPayload }}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[outerPoints, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color="#78e38f" transparent opacity={selected ? 0.78 : 0.42} />
+      </lineLoop>
+    </group>
+  );
+}
+
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -2100,6 +2220,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   }));
   const planetHostGroupCount = planetPlacements.filter(({ placement }) => placement.groupKeys?.length).length;
   const planetDisplayEccentricityCappedCount = displayPlanets.filter((planet) => planet.eccentricity_display_capped).length;
+  const habitableZoneStars = displayStars.filter((star) => habitableZoneBoundsAu(star));
   const starClassStatusCounts = useMemo(() => {
     const counts = { source: 0, derived: 0, assumed: 0, missing: 0, unsafeSource: 0 };
     displayStars.forEach((star) => {
@@ -2125,6 +2246,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         planetOrbitCount={showOrbits ? planetPlacements.length : 0}
         planetTrailCount={planetPlacements.length}
         planetDisplayEccentricityCappedCount={planetDisplayEccentricityCappedCount}
+        habitableZoneCount={showHabitableZones ? habitableZoneStars.length : 0}
         starClassStatusCounts={starClassStatusCounts}
         scaleMode={activeScaleMode}
         collisionAdjustedStarCount={collisionScale.adjustedCount}
@@ -2139,6 +2261,26 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
       />
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
+      {showHabitableZones && habitableZoneStars.map((star) => {
+        const starKey = star.render_key || star.key;
+        return (
+          <HabitableZoneBand
+            key={`${starKey}:hz`}
+            star={star}
+            center={layout.starPositions.get(starKey) || [0, 0, 0]}
+            maxOrbit={maxOrbit}
+            visualScale={visualScale}
+            scaleMode={activeScaleMode}
+            groupKeys={groupKeysForStarKeys([starKey], layout)}
+            groupMotionSpecs={groupMotionSpecs}
+            layout={layout}
+            simClockRef={simClockRef}
+            selectedObjectId={selectedObjectId}
+            onHover={onHover}
+            onSelect={onSelect}
+          />
+        );
+      })}
       {binaryOrbits.map((orbit, idx) => (
         <BinaryOrbit
           key={orbit.orbit_key || idx}
@@ -2270,7 +2412,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -2360,6 +2502,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         speedMultiplier={speedMultiplier}
         resetToken={resetToken}
         showOrbits={showOrbits}
+        showHabitableZones={showHabitableZones}
         selectedObjectId={selectedObjectId}
         onHover={onHover}
         onSelect={onSelect}
@@ -2553,6 +2696,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
   const [showOrbits, setShowOrbits] = useState(true);
+  const [showHabitableZones, setShowHabitableZones] = useState(false);
   const [scaleMode, setScaleMode] = useState("structure");
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
@@ -2669,6 +2813,15 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           >
             {showOrbits ? "Orbits On" : "Orbits Off"}
           </button>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => setShowHabitableZones((value) => !value)}
+            aria-pressed={showHabitableZones}
+            disabled={status !== "ready" || webglReady === false}
+          >
+            {showHabitableZones ? "HZ On" : "HZ Off"}
+          </button>
           {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
         </div>
       </div>
@@ -2685,6 +2838,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 speedMultiplier={speedMultiplier}
                 resetToken={resetToken}
                 showOrbits={showOrbits}
+                showHabitableZones={showHabitableZones}
                 selectedObjectId={payloadId(pinnedObject)}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
