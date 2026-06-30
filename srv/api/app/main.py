@@ -1039,6 +1039,23 @@ def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Di
     return child_stars if child_stars else [node]
 
 
+def _iter_hierarchy_subsystem_nodes(node: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not isinstance(node, dict):
+        return []
+    nodes: List[Dict[str, Any]] = []
+    component_type = str(node.get("component_type") or node.get("component_family") or "")
+    node_kind = str(node.get("node_kind") or "")
+    stable_key = str(node.get("stable_component_key") or "")
+    if (
+        component_type == "subsystem" or node_kind == "subsystem"
+    ) and stable_key and not stable_key.startswith("synthetic:orbit:"):
+        nodes.append(node)
+    for child in node.get("children") or []:
+        if isinstance(child, dict):
+            nodes.extend(_iter_hierarchy_subsystem_nodes(child))
+    return nodes
+
+
 def _field_from_hierarchy_quick_fact(
     *,
     node: Dict[str, Any],
@@ -1815,6 +1832,64 @@ def _render_scene_contract(
                 resolved.append(render_key)
         return resolved
 
+    def hierarchy_descendant_render_star_keys(node: Dict[str, Any]) -> List[str]:
+        children = [child for child in (node.get("children") or []) if isinstance(child, dict)]
+        if children:
+            resolved: List[str] = []
+            for child in children:
+                resolved.extend(hierarchy_descendant_render_star_keys(child))
+            return sorted(set(resolved))
+        node_key = _component_key_for_hierarchy_star_node(node)
+        if node_key in render_stars:
+            return [node_key]
+        stable_key = str(node.get("stable_component_key") or "")
+        return resolve_render_child_keys(stable_key)
+
+    render_subsystems: List[Dict[str, Any]] = []
+    rendered_subsystem_keys: set[str] = set()
+    for node in _iter_hierarchy_subsystem_nodes((hierarchy or {}).get("root")):
+        subsystem_key = str(node.get("stable_component_key") or "")
+        if not subsystem_key or subsystem_key in rendered_subsystem_keys:
+            continue
+        child_body_keys = resolve_render_child_keys(subsystem_key) or hierarchy_descendant_render_star_keys(node)
+        if len(child_body_keys) < 2:
+            continue
+        display_name = str(node.get("display_name") or subsystem_key)
+        fields = {
+            "rendered_child_star_count": _simulation_field(
+                key="rendered_child_star_count",
+                label="Rendered child stars",
+                value=len(child_body_keys),
+                unit=None,
+                status="derived",
+                basis="canonical_hierarchy:descendant_render_star_count",
+                layer="arm",
+                confidence_tier="illustrative",
+                replacement_target="reviewed subsystem child membership",
+                source_catalog=node.get("source_catalog"),
+                confidence=0.5,
+            )
+        }
+        render_subsystems.append(
+            {
+                "render_key": subsystem_key,
+                "object_type": "subsystem",
+                "display_name": display_name,
+                "component": node.get("catalog_component_label") or node.get("member_role"),
+                "node_kind": node.get("node_kind"),
+                "child_body_keys": child_body_keys,
+                "fields": fields,
+                "source": {
+                    "layer": "arm",
+                    "stable_component_key": subsystem_key,
+                    "source_catalog": node.get("source_catalog"),
+                    "basis": "canonical_hierarchy_subsystem",
+                },
+                "sort_index": len(render_subsystems),
+            }
+        )
+        rendered_subsystem_keys.add(subsystem_key)
+
     render_orbits: List[Dict[str, Any]] = []
     for idx, edge in enumerate(orbit_rows):
         primary_key = str(edge.get("primary_component_key") or "")
@@ -2332,6 +2407,7 @@ def _render_scene_contract(
         "bodies": {
             "stars": list(render_stars.values()),
             "planets": render_planets,
+            "subsystems": render_subsystems,
         },
         "orbits": render_orbits,
         "assumptions": assumption_records,

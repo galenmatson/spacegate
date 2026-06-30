@@ -126,6 +126,10 @@ Notes:
   than physical leaf stars. Renderers must preserve that distinction, for
   example by drawing cluster orbit guides instead of reclassifying a group edge
   as a direct binary star orbit.
+- Runtime render contracts may expose subsystem nodes as inspectable UI bodies
+  with descendant render keys and derived child counts. Those presentation
+  handles must remain backed by `component_entities`/`system_hierarchy_edges`
+  and must not be treated as additional physical stars or orbital solutions.
 
 ## `orbital_solutions`
 

@@ -307,7 +307,7 @@ Response:
       "scale_mode": "clarity_scaled_not_physical",
       "scene_unit": "arbitrary_scene_unit"
     },
-    "bodies": {"stars": [], "planets": []},
+    "bodies": {"stars": [], "planets": [], "subsystems": []},
     "orbits": [],
     "assumptions": [],
     "assumption_count": 0,
@@ -358,6 +358,10 @@ Contract notes:
   direct `core.planets.star_id` match, a catalog-equivalent core star already
   represented by a source-native render component, a singleton render-star
   fallback, or remained missing/ambiguous.
+  Subsystem render bodies are inspectable presentation handles over canonical
+  hierarchy/ARM component rows. They expose `child_body_keys` for rendered
+  descendant stars and derived child-count fields, but they do not create new
+  core stars or ARM orbit facts.
   Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for

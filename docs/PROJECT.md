@@ -191,7 +191,8 @@ Implementation note:
   and uses the scene-readiness endpoint; `render_scene_v0.2` adds renderer-ready
   bodies/orbits and provenance-bearing source/derived/assumed/missing fields;
   hierarchical subsystem orbit edges are exposed as group-pair guides rather
-  than collapsed into direct binary star orbits; the browser preview uses those
+  than collapsed into direct binary star orbits; subsystem hierarchy nodes with
+  rendered descendants are also exposed as inspectable UI handles; the browser preview uses those
   group-pair edges for deterministic visual-scale child-cluster motion while
   leaving source-scaled barycentric propagation for a later precision pass; the
   payload now exports every rendered `ASSUMED` value as a structured

@@ -175,6 +175,7 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
     bodies = render_scene.get("bodies") or {}
     scene_stars = bodies.get("stars") or []
     scene_planets = bodies.get("planets") or []
+    scene_subsystems = bodies.get("subsystems") or []
     assumptions = render_scene.get("assumptions") or []
     visual_scale = render_scene.get("visual_scale") or {}
     if visual_scale.get("schema_version") != "visual_scale_beta_v1":
@@ -299,6 +300,17 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
                 f"{case.query}: expected at least three direct binary and two hierarchical group-pair orbits, "
                 f"got star_pair={star_pair_count}, group_pair={group_pair_count}"
             )
+        subsystem_names = {normalize(subsystem.get("display_name")) for subsystem in scene_subsystems}
+        for expected_name in ("castor ab", "castor a", "castor b", "castor c"):
+            if expected_name not in subsystem_names:
+                raise AssertionError(
+                    f"{case.query}: expected rendered subsystem {expected_name!r}, got {sorted(subsystem_names)}"
+                )
+        for subsystem in scene_subsystems:
+            child_keys = subsystem.get("child_body_keys") or []
+            field = field_by_key(subsystem.get("fields"), "rendered_child_star_count")
+            if not child_keys or not field or field.get("status") != "derived":
+                raise AssertionError(f"{case.query}: malformed rendered subsystem body: {subsystem}")
 
 
 def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:

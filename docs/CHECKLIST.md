@@ -285,6 +285,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   click/tap pinned inspection, and copyable render/source IDs
 - [x] Render hierarchical subsystem orbit edges as group-pair guides in the
   Live System Preview instead of flattening them into direct star binaries
+- [x] Add inspectable subsystem render bodies/markers for hierarchy nodes with
+  multiple rendered stellar descendants, with Castor benchmark coverage
 - [x] Use hierarchical group-pair edges for deterministic visual-scale
   child-cluster motion in the Live System Preview
 - [x] Add WebGL capability fallback from the Live System Preview to the

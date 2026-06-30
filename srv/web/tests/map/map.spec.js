@@ -241,11 +241,14 @@ test.describe("public 3D map beta", () => {
     const scenePayload = await sceneResponse.json();
     expect(scenePayload.render_scene?.schema_version).toBe("render_scene_v0.2");
     expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(6);
+    expect(scenePayload.render_scene?.bodies?.subsystems?.length).toBeGreaterThanOrEqual(3);
+    expect(scenePayload.render_scene?.bodies?.subsystems?.some((subsystem) => subsystem.display_name === "Castor AB")).toBeTruthy();
     expect(scenePayload.render_scene?.orbits?.length).toBeGreaterThanOrEqual(3);
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(page.locator(".system-preview-readout")).toContainText(/rendered subsystems/i);
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered orbits/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);

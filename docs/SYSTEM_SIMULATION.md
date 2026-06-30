@@ -26,6 +26,9 @@ Already in place:
 - simple source-native component leaves such as MSC A/B/C labels can reuse
   matching core star vitals for rendering, and catalog-equivalent core star
   IDs may bridge planet hosts onto those rendered source-native components
+- `render_scene_v0.2` includes inspectable subsystem bodies for hierarchy nodes
+  with multiple rendered stellar descendants. These bodies are UI handles over
+  existing hierarchy evidence, not new science inventory.
 - the first browser renderer has a pauseable local animation clock, sampled
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - the beta browser renderer adds speed control, reset, orbit-trace visibility

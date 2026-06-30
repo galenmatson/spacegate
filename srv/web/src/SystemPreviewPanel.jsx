@@ -295,6 +295,19 @@ function objectHoverPayload(kind, body) {
   if (!body) {
     return null;
   }
+  if (kind === "subsystem") {
+    return {
+      kind: "Subsystem",
+      name: body.display_name || body.name || "Unnamed subsystem",
+      id: body.render_key || body.source?.stable_component_key || body.key || "",
+      sourceLayer: body.source?.layer || "unknown",
+      rows: [
+        staticReadoutRow("Component", body.component || "Group", body.component ? "source" : "derived"),
+        readoutRow(body.fields, "rendered_child_star_count", "Stars", "Unknown", 0),
+        staticReadoutRow("Basis", body.source?.basis || "hierarchy", "derived"),
+      ],
+    };
+  }
   if (kind === "star") {
     return {
       kind: "Star",
@@ -867,6 +880,57 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
   );
 }
 
+function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+  const groupRef = React.useRef(null);
+  const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
+  const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
+  const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
+
+  useEffect(() => {
+    simRef.current = { days: 0, lastElapsedSeconds: null };
+  }, [resetToken]);
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) {
+      return;
+    }
+    const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
+    groupRef.current.position.set(...addVector(center, averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays)));
+  });
+
+  const handlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(payload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(payload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(payload);
+    },
+  };
+
+  return (
+    <group ref={groupRef} position={center} data-testid="system-preview-subsystem-marker">
+      <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[selected ? 0.22 : 0.17, selected ? 0.018 : 0.012, 8, 36]} />
+        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.88 : 0.52} />
+      </mesh>
+      <mesh {...handlers}>
+        <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
+        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.92 : 0.62} />
+      </mesh>
+    </group>
+  );
+}
+
 function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
@@ -1088,7 +1152,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   );
 }
 
-function PreviewObjects({ stars, planets, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const renderOrbits = planets.renderOrbits || [];
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -1189,6 +1253,29 @@ function PreviewObjects({ stars, planets, hierarchy, visualScale = DEFAULT_VISUA
           onSelect={onSelect}
         />
       ))}
+      {subsystems.map((subsystem) => {
+        const childKeys = subsystem.child_body_keys || [];
+        const center = centerForBodyKeys(childKeys, layout, starsByKey);
+        if (!center) {
+          return null;
+        }
+        const groupKeys = groupKeysForBodyKeys(childKeys, layout);
+        return (
+          <SubsystemMarker
+            key={subsystem.render_key || subsystem.key}
+            subsystem={subsystem}
+            center={center}
+            groupKeys={groupKeys}
+            groupMotionSpecs={groupMotionSpecs}
+            running={running}
+            speedMultiplier={speedMultiplier}
+            resetToken={resetToken}
+            selectedObjectId={selectedObjectId}
+            onHover={onHover}
+            onSelect={onSelect}
+          />
+        );
+      })}
       {planets.map((planet, idx) => {
         const orbitRadius = scaledPlanetOrbitRadius(planet.orbitAu, maxOrbit, visualScale);
         const placement = hostPlacementForPlanet(planet);
@@ -1289,6 +1376,13 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
     });
   }, [scene, visualScale]);
 
+  const subsystems = useMemo(() => (
+    (scene?.render_scene?.bodies?.subsystems || []).map((subsystem, idx) => ({
+      ...subsystem,
+      key: subsystem.render_key || subsystem.source?.stable_component_key || `subsystem-${idx}`,
+    }))
+  ), [scene]);
+
   return (
     <Canvas camera={{ position: [0, 6.2, 10.8], fov: 43 }} dpr={[1, 1.75]}>
       <color attach="background" args={["#050b12"]} />
@@ -1297,6 +1391,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
       <PreviewObjects
         stars={stars}
         planets={planets}
+        subsystems={subsystems}
         hierarchy={scene?.hierarchy}
         visualScale={visualScale}
         running={running}
@@ -1564,6 +1659,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           <div>
             <strong>{formatNumber(renderBodies.planets?.length || bodies.planets?.length, 0)}</strong>
             <span>rendered planets</span>
+          </div>
+          <div>
+            <strong>{formatNumber(renderBodies.subsystems?.length || 0, 0)}</strong>
+            <span>rendered subsystems</span>
           </div>
           <div>
             <strong>{formatNumber(renderOrbits.length, 0)}</strong>
