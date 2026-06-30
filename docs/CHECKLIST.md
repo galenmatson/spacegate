@@ -370,6 +370,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   deterministic `disc_assumption` visual inclination fallback
 - [x] Tighten API, DISC, and project docs for orbit guide/trace provenance and
   render-only inclination assumptions
+- [x] Add provenance-backed subsystem component/hierarchy readout fields to
+  simulator render bodies
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

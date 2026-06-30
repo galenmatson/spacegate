@@ -374,7 +374,8 @@ Contract notes:
   canonical planet taxonomy.
   Subsystem render bodies are inspectable presentation handles over canonical
   hierarchy/ARM component rows. They expose `child_body_keys` for rendered
-  descendant stars and derived child-count fields, but they do not create new
+  descendant stars plus provenance-backed `component_label`,
+  `hierarchy_basis`, and derived child-count fields, but they do not create new
   core stars or ARM orbit facts.
   Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
   body pairs, while `group_pair` entries represent hierarchical subsystem

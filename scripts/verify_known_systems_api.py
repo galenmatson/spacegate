@@ -383,8 +383,14 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         for subsystem in scene_subsystems:
             child_keys = subsystem.get("child_body_keys") or []
             field = field_by_key(subsystem.get("fields"), "rendered_child_star_count")
+            component_field = field_by_key(subsystem.get("fields"), "component_label")
+            basis_field = field_by_key(subsystem.get("fields"), "hierarchy_basis")
             if not child_keys or not field or field.get("status") != "derived":
                 raise AssertionError(f"{case.query}: malformed rendered subsystem body: {subsystem}")
+            if not component_field or component_field.get("status") not in {"source", "derived"}:
+                raise AssertionError(f"{case.query}: subsystem missing component label provenance: {subsystem}")
+            if not basis_field or basis_field.get("status") != "derived" or basis_field.get("layer") != "arm":
+                raise AssertionError(f"{case.query}: subsystem missing hierarchy-basis provenance: {subsystem}")
 
 
 def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:

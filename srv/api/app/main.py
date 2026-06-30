@@ -1989,7 +1989,35 @@ def _render_scene_contract(
         if len(child_body_keys) < 2:
             continue
         display_name = str(node.get("display_name") or subsystem_key)
+        component_label = node.get("catalog_component_label") or node.get("member_role") or node.get("component_type") or "subsystem"
+        node_kind = node.get("node_kind") or node.get("component_type") or "subsystem"
         fields = {
+            "component_label": _simulation_field(
+                key="component_label",
+                label="Component label",
+                value=component_label,
+                unit=None,
+                status="source" if node.get("catalog_component_label") or node.get("member_role") else "derived",
+                basis="canonical_hierarchy:component_label",
+                layer="arm",
+                confidence_tier="medium" if node.get("catalog_component_label") or node.get("member_role") else "illustrative",
+                replacement_target="source-native subsystem/component label",
+                source_catalog=node.get("source_catalog"),
+                confidence=0.75 if node.get("catalog_component_label") or node.get("member_role") else 0.45,
+            ),
+            "hierarchy_basis": _simulation_field(
+                key="hierarchy_basis",
+                label="Hierarchy basis",
+                value=node_kind,
+                unit=None,
+                status="derived",
+                basis="canonical_hierarchy:render_subsystem_handle",
+                layer="arm",
+                confidence_tier="illustrative",
+                replacement_target="reviewed subsystem hierarchy role and evidence chain",
+                source_catalog=node.get("source_catalog"),
+                confidence=0.55,
+            ),
             "rendered_child_star_count": _simulation_field(
                 key="rendered_child_star_count",
                 label="Rendered child stars",

@@ -438,6 +438,11 @@ test.describe("public 3D map beta", () => {
     expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(6);
     expect(scenePayload.render_scene?.bodies?.subsystems?.length).toBeGreaterThanOrEqual(3);
     expect(scenePayload.render_scene?.bodies?.subsystems?.some((subsystem) => subsystem.display_name === "Castor AB")).toBeTruthy();
+    for (const subsystem of scenePayload.render_scene?.bodies?.subsystems || []) {
+      expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
+      expect(subsystem.fields?.hierarchy_basis?.status).toBe("derived");
+      expect(subsystem.fields?.hierarchy_basis?.layer).toBe("arm");
+    }
     expect(scenePayload.render_scene?.orbits?.length).toBeGreaterThanOrEqual(3);
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
@@ -527,6 +532,11 @@ test.describe("public 3D map beta", () => {
       "14nu Sco CD",
       "14nu Sco D",
     ]));
+    for (const subsystem of subsystems) {
+      expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
+      expect(subsystem.fields?.hierarchy_basis?.status).toBe("derived");
+      expect(subsystem.fields?.hierarchy_basis?.layer).toBe("arm");
+    }
     expect(orbits.filter((orbit) => orbit.endpoint_kind === "star_pair")).toHaveLength(2);
     expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(2);
 

@@ -490,9 +490,9 @@ function objectHoverPayload(kind, body) {
       id: body.render_key || body.source?.stable_component_key || body.key || "",
       sourceLayer: body.source?.layer || "unknown",
       rows: [
-        staticReadoutRow("Component", body.component || "Group", body.component ? "source" : "derived"),
+        readoutRow(body.fields, "component_label", "Component", body.component || "Group", 0),
         readoutRow(body.fields, "rendered_child_star_count", "Stars", "Unknown", 0),
-        staticReadoutRow("Basis", body.source?.basis || "hierarchy", "derived"),
+        readoutRow(body.fields, "hierarchy_basis", "Basis", body.source?.basis || "hierarchy", 0),
       ],
     };
   }

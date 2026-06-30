@@ -34,7 +34,9 @@ Already in place:
   provenance field while keeping `object_type="star"` as the render role
 - `render_scene_v0.2` includes inspectable subsystem bodies for hierarchy nodes
   with multiple rendered stellar descendants. These bodies are UI handles over
-  existing hierarchy evidence, not new science inventory.
+  existing hierarchy evidence, not new science inventory; their visible
+  component label, hierarchy basis, and rendered-child count are
+  provenance-backed fields.
 - the first browser renderer has a single-writer shared pauseable local
   animation clock for all moving scene objects, sampled eccentric/inclined
   orbit guide paths, and hover vitals for rendered bodies; Pause freezes this
