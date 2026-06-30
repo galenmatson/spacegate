@@ -98,6 +98,10 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe("shared_local_beta");
     await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationClockWriters || ""),
+      { timeout: 3000 }
+    ).toBe("1");
+    await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(0);

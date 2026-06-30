@@ -32,9 +32,9 @@ Already in place:
 - `render_scene_v0.2` includes inspectable subsystem bodies for hierarchy nodes
   with multiple rendered stellar descendants. These bodies are UI handles over
   existing hierarchy evidence, not new science inventory.
-- the first browser renderer has a shared pauseable local animation clock for
-  all moving scene objects, sampled eccentric/inclined orbit guide paths, and
-  hover vitals for rendered bodies
+- the first browser renderer has a single-writer shared pauseable local
+  animation clock for all moving scene objects, sampled eccentric/inclined
+  orbit guide paths, and hover vitals for rendered bodies
 - rendered planets are ordered by semi-major axis when available, then orbital
   period, so Sol/TRAPPIST-like systems present in orbital order rather than
   catalog/name order

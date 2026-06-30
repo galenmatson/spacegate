@@ -286,8 +286,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and hover vitals to the Live System Preview
 - [x] Add Live System Preview beta controls: speed, reset, orbit-trace toggle,
   click/tap pinned inspection, and copyable render/source IDs
-- [x] Refactor Live System Preview motion onto a shared local beta simulation
-  clock with browser diagnostics, keeping science-grade epoch controls pending
+- [x] Refactor Live System Preview motion onto a single-writer shared local
+  beta simulation clock with browser diagnostics, keeping science-grade epoch
+  controls pending
 - [x] Render hierarchical subsystem orbit edges as group-pair guides in the
   Live System Preview instead of flattening them into direct star binaries
 - [x] Add inspectable subsystem render bodies/markers for hierarchy nodes with
