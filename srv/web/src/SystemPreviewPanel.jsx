@@ -1428,8 +1428,10 @@ function SceneMotionMetrics({
   simClockRef,
   running = true,
   speedMultiplier = 1,
+  onClockSample,
 }) {
   const { gl } = useThree();
+  const lastClockSampleRef = React.useRef(null);
   const nestedCount = useMemo(() => (
     (groupMotionSpecs || []).filter((spec) => (
       (spec.primaryAncestorGroupKeys || []).length > 0
@@ -1483,6 +1485,13 @@ function SceneMotionMetrics({
     }
     const simDays = advanceSimulationDays(simClockRef.current, clock.elapsedTime, running, speedMultiplier);
     gl.domElement.dataset.simulationDays = simDays.toFixed(3);
+    if (onClockSample) {
+      const roundedSample = Math.round(simDays * 10) / 10;
+      if (lastClockSampleRef.current !== roundedSample) {
+        lastClockSampleRef.current = roundedSample;
+        onClockSample(roundedSample);
+      }
+    }
   });
 
   return null;
@@ -1544,7 +1553,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
   const layout = useMemo(() => buildStarLayout(stars, hierarchy, binaryOrbits), [stars, hierarchy, binaryOrbits]);
@@ -1624,6 +1633,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         simClockRef={simClockRef}
         running={running}
         speedMultiplier={speedMultiplier}
+        onClockSample={onClockSample}
       />
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
@@ -1742,7 +1752,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   );
 }
 
-function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
   const stars = useMemo(() => {
@@ -1830,6 +1840,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         selectedObjectId={selectedObjectId}
         onHover={onHover}
         onSelect={onSelect}
+        onClockSample={onClockSample}
       />
     </Canvas>
   );
@@ -1975,6 +1986,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [showOrbits, setShowOrbits] = useState(true);
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
+  const [simulationDays, setSimulationDays] = useState(0);
+  const handleClockSample = useCallback((days) => {
+    setSimulationDays(Number.isFinite(Number(days)) ? Number(days) : 0);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1984,6 +1999,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setScene(null);
     setHoveredObject(null);
     setPinnedObject(null);
+    setSimulationDays(0);
     if (!canRenderWebGL) {
       setStatus("fallback");
       return () => {
@@ -2052,7 +2068,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           <button
             className="system-preview-toggle"
             type="button"
-            onClick={() => setResetToken((value) => value + 1)}
+            onClick={() => {
+              setSimulationDays(0);
+              setResetToken((value) => value + 1);
+            }}
             disabled={status !== "ready" || webglReady === false}
           >
             Reset
@@ -2084,6 +2103,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 selectedObjectId={payloadId(pinnedObject)}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
+                onClockSample={handleClockSample}
               />
             )
             : (status === "error"
@@ -2108,6 +2128,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           <div>
             <strong>{formatNumber(renderOrbits.length, 0)}</strong>
             <span>rendered orbits</span>
+          </div>
+          <div data-testid="system-preview-clock">
+            <strong>{formatNumber(simulationDays, 1)}</strong>
+            <span>local days</span>
           </div>
           <div>
             <strong>{formatNumber((readiness.score || 0) * 100, 0)}%</strong>

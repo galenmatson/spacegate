@@ -757,6 +757,9 @@ Readiness gaps:
 - June 30, 2026 fallback coverage pass verifies failed
   `/simulation-scene` loads render the deterministic snapshot fallback rather
   than leaving the system preview with a broken canvas.
+- June 30, 2026 visible-clock pass surfaces the shared local beta simulation
+  day in the system preview readout and verifies it advances, pauses, and
+  resumes with the scene clock.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark
