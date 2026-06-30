@@ -306,3 +306,9 @@ Resolved local benchmark blocker:
   star and system levels. This is not simulator fabrication. It is a reviewed
   core inventory exception plus ARM/API hierarchy handling. Public antiproton
   still needs a safe sliced deployment before the fix is public.
+- June 30, 2026 Sol authority source-refresh fix makes Horizons small-body
+  commands explicit for asteroid/TNO/dwarf-small-body records and adds
+  source/build/API gates for Ceres, Vesta, Pallas, Juno, Hebe, Iris,
+  Interamnia, and Hector. This prevents the live simulator from rendering
+  Ceres/Vesta-class objects with Mercury/Mars/Venus/Earth/Saturn/Uranus-like
+  orbital solutions after ambiguous bare Horizons numeric commands.

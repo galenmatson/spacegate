@@ -41,7 +41,7 @@ S1 does not include moons/comets/spacecraft as first-class rows in `core`.
   - asteroids (including Vesta, Psyche, Bennu, Ryugu, Itokawa, Hector and others)
   - TNOs (including Sedna, Quaoar, Orcus, Gonggong, Varuna, Ixion, Salacia, Varda)
   - comet baseline: 67P/Churyumov-Gerasimenko
-- S3 rows are projected into both `arm` and halo arm projection when relevant objects are sliced out of core.
+- S3 rows are materialized in `arm`; no halo projection path is part of the active product plan.
 
 ## S4 (implemented): artificial satellites/spacecraft layer
 
@@ -75,6 +75,14 @@ S1/S2 retrieval policy:
 - deterministic object list and epoch window
 - retrieval checksum + timestamp required
 - build fails if S1 source is enabled and cooked Sol data is missing
+- asteroid/TNO and dwarf-small-body Horizons queries must use the
+  small-body command selector (`1;`, `4;`, `136199;`, etc.) rather than bare
+  numeric commands; bare numbers such as `1`, `2`, `3`, `4`, `6`, `7`, `624`,
+  and `704` can resolve to planets or satellites instead of numbered small
+  bodies
+- `scripts/fetch_sol_authority.py` performs sentinel range checks for Ceres,
+  Vesta, Pallas, Juno, Hebe, Iris, Interamnia, and Hector so target-resolution
+  mistakes fail during source refresh
 
 ## Ingest Contract
 
@@ -127,6 +135,9 @@ S3 arm checks:
 - `sol_small_body_objects` exists and contains deterministic named-body rows
 - asteroid/TNO/comet family coverage is present
 - each S3 small body has corresponding `orbit_edges` relation rows (`relation_kind='orbits'`)
+- sentinel small-body orbit solutions remain in plausible ranges and do not
+  duplicate major-planet solutions, with Ceres specifically checked against
+  the Mercury collision failure mode
 
 S4 arm checks:
 
@@ -145,6 +156,7 @@ This performs:
 - Sol authority + Sol artificial raw refresh
 - lightweight cooked CSV normalization for both feeds
 - freshness/staleness report generation at `reports/sol_volatile_report.json`
+- source refresh validation before raw/cooked artifacts are accepted
 
 Promotion note:
 

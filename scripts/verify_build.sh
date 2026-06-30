@@ -538,6 +538,65 @@ if small_body_orbit_count < small_body_count:
         f"(objects={small_body_count}, orbit_edges={small_body_orbit_count})"
     )
 
+sentinel_ranges = {
+    "ceres": {"semi_major_axis_au": (2.5, 3.1), "orbital_period_days": (1500.0, 1900.0)},
+    "vesta": {"semi_major_axis_au": (2.1, 2.6), "orbital_period_days": (1200.0, 1450.0)},
+    "pallas": {"semi_major_axis_au": (2.5, 3.1), "orbital_period_days": (1500.0, 1900.0)},
+    "juno": {"semi_major_axis_au": (2.4, 2.9), "orbital_period_days": (1450.0, 1750.0)},
+    "hebe": {"semi_major_axis_au": (2.2, 2.7), "orbital_period_days": (1250.0, 1550.0)},
+    "iris": {"semi_major_axis_au": (2.1, 2.7), "orbital_period_days": (1200.0, 1550.0)},
+    "interamnia": {"semi_major_axis_au": (2.8, 3.3), "orbital_period_days": (1800.0, 2200.0)},
+    "hector": {"semi_major_axis_au": (4.8, 5.6), "orbital_period_days": (3900.0, 4600.0)},
+}
+sentinel_rows = {}
+for row in con.execute(
+    """
+    select e.secondary_component_key, os.semi_major_axis_au, os.period_days
+    from orbit_edges e
+    join orbital_solutions os on os.orbit_edge_id = e.orbit_edge_id
+    where os.source_catalog = 'sol_authority'
+      and e.secondary_component_key in (
+        'comp:planet:planet:sol:ceres',
+        'comp:minor_body:sol:vesta',
+        'comp:minor_body:sol:pallas',
+        'comp:minor_body:sol:juno',
+        'comp:minor_body:sol:hebe',
+        'comp:minor_body:sol:iris',
+        'comp:minor_body:sol:interamnia',
+        'comp:minor_body:sol:hector'
+      )
+    """
+).fetchall():
+    body_name = str(row[0]).rsplit(":", 1)[-1]
+    sentinel_rows[body_name] = {
+        "semi_major_axis_au": row[1],
+        "orbital_period_days": row[2],
+    }
+for body_name, ranges in sentinel_ranges.items():
+    row = sentinel_rows.get(body_name)
+    if not row:
+        raise SystemExit(f"Sol S3 gate failed: missing sentinel small body {body_name}")
+    for key, (low, high) in ranges.items():
+        value = row.get(key)
+        if value is None or not (low <= float(value) <= high):
+            raise SystemExit(
+                f"Sol S3 gate failed: {body_name} has implausible {key}={value}; expected {low}..{high}"
+            )
+
+mercury_sma = con.execute(
+    """
+    select os.semi_major_axis_au
+    from orbital_solutions os
+    join orbit_edges e on e.orbit_edge_id = os.orbit_edge_id
+    where e.secondary_component_key = 'comp:planet:planet:sol:mercury'
+      and os.source_catalog = 'sol_authority'
+    limit 1
+    """
+).fetchone()
+ceres_sma = sentinel_rows["ceres"]["semi_major_axis_au"]
+if mercury_sma and mercury_sma[0] is not None and abs(float(mercury_sma[0]) - float(ceres_sma)) < 1e-6:
+    raise SystemExit("Sol S3 gate failed: Ceres duplicates Mercury semi-major axis")
+
 print(
     f"OK: Sol S3 gate (minor_bodies={small_body_count}, "
     f"asteroids={asteroid_count}, tnos={tno_count}, comets={comet_count})"

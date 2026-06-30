@@ -61,6 +61,15 @@ def check(condition: bool, failures: list[str], message: str) -> None:
         failures.append(message)
 
 
+def check_range(value: Any, low: float, high: float, failures: list[str], message: str) -> None:
+    if value is None:
+        failures.append(f"{message}: missing value")
+        return
+    numeric = float(value)
+    if not (low <= numeric <= high):
+        failures.append(f"{message}: expected {low}..{high}, got {numeric}")
+
+
 def planet_orbit_rows(
     core: duckdb.DuckDBPyConnection,
     system_id: int,
@@ -217,6 +226,44 @@ def main() -> int:
         }
         check(len(sol_rows) >= 8, failures, f"Sol expected at least 8 ARM planet orbit rows, got {len(sol_rows)}")
         check(int(moon_count or 0) >= 1, failures, "Sol moon/satellite ARM orbit rows missing")
+        rows_by_name = {normalize_name(str(row.get("planet_name") or "")): row for row in sol_rows}
+        mercury = rows_by_name.get("mercury")
+        ceres = rows_by_name.get("ceres")
+        check(mercury is not None, failures, "Sol Mercury ARM orbit row missing")
+        check(ceres is not None, failures, "Sol Ceres ARM orbit row missing")
+        if mercury:
+            check_range(mercury.get("arm_sma_au"), 0.36, 0.42, failures, "Sol Mercury ARM semi-major axis")
+            check_range(mercury.get("arm_period_days"), 80.0, 95.0, failures, "Sol Mercury ARM period")
+        if ceres:
+            check_range(ceres.get("arm_sma_au"), 2.5, 3.1, failures, "Sol Ceres ARM semi-major axis")
+            check_range(ceres.get("arm_period_days"), 1500.0, 1900.0, failures, "Sol Ceres ARM period")
+        vesta = core.execute(
+            """
+            select os.semi_major_axis_au, os.period_days
+            from arm_db.orbit_edges e
+            join arm_db.orbital_solutions os on os.orbit_edge_id = e.orbit_edge_id
+            where e.secondary_component_key = 'comp:minor_body:sol:vesta'
+              and os.source_catalog = 'sol_authority'
+            limit 1
+            """
+        ).fetchone()
+        check(vesta is not None, failures, "Sol Vesta ARM small-body orbit row missing")
+        if vesta:
+            check_range(vesta[0], 2.1, 2.6, failures, "Sol Vesta ARM semi-major axis")
+            check_range(vesta[1], 1200.0, 1450.0, failures, "Sol Vesta ARM period")
+        if mercury and ceres and mercury.get("arm_sma_au") is not None and ceres.get("arm_sma_au") is not None:
+            check(
+                abs(float(mercury["arm_sma_au"]) - float(ceres["arm_sma_au"])) > 1.0,
+                failures,
+                "Sol Ceres ARM orbit must not duplicate Mercury",
+            )
+        summary["checks"]["sol"].update(
+            {
+                "mercury_arm_sma_au": mercury.get("arm_sma_au") if mercury else None,
+                "ceres_arm_sma_au": ceres.get("arm_sma_au") if ceres else None,
+                "vesta_arm_sma_au": vesta[0] if vesta else None,
+            }
+        )
 
     castor_period_count = core.execute(
         """

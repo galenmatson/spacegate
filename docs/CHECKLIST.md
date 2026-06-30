@@ -139,6 +139,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Implement Sol S3 initial named small-body arm layer (asteroid/TNO/comet families) with staleness metadata + verify gate
 - [x] Expand Sol S3 deterministic small-body coverage (broader asteroid/TNO families, including Ixion-class objects)
 - [x] Retire Sol S3 arm-to-halo projection path from the active product plan
+- [x] Disambiguate Sol authority Horizons small-body commands and add
+  source/build/API gates so Ceres/Vesta-class rows cannot resolve to major
+  planets or satellites
 - [x] Implement Sol S4 arm layer for curated artificial stations/probes/orbiters with verify gates
 - [x] Surface Sol arm hierarchy overlays (moons, small bodies, artificial objects) in system detail API/UI
 - [x] Add scheduled volatile Sol refresh + staleness monitoring scripts (`refresh_sol_volatile.sh`, `report_sol_volatile.py`)

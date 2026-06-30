@@ -782,6 +782,12 @@ Readiness gaps:
   orbit edge. Sirius now has local Playwright and known-system verifier
   coverage for A + white-dwarf B rendering with ASSUMED `disc_assumption`
   visual orbit fields; this remains a presentation fallback, not ARM science.
+- June 30, 2026 Sol authority source-refresh patch disambiguates Horizons
+  asteroid/TNO/dwarf-small-body commands with the small-body selector and adds
+  sentinel source/build/API checks for Ceres, Vesta, Pallas, Juno, Hebe, Iris,
+  Interamnia, and Hector. This fixes a simulator-visible failure where bare
+  numeric commands made Ceres/Vesta/Pallas/Juno/Hebe/Iris/Interamnia/Hector
+  inherit major-planet or satellite-like orbital solutions.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

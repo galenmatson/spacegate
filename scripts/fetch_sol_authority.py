@@ -32,10 +32,10 @@ OBJECTS = [
     {"source_pk": 8, "name": "Uranus", "object_class": "planet", "object_kind": "planet", "command": "799", "center": "500@10"},
     {"source_pk": 9, "name": "Neptune", "object_class": "planet", "object_kind": "planet", "command": "899", "center": "500@10"},
     {"source_pk": 10, "name": "Pluto", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "999", "center": "500@10"},
-    {"source_pk": 11, "name": "Ceres", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "1", "center": "500@10"},
-    {"source_pk": 12, "name": "Eris", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136199", "center": "500@10"},
-    {"source_pk": 13, "name": "Haumea", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136108", "center": "500@10"},
-    {"source_pk": 14, "name": "Makemake", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136472", "center": "500@10"},
+    {"source_pk": 11, "name": "Ceres", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "1;", "center": "500@10"},
+    {"source_pk": 12, "name": "Eris", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136199;", "center": "500@10"},
+    {"source_pk": 13, "name": "Haumea", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136108;", "center": "500@10"},
+    {"source_pk": 14, "name": "Makemake", "object_class": "dwarf_planet", "object_kind": "dwarf_planet", "command": "136472;", "center": "500@10"},
     {"source_pk": 15, "name": "Moon", "object_class": "moon", "object_kind": "moon", "command": "301", "center": "500@399"},
     {"source_pk": 16, "name": "Phobos", "object_class": "moon", "object_kind": "moon", "command": "401", "center": "500@499"},
     {"source_pk": 17, "name": "Deimos", "object_class": "moon", "object_kind": "moon", "command": "402", "center": "500@499"},
@@ -47,40 +47,40 @@ OBJECTS = [
     {"source_pk": 23, "name": "Enceladus", "object_class": "moon", "object_kind": "moon", "command": "602", "center": "500@699"},
     {"source_pk": 24, "name": "Triton", "object_class": "moon", "object_kind": "moon", "command": "801", "center": "500@899"},
     {"source_pk": 25, "name": "Charon", "object_class": "moon", "object_kind": "moon", "command": "901", "center": "500@999"},
-    {"source_pk": 101, "name": "Vesta", "object_class": "minor_body", "object_kind": "asteroid", "command": "4", "center": "500@10"},
-    {"source_pk": 102, "name": "Pallas", "object_class": "minor_body", "object_kind": "asteroid", "command": "2", "center": "500@10"},
-    {"source_pk": 103, "name": "Juno", "object_class": "minor_body", "object_kind": "asteroid", "command": "3", "center": "500@10"},
+    {"source_pk": 101, "name": "Vesta", "object_class": "minor_body", "object_kind": "asteroid", "command": "4;", "center": "500@10"},
+    {"source_pk": 102, "name": "Pallas", "object_class": "minor_body", "object_kind": "asteroid", "command": "2;", "center": "500@10"},
+    {"source_pk": 103, "name": "Juno", "object_class": "minor_body", "object_kind": "asteroid", "command": "3;", "center": "500@10"},
     {"source_pk": 104, "name": "Hygiea", "object_class": "minor_body", "object_kind": "asteroid", "command": "10;", "center": "500@10"},
-    {"source_pk": 105, "name": "Psyche", "object_class": "minor_body", "object_kind": "asteroid", "command": "16", "center": "500@10"},
-    {"source_pk": 106, "name": "Eros", "object_class": "minor_body", "object_kind": "asteroid", "command": "433", "center": "500@10"},
-    {"source_pk": 107, "name": "Bennu", "object_class": "minor_body", "object_kind": "asteroid", "command": "101955", "center": "500@10"},
-    {"source_pk": 108, "name": "Ryugu", "object_class": "minor_body", "object_kind": "asteroid", "command": "162173", "center": "500@10"},
-    {"source_pk": 109, "name": "Itokawa", "object_class": "minor_body", "object_kind": "asteroid", "command": "25143", "center": "500@10"},
-    {"source_pk": 110, "name": "Hebe", "object_class": "minor_body", "object_kind": "asteroid", "command": "6", "center": "500@10"},
-    {"source_pk": 111, "name": "Iris", "object_class": "minor_body", "object_kind": "asteroid", "command": "7", "center": "500@10"},
-    {"source_pk": 112, "name": "Europa", "object_class": "minor_body", "object_kind": "asteroid", "command": "52", "center": "500@10"},
-    {"source_pk": 113, "name": "Cybele", "object_class": "minor_body", "object_kind": "asteroid", "command": "65", "center": "500@10"},
-    {"source_pk": 114, "name": "Sylvia", "object_class": "minor_body", "object_kind": "asteroid", "command": "87", "center": "500@10"},
-    {"source_pk": 115, "name": "Thisbe", "object_class": "minor_body", "object_kind": "asteroid", "command": "88", "center": "500@10"},
-    {"source_pk": 116, "name": "Minerva", "object_class": "minor_body", "object_kind": "asteroid", "command": "93", "center": "500@10"},
-    {"source_pk": 117, "name": "Kleopatra", "object_class": "minor_body", "object_kind": "asteroid", "command": "216", "center": "500@10"},
-    {"source_pk": 118, "name": "Ida", "object_class": "minor_body", "object_kind": "asteroid", "command": "243", "center": "500@10"},
-    {"source_pk": 119, "name": "Mathilde", "object_class": "minor_body", "object_kind": "asteroid", "command": "253", "center": "500@10"},
-    {"source_pk": 120, "name": "Davida", "object_class": "minor_body", "object_kind": "asteroid", "command": "511", "center": "500@10"},
-    {"source_pk": 121, "name": "Interamnia", "object_class": "minor_body", "object_kind": "asteroid", "command": "704", "center": "500@10"},
-    {"source_pk": 122, "name": "Gaspra", "object_class": "minor_body", "object_kind": "asteroid", "command": "951", "center": "500@10"},
-    {"source_pk": 123, "name": "Hector", "object_class": "minor_body", "object_kind": "asteroid", "command": "624", "center": "500@10"},
-    {"source_pk": 201, "name": "Sedna", "object_class": "minor_body", "object_kind": "tno", "command": "90377", "center": "500@10"},
-    {"source_pk": 202, "name": "Quaoar", "object_class": "minor_body", "object_kind": "tno", "command": "50000", "center": "500@10"},
-    {"source_pk": 203, "name": "Orcus", "object_class": "minor_body", "object_kind": "tno", "command": "90482", "center": "500@10"},
-    {"source_pk": 204, "name": "Gonggong", "object_class": "minor_body", "object_kind": "tno", "command": "225088", "center": "500@10"},
-    {"source_pk": 205, "name": "Varuna", "object_class": "minor_body", "object_kind": "tno", "command": "20000", "center": "500@10"},
-    {"source_pk": 206, "name": "Ixion", "object_class": "minor_body", "object_kind": "tno", "command": "28978", "center": "500@10"},
-    {"source_pk": 207, "name": "Lempo", "object_class": "minor_body", "object_kind": "tno", "command": "47171", "center": "500@10"},
-    {"source_pk": 208, "name": "2002 TX300", "object_class": "minor_body", "object_kind": "tno", "command": "55636", "center": "500@10"},
-    {"source_pk": 209, "name": "Salacia", "object_class": "minor_body", "object_kind": "tno", "command": "120347", "center": "500@10"},
-    {"source_pk": 210, "name": "2004 TY364", "object_class": "minor_body", "object_kind": "tno", "command": "120348", "center": "500@10"},
-    {"source_pk": 211, "name": "Varda", "object_class": "minor_body", "object_kind": "tno", "command": "174567", "center": "500@10"},
+    {"source_pk": 105, "name": "Psyche", "object_class": "minor_body", "object_kind": "asteroid", "command": "16;", "center": "500@10"},
+    {"source_pk": 106, "name": "Eros", "object_class": "minor_body", "object_kind": "asteroid", "command": "433;", "center": "500@10"},
+    {"source_pk": 107, "name": "Bennu", "object_class": "minor_body", "object_kind": "asteroid", "command": "101955;", "center": "500@10"},
+    {"source_pk": 108, "name": "Ryugu", "object_class": "minor_body", "object_kind": "asteroid", "command": "162173;", "center": "500@10"},
+    {"source_pk": 109, "name": "Itokawa", "object_class": "minor_body", "object_kind": "asteroid", "command": "25143;", "center": "500@10"},
+    {"source_pk": 110, "name": "Hebe", "object_class": "minor_body", "object_kind": "asteroid", "command": "6;", "center": "500@10"},
+    {"source_pk": 111, "name": "Iris", "object_class": "minor_body", "object_kind": "asteroid", "command": "7;", "center": "500@10"},
+    {"source_pk": 112, "name": "Europa", "object_class": "minor_body", "object_kind": "asteroid", "command": "52;", "center": "500@10"},
+    {"source_pk": 113, "name": "Cybele", "object_class": "minor_body", "object_kind": "asteroid", "command": "65;", "center": "500@10"},
+    {"source_pk": 114, "name": "Sylvia", "object_class": "minor_body", "object_kind": "asteroid", "command": "87;", "center": "500@10"},
+    {"source_pk": 115, "name": "Thisbe", "object_class": "minor_body", "object_kind": "asteroid", "command": "88;", "center": "500@10"},
+    {"source_pk": 116, "name": "Minerva", "object_class": "minor_body", "object_kind": "asteroid", "command": "93;", "center": "500@10"},
+    {"source_pk": 117, "name": "Kleopatra", "object_class": "minor_body", "object_kind": "asteroid", "command": "216;", "center": "500@10"},
+    {"source_pk": 118, "name": "Ida", "object_class": "minor_body", "object_kind": "asteroid", "command": "243;", "center": "500@10"},
+    {"source_pk": 119, "name": "Mathilde", "object_class": "minor_body", "object_kind": "asteroid", "command": "253;", "center": "500@10"},
+    {"source_pk": 120, "name": "Davida", "object_class": "minor_body", "object_kind": "asteroid", "command": "511;", "center": "500@10"},
+    {"source_pk": 121, "name": "Interamnia", "object_class": "minor_body", "object_kind": "asteroid", "command": "704;", "center": "500@10"},
+    {"source_pk": 122, "name": "Gaspra", "object_class": "minor_body", "object_kind": "asteroid", "command": "951;", "center": "500@10"},
+    {"source_pk": 123, "name": "Hector", "object_class": "minor_body", "object_kind": "asteroid", "command": "624;", "center": "500@10"},
+    {"source_pk": 201, "name": "Sedna", "object_class": "minor_body", "object_kind": "tno", "command": "90377;", "center": "500@10"},
+    {"source_pk": 202, "name": "Quaoar", "object_class": "minor_body", "object_kind": "tno", "command": "50000;", "center": "500@10"},
+    {"source_pk": 203, "name": "Orcus", "object_class": "minor_body", "object_kind": "tno", "command": "90482;", "center": "500@10"},
+    {"source_pk": 204, "name": "Gonggong", "object_class": "minor_body", "object_kind": "tno", "command": "225088;", "center": "500@10"},
+    {"source_pk": 205, "name": "Varuna", "object_class": "minor_body", "object_kind": "tno", "command": "20000;", "center": "500@10"},
+    {"source_pk": 206, "name": "Ixion", "object_class": "minor_body", "object_kind": "tno", "command": "28978;", "center": "500@10"},
+    {"source_pk": 207, "name": "Lempo", "object_class": "minor_body", "object_kind": "tno", "command": "47171;", "center": "500@10"},
+    {"source_pk": 208, "name": "2002 TX300", "object_class": "minor_body", "object_kind": "tno", "command": "55636;", "center": "500@10"},
+    {"source_pk": 209, "name": "Salacia", "object_class": "minor_body", "object_kind": "tno", "command": "120347;", "center": "500@10"},
+    {"source_pk": 210, "name": "2004 TY364", "object_class": "minor_body", "object_kind": "tno", "command": "120348;", "center": "500@10"},
+    {"source_pk": 211, "name": "Varda", "object_class": "minor_body", "object_kind": "tno", "command": "174567;", "center": "500@10"},
     {"source_pk": 301, "name": "67P/Churyumov-Gerasimenko", "object_class": "minor_body", "object_kind": "comet", "command": "1000012", "center": "500@10"},
 ]
 
@@ -100,6 +100,17 @@ PARENT_BY_NAME = {
 
 OBJECT_CLASS_ALIASES = {
     "dwarf_planet": '["subplanet"]',
+}
+
+SMALL_BODY_SENTINEL_RANGES = {
+    "ceres": {"semi_major_axis_au": (2.5, 3.1), "orbital_period_days": (1500.0, 1900.0)},
+    "vesta": {"semi_major_axis_au": (2.1, 2.6), "orbital_period_days": (1200.0, 1450.0)},
+    "pallas": {"semi_major_axis_au": (2.5, 3.1), "orbital_period_days": (1500.0, 1900.0)},
+    "juno": {"semi_major_axis_au": (2.4, 2.9), "orbital_period_days": (1450.0, 1750.0)},
+    "hebe": {"semi_major_axis_au": (2.2, 2.7), "orbital_period_days": (1250.0, 1550.0)},
+    "iris": {"semi_major_axis_au": (2.1, 2.7), "orbital_period_days": (1200.0, 1550.0)},
+    "interamnia": {"semi_major_axis_au": (2.8, 3.3), "orbital_period_days": (1800.0, 2200.0)},
+    "hector": {"semi_major_axis_au": (4.8, 5.6), "orbital_period_days": (3900.0, 4600.0)},
 }
 
 
@@ -159,6 +170,7 @@ def parse_physical_radius_km(payload: str) -> float | None:
     patterns = [
         r"Vol\.\s*Mean Radius\s*\(km\)\s*=\s*([~0-9eE+\-\.]+)",
         r"Vol\.\s*mean radius,\s*km\s*=\s*([~0-9eE+\-\.]+)",
+        r"\bRAD\s*=\s*([~0-9eE+\-\.]+)",
     ]
     for pattern in patterns:
         m = re.search(pattern, payload, flags=re.IGNORECASE)
@@ -168,6 +180,7 @@ def parse_physical_radius_km(payload: str) -> float | None:
 
 
 def parse_mass_kg(payload: str) -> float | None:
+    kg_per_km3_s2 = 1_000_000_000.0 / 6.67430e-11
     patterns = [
         r"Mass\s*x10\^([+\-]?\d+)\s*\(kg\)\s*=\s*([~0-9eE+\-\.]+)",
         r"Mass,\s*10\^([+\-]?\d+)\s*kg\s*=\s*([~0-9eE+\-\.]+)",
@@ -181,6 +194,11 @@ def parse_mass_kg(payload: str) -> float | None:
         if coeff is None:
             continue
         return coeff * (10 ** exp)
+    m = re.search(r"\bGM\s*=\s*([~0-9eE+\-\.]+)", payload, flags=re.IGNORECASE)
+    if m:
+        gm_km3_s2 = parse_float_token(m.group(1))
+        if gm_km3_s2 is not None:
+            return gm_km3_s2 * kg_per_km3_s2
     return None
 
 
@@ -247,6 +265,47 @@ def build_query_params(
     }
 
 
+def validate_object_config() -> None:
+    for obj in OBJECTS:
+        object_class = str(obj["object_class"]).strip().lower()
+        object_kind = str(obj.get("object_kind") or object_class).strip().lower()
+        command = str(obj["command"])
+        if object_kind in {"asteroid", "tno"} and not command.endswith(";"):
+            raise RuntimeError(
+                f"Sol authority object {obj['name']} must use Horizons small-body command syntax: {command!r}"
+            )
+        if object_class == "dwarf_planet" and str(obj["name"]).casefold() != "pluto" and not command.endswith(";"):
+            raise RuntimeError(
+                f"Sol authority dwarf small body {obj['name']} must use Horizons small-body command syntax: {command!r}"
+            )
+
+
+def validate_rows(rows: list[dict[str, object]]) -> None:
+    rows_by_name = {str(row.get("object_name") or "").casefold(): row for row in rows}
+    for name, ranges in SMALL_BODY_SENTINEL_RANGES.items():
+        row = rows_by_name.get(name)
+        if not row:
+            raise RuntimeError(f"Sol authority sentinel {name!r} missing from fetched rows")
+        for key, (low, high) in ranges.items():
+            value = row.get(key)
+            if value is None:
+                raise RuntimeError(f"Sol authority sentinel {name!r} missing {key}")
+            numeric = float(value)
+            if not (low <= numeric <= high):
+                raise RuntimeError(
+                    f"Sol authority sentinel {name!r} has implausible {key}={numeric}; "
+                    f"expected {low}..{high}. This usually means Horizons resolved the wrong target."
+                )
+    mercury = rows_by_name.get("mercury")
+    ceres = rows_by_name.get("ceres")
+    if mercury and ceres:
+        for key in ("semi_major_axis_au", "orbital_period_days"):
+            mercury_value = mercury.get(key)
+            ceres_value = ceres.get(key)
+            if mercury_value is not None and ceres_value is not None and abs(float(mercury_value) - float(ceres_value)) < 1e-9:
+                raise RuntimeError(f"Sol authority Ceres duplicates Mercury {key}; Horizons command disambiguation failed")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Fetch authoritative Sol-system S1 bootstrap rows from JPL Horizons."
@@ -257,6 +316,7 @@ def main() -> int:
     parser.add_argument("--timeout-s", type=int, default=120)
     parser.add_argument("--retries", type=int, default=4)
     args = parser.parse_args()
+    validate_object_config()
 
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(
@@ -322,6 +382,8 @@ def main() -> int:
         row_hash_payload = json.dumps(row, sort_keys=True, separators=(",", ":"))
         row["source_row_hash"] = hashlib.sha256(row_hash_payload.encode("utf-8")).hexdigest()
         rows.append(row)
+
+    validate_rows(rows)
 
     fieldnames = [
         "source_pk",

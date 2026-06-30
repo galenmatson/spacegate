@@ -436,6 +436,10 @@ Columns:
 ## `sol_small_body_objects`
 
 Named Sol-system S3 small-body rows (science layer, default kept out of core hot path).
+Rows are source-native Sol authority evidence from JPL Horizons; asteroid/TNO
+records must be fetched with Horizons small-body selector commands so ARM does
+not materialize ambiguous major-planet or satellite solutions under
+small-body component keys.
 
 Columns:
 - `sol_small_body_id BIGINT`

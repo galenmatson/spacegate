@@ -168,6 +168,29 @@ def field_by_key(fields: Any, key: str) -> dict[str, Any] | None:
     return None
 
 
+def rendered_planet_by_name(planets: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    wanted = normalize(name)
+    for planet in planets:
+        if normalize(planet.get("display_name")) == wanted:
+            return planet
+    return None
+
+
+def numeric_field(body: dict[str, Any], key: str) -> float | None:
+    field = field_by_key(body.get("fields"), key)
+    if not field or field.get("value") is None:
+        return None
+    return float(field["value"])
+
+
+def assert_field_range(case_query: str, body: dict[str, Any], key: str, low: float, high: float) -> None:
+    value = numeric_field(body, key)
+    if value is None or not (low <= value <= high):
+        raise AssertionError(
+            f"{case_query}: {body.get('display_name')} expected rendered {key} in {low}..{high}, got {value!r}"
+        )
+
+
 def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> None:
     render_scene = scene.get("render_scene") or {}
     if render_scene.get("schema_version") != "render_scene_v0.2":
@@ -249,6 +272,27 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         expected = case.min_scene_planets or 1
         if len(source_periods) < expected:
             raise AssertionError(f"{case.query}: expected at least {expected} source-backed rendered planet periods, got {len(source_periods)}")
+
+    if query_norm == "sol":
+        mercury = rendered_planet_by_name(scene_planets, "Mercury")
+        ceres = rendered_planet_by_name(scene_planets, "Ceres")
+        if not mercury or not ceres:
+            names = [planet.get("display_name") for planet in scene_planets]
+            raise AssertionError(f"{case.query}: expected Mercury and Ceres in rendered planets, got {names}")
+        assert_field_range(case.query, mercury, "semi_major_axis_au", 0.36, 0.42)
+        assert_field_range(case.query, mercury, "orbital_period_days", 80.0, 95.0)
+        assert_field_range(case.query, ceres, "semi_major_axis_au", 2.5, 3.1)
+        assert_field_range(case.query, ceres, "orbital_period_days", 1500.0, 1900.0)
+        if abs(numeric_field(mercury, "semi_major_axis_au") - numeric_field(ceres, "semi_major_axis_au")) < 1e-6:
+            raise AssertionError(f"{case.query}: rendered Ceres duplicates Mercury semi-major axis")
+        missing_hosts = [
+            planet.get("display_name")
+            for planet in scene_planets
+            if normalize(planet.get("display_name")) in {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"}
+            and not planet.get("host_body_key")
+        ]
+        if missing_hosts:
+            raise AssertionError(f"{case.query}: major rendered planets missing host_body_key: {missing_hosts}")
 
     if query_norm == "proxima centauri":
         star_names = [normalize(star.get("display_name")) for star in scene_stars]

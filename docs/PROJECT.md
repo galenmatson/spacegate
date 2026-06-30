@@ -806,6 +806,11 @@ Notes:
   AT-HYG aliases plus HD/WDS or non-proper primary aliases. Local build
   `20260630T_sim_beta_api_alias_v4` passes this verifier in strict mode with
   `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
+- Sol authority source refresh and build/API verification now explicitly guard
+  Horizons small-body target resolution. Asteroid/TNO/dwarf-small-body rows
+  use small-body selector commands, and Ceres/Vesta-class sentinel checks stop
+  ambiguous numeric Horizons commands from producing major-planet or
+  satellite-like orbital solutions in core, ARM, or the simulator.
 - Reviewed accepted supplements are allowed as narrow Gaia-first inventory
   exceptions when a well-established nearby object is absent from Gaia but
   required for a truthful system graph. The default list lives in
