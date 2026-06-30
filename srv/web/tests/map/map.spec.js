@@ -12,6 +12,37 @@ async function canvasBox(page) {
   return box;
 }
 
+async function expectPreviewCanvasPainted(previewCanvas, label) {
+  await expect.poll(
+    () => previewCanvas.evaluate((canvas) => {
+      const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (!gl) {
+        return 0;
+      }
+      const width = gl.drawingBufferWidth || canvas.width || 0;
+      const height = gl.drawingBufferHeight || canvas.height || 0;
+      if (!width || !height) {
+        return 0;
+      }
+      const pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      let brightPixels = 0;
+      for (let idx = 0; idx < pixels.length; idx += 4) {
+        const red = pixels[idx];
+        const green = pixels[idx + 1];
+        const blue = pixels[idx + 2];
+        const alpha = pixels[idx + 3];
+        const maxChannel = Math.max(red, green, blue);
+        if (alpha > 0 && (red + green + blue > 90 || maxChannel > 48)) {
+          brightPixels += 1;
+        }
+      }
+      return brightPixels;
+    }),
+    { timeout: 5000, message: `${label} preview canvas should paint visible scene pixels` }
+  ).toBeGreaterThan(30);
+}
+
 test.describe("public 3D map beta", () => {
   test("desktop route tools create, undo, and clear ephemeral measurements", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop route workflow uses right-click");
@@ -530,5 +561,44 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.planetHostGroupCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(1);
+  });
+
+  test("benchmark system previews paint nonblank scenes", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "benchmark render smoke uses desktop detail layout");
+    const cases = [
+      { query: "Alpha Centauri", minStars: 3, minPlanets: 0 },
+      { query: "Proxima Centauri", minStars: 1, minPlanets: 2 },
+      { query: "55 Cnc", minStars: 1, minPlanets: 5 },
+      { query: "Sol", minStars: 1, minPlanets: 8 },
+    ];
+
+    for (const benchmark of cases) {
+      await test.step(`render ${benchmark.query}`, async () => {
+        const response = await page.request.get("/api/v1/systems/search", {
+          params: { q: benchmark.query, limit: "1" },
+        });
+        expect(response.ok()).toBeTruthy();
+        const payload = await response.json();
+        const systemId = payload.items?.[0]?.system_id;
+        expect(systemId, `${benchmark.query} system_id`).toBeTruthy();
+
+        const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+        expect(sceneResponse.ok()).toBeTruthy();
+        const scenePayload = await sceneResponse.json();
+        expect(scenePayload.render_scene?.schema_version).toBe("render_scene_v0.2");
+        expect(scenePayload.render_scene?.bodies?.stars?.length || 0).toBeGreaterThanOrEqual(benchmark.minStars);
+        expect(scenePayload.render_scene?.bodies?.planets?.length || 0).toBeGreaterThanOrEqual(benchmark.minPlanets);
+
+        await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+        await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+        const previewCanvas = page.locator(".system-preview-canvas canvas");
+        await expect(previewCanvas).toBeVisible();
+        await expect.poll(
+          () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
+          { timeout: 3000 }
+        ).toBeGreaterThanOrEqual(benchmark.minStars);
+        await expectPreviewCanvasPainted(previewCanvas, benchmark.query);
+      });
+    }
   });
 });

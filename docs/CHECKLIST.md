@@ -354,6 +354,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   registered star, planet, subsystem, and orbit hover/pin coverage
 - [x] Strengthen mobile simulator inspection coverage for registered planet/orbit
   targets, provenance-bearing pinned readouts, and truncated copyable IDs
+- [x] Add browser benchmark render smoke for Alpha Centauri, Proxima Centauri,
+  55 Cnc, and Sol with pixel-level nonblank canvas checks
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

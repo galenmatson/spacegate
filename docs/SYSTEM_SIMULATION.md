@@ -316,6 +316,9 @@ Success criteria:
 - browser diagnostics expose registered inspectable star, planet, subsystem, and
   orbit-target counts so Playwright can catch lost hover/pin coverage without
   relying on fragile pixel-perfect click coordinates
+- the preview canvas preserves its drawing buffer so browser QA can perform
+  pixel-level nonblank checks across benchmark systems without relying only on
+  DOM presence or scene metadata
 - planet render bodies, hover/pinned readouts, and the preview evidence strip
   surface an API-backed renderer-only planet visual class with `render_scene`
   provenance, so material choices are inspectable without treating them as

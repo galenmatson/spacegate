@@ -1808,7 +1808,11 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
   ), [scene]);
 
   return (
-    <Canvas camera={{ position: [0, 6.2, 10.8], fov: 43 }} dpr={[1, 1.75]}>
+    <Canvas
+      camera={{ position: [0, 6.2, 10.8], fov: 43 }}
+      dpr={[1, 1.75]}
+      gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+    >
       <color attach="background" args={["#050b12"]} />
       <CameraControls resetToken={resetToken} />
       <CanvasHoverRaycaster onHover={onHover} />

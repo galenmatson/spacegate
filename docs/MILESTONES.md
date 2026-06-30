@@ -751,6 +751,9 @@ Readiness gaps:
 - June 30, 2026 mobile inspection coverage pass verifies touch-pinned simulator
   readouts expose provenance pills and truncated copyable IDs within the compact
   preview layout.
+- June 30, 2026 benchmark render-smoke pass enables drawing-buffer sampling for
+  the system preview canvas and adds nonblank browser render checks for Alpha
+  Centauri, Proxima Centauri, 55 Cnc, and Sol.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark
