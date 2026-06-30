@@ -182,7 +182,20 @@ test.describe("public 3D map beta", () => {
     ).toContain("orbit");
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
-    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/clarity/i);
+    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/structure/i);
+    const scaleModeSelect = page.locator("[data-testid='system-preview-scale-mode']");
+    await expect(scaleModeSelect).toBeVisible();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
+      { timeout: 3000 }
+    ).toBe("structure");
+    await scaleModeSelect.selectOption("true_orbits");
+    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/True Orbits/i);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
+      { timeout: 3000 }
+    ).toBe("true_orbits");
+    await scaleModeSelect.selectOption("structure");
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/Planet class/i);
@@ -190,7 +203,7 @@ test.describe("public 3D map beta", () => {
     await expect(renderPolicy).toBeVisible();
     await expect(renderPolicy).toContainText(/render policy/i);
     await expect(renderPolicy).toContainText(/Local beta day/i);
-    await expect(renderPolicy).toContainText(/Clarity Scale/i);
+    await expect(renderPolicy).toContainText(/Structure Scale/i);
     await expect(renderPolicy).toContainText(/persisted|No assumptions/i);
     await expect(renderPolicy).toContainText(/Live 3d|Live 3D/i);
     await expect(renderPolicy).toContainText(/Deterministic Snapshot/i);
@@ -453,6 +466,18 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
     const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
+      { timeout: 3000 }
+    ).toBe("structure");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.minStarClearance || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(0);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.collisionAdjustedStarCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupMotionCount || 0)),
       { timeout: 3000 }

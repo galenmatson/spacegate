@@ -305,7 +305,42 @@ Response:
     "visual_scale": {
       "schema_version": "visual_scale_beta_v1",
       "scale_mode": "clarity_scaled_not_physical",
-      "scene_unit": "arbitrary_scene_unit"
+      "default_scale_mode": "structure",
+      "available_scale_modes": [
+        {
+          "mode": "structure",
+          "label": "Structure/Clarity",
+          "preserves": "nested hierarchy readability and inspectable bodies",
+          "sacrifices": "physical body-size and orbit-spacing ratios"
+        },
+        {
+          "mode": "true_orbits",
+          "label": "True Orbits",
+          "preserves": "relative planet semi-major-axis spacing within the scene",
+          "sacrifices": "body-size realism and close-in orbit readability"
+        },
+        {
+          "mode": "true_bodies",
+          "label": "True Bodies",
+          "preserves": "more physical body-size contrast than clarity mode",
+          "sacrifices": "small-body visibility and practical physical orbit scale"
+        },
+        {
+          "mode": "log",
+          "label": "Log Scale",
+          "preserves": "rank order across large size and orbit ranges",
+          "sacrifices": "linear physical ratios"
+        }
+      ],
+      "scene_unit": "arbitrary_scene_unit",
+      "presentation_only": true,
+      "collision_policy": {
+        "applies_to_modes": ["structure", "log"],
+        "star_radius_fraction_of_nearest_sep": 0.28,
+        "min_visible_star_radius_scene": 0.045,
+        "min_halo_radius_scene": 0.16,
+        "min_pick_radius_scene": 0.28
+      }
     },
     "bodies": {"stars": [], "planets": [], "subsystems": []},
     "orbits": [],
@@ -410,11 +445,14 @@ Contract notes:
   companion scenes such as Sirius are structurally legible. Those orbit fields
   are `status="assumed"`, `layer="disc_assumption"` presentation defaults and
   must not be interpreted as ARM orbital solutions.
-- `render_scene.visual_scale` documents the beta renderer's clarity-scale
-  transforms for star radii, planet radii, planet orbit spacing, and binary
-  orbit display radii. Scene units are arbitrary presentation units, not
-  physical distance or radius units; source science values remain in the
-  individual field provenance objects and core/arm rows.
+- `render_scene.visual_scale` documents the beta renderer's selectable
+  presentation transforms for star radii, planet radii, planet orbit spacing,
+  and binary orbit display radii. Scene units are arbitrary presentation units,
+  not physical distance or radius units; source science values remain in the
+  individual field provenance objects and core/arm rows. The default
+  `structure` mode is hierarchy-first and collision-safe for visible stellar
+  meshes. `true_orbits`, `true_bodies`, and `log` are client presentation modes
+  and must not mutate core, ARM, DISC, or RIM data.
 - `render_scene.assumptions` is an additive export of every rendered field with
   `status="assumed"`. Each record is shaped for
   `disc.simulation_assumptions` materialization and includes `assumption_key`,

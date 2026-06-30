@@ -64,9 +64,10 @@ Already in place:
   expose layer, basis, source catalog/reference, confidence, notes, and
   procedural assumption metadata when present
 - the beta scene contract includes `visual_scale_beta_v1`, an explicit
-  clarity-scale policy for star radii, planet radii, planet orbit spacing, and
-  binary/group orbit display radii; the browser readout summarizes the active
-  local-time, clarity-scale, assumption-persistence, and fallback policy
+  presentation-scale policy for star radii, planet radii, planet orbit spacing,
+  and binary/group orbit display radii; the browser exposes Structure,
+  True Orbits, True Bodies, and Log Scale modes and summarizes the active
+  local-time, scale-mode, assumption-persistence, and fallback policy
 - selected-system `disc.simulation_assumptions` materialization is available
   through `scripts/materialize_simulation_assumptions.py`; the API annotates
   matching rendered assumptions with `persistence_status="persisted"`
@@ -152,7 +153,19 @@ Response shape:
     "visual_scale": {
       "schema_version": "visual_scale_beta_v1",
       "scale_mode": "clarity_scaled_not_physical",
-      "scene_unit": "arbitrary_scene_unit"
+      "default_scale_mode": "structure",
+      "available_scale_modes": [
+        {"mode": "structure", "label": "Structure/Clarity"},
+        {"mode": "true_orbits", "label": "True Orbits"},
+        {"mode": "true_bodies", "label": "True Bodies"},
+        {"mode": "log", "label": "Log Scale"}
+      ],
+      "scene_unit": "arbitrary_scene_unit",
+      "presentation_only": true,
+      "collision_policy": {
+        "applies_to_modes": ["structure", "log"],
+        "star_radius_fraction_of_nearest_sep": 0.28
+      }
     },
     "bodies": {"stars": [], "planets": []},
     "orbits": [],
@@ -192,8 +205,14 @@ Rules:
   `persistence_status`; persisted rows remain presentation assumptions and do
   not become science facts.
 - `visual_scale_beta_v1` is a presentation contract. It tells clients how the
-  beta renderer exaggerates/normalizes radii and orbit spacing for clarity, and
-  must not be interpreted as source physical scale.
+  beta renderer exaggerates/normalizes radii and orbit spacing for selectable
+  presentation modes, and must not be interpreted as source physical scale.
+  The default `structure` mode is collision-safe and hierarchy-first. It caps
+  visible stellar mesh radius against nearest rendered stellar separation while
+  keeping glow and pick radii separate. `true_orbits` preserves relative
+  planet-orbit spacing within the scene, `true_bodies` preserves more body-size
+  contrast, and `log` compresses large ranges. All modes are browser/render
+  transforms only; source values remain in provenance fields and core/ARM rows.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 
@@ -331,8 +350,8 @@ Success criteria:
 - the local beta simulation day is visible in the readout and follows the same
   pause/start behavior as the scene animation clock
 - the preview readout includes a compact render-policy summary covering local
-  beta time, clarity scale, assumption persistence, and deterministic snapshot
-  fallback
+  beta time, active scale mode, assumption persistence, and deterministic
+  snapshot fallback
 - pinned stars, planets, and orbit paths also receive in-scene visual feedback
   so the selected readout has a visible target in the 3D view
 - hover and pinned readouts use the same source/derived/assumed/missing
@@ -357,9 +376,12 @@ Success criteria:
 - star and planet surfaces use deterministic procedural renderer materials
   based on existing scene fields and stable object keys; they are visual
   presentation only, not source surface maps or persisted assumptions
-- planet radii use bounded clarity-scale caps/floors so compact systems remain
-  inspectable in the beta preview; `visual_scale_beta_v1` documents the active
-  transform and physical-scale rendering remains future work
+- planet and star radii use bounded presentation caps/floors so compact systems
+  remain inspectable in the beta preview; Structure mode additionally caps
+  visible star meshes against nearest rendered stellar separation, while halos
+  and picking radii remain separate readability aids. `visual_scale_beta_v1`
+  documents the active transform and fully physical rendering remains future
+  work
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises

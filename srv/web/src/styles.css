@@ -4767,7 +4767,8 @@ main {
 }
 
 .system-preview-toggle,
-.system-preview-speed select {
+.system-preview-speed select,
+.system-preview-scale select {
   min-height: 30px;
   padding: 5px 10px;
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
@@ -4780,7 +4781,8 @@ main {
   cursor: pointer;
 }
 
-.system-preview-speed {
+.system-preview-speed,
+.system-preview-scale {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -4795,16 +4797,24 @@ main {
   color: var(--ink);
 }
 
+.system-preview-scale select {
+  min-width: 118px;
+  color: var(--ink);
+}
+
 .system-preview-toggle:hover,
 .system-preview-toggle:focus-visible,
 .system-preview-speed select:hover,
-.system-preview-speed select:focus-visible {
+.system-preview-speed select:focus-visible,
+.system-preview-scale select:hover,
+.system-preview-scale select:focus-visible {
   border-color: var(--accent);
   outline: none;
 }
 
 .system-preview-toggle:disabled,
-.system-preview-speed select:disabled {
+.system-preview-speed select:disabled,
+.system-preview-scale select:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }

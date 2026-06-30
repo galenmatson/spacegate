@@ -125,8 +125,14 @@ def main():
         ["schema_version", "bodies", "orbits", "visual_scale", "assumptions", "assumption_count"],
         "simulation scene.render_scene",
     )
-    if scene_json.get("render_scene", {}).get("visual_scale", {}).get("schema_version") != "visual_scale_beta_v1":
+    visual_scale = scene_json.get("render_scene", {}).get("visual_scale", {})
+    if visual_scale.get("schema_version") != "visual_scale_beta_v1":
         raise AssertionError("simulation scene render visual scale policy missing")
+    modes = {str(item.get("mode") or item.get("value") or "") for item in visual_scale.get("available_scale_modes", []) if isinstance(item, dict)}
+    if not {"structure", "true_orbits", "true_bodies", "log"}.issubset(modes):
+        raise AssertionError("simulation scene render visual scale modes missing")
+    if not isinstance(visual_scale.get("collision_policy"), dict):
+        raise AssertionError("simulation scene render visual scale collision policy missing")
     render_assumptions = scene_json.get("render_scene", {}).get("assumptions") or []
     if scene_json.get("render_scene", {}).get("assumption_count") != len(render_assumptions):
         raise AssertionError("simulation scene render assumption_count mismatch")

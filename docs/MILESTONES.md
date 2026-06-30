@@ -763,6 +763,13 @@ Readiness gaps:
 - June 30, 2026 visible-clock pass surfaces the shared local beta simulation
   day in the system preview readout and verifies it advances, pauses, and
   resumes with the scene clock.
+- June 30, 2026 scale-mode pass adds client-selectable Structure, True Orbits,
+  True Bodies, and Log Scale simulator modes, advertises them in
+  `render_scene.visual_scale`, and keeps the transforms presentation-only.
+- June 30, 2026 collision-safe structure pass caps visible stellar radii in
+  Structure mode against nearest rendered stellar separation while keeping
+  glow and picking radii separate; Castor browser coverage verifies
+  non-overlapping multi-star rendering diagnostics.
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.

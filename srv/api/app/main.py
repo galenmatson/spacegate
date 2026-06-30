@@ -73,7 +73,35 @@ SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_beta_v1"
 SIM_VISUAL_SCALE_POLICY = {
     "schema_version": SIM_VISUAL_SCALE_POLICY_VERSION,
     "scale_mode": "clarity_scaled_not_physical",
+    "default_scale_mode": "structure",
+    "available_scale_modes": [
+        {
+            "mode": "structure",
+            "label": "Structure/Clarity",
+            "preserves": "nested hierarchy readability and inspectable bodies",
+            "sacrifices": "physical body-size and orbit-spacing ratios",
+        },
+        {
+            "mode": "true_orbits",
+            "label": "True Orbits",
+            "preserves": "relative planet semi-major-axis spacing within the scene",
+            "sacrifices": "body-size realism and close-in orbit readability",
+        },
+        {
+            "mode": "true_bodies",
+            "label": "True Bodies",
+            "preserves": "more physical body-size contrast than clarity mode",
+            "sacrifices": "small-body visibility and practical physical orbit scale",
+        },
+        {
+            "mode": "log",
+            "label": "Log Scale",
+            "preserves": "rank order across large size and orbit ranges",
+            "sacrifices": "linear physical ratios",
+        },
+    ],
     "scene_unit": "arbitrary_scene_unit",
+    "presentation_only": True,
     "policy_note": (
         "Radii, orbit spacing, and subsystem guide radii are presentation-scale "
         "transforms for inspectability. Source physical values remain in fields "
@@ -108,6 +136,14 @@ SIM_VISUAL_SCALE_POLICY = {
         "transform": "source-aware display radius when available; deterministic presentation radius otherwise",
         "direct_pair_multiplier": 1.0,
         "group_pair_motion_multiplier": 0.55,
+    },
+    "collision_policy": {
+        "applies_to_modes": ["structure", "log"],
+        "star_radius_fraction_of_nearest_sep": 0.28,
+        "min_visible_star_radius_scene": 0.045,
+        "min_halo_radius_scene": 0.16,
+        "min_pick_radius_scene": 0.28,
+        "note": "Visible star meshes are capped against nearest rendered stellar separation; halo and pick radii remain separate presentation aids.",
     },
 }
 
