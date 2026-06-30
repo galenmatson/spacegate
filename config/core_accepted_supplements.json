@@ -1,0 +1,29 @@
+{
+  "notes": [
+    "Accepted supplements are reviewed canonical-inventory exceptions for objects missing from the Gaia-first backbone but needed to represent well-established nearby systems honestly.",
+    "Rows here must preserve source provenance and should be replaced by stronger catalog authority ingestion when available.",
+    "Do not use this file for presentation assumptions or lore."
+  ],
+  "version": "core_accepted_supplements_v1",
+  "athyg_supplement_rows": [
+    {
+      "component": "A",
+      "display_name": "Sirius A",
+      "reason": "bright_primary_missing_from_gaia_dr3_with_wds_compact_companion",
+      "source_catalog": "athyg",
+      "source_pk": 584955,
+      "system_name_root": "Sirius",
+      "wds_id": "06451-1643"
+    }
+  ],
+  "component_links": [
+    {
+      "component": "B",
+      "display_name": "Sirius B",
+      "reason": "reviewed_wds_compact_companion_link",
+      "target_id": "2947050466531873024",
+      "target_namespace": "gaia_dr3",
+      "wds_id": "06451-1643"
+    }
+  ]
+}

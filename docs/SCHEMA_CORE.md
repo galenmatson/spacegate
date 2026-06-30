@@ -427,6 +427,12 @@ Contract notes:
   bright-primary AT-HYG aliases plus HD/WDS or non-proper primary aliases. The
   check is warn-only during the current served-artifact repair window and can
   be made strict with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
+- Gaia-first builds may include reviewed accepted supplements for objects that
+  are absent from the Gaia backbone but required for honest canonical inventory
+  of well-established nearby systems. These rows are data-source-backed core
+  exceptions, not presentation assumptions: they must be listed in
+  `config/core_accepted_supplements.json`, carry source provenance, and remain
+  visibly distinct from a broad AT-HYG supplement merge.
 - Gaia-fallback display names may be promoted from matched exoplanet host labels when canonical/common stellar labels are absent.
 - host-label precedence in Gaia-fallback promotion should prefer:
   - human/common labels

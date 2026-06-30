@@ -798,6 +798,13 @@ Notes:
   AT-HYG aliases plus HD/WDS or non-proper primary aliases. It is warn-only
   until the current served artifacts are rebuilt clean, then should run as a
   strict gate with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
+- Reviewed accepted supplements are allowed as narrow Gaia-first inventory
+  exceptions when a well-established nearby object is absent from Gaia but
+  required for a truthful system graph. The default list lives in
+  `config/core_accepted_supplements.json`; rows remain source-provenanced and
+  visibly distinct from the disabled broad AT-HYG supplement merge. Sirius A is
+  the first accepted supplement, paired with a reviewed WDS component link for
+  the Gaia Sirius B row; a rebuild is required before served data changes.
 - Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
   - exact Gaia ID
   - Gaia legacy remap via unique HIP/HD agreement

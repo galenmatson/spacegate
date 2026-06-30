@@ -289,3 +289,9 @@ Known benchmark blocker:
   `scripts/verify_compact_alias_safety.py` detects this class of bad artifact
   during build verification; it should become a strict gate after the next clean
   rebuild.
+- The ingest path now supports reviewed accepted supplements from
+  `config/core_accepted_supplements.json`. Sirius A is listed as a
+  source-backed core inventory exception and the Gaia Sirius B row is linked to
+  WDS component B. This is not a simulator fabrication and does not change the
+  current served/public artifact until a new core/ARM build is produced and
+  verified.

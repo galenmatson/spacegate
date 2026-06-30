@@ -416,6 +416,79 @@ def load_manifest(manifest_path: Path) -> dict:
     return {entry.get("source_name"): entry for entry in data}
 
 
+def load_accepted_supplements(config_path: Path) -> tuple[str | None, list[dict], list[dict]]:
+    if not config_path.exists():
+        return (None, [], [])
+    data = json.loads(config_path.read_text())
+    if not isinstance(data, dict):
+        raise SystemExit(f"Invalid accepted supplement config JSON at {config_path}")
+    version = data.get("version")
+    if version is not None and not isinstance(version, str):
+        raise SystemExit(f"Invalid accepted supplement version in {config_path}")
+
+    athyg_rows: list[dict] = []
+    seen_athyg: set[int] = set()
+    for idx, row in enumerate(data.get("athyg_supplement_rows") or []):
+        if not isinstance(row, dict):
+            raise SystemExit(f"Invalid accepted AT-HYG supplement row #{idx + 1} in {config_path}")
+        source_catalog = str(row.get("source_catalog") or "").strip().lower()
+        if source_catalog != "athyg":
+            raise SystemExit(
+                f"Accepted AT-HYG supplement row #{idx + 1} has unsupported source_catalog={source_catalog!r}"
+            )
+        try:
+            source_pk = int(row["source_pk"])
+        except Exception as exc:
+            raise SystemExit(f"Accepted AT-HYG supplement row #{idx + 1} missing integer source_pk") from exc
+        if source_pk in seen_athyg:
+            raise SystemExit(f"Duplicate accepted AT-HYG supplement source_pk={source_pk}")
+        seen_athyg.add(source_pk)
+        athyg_rows.append(
+            {
+                "source_pk": source_pk,
+                "display_name": str(row.get("display_name") or "").strip() or None,
+                "system_name_root": str(row.get("system_name_root") or "").strip() or None,
+                "component": str(row.get("component") or "").strip() or None,
+                "wds_id": str(row.get("wds_id") or "").strip() or None,
+                "reason": str(row.get("reason") or "").strip() or None,
+            }
+        )
+
+    component_links: list[dict] = []
+    seen_links: set[tuple[str, str]] = set()
+    for idx, row in enumerate(data.get("component_links") or []):
+        if not isinstance(row, dict):
+            raise SystemExit(f"Invalid accepted component link #{idx + 1} in {config_path}")
+        namespace = str(row.get("target_namespace") or "").strip().lower()
+        if namespace not in {"gaia_dr3"}:
+            raise SystemExit(
+                f"Accepted component link #{idx + 1} has unsupported target_namespace={namespace!r}"
+            )
+        target_id = str(row.get("target_id") or "").strip()
+        wds_id = str(row.get("wds_id") or "").strip()
+        component = str(row.get("component") or "").strip()
+        if not target_id or not wds_id or not component:
+            raise SystemExit(
+                f"Accepted component link #{idx + 1} requires target_id, wds_id, and component"
+            )
+        key = (namespace, target_id)
+        if key in seen_links:
+            raise SystemExit(f"Duplicate accepted component link for {namespace}:{target_id}")
+        seen_links.add(key)
+        component_links.append(
+            {
+                "target_namespace": namespace,
+                "target_id": target_id,
+                "display_name": str(row.get("display_name") or "").strip() or None,
+                "component": component,
+                "wds_id": wds_id,
+                "reason": str(row.get("reason") or "").strip() or None,
+            }
+        )
+
+    return (version, athyg_rows, component_links)
+
+
 def sql_literal(value: str | None) -> str:
     if value is None:
         return "NULL"
@@ -750,6 +823,7 @@ def main() -> int:
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
+    enable_accepted_supplements = parse_bool_env("SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS", True)
     gaia_backbone_min_parallax_mas = parse_positive_float_env(
         "SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS",
         GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT,
@@ -902,6 +976,10 @@ def main() -> int:
     cooked_exoplanet_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
     cooked_exoplanet_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
     cooked_exoplanet_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
+    accepted_supplements_config = Path(
+        os.getenv("SPACEGATE_ACCEPTED_SUPPLEMENTS_CONFIG")
+        or root / "config" / "core_accepted_supplements.json"
+    )
     manifest_dir = state_dir / "reports" / "manifests"
     manifest_path = manifest_dir / "core_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -931,12 +1009,24 @@ def main() -> int:
         os.getenv("SPACEGATE_PLANET_CLASSIFIER_VERSION")
         or PLANET_CLASSIFIER_VERSION_DEFAULT
     ).strip()
+    accepted_supplement_version, accepted_athyg_supplements, accepted_component_links = (
+        load_accepted_supplements(accepted_supplements_config)
+        if enable_accepted_supplements
+        else (None, [], [])
+    )
+    enable_athyg_accepted_supplement_merge = bool(accepted_athyg_supplements)
+    enable_athyg_merge_path = enable_gaia_backbone and (
+        enable_athyg_supplement_merge or enable_athyg_accepted_supplement_merge
+    )
+    accepted_supplement_source_version = (
+        f"{ATHYG_ALIAS_VERSION}+{accepted_supplement_version or 'accepted_unversioned'}"
+    )
 
     if not enable_gaia_backbone and not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG: {cooked_athyg}")
     if enable_gaia_backbone and not cooked_gaia_backbone.exists():
         raise SystemExit(f"Missing cooked Gaia backbone: {cooked_gaia_backbone}")
-    if enable_gaia_backbone and enable_athyg_supplement_merge and not cooked_athyg.exists():
+    if enable_athyg_merge_path and not cooked_athyg.exists():
         raise SystemExit(f"Missing cooked AT-HYG supplement source: {cooked_athyg}")
     if enable_aliases and enable_athyg_alias_crosswalk and not cooked_athyg.exists():
         raise SystemExit(
@@ -1032,7 +1122,8 @@ def main() -> int:
         f"sbx={'1' if enable_sbx else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
-        f"athyg_supplement_merge={'1' if (enable_gaia_backbone and enable_athyg_supplement_merge) else '0'} "
+        f"athyg_supplement_merge={'1' if enable_athyg_merge_path else '0'} "
+        f"accepted_supplements={'1' if (enable_accepted_supplements and (accepted_athyg_supplements or accepted_component_links)) else '0'} "
         f"open_cluster_member_min_probability={open_cluster_member_min_probability} "
         f"white_dwarf_catalog_pwd_threshold={white_dwarf_catalog_pwd_threshold}"
     )
@@ -1219,7 +1310,11 @@ def main() -> int:
           ('planet_classifier_version', {sql_literal(planet_classifier_version)}),
           ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
           ('athyg_alias_crosswalk_enabled', {sql_literal("1" if (enable_aliases and enable_athyg_alias_crosswalk) else "0")}),
-          ('athyg_supplement_merge_enabled', {sql_literal("1" if (enable_gaia_backbone and enable_athyg_supplement_merge) else "0")}),
+          ('athyg_supplement_merge_enabled', {sql_literal("1" if enable_athyg_merge_path else "0")}),
+          ('accepted_supplements_enabled', {sql_literal("1" if enable_accepted_supplements else "0")}),
+          ('accepted_supplement_version', {sql_literal(accepted_supplement_version)}),
+          ('accepted_athyg_supplement_count', {sql_literal(str(len(accepted_athyg_supplements)))}),
+          ('accepted_component_link_count', {sql_literal(str(len(accepted_component_links)))}),
           ('identifier_ambiguous_limit', {sql_literal(str(athyg_merge_ambiguous_limit))}),
           ('identifier_gaia_collision_max', {sql_literal(str(athyg_merge_gaia_collision_max))}),
           ('identifier_hip_collision_max', {sql_literal(str(athyg_merge_hip_collision_max))}),
@@ -1234,7 +1329,7 @@ def main() -> int:
     if not enable_gaia_backbone:
         athyg_p1 = require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
         athyg_p2 = require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
-    elif enable_athyg_supplement_merge:
+    elif enable_athyg_merge_path:
         athyg_p1 = manifest.get("athyg_v33-1")
         athyg_p2 = manifest.get("athyg_v33-2")
         if not athyg_p1 or not athyg_p2:
@@ -1391,7 +1486,7 @@ def main() -> int:
         if not athyg_download_url:
             athyg_download_url = None
         athyg_has_retrieval = has_retrieval(athyg_p1) or has_retrieval(athyg_p2)
-    elif enable_gaia_backbone and enable_athyg_supplement_merge and cooked_athyg.exists():
+    elif enable_athyg_merge_path and cooked_athyg.exists():
         athyg_download_url = ATHYG_ALIAS_URL
         athyg_checksum = sha256_file(cooked_athyg)
         athyg_retrieved = file_mtime_utc(cooked_athyg)
@@ -1713,7 +1808,7 @@ def main() -> int:
 
     athyg_crosswalk_source_needed = (
         (enable_aliases and enable_athyg_alias_crosswalk)
-        or (enable_gaia_backbone and enable_athyg_supplement_merge)
+        or enable_athyg_merge_path
     )
     if athyg_crosswalk_source_needed:
         athyg_alias_path = str(cooked_athyg).replace("'", "''")
@@ -3634,6 +3729,66 @@ def main() -> int:
           {sql_values_pairs(CONSTELLATION_GENITIVE_BY_ABBR)}
         """
     )
+    con.execute(
+        """
+        create or replace temp table accepted_athyg_supplements(
+          source_pk bigint,
+          display_name varchar,
+          system_name_root varchar,
+          component varchar,
+          wds_id varchar,
+          reason varchar
+        )
+        """
+    )
+    if accepted_athyg_supplements:
+        con.executemany(
+            """
+            insert into accepted_athyg_supplements
+            values (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    row["source_pk"],
+                    row["display_name"],
+                    row["system_name_root"],
+                    row["component"],
+                    row["wds_id"],
+                    row["reason"],
+                )
+                for row in accepted_athyg_supplements
+            ],
+        )
+    con.execute(
+        """
+        create or replace temp table accepted_component_links(
+          target_namespace varchar,
+          target_id varchar,
+          display_name varchar,
+          component varchar,
+          wds_id varchar,
+          reason varchar
+        )
+        """
+    )
+    if accepted_component_links:
+        con.executemany(
+            """
+            insert into accepted_component_links
+            values (?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    row["target_namespace"],
+                    row["target_id"],
+                    row["display_name"],
+                    row["component"],
+                    row["wds_id"],
+                    row["reason"],
+                )
+                for row in accepted_component_links
+            ],
+        )
     identifier_hip_collision_count = 0
     identifier_hd_collision_count = 0
     identifier_quarantine_count = 0
@@ -4091,8 +4246,13 @@ def main() -> int:
             """
         )
 
-    if enable_gaia_backbone and enable_athyg_supplement_merge:
+    if enable_athyg_merge_path:
         log("Identifier merge: building AT-HYG merge source")
+        athyg_merge_source_filter = (
+            "true"
+            if enable_athyg_supplement_merge
+            else "acc.source_pk is not null"
+        )
         con.execute(
             f"""
             create temp table athyg_merge_source as
@@ -4106,7 +4266,7 @@ def main() -> int:
                 nullif(src.gl, '') as gl_id,
                 nullif(src.tyc, '') as tyc_id,
                 cast(nullif(nullif(src.hyg, ''), '0') as bigint) as hyg_id,
-                nullif(src.proper, '') as proper_name,
+                coalesce(acc.display_name, nullif(src.proper, '')) as proper_name,
                 nullif(src.bayer, '') as bayer,
                 nullif(src.flam, '') as flam,
                 nullif(src.con, '') as constellation,
@@ -4130,9 +4290,17 @@ def main() -> int:
                 cast(nullif(src.x0, '') as double) as x_pc,
                 cast(nullif(src.y0, '') as double) as y_pc,
                 cast(nullif(src.z0, '') as double) as z_pc,
-                nullif(src.spect, '') as spectral_type_raw
+                nullif(src.spect, '') as spectral_type_raw,
+                acc.display_name as accepted_display_name,
+                acc.system_name_root as accepted_system_name_root,
+                acc.component as accepted_component,
+                acc.wds_id as accepted_wds_id,
+                acc.reason as accepted_reason
               from athyg_alias_raw src
+              left join accepted_athyg_supplements acc
+                on acc.source_pk = cast(nullif(src.id, '') as bigint)
               where cast(nullif(src.id, '') as bigint) is not null
+                and ({athyg_merge_source_filter})
             ), coords as (
               select
                 *,
@@ -4159,6 +4327,7 @@ def main() -> int:
                   (dist_pc_final * sin(dec_deg * pi() / 180.0)) * {PC_TO_LY}
                 ) as z_helio_ly,
                 case
+                  when accepted_display_name is not null then accepted_display_name
                   when proper_name is not null then proper_name
                   when bayer is not null and constellation is not null then bayer || ' ' || constellation
                   when flam is not null and constellation is not null then flam || ' ' || constellation
@@ -4168,10 +4337,12 @@ def main() -> int:
                   else null
                 end as preferred_name,
                 case
+                  when accepted_component is not null then accepted_component
                   when proper_name is not null then regexp_extract(proper_name, ' ([A-Za-z]{1,2})$', 1)
                   else null
                 end as component,
                 case
+                  when accepted_system_name_root is not null then accepted_system_name_root
                   when proper_name is not null then regexp_replace(proper_name, '\\s+[A-Za-z]{1,2}$', '')
                   else null
                 end as system_name_root,
@@ -4328,6 +4499,27 @@ def main() -> int:
             """
         )
         con.execute(
+            """
+            create temp table athyg_merge_id_resolution_safe as
+            select r.*
+            from athyg_merge_id_resolution r
+            join athyg_merge_id_base b on b.source_pk = r.source_pk
+            left join stars target on target.star_id = r.matched_star_id
+            where not (
+              coalesce(upper(b.spectral_type_raw), '') not like 'D%'
+              and r.matched_star_id is not null
+              and (
+                coalesce(target.object_family, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+                or coalesce(target.object_type, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+                or upper(coalesce(target.spectral_type_raw, '')) like 'D%'
+                or coalesce(target.spectral_class, '') = 'D'
+              )
+            )
+            """
+        )
+        con.execute("drop table athyg_merge_id_resolution")
+        con.execute("alter table athyg_merge_id_resolution_safe rename to athyg_merge_id_resolution")
+        con.execute(
             f"""
             create temp table athyg_merge_positional_unresolved as
             select *
@@ -4349,6 +4541,10 @@ def main() -> int:
               ra_deg,
               dec_deg,
               dist_ly,
+              object_family,
+              object_type,
+              spectral_type_raw,
+              spectral_class,
               cast(floor(ra_deg * {ATHYG_MERGE_SKY_BIN_FACTOR}) as integer) as ra_bin,
               cast(floor((dec_deg + 90.0) * {ATHYG_MERGE_SKY_BIN_FACTOR}) as integer) as dec_bin
             from stars
@@ -4367,6 +4563,7 @@ def main() -> int:
                 u.ra_deg,
                 u.dec_deg,
                 u.dist_ly,
+                u.spectral_type_raw,
                 u.has_human_name,
                 ((u.ra_bin + ro.delta + {int(360 * ATHYG_MERGE_SKY_BIN_FACTOR)}) % {int(360 * ATHYG_MERGE_SKY_BIN_FACTOR)}) as ra_bin_n,
                 least(greatest(u.dec_bin + doff.delta, 0), {int(180 * ATHYG_MERGE_SKY_BIN_FACTOR) - 1}) as dec_bin_n
@@ -4397,6 +4594,15 @@ def main() -> int:
               where least(abs(s.ra_deg - e.ra_deg), 360.0 - abs(s.ra_deg - e.ra_deg)) <= {ALIAS_POS_MAX_DELTA_RA_DEG}
                 and abs(s.dec_deg - e.dec_deg) <= {ALIAS_POS_MAX_DELTA_DEC_DEG}
                 and abs(s.dist_ly - e.dist_ly) <= {ALIAS_POS_MAX_DELTA_DIST_LY}
+                and not (
+                  coalesce(upper(e.spectral_type_raw), '') not like 'D%'
+                  and (
+                    coalesce(s.object_family, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+                    or coalesce(s.object_type, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+                    or upper(coalesce(s.spectral_type_raw, '')) like 'D%'
+                    or coalesce(s.spectral_class, '') = 'D'
+                  )
+                )
             )
             select
               *,
@@ -4466,6 +4672,21 @@ def main() -> int:
             set
               hip_id = coalesce(stars.hip_id, a.hip_id),
               hd_id = coalesce(stars.hd_id, a.hd_id),
+              wds_id = coalesce(stars.wds_id, a.accepted_wds_id),
+              component = coalesce(nullif(stars.component, ''), a.accepted_component),
+              multiplicity_match_method = case
+                when a.accepted_wds_id is not null then 'accepted_supplement_wds'
+                else stars.multiplicity_match_method
+              end,
+              multiplicity_match_confidence = case
+                when a.accepted_wds_id is not null then greatest(coalesce(stars.multiplicity_match_confidence, 0.0), 0.93)
+                else stars.multiplicity_match_confidence
+              end,
+              multiplicity_source_catalogs_json = case
+                when a.accepted_wds_id is not null then '["accepted_supplement","wds"]'
+                else stars.multiplicity_source_catalogs_json
+              end,
+              has_wds_evidence = coalesce(stars.has_wds_evidence, false) or a.accepted_wds_id is not null,
               star_name = case
                 when (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
                   and a.preferred_name is not null
@@ -4486,8 +4707,8 @@ def main() -> int:
                 'gl', coalesce(a.gl_id, json_extract_string(stars.catalog_ids_json, '$.gl')),
                 'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
                 'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
-                'wds', coalesce(stars.wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
-                'wds_component', coalesce(stars.component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
+                'wds', coalesce(stars.wds_id, a.accepted_wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
+                'wds_component', coalesce(nullif(stars.component, ''), a.accepted_component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
               )
             from athyg_merge_resolution r
             join athyg_merge_source a on a.source_pk = r.source_pk
@@ -4600,7 +4821,10 @@ def main() -> int:
               seq.max_star_id + ordered.rn::bigint as star_id,
               cast(morton3d(ordered.x_helio_ly, ordered.y_helio_ly, ordered.z_helio_ly) as bigint) as spatial_index,
               null::bigint as system_id,
-              'star:athyg:' || ordered.source_pk::varchar as stable_object_key,
+              case
+                when ordered.accepted_reason is not null then 'star:accepted_supplement:athyg:' || ordered.source_pk::varchar
+                else 'star:athyg:' || ordered.source_pk::varchar
+              end as stable_object_key,
               ordered.preferred_name as star_name,
               ordered.preferred_name_norm as star_name_norm,
               ordered.component,
@@ -4636,17 +4860,26 @@ def main() -> int:
               ordered.gaia_id,
               ordered.hip_id,
               ordered.hd_id,
-              null::varchar as wds_id,
-              'athyg_supplement_insert' as multiplicity_match_method,
-              0.75 as multiplicity_match_confidence,
-              '[]' as multiplicity_source_catalogs_json,
+              ordered.accepted_wds_id as wds_id,
+              case
+                when ordered.accepted_wds_id is not null then 'accepted_supplement_wds'
+                else 'athyg_supplement_insert'
+              end as multiplicity_match_method,
+              case
+                when ordered.accepted_wds_id is not null then 0.93
+                else 0.75
+              end as multiplicity_match_confidence,
+              case
+                when ordered.accepted_wds_id is not null then '["accepted_supplement","wds"]'
+                else '[]'
+              end as multiplicity_source_catalogs_json,
               false as gaia_non_single_star,
               0::bigint as gaia_nss_solution_count,
               '[]' as gaia_nss_solution_types_json,
               null::double as gaia_nss_significance_max,
               false as has_gaia_nss_evidence,
               false as has_msc_evidence,
-              false as has_wds_evidence,
+              ordered.accepted_wds_id is not null as has_wds_evidence,
               false as has_orb6_evidence,
               null::bigint as sbx_sn,
               0::bigint as sbx_orbit_count,
@@ -4661,12 +4894,18 @@ def main() -> int:
                 'gl', ordered.gl_id,
                 'tyc', ordered.tyc_id,
                 'hyg', ordered.hyg_id,
-                'wds', null,
-                'wds_component', null,
+                'wds', ordered.accepted_wds_id,
+                'wds_component', ordered.accepted_component,
                 'sbx_sn', null
               ) as catalog_ids_json,
-              'athyg' as source_catalog,
-              {sql_literal(ATHYG_ALIAS_VERSION)} as source_version,
+              case
+                when ordered.accepted_reason is not null then 'athyg_accepted_supplement'
+                else 'athyg'
+              end as source_catalog,
+              case
+                when ordered.accepted_reason is not null then {sql_literal(accepted_supplement_source_version)}
+                else {sql_literal(ATHYG_ALIAS_VERSION)}
+              end as source_version,
               {sql_literal(ATHYG_ALIAS_URL)} as source_url,
               {sql_literal(athyg_download_url)} as source_download_url,
               null::varchar as source_doi,
@@ -4708,10 +4947,10 @@ def main() -> int:
                   'spectral_class', spectral_class
                 )
               )
-            where source_catalog = 'athyg'
-              and source_version = ? and ingested_at = ? and transform_version = ?
+            where source_catalog in ('athyg', 'athyg_accepted_supplement')
+              and ingested_at = ? and transform_version = ?
             """,
-            [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+            [ingested_at, transform_version],
         )
         if enable_gaia_backbone and enable_gaia_classprob:
             con.execute(
@@ -4721,11 +4960,11 @@ def main() -> int:
                   classprob_dsc_combmod_whitedwarf = g.classprob_dsc_combmod_whitedwarf,
                   classprob_dsc_specmod_whitedwarf = g.classprob_dsc_specmod_whitedwarf
                 from gaia_classprob g
-                where stars.source_catalog = 'athyg'
-                  and stars.source_version = ? and stars.ingested_at = ? and stars.transform_version = ?
+                where stars.source_catalog in ('athyg', 'athyg_accepted_supplement')
+                  and stars.ingested_at = ? and stars.transform_version = ?
                   and stars.gaia_id = g.gaia_id
                 """,
-                [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+                [ingested_at, transform_version],
             )
         con.execute(
             """
@@ -4738,11 +4977,11 @@ def main() -> int:
               wd_catalog_logg_cgs = w.logg_best_cgs,
               wd_catalog_mass_msun = w.mass_best_msun
             from white_dwarf_catalog w
-            where stars.source_catalog = 'athyg'
-              and stars.source_version = ? and stars.ingested_at = ? and stars.transform_version = ?
+            where stars.source_catalog in ('athyg', 'athyg_accepted_supplement')
+              and stars.ingested_at = ? and stars.transform_version = ?
               and stars.gaia_id = w.gaia_id
             """,
-            [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+            [ingested_at, transform_version],
         )
         con.execute(
             f"""
@@ -4782,8 +5021,8 @@ def main() -> int:
                   'wd_catalog_name', wd_catalog_name
                 )
               end
-            where source_catalog = 'athyg'
-              and source_version = ? and ingested_at = ? and transform_version = ?
+            where source_catalog in ('athyg', 'athyg_accepted_supplement')
+              and ingested_at = ? and transform_version = ?
               and (
                 greatest(
                   coalesce(classprob_dsc_combmod_whitedwarf, 0.0),
@@ -4792,7 +5031,56 @@ def main() -> int:
                 or coalesce(wd_catalog_pwd, 0.0) >= {white_dwarf_catalog_pwd_threshold}
               )
             """,
-            [ATHYG_ALIAS_VERSION, ingested_at, transform_version],
+            [ingested_at, transform_version],
+        )
+
+        con.execute(
+            """
+            update stars
+            set
+              wds_id = coalesce(stars.wds_id, l.wds_id),
+              component = coalesce(nullif(stars.component, ''), l.component),
+              star_name = case
+                when l.display_name is not null
+                  and (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
+                then l.display_name
+                else stars.star_name
+              end,
+              star_name_norm = case
+                when l.display_name is not null
+                  and (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
+                then lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(l.display_name, '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                )
+                else stars.star_name_norm
+              end,
+              multiplicity_match_method = 'accepted_component_link',
+              multiplicity_match_confidence = greatest(coalesce(stars.multiplicity_match_confidence, 0.0), 0.93),
+              multiplicity_source_catalogs_json = '["accepted_supplement","wds"]',
+              has_wds_evidence = true,
+              catalog_ids_json = json_object(
+                'gaia', stars.gaia_id,
+                'hip', stars.hip_id,
+                'hd', stars.hd_id,
+                'hr', cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint),
+                'gl', json_extract_string(stars.catalog_ids_json, '$.gl'),
+                'tyc', json_extract_string(stars.catalog_ids_json, '$.tyc'),
+                'hyg', cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint),
+                'wds', coalesce(stars.wds_id, l.wds_id),
+                'wds_component', coalesce(nullif(stars.component, ''), l.component),
+                'sbx_sn', stars.sbx_sn
+              )
+            from accepted_component_links l
+            where l.target_namespace = 'gaia_dr3'
+              and stars.gaia_id = cast(l.target_id as bigint)
+            """
         )
 
         con.execute(
@@ -9704,7 +9992,7 @@ def main() -> int:
             "eclipsing_binaries": table_provenance_report("eclipsing_binaries", True),
         },
     }
-    if (not enable_gaia_backbone) or (enable_gaia_backbone and enable_athyg_supplement_merge):
+    if (not enable_gaia_backbone) or enable_athyg_merge_path:
         provenance_report["athyg"] = athyg_manifest_block
     if enable_gaia_backbone:
         provenance_report["gaia_dr3_backbone"] = gaia_backbone_manifest
@@ -9915,7 +10203,11 @@ def main() -> int:
     write_json(reports_dir / "alias_report.json", alias_report)
     identifier_report = {
         "build_id": build_id,
-        "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "athyg_supplement_merge_enabled": enable_athyg_merge_path,
+        "accepted_supplements_enabled": enable_accepted_supplements,
+        "accepted_supplement_version": accepted_supplement_version,
+        "accepted_athyg_supplement_count": len(accepted_athyg_supplements),
+        "accepted_component_link_count": len(accepted_component_links),
         "msc_component_dedupe": {
             "raw_rows": msc_component_raw_count,
             "retained_rows": msc_component_retained_count,
@@ -10388,7 +10680,11 @@ def main() -> int:
         "athyg_alias_candidate_count": alias_crosswalk_candidate_count,
         "athyg_alias_matched_star_count": alias_crosswalk_matched_star_count,
         "alias_name_override_count": alias_name_override_count,
-        "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "athyg_supplement_merge_enabled": enable_athyg_merge_path,
+        "accepted_supplements_enabled": enable_accepted_supplements,
+        "accepted_supplement_version": accepted_supplement_version,
+        "accepted_athyg_supplement_count": len(accepted_athyg_supplements),
+        "accepted_component_link_count": len(accepted_component_links),
         "athyg_merge_resolved_existing_rows": athyg_merge_existing_match_count,
         "athyg_merge_inserted_rows": athyg_merge_insert_count,
         "athyg_merge_quarantined_rows": athyg_merge_quarantine_count,
@@ -10447,9 +10743,13 @@ def main() -> int:
             ),
             "MSC enrichment is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
             (
-                "AT-HYG supplement merge is enabled: deterministic ID precedence + strict positional fallback + quarantine for ambiguous mappings."
-                if (enable_gaia_backbone and enable_athyg_supplement_merge)
-                else "AT-HYG supplement merge is disabled for this build."
+                "AT-HYG supplement merge is enabled broadly: deterministic ID precedence + strict positional fallback + quarantine for ambiguous mappings."
+                if enable_athyg_supplement_merge
+                else (
+                    "Accepted AT-HYG supplement merge is enabled from reviewed config only."
+                    if enable_athyg_merge_path
+                    else "AT-HYG supplement merge is disabled for this build."
+                )
             ),
             (
                 f"MSC component dedupe enabled: dropped {msc_component_dedup_dropped_count} duplicate rows "
@@ -10963,18 +11263,22 @@ def main() -> int:
         linked_rows=0,
         notes=("canonical backbone inventory" if enable_gaia_backbone else "legacy canonical inventory"),
     )
-    if enable_gaia_backbone and enable_athyg_supplement_merge:
+    if enable_athyg_merge_path:
         add_catalog_contribution(
             catalog_contributions,
-            catalog="athyg",
+            catalog=("athyg" if enable_athyg_supplement_merge else "athyg_accepted_supplement"),
             domain="stars",
             domain_total=total_stars,
             input_rows=int(athyg_merge_existing_match_count + athyg_merge_insert_count + athyg_merge_quarantine_count),
             input_bytes=manifest_bytes(athyg_p1) if athyg_p1 else None,
-            direct_rows=int(star_source_counts.get("athyg", 0)),
+            direct_rows=int(
+                star_source_counts.get("athyg", 0)
+                if enable_athyg_supplement_merge
+                else star_source_counts.get("athyg_accepted_supplement", 0)
+            ),
             evidence_rows=0,
             linked_rows=0,
-            notes="supplement merge source",
+            notes=("supplement merge source" if enable_athyg_supplement_merge else "accepted supplement source"),
         )
     add_catalog_contribution(
         catalog_contributions,
@@ -11555,7 +11859,9 @@ def main() -> int:
         "generated_at": ingested_at,
         "gaia_backbone_enabled": enable_gaia_backbone,
         "athyg_alias_crosswalk_enabled": enable_aliases and enable_athyg_alias_crosswalk,
-        "athyg_supplement_merge_enabled": enable_gaia_backbone and enable_athyg_supplement_merge,
+        "athyg_supplement_merge_enabled": enable_athyg_merge_path,
+        "accepted_supplements_enabled": enable_accepted_supplements,
+        "accepted_supplement_version": accepted_supplement_version,
         "source_inputs_fingerprint": source_inputs_fingerprint,
         "athyg_metrics": {
             "athyg_source_star_rows": int(star_source_counts.get("athyg", 0)),
@@ -11570,13 +11876,17 @@ def main() -> int:
             "athyg_merge_positional_ambiguous_rows": int(athyg_merge_positional_ambiguous_count),
             "athyg_alias_candidates": int(alias_crosswalk_candidate_count),
             "athyg_alias_matched_stars": int(alias_crosswalk_matched_star_count),
+            "athyg_accepted_supplement_rows": int(star_source_counts.get("athyg_accepted_supplement", 0)),
         },
         "retirement_readiness": {
             "default_path_has_no_athyg_dependency": not (
                 (enable_aliases and enable_athyg_alias_crosswalk)
-                or (enable_gaia_backbone and enable_athyg_supplement_merge)
+                or enable_athyg_merge_path
             ),
-            "athyg_rows_present_in_core": int(star_source_counts.get("athyg", 0)) > 0,
+            "athyg_rows_present_in_core": (
+                int(star_source_counts.get("athyg", 0))
+                + int(star_source_counts.get("athyg_accepted_supplement", 0))
+            ) > 0,
         },
         "notes": [
             "AT-HYG is transitional compatibility input only; canonical inventory is Gaia-first.",

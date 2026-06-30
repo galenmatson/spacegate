@@ -238,6 +238,19 @@ Deliverables:
     `scripts/verify_build.sh` runs it in warn-only mode by default; set
     `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1` after rebuilding clean artifacts
     to make the gate strict.
+  - June 29, 2026 accepted supplement path adds
+    `config/core_accepted_supplements.json` plus ingest support for reviewed
+    Gaia-missing core inventory exceptions. Sirius A is the first accepted
+    supplement and Sirius B has a reviewed WDS component link; a rebuild is
+    still required before served artifacts reflect the repair.
+  - June 30, 2026 unpromoted test rebuild
+    `20260629T_sirius_accepted_supplement_test` verified that Sirius becomes a
+    two-star WDS-backed system with Sirius A from
+    `athyg_accepted_supplement` and Sirius B from Gaia without HIP/HD leakage.
+    The build is not promotable yet: compact-alias safety still reports
+    44/Zeta Per, Phi Per, 17 Vul, and 105 Tau hazards, and the Nu Sco
+    multiplicity golden expects septuple presentation/count semantics while
+    the rebuild reports `systems.star_count=5`.
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
@@ -723,6 +736,8 @@ Readiness gaps:
   Sirius A still needs a canonical inventory source or accepted supplement path.
   The compact-alias verifier keeps this failure mode visible in build
   verification until rebuilt artifacts are clean enough for strict gating.
+  The accepted supplement path now supplies that source-backed exception in
+  configuration, but the current served build remains unchanged until rebuilt.
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and
