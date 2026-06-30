@@ -20,6 +20,9 @@ Already in place:
   orbit endpoints alone
 - the first browser renderer uses the hierarchy tree for stable visual cluster
   centers and hosts nested planets around their render host/body group
+- hosted planet orbit guides and bodies inherit the full containing host-group
+  motion used by the stellar hierarchy renderer, so planets attached to a
+  rendered star remain centered on that host through nested group animation
 - `render_scene_v0.2` attaches core planet render bodies to rendered host stars
   with `host_body_key` when `core.planets.star_id` resolves cleanly; the
   payload records the host-resolution basis for audit/debugging

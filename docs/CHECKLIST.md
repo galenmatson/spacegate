@@ -319,6 +319,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   readouts so orbit path evidence pills can be inspected and copied
 - [x] Propagate nested group-pair motion through hierarchy groups in the Live
   System Preview, with Castor Playwright coverage for active nested motion
+- [x] Carry hosted planets on full host hierarchy-group motion in the Live
+  System Preview, with Playwright coverage for multi-star hosted planets
 - [x] Attach rendered planet bodies to rendered host stars with `host_body_key`
   when `core.planets.star_id` resolves cleanly, with Playwright coverage for a
   hosted planet in a multi-star scene

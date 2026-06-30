@@ -1065,7 +1065,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
@@ -1107,7 +1107,7 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    const movingCenter = addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays, layout));
+    const movingCenter = addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
     groupRef.current.position.set(...addVector(movingCenter, orbitalPosition(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
   });
 
@@ -1225,7 +1225,7 @@ function CameraControls({ resetToken = 0 }) {
   return null;
 }
 
-function SceneMotionMetrics({ groupMotionSpecs = [] }) {
+function SceneMotionMetrics({ groupMotionSpecs = [], planetHostGroupCount = 0 }) {
   const { gl } = useThree();
   const nestedCount = useMemo(() => (
     (groupMotionSpecs || []).filter((spec) => (
@@ -1237,12 +1237,13 @@ function SceneMotionMetrics({ groupMotionSpecs = [] }) {
   useEffect(() => {
     gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
     gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
-  }, [gl, groupMotionSpecs, nestedCount]);
+    gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
+  }, [gl, groupMotionSpecs, nestedCount, planetHostGroupCount]);
 
   return null;
 }
 
-function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
@@ -1290,7 +1291,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       return;
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
-    lineRef.current.position.set(...addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays, layout)));
+    lineRef.current.position.set(...addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout)));
   });
 
   return (
@@ -1321,11 +1322,13 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   }, [stars]);
   const looseStars = stars.filter((star) => !layout.orbitStarKeys.has(star.render_key || star.key));
   const starCenterByCoreId = new Map();
+  const starKeyByCoreId = new Map();
   stars.forEach((star) => {
     const starId = star?.source?.star_id;
     const key = star.render_key || star.key;
     if (starId !== undefined && starId !== null && key && layout.starPositions.has(key)) {
       starCenterByCoreId.set(Number(starId), layout.starPositions.get(key));
+      starKeyByCoreId.set(Number(starId), key);
     }
   });
   const maxOrbit = Math.max(
@@ -1333,27 +1336,39 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     ...planets.map((planet) => planet.orbitAu || 0.1),
   );
   const hostPlacementForPlanet = (planet) => {
+    const placementForStarKey = (starKey) => ({
+      center: layout.starPositions.get(starKey),
+      groupKeys: groupKeysForStarKeys([starKey], layout),
+    });
     const hostKey = layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key;
     if (hostKey && layout.starPositions.has(hostKey)) {
-      return { center: layout.starPositions.get(hostKey), groupKey: layout.starToGroup.get(hostKey) };
+      return placementForStarKey(hostKey);
     }
     if (hostKey) {
       const star = starsByKey.get(hostKey);
       const starKey = star?.render_key || star?.key;
       if (starKey && layout.starPositions.has(starKey)) {
-        return { center: layout.starPositions.get(starKey), groupKey: layout.starToGroup.get(starKey) };
+        return placementForStarKey(starKey);
       }
     }
     const hostStarId = Number(planet.host_star_id);
-    if (Number.isFinite(hostStarId) && starCenterByCoreId.has(hostStarId)) {
-      return { center: starCenterByCoreId.get(hostStarId), groupKey: null };
+    if (Number.isFinite(hostStarId) && starKeyByCoreId.has(hostStarId)) {
+      return placementForStarKey(starKeyByCoreId.get(hostStarId));
     }
-    return { center: [0, 0, 0], groupKey: null };
+    if (Number.isFinite(hostStarId) && starCenterByCoreId.has(hostStarId)) {
+      return { center: starCenterByCoreId.get(hostStarId), groupKeys: [] };
+    }
+    return { center: [0, 0, 0], groupKeys: [] };
   };
+  const planetPlacements = planets.map((planet) => ({
+    planet,
+    placement: hostPlacementForPlanet(planet),
+  }));
+  const planetHostGroupCount = planetPlacements.filter(({ placement }) => placement.groupKeys?.length).length;
 
   return (
     <group>
-      <SceneMotionMetrics groupMotionSpecs={groupMotionSpecs} />
+      <SceneMotionMetrics groupMotionSpecs={groupMotionSpecs} planetHostGroupCount={planetHostGroupCount} />
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
       {binaryOrbits.map((orbit, idx) => (
@@ -1429,9 +1444,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           />
         );
       })}
-      {planets.map((planet, idx) => {
+      {planetPlacements.map(({ planet, placement }, idx) => {
         const orbitRadius = scaledPlanetOrbitRadius(planet.orbitAu, maxOrbit, visualScale);
-        const placement = hostPlacementForPlanet(planet);
         return (
           <React.Fragment key={planet.key}>
             {showOrbits && (
@@ -1439,7 +1453,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
                 planet={planet}
                 orbitRadius={orbitRadius}
                 center={placement.center}
-                motionGroupKey={placement.groupKey}
+                motionGroupKeys={placement.groupKeys}
                 groupMotionSpecs={groupMotionSpecs}
                 layout={layout}
                 running={running}
@@ -1454,7 +1468,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
               planet={planet}
               orbitRadius={orbitRadius}
               center={placement.center}
-              motionGroupKey={placement.groupKey}
+              motionGroupKeys={placement.groupKeys}
               groupMotionSpecs={groupMotionSpecs}
               layout={layout}
               color={PLANET_COLORS[idx % PLANET_COLORS.length]}

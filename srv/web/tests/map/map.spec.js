@@ -313,7 +313,12 @@ test.describe("public 3D map beta", () => {
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
-    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect(previewCanvas).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered planet/i);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.planetHostGroupCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
   });
 });

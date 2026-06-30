@@ -797,6 +797,9 @@ Readiness gaps:
   group-pair offsets through containing hierarchy groups. Castor browser
   coverage now checks active nested group motion instead of only API orbit
   presence.
+- June 30, 2026 hosted-planet motion patch carries planet orbit guides and
+  bodies on the full host hierarchy-group offset, with 16 Cyg browser coverage
+  for hosted planets in multi-star simulator scenes.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
