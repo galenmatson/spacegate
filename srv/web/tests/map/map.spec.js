@@ -277,6 +277,19 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered planets/i);
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectablePlanetCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableOrbitCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
+      { timeout: 3000 }
+    ).toContain("planet");
 
     const metrics = await page.evaluate(() => {
       const canvas = document.querySelector(".system-preview-canvas")?.getBoundingClientRect();
@@ -292,15 +305,21 @@ test.describe("public 3D map beta", () => {
     expect(metrics.canvasHeight).toBeGreaterThan(220);
     expect(metrics.readoutTop).toBeGreaterThanOrEqual(metrics.canvasBottom - 1);
 
-    const previewCanvas = page.locator(".system-preview-canvas canvas");
     await previewCanvas.scrollIntoViewIfNeeded();
     const previewBox = await previewCanvas.boundingBox();
     expect(previewBox, "mobile system preview canvas box").toBeTruthy();
     await page.touchscreen.tap(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
     const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
     await expect(pinnedReadout).toBeVisible();
+    await expect(pinnedReadout).toContainText(/star|planet|orbit/i);
+    await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
     await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
-    await expect(pinnedReadout.locator("[data-testid='system-preview-id-copy']")).toBeVisible();
+    const idCopy = pinnedReadout.locator("[data-testid='system-preview-id-copy']");
+    await expect(idCopy).toBeVisible();
+    const fullId = await idCopy.getAttribute("data-full-id");
+    const visibleId = (await idCopy.locator("span").innerText()).trim();
+    expect(fullId?.length || 0).toBeGreaterThan(visibleId.length);
+    expect(visibleId).toContain("...");
     await expect(pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i })).toBeVisible();
     const pinnedBox = await pinnedReadout.boundingBox();
     expect(pinnedBox, "mobile pinned readout box").toBeTruthy();

@@ -748,6 +748,9 @@ Readiness gaps:
 - June 30, 2026 inspection diagnostics pass adds canvas-level counts for
   registered star, planet, subsystem, and orbit inspectable targets, with
   Playwright coverage for TRAPPIST-1 and Nu Sco.
+- June 30, 2026 mobile inspection coverage pass verifies touch-pinned simulator
+  readouts expose provenance pills and truncated copyable IDs within the compact
+  preview layout.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

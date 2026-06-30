@@ -352,6 +352,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   no source-like spectral inheritance on unresolved children
 - [x] Add simulator inspectable-target diagnostics and browser checks for
   registered star, planet, subsystem, and orbit hover/pin coverage
+- [x] Strengthen mobile simulator inspection coverage for registered planet/orbit
+  targets, provenance-bearing pinned readouts, and truncated copyable IDs
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset
