@@ -230,8 +230,19 @@ test.describe("public 3D map beta", () => {
     const previewBox = await previewCanvas.boundingBox();
     expect(previewBox, "mobile system preview canvas box").toBeTruthy();
     await page.touchscreen.tap(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
-    await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
-    await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-pill").first()).toBeVisible();
+    const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
+    await expect(pinnedReadout).toBeVisible();
+    await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
+    await expect(pinnedReadout.locator("[data-testid='system-preview-id-copy']")).toBeVisible();
+    await expect(pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i })).toBeVisible();
+    const pinnedBox = await pinnedReadout.boundingBox();
+    expect(pinnedBox, "mobile pinned readout box").toBeTruthy();
+    expect(pinnedBox.x).toBeGreaterThanOrEqual(previewBox.x - 1);
+    expect(pinnedBox.x + pinnedBox.width).toBeLessThanOrEqual(previewBox.x + previewBox.width + 1);
+    expect(pinnedBox.y + pinnedBox.height).toBeLessThanOrEqual(previewBox.y + previewBox.height + 1);
+    expect(pinnedBox.height).toBeLessThanOrEqual(previewBox.height * 0.5);
+    await pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i }).click();
+    await expect(pinnedReadout).toHaveCount(0);
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

@@ -803,6 +803,9 @@ Readiness gaps:
 - June 30, 2026 simulator inspection patch truncates long render/source IDs
   in pinned readouts while preserving full copy/tooltip values and coverage for
   Gaia-backed object IDs.
+- June 30, 2026 mobile inspection patch constrains pinned simulator readouts
+  into a compact mobile bottom sheet with reachable copy/close controls and
+  browser geometry coverage.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

@@ -319,6 +319,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   readouts so orbit path evidence pills can be inspected and copied
 - [x] Truncate long simulator render/source identifiers in pinned readouts
   while preserving full copy/tooltip values, with Playwright coverage
+- [x] Constrain mobile simulator pinned inspection as a compact bottom sheet
+  with copy/close controls and Playwright geometry coverage
 - [x] Propagate nested group-pair motion through hierarchy groups in the Live
   System Preview, with Castor Playwright coverage for active nested motion
 - [x] Carry hosted planets on full host hierarchy-group motion in the Live

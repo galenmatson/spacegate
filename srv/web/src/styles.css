@@ -5547,9 +5547,30 @@ main {
   }
 
   .system-preview-pinned {
-    right: 8px;
-    bottom: 8px;
-    width: min(300px, calc(100% - 16px));
+    right: 6px;
+    bottom: 6px;
+    left: 6px;
+    width: auto;
+    max-height: min(46%, 190px);
+    padding: 8px;
+    border-radius: 8px 8px 6px 6px;
+  }
+
+  .system-preview-pinned-title button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .system-preview-id-copy {
+    min-height: 34px;
+  }
+
+  .system-preview-pinned dl {
+    gap: 4px 8px;
+  }
+
+  .system-preview-pinned dd {
+    gap: 6px;
   }
 
   .header-main {
