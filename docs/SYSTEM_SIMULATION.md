@@ -44,7 +44,9 @@ Already in place:
   and touch-safe canvas gesture handling
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
-  pills can be focused/copied from orbit paths as well as bodies
+  pills can be focused/copied from orbit paths as well as bodies; popovers
+  expose layer, basis, source catalog/reference, confidence, notes, and
+  procedural assumption metadata when present
 - the beta scene contract includes `visual_scale_beta_v1`, an explicit
   clarity-scale policy for star radii, planet radii, planet orbit spacing, and
   binary/group orbit display radii

@@ -317,6 +317,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   benchmark systems display in orbital order
 - [x] Carry full provenance field objects into planet-orbit hover/pinned
   readouts so orbit path evidence pills can be inspected and copied
+- [x] Surface confidence, source references, notes, and assumption metadata in
+  simulator provenance popovers, with Playwright coverage
 - [x] Truncate long simulator render/source identifiers in pinned readouts
   while preserving full copy/tooltip values, with Playwright coverage
 - [x] Constrain mobile simulator pinned inspection as a compact bottom sheet

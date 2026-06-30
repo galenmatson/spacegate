@@ -97,6 +97,12 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/clarity/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
+    const readoutEvidencePill = page.locator(".system-preview-evidence .evidence-pill").first();
+    await readoutEvidencePill.focus();
+    const readoutEvidencePopover = page.locator(".system-preview-evidence .evidence-popover").first();
+    await expect(readoutEvidencePopover).toBeVisible();
+    await expect(readoutEvidencePopover).toContainText(/Basis:/i);
+    await expect(readoutEvidencePopover).toContainText(/Confidence:/i);
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
     await page.getByRole("button", { name: /pause/i }).click();
     await expect(page.getByRole("button", { name: /start/i })).toBeVisible();

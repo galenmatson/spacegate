@@ -299,6 +299,17 @@ function formatFieldValue(field) {
   return field.unit ? `${display} ${field.unit}` : display;
 }
 
+function formatConfidence(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return "";
+  }
+  if (numeric >= 0 && numeric <= 1) {
+    return `${formatNumber(numeric * 100, numeric >= 0.995 ? 1 : 0)}%`;
+  }
+  return formatNumber(numeric, 2);
+}
+
 function fieldSummary(fields, key, fallback = "Unknown", digits = 2) {
   const field = fieldRecord(fields, key);
   if (!field || field.value === null || field.value === undefined || field.value === "") {
@@ -422,6 +433,7 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const status = field?.status || fallbackStatus;
+  const confidenceText = formatConfidence(field?.confidence);
   const copyPayload = useCallback(() => {
     if (!field) {
       return;
@@ -455,6 +467,9 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
           <span>Layer: {field?.layer || "unknown"}</span>
           <span>Basis: {field?.basis || "not specified"}</span>
           {field?.source_catalog && <span>Source: {field.source_catalog}</span>}
+          {field?.source_reference && <span>Reference: {field.source_reference}</span>}
+          {confidenceText && <span>Confidence: {confidenceText}</span>}
+          {field?.notes && <span>Notes: {field.notes}</span>}
           {field?.seed && <span>Seed: {field.seed}</span>}
           {field?.generator_version && <span>Generator: {field.generator_version}</span>}
           {field?.replacement_target && <span>Replace with: {field.replacement_target}</span>}

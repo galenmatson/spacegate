@@ -809,6 +809,9 @@ Readiness gaps:
 - June 30, 2026 hierarchy-visual patch differentiates direct binary orbit
   guides, group-pair hierarchy guides, and subsystem handles in the live
   simulator, with Castor diagnostics covering all three visual classes.
+- June 30, 2026 provenance popover patch surfaces confidence, source
+  references, notes, and procedural assumption metadata from existing
+  simulation field provenance objects.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
