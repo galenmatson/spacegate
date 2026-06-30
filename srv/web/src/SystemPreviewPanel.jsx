@@ -1105,13 +1105,13 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
     <group ref={groupRef} data-testid="system-preview-binary-orbit">
       {showOrbits && (
         <>
-          <lineLoop {...orbitHandlers}>
+          <lineLoop {...orbitHandlers} userData={{ hoverPayload: orbitPayload }}>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
             </bufferGeometry>
             <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.95 : 0.62} />
           </lineLoop>
-          <lineLoop {...orbitHandlers}>
+          <lineLoop {...orbitHandlers} userData={{ hoverPayload: orbitPayload }}>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
             </bufferGeometry>
@@ -1195,13 +1195,13 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, simClock
   };
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-group-orbit-guide">
-      <lineLoop {...handlers}>
+      <lineLoop {...handlers} userData={{ hoverPayload: payload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[haloPathPoints, 3]} />
         </bufferGeometry>
         <lineBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.32 : 0.14} />
       </lineLoop>
-      <lineLoop {...handlers}>
+      <lineLoop {...handlers} userData={{ hoverPayload: payload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
         </bufferGeometry>
@@ -1535,7 +1535,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   });
 
   return (
-    <lineLoop ref={lineRef} position={center} {...handlers}>
+    <lineLoop ref={lineRef} position={center} {...handlers} userData={{ hoverPayload: payload }}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
       </bufferGeometry>
