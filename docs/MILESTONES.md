@@ -900,6 +900,11 @@ Readiness gaps:
   positions, fixing planet/HZ overlays drifting away from tree-rendered hosts.
   Focused browser coverage now includes eps Ind A's long MSC A-B period and
   tree-hosted planet diagnostic.
+- June 30, 2026 Alpha Centauri scale patch makes stellar orbit display radii
+  separation-aware, so Proxima/AB-C renders outside the compact A-B pair
+  instead of near it despite the very long source period. HZ display scaling now
+  includes rendered HZ bounds, and True Bodies planet radii use Earth-to-Sun
+  scale relative to star meshes.
 - June 30, 2026 compact-body render patch preserves source-backed compact
   object classification in stellar render bodies through `body_class`,
   `compact_type`, and object-type provenance fields, with Sirius B as the

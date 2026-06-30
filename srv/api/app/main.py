@@ -1612,6 +1612,25 @@ def _render_scene_contract(
             or msc_system_detail_by_pair.get((secondary_key, primary_key))
         )
 
+    def msc_system_separation_arcsec(row: Dict[str, Any]) -> Optional[float]:
+        sep_arcsec = _float_or_none(row.get("separation_arcsec"))
+        if sep_arcsec is not None and sep_arcsec > 0:
+            return sep_arcsec
+        sep_mas = _float_or_none(row.get("separation_mas"))
+        if sep_mas is not None and sep_mas > 0:
+            return sep_mas / 1000.0
+        sep_value = _float_or_none(row.get("separation_value"))
+        sep_unit = str(row.get("separation_unit") or "").strip().lower()
+        if sep_value is None or sep_value <= 0:
+            return None
+        if sep_unit in {'"', "arcsec", "as", "sec"}:
+            return sep_value
+        if sep_unit in {"'", "arcmin", "am", "min"}:
+            return sep_value * 60.0
+        if sep_unit in {"mas", "milliarcsec"}:
+            return sep_value / 1000.0
+        return None
+
     def system_distance_pc() -> Optional[float]:
         dist_ly = _float_or_none(system.get("dist_ly"))
         if dist_ly is not None and dist_ly > 0:
@@ -2255,17 +2274,17 @@ def _render_scene_contract(
         msc_period = _float_or_none(msc_system_detail.get("period_days"))
         source_period = solution_period if solution_period is not None else msc_period
         source_sma = _float_or_none(solution.get("semi_major_axis_au"))
+        source_sma_arcsec = _float_or_none(solution.get("semi_major_axis_arcsec"))
         source_ecc = _float_or_none(solution.get("eccentricity"))
         source_inc = _float_or_none(solution.get("inclination_deg"))
-        msc_sep_arcsec = _float_or_none(msc_system_detail.get("separation_arcsec"))
-        if msc_sep_arcsec is None:
-            msc_sep_mas = _float_or_none(msc_system_detail.get("separation_mas"))
-            if msc_sep_mas is not None:
-                msc_sep_arcsec = msc_sep_mas / 1000.0
+        msc_sep_arcsec = msc_system_separation_arcsec(msc_system_detail)
         projected_sep_au = None
         dist_pc = system_distance_pc()
         if msc_sep_arcsec is not None and msc_sep_arcsec > 0 and dist_pc is not None and dist_pc > 0:
             projected_sep_au = msc_sep_arcsec * dist_pc
+        source_sma_arcsec_au = None
+        if source_sma_arcsec is not None and source_sma_arcsec > 0 and dist_pc is not None and dist_pc > 0:
+            source_sma_arcsec_au = source_sma_arcsec * dist_pc
         primary_mass_for_period = render_body_mass_msun(primary_key) if primary_key in render_stars else None
         secondary_mass_for_period = render_body_mass_msun(secondary_key) if secondary_key in render_stars else None
         if primary_mass_for_period is None:
@@ -2278,11 +2297,22 @@ def _render_scene_contract(
         derived_period = None
         if source_period is None and projected_sep_au is not None and projected_sep_au > 0 and total_mass_for_period > 0:
             derived_period = round(math.sqrt((projected_sep_au ** 3) / total_mass_for_period) * 365.25, 6)
+        assumed_radius = round(0.72 + 0.46 * _seed_unit(seed, "display_radius"), 6)
+        display_sep_au = source_sma or source_sma_arcsec_au or projected_sep_au
+        if display_sep_au is None and source_period is not None and source_period > 0 and total_mass_for_period > 0:
+            period_years = source_period / 365.25
+            display_sep_au = (period_years * period_years * total_mass_for_period) ** (1.0 / 3.0)
+        if display_sep_au is not None and display_sep_au > 0:
+            if is_group_orbit:
+                display_radius = round(min(6.2, max(1.6, 1.35 + math.log10(display_sep_au + 1.0) * 1.22)), 6)
+            else:
+                display_radius = round(min(3.8, max(0.82, 0.72 + math.log10(display_sep_au + 1.0) * 1.08)), 6)
+        else:
+            display_radius = assumed_radius if is_direct_star_orbit else round(1.45 + 0.72 * _seed_unit(seed, "display_radius"), 6)
         if is_group_orbit:
             assumed_period = round(900.0 + 28000.0 * _seed_unit(seed, "period"), 6)
         else:
             assumed_period = round(8.0 + 72.0 * _seed_unit(seed, "period"), 6)
-        assumed_radius = round(0.72 + 0.46 * _seed_unit(seed, "display_radius"), 6)
         render_orbits.append(
             {
                 "orbit_key": f"orbit:{orbit_edge_id}",
@@ -2296,7 +2326,7 @@ def _render_scene_contract(
                 "secondary_child_body_keys": secondary_child_keys,
                 "barycenter_key": edge.get("barycenter_key"),
                 "cluster_phase_rad": round(_seed_unit(seed, "cluster_phase") * math.pi * 2.0, 6),
-                "display_radius_scene": assumed_radius if is_direct_star_orbit else round(1.45 + 0.72 * _seed_unit(seed, "display_radius"), 6),
+                "display_radius_scene": display_radius,
                 "fields": {
                     "period_days": (
                         _simulation_field(

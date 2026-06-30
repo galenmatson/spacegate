@@ -198,7 +198,10 @@ Implementation note:
   rows instead of applying ad hoc offsets to a flat layout; hierarchy-pair
   period fallbacks now prefer MSC system-row periods and projected-separation
   Kepler estimates before generic visual assumptions, and hosted planets/HZ
-  overlays can attach to active tree body positions; this remains a
+  overlays can attach to active tree body positions; stellar orbit display
+  radii preserve broad source/projected separation order, HZ display scaling
+  includes rendered HZ bounds, and True Bodies planet meshes use Earth-to-Sun
+  scale relative to stars; this remains a
   deterministic presentation-scale Keplerian preview, not source-scaled epoch
   propagation or N-body dynamics; the
   payload now exports every rendered `ASSUMED` value as a structured

@@ -92,7 +92,9 @@ Already in place:
   habitability claims. When a host star has rendered planets, the band is
   aligned to the median rendered host-planet orbital inclination so compact
   transiting systems such as TRAPPIST-1 do not show the HZ at right angles to
-  the planet orbits.
+  the planet orbits. HZ display scaling is normalized against both planet
+  orbit radii and all rendered HZ outer bounds in the scene so planetless
+  multi-star systems do not inflate every HZ band to planet-orbit scale.
 - object labels are visible by default and can be toggled off. Labels are
   renderer-only billboarding sprites placed just below stars, planets, and
   subsystem handles; HZ labels are placed on the band itself. They do not create
@@ -106,7 +108,9 @@ Already in place:
   presentation-scale policy for star radii, planet radii, planet orbit spacing,
   and binary/group orbit display radii; the browser exposes Structure,
   True Orbits, True Bodies, and Log Scale modes and summarizes the active
-  local-time, scale-mode, assumption-persistence, and fallback policy
+  local-time, scale-mode, assumption-persistence, and fallback policy. True
+  Bodies mode uses Earth-to-Sun radius conversion for planet meshes relative to
+  star meshes, while trails, labels, and pick radii preserve usability.
 - selected-system `disc.simulation_assumptions` materialization is available
   through `scripts/materialize_simulation_assumptions.py`; the API annotates
   matching rendered assumptions with `persistence_status="persisted"`

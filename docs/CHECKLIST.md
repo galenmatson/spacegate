@@ -308,9 +308,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Use MSC system-row periods and projected-separation Kepler estimates
   before generic visual period fallbacks for hierarchy-pair simulator orbits,
   with eps Ind A browser/API coverage
+- [x] Scale stellar orbit display radii from source/projected separation or
+  period+mass estimates before generic visual fallbacks, with Alpha Centauri
+  AB-C coverage
 - [x] Attach planet orbit guides, planet trails, planet bodies, and host-star
   habitable zones to active `simulation_tree_v1` body positions when the host
   resolves to a tree node
+- [x] Normalize habitable-zone display scaling against rendered HZ bounds as
+  well as planets, and make True Bodies planet radii use Earth-to-Sun scale
+  relative to star meshes
 - [x] Advance animated preview bodies by mean anomaly with a Kepler solve for
   true anomaly before placement, keeping full N-body propagation out of scope
 - [x] Add WebGL capability fallback from the Live System Preview to the

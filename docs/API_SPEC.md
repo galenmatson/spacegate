@@ -470,6 +470,12 @@ Contract notes:
   estimates when distance and endpoint masses are available, then explicit
   `disc_assumption` visual fallback periods. The estimate/fallback path must
   remain labeled and must not be promoted into ARM as a fitted orbit solution.
+  `display_radius_scene` for stellar orbit rows is presentation scale, but it
+  should preserve broad separation order using source semi-major axis,
+  source/projected angular separation plus distance, or a period+mass Kepler
+  estimate before falling back to generic visual radii. This keeps Alpha
+  Centauri AB-C-style long-period companions visibly outside compact inner
+  binaries without claiming physical scene units.
   Clients that activate `simulation_tree_v1` should use tree body positions for
   hosted planet/HZ presentation overlays when `host_body_key` resolves to a
   tree body node.

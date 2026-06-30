@@ -64,6 +64,8 @@ const PLANET_VISUAL_PALETTES = {
   temperate_rock: ["#3f7faa", "#6e9d68", "#d3c087", "#25354a"],
   cold_rock: ["#8b9caf", "#d6dee6", "#59687a", "#2f3a48"],
 };
+const TRUE_BODY_STAR_RADIUS_FACTOR = 0.13;
+const EARTH_RADIUS_IN_SOLAR_RADII = 0.0091577;
 
 function numericField(fields, key) {
   const field = fieldRecord(fields, key);
@@ -174,7 +176,7 @@ function scaledStarRadius(radiusRsun, visualScale = DEFAULT_VISUAL_SCALE, scaleM
   const source = Number.isFinite(radius) && radius > 0 ? radius : Number(policy.fallback_rsun || 0.55);
   const mode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   if (mode === "true_bodies") {
-    return clampNumber(source * 0.13, 0.018, Number(policy.max_scene || 1.35));
+    return clampNumber(source * TRUE_BODY_STAR_RADIUS_FACTOR, 0.018, Number(policy.max_scene || 1.35));
   }
   if (mode === "log") {
     return clampNumber(0.06 + (Math.log1p(source) / Math.log1p(30)) * 0.78, 0.045, Number(policy.max_scene || 1.35));
@@ -188,7 +190,7 @@ function scaledPlanetRadius(radiusEarth, visualScale = DEFAULT_VISUAL_SCALE, sca
   const source = Number.isFinite(radius) && radius > 0 ? radius : Number(policy.fallback_rearth || 1);
   const mode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   if (mode === "true_bodies") {
-    return clampNumber(source * 0.018, 0.014, 0.24);
+    return clampNumber(source * TRUE_BODY_STAR_RADIUS_FACTOR * EARTH_RADIUS_IN_SOLAR_RADII, 0.0015, 0.035);
   }
   if (mode === "log") {
     return clampNumber(0.035 + (Math.log1p(source) / Math.log1p(15)) * 0.22, 0.035, 0.28);
@@ -2795,9 +2797,13 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
       starKeyByCoreId.set(Number(starId), key);
     }
   });
+  const hzOuterAuValues = displayStars
+    .map((star) => habitableZoneBoundsAu(star)?.outerAu)
+    .filter((value) => Number.isFinite(value) && value > 0);
   const maxOrbit = Math.max(
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
+    ...hzOuterAuValues,
   );
   const displayPlanets = useMemo(() => (
     applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, activeScaleMode)

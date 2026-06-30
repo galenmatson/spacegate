@@ -552,7 +552,7 @@ test.describe("public 3D map beta", () => {
 
   test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "hierarchical barycentric motion smoke uses desktop detail layout");
-    const cases = ["HD 213885", "HD 79210", "eps Ind A"];
+    const cases = ["HD 213885", "HD 79210", "eps Ind A", "Alpha Centauri"];
     const fieldValue = (owner, key) => owner?.fields?.[key]?.value;
 
     for (const query of cases) {
@@ -581,6 +581,11 @@ test.describe("public 3D map beta", () => {
           expect(Number(periodField.value), "eps Ind A outer A-B period").toBeGreaterThan(1_000_000);
           expect(periodField.status, "eps Ind A outer A-B period status").toBe("source");
           expect(String(periodField.basis || ""), "eps Ind A outer A-B period basis").toContain("msc_system_details");
+        }
+        if (query === "Alpha Centauri") {
+          const directOrbit = (scenePayload.render_scene?.orbits || []).find((orbit) => orbit.endpoint_kind === "star_pair");
+          expect(Number(groupOrbit.display_radius_scene), "Alpha Centauri outer display radius").toBeGreaterThan(Number(directOrbit?.display_radius_scene || 0) * 2);
+          expect(Number(groupOrbit.fields?.period_days?.value), "Alpha Centauri AB-C period").toBeGreaterThan(100_000_000);
         }
         const sideMass = (keys) => (keys || [])
           .map((key) => Number(fieldValue(starsByKey.get(key), "mass_msun")))
