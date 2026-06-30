@@ -65,6 +65,9 @@ Already in place:
 - the browser renderer checks WebGL capability before mounting R3F and falls
   back inside the preview panel to the deterministic snapshot artifact when 3D
   is unavailable or the live scene load fails
+- browser QA covers both WebGL-unavailable and failed-scene-load fallback paths
+  so the preview panel must render a deterministic snapshot fallback instead of
+  a blank or broken canvas
 - `render_scene_v0.2` includes `endpoint_kind='group_pair'` orbit entries for
   hierarchical subsystem pairs such as Castor A-B and AB-C; these render as
   cluster orbit guides rather than false individual-star binaries

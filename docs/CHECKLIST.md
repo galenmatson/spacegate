@@ -356,6 +356,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   targets, provenance-bearing pinned readouts, and truncated copyable IDs
 - [x] Add browser benchmark render smoke for Alpha Centauri, Proxima Centauri,
   55 Cnc, and Sol with pixel-level nonblank canvas checks
+- [x] Add browser fallback coverage for failed simulation-scene loads so the
+  preview panel shows deterministic snapshot fallback instead of a dead canvas
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

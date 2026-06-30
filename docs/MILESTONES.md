@@ -754,6 +754,9 @@ Readiness gaps:
 - June 30, 2026 benchmark render-smoke pass enables drawing-buffer sampling for
   the system preview canvas and adds nonblank browser render checks for Alpha
   Centauri, Proxima Centauri, 55 Cnc, and Sol.
+- June 30, 2026 fallback coverage pass verifies failed
+  `/simulation-scene` loads render the deterministic snapshot fallback rather
+  than leaving the system preview with a broken canvas.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

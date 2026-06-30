@@ -294,6 +294,30 @@ test.describe("public 3D map beta", () => {
     await expect(fallback).toContainText(/WebGL unavailable/i);
   });
 
+  test("system preview falls back when the live scene request fails", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "fallback smoke only needs one browser project");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "TRAPPIST-1", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
+
+    await page.route("**/api/v1/systems/*/simulation-scene", (route) => route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "forced simulation-scene failure" }),
+    }));
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    const fallback = page.locator("[data-testid='system-preview-snapshot-fallback']");
+    await expect(fallback).toBeVisible();
+    await expect(fallback).toContainText(/Live preview unavailable/i);
+    await expect(page.locator(".system-preview-canvas canvas")).toHaveCount(0);
+  });
+
   test("mobile system detail keeps live preview usable", async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only simulator layout check");
     const response = await page.request.get("/api/v1/systems/search", {
