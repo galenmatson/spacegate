@@ -117,14 +117,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add reviewed accepted-supplement config/ingest path for Gaia-missing
   canonical inventory exceptions; seed Sirius A and a reviewed Sirius B WDS
   component link
-- [ ] Rebuild core/ARM with accepted supplements enabled, verify Sirius resolves
-  to a WDS-backed A/B system, then enable strict compact-alias safety gating
-- [ ] Full rebuild after the direct AT-HYG Gaia alias guard; focused SQL
-  reproduction filters the remaining 44/Zeta Per, Phi Per, 17 Vul, and 105 Tau
-  compact-alias hazards, but no full artifact has materialized the guard yet
-- [ ] Full rebuild after the MSC source-leaf materialization fix; scratch ARM
-  rebuild verifies Nu Sco exposes seven source-native MSC stellar leaves from
-  ARM rather than relying on `core.systems.star_count`
+- [x] Rebuild core/ARM with accepted supplements enabled; local build
+  `20260630T_sim_beta_data_foundation` verifies Sirius as a WDS-backed A/B
+  system and passes strict compact-alias safety
+- [x] Materialize the direct AT-HYG Gaia alias guard; strict compact-alias
+  safety passes on `20260630T_sim_beta_data_foundation`
+- [x] Materialize the MSC source-leaf fix; Nu Sco exposes seven source-native
+  MSC stellar leaves from ARM rather than relying on `core.systems.star_count`
+- [ ] Rebuild after planet stable-key de-duplication; full build
+  `20260630T_sim_beta_data_foundation` is not promotable because
+  `verify_orbital_normalization.py` found duplicate rank-1 planetary orbit
+  solutions caused by duplicate `core.planets.stable_object_key` rows
 - [x] Let member-star names participate in search result display/ranking so variable-star lookups like `AR Cas` title the correct system card
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates

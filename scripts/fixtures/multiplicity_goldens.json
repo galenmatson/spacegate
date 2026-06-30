@@ -87,6 +87,16 @@
       "max_value": 7
     },
     {
+      "id": "castor_source_stellar_leaf_count",
+      "mode": "query",
+      "scope": "arm",
+      "required": true,
+      "label": "Castor source-native MSC stellar leaf count",
+      "sql_count": "select count(distinct stable_component_key)::bigint from component_entities where stable_component_key like 'comp:msc:wds:07346+3153:%' and component_type = 'star'",
+      "min_value": 6,
+      "max_value": 6
+    },
+    {
       "id": "sol_neighborhood",
       "mode": "query",
       "scope": "core",

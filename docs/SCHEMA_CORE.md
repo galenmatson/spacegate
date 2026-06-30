@@ -579,6 +579,11 @@ Contract notes:
   source solutions, reference epochs, fit quality, uncertainty, and
   simulation-oriented orbit contracts belong in `arm.orbit_edges` and
   `arm.orbital_solutions`.
+- `stable_object_key` must be unique for visible planet inventory rows. If a
+  source row fans out through multiple possible host-star matches, ingest must
+  choose one deterministic best match before writing `core.planets`; otherwise
+  ARM orbit solutions multiply and simulator rank-1 orbit selection becomes
+  ambiguous.
 
 ## Planet Lifecycle and Re-Evaluation Contract
 

@@ -68,6 +68,7 @@ Current fixture scope:
 - required hierarchy exam: Castor
 - required presence/regression checks (core): 55 Cnc, GJ 667 C, TRAPPIST-1, 16 Cyg B
 - required quantitative regression check (arm): Nu Scorpii source-native MSC stellar leaf count
+- required quantitative regression check (arm): Castor source-native MSC stellar leaf count remains six
 - required quantitative neighborhood check (core): minimum nearby-system count within 10 ly
 - optional presence checks (galaxy/halo scope): PSR B1620-26, TYC 7037-89-1
 
@@ -89,4 +90,7 @@ Current guardrails:
   count-expanded fallback labels are used, so systems like Nu Scorpii expose
   `Aa`, `Ab`, `Ac`, `B`, `C`, `Da`, and `Db` semantics without fabricating
   measured core stars
+- source-native nonstellar endpoints remain support components without
+  inflating benchmark stellar counts; Castor remains a six-stellar-leaf
+  benchmark even when the MSC source preserves a low-mass `Cc` endpoint
 - search/display should prefer matched member-star names when no system-level common-name alias exists, so variable-star lookups like `AR Cas` still surface the correct system card cleanly

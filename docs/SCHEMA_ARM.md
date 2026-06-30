@@ -685,6 +685,9 @@ materializes a deterministic ARM leaf component for that endpoint. This allows
 case-sensitive source distinctions such as leaf `Ab` versus subsystem `AB`
 without duplicating exact subsystem labels such as `Aab`. Legacy count-expanded
 leaf labels are reserved for systems without usable source-native endpoint rows.
+Endpoint component type follows source evidence where practical; a very low-mass
+endpoint below the hydrogen-burning boundary with no stellar spectral evidence
+is preserved as a substellar support component, not counted as a stellar leaf.
 
 Canonical hierarchy emission consumes both source-native nested MSC subsystem
 edges and MSC inferred leaf components. When ARM preserves a nested source tree

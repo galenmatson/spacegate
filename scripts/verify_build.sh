@@ -287,6 +287,22 @@ print(fmt_row(headers))
 print("| " + " | ".join("-" * w for w in widths) + " |")
 for row in values_rows:
     print(fmt_row(row))
+
+planet_duplicate_rows = con.execute(
+    """
+    select stable_object_key, count(*)::bigint as row_count
+    from planets
+    where stable_object_key is not null
+    group by stable_object_key
+    having count(*) > 1
+    order by row_count desc, stable_object_key asc
+    limit 8
+    """
+).fetchall()
+if planet_duplicate_rows:
+    examples = ", ".join(f"{key}({count})" for key, count in planet_duplicate_rows)
+    raise SystemExit(f"Duplicate planet stable_object_key rows: {examples}")
+print("OK: planet stable keys unique")
 PY
 
   "$PYTHON_BIN" - <<'PY' "$core_db"

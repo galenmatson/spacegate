@@ -6655,6 +6655,13 @@ def main() -> int:
             cast(nullif(regexp_extract(hd_name, '(\\d+)', 1), '') as bigint) as host_hd_id,
             cast(nullif(regexp_extract(coalesce(gaia_dr3_id, gaia_dr2_id, ''), '(\\d{10,})\\s*$', 1), '') as bigint) as host_gaia_id
           from base
+        ), name_counts as (
+          select
+            planet_name_norm,
+            count(distinct source_pk)::bigint as source_row_count
+          from normalized
+          where planet_name_norm is not null
+          group by planet_name_norm
         ), name_match as (
           select
             star_name_norm,
@@ -6679,17 +6686,52 @@ def main() -> int:
           left join stars h on n.host_hip_id is not null and h.hip_id = n.host_hip_id
           left join stars d on n.host_hd_id is not null and d.hd_id = n.host_hd_id
           left join name_match nm on n.host_name_norm is not null and nm.star_name_norm = n.host_name_norm
+        ), keyed as (
+          select
+            m.*,
+            case
+              when m.planet_name_norm is null then null
+              when coalesce(c.source_row_count, 0) <= 1 then 'planet:nasa:' || m.planet_name_norm
+              else 'planet:nasa:' || m.planet_name_norm || ':' || m.source_pk::varchar
+            end as stable_object_key,
+            coalesce(gaia_system_id, hip_system_id, hd_system_id, name_system_id) as resolved_system_id,
+            coalesce(gaia_star_id, hip_star_id, hd_star_id, name_star_id) as resolved_star_id,
+            case
+              when gaia_star_id is not null then 'gaia'
+              when hip_star_id is not null then 'hip'
+              when hd_star_id is not null then 'hd'
+              when name_star_id is not null then 'hostname'
+              else 'unmatched'
+            end as match_method,
+            case
+              when gaia_star_id is not null then 1.0
+              when hip_star_id is not null then 0.95
+              when hd_star_id is not null then 0.90
+              when name_star_id is not null then 0.80
+              else 0.0
+            end as match_confidence
+          from matches m
+          left join name_counts c on c.planet_name_norm = m.planet_name_norm
+        ), ranked as (
+          select
+            *,
+            row_number() over (
+              partition by stable_object_key
+              order by
+                match_confidence desc,
+                case when resolved_star_id is not null then 0 else 1 end,
+                source_pk asc nulls last,
+                resolved_star_id asc nulls last,
+                resolved_system_id asc nulls last
+            ) as planet_rn
+          from keyed
         )
         select
-          row_number() over (order by stable_object_key nulls last, m.source_pk)::bigint as planet_id,
+          row_number() over (order by m.stable_object_key nulls last, m.source_pk)::bigint as planet_id,
           morton3d(s.x_helio_ly, s.y_helio_ly, s.z_helio_ly) as spatial_index,
-          case
-            when planet_name_norm is null then null
-            when count(*) over (partition by planet_name_norm) = 1 then 'planet:nasa:' || planet_name_norm
-            else 'planet:nasa:' || planet_name_norm || ':' || m.source_pk::varchar
-          end as stable_object_key,
-          coalesce(gaia_system_id, hip_system_id, hd_system_id, name_system_id) as system_id,
-          coalesce(gaia_star_id, hip_star_id, hd_star_id, name_star_id) as star_id,
+          m.stable_object_key,
+          resolved_system_id as system_id,
+          resolved_star_id as star_id,
           planet_name,
           planet_name_norm,
           disc_year,
@@ -6714,22 +6756,10 @@ def main() -> int:
           host_gaia_id,
           host_hip_id,
           host_hd_id,
+          match_method,
+          match_confidence,
           case
-            when gaia_star_id is not null then 'gaia'
-            when hip_star_id is not null then 'hip'
-            when hd_star_id is not null then 'hd'
-            when name_star_id is not null then 'hostname'
-            else 'unmatched'
-          end as match_method,
-          case
-            when gaia_star_id is not null then 1.0
-            when hip_star_id is not null then 0.95
-            when hd_star_id is not null then 0.90
-            when name_star_id is not null then 0.80
-            else 0.0
-          end as match_confidence,
-          case
-            when gaia_star_id is not null or hip_star_id is not null or hd_star_id is not null or name_star_id is not null then null
+            when resolved_star_id is not null then null
             else 'no host match'
           end as match_notes,
           s.x_helio_ly,
@@ -6772,8 +6802,9 @@ def main() -> int:
           null::varchar as planet_element_richness_class,
           null::varchar as planet_element_richness_method,
           null::varchar as planet_element_richness_notes
-        from matches m
-        left join stars s on s.star_id = coalesce(gaia_star_id, hip_star_id, hd_star_id, name_star_id)
+        from ranked m
+        left join stars s on s.star_id = m.resolved_star_id
+        where m.planet_rn = 1
         """,
     )
     con.execute(

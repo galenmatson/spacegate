@@ -257,6 +257,15 @@ Deliverables:
     remains a hot-path summary rather than the authority for nested MSC leaf
     counts. A scratch ARM rebuild verifies the corrected seven-leaf Nu Sco
     shape.
+  - June 30, 2026 full local rebuild
+    `20260630T_sim_beta_data_foundation` materialized the Sirius accepted
+    supplement, direct AT-HYG Gaia alias guard, and Nu Sco source-leaf fix. It
+    passed strict compact-alias safety and multiplicity goldens, but is not
+    promotable: simulator-oriented orbital normalization found duplicate
+    rank-1 planet orbit solutions caused by duplicate `core.planets` rows with
+    the same `stable_object_key`. The planet builder now ranks source rows and
+    host-match fan-out before writing `core.planets`, and `verify_build.sh`
+    now gates duplicate planet stable keys; another full rebuild is required.
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement

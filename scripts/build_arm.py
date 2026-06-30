@@ -1941,34 +1941,49 @@ def main() -> int:
           select
             wds_id,
             primary_label as component_label,
-            primary_label_raw as component_label_raw
+            primary_label_raw as component_label_raw,
+            spectral_type_primary as spectral_type_raw,
+            mass_primary_msun as mass_msun,
+            system_type
           from msc_source_system_rows
           where primary_label is not null and primary_label <> ''
           union all
           select
             wds_id,
             secondary_label as component_label,
-            secondary_label_raw as component_label_raw
+            secondary_label_raw as component_label_raw,
+            spectral_type_secondary as spectral_type_raw,
+            mass_secondary_msun as mass_msun,
+            system_type
           from msc_source_system_rows
           where secondary_label is not null and secondary_label <> ''
           union all
           select
             wds_id,
             primary_label as component_label,
-            primary_label_raw as component_label_raw
+            primary_label_raw as component_label_raw,
+            cast(null as varchar) as spectral_type_raw,
+            cast(null as double) as mass_msun,
+            cast(null as varchar) as system_type
           from msc_source_orbit_rows
           where primary_label is not null and primary_label <> ''
           union all
           select
             wds_id,
             secondary_label as component_label,
-            secondary_label_raw as component_label_raw
+            secondary_label_raw as component_label_raw,
+            cast(null as varchar) as spectral_type_raw,
+            cast(null as double) as mass_msun,
+            cast(null as varchar) as system_type
           from msc_source_orbit_rows
           where secondary_label is not null and secondary_label <> ''
         ), typed as (
-          select distinct
+          select
             e.wds_id,
             e.component_label,
+            e.spectral_type_raw,
+            e.mass_msun,
+            e.system_type,
             case
               when g.component_label is null then true
               when coalesce(e.component_label_raw, '') <> upper(coalesce(e.component_label_raw, ''))
@@ -1991,10 +2006,32 @@ def main() -> int:
           coalesce(r.system_display_name, 'WDS ' || t.wds_id) as system_display_name,
           row_number() over (partition by t.wds_id order by t.component_label)::bigint as ordinal,
           t.component_label,
-          regexp_replace(t.component_label, '[ab]$', '') as component_stem
+          regexp_replace(t.component_label, '[ab]$', '') as component_stem,
+          case
+            when
+              max(
+                case
+                  when t.mass_msun is not null
+                   and t.mass_msun > 0.0
+                   and t.mass_msun < 0.075
+                   and nullif(trim(coalesce(t.spectral_type_raw, '')), '') is null
+                  then 1 else 0
+                end
+              ) = 1
+              and max(
+                case
+                  when nullif(trim(coalesce(t.spectral_type_raw, '')), '') is not null
+                    or coalesce(t.mass_msun, 0.0) >= 0.075
+                  then 1 else 0
+                end
+              ) = 0
+            then 'brown_dwarf'
+            else 'star'
+          end as component_type
         from typed t
         left join msc_system_roots r on r.wds_id = t.wds_id
         where t.is_leaf_endpoint
+        group by t.wds_id, r.system_display_name, t.component_label
         """
     )
     con.execute(
@@ -2005,7 +2042,8 @@ def main() -> int:
           system_display_name,
           ordinal,
           component_label,
-          component_stem
+          component_stem,
+          component_type
         from msc_source_leaf_labels
         union all
         select
@@ -2013,7 +2051,8 @@ def main() -> int:
           l.system_display_name,
           l.ordinal,
           l.component_label,
-          l.component_stem
+          l.component_stem,
+          'star'::varchar as component_type
         from msc_inferred_leaves l
         where not exists (
           select 1
@@ -2492,7 +2531,7 @@ def main() -> int:
         ), msc_leaf_components as (
           select
             'comp:msc:wds:' || l.wds_id || ':' || l.component_label as stable_component_key,
-            'star'::varchar as component_type,
+            coalesce(l.component_type, 'star')::varchar as component_type,
             cast(null as varchar) as core_object_type,
             cast(null as bigint) as core_object_id,
             l.system_display_name || ' ' || upper(l.component_label) as display_name,
