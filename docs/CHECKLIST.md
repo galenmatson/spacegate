@@ -124,10 +124,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   safety passes on `20260630T_sim_beta_data_foundation`
 - [x] Materialize the MSC source-leaf fix; Nu Sco exposes seven source-native
   MSC stellar leaves from ARM rather than relying on `core.systems.star_count`
-- [ ] Rebuild after planet stable-key de-duplication; full build
-  `20260630T_sim_beta_data_foundation` is not promotable because
-  `verify_orbital_normalization.py` found duplicate rank-1 planetary orbit
-  solutions caused by duplicate `core.planets.stable_object_key` rows
+- [x] Rebuild after planet stable-key de-duplication; local served build
+  `20260630T_sim_beta_api_alias_v4` has unique
+  `core.planets.stable_object_key` rows and passes
+  `verify_orbital_normalization.py`
+- [x] Restore accepted-supplement AT-HYG aliases for no-Gaia reviewed rows;
+  Sirius resolves through `Sirius`, `Alpha Canis Majoris`, `Alp CMa`, `9 CMa`,
+  HIP 32349, HD 48915, and WDS 06451-1643 on
+  `20260630T_sim_beta_api_alias_v4`
 - [x] Let member-star names participate in search result display/ranking so variable-star lookups like `AR Cas` title the correct system card
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates

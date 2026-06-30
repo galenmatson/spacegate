@@ -1065,6 +1065,10 @@ Implementation notes:
   supports lookups such as `Castor`, `Alpha Geminorum`, `Alpha Centauri`,
   `Toliman`, `Sirius`, `Jabbah`, and `Copernicus` without making AT-HYG a
   canonical inventory authority.
+- accepted ATHYG supplement rows without Gaia IDs can still contribute reviewed
+  proper/Bayer/Flamsteed aliases through HIP/HD/source-row resolution; Sirius A
+  is the first reviewed exception and restores `Alpha Canis Majoris` without
+  assigning that alias only to Sirius B.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
 - when `arm` exposes a richer multiplicity root (for example WDS/MSC synthetic system roots), star-count filters and returned `star_count` values use the larger effective descendant-star count instead of only counting direct `core.stars` rows.
 

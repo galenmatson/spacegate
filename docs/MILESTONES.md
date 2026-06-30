@@ -265,7 +265,14 @@ Deliverables:
     rank-1 planet orbit solutions caused by duplicate `core.planets` rows with
     the same `stable_object_key`. The planet builder now ranks source rows and
     host-match fan-out before writing `core.planets`, and `verify_build.sh`
-    now gates duplicate planet stable keys; another full rebuild is required.
+    now gates duplicate planet stable keys.
+  - June 30, 2026 local served build
+    `20260630T_sim_beta_api_alias_v4` materialized the planet stable-key
+    de-duplication, accepted-supplement no-Gaia alias restoration, and
+    source-native ARM hierarchy API preference. It passes strict build
+    verification, orbital normalization, multiplicity goldens, alias search,
+    and `scripts/verify_known_systems_api.py` for Castor, Nu Sco, Alpha
+    Centauri, Sirius, Proxima Centauri, TRAPPIST-1, 55 Cnc, Sol, and 16 Cyg.
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
@@ -741,18 +748,12 @@ Readiness gaps:
   assumption curation/batch policy, true nested barycentric subsystem
   propagation, and physical-scale/precision display modes are not implemented
   yet
-- Sirius B / compact-object companion representation is still a source
-  hierarchy gap; the renderer must not invent missing Sirius A/B structure as a
-  visual-only child. June 29, 2026 audit found the current public side-sliced
-  build contains only the Gaia white dwarf row for Sirius
-  (`Gaia DR3 2947050466531873024`) and no WDS/MSC hierarchy/orbit evidence
-  attached to the system. The ingest guard now blocks the unsafe AT-HYG
-  Sirius-A-to-white-dwarf alias/identifier attachment on future builds, but
-  Sirius A still needs a canonical inventory source or accepted supplement path.
-  The compact-alias verifier keeps this failure mode visible in build
-  verification until rebuilt artifacts are clean enough for strict gating.
-  The accepted supplement path now supplies that source-backed exception in
-  configuration, but the current served build remains unchanged until rebuilt.
+- Sirius is now a valid compact-companion benchmark on local served build
+  `20260630T_sim_beta_api_alias_v4`: Sirius A is a reviewed
+  `athyg_accepted_supplement` core row, Sirius B remains the Gaia white-dwarf
+  row, WDS components are linked, and no bright-primary aliases are attached
+  only to the compact object. Public antiproton must receive a sliced/rebuilt
+  deployment before this local fix is public.
 - NASA `ps` alternate solution ingestion is not implemented yet; current ARM
   planet rows use `pscomppars` defaults plus Sol authority summaries
 - Castor remains a hierarchy-quality watch item for browser rendering and

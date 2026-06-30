@@ -280,24 +280,13 @@ Success criteria:
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 
-Known benchmark blocker:
+Resolved local benchmark blocker:
 
-- Sirius is not yet a valid compact-object system benchmark. The current public
-  side-sliced build resolves `Sirius` to a single Gaia white-dwarf row
-  (`Gaia DR3 2947050466531873024`) carrying Sirius/Alpha CMa/HIP/HD aliases,
-  with Sirius A absent from core inventory and no WDS/MSC hierarchy or A-B orbit
-  edge in ARM. The ingest guard now prevents non-compact AT-HYG positional rows
-  from attaching aliases/identifiers to compact-object targets on future builds,
-  but served artifacts need a rebuild and Sirius A needs an accepted inventory
-  source/supplement path. The simulator must continue to render the payload
-  honestly; the fix belongs in bright-star/common-name authority and
-  compact-companion source reconciliation, not in renderer-only fabrication.
-  `scripts/verify_compact_alias_safety.py` detects this class of bad artifact
-  during build verification; it should become a strict gate after the next clean
-  rebuild.
-- The ingest path now supports reviewed accepted supplements from
-  `config/core_accepted_supplements.json`. Sirius A is listed as a
-  source-backed core inventory exception and the Gaia Sirius B row is linked to
-  WDS component B. This is not a simulator fabrication and does not change the
-  current served/public artifact until a new core/ARM build is produced and
-  verified.
+- Local served build `20260630T_sim_beta_api_alias_v4` makes Sirius a valid
+  compact-companion benchmark: Sirius A is a reviewed
+  `athyg_accepted_supplement` core row, Sirius B remains the Gaia white-dwarf
+  row, WDS components are linked, and accepted-supplement AT-HYG aliases such
+  as `Sirius`, `Alpha Canis Majoris`, `Alp CMa`, and `9 CMa` resolve at both
+  star and system levels. This is not simulator fabrication. It is a reviewed
+  core inventory exception plus ARM/API hierarchy handling. Public antiproton
+  still needs a safe sliced deployment before the fix is public.

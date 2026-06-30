@@ -799,16 +799,18 @@ Notes:
 - Build verification also includes a compact-alias safety verifier
   (`scripts/verify_compact_alias_safety.py`) for Sirius-class hazards where a
   compact-object row without a non-compact sibling carries bright-primary
-  AT-HYG aliases plus HD/WDS or non-proper primary aliases. It is warn-only
-  until the current served artifacts are rebuilt clean, then should run as a
-  strict gate with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
+  AT-HYG aliases plus HD/WDS or non-proper primary aliases. Local build
+  `20260630T_sim_beta_api_alias_v4` passes this verifier in strict mode with
+  `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
 - Reviewed accepted supplements are allowed as narrow Gaia-first inventory
   exceptions when a well-established nearby object is absent from Gaia but
   required for a truthful system graph. The default list lives in
   `config/core_accepted_supplements.json`; rows remain source-provenanced and
   visibly distinct from the disabled broad AT-HYG supplement merge. Sirius A is
   the first accepted supplement, paired with a reviewed WDS component link for
-  the Gaia Sirius B row; a rebuild is required before served data changes.
+  the Gaia Sirius B row. Local served build `20260630T_sim_beta_api_alias_v4`
+  materializes this as a two-member Sirius system and restores reviewed
+  no-Gaia ATHYG aliases such as `Alpha Canis Majoris`.
 - Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
   - exact Gaia ID
   - Gaia legacy remap via unique HIP/HD agreement
