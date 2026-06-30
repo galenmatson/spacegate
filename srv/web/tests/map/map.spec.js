@@ -112,6 +112,26 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(0);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.inspectablePlanetCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableOrbitCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
+      { timeout: 3000 }
+    ).toContain("planet");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
+      { timeout: 3000 }
+    ).toContain("orbit");
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/clarity/i);
@@ -403,6 +423,26 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
       { timeout: 3000 }
     ).toBe(5);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
+      { timeout: 3000 }
+    ).toBe(7);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableSubsystemCount || 0)),
+      { timeout: 3000 }
+    ).toBe(5);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableOrbitCount || 0)),
+      { timeout: 3000 }
+    ).toBe(4);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
+      { timeout: 3000 }
+    ).toContain("subsystem");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
+      { timeout: 3000 }
+    ).toContain("orbit");
   });
 
   test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {

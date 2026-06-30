@@ -745,6 +745,9 @@ Readiness gaps:
   `render_scene`, makes the browser consume the policy for star radius, planet
   radius, planet orbit spacing, and group orbit motion scale, and labels the
   preview readout as clarity-scaled rather than physical scale.
+- June 30, 2026 inspection diagnostics pass adds canvas-level counts for
+  registered star, planet, subsystem, and orbit inspectable targets, with
+  Playwright coverage for TRAPPIST-1 and Nu Sco.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

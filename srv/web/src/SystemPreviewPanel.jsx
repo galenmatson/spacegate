@@ -1416,7 +1416,19 @@ function CameraControls({ resetToken = 0 }) {
   return null;
 }
 
-function SceneMotionMetrics({ directOrbitCount = 0, groupOrbitCount = 0, subsystemMarkerCount = 0, groupMotionSpecs = [], planetHostGroupCount = 0, simClockRef, running = true, speedMultiplier = 1 }) {
+function SceneMotionMetrics({
+  directOrbitCount = 0,
+  groupOrbitCount = 0,
+  subsystemMarkerCount = 0,
+  starCount = 0,
+  planetCount = 0,
+  planetOrbitCount = 0,
+  groupMotionSpecs = [],
+  planetHostGroupCount = 0,
+  simClockRef,
+  running = true,
+  speedMultiplier = 1,
+}) {
   const { gl } = useThree();
   const nestedCount = useMemo(() => (
     (groupMotionSpecs || []).filter((spec) => (
@@ -1424,6 +1436,13 @@ function SceneMotionMetrics({ directOrbitCount = 0, groupOrbitCount = 0, subsyst
       || (spec.secondaryAncestorGroupKeys || []).length > 0
     )).length
   ), [groupMotionSpecs]);
+  const inspectableOrbitCount = (directOrbitCount || 0) + (groupOrbitCount || 0) + (planetOrbitCount || 0);
+  const inspectableTargetKinds = [
+    starCount > 0 ? "star" : null,
+    planetCount > 0 ? "planet" : null,
+    subsystemMarkerCount > 0 ? "subsystem" : null,
+    inspectableOrbitCount > 0 ? "orbit" : null,
+  ].filter(Boolean).join(",");
 
   useEffect(() => {
     gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
@@ -1433,11 +1452,30 @@ function SceneMotionMetrics({ directOrbitCount = 0, groupOrbitCount = 0, subsyst
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
     gl.domElement.dataset.groupOrbitGuideCount = String(groupOrbitCount || 0);
     gl.domElement.dataset.subsystemMarkerCount = String(subsystemMarkerCount || 0);
+    gl.domElement.dataset.inspectableStarCount = String(starCount || 0);
+    gl.domElement.dataset.inspectablePlanetCount = String(planetCount || 0);
+    gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
+    gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
+    gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
     gl.domElement.dataset.simulationClockMode = "shared_local_beta";
     gl.domElement.dataset.simulationClockWriters = "1";
     gl.domElement.dataset.simulationRunning = running ? "true" : "false";
     gl.domElement.dataset.simulationSpeed = String(speedMultiplier || 1);
-  }, [gl, directOrbitCount, groupMotionSpecs, groupOrbitCount, nestedCount, planetHostGroupCount, running, speedMultiplier, subsystemMarkerCount]);
+  }, [
+    gl,
+    directOrbitCount,
+    groupMotionSpecs,
+    groupOrbitCount,
+    inspectableOrbitCount,
+    inspectableTargetKinds,
+    nestedCount,
+    planetCount,
+    planetHostGroupCount,
+    running,
+    speedMultiplier,
+    starCount,
+    subsystemMarkerCount,
+  ]);
 
   useFrame(({ clock }) => {
     if (!simClockRef?.current) {
@@ -1578,6 +1616,9 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         directOrbitCount={binaryOrbits.length}
         groupOrbitCount={groupOrbits.length}
         subsystemMarkerCount={subsystems.length}
+        starCount={stars.length}
+        planetCount={planetPlacements.length}
+        planetOrbitCount={showOrbits ? planetPlacements.length : 0}
         groupMotionSpecs={groupMotionSpecs}
         planetHostGroupCount={planetHostGroupCount}
         simClockRef={simClockRef}

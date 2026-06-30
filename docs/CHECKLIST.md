@@ -350,6 +350,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add browser simulator coverage for the Nu Sco messy hierarchy benchmark:
   seven source-native leaves, subsystem handles, direct/group orbit guides, and
   no source-like spectral inheritance on unresolved children
+- [x] Add simulator inspectable-target diagnostics and browser checks for
+  registered star, planet, subsystem, and orbit hover/pin coverage
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

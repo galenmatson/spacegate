@@ -313,6 +313,9 @@ Success criteria:
 - hover and pinned readouts use the same source/derived/assumed/missing
   evidence-pill affordance as the summary panel, including focusable provenance
   popovers in pinned readouts
+- browser diagnostics expose registered inspectable star, planet, subsystem, and
+  orbit-target counts so Playwright can catch lost hover/pin coverage without
+  relying on fragile pixel-perfect click coordinates
 - planet render bodies, hover/pinned readouts, and the preview evidence strip
   surface an API-backed renderer-only planet visual class with `render_scene`
   provenance, so material choices are inspectable without treating them as
