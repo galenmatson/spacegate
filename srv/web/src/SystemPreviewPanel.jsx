@@ -439,6 +439,26 @@ function binaryMassFractions(primary, secondary) {
   };
 }
 
+function binaryTraceProvenanceField(massFractions) {
+  const sourceMassRatio = massFractions?.basis === "source_mass_ratio";
+  return {
+    label: "Binary trace",
+    value: sourceMassRatio ? "Mass-weighted barycentric" : "Equal-mass visual fallback",
+    unit: null,
+    status: sourceMassRatio ? "derived" : "assumed",
+    layer: "render_scene",
+    source_catalog: sourceMassRatio ? "core_star_mass_fields" : null,
+    source_reference: null,
+    basis: massFractions?.basis || "unknown",
+    seed: null,
+    generator_version: "system_preview_binary_trace_v1",
+    confidence: sourceMassRatio ? 0.85 : 0.35,
+    notes: sourceMassRatio
+      ? "Rendered body paths use available stellar masses to split the visual relative orbit around the barycenter."
+      : "Rendered body paths assume equal visual masses because one or both stellar masses are missing.",
+  };
+}
+
 function advanceSimulationDays(ref, elapsedSeconds, running, speedMultiplier = 1) {
   if (ref.lastElapsedSeconds === null || ref.lastElapsedSeconds === undefined) {
     ref.lastElapsedSeconds = elapsedSeconds;
@@ -957,18 +977,20 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
     if (!payload) {
       return null;
     }
+    const traceField = binaryTraceProvenanceField(massFractions);
     return {
       ...payload,
       rows: [
         ...payload.rows,
         staticReadoutRow(
           "Trace",
-          massFractions.basis === "source_mass_ratio" ? "Mass-weighted barycentric" : "Equal-mass visual fallback",
-          massFractions.basis === "source_mass_ratio" ? "derived" : "assumed",
+          String(traceField.value),
+          traceField.status,
+          traceField,
         ),
       ],
     };
-  }, [orbit, massFractions.basis]);
+  }, [orbit, massFractions]);
   const selected = Boolean(selectedObjectId && payloadId(orbitPayload) === selectedObjectId);
   const orbitHandlers = {
     onPointerOver: (event) => {

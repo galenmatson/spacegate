@@ -38,7 +38,8 @@ Already in place:
   local clock and Start resumes it from the same simulation day
 - direct binary orbit traces are drawn as the two rendered body paths around
   the visual barycenter, using source mass ratios when both stellar masses are
-  available and an explicit equal-mass visual fallback when they are not
+  available and an explicit equal-mass visual fallback when they are not; the
+  trace basis is exposed as a structured simulator provenance field
 - rendered planets are ordered by semi-major axis when available, then orbital
   period, so Sol/TRAPPIST-like systems present in orbital order rather than
   catalog/name order
