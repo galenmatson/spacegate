@@ -545,6 +545,22 @@ function averageVector(vectors) {
   return scaledVector(clean.reduce((sum, position) => addVector(sum, position), [0, 0, 0]), 1 / clean.length);
 }
 
+function sumVectors(vectors) {
+  return (vectors || []).filter(Boolean).reduce((sum, position) => addVector(sum, position), [0, 0, 0]);
+}
+
+function sameKeySet(left, right) {
+  if (!left || !right || left.size !== right.size) {
+    return false;
+  }
+  for (const key of left) {
+    if (!right.has(key)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function buildStarLayout(stars, hierarchy, binaryOrbits) {
   const canonicalKeyByAlias = new Map();
   stars.forEach((star) => {
@@ -570,6 +586,24 @@ function buildStarLayout(stars, hierarchy, binaryOrbits) {
   };
 
   const root = hierarchy?.root;
+  const hierarchyGroups = new Map();
+  const collectHierarchyGroups = (node) => {
+    if (!node) {
+      return;
+    }
+    const starKeys = collectStarKeys(node);
+    const groupKey = hierarchyRenderKey(node) || node.display_name;
+    if (groupKey && starKeys.length > 0 && node !== root) {
+      hierarchyGroups.set(groupKey, {
+        key: groupKey,
+        label: node.display_name,
+        starKeys: [...new Set(starKeys)],
+      });
+    }
+    (node.children || []).forEach((child) => collectHierarchyGroups(child));
+  };
+  collectHierarchyGroups(root);
+
   const groups = (root?.children || [])
     .map((child) => ({
       key: hierarchyRenderKey(child) || child.display_name,
@@ -590,6 +624,7 @@ function buildStarLayout(stars, hierarchy, binaryOrbits) {
   }
 
   const starToGroup = new Map();
+  const starToGroups = new Map();
   const groupCenters = new Map();
   const starPositions = new Map();
   const groupRadius = groups.length > 1 ? Math.min(4.7, 2.6 + groups.length * 0.4) : 0;
@@ -605,6 +640,41 @@ function buildStarLayout(stars, hierarchy, binaryOrbits) {
       const localAngle = group.starKeys.length > 1 ? (idx / group.starKeys.length) * Math.PI * 2 : 0;
       starPositions.set(key, addVector(center, [Math.cos(localAngle) * localRadius, 0, Math.sin(localAngle) * localRadius]));
     });
+  });
+
+  hierarchyGroups.forEach((group, groupKey) => {
+    const positions = group.starKeys.map((key) => starPositions.get(key)).filter(Boolean);
+    if (positions.length) {
+      groupCenters.set(groupKey, averageVector(positions));
+    }
+    group.starKeys.forEach((starKey) => {
+      if (!starToGroups.has(starKey)) {
+        starToGroups.set(starKey, new Set());
+      }
+      starToGroups.get(starKey).add(groupKey);
+    });
+  });
+  starToGroup.forEach((groupKey, starKey) => {
+    if (!starToGroups.has(starKey)) {
+      starToGroups.set(starKey, new Set());
+    }
+    starToGroups.get(starKey).add(groupKey);
+  });
+
+  const groupAncestorKeys = new Map();
+  hierarchyGroups.forEach((group, groupKey) => {
+    const groupStars = new Set(group.starKeys);
+    const ancestors = [];
+    hierarchyGroups.forEach((candidate, candidateKey) => {
+      if (candidateKey === groupKey || candidate.starKeys.length <= group.starKeys.length) {
+        return;
+      }
+      const candidateStars = new Set(candidate.starKeys);
+      if ([...groupStars].every((key) => candidateStars.has(key))) {
+        ancestors.push(candidateKey);
+      }
+    });
+    groupAncestorKeys.set(groupKey, ancestors);
   });
 
   const orbitCenters = new Map();
@@ -632,27 +702,53 @@ function buildStarLayout(stars, hierarchy, binaryOrbits) {
     orbitStarKeys.add(secondaryKey);
   });
 
-  return { canonicalKeyByAlias, starPositions, orbitCenters, orbitStarKeys, starToGroup, groupCenters };
+  return {
+    canonicalKeyByAlias,
+    starPositions,
+    orbitCenters,
+    orbitStarKeys,
+    starToGroup,
+    starToGroups,
+    groupCenters,
+    hierarchyGroups,
+    groupAncestorKeys,
+  };
 }
 
-function groupKeysForBodyKeys(keys, layout) {
+function groupKeysContainingBodyKeys(keys, layout) {
   const groupKeys = new Set();
   (keys || []).forEach((key) => {
     const starKey = layout.canonicalKeyByAlias.get(key) || key;
-    const groupKey = layout.starToGroup.get(starKey);
-    if (groupKey) {
-      groupKeys.add(groupKey);
+    const starGroups = layout.starToGroups.get(starKey);
+    if (starGroups?.size) {
+      starGroups.forEach((groupKey) => groupKeys.add(groupKey));
     }
   });
   return [...groupKeys];
+}
+
+function groupKeysForOrbitSide(bodyKey, childKeys, layout) {
+  const mappedBodyKey = layout.canonicalKeyByAlias.get(bodyKey) || bodyKey;
+  if (mappedBodyKey && layout.hierarchyGroups.has(mappedBodyKey)) {
+    return [mappedBodyKey];
+  }
+  const childStarKeys = new Set((childKeys || []).map((key) => layout.canonicalKeyByAlias.get(key) || key).filter(Boolean));
+  if (childStarKeys.size) {
+    for (const [groupKey, group] of layout.hierarchyGroups.entries()) {
+      if (sameKeySet(new Set(group.starKeys), childStarKeys)) {
+        return [groupKey];
+      }
+    }
+  }
+  return groupKeysContainingBodyKeys(childKeys, layout);
 }
 
 function buildGroupMotionSpecs(groupOrbits, layout, visualScale = DEFAULT_VISUAL_SCALE) {
   const multiplier = Number(visualScale.binary_orbit_radius?.group_pair_motion_multiplier || 0.55);
   return (groupOrbits || [])
     .map((orbit) => {
-      const primaryGroupKeys = groupKeysForBodyKeys(orbit.primary_child_body_keys, layout);
-      const secondaryGroupKeys = groupKeysForBodyKeys(orbit.secondary_child_body_keys, layout);
+      const primaryGroupKeys = groupKeysForOrbitSide(orbit.primary_body_key, orbit.primary_child_body_keys, layout);
+      const secondaryGroupKeys = groupKeysForOrbitSide(orbit.secondary_body_key, orbit.secondary_child_body_keys, layout);
       const primarySet = new Set(primaryGroupKeys);
       const secondarySet = new Set(secondaryGroupKeys);
       const overlap = [...primarySet].some((key) => secondarySet.has(key));
@@ -663,6 +759,8 @@ function buildGroupMotionSpecs(groupOrbits, layout, visualScale = DEFAULT_VISUAL
         orbit,
         primaryGroupKeys,
         secondaryGroupKeys,
+        primaryAncestorGroupKeys: [...new Set(primaryGroupKeys.flatMap((key) => layout.groupAncestorKeys.get(key) || []))],
+        secondaryAncestorGroupKeys: [...new Set(secondaryGroupKeys.flatMap((key) => layout.groupAncestorKeys.get(key) || []))],
         periodDays: Math.max(0.05, numericField(orbit.fields, "period_days") || 80),
         phaseRad: numericField(orbit.fields, "phase_rad") || 0,
         eccentricity: Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0)),
@@ -673,7 +771,7 @@ function buildGroupMotionSpecs(groupOrbits, layout, visualScale = DEFAULT_VISUAL
     .filter(Boolean);
 }
 
-function groupOffsetAt(groupKey, groupMotionSpecs, simDays) {
+function directGroupOffsetAt(groupKey, groupMotionSpecs, simDays) {
   if (!groupKey || !groupMotionSpecs?.length) {
     return [0, 0, 0];
   }
@@ -687,23 +785,59 @@ function groupOffsetAt(groupKey, groupMotionSpecs, simDays) {
   }, [0, 0, 0]);
 }
 
-function averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays) {
-  const uniqueKeys = [...new Set((groupKeys || []).filter(Boolean))];
-  return averageVector(uniqueKeys.map((key) => groupOffsetAt(key, groupMotionSpecs, simDays)));
+function groupOffsetAt(groupKey, groupMotionSpecs, simDays, layout = null) {
+  if (!groupKey) {
+    return [0, 0, 0];
+  }
+  const ancestorKeys = layout?.groupAncestorKeys?.get(groupKey) || [];
+  return sumVectors([
+    directGroupOffsetAt(groupKey, groupMotionSpecs, simDays),
+    ...ancestorKeys.map((ancestorKey) => directGroupOffsetAt(ancestorKey, groupMotionSpecs, simDays)),
+  ]);
 }
 
-function groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays) {
+function combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout = null) {
+  const uniqueKeys = [...new Set((groupKeys || []).filter(Boolean))];
+  const keysWithAncestors = new Set(uniqueKeys);
+  if (layout?.groupAncestorKeys) {
+    uniqueKeys.forEach((key) => {
+      (layout.groupAncestorKeys.get(key) || []).forEach((ancestorKey) => keysWithAncestors.add(ancestorKey));
+    });
+  }
+  return sumVectors([...keysWithAncestors].map((key) => directGroupOffsetAt(key, groupMotionSpecs, simDays)));
+}
+
+function averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout = null) {
+  const uniqueKeys = [...new Set((groupKeys || []).filter(Boolean))];
+  return averageVector(uniqueKeys.map((key) => groupOffsetAt(key, groupMotionSpecs, simDays, layout)));
+}
+
+function groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout = null) {
   return averageVector([
-    averageGroupOffsetAt(primaryGroupKeys, groupMotionSpecs, simDays),
-    averageGroupOffsetAt(secondaryGroupKeys, groupMotionSpecs, simDays),
+    averageGroupOffsetAt(primaryGroupKeys, groupMotionSpecs, simDays, layout),
+    averageGroupOffsetAt(secondaryGroupKeys, groupMotionSpecs, simDays, layout),
   ]);
 }
 
 function groupKeysForStarKeys(starKeys, layout) {
-  return [...new Set((starKeys || []).map((key) => layout.starToGroup.get(layout.canonicalKeyByAlias.get(key) || key)).filter(Boolean))];
+  const normalized = (starKeys || []).map((key) => layout.canonicalKeyByAlias.get(key) || key).filter(Boolean);
+  if (!normalized.length) {
+    return [];
+  }
+  const [firstKey, ...rest] = normalized;
+  const common = new Set(layout.starToGroups.get(firstKey) || []);
+  rest.forEach((starKey) => {
+    const groups = layout.starToGroups.get(starKey) || new Set();
+    [...common].forEach((groupKey) => {
+      if (!groups.has(groupKey)) {
+        common.delete(groupKey);
+      }
+    });
+  });
+  return [...common];
 }
 
-function AnimatedStarSphere({ star, position = [0, 0, 0], groupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
 
@@ -716,7 +850,7 @@ function AnimatedStarSphere({ star, position = [0, 0, 0], groupKey, groupMotionS
       return;
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
-    groupRef.current.position.set(...addVector(position, groupOffsetAt(groupKey, groupMotionSpecs, simDays)));
+    groupRef.current.position.set(...addVector(position, combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout)));
   });
 
   return (
@@ -772,7 +906,7 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
     const theta = phaseRad + (simDays / periodDays) * Math.PI * 2;
     const motionGroupKeys = groupKeysForStarKeys([orbit.primary_body_key, orbit.secondary_body_key], layout);
-    const centerOffset = averageGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays);
+    const centerOffset = combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout);
     groupRef.current.position.set(...addVector(center, centerOffset));
     const relative = orbitalPosition(theta, orbitRadius, eccentricity, inclinationRad);
     primaryRef.current.position.set(...scaledVector(relative, -0.5));
@@ -833,8 +967,8 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
   const payload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const center = primaryCenter && secondaryCenter ? scaledVector(addVector(primaryCenter, secondaryCenter), 0.5) : [0, 0, 0];
-  const primaryGroupKeys = groupKeysForBodyKeys(orbit.primary_child_body_keys, layout);
-  const secondaryGroupKeys = groupKeysForBodyKeys(orbit.secondary_child_body_keys, layout);
+  const primaryGroupKeys = groupKeysForOrbitSide(orbit.primary_body_key, orbit.primary_child_body_keys, layout);
+  const secondaryGroupKeys = groupKeysForOrbitSide(orbit.secondary_body_key, orbit.secondary_child_body_keys, layout);
 
   useEffect(() => {
     simRef.current = { days: 0, lastElapsedSeconds: null };
@@ -845,7 +979,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
       return;
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
-    lineRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays)));
+    lineRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout)));
   });
 
   if (!showOrbits || !primaryCenter || !secondaryCenter) {
@@ -880,7 +1014,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
   );
 }
 
-function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
@@ -895,7 +1029,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
       return;
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
-    groupRef.current.position.set(...addVector(center, averageGroupOffsetAt(groupKeys, groupMotionSpecs, simDays)));
+    groupRef.current.position.set(...addVector(center, combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout)));
   });
 
   const handlers = {
@@ -931,7 +1065,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
@@ -973,7 +1107,7 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    const movingCenter = addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays));
+    const movingCenter = addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays, layout));
     groupRef.current.position.set(...addVector(movingCenter, orbitalPosition(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
   });
 
@@ -1091,7 +1225,24 @@ function CameraControls({ resetToken = 0 }) {
   return null;
 }
 
-function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
+function SceneMotionMetrics({ groupMotionSpecs = [] }) {
+  const { gl } = useThree();
+  const nestedCount = useMemo(() => (
+    (groupMotionSpecs || []).filter((spec) => (
+      (spec.primaryAncestorGroupKeys || []).length > 0
+      || (spec.secondaryAncestorGroupKeys || []).length > 0
+    )).length
+  ), [groupMotionSpecs]);
+
+  useEffect(() => {
+    gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
+    gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
+  }, [gl, groupMotionSpecs, nestedCount]);
+
+  return null;
+}
+
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKey, groupMotionSpecs, layout, running = true, speedMultiplier = 1, resetToken = 0, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
@@ -1139,7 +1290,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       return;
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
-    lineRef.current.position.set(...addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays)));
+    lineRef.current.position.set(...addVector(center, groupOffsetAt(motionGroupKey, groupMotionSpecs, simDays, layout)));
   });
 
   return (
@@ -1152,8 +1303,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
-  const renderOrbits = planets.renderOrbits || [];
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
   const layout = useMemo(() => buildStarLayout(stars, hierarchy, binaryOrbits), [stars, hierarchy, binaryOrbits]);
@@ -1203,6 +1353,7 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
 
   return (
     <group>
+      <SceneMotionMetrics groupMotionSpecs={groupMotionSpecs} />
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
       {binaryOrbits.map((orbit, idx) => (
@@ -1227,8 +1378,9 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
           key={star.render_key || star.key}
           star={star}
           position={layout.starPositions.get(star.render_key || star.key) || [0, 0, 0]}
-          groupKey={layout.starToGroup.get(star.render_key || star.key)}
+          groupKeys={groupKeysForStarKeys([star.render_key || star.key], layout)}
           groupMotionSpecs={groupMotionSpecs}
+          layout={layout}
           running={running}
           speedMultiplier={speedMultiplier}
           resetToken={resetToken}
@@ -1259,7 +1411,7 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
         if (!center) {
           return null;
         }
-        const groupKeys = groupKeysForBodyKeys(childKeys, layout);
+        const groupKeys = groupKeysForOrbitSide(subsystem.render_key || subsystem.key, childKeys, layout);
         return (
           <SubsystemMarker
             key={subsystem.render_key || subsystem.key}
@@ -1267,6 +1419,7 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
             center={center}
             groupKeys={groupKeys}
             groupMotionSpecs={groupMotionSpecs}
+            layout={layout}
             running={running}
             speedMultiplier={speedMultiplier}
             resetToken={resetToken}
@@ -1288,6 +1441,7 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
                 center={placement.center}
                 motionGroupKey={placement.groupKey}
                 groupMotionSpecs={groupMotionSpecs}
+                layout={layout}
                 running={running}
                 speedMultiplier={speedMultiplier}
                 resetToken={resetToken}
@@ -1302,6 +1456,7 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
               center={placement.center}
               motionGroupKey={placement.groupKey}
               groupMotionSpecs={groupMotionSpecs}
+              layout={layout}
               color={PLANET_COLORS[idx % PLANET_COLORS.length]}
               running={running}
               speedMultiplier={speedMultiplier}
@@ -1319,6 +1474,7 @@ function PreviewObjects({ stars, planets, subsystems = [], hierarchy, visualScal
 
 function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
+  const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
@@ -1349,14 +1505,12 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
     const renderScene = scene?.render_scene;
     const renderPlanets = renderScene?.bodies?.planets || [];
     if (renderPlanets.length) {
-      const mapped = renderPlanets.map((planet, idx) => ({
+      return renderPlanets.map((planet, idx) => ({
         ...planet,
         key: planet.render_key || planet.stable_object_key || `planet-${idx}`,
         orbitAu: numericField(planet.fields, "semi_major_axis_au") || 0.08 + idx * 0.08,
         radius: scaledPlanetRadius(numericField(planet.fields, "radius_earth"), visualScale),
       }));
-      mapped.renderOrbits = renderScene?.orbits || [];
-      return mapped;
     }
     const readinessPlanets = scene?.simulation_readiness?.planets || [];
     const bodyPlanets = scene?.bodies?.planets || [];
@@ -1392,6 +1546,7 @@ function SceneCanvas({ scene, running = true, speedMultiplier = 1, resetToken = 
         stars={stars}
         planets={planets}
         subsystems={subsystems}
+        renderOrbits={renderOrbits}
         hierarchy={scene?.hierarchy}
         visualScale={visualScale}
         running={running}

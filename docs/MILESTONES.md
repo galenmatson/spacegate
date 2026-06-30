@@ -792,6 +792,11 @@ Readiness gaps:
   orbital order by semi-major axis/period and passes provenance field objects
   through planet-orbit readouts, so orbit paths have the same inspectable
   SOURCE/DERIVED/ASSUMED/MISSING pills as rendered bodies.
+- June 30, 2026 nested-motion patch makes the R3F renderer consume
+  `render_scene.orbits` independently of planet bodies and propagates
+  group-pair offsets through containing hierarchy groups. Castor browser
+  coverage now checks active nested group motion instead of only API orbit
+  presence.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

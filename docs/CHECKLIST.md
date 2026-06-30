@@ -317,6 +317,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   benchmark systems display in orbital order
 - [x] Carry full provenance field objects into planet-orbit hover/pinned
   readouts so orbit path evidence pills can be inspected and copied
+- [x] Propagate nested group-pair motion through hierarchy groups in the Live
+  System Preview, with Castor Playwright coverage for active nested motion
 - [x] Attach rendered planet bodies to rendered host stars with `host_body_key`
   when `core.planets.star_id` resolves cleanly, with Playwright coverage for a
   hosted planet in a multi-star scene
@@ -331,8 +333,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add clearly labeled `disc_assumption` visual binary fallback orbits for
   two-star scenes with no source orbit edge, with Sirius Playwright and
   known-system verifier coverage
-- [ ] Implement true nested barycentric subsystem propagation for hierarchical
-  multi-star systems after source epochs/scale policy are defined
+- [ ] Define science-grade epoch/propagation controls beyond the current
+  clarity-scaled nested group animation for multi-star systems after source
+  epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage for current public
   side-sliced builds so map snapshot hover checks exercise real fallback assets
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so

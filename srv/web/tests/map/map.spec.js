@@ -252,6 +252,15 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered orbits/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupMotionCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(2);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.nestedGroupMotionCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
   });
 
   test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {

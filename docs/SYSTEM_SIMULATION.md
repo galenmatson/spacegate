@@ -53,6 +53,9 @@ Already in place:
 - `render_scene_v0.2` includes `endpoint_kind='group_pair'` orbit entries for
   hierarchical subsystem pairs such as Castor A-B and AB-C; these render as
   cluster orbit guides rather than false individual-star binaries
+- the browser renderer propagates nested group-pair motion through containing
+  hierarchy groups, so Castor-like inner binaries inherit outer subsystem
+  motion instead of flattening all pairs into one static layout
 - `render_scene_v0.2` may emit a single
   `relation_kind='visual_binary_fallback'` orbit for two rendered stars with no
   source orbit edge. This is a DISC presentation assumption for legibility
@@ -66,7 +69,8 @@ Already in place:
 
 Not ready yet:
 
-- a full client simulation clock, epoch controls, and propagation policy
+- full epoch controls and science-grade propagation policy beyond the beta
+  clarity-scaled local animation clock
 - source-refresh verification for stale multiplicity/orbital inputs
 - uncertainty visualization
 - physical-scale/precision display modes for stellar radii, planetary radii,
