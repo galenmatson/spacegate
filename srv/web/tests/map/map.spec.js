@@ -264,9 +264,10 @@ test.describe("public 3D map beta", () => {
     const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
     expect(sceneResponse.ok()).toBeTruthy();
     const scenePayload = await sceneResponse.json();
-    expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(3);
+    expect(scenePayload.render_scene?.bodies?.stars?.length).toBe(3);
     expect(scenePayload.render_scene?.bodies?.planets?.length).toBeGreaterThanOrEqual(1);
     expect(scenePayload.render_scene?.bodies?.planets?.some((planet) => planet.host_body_key)).toBeTruthy();
+    expect(scenePayload.render_scene?.bodies?.planets?.[0]?.source?.host_resolution).toMatch(/render_star/);
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();

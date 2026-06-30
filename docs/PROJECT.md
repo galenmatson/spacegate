@@ -200,7 +200,8 @@ Implementation note:
   reviewed assumption curation remains future work; `visual_scale_beta_v1`
   explicitly labels the live preview as clarity-scaled rather than physically
   scaled; rendered planet bodies now carry `host_body_key` when their canonical
-  host star resolves into the rendered scene; the
+  host star, or a catalog-equivalent source-native component, resolves into the
+  rendered scene; the
   public preview now supports pause/start, speed, reset, orbit visibility,
   camera orbit/zoom/pan with reset-view support, hover, pinned copyable
   readouts with in-scene selected-object feedback, and deterministic

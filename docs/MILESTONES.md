@@ -766,7 +766,13 @@ Readiness gaps:
 - June 30, 2026 simulator API patch attaches core planet render bodies to
   rendered host stars with `host_body_key` when `core.planets.star_id` resolves
   cleanly. Local Playwright now covers the 16 Cyg hosted-planet scene, and API
-  checks confirm Proxima b/d and 16 Cyg B b use direct source host linkage.
+  checks confirm Proxima b/d use direct source host linkage and 16 Cyg B b
+  resolves through catalog-equivalent host linkage.
+- June 30, 2026 source-leaf reconciliation patch lets simple MSC A/B/C render
+  leaves reuse matching core star vitals and bridges catalog-equivalent planet
+  host IDs onto those source-native render components. This removes the
+  duplicate Gaia-host plus MSC-leaf rendering failure for 16 Cyg while keeping
+  the planet host auditable as a catalog-equivalent match.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

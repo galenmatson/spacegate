@@ -23,6 +23,9 @@ Already in place:
 - `render_scene_v0.2` attaches core planet render bodies to rendered host stars
   with `host_body_key` when `core.planets.star_id` resolves cleanly; the
   payload records the host-resolution basis for audit/debugging
+- simple source-native component leaves such as MSC A/B/C labels can reuse
+  matching core star vitals for rendering, and catalog-equivalent core star
+  IDs may bridge planet hosts onto those rendered source-native components
 - the first browser renderer has a pauseable local animation clock, sampled
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - the beta browser renderer adds speed control, reset, orbit-trace visibility

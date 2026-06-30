@@ -311,6 +311,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Attach rendered planet bodies to rendered host stars with `host_body_key`
   when `core.planets.star_id` resolves cleanly, with Playwright coverage for a
   hosted planet in a multi-star scene
+- [x] Reconcile simple source-native MSC A/B/C render leaves with matching core
+  star vitals and bridge catalog-equivalent planet hosts to those render bodies
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
   55 Cnc/Sol source-backed planet periods

@@ -1273,6 +1273,22 @@ def _render_scene_contract(
         for row in stars
         if str(row.get("component") or "").strip()
     }
+    equivalent_core_star_ids: Dict[int, set[int]] = {}
+    star_identity_groups: Dict[tuple[str, str], set[int]] = {}
+    for row in stars:
+        try:
+            star_id = int(row.get("star_id"))
+        except Exception:
+            continue
+        for id_key in ("gaia_id", "hip_id", "hd_id", "wds_id"):
+            id_value = str(row.get(id_key) or "").strip()
+            if id_value:
+                star_identity_groups.setdefault((id_key, id_value), set()).add(star_id)
+    for id_group in star_identity_groups.values():
+        if len(id_group) < 2:
+            continue
+        for star_id in id_group:
+            equivalent_core_star_ids.setdefault(star_id, set()).update(id_group - {star_id})
     component_rows = ((arm.get("components") or {}).get("items") or [])
     orbit_rows = ((arm.get("orbit_edges") or {}).get("items") or [])
     solution_by_edge_id = _solution_by_orbit_edge_id(arm)
@@ -1403,6 +1419,30 @@ def _render_scene_contract(
                 return component_key
 
         label = str(component.get("catalog_component_label") or "").strip().upper()
+        if len(label) == 1:
+            star = core_star_by_role.get(label)
+            if star:
+                core_key = add_core_star(star)
+                render_stars[component_key] = dict(render_stars[core_key])
+                render_stars[component_key]["render_key"] = component_key
+                render_stars[component_key]["source_component_key"] = component_key
+                render_stars[component_key]["display_name"] = (
+                    component.get("display_name") or render_stars[core_key]["display_name"]
+                )
+                render_stars[component_key]["component"] = (
+                    component.get("catalog_component_label") or render_stars[component_key].get("component")
+                )
+                render_stars[component_key]["source"] = {
+                    **(render_stars[component_key].get("source") or {}),
+                    "stable_component_key": component_key,
+                    "component_match_basis": "single_letter_component_role",
+                }
+                if core_key != component_key:
+                    render_stars.pop(core_key, None)
+                if component.get("display_name"):
+                    rendered_display_names.add(str(component.get("display_name")).strip().lower())
+                return component_key
+
         evidence = msc_endpoint_evidence_by_key.get(component_key) or {}
         seed = _stable_seed(system.get("stable_object_key"), component_key, "star_visual")
         spectral_type_raw = evidence.get("spectral_type_raw")
@@ -1695,7 +1735,13 @@ def _render_scene_contract(
             rendered_display_names.add(display_key)
         return render_key
 
+    has_stellar_orbit_edges = any(
+        str(edge.get("relation_kind") or "") != "planetary_orbit"
+        for edge in orbit_rows
+    )
     for edge in orbit_rows:
+        if has_stellar_orbit_edges and str(edge.get("relation_kind") or "") == "planetary_orbit":
+            continue
         for key_name in ("primary_component_key", "secondary_component_key"):
             component_key = str(edge.get(key_name) or "")
             component = components_by_key.get(component_key)
@@ -1737,6 +1783,10 @@ def _render_scene_contract(
             host_key = render_star_key_by_core_star_id.get(host_star_id)
             if host_key:
                 return host_key, "core.planets.star_id_to_render_star"
+            for equivalent_star_id in sorted(equivalent_core_star_ids.get(host_star_id, set())):
+                host_key = render_star_key_by_core_star_id.get(equivalent_star_id)
+                if host_key:
+                    return host_key, "core.planets.star_id_catalog_equivalent_to_render_star"
             return None, "core.planets.star_id_unrendered"
         if len(render_stars) == 1:
             return next(iter(render_stars.keys())), "single_render_star_fallback"

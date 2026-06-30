@@ -355,8 +355,9 @@ Contract notes:
   Planet render bodies include `host_star_id` from the canonical planet row
   where available and `host_body_key` when that host resolves to a rendered
   star body. `source.host_resolution` records whether the linkage came from a
-  direct `core.planets.star_id` match, a singleton render-star fallback, or
-  remained missing/ambiguous.
+  direct `core.planets.star_id` match, a catalog-equivalent core star already
+  represented by a source-native render component, a singleton render-star
+  fallback, or remained missing/ambiguous.
   Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
