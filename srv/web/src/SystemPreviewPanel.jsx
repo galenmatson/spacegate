@@ -399,6 +399,17 @@ function staticReadoutRow(label, value, status = "source", field = null) {
   return [label, value, statusLabel(status), field];
 }
 
+function strongestStatus(fields, keys = []) {
+  const priority = { source: 4, derived: 3, assumed: 2, missing: 1 };
+  return keys
+    .map((key) => fieldRecord(fields, key)?.status || "missing")
+    .reduce((best, status) => (priority[status] > priority[best] ? status : best), "missing");
+}
+
+function firstFieldWithStatus(fields, keys = [], wantedStatus = "source") {
+  return keys.map((key) => fieldRecord(fields, key)).find((field) => field?.status === wantedStatus) || null;
+}
+
 function starClassProvenanceField(body) {
   const classValue = body?.spectral_class || "";
   const spectralTypeField = fieldRecord(body?.fields, "spectral_type_raw");
@@ -518,10 +529,63 @@ function objectHoverPayload(kind, body) {
   };
 }
 
+function orbitGuideProvenanceField(orbit) {
+  const sourceLayer = orbit?.source?.layer || "arm";
+  const guideStatus = sourceLayer === "disc_assumption"
+    ? "assumed"
+    : (strongestStatus(orbit?.fields, ["semi_major_axis_au", "eccentricity", "inclination_deg", "period_days"]) === "missing" ? "missing" : "derived");
+  const sourceField = firstFieldWithStatus(orbit?.fields, ["semi_major_axis_au", "eccentricity", "inclination_deg", "period_days"], "source");
+  return {
+    key: "orbit_guide_trace",
+    label: "Orbit guide",
+    value: guideStatus === "assumed" ? "Visual prior trace" : "Rendered guide trace",
+    unit: null,
+    status: guideStatus,
+    layer: guideStatus === "assumed" ? "disc_assumption" : (guideStatus === "missing" ? "none" : "render_scene"),
+    source_catalog: sourceField?.source_catalog || orbit?.source?.source_catalog,
+    source_reference: sourceField?.source_reference,
+    basis: guideStatus === "assumed"
+      ? "render_scene:disc_visual_orbit_trace"
+      : (guideStatus === "missing" ? "render_scene:no_orbit_trace_fields" : "render_scene:orbit_trace_from_payload_fields"),
+    seed: guideStatus === "assumed" ? fieldRecord(orbit?.fields, "phase_rad")?.seed : null,
+    generator_version: "system_preview_orbit_trace_v1",
+    confidence: guideStatus === "assumed" ? 0.2 : (guideStatus === "derived" ? 0.65 : null),
+    notes: "Displayed path samples the same eccentricity, inclination, and visual scale used by the animated bodies; it is clarity-scaled, not a physical-size rendering.",
+    replacement_target: "source orbit solution with epoch, orientation, uncertainty, and reviewed display transform",
+  };
+}
+
+function planetOrbitGuideProvenanceField(planet) {
+  const guideStatus = strongestStatus(planet?.fields, ["semi_major_axis_au", "eccentricity", "inclination_deg"]);
+  const sourceField = firstFieldWithStatus(planet?.fields, ["semi_major_axis_au", "eccentricity", "inclination_deg"], "source");
+  const fallbackField = firstFieldWithStatus(planet?.fields, ["semi_major_axis_au", "eccentricity", "inclination_deg"], "derived");
+  const assumedField = firstFieldWithStatus(planet?.fields, ["semi_major_axis_au", "eccentricity", "inclination_deg", "phase_rad"], "assumed");
+  const status = guideStatus === "source" || guideStatus === "derived" ? "derived" : (guideStatus === "assumed" ? "assumed" : "missing");
+  return {
+    key: "planet_orbit_trace",
+    label: "Orbit trace",
+    value: status === "assumed" ? "Visual prior trace" : "Rendered orbit trace",
+    unit: null,
+    status,
+    layer: status === "assumed" ? "disc_assumption" : (status === "missing" ? "none" : "render_scene"),
+    source_catalog: sourceField?.source_catalog || fallbackField?.source_catalog,
+    source_reference: sourceField?.source_reference || fallbackField?.source_reference,
+    basis: status === "assumed"
+      ? "render_scene:planet_orbit_trace_from_disc_priors"
+      : (status === "missing" ? "render_scene:no_planet_orbit_trace_fields" : "render_scene:planet_orbit_trace_from_payload_fields"),
+    seed: status === "assumed" ? assumedField?.seed : null,
+    generator_version: "system_preview_orbit_trace_v1",
+    confidence: status === "derived" ? 0.7 : (status === "assumed" ? 0.25 : null),
+    notes: "Displayed path is generated from the same eccentricity, inclination, and clarity-scaled orbit radius as the animated planet.",
+    replacement_target: "source planet orbit solution with epoch, orientation, uncertainty, and reviewed display transform",
+  };
+}
+
 function orbitHoverPayload(orbit) {
   if (!orbit) {
     return null;
   }
+  const guideField = orbitGuideProvenanceField(orbit);
   return {
     kind: String(orbit.relation_kind || "Orbit"),
     name: orbit.display_name || orbit.orbit_key || "Orbit",
@@ -532,6 +596,7 @@ function orbitHoverPayload(orbit) {
       readoutRow(orbit.fields, "semi_major_axis_au", "Axis", "Visual", 4),
       readoutRow(orbit.fields, "eccentricity", "Ecc.", "Unknown", 3),
       readoutRow(orbit.fields, "inclination_deg", "Incl.", "Unknown", 2),
+      staticReadoutRow("Guide", String(guideField.value), guideField.status, guideField),
     ],
   };
 }
@@ -577,7 +642,8 @@ function binaryMassFractions(primary, secondary) {
 function binaryTraceProvenanceField(massFractions) {
   const sourceMassRatio = massFractions?.basis === "source_mass_ratio";
   return {
-    label: "Binary trace",
+    key: "binary_body_paths",
+    label: "Body paths",
     value: sourceMassRatio ? "Mass-weighted barycentric" : "Equal-mass visual fallback",
     unit: null,
     status: sourceMassRatio ? "derived" : "assumed",
@@ -1394,6 +1460,11 @@ function CanvasHoverRaycaster({ onHover }) {
   useEffect(() => {
     const target = gl.domElement;
     const pointer = new THREE.Vector2();
+    const previousLineThreshold = raycaster.params.Line?.threshold;
+    const previousPointsThreshold = raycaster.params.Points?.threshold;
+    raycaster.params.Line = { ...(raycaster.params.Line || {}), threshold: 0.12 };
+    raycaster.params.Points = { ...(raycaster.params.Points || {}), threshold: 0.12 };
+    target.dataset.raycasterLineThreshold = "0.12";
 
     const setHover = (payload) => {
       if (lastPayloadRef.current === payload) {
@@ -1423,6 +1494,8 @@ function CanvasHoverRaycaster({ onHover }) {
     return () => {
       target.removeEventListener("pointermove", handleMove);
       target.removeEventListener("pointerleave", handleLeave);
+      raycaster.params.Line = { ...(raycaster.params.Line || {}), threshold: previousLineThreshold };
+      raycaster.params.Points = { ...(raycaster.params.Points || {}), threshold: previousPointsThreshold };
     };
   }, [camera, gl, onHover, raycaster, scene]);
 
@@ -1526,6 +1599,8 @@ function SceneMotionMetrics({
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
+    gl.domElement.dataset.orbitTraceProvenanceCount = String(inspectableOrbitCount);
+    gl.domElement.dataset.orbitTraceProvenanceVersion = "system_preview_orbit_trace_v1";
     gl.domElement.dataset.spectralClassSourceCount = String(starClassStatusCounts.source || 0);
     gl.domElement.dataset.spectralClassDerivedCount = String(starClassStatusCounts.derived || 0);
     gl.domElement.dataset.spectralClassAssumedCount = String(starClassStatusCounts.assumed || 0);
@@ -1576,6 +1651,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
+  const guideField = useMemo(() => planetOrbitGuideProvenanceField(planet), [planet]);
   const payload = useMemo(() => ({
     kind: "Planet orbit",
     name: `${planet.display_name || planet.name || "Planet"} orbit`,
@@ -1586,8 +1662,9 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       readoutRow(planet.fields, "semi_major_axis_au", "Orbit", "Unknown", 4),
       readoutRow(planet.fields, "eccentricity", "Ecc.", "Unknown", 3),
       readoutRow(planet.fields, "inclination_deg", "Incl.", "Unknown", 2),
+      staticReadoutRow("Trace", String(guideField.value), guideField.status, guideField),
     ],
-  }), [planet]);
+  }), [planet, guideField]);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const handlers = {
     onPointerOver: (event) => {

@@ -364,6 +364,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   time, clarity scale, assumption persistence, and deterministic fallback mode
 - [x] Fix simulator stellar-class readout provenance so visual/proxy classes do
   not appear as SOURCE without component-specific spectral evidence
+- [x] Add simulator orbit guide/trace provenance diagnostics and wider line
+  hit-testing so orbit hover/pin inspection is usable and testable
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

@@ -161,6 +161,18 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(7);
     await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.orbitTraceProvenanceCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.orbitTraceProvenanceVersion || ""),
+      { timeout: 3000 }
+    ).toBe("system_preview_orbit_trace_v1");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.raycasterLineThreshold || ""),
+      { timeout: 3000 }
+    ).toBe("0.12");
+    await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
       { timeout: 3000 }
     ).toContain("planet");
@@ -457,6 +469,10 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(2);
     await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.orbitTraceProvenanceCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(5);
+    await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
@@ -542,6 +558,10 @@ test.describe("public 3D map beta", () => {
     ).toBe(5);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableOrbitCount || 0)),
+      { timeout: 3000 }
+    ).toBe(4);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.orbitTraceProvenanceCount || 0)),
       { timeout: 3000 }
     ).toBe(4);
     await expect.poll(

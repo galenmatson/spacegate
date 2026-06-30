@@ -324,6 +324,9 @@ Success criteria:
 - hover and pinned readouts use the same source/derived/assumed/missing
   evidence-pill affordance as the summary panel, including focusable provenance
   popovers in pinned readouts
+- orbit path hover/pin readouts include explicit guide/trace provenance and
+  the shared raycaster uses a wider line threshold so orbit inspection is not a
+  pixel hunt
 - stellar class readouts use field-backed provenance instead of treating every
   display class as source; renderer diagnostics flag any source-like class
   without component-specific spectral evidence

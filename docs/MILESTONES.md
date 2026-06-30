@@ -766,6 +766,8 @@ Readiness gaps:
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.
+- June 30, 2026 orbit-inspection pass adds provenance-bearing guide/trace
+  readouts for orbit paths plus wider shared raycaster line hit-testing.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark
