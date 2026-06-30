@@ -344,6 +344,26 @@ Response:
     },
     "bodies": {"stars": [], "planets": [], "subsystems": []},
     "orbits": [],
+    "simulation_tree": {
+      "schema_version": "simulation_tree_v1",
+      "root_node_key": "root:system",
+      "nodes": {
+        "root:system": {
+          "node_key": "root:system",
+          "node_type": "root",
+          "children": []
+        }
+      },
+      "diagnostics": {
+        "node_count": 0,
+        "body_node_count": 0,
+        "orbit_node_count": 0,
+        "root_child_count": 0,
+        "nested_orbit_count": 0,
+        "unattached_orbit_count": 0,
+        "warnings": []
+      }
+    },
     "assumptions": [],
     "assumption_count": 0,
     "persisted_assumption_count": 0,
@@ -355,7 +375,8 @@ Response:
         "by_relation_kind": {}
       },
       "field_status_counts": {"source": 0, "derived": 0, "assumed": 0, "missing": 0},
-      "assumption_persistence_counts": {"persisted": 0, "transient": 0}
+      "assumption_persistence_counts": {"persisted": 0, "transient": 0},
+      "simulation_tree": {}
     },
     "provenance_legend": {
       "source": "Catalog/source value from core or arm.",
@@ -435,6 +456,15 @@ Contract notes:
   cluster orbit guides and browser-side visual child-cluster transforms. Browser
   orbit readouts should use the same field provenance objects as body readouts
   for SOURCE/DERIVED/ASSUMED/MISSING pills and copyable provenance.
+  `simulation_tree_v1` is the preferred client-side stellar animation contract.
+  It is derived from the emitted render bodies and orbit rows: body nodes point
+  at rendered stars, barycenter nodes point at one orbit row, and root nodes
+  collect the top-level connected components. If a later orbit side's rendered
+  leaf set exactly matches an earlier orbit node, the later node references
+  that barycenter, making nested systems such as HD 213885 and Castor explicit
+  without creating new core stars or ARM orbit facts. The diagnostics report
+  node counts, nested orbit count, unattached orbit count, and warnings so
+  clients and tests can distinguish a complete tree from a fallback layout.
   Browser orbit readouts add presentation-only guide/trace provenance fields
   such as `orbit_guide_trace`, `planet_orbit_trace`, and
   `binary_body_paths`; these explain how the visible line/path was sampled and
@@ -471,8 +501,9 @@ Contract notes:
   `seed`. These values are visual defaults only; they are not canonical science.
 - `render_scene.diagnostics` summarizes the final renderer-ready payload:
   body counts, orbit counts by endpoint/relation kind, field status counts, and
-  assumption persistence counts. It is an audit aid derived from the emitted
-  scene objects, not a replacement for the objects or their field provenance.
+  assumption persistence counts, plus a copy of the simulation-tree diagnostics.
+  It is an audit aid derived from the emitted scene objects, not a replacement
+  for the objects or their field provenance.
 - `rim` remains excluded from this science endpoint.
 - Missing orbital elements are exposed as missing/assumed readiness fields
   rather than silently filled as canonical data.

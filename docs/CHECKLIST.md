@@ -302,6 +302,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Make hierarchical group-pair motion mass-weighted around the rendered
   barycenter when positive side masses exist, with HD 213885 and HD 79210
   browser coverage
+- [x] Add `render_scene.simulation_tree` (`simulation_tree_v1`) and switch the
+  Live System Preview stellar renderer to recursive root/barycenter/body
+  transforms for nested systems such as HD 213885, HD 79210, and Castor
 - [x] Advance animated preview bodies by mean anomaly with a Kepler solve for
   true anomaly before placement, keeping full N-body propagation out of scope
 - [x] Add WebGL capability fallback from the Live System Preview to the

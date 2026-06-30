@@ -2732,6 +2732,141 @@ def _render_scene_contract(
         "transient": max(0, len(assumption_records) - persisted_assumption_count),
     }
 
+    def render_body_mass_msun(body_key: str) -> Optional[float]:
+        body = render_stars.get(body_key)
+        fields = body.get("fields") if isinstance(body, dict) else {}
+        mass = _float_or_none((fields.get("mass_msun") or {}).get("value") if isinstance(fields, dict) else None)
+        return mass if mass is not None and mass > 0 else None
+
+    def build_simulation_tree() -> Dict[str, Any]:
+        body_nodes: Dict[str, Dict[str, Any]] = {}
+        node_by_leaf_set: Dict[frozenset[str], str] = {}
+        warnings: List[str] = []
+        for body_key, body in sorted(render_stars.items()):
+            mass = render_body_mass_msun(body_key)
+            node_key = f"body:{body_key}"
+            body_nodes[node_key] = {
+                "node_key": node_key,
+                "node_type": "body",
+                "body_key": body_key,
+                "display_name": body.get("display_name") or body_key,
+                "body_kind": body.get("compact_type") or body.get("body_class") or "star",
+                "children": [],
+                "leaf_body_keys": [body_key],
+                "mass_msun": mass,
+                "mass_status": "source_or_derived" if mass is not None else "missing",
+            }
+            node_by_leaf_set[frozenset([body_key])] = node_key
+
+        orbit_nodes: Dict[str, Dict[str, Any]] = {}
+        remaining_orbits = list(render_orbits)
+        progress = True
+        while remaining_orbits and progress:
+            progress = False
+            next_remaining: List[Dict[str, Any]] = []
+            for orbit in remaining_orbits:
+                primary_keys = [
+                    str(key)
+                    for key in orbit.get("primary_child_body_keys") or [orbit.get("primary_body_key")]
+                    if key
+                ]
+                secondary_keys = [
+                    str(key)
+                    for key in orbit.get("secondary_child_body_keys") or [orbit.get("secondary_body_key")]
+                    if key
+                ]
+                primary_set = frozenset(primary_keys)
+                secondary_set = frozenset(secondary_keys)
+                if not primary_set or not secondary_set:
+                    warnings.append(f"{orbit.get('orbit_key') or 'orbit'} missing renderable orbit side")
+                    continue
+                primary_node_key = node_by_leaf_set.get(primary_set)
+                secondary_node_key = node_by_leaf_set.get(secondary_set)
+                if not primary_node_key or not secondary_node_key:
+                    next_remaining.append(orbit)
+                    continue
+                orbit_key = str(orbit.get("orbit_key") or f"orbit:{len(orbit_nodes)}")
+                leaf_set = primary_set | secondary_set
+                node_key = f"barycenter:{orbit_key}"
+                orbit_nodes[node_key] = {
+                    "node_key": node_key,
+                    "node_type": "barycenter",
+                    "orbit_key": orbit_key,
+                    "display_name": orbit.get("display_name") or orbit_key,
+                    "relation_kind": orbit.get("relation_kind") or "orbit",
+                    "endpoint_kind": orbit.get("endpoint_kind") or "star_pair",
+                    "children": [primary_node_key, secondary_node_key],
+                    "primary_child_node_key": primary_node_key,
+                    "secondary_child_node_key": secondary_node_key,
+                    "leaf_body_keys": sorted(leaf_set),
+                    "mass_msun": sum(
+                        mass
+                        for mass in (render_body_mass_msun(key) for key in leaf_set)
+                        if mass is not None
+                    ) or None,
+                }
+                existing_node_key = node_by_leaf_set.get(leaf_set)
+                if not existing_node_key or len(leaf_set) > 1:
+                    node_by_leaf_set[leaf_set] = node_key
+                progress = True
+            remaining_orbits = next_remaining
+
+        for orbit in remaining_orbits:
+            warnings.append(f"{orbit.get('orbit_key') or 'orbit'} could not be attached to simulation tree")
+
+        all_nodes = {**body_nodes, **orbit_nodes}
+        child_node_keys = {
+            str(child_key)
+            for node in all_nodes.values()
+            for child_key in node.get("children") or []
+            if child_key
+        }
+        top_node_keys = [
+            node_key
+            for node_key, node in all_nodes.items()
+            if node_key not in child_node_keys and node.get("node_type") == "barycenter"
+        ]
+        covered_leaf_keys = {
+            str(key)
+            for node_key in top_node_keys
+            for key in all_nodes.get(node_key, {}).get("leaf_body_keys") or []
+        }
+        for body_key in sorted(render_stars.keys()):
+            if body_key not in covered_leaf_keys:
+                node_key = node_by_leaf_set.get(frozenset([body_key]))
+                if node_key and node_key not in top_node_keys:
+                    top_node_keys.append(node_key)
+
+        root_key = "root:system"
+        all_nodes[root_key] = {
+            "node_key": root_key,
+            "node_type": "root",
+            "display_name": system.get("display_name") or system.get("system_name") or "System",
+            "children": top_node_keys,
+            "leaf_body_keys": sorted(render_stars.keys()),
+        }
+        nested_orbit_count = sum(
+            1
+            for node in orbit_nodes.values()
+            if any(str(child).startswith("barycenter:") for child in node.get("children") or [])
+        )
+        return {
+            "schema_version": "simulation_tree_v1",
+            "root_node_key": root_key,
+            "nodes": all_nodes,
+            "diagnostics": {
+                "node_count": len(all_nodes),
+                "body_node_count": len(body_nodes),
+                "orbit_node_count": len(orbit_nodes),
+                "root_child_count": len(top_node_keys),
+                "nested_orbit_count": nested_orbit_count,
+                "unattached_orbit_count": len(remaining_orbits),
+                "warnings": warnings[:12],
+            },
+        }
+
+    simulation_tree = build_simulation_tree()
+
     return {
         "schema_version": "render_scene_v0.2",
         "assumption_generator_version": SIM_PROCEDURAL_ASSUMPTION_VERSION,
@@ -2748,6 +2883,7 @@ def _render_scene_contract(
             "subsystems": render_subsystems,
         },
         "orbits": render_orbits,
+        "simulation_tree": simulation_tree,
         "assumptions": assumption_records,
         "assumption_count": len(assumption_records),
         "persisted_assumption_count": persisted_assumption_count,
@@ -2764,6 +2900,7 @@ def _render_scene_contract(
             },
             "field_status_counts": field_status_counts,
             "assumption_persistence_counts": assumption_persistence_counts,
+            "simulation_tree": simulation_tree.get("diagnostics"),
         },
         "provenance_legend": {
             "source": "Catalog/source value from core or arm.",

@@ -806,7 +806,8 @@ Readiness gaps:
 - full client epoch/time controls, uncertainty visualization, reviewed
   assumption curation/batch policy, science-grade ephemeris propagation, and
   physical-scale/precision display modes are not implemented yet. The browser
-  preview now has presentation-scale nested barycentric group motion.
+  preview now has a presentation-scale `simulation_tree_v1` for nested
+  barycentric stellar motion.
 - Sirius became a valid compact-companion benchmark on local build
   `20260630T_sim_beta_api_alias_v4` and remains valid on current served build
   `20260630T_sim_beta_sol_smallbody_v1`: Sirius A is a reviewed
@@ -818,8 +819,9 @@ Readiness gaps:
   public datasets need a refreshed NASA `ps` download/cook/rebuild before
   those candidate rows appear in served production builds.
 - Castor remains a hierarchy-quality watch item for browser rendering and
-  future barycentric nested-subsystem animation, but the general MSC
-  materialization gap is no longer a known data-loss issue in the builder
+  source-scale orbital realism, but nested-subsystem animation now uses the
+  same `simulation_tree_v1` contract as HD 213885/HD 79210; the general MSC
+  materialization gap is no longer a known data-loss issue in the builder.
 - Local served build has restored deterministic snapshot fallback coverage for
   the first map page; the public side-sliced deployment still needs equivalent
   `disc.snapshot_manifest` restoration/deployment before public map snapshot
@@ -884,6 +886,13 @@ Readiness gaps:
   as missing in the render contract, and advances animated bodies via
   mean-anomaly Kepler solves. HD 213885 and HD 79210 are browser regression
   benchmarks.
+- June 30, 2026 simulation-tree patch adds `render_scene.simulation_tree`
+  (`simulation_tree_v1`) with root, barycenter, and body nodes derived from the
+  emitted orbit rows. The R3F renderer now uses this recursive tree for stellar
+  bodies, orbit traces, and subsystem handles, so compact triples such as
+  HD 213885 render as `(AA+AB)+B` rather than a fixed star plus crossing
+  sibling offsets. Focused Playwright checks require tree activation and
+  nested-orbit diagnostics for HD 213885/HD 79210.
 - June 30, 2026 compact-body render patch preserves source-backed compact
   object classification in stellar render bodies through `body_class`,
   `compact_type`, and object-type provenance fields, with Sirius B as the

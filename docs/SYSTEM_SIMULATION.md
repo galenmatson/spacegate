@@ -18,6 +18,13 @@ Already in place:
 - `render_scene.diagnostics` summarizes final rendered body counts, orbit
   endpoint/relation counts, field SOURCE/DERIVED/ASSUMED/MISSING counts, and
   assumption persistence counts for API-level audit checks
+- `render_scene.simulation_tree` exposes `simulation_tree_v1`, a derived
+  renderer tree with root, barycenter, and body nodes assembled from emitted
+  ARM-backed orbit rows. When an outer orbit side exactly matches an inner
+  orbit's rendered leaves, the outer node references the inner barycenter
+  rather than the individual stars. This lets Castor/HD 213885-style systems
+  animate as nested barycentric hierarchies instead of static clusters with
+  ad hoc offsets.
 - `render_scene_v0.2` reconciles body lists against canonical hierarchy when
   hierarchy exposes richer physical membership than direct core rows or ARM
   orbit endpoints alone
@@ -107,9 +114,11 @@ Already in place:
   hierarchical group-pair guides, and subsystem handles so complex systems can
   be inspected without flattening the hierarchy into one undifferentiated set
   of rings
-- the browser renderer propagates nested group-pair motion through containing
-  hierarchy groups, so Castor-like inner binaries inherit outer subsystem
-  motion instead of flattening all pairs into one static layout
+- the browser renderer uses `simulation_tree_v1` when available for stars,
+  binary/group orbit traces, and subsystem handles. Each barycenter node owns
+  one Keplerian presentation transform and child nodes inherit that transform
+  recursively, so inner binaries inherit outer subsystem motion without adding
+  broad hierarchy-group offsets multiple times.
 - `render_scene_v0.2` may emit a single
   `relation_kind='visual_binary_fallback'` orbit for two rendered stars with no
   source orbit edge. This is a DISC presentation assumption for legibility
@@ -355,6 +364,9 @@ Success criteria:
   groups when connected binary edges are available
 - hierarchical subsystem orbit edges render as distinct group-pair guides so
   nested structure is visible without flattening the system into sibling stars
+- benchmark hierarchical scenes require `render_scene.simulation_tree` with
+  nested barycenter nodes and no unattached orbit rows for compact triples such
+  as HD 213885 and HD 79210
 - Nu Sco acts as the messy hierarchy browser benchmark: seven source-native
   leaves, subsystem handles, direct/group orbit guides, and unresolved children
   without inherited source-like spectral facts

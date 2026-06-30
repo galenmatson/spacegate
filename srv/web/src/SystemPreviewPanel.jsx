@@ -1900,6 +1900,275 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualSc
   );
 }
 
+function simulationTreeNodes(tree) {
+  return new Map(Object.entries(tree?.nodes || {}));
+}
+
+function treeNodeMassRecord(node, nodesByKey, starsByKey) {
+  if (!node) {
+    return null;
+  }
+  if (node.node_type === "body") {
+    return positiveStellarMass(starsByKey.get(node.body_key));
+  }
+  const leafKeys = node.leaf_body_keys || [];
+  if (leafKeys.length) {
+    return massForBodyKeys(leafKeys, starsByKey);
+  }
+  const childMasses = (node.children || [])
+    .map((childKey) => treeNodeMassRecord(nodesByKey.get(childKey), nodesByKey, starsByKey))
+    .filter((record) => Number.isFinite(record?.mass) && record.mass > 0);
+  if (!childMasses.length) {
+    return null;
+  }
+  return {
+    mass: childMasses.reduce((sum, record) => sum + record.mass, 0),
+    status: weakestMassStatus(childMasses.map((record) => record.status)),
+  };
+}
+
+function treeOrbitSpec(node, nodesByKey, orbitsByKey, starsByKey, visualScale, scaleMode) {
+  if (!node || node.node_type !== "barycenter") {
+    return null;
+  }
+  const orbit = orbitsByKey.get(node.orbit_key);
+  const children = (node.children || []).map((childKey) => nodesByKey.get(childKey)).filter(Boolean);
+  if (!orbit || children.length < 2) {
+    return null;
+  }
+  const primary = children[0];
+  const secondary = children[1];
+  const massFractions = barycentricMassFractions(
+    treeNodeMassRecord(primary, nodesByKey, starsByKey),
+    treeNodeMassRecord(secondary, nodesByKey, starsByKey),
+  );
+  const fallbackRadius = orbit.endpoint_kind === "group_pair" ? 1.6 : 0.9;
+  return {
+    nodeKey: node.node_key,
+    orbit,
+    primaryNodeKey: primary.node_key,
+    secondaryNodeKey: secondary.node_key,
+    massFractions,
+    periodDays: Math.max(0.05, numericField(orbit.fields, "period_days") || (orbit.endpoint_kind === "group_pair" ? 80 : 8)),
+    phaseRad: numericField(orbit.fields, "phase_rad") || 0,
+    eccentricity: Math.min(0.85, Math.max(0, numericField(orbit.fields, "eccentricity") || 0)),
+    inclinationRad: THREE.MathUtils.degToRad(numericField(orbit.fields, "inclination_deg") || 0),
+    orbitRadius: scaledBinaryOrbitRadius(orbit, visualScale, scaleMode, fallbackRadius),
+  };
+}
+
+function computeSimulationTreeTransforms(tree, nodesByKey, orbitsByKey, starsByKey, visualScale, scaleMode, simDays) {
+  const nodePositions = new Map();
+  const bodyPositions = new Map();
+  const visited = new Set();
+  const rootKey = tree?.root_node_key;
+
+  const visit = (nodeKey, position) => {
+    if (!nodeKey || visited.has(nodeKey)) {
+      return;
+    }
+    visited.add(nodeKey);
+    const node = nodesByKey.get(nodeKey);
+    if (!node) {
+      return;
+    }
+    nodePositions.set(nodeKey, position);
+    if (node.node_type === "body" && node.body_key) {
+      bodyPositions.set(node.body_key, position);
+      return;
+    }
+    const children = node.children || [];
+    const spec = treeOrbitSpec(node, nodesByKey, orbitsByKey, starsByKey, visualScale, scaleMode);
+    if (spec && children.length >= 2) {
+      const meanAnomaly = spec.phaseRad + (simDays / spec.periodDays) * Math.PI * 2;
+      const relative = orbitalPositionFromMeanAnomaly(meanAnomaly, spec.orbitRadius, spec.eccentricity, spec.inclinationRad);
+      visit(children[0], addVector(position, scaledVector(relative, -spec.massFractions.primary)));
+      visit(children[1], addVector(position, scaledVector(relative, spec.massFractions.secondary)));
+      children.slice(2).forEach((childKey) => visit(childKey, position));
+      return;
+    }
+    children.forEach((childKey) => visit(childKey, position));
+  };
+
+  visit(rootKey, [0, 0, 0]);
+  return { nodePositions, bodyPositions };
+}
+
+function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+  const relativePathPoints = useMemo(
+    () => sampledOrbitPoints(spec.orbitRadius, spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind === "group_pair" ? 224 : 192),
+    [spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind, spec.orbitRadius],
+  );
+  const primaryPathPoints = useMemo(
+    () => scaledOrbitPoints(relativePathPoints, -spec.massFractions.primary),
+    [relativePathPoints, spec.massFractions.primary],
+  );
+  const secondaryPathPoints = useMemo(
+    () => scaledOrbitPoints(relativePathPoints, spec.massFractions.secondary),
+    [relativePathPoints, spec.massFractions.secondary],
+  );
+  const orbitPayload = useMemo(() => {
+    const payload = orbitHoverPayload(spec.orbit);
+    if (!payload) {
+      return null;
+    }
+    const traceField = binaryTraceProvenanceField(spec.massFractions);
+    return {
+      ...payload,
+      rows: [
+        ...payload.rows,
+        staticReadoutRow("Trace", String(traceField.value), traceField.status, traceField),
+      ],
+    };
+  }, [spec]);
+  const selected = Boolean(selectedObjectId && payloadId(orbitPayload) === selectedObjectId);
+  const handlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(orbitPayload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(orbitPayload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(orbitPayload);
+    },
+  };
+
+  return (
+    <group ref={(element) => groupRefSetter(spec.nodeKey, element)} data-testid={spec.orbit.endpoint_kind === "group_pair" ? "system-preview-group-orbit-guide" : "system-preview-binary-orbit"}>
+      {showOrbits && (
+        <>
+          <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" args={[primaryPathPoints, 3]} />
+            </bufferGeometry>
+            <lineBasicMaterial color={selected ? "#fff4c4" : (spec.orbit.endpoint_kind === "group_pair" ? "#7ddcff" : "#ffdca8")} transparent opacity={selected ? 0.78 : (spec.orbit.endpoint_kind === "group_pair" ? 0.28 : 0.62)} />
+          </lineLoop>
+          <lineLoop {...handlers} userData={{ hoverPayload: orbitPayload }}>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" args={[secondaryPathPoints, 3]} />
+            </bufferGeometry>
+            <lineBasicMaterial color={spec.massFractions.basis === "source_mass_ratio" ? "#f0bf55" : "#fff4c4"} transparent opacity={selected ? 0.88 : (spec.orbit.endpoint_kind === "group_pair" ? 0.44 : 0.34)} />
+          </lineLoop>
+        </>
+      )}
+    </group>
+  );
+}
+
+function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderOrbits = [], starsByKey, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", simClockRef, showOrbits = true, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+  const nodesByKey = useMemo(() => simulationTreeNodes(simulationTree), [simulationTree]);
+  const orbitsByKey = useMemo(() => new Map((renderOrbits || []).map((orbit) => [orbit.orbit_key, orbit])), [renderOrbits]);
+  const bodyRefs = React.useRef(new Map());
+  const orbitRefs = React.useRef(new Map());
+  const subsystemRefs = React.useRef(new Map());
+  const setMapRef = useCallback((mapRef, key, element) => {
+    if (!key) {
+      return;
+    }
+    if (element) {
+      mapRef.current.set(key, element);
+    } else {
+      mapRef.current.delete(key);
+    }
+  }, []);
+  const orbitSpecs = useMemo(() => (
+    [...nodesByKey.values()]
+      .map((node) => treeOrbitSpec(node, nodesByKey, orbitsByKey, starsByKey, visualScale, scaleMode))
+      .filter(Boolean)
+  ), [nodesByKey, orbitsByKey, starsByKey, visualScale, scaleMode]);
+
+  useFrame(() => {
+    const simDays = currentSimulationDays(simClockRef);
+    const transforms = computeSimulationTreeTransforms(
+      simulationTree,
+      nodesByKey,
+      orbitsByKey,
+      starsByKey,
+      visualScale,
+      scaleMode,
+      simDays,
+    );
+    bodyRefs.current.forEach((group, bodyKey) => {
+      const position = transforms.bodyPositions.get(bodyKey);
+      if (position) {
+        group.position.set(...position);
+      }
+    });
+    orbitRefs.current.forEach((group, nodeKey) => {
+      const position = transforms.nodePositions.get(nodeKey);
+      if (position) {
+        group.position.set(...position);
+      }
+    });
+    subsystemRefs.current.forEach((group, subsystemKey) => {
+      const subsystem = (subsystems || []).find((item) => (item.render_key || item.key) === subsystemKey);
+      const positions = (subsystem?.child_body_keys || [])
+        .map((key) => transforms.bodyPositions.get(key))
+        .filter(Boolean);
+      if (positions.length) {
+        group.position.set(...averageVector(positions));
+      }
+    });
+  });
+
+  return (
+    <>
+      {orbitSpecs.map((spec) => (
+        <TreeOrbitGuide
+          key={spec.nodeKey}
+          spec={spec}
+          groupRefSetter={(key, element) => setMapRef(orbitRefs, key, element)}
+          showOrbits={showOrbits}
+          selectedObjectId={selectedObjectId}
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      ))}
+      {stars.map((star) => {
+        const starKey = star.render_key || star.key;
+        return (
+          <group key={starKey} ref={(element) => setMapRef(bodyRefs, starKey, element)}>
+            <StarSphere
+              star={star}
+              showLabels={showLabels}
+              selectedObjectId={selectedObjectId}
+              onHover={onHover}
+              onSelect={onSelect}
+            />
+          </group>
+        );
+      })}
+      {(subsystems || []).map((subsystem) => {
+        const subsystemKey = subsystem.render_key || subsystem.key;
+        return (
+          <group key={subsystemKey} ref={(element) => setMapRef(subsystemRefs, subsystemKey, element)}>
+            <SubsystemMarker
+              subsystem={subsystem}
+              center={[0, 0, 0]}
+              groupKeys={[]}
+              groupMotionSpecs={[]}
+              layout={null}
+              simClockRef={simClockRef}
+              showLabels={showLabels}
+              selectedObjectId={selectedObjectId}
+              onHover={onHover}
+              onSelect={onSelect}
+            />
+          </group>
+        );
+      })}
+    </>
+  );
+}
+
 function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
@@ -2144,6 +2413,8 @@ function SceneMotionMetrics({
   minStarClearance = null,
   minStarSeparation = null,
   groupMotionSpecs = [],
+  simulationTree = null,
+  useSimulationTree = false,
   planetHostGroupCount = 0,
   labelCount = 0,
   simClockRef,
@@ -2162,6 +2433,7 @@ function SceneMotionMetrics({
   const massWeightedGroupMotionCount = useMemo(() => (
     (groupMotionSpecs || []).filter((spec) => ["source_mass_ratio", "derived_mass_ratio", "assumed_mass_ratio"].includes(spec.massFractions?.basis)).length
   ), [groupMotionSpecs]);
+  const simulationTreeDiagnostics = simulationTree?.diagnostics || {};
   const inspectableOrbitCount = (directOrbitCount || 0) + (groupOrbitCount || 0) + (planetOrbitCount || 0);
   const inspectableTargetKinds = [
     starCount > 0 ? "star" : null,
@@ -2174,6 +2446,13 @@ function SceneMotionMetrics({
     gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
     gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
     gl.domElement.dataset.massWeightedGroupMotionCount = String(massWeightedGroupMotionCount);
+    gl.domElement.dataset.simulationTreeVersion = simulationTree?.schema_version || "";
+    gl.domElement.dataset.simulationTreeActive = useSimulationTree ? "true" : "false";
+    gl.domElement.dataset.simulationTreeNodeCount = String(simulationTreeDiagnostics.node_count || 0);
+    gl.domElement.dataset.simulationTreeBodyCount = String(simulationTreeDiagnostics.body_node_count || 0);
+    gl.domElement.dataset.simulationTreeOrbitCount = String(simulationTreeDiagnostics.orbit_node_count || 0);
+    gl.domElement.dataset.simulationTreeNestedOrbitCount = String(simulationTreeDiagnostics.nested_orbit_count || 0);
+    gl.domElement.dataset.simulationTreeUnattachedOrbitCount = String(simulationTreeDiagnostics.unattached_orbit_count || 0);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
@@ -2229,6 +2508,9 @@ function SceneMotionMetrics({
     starClassStatusCounts,
     starCount,
     subsystemMarkerCount,
+    simulationTree,
+    simulationTreeDiagnostics,
+    useSimulationTree,
   ]);
 
   useFrame(({ clock }) => {
@@ -2426,7 +2708,7 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], simulationTree = null, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -2456,6 +2738,14 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   const groupMotionSpecs = useMemo(
     () => buildGroupMotionSpecs(groupOrbits, layout, starsByKey, visualScale, activeScaleMode),
     [groupOrbits, layout, starsByKey, visualScale, activeScaleMode],
+  );
+  const useSimulationTree = Boolean(
+    simulationTree?.schema_version === "simulation_tree_v1"
+    && simulationTree?.root_node_key
+    && simulationTree?.nodes
+    && Number(simulationTree?.diagnostics?.unattached_orbit_count || 0) === 0
+    && (displayStars.length <= 1 || Number(simulationTree?.diagnostics?.orbit_node_count || 0) > 0)
+    && displayStars.length,
   );
   const looseStars = displayStars.filter((star) => !layout.orbitStarKeys.has(star.render_key || star.key));
   const starCenterByCoreId = new Map();
@@ -2551,6 +2841,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         minStarClearance={collisionScale.minClearance}
         minStarSeparation={collisionScale.minSeparation}
         groupMotionSpecs={groupMotionSpecs}
+        simulationTree={simulationTree}
+        useSimulationTree={useSimulationTree}
         planetHostGroupCount={planetHostGroupCount}
         labelCount={sceneLabelCount}
         simClockRef={simClockRef}
@@ -2581,7 +2873,24 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           />
         );
       })}
-      {binaryOrbits.map((orbit, idx) => (
+      {useSimulationTree && (
+        <SimulationTreeObjects
+          simulationTree={simulationTree}
+          stars={displayStars}
+          subsystems={subsystems}
+          renderOrbits={renderOrbits}
+          starsByKey={starsByKey}
+          visualScale={visualScale}
+          scaleMode={activeScaleMode}
+          simClockRef={simClockRef}
+          showOrbits={showOrbits}
+          showLabels={showLabels}
+          selectedObjectId={selectedObjectId}
+          onHover={onHover}
+          onSelect={onSelect}
+        />
+      )}
+      {!useSimulationTree && binaryOrbits.map((orbit, idx) => (
         <BinaryOrbit
           key={orbit.orbit_key || idx}
           orbit={orbit}
@@ -2601,7 +2910,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           onSelect={onSelect}
         />
       ))}
-      {looseStars.map((star) => (
+      {!useSimulationTree && looseStars.map((star) => (
         <AnimatedStarSphere
           key={star.render_key || star.key}
           star={star}
@@ -2618,7 +2927,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           onSelect={onSelect}
         />
       ))}
-      {groupOrbits.map((orbit, idx) => (
+      {!useSimulationTree && groupOrbits.map((orbit, idx) => (
         <GroupOrbitGuide
           key={orbit.orbit_key || `group-orbit-${idx}`}
           orbit={orbit}
@@ -2636,7 +2945,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           onSelect={onSelect}
         />
       ))}
-      {subsystems.map((subsystem) => {
+      {!useSimulationTree && subsystems.map((subsystem) => {
         const childKeys = subsystem.child_body_keys || [];
         const center = centerForBodyKeys(childKeys, layout, starsByKey);
         if (!center) {
@@ -2720,6 +3029,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
+  const simulationTree = useMemo(() => scene?.render_scene?.simulation_tree || null, [scene]);
   const stars = useMemo(() => {
     const renderStars = scene?.render_scene?.bodies?.stars || [];
     if (renderStars.length) {
@@ -2799,6 +3109,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         planets={planets}
         subsystems={subsystems}
         renderOrbits={renderOrbits}
+        simulationTree={simulationTree}
         hierarchy={scene?.hierarchy}
         visualScale={visualScale}
         scaleMode={activeScaleMode}

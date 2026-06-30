@@ -192,9 +192,12 @@ Implementation note:
   bodies/orbits and provenance-bearing source/derived/assumed/missing fields;
   hierarchical subsystem orbit edges are exposed as group-pair guides rather
   than collapsed into direct binary star orbits; subsystem hierarchy nodes with
-  rendered descendants are also exposed as inspectable UI handles; the browser preview uses those
-  group-pair edges for deterministic visual-scale child-cluster motion while
-  leaving source-scaled barycentric propagation for a later precision pass; the
+  rendered descendants are also exposed as inspectable UI handles; the payload
+  includes `simulation_tree_v1`, a derived root/barycenter/body tree that lets
+  the browser animate nested stellar systems recursively from the emitted orbit
+  rows instead of applying ad hoc offsets to a flat layout; this remains a
+  deterministic presentation-scale Keplerian preview, not source-scaled
+  epoch propagation or N-body dynamics; the
   payload now exports every rendered `ASSUMED` value as a structured
   `render_scene.assumptions` record with stable assumption keys and a
   selected-system `disc.simulation_assumptions` materialization path; broader

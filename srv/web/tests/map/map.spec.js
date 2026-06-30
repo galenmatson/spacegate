@@ -571,7 +571,11 @@ test.describe("public 3D map beta", () => {
         const stars = scenePayload.render_scene?.bodies?.stars || [];
         const starsByKey = new Map(stars.map((star) => [star.render_key, star]));
         const groupOrbit = (scenePayload.render_scene?.orbits || []).find((orbit) => orbit.endpoint_kind === "group_pair");
+        const simulationTree = scenePayload.render_scene?.simulation_tree || {};
         expect(groupOrbit, `${query} group-pair orbit`).toBeTruthy();
+        expect(simulationTree.schema_version, `${query} simulation tree schema`).toBe("simulation_tree_v1");
+        expect(simulationTree.diagnostics?.nested_orbit_count || 0, `${query} nested tree orbit count`).toBeGreaterThanOrEqual(1);
+        expect(simulationTree.diagnostics?.unattached_orbit_count || 0, `${query} unattached tree orbit count`).toBe(0);
         const sideMass = (keys) => (keys || [])
           .map((key) => Number(fieldValue(starsByKey.get(key), "mass_msun")))
           .filter((mass) => Number.isFinite(mass) && mass > 0)
@@ -589,6 +593,14 @@ test.describe("public 3D map beta", () => {
         ).toBeGreaterThanOrEqual(1);
         await expect.poll(
           () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.massWeightedGroupMotionCount || 0)),
+          { timeout: 3000 }
+        ).toBeGreaterThanOrEqual(1);
+        await expect.poll(
+          () => previewCanvas.evaluate((canvas) => canvas.dataset.simulationTreeActive || ""),
+          { timeout: 3000 }
+        ).toBe("true");
+        await expect.poll(
+          () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeNestedOrbitCount || 0)),
           { timeout: 3000 }
         ).toBeGreaterThanOrEqual(1);
       });
