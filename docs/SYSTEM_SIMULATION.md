@@ -96,9 +96,12 @@ Already in place:
   orbit radii and all rendered HZ outer bounds in the scene so planetless
   multi-star systems do not inflate every HZ band to planet-orbit scale.
 - object labels are visible by default and can be toggled off. Labels are
-  renderer-only billboarding sprites placed just below stars, planets, and
-  subsystem handles; HZ labels are placed on the band itself. They do not create
-  or alter science-layer fields.
+  renderer-only Drei/Troika SDF text billboards placed just below stars,
+  planets, and subsystem handles; HZ labels are placed on the band itself.
+  They are screen-size scaled for zoom readability, carry dark outlines for
+  contrast, do not participate in picking, and do not create or alter
+  science-layer fields. Dense-scene label priority/collision management remains
+  future presentation work.
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
   pills can be focused/copied from orbit paths as well as bodies; popovers
@@ -440,6 +443,9 @@ Success criteria:
   aids. Their readouts expose luminosity, inner/outer AU bounds, planet-plane
   alignment basis, and broad-flux basis from the render-scene calculations
   while avoiding click/drag handlers that could block camera controls.
+- default object labels use SDF text billboards rather than canvas texture
+  sprites so zoomed-out system names remain sharper and browser QA can assert
+  the active `sceneLabelRenderer` diagnostic.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises

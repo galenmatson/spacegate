@@ -127,7 +127,7 @@ test.describe("public 3D map beta", () => {
     expect(firstPlanetClass?.status).toMatch(/derived|assumed/);
     expect(firstPlanetClass?.generator_version).toBe("system_preview_planet_visual_class_v1");
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     const sharedClockCanvas = page.locator(".system-preview-canvas canvas");
@@ -217,11 +217,19 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(8);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.sceneLabelRenderer || ""),
+      { timeout: 3000 }
+    ).toBe("troika_sdf_text_v1");
     await page.getByRole("button", { name: /Labels On/i }).click();
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),
       { timeout: 3000 }
     ).toBe(0);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.sceneLabelRenderer || ""),
+      { timeout: 3000 }
+    ).toBe("none");
     await page.getByRole("button", { name: /Labels Off/i }).click();
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);

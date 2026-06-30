@@ -218,12 +218,13 @@ Implementation note:
   labeled `disc_assumption` visual binary fallback orbits for legibility; the
   public preview now supports pause/start, speed, reset, orbit visibility,
   camera orbit/zoom/pan with reset-view support, hover, pinned copyable
-  readouts with in-scene selected-object feedback, and deterministic
-  procedural star/planet surface materials for visual clarity; orbit paths now
-  carry renderer guide/trace provenance and missing planet inclinations may use
-  deterministic low-tilt `disc_assumption` render fallbacks; these materials,
-  path guides, and fallbacks are transient presentation transforms over
-  existing scene fields, not source surface maps or ARM orbital evidence;
+  readouts with in-scene selected-object feedback, SDF text object labels for
+  zoom-readable names, and deterministic procedural star/planet surface
+  materials for visual clarity; orbit paths now carry renderer guide/trace
+  provenance and missing planet inclinations may use deterministic low-tilt
+  `disc_assumption` render fallbacks; these materials, labels, path guides, and
+  fallbacks are transient presentation transforms over existing scene fields,
+  not source surface maps or ARM orbital evidence;
   deterministic snapshots remain the fallback/reference artifact
 
 ### Rim (editable overlays)

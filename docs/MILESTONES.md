@@ -781,6 +781,10 @@ Readiness gaps:
 - June 30, 2026 simulator label pass makes HZ bands default-on, increases HZ
   contrast, and adds default-on billboarding labels below rendered stars,
   planets, and subsystem handles with a compact labels toggle.
+- June 30, 2026 SDF label pass replaces simulator canvas-sprite labels with
+  Drei/Troika SDF text billboards, camera-facing screen-size scaling, outlines,
+  non-picking labels, and Playwright renderer diagnostics. Full dense-scene
+  label priority/collision management remains future work.
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.

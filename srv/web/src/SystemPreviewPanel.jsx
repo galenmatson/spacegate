@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
@@ -318,53 +319,6 @@ function makeCanvasTexture(draw, size = 128) {
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.anisotropy = 4;
-  return texture;
-}
-
-function createLabelTexture(text, color = "#e6f6ff") {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 128;
-  const context = canvas.getContext("2d");
-  if (!context) {
-    return null;
-  }
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "rgba(2, 8, 14, 0.68)";
-  context.strokeStyle = "rgba(125, 220, 255, 0.42)";
-  context.lineWidth = 2;
-  context.beginPath();
-  const x = 14;
-  const y = 28;
-  const w = canvas.width - 28;
-  const h = 64;
-  const r = 16;
-  context.moveTo(x + r, y);
-  context.lineTo(x + w - r, y);
-  context.quadraticCurveTo(x + w, y, x + w, y + r);
-  context.lineTo(x + w, y + h - r);
-  context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  context.lineTo(x + r, y + h);
-  context.quadraticCurveTo(x, y + h, x, y + h - r);
-  context.lineTo(x, y + r);
-  context.quadraticCurveTo(x, y, x + r, y);
-  context.closePath();
-  context.fill();
-  context.stroke();
-  context.fillStyle = color;
-  context.font = "600 34px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillText(text, canvas.width / 2, y + h / 2 + 1, canvas.width - 54);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
   return texture;
 }
 
@@ -1063,18 +1017,57 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
 }
 
 function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 1, visible = true }) {
+  const groupRef = React.useRef(null);
+  const textRef = React.useRef(null);
+  const worldPositionRef = React.useRef(new THREE.Vector3());
+  const { camera, size } = useThree();
   const label = compactIdentifier(text, 24);
-  const texture = useMemo(() => (visible && label ? createLabelTexture(label, color) : null), [visible, label, color]);
-  useEffect(() => () => texture?.dispose?.(), [texture]);
-  if (!visible || !label || !texture) {
+
+  useFrame(() => {
+    if (!groupRef.current || !textRef.current || !visible) {
+      return;
+    }
+    const worldPosition = worldPositionRef.current;
+    groupRef.current.getWorldPosition(worldPosition);
+    const distance = Math.max(0.001, camera.position.distanceTo(worldPosition));
+    const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
+    const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
+    const targetPixels = clampNumber(15 * scale, 11, 21);
+    const fontSize = clampNumber(worldUnitsPerPixel * targetPixels, 0.045, 0.34);
+    const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
+    textRef.current.fontSize = fontSize;
+    textRef.current.fillOpacity = fade;
+    textRef.current.outlineOpacity = Math.min(0.96, fade + 0.18);
+    groupRef.current.quaternion.copy(camera.quaternion);
+  });
+
+  if (!visible || !label) {
     return null;
   }
-  const width = clampNumber(0.42 + label.length * 0.075, 0.72, 2.45) * scale;
-  const height = 0.24 * scale;
+
   return (
-    <sprite position={position} scale={[width, height, 1]} renderOrder={30} raycast={() => {}}>
-      <spriteMaterial map={texture} transparent opacity={0.94} depthWrite={false} depthTest={false} />
-    </sprite>
+    <group ref={groupRef} position={position} renderOrder={30}>
+      <Text
+        ref={textRef}
+        color={color}
+        fontSize={0.12}
+        maxWidth={2.8}
+        textAlign="center"
+        anchorX="center"
+        anchorY="middle"
+        outlineColor="#02080e"
+        outlineWidth={0.012}
+        outlineOpacity={0.92}
+        fillOpacity={0.94}
+        depthOffset={-20}
+        material-depthTest={false}
+        material-depthWrite={false}
+        material-transparent
+        raycast={() => {}}
+      >
+        {label}
+      </Text>
+    </group>
   );
 }
 
@@ -2478,6 +2471,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
     gl.domElement.dataset.treeHostedPlanetCount = String(treeHostedPlanetCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
+    gl.domElement.dataset.sceneLabelRenderer = labelCount > 0 ? "troika_sdf_text_v1" : "none";
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
     gl.domElement.dataset.groupOrbitGuideCount = String(groupOrbitCount || 0);
