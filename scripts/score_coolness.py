@@ -1176,6 +1176,18 @@ def _cmd_score(args: argparse.Namespace, root: Path) -> int:
             "parquet_path": str(disc_parquet_path),
         },
     )
+    if not bool(args.ephemeral):
+        _set_active(
+            store_dir,
+            profile_id=str(profile["profile_id"]),
+            profile_version=str(profile["profile_version"]),
+            reason="activated by persistent score run",
+            event_type="profile.activate.score",
+            metadata={
+                "build_id": build_id,
+                "profile_created_during_run": profile_created,
+            },
+        )
 
     print(f"Scored build: {build_id}")
     print(f"Mode: {'ephemeral' if args.ephemeral else 'persistent'}")

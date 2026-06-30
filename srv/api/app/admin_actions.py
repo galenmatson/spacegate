@@ -284,18 +284,35 @@ def _build_command_score_coolness(params: Dict[str, Any]) -> List[str]:
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.extend(["--build-id", build_id])
-    profile_id = str(params.get("profile_id", "") or "").strip()
-    if profile_id:
-        cmd.extend(["--profile-id", profile_id])
-    profile_version = str(params.get("profile_version", "") or "").strip()
-    if profile_version:
-        cmd.extend(["--profile-version", profile_version])
     weights_json = str(params.get("weights_json", "") or "").strip()
+    ephemeral = _normalize_boolean(params.get("ephemeral", False))
+    profile_id = str(params.get("profile_id", "") or "").strip()
+    profile_version = str(params.get("profile_version", "") or "").strip()
+    if weights_json and not ephemeral:
+        if not profile_id:
+            profile_id = "tuned"
+        profile_version = _auto_coolness_profile_version(weights_json)
+    elif not (profile_id and profile_version):
+        profile_id = ""
+        profile_version = ""
+    if profile_id and profile_version:
+        cmd.extend(["--profile-id", profile_id, "--profile-version", profile_version])
     if weights_json:
         cmd.extend(["--weights-json", weights_json])
-    if _normalize_boolean(params.get("ephemeral", False)):
+    if ephemeral:
         cmd.append("--ephemeral")
     return cmd
+
+
+def _auto_coolness_profile_version(weights_json: str) -> str:
+    raw = str(weights_json or "").strip()
+    try:
+        parsed = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
+        parsed = raw
+    stable = json.dumps(parsed, sort_keys=True, separators=(",", ":"))
+    weights_hash = hashlib.sha256(stable.encode("utf-8")).hexdigest()[:8]
+    return f"{_ts_slug()}_{weights_hash}"
 
 
 def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
@@ -1347,7 +1364,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "score_coolness": ActionSpec(
         name="score_coolness",
         display_name="Score Coolness",
-        description="Generate disc coolness ranking + report for a build (supports ephemeral scoring).",
+        description="Generate disc coolness ranking and save the selected slider mix as a timestamped profile.",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -1360,16 +1377,19 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "profile_id": {
                 "type": "string",
                 "required": False,
-                "default": "default",
-                "allow_empty": False,
-                "label": "Profile ID",
+                "default": "tuned",
+                "allow_empty": True,
+                "label": "Profile ID (optional)",
+                "placeholder": "tuned",
             },
             "profile_version": {
                 "type": "string",
                 "required": False,
-                "default": "1",
-                "allow_empty": False,
-                "label": "Profile Version",
+                "default": "",
+                "allow_empty": True,
+                "hidden": True,
+                "label": "Profile Version (optional)",
+                "placeholder": "auto timestamp + hash",
             },
             "weights_json": {
                 "type": "string",
@@ -1382,7 +1402,8 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
             "ephemeral": {
                 "type": "boolean",
                 "required": False,
-                "default": True,
+                "default": False,
+                "hidden": True,
                 "label": "Ephemeral scoring run",
             },
         },

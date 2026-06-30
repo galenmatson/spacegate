@@ -100,9 +100,9 @@ const fallbackActionGuidance = {
   score_coolness: {
     group: "presentation",
     purpose: "Generates deterministic disc coolness ranking and scoring reports for a build.",
-    prerequisites: "Use after a valid build exists. Ephemeral scoring is useful for experiments.",
-    writes: "Disc scoring artifacts and reports. Ephemeral mode avoids creating or mutating stored profile versions.",
-    next: "Generate snapshots for the new ranking. Save and activate a profile if the result is worth preserving.",
+    prerequisites: "Use after a valid build exists. Slider changes are saved automatically as immutable timestamped profiles.",
+    writes: "Disc scoring artifacts, reports, immutable coolness profile metadata, and the active profile pointer.",
+    next: "Reload the Star Browser to inspect the new ranking, or rerun an earlier profile from the Presentation profile picker.",
     duration: "Medium",
   },
   save_coolness_profile: {
@@ -1188,6 +1188,8 @@ function PresentationWorkspace({
         <div className="artifact-flags">
           <span className={`badge ${statusTone(coolness.status || "missing")}`}>Coolness {readableStatus(coolness.status || "missing")}</span>
           <span className={`badge ${statusTone(snapshot.status || "missing")}`}>Snapshots {readableStatus(snapshot.status || "missing")}</span>
+          <span className={`badge ${jobStatusTone(scoreJob?.status || "unknown")}`}>Score job {readableStatus(scoreJob?.status || "unknown")}</span>
+          <span className={`badge ${jobStatusTone(snapshotJob?.status || "unknown")}`}>Snapshot job {readableStatus(snapshotJob?.status || "unknown")}</span>
         </div>
       </div>
 
@@ -1220,7 +1222,18 @@ function PresentationWorkspace({
       </div>
 
       <div className="builds-grid">
-        <CoolnessReportPanel build={currentBuild} coolness={coolness} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
+        <CoolnessReportPanel
+          build={currentBuild}
+          coolness={coolness}
+          scoreJob={scoreJob}
+          openOperationsJob={openOperationsJob}
+        />
+        <CoolnessProfileSwitcher
+          runAction={runAction}
+        />
+      </div>
+
+      <div className="builds-grid">
         <SnapshotReportPanel build={currentBuild} snapshotJob={snapshotJob} scoreJob={scoreJob} openOperationsJob={openOperationsJob} />
       </div>
 
@@ -1232,6 +1245,139 @@ function PresentationWorkspace({
       </div>
     </section>
   );
+}
+
+function CoolnessProfileSwitcher({ runAction }) {
+  const [state, setState] = useState({ loading: true, profiles: [], active: null, message: "Loading profiles..." });
+  const [selected, setSelected] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function loadProfiles({ preserveSelection = false } = {}) {
+    setState((current) => ({ ...current, loading: true, message: "Refreshing profiles..." }));
+    const { response, data } = await fetchJson(`${ADMIN_API_BASE}/coolness/state`);
+    if (!response.ok) {
+      setState({ loading: false, profiles: [], active: null, message: `Profile load failed: ${compactError(data, response.status)}` });
+      return;
+    }
+    const profiles = Array.isArray(data.profiles) ? data.profiles : [];
+    const active = data.active || null;
+    const sorted = sortCoolnessProfiles(profiles);
+    setState({ loading: false, profiles: sorted, active, message: sorted.length ? "Ready" : "No saved profiles found." });
+    if (!preserveSelection || !selected) {
+      const activeValue = active ? profileOptionValue(active.profile_id, active.profile_version) : "";
+      const fallback = sorted[0] ? profileOptionValue(sorted[0].profile_id, sorted[0].profile_version) : "";
+      setSelected(activeValue || fallback);
+    }
+  }
+
+  useEffect(() => {
+    loadProfiles();
+  }, []);
+
+  const selectedProfile = useMemo(() => {
+    const [profileId, profileVersion] = splitProfileOptionValue(selected);
+    return state.profiles.find((profile) => (
+      String(profile.profile_id || "") === profileId && String(profile.profile_version || "") === profileVersion
+    )) || null;
+  }, [selected, state.profiles]);
+
+  async function activateSelected() {
+    if (!selectedProfile) {
+      setState((current) => ({ ...current, message: "Select a saved profile first." }));
+      return;
+    }
+    setBusy(true);
+    const result = await runAction("score_coolness", {
+      profile_id: selectedProfile.profile_id,
+      profile_version: selectedProfile.profile_version,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setState((current) => ({ ...current, message: result.message || "Score job failed to start." }));
+      return;
+    }
+    setState((current) => ({ ...current, message: `Queued score job ${result.job?.job_id || ""} for ${selectedProfile.profile_id}@${selectedProfile.profile_version}.` }));
+    await loadProfiles({ preserveSelection: true });
+  }
+
+  return (
+    <div className="panel">
+      <div className="panel-head">
+        <div>
+          <h2>Coolness Profile History</h2>
+          <p className="muted">Every slider scoring run is saved here with a timestamp/hash version for quick rollback and comparison.</p>
+        </div>
+        <button className="button" type="button" onClick={() => loadProfiles({ preserveSelection: true })}>
+          {state.loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+      <label>
+        <span>Saved scoring mix</span>
+        <select value={selected} onChange={(event) => setSelected(event.target.value)}>
+          {state.profiles.length ? state.profiles.map((profile) => {
+            const active = state.active
+              && String(state.active.profile_id || "") === String(profile.profile_id || "")
+              && String(state.active.profile_version || "") === String(profile.profile_version || "");
+            const label = `${formatCoolnessProfileLabel(profile)}${active ? " [active]" : ""}`;
+            return <option key={profileOptionValue(profile.profile_id, profile.profile_version)} value={profileOptionValue(profile.profile_id, profile.profile_version)}>{label}</option>;
+          }) : <option value="">No saved profiles</option>}
+        </select>
+      </label>
+      {selectedProfile ? (
+        <div className="coolness-profile-summary">
+          <OverviewFact label="Profile" value={`${selectedProfile.profile_id} @ ${selectedProfile.profile_version}`} />
+          <OverviewFact label="Created" value={formatDate(selectedProfile.created_at)} />
+          <OverviewFact label="Hash" value={compactId(selectedProfile.profile_hash, 18)} />
+          <div className="coolness-weight-breakdown-list compact">
+            {coolnessWeightMeta.map(([key, itemLabel]) => {
+              const weight = Number(selectedProfile.weights?.[key] || 0);
+              return (
+                <div className="coolness-weight-breakdown-row" key={key}>
+                  <span>{itemLabel}</span>
+                  <div className="coolness-weight-bar" aria-hidden="true">
+                    <span style={{ width: `${Math.max(2, Math.min(100, weight * 100))}%` }} />
+                  </div>
+                  <strong>{formatPct(weight * 100)}</strong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className="card-actions">
+        <button className="button primary" disabled={busy || !selectedProfile} type="button" onClick={activateSelected}>
+          {busy ? "Starting..." : "Score Selected Profile"}
+        </button>
+      </div>
+      <div className={state.message === "Ready" ? "status-line" : "status-line"}>{state.message}</div>
+    </div>
+  );
+}
+
+function profileOptionValue(profileId, profileVersion) {
+  return `${String(profileId || "")}@@${String(profileVersion || "")}`;
+}
+
+function splitProfileOptionValue(value) {
+  const [profileId, ...rest] = String(value || "").split("@@");
+  return [profileId || "", rest.join("@@") || ""];
+}
+
+function sortCoolnessProfiles(profiles) {
+  return [...profiles].sort((a, b) => {
+    const at = dateMs(a?.created_at) || 0;
+    const bt = dateMs(b?.created_at) || 0;
+    if (at !== bt) return bt - at;
+    return `${b?.profile_id || ""}@${b?.profile_version || ""}`.localeCompare(`${a?.profile_id || ""}@${a?.profile_version || ""}`);
+  });
+}
+
+function formatCoolnessProfileLabel(profile) {
+  const id = String(profile?.profile_id || "profile");
+  const version = String(profile?.profile_version || "version");
+  const created = profile?.created_at ? formatDateCompact(profile.created_at) : "unknown time";
+  const hash = compactId(profile?.profile_hash || "", 10);
+  return `${created} | ${id}@${version}${hash ? ` | ${hash}` : ""}`;
 }
 
 function readableStatus(value) {
@@ -5912,7 +6058,7 @@ function ActionCard({ action, runAction, busy, snapshotControl = null }) {
     }
     const params = {};
     for (const [name, spec] of Object.entries(schema)) {
-      const value = values[name];
+      const value = spec?.hidden ? spec.default : values[name];
       if (spec?.type === "boolean") {
         params[name] = Boolean(value);
       } else if (spec?.type === "integer") {

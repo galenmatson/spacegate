@@ -527,8 +527,13 @@ Because coolness scoring and snapshot generation are frequent CoolStars
 operations, Admin should expose a first-class Presentation sidebar workspace
 near Builds rather than burying those actions behind the general runbook. The
 workspace should show the current coolness/snapshot report state, launch
-`score_coolness` and `generate_snapshots`, and display the normalized Coolness
-Score Weights breakdown before operators run a scoring job.
+`score_coolness` and `generate_snapshots`, display the normalized Coolness
+Score Weights breakdown before operators run a scoring job, and surface the
+latest score/snapshot job status without requiring a trip to Operations. A
+slider-based `score_coolness` run should automatically save an immutable
+timestamp/hash profile version and activate it after scoring so operators can
+adjust, score, inspect the Star Browser, and rerun earlier mixes from the
+Presentation profile history without hand-editing profile versions.
 
 The action catalog should eventually grow structured metadata instead of
 forcing the React UI to hardcode guidance:

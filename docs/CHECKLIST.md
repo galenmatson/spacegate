@@ -377,6 +377,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add `render_scene.diagnostics` API counts and strict verifier coverage
   for rendered bodies, orbit endpoint/relation kinds, field statuses, and
   assumption persistence
+- [x] Simplify Presentation coolness tuning so slider scoring auto-saves a
+  timestamp/hash profile version, removes visible ephemeral scoring, exposes
+  recent profile reruns, and shows score/snapshot job status chips in the
+  Presentation workspace
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset
