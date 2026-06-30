@@ -367,7 +367,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add simulator orbit guide/trace provenance diagnostics and wider line
   hit-testing so orbit hover/pin inspection is usable and testable
 - [x] Ensure rendered planets with missing source inclination receive a
-  deterministic `disc_assumption` visual inclination fallback
+  deterministic `disc_assumption` visual inclination fallback, seeded from a
+  same-host source inclination when available
 - [x] Tighten API, DISC, and project docs for orbit guide/trace provenance and
   render-only inclination assumptions
 - [x] Add provenance-backed subsystem component/hierarchy readout fields to

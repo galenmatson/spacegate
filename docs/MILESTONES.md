@@ -773,7 +773,9 @@ Readiness gaps:
   readouts for orbit paths plus wider shared raycaster line hit-testing.
 - June 30, 2026 planet-inclination fallback pass keeps render-scene planet
   inclinations source-backed when present and uses deterministic
-  `disc_assumption` low-tilt fallbacks when absent.
+  `disc_assumption` fallbacks when absent; the fallback now prefers a
+  same-host coplanar visual prior seeded from source inclinations before using
+  the older centered low-tilt prior.
 - June 30, 2026 local snapshot fallback restoration generated 100 deterministic
   `system_card` snapshots for served build
   `20260630T_sim_beta_sol_smallbody_v1`, restored `disc.snapshot_manifest`

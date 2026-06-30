@@ -581,6 +581,7 @@ def _procedural_field(
     confidence_tier: str = "illustrative",
     confidence: float = 0.25,
     replacement_target: str,
+    notes: Optional[str] = None,
 ) -> Dict[str, Any]:
     return _simulation_field(
         key=key,
@@ -595,7 +596,102 @@ def _procedural_field(
         seed=seed,
         generator_version=SIM_PROCEDURAL_ASSUMPTION_VERSION,
         confidence=confidence,
-        notes="Deterministic visualization prior only; not canonical astronomy.",
+        notes=notes or "Deterministic visualization prior only; not canonical astronomy.",
+    )
+
+
+def _clamp_float(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _median_float(values: List[float]) -> Optional[float]:
+    clean = sorted(value for value in values if value is not None and math.isfinite(value))
+    if not clean:
+        return None
+    mid = len(clean) // 2
+    if len(clean) % 2:
+        return clean[mid]
+    return (clean[mid - 1] + clean[mid]) / 2.0
+
+
+def _planet_source_inclination_planes(
+    planets: List[Dict[str, Any]],
+    planet_readiness_by_id: Dict[int, Dict[str, Any]],
+) -> Dict[str, Any]:
+    by_host_values: Dict[str, List[float]] = {}
+    system_values: List[float] = []
+    for planet in planets:
+        try:
+            planet_id = int(planet.get("planet_id"))
+        except Exception:
+            continue
+        readiness = planet_readiness_by_id.get(planet_id) or {}
+        fields = _field_map(readiness.get("fields") or [])
+        inclination = fields.get("inclination_deg") or {}
+        if str(inclination.get("status") or "").lower() != "source":
+            continue
+        value = _float_or_none(inclination.get("value"))
+        if value is None:
+            continue
+        value = _clamp_float(value, 0.0, 180.0)
+        system_values.append(value)
+        host_key = str(planet.get("star_id") or "").strip()
+        if host_key:
+            by_host_values.setdefault(host_key, []).append(value)
+
+    by_host: Dict[str, Dict[str, Any]] = {}
+    for host_key, values in by_host_values.items():
+        median = _median_float(values)
+        if median is not None:
+            by_host[host_key] = {"inclination_deg": median, "source_count": len(values)}
+    system_median = _median_float(system_values)
+    return {
+        "by_host": by_host,
+        "system": (
+            {"inclination_deg": system_median, "source_count": len(system_values)}
+            if system_median is not None
+            else None
+        ),
+    }
+
+
+def _planet_visual_inclination_prior(
+    *,
+    seed: str,
+    replacement_target: str,
+    plane_refs: Dict[str, Any],
+    host_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    host_ref = (plane_refs.get("by_host") or {}).get(str(host_key or "").strip())
+    system_ref = plane_refs.get("system")
+    ref = host_ref or system_ref
+    if ref:
+        offset = 1.25 * _seed_centered(seed, "coplanar_inc_offset")
+        value = round(_clamp_float(float(ref["inclination_deg"]) + offset, 0.0, 180.0), 6)
+        scope = "same host" if host_ref else "same system"
+        source_count = int(ref.get("source_count") or 1)
+        return _procedural_field(
+            key="inclination_deg",
+            label="Inclination",
+            value=value,
+            unit="deg",
+            basis="coplanar_with_source_planet_inclination_visual_prior",
+            seed=seed,
+            confidence=0.35,
+            replacement_target=replacement_target,
+            notes=(
+                f"Deterministic visualization prior seeded from {source_count} "
+                f"source-backed planet inclination(s) in the {scope}; not canonical astronomy."
+            ),
+        )
+    return _procedural_field(
+        key="inclination_deg",
+        label="Inclination",
+        value=round(3.0 * _seed_centered(seed, "inc"), 6),
+        unit="deg",
+        basis="centered_low_inclination_visual_prior",
+        seed=seed,
+        replacement_target=replacement_target,
     )
 
 
@@ -2298,6 +2394,7 @@ def _render_scene_contract(
 
     render_planets: List[Dict[str, Any]] = []
     rendered_planet_keys: set[str] = set()
+    planet_inclination_plane_refs = _planet_source_inclination_planes(planets, planet_readiness_by_id)
     for idx, planet in enumerate(planets):
         planet_id = int(planet.get("planet_id") or -1)
         readiness = planet_readiness_by_id.get(planet_id) or {}
@@ -2330,13 +2427,10 @@ def _render_scene_contract(
                     replacement_target="source inclination with uncertainty",
                 )
                 if inc is not None
-                else _procedural_field(
-                    key="inclination_deg",
-                    label="Inclination",
-                    value=round(3.0 * _seed_centered(seed, "inc"), 6),
-                    unit="deg",
-                    basis="centered_low_inclination_visual_prior",
+                else _planet_visual_inclination_prior(
                     seed=seed,
+                    host_key=str(planet.get("star_id") or ""),
+                    plane_refs=planet_inclination_plane_refs,
                     replacement_target="source planet inclination",
                 )
             )
@@ -2464,13 +2558,10 @@ def _render_scene_contract(
                         confidence=confidence,
                     )
                     if source_inc is not None
-                    else _procedural_field(
-                        key="inclination_deg",
-                        label="Inclination",
-                        value=round(3.0 * _seed_centered(seed, "inc"), 6),
-                        unit="deg",
-                        basis="centered_low_inclination_visual_prior",
+                    else _planet_visual_inclination_prior(
                         seed=seed,
+                        host_key=str(edge.get("primary_component_key") or edge.get("host_component_key") or ""),
+                        plane_refs=planet_inclination_plane_refs,
                         replacement_target="source planet inclination",
                     )
                 ),

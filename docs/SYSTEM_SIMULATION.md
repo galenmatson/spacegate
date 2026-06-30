@@ -300,9 +300,12 @@ Success criteria:
 - browser QA covers at least one live-preview scene path
 - planet motion uses source orbital periods when present and deterministic
   seeded phases for reproducible non-aligned starting positions
-- planets with missing source inclination use a deterministic low-tilt
-  `disc_assumption` render fallback in `render_scene`; readiness diagnostics
-  may still report the underlying source inclination as missing
+- planets with missing source inclination use a deterministic
+  `disc_assumption` render fallback in `render_scene`; when same-host source
+  planet inclinations exist, the fallback uses a coplanar visual prior with a
+  tiny seeded offset, otherwise it uses the older centered low-tilt prior.
+  Readiness diagnostics may still report the underlying source inclination as
+  missing
 - TRAPPIST-1 benchmark scenes source period, semi-major axis, eccentricity, and
   inclination from `arm.orbital_solutions` before falling back to promoted
   `core.planets` summary scalars

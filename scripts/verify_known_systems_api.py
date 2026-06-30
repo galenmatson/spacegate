@@ -109,6 +109,14 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         min_scene_planets=5,
     ),
     BenchmarkCase(
+        "GJ 1061",
+        max_dist_ly=13.0,
+        min_star_count=1,
+        min_planet_count=3,
+        min_scene_stars=1,
+        min_scene_planets=3,
+    ),
+    BenchmarkCase(
         "Sol",
         max_dist_ly=0.1,
         min_star_count=1,
@@ -324,6 +332,29 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         expected = case.min_scene_planets or 1
         if len(source_periods) < expected:
             raise AssertionError(f"{case.query}: expected at least {expected} source-backed rendered planet periods, got {len(source_periods)}")
+
+    if query_norm == "gj 1061":
+        planet_b = rendered_planet_by_name(scene_planets, "GJ 1061 b")
+        planet_c = rendered_planet_by_name(scene_planets, "GJ 1061 c")
+        planet_d = rendered_planet_by_name(scene_planets, "GJ 1061 d")
+        for planet in (planet_b, planet_c, planet_d):
+            if not planet:
+                raise AssertionError(f"{case.query}: expected rendered GJ 1061 b/c/d planets")
+        b_inclination = field_by_key(planet_b.get("fields"), "inclination_deg")
+        if not b_inclination or b_inclination.get("status") != "source":
+            raise AssertionError(f"{case.query}: GJ 1061 b should retain source inclination: {b_inclination}")
+        for planet in (planet_c, planet_d):
+            inclination = field_by_key(planet.get("fields"), "inclination_deg")
+            if not inclination or inclination.get("status") != "assumed":
+                raise AssertionError(f"{case.query}: missing GJ 1061 c/d inclination should remain assumed: {inclination}")
+            if "coplanar_with_source_planet_inclination_visual_prior" not in str(inclination.get("basis") or ""):
+                raise AssertionError(f"{case.query}: missing GJ 1061 c/d inclination should use coplanar prior: {inclination}")
+            value = float(inclination.get("value"))
+            source_value = float(b_inclination.get("value"))
+            if abs(value - source_value) > 2.0:
+                raise AssertionError(
+                    f"{case.query}: GJ 1061 c/d assumed inclination should stay near source plane, got {value} vs {source_value}"
+                )
 
     if query_norm == "sol":
         mercury = rendered_planet_by_name(scene_planets, "Mercury")

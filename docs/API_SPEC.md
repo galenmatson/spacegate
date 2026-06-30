@@ -355,10 +355,13 @@ Contract notes:
   additional ranked `arm.orbital_solutions` rows for future diagnostics and
   explicit solution-selection UI, not silently promoted over `pscomppars`.
 - If a planet lacks a renderable source inclination, `render_scene` may replace
-  the missing render field with a deterministic low-tilt
-  `status="assumed"`, `layer="disc_assumption"` visual fallback. This does not
-  change the underlying `simulation_readiness` missingness and must not be
-  treated as a source orbital element.
+  the missing render field with a deterministic `status="assumed"`,
+  `layer="disc_assumption"` visual fallback. In multi-planet systems this
+  fallback should prefer a coplanar prior seeded from same-host source
+  inclinations when available, and only fall back to centered low-tilt when no
+  planet source inclination exists. This does not change the underlying
+  `simulation_readiness` missingness and must not be treated as a source
+  orbital element.
 - `disc` is the future home for visualization-only assumptions and static
   fallback artifacts.
 - Browser clients should use `render_scene` when WebGL/R3F is available and
