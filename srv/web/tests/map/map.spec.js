@@ -552,7 +552,7 @@ test.describe("public 3D map beta", () => {
 
   test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "hierarchical barycentric motion smoke uses desktop detail layout");
-    const cases = ["HD 213885", "HD 79210"];
+    const cases = ["HD 213885", "HD 79210", "eps Ind A"];
     const fieldValue = (owner, key) => owner?.fields?.[key]?.value;
 
     for (const query of cases) {
@@ -576,6 +576,12 @@ test.describe("public 3D map beta", () => {
         expect(simulationTree.schema_version, `${query} simulation tree schema`).toBe("simulation_tree_v1");
         expect(simulationTree.diagnostics?.nested_orbit_count || 0, `${query} nested tree orbit count`).toBeGreaterThanOrEqual(1);
         expect(simulationTree.diagnostics?.unattached_orbit_count || 0, `${query} unattached tree orbit count`).toBe(0);
+        if (query === "eps Ind A") {
+          const periodField = groupOrbit.fields?.period_days || {};
+          expect(Number(periodField.value), "eps Ind A outer A-B period").toBeGreaterThan(1_000_000);
+          expect(periodField.status, "eps Ind A outer A-B period status").toBe("source");
+          expect(String(periodField.basis || ""), "eps Ind A outer A-B period basis").toContain("msc_system_details");
+        }
         const sideMass = (keys) => (keys || [])
           .map((key) => Number(fieldValue(starsByKey.get(key), "mass_msun")))
           .filter((mass) => Number.isFinite(mass) && mass > 0)
@@ -603,6 +609,12 @@ test.describe("public 3D map beta", () => {
           () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeNestedOrbitCount || 0)),
           { timeout: 3000 }
         ).toBeGreaterThanOrEqual(1);
+        if (query === "eps Ind A") {
+          await expect.poll(
+            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.treeHostedPlanetCount || 0)),
+            { timeout: 3000 }
+          ).toBeGreaterThanOrEqual(1);
+        }
       });
     }
   });

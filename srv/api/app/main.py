@@ -1585,6 +1585,43 @@ def _render_scene_contract(
                     "confidence": 0.85,
                 }
 
+    msc_system_detail_by_pair: Dict[tuple[str, str], Dict[str, Any]] = {}
+    for row in ((arm.get("msc_system_details") or {}).get("items") or []):
+        primary_key = str(row.get("primary_component_key") or "")
+        secondary_key = str(row.get("secondary_component_key") or "")
+        if not primary_key or not secondary_key:
+            continue
+        key = (primary_key, secondary_key)
+        existing = msc_system_detail_by_pair.get(key)
+        existing_score = 0 if existing is None else sum(
+            1
+            for field in ("period_days", "separation_arcsec", "separation_mas", "mass_primary_msun", "mass_secondary_msun")
+            if existing.get(field) not in (None, "")
+        )
+        score = sum(
+            1
+            for field in ("period_days", "separation_arcsec", "separation_mas", "mass_primary_msun", "mass_secondary_msun")
+            if row.get(field) not in (None, "")
+        )
+        if existing is None or score > existing_score:
+            msc_system_detail_by_pair[key] = row
+
+    def msc_system_detail_for_pair(primary_key: str, secondary_key: str) -> Optional[Dict[str, Any]]:
+        return (
+            msc_system_detail_by_pair.get((primary_key, secondary_key))
+            or msc_system_detail_by_pair.get((secondary_key, primary_key))
+        )
+
+    def system_distance_pc() -> Optional[float]:
+        dist_ly = _float_or_none(system.get("dist_ly"))
+        if dist_ly is not None and dist_ly > 0:
+            return dist_ly / 3.261563777
+        for row in stars:
+            dist_pc = _float_or_none(row.get("dist_pc"))
+            if dist_pc is not None and dist_pc > 0:
+                return dist_pc
+        return None
+
     render_stars: Dict[str, Dict[str, Any]] = {}
     rendered_core_star_ids: set[int] = set()
     rendered_display_names: set[str] = set()
@@ -2186,6 +2223,12 @@ def _render_scene_contract(
         )
         rendered_subsystem_keys.add(subsystem_key)
 
+    def render_body_mass_msun(body_key: str) -> Optional[float]:
+        body = render_stars.get(body_key)
+        fields = body.get("fields") if isinstance(body, dict) else {}
+        mass = _float_or_none((fields.get("mass_msun") or {}).get("value") if isinstance(fields, dict) else None)
+        return mass if mass is not None and mass > 0 else None
+
     render_orbits: List[Dict[str, Any]] = []
     for idx, edge in enumerate(orbit_rows):
         primary_key = str(edge.get("primary_component_key") or "")
@@ -2206,12 +2249,39 @@ def _render_scene_contract(
         except Exception:
             orbit_edge_id = idx
         solution = solution_by_edge_id.get(orbit_edge_id) or {}
+        msc_system_detail = msc_system_detail_for_pair(primary_key, secondary_key) or {}
         seed = _stable_seed(system.get("stable_object_key"), orbit_edge_id, primary_key, secondary_key)
-        source_period = _float_or_none(solution.get("period_days"))
+        solution_period = _float_or_none(solution.get("period_days"))
+        msc_period = _float_or_none(msc_system_detail.get("period_days"))
+        source_period = solution_period if solution_period is not None else msc_period
         source_sma = _float_or_none(solution.get("semi_major_axis_au"))
         source_ecc = _float_or_none(solution.get("eccentricity"))
         source_inc = _float_or_none(solution.get("inclination_deg"))
-        assumed_period = round(0.65 + 24.0 * _seed_unit(seed, "period"), 6)
+        msc_sep_arcsec = _float_or_none(msc_system_detail.get("separation_arcsec"))
+        if msc_sep_arcsec is None:
+            msc_sep_mas = _float_or_none(msc_system_detail.get("separation_mas"))
+            if msc_sep_mas is not None:
+                msc_sep_arcsec = msc_sep_mas / 1000.0
+        projected_sep_au = None
+        dist_pc = system_distance_pc()
+        if msc_sep_arcsec is not None and msc_sep_arcsec > 0 and dist_pc is not None and dist_pc > 0:
+            projected_sep_au = msc_sep_arcsec * dist_pc
+        primary_mass_for_period = render_body_mass_msun(primary_key) if primary_key in render_stars else None
+        secondary_mass_for_period = render_body_mass_msun(secondary_key) if secondary_key in render_stars else None
+        if primary_mass_for_period is None:
+            primary_mass_for_period = _float_or_none(msc_system_detail.get("mass_primary_msun"))
+        if secondary_mass_for_period is None:
+            secondary_mass_for_period = _float_or_none(msc_system_detail.get("mass_secondary_msun"))
+        total_mass_for_period = sum(
+            mass for mass in (primary_mass_for_period, secondary_mass_for_period) if mass is not None and mass > 0
+        )
+        derived_period = None
+        if source_period is None and projected_sep_au is not None and projected_sep_au > 0 and total_mass_for_period > 0:
+            derived_period = round(math.sqrt((projected_sep_au ** 3) / total_mass_for_period) * 365.25, 6)
+        if is_group_orbit:
+            assumed_period = round(900.0 + 28000.0 * _seed_unit(seed, "period"), 6)
+        else:
+            assumed_period = round(8.0 + 72.0 * _seed_unit(seed, "period"), 6)
         assumed_radius = round(0.72 + 0.46 * _seed_unit(seed, "display_radius"), 6)
         render_orbits.append(
             {
@@ -2235,22 +2305,47 @@ def _render_scene_contract(
                             value=source_period,
                             unit="days",
                             status="source",
-                            basis=f"arm.orbital_solutions:{solution.get('solution_source_catalog') or 'source'}",
+                            basis=(
+                                f"arm.orbital_solutions:{solution.get('solution_source_catalog') or 'source'}"
+                                if solution_period is not None
+                                else "arm.msc_system_details:source_period"
+                            ),
                             layer="arm",
                             confidence_tier=solution.get("confidence_tier") or "medium",
                             replacement_target="reviewed orbital period",
-                            source_catalog=solution.get("solution_source_catalog") or solution.get("source_catalog"),
+                            source_catalog=(
+                                solution.get("solution_source_catalog")
+                                or solution.get("source_catalog")
+                                or msc_system_detail.get("source_catalog")
+                            ),
                             confidence=_float_or_none(solution.get("confidence_score")),
                         )
                         if source_period is not None
-                        else _procedural_field(
-                            key="period_days",
-                            label="Orbital period",
-                            value=assumed_period,
-                            unit="days",
-                            basis="bounded_binary_visual_period",
-                            seed=seed,
-                            replacement_target="source binary orbital period",
+                        else (
+                            _simulation_field(
+                                key="period_days",
+                                label="Orbital period",
+                                value=derived_period,
+                                unit="days",
+                                status="derived",
+                                basis="arm.msc_system_details:projected_separation_kepler_estimate",
+                                layer="arm",
+                                confidence_tier="low",
+                                replacement_target="source binary orbital period",
+                                source_catalog=msc_system_detail.get("source_catalog"),
+                                confidence=0.35,
+                                notes="Presentation orbit period estimated from projected separation and endpoint masses; not a fitted orbital solution.",
+                            )
+                            if derived_period is not None
+                            else _procedural_field(
+                                key="period_days",
+                                label="Orbital period",
+                                value=assumed_period,
+                                unit="days",
+                                basis="bounded_binary_visual_period",
+                                seed=seed,
+                                replacement_target="source binary orbital period",
+                            )
                         )
                     ),
                     "semi_major_axis_au": (
@@ -2731,12 +2826,6 @@ def _render_scene_contract(
         "persisted": persisted_assumption_count,
         "transient": max(0, len(assumption_records) - persisted_assumption_count),
     }
-
-    def render_body_mass_msun(body_key: str) -> Optional[float]:
-        body = render_stars.get(body_key)
-        fields = body.get("fields") if isinstance(body, dict) else {}
-        mass = _float_or_none((fields.get("mass_msun") or {}).get("value") if isinstance(fields, dict) else None)
-        return mass if mass is not None and mass > 0 else None
 
     def build_simulation_tree() -> Dict[str, Any]:
         body_nodes: Dict[str, Dict[str, Any]] = {}

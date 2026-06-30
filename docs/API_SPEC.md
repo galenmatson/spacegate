@@ -465,6 +465,14 @@ Contract notes:
   without creating new core stars or ARM orbit facts. The diagnostics report
   node counts, nested orbit count, unattached orbit count, and warnings so
   clients and tests can distinguish a complete tree from a fallback layout.
+  Stellar hierarchy periods are selected in order: `arm.orbital_solutions`,
+  MSC `sys.tsv`/`msc_system_details` period rows, projected-separation Kepler
+  estimates when distance and endpoint masses are available, then explicit
+  `disc_assumption` visual fallback periods. The estimate/fallback path must
+  remain labeled and must not be promoted into ARM as a fitted orbit solution.
+  Clients that activate `simulation_tree_v1` should use tree body positions for
+  hosted planet/HZ presentation overlays when `host_body_key` resolves to a
+  tree body node.
   Browser orbit readouts add presentation-only guide/trace provenance fields
   such as `orbit_guide_trace`, `planet_orbit_trace`, and
   `binary_body_paths`; these explain how the visible line/path was sampled and

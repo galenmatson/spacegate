@@ -25,6 +25,10 @@ Already in place:
   rather than the individual stars. This lets Castor/HD 213885-style systems
   animate as nested barycentric hierarchies instead of static clusters with
   ad hoc offsets.
+- hierarchy-pair period fallback is evidence-aware: source orbital solutions
+  win first, MSC system-row periods win second, projected MSC separation plus
+  endpoint masses may produce a low-confidence Kepler estimate third, and only
+  then does the renderer use a bounded DISC visual period fallback.
 - `render_scene_v0.2` reconciles body lists against canonical hierarchy when
   hierarchy exposes richer physical membership than direct core rows or ARM
   orbit endpoints alone
@@ -33,6 +37,11 @@ Already in place:
 - hosted planet orbit guides and bodies inherit the full containing host-group
   motion used by the stellar hierarchy renderer, so planets attached to a
   rendered star remain centered on that host through nested group animation
+- when `simulation_tree_v1` is active, hosted planet orbit guides, planet
+  trails, planet bodies, and host-star habitable-zone bands use the current
+  tree body position rather than the legacy static layout center. This keeps
+  eps Ind A-style planets/HZ bands attached to the moving A component while
+  the brown-dwarf pair follows its own nested barycenter.
 - `render_scene_v0.2` attaches core planet render bodies to rendered host stars
   with `host_body_key` when `core.planets.star_id` resolves cleanly; the
   payload records the host-resolution basis for audit/debugging
@@ -366,7 +375,7 @@ Success criteria:
   nested structure is visible without flattening the system into sibling stars
 - benchmark hierarchical scenes require `render_scene.simulation_tree` with
   nested barycenter nodes and no unattached orbit rows for compact triples such
-  as HD 213885 and HD 79210
+  as HD 213885, HD 79210, and eps Ind A
 - Nu Sco acts as the messy hierarchy browser benchmark: seven source-native
   leaves, subsystem handles, direct/group orbit guides, and unresolved children
   without inherited source-like spectral facts

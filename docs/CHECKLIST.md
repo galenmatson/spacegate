@@ -305,6 +305,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add `render_scene.simulation_tree` (`simulation_tree_v1`) and switch the
   Live System Preview stellar renderer to recursive root/barycenter/body
   transforms for nested systems such as HD 213885, HD 79210, and Castor
+- [x] Use MSC system-row periods and projected-separation Kepler estimates
+  before generic visual period fallbacks for hierarchy-pair simulator orbits,
+  with eps Ind A browser/API coverage
+- [x] Attach planet orbit guides, planet trails, planet bodies, and host-star
+  habitable zones to active `simulation_tree_v1` body positions when the host
+  resolves to a tree node
 - [x] Advance animated preview bodies by mean anomaly with a Kepler solve for
   true anomaly before placement, keeping full N-body propagation out of scope
 - [x] Add WebGL capability fallback from the Live System Preview to the

@@ -11,6 +11,8 @@ const SIM_SPEED_OPTIONS = [
   ["1", "1x"],
   ["5", "5x"],
   ["20", "20x"],
+  ["100", "100x"],
+  ["500", "500x"],
 ];
 const SCALE_MODE_OPTIONS = [
   { value: "structure", label: "Structure", detail: "Collision-safe clarity scale; preserves hierarchy readability." },
@@ -1994,6 +1996,22 @@ function computeSimulationTreeTransforms(tree, nodesByKey, orbitsByKey, starsByK
   return { nodePositions, bodyPositions };
 }
 
+function simulationTreeBodyPositionAt(treeContext, bodyKey, simDays) {
+  if (!treeContext || !bodyKey) {
+    return null;
+  }
+  const transforms = computeSimulationTreeTransforms(
+    treeContext.simulationTree,
+    treeContext.nodesByKey,
+    treeContext.orbitsByKey,
+    treeContext.starsByKey,
+    treeContext.visualScale,
+    treeContext.scaleMode,
+    simDays,
+  );
+  return transforms.bodyPositions.get(bodyKey) || null;
+}
+
 function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
   const relativePathPoints = useMemo(
     () => sampledOrbitPoints(spec.orbitRadius, spec.eccentricity, spec.inclinationRad, spec.orbit.endpoint_kind === "group_pair" ? 224 : 192),
@@ -2226,7 +2244,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = displayPlanetEccentricity(planet);
@@ -2264,7 +2282,8 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
     }
     const simDays = currentSimulationDays(simClockRef);
     const meanAnomaly = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    const movingCenter = addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
+    const treeCenter = simulationTreeBodyPositionAt(treeContext, treeHostBodyKey, simDays);
+    const movingCenter = treeCenter || addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
     groupRef.current.position.set(...addVector(movingCenter, orbitalPositionFromMeanAnomaly(meanAnomaly, orbitRadius, eccentricity, inclinationRad)));
   });
 
@@ -2416,6 +2435,7 @@ function SceneMotionMetrics({
   simulationTree = null,
   useSimulationTree = false,
   planetHostGroupCount = 0,
+  treeHostedPlanetCount = 0,
   labelCount = 0,
   simClockRef,
   running = true,
@@ -2454,6 +2474,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.simulationTreeNestedOrbitCount = String(simulationTreeDiagnostics.nested_orbit_count || 0);
     gl.domElement.dataset.simulationTreeUnattachedOrbitCount = String(simulationTreeDiagnostics.unattached_orbit_count || 0);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
+    gl.domElement.dataset.treeHostedPlanetCount = String(treeHostedPlanetCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
@@ -2501,6 +2522,7 @@ function SceneMotionMetrics({
     planetCount,
     planetDisplayEccentricityCappedCount,
     planetHostGroupCount,
+    treeHostedPlanetCount,
     planetTrailCount,
     running,
     scaleMode,
@@ -2531,7 +2553,7 @@ function SceneMotionMetrics({
   return null;
 }
 
-function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
+function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
   const lineRef = React.useRef(null);
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
@@ -2580,7 +2602,8 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       return;
     }
     const simDays = currentSimulationDays(simClockRef);
-    lineRef.current.position.set(...addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout)));
+    const treeCenter = simulationTreeBodyPositionAt(treeContext, treeHostBodyKey, simDays);
+    lineRef.current.position.set(...(treeCenter || addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout))));
   });
 
   return (
@@ -2593,7 +2616,7 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   );
 }
 
-function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, scaleMode = "structure" }) {
+function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, scaleMode = "structure" }) {
   const lineRef = React.useRef(null);
   const attributeRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
@@ -2621,7 +2644,8 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
     }
     const simDays = currentSimulationDays(simClockRef);
     const theta = phaseRad + (simDays / periodDays) * Math.PI * 2;
-    const movingCenter = addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
+    const treeCenter = simulationTreeBodyPositionAt(treeContext, treeHostBodyKey, simDays);
+    const movingCenter = treeCenter || addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
     lineRef.current.position.set(...movingCenter);
     const array = attributeRef.current.array;
     for (let idx = 0; idx < sampleCount; idx += 1) {
@@ -2644,7 +2668,7 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
   );
 }
 
-function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, simClockRef, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const bounds = useMemo(() => habitableZoneBoundsAu(star), [star]);
   const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
@@ -2672,7 +2696,8 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
       return;
     }
     const simDays = currentSimulationDays(simClockRef);
-    groupRef.current.position.set(...addVector(center, combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout)));
+    const treeCenter = simulationTreeBodyPositionAt(treeContext, treeHostBodyKey, simDays);
+    groupRef.current.position.set(...(treeCenter || addVector(center, combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout))));
   });
 
   if (!bounds || outerRadius <= innerRadius) {
@@ -2747,6 +2772,18 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     && (displayStars.length <= 1 || Number(simulationTree?.diagnostics?.orbit_node_count || 0) > 0)
     && displayStars.length,
   );
+  const simulationTreeContext = useMemo(() => (
+    useSimulationTree
+      ? {
+        simulationTree,
+        nodesByKey: simulationTreeNodes(simulationTree),
+        orbitsByKey: new Map((renderOrbits || []).map((orbit) => [orbit.orbit_key, orbit])),
+        starsByKey,
+        visualScale,
+        scaleMode: activeScaleMode,
+      }
+      : null
+  ), [useSimulationTree, simulationTree, renderOrbits, starsByKey, visualScale, activeScaleMode]);
   const looseStars = displayStars.filter((star) => !layout.orbitStarKeys.has(star.render_key || star.key));
   const starCenterByCoreId = new Map();
   const starKeyByCoreId = new Map();
@@ -2795,6 +2832,12 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     placement: hostPlacementForPlanet(planet),
   }));
   const planetHostGroupCount = planetPlacements.filter(({ placement }) => placement.groupKeys?.length).length;
+  const treeHostedPlanetCount = simulationTreeContext
+    ? planetPlacements.filter(({ planet }) => {
+      const hostKey = layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key;
+      return Boolean(hostKey && simulationTreeContext.nodesByKey.has(`body:${hostKey}`));
+    }).length
+    : 0;
   const planetDisplayEccentricityCappedCount = displayPlanets.filter((planet) => planet.eccentricity_display_capped).length;
   const habitableZoneStars = applyHabitableZonePlaneAlignment(
     displayStars.filter((star) => habitableZoneBoundsAu(star)),
@@ -2844,6 +2887,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         simulationTree={simulationTree}
         useSimulationTree={useSimulationTree}
         planetHostGroupCount={planetHostGroupCount}
+        treeHostedPlanetCount={treeHostedPlanetCount}
         labelCount={sceneLabelCount}
         simClockRef={simClockRef}
         running={running}
@@ -2865,6 +2909,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
             groupKeys={groupKeysForStarKeys([starKey], layout)}
             groupMotionSpecs={groupMotionSpecs}
             layout={layout}
+            treeContext={simulationTreeContext}
+            treeHostBodyKey={starKey}
             simClockRef={simClockRef}
             showLabels={showLabels}
             selectedObjectId={selectedObjectId}
@@ -2983,6 +3029,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
                 motionGroupKeys={placement.groupKeys}
                 groupMotionSpecs={groupMotionSpecs}
                 layout={layout}
+                treeContext={simulationTreeContext}
+                treeHostBodyKey={layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key}
                 simClockRef={simClockRef}
                 running={running}
                 speedMultiplier={speedMultiplier}
@@ -2998,6 +3046,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
               motionGroupKeys={placement.groupKeys}
               groupMotionSpecs={groupMotionSpecs}
               layout={layout}
+              treeContext={simulationTreeContext}
+              treeHostBodyKey={layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key}
               simClockRef={simClockRef}
               scaleMode={activeScaleMode}
               color={color}
@@ -3009,6 +3059,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
               motionGroupKeys={placement.groupKeys}
               groupMotionSpecs={groupMotionSpecs}
               layout={layout}
+              treeContext={simulationTreeContext}
+              treeHostBodyKey={layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key}
               simClockRef={simClockRef}
               color={color}
               showLabels={showLabels}

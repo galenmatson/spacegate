@@ -893,6 +893,13 @@ Readiness gaps:
   HD 213885 render as `(AA+AB)+B` rather than a fixed star plus crossing
   sibling offsets. Focused Playwright checks require tree activation and
   nested-orbit diagnostics for HD 213885/HD 79210.
+- June 30, 2026 eps Ind A simulator patch makes hierarchy-pair period fallback
+  prefer MSC system-row periods and projected-separation Kepler estimates
+  before generic visual assumptions. The renderer also attaches planet orbit
+  guides, trails, bodies, and host-star HZ bands to active simulation-tree body
+  positions, fixing planet/HZ overlays drifting away from tree-rendered hosts.
+  Focused browser coverage now includes eps Ind A's long MSC A-B period and
+  tree-hosted planet diagnostic.
 - June 30, 2026 compact-body render patch preserves source-backed compact
   object classification in stellar render bodies through `body_class`,
   `compact_type`, and object-type provenance fields, with Sirius B as the

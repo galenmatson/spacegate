@@ -195,9 +195,12 @@ Implementation note:
   rendered descendants are also exposed as inspectable UI handles; the payload
   includes `simulation_tree_v1`, a derived root/barycenter/body tree that lets
   the browser animate nested stellar systems recursively from the emitted orbit
-  rows instead of applying ad hoc offsets to a flat layout; this remains a
-  deterministic presentation-scale Keplerian preview, not source-scaled
-  epoch propagation or N-body dynamics; the
+  rows instead of applying ad hoc offsets to a flat layout; hierarchy-pair
+  period fallbacks now prefer MSC system-row periods and projected-separation
+  Kepler estimates before generic visual assumptions, and hosted planets/HZ
+  overlays can attach to active tree body positions; this remains a
+  deterministic presentation-scale Keplerian preview, not source-scaled epoch
+  propagation or N-body dynamics; the
   payload now exports every rendered `ASSUMED` value as a structured
   `render_scene.assumptions` record with stable assumption keys and a
   selected-system `disc.simulation_assumptions` materialization path; broader
