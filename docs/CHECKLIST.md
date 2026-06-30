@@ -289,6 +289,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Refactor Live System Preview motion onto a single-writer shared local
   beta simulation clock with browser diagnostics, keeping science-grade epoch
   controls pending
+- [x] Add Playwright coverage proving Pause freezes and Start resumes the
+  shared local simulator clock
 - [x] Render hierarchical subsystem orbit edges as group-pair guides in the
   Live System Preview instead of flattening them into direct star binaries
 - [x] Add inspectable subsystem render bodies/markers for hierarchy nodes with

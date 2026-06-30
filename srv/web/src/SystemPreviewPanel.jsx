@@ -1298,7 +1298,9 @@ function SceneMotionMetrics({ directOrbitCount = 0, groupOrbitCount = 0, subsyst
     gl.domElement.dataset.subsystemMarkerCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.simulationClockMode = "shared_local_beta";
     gl.domElement.dataset.simulationClockWriters = "1";
-  }, [gl, directOrbitCount, groupMotionSpecs, groupOrbitCount, nestedCount, planetHostGroupCount, subsystemMarkerCount]);
+    gl.domElement.dataset.simulationRunning = running ? "true" : "false";
+    gl.domElement.dataset.simulationSpeed = String(speedMultiplier || 1);
+  }, [gl, directOrbitCount, groupMotionSpecs, groupOrbitCount, nestedCount, planetHostGroupCount, running, speedMultiplier, subsystemMarkerCount]);
 
   useFrame(({ clock }) => {
     if (!simClockRef?.current) {

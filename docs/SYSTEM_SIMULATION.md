@@ -34,7 +34,8 @@ Already in place:
   existing hierarchy evidence, not new science inventory.
 - the first browser renderer has a single-writer shared pauseable local
   animation clock for all moving scene objects, sampled eccentric/inclined
-  orbit guide paths, and hover vitals for rendered bodies
+  orbit guide paths, and hover vitals for rendered bodies; Pause freezes this
+  local clock and Start resumes it from the same simulation day
 - rendered planets are ordered by semi-major axis when available, then orbital
   period, so Sol/TRAPPIST-like systems present in orbital order rather than
   catalog/name order

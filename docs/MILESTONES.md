@@ -815,7 +815,8 @@ Readiness gaps:
 - June 30, 2026 shared-clock patch refactors live preview stars, planets,
   orbit guides, and subsystem handles onto one single-writer local beta
   animation clock with browser diagnostics, while leaving science-grade epoch
-  controls pending.
+  controls pending. Browser coverage now verifies that Pause freezes this
+  shared clock and Start resumes it.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

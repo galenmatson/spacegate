@@ -119,8 +119,27 @@ test.describe("public 3D map beta", () => {
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
     await page.getByRole("button", { name: /pause/i }).click();
     await expect(page.getByRole("button", { name: /start/i })).toBeVisible();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationRunning || ""),
+      { timeout: 1500 }
+    ).toBe("false");
+    const pausedSimulationDays = await sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationDays || "");
+    expect(pausedSimulationDays).toBeTruthy();
+    await page.waitForTimeout(500);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationDays || ""),
+      { timeout: 1500 }
+    ).toBe(pausedSimulationDays);
     await page.getByRole("button", { name: /start/i }).click();
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationRunning || ""),
+      { timeout: 1500 }
+    ).toBe("true");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(Number(pausedSimulationDays));
     await expect(page.getByLabel(/speed/i)).toBeVisible();
     await page.getByLabel(/speed/i).selectOption("5");
     await page.getByRole("button", { name: /reset/i }).click();
