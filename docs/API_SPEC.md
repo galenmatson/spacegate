@@ -340,6 +340,11 @@ Contract notes:
   `orbital_solutions` values for period, semi-major axis, eccentricity, and
   inclination. If a linked ARM solution is absent, the endpoint may fall back to
   promoted `core.planets` scalar summaries and labels that basis explicitly.
+- If a planet lacks a renderable source inclination, `render_scene` may replace
+  the missing render field with a deterministic low-tilt
+  `status="assumed"`, `layer="disc_assumption"` visual fallback. This does not
+  change the underlying `simulation_readiness` missingness and must not be
+  treated as a source orbital element.
 - `disc` is the future home for visualization-only assumptions and static
   fallback artifacts.
 - Browser clients should use `render_scene` when WebGL/R3F is available and
@@ -377,6 +382,11 @@ Contract notes:
   cluster orbit guides and browser-side visual child-cluster transforms. Browser
   orbit readouts should use the same field provenance objects as body readouts
   for SOURCE/DERIVED/ASSUMED/MISSING pills and copyable provenance.
+  Browser orbit readouts add presentation-only guide/trace provenance fields
+  such as `orbit_guide_trace`, `planet_orbit_trace`, and
+  `binary_body_paths`; these explain how the visible line/path was sampled and
+  whether body paths are mass-weighted or equal-mass visual fallbacks. They are
+  render-scene provenance, not new ARM orbit evidence.
   Two-rendered-star systems with no source orbit edge may emit one
   `relation_kind="visual_binary_fallback"` `star_pair` orbit so compact
   companion scenes such as Sirius are structurally legible. Those orbit fields

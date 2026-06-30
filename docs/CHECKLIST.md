@@ -368,6 +368,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   hit-testing so orbit hover/pin inspection is usable and testable
 - [x] Ensure rendered planets with missing source inclination receive a
   deterministic `disc_assumption` visual inclination fallback
+- [x] Tighten API, DISC, and project docs for orbit guide/trace provenance and
+  render-only inclination assumptions
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

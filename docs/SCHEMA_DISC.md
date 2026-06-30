@@ -276,6 +276,17 @@ Rules:
   radii, deterministic phase, and cluster guide placement for `group_pair`
   orbit edges. These are presentation defaults unless backed by source or
   derived ARM fields.
+- Render-scene planets may receive deterministic low-tilt inclination
+  fallbacks when no source/renderable inclination is available. These rows use
+  `parameter_key='inclination_deg'`, `assumption_kind='simulation_default'`,
+  `visibility_label='assumed'`, and `layer='disc_assumption'`; they are only
+  camera/trace legibility defaults and do not repair the missing source
+  orbital element.
+- Browser orbit guide/readout helpers may expose provenance fields such as
+  `orbit_guide_trace`, `planet_orbit_trace`, and `binary_body_paths` to explain
+  sampled path geometry and mass-weighted/equal-mass display choices. Persist
+  those only if they are needed as presentation assumptions; never promote them
+  to ARM orbit evidence.
 - Two-rendered-star scenes with no source orbit edge may receive a transient
   `visual_binary_fallback` orbit whose period, eccentricity, inclination,
   phase, and visual separation are `disc_assumption` fields. This is a
