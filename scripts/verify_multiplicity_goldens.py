@@ -331,6 +331,7 @@ def check_presence_mode(
 
 def check_query_mode(
     core: duckdb.DuckDBPyConnection,
+    arm: duckdb.DuckDBPyConnection | None,
     system_cfg: dict[str, Any],
     results: dict[str, Any],
 ) -> None:
@@ -341,8 +342,15 @@ def check_query_mode(
     if not sql_count:
         fail(results, system_id, "query mode requires sql_count")
         return
+    query_con = arm if scope == "arm" else core
+    if query_con is None:
+        if required:
+            fail(results, system_id, "query mode requested arm scope but arm DB/tables are unavailable")
+        else:
+            skip_result(results, system_id, "optional arm query skipped (arm DB/tables unavailable)")
+        return
     try:
-        row = core.execute(sql_count).fetchone()
+        row = query_con.execute(sql_count).fetchone()
         value = int((row[0] if row else 0) or 0)
     except Exception as exc:
         if required:
@@ -390,7 +398,7 @@ def check_system(
         check_presence_mode(core, system_cfg, results)
         return
     if mode == "query":
-        check_query_mode(core, system_cfg, results)
+        check_query_mode(core, arm, system_cfg, results)
         return
 
     expected_components = [normalize_label(v) for v in system_cfg.get("expected_stellar_components", [])]

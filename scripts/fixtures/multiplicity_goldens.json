@@ -79,10 +79,10 @@
     {
       "id": "nu_scorpii_star_count",
       "mode": "query",
-      "scope": "core",
+      "scope": "arm",
       "required": true,
-      "label": "Nu Sco total star count",
-      "sql_count": "select coalesce(max(s.star_count), 0)::bigint from systems s left join aliases a on a.system_id = s.system_id where lower(coalesce(s.system_name, '')) in ('14nu sco') or lower(coalesce(a.alias_norm, '')) in ('nu sco', 'jabbah', 'hd 145502')",
+      "label": "Nu Sco source-native MSC stellar leaf count",
+      "sql_count": "select count(distinct stable_component_key)::bigint from component_entities where stable_component_key like 'comp:msc:wds:16120-1928:%' and component_type = 'star'",
       "min_value": 7,
       "max_value": 7
     },

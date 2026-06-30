@@ -3855,6 +3855,18 @@ def main() -> int:
                 end as flam_name,
                 0 as source_priority
               from gaia_base
+              where not exists (
+                select 1
+                from stars s
+                where s.gaia_id = gaia_base.gaia_id
+                  and coalesce(upper(gaia_base.spectral_type_raw), '') not like 'D%'
+                  and (
+                    coalesce(s.object_family, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+                    or coalesce(s.object_type, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+                    or upper(coalesce(s.spectral_type_raw, '')) like 'D%'
+                    or coalesce(s.spectral_class, '') = 'D'
+                  )
+              )
             ), nogaia_base as (
               select
                 cast(nullif(id, '') as bigint) as source_pk,

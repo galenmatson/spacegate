@@ -67,7 +67,7 @@ Current fixture scope:
 
 - required hierarchy exam: Castor
 - required presence/regression checks (core): 55 Cnc, GJ 667 C, TRAPPIST-1, 16 Cyg B
-- required quantitative regression check (core): Nu Scorpii total star count
+- required quantitative regression check (arm): Nu Scorpii source-native MSC stellar leaf count
 - required quantitative neighborhood check (core): minimum nearby-system count within 10 ly
 - optional presence checks (galaxy/halo scope): PSR B1620-26, TYC 7037-89-1
 
@@ -85,5 +85,8 @@ Adjudication/watchlist set:
 
 Current guardrails:
 - canonical hierarchy suppresses singleton MSC subdivisions, so systems like Beta Monocerotis no longer invent one-off `BA`-style child leaves from a lone role label
-- canonical hierarchy may create unresolved role nodes only when WDS pair evidence and MSC multi-leaf evidence agree, so systems like Nu Scorpii can expose orphaned `BA`/`BB` leaves without fabricating measured core stars
+- MSC source endpoint labels should materialize as ARM support leaves before any
+  count-expanded fallback labels are used, so systems like Nu Scorpii expose
+  `Aa`, `Ab`, `Ac`, `B`, `C`, `Da`, and `Db` semantics without fabricating
+  measured core stars
 - search/display should prefer matched member-star names when no system-level common-name alias exists, so variable-star lookups like `AR Cas` still surface the correct system card cleanly

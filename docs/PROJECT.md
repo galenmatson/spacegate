@@ -292,7 +292,11 @@ Current rules:
 - MSC source constants target the June 19, 2026 upstream archive
 - MSC `comp.tsv`, `sys.tsv`, and `orb.tsv` are preserved into cooked artifacts;
   ARM materializes source-native subsystem details, hierarchy/orbit edges, and
-  MSC orbital solutions where endpoint keys are supported
+  MSC orbital solutions where endpoint keys are supported. Endpoint labels named
+  by MSC `sys.tsv`/`orb.tsv` materialize as ARM support leaves before any
+  count-expanded fallback leaves are used, unless the label is an exact source
+  subsystem parent; these support leaves do not become flat `core.stars` rows
+  without separate canonical inventory evidence
   (`newmsc-20260619.tar.gz`); CTIO TLS failures require explicit
   SHA-256-pinned fallback handling; local canonical build
   `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed required

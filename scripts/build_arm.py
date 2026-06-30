@@ -1922,6 +1922,106 @@ def main() -> int:
         where parent_label not in ('', '*', 't')
         """
     )
+    con.execute(
+        """
+        create temp table msc_source_group_raw_labels as
+        select distinct
+          wds_id,
+          parent_label as component_label,
+          parent_label_raw as component_label_raw
+        from msc_source_system_rows
+        where parent_label not in ('', '*', 't')
+          and parent_label_raw is not null
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_source_leaf_labels as
+        with endpoints as (
+          select
+            wds_id,
+            primary_label as component_label,
+            primary_label_raw as component_label_raw
+          from msc_source_system_rows
+          where primary_label is not null and primary_label <> ''
+          union all
+          select
+            wds_id,
+            secondary_label as component_label,
+            secondary_label_raw as component_label_raw
+          from msc_source_system_rows
+          where secondary_label is not null and secondary_label <> ''
+          union all
+          select
+            wds_id,
+            primary_label as component_label,
+            primary_label_raw as component_label_raw
+          from msc_source_orbit_rows
+          where primary_label is not null and primary_label <> ''
+          union all
+          select
+            wds_id,
+            secondary_label as component_label,
+            secondary_label_raw as component_label_raw
+          from msc_source_orbit_rows
+          where secondary_label is not null and secondary_label <> ''
+        ), typed as (
+          select distinct
+            e.wds_id,
+            e.component_label,
+            case
+              when g.component_label is null then true
+              when coalesce(e.component_label_raw, '') <> upper(coalesce(e.component_label_raw, ''))
+               and not exists (
+                 select 1
+                 from msc_source_group_raw_labels gr
+                 where gr.wds_id = e.wds_id
+                   and gr.component_label = e.component_label
+                   and gr.component_label_raw = e.component_label_raw
+               ) then true
+              else false
+            end as is_leaf_endpoint
+          from endpoints e
+          left join msc_source_group_labels g
+            on g.wds_id = e.wds_id
+           and g.component_label = e.component_label
+        )
+        select
+          t.wds_id,
+          coalesce(r.system_display_name, 'WDS ' || t.wds_id) as system_display_name,
+          row_number() over (partition by t.wds_id order by t.component_label)::bigint as ordinal,
+          t.component_label,
+          regexp_replace(t.component_label, '[ab]$', '') as component_stem
+        from typed t
+        left join msc_system_roots r on r.wds_id = t.wds_id
+        where t.is_leaf_endpoint
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_leaf_labels as
+        select
+          wds_id,
+          system_display_name,
+          ordinal,
+          component_label,
+          component_stem
+        from msc_source_leaf_labels
+        union all
+        select
+          l.wds_id,
+          l.system_display_name,
+          l.ordinal,
+          l.component_label,
+          l.component_stem
+        from msc_inferred_leaves l
+        where not exists (
+          select 1
+          from msc_source_leaf_labels s
+          where s.wds_id = l.wds_id
+        )
+        """
+    )
     log(f"Arm stage complete: msc_source_rows ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
@@ -2408,7 +2508,7 @@ def main() -> int:
             {sql_literal(msc_retrieved)} as retrieved_at,
             {sql_literal(args.ingested_at)} as ingested_at,
             {sql_literal(args.transform_version)} as transform_version
-          from msc_inferred_leaves l
+          from msc_leaf_labels l
         ), unioned as (
           select * from core_system_components
           union all
@@ -2483,9 +2583,9 @@ def main() -> int:
             on gp.wds_id = r.wds_id and gp.component_label = r.primary_label
           left join msc_source_group_labels gs
             on gs.wds_id = r.wds_id and gs.component_label = r.secondary_label
-          left join msc_inferred_leaves lp
+          left join msc_leaf_labels lp
             on lp.wds_id = r.wds_id and lp.component_label = r.primary_label
-          left join msc_inferred_leaves ls
+          left join msc_leaf_labels ls
             on ls.wds_id = r.wds_id and ls.component_label = r.secondary_label
         )
         select
@@ -2566,9 +2666,9 @@ def main() -> int:
             on gp.wds_id = r.wds_id and gp.component_label = r.primary_label
           left join msc_source_group_labels gs
             on gs.wds_id = r.wds_id and gs.component_label = r.secondary_label
-          left join msc_inferred_leaves lp
+          left join msc_leaf_labels lp
             on lp.wds_id = r.wds_id and lp.component_label = r.primary_label
-          left join msc_inferred_leaves ls
+          left join msc_leaf_labels ls
             on ls.wds_id = r.wds_id and ls.component_label = r.secondary_label
         )
         select
@@ -4640,6 +4740,7 @@ def main() -> int:
         con.execute("select count(*) from planet_reclassification_audit").fetchone()[0] or 0
     )
     inferred_leaf_count = int(con.execute("select count(*) from msc_inferred_leaves").fetchone()[0] or 0)
+    source_leaf_count = int(con.execute("select count(*) from msc_source_leaf_labels").fetchone()[0] or 0)
     inferred_root_count = int(con.execute("select count(*) from msc_system_roots").fetchone()[0] or 0)
     castor_leaf_count = int(
         con.execute(
@@ -4936,6 +5037,7 @@ def main() -> int:
             "planet_reclassification_audit_rows": lifecycle_reclass_count,
             "msc_inferred_system_roots": inferred_root_count,
             "msc_inferred_leaf_components": inferred_leaf_count,
+            "msc_source_leaf_components": source_leaf_count,
             "castor_expected_leaf_matches": castor_leaf_count,
             "castor_expected_pair_matches": castor_pair_count,
             "sol_moon_components": sol_moon_component_count,
@@ -5003,7 +5105,8 @@ def main() -> int:
         f"orb6_orbits={orb6_solution_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "
         f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
-        f"msc_inferred_leaves={inferred_leaf_count:,}, sol_moons={sol_moon_component_count:,}, "
+        f"msc_source_leaves={source_leaf_count:,}, msc_inferred_leaves={inferred_leaf_count:,}, "
+        f"sol_moons={sol_moon_component_count:,}, "
         f"sol_satellite_orbits={sol_satellite_orbit_edge_count:,}, sol_small_bodies={sol_small_body_table_count:,}, "
         f"sol_artificial={sol_artificial_table_count:,}, sol_barycenters={sol_barycenter_count:,})"
     )

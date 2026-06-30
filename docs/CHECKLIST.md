@@ -119,12 +119,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   component link
 - [ ] Rebuild core/ARM with accepted supplements enabled, verify Sirius resolves
   to a WDS-backed A/B system, then enable strict compact-alias safety gating
-- [ ] Reconcile remaining compact-alias hazards after Sirius: 44/Zeta Per,
-  Phi Per, 17 Vul, and 105 Tau currently still bind bright-primary aliases or
-  identifiers to compact rows in the June 30 accepted-supplement test rebuild
-- [ ] Reconcile Nu Sco golden semantics: the June 30 accepted-supplement test
-  rebuild produced a WDS-backed `14nu Sco` with `systems.star_count=5`, while
-  the golden still expects septuple presentation/count semantics
+- [ ] Full rebuild after the direct AT-HYG Gaia alias guard; focused SQL
+  reproduction filters the remaining 44/Zeta Per, Phi Per, 17 Vul, and 105 Tau
+  compact-alias hazards, but no full artifact has materialized the guard yet
+- [ ] Full rebuild after the MSC source-leaf materialization fix; scratch ARM
+  rebuild verifies Nu Sco exposes seven source-native MSC stellar leaves from
+  ARM rather than relying on `core.systems.star_count`
 - [x] Let member-star names participate in search result display/ranking so variable-star lookups like `AR Cas` title the correct system card
 - [x] Add authoritative Sol-system bootstrap overlay (Sun + major planets + canonical aliases) so Sol is present and complete even when external catalogs are incomplete
 - [x] Implement Sol S2 arm hierarchy (moon nodes, satellite orbit edges, Earth-Moon/Pluto-Charon barycenters) with verify gates

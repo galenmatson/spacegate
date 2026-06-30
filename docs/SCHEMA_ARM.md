@@ -679,6 +679,13 @@ relationships; `orb.tsv` supplies source-native orbit solutions. ARM builders
 must not reconstruct complex hierarchy solely from component counts or suffix
 pair inference when source subsystem/orbit rows are available.
 
+MSC endpoint labels named by `sys.tsv` or `orb.tsv` are source-native evidence.
+If an endpoint is not an exact source subsystem parent label, Spacegate
+materializes a deterministic ARM leaf component for that endpoint. This allows
+case-sensitive source distinctions such as leaf `Ab` versus subsystem `AB`
+without duplicating exact subsystem labels such as `Aab`. Legacy count-expanded
+leaf labels are reserved for systems without usable source-native endpoint rows.
+
 Canonical hierarchy emission consumes both source-native nested MSC subsystem
 edges and MSC inferred leaf components. When ARM preserves a nested source tree
 rather than direct root-to-leaf edges, canonical hierarchy must still expose

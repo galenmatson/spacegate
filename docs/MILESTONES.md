@@ -248,9 +248,15 @@ Deliverables:
     two-star WDS-backed system with Sirius A from
     `athyg_accepted_supplement` and Sirius B from Gaia without HIP/HD leakage.
     The build is not promotable yet: compact-alias safety still reports
-    44/Zeta Per, Phi Per, 17 Vul, and 105 Tau hazards, and the Nu Sco
-    multiplicity golden expects septuple presentation/count semantics while
-    the rebuild reports `systems.star_count=5`.
+    44/Zeta Per, Phi Per, 17 Vul, and 105 Tau hazards. A direct AT-HYG Gaia
+    alias guard has a focused SQL reproduction pass for those four hazards, but
+    a full rebuild is still required to materialize it. Nu Sco also exposed a
+    general ARM materialization gap: source-native MSC endpoint labels such as
+    `B`, `C`, `Ac`, `Da`, and `Db` must become deterministic ARM leaf nodes
+    when they appear in `sys.tsv`/`orb.tsv`, while `core.systems.star_count`
+    remains a hot-path summary rather than the authority for nested MSC leaf
+    counts. A scratch ARM rebuild verifies the corrected seven-leaf Nu Sco
+    shape.
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement

@@ -193,12 +193,16 @@ Near-term source priorities:
   required multiplicity golden checks. Spacegate now preserves `sys.tsv` as
   `msc_system_details` and `orb.tsv` as `msc_orbit_details`, materializing MSC
   hierarchy/orbit edges and source-native `arm.orbital_solutions` where
-  supported endpoint keys exist. Castor is the primary regression benchmark for
-  nested AB/C hierarchy, inner binary periods, and no unsafe spectral
-  inheritance. Canonical hierarchy emit must bridge source-native nested MSC
+  supported endpoint keys exist. Source-native endpoint labels that appear in
+  MSC `sys.tsv`/`orb.tsv` become deterministic ARM leaf nodes when they are not
+  exact source subsystem parent labels, even when no flat core star row exists;
+  count-expanded leaves are only fallback scaffolding when source endpoint rows
+  are absent. Castor is the primary regression benchmark for nested AB/C
+  hierarchy, inner binary periods, and no unsafe spectral inheritance.
+  Canonical hierarchy emit must bridge source-native nested MSC
   subsystem edges back into descendant-aware canonical hierarchy leaves, so
   systems such as Nu Sco retain effective star counts even when some source
-  leaves are represented as inferred MSC components rather than direct core
+  leaves are represented as ARM support components rather than direct core
   star rows.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
