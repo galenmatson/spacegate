@@ -324,6 +324,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Bodies, and Log Scale without changing science-layer values
 - [x] Add collision-safe Structure-mode star radius caps with separate visible,
   halo, and picking radii, plus browser diagnostics/coverage
+- [x] Add animated planet trails for strict body-scale views and display-only
+  eccentricity caps so compressed Sol orbits do not visually cross
 - [x] Sort rendered planet bodies by orbital semi-major axis/period so Sol and
   benchmark systems display in orbital order
 - [x] Carry full provenance field objects into planet-orbit hover/pinned

@@ -770,6 +770,10 @@ Readiness gaps:
   Structure mode against nearest rendered stellar separation while keeping
   glow and picking radii separate; Castor browser coverage verifies
   non-overlapping multi-star rendering diagnostics.
+- June 30, 2026 planet-trail/eccentricity pass adds animated planet trails for
+  strict body-scale views and caps displayed planet-orbit eccentricity when
+  compressed presentation spacing would otherwise make neighboring Sol orbits
+  visually cross. Source eccentricity remains unchanged in provenance readouts.
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.

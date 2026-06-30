@@ -195,6 +195,15 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
       { timeout: 3000 }
     ).toBe("true_orbits");
+    await scaleModeSelect.selectOption("true_bodies");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
+      { timeout: 3000 }
+    ).toBe("true_bodies");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.planetTrailCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
     await scaleModeSelect.selectOption("structure");
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
@@ -719,6 +728,12 @@ test.describe("public 3D map beta", () => {
           () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
           { timeout: 3000 }
         ).toBeGreaterThanOrEqual(benchmark.minStars);
+        if (benchmark.query === "Sol") {
+          await expect.poll(
+            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.planetDisplayEccentricityCappedCount || 0)),
+            { timeout: 3000 }
+          ).toBeGreaterThanOrEqual(1);
+        }
         await expectPreviewCanvasPainted(previewCanvas, benchmark.query);
       });
     }

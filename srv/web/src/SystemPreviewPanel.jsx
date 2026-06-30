@@ -688,6 +688,33 @@ function sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, samples =
   return new Float32Array(vertices);
 }
 
+function sourcePlanetEccentricity(planet) {
+  return Math.min(0.85, Math.max(0, numericField(planet?.fields, "eccentricity") || Number(planet?.eccentricity) || 0));
+}
+
+function displayPlanetEccentricity(planet) {
+  const value = Number(planet?.display_eccentricity_scene);
+  return Number.isFinite(value) ? Math.min(0.85, Math.max(0, value)) : sourcePlanetEccentricity(planet);
+}
+
+function planetDisplayEccentricityField(planet) {
+  if (!planet?.eccentricity_display_capped) {
+    return null;
+  }
+  return {
+    key: "display_eccentricity_scene",
+    label: "Display eccentricity",
+    value: Number(planet.display_eccentricity_scene || 0),
+    unit: "dimensionless",
+    status: "derived",
+    layer: "render_scene",
+    source_catalog: "spacegate_renderer",
+    basis: "presentation_orbit_spacing_cap",
+    confidence: "high",
+    notes: "Source eccentricity remains in the Ecc. field; the visible orbit path is capped so compressed presentation-scale paths do not cross neighboring rendered orbits.",
+  };
+}
+
 function scaledOrbitPoints(points, scale) {
   return new Float32Array(Array.from(points, (value) => value * scale));
 }
@@ -1047,6 +1074,43 @@ function applyCollisionSafeStarRadii(stars, separationDiagnostics, visualScale, 
     minClearance: clearances.length ? Math.min(...clearances) : null,
     minSeparation: separationDiagnostics.minSeparation,
   };
+}
+
+function applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, scaleMode) {
+  const rows = (planets || []).map((planet, idx) => ({
+    planet,
+    idx,
+    key: planet.render_key || planet.key || `planet-${idx}`,
+    orbitRadius: scaledPlanetOrbitRadius(planet.orbitAu, maxOrbit, visualScale, scaleMode),
+    sourceEccentricity: sourcePlanetEccentricity(planet),
+  })).sort((left, right) => left.orbitRadius - right.orbitRadius);
+
+  const byKey = new Map();
+  rows.forEach((row, idx) => {
+    const gaps = [];
+    if (idx > 0) {
+      gaps.push(row.orbitRadius - rows[idx - 1].orbitRadius);
+    }
+    if (idx < rows.length - 1) {
+      gaps.push(rows[idx + 1].orbitRadius - row.orbitRadius);
+    }
+    const nearestGap = Math.min(...gaps.filter((gap) => Number.isFinite(gap) && gap > 0));
+    const spacingCap = Number.isFinite(nearestGap)
+      ? Math.max(0.006, (nearestGap * 0.42) / Math.max(row.orbitRadius, 0.001))
+      : 0.85;
+    const displayEccentricity = Math.min(row.sourceEccentricity, spacingCap, 0.85);
+    byKey.set(row.key, {
+      ...row.planet,
+      orbit_radius_scene: row.orbitRadius,
+      source_eccentricity: row.sourceEccentricity,
+      display_eccentricity_scene: displayEccentricity,
+      eccentricity_display_capped: displayEccentricity < row.sourceEccentricity - 0.001,
+    });
+  });
+
+  return (planets || []).map((planet, idx) => (
+    byKey.get(planet.render_key || planet.key || `planet-${idx}`) || planet
+  ));
 }
 
 function buildStarLayout(stars, hierarchy, binaryOrbits) {
@@ -1578,7 +1642,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
 function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
-  const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
+  const eccentricity = displayPlanetEccentricity(planet);
   const phaseRad = numericField(planet.fields, "phase_rad") || Number(planet.phaseRad) || 0;
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
@@ -1745,6 +1809,8 @@ function SceneMotionMetrics({
   starCount = 0,
   planetCount = 0,
   planetOrbitCount = 0,
+  planetTrailCount = 0,
+  planetDisplayEccentricityCappedCount = 0,
   starClassStatusCounts = {},
   scaleMode = "structure",
   collisionAdjustedStarCount = 0,
@@ -1783,6 +1849,8 @@ function SceneMotionMetrics({
     gl.domElement.dataset.subsystemMarkerCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableStarCount = String(starCount || 0);
     gl.domElement.dataset.inspectablePlanetCount = String(planetCount || 0);
+    gl.domElement.dataset.planetTrailCount = String(planetTrailCount || 0);
+    gl.domElement.dataset.planetDisplayEccentricityCappedCount = String(planetDisplayEccentricityCappedCount || 0);
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
@@ -1813,7 +1881,9 @@ function SceneMotionMetrics({
     minStarClearance,
     minStarSeparation,
     planetCount,
+    planetDisplayEccentricityCappedCount,
     planetHostGroupCount,
+    planetTrailCount,
     running,
     scaleMode,
     speedMultiplier,
@@ -1844,9 +1914,10 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
   const lineRef = React.useRef(null);
   const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
-  const eccentricity = Math.min(0.85, Math.max(0, numericField(planet.fields, "eccentricity") || Number(planet.eccentricity) || 0));
+  const eccentricity = displayPlanetEccentricity(planet);
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
   const guideField = useMemo(() => planetOrbitGuideProvenanceField(planet), [planet]);
+  const displayEccentricityField = useMemo(() => planetDisplayEccentricityField(planet), [planet]);
   const payload = useMemo(() => ({
     kind: "Planet orbit",
     name: `${planet.display_name || planet.name || "Planet"} orbit`,
@@ -1856,10 +1927,13 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       readoutRow(planet.fields, "orbital_period_days", "Period", "Unknown", 3),
       readoutRow(planet.fields, "semi_major_axis_au", "Orbit", "Unknown", 4),
       readoutRow(planet.fields, "eccentricity", "Ecc.", "Unknown", 3),
+      ...(displayEccentricityField ? [
+        staticReadoutRow("Display ecc.", formatNumber(displayEccentricityField.value, 3), "derived", displayEccentricityField),
+      ] : []),
       readoutRow(planet.fields, "inclination_deg", "Incl.", "Unknown", 2),
       staticReadoutRow("Trace", String(guideField.value), guideField.status, guideField),
     ],
-  }), [planet, guideField]);
+  }), [planet, guideField, displayEccentricityField]);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const handlers = {
     onPointerOver: (event) => {
@@ -1895,6 +1969,57 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
       </bufferGeometry>
       <lineBasicMaterial color={selected ? "#e6f6ff" : "#b1d6ff"} transparent opacity={selected ? 0.9 : 0.5} />
     </lineLoop>
+  );
+}
+
+function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, scaleMode = "structure" }) {
+  const lineRef = React.useRef(null);
+  const attributeRef = React.useRef(null);
+  const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
+  const eccentricity = displayPlanetEccentricity(planet);
+  const phaseRad = numericField(planet.fields, "phase_rad") || Number(planet.phaseRad) || 0;
+  const inclinationDeg = numericField(planet.fields, "inclination_deg") || 0;
+  const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
+  const sampleCount = 42;
+  const trailArc = normalizeScaleMode(scaleMode) === "true_bodies" ? Math.PI * 0.52 : Math.PI * 0.34;
+  const initialPoints = useMemo(() => {
+    const points = new Float32Array(sampleCount * 3);
+    for (let idx = 0; idx < sampleCount; idx += 1) {
+      const t = idx / Math.max(1, sampleCount - 1);
+      const position = orbitalPosition(phaseRad - trailArc * t, orbitRadius, eccentricity, inclinationRad);
+      points[idx * 3] = position[0];
+      points[idx * 3 + 1] = position[1];
+      points[idx * 3 + 2] = position[2];
+    }
+    return points;
+  }, [eccentricity, inclinationRad, orbitRadius, phaseRad, trailArc]);
+
+  useFrame(() => {
+    if (!lineRef.current || !attributeRef.current) {
+      return;
+    }
+    const simDays = currentSimulationDays(simClockRef);
+    const theta = phaseRad + (simDays / periodDays) * Math.PI * 2;
+    const movingCenter = addVector(center, combinedGroupOffsetAt(motionGroupKeys, groupMotionSpecs, simDays, layout));
+    lineRef.current.position.set(...movingCenter);
+    const array = attributeRef.current.array;
+    for (let idx = 0; idx < sampleCount; idx += 1) {
+      const t = idx / Math.max(1, sampleCount - 1);
+      const position = orbitalPosition(theta - trailArc * t, orbitRadius, eccentricity, inclinationRad);
+      array[idx * 3] = position[0];
+      array[idx * 3 + 1] = position[1];
+      array[idx * 3 + 2] = position[2];
+    }
+    attributeRef.current.needsUpdate = true;
+  });
+
+  return (
+    <line ref={lineRef} position={center} data-testid="system-preview-planet-trail">
+      <bufferGeometry>
+        <bufferAttribute ref={attributeRef} attach="attributes-position" args={[initialPoints, 3]} />
+      </bufferGeometry>
+      <lineBasicMaterial color={color} transparent opacity={normalizeScaleMode(scaleMode) === "true_bodies" ? 0.76 : 0.28} />
+    </line>
   );
 }
 
@@ -1941,6 +2066,9 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
   );
+  const displayPlanets = useMemo(() => (
+    applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, activeScaleMode)
+  ), [planets, maxOrbit, visualScale, activeScaleMode]);
   const hostPlacementForPlanet = (planet) => {
     const placementForStarKey = (starKey) => ({
       center: layout.starPositions.get(starKey),
@@ -1966,11 +2094,12 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     }
     return { center: [0, 0, 0], groupKeys: [] };
   };
-  const planetPlacements = planets.map((planet) => ({
+  const planetPlacements = displayPlanets.map((planet) => ({
     planet,
     placement: hostPlacementForPlanet(planet),
   }));
   const planetHostGroupCount = planetPlacements.filter(({ placement }) => placement.groupKeys?.length).length;
+  const planetDisplayEccentricityCappedCount = displayPlanets.filter((planet) => planet.eccentricity_display_capped).length;
   const starClassStatusCounts = useMemo(() => {
     const counts = { source: 0, derived: 0, assumed: 0, missing: 0, unsafeSource: 0 };
     displayStars.forEach((star) => {
@@ -1994,6 +2123,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         starCount={displayStars.length}
         planetCount={planetPlacements.length}
         planetOrbitCount={showOrbits ? planetPlacements.length : 0}
+        planetTrailCount={planetPlacements.length}
+        planetDisplayEccentricityCappedCount={planetDisplayEccentricityCappedCount}
         starClassStatusCounts={starClassStatusCounts}
         scaleMode={activeScaleMode}
         collisionAdjustedStarCount={collisionScale.adjustedCount}
@@ -2086,7 +2217,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         );
       })}
       {planetPlacements.map(({ planet, placement }, idx) => {
-        const orbitRadius = scaledPlanetOrbitRadius(planet.orbitAu, maxOrbit, visualScale, activeScaleMode);
+        const orbitRadius = Number(planet.orbit_radius_scene) || scaledPlanetOrbitRadius(planet.orbitAu, maxOrbit, visualScale, activeScaleMode);
+        const color = PLANET_COLORS[idx % PLANET_COLORS.length];
         return (
           <React.Fragment key={planet.key}>
             {showOrbits && (
@@ -2105,6 +2237,17 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
                 onSelect={onSelect}
               />
             )}
+            <PlanetOrbitTrail
+              planet={planet}
+              orbitRadius={orbitRadius}
+              center={placement.center}
+              motionGroupKeys={placement.groupKeys}
+              groupMotionSpecs={groupMotionSpecs}
+              layout={layout}
+              simClockRef={simClockRef}
+              scaleMode={activeScaleMode}
+              color={color}
+            />
             <PlanetObject
               planet={planet}
               orbitRadius={orbitRadius}
@@ -2113,7 +2256,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
               groupMotionSpecs={groupMotionSpecs}
               layout={layout}
               simClockRef={simClockRef}
-              color={PLANET_COLORS[idx % PLANET_COLORS.length]}
+              color={color}
               running={running}
               speedMultiplier={speedMultiplier}
               selectedObjectId={selectedObjectId}
