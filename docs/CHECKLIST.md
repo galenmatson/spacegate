@@ -372,6 +372,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   render-only inclination assumptions
 - [x] Add provenance-backed subsystem component/hierarchy readout fields to
   simulator render bodies
+- [x] Restore local served-build deterministic snapshot fallback coverage for
+  the simulator/map beta and add a focused snapshot fallback verifier
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset
@@ -383,8 +385,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled nested group animation for multi-star systems after source
   epochs/scale policy are defined
-- [ ] Restore deterministic snapshot manifest coverage for current public
-  side-sliced builds so map snapshot hover checks exercise real fallback assets
+- [ ] Restore deterministic snapshot manifest coverage on the current public
+  side-sliced deployment so map snapshot hover checks exercise real fallback
+  assets on antiproton
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts

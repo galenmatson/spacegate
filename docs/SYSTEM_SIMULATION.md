@@ -353,6 +353,9 @@ Success criteria:
   transform and physical-scale rendering remains future work
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
+- `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
+  map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
+  fallback assets
 - source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness/render payloads
 - every rendered assumption is exported as a structured render-scene assumption

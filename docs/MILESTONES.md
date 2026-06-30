@@ -771,6 +771,11 @@ Readiness gaps:
 - June 30, 2026 planet-inclination fallback pass keeps render-scene planet
   inclinations source-backed when present and uses deterministic
   `disc_assumption` low-tilt fallbacks when absent.
+- June 30, 2026 local snapshot fallback restoration generated 100 deterministic
+  `system_card` snapshots for served build
+  `20260630T_sim_beta_sol_smallbody_v1`, restored `disc.snapshot_manifest`
+  coverage for the first map page, and added
+  `scripts/verify_snapshot_fallback.py` to prove served fallback assets resolve.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark
@@ -790,9 +795,10 @@ Readiness gaps:
 - Castor remains a hierarchy-quality watch item for browser rendering and
   future barycentric nested-subsystem animation, but the general MSC
   materialization gap is no longer a known data-loss issue in the builder
-- Current public side-sliced build does not include `disc.snapshot_manifest`;
-  deterministic snapshot fallback coverage must be regenerated/restored before
-  map snapshot hover checks can exercise real fallback assets again.
+- Local served build has restored deterministic snapshot fallback coverage for
+  the first map page; the public side-sliced deployment still needs equivalent
+  `disc.snapshot_manifest` restoration/deployment before public map snapshot
+  hover checks can exercise real fallback assets again.
 - June 30, 2026 simulator API patch attaches core planet render bodies to
   rendered host stars with `host_body_key` when `core.planets.star_id` resolves
   cleanly. Local Playwright now covers the 16 Cyg hosted-planet scene, and API
