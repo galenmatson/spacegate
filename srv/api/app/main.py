@@ -950,6 +950,73 @@ def _planet_simulation_fields(
     }
 
 
+def _field_dict_value(fields: Dict[str, Any], key: str) -> Any:
+    field = fields.get(key) if isinstance(fields, dict) else None
+    return field.get("value") if isinstance(field, dict) else None
+
+
+def _planet_visual_kind_from_fields(fields: Dict[str, Any]) -> str:
+    radius_earth = _float_or_none(_field_dict_value(fields, "radius_earth")) or 1.0
+    eq_temp_k = _float_or_none(_field_dict_value(fields, "candidate_eq_temp_k"))
+    insol_earth = _float_or_none(_field_dict_value(fields, "candidate_insol_earth"))
+    if radius_earth >= 6.0:
+        return "gas_giant"
+    if radius_earth >= 2.1:
+        return "ice_giant"
+    if (eq_temp_k is not None and eq_temp_k >= 650.0) or (insol_earth is not None and insol_earth >= 15.0):
+        return "hot_rock"
+    if (eq_temp_k is not None and eq_temp_k <= 180.0) or (insol_earth is not None and insol_earth <= 0.35):
+        return "cold_rock"
+    return "temperate_rock"
+
+
+def _usable_render_field(fields: Dict[str, Any], key: str) -> Optional[Dict[str, Any]]:
+    field = fields.get(key) if isinstance(fields, dict) else None
+    if not isinstance(field, dict):
+        return None
+    return field if field.get("value") not in (None, "") else None
+
+
+def _planet_visual_class_field(fields: Dict[str, Any], seed: str) -> Dict[str, Any]:
+    kind = _planet_visual_kind_from_fields(fields)
+    radius_field = _usable_render_field(fields, "radius_earth")
+    temp_field = _usable_render_field(fields, "candidate_eq_temp_k")
+    insol_field = _usable_render_field(fields, "candidate_insol_earth")
+    source_field = radius_field if kind in {"gas_giant", "ice_giant"} else (temp_field or insol_field or radius_field)
+    if source_field:
+        return _simulation_field(
+            key="planet_visual_class",
+            label="Visual class",
+            value=kind,
+            unit=None,
+            status="derived",
+            basis=f"render_scene:{kind}:from_{source_field.get('key') or 'available_planet_fields'}",
+            layer="render_scene",
+            confidence_tier="illustrative",
+            replacement_target="reviewed planet class or atmospheric/rendering model",
+            source_catalog=source_field.get("source_catalog"),
+            source_reference=source_field.get("source_reference"),
+            generator_version="system_preview_planet_visual_class_v1",
+            confidence=0.55,
+            notes="Presentation-only visual material class derived from available planet radius, temperature, or insolation fields.",
+        )
+    return _simulation_field(
+        key="planet_visual_class",
+        label="Visual class",
+        value=kind,
+        unit=None,
+        status="assumed",
+        basis=f"render_scene:{kind}:fallback_visual_prior",
+        layer="render_scene",
+        confidence_tier="illustrative",
+        replacement_target="reviewed planet class or atmospheric/rendering model",
+        seed=seed,
+        generator_version="system_preview_planet_visual_class_v1",
+        confidence=0.2,
+        notes="Presentation-only visual material class using fallback renderer defaults because class-driving planet fields are missing.",
+    )
+
+
 def _simulation_readiness_diagnostics(
     stars: List[Dict[str, Any]],
     planets: List[Dict[str, Any]],
@@ -2244,6 +2311,7 @@ def _render_scene_contract(
                     replacement_target="source planet inclination",
                 )
             )
+        fields["planet_visual_class"] = _planet_visual_class_field(fields, seed)
         host_body_key, host_resolution = resolve_planet_host_body_key(planet)
         render_planets.append(
             {
@@ -2391,6 +2459,7 @@ def _render_scene_contract(
                     replacement_target="source transit epoch/periastron/mean anomaly",
                 ),
             }
+            fields["planet_visual_class"] = _planet_visual_class_field(fields, seed)
             render_planets.append(
                 {
                     "render_key": planet_key,

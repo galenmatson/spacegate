@@ -88,6 +88,13 @@ test.describe("public 3D map beta", () => {
     const payload = await response.json();
     const systemId = payload.items?.[0]?.system_id;
     expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    const firstPlanetClass = scenePayload.render_scene?.bodies?.planets?.[0]?.fields?.planet_visual_class;
+    expect(firstPlanetClass?.layer).toBe("render_scene");
+    expect(firstPlanetClass?.status).toMatch(/derived|assumed/);
+    expect(firstPlanetClass?.generator_version).toBe("system_preview_planet_visual_class_v1");
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();

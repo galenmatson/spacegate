@@ -155,7 +155,16 @@ function scaledPlanetOrbitRadius(orbitAu, maxOrbitAu, visualScale = DEFAULT_VISU
   return Number(policy.min_scene || 0.75) + Math.sqrt(source / maxOrbit) * Number(policy.span_scene || 2.7);
 }
 
+function planetVisualKindToken(value) {
+  const token = String(value || "").trim().toLowerCase().replaceAll(" ", "_").replaceAll("-", "_");
+  return PLANET_VISUAL_PALETTES[token] ? token : "";
+}
+
 function planetVisualKind(planet) {
+  const sourceKind = planetVisualKindToken(fieldRecord(planet.fields, "planet_visual_class")?.value);
+  if (sourceKind) {
+    return sourceKind;
+  }
   const radiusEarth = numericField(planet.fields, "radius_earth") || planet.radiusEarth || 1;
   const eqTempK = numericField(planet.fields, "candidate_eq_temp_k");
   const insolEarth = numericField(planet.fields, "candidate_insol_earth");
@@ -175,10 +184,17 @@ function planetVisualKind(planet) {
 }
 
 function planetVisualKindLabel(kind) {
-  return String(kind || "temperate_rock").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  return String(planetVisualKindToken(kind) || "temperate_rock").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function planetVisualKindField(planet) {
+  const payloadField = fieldRecord(planet.fields, "planet_visual_class");
+  if (payloadField) {
+    return {
+      ...payloadField,
+      value: planetVisualKindLabel(payloadField.value),
+    };
+  }
   const kind = planetVisualKind(planet);
   const radiusField = fieldRecord(planet.fields, "radius_earth");
   const tempField = fieldRecord(planet.fields, "candidate_eq_temp_k");

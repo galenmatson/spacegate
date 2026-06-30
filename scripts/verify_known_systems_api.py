@@ -239,6 +239,12 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         raise AssertionError(
             f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
         )
+    for planet in scene_planets:
+        visual_class = field_by_key(planet.get("fields"), "planet_visual_class")
+        if not visual_class:
+            raise AssertionError(f"{case.query}: rendered planet missing planet_visual_class field: {planet}")
+        if visual_class.get("status") not in {"derived", "assumed"} or visual_class.get("layer") != "render_scene":
+            raise AssertionError(f"{case.query}: malformed planet visual class provenance: {visual_class}")
 
     query_norm = normalize(case.query)
     if query_norm == "trappist-1":

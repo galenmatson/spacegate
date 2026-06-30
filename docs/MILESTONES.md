@@ -829,8 +829,8 @@ Readiness gaps:
   seven source-native rendered leaves, five subsystem handles, direct/group
   orbit-guide counts, and missing spectral facts on unresolved children.
 - June 30, 2026 planet-class inspection patch exposes renderer-only planet
-  visual class as a `render_scene` provenance field in simulator evidence and
-  planet readouts, with generator/basis coverage.
+  visual class as an API-backed `render_scene` provenance field in simulator
+  evidence and planet readouts, with generator/basis coverage.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
