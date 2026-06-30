@@ -768,6 +768,9 @@ Readiness gaps:
   without component-specific spectral evidence.
 - June 30, 2026 orbit-inspection pass adds provenance-bearing guide/trace
   readouts for orbit paths plus wider shared raycaster line hit-testing.
+- June 30, 2026 planet-inclination fallback pass keeps render-scene planet
+  inclinations source-backed when present and uses deterministic
+  `disc_assumption` low-tilt fallbacks when absent.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

@@ -2286,7 +2286,8 @@ def _render_scene_contract(
                 confidence=0.0,
                 replacement_target="source transit epoch/periastron/mean anomaly",
             )
-        if "inclination_deg" not in fields:
+        inclination_field = fields.get("inclination_deg")
+        if not isinstance(inclination_field, dict) or _float_or_none(inclination_field.get("value")) is None:
             inc = _float_or_none(planet.get("inclination_deg"))
             fields["inclination_deg"] = (
                 _simulation_field(
@@ -2420,22 +2421,30 @@ def _render_scene_contract(
                         replacement_target="source eccentricity or reviewed orbital solution",
                     )
                 ),
-                "inclination_deg": _simulation_field(
-                    key="inclination_deg",
-                    label="Inclination",
-                    value=source_inc,
-                    unit="deg",
-                    status="source" if source_inc is not None else "missing",
-                    basis=(
-                        f"arm.orbital_solutions:{source_catalog or 'source'}"
-                        if source_inc is not None
-                        else "no inclination source value"
-                    ),
-                    layer="arm" if source_inc is not None else "none",
-                    confidence_tier=confidence_tier if source_inc is not None else "missing",
-                    replacement_target="source planet inclination",
-                    source_catalog=str(source_catalog) if source_catalog else None,
-                    confidence=confidence if source_inc is not None else None,
+                "inclination_deg": (
+                    _simulation_field(
+                        key="inclination_deg",
+                        label="Inclination",
+                        value=source_inc,
+                        unit="deg",
+                        status="source",
+                        basis=f"arm.orbital_solutions:{source_catalog or 'source'}",
+                        layer="arm",
+                        confidence_tier=confidence_tier,
+                        replacement_target="source planet inclination",
+                        source_catalog=str(source_catalog) if source_catalog else None,
+                        confidence=confidence,
+                    )
+                    if source_inc is not None
+                    else _procedural_field(
+                        key="inclination_deg",
+                        label="Inclination",
+                        value=round(3.0 * _seed_centered(seed, "inc"), 6),
+                        unit="deg",
+                        basis="centered_low_inclination_visual_prior",
+                        seed=seed,
+                        replacement_target="source planet inclination",
+                    )
                 ),
                 "radius_earth": _simulation_field(
                     key="radius_earth",

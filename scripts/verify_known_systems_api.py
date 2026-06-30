@@ -245,6 +245,11 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
             raise AssertionError(f"{case.query}: rendered planet missing planet_visual_class field: {planet}")
         if visual_class.get("status") not in {"derived", "assumed"} or visual_class.get("layer") != "render_scene":
             raise AssertionError(f"{case.query}: malformed planet visual class provenance: {visual_class}")
+        inclination = field_by_key(planet.get("fields"), "inclination_deg")
+        if not inclination or inclination.get("value") is None or inclination.get("status") in {None, "missing"}:
+            raise AssertionError(f"{case.query}: rendered planet missing renderable inclination field: {planet}")
+        if inclination.get("status") == "assumed" and inclination.get("layer") != "disc_assumption":
+            raise AssertionError(f"{case.query}: assumed planet inclination should stay in disc_assumption: {inclination}")
 
     query_norm = normalize(case.query)
     if query_norm == "trappist-1":
