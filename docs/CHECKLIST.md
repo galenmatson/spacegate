@@ -374,6 +374,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   simulator render bodies
 - [x] Restore local served-build deterministic snapshot fallback coverage for
   the simulator/map beta and add a focused snapshot fallback verifier
+- [x] Add `render_scene.diagnostics` API counts and strict verifier coverage
+  for rendered bodies, orbits, field statuses, and assumption persistence
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

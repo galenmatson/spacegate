@@ -312,6 +312,16 @@ Response:
     "assumptions": [],
     "assumption_count": 0,
     "persisted_assumption_count": 0,
+    "diagnostics": {
+      "body_counts": {"stars": 0, "planets": 0, "subsystems": 0},
+      "orbit_counts": {
+        "total": 0,
+        "by_endpoint_kind": {},
+        "by_relation_kind": {}
+      },
+      "field_status_counts": {"source": 0, "derived": 0, "assumed": 0, "missing": 0},
+      "assumption_persistence_counts": {"persisted": 0, "transient": 0}
+    },
     "provenance_legend": {
       "source": "Catalog/source value from core or arm.",
       "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
@@ -414,6 +424,10 @@ Contract notes:
   It may include deterministic procedural fields with `status="assumed"`,
   `layer="disc_assumption"`, `basis="procedural_prior_v1:..."`, and a stable
   `seed`. These values are visual defaults only; they are not canonical science.
+- `render_scene.diagnostics` summarizes the final renderer-ready payload:
+  body counts, orbit counts by endpoint/relation kind, field status counts, and
+  assumption persistence counts. It is an audit aid derived from the emitted
+  scene objects, not a replacement for the objects or their field provenance.
 - `rim` remains excluded from this science endpoint.
 - Missing orbital elements are exposed as missing/assumed readiness fields
   rather than silently filled as canonical data.

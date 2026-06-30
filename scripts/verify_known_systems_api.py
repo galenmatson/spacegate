@@ -199,7 +199,9 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
     scene_stars = bodies.get("stars") or []
     scene_planets = bodies.get("planets") or []
     scene_subsystems = bodies.get("subsystems") or []
+    render_orbits = render_scene.get("orbits") or []
     assumptions = render_scene.get("assumptions") or []
+    diagnostics = render_scene.get("diagnostics") or {}
     visual_scale = render_scene.get("visual_scale") or {}
     if visual_scale.get("schema_version") != "visual_scale_beta_v1":
         raise AssertionError(f"{case.query}: missing visual_scale_beta_v1 policy")
@@ -210,6 +212,37 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         raise AssertionError(
             f"{case.query}: render_scene.assumption_count does not match assumptions list length"
         )
+    body_counts = diagnostics.get("body_counts") or {}
+    if body_counts.get("stars") != len(scene_stars) or body_counts.get("planets") != len(scene_planets) or body_counts.get("subsystems") != len(scene_subsystems):
+        raise AssertionError(f"{case.query}: render_scene diagnostic body counts do not match rendered bodies")
+    orbit_counts = diagnostics.get("orbit_counts") or {}
+    if orbit_counts.get("total") != len(render_orbits):
+        raise AssertionError(f"{case.query}: render_scene diagnostic orbit total does not match rendered orbits")
+    expected_endpoint_counts: dict[str, int] = {}
+    for orbit in render_orbits:
+        endpoint_kind = str(orbit.get("endpoint_kind") or "unknown")
+        expected_endpoint_counts[endpoint_kind] = expected_endpoint_counts.get(endpoint_kind, 0) + 1
+    if (orbit_counts.get("by_endpoint_kind") or {}) != expected_endpoint_counts:
+        raise AssertionError(
+            f"{case.query}: render_scene diagnostic endpoint counts mismatch: "
+            f"{orbit_counts.get('by_endpoint_kind')} != {expected_endpoint_counts}"
+        )
+    field_status_counts: dict[str, int] = {"source": 0, "derived": 0, "assumed": 0, "missing": 0}
+    for owner in [*scene_stars, *scene_planets, *scene_subsystems, *render_orbits]:
+        for field in (owner.get("fields") or {}).values():
+            if isinstance(field, dict):
+                status = str(field.get("status") or "missing").lower()
+                field_status_counts[status] = field_status_counts.get(status, 0) + 1
+    if (diagnostics.get("field_status_counts") or {}) != field_status_counts:
+        raise AssertionError(
+            f"{case.query}: render_scene diagnostic field status counts mismatch: "
+            f"{diagnostics.get('field_status_counts')} != {field_status_counts}"
+        )
+    persistence_counts = diagnostics.get("assumption_persistence_counts") or {}
+    persisted_count = sum(1 for assumption in assumptions if assumption.get("persistence_status") == "persisted")
+    transient_count = sum(1 for assumption in assumptions if assumption.get("persistence_status") == "transient")
+    if persistence_counts.get("persisted") != persisted_count or persistence_counts.get("transient") != transient_count:
+        raise AssertionError(f"{case.query}: render_scene assumption persistence diagnostics mismatch")
     for assumption in assumptions:
         required_keys = {
             "assumption_key",
@@ -345,7 +378,6 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         object_type_field = field_by_key(sirius_b.get("fields"), "object_type")
         if not object_type_field or object_type_field.get("value") != "white_dwarf" or object_type_field.get("status") != "source":
             raise AssertionError(f"{case.query}: Sirius B object_type field should be source white_dwarf, got {object_type_field}")
-        render_orbits = render_scene.get("orbits") or []
         fallback_orbits = [
             orbit
             for orbit in render_orbits
@@ -363,7 +395,6 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
                 raise AssertionError(f"{case.query}: fallback orbit field {field_key} is not a disc assumption: {field}")
 
     if query_norm == "castor":
-        render_orbits = render_scene.get("orbits") or []
         orbit_count = len(render_orbits)
         if orbit_count < 5:
             raise AssertionError(f"{case.query}: expected at least five rendered stellar orbit entries, got {orbit_count}")

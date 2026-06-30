@@ -15,6 +15,9 @@ Already in place:
   `source`, `derived`, `assumed`, or `missing`
 - additive `render_scene_v0.2` payload for live previews with renderer-ready
   star bodies, planet bodies, binary orbit groups, and provenance-bearing fields
+- `render_scene.diagnostics` summarizes final rendered body counts, orbit
+  endpoint/relation counts, field SOURCE/DERIVED/ASSUMED/MISSING counts, and
+  assumption persistence counts for API-level audit checks
 - `render_scene_v0.2` reconciles body lists against canonical hierarchy when
   hierarchy exposes richer physical membership than direct core rows or ARM
   orbit endpoints alone

@@ -2583,6 +2583,26 @@ def _render_scene_contract(
         else:
             assumption["persistence_status"] = "transient"
 
+    field_status_counts: Dict[str, int] = {"source": 0, "derived": 0, "assumed": 0, "missing": 0}
+    for owner in [*render_stars.values(), *render_planets, *render_subsystems, *render_orbits]:
+        fields = owner.get("fields") if isinstance(owner.get("fields"), dict) else {}
+        for field in fields.values():
+            if not isinstance(field, dict):
+                continue
+            status = str(field.get("status") or "missing").lower()
+            field_status_counts[status] = int(field_status_counts.get(status, 0)) + 1
+    orbit_endpoint_counts: Dict[str, int] = {}
+    orbit_relation_counts: Dict[str, int] = {}
+    for orbit in render_orbits:
+        endpoint_kind = str(orbit.get("endpoint_kind") or "unknown")
+        relation_kind = str(orbit.get("relation_kind") or "unknown")
+        orbit_endpoint_counts[endpoint_kind] = int(orbit_endpoint_counts.get(endpoint_kind, 0)) + 1
+        orbit_relation_counts[relation_kind] = int(orbit_relation_counts.get(relation_kind, 0)) + 1
+    assumption_persistence_counts = {
+        "persisted": persisted_assumption_count,
+        "transient": max(0, len(assumption_records) - persisted_assumption_count),
+    }
+
     return {
         "schema_version": "render_scene_v0.2",
         "assumption_generator_version": SIM_PROCEDURAL_ASSUMPTION_VERSION,
@@ -2602,6 +2622,20 @@ def _render_scene_contract(
         "assumptions": assumption_records,
         "assumption_count": len(assumption_records),
         "persisted_assumption_count": persisted_assumption_count,
+        "diagnostics": {
+            "body_counts": {
+                "stars": len(render_stars),
+                "planets": len(render_planets),
+                "subsystems": len(render_subsystems),
+            },
+            "orbit_counts": {
+                "total": len(render_orbits),
+                "by_endpoint_kind": orbit_endpoint_counts,
+                "by_relation_kind": orbit_relation_counts,
+            },
+            "field_status_counts": field_status_counts,
+            "assumption_persistence_counts": assumption_persistence_counts,
+        },
         "provenance_legend": {
             "source": "Catalog/source value from core or arm.",
             "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
