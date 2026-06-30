@@ -1637,7 +1637,10 @@ function HierarchyFactChips({ node }) {
 
 function HierarchyNodeCard({ node, depth = 0 }) {
   const children = Array.isArray(node?.children) ? node.children : [];
-  const initialExpanded = depth < 2 && !node?.collapsed_by_default;
+  const compactStellarBranch = children.length > 0
+    && Number(node?.total_star_count || 0) > 0
+    && Number(node?.descendant_count || 0) <= 6;
+  const initialExpanded = !node?.collapsed_by_default && (depth < 2 || compactStellarBranch);
   const [expanded, setExpanded] = useState(initialExpanded || depth === 0);
   const displayName = formatText(node?.display_name);
   const countSummary = hierarchyCountSummary(node);

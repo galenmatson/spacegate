@@ -1485,7 +1485,13 @@ def _build_hierarchy_node_payload(
     node["direct_type_counts"] = direct_type_counts
     node["total_type_counts"] = total_type_counts
     node["total_star_count"] = int(total_star_count)
-    node["collapsed_by_default"] = bool(depth >= 2 or len(children) >= 6)
+    compact_stellar_branch = (
+        len(children) > 0
+        and int(total_star_count) > 0
+        and int(total_star_count) <= 4
+        and node["descendant_count"] <= 6
+    )
+    node["collapsed_by_default"] = bool(len(children) >= 6 or (depth >= 2 and not compact_stellar_branch))
     return node
 
 

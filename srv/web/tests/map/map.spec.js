@@ -595,6 +595,29 @@ test.describe("public 3D map beta", () => {
     }
   });
 
+  test("system hierarchy exposes compact stellar leaves by default", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "hierarchy visibility smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "HD 213885", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "HD 213885 system_id").toBeTruthy();
+
+    const detailResponse = await page.request.get(`/api/v1/systems/${systemId}`);
+    expect(detailResponse.ok()).toBeTruthy();
+    const detailPayload = await detailResponse.json();
+    expect(detailPayload.hierarchy?.counts?.stars).toBe(3);
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    const hierarchyPanel = page.locator(".hierarchy-panel");
+    await expect(hierarchyPanel).toBeVisible();
+    await expect(hierarchyPanel.getByText("HD 213885 AA", { exact: true })).toBeVisible();
+    await expect(hierarchyPanel.getByText("HD 213885 AB", { exact: true })).toBeVisible();
+    await expect(hierarchyPanel.getByText("HD 213885 B", { exact: true })).toBeVisible();
+  });
+
   test("messy hierarchy preview preserves Nu Sco source-native leaves", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "messy hierarchy renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {
