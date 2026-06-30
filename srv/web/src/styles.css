@@ -5149,7 +5149,15 @@ main {
   justify-content: stretch;
 }
 
-.system-preview-evidence ul {
+.system-preview-readout .system-preview-policy {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.system-preview-evidence ul,
+.system-preview-policy ul {
   display: grid;
   gap: 6px;
   margin: 6px 0 0;
@@ -5157,11 +5165,34 @@ main {
   list-style: none;
 }
 
-.system-preview-evidence li {
+.system-preview-evidence li,
+.system-preview-policy li {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.system-preview-policy li {
+  align-items: flex-start;
+}
+
+.system-preview-policy li strong {
+  flex: 0 0 auto;
+  color: #8fa9be;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.system-preview-policy li span {
+  min-width: 0;
+  overflow: hidden;
+  color: #eef6ff;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .evidence-pill {

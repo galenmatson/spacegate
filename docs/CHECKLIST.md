@@ -360,6 +360,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   preview panel shows deterministic snapshot fallback instead of a dead canvas
 - [x] Surface the Live System Preview local beta simulation day in the readout
   and verify it advances, pauses, and resumes with the shared scene clock
+- [x] Add a compact Live System Preview render-policy summary for local beta
+  time, clarity scale, assumption persistence, and deterministic fallback mode
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

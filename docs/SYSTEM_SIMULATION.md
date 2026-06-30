@@ -60,7 +60,8 @@ Already in place:
   procedural assumption metadata when present
 - the beta scene contract includes `visual_scale_beta_v1`, an explicit
   clarity-scale policy for star radii, planet radii, planet orbit spacing, and
-  binary/group orbit display radii
+  binary/group orbit display radii; the browser readout summarizes the active
+  local-time, clarity-scale, assumption-persistence, and fallback policy
 - selected-system `disc.simulation_assumptions` materialization is available
   through `scripts/materialize_simulation_assumptions.py`; the API annotates
   matching rendered assumptions with `persistence_status="persisted"`
@@ -315,6 +316,9 @@ Success criteria:
   bodies/orbits, and pin a copyable object/orbit readout
 - the local beta simulation day is visible in the readout and follows the same
   pause/start behavior as the scene animation clock
+- the preview readout includes a compact render-policy summary covering local
+  beta time, clarity scale, assumption persistence, and deterministic snapshot
+  fallback
 - pinned stars, planets, and orbit paths also receive in-scene visual feedback
   so the selected readout has a visible target in the 3D view
 - hover and pinned readouts use the same source/derived/assumed/missing

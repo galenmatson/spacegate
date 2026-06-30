@@ -174,6 +174,14 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/Planet class/i);
+    const renderPolicy = page.locator("[data-testid='system-preview-policy']");
+    await expect(renderPolicy).toBeVisible();
+    await expect(renderPolicy).toContainText(/render policy/i);
+    await expect(renderPolicy).toContainText(/Local beta day/i);
+    await expect(renderPolicy).toContainText(/Clarity Scale/i);
+    await expect(renderPolicy).toContainText(/persisted|No assumptions/i);
+    await expect(renderPolicy).toContainText(/Live 3d|Live 3D/i);
+    await expect(renderPolicy).toContainText(/Deterministic Snapshot/i);
     const readoutEvidencePill = page.locator(".system-preview-evidence .evidence-pill").first();
     await readoutEvidencePill.focus();
     const readoutEvidencePopover = page.locator(".system-preview-evidence .evidence-popover").first();

@@ -1947,6 +1947,53 @@ function collectEvidenceFields(scene) {
   return items.filter(([, field]) => field).slice(0, 5);
 }
 
+function compactPolicyLabel(value, fallback = "Unknown") {
+  const text = String(value || fallback);
+  return text.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function renderPolicyItems(scene, simulationDays = 0, speedMultiplier = 1) {
+  const renderScene = scene?.render_scene || {};
+  const visualScale = renderScene.visual_scale || {};
+  const timePolicy = renderScene.time || {};
+  const assumptionCount = Number(renderScene.assumption_count || 0);
+  const persistedAssumptionCount = Number(renderScene.persisted_assumption_count || 0);
+  const preferred = compactPolicyLabel(renderScene.preferred_visualization || "live_3d");
+  const fallback = compactPolicyLabel(renderScene.fallback_visualization || "deterministic_snapshot");
+  const scale = visualScale.scale_mode === "clarity_scaled_not_physical"
+    ? "Clarity Scale"
+    : compactPolicyLabel(visualScale.scale_mode || visualScale.schema_version || "Beta Scale");
+  const assumptionText = assumptionCount > 0
+    ? `${formatNumber(persistedAssumptionCount, 0)}/${formatNumber(assumptionCount, 0)} persisted`
+    : "No assumptions";
+  return [
+    {
+      key: "time",
+      label: "Time",
+      value: `Local beta day ${formatNumber(simulationDays, 1)} @ ${formatNumber(speedMultiplier, 2)}x`,
+      detail: timePolicy.phase_policy || "Local teaching-grade clock; not science-grade epoch propagation.",
+    },
+    {
+      key: "scale",
+      label: "Scale",
+      value: scale,
+      detail: visualScale.policy_note || "Presentation scale for readability; physical values remain in source fields.",
+    },
+    {
+      key: "assumptions",
+      label: "Assumptions",
+      value: assumptionText,
+      detail: renderScene.assumption_generator_version || "No renderer assumption generator reported.",
+    },
+    {
+      key: "fallback",
+      label: "Fallback",
+      value: `${preferred} / ${fallback}`,
+      detail: "Live 3D is preferred when capable; deterministic snapshots remain the fallback artifact.",
+    },
+  ];
+}
+
 function hasUsableWebGL() {
   if (typeof document === "undefined") {
     return false;
@@ -2037,6 +2084,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const renderedAssumptionCount = Number.isFinite(Number(renderScene.assumption_count))
     ? Number(renderScene.assumption_count)
     : (counts.assumed || 0) + assumedOrbitCount;
+  const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier);
 
   return (
     <section className="panel system-preview-panel" data-testid="system-preview-panel">
@@ -2165,6 +2213,19 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                   <li key={`${label}:${field.key}`}>
                     <span>{label}</span>
                     <EvidencePill field={field} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {status === "ready" && scene && (
+            <div className="system-preview-policy" data-testid="system-preview-policy">
+              <span>render policy</span>
+              <ul>
+                {policyItems.map((item) => (
+                  <li key={item.key}>
+                    <strong>{item.label}</strong>
+                    <span title={item.detail}>{item.value}</span>
                   </li>
                 ))}
               </ul>

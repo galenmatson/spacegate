@@ -760,6 +760,9 @@ Readiness gaps:
 - June 30, 2026 visible-clock pass surfaces the shared local beta simulation
   day in the system preview readout and verifies it advances, pauses, and
   resumes with the scene clock.
+- June 30, 2026 render-policy summary pass adds compact readout chips for
+  local beta time, clarity scale, assumption persistence, and deterministic
+  snapshot fallback mode.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark
