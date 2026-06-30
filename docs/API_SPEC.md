@@ -495,8 +495,10 @@ Contract notes:
   not physical distance or radius units; source science values remain in the
   individual field provenance objects and core/arm rows. The default
   `structure` mode is hierarchy-first and collision-safe for visible stellar
-  meshes. `true_orbits`, `true_bodies`, and `log` are client presentation modes
-  and must not mutate core, ARM, DISC, or RIM data.
+  meshes. `true_orbits` preserves linear rendered planet-orbit ratios from
+  source semi-major axes inside the scene envelope; it does not add an inner
+  readability offset. `true_bodies` and `log` are also client presentation
+  modes and must not mutate core, ARM, DISC, or RIM data.
 - `render_scene.assumptions` is an additive export of every rendered field with
   `status="assumed"`. Each record is shaped for
   `disc.simulation_assumptions` materialization and includes `assumption_key`,

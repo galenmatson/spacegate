@@ -785,6 +785,10 @@ Readiness gaps:
   Drei/Troika SDF text billboards, camera-facing screen-size scaling, outlines,
   non-picking labels, and Playwright renderer diagnostics. Full dense-scene
   label priority/collision management remains future work.
+- June 30, 2026 True Orbits correction removes the fixed inner orbit offset
+  from that scale mode so rendered planet-orbit radii preserve linear
+  semi-major-axis ratios; browser diagnostics now assert the AU-to-scene scale
+  remains proportional.
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.

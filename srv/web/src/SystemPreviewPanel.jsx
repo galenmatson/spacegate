@@ -17,7 +17,7 @@ const SIM_SPEED_OPTIONS = [
 ];
 const SCALE_MODE_OPTIONS = [
   { value: "structure", label: "Structure", detail: "Collision-safe clarity scale; preserves hierarchy readability." },
-  { value: "true_orbits", label: "True Orbits", detail: "Preserves relative planet-orbit spacing within the scene." },
+  { value: "true_orbits", label: "True Orbits", detail: "Preserves linear planet semi-major-axis ratios within the scene." },
   { value: "true_bodies", label: "True Bodies", detail: "Preserves more body-size contrast while keeping targets inspectable." },
   { value: "log", label: "Log Scale", detail: "Compresses body and orbit ranges with logarithmic transforms." },
 ];
@@ -206,7 +206,8 @@ function scaledPlanetOrbitRadius(orbitAu, maxOrbitAu, visualScale = DEFAULT_VISU
   const source = Number.isFinite(orbit) && orbit > 0 ? orbit : Number(policy.fallback_au || 0.08);
   const mode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   if (mode === "true_orbits") {
-    return Number(policy.min_scene || 0.75) + (source / maxOrbit) * Number(policy.span_scene || 2.7);
+    const outerSceneRadius = Number(policy.min_scene || 0.75) + Number(policy.span_scene || 2.7);
+    return (source / maxOrbit) * outerSceneRadius;
   }
   if (mode === "log") {
     const fallback = Math.max(0.0001, Number(policy.fallback_au || 0.08));
@@ -1366,6 +1367,31 @@ function applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, scaleMo
   ));
 }
 
+function trueOrbitScaleDiagnostics(planets, scaleMode) {
+  if (normalizeScaleMode(scaleMode) !== "true_orbits") {
+    return { count: 0, maxRelativeError: null };
+  }
+  const ratios = (planets || [])
+    .map((planet) => {
+      const sourceAu = Number(planet.orbitAu);
+      const sceneRadius = Number(planet.orbit_radius_scene);
+      return Number.isFinite(sourceAu) && sourceAu > 0 && Number.isFinite(sceneRadius) && sceneRadius > 0
+        ? sceneRadius / sourceAu
+        : null;
+    })
+    .filter((ratio) => Number.isFinite(ratio) && ratio > 0)
+    .sort((left, right) => left - right);
+  if (ratios.length < 2) {
+    return { count: ratios.length, maxRelativeError: 0 };
+  }
+  const mid = Math.floor(ratios.length / 2);
+  const median = ratios.length % 2 ? ratios[mid] : (ratios[mid - 1] + ratios[mid]) / 2;
+  const maxRelativeError = Math.max(
+    ...ratios.map((ratio) => Math.abs(ratio - median) / Math.max(0.000001, median)),
+  );
+  return { count: ratios.length, maxRelativeError };
+}
+
 function buildStarLayout(stars, hierarchy, binaryOrbits) {
   const canonicalKeyByAlias = new Map();
   stars.forEach((star) => {
@@ -2419,6 +2445,8 @@ function SceneMotionMetrics({
   planetOrbitCount = 0,
   planetTrailCount = 0,
   planetDisplayEccentricityCappedCount = 0,
+  trueOrbitScaleSampleCount = 0,
+  trueOrbitScaleMaxRelativeError = null,
   habitableZoneCount = 0,
   habitableZoneMaxPlaneInclinationDeg = 0,
   starClassStatusCounts = {},
@@ -2480,6 +2508,10 @@ function SceneMotionMetrics({
     gl.domElement.dataset.inspectablePlanetCount = String(planetCount || 0);
     gl.domElement.dataset.planetTrailCount = String(planetTrailCount || 0);
     gl.domElement.dataset.planetDisplayEccentricityCappedCount = String(planetDisplayEccentricityCappedCount || 0);
+    gl.domElement.dataset.trueOrbitScaleSampleCount = String(trueOrbitScaleSampleCount || 0);
+    gl.domElement.dataset.trueOrbitScaleMaxRelativeError = Number.isFinite(Number(trueOrbitScaleMaxRelativeError))
+      ? Number(trueOrbitScaleMaxRelativeError).toExponential(3)
+      : "";
     gl.domElement.dataset.habitableZoneCount = String(habitableZoneCount || 0);
     gl.domElement.dataset.habitableZoneMaxPlaneInclinationDeg = Number.isFinite(Number(habitableZoneMaxPlaneInclinationDeg)) ? Number(habitableZoneMaxPlaneInclinationDeg).toFixed(3) : "";
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
@@ -2517,6 +2549,8 @@ function SceneMotionMetrics({
     minStarSeparation,
     planetCount,
     planetDisplayEccentricityCappedCount,
+    trueOrbitScaleSampleCount,
+    trueOrbitScaleMaxRelativeError,
     planetHostGroupCount,
     treeHostedPlanetCount,
     planetTrailCount,
@@ -2802,6 +2836,9 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   const displayPlanets = useMemo(() => (
     applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, activeScaleMode)
   ), [planets, maxOrbit, visualScale, activeScaleMode]);
+  const trueOrbitDiagnostics = useMemo(() => (
+    trueOrbitScaleDiagnostics(displayPlanets, activeScaleMode)
+  ), [displayPlanets, activeScaleMode]);
   const hostPlacementForPlanet = (planet) => {
     const placementForStarKey = (starKey) => ({
       center: layout.starPositions.get(starKey),
@@ -2876,6 +2913,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         planetOrbitCount={showOrbits ? planetPlacements.length : 0}
         planetTrailCount={planetPlacements.length}
         planetDisplayEccentricityCappedCount={planetDisplayEccentricityCappedCount}
+        trueOrbitScaleSampleCount={trueOrbitDiagnostics.count}
+        trueOrbitScaleMaxRelativeError={trueOrbitDiagnostics.maxRelativeError}
         habitableZoneCount={showHabitableZones ? habitableZoneStars.length : 0}
         habitableZoneMaxPlaneInclinationDeg={showHabitableZones ? habitableZoneMaxPlaneInclinationDeg : 0}
         starClassStatusCounts={starClassStatusCounts}

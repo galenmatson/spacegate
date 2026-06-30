@@ -210,9 +210,11 @@ Implementation note:
   reviewed assumption curation remains future work; `visual_scale_beta_v1`
   explicitly labels the live preview as presentation-scaled rather than
   physically scaled and now advertises selectable Structure, True Orbits, True
-  Bodies, and Log Scale modes; Structure mode caps visible stellar radii
-  against nearest rendered separation while keeping halo and picking radii as
-  separate readability aids; rendered planet bodies now carry `host_body_key` when their canonical
+  Bodies, and Log Scale modes; True Orbits uses a pure linear
+  semi-major-axis-to-scene transform with no fixed inner readability offset,
+  while Structure mode caps visible stellar radii against nearest rendered
+  separation and keeps halo and picking radii as separate readability aids;
+  rendered planet bodies now carry `host_body_key` when their canonical
   host star, or a catalog-equivalent source-native component, resolves into the
   rendered scene; two-star scenes without source orbit edges may use clearly
   labeled `disc_assumption` visual binary fallback orbits for legibility; the

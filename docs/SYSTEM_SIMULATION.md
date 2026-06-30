@@ -257,10 +257,13 @@ Rules:
   presentation modes, and must not be interpreted as source physical scale.
   The default `structure` mode is collision-safe and hierarchy-first. It caps
   visible stellar mesh radius against nearest rendered stellar separation while
-  keeping glow and pick radii separate. `true_orbits` preserves relative
-  planet-orbit spacing within the scene, `true_bodies` preserves more body-size
-  contrast, and `log` compresses large ranges. All modes are browser/render
-  transforms only; source values remain in provenance fields and core/ARM rows.
+  keeping glow and pick radii separate. `true_orbits` uses a pure linear
+  semi-major-axis-to-scene transform with no fixed inner padding, so rendered
+  planet orbit radii preserve their source AU ratios inside the current scene
+  envelope; close-in worlds may therefore become visually tight. `true_bodies`
+  preserves more body-size contrast, and `log` compresses large ranges. All
+  modes are browser/render transforms only; source values remain in provenance
+  fields and core/ARM rows.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 

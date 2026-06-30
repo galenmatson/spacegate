@@ -352,6 +352,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   default-on object labels with a compact labels toggle
 - [x] Replace Live System Preview canvas-sprite labels with Drei/Troika SDF
   text labels, camera-facing screen-size scaling, and renderer diagnostics
+- [x] Correct True Orbits mode to preserve linear source semi-major-axis ratios
+  without an inner readability offset, with browser diagnostics
 - [x] Sort rendered planet bodies by orbital semi-major axis/period so Sol and
   benchmark systems display in orbital order
 - [x] Carry full provenance field objects into planet-orbit hover/pinned

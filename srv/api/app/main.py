@@ -125,11 +125,12 @@ SIM_VISUAL_SCALE_POLICY = {
     },
     "planet_orbit_radius": {
         "source_field": "semi_major_axis_au",
-        "transform": "min_scene + sqrt(semi_major_axis_au_or_fallback / max_scene_au) * span_scene",
+        "transform": "structure=min_scene+sqrt(semi_major_axis_au_or_fallback/max_scene_au)*span_scene; true_orbits=(semi_major_axis_au_or_fallback/max_scene_au)*(min_scene+span_scene); log=min_scene+log1p(semi_major_axis_au_or_fallback/fallback_au)/log1p(max_scene_au/fallback_au)*span_scene",
         "fallback_au": 0.08,
         "min_scene": 0.75,
         "span_scene": 2.7,
         "normalization": "per_scene_max_planet_semi_major_axis",
+        "true_orbits_preserves": "linear semi-major-axis ratios for rendered planet orbits and HZ guides within the scene envelope",
     },
     "binary_orbit_radius": {
         "source_field": "render_scene.orbits.display_radius_scene",

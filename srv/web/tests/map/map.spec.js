@@ -195,6 +195,14 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
       { timeout: 3000 }
     ).toBe("true_orbits");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.trueOrbitScaleSampleCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(7);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.trueOrbitScaleMaxRelativeError || 1)),
+      { timeout: 3000 }
+    ).toBeLessThan(0.001);
     await scaleModeSelect.selectOption("true_bodies");
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
