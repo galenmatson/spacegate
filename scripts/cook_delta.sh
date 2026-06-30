@@ -17,8 +17,10 @@ LOG_FILE="$LOG_DIR/cook_delta.log"
 PLAN_PATH_DEFAULT="$STATE_DIR/reports/impacted_rows_plan.json"
 
 NASA_RAW="$RAW_DIR/nasa_exoplanet_archive/pscomppars.csv"
+NASA_PS_RAW="$RAW_DIR/nasa_exoplanet_archive/ps.csv"
 COOKED_NASA_DIR="$COOKED_DIR/nasa_exoplanet_archive"
 COOKED_NASA="$COOKED_NASA_DIR/pscomppars_clean.csv"
+COOKED_NASA_PS="$COOKED_NASA_DIR/ps_clean.csv"
 
 PYTHON_BIN=""
 
@@ -53,7 +55,8 @@ cook_nasa_only() {
   local tmp_dir
   tmp_dir="$(mktemp -d)"
   local tmp_out="$tmp_dir/pscomppars_clean.csv"
-  log "Cook delta: NASA Exoplanet Archive normalize"
+  local tmp_ps_out="$tmp_dir/ps_clean.csv"
+  log "Cook delta: NASA Exoplanet Archive pscomppars normalize"
   "$PYTHON_BIN" - "$NASA_RAW" "$tmp_out" <<'PY'
 import sys
 in_path = sys.argv[1]
@@ -83,6 +86,40 @@ with open(in_path, "rb") as f, open(out_path, "wb") as out:
         out.write(b"\n")
 PY
   mv "$tmp_out" "$COOKED_NASA"
+  if [[ -f "$NASA_PS_RAW" ]]; then
+    log "Cook delta: NASA Exoplanet Archive ps normalize"
+    "$PYTHON_BIN" - "$NASA_PS_RAW" "$tmp_ps_out" <<'PY'
+import sys
+in_path = sys.argv[1]
+out_path = sys.argv[2]
+bom = b"\xef\xbb\xbf"
+with open(in_path, "rb") as f, open(out_path, "wb") as out:
+    first = f.read(3)
+    if first != bom:
+        f.seek(0)
+    prev_cr = False
+    while True:
+        chunk = f.read(1024 * 1024)
+        if not chunk:
+            break
+        if prev_cr:
+            if chunk.startswith(b"\n"):
+                chunk = chunk[1:]
+            else:
+                out.write(b"\n")
+            prev_cr = False
+        if chunk.endswith(b"\r"):
+            prev_cr = True
+            chunk = chunk[:-1]
+        chunk = chunk.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        out.write(chunk)
+    if prev_cr:
+        out.write(b"\n")
+PY
+    mv "$tmp_ps_out" "$COOKED_NASA_PS"
+  else
+    log "Cook delta: skip NASA Exoplanet Archive ps (optional raw file missing)"
+  fi
   rm -rf "$tmp_dir"
 }
 

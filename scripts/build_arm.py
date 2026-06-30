@@ -33,6 +33,8 @@ GAIA_NSS_VERSION_FALLBACK = "gaia_dr3_nss_two_body_orbit"
 GAIA_NSS_URL_FALLBACK = "https://gea.esac.esa.int/archive/"
 NASA_PSCOMPPARS_VERSION_FALLBACK = "pscomppars"
 NASA_PSCOMPPARS_URL_FALLBACK = "https://exoplanetarchive.ipac.caltech.edu"
+NASA_PS_VERSION_FALLBACK = "ps"
+NASA_PS_URL_FALLBACK = "https://exoplanetarchive.ipac.caltech.edu"
 DERIVED_PHYSICAL_PARAMETERS_VERSION = "derived_physical_parameters_v1"
 
 
@@ -107,6 +109,7 @@ def main() -> int:
     cooked_nasa_pscomppars = (
         state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     )
+    cooked_nasa_ps = state_dir / "cooked" / "nasa_exoplanet_archive" / "ps_clean.csv"
     manifest_dir = state_dir / "reports" / "manifests"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -152,6 +155,7 @@ def main() -> int:
         gaia_nss_manifest_path, "gaia_dr3_nss_two_body_orbit"
     )
     nasa_pscomppars_manifest = load_manifest_entry(core_manifest_path, "pscomppars")
+    nasa_ps_manifest = load_manifest_entry(core_manifest_path, "ps")
     msc_version = str(msc_manifest.get("source_version") or MSC_VERSION_FALLBACK)
     msc_checksum = str(msc_manifest.get("sha256") or "")
     msc_retrieved = str(msc_manifest.get("retrieved_at") or "")
@@ -207,6 +211,10 @@ def main() -> int:
     nasa_pscomppars_checksum = str(nasa_pscomppars_manifest.get("sha256") or "")
     nasa_pscomppars_retrieved = str(nasa_pscomppars_manifest.get("retrieved_at") or "")
     nasa_pscomppars_url = str(nasa_pscomppars_manifest.get("url") or NASA_PSCOMPPARS_URL_FALLBACK)
+    nasa_ps_version = str(nasa_ps_manifest.get("source_version") or NASA_PS_VERSION_FALLBACK)
+    nasa_ps_checksum = str(nasa_ps_manifest.get("sha256") or "")
+    nasa_ps_retrieved = str(nasa_ps_manifest.get("retrieved_at") or "")
+    nasa_ps_url = str(nasa_ps_manifest.get("url") or NASA_PS_URL_FALLBACK)
 
     log(f"Arm build start (build_id={args.build_id}, core_db={core_db}, arm_db={arm_db})")
     con = duckdb.connect(str(arm_db))
@@ -766,14 +774,66 @@ def main() -> int:
                   cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
                   cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
                   cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
-                  cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar)
                 )
             ) as t(
               objectid, pl_name, hostname, gaia_dr3_id, gaia_dr2_id, hip_name, hd_name, sy_snum, sy_pnum,
               sy_mnum, st_teff, st_tefferr1, st_tefferr2, st_mass, st_masserr1, st_masserr2, st_rad,
               st_raderr1, st_raderr2, st_lum, st_lumerr1, st_lumerr2, st_logg, st_loggerr1, st_loggerr2,
               st_met, st_meterr1, st_meterr2, st_age, st_ageerr1, st_ageerr2, st_rotp, st_dens,
-              st_denserr1, st_denserr2, st_radv, st_radverr1, st_radverr2, st_spectype
+              st_denserr1, st_denserr2, st_radv, st_radverr1, st_radverr2, st_spectype,
+              pl_orbper, pl_orbpererr1, pl_orbpererr2, pl_orbsmax, pl_orbsmaxerr1, pl_orbsmaxerr2,
+              pl_orbincl, pl_orbinclerr1, pl_orbinclerr2, pl_orbeccen, pl_orbeccenerr1, pl_orbeccenerr2,
+              pl_orblper, pl_orblpererr1, pl_orblpererr2, pl_orbtper, pl_orbtper_systemref, pl_rvamp,
+              ttv_flag, pl_orbper_reflink, pl_orbsmax_reflink, pl_orbeccen_reflink, pl_orbincl_reflink
+            )
+            where false
+            """
+        )
+
+    if cooked_nasa_ps.exists():
+        con.execute(
+            f"""
+            create or replace temp view nasa_ps_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_nasa_ps))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view nasa_ps_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              pl_name, hostname, pl_refname, disc_pubdate, pl_orbper, pl_orbpererr1, pl_orbpererr2,
+              pl_orblpererr1, pl_orblper, pl_orblpererr2, pl_orbsmax, pl_orbsmaxerr1, pl_orbsmaxerr2,
+              pl_orbincl, pl_orbinclerr1, pl_orbinclerr2, pl_orbtper, pl_orbeccen, pl_orbeccenerr1,
+              pl_orbeccenerr2, pl_rvamp, ttv_flag, rowupdate, releasedate
             )
             where false
             """
@@ -812,7 +872,9 @@ def main() -> int:
           ('arm_source_gaia_nss_csv', {sql_literal(str(cooked_gaia_nss) if cooked_gaia_nss.exists() else '')}),
           ('arm_source_gaia_nss_version', {sql_literal(gaia_nss_version)}),
           ('arm_source_nasa_pscomppars_csv', {sql_literal(str(cooked_nasa_pscomppars) if cooked_nasa_pscomppars.exists() else '')}),
-          ('arm_source_nasa_pscomppars_version', {sql_literal(nasa_pscomppars_version)})
+          ('arm_source_nasa_pscomppars_version', {sql_literal(nasa_pscomppars_version)}),
+          ('arm_source_nasa_ps_csv', {sql_literal(str(cooked_nasa_ps) if cooked_nasa_ps.exists() else '')}),
+          ('arm_source_nasa_ps_version', {sql_literal(nasa_ps_version)})
         """
     )
 
@@ -3971,6 +4033,156 @@ def main() -> int:
              or coalesce(try_cast(nullif(n.pl_orbsmax, '') as double), p.semi_major_axis_au) is not null
              or coalesce(try_cast(nullif(n.pl_orbeccen, '') as double), p.eccentricity) is not null
              or coalesce(try_cast(nullif(n.pl_orbincl, '') as double), p.inclination_deg) is not null
+        ), nasa_ps_alternate_rows as (
+          select
+            e.orbit_edge_id,
+            'ps:' || n.source_row_hash as source_pk,
+            cast(null as double) as epoch_tdb_jd,
+            try_cast(nullif(n.pl_orbper, '') as double) as orbital_period_days,
+            try_cast(nullif(n.pl_orbsmax, '') as double) as semi_major_axis_au,
+            try_cast(nullif(n.pl_orbeccen, '') as double) as eccentricity,
+            try_cast(nullif(n.pl_orbincl, '') as double) as inclination_deg,
+            n.source_row_hash,
+            'nasa_ps'::varchar as solver,
+            'host_centered'::varchar as frame,
+            case
+              when n.completeness_score >= 4 then 0.90
+              when n.completeness_score >= 3 then 0.86
+              when n.completeness_score >= 2 then 0.80
+              else 0.72
+            end::double as confidence_score,
+            'nasa_exoplanet_archive'::varchar as source_catalog,
+            {sql_literal(nasa_ps_version)}::varchar as source_version,
+            {sql_literal(nasa_ps_checksum)}::varchar as retrieval_checksum,
+            {sql_literal(nasa_ps_retrieved)}::varchar as retrieved_at,
+            cast(null as double) as center_of_mass_velocity_kms,
+            try_cast(nullif(n.pl_rvamp, '') as double) as semi_amplitude_primary_kms,
+            cast(null as double) as mass_ratio,
+            cast(null as bigint) as flags,
+            cast(null as double) as significance,
+            1 + row_number() over (
+              partition by e.orbit_edge_id
+              order by
+                n.completeness_score desc,
+                coalesce(nullif(n.rowupdate, ''), nullif(n.releasedate, ''), nullif(n.disc_pubdate, '')) desc nulls last,
+                n.source_row_hash asc
+            )::int as solution_rank,
+            cast(null as double) as semi_major_axis_arcsec,
+            cast(null as double) as node_deg,
+            try_cast(nullif(n.pl_orblper, '') as double) as long_periastron_deg,
+            try_cast(nullif(n.pl_orbtper, '') as double) as time_periastron_jd,
+            cast(null as double) as reference_epoch_jyear,
+            cast(null as double) as reference_epoch_mjd,
+            try_cast(nullif(n.pl_orbper, '') as double) as period_value,
+            'd'::varchar as period_unit,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbpererr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbpererr2, '') as double))
+            ) as period_error,
+            cast(null as varchar) as axis_qualifier,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbsmaxerr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbsmaxerr2, '') as double))
+            ) as axis_error,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbinclerr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbinclerr2, '') as double))
+            ) as inclination_error,
+            cast(null as double) as node_error,
+            try_cast(nullif(n.pl_orbtper, '') as double) as periastron_epoch,
+            cast(null as varchar) as epoch_unit,
+            greatest(
+              abs(try_cast(nullif(n.pl_orbeccenerr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orbeccenerr2, '') as double))
+            ) as eccentricity_error,
+            greatest(
+              abs(try_cast(nullif(n.pl_orblpererr1, '') as double)),
+              abs(try_cast(nullif(n.pl_orblpererr2, '') as double))
+            ) as long_periastron_error,
+            cast(null as varchar) as discoverer,
+            cast(null as varchar) as grade,
+            nullif(n.ttv_flag, '') as notes_flag,
+            coalesce(nullif(n.pl_refname, ''), nullif(n.rowupdate, ''), nullif(n.releasedate, '')) as reference_code,
+            cast(null as varchar) as png_file,
+            cast(null as double) as last_observed_year
+          from core.planets p
+          join orbit_edges e
+            on e.relation_kind = 'planetary_orbit'
+           and e.secondary_component_key = 'comp:planet:' || p.stable_object_key
+          join (
+            select *
+            from (
+              select
+                n.*,
+                lower(
+                  trim(
+                    regexp_replace(
+                      regexp_replace(coalesce(n.pl_name, ''), '[^0-9A-Za-z]+', ' ', 'g'),
+                      '\\s+',
+                      ' ',
+                      'g'
+                    )
+                  )
+                ) as planet_name_norm,
+                md5(
+                  coalesce(n.pl_name, '') || '|' ||
+                  coalesce(n.hostname, '') || '|' ||
+                  coalesce(n.pl_refname, '') || '|' ||
+                  coalesce(n.pl_orbper, '') || '|' ||
+                  coalesce(n.pl_orbsmax, '') || '|' ||
+                  coalesce(n.pl_orbeccen, '') || '|' ||
+                  coalesce(n.pl_orbincl, '') || '|' ||
+                  coalesce(n.pl_orblper, '') || '|' ||
+                  coalesce(n.pl_orbtper, '')
+                ) as source_row_hash,
+                (
+                  case when nullif(n.pl_orbper, '') is not null then 1 else 0 end +
+                  case when nullif(n.pl_orbsmax, '') is not null then 1 else 0 end +
+                  case when nullif(n.pl_orbeccen, '') is not null then 1 else 0 end +
+                  case when nullif(n.pl_orbincl, '') is not null then 1 else 0 end +
+                  case when nullif(n.pl_orblper, '') is not null then 1 else 0 end +
+                  case when nullif(n.pl_orbtper, '') is not null then 1 else 0 end
+                ) as completeness_score,
+                row_number() over (
+                  partition by
+                    lower(
+                      trim(
+                        regexp_replace(
+                          regexp_replace(coalesce(n.pl_name, ''), '[^0-9A-Za-z]+', ' ', 'g'),
+                          '\\s+',
+                          ' ',
+                          'g'
+                        )
+                      )
+                    ),
+                    md5(
+                      coalesce(n.pl_name, '') || '|' ||
+                      coalesce(n.hostname, '') || '|' ||
+                      coalesce(n.pl_refname, '') || '|' ||
+                      coalesce(n.pl_orbper, '') || '|' ||
+                      coalesce(n.pl_orbsmax, '') || '|' ||
+                      coalesce(n.pl_orbeccen, '') || '|' ||
+                      coalesce(n.pl_orbincl, '') || '|' ||
+                      coalesce(n.pl_orblper, '') || '|' ||
+                      coalesce(n.pl_orbtper, '')
+                    )
+                  order by coalesce(nullif(n.rowupdate, ''), nullif(n.releasedate, ''), nullif(n.disc_pubdate, '')) desc nulls last
+                ) as duplicate_rn
+              from nasa_ps_raw n
+              where nullif(n.pl_name, '') is not null
+                and (
+                  nullif(n.pl_orbper, '') is not null
+                  or nullif(n.pl_orbsmax, '') is not null
+                  or nullif(n.pl_orbeccen, '') is not null
+                  or nullif(n.pl_orbincl, '') is not null
+                  or nullif(n.pl_orblper, '') is not null
+                  or nullif(n.pl_orbtper, '') is not null
+                )
+            ) q
+            where duplicate_rn = 1
+          ) n
+            on p.source_catalog = 'nasa_exoplanet_archive'
+           and n.planet_name_norm = p.planet_name_norm
         ), sol_rows as (
           select * from sol_satellite_rows
           union all
@@ -3985,6 +4197,8 @@ def main() -> int:
           select * from orb6_rows
           union all
           select * from planet_orbit_rows
+          union all
+          select * from nasa_ps_alternate_rows
         )
         select
           row_number() over (
@@ -4042,6 +4256,7 @@ def main() -> int:
           ) as fit_quality_json,
           case
             when solver = 'nasa_pscomppars' then 'source_native_planet_orbit'
+            when solver = 'nasa_ps' then 'source_native_planet_orbit'
             when solver = 'horizons_elements_planet_inventory' then 'source_native_planet_orbit'
             else 'source_native'
           end::varchar as normalization_method,

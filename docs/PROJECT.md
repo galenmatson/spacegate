@@ -353,6 +353,12 @@ full element sets, reference epochs, fit quality, uncertainty, derived
 simulation state, and historical source observations belong in `arm` as
 evidence rows attached to graph/orbit structures.
 
+For NASA Exoplanet Archive planets, `pscomppars` is the promoted one-row
+display/default source while `ps` is retained as source/reference-specific
+alternate orbital evidence in ARM. Consumers that need normal public behavior
+should use rank-1/default solutions; diagnostics and future simulation controls
+may expose ranked alternate candidates explicitly.
+
 This mirrors the multiplicity policy: a planet can be in canonical inventory
 without every source-native orbit solution becoming canonical core.
 

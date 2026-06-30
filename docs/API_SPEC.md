@@ -350,6 +350,10 @@ Contract notes:
   `orbital_solutions` values for period, semi-major axis, eccentricity, and
   inclination. If a linked ARM solution is absent, the endpoint may fall back to
   promoted `core.planets` scalar summaries and labels that basis explicitly.
+- Rank-1 ARM planet orbital solutions are the default API/simulation source.
+  NASA Exoplanet Archive `ps` alternates, when present, are retained as
+  additional ranked `arm.orbital_solutions` rows for future diagnostics and
+  explicit solution-selection UI, not silently promoted over `pscomppars`.
 - If a planet lacks a renderable source inclination, `render_scene` may replace
   the missing render field with a deterministic low-tilt
   `status="assumed"`, `layer="disc_assumption"` visual fallback. This does not

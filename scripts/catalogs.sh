@@ -28,6 +28,7 @@ PUBLIC_BASE_URL="${SPACEGATE_PUBLIC_BASE_URL:-https://spacegates.org}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL%/}"
 
 NASA_EXOPLANET_URL="${NASA_EXOPLANET_URL:-https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+pscomppars&format=csv}"
+NASA_EXOPLANET_PS_URL="${NASA_EXOPLANET_PS_URL:-https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+ps&format=csv}"
 EXOPLANET_EU_URL="${EXOPLANET_EU_URL:-https://www.exoplanet.eu/catalog/csv/}"
 OPEN_EXOPLANET_CATALOGUE_URL="${OPEN_EXOPLANET_CATALOGUE_URL:-https://codeload.github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue/tar.gz/refs/heads/master}"
 HWC_URL="${HWC_URL:-https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv}"
@@ -162,7 +163,7 @@ catalog_titles() {
   cat <<'LIST'
 core|Core (AT-HYG + NASA Exoplanets + WDS/MSC/ORB6 support; Gaia NSS fetched by download_core.sh)
 athyg|AT-HYG stellar catalog
-nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars)
+nasa_exoplanet_archive|NASA Exoplanet Archive (pscomppars + ps)
 exoplanet_eu|Exoplanet.eu catalog export (status layer)
 open_exoplanet_catalogue|Open Exoplanet Catalogue (tarball)
 hwc|Habitable Worlds Catalog (full CSV)
@@ -215,6 +216,7 @@ catalog_sources() {
       ;;
     nasa_exoplanet_archive)
       printf '%s\n' "nasa_exoplanet_archive|pscomppars|$NASA_EXOPLANET_URL|raw/nasa_exoplanet_archive/pscomppars.csv"
+      printf '%s\n' "nasa_exoplanet_archive|ps|$NASA_EXOPLANET_PS_URL|raw/nasa_exoplanet_archive/ps.csv"
       ;;
     exoplanet_eu)
       printf '%s\n' "exoplanet_eu|catalog_csv|$EXOPLANET_EU_URL|raw/exoplanet_eu/catalog.csv"

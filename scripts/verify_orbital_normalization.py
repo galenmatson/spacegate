@@ -164,14 +164,51 @@ def main() -> int:
         )
         """
     ).fetchone()[0]
+    rank1_duplicate_count = core.execute(
+        """
+        select count(*)::bigint
+        from (
+          select e.orbit_edge_id, count(os.orbital_solution_id)::bigint as rank1_count
+          from arm_db.orbit_edges e
+          join arm_db.orbital_solutions os on os.orbit_edge_id = e.orbit_edge_id
+          where e.relation_kind = 'planetary_orbit'
+            and os.solution_rank = 1
+          group by e.orbit_edge_id
+          having count(os.orbital_solution_id) > 1
+        )
+        """
+    ).fetchone()[0]
+    nasa_ps_solution_count = core.execute(
+        """
+        select count(*)::bigint
+        from arm_db.orbital_solutions
+        where solution_source_catalog = 'nasa_exoplanet_archive'
+          and json_extract_string(fit_quality_json, '$.solver') = 'nasa_ps'
+        """
+    ).fetchone()[0]
+    nasa_ps_source_csv = core.execute(
+        """
+        select coalesce(max(value), '')
+        from arm_db.build_metadata
+        where key = 'arm_source_nasa_ps_csv'
+        """
+    ).fetchone()[0]
     summary["checks"]["planet_orbit_counts"] = {
         "edges": int(planet_edge_count or 0),
         "solutions": int(planet_solution_count or 0),
         "max_solutions_per_edge": int(max_solution_count or 0),
+        "duplicate_rank1_edges": int(rank1_duplicate_count or 0),
+        "nasa_ps_alternate_solutions": int(nasa_ps_solution_count or 0),
     }
     check(int(planet_edge_count or 0) >= 2500, failures, "expected at least 2500 ARM planet orbit edges")
     check(int(planet_solution_count or 0) >= 2500, failures, "expected at least 2500 ARM planet orbital solutions")
-    check(int(max_solution_count or 0) <= 1, failures, "planetary orbit edges must not fan out to duplicate rank-1 solutions")
+    check(int(rank1_duplicate_count or 0) == 0, failures, "planetary orbit edges must not fan out to duplicate rank-1 solutions")
+    if nasa_ps_source_csv:
+        check(
+            int(nasa_ps_solution_count or 0) > 0,
+            failures,
+            "NASA ps source is present but no alternate planet orbital solutions were materialized",
+        )
 
     trappist_id = find_system_id(core, ["trappist 1", "trappist-1"])
     check(trappist_id is not None, failures, "TRAPPIST-1 system not found")

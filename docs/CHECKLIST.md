@@ -415,7 +415,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
 - [x] Reconcile initial system-simulation orbital-source policy across NASA
   `ps`/`pscomppars`, Gaia NSS, WDS/ORB6, SBX, MSC, and JPL Horizons/SBDB
-- [ ] Ingest alternate planet orbital solutions from NASA `ps` and preserve
+- [x] Ingest alternate planet orbital solutions from NASA `ps` and preserve
   ranked solution candidates instead of relying only on `pscomppars` defaults
 - [x] Live System Preview v0.2 renderer-ready payload, multi-star binary visual
   groups, and preview provenance pills

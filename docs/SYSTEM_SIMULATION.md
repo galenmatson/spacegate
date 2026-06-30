@@ -236,8 +236,9 @@ Minimum orbit model:
 Near-term source priorities:
 
 - NASA Exoplanet Archive `ps` / `pscomppars`: canonical confirmed planet
-  baseline, with `ps` useful for source-specific solution rows and
-  `pscomppars` useful for display defaults.
+  baseline. `pscomppars` supplies the one-row-per-planet promoted display
+  default; `ps` supplies source/reference-specific alternate orbital solution
+  rows in ARM when downloaded and cooked.
 - Gaia DR3 NSS: current Gaia non-single-star baseline until Gaia DR4 is
   available. Gaia DR4 is scheduled for December 2, 2026, so this should become
   a planned ingest transition rather than an assumption that DR3 remains final.

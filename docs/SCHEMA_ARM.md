@@ -167,10 +167,12 @@ Rule:
   same policy: a promoted scalar may appear in `core` for hot-path display, but
   source-native solution rows, alternates, epochs, fit-quality fields, and
   simulation-ready element sets belong here.
-- NASA Exoplanet Archive `pscomppars` and Sol authority planet orbital values
-  are materialized as `normalization_method='source_native_planet_orbit'`.
-  This is the first normalization step; ingesting richer alternate planet
-  solutions from NASA `ps` remains future work.
+- NASA Exoplanet Archive `pscomppars` values remain the rank-1 promoted
+  default for confirmed exoplanet orbital rows. NASA `ps` literature rows are
+  materialized as rank-2+ alternate `source_native_planet_orbit` candidates on
+  the same planet orbit edge when the `ps` cooked artifact is present.
+- Sol authority planet orbital values are materialized as
+  `normalization_method='source_native_planet_orbit'`.
 - ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.

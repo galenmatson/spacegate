@@ -656,6 +656,9 @@ Deliverables:
 - ARM-normalized planet orbit edges and `source_native_planet_orbit` solutions
   for host-linked NASA Exoplanet Archive and Sol authority planet rows, with
   `core.planets` orbital scalars retained as promoted serving summaries
+- NASA Exoplanet Archive `ps` alternate orbital solution ingestion into ARM
+  as rank-2+ source-native candidates attached to the existing planet orbit
+  edge, while `pscomppars` remains the rank-1 promoted default
 - mesh/material scene components for stars and planets
 - explicit assumptions for generated planet surfaces and missing values
 - visible provenance pills for preview fields, including deterministic
@@ -791,8 +794,9 @@ Readiness gaps:
   row, WDS components are linked, and no bright-primary aliases are attached
   only to the compact object. Public antiproton must receive a sliced/rebuilt
   deployment before this local fix is public.
-- NASA `ps` alternate solution ingestion is not implemented yet; current ARM
-  planet rows use `pscomppars` defaults plus Sol authority summaries
+- NASA `ps` alternate solution ingestion is implemented in the ARM builder;
+  public datasets need a refreshed NASA `ps` download/cook/rebuild before
+  those candidate rows appear in served production builds.
 - Castor remains a hierarchy-quality watch item for browser rendering and
   future barycentric nested-subsystem animation, but the general MSC
   materialization gap is no longer a known data-loss issue in the builder
