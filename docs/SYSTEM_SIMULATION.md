@@ -62,7 +62,10 @@ Already in place:
   small bodies remain findable in stricter body-scale views
 - habitable-zone bands can be toggled in the live preview. They are derived
   render-scene guides from stellar `luminosity_lsun` and broad 0.35-1.70 Earth
-  flux bounds, not climate models or canonical habitability claims.
+  flux bounds, not climate models or canonical habitability claims. When a host
+  star has rendered planets, the band is aligned to the median rendered
+  host-planet orbital inclination so compact transiting systems such as
+  TRAPPIST-1 do not show the HZ at right angles to the planet orbits.
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
   pills can be focused/copied from orbit paths as well as bodies; popovers
@@ -394,8 +397,8 @@ Success criteria:
   derived presentation value.
 - toggled habitable-zone overlays are inspectable presentation aids. Their
   readouts must show the source/derived luminosity field, inner/outer AU bounds,
-  and the broad-flux basis so users can distinguish them from planet
-  habitability verdicts.
+  planet-plane alignment basis, and the broad-flux basis so users can
+  distinguish them from planet habitability verdicts.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises

@@ -746,6 +746,19 @@ function habitableZoneGuideField(star, bounds) {
 
 function habitableZoneHoverPayload(star, bounds) {
   const guideField = habitableZoneGuideField(star, bounds);
+  const planeDeg = Number(star.habitable_zone_plane_inclination_deg);
+  const planeField = Number.isFinite(planeDeg) ? {
+    key: "habitable_zone_plane_inclination_deg",
+    label: "HZ plane inclination",
+    value: planeDeg,
+    unit: "deg",
+    status: "derived",
+    layer: "render_scene",
+    source_catalog: "spacegate_renderer",
+    basis: "median_host_planet_render_inclination",
+    confidence: 0.7,
+    notes: "Presentation alignment from rendered host-planet orbit inclinations; not a source orbital element for the star.",
+  } : null;
   return {
     kind: "Habitable zone",
     name: `${star.display_name || star.name || "Star"} broad HZ`,
@@ -755,9 +768,45 @@ function habitableZoneHoverPayload(star, bounds) {
       readoutRow(star.fields, "luminosity_lsun", "Luminosity", "Unknown", 3),
       staticReadoutRow("Inner edge", `${formatNumber(bounds.innerAu, 3)} AU`, "derived", guideField),
       staticReadoutRow("Outer edge", `${formatNumber(bounds.outerAu, 3)} AU`, "derived", guideField),
+      ...(planeField ? [staticReadoutRow("Plane", `${formatNumber(planeDeg, 2)} deg`, "derived", planeField)] : []),
       staticReadoutRow("Basis", "0.35-1.70 Earth flux", "derived", guideField),
     ],
   };
+}
+
+function medianNumber(values) {
+  const clean = values.map(Number).filter(Number.isFinite).sort((left, right) => left - right);
+  if (!clean.length) {
+    return null;
+  }
+  const mid = Math.floor(clean.length / 2);
+  return clean.length % 2 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2;
+}
+
+function planetMatchesHostStar(planet, star, layout) {
+  const starKey = star.render_key || star.key;
+  const hostKey = layout.canonicalKeyByAlias.get(planet.host_body_key) || planet.host_body_key;
+  if (hostKey && starKey && hostKey === starKey) {
+    return true;
+  }
+  const hostStarId = Number(planet.host_star_id);
+  const sourceStarId = Number(star?.source?.star_id);
+  return Number.isFinite(hostStarId) && Number.isFinite(sourceStarId) && hostStarId === sourceStarId;
+}
+
+function applyHabitableZonePlaneAlignment(stars, planetPlacements, layout) {
+  return stars.map((star) => {
+    const hostPlanets = planetPlacements
+      .map(({ planet }) => planet)
+      .filter((planet) => planetMatchesHostStar(planet, star, layout));
+    const medianInclinationDeg = medianNumber(hostPlanets.map((planet) => numericField(planet.fields, "inclination_deg")));
+    const planeInclinationDeg = Number.isFinite(Number(medianInclinationDeg)) ? Number(medianInclinationDeg) : 0;
+    return {
+      ...star,
+      habitable_zone_plane_inclination_deg: planeInclinationDeg,
+      habitable_zone_plane_basis: hostPlanets.length ? "median_host_planet_render_inclination" : "default_scene_plane",
+    };
+  });
 }
 
 function scaledOrbitPoints(points, scale) {
@@ -1857,6 +1906,7 @@ function SceneMotionMetrics({
   planetTrailCount = 0,
   planetDisplayEccentricityCappedCount = 0,
   habitableZoneCount = 0,
+  habitableZoneMaxPlaneInclinationDeg = 0,
   starClassStatusCounts = {},
   scaleMode = "structure",
   collisionAdjustedStarCount = 0,
@@ -1898,6 +1948,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.planetTrailCount = String(planetTrailCount || 0);
     gl.domElement.dataset.planetDisplayEccentricityCappedCount = String(planetDisplayEccentricityCappedCount || 0);
     gl.domElement.dataset.habitableZoneCount = String(habitableZoneCount || 0);
+    gl.domElement.dataset.habitableZoneMaxPlaneInclinationDeg = Number.isFinite(Number(habitableZoneMaxPlaneInclinationDeg)) ? Number(habitableZoneMaxPlaneInclinationDeg).toFixed(3) : "";
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
@@ -1921,6 +1972,7 @@ function SceneMotionMetrics({
     directOrbitCount,
     groupMotionSpecs,
     habitableZoneCount,
+    habitableZoneMaxPlaneInclinationDeg,
     groupOrbitCount,
     inspectableOrbitCount,
     inspectableTargetKinds,
@@ -2074,6 +2126,8 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
 function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, simClockRef, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const bounds = useMemo(() => habitableZoneBoundsAu(star), [star]);
+  const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
+  const planeInclinationRad = THREE.MathUtils.degToRad(planeInclinationDeg);
   const innerRadiusRaw = bounds ? scaledPlanetOrbitRadius(bounds.innerAu, maxOrbit, visualScale, scaleMode) : 0;
   const outerRadiusRaw = bounds ? scaledPlanetOrbitRadius(bounds.outerAu, maxOrbit, visualScale, scaleMode) : 0;
   const [innerRadius, outerRadius] = useMemo(() => {
@@ -2086,8 +2140,8 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
     const mid = (inner + outer) / 2;
     return [Math.max(0.02, mid - minWidth / 2), mid + minWidth / 2];
   }, [innerRadiusRaw, outerRadiusRaw, scaleMode]);
-  const innerPoints = useMemo(() => sampledOrbitPoints(innerRadius, 0, 0, 192), [innerRadius]);
-  const outerPoints = useMemo(() => sampledOrbitPoints(outerRadius, 0, 0, 192), [outerRadius]);
+  const innerPoints = useMemo(() => sampledOrbitPoints(innerRadius, 0, planeInclinationRad, 192), [innerRadius, planeInclinationRad]);
+  const outerPoints = useMemo(() => sampledOrbitPoints(outerRadius, 0, planeInclinationRad, 192), [outerRadius, planeInclinationRad]);
   const hoverPayload = useMemo(() => (bounds ? habitableZoneHoverPayload(star, bounds) : null), [star, bounds]);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
   const handlers = {
@@ -2123,7 +2177,7 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
 
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-habitable-zone">
-      <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]} userData={{ hoverPayload }}>
+      <mesh {...handlers} rotation={[Math.PI / 2 + planeInclinationRad, 0, 0]} userData={{ hoverPayload }}>
         <ringGeometry args={[innerRadius, outerRadius, 128]} />
         <meshBasicMaterial color="#76d78f" transparent opacity={selected ? 0.18 : 0.095} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
@@ -2220,7 +2274,15 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   }));
   const planetHostGroupCount = planetPlacements.filter(({ placement }) => placement.groupKeys?.length).length;
   const planetDisplayEccentricityCappedCount = displayPlanets.filter((planet) => planet.eccentricity_display_capped).length;
-  const habitableZoneStars = displayStars.filter((star) => habitableZoneBoundsAu(star));
+  const habitableZoneStars = applyHabitableZonePlaneAlignment(
+    displayStars.filter((star) => habitableZoneBoundsAu(star)),
+    planetPlacements,
+    layout,
+  );
+  const habitableZoneMaxPlaneInclinationDeg = Math.max(
+    0,
+    ...habitableZoneStars.map((star) => Number(star.habitable_zone_plane_inclination_deg) || 0),
+  );
   const starClassStatusCounts = useMemo(() => {
     const counts = { source: 0, derived: 0, assumed: 0, missing: 0, unsafeSource: 0 };
     displayStars.forEach((star) => {
@@ -2247,6 +2309,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         planetTrailCount={planetPlacements.length}
         planetDisplayEccentricityCappedCount={planetDisplayEccentricityCappedCount}
         habitableZoneCount={showHabitableZones ? habitableZoneStars.length : 0}
+        habitableZoneMaxPlaneInclinationDeg={showHabitableZones ? habitableZoneMaxPlaneInclinationDeg : 0}
         starClassStatusCounts={starClassStatusCounts}
         scaleMode={activeScaleMode}
         collisionAdjustedStarCount={collisionScale.adjustedCount}

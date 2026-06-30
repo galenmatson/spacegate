@@ -205,6 +205,20 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(7);
     await scaleModeSelect.selectOption("structure");
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
+      { timeout: 3000 }
+    ).toBe(0);
+    await page.getByRole("button", { name: /HZ Off/i }).click();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(80);
+    await page.getByRole("button", { name: /HZ On/i }).click();
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/Planet class/i);
