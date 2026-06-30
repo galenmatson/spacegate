@@ -20,6 +20,9 @@ Already in place:
   orbit endpoints alone
 - the first browser renderer uses the hierarchy tree for stable visual cluster
   centers and hosts nested planets around their render host/body group
+- `render_scene_v0.2` attaches core planet render bodies to rendered host stars
+  with `host_body_key` when `core.planets.star_id` resolves cleanly; the
+  payload records the host-resolution basis for audit/debugging
 - the first browser renderer has a pauseable local animation clock, sampled
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
 - the beta browser renderer adds speed control, reset, orbit-trace visibility
@@ -154,6 +157,8 @@ Minimum body model:
   available)
 - parent/child containment from hierarchy edges
 - preferred dynamic relation from orbit edges
+- planet host linkage through `host_star_id` plus renderer-ready
+  `host_body_key` when the canonical planet host star is present in the scene
 - physical render inputs with source/derived/assumed/missing status:
   - stellar effective temperature, luminosity, mass, radius
   - planet orbital period, semi-major axis, eccentricity, radius, mass,

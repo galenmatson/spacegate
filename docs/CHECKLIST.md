@@ -308,6 +308,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   as science data
 - [x] Add `visual_scale_beta_v1` to the simulator payload and consume it in
   the browser for clarity-scaled radii/orbit spacing
+- [x] Attach rendered planet bodies to rendered host stars with `host_body_key`
+  when `core.planets.star_id` resolves cleanly, with Playwright coverage for a
+  hosted planet in a multi-star scene
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
   55 Cnc/Sol source-backed planet periods

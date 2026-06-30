@@ -1718,6 +1718,30 @@ def _render_scene_contract(
                 break
             add_hierarchy_star(node)
 
+    render_star_key_by_core_star_id: Dict[int, str] = {}
+    for render_key, render_star in render_stars.items():
+        source = render_star.get("source") if isinstance(render_star.get("source"), dict) else {}
+        try:
+            source_star_id = int(source.get("star_id"))
+        except Exception:
+            source_star_id = -1
+        if source_star_id >= 0 and source_star_id not in render_star_key_by_core_star_id:
+            render_star_key_by_core_star_id[source_star_id] = str(render_key)
+
+    def resolve_planet_host_body_key(planet: Dict[str, Any]) -> tuple[Optional[str], str]:
+        try:
+            host_star_id = int(planet.get("star_id"))
+        except Exception:
+            host_star_id = -1
+        if host_star_id >= 0:
+            host_key = render_star_key_by_core_star_id.get(host_star_id)
+            if host_key:
+                return host_key, "core.planets.star_id_to_render_star"
+            return None, "core.planets.star_id_unrendered"
+        if len(render_stars) == 1:
+            return next(iter(render_stars.keys())), "single_render_star_fallback"
+        return None, "missing_or_ambiguous_host"
+
     def resolve_render_child_keys(component_key: str) -> List[str]:
         if component_key in render_stars:
             return [component_key]
@@ -1946,17 +1970,20 @@ def _render_scene_contract(
                     replacement_target="source planet inclination",
                 )
             )
+        host_body_key, host_resolution = resolve_planet_host_body_key(planet)
         render_planets.append(
             {
                 "render_key": str(planet.get("stable_object_key") or f"planet:{planet_id}"),
                 "object_type": "planet",
                 "display_name": planet.get("planet_name") or planet.get("stable_object_key"),
                 "host_star_id": planet.get("star_id"),
+                "host_body_key": host_body_key,
                 "fields": fields,
                 "source": {
                     "layer": "core",
                     "stable_object_key": planet.get("stable_object_key"),
                     "planet_id": planet.get("planet_id"),
+                    "host_resolution": host_resolution,
                 },
                 "sort_index": idx,
             }

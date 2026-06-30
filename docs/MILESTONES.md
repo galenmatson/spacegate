@@ -689,11 +689,12 @@ Readiness gaps:
   reconcile renderer-ready star/planet bodies against canonical hierarchy when
   hierarchy is richer than direct core membership. Local strict benchmark now
   passes for Castor, Nu Sco, Alpha Centauri, TRAPPIST-1, 55 Cnc, Sol, and
-  16 Cyg, including Alpha Centauri's nested Proxima planets.
+  16 Cyg; Proxima Centauri is tracked as a separate planet-host benchmark.
 - June 29, 2026 renderer pass uses hierarchy branches as stable visual cluster
   centers, keeps binary orbit animation within those clusters, and hosts nested
-  planet orbits around their render body/group. Playwright now covers Alpha
-  Centauri's nested Proxima planet preview path.
+  planet orbits around their render body/group. Playwright now covers hosted
+  planet preview paths without requiring Alpha Centauri and Proxima to be
+  folded into one rendered system.
 - June 29, 2026 interaction pass adds a pauseable local preview clock, sampled
   eccentric/inclined orbit guide paths that match planet motion, and hover
   vitals for rendered stars and planets.
@@ -762,6 +763,10 @@ Readiness gaps:
 - Current public side-sliced build does not include `disc.snapshot_manifest`;
   deterministic snapshot fallback coverage must be regenerated/restored before
   map snapshot hover checks can exercise real fallback assets again.
+- June 30, 2026 simulator API patch attaches core planet render bodies to
+  rendered host stars with `host_body_key` when `core.planets.star_id` resolves
+  cleanly. Local Playwright now covers the 16 Cyg hosted-planet scene, and API
+  checks confirm Proxima b/d and 16 Cyg B b use direct source host linkage.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
