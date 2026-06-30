@@ -863,6 +863,9 @@ Readiness gaps:
 - June 30, 2026 planet-class inspection patch exposes renderer-only planet
   visual class as an API-backed `render_scene` provenance field in simulator
   evidence and planet readouts, with generator/basis coverage.
+- June 30, 2026 render diagnostics patch adds API-emitted counts for final
+  renderer bodies, orbit endpoint/relation kinds, field statuses, and
+  assumption persistence, with strict benchmark verifier coverage.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

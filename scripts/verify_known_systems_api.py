@@ -219,13 +219,21 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
     if orbit_counts.get("total") != len(render_orbits):
         raise AssertionError(f"{case.query}: render_scene diagnostic orbit total does not match rendered orbits")
     expected_endpoint_counts: dict[str, int] = {}
+    expected_relation_counts: dict[str, int] = {}
     for orbit in render_orbits:
         endpoint_kind = str(orbit.get("endpoint_kind") or "unknown")
         expected_endpoint_counts[endpoint_kind] = expected_endpoint_counts.get(endpoint_kind, 0) + 1
+        relation_kind = str(orbit.get("relation_kind") or "unknown")
+        expected_relation_counts[relation_kind] = expected_relation_counts.get(relation_kind, 0) + 1
     if (orbit_counts.get("by_endpoint_kind") or {}) != expected_endpoint_counts:
         raise AssertionError(
             f"{case.query}: render_scene diagnostic endpoint counts mismatch: "
             f"{orbit_counts.get('by_endpoint_kind')} != {expected_endpoint_counts}"
+        )
+    if (orbit_counts.get("by_relation_kind") or {}) != expected_relation_counts:
+        raise AssertionError(
+            f"{case.query}: render_scene diagnostic relation counts mismatch: "
+            f"{orbit_counts.get('by_relation_kind')} != {expected_relation_counts}"
         )
     field_status_counts: dict[str, int] = {"source": 0, "derived": 0, "assumed": 0, "missing": 0}
     for owner in [*scene_stars, *scene_planets, *scene_subsystems, *render_orbits]:
