@@ -2343,6 +2343,22 @@ def _render_scene_contract(
             if len(render_planets) >= hierarchy_planet_count:
                 break
 
+    def planet_render_sort_value(planet: Dict[str, Any]) -> tuple[int, float, int, str]:
+        fields = planet.get("fields") if isinstance(planet.get("fields"), dict) else {}
+        sma = _float_or_none((fields.get("semi_major_axis_au") or {}).get("value"))
+        period = _float_or_none((fields.get("orbital_period_days") or {}).get("value"))
+        original_index = int(planet.get("sort_index") or 0)
+        label = str(planet.get("display_name") or planet.get("render_key") or "")
+        if sma is not None and sma > 0:
+            return (0, sma, original_index, label)
+        if period is not None and period > 0:
+            return (1, period, original_index, label)
+        return (2, float(original_index), original_index, label)
+
+    render_planets.sort(key=planet_render_sort_value)
+    for idx, planet in enumerate(render_planets):
+        planet["sort_index"] = idx
+
     assumption_records: List[Dict[str, Any]] = []
     for star in render_stars.values():
         assumption_records.extend(

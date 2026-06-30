@@ -788,6 +788,10 @@ Readiness gaps:
   Interamnia, and Hector. This fixes a simulator-visible failure where bare
   numeric commands made Ceres/Vesta/Pallas/Juno/Hebe/Iris/Interamnia/Hector
   inherit major-planet or satellite-like orbital solutions.
+- June 30, 2026 simulator ordering/inspection patch emits rendered planets in
+  orbital order by semi-major axis/period and passes provenance field objects
+  through planet-orbit readouts, so orbit paths have the same inspectable
+  SOURCE/DERIVED/ASSUMED/MISSING pills as rendered bodies.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

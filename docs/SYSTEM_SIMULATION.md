@@ -31,10 +31,16 @@ Already in place:
   existing hierarchy evidence, not new science inventory.
 - the first browser renderer has a pauseable local animation clock, sampled
   eccentric/inclined orbit guide paths, and hover vitals for rendered bodies
+- rendered planets are ordered by semi-major axis when available, then orbital
+  period, so Sol/TRAPPIST-like systems present in orbital order rather than
+  catalog/name order
 - the beta browser renderer adds speed control, reset, orbit-trace visibility
   toggle, camera orbit/zoom/pan controls with reset-view support, click/tap
   pinned inspection, copyable render/source identifiers, and touch-safe canvas
   gesture handling
+- planet, binary, and group orbit inspection readouts carry the same
+  provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
+  pills can be focused/copied from orbit paths as well as bodies
 - the beta scene contract includes `visual_scale_beta_v1`, an explicit
   clarity-scale policy for star radii, planet radii, planet orbit spacing, and
   binary/group orbit display radii

@@ -283,6 +283,17 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         assert_field_range(case.query, mercury, "orbital_period_days", 80.0, 95.0)
         assert_field_range(case.query, ceres, "semi_major_axis_au", 2.5, 3.1)
         assert_field_range(case.query, ceres, "orbital_period_days", 1500.0, 1900.0)
+        sma_values = [
+            numeric_field(planet, "semi_major_axis_au")
+            for planet in scene_planets
+            if numeric_field(planet, "semi_major_axis_au") is not None
+        ]
+        if sma_values != sorted(sma_values):
+            names = [planet.get("display_name") for planet in scene_planets]
+            raise AssertionError(f"{case.query}: rendered planets should be sorted by semi-major axis, got {names}")
+        first_names = [normalize(planet.get("display_name")) for planet in scene_planets[:4]]
+        if first_names[:4] != ["mercury", "venus", "earth", "mars"]:
+            raise AssertionError(f"{case.query}: expected inner planets first, got {first_names}")
         if abs(numeric_field(mercury, "semi_major_axis_au") - numeric_field(ceres, "semi_major_axis_au")) < 1e-6:
             raise AssertionError(f"{case.query}: rendered Ceres duplicates Mercury semi-major axis")
         missing_hosts = [

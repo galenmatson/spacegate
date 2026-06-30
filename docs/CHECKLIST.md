@@ -313,6 +313,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   as science data
 - [x] Add `visual_scale_beta_v1` to the simulator payload and consume it in
   the browser for clarity-scaled radii/orbit spacing
+- [x] Sort rendered planet bodies by orbital semi-major axis/period so Sol and
+  benchmark systems display in orbital order
+- [x] Carry full provenance field objects into planet-orbit hover/pinned
+  readouts so orbit path evidence pills can be inspected and copied
 - [x] Attach rendered planet bodies to rendered host stars with `host_body_key`
   when `core.planets.star_id` resolves cleanly, with Playwright coverage for a
   hosted planet in a multi-star scene

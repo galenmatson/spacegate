@@ -1104,10 +1104,10 @@ function PlanetOrbitRing({ planet, orbitRadius, center = [0, 0, 0], motionGroupK
     id: `${planet.render_key || planet.key || "planet"}:orbit`,
     sourceLayer: planet.source?.layer || "core",
     rows: [
-      ["Period", fieldSummary(planet.fields, "orbital_period_days", "Unknown", 3), fieldStatusSummary(planet.fields, "orbital_period_days")],
-      ["Orbit", fieldSummary(planet.fields, "semi_major_axis_au", "Unknown", 4), fieldStatusSummary(planet.fields, "semi_major_axis_au")],
-      ["Ecc.", fieldSummary(planet.fields, "eccentricity", "Unknown", 3), fieldStatusSummary(planet.fields, "eccentricity")],
-      ["Incl.", fieldSummary(planet.fields, "inclination_deg", "Unknown", 2), fieldStatusSummary(planet.fields, "inclination_deg")],
+      readoutRow(planet.fields, "orbital_period_days", "Period", "Unknown", 3),
+      readoutRow(planet.fields, "semi_major_axis_au", "Orbit", "Unknown", 4),
+      readoutRow(planet.fields, "eccentricity", "Ecc.", "Unknown", 3),
+      readoutRow(planet.fields, "inclination_deg", "Incl.", "Unknown", 2),
     ],
   }), [planet]);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);

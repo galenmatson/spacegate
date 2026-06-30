@@ -357,7 +357,9 @@ Contract notes:
   star body. `source.host_resolution` records whether the linkage came from a
   direct `core.planets.star_id` match, a catalog-equivalent core star already
   represented by a source-native render component, a singleton render-star
-  fallback, or remained missing/ambiguous.
+  fallback, or remained missing/ambiguous. Planet render bodies are emitted in
+  orbital order by source semi-major axis when available, then by period, with
+  `sort_index` rewritten to the final render order.
   Subsystem render bodies are inspectable presentation handles over canonical
   hierarchy/ARM component rows. They expose `child_body_keys` for rendered
   descendant stars and derived child-count fields, but they do not create new
@@ -365,7 +367,9 @@ Contract notes:
   Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
-  cluster orbit guides and browser-side visual child-cluster transforms.
+  cluster orbit guides and browser-side visual child-cluster transforms. Browser
+  orbit readouts should use the same field provenance objects as body readouts
+  for SOURCE/DERIVED/ASSUMED/MISSING pills and copyable provenance.
   Two-rendered-star systems with no source orbit edge may emit one
   `relation_kind="visual_binary_fallback"` `star_pair` orbit so compact
   companion scenes such as Sirius are structurally legible. Those orbit fields
