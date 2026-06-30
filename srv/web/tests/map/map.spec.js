@@ -280,6 +280,18 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.nestedGroupMotionCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(1);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.directOrbitGuideCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(3);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupOrbitGuideCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(2);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(3);
   });
 
   test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {

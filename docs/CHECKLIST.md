@@ -323,6 +323,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   with copy/close controls and Playwright geometry coverage
 - [x] Propagate nested group-pair motion through hierarchy groups in the Live
   System Preview, with Castor Playwright coverage for active nested motion
+- [x] Distinguish direct binary guides, group-pair hierarchy guides, and
+  subsystem handles in the Live System Preview, with Castor canvas diagnostics
 - [x] Carry hosted planets on full host hierarchy-group motion in the Live
   System Preview, with Playwright coverage for multi-star hosted planets
 - [x] Attach rendered planet bodies to rendered host stars with `host_body_key`

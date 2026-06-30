@@ -806,6 +806,9 @@ Readiness gaps:
 - June 30, 2026 mobile inspection patch constrains pinned simulator readouts
   into a compact mobile bottom sheet with reachable copy/close controls and
   browser geometry coverage.
+- June 30, 2026 hierarchy-visual patch differentiates direct binary orbit
+  guides, group-pair hierarchy guides, and subsystem handles in the live
+  simulator, with Castor diagnostics covering all three visual classes.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

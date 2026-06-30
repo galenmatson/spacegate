@@ -958,12 +958,20 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, center = [0,
   return (
     <group ref={groupRef} data-testid="system-preview-binary-orbit">
       {showOrbits && (
-        <lineLoop {...orbitHandlers}>
-          <bufferGeometry>
-            <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
-          </bufferGeometry>
-          <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.92 : 0.5} />
-        </lineLoop>
+        <>
+          <lineLoop {...orbitHandlers}>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+            </bufferGeometry>
+            <lineBasicMaterial color={selected ? "#fff4c4" : "#ffdca8"} transparent opacity={selected ? 0.95 : 0.58} />
+          </lineLoop>
+          <lineLoop {...orbitHandlers}>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+            </bufferGeometry>
+            <lineBasicMaterial color="#fff4c4" transparent opacity={selected ? 0.18 : 0.08} />
+          </lineLoop>
+        </>
       )}
       <group ref={primaryRef}>
         <StarSphere star={primary} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
@@ -994,7 +1002,7 @@ function centerForBodyKeys(keys, layout, starsByKey) {
 }
 
 function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
-  const lineRef = React.useRef(null);
+  const groupRef = React.useRef(null);
   const simRef = React.useRef({ days: 0, lastElapsedSeconds: null });
   const primaryCenter = centerForBodyKeys(orbit.primary_child_body_keys, layout, starsByKey);
   const secondaryCenter = centerForBodyKeys(orbit.secondary_child_body_keys, layout, starsByKey);
@@ -1003,6 +1011,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
   const inclinationRad = THREE.MathUtils.degToRad(inclinationDeg);
   const orbitRadius = Number(orbit.display_radius_scene) || 1.6;
   const pathPoints = useMemo(() => sampledOrbitPoints(orbitRadius, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
+  const haloPathPoints = useMemo(() => sampledOrbitPoints(orbitRadius * 1.045, eccentricity, inclinationRad, 224), [orbitRadius, eccentricity, inclinationRad]);
   const payload = useMemo(() => orbitHoverPayload(orbit), [orbit]);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
   const center = primaryCenter && secondaryCenter ? scaledVector(addVector(primaryCenter, secondaryCenter), 0.5) : [0, 0, 0];
@@ -1014,11 +1023,11 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
   }, [resetToken]);
 
   useFrame(({ clock }) => {
-    if (!lineRef.current) {
+    if (!groupRef.current) {
       return;
     }
     const simDays = advanceSimulationDays(simRef.current, clock.elapsedTime, running, speedMultiplier);
-    lineRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout)));
+    groupRef.current.position.set(...addVector(center, groupPairCenterOffsetAt(primaryGroupKeys, secondaryGroupKeys, groupMotionSpecs, simDays, layout)));
   });
 
   if (!showOrbits || !primaryCenter || !secondaryCenter) {
@@ -1044,12 +1053,20 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, running 
     },
   };
   return (
-    <lineLoop ref={lineRef} position={center} {...handlers}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
-      </bufferGeometry>
-      <lineBasicMaterial color={selected ? "#fff4c4" : "#f0bf55"} transparent opacity={selected ? 0.82 : 0.34} />
-    </lineLoop>
+    <group ref={groupRef} position={center} data-testid="system-preview-group-orbit-guide">
+      <lineLoop {...handlers}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[haloPathPoints, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.32 : 0.14} />
+      </lineLoop>
+      <lineLoop {...handlers}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[pathPoints, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={selected ? "#fff4c4" : "#f0bf55"} transparent opacity={selected ? 0.88 : 0.44} />
+      </lineLoop>
+    </group>
   );
 }
 
@@ -1093,8 +1110,12 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-subsystem-marker">
       <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[selected ? 0.22 : 0.17, selected ? 0.018 : 0.012, 8, 36]} />
-        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.88 : 0.52} />
+        <torusGeometry args={[selected ? 0.25 : 0.19, selected ? 0.018 : 0.011, 8, 44]} />
+        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.9 : 0.58} />
+      </mesh>
+      <mesh {...handlers} rotation={[0, Math.PI / 2, 0]}>
+        <torusGeometry args={[selected ? 0.2 : 0.155, selected ? 0.014 : 0.008, 8, 36]} />
+        <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.5 : 0.26} />
       </mesh>
       <mesh {...handlers}>
         <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
@@ -1264,7 +1285,7 @@ function CameraControls({ resetToken = 0 }) {
   return null;
 }
 
-function SceneMotionMetrics({ groupMotionSpecs = [], planetHostGroupCount = 0 }) {
+function SceneMotionMetrics({ directOrbitCount = 0, groupOrbitCount = 0, subsystemMarkerCount = 0, groupMotionSpecs = [], planetHostGroupCount = 0 }) {
   const { gl } = useThree();
   const nestedCount = useMemo(() => (
     (groupMotionSpecs || []).filter((spec) => (
@@ -1277,7 +1298,10 @@ function SceneMotionMetrics({ groupMotionSpecs = [], planetHostGroupCount = 0 })
     gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
     gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
-  }, [gl, groupMotionSpecs, nestedCount, planetHostGroupCount]);
+    gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
+    gl.domElement.dataset.groupOrbitGuideCount = String(groupOrbitCount || 0);
+    gl.domElement.dataset.subsystemMarkerCount = String(subsystemMarkerCount || 0);
+  }, [gl, directOrbitCount, groupMotionSpecs, groupOrbitCount, nestedCount, planetHostGroupCount, subsystemMarkerCount]);
 
   return null;
 }
@@ -1407,7 +1431,13 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
 
   return (
     <group>
-      <SceneMotionMetrics groupMotionSpecs={groupMotionSpecs} planetHostGroupCount={planetHostGroupCount} />
+      <SceneMotionMetrics
+        directOrbitCount={binaryOrbits.length}
+        groupOrbitCount={groupOrbits.length}
+        subsystemMarkerCount={subsystems.length}
+        groupMotionSpecs={groupMotionSpecs}
+        planetHostGroupCount={planetHostGroupCount}
+      />
       <ambientLight intensity={0.7} />
       <pointLight position={[0, 0, 0]} intensity={2.5} distance={26} />
       {binaryOrbits.map((orbit, idx) => (

@@ -57,6 +57,10 @@ Already in place:
 - `render_scene_v0.2` includes `endpoint_kind='group_pair'` orbit entries for
   hierarchical subsystem pairs such as Castor A-B and AB-C; these render as
   cluster orbit guides rather than false individual-star binaries
+- the browser renderer visually distinguishes direct binary guides,
+  hierarchical group-pair guides, and subsystem handles so complex systems can
+  be inspected without flattening the hierarchy into one undifferentiated set
+  of rings
 - the browser renderer propagates nested group-pair motion through containing
   hierarchy groups, so Castor-like inner binaries inherit outer subsystem
   motion instead of flattening all pairs into one static layout
