@@ -208,17 +208,21 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
       { timeout: 3000 }
-    ).toBe(0);
-    await page.getByRole("button", { name: /HZ Off/i }).click();
-    await expect.poll(
-      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
-      { timeout: 3000 }
     ).toBeGreaterThanOrEqual(1);
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(80);
-    await page.getByRole("button", { name: /HZ On/i }).click();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(8);
+    await page.getByRole("button", { name: /Labels On/i }).click();
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),
+      { timeout: 3000 }
+    ).toBe(0);
+    await page.getByRole("button", { name: /Labels Off/i }).click();
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/Planet class/i);
@@ -294,9 +298,12 @@ test.describe("public 3D map beta", () => {
       .poll(() => previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || ""), { timeout: 3000 })
       .not.toBe(zoomedCamera);
     const resetCamera = await previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || "");
-    await page.mouse.move(viewBox.x + viewBox.width / 2, viewBox.y + viewBox.height / 2);
+    await previewCanvasForView.scrollIntoViewIfNeeded();
+    const dragBox = await previewCanvasForView.boundingBox();
+    expect(dragBox, "system preview canvas box after reset").toBeTruthy();
+    await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
     await page.mouse.down();
-    await page.mouse.move(viewBox.x + viewBox.width / 2 + 120, viewBox.y + viewBox.height / 2 + 55, { steps: 8 });
+    await page.mouse.move(dragBox.x + dragBox.width / 2 + 120, dragBox.y + dragBox.height / 2 + 55, { steps: 8 });
     await page.mouse.up();
     await expect
       .poll(() => previewCanvasForView.evaluate((canvas) => canvas.dataset.cameraPosition || ""), { timeout: 3000 })
@@ -743,11 +750,6 @@ test.describe("public 3D map beta", () => {
           { timeout: 3000 }
         ).toBeGreaterThanOrEqual(benchmark.minStars);
         if (benchmark.query === "Sol") {
-          await expect.poll(
-            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
-            { timeout: 3000 }
-          ).toBe(0);
-          await page.getByRole("button", { name: /HZ Off/i }).click();
           await expect.poll(
             () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
             { timeout: 3000 }

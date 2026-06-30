@@ -60,12 +60,17 @@ Already in place:
   and touch-safe canvas gesture handling
 - planet bodies include short animated trail lines in the live preview so
   small bodies remain findable in stricter body-scale views
-- habitable-zone bands can be toggled in the live preview. They are derived
-  render-scene guides from stellar `luminosity_lsun` and broad 0.35-1.70 Earth
-  flux bounds, not climate models or canonical habitability claims. When a host
-  star has rendered planets, the band is aligned to the median rendered
-  host-planet orbital inclination so compact transiting systems such as
-  TRAPPIST-1 do not show the HZ at right angles to the planet orbits.
+- habitable-zone bands are visible by default and can be toggled in the live
+  preview. They are derived render-scene guides from stellar `luminosity_lsun`
+  and broad 0.35-1.70 Earth flux bounds, not climate models or canonical
+  habitability claims. When a host star has rendered planets, the band is
+  aligned to the median rendered host-planet orbital inclination so compact
+  transiting systems such as TRAPPIST-1 do not show the HZ at right angles to
+  the planet orbits.
+- object labels are visible by default and can be toggled off. Labels are
+  renderer-only billboarding sprites placed just below stars, planets, and
+  subsystem handles; HZ labels are placed on the band itself. They do not create
+  or alter science-layer fields.
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
   pills can be focused/copied from orbit paths as well as bodies; popovers
@@ -395,10 +400,10 @@ Success criteria:
   visible paths cross. Source eccentricity remains unchanged in the provenance
   readout; the capped display eccentricity is labeled as a `render_scene`
   derived presentation value.
-- toggled habitable-zone overlays are inspectable presentation aids. Their
-  readouts must show the source/derived luminosity field, inner/outer AU bounds,
-  planet-plane alignment basis, and the broad-flux basis so users can
-  distinguish them from planet habitability verdicts.
+- toggled habitable-zone overlays are labeled, hover-inspectable presentation
+  aids. Their readouts expose luminosity, inner/outer AU bounds, planet-plane
+  alignment basis, and broad-flux basis from the render-scene calculations
+  while avoiding click/drag handlers that could block camera controls.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises

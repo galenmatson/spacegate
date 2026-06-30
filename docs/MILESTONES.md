@@ -776,8 +776,11 @@ Readiness gaps:
   visually cross. Source eccentricity remains unchanged in provenance readouts.
 - June 30, 2026 habitable-zone overlay pass adds a toggleable, inspectable
   render-scene HZ band based on stellar luminosity and broad 0.35-1.70 Earth
-  flux bounds; browser coverage verifies the Sol overlay remains off until
-  toggled on.
+  flux bounds; browser coverage verifies the Sol overlay registers in the
+  rendered scene.
+- June 30, 2026 simulator label pass makes HZ bands default-on, increases HZ
+  contrast, and adds default-on billboarding labels below rendered stars,
+  planets, and subsystem handles with a compact labels toggle.
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.

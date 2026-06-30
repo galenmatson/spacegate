@@ -317,6 +317,53 @@ function makeCanvasTexture(draw, size = 128) {
   return texture;
 }
 
+function createLabelTexture(text, color = "#e6f6ff") {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "rgba(2, 8, 14, 0.68)";
+  context.strokeStyle = "rgba(125, 220, 255, 0.42)";
+  context.lineWidth = 2;
+  context.beginPath();
+  const x = 14;
+  const y = 28;
+  const w = canvas.width - 28;
+  const h = 64;
+  const r = 16;
+  context.moveTo(x + r, y);
+  context.lineTo(x + w - r, y);
+  context.quadraticCurveTo(x + w, y, x + w, y + r);
+  context.lineTo(x + w, y + h - r);
+  context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  context.lineTo(x + r, y + h);
+  context.quadraticCurveTo(x, y + h, x, y + h - r);
+  context.lineTo(x, y + r);
+  context.quadraticCurveTo(x, y, x + r, y);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  context.fillStyle = color;
+  context.font = "600 34px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, y + h / 2 + 1, canvas.width - 54);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
 function createStarTexture(seed, baseColor) {
   return makeCanvasTexture((context, size) => {
     context.fillStyle = baseColor;
@@ -919,6 +966,22 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   );
 }
 
+function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 1, visible = true }) {
+  const label = compactIdentifier(text, 24);
+  const texture = useMemo(() => (visible && label ? createLabelTexture(label, color) : null), [visible, label, color]);
+  useEffect(() => () => texture?.dispose?.(), [texture]);
+  if (!visible || !label || !texture) {
+    return null;
+  }
+  const width = clampNumber(0.42 + label.length * 0.075, 0.72, 2.45) * scale;
+  const height = 0.24 * scale;
+  return (
+    <sprite position={position} scale={[width, height, 1]} renderOrder={30} raycast={() => {}}>
+      <spriteMaterial map={texture} transparent opacity={0.94} depthWrite={false} depthTest={false} />
+    </sprite>
+  );
+}
+
 function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
   const ref = React.useRef(null);
 
@@ -938,7 +1001,7 @@ function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
   );
 }
 
-function StarSphere({ star, position = [0, 0, 0], selectedObjectId = "", onHover, onSelect }) {
+function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const bodyClass = stellarBodyClass(star);
   const compactRadiusFallback = bodyClass === "white_dwarf" ? 0.018 : (bodyClass === "neutron_star" || bodyClass === "pulsar" || bodyClass === "magnetar" ? 0.00003 : 0.55);
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || compactRadiusFallback);
@@ -986,6 +1049,13 @@ function StarSphere({ star, position = [0, 0, 0], selectedObjectId = "", onHover
         <sphereGeometry args={[pickRadius, 16, 12]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+      <SceneLabel
+        text={star.display_name || star.name || "Star"}
+        position={[0, -Math.max(radius + 0.28, pickRadius * 0.72), 0]}
+        color="#fff4c4"
+        scale={bodyClass === "white_dwarf" ? 0.78 : 0.92}
+        visible={showLabels}
+      />
     </group>
   );
 }
@@ -1483,7 +1553,7 @@ function groupKeysForStarKeys(starKeys, layout) {
   return [...common];
 }
 
-function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
+function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
 
   useFrame(() => {
@@ -1496,12 +1566,12 @@ function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupM
 
   return (
     <group ref={groupRef} position={position}>
-      <StarSphere star={star} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
+      <StarSphere star={star} showLabels={showLabels} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
     </group>
   );
 }
 
-function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", center = [0, 0, 0], simClockRef, running = true, speedMultiplier = 1, showOrbits = true, selectedObjectId = "", onHover, onSelect }) {
+function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", center = [0, 0, 0], simClockRef, running = true, speedMultiplier = 1, showOrbits = true, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const primaryRef = React.useRef(null);
   const secondaryRef = React.useRef(null);
@@ -1592,10 +1662,10 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale 
         </>
       )}
       <group ref={primaryRef}>
-        <StarSphere star={primary} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
+        <StarSphere star={primary} showLabels={showLabels} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
       </group>
       <group ref={secondaryRef}>
-        <StarSphere star={secondary} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
+        <StarSphere star={secondary} showLabels={showLabels} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
       </group>
     </group>
   );
@@ -1683,7 +1753,7 @@ function GroupOrbitGuide({ orbit, layout, starsByKey, groupMotionSpecs, visualSc
   );
 }
 
-function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
+function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
@@ -1729,11 +1799,18 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
         <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
         <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.92 : 0.62} />
       </mesh>
+      <SceneLabel
+        text={subsystem.display_name || subsystem.name || "Subsystem"}
+        position={[0, -0.36, 0]}
+        color="#b7f3ff"
+        scale={0.72}
+        visible={showLabels}
+      />
     </group>
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, selectedObjectId = "", onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = displayPlanetEccentricity(planet);
@@ -1790,6 +1867,13 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
         <sphereGeometry args={[pickRadius, 14, 10]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+      <SceneLabel
+        text={planet.display_name || planet.name || "Planet"}
+        position={[0, -Math.max(pickRadius + 0.08, planet.radius + 0.2), 0]}
+        color="#d7efff"
+        scale={0.72}
+        visible={showLabels}
+      />
     </group>
   );
 }
@@ -1914,6 +1998,7 @@ function SceneMotionMetrics({
   minStarSeparation = null,
   groupMotionSpecs = [],
   planetHostGroupCount = 0,
+  labelCount = 0,
   simClockRef,
   running = true,
   speedMultiplier = 1,
@@ -1939,6 +2024,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.groupMotionCount = String(groupMotionSpecs?.length || 0);
     gl.domElement.dataset.nestedGroupMotionCount = String(nestedCount);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
+    gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
     gl.domElement.dataset.groupOrbitGuideCount = String(groupOrbitCount || 0);
@@ -1973,6 +2059,7 @@ function SceneMotionMetrics({
     groupMotionSpecs,
     habitableZoneCount,
     habitableZoneMaxPlaneInclinationDeg,
+    labelCount,
     groupOrbitCount,
     inspectableOrbitCount,
     inspectableTargetKinds,
@@ -2123,7 +2210,7 @@ function PlanetOrbitTrail({ planet, orbitRadius, color = "#b7e2ff", center = [0,
   );
 }
 
-function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, simClockRef, selectedObjectId = "", onHover, onSelect }) {
+function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, simClockRef, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const bounds = useMemo(() => habitableZoneBoundsAu(star), [star]);
   const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
@@ -2142,26 +2229,9 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
   }, [innerRadiusRaw, outerRadiusRaw, scaleMode]);
   const innerPoints = useMemo(() => sampledOrbitPoints(innerRadius, 0, planeInclinationRad, 192), [innerRadius, planeInclinationRad]);
   const outerPoints = useMemo(() => sampledOrbitPoints(outerRadius, 0, planeInclinationRad, 192), [outerRadius, planeInclinationRad]);
+  const labelPosition = useMemo(() => orbitalPosition(-Math.PI / 2, (innerRadius + outerRadius) / 2, 0, planeInclinationRad), [innerRadius, outerRadius, planeInclinationRad]);
   const hoverPayload = useMemo(() => (bounds ? habitableZoneHoverPayload(star, bounds) : null), [star, bounds]);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
-  const handlers = {
-    onPointerOver: (event) => {
-      event.stopPropagation();
-      onHover?.(hoverPayload);
-    },
-    onPointerMove: (event) => {
-      event.stopPropagation();
-      onHover?.(hoverPayload);
-    },
-    onPointerOut: (event) => {
-      event.stopPropagation();
-      onHover?.(null);
-    },
-    onClick: (event) => {
-      event.stopPropagation();
-      onSelect?.(hoverPayload);
-    },
-  };
 
   useFrame(() => {
     if (!groupRef.current) {
@@ -2177,27 +2247,34 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
 
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-habitable-zone">
-      <mesh {...handlers} rotation={[Math.PI / 2 + planeInclinationRad, 0, 0]} userData={{ hoverPayload }}>
+      <mesh rotation={[Math.PI / 2 + planeInclinationRad, 0, 0]} userData={{ hoverPayload }}>
         <ringGeometry args={[innerRadius, outerRadius, 128]} />
-        <meshBasicMaterial color="#76d78f" transparent opacity={selected ? 0.18 : 0.095} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#76d78f" transparent opacity={selected ? 0.26 : 0.16} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      <lineLoop {...handlers} userData={{ hoverPayload }}>
+      <lineLoop userData={{ hoverPayload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[innerPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color="#d6ff9f" transparent opacity={selected ? 0.78 : 0.38} />
+        <lineBasicMaterial color="#d6ff9f" transparent opacity={selected ? 0.95 : 0.64} />
       </lineLoop>
-      <lineLoop {...handlers} userData={{ hoverPayload }}>
+      <lineLoop userData={{ hoverPayload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[outerPoints, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color="#78e38f" transparent opacity={selected ? 0.78 : 0.42} />
+        <lineBasicMaterial color="#78e38f" transparent opacity={selected ? 0.95 : 0.68} />
       </lineLoop>
+      <SceneLabel
+        text="Habitable zone"
+        position={labelPosition}
+        color="#d8ffad"
+        scale={0.78}
+        visible={showLabels}
+      />
     </group>
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -2283,6 +2360,9 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     0,
     ...habitableZoneStars.map((star) => Number(star.habitable_zone_plane_inclination_deg) || 0),
   );
+  const sceneLabelCount = showLabels
+    ? displayStars.length + planetPlacements.length + subsystems.length + (showHabitableZones ? habitableZoneStars.length : 0)
+    : 0;
   const starClassStatusCounts = useMemo(() => {
     const counts = { source: 0, derived: 0, assumed: 0, missing: 0, unsafeSource: 0 };
     displayStars.forEach((star) => {
@@ -2317,6 +2397,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         minStarSeparation={collisionScale.minSeparation}
         groupMotionSpecs={groupMotionSpecs}
         planetHostGroupCount={planetHostGroupCount}
+        labelCount={sceneLabelCount}
         simClockRef={simClockRef}
         running={running}
         speedMultiplier={speedMultiplier}
@@ -2338,6 +2419,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
             groupMotionSpecs={groupMotionSpecs}
             layout={layout}
             simClockRef={simClockRef}
+            showLabels={showLabels}
             selectedObjectId={selectedObjectId}
             onHover={onHover}
             onSelect={onSelect}
@@ -2358,6 +2440,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           running={running}
           speedMultiplier={speedMultiplier}
           showOrbits={showOrbits}
+          showLabels={showLabels}
           selectedObjectId={selectedObjectId}
           onHover={onHover}
           onSelect={onSelect}
@@ -2374,6 +2457,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
           simClockRef={simClockRef}
           running={running}
           speedMultiplier={speedMultiplier}
+          showLabels={showLabels}
           selectedObjectId={selectedObjectId}
           onHover={onHover}
           onSelect={onSelect}
@@ -2415,6 +2499,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
             simClockRef={simClockRef}
             running={running}
             speedMultiplier={speedMultiplier}
+            showLabels={showLabels}
             selectedObjectId={selectedObjectId}
             onHover={onHover}
             onSelect={onSelect}
@@ -2462,6 +2547,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
               layout={layout}
               simClockRef={simClockRef}
               color={color}
+              showLabels={showLabels}
               running={running}
               speedMultiplier={speedMultiplier}
               selectedObjectId={selectedObjectId}
@@ -2475,7 +2561,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -2566,6 +2652,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         resetToken={resetToken}
         showOrbits={showOrbits}
         showHabitableZones={showHabitableZones}
+        showLabels={showLabels}
         selectedObjectId={selectedObjectId}
         onHover={onHover}
         onSelect={onSelect}
@@ -2759,7 +2846,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
   const [showOrbits, setShowOrbits] = useState(true);
-  const [showHabitableZones, setShowHabitableZones] = useState(false);
+  const [showHabitableZones, setShowHabitableZones] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
   const [scaleMode, setScaleMode] = useState("structure");
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
@@ -2885,6 +2973,15 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           >
             {showHabitableZones ? "HZ On" : "HZ Off"}
           </button>
+          <button
+            className="system-preview-toggle"
+            type="button"
+            onClick={() => setShowLabels((value) => !value)}
+            aria-pressed={showLabels}
+            disabled={status !== "ready" || webglReady === false}
+          >
+            {showLabels ? "Labels On" : "Labels Off"}
+          </button>
           {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
         </div>
       </div>
@@ -2902,6 +2999,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 resetToken={resetToken}
                 showOrbits={showOrbits}
                 showHabitableZones={showHabitableZones}
+                showLabels={showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
