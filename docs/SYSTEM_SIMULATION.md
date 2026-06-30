@@ -39,8 +39,8 @@ Already in place:
   catalog/name order
 - the beta browser renderer adds speed control, reset, orbit-trace visibility
   toggle, camera orbit/zoom/pan controls with reset-view support, click/tap
-  pinned inspection, copyable render/source identifiers, and touch-safe canvas
-  gesture handling
+  pinned inspection, truncated copyable render/source identifiers with full
+  values preserved for copy/tooltips, and touch-safe canvas gesture handling
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
   pills can be focused/copied from orbit paths as well as bodies

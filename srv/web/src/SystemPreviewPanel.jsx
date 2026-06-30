@@ -254,6 +254,42 @@ function statusLabel(status) {
   return String(status || "missing").toUpperCase();
 }
 
+async function copyTextToClipboard(value) {
+  const text = String(value || "");
+  if (!text) {
+    return false;
+  }
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    return document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
+function compactIdentifier(value, maxLength = 26) {
+  const text = String(value || "");
+  if (text.length <= maxLength) {
+    return text;
+  }
+  const half = Math.max(8, Math.floor((maxLength - 3) / 2));
+  return `${text.slice(0, half)}...${text.slice(-half)}`;
+}
+
 function formatFieldValue(field) {
   if (!field) {
     return "Unknown";
@@ -387,10 +423,13 @@ function EvidencePill({ field, fallbackStatus = "missing" }) {
   const [copied, setCopied] = useState(false);
   const status = field?.status || fallbackStatus;
   const copyPayload = useCallback(() => {
-    if (!navigator?.clipboard || !field) {
+    if (!field) {
       return;
     }
-    navigator.clipboard.writeText(JSON.stringify(field, null, 2)).then(() => {
+    copyTextToClipboard(JSON.stringify(field, null, 2)).then((ok) => {
+      if (!ok) {
+        return;
+      }
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
     }).catch(() => {});
@@ -1606,10 +1645,13 @@ function PinnedReadout({ object, onClose }) {
     return null;
   }
   const copyId = () => {
-    if (!navigator?.clipboard || !object.id) {
+    if (!object.id) {
       return;
     }
-    navigator.clipboard.writeText(String(object.id)).then(() => {
+    copyTextToClipboard(object.id).then((ok) => {
+      if (!ok) {
+        return;
+      }
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
     }).catch(() => {});
@@ -1624,8 +1666,16 @@ function PinnedReadout({ object, onClose }) {
         <button type="button" onClick={onClose} aria-label="Close pinned simulator readout">x</button>
       </div>
       {object.id ? (
-        <button className="system-preview-id-copy" type="button" onClick={copyId}>
-          <span>{object.id}</span>
+        <button
+          className="system-preview-id-copy"
+          type="button"
+          onClick={copyId}
+          title={String(object.id)}
+          data-testid="system-preview-id-copy"
+          data-full-id={String(object.id)}
+          aria-label={`Copy ${object.kind} identifier ${object.id}`}
+        >
+          <span>{compactIdentifier(object.id)}</span>
           <em>{copied ? "Copied" : "Copy"}</em>
         </button>
       ) : null}

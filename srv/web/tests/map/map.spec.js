@@ -145,11 +145,19 @@ test.describe("public 3D map beta", () => {
     const previewBox = await previewCanvas.boundingBox();
     expect(previewBox, "system preview canvas box").toBeTruthy();
     await page.mouse.click(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
-    await expect(page.locator("[data-testid='system-preview-pinned']")).toBeVisible();
-    await expect(page.locator("[data-testid='system-preview-pinned']")).toContainText(/star|planet|orbit/i);
-    await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-pill").first()).toBeVisible();
-    await expect(page.locator("[data-testid='system-preview-pinned']")).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
-    await page.locator("[data-testid='system-preview-pinned'] .evidence-pill").first().focus();
+    const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
+    await expect(pinnedReadout).toBeVisible();
+    await expect(pinnedReadout).toContainText(/star|planet|orbit/i);
+    const idCopy = page.locator("[data-testid='system-preview-id-copy']");
+    await expect(idCopy).toBeVisible();
+    await expect(idCopy).toHaveAttribute("data-full-id", /star:gaia:/);
+    const fullId = await idCopy.getAttribute("data-full-id");
+    const visibleId = (await idCopy.locator("span").innerText()).trim();
+    expect(fullId?.length || 0).toBeGreaterThan(visibleId.length);
+    expect(visibleId).toContain("...");
+    await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
+    await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
+    await pinnedReadout.locator(".evidence-pill").first().focus();
     await expect(page.locator("[data-testid='system-preview-pinned'] .evidence-popover").first()).toBeVisible();
   });
 

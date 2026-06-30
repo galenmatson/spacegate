@@ -800,6 +800,9 @@ Readiness gaps:
 - June 30, 2026 hosted-planet motion patch carries planet orbit guides and
   bodies on the full host hierarchy-group offset, with 16 Cyg browser coverage
   for hosted planets in multi-star simulator scenes.
+- June 30, 2026 simulator inspection patch truncates long render/source IDs
+  in pinned readouts while preserving full copy/tooltip values and coverage for
+  Gaia-backed object IDs.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
