@@ -3975,16 +3975,17 @@ def main() -> int:
                 0.0::double as dist_delta_ly,
                 0.0::double as ang_sep_arcsec
               from nogaia_named n
-              join stars s on s.gaia_id is not null
-              where (
-                (
-                  n.hip_id is not null
-                  and s.hip_id = n.hip_id
-                ) or (
-                  n.hd_id is not null
-                  and s.hd_id = n.hd_id
+              join stars s
+                on (
+                  (
+                    n.hip_id is not null
+                    and s.hip_id = n.hip_id
+                  ) or (
+                    n.hd_id is not null
+                    and s.hd_id = n.hd_id
+                  )
                 )
-              )
+              where true
               and not (
                 coalesce(upper(n.spectral_type_raw), '') not like 'D%'
                 and (
@@ -4108,7 +4109,7 @@ def main() -> int:
               select
                 *,
                 row_number() over (
-                  partition by gaia_id
+                  partition by coalesce(gaia_id::varchar, 'source:' || source_pk::varchar)
                   order by
                     source_priority asc,
                     case when proper_name is not null then 0 else 1 end,

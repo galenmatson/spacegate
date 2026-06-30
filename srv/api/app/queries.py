@@ -1381,10 +1381,11 @@ def _hierarchy_type_rank(component_type: Any) -> int:
         "system": 0,
         "subsystem": 1,
         "star": 2,
-        "planet": 3,
-        "moon": 4,
-        "minor_body": 5,
-        "artificial": 6,
+        "brown_dwarf": 3,
+        "planet": 4,
+        "moon": 5,
+        "minor_body": 6,
+        "artificial": 7,
     }.get(_clean_name(component_type).lower(), 99)
 
 
@@ -1426,7 +1427,7 @@ def _hierarchy_family(component_type: Any, core_object_type: Any) -> str:
         "subsystem": "subsystem",
         "star": "star",
         "main_sequence": "star",
-        "brown_dwarf": "star",
+        "brown_dwarf": "brown_dwarf",
         "compact": "star",
         "planet": "planet",
         "subplanet": "planet",
@@ -1932,24 +1933,14 @@ def _fetch_canonical_hierarchy_for_system(
     }
 
 
-def fetch_system_hierarchy_for_system(
+def _fetch_arm_hierarchy_for_system(
     con: duckdb.DuckDBPyConnection,
     *,
     system_id: int,
     stable_object_key: Optional[str],
     wds_id: Optional[str],
-    canonical_hierarchy_db_path: Optional[str],
     arm_db_path: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    canonical_payload = _fetch_canonical_hierarchy_for_system(
-        con,
-        system_id=system_id,
-        stable_object_key=stable_object_key,
-        canonical_hierarchy_db_path=canonical_hierarchy_db_path,
-        arm_db_path=arm_db_path,
-    )
-    if canonical_payload is not None:
-        return canonical_payload
     if not arm_db_path:
         return None
     arm_attached = _attach_side_db(con, arm_db_path, alias="arm_db")
@@ -1994,9 +1985,9 @@ def fetch_system_hierarchy_for_system(
     preferred_root_key = sorted(
         candidate_rows,
         key=lambda row: (
-            -int(row[3] or 0),
-            -int(row[4] or 0),
             0 if str(row[0]).startswith("comp:msc_system:") else 1,
+            -int(row[4] or 0),
+            -int(row[3] or 0),
             _clean_name(row[1]).lower(),
         ),
     )[0][0]
@@ -2048,18 +2039,30 @@ def fetch_system_hierarchy_for_system(
         catalog_component_label,
         source_catalog,
     ) in entity_rows:
+        clean_component_type = _clean_name(component_type) or "unknown"
+        clean_core_object_type = _clean_name(core_object_type) or None
+        clean_source_catalog = _clean_name(source_catalog) or None
+        component_family = _hierarchy_family(component_type, core_object_type)
+        is_source_stellar_leaf = (
+            component_family == "star"
+            and clean_component_type == "star"
+            and clean_core_object_type != "star"
+            and clean_source_catalog in {"msc", "orb6", "sbx", "gaia_nss"}
+        )
         node_map[str(component_key)] = {
             "stable_component_key": str(component_key),
-            "component_type": _clean_name(component_type) or "unknown",
-            "component_family": _hierarchy_family(component_type, core_object_type),
-            "core_object_type": _clean_name(core_object_type) or None,
+            "component_type": clean_component_type,
+            "component_family": component_family,
+            "core_object_type": clean_core_object_type,
             "core_object_id": int(core_object_id) if core_object_id is not None else None,
             "display_name": _clean_name(display_name),
             "catalog_component_label": _clean_name(catalog_component_label) or None,
-            "source_catalog": _clean_name(source_catalog) or None,
+            "source_catalog": clean_source_catalog,
             "synthetic": False,
             "orbit": None,
             "quick_facts": None,
+            "node_kind": "source_star_leaf" if is_source_stellar_leaf else clean_component_type,
+            "self_star_count": 1 if clean_core_object_type == "star" or clean_component_type == "star" else 0,
         }
     if preferred_root_key not in node_map:
         return None
@@ -2228,6 +2231,46 @@ def fetch_system_hierarchy_for_system(
         "preferred_root_key": preferred_root_key,
         "root_keys_considered": candidate_keys,
     }
+
+
+def _hierarchy_payload_star_count(payload: Optional[Dict[str, Any]]) -> int:
+    if not isinstance(payload, dict):
+        return 0
+    counts = payload.get("counts") if isinstance(payload.get("counts"), dict) else {}
+    return int((counts or {}).get("stars") or 0)
+
+
+def fetch_system_hierarchy_for_system(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    stable_object_key: Optional[str],
+    wds_id: Optional[str],
+    canonical_hierarchy_db_path: Optional[str],
+    arm_db_path: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    canonical_payload = _fetch_canonical_hierarchy_for_system(
+        con,
+        system_id=system_id,
+        stable_object_key=stable_object_key,
+        canonical_hierarchy_db_path=canonical_hierarchy_db_path,
+        arm_db_path=arm_db_path,
+    )
+    arm_payload = _fetch_arm_hierarchy_for_system(
+        con,
+        system_id=system_id,
+        stable_object_key=stable_object_key,
+        wds_id=wds_id,
+        arm_db_path=arm_db_path,
+    )
+
+    if canonical_payload is None:
+        return arm_payload
+    if arm_payload is None:
+        return canonical_payload
+    if _hierarchy_payload_star_count(arm_payload) > _hierarchy_payload_star_count(canonical_payload):
+        return arm_payload
+    return canonical_payload
 
 
 def fetch_snapshot_for_system(

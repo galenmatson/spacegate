@@ -275,7 +275,7 @@ def main():
     castor_leaf_facts = {
         str(node.get("display_name")): node.get("quick_facts")
         for node in iter_hierarchy_nodes(castor_root)
-        if str(node.get("node_kind") or "") == "inferred_star_leaf"
+        if str(node.get("node_kind") or "") in {"inferred_star_leaf", "source_star_leaf"}
     }
     required_castor_leaf_facts = {
         "Castor AA": {"spectral_type_raw": "A1V", "mass_msun": 2.37, "vmag": 1.98},

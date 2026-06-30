@@ -51,7 +51,15 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         expected_wds_id="16120-1928",
         min_star_count=7,
         expected_aliases=("Jabbah", "Nu Scorpii"),
-        required_hierarchy_names=("14nu Sco AA", "14nu Sco AB", "14nu Sco BA", "14nu Sco BB", "14nu Sco CA", "14nu Sco CB"),
+        required_hierarchy_names=(
+            "14nu Sco AA",
+            "14nu Sco AB",
+            "14nu Sco AC",
+            "14nu Sco B",
+            "14nu Sco C",
+            "14nu Sco DA",
+            "14nu Sco DB",
+        ),
         required_hierarchy_facts=(
             HierarchyFact("14nu Sco AA", {"spectral_type_raw": "B3V", "spectral_class": "B", "mass_msun": 6.07}),
             HierarchyFact("14nu Sco AB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 2.28}),
@@ -328,7 +336,9 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
             assert_fact_matches(f"{case.query} {expected.display_name}", fact_key, expected_value, facts.get(fact_key))
 
     for node in hierarchy_nodes:
-        if str(node.get("component_type") or "") not in {"star", "stellar_component"}:
+        component_family = str(node.get("component_family") or "")
+        component_type = str(node.get("component_type") or "")
+        if component_family != "star" and component_type not in {"star", "stellar_component"}:
             facts = node.get("quick_facts") or {}
             if facts.get("spectral_type_raw") or facts.get("spectral_class"):
                 raise AssertionError(
