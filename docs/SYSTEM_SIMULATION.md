@@ -324,6 +324,9 @@ Success criteria:
 - hover and pinned readouts use the same source/derived/assumed/missing
   evidence-pill affordance as the summary panel, including focusable provenance
   popovers in pinned readouts
+- stellar class readouts use field-backed provenance instead of treating every
+  display class as source; renderer diagnostics flag any source-like class
+  without component-specific spectral evidence
 - browser diagnostics expose registered inspectable star, planet, subsystem, and
   orbit-target counts so Playwright can catch lost hover/pin coverage without
   relying on fragile pixel-perfect click coordinates

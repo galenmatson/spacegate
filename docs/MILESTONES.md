@@ -763,6 +763,9 @@ Readiness gaps:
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.
+- June 30, 2026 class-provenance hardening pass makes stellar class readouts
+  use field provenance and adds browser diagnostics for source-like classes
+  without component-specific spectral evidence.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

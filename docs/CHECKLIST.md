@@ -362,6 +362,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and verify it advances, pauses, and resumes with the shared scene clock
 - [x] Add a compact Live System Preview render-policy summary for local beta
   time, clarity scale, assumption persistence, and deterministic fallback mode
+- [x] Fix simulator stellar-class readout provenance so visual/proxy classes do
+  not appear as SOURCE without component-specific spectral evidence
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

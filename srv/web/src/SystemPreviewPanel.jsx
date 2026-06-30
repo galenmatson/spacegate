@@ -399,6 +399,71 @@ function staticReadoutRow(label, value, status = "source", field = null) {
   return [label, value, statusLabel(status), field];
 }
 
+function starClassProvenanceField(body) {
+  const classValue = body?.spectral_class || "";
+  const spectralTypeField = fieldRecord(body?.fields, "spectral_type_raw");
+  const teffField = fieldRecord(body?.fields, "teff_k");
+  const objectTypeField = fieldRecord(body?.fields, "object_type");
+  if (spectralTypeField?.value) {
+    return {
+      key: "spectral_class",
+      label: "Spectral class",
+      value: classValue || String(spectralTypeField.value).slice(0, 1).toUpperCase(),
+      unit: null,
+      status: spectralTypeField.status || "source",
+      layer: spectralTypeField.layer,
+      source_catalog: spectralTypeField.source_catalog,
+      source_reference: spectralTypeField.source_reference,
+      basis: `${spectralTypeField.basis || "spectral_type_raw"}:class_extract`,
+      confidence: spectralTypeField.confidence,
+      notes: "Display class extracted from the component-specific spectral type field.",
+    };
+  }
+  if (classValue && teffField?.value !== null && teffField?.value !== undefined && teffField?.value !== "") {
+    return {
+      key: "spectral_class",
+      label: "Spectral class",
+      value: classValue,
+      unit: null,
+      status: "derived",
+      layer: "render_scene",
+      source_catalog: teffField.source_catalog,
+      source_reference: teffField.source_reference,
+      basis: `${teffField.basis || "teff_k"}:visual_class_proxy`,
+      confidence: Math.min(Number(teffField.confidence || 0.45), 0.55),
+      notes: "Renderer display class inferred from available temperature or visual proxy fields; not component-specific source spectral evidence.",
+    };
+  }
+  if (classValue && objectTypeField?.value && String(objectTypeField.value) !== "star") {
+    return {
+      key: "spectral_class",
+      label: "Spectral class",
+      value: classValue,
+      unit: null,
+      status: "derived",
+      layer: "render_scene",
+      source_catalog: objectTypeField.source_catalog,
+      source_reference: objectTypeField.source_reference,
+      basis: `${objectTypeField.basis || "object_type"}:compact_visual_class`,
+      confidence: Math.min(Number(objectTypeField.confidence || 0.45), 0.65),
+      notes: "Renderer display class derived from source-backed compact-object classification.",
+    };
+  }
+  return {
+    key: "spectral_class",
+    label: "Spectral class",
+    value: classValue || null,
+    unit: null,
+    status: classValue ? "assumed" : "missing",
+    layer: classValue ? "render_scene" : "none",
+    basis: classValue ? "visual_class_without_component_spectral_evidence" : "no_component_specific_spectral_class",
+    confidence: classValue ? 0.2 : null,
+    notes: classValue
+      ? "Renderer has a display class but no component-specific spectral source field; treat as a visual prior."
+      : "No component-specific spectral class is available for this rendered star.",
+  };
+}
+
 function payloadId(payload) {
   return String(payload?.id || "");
 }
@@ -422,6 +487,7 @@ function objectHoverPayload(kind, body) {
   }
   if (kind === "star") {
     const bodyClass = stellarBodyClass(body);
+    const classField = starClassProvenanceField(body);
     return {
       kind: bodyClassLabel(bodyClass),
       name: body.display_name || body.name || "Unnamed star",
@@ -429,7 +495,7 @@ function objectHoverPayload(kind, body) {
       sourceLayer: body.source?.layer || "unknown",
       rows: [
         readoutRow(body.fields, "object_type", "Type", bodyClassLabel(bodyClass), 0),
-        staticReadoutRow("Class", body.spectral_class || "Unknown", body.spectral_class ? "source" : "missing"),
+        staticReadoutRow("Class", classField.value || "Unknown", classField.status, classField),
         readoutRow(body.fields, "teff_k", "Temp", "Unknown", 0),
         readoutRow(body.fields, "mass_msun", "Mass", "Unknown", 3),
         readoutRow(body.fields, "radius_rsun", "Radius", "Unknown", 3),
@@ -1245,15 +1311,15 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
 
   return (
     <group ref={groupRef} position={center} data-testid="system-preview-subsystem-marker">
-      <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh {...handlers} rotation={[Math.PI / 2, 0, 0]} userData={{ hoverPayload: payload }}>
         <torusGeometry args={[selected ? 0.25 : 0.19, selected ? 0.018 : 0.011, 8, 44]} />
         <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.9 : 0.58} />
       </mesh>
-      <mesh {...handlers} rotation={[0, Math.PI / 2, 0]}>
+      <mesh {...handlers} rotation={[0, Math.PI / 2, 0]} userData={{ hoverPayload: payload }}>
         <torusGeometry args={[selected ? 0.2 : 0.155, selected ? 0.014 : 0.008, 8, 36]} />
         <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.5 : 0.26} />
       </mesh>
-      <mesh {...handlers}>
+      <mesh {...handlers} userData={{ hoverPayload: payload }}>
         <sphereGeometry args={[selected ? 0.055 : 0.04, 12, 8]} />
         <meshBasicMaterial color={selected ? "#fff4c4" : "#7ddcff"} transparent opacity={selected ? 0.92 : 0.62} />
       </mesh>
@@ -1423,6 +1489,7 @@ function SceneMotionMetrics({
   starCount = 0,
   planetCount = 0,
   planetOrbitCount = 0,
+  starClassStatusCounts = {},
   groupMotionSpecs = [],
   planetHostGroupCount = 0,
   simClockRef,
@@ -1459,6 +1526,11 @@ function SceneMotionMetrics({
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
+    gl.domElement.dataset.spectralClassSourceCount = String(starClassStatusCounts.source || 0);
+    gl.domElement.dataset.spectralClassDerivedCount = String(starClassStatusCounts.derived || 0);
+    gl.domElement.dataset.spectralClassAssumedCount = String(starClassStatusCounts.assumed || 0);
+    gl.domElement.dataset.spectralClassMissingCount = String(starClassStatusCounts.missing || 0);
+    gl.domElement.dataset.spectralClassUnsafeSourceCount = String(starClassStatusCounts.unsafeSource || 0);
     gl.domElement.dataset.simulationClockMode = "shared_local_beta";
     gl.domElement.dataset.simulationClockWriters = "1";
     gl.domElement.dataset.simulationRunning = running ? "true" : "false";
@@ -1475,6 +1547,7 @@ function SceneMotionMetrics({
     planetHostGroupCount,
     running,
     speedMultiplier,
+    starClassStatusCounts,
     starCount,
     subsystemMarkerCount,
   ]);
@@ -1618,6 +1691,19 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
     placement: hostPlacementForPlanet(planet),
   }));
   const planetHostGroupCount = planetPlacements.filter(({ placement }) => placement.groupKeys?.length).length;
+  const starClassStatusCounts = useMemo(() => {
+    const counts = { source: 0, derived: 0, assumed: 0, missing: 0, unsafeSource: 0 };
+    stars.forEach((star) => {
+      const field = starClassProvenanceField(star);
+      const status = String(field.status || "missing").toLowerCase();
+      counts[status] = (counts[status] || 0) + 1;
+      const spectralTypeField = fieldRecord(star?.fields, "spectral_type_raw");
+      if (status === "source" && !spectralTypeField?.value) {
+        counts.unsafeSource += 1;
+      }
+    });
+    return counts;
+  }, [stars]);
 
   return (
     <group>
@@ -1628,6 +1714,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], hi
         starCount={stars.length}
         planetCount={planetPlacements.length}
         planetOrbitCount={showOrbits ? planetPlacements.length : 0}
+        starClassStatusCounts={starClassStatusCounts}
         groupMotionSpecs={groupMotionSpecs}
         planetHostGroupCount={planetHostGroupCount}
         simClockRef={simClockRef}

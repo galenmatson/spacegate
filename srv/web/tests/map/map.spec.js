@@ -460,6 +460,18 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassUnsafeSourceCount || 0)),
+      { timeout: 3000 }
+    ).toBe(0);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassSourceCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(3);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassDerivedCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(3);
   });
 
   test("messy hierarchy preview preserves Nu Sco source-native leaves", async ({ page }, testInfo) => {
@@ -540,6 +552,14 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
       { timeout: 3000 }
     ).toContain("orbit");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassUnsafeSourceCount || 0)),
+      { timeout: 3000 }
+    ).toBe(0);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassMissingCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(3);
   });
 
   test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {
