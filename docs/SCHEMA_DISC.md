@@ -276,6 +276,11 @@ Rules:
   radii, deterministic phase, and cluster guide placement for `group_pair`
   orbit edges. These are presentation defaults unless backed by source or
   derived ARM fields.
+- Two-rendered-star scenes with no source orbit edge may receive a transient
+  `visual_binary_fallback` orbit whose period, eccentricity, inclination,
+  phase, and visual separation are `disc_assumption` fields. This is a
+  legibility device for scenes such as Sirius and must be superseded by
+  reviewed ARM orbit evidence when available.
 - The beta renderer may use deterministic procedural star/planet
   surface materials and bounded visual-scale radius transforms. Persisting
   those choices requires `simulation_assumptions` rows with generator version,

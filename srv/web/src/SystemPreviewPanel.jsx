@@ -329,7 +329,7 @@ function orbitHoverPayload(orbit) {
   }
   return {
     kind: String(orbit.relation_kind || "Orbit"),
-    name: orbit.orbit_key || "Orbit",
+    name: orbit.display_name || orbit.orbit_key || "Orbit",
     id: orbit.orbit_key || String(orbit.orbit_edge_id || ""),
     sourceLayer: orbit.source?.layer || "arm",
     rows: [

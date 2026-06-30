@@ -1846,6 +1846,7 @@ def _render_scene_contract(
             {
                 "orbit_key": f"orbit:{orbit_edge_id}",
                 "orbit_edge_id": edge.get("orbit_edge_id"),
+                "display_name": edge.get("edge_label") or f"{primary_key} - {secondary_key}",
                 "relation_kind": edge.get("relation_kind") or "binary",
                 "primary_body_key": primary_key,
                 "secondary_body_key": secondary_key,
@@ -1973,6 +1974,87 @@ def _render_scene_contract(
                     "source_catalog": edge.get("source_catalog"),
                     "confidence_tier": edge.get("confidence_tier"),
                     "confidence_score": edge.get("confidence_score"),
+                },
+            }
+        )
+
+    if not render_orbits and len(render_stars) == 2:
+        primary_key, secondary_key = sorted(render_stars.keys())
+        primary_name = str(render_stars[primary_key].get("display_name") or primary_key)
+        secondary_name = str(render_stars[secondary_key].get("display_name") or secondary_key)
+        seed = _stable_seed(system.get("stable_object_key"), primary_key, secondary_key, "visual_binary_fallback")
+        render_orbits.append(
+            {
+                "orbit_key": f"visual-fallback:binary:{seed[:12]}",
+                "orbit_edge_id": None,
+                "display_name": f"{primary_name} - {secondary_name} visual binary fallback",
+                "relation_kind": "visual_binary_fallback",
+                "primary_body_key": primary_key,
+                "secondary_body_key": secondary_key,
+                "endpoint_kind": "star_pair",
+                "primary_child_body_keys": [primary_key],
+                "secondary_child_body_keys": [secondary_key],
+                "barycenter_key": None,
+                "cluster_phase_rad": round(_seed_unit(seed, "cluster_phase") * math.pi * 2.0, 6),
+                "display_radius_scene": round(0.92 + 0.26 * _seed_unit(seed, "display_radius"), 6),
+                "fields": {
+                    "period_days": _procedural_field(
+                        key="period_days",
+                        label="Orbital period",
+                        value=round(8.0 + 32.0 * _seed_unit(seed, "period"), 6),
+                        unit="days",
+                        basis="two_star_no_orbit_visual_period",
+                        seed=seed,
+                        confidence=0.0,
+                        replacement_target="source binary orbital period",
+                    ),
+                    "semi_major_axis_au": _procedural_field(
+                        key="semi_major_axis_au",
+                        label="Semi-major axis",
+                        value=None,
+                        unit="au",
+                        basis="two_star_no_orbit_visual_separation_only",
+                        seed=seed,
+                        confidence=0.0,
+                        replacement_target="source binary semi-major axis",
+                    ),
+                    "eccentricity": _procedural_field(
+                        key="eccentricity",
+                        label="Eccentricity",
+                        value=round(max(0.0, min(0.18, 0.06 + 0.05 * _seed_centered(seed, "ecc"))), 6),
+                        unit=None,
+                        basis="centered_low_eccentricity_visual_prior",
+                        seed=seed,
+                        confidence=0.0,
+                        replacement_target="source binary eccentricity",
+                    ),
+                    "inclination_deg": _procedural_field(
+                        key="inclination_deg",
+                        label="Inclination",
+                        value=round(7.0 * _seed_centered(seed, "inc"), 6),
+                        unit="deg",
+                        basis="centered_low_inclination_visual_prior",
+                        seed=seed,
+                        confidence=0.0,
+                        replacement_target="source binary inclination",
+                    ),
+                    "phase_rad": _procedural_field(
+                        key="phase_rad",
+                        label="Orbital phase",
+                        value=round(_seed_unit(seed, "phase") * math.pi * 2.0, 6),
+                        unit="rad",
+                        basis="deterministic_visual_start_phase",
+                        seed=seed,
+                        confidence=0.0,
+                        replacement_target="source epoch/periastron/mean anomaly",
+                    ),
+                },
+                "source": {
+                    "layer": "disc_assumption",
+                    "source_catalog": None,
+                    "confidence_tier": "illustrative",
+                    "confidence_score": 0.0,
+                    "fallback_reason": "two_rendered_stars_without_source_orbit_edge",
                 },
             }
         )

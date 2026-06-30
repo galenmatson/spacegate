@@ -76,10 +76,11 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
     ),
     BenchmarkCase(
         "Sirius",
+        expected_wds_id="06451-1643",
         max_dist_ly=10.0,
-        min_star_count=1,
+        min_star_count=2,
         expected_aliases=("Alpha Canis Majoris",),
-        min_scene_stars=1,
+        min_scene_stars=2,
     ),
     BenchmarkCase(
         "Proxima Centauri",
@@ -261,6 +262,30 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         ]
         if len(source_periods) < 2:
             raise AssertionError(f"{case.query}: expected two source-backed rendered planet periods, got {len(source_periods)}")
+
+    if query_norm == "sirius":
+        star_names = {normalize(star.get("display_name")) for star in scene_stars}
+        if not {"sirius a", "sirius b"}.issubset(star_names):
+            raise AssertionError(f"{case.query}: expected Sirius A/B rendered stars, got {sorted(star_names)}")
+        spectral_classes = {str(star.get("spectral_class") or "").upper() for star in scene_stars}
+        if not {"A", "D"}.issubset(spectral_classes):
+            raise AssertionError(f"{case.query}: expected A primary and D compact companion classes, got {sorted(spectral_classes)}")
+        render_orbits = render_scene.get("orbits") or []
+        fallback_orbits = [
+            orbit
+            for orbit in render_orbits
+            if orbit.get("relation_kind") == "visual_binary_fallback"
+            and (orbit.get("source") or {}).get("layer") == "disc_assumption"
+        ]
+        if len(fallback_orbits) != 1:
+            raise AssertionError(
+                f"{case.query}: expected one disc-assumption visual binary fallback orbit, got {len(fallback_orbits)}"
+            )
+        fallback = fallback_orbits[0]
+        for field_key in ("period_days", "semi_major_axis_au", "eccentricity", "inclination_deg", "phase_rad"):
+            field = field_by_key(fallback.get("fields"), field_key)
+            if not field or field.get("status") != "assumed" or field.get("layer") != "disc_assumption":
+                raise AssertionError(f"{case.query}: fallback orbit field {field_key} is not a disc assumption: {field}")
 
     if query_norm == "castor":
         render_orbits = render_scene.get("orbits") or []

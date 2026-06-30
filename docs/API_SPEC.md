@@ -362,6 +362,11 @@ Contract notes:
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
   cluster orbit guides and browser-side visual child-cluster transforms.
+  Two-rendered-star systems with no source orbit edge may emit one
+  `relation_kind="visual_binary_fallback"` `star_pair` orbit so compact
+  companion scenes such as Sirius are structurally legible. Those orbit fields
+  are `status="assumed"`, `layer="disc_assumption"` presentation defaults and
+  must not be interpreted as ARM orbital solutions.
 - `render_scene.visual_scale` documents the beta renderer's clarity-scale
   transforms for star radii, planet radii, planet orbit spacing, and binary
   orbit display radii. Scene units are arbitrary presentation units, not

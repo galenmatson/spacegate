@@ -201,7 +201,8 @@ Implementation note:
   explicitly labels the live preview as clarity-scaled rather than physically
   scaled; rendered planet bodies now carry `host_body_key` when their canonical
   host star, or a catalog-equivalent source-native component, resolves into the
-  rendered scene; the
+  rendered scene; two-star scenes without source orbit edges may use clearly
+  labeled `disc_assumption` visual binary fallback orbits for legibility; the
   public preview now supports pause/start, speed, reset, orbit visibility,
   camera orbit/zoom/pan with reset-view support, hover, pinned copyable
   readouts with in-scene selected-object feedback, and deterministic

@@ -316,11 +316,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
   55 Cnc/Sol source-backed planet periods
-- [ ] Restore Sirius B / compact-object companion representation in source
+- [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
-  stars; current public side-sliced build resolves `Sirius` to the Gaia white
-  dwarf row (`Gaia DR3 2947050466531873024`) and has no Sirius A inventory,
-  WDS/MSC hierarchy, or A-B orbit edge
+  stars; the public deployment still needs the current sliced/rebuilt dataset
+- [x] Add clearly labeled `disc_assumption` visual binary fallback orbits for
+  two-star scenes with no source orbit edge, with Sirius Playwright and
+  known-system verifier coverage
 - [ ] Implement true nested barycentric subsystem propagation for hierarchical
   multi-star systems after source epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage for current public

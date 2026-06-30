@@ -773,6 +773,11 @@ Readiness gaps:
   host IDs onto those source-native render components. This removes the
   duplicate Gaia-host plus MSC-leaf rendering failure for 16 Cyg while keeping
   the planet host auditable as a catalog-equivalent match.
+- June 30, 2026 compact-companion preview patch adds a
+  `visual_binary_fallback` render orbit for two-star scenes with no source
+  orbit edge. Sirius now has local Playwright and known-system verifier
+  coverage for A + white-dwarf B rendering with ASSUMED `disc_assumption`
+  visual orbit fields; this remains a presentation fallback, not ARM science.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

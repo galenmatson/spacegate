@@ -44,6 +44,11 @@ Already in place:
 - `render_scene_v0.2` includes `endpoint_kind='group_pair'` orbit entries for
   hierarchical subsystem pairs such as Castor A-B and AB-C; these render as
   cluster orbit guides rather than false individual-star binaries
+- `render_scene_v0.2` may emit a single
+  `relation_kind='visual_binary_fallback'` orbit for two rendered stars with no
+  source orbit edge. This is a DISC presentation assumption for legibility
+  only, useful for compact-companion scenes such as Sirius until a reviewed
+  orbit edge/solution is available.
 - ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
   currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and

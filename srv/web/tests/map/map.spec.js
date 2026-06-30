@@ -251,6 +251,36 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
   });
 
+  test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "compact companion renderer smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Sirius", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Sirius system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    const stars = scenePayload.render_scene?.bodies?.stars || [];
+    const orbits = scenePayload.render_scene?.orbits || [];
+    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining(["Sirius A", "Sirius B"]));
+    expect(stars.map((star) => star.spectral_class)).toEqual(expect.arrayContaining(["A", "D"]));
+    const fallbackOrbit = orbits.find((orbit) => orbit.relation_kind === "visual_binary_fallback");
+    expect(fallbackOrbit, "Sirius visual fallback orbit").toBeTruthy();
+    expect(fallbackOrbit.source?.layer).toBe("disc_assumption");
+    expect(fallbackOrbit.fields?.period_days?.status).toBe("assumed");
+    expect(fallbackOrbit.fields?.semi_major_axis_au?.status).toBe("assumed");
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(page.locator(".system-preview-readout")).toContainText(/1\s*rendered orbits/i);
+    await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
+  });
+
   test("planet-host preview renders hosted planets in a multi-star scene", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "preview renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {
