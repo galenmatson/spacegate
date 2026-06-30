@@ -819,9 +819,11 @@ Notes:
   `config/core_accepted_supplements.json`; rows remain source-provenanced and
   visibly distinct from the disabled broad AT-HYG supplement merge. Sirius A is
   the first accepted supplement, paired with a reviewed WDS component link for
-  the Gaia Sirius B row. Local served build `20260630T_sim_beta_api_alias_v4`
-  materializes this as a two-member Sirius system and restores reviewed
-  no-Gaia ATHYG aliases such as `Alpha Canis Majoris`.
+  the Gaia Sirius B row. Local build `20260630T_sim_beta_api_alias_v4` first
+  materialized this as a two-member Sirius system and restored reviewed no-Gaia
+  ATHYG aliases such as `Alpha Canis Majoris`; current served build
+  `20260630T_sim_beta_sol_smallbody_v1` retains that simulator benchmark while
+  adding Sol small-body source-refresh fixes.
 - Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
   - exact Gaia ID
   - Gaia legacy remap via unique HIP/HD agreement

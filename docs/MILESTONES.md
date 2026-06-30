@@ -784,8 +784,9 @@ Readiness gaps:
   assumption curation/batch policy, true nested barycentric subsystem
   propagation, and physical-scale/precision display modes are not implemented
   yet
-- Sirius is now a valid compact-companion benchmark on local served build
-  `20260630T_sim_beta_api_alias_v4`: Sirius A is a reviewed
+- Sirius became a valid compact-companion benchmark on local build
+  `20260630T_sim_beta_api_alias_v4` and remains valid on current served build
+  `20260630T_sim_beta_sol_smallbody_v1`: Sirius A is a reviewed
   `athyg_accepted_supplement` core row, Sirius B remains the Gaia white-dwarf
   row, WDS components are linked, and no bright-primary aliases are attached
   only to the compact object. Public antiproton must receive a sliced/rebuilt

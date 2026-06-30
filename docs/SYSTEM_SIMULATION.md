@@ -101,11 +101,13 @@ Not ready yet:
 
 - full epoch controls and science-grade propagation policy beyond the beta
   clarity-scaled local animation clock
-- source-refresh verification for stale multiplicity/orbital inputs
+- public-edge deployment of the current sliced/rebuilt simulator dataset and
+  restored snapshot fallback artifacts
 - uncertainty visualization
 - physical-scale/precision display modes for stellar radii, planetary radii,
   orbital distances, labels, and time acceleration
-- persisted `disc` assumption rows for visualization-only defaults
+- reviewed curation and broader batch policy for persisted `disc` assumption
+  rows beyond selected-system materialization
 
 ## Public API
 
@@ -280,9 +282,9 @@ Agency-compatible ingest plan:
 6. Keep rejected/conflicting proposals in audit tables rather than deleting
    evidence.
 
-## Next Implementation Milestone
+## Beta Success Criteria
 
-Build a system preview renderer for a small target set:
+The beta system preview renderer is scoped to a small target set:
 
 - Sol
 - Alpha Centauri
@@ -370,10 +372,11 @@ Success criteria:
 - static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 
-Resolved local benchmark blocker:
+Resolved local benchmark blockers:
 
-- Local served build `20260630T_sim_beta_api_alias_v4` makes Sirius a valid
-  compact-companion benchmark: Sirius A is a reviewed
+- Local build `20260630T_sim_beta_api_alias_v4` first made Sirius a valid
+  compact-companion benchmark, and current local served build
+  `20260630T_sim_beta_sol_smallbody_v1` retains it: Sirius A is a reviewed
   `athyg_accepted_supplement` core row, Sirius B remains the Gaia white-dwarf
   row, WDS components are linked, and accepted-supplement AT-HYG aliases such
   as `Sirius`, `Alpha Canis Majoris`, `Alp CMa`, and `9 CMa` resolve at both
