@@ -29,6 +29,9 @@ Already in place:
 - simple source-native component leaves such as MSC A/B/C labels can reuse
   matching core star vitals for rendering, and catalog-equivalent core star
   IDs may bridge planet hosts onto those rendered source-native components
+- stellar render bodies preserve compact-object classification through
+  `body_class`, nullable `compact_type`, and a source-backed `object_type`
+  provenance field while keeping `object_type="star"` as the render role
 - `render_scene_v0.2` includes inspectable subsystem bodies for hierarchy nodes
   with multiple rendered stellar descendants. These bodies are UI handles over
   existing hierarchy evidence, not new science inventory.
@@ -334,8 +337,11 @@ Resolved local benchmark blocker:
   row, WDS components are linked, and accepted-supplement AT-HYG aliases such
   as `Sirius`, `Alpha Canis Majoris`, `Alp CMa`, and `9 CMa` resolve at both
   star and system levels. This is not simulator fabrication. It is a reviewed
-  core inventory exception plus ARM/API hierarchy handling. Public antiproton
-  still needs a safe sliced deployment before the fix is public.
+  core inventory exception plus ARM/API hierarchy handling. The beta
+  render-scene contract also verifies Sirius B as a `white_dwarf`
+  `body_class`/`compact_type` render body with a source-backed compact
+  object-type provenance field. Public antiproton still needs a safe sliced
+  deployment before the fix is public.
 - June 30, 2026 Sol authority source-refresh fix makes Horizons small-body
   commands explicit for asteroid/TNO/dwarf-small-body records and adds
   source/build/API gates for Ceres, Vesta, Pallas, Juno, Hebe, Iris,

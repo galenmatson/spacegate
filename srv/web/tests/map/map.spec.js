@@ -353,6 +353,11 @@ test.describe("public 3D map beta", () => {
     const orbits = scenePayload.render_scene?.orbits || [];
     expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining(["Sirius A", "Sirius B"]));
     expect(stars.map((star) => star.spectral_class)).toEqual(expect.arrayContaining(["A", "D"]));
+    const siriusB = stars.find((star) => star.display_name === "Sirius B");
+    expect(siriusB?.body_class).toBe("white_dwarf");
+    expect(siriusB?.compact_type).toBe("white_dwarf");
+    expect(siriusB?.fields?.object_type?.value).toBe("white_dwarf");
+    expect(siriusB?.fields?.object_type?.status).toBe("source");
     const fallbackOrbit = orbits.find((orbit) => orbit.relation_kind === "visual_binary_fallback");
     expect(fallbackOrbit, "Sirius visual fallback orbit").toBeTruthy();
     expect(fallbackOrbit.source?.layer).toBe("disc_assumption");

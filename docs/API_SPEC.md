@@ -352,6 +352,10 @@ Contract notes:
   Single-star render bodies may use a system proper-name/common-name alias for
   display while preserving the canonical star key; `source.display_name_basis`
   identifies whether the rendered label came from a system alias or core row.
+  Stellar render bodies keep `object_type="star"` as the renderer role and add
+  `body_class`, nullable `compact_type`, and `fields.object_type` for
+  provenance-aware physical class inspection. Compact companions such as white
+  dwarfs remain stellar render bodies while carrying their source compact class.
   Planet render bodies include `host_star_id` from the canonical planet row
   where available and `host_body_key` when that host resolves to a rendered
   star body. `source.host_resolution` records whether the linkage came from a

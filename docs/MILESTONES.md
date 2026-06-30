@@ -821,6 +821,10 @@ Readiness gaps:
   full relative-separation guide to rendered barycentric body paths, using
   source mass ratios when available and explicit equal-mass visual fallback
   otherwise.
+- June 30, 2026 compact-body render patch preserves source-backed compact
+  object classification in stellar render bodies through `body_class`,
+  `compact_type`, and object-type provenance fields, with Sirius B as the
+  white-dwarf benchmark.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

@@ -60,6 +60,19 @@ function fieldStatus(fields, key) {
   return field?.status || "missing";
 }
 
+function stellarBodyClass(body) {
+  return String(
+    body?.compact_type
+    || body?.body_class
+    || fieldRecord(body?.fields, "object_type")?.value
+    || "star"
+  ).trim().toLowerCase() || "star";
+}
+
+function bodyClassLabel(value) {
+  return String(value || "star").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function fieldRecord(fields, key) {
   if (!fields) {
     return null;
@@ -356,12 +369,14 @@ function objectHoverPayload(kind, body) {
     };
   }
   if (kind === "star") {
+    const bodyClass = stellarBodyClass(body);
     return {
-      kind: "Star",
+      kind: bodyClassLabel(bodyClass),
       name: body.display_name || body.name || "Unnamed star",
       id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
       sourceLayer: body.source?.layer || "unknown",
       rows: [
+        readoutRow(body.fields, "object_type", "Type", bodyClassLabel(bodyClass), 0),
         staticReadoutRow("Class", body.spectral_class || "Unknown", body.spectral_class ? "source" : "missing"),
         readoutRow(body.fields, "teff_k", "Temp", "Unknown", 0),
         readoutRow(body.fields, "mass_msun", "Mass", "Unknown", 3),
@@ -546,10 +561,14 @@ function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
 }
 
 function StarSphere({ star, position = [0, 0, 0], selectedObjectId = "", onHover, onSelect }) {
-  const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || 0.55);
+  const bodyClass = stellarBodyClass(star);
+  const compactRadiusFallback = bodyClass === "white_dwarf" ? 0.018 : (bodyClass === "neutron_star" || bodyClass === "pulsar" || bodyClass === "magnetar" ? 0.00003 : 0.55);
+  const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || compactRadiusFallback);
   const radius = Number(star.display_radius_scene) || scaledStarRadius(radiusRsun, star.visualScale);
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
-  const color = teffK ? starColor(teffK) : (STAR_COLORS[String(star.spectral_class || "").slice(0, 1)] || "#ff9d6b");
+  const color = bodyClass === "white_dwarf"
+    ? "#dceaff"
+    : (teffK ? starColor(teffK) : (STAR_COLORS[String(star.spectral_class || "").slice(0, 1)] || "#ff9d6b"));
   const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("star", star), [star]);
@@ -576,11 +595,11 @@ function StarSphere({ star, position = [0, 0, 0], selectedObjectId = "", onHover
     <group position={position}>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[radius, 32, 24]} />
-        <meshStandardMaterial color={color} map={texture || null} emissive={color} emissiveIntensity={0.9} roughness={0.52} />
+        <meshStandardMaterial color={color} map={texture || null} emissive={color} emissiveIntensity={bodyClass === "white_dwarf" ? 1.45 : 0.9} roughness={0.52} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[Math.max(radius * 1.75, radius + 0.18), 32, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={selected ? 0.24 : 0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <sphereGeometry args={[Math.max(radius * (bodyClass === "white_dwarf" ? 2.35 : 1.75), radius + 0.18), 32, 20]} />
+        <meshBasicMaterial color={color} transparent opacity={selected ? 0.24 : (bodyClass === "white_dwarf" ? 0.22 : 0.16)} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       {selected && <SelectionHalo radius={Math.max(radius * 1.82, radius + 0.28)} color="#fff2b7" pulse />}
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>

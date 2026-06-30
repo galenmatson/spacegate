@@ -1013,6 +1013,40 @@ def _visual_star_color_class(star: Dict[str, Any], fallback: Optional[str] = Non
     return value[:1] if value[:1] in {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"} else "M"
 
 
+def _stellar_body_class(star: Dict[str, Any], fallback: Optional[str] = None) -> str:
+    raw_type = str(star.get("object_type") or fallback or "").strip().lower()
+    spectral_class = str(star.get("spectral_class") or "").strip().upper()
+    spectral_type = str(star.get("spectral_type_raw") or star.get("spectral_type") or "").strip().upper()
+    if raw_type in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar", "brown_dwarf"}:
+        return raw_type
+    if spectral_type.startswith("D") or spectral_class == "D":
+        return "white_dwarf"
+    if spectral_class in {"L", "T", "Y"}:
+        return "brown_dwarf"
+    return raw_type or "star"
+
+
+def _compact_type_for_body_class(body_class: str) -> Optional[str]:
+    value = str(body_class or "").strip().lower()
+    return value if value in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar"} else None
+
+
+def _stellar_body_class_field(*, value: str, basis: str, layer: str = "core", source_catalog: Optional[str] = None) -> Dict[str, Any]:
+    return _simulation_field(
+        key="object_type",
+        label="Object type",
+        value=value or "star",
+        unit=None,
+        status="source" if layer == "core" and value else "derived",
+        basis=basis,
+        layer=layer,
+        confidence_tier="high" if layer == "core" and value else "illustrative",
+        replacement_target="reviewed stellar/compact object classification",
+        source_catalog=source_catalog,
+        confidence=0.9 if layer == "core" and value else 0.45,
+    )
+
+
 def _component_key_for_hierarchy_star_node(node: Dict[str, Any]) -> str:
     key = str(node.get("stable_component_key") or "")
     if key.startswith("canon:leaf:msc:"):
@@ -1385,6 +1419,13 @@ def _render_scene_contract(
             return render_key
         readiness = star_readiness_by_id.get(star_id) or {}
         fields = _field_map(readiness.get("fields") or [])
+        body_class = _stellar_body_class(star)
+        fields["object_type"] = _stellar_body_class_field(
+            value=body_class,
+            basis="core.stars:object_type_or_spectral_class",
+            layer="core",
+            source_catalog=star.get("source_catalog"),
+        )
         display_name, display_name_basis = single_star_display_name()
         if not display_name:
             display_name = star.get("display_name") or star.get("star_name") or render_key
@@ -1393,6 +1434,8 @@ def _render_scene_contract(
             "render_key": render_key,
             "source_component_key": None,
             "object_type": "star",
+            "body_class": body_class,
+            "compact_type": _compact_type_for_body_class(body_class),
             "display_name": display_name,
             "component": star.get("component"),
             "spectral_class": _visual_star_color_class(star),
@@ -1470,14 +1513,23 @@ def _render_scene_contract(
         spectral_class = _visual_star_color_class({}, fallback=spectral_type_raw) if spectral_type_raw else (
             _visual_star_color_class({}, fallback="M") if source_mass is not None and source_mass <= 0.65 else None
         )
+        body_class = _stellar_body_class({"spectral_class": spectral_class, "spectral_type_raw": spectral_type_raw})
         render_stars[component_key] = {
             "render_key": component_key,
             "source_component_key": component_key,
             "object_type": "star",
+            "body_class": body_class,
+            "compact_type": _compact_type_for_body_class(body_class),
             "display_name": component.get("display_name") or component.get("catalog_component_label") or component_key,
             "component": component.get("catalog_component_label"),
             "spectral_class": spectral_class,
             "fields": {
+                "object_type": _stellar_body_class_field(
+                    value=body_class,
+                    basis="arm.msc_system_details:spectral_type_body_class",
+                    layer="arm",
+                    source_catalog=evidence.get("source_catalog") or "msc",
+                ),
                 "spectral_type_raw": (
                     _simulation_field(
                         key="spectral_type_raw",
@@ -1640,7 +1692,20 @@ def _render_scene_contract(
         if radius is None:
             radius = _radius_from_mass_visual_proxy(mass)
         seed = _stable_seed(system.get("stable_object_key"), render_key, "hierarchy_star_visual")
+        body_class = _stellar_body_class(
+            {
+                "object_type": node.get("object_type") or node.get("component_type"),
+                "spectral_class": facts.get("spectral_class"),
+                "spectral_type_raw": spectral_type,
+            }
+        )
         fields = {
+            "object_type": _stellar_body_class_field(
+                value=body_class,
+                basis="canonical_hierarchy:object_type_or_spectral_class",
+                layer="arm" if node.get("synthetic") else "core",
+                source_catalog=node.get("source_catalog"),
+            ),
             "spectral_type_raw": _field_from_hierarchy_quick_fact(
                 node=node,
                 facts=facts,
@@ -1735,6 +1800,8 @@ def _render_scene_contract(
             "render_key": render_key,
             "source_component_key": render_key,
             "object_type": "star",
+            "body_class": body_class,
+            "compact_type": _compact_type_for_body_class(body_class),
             "display_name": display_name or render_key,
             "component": node.get("catalog_component_label") or node.get("member_role"),
             "spectral_class": _visual_star_color_class({}, fallback=facts.get("spectral_class") or spectral_type),

@@ -326,6 +326,14 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         spectral_classes = {str(star.get("spectral_class") or "").upper() for star in scene_stars}
         if not {"A", "D"}.issubset(spectral_classes):
             raise AssertionError(f"{case.query}: expected A primary and D compact companion classes, got {sorted(spectral_classes)}")
+        sirius_b = next((star for star in scene_stars if normalize(star.get("display_name")) == "sirius b"), None)
+        if not sirius_b:
+            raise AssertionError(f"{case.query}: expected Sirius B render body")
+        if sirius_b.get("body_class") != "white_dwarf" or sirius_b.get("compact_type") != "white_dwarf":
+            raise AssertionError(f"{case.query}: Sirius B should render as white_dwarf, got {sirius_b}")
+        object_type_field = field_by_key(sirius_b.get("fields"), "object_type")
+        if not object_type_field or object_type_field.get("value") != "white_dwarf" or object_type_field.get("status") != "source":
+            raise AssertionError(f"{case.query}: Sirius B object_type field should be source white_dwarf, got {object_type_field}")
         render_orbits = render_scene.get("orbits") or []
         fallback_orbits = [
             orbit

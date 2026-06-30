@@ -347,6 +347,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset
+- [x] Preserve compact-object classification in simulator render bodies with
+  source-backed `body_class`/`compact_type` and object-type provenance fields
 - [x] Add clearly labeled `disc_assumption` visual binary fallback orbits for
   two-star scenes with no source orbit edge, with Sirius Playwright and
   known-system verifier coverage
