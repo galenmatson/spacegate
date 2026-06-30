@@ -336,6 +336,66 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
+  test("messy hierarchy preview preserves Nu Sco source-native leaves", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "messy hierarchy renderer smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Nu Sco", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Nu Sco system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    const renderBodies = scenePayload.render_scene?.bodies || {};
+    const stars = renderBodies.stars || [];
+    const subsystems = renderBodies.subsystems || [];
+    const orbits = scenePayload.render_scene?.orbits || [];
+    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining([
+      "14nu Sco AA",
+      "14nu Sco AB",
+      "14nu Sco AC",
+      "14nu Sco B",
+      "14nu Sco C",
+      "14nu Sco DA",
+      "14nu Sco DB",
+    ]));
+    expect(stars).toHaveLength(7);
+    const unresolvedAB = stars.find((star) => star.display_name === "14nu Sco AB");
+    expect(unresolvedAB?.spectral_class || null).toBeNull();
+    expect(unresolvedAB?.fields?.spectral_type_raw?.status).toBe("missing");
+    expect(subsystems.map((subsystem) => subsystem.display_name)).toEqual(expect.arrayContaining([
+      "14nu Sco AB",
+      "14nu Sco A",
+      "14nu Sco AAB",
+      "14nu Sco CD",
+      "14nu Sco D",
+    ]));
+    expect(orbits.filter((orbit) => orbit.endpoint_kind === "star_pair")).toHaveLength(2);
+    expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(2);
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect(previewCanvas).toBeVisible();
+    await expect(page.locator(".system-preview-readout")).toContainText(/7\s*rendered stars/i);
+    await expect(page.locator(".system-preview-readout")).toContainText(/5\s*rendered subsystems/i);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.directOrbitGuideCount || 0)),
+      { timeout: 3000 }
+    ).toBe(2);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupOrbitGuideCount || 0)),
+      { timeout: 3000 }
+    ).toBe(2);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
+      { timeout: 3000 }
+    ).toBe(5);
+  });
+
   test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "compact companion renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {

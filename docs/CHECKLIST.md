@@ -344,6 +344,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,
   Proxima display/planet coverage, TRAPPIST-1 source-backed periods, and
   55 Cnc/Sol source-backed planet periods
+- [x] Add browser simulator coverage for the Nu Sco messy hierarchy benchmark:
+  seven source-native leaves, subsystem handles, direct/group orbit guides, and
+  no source-like spectral inheritance on unresolved children
 - [x] Restore Sirius A/B compact-companion representation in local source
   hierarchy and simulator benchmark coverage without fabricating renderer-only
   stars; the public deployment still needs the current sliced/rebuilt dataset

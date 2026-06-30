@@ -825,6 +825,9 @@ Readiness gaps:
   object classification in stellar render bodies through `body_class`,
   `compact_type`, and object-type provenance fields, with Sirius B as the
   white-dwarf benchmark.
+- June 30, 2026 Nu Sco browser benchmark patch adds Playwright coverage for
+  seven source-native rendered leaves, five subsystem handles, direct/group
+  orbit-guide counts, and missing spectral facts on unresolved children.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

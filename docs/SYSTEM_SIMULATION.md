@@ -293,6 +293,9 @@ Success criteria:
   groups when connected binary edges are available
 - hierarchical subsystem orbit edges render as distinct group-pair guides so
   nested structure is visible without flattening the system into sibling stars
+- Nu Sco acts as the messy hierarchy browser benchmark: seven source-native
+  leaves, subsystem handles, direct/group orbit guides, and unresolved children
+  without inherited source-like spectral facts
 - group-pair edges also drive deterministic visual-scale child-cluster motion in
   the browser preview; this is a presentation transform over ARM evidence, not a
   source-scaled barycentric solution
