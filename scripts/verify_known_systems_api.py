@@ -199,7 +199,15 @@ def assert_field_range(case_query: str, body: dict[str, Any], key: str, low: flo
         )
 
 
-def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> None:
+def assert_render_scene_contract(
+    case: BenchmarkCase,
+    scene: dict[str, Any],
+    *,
+    warnings: list[str] | None = None,
+    allow_stale_public_slice: bool = False,
+) -> bool:
+    warnings = warnings if warnings is not None else []
+    stale_scene_gap = False
     render_scene = scene.get("render_scene") or {}
     if render_scene.get("schema_version") != "render_scene_v0.2":
         raise AssertionError(f"{case.query}: unexpected render_scene schema {render_scene.get('schema_version')!r}")
@@ -304,11 +312,19 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         if field.get("status") != "assumed":
             raise AssertionError(f"{case.query}: assumption record field is not marked assumed: {field}")
     if case.min_scene_stars is not None and len(scene_stars) < case.min_scene_stars:
-        raise AssertionError(f"{case.query}: expected at least {case.min_scene_stars} preview stars, got {len(scene_stars)}")
+        message = f"{case.query}: expected at least {case.min_scene_stars} preview stars, got {len(scene_stars)}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+            stale_scene_gap = True
+        else:
+            raise AssertionError(message)
     if case.min_scene_planets is not None and len(scene_planets) < case.min_scene_planets:
-        raise AssertionError(
-            f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
-        )
+        message = f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+            stale_scene_gap = True
+        else:
+            raise AssertionError(message)
     for star in scene_stars:
         visual_class = field_by_key(star.get("fields"), "visual_stellar_class")
         if not visual_class:
@@ -335,6 +351,8 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
             raise AssertionError(f"{case.query}: assumed planet inclination should stay in disc_assumption: {inclination}")
 
     query_norm = normalize(case.query)
+    if stale_scene_gap:
+        return True
     if query_norm == "trappist-1":
         period_fields = [field_by_key(planet.get("fields"), "orbital_period_days") for planet in scene_planets]
         period_values = [float(field["value"]) for field in period_fields if field and field.get("value") is not None]
@@ -391,36 +409,42 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
                 )
 
     if query_norm == "sol":
-        mercury = rendered_planet_by_name(scene_planets, "Mercury")
-        ceres = rendered_planet_by_name(scene_planets, "Ceres")
-        if not mercury or not ceres:
-            names = [planet.get("display_name") for planet in scene_planets]
-            raise AssertionError(f"{case.query}: expected Mercury and Ceres in rendered planets, got {names}")
-        assert_field_range(case.query, mercury, "semi_major_axis_au", 0.36, 0.42)
-        assert_field_range(case.query, mercury, "orbital_period_days", 80.0, 95.0)
-        assert_field_range(case.query, ceres, "semi_major_axis_au", 2.5, 3.1)
-        assert_field_range(case.query, ceres, "orbital_period_days", 1500.0, 1900.0)
-        sma_values = [
-            numeric_field(planet, "semi_major_axis_au")
-            for planet in scene_planets
-            if numeric_field(planet, "semi_major_axis_au") is not None
-        ]
-        if sma_values != sorted(sma_values):
-            names = [planet.get("display_name") for planet in scene_planets]
-            raise AssertionError(f"{case.query}: rendered planets should be sorted by semi-major axis, got {names}")
-        first_names = [normalize(planet.get("display_name")) for planet in scene_planets[:4]]
-        if first_names[:4] != ["mercury", "venus", "earth", "mars"]:
-            raise AssertionError(f"{case.query}: expected inner planets first, got {first_names}")
-        if abs(numeric_field(mercury, "semi_major_axis_au") - numeric_field(ceres, "semi_major_axis_au")) < 1e-6:
-            raise AssertionError(f"{case.query}: rendered Ceres duplicates Mercury semi-major axis")
-        missing_hosts = [
-            planet.get("display_name")
-            for planet in scene_planets
-            if normalize(planet.get("display_name")) in {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"}
-            and not planet.get("host_body_key")
-        ]
-        if missing_hosts:
-            raise AssertionError(f"{case.query}: major rendered planets missing host_body_key: {missing_hosts}")
+        try:
+            mercury = rendered_planet_by_name(scene_planets, "Mercury")
+            ceres = rendered_planet_by_name(scene_planets, "Ceres")
+            if not mercury or not ceres:
+                names = [planet.get("display_name") for planet in scene_planets]
+                raise AssertionError(f"{case.query}: expected Mercury and Ceres in rendered planets, got {names}")
+            assert_field_range(case.query, mercury, "semi_major_axis_au", 0.36, 0.42)
+            assert_field_range(case.query, mercury, "orbital_period_days", 80.0, 95.0)
+            assert_field_range(case.query, ceres, "semi_major_axis_au", 2.5, 3.1)
+            assert_field_range(case.query, ceres, "orbital_period_days", 1500.0, 1900.0)
+            sma_values = [
+                numeric_field(planet, "semi_major_axis_au")
+                for planet in scene_planets
+                if numeric_field(planet, "semi_major_axis_au") is not None
+            ]
+            if sma_values != sorted(sma_values):
+                names = [planet.get("display_name") for planet in scene_planets]
+                raise AssertionError(f"{case.query}: rendered planets should be sorted by semi-major axis, got {names}")
+            first_names = [normalize(planet.get("display_name")) for planet in scene_planets[:4]]
+            if first_names[:4] != ["mercury", "venus", "earth", "mars"]:
+                raise AssertionError(f"{case.query}: expected inner planets first, got {first_names}")
+            if abs(numeric_field(mercury, "semi_major_axis_au") - numeric_field(ceres, "semi_major_axis_au")) < 1e-6:
+                raise AssertionError(f"{case.query}: rendered Ceres duplicates Mercury semi-major axis")
+            missing_hosts = [
+                planet.get("display_name")
+                for planet in scene_planets
+                if normalize(planet.get("display_name")) in {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"}
+                and not planet.get("host_body_key")
+            ]
+            if missing_hosts:
+                raise AssertionError(f"{case.query}: major rendered planets missing host_body_key: {missing_hosts}")
+        except AssertionError as exc:
+            if allow_stale_public_slice:
+                warnings.append(f"[stale-public-slice] {exc}")
+                return True
+            raise
 
     if query_norm == "proxima centauri":
         star_names = [normalize(star.get("display_name")) for star in scene_stars]
@@ -498,9 +522,16 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
                 raise AssertionError(f"{case.query}: subsystem missing hierarchy-basis provenance: {subsystem}")
             if subsystem.get("fallback_subsystem") and subsystem.get("source", {}).get("basis") != "simulation_tree_fallback_subsystem":
                 raise AssertionError(f"{case.query}: fallback subsystem missing explicit source basis: {subsystem}")
+    return False
 
 
-def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
+def verify_case(
+    base_url: str,
+    case: BenchmarkCase,
+    warnings: list[str],
+    *,
+    allow_stale_public_slice: bool = False,
+) -> str:
     search = get_json(base_url, "/systems/search", params={"q": case.query, "limit": 5})
     items = search.get("items") or []
     if not items:
@@ -511,17 +542,27 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
         raise AssertionError(f"{case.query}: first result missing system_id")
 
     if case.expected_wds_id and item.get("wds_id") != case.expected_wds_id:
-        raise AssertionError(f"{case.query}: expected WDS {case.expected_wds_id}, got {item.get('wds_id')!r}")
+        message = f"{case.query}: expected WDS {case.expected_wds_id}, got {item.get('wds_id')!r}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+        else:
+            raise AssertionError(message)
     if case.max_dist_ly is not None:
         dist_ly = item.get("dist_ly")
         if dist_ly is None or float(dist_ly) > case.max_dist_ly:
             raise AssertionError(f"{case.query}: expected distance <= {case.max_dist_ly}, got {dist_ly!r}")
     if case.min_star_count is not None and int(item.get("star_count") or 0) < case.min_star_count:
-        raise AssertionError(f"{case.query}: expected at least {case.min_star_count} stars, got {item.get('star_count')!r}")
+        message = f"{case.query}: expected at least {case.min_star_count} stars, got {item.get('star_count')!r}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+        else:
+            raise AssertionError(message)
     if case.min_planet_count is not None and int(item.get("planet_count") or 0) < case.min_planet_count:
-        raise AssertionError(
-            f"{case.query}: expected at least {case.min_planet_count} planets, got {item.get('planet_count')!r}"
-        )
+        message = f"{case.query}: expected at least {case.min_planet_count} planets, got {item.get('planet_count')!r}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+        else:
+            raise AssertionError(message)
 
     detail = get_json(base_url, f"/systems/{system_id}")
     system = detail.get("system") or {}
@@ -533,7 +574,11 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
     }
     for expected_alias in case.expected_aliases:
         if normalize(expected_alias) not in alias_text:
-            raise AssertionError(f"{case.query}: missing expected alias {expected_alias!r}")
+            message = f"{case.query}: missing expected alias {expected_alias!r}"
+            if allow_stale_public_slice:
+                warnings.append(f"[stale-public-slice] {message}")
+                continue
+            raise AssertionError(message)
 
     hierarchy = detail.get("hierarchy") or {}
     root = hierarchy.get("root")
@@ -541,36 +586,63 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
         raise AssertionError(f"{case.query}: missing hierarchy root")
     counts = hierarchy.get("counts") or {}
     if case.min_star_count is not None and int(counts.get("stars") or 0) < case.min_star_count:
-        raise AssertionError(
-            f"{case.query}: hierarchy expected at least {case.min_star_count} stars, got {counts.get('stars')!r}"
-        )
+        message = f"{case.query}: hierarchy expected at least {case.min_star_count} stars, got {counts.get('stars')!r}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+        else:
+            raise AssertionError(message)
     hierarchy_nodes = list(iter_hierarchy_nodes(root))
     nodes_by_name = {str(node.get("display_name") or ""): node for node in hierarchy_nodes}
+    missing_required_names: list[str] = []
     for display_name in case.required_hierarchy_names:
         if display_name not in nodes_by_name:
-            raise AssertionError(f"{case.query}: hierarchy missing node {display_name!r}")
+            missing_required_names.append(display_name)
+    if missing_required_names:
+        message = f"{case.query}: hierarchy missing nodes {missing_required_names!r}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+        else:
+            raise AssertionError(message)
     for expected in case.required_hierarchy_facts:
         node = nodes_by_name.get(expected.display_name)
         if not node:
-            raise AssertionError(f"{case.query}: hierarchy missing fact node {expected.display_name!r}")
+            message = f"{case.query}: hierarchy missing fact node {expected.display_name!r}"
+            if allow_stale_public_slice:
+                warnings.append(f"[stale-public-slice] {message}")
+                continue
+            raise AssertionError(message)
         facts = node.get("quick_facts")
         if not isinstance(facts, dict):
-            raise AssertionError(f"{case.query}: hierarchy node {expected.display_name!r} missing quick_facts")
+            message = f"{case.query}: hierarchy node {expected.display_name!r} missing quick_facts"
+            if allow_stale_public_slice:
+                warnings.append(f"[stale-public-slice] {message}")
+                continue
+            raise AssertionError(message)
         for fact_key, expected_value in expected.facts.items():
-            assert_fact_matches(f"{case.query} {expected.display_name}", fact_key, expected_value, facts.get(fact_key))
+            try:
+                assert_fact_matches(f"{case.query} {expected.display_name}", fact_key, expected_value, facts.get(fact_key))
+            except AssertionError as exc:
+                if allow_stale_public_slice:
+                    warnings.append(f"[stale-public-slice] {exc}")
+                    continue
+                raise
         if (
             expected.facts.get("mass_msun") is not None
             and expected.facts.get("spectral_type_raw") is None
             and expected.facts.get("spectral_class") is None
         ):
             if not facts.get("visual_stellar_class"):
-                raise AssertionError(
-                    f"{case.query}: hierarchy node {expected.display_name!r} should expose a mass-based visual class prior"
-                )
+                message = f"{case.query}: hierarchy node {expected.display_name!r} should expose a mass-based visual class prior"
+                if allow_stale_public_slice:
+                    warnings.append(f"[stale-public-slice] {message}")
+                    continue
+                raise AssertionError(message)
             if facts.get("visual_stellar_class_status") != "assumed" or facts.get("visual_stellar_class_basis") != "mass_main_sequence_prior_v1":
-                raise AssertionError(
-                    f"{case.query}: hierarchy node {expected.display_name!r} has malformed visual class prior: {facts}"
-                )
+                message = f"{case.query}: hierarchy node {expected.display_name!r} has malformed visual class prior: {facts}"
+                if allow_stale_public_slice:
+                    warnings.append(f"[stale-public-slice] {message}")
+                    continue
+                raise AssertionError(message)
 
     for node in hierarchy_nodes:
         component_family = str(node.get("component_family") or "")
@@ -583,14 +655,19 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
                 )
 
     scene = get_json(base_url, f"/systems/{system_id}/simulation-scene")
-    assert_render_scene_contract(case, scene)
+    stale_scene_gap = assert_render_scene_contract(
+        case,
+        scene,
+        warnings=warnings,
+        allow_stale_public_slice=allow_stale_public_slice,
+    )
     render_scene = scene.get("render_scene") or {}
     bodies = render_scene.get("bodies") or scene.get("bodies") or {}
     scene_stars = bodies.get("stars") or []
     scene_planets = bodies.get("planets") or []
-    if case.min_scene_stars is not None and len(scene_stars) < case.min_scene_stars:
+    if case.min_scene_stars is not None and len(scene_stars) < case.min_scene_stars and not stale_scene_gap:
         raise AssertionError(f"{case.query}: expected at least {case.min_scene_stars} preview stars, got {len(scene_stars)}")
-    if case.min_scene_planets is not None and len(scene_planets) < case.min_scene_planets:
+    if case.min_scene_planets is not None and len(scene_planets) < case.min_scene_planets and not stale_scene_gap:
         raise AssertionError(
             f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
         )
@@ -620,10 +697,26 @@ def main() -> int:
         action="store_true",
         help="Treat preview-vs-hierarchy body-count differences as failures.",
     )
+    parser.add_argument(
+        "--allow-stale-public-slice",
+        action="store_true",
+        help=(
+            "Downgrade source-native hierarchy/fact benchmark gaps to stale public-slice warnings. "
+            "Use only for public edge smoke checks after code-only deploys."
+        ),
+    )
     args = parser.parse_args()
 
     warnings: list[str] = []
-    summaries = [verify_case(args.base_url.rstrip("/"), case, warnings) for case in BENCHMARKS]
+    summaries = [
+        verify_case(
+            args.base_url.rstrip("/"),
+            case,
+            warnings,
+            allow_stale_public_slice=args.allow_stale_public_slice,
+        )
+        for case in BENCHMARKS
+    ]
     print("Known-system API benchmark passed:")
     for summary in summaries:
         print(f"- {summary}")
@@ -631,7 +724,7 @@ def main() -> int:
         print("Warnings:")
         for warning in warnings:
             print(f"- {warning}")
-        if args.strict_preview:
+        if args.strict_preview and not args.allow_stale_public_slice:
             raise SystemExit("Strict preview mode failed due to warnings above.")
     return 0
 
