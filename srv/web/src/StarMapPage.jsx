@@ -1067,11 +1067,19 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [focusToken, setFocusToken] = useState(0);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
+  const drillHistoryPushedRef = useRef(false);
+
+  const exitDrillMode = useCallback((consumeHistory = true) => {
+    setDrillMode("flight");
+    if (consumeHistory && drillHistoryPushedRef.current) {
+      window.history.back();
+    }
+  }, []);
 
   const selectSystem = useCallback((system, options = {}) => {
     if (!system) {
       setSelectedSystem(null);
-      setDrillMode("flight");
+      exitDrillMode();
       return;
     }
     setSelectedSystem(system);
@@ -1085,6 +1093,31 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     if (options.focus) {
       setFocusToken((value) => value + 1);
     }
+  }, [exitDrillMode]);
+
+  useEffect(() => {
+    if (drillMode !== "explore" || drillHistoryPushedRef.current) {
+      return;
+    }
+    const currentState = window.history.state && typeof window.history.state === "object"
+      ? window.history.state
+      : {};
+    window.history.pushState({ ...currentState, spacegateMapDrill: "explore" }, "", window.location.href);
+    drillHistoryPushedRef.current = true;
+  }, [drillMode]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (!drillHistoryPushedRef.current) {
+        return;
+      }
+      drillHistoryPushedRef.current = false;
+      setDrillMode("flight");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
   }, []);
 
   useEffect(() => {
@@ -1105,7 +1138,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         setRouteMenu(null);
         if (drillMode !== "flight") {
           event.preventDefault();
-          setDrillMode("flight");
+          exitDrillMode();
         }
       }
     };
@@ -1113,20 +1146,20 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [drillMode]);
+  }, [drillMode, exitDrillMode]);
 
   useEffect(() => {
     const onWheel = (event) => {
       const inSystemDrill = event.target?.closest?.(".map-system-drill");
       if (drillMode !== "flight" && !inSystemDrill && event.deltaY > 60) {
-        setDrillMode("flight");
+        exitDrillMode();
       }
     };
     window.addEventListener("wheel", onWheel, { passive: true });
     return () => {
       window.removeEventListener("wheel", onWheel);
     };
-  }, [drillMode]);
+  }, [drillMode, exitDrillMode]);
 
   useEffect(() => {
     let active = true;
@@ -1504,7 +1537,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               <Link to={systemDetailPath(selectedSystem)} className="map-command-button ghost">
                 Detail
               </Link>
-              <button type="button" className="map-command-button ghost" onClick={() => setDrillMode("flight")}>
+              <button type="button" className="map-command-button ghost" onClick={() => exitDrillMode()}>
                 Back to Map
               </button>
             </div>

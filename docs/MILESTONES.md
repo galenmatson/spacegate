@@ -819,8 +819,9 @@ Readiness gaps:
   day in Render Policy, and moves map hover/pinned object cards away from the
   bottom evidence/policy strip.
 - July 1, 2026 Star Map Explorer polish increases Explorer shell/canvas opacity
-  and separates compact simulator readout pills from taller Evidence/Render
-  Policy panels so diagnostics cannot stretch the pills.
+  and separates compact simulator readout pills from a collapsible Diagnostics
+  disclosure containing Evidence and Render Policy, so diagnostics cannot
+  stretch the pills. Browser Back now exits Explorer back to map flight.
 - July 1, 2026 simulator orientation transparency pass surfaces source
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains

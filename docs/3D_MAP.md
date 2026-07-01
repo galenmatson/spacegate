@@ -139,9 +139,9 @@ Initial layers:
   - `Explore` promotes the same selected system to the focus path, flies the map
     camera toward that system, and expands the System Simulation into the main
     inspection layer
-  - `Esc` or `Back to Map` returns to flight; the current implementation keeps
-    the star map and system simulation as coordinated layers rather than one
-    continuous LY-to-AU canvas
+  - `Esc`, browser Back, or `Back to Map` returns from Explorer to flight; the
+    current implementation keeps the star map and system simulation as
+    coordinated layers rather than one continuous LY-to-AU canvas
   - suggested nearby systems are computed client-side from the 100 ly payload
     using coolness, distance, planet count, multiplicity, and human-readable
     naming signals
@@ -158,8 +158,9 @@ Initial layers:
     uses a shorter/thinner transparent Peek panel, and lets the canvas fill the
     window
   - Explorer mode uses a less-transparent simulator shell/canvas than Peek, and
-    separates compact one-line readout pills from larger Evidence/Render Policy
-    panels so diagnostic panels cannot stretch the pills
+    separates compact one-line readout pills from a Diagnostics disclosure that
+    contains Evidence and Render Policy, so diagnostic panels cannot stretch the
+    pills
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
     nontransparent cards with bright yellow borders and no glow, while Simple

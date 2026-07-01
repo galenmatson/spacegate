@@ -134,11 +134,25 @@ test.describe("public 3D map beta", () => {
       }),
       { timeout: 3000 }
     ).toBeLessThanOrEqual(36);
+    const diagnostics = drill.locator("[data-testid='system-preview-diagnostics']");
+    await expect(diagnostics).toBeVisible();
+    await expect(diagnostics).not.toHaveAttribute("open", "");
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("explore");
 
+    await page.evaluate(() => window.history.back());
+    await expect(drill).toHaveCount(0);
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("flight");
+
+    await page.locator(".map-history-pill").first().click();
+    await expect(drill).toBeVisible();
+    await drill.getByRole("button", { name: /^Explore$/i }).click();
+    await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await drill.getByRole("button", { name: /Back to Map/i }).click();
     await expect(drill).toHaveCount(0);
     await expect.poll(

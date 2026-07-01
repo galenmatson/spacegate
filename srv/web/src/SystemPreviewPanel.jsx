@@ -3518,6 +3518,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const normalizedPresentationMode = ["detail", "peek", "explore"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek";
   const embeddedPresentation = normalizedPresentationMode !== "detail";
+  const showDiagnostics = !compactPresentation && (evidenceFields.length > 0 || (status === "ready" && scene));
 
   const renderPreviewActions = () => (
     <div className="system-preview-actions">
@@ -3675,31 +3676,41 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             <strong>{formatNumber(renderedAssumptionCount, 0)}</strong>
             <span>assumptions</span>
           </div>
-          {!compactPresentation && evidenceFields.length > 0 && (
-            <div className="system-preview-evidence" data-testid="system-preview-evidence">
-              <span>evidence</span>
-              <ul>
-                {evidenceFields.map(([label, field]) => (
-                  <li key={`${label}:${field.key}`}>
-                    <span>{label}</span>
-                    <EvidencePill field={field} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {!compactPresentation && status === "ready" && scene && (
-            <div className="system-preview-policy" data-testid="system-preview-policy">
-              <span>render policy</span>
-              <ul>
-                {policyItems.map((item) => (
-                  <li key={item.key}>
-                    <strong>{item.label}</strong>
-                    <span title={item.detail}>{item.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {showDiagnostics && (
+            <details className="system-preview-diagnostics" data-testid="system-preview-diagnostics" open={!embeddedPresentation}>
+              <summary>
+                <span>Diagnostics</span>
+                <strong>{formatNumber(evidenceFields.length, 0)} evidence</strong>
+              </summary>
+              <div className="system-preview-diagnostics-body">
+                {evidenceFields.length > 0 && (
+                  <div className="system-preview-evidence" data-testid="system-preview-evidence">
+                    <span>evidence</span>
+                    <ul>
+                      {evidenceFields.map(([label, field]) => (
+                        <li key={`${label}:${field.key}`}>
+                          <span>{label}</span>
+                          <EvidencePill field={field} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {status === "ready" && scene && (
+                  <div className="system-preview-policy" data-testid="system-preview-policy">
+                    <span>render policy</span>
+                    <ul>
+                      {policyItems.map((item) => (
+                        <li key={item.key}>
+                          <strong>{item.label}</strong>
+                          <span title={item.detail}>{item.value}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </details>
           )}
         </div>
       </div>

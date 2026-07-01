@@ -455,7 +455,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   pills, and move map hover/pinned object cards away from the bottom diagnostic
   strip
 - [x] Increase Star Map Explorer background opacity and separate compact
-  simulator readout pills from taller Evidence/Render Policy panels
+  simulator readout pills from a collapsible Diagnostics disclosure containing
+  Evidence and Render Policy
+- [x] Capture browser Back in Star Map Explorer so the browser back button
+  returns to map flight instead of leaving the map route
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current
