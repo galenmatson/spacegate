@@ -424,6 +424,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add clearly labeled `disc_assumption` visual binary fallback orbits for
   two-star scenes with no source orbit edge, with Sirius Playwright and
   known-system verifier coverage
+- [x] Add simulation-tree fallback subsystem handles for stale/public slices
+  that lack explicit subsystem bodies, labeled as DERIVED `render_scene`
+  presentation structure with source-native handles preferred when present
+- [x] Add `fields.visual_stellar_class` for simulator stars, including
+  `mass_main_sequence_prior_v1` ASSUMED render priors when mass is known but
+  source spectral/temperature evidence is missing
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

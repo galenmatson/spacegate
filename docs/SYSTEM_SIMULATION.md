@@ -17,7 +17,11 @@ Already in place:
   star bodies, planet bodies, binary orbit groups, and provenance-bearing fields
 - `render_scene.diagnostics` summarizes final rendered body counts, orbit
   endpoint/relation counts, field SOURCE/DERIVED/ASSUMED/MISSING counts, and
-  assumption persistence counts for API-level audit checks
+  assumption persistence counts for API-level audit checks. It also reports
+  `subsystem_handle_counts.source_native` and
+  `subsystem_handle_counts.simulation_tree_fallback` so public-edge checks can
+  distinguish source hierarchy materialization from acceptable runtime
+  fallback handles on stale slices.
 - `render_scene.simulation_tree` exposes `simulation_tree_v1`, a derived
   renderer tree with root, barycenter, and body nodes assembled from emitted
   ARM-backed orbit rows. When an outer orbit side exactly matches an inner
@@ -56,6 +60,19 @@ Already in place:
   existing hierarchy evidence, not new science inventory; their visible
   component label, hierarchy basis, and rendered-child count are
   provenance-backed fields.
+- If explicit hierarchy-backed subsystem bodies are absent, `render_scene_v0.2`
+  may derive inspectable fallback subsystem handles from
+  `render_scene.simulation_tree` barycenter nodes. These handles are labeled as
+  `DERIVED` `render_scene` presentation/runtime structure with
+  `source.basis="simulation_tree_fallback_subsystem"`; they do not create
+  source-native hierarchy facts and must not replace better ARM subsystem
+  evidence when present.
+- Rendered stellar bodies expose `fields.visual_stellar_class` as the material
+  and label class used by the simulator. Source spectral evidence wins, then
+  defensible temperature/color constraints, compact-object evidence overrides
+  main-sequence priors, and mass-only visual classes use the deterministic
+  `mass_main_sequence_prior_v1` policy with `status="assumed"` and
+  `layer="render_scene"`. This field is not a catalog spectral class.
 - the first browser renderer has a single-writer shared pauseable local
   animation clock for all moving scene objects, sampled eccentric/inclined
   orbit guide paths, and hover vitals for rendered bodies; Pause freezes this

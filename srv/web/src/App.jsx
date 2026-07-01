@@ -1601,6 +1601,13 @@ function HierarchyFactChips({ node }) {
     chips.push({ label: "Spectral", value: String(facts.spectral_type_raw) });
   } else if (facts.spectral_class) {
     chips.push({ label: "Class", value: String(facts.spectral_class) });
+  } else if (facts.visual_stellar_class) {
+    chips.push({
+      label: "Visual prior",
+      value: String(facts.visual_stellar_class),
+      status: String(facts.visual_stellar_class_status || "assumed").toUpperCase(),
+      basis: facts.visual_stellar_class_basis,
+    });
   }
   if (facts.teff_k !== null && facts.teff_k !== undefined) {
     chips.push({ label: "Temp", value: formatKelvin(facts.teff_k, 0) });
@@ -1626,9 +1633,15 @@ function HierarchyFactChips({ node }) {
   return (
     <div className="hierarchy-fact-chips" role="list" aria-label="Star quick facts">
       {chips.map((chip) => (
-        <span key={`${chip.label}-${chip.value}`} className="chip hierarchy-fact-chip" role="listitem">
+        <span
+          key={`${chip.label}-${chip.value}`}
+          className={`chip hierarchy-fact-chip ${chip.status ? `status-${String(chip.status).toLowerCase()}` : ""}`}
+          role="listitem"
+          title={chip.basis ? `${chip.label}: ${chip.basis}` : undefined}
+        >
           <span className="hierarchy-fact-label">{chip.label}</span>
           <strong>{chip.value}</strong>
+          {chip.status ? <span className="hierarchy-fact-status">{chip.status}</span> : null}
         </span>
       ))}
     </div>

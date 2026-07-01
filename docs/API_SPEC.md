@@ -369,6 +369,10 @@ Response:
     "persisted_assumption_count": 0,
     "diagnostics": {
       "body_counts": {"stars": 0, "planets": 0, "subsystems": 0},
+      "subsystem_handle_counts": {
+        "source_native": 0,
+        "simulation_tree_fallback": 0
+      },
       "orbit_counts": {
         "total": 0,
         "by_endpoint_kind": {},
@@ -381,7 +385,7 @@ Response:
     "provenance_legend": {
       "source": "Catalog/source value from core or arm.",
       "derived": "Deterministic derived value; should be reviewed before stronger science claims.",
-      "assumed": "Deterministic disc-layer visualization prior only.",
+      "assumed": "Deterministic presentation/visualization prior only.",
       "missing": "Required value not available."
     }
   },
@@ -434,6 +438,15 @@ Contract notes:
   `body_class`, nullable `compact_type`, and `fields.object_type` for
   provenance-aware physical class inspection. Compact companions such as white
   dwarfs remain stellar render bodies while carrying their source compact class.
+  Stellar render bodies also expose `fields.visual_stellar_class`, the
+  presentation class used for simulator material/color choices. This is
+  separate from catalog spectral fields: source spectral evidence wins when
+  available, compact-object evidence overrides main-sequence priors, Teff/color
+  constraints may produce derived renderer classes, and mass-only
+  main-sequence priors use `basis="mass_main_sequence_prior_v1"`,
+  `status="assumed"`, and `layer="render_scene"`. Clients must label those
+  mass priors as visual/render assumptions and must not display them as source
+  spectral classes.
   Planet render bodies include `host_star_id` from the canonical planet row
   where available and `host_body_key` when that host resolves to a rendered
   star body. `source.host_resolution` records whether the linkage came from a
@@ -450,6 +463,13 @@ Contract notes:
   descendant stars plus provenance-backed `component_label`,
   `hierarchy_basis`, and derived child-count fields, but they do not create new
   core stars or ARM orbit facts.
+  When a served slice lacks explicit hierarchy-backed subsystem bodies, the API
+  may synthesize subsystem handles from `simulation_tree_v1` barycenter nodes.
+  These fallback handles carry `fallback_subsystem=true`,
+  `node_kind="simulation_tree_fallback"`, `source.layer="render_scene"`, and
+  `source.basis="simulation_tree_fallback_subsystem"`. They are runtime
+  presentation handles only. Source-native subsystem handles remain preferred
+  and suppress this fallback when present.
   Orbit rows include `endpoint_kind`; `star_pair` entries animate/render direct
   body pairs, while `group_pair` entries represent hierarchical subsystem
   edges with `primary_child_body_keys` and `secondary_child_body_keys` for
@@ -517,7 +537,8 @@ Contract notes:
   `seed`. These values are visual defaults only; they are not canonical science.
 - `render_scene.diagnostics` summarizes the final renderer-ready payload:
   body counts, orbit counts by endpoint/relation kind, field status counts, and
-  assumption persistence counts, plus a copy of the simulation-tree diagnostics.
+  assumption persistence counts, plus subsystem handle source/fallback counts
+  and a copy of the simulation-tree diagnostics.
   It is an audit aid derived from the emitted scene objects, not a replacement
   for the objects or their field provenance.
 - `rim` remains excluded from this science endpoint.

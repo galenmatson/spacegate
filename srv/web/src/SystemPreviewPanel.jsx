@@ -487,9 +487,14 @@ function firstFieldWithStatus(fields, keys = [], wantedStatus = "source") {
   return keys.map((key) => fieldRecord(fields, key)).find((field) => field?.status === wantedStatus) || null;
 }
 
+function visualStellarClassValue(body) {
+  return fieldRecord(body?.fields, "visual_stellar_class")?.value || body?.spectral_class || "";
+}
+
 function starClassProvenanceField(body) {
   const classValue = body?.spectral_class || "";
   const spectralTypeField = fieldRecord(body?.fields, "spectral_type_raw");
+  const visualClassField = fieldRecord(body?.fields, "visual_stellar_class");
   const teffField = fieldRecord(body?.fields, "teff_k");
   const objectTypeField = fieldRecord(body?.fields, "object_type");
   if (spectralTypeField?.value) {
@@ -505,6 +510,13 @@ function starClassProvenanceField(body) {
       basis: `${spectralTypeField.basis || "spectral_type_raw"}:class_extract`,
       confidence: spectralTypeField.confidence,
       notes: "Display class extracted from the component-specific spectral type field.",
+    };
+  }
+  if (visualClassField?.value) {
+    return {
+      ...visualClassField,
+      label: visualClassField.status === "assumed" ? "Visual prior" : "Visual class",
+      notes: visualClassField.notes || "Presentation-only renderer visual class; not a source spectral class.",
     };
   }
   if (classValue && teffField?.value !== null && teffField?.value !== undefined && teffField?.value !== "") {
@@ -1099,9 +1111,10 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   const haloRadius = Number(star.display_halo_radius_scene) || Math.max(radius * (bodyClass === "white_dwarf" ? 2.35 : 1.75), radius + 0.18);
   const pickRadius = Number(star.pick_radius_scene) || Math.max(radius * 1.8, 0.34);
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
+  const visualClass = String(visualStellarClassValue(star) || "").slice(0, 1).toUpperCase();
   const color = bodyClass === "white_dwarf"
     ? "#dceaff"
-    : (teffK ? starColor(teffK) : (STAR_COLORS[String(star.spectral_class || "").slice(0, 1)] || "#ff9d6b"));
+    : (teffK && fieldRecord(star.fields, "teff_k")?.status !== "assumed" ? starColor(teffK) : (STAR_COLORS[visualClass] || "#ff9d6b"));
   const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("star", star), [star]);

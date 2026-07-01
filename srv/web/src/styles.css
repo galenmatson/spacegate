@@ -4678,11 +4678,23 @@ main {
   font-size: 0.82rem;
 }
 
+.hierarchy-fact-chip.status-assumed {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+
 .hierarchy-fact-label {
   font-size: 0.68rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--subtle-ink);
+}
+
+.hierarchy-fact-status {
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .hierarchy-toggle {

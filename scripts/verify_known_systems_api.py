@@ -231,6 +231,19 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
     body_counts = diagnostics.get("body_counts") or {}
     if body_counts.get("stars") != len(scene_stars) or body_counts.get("planets") != len(scene_planets) or body_counts.get("subsystems") != len(scene_subsystems):
         raise AssertionError(f"{case.query}: render_scene diagnostic body counts do not match rendered bodies")
+    subsystem_handle_counts = diagnostics.get("subsystem_handle_counts") or {}
+    expected_fallback_subsystems = sum(1 for subsystem in scene_subsystems if subsystem.get("fallback_subsystem"))
+    expected_source_subsystems = len(scene_subsystems) - expected_fallback_subsystems
+    if subsystem_handle_counts:
+        if (
+            subsystem_handle_counts.get("simulation_tree_fallback") != expected_fallback_subsystems
+            or subsystem_handle_counts.get("source_native") != expected_source_subsystems
+        ):
+            raise AssertionError(
+                f"{case.query}: subsystem handle diagnostics mismatch: "
+                f"{subsystem_handle_counts} != source_native={expected_source_subsystems}, "
+                f"simulation_tree_fallback={expected_fallback_subsystems}"
+            )
     orbit_counts = diagnostics.get("orbit_counts") or {}
     if orbit_counts.get("total") != len(render_orbits):
         raise AssertionError(f"{case.query}: render_scene diagnostic orbit total does not match rendered orbits")
@@ -296,6 +309,19 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
         raise AssertionError(
             f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
         )
+    for star in scene_stars:
+        visual_class = field_by_key(star.get("fields"), "visual_stellar_class")
+        if not visual_class:
+            raise AssertionError(f"{case.query}: rendered star missing visual_stellar_class field: {star}")
+        if visual_class.get("status") not in {"derived", "assumed", "missing"}:
+            raise AssertionError(f"{case.query}: malformed visual stellar class status: {visual_class}")
+        if visual_class.get("status") != "missing" and visual_class.get("layer") != "render_scene":
+            raise AssertionError(f"{case.query}: visual stellar class should stay in render_scene: {visual_class}")
+        if visual_class.get("basis") == "mass_main_sequence_prior_v1" and visual_class.get("status") != "assumed":
+            raise AssertionError(f"{case.query}: mass visual class prior must be assumed: {visual_class}")
+        spectral_type = field_by_key(star.get("fields"), "spectral_type_raw")
+        if visual_class.get("basis") == "mass_main_sequence_prior_v1" and spectral_type and spectral_type.get("value"):
+            raise AssertionError(f"{case.query}: mass visual class prior used despite spectral type evidence: {star}")
     for planet in scene_planets:
         visual_class = field_by_key(planet.get("fields"), "planet_visual_class")
         if not visual_class:
@@ -467,8 +493,11 @@ def assert_render_scene_contract(case: BenchmarkCase, scene: dict[str, Any]) -> 
                 raise AssertionError(f"{case.query}: malformed rendered subsystem body: {subsystem}")
             if not component_field or component_field.get("status") not in {"source", "derived"}:
                 raise AssertionError(f"{case.query}: subsystem missing component label provenance: {subsystem}")
-            if not basis_field or basis_field.get("status") != "derived" or basis_field.get("layer") != "arm":
+            expected_layer = "render_scene" if subsystem.get("fallback_subsystem") else "arm"
+            if not basis_field or basis_field.get("status") != "derived" or basis_field.get("layer") != expected_layer:
                 raise AssertionError(f"{case.query}: subsystem missing hierarchy-basis provenance: {subsystem}")
+            if subsystem.get("fallback_subsystem") and subsystem.get("source", {}).get("basis") != "simulation_tree_fallback_subsystem":
+                raise AssertionError(f"{case.query}: fallback subsystem missing explicit source basis: {subsystem}")
 
 
 def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
@@ -529,6 +558,19 @@ def verify_case(base_url: str, case: BenchmarkCase, warnings: list[str]) -> str:
             raise AssertionError(f"{case.query}: hierarchy node {expected.display_name!r} missing quick_facts")
         for fact_key, expected_value in expected.facts.items():
             assert_fact_matches(f"{case.query} {expected.display_name}", fact_key, expected_value, facts.get(fact_key))
+        if (
+            expected.facts.get("mass_msun") is not None
+            and expected.facts.get("spectral_type_raw") is None
+            and expected.facts.get("spectral_class") is None
+        ):
+            if not facts.get("visual_stellar_class"):
+                raise AssertionError(
+                    f"{case.query}: hierarchy node {expected.display_name!r} should expose a mass-based visual class prior"
+                )
+            if facts.get("visual_stellar_class_status") != "assumed" or facts.get("visual_stellar_class_basis") != "mass_main_sequence_prior_v1":
+                raise AssertionError(
+                    f"{case.query}: hierarchy node {expected.display_name!r} has malformed visual class prior: {facts}"
+                )
 
     for node in hierarchy_nodes:
         component_family = str(node.get("component_family") or "")

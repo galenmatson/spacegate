@@ -926,6 +926,14 @@ Readiness gaps:
 - June 30, 2026 render diagnostics patch adds API-emitted counts for final
   renderer bodies, orbit endpoint/relation kinds, field statuses, and
   assumption persistence, with strict benchmark verifier coverage.
+- July 1, 2026 simulator robustness patch adds `simulation_tree_v1` fallback
+  subsystem handles for stale/public slices where explicit subsystem bodies are
+  missing, while preserving source-native ARM hierarchy handles when present.
+- July 1, 2026 visual stellar class policy patch adds renderer-only
+  `fields.visual_stellar_class`, with source spectral/temperature evidence
+  preferred, compact-object evidence overriding main-sequence priors, and
+  mass-only `mass_main_sequence_prior_v1` values labeled as ASSUMED
+  `render_scene` presentation priors rather than catalog spectral facts.
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 

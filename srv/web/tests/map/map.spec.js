@@ -374,7 +374,7 @@ test.describe("public 3D map beta", () => {
     const systemId = payload.items?.[0]?.system_id;
     expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     const fallback = page.locator("[data-testid='system-preview-snapshot-fallback']");
     await expect(fallback).toBeVisible();
@@ -404,7 +404,7 @@ test.describe("public 3D map beta", () => {
       body: JSON.stringify({ detail: "forced simulation-scene failure" }),
     }));
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     const fallback = page.locator("[data-testid='system-preview-snapshot-fallback']");
     await expect(fallback).toBeVisible();
@@ -422,7 +422,7 @@ test.describe("public 3D map beta", () => {
     const systemId = payload.items?.[0]?.system_id;
     expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered planets/i);
@@ -497,19 +497,33 @@ test.describe("public 3D map beta", () => {
     expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(6);
     expect(scenePayload.render_scene?.bodies?.subsystems?.length).toBeGreaterThanOrEqual(3);
     expect(scenePayload.render_scene?.bodies?.subsystems?.some((subsystem) => subsystem.display_name === "Castor AB")).toBeTruthy();
+    const massPriorStars = (scenePayload.render_scene?.bodies?.stars || []).filter(
+      (star) => star.fields?.visual_stellar_class?.basis === "mass_main_sequence_prior_v1"
+    );
+    expect(massPriorStars.length).toBeGreaterThanOrEqual(2);
+    for (const star of massPriorStars) {
+      expect(star.spectral_class || null).toBeNull();
+      expect(star.fields?.visual_stellar_class?.status).toBe("assumed");
+      expect(star.fields?.visual_stellar_class?.layer).toBe("render_scene");
+    }
     for (const subsystem of scenePayload.render_scene?.bodies?.subsystems || []) {
       expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
       expect(subsystem.fields?.hierarchy_basis?.status).toBe("derived");
-      expect(subsystem.fields?.hierarchy_basis?.layer).toBe("arm");
+      expect(subsystem.fields?.hierarchy_basis?.layer).toBe(subsystem.fallback_subsystem ? "render_scene" : "arm");
     }
+    const subsystemDiagnostics = scenePayload.render_scene?.diagnostics?.subsystem_handle_counts || {};
+    const fallbackCount = (scenePayload.render_scene?.bodies?.subsystems || []).filter((subsystem) => subsystem.fallback_subsystem).length;
+    expect(subsystemDiagnostics.simulation_tree_fallback || 0).toBe(fallbackCount);
     expect(scenePayload.render_scene?.orbits?.length).toBeGreaterThanOrEqual(3);
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered subsystems/i);
     await expect(page.locator(".system-preview-readout")).toContainText(/rendered orbits/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
+    await expect(page.locator(".hierarchy-panel")).toContainText(/Visual prior/i);
+    await expect(page.locator(".hierarchy-panel")).toContainText(/ASSUMED/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect.poll(
@@ -561,7 +575,7 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
     await expect.poll(
-      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassDerivedCount || 0)),
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
   });
@@ -610,7 +624,7 @@ test.describe("public 3D map beta", () => {
         expect(sideMass(groupOrbit.primary_child_body_keys), `${query} primary side mass`).toBeGreaterThan(0);
         expect(sideMass(groupOrbit.secondary_child_body_keys), `${query} secondary side mass`).toBeGreaterThan(0);
 
-        await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+        await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
         const previewCanvas = page.locator(".system-preview-canvas canvas");
         await expect(previewCanvas).toBeVisible();
@@ -655,7 +669,7 @@ test.describe("public 3D map beta", () => {
     const detailPayload = await detailResponse.json();
     expect(detailPayload.hierarchy?.counts?.stars).toBe(3);
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     const hierarchyPanel = page.locator(".hierarchy-panel");
     await expect(hierarchyPanel).toBeVisible();
     await expect(hierarchyPanel.getByText("HD 213885 AA", { exact: true })).toBeVisible();
@@ -708,7 +722,7 @@ test.describe("public 3D map beta", () => {
     expect(orbits.filter((orbit) => orbit.endpoint_kind === "star_pair")).toHaveLength(2);
     expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(2);
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect(previewCanvas).toBeVisible();
@@ -757,6 +771,10 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassMissingCount || 0)),
       { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
+      { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
   });
 
@@ -788,7 +806,7 @@ test.describe("public 3D map beta", () => {
     expect(fallbackOrbit.fields?.period_days?.status).toBe("assumed");
     expect(fallbackOrbit.fields?.semi_major_axis_au?.status).toBe("assumed");
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-readout")).toContainText(/1\s*rendered orbits/i);
@@ -817,7 +835,7 @@ test.describe("public 3D map beta", () => {
     expect(scenePayload.render_scene?.bodies?.planets?.some((planet) => planet.host_body_key)).toBeTruthy();
     expect(scenePayload.render_scene?.bodies?.planets?.[0]?.source?.host_resolution).toMatch(/render_star/);
 
-    await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect(previewCanvas).toBeVisible();
@@ -854,7 +872,7 @@ test.describe("public 3D map beta", () => {
         expect(scenePayload.render_scene?.bodies?.stars?.length || 0).toBeGreaterThanOrEqual(benchmark.minStars);
         expect(scenePayload.render_scene?.bodies?.planets?.length || 0).toBeGreaterThanOrEqual(benchmark.minPlanets);
 
-        await page.goto(`/systems/${systemId}`, { waitUntil: "networkidle" });
+        await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
         const previewCanvas = page.locator(".system-preview-canvas canvas");
         await expect(previewCanvas).toBeVisible();

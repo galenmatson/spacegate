@@ -600,6 +600,30 @@ def _spectral_class_from_type(raw: Any) -> Optional[str]:
     return match.group(1) if match else None
 
 
+def _visual_stellar_class_from_mass_prior(mass_msun: Any) -> Optional[str]:
+    try:
+        mass = float(mass_msun)
+    except Exception:
+        return None
+    if mass <= 0:
+        return None
+    if mass < 0.08:
+        return "L"
+    if mass < 0.65:
+        return "M"
+    if mass < 0.85:
+        return "K"
+    if mass < 1.04:
+        return "G"
+    if mass < 1.4:
+        return "F"
+    if mass < 2.1:
+        return "A"
+    if mass < 16.0:
+        return "B"
+    return "O"
+
+
 def fetch_map_systems(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -1696,9 +1720,20 @@ def _enrich_hierarchy_star_nodes(
     for node_key, facts in star_facts.items():
         if node_key not in node_map:
             continue
+        visual_stellar_class = None
+        visual_stellar_class_status = None
+        visual_stellar_class_basis = None
+        if not facts.get("spectral_type_raw") and not facts.get("spectral_class"):
+            visual_stellar_class = _visual_stellar_class_from_mass_prior(facts.get("mass_msun"))
+            if visual_stellar_class:
+                visual_stellar_class_status = "assumed"
+                visual_stellar_class_basis = "mass_main_sequence_prior_v1"
         node_map[node_key]["quick_facts"] = {
             "spectral_type_raw": facts.get("spectral_type_raw"),
             "spectral_class": facts.get("spectral_class"),
+            "visual_stellar_class": visual_stellar_class,
+            "visual_stellar_class_status": visual_stellar_class_status,
+            "visual_stellar_class_basis": visual_stellar_class_basis,
             "teff_k": facts.get("teff_k"),
             "mass_msun": facts.get("mass_msun"),
             "radius_rsun": facts.get("radius_rsun"),

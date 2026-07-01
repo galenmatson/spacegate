@@ -218,6 +218,14 @@ Implementation note:
   host star, or a catalog-equivalent source-native component, resolves into the
   rendered scene; two-star scenes without source orbit edges may use clearly
   labeled `disc_assumption` visual binary fallback orbits for legibility; the
+  simulator now exposes renderer-only `fields.visual_stellar_class` so missing
+  spectral classes can still produce useful star colors/readouts from source
+  spectral/temperature evidence, compact-object evidence, or clearly labeled
+  mass-based visual priors without promoting those priors into catalog facts;
+  stale public slices that lack explicit subsystem bodies can also derive
+  inspectable subsystem handles from `simulation_tree_v1` barycenters, labeled
+  as `render_scene` runtime structure while source-native hierarchy handles
+  remain preferred; the
   public preview now supports pause/start, speed, reset, orbit visibility,
   camera orbit/zoom/pan with reset-view support, hover, pinned copyable
   readouts with in-scene selected-object feedback, SDF text object labels for

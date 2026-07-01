@@ -257,6 +257,12 @@ Rules:
   preserved and the confidence tier is no higher than `low`.
 - v1 intentionally does not persist spectral-type proxy rows; those remain
   runtime diagnostics until the stricter source-input path is validated.
+- Mass-only visual stellar classes such as the simulator
+  `mass_main_sequence_prior_v1` are presentation/render priors, not ARM
+  classifications. They may guide color/material choices and hierarchy UI
+  labels when clearly marked as ASSUMED, but they must not be written into ARM
+  spectral-class or derived-physical-parameter tables without a separate
+  reviewed science derivation policy.
 - derived orbital values such as semi-major axis from period and host mass must
   retain the exact input mass/period basis and method version.
 - Astronomy Agency enrichment must treat non-superseded rows in this table as a

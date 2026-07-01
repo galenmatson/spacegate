@@ -133,6 +133,15 @@ def main():
         raise AssertionError("simulation scene render visual scale modes missing")
     if not isinstance(visual_scale.get("collision_policy"), dict):
         raise AssertionError("simulation scene render visual scale collision policy missing")
+    render_stars = ((scene_json.get("render_scene") or {}).get("bodies") or {}).get("stars") or []
+    for star in render_stars:
+        visual_class = (star.get("fields") or {}).get("visual_stellar_class")
+        if not isinstance(visual_class, dict):
+            raise AssertionError(f"rendered star missing visual_stellar_class field: {star}")
+        if visual_class.get("status") not in {"derived", "assumed", "missing"}:
+            raise AssertionError(f"unexpected visual_stellar_class status: {visual_class}")
+        if visual_class.get("status") != "missing" and visual_class.get("layer") != "render_scene":
+            raise AssertionError(f"visual_stellar_class must remain render_scene presentation data: {visual_class}")
     render_assumptions = scene_json.get("render_scene", {}).get("assumptions") or []
     if scene_json.get("render_scene", {}).get("assumption_count") != len(render_assumptions):
         raise AssertionError("simulation scene render assumption_count mismatch")
@@ -308,6 +317,13 @@ def main():
                 )
         if facts.get("vmag") == 0:
             raise AssertionError(f"Castor leaf {leaf_name} has placeholder Vmag 0.0")
+        if "spectral_type_raw" not in expected_facts and facts.get("mass_msun") is not None:
+            if not facts.get("visual_stellar_class"):
+                raise AssertionError(f"Castor leaf {leaf_name} missing mass-based visual class prior")
+            if facts.get("visual_stellar_class_status") != "assumed":
+                raise AssertionError(f"Castor leaf {leaf_name} visual class prior should be assumed: {facts}")
+            if facts.get("visual_stellar_class_basis") != "mass_main_sequence_prior_v1":
+                raise AssertionError(f"Castor leaf {leaf_name} visual class prior basis mismatch: {facts}")
 
     common_name_cases = [
         ("Castor", "07346+3153", None, None, "Castor"),

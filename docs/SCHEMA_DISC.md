@@ -282,6 +282,14 @@ Rules:
   `visibility_label='assumed'`, and `layer='disc_assumption'`; they are only
   camera/trace legibility defaults and do not repair the missing source
   orbital element.
+- Rendered stars may receive a transient visual stellar-class prior from mass
+  when source spectral/temperature/class evidence is missing. The current
+  simulator exposes this as `fields.visual_stellar_class` with
+  `basis='mass_main_sequence_prior_v1'`, `status='assumed'`, and
+  `layer='render_scene'`. If these visual priors are later persisted, they
+  belong in `disc` as presentation assumptions, not in core spectral fields or
+  ARM science classifications. Remnant, evolved, metallicity, and unresolved
+  multiple alternatives remain explicitly not excluded by this prior.
 - Browser orbit guide/readout helpers may expose provenance fields such as
   `orbit_guide_trace`, `planet_orbit_trace`, and `binary_body_paths` to explain
   sampled path geometry and mass-weighted/equal-mass display choices. Persist
