@@ -26,31 +26,28 @@
   - Planet → host matching prioritized by Gaia DR3 ID, then HIP, HD, then hostname.
   - Display naming precedence: common/human names first, then survey/mission host labels (TRAPPIST/Kepler/TOI/WASP family), Gaia ID last fallback.
   - Separate databases for layer boundaries:
-    - *galaxy*: immutable canonical science corpus
-      - Gaia-first inventory with merged auxiliary science evidence (NSS/WDS/ORB6/MSC/SBX and side catalogs)
-      - AT-HYG contributes transitional crosswalk enrichment only
-    - *core*: the Spacegate database (fast)
-      - deterministic science slice (typically <=1000 LY of Sol)
-      - million-scale object counts tuned for interactive performance
-      - tuned for performance, scaled for resources
-    - *halo*: explicit opt-in science projection (slow)
-      - complementary science rows excluded from `core` by slice policy
-    - *arm*: immutable supplemental science
-      - observational side tables outside core hot paths
-      - Epoch transforms (for example J2000 -> J2016 propagated positions)
-      - Derived kinematics and orbital parameters
-      - System hierarchy inferences with confidence
-      - Crossmatch confidence scores and physical-consistency flags
-      - Deterministic classifications computed from core fields
-    - *disc*: reproducible derivatives
-      - system animations
-      - factsheets
-      - AI narration
-      - generated imagery
-      - links to external catalogs, articles, and papers
-    - *rim*: editable fiction
-      - rim overlays from popular science fiction
-      - user creatable maps, links, economy, and narrative
+    - *core*: immutable served canonical astronomy inventory/projection
+      - Gaia-first systems, stars, and planets
+      - accepted object identity, accepted host/membership links, and selected hot-path scalar facts
+      - deterministic public slices tuned for interactive search, detail, and map traffic
+      - AT-HYG may contribute transitional alias/crosswalk enrichment, but not canonical inventory rows
+    - *arm*: immutable science evidence/support
+      - source-native support rows outside core hot paths
+      - multiplicity hierarchy and orbit graph evidence from NSS/WDS/ORB6/MSC/SBX and related catalogs
+      - normalized orbital solutions, derived science candidates, diagnostics, and future adjudication proposals
+      - confidence, provenance, source lineage, and transform lineage for support rows
+    - *disc*: reproducible presentation and enrichment derivatives
+      - coolness scoring, snapshots, factsheets, expositions, source links, and generated media metadata
+      - clearly labeled simulation/presentation assumptions that never become science claims by themselves
+      - regenerated from core/arm plus explicit generator versions
+    - *rim*: editable fiction and worldbuilding overlays
+      - namespace-scoped user/project entities and relationships
+      - optional map overlays such as gates, routes, factions, stations, and cultural references
+      - references canonical science by stable object key without mutating core, arm, or disc
+  - Retired layer names:
+    - *galaxy* and *halo* are no longer active served/Admin layers in the current architecture.
+      Older helper scripts and metadata may still reference them during migration or experiments, but the
+      authoritative layer contract is core/arm/disc/rim.
       
 ## Packs Contract
 
