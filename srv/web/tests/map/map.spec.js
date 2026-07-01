@@ -79,7 +79,11 @@ test.describe("public 3D map beta", () => {
     test.skip(!hasSnapshot, "served build has no map systems with deterministic snapshots");
 
     await openMap(page);
-    const chip = page.locator(".map-snapshot-chip.ready").first();
+    await page.locator(".map-history-pill").first().click();
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toBeVisible();
+    const chip = drill.locator(".map-snapshot-chip.ready").first();
+    test.skip(await chip.count() === 0, "initial selected map system has no deterministic snapshot");
     await expect(chip).toBeVisible();
     await chip.hover();
     await expect(page.locator(".map-snapshot-popover img")).toBeVisible();
@@ -102,6 +106,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill).not.toContainText(/System Simulation Peek/i);
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
@@ -223,7 +228,7 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe("structure");
     await scaleModeSelect.selectOption("true_orbits");
-    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/True Orbits/i);
+    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/Orbit/i);
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
       { timeout: 3000 }
@@ -279,7 +284,7 @@ test.describe("public 3D map beta", () => {
     await expect(renderPolicy).toBeVisible();
     await expect(renderPolicy).toContainText(/render policy/i);
     await expect(renderPolicy).toContainText(/Local beta day/i);
-    await expect(renderPolicy).toContainText(/Structure Scale/i);
+    await expect(renderPolicy).toContainText(/Structured Scale/i);
     await expect(renderPolicy).toContainText(/persisted|No assumptions/i);
     await expect(renderPolicy).toContainText(/Live 3d|Live 3D/i);
     await expect(renderPolicy).toContainText(/Deterministic Snapshot/i);

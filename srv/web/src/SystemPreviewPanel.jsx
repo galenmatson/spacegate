@@ -16,10 +16,10 @@ const SIM_SPEED_OPTIONS = [
   ["500", "500x"],
 ];
 const SCALE_MODE_OPTIONS = [
-  { value: "structure", label: "Structure", detail: "Collision-safe clarity scale; preserves hierarchy readability." },
-  { value: "true_orbits", label: "True Orbits", detail: "Preserves linear planet semi-major-axis ratios within the scene." },
-  { value: "true_bodies", label: "True Bodies", detail: "Preserves more body-size contrast while keeping targets inspectable." },
-  { value: "log", label: "Log Scale", detail: "Compresses body and orbit ranges with logarithmic transforms." },
+  { value: "structure", label: "Structured", detail: "Collision-safe clarity scale; preserves hierarchy readability." },
+  { value: "true_orbits", label: "Orbit", detail: "Preserves linear planet semi-major-axis ratios within the scene." },
+  { value: "true_bodies", label: "Body", detail: "Preserves more body-size contrast while keeping targets inspectable." },
+  { value: "log", label: "Log", detail: "Compresses body and orbit ranges with logarithmic transforms." },
 ];
 const DEFAULT_VISUAL_SCALE = {
   schema_version: "visual_scale_beta_v1",
@@ -3129,7 +3129,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showLabels = true, selectedObjectId = "", transparentBackground = false, onHover, onSelect, onClockSample }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3203,9 +3203,9 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
     <Canvas
       camera={{ position: [0, 6.2, 10.8], fov: 43 }}
       dpr={[1, 1.75]}
-      gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+      gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
     >
-      <color attach="background" args={["#050b12"]} />
+      {!transparentBackground && <color attach="background" args={["#050b12"]} />}
       <CameraControls resetToken={resetToken} />
       <CanvasHoverRaycaster onHover={onHover} />
       <PreviewObjects
@@ -3619,6 +3619,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 showHabitableZones={showHabitableZones}
                 showLabels={showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
+                transparentBackground={normalizedPresentationMode !== "detail"}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}

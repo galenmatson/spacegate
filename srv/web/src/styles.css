@@ -470,18 +470,18 @@
   grid-template-rows: 1fr;
   gap: 0;
   color: var(--map-hud-strong);
-  background: color-mix(in srgb, var(--panel) 18%, transparent);
-  border: 1px solid var(--map-hud-border);
-  box-shadow: 0 0 42px color-mix(in srgb, var(--accent) 14%, transparent);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--panel) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 62%, transparent);
+  box-shadow: 0 0 42px color-mix(in srgb, var(--accent) 10%, transparent);
+  backdrop-filter: blur(7px);
 }
 
 .map-system-drill-peek {
   right: 18px;
   bottom: 18px;
-  width: min(900px, calc(100vw - 336px));
-  height: min(78vh, 760px);
-  min-width: 620px;
+  width: min(675px, calc(100vw - 336px));
+  height: min(52vh, 510px);
+  min-width: 460px;
   padding: 0;
   border-radius: 10px;
   overflow: hidden;
@@ -491,7 +491,7 @@
   inset: 76px 28px 22px;
   padding: 0;
   border-color: color-mix(in srgb, var(--accent) 36%, transparent);
-  background: color-mix(in srgb, var(--panel) 14%, transparent);
+  background: color-mix(in srgb, var(--panel) 8%, transparent);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -517,7 +517,7 @@
   padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 46%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 26%, transparent);
+  background: color-mix(in srgb, var(--panel) 20%, transparent);
   backdrop-filter: blur(10px);
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -559,7 +559,7 @@
 .map-system-vital-strip .map-snapshot-chip {
   min-height: 25px;
   border-color: color-mix(in srgb, var(--map-hud-border) 44%, transparent);
-  background: color-mix(in srgb, var(--panel) 18%, transparent);
+  background: color-mix(in srgb, var(--panel) 14%, transparent);
   color: var(--map-hud-strong);
   backdrop-filter: blur(8px);
   pointer-events: auto;
@@ -1008,7 +1008,7 @@
     inset: auto 12px 12px;
     width: auto;
     min-width: 0;
-    height: min(72vh, calc(100vh - 96px));
+    height: min(54vh, calc(100vh - 96px));
     max-height: calc(100vh - 96px);
     overflow: hidden;
   }
@@ -5074,7 +5074,6 @@ main {
 
 .map-system-drill .system-preview-actions .system-preview-toggle:nth-of-type(n + 3),
 .map-system-drill .system-preview-speed,
-.map-system-drill .system-preview-scale,
 .map-system-drill .system-preview-actions .status-chip {
   display: none;
 }
@@ -5103,7 +5102,7 @@ main {
   min-height: 100%;
   border: 0;
   border-radius: 0;
-  background: color-mix(in srgb, #050b12 88%, transparent);
+  background: color-mix(in srgb, #050b12 38%, transparent);
 }
 
 .map-system-drill .system-preview-readout {
@@ -5124,7 +5123,7 @@ main {
   padding: 4px 8px;
   border-color: color-mix(in srgb, var(--map-hud-border) 36%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 16%, transparent);
+  background: color-mix(in srgb, var(--panel) 12%, transparent);
   backdrop-filter: blur(8px);
 }
 

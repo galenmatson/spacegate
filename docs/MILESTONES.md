@@ -802,10 +802,11 @@ Readiness gaps:
   nearby systems are ranked from the current 100 ly map payload by coolness,
   distance, planets, multiplicity, and readable names.
 - July 1, 2026 map minimization pass removes the redundant selected-system
-  card during Peek/Explore, moves selected vitals into transparent simulation
-  overlay chips, places Pause/Start and Reset over the simulator canvas, and
-  combines selection history plus next-nearby suggestions into collapsible tray
-  sections.
+  card entirely, moves selected vitals into transparent simulation overlay
+  chips, places Pause/Start/Reset and the Structured/Orbit/Body/Log scale
+  selector over the simulator canvas, shrinks and increases transparency on
+  Peek, and combines selection history plus next-nearby suggestions into
+  collapsible tray sections.
 - July 1, 2026 simulator orientation transparency pass surfaces source
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains

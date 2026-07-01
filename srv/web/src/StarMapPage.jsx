@@ -1308,30 +1308,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         </nav>
       </header>
 
-      <aside className="map-hud map-selection-panel">
-        <span className="map-panel-label">Selected System</span>
-        {selectedSystem ? (
-          <>
-            <h2>
-              <SystemNameDisplay system={selectedSystem} linkTo={systemDetailPath(selectedSystem)} />
-            </h2>
-            <div className="map-chip-row">
-              <span className="map-chip">{formatNumber(selectedSystem.dist_ly, 2)} ly</span>
-              <span className="map-chip spectral">{selectedSystem.dominant_spectral_class}</span>
-              <span className="map-chip">{formatNumber(selectedSystem.star_count, 0)} stars</span>
-              <span className="map-chip">{formatNumber(selectedSystem.planet_count, 0)} planets</span>
-            </div>
-            <dl className="map-fact-grid">
-              <div><dt>Coolness</dt><dd>{formatNumber(selectedSystem.coolness_score, 2)}</dd></div>
-              <div><dt>Rank</dt><dd>{formatNumber(selectedSystem.coolness_rank, 0)}</dd></div>
-              <div><dt>Snapshot</dt><dd><SnapshotStatusChip system={selectedSystem} /></dd></div>
-            </dl>
-          </>
-        ) : (
-          <p>Click a star or use Select reticle to lock the center view.</p>
-        )}
-      </aside>
-
       <aside className="map-hud map-controls-panel">
         <span className="map-panel-label">Flight</span>
         <div className="map-control-buttons">
