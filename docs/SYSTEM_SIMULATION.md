@@ -56,6 +56,13 @@ Already in place:
 - simple source-native component leaves such as MSC A/B/C labels can reuse
   matching core star vitals for rendering, and catalog-equivalent core star
   IDs may bridge planet hosts onto those rendered source-native components
+- current builds still keep some planet-host leaf systems separate from their
+  wider multiplicity roots. Alpha Centauri / Proxima Centauri is the benchmark:
+  Proxima is both a directly searchable planet-host system and Alpha Centauri C
+  in the WDS/MSC hierarchy, but Alpha's root-level planet rollup does not yet
+  aggregate Proxima b/d. The intended fix is a provenance-preserving
+  host/component crosswalk plus descendant planet rollups, not blind planet
+  duplication or loss of the direct Proxima host view.
 - stellar render bodies preserve compact-object classification through
   `body_class`, nullable `compact_type`, and a source-backed `object_type`
   provenance field while keeping `object_type="star"` as the render role

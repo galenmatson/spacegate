@@ -90,7 +90,7 @@ function distanceBetweenSystems(a, b) {
   return Math.hypot(dx, dy, dz);
 }
 
-function SystemNameDisplay({ system, linkTo = null, className = "" }) {
+function SystemNameDisplay({ system, linkTo = null, className = "", showInfoButton = true }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   if (!system) {
@@ -129,7 +129,7 @@ function SystemNameDisplay({ system, linkTo = null, className = "" }) {
           {copied ? "Copied" : "Copy"}
         </button>
       )}
-      {isTruncated && (
+      {isTruncated && showInfoButton && (
         <button
           type="button"
           className="map-name-info"
@@ -1410,7 +1410,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                   }
                 }}
               >
-                <SystemNameDisplay system={system} />
+                <SystemNameDisplay system={system} showInfoButton={false} />
                 <span>{formatNumber(system.dist_ly, 1)} ly</span>
                 <span>{system.dominant_spectral_class}</span>
                 <span>{formatNumber(system.planet_count, 0)}p</span>
@@ -1431,7 +1431,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                   className={`map-history-pill map-neighbor-chip ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
                   onClick={() => selectSystem(system, { openPeek: true, focus: drillMode === "explore" })}
                 >
-                  <SystemNameDisplay system={system} />
+                  <SystemNameDisplay system={system} showInfoButton={false} />
                   <span>{formatNumber(routeDistance, 1)} ly</span>
                   <span>{system.dominant_spectral_class}</span>
                   <span>{formatNumber(system.planet_count, 0)}p</span>

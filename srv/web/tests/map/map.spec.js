@@ -98,6 +98,7 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop drill-in smoke uses hover/canvas layout");
     await openMap(page);
     await page.locator(".map-history-pill").first().click();
+    await expect(page.locator(".map-contacts-panel .map-name-info")).toHaveCount(0);
 
     const drill = page.locator("[data-testid='map-system-drill']");
     await expect(drill).toBeVisible();

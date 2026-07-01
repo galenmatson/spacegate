@@ -698,6 +698,13 @@ Readiness gaps:
   planet orbits around their render body/group. Playwright now covers hosted
   planet preview paths without requiring Alpha Centauri and Proxima to be
   folded into one rendered system.
+- July 1, 2026 Alpha/Proxima planet-host audit identified a remaining
+  host/root reconciliation gap: Proxima Centauri is correctly preserved as a
+  direct Gaia/name-root planet host with Proxima b/d, while Alpha Centauri's
+  WDS/MSC root includes Proxima as component C but does not yet aggregate those
+  descendant planets. Fix through a provenance-preserving host/component
+  crosswalk and descendant planet rollups, not by flattening the systems or
+  duplicating planet facts.
 - June 30, 2026 subsystem inspection pass adds renderer-ready subsystem bodies
   and subtle hierarchy-center markers for nodes with multiple rendered stellar
   descendants. Castor now verifies inspectable subsystem bodies such as Castor
