@@ -3243,7 +3243,7 @@ function SystemDetailPage({ buildId = "" }) {
           </div>
         </section>
 
-        <React.Suspense fallback={<section className="panel system-preview-panel">Loading live system preview...</section>}>
+        <React.Suspense fallback={<section className="panel system-preview-panel">Loading System Simulation...</section>}>
           <SystemPreviewPanel systemId={system.system_id} systemName={currentSystemDisplayName} snapshot={system.snapshot} />
         </React.Suspense>
 

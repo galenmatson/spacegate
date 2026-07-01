@@ -131,12 +131,28 @@ Initial layers:
   - selected-system snapshot chip that lazy-loads the deterministic snapshot
     preview on hover/focus when the map payload says a snapshot is ready
   - route summary with recent leg list, total distance, undo, and clear
+- System Simulation drill-in layer:
+  - clicking/selecting a star opens a framed `Peek` overlay without moving the
+    map camera
+  - Peek owns its own canvas gestures, so mouse/touch pan, orbit, and zoom
+    inspect the system simulation rather than moving the star map
+  - `Explore` promotes the same selected system to the focus path, flies the map
+    camera toward that system, and expands the System Simulation into the main
+    inspection layer
+  - `Esc` or `Back to Map` returns to flight; the current implementation keeps
+    the star map and system simulation as coordinated layers rather than one
+    continuous LY-to-AU canvas
+  - suggested nearby systems are computed client-side from the 100 ly payload
+    using coolness, distance, planet count, multiplicity, and human-readable
+    naming signals
 - public system-simulation scene-readiness API:
   - `GET /api/v1/systems/{system_id}/simulation-scene`
   - exposes current hierarchy, arm graph/orbit rows, and readiness fields for
     future live 3D system previews
-- first live system preview renderer:
+- System Simulation v1 renderer:
   - lazy-loaded on system detail pages
+  - lazy-loaded from the 3D map only when Peek/Explore opens, so initial map
+    flight does not pay the simulator chunk cost
   - renders source/derived/assumed scene bodies from `simulation-scene`
   - consumes additive `render_scene_v0.2` bodies/orbits when available
   - uses barycentric visual groups for connected binary/multiple-star edges
@@ -153,6 +169,9 @@ Initial layers:
     aligned while keeping reloads reproducible
   - surfaces source/derived/assumed/missing provenance pills in the preview
   - deterministic snapshots remain the fallback/reference artifact
+  - summarizes orbit-orientation evidence as source orientation, partial
+    sky-plane orientation, assumed roll, or local-clarity layout; this is an
+    audit label, not a galactic-alignment guarantee
 
 Planned layers:
 
@@ -174,7 +193,7 @@ Checked-in browser QA:
 - `srv/web/tests/map/map.spec.js`
 - `npm run test:map`
 - covers route create/undo/clear, selected snapshot hover preview, mobile HUD
-  compaction, and the live system-preview renderer smoke path
+  compaction, and the System Simulation Peek/Explore smoke path
 
 ## Deferred Decisions
 

@@ -792,6 +792,19 @@ Readiness gaps:
 - June 30, 2026 render-policy summary pass adds compact readout chips for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.
+- July 1, 2026 System Simulation naming pass promotes the former Live System
+  Preview terminology to `System Simulation v1` in public/runtime docs while
+  keeping `/simulation-scene` as the API contract.
+- July 1, 2026 map drill-in pass adds a lazy-loaded System Simulation
+  Peek/Explore layer to the 3D map. Peek inspects the selected system in a
+  framed overlay without moving the map camera; Explore flies the map camera
+  toward the selected system and expands the same simulation layer. Suggested
+  nearby systems are ranked from the current 100 ly map payload by coolness,
+  distance, planets, multiplicity, and readable names.
+- July 1, 2026 simulator orientation transparency pass surfaces source
+  orientation, partial sky-plane orientation, assumed roll, or local-clarity
+  labels in the simulator policy readout so map-to-system alignment remains
+  auditable instead of implied.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

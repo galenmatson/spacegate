@@ -3338,6 +3338,38 @@ function compactPolicyLabel(value, fallback = "Unknown") {
   return text.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function orientationSummary(scene) {
+  const renderOrbits = scene?.render_scene?.orbits || [];
+  const fields = renderOrbits.flatMap((orbit) => Object.values(orbit?.fields || {}).filter(Boolean));
+  const inclinationFields = fields.filter((field) => field?.key === "inclination_deg" && field.value !== null && field.value !== undefined);
+  const nodeFields = fields.filter((field) => (
+    ["longitude_ascending_node_deg", "node_deg"].includes(field?.key)
+    && field.value !== null
+    && field.value !== undefined
+  ));
+  const hasSourceNode = nodeFields.some((field) => String(field.status || "").toLowerCase() === "source");
+  const hasSourceInclination = inclinationFields.some((field) => String(field.status || "").toLowerCase() === "source");
+  const hasAssumedInclination = inclinationFields.some((field) => String(field.status || "").toLowerCase() === "assumed");
+  if (hasSourceNode && hasSourceInclination) {
+    return {
+      label: "SOURCE ORIENTATION",
+      detail: "Orbit orientation has source inclination and node-like orientation evidence.",
+    };
+  }
+  if (inclinationFields.length > 0) {
+    return {
+      label: hasAssumedInclination ? "ASSUMED ROLL" : "PARTIAL SKY-PLANE",
+      detail: hasAssumedInclination
+        ? "Some orbit planes use deterministic visual assumptions; missing roll is not catalog fact."
+        : "Inclination is present, but full 3D roll may be unknown without longitude of ascending node.",
+    };
+  }
+  return {
+    label: "LOCAL CLARITY",
+    detail: "No full source orientation is available; the renderer uses a readability-first local frame.",
+  };
+}
+
 function renderPolicyItems(scene, simulationDays = 0, speedMultiplier = 1, scaleMode = "structure") {
   const renderScene = scene?.render_scene || {};
   const visualScale = renderScene.visual_scale || {};
@@ -3348,6 +3380,7 @@ function renderPolicyItems(scene, simulationDays = 0, speedMultiplier = 1, scale
   const fallback = compactPolicyLabel(renderScene.fallback_visualization || "deterministic_snapshot");
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const scale = `${scaleModeLabel(activeScaleMode)} Scale`;
+  const orientation = orientationSummary(scene);
   const assumptionText = assumptionCount > 0
     ? `${formatNumber(persistedAssumptionCount, 0)}/${formatNumber(assumptionCount, 0)} persisted`
     : "No assumptions";
@@ -3369,6 +3402,12 @@ function renderPolicyItems(scene, simulationDays = 0, speedMultiplier = 1, scale
       label: "Assumptions",
       value: assumptionText,
       detail: renderScene.assumption_generator_version || "No renderer assumption generator reported.",
+    },
+    {
+      key: "orientation",
+      label: "Orientation",
+      value: orientation.label,
+      detail: orientation.detail,
     },
     {
       key: "fallback",
@@ -3408,7 +3447,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail" }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -3474,13 +3513,21 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     : (counts.assumed || 0) + assumedOrbitCount;
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
+  const orientation = orientationSummary(scene);
+
+  const normalizedPresentationMode = ["detail", "peek", "explore"].includes(presentationMode) ? presentationMode : "detail";
+  const compactPresentation = normalizedPresentationMode === "peek";
 
   return (
-    <section className="panel system-preview-panel" data-testid="system-preview-panel">
+    <section
+      className={`panel system-preview-panel system-preview-${normalizedPresentationMode}`}
+      data-testid="system-preview-panel"
+      data-presentation-mode={normalizedPresentationMode}
+    >
       <div className="system-preview-header">
         <div>
-          <h3>Live System Preview</h3>
-          <p>Beta renderer from the simulation-scene contract. Static snapshot remains the fallback.</p>
+          <h3>System Simulation v1</h3>
+          <p>Source-aware system renderer from the simulation-scene contract. Static snapshot remains the fallback.</p>
         </div>
         <div className="system-preview-actions">
           <button
@@ -3552,11 +3599,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           >
             {showLabels ? "Labels On" : "Labels Off"}
           </button>
+          {status === "ready" && scene && <span className="status-chip" title={orientation.detail}>{orientation.label}</span>}
           {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
         </div>
       </div>
       <div className="system-preview-layout">
-        <div className="system-preview-canvas" aria-label={`${systemName} live system preview`}>
+        <div className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
           {status === "fallback" || webglReady === false
             ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="WebGL unavailable" />
             : status === "ready" && scene
@@ -3627,7 +3675,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             <strong>{formatNumber((counts.missing || 0) + missingOrbitCount, 0)}</strong>
             <span>missing inputs</span>
           </div>
-          {evidenceFields.length > 0 && (
+          {!compactPresentation && evidenceFields.length > 0 && (
             <div className="system-preview-evidence" data-testid="system-preview-evidence">
               <span>evidence</span>
               <ul>
@@ -3640,7 +3688,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               </ul>
             </div>
           )}
-          {status === "ready" && scene && (
+          {!compactPresentation && status === "ready" && scene && (
             <div className="system-preview-policy" data-testid="system-preview-policy">
               <span>render policy</span>
               <ul>

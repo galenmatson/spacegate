@@ -430,6 +430,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add `fields.visual_stellar_class` for simulator stars, including
   `mass_main_sequence_prior_v1` ASSUMED render priors when mass is known but
   source spectral/temperature evidence is missing
+- [x] Rename the public live renderer surface to System Simulation v1 while
+  preserving the `/simulation-scene` API contract
+- [x] Add 3D map System Simulation Peek/Explore drill-in: Peek inspects without
+  moving the map camera, Explore focuses the map camera on the selected system,
+  and the simulator chunk is lazy-loaded on demand
+- [x] Add client-side suggested-neighbor ranking for the map drill-in layer
+  using coolness, distance, planet count, multiplicity, and readable-name
+  signals from the current 100 ly payload
+- [x] Surface simulator orientation basis labels for source orientation,
+  partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

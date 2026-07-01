@@ -90,6 +90,38 @@ test.describe("public 3D map beta", () => {
     expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewport.width);
   });
 
+  test("map selection opens System Simulation peek and explore drill-in", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop drill-in smoke uses hover/canvas layout");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toBeVisible();
+    await expect(drill).toHaveAttribute("data-drill-mode", "peek");
+    await expect(drill).toContainText(/System Simulation Peek/i);
+    await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("peek");
+
+    await drill.getByRole("button", { name: /^Explore$/i }).click();
+    await expect(drill).toHaveAttribute("data-drill-mode", "explore");
+    await expect(drill).toContainText(/System Simulation Explore/i);
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("explore");
+
+    await drill.getByRole("button", { name: /Back to Map/i }).click();
+    await expect(drill).toHaveCount(0);
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("flight");
+  });
+
   test("mobile layout keeps map controls compact", async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only layout check");
     await openMap(page);

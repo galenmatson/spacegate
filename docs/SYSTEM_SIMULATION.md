@@ -1,13 +1,17 @@
 # Spacegate System Simulation Contract
 
-This document defines the beta contract for live system simulation scenes. The
-goal is to let the public web client render deterministic stars, planets, and
-orbits while preserving Spacegate's layer boundaries.
+This document defines the beta contract for System Simulation v1, formerly
+called the Live System Preview in early implementation notes. The goal is to
+let the public web client render deterministic stars, planets, and orbits while
+preserving Spacegate's layer boundaries.
 
 ## Current Readiness
 
 Already in place:
 
+- public naming: `System Simulation v1` is the public/runtime name for the
+  renderer; the API route remains
+  `/api/v1/systems/{system_id}/simulation-scene`
 - public system detail rows with stable `system_id` and `stable_object_key`
 - `arm.component_entities`, `arm.system_hierarchy_edges`, `arm.orbit_edges`,
   and `arm.orbital_solutions`
@@ -119,6 +123,19 @@ Already in place:
   contrast, do not participate in picking, and do not create or alter
   science-layer fields. Dense-scene label priority/collision management remains
   future presentation work.
+- the 3D map can open System Simulation as a coordinated drill-in layer. Peek
+  mode inspects the selected system in a framed overlay without moving the map
+  camera. Explore mode flies the map camera toward the selected system and
+  expands the same simulation layer for deeper inspection. This is intentionally
+  a two-layer runtime for v1, not yet a single physically continuous map-to-AU
+  renderer.
+- orientation is surfaced transparently. When the payload has source-backed
+  inclination and node-like fields the renderer labels it source-oriented. With
+  inclination but no full node/roll evidence it labels partial sky-plane
+  orientation. With deterministic visual roll fallbacks it labels assumed roll.
+  With no renderable orientation evidence it labels local clarity layout. These
+  labels describe the renderer basis; they do not promote display orientation
+  into canonical science.
 - planet, binary, and group orbit inspection readouts carry the same
   provenance field objects as body readouts, so SOURCE/DERIVED/ASSUMED/MISSING
   pills can be focused/copied from orbit paths as well as bodies; popovers
@@ -167,6 +184,9 @@ Not ready yet:
 
 - full epoch controls and science-grade propagation policy beyond the beta
   clarity-scaled local animation clock
+- source-faithful galactic/map alignment for every system simulation; many
+  catalog inclinations are relative to observer geometry and lack the complete
+  3D orientation needed for an unambiguous galaxy-aligned local scene
 - public-edge deployment of the current sliced/rebuilt simulator dataset and
   restored snapshot fallback artifacts
 - uncertainty visualization

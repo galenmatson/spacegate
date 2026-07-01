@@ -1,6 +1,7 @@
-# Agent Enrichment
+# AI Astronomy Agency (AAA)
 
-This file is the prompt/runtime behavior note for agent-driven enrichment work.
+This file is the prompt/runtime behavior note for the AI Astronomy Agency
+(AAA), Spacegate's agent-driven enrichment system.
 
 Authoritative companion documents:
 

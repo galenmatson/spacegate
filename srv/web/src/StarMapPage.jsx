@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { apiUrl, fetchMapSystems, fetchSystemDetail } from "./api.js";
 
 const MAP_RADIUS_LY = 100;
+const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const KEYBOARD_BASE_SPEED = 7;
@@ -240,6 +241,20 @@ function priorityForSystem(item) {
   const rankScore = Number.isFinite(rank) ? Math.max(0, 8 - Math.log10(rank + 1) * 2.1) : 0;
   const coolScore = Number.isFinite(coolness) ? coolness / 10 : 0;
   return rankScore + coolScore + planetBoost + multiBoost + nearbyBoost;
+}
+
+function neighborInterestScore(system, selectedSystem) {
+  if (!system || !selectedSystem || system.system_id === selectedSystem.system_id) {
+    return -Infinity;
+  }
+  const coolness = Number(system.coolness_score);
+  const coolScore = Number.isFinite(coolness) ? coolness : 0;
+  const routeDistance = distanceBetweenSystems(system, selectedSystem);
+  const nearbyScore = Math.max(0, 24 - routeDistance) * 0.35;
+  const planetBoost = Number(system.planet_count || 0) > 0 ? 20 : 0;
+  const multiBoost = Number(system.star_count || 0) > 1 ? 10 : 0;
+  const nameBoost = isCatalogFallbackName(system.display_name) ? -8 : 4;
+  return coolScore + nearbyScore + planetBoost + multiBoost + nameBoost;
 }
 
 function prepareMapItems(rawItems) {
@@ -646,6 +661,8 @@ function FlightControls({
   stabilizationEnabled,
   onTelemetry,
   reticleSelectRequest,
+  focusTarget,
+  focusToken,
 }) {
   const { camera, gl } = useThree();
   const keysRef = useRef(new Set());
@@ -669,6 +686,7 @@ function FlightControls({
     startTime: 0,
     moved: false,
   });
+  const focusRef = useRef(null);
 
   const selectReticleTarget = useCallback(() => {
     const target = nearestSystemToReticle(camera, systems);
@@ -699,6 +717,21 @@ function FlightControls({
       selectReticleTarget();
     }
   }, [reticleSelectRequest, selectReticleTarget]);
+
+  useEffect(() => {
+    if (!focusTarget?.scene_position || !focusToken) {
+      return;
+    }
+    const target = new THREE.Vector3().fromArray(focusTarget.scene_position);
+    const fromTarget = camera.position.clone().sub(target);
+    const approach = fromTarget.lengthSq() > 0.0001
+      ? fromTarget.normalize()
+      : new THREE.Vector3(0.25, 0.16, 1).normalize();
+    const destination = target.clone()
+      .addScaledVector(approach, 5.4)
+      .addScaledVector(WORLD_UP, 1.35);
+    focusRef.current = { target, destination, elapsed: 0 };
+  }, [camera, focusTarget, focusToken]);
 
   const applyLookDelta = useCallback((deltaX, deltaY, sensitivity = 0.002) => {
     yawRef.current -= deltaX * sensitivity;
@@ -920,6 +953,20 @@ function FlightControls({
   }, [applyLookDelta, camera, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget]);
 
   useFrame((_, delta) => {
+    if (focusRef.current) {
+      const focus = focusRef.current;
+      focus.elapsed += delta;
+      const progress = Math.min(1, focus.elapsed / 0.9);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      camera.position.lerp(focus.destination, Math.min(0.18 + eased * 0.24, 0.42));
+      const direction = focus.target.clone().sub(camera.position).normalize();
+      yawRef.current = Math.atan2(-direction.x, -direction.z);
+      pitchRef.current = Math.asin(THREE.MathUtils.clamp(direction.y, -0.98, 0.98));
+      camera.rotation.set(pitchRef.current, yawRef.current, 0);
+      if (progress >= 1 || camera.position.distanceTo(focus.destination) < 0.08) {
+        focusRef.current = null;
+      }
+    }
     if (!controlsEnabled && document.pointerLockElement !== gl.domElement) {
       return;
     }
@@ -968,6 +1015,8 @@ function StarMapScene({
   onTelemetry,
   onCanvasReady,
   reticleSelectRequest,
+  focusTarget,
+  focusToken,
 }) {
   return (
     <Canvas
@@ -992,6 +1041,8 @@ function StarMapScene({
         stabilizationEnabled={stabilizationEnabled}
         onTelemetry={onTelemetry}
         reticleSelectRequest={reticleSelectRequest}
+        focusTarget={focusTarget}
+        focusToken={focusToken}
       />
     </Canvas>
   );
@@ -1012,12 +1063,15 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
   const [selectionHistory, setSelectionHistory] = useState([]);
+  const [drillMode, setDrillMode] = useState("flight");
+  const [focusToken, setFocusToken] = useState(0);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
 
-  const selectSystem = useCallback((system) => {
+  const selectSystem = useCallback((system, options = {}) => {
     if (!system) {
       setSelectedSystem(null);
+      setDrillMode("flight");
       return;
     }
     setSelectedSystem(system);
@@ -1025,6 +1079,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       system,
       ...history.filter((item) => item.system_id !== system.system_id),
     ].slice(0, 8));
+    if (options.openPeek) {
+      setDrillMode("peek");
+    }
+    if (options.focus) {
+      setFocusToken((value) => value + 1);
+    }
   }, []);
 
   useEffect(() => {
@@ -1043,13 +1103,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         setRouteMenu(null);
+        if (drillMode !== "flight") {
+          event.preventDefault();
+          setDrillMode("flight");
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [drillMode]);
+
+  useEffect(() => {
+    const onWheel = (event) => {
+      const inSystemDrill = event.target?.closest?.(".map-system-drill");
+      if (drillMode !== "flight" && !inSystemDrill && event.deltaY > 60) {
+        setDrillMode("flight");
+      }
+    };
+    window.addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, [drillMode]);
 
   useEffect(() => {
     let active = true;
@@ -1090,6 +1167,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     () => routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
     [routeSegments],
   );
+
+  const suggestedNeighbors = useMemo(() => {
+    if (!selectedSystem) {
+      return [];
+    }
+    const scored = systems
+      .filter((system) => system.system_id !== selectedSystem.system_id)
+      .map((system) => ({
+        system,
+        routeDistance: distanceBetweenSystems(selectedSystem, system),
+        score: neighborInterestScore(system, selectedSystem),
+      }))
+      .filter((entry) => Number.isFinite(entry.score));
+    const preferred = scored
+      .filter((entry) => entry.score >= 28 || entry.routeDistance <= 10)
+      .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
+      .slice(0, 5);
+    if (preferred.length >= 4) {
+      return preferred;
+    }
+    return scored
+      .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
+      .slice(0, 5);
+  }, [selectedSystem, systems]);
 
   const addRouteSegment = () => {
     const target = routeMenu?.target;
@@ -1139,13 +1240,17 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   );
 
   return (
-    <div className={`map-page ${telemetry.locked ? "reticle-active" : ""}`} ref={pageRef}>
+    <div
+      className={`map-page ${telemetry.locked ? "reticle-active" : ""} map-drill-${drillMode}`}
+      ref={pageRef}
+      data-map-drill-mode={drillMode}
+    >
       <div className="map-background-grid" aria-hidden="true" />
       {systems.length > 0 && (
         <StarMapScene
           systems={systems}
           selectedSystem={selectedSystem}
-          onSelect={selectSystem}
+          onSelect={(system) => selectSystem(system, { openPeek: true })}
           onRouteContext={setRouteMenu}
           routeSegments={routeSegments}
           controlsEnabled={controlsEnabled}
@@ -1155,6 +1260,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             canvasRef.current = canvas;
           }}
           reticleSelectRequest={reticleSelectRequest}
+          focusTarget={selectedSystem}
+          focusToken={focusToken}
         />
       )}
 
@@ -1283,11 +1390,11 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               role="button"
               tabIndex={0}
               className={`map-history-pill ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
-              onClick={() => selectSystem(system)}
+              onClick={() => selectSystem(system, { openPeek: true })}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  selectSystem(system);
+                  selectSystem(system, { openPeek: true });
                 }
               }}
             >
@@ -1330,7 +1437,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 type="button"
                 className="map-context-command ghost"
                 onClick={() => {
-                  selectSystem(routeMenu.target);
+                  selectSystem(routeMenu.target, { openPeek: true });
                   setRouteMenu(null);
                 }}
               >
@@ -1357,6 +1464,69 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Close
           </button>
         </div>
+      )}
+      {selectedSystem?.system_id && drillMode !== "flight" && (
+        <section
+          className={`map-system-drill map-system-drill-${drillMode}`}
+          data-testid="map-system-drill"
+          data-drill-mode={drillMode}
+          aria-label={`${formatName(selectedSystem.display_name)} system simulation`}
+        >
+          <div className="map-system-drill-bar">
+            <div>
+              <span className="map-panel-label">{drillMode === "peek" ? "System Simulation Peek" : "System Simulation Explore"}</span>
+              <strong>{shortDisplayName(selectedSystem.display_name)}</strong>
+            </div>
+            <div className="map-system-drill-actions">
+              {drillMode === "peek" && (
+                <button
+                  type="button"
+                  className="map-command-button primary"
+                  onClick={() => {
+                    setDrillMode("explore");
+                    setFocusToken((value) => value + 1);
+                  }}
+                >
+                  Explore
+                </button>
+              )}
+              <Link to={systemDetailPath(selectedSystem)} className="map-command-button ghost">
+                Detail
+              </Link>
+              <button type="button" className="map-command-button ghost" onClick={() => setDrillMode("flight")}>
+                Back to Map
+              </button>
+            </div>
+          </div>
+          <div className="map-system-drill-body">
+            <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
+              <SystemPreviewPanel
+                systemId={selectedSystem.system_id}
+                systemName={formatName(selectedSystem.display_name)}
+                presentationMode={drillMode}
+              />
+            </React.Suspense>
+            <aside className="map-system-suggestions" aria-label="Suggested nearby systems">
+              <span className="map-panel-label">Next Nearby</span>
+              {suggestedNeighbors.map(({ system, routeDistance, score }) => (
+                <button
+                  type="button"
+                  key={system.system_id}
+                  className="map-neighbor-button"
+                  onClick={() => selectSystem(system, { openPeek: true, focus: drillMode === "explore" })}
+                >
+                  <strong>{shortDisplayName(system.display_name)}</strong>
+                  <span>{formatNumber(routeDistance, 2)} ly · {system.dominant_spectral_class} · {formatNumber(system.planet_count, 0)}p</span>
+                  <em>cool {formatNumber(system.coolness_score, 1)} · signal {formatNumber(score, 1)}</em>
+                </button>
+              ))}
+            </aside>
+          </div>
+          <div className="map-system-drill-footer">
+            <span>{drillMode === "peek" ? "Peek mode inspects this system without moving the map camera." : "Explore mode focuses the map around this system."}</span>
+            <span>Esc or Back to Map returns to flight. AAA science layers will attach here after reviewed publication.</span>
+          </div>
+        </section>
       )}
     </div>
   );

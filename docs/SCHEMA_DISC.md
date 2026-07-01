@@ -265,7 +265,8 @@ Rules:
 - Agency enrichment should treat active assumptions as search targets for real
   values, but conversations or generated prose must not silently convert an
   assumption into a science claim.
-- Live System Preview v0.2 emits deterministic `procedural_prior_v1`
+- System Simulation v1, formerly Live System Preview v0.2, emits deterministic
+  `procedural_prior_v1`
   assumption fields in the API `render_scene` payload and mirrors every
   rendered `status="assumed"` field into `render_scene.assumptions` using this
   table's object-binding shape. `scripts/materialize_simulation_assumptions.py`

@@ -187,8 +187,9 @@ Implementation note:
   `/api/v1/systems/{system_id}/simulation-scene`; it assembles current core
   detail, hierarchy, arm graph/orbit rows, and readiness diagnostics without
   persisting visualization assumptions
-- the first live system preview renderer is lazy-loaded on system detail pages
-  and uses the scene-readiness endpoint; `render_scene_v0.2` adds renderer-ready
+- System Simulation v1 is lazy-loaded on system detail pages and from the 3D
+  map's Peek/Explore drill-in layer, and uses the scene-readiness endpoint;
+  `render_scene_v0.2` adds renderer-ready
   bodies/orbits and provenance-bearing source/derived/assumed/missing fields;
   hierarchical subsystem orbit edges are exposed as group-pair guides rather
   than collapsed into direct binary star orbits; subsystem hierarchy nodes with
@@ -234,8 +235,13 @@ Implementation note:
   provenance and missing planet inclinations may use deterministic low-tilt
   `disc_assumption` render fallbacks; these materials, labels, path guides, and
   fallbacks are transient presentation transforms over existing scene fields,
-  not source surface maps or ARM orbital evidence;
-  deterministic snapshots remain the fallback/reference artifact
+  not source surface maps or ARM orbital evidence; deterministic snapshots
+  remain the fallback/reference artifact. In the 3D map, selecting a star opens
+  System Simulation Peek without moving the map camera; Explore flies the map
+  camera toward the selected system and expands the same simulation layer. This
+  is the first production bridge between browsable local-space flight and
+  system-level inspection, but it remains a coordinated two-layer runtime
+  rather than a single continuous galaxy-to-AU physical simulation.
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
