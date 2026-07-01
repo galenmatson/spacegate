@@ -14,6 +14,7 @@ const SIM_SPEED_OPTIONS = [
   ["20", "20x"],
   ["100", "100x"],
   ["500", "500x"],
+  ["1000", "1000x"],
 ];
 const SCALE_MODE_OPTIONS = [
   { value: "structure", label: "Structured", detail: "Collision-safe clarity scale; preserves hierarchy readability." },

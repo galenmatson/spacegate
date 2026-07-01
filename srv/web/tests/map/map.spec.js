@@ -107,12 +107,14 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
+    await expect(drill.locator(".system-preview-speed select")).toBeVisible();
+    await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("peek");
 
-    await drill.getByRole("button", { name: /^Explore$/i }).click();
+    await drill.locator(".map-system-drill-title").click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill).toContainText(/System:/i);
     await expect.poll(

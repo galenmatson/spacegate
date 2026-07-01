@@ -473,7 +473,7 @@
   background: color-mix(in srgb, var(--panel) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 62%, transparent);
   box-shadow: 0 0 42px color-mix(in srgb, var(--accent) 10%, transparent);
-  backdrop-filter: blur(7px);
+  backdrop-filter: blur(3px);
 }
 
 .map-system-drill-peek {
@@ -512,17 +512,25 @@
 .map-system-drill-title {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   min-width: 0;
   max-width: min(460px, calc(100% - 260px));
   padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 46%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel) 20%, transparent);
-  backdrop-filter: blur(10px);
+  color: var(--map-hud-strong);
+  backdrop-filter: blur(4px);
   font-family: var(--font-display);
   font-size: 0.95rem;
   line-height: 1;
   pointer-events: auto;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-system-drill-title .map-name-wrap {
+  min-width: 0;
 }
 
 .map-system-drill-actions {
@@ -585,49 +593,20 @@
 .map-neighbor-list {
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: 5px;
   margin-top: 8px;
   min-width: 0;
 }
 
-.map-neighbor-button {
-  display: grid;
-  gap: 3px;
+.map-neighbor-chip {
   width: 100%;
-  padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--map-hud-border) 70%, transparent);
-  border-radius: 7px;
-  color: var(--map-hud-strong);
-  background: color-mix(in srgb, var(--surface-soft) 22%, transparent);
   text-align: left;
-  cursor: pointer;
 }
 
-.map-neighbor-button:hover,
-.map-neighbor-button:focus-visible {
+.map-neighbor-chip:hover,
+.map-neighbor-chip:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 62%, var(--map-hud-border));
   outline: none;
-}
-
-.map-neighbor-button strong,
-.map-neighbor-button span,
-.map-neighbor-button em {
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--font-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.map-neighbor-button strong {
-  font-size: 0.72rem;
-}
-
-.map-neighbor-button span,
-.map-neighbor-button em {
-  color: var(--map-hud-muted);
-  font-size: 0.64rem;
-  font-style: normal;
 }
 
 .map-fact-grid {
@@ -5069,11 +5048,10 @@ main {
   border-color: color-mix(in srgb, var(--map-hud-border) 40%, transparent);
   background: color-mix(in srgb, var(--panel) 16%, transparent);
   color: var(--map-hud-strong);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(4px);
 }
 
 .map-system-drill .system-preview-actions .system-preview-toggle:nth-of-type(n + 3),
-.map-system-drill .system-preview-speed,
 .map-system-drill .system-preview-actions .status-chip {
   display: none;
 }

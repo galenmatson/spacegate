@@ -150,9 +150,11 @@ Initial layers:
     preserving distance, class, star/planet counts, coolness, rank, and
     snapshot status
   - selection history and next-nearby suggestions share the same left-side tray
-    as collapsible sections, expanded by default
+    as collapsible sections, expanded by default, with both lists capped at
+    eight compact chips
   - the map drill-in presentation keeps Pause/Start and Reset as transparent
     simulator overlays, restores the Structured/Orbit/Body/Log scale selector,
+    keeps the speed selector including 1000x for long-period orbit inspection,
     uses a shorter/thinner transparent Peek panel, and lets the canvas fill the
     window
 - public system-simulation scene-readiness API:

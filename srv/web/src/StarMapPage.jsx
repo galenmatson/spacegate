@@ -1183,13 +1183,13 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     const preferred = scored
       .filter((entry) => entry.score >= 28 || entry.routeDistance <= 10)
       .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
-      .slice(0, 5);
+      .slice(0, 8);
     if (preferred.length >= 4) {
       return preferred;
     }
     return scored
       .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
-      .slice(0, 5);
+      .slice(0, 8);
   }, [selectedSystem, systems]);
 
   const addRouteSegment = () => {
@@ -1391,16 +1391,17 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               <span className="map-panel-label">Next Nearby</span>
             </summary>
             <div className="map-neighbor-list" aria-label="Suggested nearby systems">
-              {suggestedNeighbors.map(({ system, routeDistance, score }) => (
+              {suggestedNeighbors.slice(0, 8).map(({ system, routeDistance }) => (
                 <button
                   type="button"
                   key={system.system_id}
-                  className="map-neighbor-button"
+                  className={`map-history-pill map-neighbor-chip ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
                   onClick={() => selectSystem(system, { openPeek: true, focus: drillMode === "explore" })}
                 >
-                  <strong>{shortDisplayName(system.display_name)}</strong>
-                  <span>{formatNumber(routeDistance, 2)} ly · {system.dominant_spectral_class} · {formatNumber(system.planet_count, 0)}p</span>
-                  <em>cool {formatNumber(system.coolness_score, 1)} · signal {formatNumber(score, 1)}</em>
+                  <SystemNameDisplay system={system} />
+                  <span>{formatNumber(routeDistance, 1)} ly</span>
+                  <span>{system.dominant_spectral_class}</span>
+                  <span>{formatNumber(system.planet_count, 0)}p</span>
                 </button>
               ))}
             </div>
@@ -1474,7 +1475,19 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           aria-label={`${formatName(selectedSystem.display_name)} system simulation`}
         >
           <div className="map-system-drill-bar">
-            <strong className="map-system-drill-title">System: <SystemNameDisplay system={selectedSystem} /></strong>
+            <button
+              type="button"
+              className="map-system-drill-title"
+              onClick={() => {
+                if (drillMode === "peek") {
+                  setDrillMode("explore");
+                  setFocusToken((value) => value + 1);
+                }
+              }}
+            >
+              <span>System:</span>
+              <SystemNameDisplay system={selectedSystem} />
+            </button>
             <div className="map-system-drill-actions">
               {drillMode === "peek" && (
                 <button

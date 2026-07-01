@@ -440,9 +440,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   signals from the current 100 ly payload
 - [x] Minimize the 3D map drill-in UI by merging selected-system vitals into
   transparent simulation overlay chips, removing the redundant selected-system
-  card, restoring the scale selector over the simulator, shrinking and
-  increasing transparency on Peek, and moving next-nearby suggestions into the
-  collapsible selection-history tray
+  card, restoring scale and speed selectors over the simulator, adding 1000x
+  speed, shrinking and increasing transparency on Peek, and moving capped
+  next-nearby chips into the collapsible selection-history tray
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current
