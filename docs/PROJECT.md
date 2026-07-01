@@ -583,6 +583,10 @@ Current contract:
 - performance profile: the public map requests `compact=true`, reducing the
   current 100 ly JSON payload from about 5.3 MB to about 3.0 MB in Photon local
   checks while leaving full diagnostic records available
+- map overlay themes are handled in the Star Map layer: Enterprise/LCARS keeps
+  transparent chrome with brighter borders, while Simple Light and Geocities
+  use more opaque map overlays so embedded System Simulation controls and
+  vitals remain readable/clickable over WebGL
 
 Layer rules:
 

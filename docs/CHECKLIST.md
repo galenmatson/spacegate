@@ -443,6 +443,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   card, restoring scale and speed selectors over the simulator, adding 1000x
   speed, shrinking and increasing transparency on Peek, and moving capped
   next-nearby chips into the collapsible selection-history tray
+- [x] Fix Star Map theme-specific embedded simulator controls so Aurora and
+  Enterprise/LCARS speed/scale selects remain clickable above the WebGL canvas,
+  with brighter Enterprise map chrome and more opaque Simple Light/Geocities
+  map overlays for readability
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current

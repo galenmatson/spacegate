@@ -940,15 +940,108 @@
 }
 
 :root[data-theme="lcars"] .map-page {
-  --map-hud-bg: rgba(7, 5, 10, 0.42);
-  --map-hud-border: rgba(245, 162, 46, 0.7);
-  --map-hud-glow: rgba(245, 162, 46, 0.16);
+  --map-hud-bg: rgba(7, 5, 10, 0.34);
+  --map-hud-border: rgba(255, 185, 91, 0.9);
+  --map-hud-glow: rgba(255, 185, 91, 0.24);
+  --map-hud-strong: #ffe0bd;
+  --map-hud-muted: #ffb866;
+}
+
+:root[data-theme="lcars"] .map-hud,
+:root[data-theme="lcars"] .map-system-drill {
+  border-color: rgba(255, 191, 86, 0.94);
+  box-shadow:
+    inset 0 0 0 1px rgba(145, 160, 255, 0.32),
+    0 0 28px rgba(246, 201, 76, 0.2);
+}
+
+:root[data-theme="lcars"] .map-system-drill-title,
+:root[data-theme="lcars"] .map-command-button,
+:root[data-theme="lcars"] .map-history-pill,
+:root[data-theme="lcars"] .map-system-vital-strip > span,
+:root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="lcars"] .map-system-drill .system-preview-floating-actions,
+:root[data-theme="lcars"] .map-system-drill .system-preview-toggle,
+:root[data-theme="lcars"] .map-system-drill .system-preview-speed select,
+:root[data-theme="lcars"] .map-system-drill .system-preview-scale select {
+  border-color: rgba(145, 160, 255, 0.92);
+  background: rgba(8, 7, 12, 0.34);
+  color: #ffd9ba;
+  box-shadow: inset 0 -2px 0 rgba(246, 201, 76, 0.28);
+}
+
+:root[data-theme="lcars"] .map-command-button.primary,
+:root[data-theme="lcars"] .map-history-pill.active {
+  border-color: rgba(246, 201, 76, 0.96);
+  background: rgba(245, 162, 46, 0.32);
+}
+
+:root[data-theme="lcars"] .map-system-drill .system-preview-speed span,
+:root[data-theme="lcars"] .map-system-drill .system-preview-scale span,
+:root[data-theme="lcars"] .map-panel-label {
+  color: #f6c94c;
 }
 
 :root[data-theme="cyberpunk"] .map-page {
   --map-hud-bg: rgba(7, 7, 28, 0.4);
   --map-hud-border: rgba(125, 251, 255, 0.52);
   --map-hud-glow: rgba(255, 79, 216, 0.2);
+}
+
+:root[data-theme="simple_light"] .map-page,
+:root[data-theme="retro_90s"] .map-page {
+  --map-hud-bg: rgba(255, 255, 255, 0.92);
+  --map-hud-border: rgba(23, 37, 47, 0.36);
+  --map-hud-glow: rgba(23, 37, 47, 0.12);
+  --map-hud-strong: #17252f;
+  --map-hud-muted: #445963;
+}
+
+:root[data-theme="simple_light"] .map-system-drill,
+:root[data-theme="retro_90s"] .map-system-drill {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(23, 37, 47, 0.34);
+  backdrop-filter: none;
+}
+
+:root[data-theme="simple_light"] .map-system-drill .system-preview-canvas,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-canvas {
+  background: rgba(244, 248, 251, 0.72);
+}
+
+:root[data-theme="simple_light"] .map-system-drill-title,
+:root[data-theme="simple_light"] .map-command-button,
+:root[data-theme="simple_light"] .map-history-pill,
+:root[data-theme="simple_light"] .map-system-vital-strip > span,
+:root[data-theme="simple_light"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="simple_light"] .map-system-drill .system-preview-floating-actions,
+:root[data-theme="simple_light"] .map-system-drill .system-preview-toggle,
+:root[data-theme="simple_light"] .map-system-drill .system-preview-speed select,
+:root[data-theme="simple_light"] .map-system-drill .system-preview-scale select,
+:root[data-theme="retro_90s"] .map-system-drill-title,
+:root[data-theme="retro_90s"] .map-command-button,
+:root[data-theme="retro_90s"] .map-history-pill,
+:root[data-theme="retro_90s"] .map-system-vital-strip > span,
+:root[data-theme="retro_90s"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-floating-actions,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-toggle,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-speed select,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-scale select {
+  background: rgba(255, 255, 255, 0.9);
+  color: #17252f;
+  border-color: rgba(23, 37, 47, 0.38);
+  backdrop-filter: none;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill,
+:root[data-theme="retro_90s"] .map-hud {
+  border-radius: 0;
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+  border-right-color: #585858;
+  border-bottom-color: #585858;
+  background: rgba(203, 203, 203, 0.94);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.28);
 }
 
 @media (max-width: 900px) {
@@ -1131,7 +1224,7 @@
     grid-template-columns: 1fr;
   }
 
-  .map-system-drill .system-preview-header {
+  .map-system-drill .system-preview-panel > .system-preview-floating-actions {
     top: 96px;
     right: 10px;
   }
@@ -5015,7 +5108,9 @@ main {
 }
 
 .map-system-drill .system-preview-panel {
+  display: block;
   position: relative;
+  isolation: isolate;
   min-height: 0;
   height: 100%;
   border: 0;
@@ -5024,17 +5119,22 @@ main {
   padding: 0;
 }
 
-.map-system-drill .system-preview-header {
+.system-preview-floating-actions {
+  display: none;
+}
+
+.map-system-drill .system-preview-panel > .system-preview-floating-actions {
   position: absolute;
-  z-index: 16;
+  z-index: 80;
   top: 52px;
   right: 12px;
   display: block;
-  pointer-events: none;
-}
-
-.map-system-drill .system-preview-header > div:first-child {
-  display: none;
+  pointer-events: auto;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 10%, transparent);
+  backdrop-filter: blur(3px);
+  padding: 3px;
 }
 
 .map-system-drill .system-preview-actions {
@@ -5069,6 +5169,7 @@ main {
 .system-preview-explore .system-preview-layout {
   display: block;
   position: relative;
+  z-index: 1;
   height: 100%;
   min-height: 0;
 }
@@ -5078,6 +5179,8 @@ main {
 .system-preview-explore .system-preview-canvas {
   height: 100%;
   min-height: 100%;
+  position: relative;
+  z-index: 1;
   border: 0;
   border-radius: 0;
   background: color-mix(in srgb, #050b12 38%, transparent);

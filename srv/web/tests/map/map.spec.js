@@ -130,6 +130,41 @@ test.describe("public 3D map beta", () => {
     ).toBe("flight");
   });
 
+  test("map embedded simulator menus remain clickable across transparent themes", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop menu click regression uses native select controls");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+
+    const drill = page.locator("[data-testid='map-system-drill']");
+    const themeSelect = page.locator(".map-theme-select select");
+    const scaleSelect = drill.locator("[data-testid='system-preview-scale-mode']");
+    const speedSelect = drill.locator(".system-preview-speed select");
+    const canvas = drill.locator(".system-preview-canvas canvas");
+
+    await expect(drill).toBeVisible();
+    await expect(scaleSelect).toBeVisible();
+    await expect(speedSelect).toBeVisible();
+
+    for (const themeId of ["aurora", "lcars"]) {
+      await themeSelect.selectOption(themeId);
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
+      await scaleSelect.click();
+      await scaleSelect.selectOption("log");
+      await expect.poll(
+        () => canvas.evaluate((node) => node.dataset.scaleMode || ""),
+        { timeout: 3000 }
+      ).toBe("log");
+      await speedSelect.click();
+      await speedSelect.selectOption("1000");
+      await expect.poll(
+        () => canvas.evaluate((node) => node.dataset.simulationSpeed || ""),
+        { timeout: 3000 }
+      ).toBe("1000");
+      await scaleSelect.selectOption("structure");
+      await speedSelect.selectOption("1");
+    }
+  });
+
   test("mobile layout keeps map controls compact", async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only layout check");
     await openMap(page);

@@ -593,7 +593,7 @@ Delivered baseline:
 
 Remaining pilot polish:
 
-- tighten map label priority and theme-specific HUD styling after visual QA
+- tighten map label priority after visual QA
 - improve fallback Gaia-label display priority for mobile selection sheets and
   in-scene labels
 - refine route measurement dismissal/edit affordances after public beta use
@@ -807,6 +807,10 @@ Readiness gaps:
   selectors over the simulator canvas, shrinks and increases transparency on
   Peek, and combines selection history plus next-nearby suggestions into
   collapsible tray sections capped at eight compact chips each.
+- July 1, 2026 Star Map theme pass fixes embedded System Simulation speed/scale
+  selects in Aurora and Enterprise/LCARS by moving the controls into a floating
+  overlay layer above the WebGL canvas, brightens transparent LCARS borders, and
+  makes Simple Light/Geocities map overlays more opaque for readability.
 - July 1, 2026 simulator orientation transparency pass surfaces source
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains

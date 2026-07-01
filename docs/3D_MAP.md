@@ -157,6 +157,10 @@ Initial layers:
     keeps the speed selector including 1000x for long-period orbit inspection,
     uses a shorter/thinner transparent Peek panel, and lets the canvas fill the
     window
+  - theme-specific map overlay styling keeps the embedded simulator controls in
+    a floating layer above the WebGL canvas; LCARS/Enterprise keeps transparent
+    chrome with brighter LCARS-like borders, while Simple Light and Geocities
+    use more opaque map overlay surfaces for readability
 - public system-simulation scene-readiness API:
   - `GET /api/v1/systems/{system_id}/simulation-scene`
   - exposes current hierarchy, arm graph/orbit rows, and readiness fields for

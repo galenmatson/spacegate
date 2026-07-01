@@ -3518,6 +3518,83 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
 
   const normalizedPresentationMode = ["detail", "peek", "explore"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek";
+  const embeddedPresentation = normalizedPresentationMode !== "detail";
+
+  const renderPreviewActions = () => (
+    <div className="system-preview-actions">
+      <button
+        className="system-preview-toggle"
+        type="button"
+        onClick={() => setRunning((value) => !value)}
+        aria-pressed={!running}
+        disabled={status !== "ready" || webglReady === false}
+      >
+        {running ? "Pause" : "Start"}
+      </button>
+      <label className="system-preview-speed">
+        <span>Speed</span>
+        <select
+          value={String(speedMultiplier)}
+          onChange={(event) => setSpeedMultiplier(Number(event.target.value) || 1)}
+          disabled={status !== "ready" || webglReady === false}
+        >
+          {SIM_SPEED_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
+      <label className="system-preview-scale">
+        <span>Scale</span>
+        <select
+          value={activeScaleMode}
+          onChange={(event) => setScaleMode(normalizeScaleMode(event.target.value))}
+          disabled={status !== "ready" || webglReady === false}
+          data-testid="system-preview-scale-mode"
+          aria-label="System simulator scale mode"
+        >
+          {SCALE_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      </label>
+      <button
+        className="system-preview-toggle"
+        type="button"
+        onClick={() => {
+          setSimulationDays(0);
+          setResetToken((value) => value + 1);
+        }}
+        disabled={status !== "ready" || webglReady === false}
+      >
+        Reset
+      </button>
+      <button
+        className="system-preview-toggle"
+        type="button"
+        onClick={() => setShowOrbits((value) => !value)}
+        aria-pressed={showOrbits}
+        disabled={status !== "ready" || webglReady === false}
+      >
+        {showOrbits ? "Orbits On" : "Orbits Off"}
+      </button>
+      <button
+        className="system-preview-toggle"
+        type="button"
+        onClick={() => setShowHabitableZones((value) => !value)}
+        aria-pressed={showHabitableZones}
+        disabled={status !== "ready" || webglReady === false}
+      >
+        {showHabitableZones ? "HZ On" : "HZ Off"}
+      </button>
+      <button
+        className="system-preview-toggle"
+        type="button"
+        onClick={() => setShowLabels((value) => !value)}
+        aria-pressed={showLabels}
+        disabled={status !== "ready" || webglReady === false}
+      >
+        {showLabels ? "Labels On" : "Labels Off"}
+      </button>
+      {status === "ready" && scene && <span className="status-chip" title={orientation.detail}>{orientation.label}</span>}
+      {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
+    </div>
+  );
 
   return (
     <section
@@ -3525,85 +3602,15 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       data-testid="system-preview-panel"
       data-presentation-mode={normalizedPresentationMode}
     >
-      <div className="system-preview-header">
-        <div>
-          <h3>System Simulation v1</h3>
-          <p>Source-aware system renderer from the simulation-scene contract. Static snapshot remains the fallback.</p>
+      {!embeddedPresentation && (
+        <div className="system-preview-header">
+          <div>
+            <h3>System Simulation v1</h3>
+            <p>Source-aware system renderer from the simulation-scene contract. Static snapshot remains the fallback.</p>
+          </div>
+          {renderPreviewActions()}
         </div>
-        <div className="system-preview-actions">
-          <button
-            className="system-preview-toggle"
-            type="button"
-            onClick={() => setRunning((value) => !value)}
-            aria-pressed={!running}
-            disabled={status !== "ready" || webglReady === false}
-          >
-            {running ? "Pause" : "Start"}
-          </button>
-          <label className="system-preview-speed">
-            <span>Speed</span>
-            <select
-              value={String(speedMultiplier)}
-              onChange={(event) => setSpeedMultiplier(Number(event.target.value) || 1)}
-              disabled={status !== "ready" || webglReady === false}
-            >
-              {SIM_SPEED_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label className="system-preview-scale">
-            <span>Scale</span>
-            <select
-              value={activeScaleMode}
-              onChange={(event) => setScaleMode(normalizeScaleMode(event.target.value))}
-              disabled={status !== "ready" || webglReady === false}
-              data-testid="system-preview-scale-mode"
-              aria-label="System simulator scale mode"
-            >
-              {SCALE_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-          <button
-            className="system-preview-toggle"
-            type="button"
-            onClick={() => {
-              setSimulationDays(0);
-              setResetToken((value) => value + 1);
-            }}
-            disabled={status !== "ready" || webglReady === false}
-          >
-            Reset
-          </button>
-          <button
-            className="system-preview-toggle"
-            type="button"
-            onClick={() => setShowOrbits((value) => !value)}
-            aria-pressed={showOrbits}
-            disabled={status !== "ready" || webglReady === false}
-          >
-            {showOrbits ? "Orbits On" : "Orbits Off"}
-          </button>
-          <button
-            className="system-preview-toggle"
-            type="button"
-            onClick={() => setShowHabitableZones((value) => !value)}
-            aria-pressed={showHabitableZones}
-            disabled={status !== "ready" || webglReady === false}
-          >
-            {showHabitableZones ? "HZ On" : "HZ Off"}
-          </button>
-          <button
-            className="system-preview-toggle"
-            type="button"
-            onClick={() => setShowLabels((value) => !value)}
-            aria-pressed={showLabels}
-            disabled={status !== "ready" || webglReady === false}
-          >
-            {showLabels ? "Labels On" : "Labels Off"}
-          </button>
-          {status === "ready" && scene && <span className="status-chip" title={orientation.detail}>{orientation.label}</span>}
-          {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
-        </div>
-      </div>
+      )}
       <div className="system-preview-layout">
         <div className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
           {status === "fallback" || webglReady === false
@@ -3705,6 +3712,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           )}
         </div>
       </div>
+      {embeddedPresentation && <div className="system-preview-floating-actions">{renderPreviewActions()}</div>}
     </section>
   );
 }
