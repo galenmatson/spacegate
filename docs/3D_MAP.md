@@ -128,7 +128,7 @@ Initial layers:
   - selection history pills instead of wide priority-contact cards
   - selected-system title link to public detail
   - long-ID metadata popovers and copy controls
-  - selected-system snapshot chip that lazy-loads the deterministic snapshot
+  - selected-system snapshot pill that lazy-loads the deterministic snapshot
     preview on hover/focus when the map payload says a snapshot is ready
   - route summary with recent leg list, total distance, undo, and clear
 - System Simulation drill-in layer:
@@ -145,18 +145,21 @@ Initial layers:
   - suggested nearby systems are computed client-side from the 100 ly payload
     using coolness, distance, planet count, multiplicity, and human-readable
     naming signals
-  - selected-system vitals are merged into transparent chips over the
+  - selected-system vitals are merged into transparent pills over the
     simulation canvas, replacing the former selected-system card entirely while
     preserving distance, class, star/planet counts, coolness, rank, and
     snapshot status
   - selection history and `Cool Stars Nearby` suggestions share the same
     left-side tray as collapsible sections, expanded by default, with both
-    lists capped at eight compact chips
+    lists capped at eight compact pills
   - the map drill-in presentation keeps Pause/Start and Reset as transparent
     simulator overlays, restores the Structured/Orbit/Body/Log scale selector,
     keeps the speed selector including 1000x for long-period orbit inspection,
     uses a shorter/thinner transparent Peek panel, and lets the canvas fill the
     window
+  - Explorer mode uses a less-transparent simulator shell/canvas than Peek, and
+    separates compact one-line readout pills from larger Evidence/Render Policy
+    panels so diagnostic panels cannot stretch the pills
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
     nontransparent cards with bright yellow borders and no glow, while Simple

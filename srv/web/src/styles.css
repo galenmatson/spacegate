@@ -483,7 +483,7 @@
   grid-template-rows: 1fr;
   gap: 0;
   color: var(--map-hud-strong);
-  background: color-mix(in srgb, var(--panel) 8%, transparent);
+  background: color-mix(in srgb, var(--panel) 28%, transparent);
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 62%, transparent);
   box-shadow: 0 0 42px color-mix(in srgb, var(--accent) 10%, transparent);
   backdrop-filter: blur(3px);
@@ -504,7 +504,7 @@
   inset: 76px 28px 22px;
   padding: 0;
   border-color: color-mix(in srgb, var(--accent) 36%, transparent);
-  background: color-mix(in srgb, var(--panel) 8%, transparent);
+  background: color-mix(in srgb, var(--panel) 28%, transparent);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -5232,7 +5232,7 @@ main {
   z-index: 1;
   border: 0;
   border-radius: 0;
-  background: color-mix(in srgb, #050b12 38%, transparent);
+  background: color-mix(in srgb, #050b12 58%, transparent);
 }
 
 .map-system-drill .system-preview-readout {
@@ -5243,11 +5243,12 @@ main {
   bottom: 46px;
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: 6px;
   pointer-events: none;
 }
 
-.map-system-drill .system-preview-readout div {
+.map-system-drill .system-preview-readout > div:not(.system-preview-evidence):not(.system-preview-policy) {
   flex: 0 0 auto;
   min-height: 25px;
   padding: 4px 8px;
@@ -5255,6 +5256,18 @@ main {
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel) 12%, transparent);
   backdrop-filter: blur(8px);
+}
+
+.map-system-drill .system-preview-readout .system-preview-evidence,
+.map-system-drill .system-preview-readout .system-preview-policy {
+  flex: 0 1 min(270px, 100%);
+  max-width: min(270px, 100%);
+  padding: 8px 9px;
+  border-color: color-mix(in srgb, var(--map-hud-border) 36%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 24%, transparent);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
 }
 
 .map-system-drill .system-preview-readout strong {

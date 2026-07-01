@@ -803,10 +803,10 @@ Readiness gaps:
   distance, planets, multiplicity, and readable names.
 - July 1, 2026 map minimization pass removes the redundant selected-system
   card entirely, moves selected vitals into transparent simulation overlay
-  chips, places Pause/Start/Reset plus speed and Structured/Orbit/Body/Log
+  pills, places Pause/Start/Reset plus speed and Structured/Orbit/Body/Log
   selectors over the simulator canvas, shrinks and increases transparency on
   Peek, and combines selection history plus `Cool Stars Nearby` suggestions
-  into collapsible tray sections capped at eight compact chips each.
+  into collapsible tray sections capped at eight compact pills each.
 - July 1, 2026 Star Map theme pass fixes embedded System Simulation speed/scale
   selects in Aurora and Enterprise/LCARS by moving the controls into a floating
   overlay layer above the WebGL canvas, brightens transparent LCARS borders, and
@@ -815,9 +815,12 @@ Readiness gaps:
   nontransparent map cards with bright yellow borders, removes glow effects,
   and adds theme-aware dropdown option colors for simulator speed/scale menus.
 - July 1, 2026 System Simulation readout simplification removes redundant
-  local-days and missing-inputs chips from the visible readout, keeps the beta
+  local-days and missing-inputs pills from the visible readout, keeps the beta
   day in Render Policy, and moves map hover/pinned object cards away from the
   bottom evidence/policy strip.
+- July 1, 2026 Star Map Explorer polish increases Explorer shell/canvas opacity
+  and separates compact simulator readout pills from taller Evidence/Render
+  Policy panels so diagnostics cannot stretch the pills.
 - July 1, 2026 simulator orientation transparency pass surfaces source
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains

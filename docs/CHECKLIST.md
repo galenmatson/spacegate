@@ -440,10 +440,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   using coolness, distance, planet count, multiplicity, and readable-name
   signals from the current 100 ly payload
 - [x] Minimize the 3D map drill-in UI by merging selected-system vitals into
-  transparent simulation overlay chips, removing the redundant selected-system
+  transparent simulation overlay pills, removing the redundant selected-system
   card, restoring scale and speed selectors over the simulator, adding 1000x
   speed, shrinking and increasing transparency on Peek, and moving capped
-  `Cool Stars Nearby` chips into the collapsible selection-history tray
+  `Cool Stars Nearby` pills into the collapsible selection-history tray
 - [x] Fix Star Map theme-specific embedded simulator controls so Aurora and
   Enterprise/LCARS speed/scale selects remain clickable above the WebGL canvas,
   with brighter Enterprise map chrome and more opaque Simple Light/Geocities
@@ -452,8 +452,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   theme embedded simulator dropdown menus so their option popups keep contrast
   across map themes
 - [x] Remove redundant System Simulation local-days and missing-inputs readout
-  chips, and move map hover/pinned object cards away from the bottom diagnostic
+  pills, and move map hover/pinned object cards away from the bottom diagnostic
   strip
+- [x] Increase Star Map Explorer background opacity and separate compact
+  simulator readout pills from taller Evidence/Render Policy panels
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current

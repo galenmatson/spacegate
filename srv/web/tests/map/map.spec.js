@@ -120,6 +120,21 @@ test.describe("public 3D map beta", () => {
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill).toContainText(/System:/i);
     await expect.poll(
+      () => drill.evaluate((node) => node.querySelectorAll(
+        ".system-preview-readout > div:not(.system-preview-evidence):not(.system-preview-policy)"
+      ).length),
+      { timeout: 3000 }
+    ).toBeGreaterThan(0);
+    await expect.poll(
+      () => drill.evaluate((node) => {
+        const heights = Array.from(
+          node.querySelectorAll(".system-preview-readout > div:not(.system-preview-evidence):not(.system-preview-policy)")
+        ).map((pill) => pill.getBoundingClientRect().height);
+        return heights.length ? Math.max(...heights) : 0;
+      }),
+      { timeout: 3000 }
+    ).toBeLessThanOrEqual(36);
+    await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("explore");

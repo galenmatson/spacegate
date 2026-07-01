@@ -441,9 +441,9 @@ Success criteria:
   bodies/orbits, and pin a copyable object/orbit readout
 - the compact render-policy summary covers local beta time, active scale mode,
   assumption persistence, and deterministic snapshot fallback; the standalone
-  local-days readout chip was removed as redundant with that Time field
+  local-days readout pill was removed as redundant with that Time field
 - missing-input counts remain available in readiness/API diagnostics, but are
-  not shown as a primary simulator chip because they are mainly a data-quality
+  not shown as a primary simulator pill because they are mainly a data-quality
   debugging signal
 - pinned stars, planets, and orbit paths also receive in-scene visual feedback
   so the selected readout has a visible target in the 3D view
