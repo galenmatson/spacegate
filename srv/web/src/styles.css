@@ -24,6 +24,9 @@
   --map-hud-muted: color-mix(in srgb, var(--muted) 86%, white 14%);
   --map-hud-border: color-mix(in srgb, var(--accent-dark) 34%, transparent);
   --map-hud-glow: color-mix(in srgb, var(--accent) 24%, transparent);
+  --map-select-bg: #07111d;
+  --map-select-ink: #edf8ff;
+  --map-select-checked-bg: #17334d;
 }
 
 .route-loading {
@@ -295,6 +298,16 @@
   background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+
+.map-page select option {
+  color: var(--map-select-ink);
+  background: var(--map-select-bg);
+}
+
+.map-page select option:checked {
+  color: var(--map-select-ink);
+  background: var(--map-select-checked-bg);
 }
 
 .map-status-panel,
@@ -940,19 +953,29 @@
 }
 
 :root[data-theme="lcars"] .map-page {
-  --map-hud-bg: rgba(7, 5, 10, 0.34);
-  --map-hud-border: rgba(255, 185, 91, 0.9);
-  --map-hud-glow: rgba(255, 185, 91, 0.24);
-  --map-hud-strong: #ffe0bd;
-  --map-hud-muted: #ffb866;
+  --map-hud-bg: rgba(13, 6, 22, 0.4);
+  --map-hud-border: rgba(255, 153, 77, 0.98);
+  --map-hud-glow: rgba(255, 153, 77, 0.36);
+  --map-hud-strong: #fff2d6;
+  --map-hud-muted: #ffc66d;
+  --map-select-bg: #14091f;
+  --map-select-ink: #fff1d6;
+  --map-select-checked-bg: #5c2a86;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(255, 153, 77, 0.13), transparent 32%),
+    radial-gradient(circle at 16% 18%, rgba(156, 143, 255, 0.14), transparent 26%),
+    radial-gradient(circle at 86% 10%, rgba(255, 202, 91, 0.1), transparent 20%),
+    #010207;
 }
 
 :root[data-theme="lcars"] .map-hud,
 :root[data-theme="lcars"] .map-system-drill {
-  border-color: rgba(255, 191, 86, 0.94);
+  border-color: rgba(255, 153, 77, 0.98);
   box-shadow:
-    inset 0 0 0 1px rgba(145, 160, 255, 0.32),
-    0 0 28px rgba(246, 201, 76, 0.2);
+    inset 0 0 0 1px rgba(170, 145, 255, 0.58),
+    inset 8px 0 0 rgba(255, 153, 77, 0.72),
+    0 0 34px rgba(255, 153, 77, 0.28),
+    0 0 18px rgba(150, 164, 255, 0.16);
 }
 
 :root[data-theme="lcars"] .map-system-drill-title,
@@ -964,22 +987,40 @@
 :root[data-theme="lcars"] .map-system-drill .system-preview-toggle,
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed select,
 :root[data-theme="lcars"] .map-system-drill .system-preview-scale select {
-  border-color: rgba(145, 160, 255, 0.92);
-  background: rgba(8, 7, 12, 0.34);
-  color: #ffd9ba;
-  box-shadow: inset 0 -2px 0 rgba(246, 201, 76, 0.28);
+  border-color: rgba(176, 160, 255, 0.98);
+  background: rgba(16, 8, 28, 0.48);
+  color: #fff1d6;
+  box-shadow:
+    inset 0 -2px 0 rgba(255, 198, 109, 0.48),
+    0 0 12px rgba(170, 145, 255, 0.16);
 }
 
 :root[data-theme="lcars"] .map-command-button.primary,
 :root[data-theme="lcars"] .map-history-pill.active {
-  border-color: rgba(246, 201, 76, 0.96);
-  background: rgba(245, 162, 46, 0.32);
+  border-color: rgba(255, 203, 103, 1);
+  background:
+    linear-gradient(90deg, rgba(255, 153, 77, 0.5), rgba(145, 94, 255, 0.28)),
+    rgba(26, 12, 34, 0.5);
+  color: #fff7e8;
+  box-shadow:
+    inset 0 -2px 0 rgba(255, 221, 148, 0.62),
+    0 0 18px rgba(255, 153, 77, 0.22);
 }
 
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed span,
 :root[data-theme="lcars"] .map-system-drill .system-preview-scale span,
 :root[data-theme="lcars"] .map-panel-label {
-  color: #f6c94c;
+  color: #ffcf7a;
+  text-shadow: 0 0 8px rgba(255, 153, 77, 0.36);
+}
+
+:root[data-theme="lcars"] .map-world-label {
+  border-color: rgba(157, 196, 255, 0.78);
+  background: rgba(7, 10, 19, 0.72);
+  color: #eaf4ff;
+  box-shadow:
+    0 0 14px rgba(157, 196, 255, 0.24),
+    inset 0 -2px 0 rgba(255, 153, 77, 0.22);
 }
 
 :root[data-theme="cyberpunk"] .map-page {
@@ -995,6 +1036,9 @@
   --map-hud-glow: rgba(23, 37, 47, 0.12);
   --map-hud-strong: #17252f;
   --map-hud-muted: #445963;
+  --map-select-bg: #ffffff;
+  --map-select-ink: #17252f;
+  --map-select-checked-bg: #dce9f1;
 }
 
 :root[data-theme="simple_light"] .map-system-drill,

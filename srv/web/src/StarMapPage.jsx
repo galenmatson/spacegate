@@ -1388,7 +1388,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         {selectedSystem && (
           <details className="map-tray-section" open>
             <summary>
-              <span className="map-panel-label">Next Nearby</span>
+              <span className="map-panel-label">Cool Stars Nearby</span>
             </summary>
             <div className="map-neighbor-list" aria-label="Suggested nearby systems">
               {suggestedNeighbors.slice(0, 8).map(({ system, routeDistance }) => (

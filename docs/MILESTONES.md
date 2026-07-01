@@ -805,12 +805,15 @@ Readiness gaps:
   card entirely, moves selected vitals into transparent simulation overlay
   chips, places Pause/Start/Reset plus speed and Structured/Orbit/Body/Log
   selectors over the simulator canvas, shrinks and increases transparency on
-  Peek, and combines selection history plus next-nearby suggestions into
-  collapsible tray sections capped at eight compact chips each.
+  Peek, and combines selection history plus `Cool Stars Nearby` suggestions
+  into collapsible tray sections capped at eight compact chips each.
 - July 1, 2026 Star Map theme pass fixes embedded System Simulation speed/scale
   selects in Aurora and Enterprise/LCARS by moving the controls into a floating
   overlay layer above the WebGL canvas, brightens transparent LCARS borders, and
   makes Simple Light/Geocities map overlays more opaque for readability.
+- July 1, 2026 Star Map LCARS polish pass gives Enterprise more saturated
+  orange/purple/blue map chrome and adds theme-aware dropdown option colors for
+  simulator speed/scale menus.
 - July 1, 2026 simulator orientation transparency pass surfaces source
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains

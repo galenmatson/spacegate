@@ -109,6 +109,8 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
+    await expect(page.getByText("Cool Stars Nearby")).toBeVisible();
+    await expect(page.getByText("Next Nearby")).toHaveCount(0);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }

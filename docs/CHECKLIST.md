@@ -442,11 +442,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   transparent simulation overlay chips, removing the redundant selected-system
   card, restoring scale and speed selectors over the simulator, adding 1000x
   speed, shrinking and increasing transparency on Peek, and moving capped
-  next-nearby chips into the collapsible selection-history tray
+  `Cool Stars Nearby` chips into the collapsible selection-history tray
 - [x] Fix Star Map theme-specific embedded simulator controls so Aurora and
   Enterprise/LCARS speed/scale selects remain clickable above the WebGL canvas,
   with brighter Enterprise map chrome and more opaque Simple Light/Geocities
   map overlays for readability
+- [x] Rename the Star Map drill-in neighbor tray to `Cool Stars Nearby` and
+  theme embedded simulator dropdown menus so their option popups keep contrast
+  across map themes
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current
