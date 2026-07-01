@@ -81,8 +81,8 @@ Already in place:
   animation clock for all moving scene objects, sampled eccentric/inclined
   orbit guide paths, and hover vitals for rendered bodies; Pause freezes this
   local clock and Start resumes it from the same simulation day. The system
-  preview readout exposes the current local beta day without implying
-  science-grade epoch propagation.
+  preview render-policy summary exposes the current local beta day without
+  implying science-grade epoch propagation.
 - direct binary orbit traces are drawn as the two rendered body paths around
   the visual barycenter, using source mass ratios when both stellar masses are
   available and an explicit equal-mass visual fallback when they are not; the
@@ -439,11 +439,12 @@ Success criteria:
 - users can pause/start, change speed, reset the local clock, hide/show orbit
   traces, orbit/zoom/pan the preview camera, reset the view, hover
   bodies/orbits, and pin a copyable object/orbit readout
-- the local beta simulation day is visible in the readout and follows the same
-  pause/start behavior as the scene animation clock
-- the preview readout includes a compact render-policy summary covering local
-  beta time, active scale mode, assumption persistence, and deterministic
-  snapshot fallback
+- the compact render-policy summary covers local beta time, active scale mode,
+  assumption persistence, and deterministic snapshot fallback; the standalone
+  local-days readout chip was removed as redundant with that Time field
+- missing-input counts remain available in readiness/API diagnostics, but are
+  not shown as a primary simulator chip because they are mainly a data-quality
+  debugging signal
 - pinned stars, planets, and orbit paths also receive in-scene visual feedback
   so the selected readout has a visible target in the 3D view
 - hover and pinned readouts use the same source/derived/assumed/missing

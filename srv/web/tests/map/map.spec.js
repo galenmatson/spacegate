@@ -220,11 +220,6 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(0);
-    const clockValue = page.locator("[data-testid='system-preview-clock'] strong");
-    await expect.poll(
-      async () => Number((await clockValue.innerText()).replace(/,/g, "")),
-      { timeout: 3000 }
-    ).toBeGreaterThan(0);
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
       { timeout: 3000 }
@@ -258,6 +253,8 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toContain("orbit");
     await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
+    await expect(page.locator(".system-preview-readout")).not.toContainText(/local days/i);
+    await expect(page.locator(".system-preview-readout")).not.toContainText(/missing inputs/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/structure/i);
     const scaleModeSelect = page.locator("[data-testid='system-preview-scale-mode']");
@@ -348,12 +345,6 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.simulationDays || ""),
       { timeout: 1500 }
     ).toBe(pausedSimulationDays);
-    const pausedClockDays = await clockValue.innerText();
-    await page.waitForTimeout(500);
-    await expect.poll(
-      () => clockValue.innerText(),
-      { timeout: 1500 }
-    ).toBe(pausedClockDays);
     await page.getByRole("button", { name: /start/i }).click();
     await expect(page.getByRole("button", { name: /pause/i })).toBeVisible();
     await expect.poll(
@@ -364,10 +355,6 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
       { timeout: 3000 }
     ).toBeGreaterThan(Number(pausedSimulationDays));
-    await expect.poll(
-      async () => Number((await clockValue.innerText()).replace(/,/g, "")),
-      { timeout: 3000 }
-    ).toBeGreaterThan(Number(pausedClockDays.replace(/,/g, "")));
     await expect(page.getByLabel(/speed/i)).toBeVisible();
     await page.getByLabel(/speed/i).selectOption("5");
     await page.getByRole("button", { name: /reset/i }).click();

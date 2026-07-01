@@ -3508,7 +3508,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const evidenceFields = collectEvidenceFields(scene);
   const planetReadiness = scene?.simulation_readiness?.planets || [];
   const assumedOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "assumed").length;
-  const missingOrbitCount = planetReadiness.filter((planet) => fieldStatus(planet.fields, "semi_major_axis_au") === "missing").length;
   const renderedAssumptionCount = Number.isFinite(Number(renderScene.assumption_count))
     ? Number(renderScene.assumption_count)
     : (counts.assumed || 0) + assumedOrbitCount;
@@ -3656,10 +3655,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             <strong>{formatNumber(renderOrbits.length, 0)}</strong>
             <span>rendered orbits</span>
           </div>
-          <div data-testid="system-preview-clock">
-            <strong>{formatNumber(simulationDays, 1)}</strong>
-            <span>local days</span>
-          </div>
           <div>
             <strong>{formatNumber((readiness.score || 0) * 100, 0)}%</strong>
             <span>readiness</span>
@@ -3679,10 +3674,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           <div>
             <strong>{formatNumber(renderedAssumptionCount, 0)}</strong>
             <span>assumptions</span>
-          </div>
-          <div>
-            <strong>{formatNumber((counts.missing || 0) + missingOrbitCount, 0)}</strong>
-            <span>missing inputs</span>
           </div>
           {!compactPresentation && evidenceFields.length > 0 && (
             <div className="system-preview-evidence" data-testid="system-preview-evidence">

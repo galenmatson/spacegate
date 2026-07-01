@@ -761,8 +761,8 @@ Readiness gaps:
   `/simulation-scene` loads render the deterministic snapshot fallback rather
   than leaving the system preview with a broken canvas.
 - June 30, 2026 visible-clock pass surfaces the shared local beta simulation
-  day in the system preview readout and verifies it advances, pauses, and
-  resumes with the scene clock.
+  day in the system preview render-policy summary and verifies it advances,
+  pauses, and resumes with the scene clock.
 - June 30, 2026 scale-mode pass adds client-selectable Structure, True Orbits,
   True Bodies, and Log Scale simulator modes, advertises them in
   `render_scene.visual_scale`, and keeps the transforms presentation-only.
@@ -789,7 +789,7 @@ Readiness gaps:
   from that scale mode so rendered planet-orbit radii preserve linear
   semi-major-axis ratios; browser diagnostics now assert the AU-to-scene scale
   remains proportional.
-- June 30, 2026 render-policy summary pass adds compact readout chips for
+- June 30, 2026 render-policy summary pass adds compact policy fields for
   local beta time, clarity scale, assumption persistence, and deterministic
   snapshot fallback mode.
 - July 1, 2026 System Simulation naming pass promotes the former Live System
@@ -811,9 +811,13 @@ Readiness gaps:
   selects in Aurora and Enterprise/LCARS by moving the controls into a floating
   overlay layer above the WebGL canvas, brightens transparent LCARS borders, and
   makes Simple Light/Geocities map overlays more opaque for readability.
-- July 1, 2026 Star Map LCARS polish pass gives Enterprise more saturated
-  orange/purple/blue map chrome and adds theme-aware dropdown option colors for
-  simulator speed/scale menus.
+- July 1, 2026 Star Map LCARS polish pass gives Enterprise black
+  nontransparent map cards with bright yellow borders, removes glow effects,
+  and adds theme-aware dropdown option colors for simulator speed/scale menus.
+- July 1, 2026 System Simulation readout simplification removes redundant
+  local-days and missing-inputs chips from the visible readout, keeps the beta
+  day in Render Policy, and moves map hover/pinned object cards away from the
+  bottom evidence/policy strip.
 - July 1, 2026 simulator orientation transparency pass surfaces source
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains

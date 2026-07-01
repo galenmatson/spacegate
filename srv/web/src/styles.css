@@ -953,74 +953,79 @@
 }
 
 :root[data-theme="lcars"] .map-page {
-  --map-hud-bg: rgba(13, 6, 22, 0.4);
-  --map-hud-border: rgba(255, 153, 77, 0.98);
-  --map-hud-glow: rgba(255, 153, 77, 0.36);
-  --map-hud-strong: #fff2d6;
-  --map-hud-muted: #ffc66d;
-  --map-select-bg: #14091f;
-  --map-select-ink: #fff1d6;
-  --map-select-checked-bg: #5c2a86;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(255, 153, 77, 0.13), transparent 32%),
-    radial-gradient(circle at 16% 18%, rgba(156, 143, 255, 0.14), transparent 26%),
-    radial-gradient(circle at 86% 10%, rgba(255, 202, 91, 0.1), transparent 20%),
-    #010207;
+  --map-hud-bg: #000000;
+  --map-hud-border: #ffd400;
+  --map-hud-glow: transparent;
+  --map-hud-strong: #fff6bf;
+  --map-hud-muted: #ffd400;
+  --map-select-bg: #000000;
+  --map-select-ink: #fff6bf;
+  --map-select-checked-bg: #2a2200;
 }
 
 :root[data-theme="lcars"] .map-hud,
 :root[data-theme="lcars"] .map-system-drill {
-  border-color: rgba(255, 153, 77, 0.98);
-  box-shadow:
-    inset 0 0 0 1px rgba(170, 145, 255, 0.58),
-    inset 8px 0 0 rgba(255, 153, 77, 0.72),
-    0 0 34px rgba(255, 153, 77, 0.28),
-    0 0 18px rgba(150, 164, 255, 0.16);
+  border-color: #ffd400;
+  background: #000000;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 :root[data-theme="lcars"] .map-system-drill-title,
 :root[data-theme="lcars"] .map-command-button,
+:root[data-theme="lcars"] .map-hud-button,
+:root[data-theme="lcars"] .map-mini-command,
 :root[data-theme="lcars"] .map-history-pill,
+:root[data-theme="lcars"] .map-header-readout span,
 :root[data-theme="lcars"] .map-system-vital-strip > span,
 :root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="lcars"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="lcars"] .map-system-drill .system-preview-toggle,
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed select,
 :root[data-theme="lcars"] .map-system-drill .system-preview-scale select {
-  border-color: rgba(176, 160, 255, 0.98);
-  background: rgba(16, 8, 28, 0.48);
-  color: #fff1d6;
-  box-shadow:
-    inset 0 -2px 0 rgba(255, 198, 109, 0.48),
-    0 0 12px rgba(170, 145, 255, 0.16);
+  border-color: #ffd400;
+  background: #000000;
+  color: #fff6bf;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 :root[data-theme="lcars"] .map-command-button.primary,
 :root[data-theme="lcars"] .map-history-pill.active {
-  border-color: rgba(255, 203, 103, 1);
-  background:
-    linear-gradient(90deg, rgba(255, 153, 77, 0.5), rgba(145, 94, 255, 0.28)),
-    rgba(26, 12, 34, 0.5);
-  color: #fff7e8;
-  box-shadow:
-    inset 0 -2px 0 rgba(255, 221, 148, 0.62),
-    0 0 18px rgba(255, 153, 77, 0.22);
+  border-color: #ffd400;
+  background: #000000;
+  color: #ffffff;
+  box-shadow: none;
 }
 
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed span,
 :root[data-theme="lcars"] .map-system-drill .system-preview-scale span,
 :root[data-theme="lcars"] .map-panel-label {
-  color: #ffcf7a;
-  text-shadow: 0 0 8px rgba(255, 153, 77, 0.36);
+  color: #ffd400;
+  text-shadow: none;
 }
 
 :root[data-theme="lcars"] .map-world-label {
-  border-color: rgba(157, 196, 255, 0.78);
-  background: rgba(7, 10, 19, 0.72);
-  color: #eaf4ff;
-  box-shadow:
-    0 0 14px rgba(157, 196, 255, 0.24),
-    inset 0 -2px 0 rgba(255, 153, 77, 0.22);
+  border-color: #ffd400;
+  background: #000000;
+  color: #fff6bf;
+  box-shadow: none;
+}
+
+:root[data-theme="lcars"] .map-drill-peek .map-controls-panel,
+:root[data-theme="lcars"] .map-drill-peek .map-contacts-panel,
+:root[data-theme="lcars"] .map-drill-explore .map-contacts-panel,
+:root[data-theme="lcars"] .map-system-drill-peek,
+:root[data-theme="lcars"] .map-system-drill-explore,
+:root[data-theme="lcars"] .map-system-drill-title,
+:root[data-theme="lcars"] .map-system-drill .system-preview-readout div,
+:root[data-theme="lcars"] .map-system-drill .system-preview-canvas,
+:root[data-theme="lcars"] .map-system-drill .system-preview-hover,
+:root[data-theme="lcars"] .map-system-drill .system-preview-pinned {
+  border-color: #ffd400;
+  background: #000000;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 :root[data-theme="cyberpunk"] .map-page {
@@ -5258,6 +5263,19 @@ main {
 
 .map-system-drill .system-preview-readout span {
   font-size: 0.58rem;
+}
+
+.map-system-drill .system-preview-hover {
+  top: 62px;
+  bottom: auto;
+  z-index: 12;
+}
+
+.map-system-drill .system-preview-pinned {
+  top: 104px;
+  bottom: auto;
+  z-index: 12;
+  max-height: calc(100% - 116px);
 }
 
 .system-preview-peek .system-preview-readout > div:nth-child(n + 5) {

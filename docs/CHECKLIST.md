@@ -392,8 +392,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   55 Cnc, and Sol with pixel-level nonblank canvas checks
 - [x] Add browser fallback coverage for failed simulation-scene loads so the
   preview panel shows deterministic snapshot fallback instead of a dead canvas
-- [x] Surface the Live System Preview local beta simulation day in the readout
-  and verify it advances, pauses, and resumes with the shared scene clock
+- [x] Surface the Live System Preview local beta simulation day in the render
+  policy summary and verify it advances, pauses, and resumes with the shared
+  scene clock
 - [x] Add a compact Live System Preview render-policy summary for local beta
   time, clarity scale, assumption persistence, and deterministic fallback mode
 - [x] Fix simulator stellar-class readout provenance so visual/proxy classes do
@@ -450,6 +451,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Rename the Star Map drill-in neighbor tray to `Cool Stars Nearby` and
   theme embedded simulator dropdown menus so their option popups keep contrast
   across map themes
+- [x] Remove redundant System Simulation local-days and missing-inputs readout
+  chips, and move map hover/pinned object cards away from the bottom diagnostic
+  strip
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current
