@@ -98,7 +98,8 @@ test.describe("public 3D map beta", () => {
     const drill = page.locator("[data-testid='map-system-drill']");
     await expect(drill).toBeVisible();
     await expect(drill).toHaveAttribute("data-drill-mode", "peek");
-    await expect(drill).toContainText(/System Simulation Peek/i);
+    await expect(drill).toContainText(/System:/i);
+    await expect(drill).not.toContainText(/System Simulation Peek/i);
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect.poll(
@@ -108,7 +109,7 @@ test.describe("public 3D map beta", () => {
 
     await drill.getByRole("button", { name: /^Explore$/i }).click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
-    await expect(drill).toContainText(/System Simulation Explore/i);
+    await expect(drill).toContainText(/System:/i);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }

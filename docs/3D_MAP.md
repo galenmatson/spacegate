@@ -145,6 +145,14 @@ Initial layers:
   - suggested nearby systems are computed client-side from the 100 ly payload
     using coolness, distance, planet count, multiplicity, and human-readable
     naming signals
+  - selected-system vitals are merged into transparent chips over the
+    simulation canvas during Peek/Explore, replacing the redundant selected
+    system card while preserving distance, class, star/planet counts,
+    coolness, rank, and snapshot status
+  - selection history and next-nearby suggestions share the same left-side tray
+    as collapsible sections, expanded by default
+  - the map drill-in presentation keeps Pause/Start and Reset as transparent
+    simulator overlays and lets the canvas fill the window
 - public system-simulation scene-readiness API:
   - `GET /api/v1/systems/{system_id}/simulation-scene`
   - exposes current hierarchy, arm graph/orbit rows, and readiness fields for

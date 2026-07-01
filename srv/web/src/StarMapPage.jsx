@@ -1382,29 +1382,54 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       </aside>
 
       <aside className="map-hud map-contacts-panel">
-        <span className="map-panel-label">Selection History</span>
-        <div className="map-history-list">
-          {selectionHistory.map((system) => (
-            <div
-              key={system.system_id}
-              role="button"
-              tabIndex={0}
-              className={`map-history-pill ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
-              onClick={() => selectSystem(system, { openPeek: true })}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  selectSystem(system, { openPeek: true });
-                }
-              }}
-            >
-              <SystemNameDisplay system={system} />
-              <span>{formatNumber(system.dist_ly, 1)} ly</span>
-              <span>{system.dominant_spectral_class}</span>
-              <span>{formatNumber(system.planet_count, 0)}p</span>
+        <details className="map-tray-section" open>
+          <summary>
+            <span className="map-panel-label">Selection History</span>
+          </summary>
+          <div className="map-history-list">
+            {selectionHistory.map((system) => (
+              <div
+                key={system.system_id}
+                role="button"
+                tabIndex={0}
+                className={`map-history-pill ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
+                onClick={() => selectSystem(system, { openPeek: true })}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    selectSystem(system, { openPeek: true });
+                  }
+                }}
+              >
+                <SystemNameDisplay system={system} />
+                <span>{formatNumber(system.dist_ly, 1)} ly</span>
+                <span>{system.dominant_spectral_class}</span>
+                <span>{formatNumber(system.planet_count, 0)}p</span>
+              </div>
+            ))}
+          </div>
+        </details>
+        {selectedSystem && (
+          <details className="map-tray-section" open>
+            <summary>
+              <span className="map-panel-label">Next Nearby</span>
+            </summary>
+            <div className="map-neighbor-list" aria-label="Suggested nearby systems">
+              {suggestedNeighbors.map(({ system, routeDistance, score }) => (
+                <button
+                  type="button"
+                  key={system.system_id}
+                  className="map-neighbor-button"
+                  onClick={() => selectSystem(system, { openPeek: true, focus: drillMode === "explore" })}
+                >
+                  <strong>{shortDisplayName(system.display_name)}</strong>
+                  <span>{formatNumber(routeDistance, 2)} ly · {system.dominant_spectral_class} · {formatNumber(system.planet_count, 0)}p</span>
+                  <em>cool {formatNumber(system.coolness_score, 1)} · signal {formatNumber(score, 1)}</em>
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
+          </details>
+        )}
       </aside>
 
       {routeMenu && (
@@ -1473,10 +1498,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           aria-label={`${formatName(selectedSystem.display_name)} system simulation`}
         >
           <div className="map-system-drill-bar">
-            <div>
-              <span className="map-panel-label">{drillMode === "peek" ? "System Simulation Peek" : "System Simulation Explore"}</span>
-              <strong>{shortDisplayName(selectedSystem.display_name)}</strong>
-            </div>
+            <strong className="map-system-drill-title">System: <SystemNameDisplay system={selectedSystem} /></strong>
             <div className="map-system-drill-actions">
               {drillMode === "peek" && (
                 <button
@@ -1499,6 +1521,15 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             </div>
           </div>
           <div className="map-system-drill-body">
+            <div className="map-system-vital-strip" aria-label={`${formatName(selectedSystem.display_name)} map vitals`}>
+              <span>{formatNumber(selectedSystem.dist_ly, 2)} ly</span>
+              <span>{selectedSystem.dominant_spectral_class}</span>
+              <span>{formatNumber(selectedSystem.star_count, 0)} stars</span>
+              <span>{formatNumber(selectedSystem.planet_count, 0)} planets</span>
+              <span>cool {formatNumber(selectedSystem.coolness_score, 1)}</span>
+              <span>rank {formatNumber(selectedSystem.coolness_rank, 0)}</span>
+              <SnapshotStatusChip system={selectedSystem} />
+            </div>
             <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
               <SystemPreviewPanel
                 systemId={selectedSystem.system_id}
@@ -1506,25 +1537,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 presentationMode={drillMode}
               />
             </React.Suspense>
-            <aside className="map-system-suggestions" aria-label="Suggested nearby systems">
-              <span className="map-panel-label">Next Nearby</span>
-              {suggestedNeighbors.map(({ system, routeDistance, score }) => (
-                <button
-                  type="button"
-                  key={system.system_id}
-                  className="map-neighbor-button"
-                  onClick={() => selectSystem(system, { openPeek: true, focus: drillMode === "explore" })}
-                >
-                  <strong>{shortDisplayName(system.display_name)}</strong>
-                  <span>{formatNumber(routeDistance, 2)} ly · {system.dominant_spectral_class} · {formatNumber(system.planet_count, 0)}p</span>
-                  <em>cool {formatNumber(system.coolness_score, 1)} · signal {formatNumber(score, 1)}</em>
-                </button>
-              ))}
-            </aside>
-          </div>
-          <div className="map-system-drill-footer">
-            <span>{drillMode === "peek" ? "Peek mode inspects this system without moving the map camera." : "Explore mode focuses the map around this system."}</span>
-            <span>Esc or Back to Map returns to flight. AAA science layers will attach here after reviewed publication.</span>
           </div>
         </section>
       )}
