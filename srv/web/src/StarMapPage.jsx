@@ -54,7 +54,9 @@ const TOUCH_LOOK_SENSITIVITY = 0.003;
 const TOUCH_PINCH_SPEED = 0.018;
 const TOUCH_PAN_SPEED = 0.012;
 const MOUSE_LOOK_SENSITIVITY = 0.002;
+const MOUSE_DRAG_TRANSLATE_SPEED = 0.026;
 const MOUSE_WHEEL_FLY_SPEED = 1.25;
+const MOUSE_WHEEL_TRUCK_SPEED = 0.9;
 const SPECTRAL_COLORS = {
   O: "#74a9ff",
   B: "#9fc9ff",
@@ -794,6 +796,7 @@ function FlightControls({
   const yawRef = useRef(0);
   const pitchRef = useRef(-0.08);
   const telemetryClockRef = useRef(0);
+  const suppressContextMenuRef = useRef(false);
   const touchGestureRef = useRef({
     pointers: new Map(),
     lastPinchDistance: null,
@@ -803,6 +806,7 @@ function FlightControls({
   });
   const mouseDragRef = useRef({
     active: false,
+    mode: "look",
     pointerId: null,
     lastX: 0,
     lastY: 0,
@@ -869,6 +873,13 @@ function FlightControls({
     pitchRef.current = Math.max(-1.34, Math.min(1.34, pitchRef.current));
     camera.rotation.set(pitchRef.current, yawRef.current, 0);
   }, [camera]);
+
+  const updateCameraDataset = useCallback((gesture = "") => {
+    gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+    if (gesture) {
+      gl.domElement.dataset.mapCameraGesture = gesture;
+    }
+  }, [camera, gl.domElement]);
 
   useEffect(() => {
     camera.position.set(0, 3.5, 17);
@@ -953,16 +964,19 @@ function FlightControls({
 
     const onPointerDown = (event) => {
       if (event.pointerType === "mouse") {
-        if (event.button !== 0 || document.pointerLockElement === canvas) {
+        if (![0, 1, 2].includes(event.button) || document.pointerLockElement === canvas) {
           return;
         }
-        event.preventDefault();
+        if (event.button !== 2) {
+          event.preventDefault();
+        }
         try {
           canvas.setPointerCapture?.(event.pointerId);
         } catch {
           // Synthetic pointer events used by tests may not create capturable pointers.
         }
         mouseDrag.active = true;
+        mouseDrag.mode = event.button === 1 ? "pedestal" : event.button === 2 ? "truck" : "look";
         mouseDrag.pointerId = event.pointerId;
         mouseDrag.lastX = event.clientX;
         mouseDrag.lastY = event.clientY;
@@ -998,7 +1012,19 @@ function FlightControls({
         mouseDrag.lastY = event.clientY;
         const totalMove = Math.hypot(event.clientX - mouseDrag.startX, event.clientY - mouseDrag.startY);
         mouseDrag.moved = mouseDrag.moved || totalMove > 5;
-        applyLookDelta(deltaX, deltaY, MOUSE_LOOK_SENSITIVITY);
+        if (mouseDrag.mode === "truck") {
+          const direction = new THREE.Vector3();
+          const strafe = new THREE.Vector3();
+          camera.getWorldDirection(direction).normalize();
+          strafe.crossVectors(direction, WORLD_UP).normalize();
+          camera.position.addScaledVector(strafe, deltaX * MOUSE_DRAG_TRANSLATE_SPEED);
+          updateCameraDataset("right-drag-truck");
+        } else if (mouseDrag.mode === "pedestal") {
+          camera.position.addScaledVector(WORLD_UP, -deltaY * MOUSE_DRAG_TRANSLATE_SPEED);
+          updateCameraDataset("middle-drag-pedestal");
+        } else {
+          applyLookDelta(deltaX, deltaY, MOUSE_LOOK_SENSITIVITY);
+        }
         return;
       }
       if (!gesture.pointers.has(event.pointerId)) {
@@ -1052,10 +1078,14 @@ function FlightControls({
           // Ignore non-captured synthetic pointers.
         }
         const duration = performance.now() - mouseDrag.startTime;
-        if (!mouseDrag.moved && duration < 320) {
+        if (mouseDrag.mode === "truck" && mouseDrag.moved) {
+          suppressContextMenuRef.current = true;
+        }
+        if (mouseDrag.mode === "look" && !mouseDrag.moved && duration < 320) {
           selectPointerTarget(event.clientX, event.clientY);
         }
         mouseDrag.active = false;
+        mouseDrag.mode = "look";
         mouseDrag.pointerId = null;
         return;
       }
@@ -1093,11 +1123,29 @@ function FlightControls({
       }
       event.preventDefault();
       const direction = new THREE.Vector3();
+      const strafe = new THREE.Vector3();
       camera.getWorldDirection(direction).normalize();
-      const wheelMagnitude = Math.min(6, Math.max(0.5, Math.abs(event.deltaY) / 90));
-      const wheelDirection = event.deltaY < 0 ? 1 : -1;
-      camera.position.addScaledVector(direction, wheelDirection * wheelMagnitude * MOUSE_WHEEL_FLY_SPEED);
-      gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+      strafe.crossVectors(direction, WORLD_UP).normalize();
+      if (Math.abs(event.deltaY) > 0) {
+        const wheelMagnitude = Math.min(6, Math.max(0.5, Math.abs(event.deltaY) / 90));
+        const wheelDirection = event.deltaY < 0 ? 1 : -1;
+        camera.position.addScaledVector(direction, wheelDirection * wheelMagnitude * MOUSE_WHEEL_FLY_SPEED);
+      }
+      if (Math.abs(event.deltaX) > 0) {
+        const truckMagnitude = Math.min(5, Math.max(0.25, Math.abs(event.deltaX) / 90));
+        const truckDirection = event.deltaX > 0 ? 1 : -1;
+        camera.position.addScaledVector(strafe, truckDirection * truckMagnitude * MOUSE_WHEEL_TRUCK_SPEED);
+      }
+      updateCameraDataset("wheel");
+    };
+
+    const onContextMenu = (event) => {
+      if (suppressContextMenuRef.current) {
+        event.preventDefault();
+        suppressContextMenuRef.current = false;
+        return;
+      }
+      openRouteContext(event);
     };
 
     canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
@@ -1105,16 +1153,16 @@ function FlightControls({
     canvas.addEventListener("pointerup", onPointerEnd, { passive: false });
     canvas.addEventListener("pointercancel", onPointerEnd, { passive: false });
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    canvas.addEventListener("contextmenu", openRouteContext);
+    canvas.addEventListener("contextmenu", onContextMenu);
     return () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerEnd);
       canvas.removeEventListener("pointercancel", onPointerEnd);
       canvas.removeEventListener("wheel", onWheel);
-      canvas.removeEventListener("contextmenu", openRouteContext);
+      canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [applyLookDelta, camera, controlsEnabled, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget]);
+  }, [applyLookDelta, camera, controlsEnabled, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget, updateCameraDataset]);
 
   useFrame((_, delta) => {
     if (focusRef.current) {
@@ -1590,7 +1638,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
 
       <header className="map-hud map-hud-top">
         <div className="map-title-block">
-          <span className="map-eyebrow">Spacegate 3D Pilot</span>
+          <a className="map-eyebrow map-eyebrow-link" href="https://spacegates.org/">
+            Spacegate Stellar Database
+          </a>
           <h1>{mapTitle}</h1>
           <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
         </div>
@@ -1671,7 +1721,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Stabilize
           </button>
         </div>
-        <p className="map-desktop-hint">Desktop: drag canvas to look · click to select · {activeKeybind.hint} · arrows always fly</p>
+        <p className="map-desktop-hint">Desktop: drag look · wheel fly · tilt wheel/RMB drag truck · MMB drag pedestal · {activeKeybind.hint} · arrows always fly</p>
         <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
         <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
         {routeSegments.length > 0 && (

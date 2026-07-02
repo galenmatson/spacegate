@@ -480,9 +480,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Retune the Star Map/System Explorer Cyberpunk theme toward neon
   magenta/cyan map chrome with scanlines, glow, and darker glass panels
 - [x] Add mouse-wheel forward/back flight over the Star Map canvas
+- [x] Add horizontal wheel truck, right-button drag truck, and middle-button
+  drag pedestal controls to the Star Map canvas
 - [x] Rename System Peek `Back to Map` action to `Close`
 - [x] Tighten Cyberpunk/Geocities System Peek header alignment and retune
   Cyberpunk title/HUD text toward terminal green
+- [x] Link the Star Map header eyebrow to `spacegates.org` as
+  `Spacegate Stellar Database`
+- [x] Retune Enterprise/LCARS Star Map chrome with colored LCARS block controls
+  while preserving black nontransparent panels
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

@@ -177,6 +177,18 @@
   text-transform: uppercase;
 }
 
+.map-eyebrow-link {
+  width: fit-content;
+  text-decoration: none;
+}
+
+.map-eyebrow-link:hover,
+.map-eyebrow-link:focus-visible {
+  color: var(--map-hud-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .map-title-block h1,
 .map-selection-panel h2 {
   margin: 2px 0 0;
@@ -1108,15 +1120,81 @@
   --map-select-bg: #000000;
   --map-select-ink: #fff6bf;
   --map-select-checked-bg: #2a2200;
+  font-family: var(--font-body);
 }
 
 :root[data-theme="lcars"] .map-hud,
 :root[data-theme="lcars"] .map-system-drill,
 :root[data-theme="lcars"] .map-header-menu-panel {
+  position: absolute;
   border-color: #ffd400;
   background: #000000;
   box-shadow: none;
   backdrop-filter: none;
+  border-width: 2px;
+  overflow: hidden;
+}
+
+:root[data-theme="lcars"] .map-hud::before,
+:root[data-theme="lcars"] .map-system-drill::before,
+:root[data-theme="lcars"] .map-header-menu-panel::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+:root[data-theme="lcars"] .map-hud > *,
+:root[data-theme="lcars"] .map-system-drill > *,
+:root[data-theme="lcars"] .map-header-menu-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+:root[data-theme="lcars"] .map-hud-top {
+  min-height: 74px;
+  padding-left: 86px;
+  border-radius: 32px 0 0 32px;
+}
+
+:root[data-theme="lcars"] .map-hud-top::before {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  background:
+    linear-gradient(#000000 0 12px, transparent 12px calc(100% - 12px), #000000 calc(100% - 12px)),
+    linear-gradient(180deg, var(--lcars-orange), var(--lcars-peach) 44%, var(--lcars-blue));
+  border-radius: 28px 0 0 28px;
+  border-right: 10px solid #000000;
+}
+
+:root[data-theme="lcars"] .map-controls-panel::before,
+:root[data-theme="lcars"] .map-contacts-panel::before {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  background: linear-gradient(180deg, var(--lcars-yellow), var(--lcars-orange) 52%, var(--lcars-lilac));
+}
+
+:root[data-theme="lcars"] .map-controls-panel,
+:root[data-theme="lcars"] .map-contacts-panel {
+  padding-left: 28px;
+  border-radius: 22px 0 0 22px;
+}
+
+:root[data-theme="lcars"] .map-system-drill {
+  border-radius: 34px 0 0 34px;
+}
+
+:root[data-theme="lcars"] .map-system-drill::before {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(180deg, var(--lcars-orange), var(--lcars-yellow) 40%, var(--lcars-blue));
+  border-right: 10px solid #000000;
 }
 
 :root[data-theme="lcars"] .map-system-drill-title,
@@ -1133,19 +1211,52 @@
 :root[data-theme="lcars"] .map-system-drill .system-preview-toggle,
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed select,
 :root[data-theme="lcars"] .map-system-drill .system-preview-scale select {
-  border-color: #ffd400;
-  background: #000000;
-  color: #fff6bf;
+  border-color: transparent;
+  background: var(--lcars-blue);
+  color: var(--lcars-text-dark);
   box-shadow: none;
   backdrop-filter: none;
+  border-radius: 999px 0 0 999px;
+  font-weight: 700;
 }
 
 :root[data-theme="lcars"] .map-command-button.primary,
+:root[data-theme="lcars"] .map-hud-button.primary,
 :root[data-theme="lcars"] .map-history-pill.active {
-  border-color: #ffd400;
-  background: #000000;
-  color: #ffffff;
+  border-color: transparent;
+  background: var(--lcars-orange);
+  color: var(--lcars-text-dark);
   box-shadow: none;
+}
+
+:root[data-theme="lcars"] .map-hud-button:nth-child(2n),
+:root[data-theme="lcars"] .map-command-button:nth-child(2n),
+:root[data-theme="lcars"] .map-history-pill:nth-child(2n),
+:root[data-theme="lcars"] .map-system-vital-strip > span:nth-child(2n),
+:root[data-theme="lcars"] .map-header-readout span:nth-child(2n) {
+  background: var(--lcars-peach);
+  color: var(--lcars-text-dark);
+}
+
+:root[data-theme="lcars"] .map-hud-button:nth-child(3n),
+:root[data-theme="lcars"] .map-command-button:nth-child(3n),
+:root[data-theme="lcars"] .map-history-pill:nth-child(3n),
+:root[data-theme="lcars"] .map-system-vital-strip > span:nth-child(3n),
+:root[data-theme="lcars"] .map-header-readout span:nth-child(3n) {
+  background: var(--lcars-lilac);
+  color: var(--lcars-text-dark);
+}
+
+:root[data-theme="lcars"] .map-system-drill-title {
+  background: var(--lcars-yellow);
+  color: var(--lcars-text-dark);
+}
+
+:root[data-theme="lcars"] .map-title-block h1 {
+  color: var(--lcars-orange);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
 }
 
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed span,
@@ -1178,6 +1289,10 @@
   background: #000000;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+:root[data-theme="lcars"] .map-system-drill .system-preview-canvas {
+  border-width: 2px;
 }
 
 :root[data-theme="cyberpunk"] .map-page {

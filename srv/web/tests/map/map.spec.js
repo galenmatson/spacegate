@@ -50,6 +50,8 @@ test.describe("public 3D map beta", () => {
     expect(configResponse.ok()).toBeTruthy();
     const config = await configResponse.json();
     await openMap(page);
+    await expect(page.locator(".map-eyebrow-link")).toHaveText("Spacegate Stellar Database");
+    await expect(page.locator(".map-eyebrow-link")).toHaveAttribute("href", "https://spacegates.org/");
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
   });
 
@@ -89,6 +91,7 @@ test.describe("public 3D map beta", () => {
       () => canvas.evaluate((node) => node.dataset.mapKeybindScheme || ""),
       { timeout: 3000 }
     ).toBe("num8456");
+    await page.waitForTimeout(900);
     const beforeTopRowNumber = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
     await page.keyboard.down("8");
     await page.waitForTimeout(350);
@@ -129,6 +132,33 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeWheelBack);
+
+    const beforeWheelTruck = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.wheel(420, 0);
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeWheelTruck);
+
+    const beforeRightTruck = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.move(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2);
+    await page.mouse.down({ button: "right" });
+    await page.mouse.move(mapBox.x + mapBox.width / 2 + 150, mapBox.y + mapBox.height / 2, { steps: 8 });
+    await page.mouse.up({ button: "right" });
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeRightTruck);
+    await expect.poll(() => canvas.evaluate((node) => node.dataset.mapCameraGesture || "")).toBe("right-drag-truck");
+    await expect(page.locator(".map-context-menu")).toHaveCount(0);
+
+    const beforeMiddlePedestal = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.move(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2);
+    await page.mouse.down({ button: "middle" });
+    await page.mouse.move(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2 - 130, { steps: 8 });
+    await page.mouse.up({ button: "middle" });
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeMiddlePedestal);
+    await expect.poll(() => canvas.evaluate((node) => node.dataset.mapCameraGesture || "")).toBe("middle-drag-pedestal");
   });
 
   test("desktop route tools create, undo, and clear ephemeral measurements", async ({ page }, testInfo) => {
@@ -387,6 +417,52 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.drillTitleContent).toContain("SYSTEM_SIM.EXE");
     expect(themeStyles.titleColor).toBe("rgb(255, 255, 0)");
     expect(themeStyles.drillHeaderOverlap).toBe(false);
+  });
+
+  test("enterprise map theme uses LCARS block chrome", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    await menu.locator(".map-theme-select select").selectOption("lcars");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("lcars");
+
+    const themeStyles = await page.evaluate(() => {
+      const header = document.querySelector(".map-hud-top");
+      const headerRail = window.getComputedStyle(header, "::before");
+      const title = document.querySelector(".map-title-block h1");
+      const button = document.querySelector(".map-hud-button");
+      const drill = document.querySelector("[data-testid='map-system-drill']");
+      const drillRail = window.getComputedStyle(drill, "::before");
+      const headerStyle = window.getComputedStyle(header);
+      const titleStyle = window.getComputedStyle(title);
+      const buttonStyle = window.getComputedStyle(button);
+      const drillStyle = window.getComputedStyle(drill);
+      return {
+        headerBackground: headerStyle.backgroundColor,
+        headerBorderTop: headerStyle.borderTopColor,
+        headerRadius: headerStyle.borderTopLeftRadius,
+        headerRailBackground: headerRail.backgroundImage,
+        titleColor: titleStyle.color,
+        titleLetterSpacing: titleStyle.letterSpacing,
+        buttonBackground: buttonStyle.backgroundColor,
+        buttonColor: buttonStyle.color,
+        drillBackground: drillStyle.backgroundColor,
+        drillRailBackground: drillRail.backgroundImage,
+      };
+    });
+    expect(themeStyles.headerBackground).toBe("rgb(0, 0, 0)");
+    expect(themeStyles.drillBackground).toBe("rgb(0, 0, 0)");
+    expect(themeStyles.headerBorderTop).toBe("rgb(255, 212, 0)");
+    expect(themeStyles.headerRadius).toBe("32px");
+    expect(themeStyles.headerRailBackground).toContain("245, 162, 46");
+    expect(themeStyles.drillRailBackground).toContain("245, 162, 46");
+    expect(themeStyles.titleColor).toBe("rgb(245, 162, 46)");
+    expect(themeStyles.titleLetterSpacing).not.toBe("normal");
+    expect(themeStyles.buttonBackground).toBe("rgb(145, 160, 255)");
+    expect(themeStyles.buttonColor).toBe("rgb(20, 15, 27)");
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {

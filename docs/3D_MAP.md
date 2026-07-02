@@ -30,6 +30,10 @@ Controls:
 - mouse look through pointer lock
 - mouse wheel over the flight canvas flies forward on wheel-up and backward on
   wheel-down
+- tilt-wheel/horizontal wheel over the flight canvas trucks left/right
+- right-button drag trucks left/right after the drag threshold; short
+  right-click still opens the system context menu
+- middle-button drag pedestals up/down
 - Shift: boost
 - stabilized vertical on by default
 - desktop free-cursor mode:
@@ -189,10 +193,10 @@ Initial layers:
     pills
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
-    nontransparent cards with bright yellow borders and no glow, Cyberpunk uses
-    neon magenta/cyan glass, scanlines, terminal-green title/HUD text, and
-    glow-heavy explorer chrome, Simple Light uses more opaque surfaces for
-    readability, and Geocities
+    nontransparent surfaces, bright yellow borders, and orange/peach/lilac/blue
+    LCARS block controls without glow, Cyberpunk uses neon magenta/cyan glass,
+    scanlines, terminal-green title/HUD text, and glow-heavy explorer chrome,
+    Simple Light uses more opaque surfaces for readability, and Geocities
     intentionally uses stereotypical 90s web chrome with beveled windows,
     bright web-safe accents, title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact

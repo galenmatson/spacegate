@@ -855,6 +855,11 @@ Readiness gaps:
   map canvas, renames Peek's `Back to Map` action to `Close`, tightens
   Cyberpunk/Geocities Peek header alignment, and shifts Cyberpunk map title and
   HUD text toward terminal green with a sharper futuristic font stack.
+- July 2, 2026 Star Map mouse/LCARS polish adds horizontal wheel truck,
+  right-button drag truck, middle-button drag pedestal controls, links the map
+  header eyebrow to `spacegates.org` as `Spacegate Stellar Database`, and
+  retunes Enterprise/LCARS map chrome with colored LCARS block controls while
+  preserving black nontransparent panels.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.
