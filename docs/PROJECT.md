@@ -574,8 +574,9 @@ Current contract:
 - compact map endpoint: `GET /api/v1/map/systems`
 - first slice: Sol-centered systems within 100 ly
 - rendering stack: React 19 + Three.js through React Three Fiber
-- controls: WASD/arrow-key flight, mouse look, `Q` up, `Z` down, Shift boost,
-  stabilized vertical by default; v0.2 adds touch-first phone/tablet controls with
+- controls: selectable `WASD`, `ESDF`, or `8456` flight layouts plus permanent
+  arrow-key flight, mouse look, Shift boost, and stabilized vertical by
+  default; v0.2 adds touch-first phone/tablet controls with
   drag-look, tap/select-reticle, two-finger pinch flight, and two-finger pan
 - public map branding comes from `GET /api/v1/public-config`, backed by
   `SPACEGATE_SITE_NAME` / `SPACEGATE_MAP_TITLE`, with `Coolstars Map` as the

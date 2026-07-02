@@ -844,6 +844,9 @@ Readiness gaps:
   Simulation Peek panel resizable for the current browser session. A later
   installer/runtime configuration milestone should prompt for the public site
   name instead of relying on operators to edit env files manually.
+- July 2, 2026 Star Map header menu pass moves the theme selector into a
+  right-side burger menu and adds persistent `WASD`, `ESDF`, and `8456`
+  keybind layouts while keeping arrow keys as always-available flight aliases.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

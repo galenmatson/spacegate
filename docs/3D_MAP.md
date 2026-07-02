@@ -18,11 +18,14 @@ Runtime choices:
 
 Controls:
 
-- WASD: forward/back/left/right
+- header burger menu:
+  - Theme selector
+  - keybind selector for `WASD`, `ESDF`, and `8456`
+- `WASD`: forward/back/left/right, `Q` up, `Z` down
+- `ESDF`: forward/back/left/right, `A` up, `Z` down
+- `8456`: forward/back/left/right, `7` up, `1` down
 - arrow keys: same forward/back/left/right controls as WASD
 - mouse look through pointer lock
-- `Q`: translate up
-- `Z`: translate down
 - Shift: boost
 - stabilized vertical on by default
 - desktop free-cursor mode:

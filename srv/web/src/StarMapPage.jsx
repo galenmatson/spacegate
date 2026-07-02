@@ -10,9 +10,46 @@ const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
+const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const KEYBOARD_BASE_SPEED = 7;
 const KEYBOARD_BOOST_SPEED = 18;
+const MAP_KEYBIND_SCHEMES = {
+  wasd: {
+    id: "wasd",
+    label: "WASD",
+    forward: "w",
+    back: "s",
+    left: "a",
+    right: "d",
+    up: "q",
+    down: "z",
+    hint: "WASD fly · Q/Z vertical",
+  },
+  esdf: {
+    id: "esdf",
+    label: "ESDF",
+    forward: "e",
+    back: "d",
+    left: "s",
+    right: "f",
+    up: "a",
+    down: "z",
+    hint: "ESDF fly · A/Z vertical",
+  },
+  num8456: {
+    id: "num8456",
+    label: "8456",
+    forward: "8",
+    back: "5",
+    left: "4",
+    right: "6",
+    up: "7",
+    down: "1",
+    hint: "8456 fly · 7/1 vertical",
+  },
+};
+const MAP_KEYBIND_OPTIONS = Object.values(MAP_KEYBIND_SCHEMES);
 const TOUCH_LOOK_SENSITIVITY = 0.003;
 const TOUCH_PINCH_SPEED = 0.018;
 const TOUCH_PAN_SPEED = 0.012;
@@ -71,6 +108,23 @@ function readStoredMapPeekSize() {
   } catch {
     return DEFAULT_MAP_PEEK_SIZE;
   }
+}
+
+function readStoredMapKeybindScheme() {
+  if (typeof window === "undefined") {
+    return "wasd";
+  }
+  try {
+    const stored = window.localStorage.getItem(MAP_KEYBIND_STORAGE_KEY);
+    return MAP_KEYBIND_SCHEMES[stored] ? stored : "wasd";
+  } catch {
+    return "wasd";
+  }
+}
+
+function isKeyboardInputTarget(target) {
+  const element = target instanceof Element ? target : null;
+  return Boolean(element?.closest?.("input, select, textarea, [contenteditable='true']"));
 }
 
 function isCatalogFallbackName(value) {
@@ -688,6 +742,7 @@ function FlightControls({
   systems,
   onSelect,
   onRouteContext,
+  keybindScheme,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -718,6 +773,7 @@ function FlightControls({
     moved: false,
   });
   const focusRef = useRef(null);
+  const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
 
   const selectReticleTarget = useCallback(() => {
     const target = nearestSystemToReticle(camera, systems);
@@ -782,9 +838,28 @@ function FlightControls({
   }, [camera]);
 
   useEffect(() => {
-    const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "q", "z", "shift"]);
+    gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
+  }, [activeKeybind.id, gl.domElement]);
+
+  useEffect(() => {
+    const movementKeys = new Set([
+      activeKeybind.forward,
+      activeKeybind.back,
+      activeKeybind.left,
+      activeKeybind.right,
+      activeKeybind.up,
+      activeKeybind.down,
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+      "shift",
+    ]);
     const onKeyDown = (event) => {
       const key = event.key.toLowerCase();
+      if (isKeyboardInputTarget(event.target)) {
+        return;
+      }
       if (movementKeys.has(key) && (controlsEnabled || document.pointerLockElement === gl.domElement)) {
         event.preventDefault();
       }
@@ -818,7 +893,7 @@ function FlightControls({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [applyLookDelta, controlsEnabled, gl.domElement, selectReticleTarget]);
+  }, [activeKeybind, applyLookDelta, controlsEnabled, gl.domElement, selectReticleTarget]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -1015,12 +1090,12 @@ function FlightControls({
     camera.getWorldDirection(direction).normalize();
     strafe.crossVectors(direction, WORLD_UP).normalize();
     const baseSpeed = keys.has("shift") ? KEYBOARD_BOOST_SPEED : KEYBOARD_BASE_SPEED;
-    if (keys.has("w") || keys.has("arrowup")) movement.add(direction);
-    if (keys.has("s") || keys.has("arrowdown")) movement.sub(direction);
-    if (keys.has("d") || keys.has("arrowright")) movement.add(strafe);
-    if (keys.has("a") || keys.has("arrowleft")) movement.sub(strafe);
-    if (keys.has("q")) movement.add(WORLD_UP);
-    if (keys.has("z")) movement.sub(WORLD_UP);
+    if (keys.has(activeKeybind.forward) || keys.has("arrowup")) movement.add(direction);
+    if (keys.has(activeKeybind.back) || keys.has("arrowdown")) movement.sub(direction);
+    if (keys.has(activeKeybind.right) || keys.has("arrowright")) movement.add(strafe);
+    if (keys.has(activeKeybind.left) || keys.has("arrowleft")) movement.sub(strafe);
+    if (keys.has(activeKeybind.up)) movement.add(WORLD_UP);
+    if (keys.has(activeKeybind.down)) movement.sub(WORLD_UP);
     if (movement.lengthSq() > 0) {
       movement.normalize().multiplyScalar(baseSpeed * delta);
       camera.position.add(movement);
@@ -1033,6 +1108,8 @@ function FlightControls({
         speedLyS: baseSpeed / LY_TO_SCENE,
         locked: document.pointerLockElement === gl.domElement,
       });
+      gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
+      gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
     }
   });
 
@@ -1044,6 +1121,7 @@ function StarMapScene({
   selectedSystem,
   onSelect,
   onRouteContext,
+  keybindScheme,
   routeSegments,
   controlsEnabled,
   stabilizationEnabled,
@@ -1072,6 +1150,7 @@ function StarMapScene({
         systems={systems}
         onSelect={onSelect}
         onRouteContext={onRouteContext}
+        keybindScheme={keybindScheme}
         controlsEnabled={controlsEnabled}
         stabilizationEnabled={stabilizationEnabled}
         onTelemetry={onTelemetry}
@@ -1102,10 +1181,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [drillMode, setDrillMode] = useState("flight");
   const [focusToken, setFocusToken] = useState(0);
   const [peekSize, setPeekSize] = useState(readStoredMapPeekSize);
+  const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
+  const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
 
   useEffect(() => {
     let cancelled = false;
@@ -1136,6 +1217,14 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       // Session persistence is a convenience; the default size remains usable.
     }
   }, [peekSize]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_KEYBIND_STORAGE_KEY, keybindScheme);
+    } catch {
+      // Control preference persistence is optional.
+    }
+  }, [keybindScheme]);
 
   const beginPeekResize = useCallback((event) => {
     if (drillMode !== "peek") {
@@ -1407,6 +1496,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           selectedSystem={selectedSystem}
           onSelect={(system) => selectSystem(system, { openPeek: true })}
           onRouteContext={setRouteMenu}
+          keybindScheme={keybindScheme}
           routeSegments={routeSegments}
           controlsEnabled={controlsEnabled}
           stabilizationEnabled={stabilizationEnabled}
@@ -1452,14 +1542,35 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               {isFullscreen ? "Exit" : "Full"}
             </button>
           )}
-          <label className="map-theme-select">
-            <span className="sr-only">Theme</span>
-            <select value={theme} onChange={(event) => setTheme(event.target.value)}>
-              {themeOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
-          </label>
+          <details className="map-header-menu">
+            <summary className="map-hud-button map-menu-button" aria-label="Map menu" title="Map menu">
+              <span className="map-menu-bars" aria-hidden="true" />
+            </summary>
+            <div className="map-header-menu-panel">
+              <label className="map-menu-field map-theme-select">
+                <span>Theme</span>
+                <select value={theme} onChange={(event) => setTheme(event.target.value)}>
+                  {themeOptions.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="map-menu-field map-keybind-select">
+                <span>Controls</span>
+                <select
+                  value={keybindScheme}
+                  onChange={(event) => setKeybindScheme(
+                    MAP_KEYBIND_SCHEMES[event.target.value] ? event.target.value : "wasd",
+                  )}
+                >
+                  {MAP_KEYBIND_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <span className="map-menu-note">Arrow keys always fly.</span>
+            </div>
+          </details>
         </nav>
       </header>
 
@@ -1484,7 +1595,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Stabilize
           </button>
         </div>
-        <p className="map-desktop-hint">Desktop: drag canvas to look · click to select · WASD fly · Q/Z vertical · capture mouse for reticle flight</p>
+        <p className="map-desktop-hint">Desktop: drag canvas to look · click to select · {activeKeybind.hint} · arrows always fly</p>
         <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
         <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
         {routeSegments.length > 0 && (

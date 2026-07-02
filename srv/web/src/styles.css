@@ -220,6 +220,11 @@
   gap: 8px;
 }
 
+.map-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .map-hud-button,
 .map-command-button,
 .map-mini-command,
@@ -251,6 +256,93 @@
 
 .map-fullscreen-command {
   display: none;
+}
+
+.map-header-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.map-header-menu summary {
+  list-style: none;
+}
+
+.map-header-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.map-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.map-menu-bars,
+.map-menu-bars::before,
+.map-menu-bars::after {
+  display: block;
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.map-menu-bars {
+  position: relative;
+}
+
+.map-menu-bars::before,
+.map-menu-bars::after {
+  content: "";
+  position: absolute;
+  left: 0;
+}
+
+.map-menu-bars::before {
+  top: -5px;
+}
+
+.map-menu-bars::after {
+  top: 5px;
+}
+
+.map-header-menu-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(236px, calc(100vw - 36px));
+  padding: 11px;
+  border: 1px solid var(--map-hud-border);
+  border-radius: 8px;
+  color: var(--map-hud-strong);
+  background: color-mix(in srgb, var(--panel) 74%, transparent);
+  box-shadow: 0 0 28px var(--map-hud-glow);
+  backdrop-filter: blur(12px);
+}
+
+.map-menu-field {
+  display: grid;
+  gap: 5px;
+}
+
+.map-menu-field > span,
+.map-menu-note {
+  color: var(--map-hud-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.map-menu-note {
+  letter-spacing: 0.04em;
+  text-transform: none;
 }
 
 .map-command-button.ghost {
@@ -289,9 +381,10 @@
   opacity: 0.48;
 }
 
-.map-theme-select select {
+.map-theme-select select,
+.map-keybind-select select {
   min-height: 34px;
-  max-width: 168px;
+  width: 100%;
   border: 1px solid var(--map-hud-border);
   border-radius: 6px;
   color: var(--map-hud-strong);
@@ -1001,7 +1094,8 @@
 }
 
 :root[data-theme="lcars"] .map-hud,
-:root[data-theme="lcars"] .map-system-drill {
+:root[data-theme="lcars"] .map-system-drill,
+:root[data-theme="lcars"] .map-header-menu-panel {
   border-color: #ffd400;
   background: #000000;
   box-shadow: none;
@@ -1016,6 +1110,8 @@
 :root[data-theme="lcars"] .map-header-readout span,
 :root[data-theme="lcars"] .map-system-vital-strip > span,
 :root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="lcars"] .map-theme-select select,
+:root[data-theme="lcars"] .map-keybind-select select,
 :root[data-theme="lcars"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="lcars"] .map-system-drill .system-preview-toggle,
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed select,
@@ -1086,7 +1182,9 @@
 }
 
 :root[data-theme="simple_light"] .map-system-drill,
-:root[data-theme="retro_90s"] .map-system-drill {
+:root[data-theme="simple_light"] .map-header-menu-panel,
+:root[data-theme="retro_90s"] .map-system-drill,
+:root[data-theme="retro_90s"] .map-header-menu-panel {
   background: rgba(255, 255, 255, 0.88);
   border-color: rgba(23, 37, 47, 0.34);
   backdrop-filter: none;
@@ -1102,6 +1200,8 @@
 :root[data-theme="simple_light"] .map-history-pill,
 :root[data-theme="simple_light"] .map-system-vital-strip > span,
 :root[data-theme="simple_light"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="simple_light"] .map-theme-select select,
+:root[data-theme="simple_light"] .map-keybind-select select,
 :root[data-theme="simple_light"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="simple_light"] .map-system-drill .system-preview-toggle,
 :root[data-theme="simple_light"] .map-system-drill .system-preview-speed select,
@@ -1111,6 +1211,8 @@
 :root[data-theme="retro_90s"] .map-history-pill,
 :root[data-theme="retro_90s"] .map-system-vital-strip > span,
 :root[data-theme="retro_90s"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="retro_90s"] .map-theme-select select,
+:root[data-theme="retro_90s"] .map-keybind-select select,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-toggle,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-speed select,
@@ -1228,9 +1330,9 @@
     font-size: 0.68rem;
   }
 
-  .map-theme-select select {
+  .map-theme-select select,
+  .map-keybind-select select {
     min-height: 34px;
-    max-width: 154px;
     font-size: 0.68rem;
   }
 
@@ -1388,7 +1490,8 @@
   }
 
   .map-hud-button,
-  .map-theme-select select {
+  .map-theme-select select,
+  .map-keybind-select select {
     background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
     box-shadow: 0 1px 10px color-mix(in srgb, var(--bg) 66%, transparent);
     backdrop-filter: blur(10px);
@@ -1410,9 +1513,9 @@
     opacity: 1;
   }
 
-  .map-theme-select select {
+  .map-theme-select select,
+  .map-keybind-select select {
     min-height: 32px;
-    max-width: 118px;
     font-size: 0.63rem;
   }
 

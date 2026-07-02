@@ -53,6 +53,59 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
   });
 
+  test("header menu controls theme and map keybind scheme", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop header menu and keyboard smoke");
+    await openMap(page);
+    const menu = page.locator(".map-header-menu");
+    const canvas = page.locator(".map-canvas canvas");
+    await expect(menu).toBeVisible();
+    await expect(page.locator(".map-actions > .map-theme-select")).toHaveCount(0);
+    await menu.locator("summary").click();
+    await expect(menu.locator(".map-header-menu-panel")).toBeVisible();
+    const themeSelect = menu.locator(".map-theme-select select");
+    const keybindSelect = menu.locator(".map-keybind-select select");
+    await expect(themeSelect).toBeVisible();
+    await expect(keybindSelect).toBeVisible();
+
+    await themeSelect.selectOption("aurora");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("aurora");
+
+    await keybindSelect.selectOption("esdf");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapKeybindScheme || ""),
+      { timeout: 3000 }
+    ).toBe("esdf");
+    await expect(page.locator(".map-desktop-hint")).toContainText(/ESDF fly/i);
+    const beforeEsdfMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.keyboard.down("e");
+    await page.waitForTimeout(350);
+    await page.keyboard.up("e");
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeEsdfMove);
+
+    await keybindSelect.selectOption("num8456");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapKeybindScheme || ""),
+      { timeout: 3000 }
+    ).toBe("num8456");
+    const beforeNumberMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.keyboard.down("8");
+    await page.waitForTimeout(350);
+    await page.keyboard.up("8");
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeNumberMove);
+
+    const beforeArrowMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.keyboard.down("ArrowUp");
+    await page.waitForTimeout(350);
+    await page.keyboard.up("ArrowUp");
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeArrowMove);
+  });
+
   test("desktop route tools create, undo, and clear ephemeral measurements", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop route workflow uses right-click");
     await openMap(page);
@@ -222,7 +275,9 @@ test.describe("public 3D map beta", () => {
     await page.locator(".map-history-pill").first().click();
 
     const drill = page.locator("[data-testid='map-system-drill']");
-    const themeSelect = page.locator(".map-theme-select select");
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    const themeSelect = menu.locator(".map-theme-select select");
     const scaleSelect = drill.locator("[data-testid='system-preview-scale-mode']");
     const speedSelect = drill.locator(".system-preview-speed select");
     const canvas = drill.locator(".system-preview-canvas canvas");

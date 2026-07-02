@@ -470,6 +470,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add public map branding config (`SPACEGATE_SITE_NAME` /
   `SPACEGATE_MAP_TITLE`) with `Coolstars Map` default
 - [x] Add desktop System Peek resize control with session persistence
+- [x] Move Star Map theme selector into a right-header burger menu and add
+  persistent `WASD` / `ESDF` / `8456` keybind selector with permanent arrow
+  aliases
 - [x] Generalize Star Map right-click target menu to Select/Explore/Measure
   with outside-right-click dismissal for menus and Peek
 - [ ] Add installer/runtime configuration prompt for public site branding so
