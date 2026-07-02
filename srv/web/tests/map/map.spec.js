@@ -99,9 +99,12 @@ test.describe("public 3D map beta", () => {
     await openMap(page);
     await page.locator(".map-history-pill").first().click();
     await expect(page.locator(".map-contacts-panel .map-name-info")).toHaveCount(0);
+    await expect(page.locator(".map-contacts-panel .map-name-copy")).toHaveCount(0);
 
     const drill = page.locator("[data-testid='map-system-drill']");
     await expect(drill).toBeVisible();
+    await expect(drill.locator(".map-system-drill-title .map-name-info")).toHaveCount(0);
+    await expect(drill.locator(".map-system-drill-title .map-name-copy")).toHaveCount(0);
     await expect(drill).toHaveAttribute("data-drill-mode", "peek");
     await expect(drill).toContainText(/System:/i);
     await expect(drill).not.toContainText(/System Simulation Peek/i);

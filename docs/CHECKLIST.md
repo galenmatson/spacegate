@@ -462,6 +462,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Evidence and Render Policy
 - [x] Capture browser Back in Star Map Explorer so the browser back button
   returns to map flight instead of leaving the map route
+- [x] Polish Star Map showcase HUD/drill-in density: compact history/nearby
+  pills and drill titles no longer show inline long-ID copy/info buttons,
+  desktop header chrome is denser, and mobile Peek controls no longer overlap
+  Explore/Detail/Back actions
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current

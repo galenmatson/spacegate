@@ -833,6 +833,10 @@ Readiness gaps:
   orientation, partial sky-plane orientation, assumed roll, or local-clarity
   labels in the simulator policy readout so map-to-system alignment remains
   auditable instead of implied.
+- July 2, 2026 showcase polish densifies the Star Map header, removes inline
+  long-ID copy/info buttons from compact history/nearby pills and the map
+  drill title, and moves mobile Peek simulator speed/scale controls below the
+  Explore/Detail/Back row so phone portrait layouts stay readable.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

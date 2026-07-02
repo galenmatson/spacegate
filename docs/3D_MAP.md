@@ -165,6 +165,10 @@ Initial layers:
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
     nontransparent cards with bright yellow borders and no glow, while Simple
     Light and Geocities use more opaque map overlay surfaces for readability
+  - July 2026 showcase polish densifies the desktop HUD, keeps compact
+    history/nearby/drill titles text-only, and moves mobile simulator
+    speed/scale controls below the map drill action row so long Gaia-style
+    names do not crowd Peek or Explorer controls
 - public system-simulation scene-readiness API:
   - `GET /api/v1/systems/{system_id}/simulation-scene`
   - exposes current hierarchy, arm graph/orbit rows, and readiness fields for
