@@ -967,6 +967,7 @@ function FlightControls({
     moved: false,
   });
   const focusRef = useRef(null);
+  const handledReticleSelectRequestRef = useRef(0);
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
 
   const selectReticleTarget = useCallback(() => {
@@ -998,7 +999,11 @@ function FlightControls({
   }, [camera, gl.domElement, onRouteContext, systems]);
 
   useEffect(() => {
-    if (reticleSelectRequest > 0) {
+    if (
+      reticleSelectRequest > 0
+      && reticleSelectRequest !== handledReticleSelectRequestRef.current
+    ) {
+      handledReticleSelectRequestRef.current = reticleSelectRequest;
       selectReticleTarget();
     }
   }, [reticleSelectRequest, selectReticleTarget]);

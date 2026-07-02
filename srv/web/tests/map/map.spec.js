@@ -791,6 +791,17 @@ test.describe("public 3D map beta", () => {
       () => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""),
       { timeout: 3000 }
     ).not.toBe(beforeMove);
+
+    await page.getByRole("button", { name: /select reticle/i }).tap();
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toBeVisible();
+    await expect(drill).toHaveAttribute("data-drill-mode", "peek");
+    await drill.getByRole("button", { name: /^Close$/i }).tap();
+    await expect(drill).toHaveCount(0);
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("flight");
   });
 
   test("system detail renders live simulation preview", async ({ page }, testInfo) => {
