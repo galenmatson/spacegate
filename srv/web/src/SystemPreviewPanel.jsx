@@ -18,7 +18,7 @@ const SIM_SPEED_OPTIONS = [
 ];
 const SCALE_MODE_OPTIONS = [
   { value: "structure", label: "Structured", detail: "Collision-safe clarity scale; preserves hierarchy readability." },
-  { value: "true_orbits", label: "Orbit", detail: "Preserves linear planet semi-major-axis ratios within the scene." },
+  { value: "true_orbits", label: "Orbit", detail: "Preserves linear planet semi-major-axis ratios with tiny presentation bodies." },
   { value: "true_bodies", label: "Body", detail: "Preserves more body-size contrast while keeping targets inspectable." },
   { value: "log", label: "Log", detail: "Compresses body and orbit ranges with logarithmic transforms." },
 ];
@@ -177,6 +177,9 @@ function scaledStarRadius(radiusRsun, visualScale = DEFAULT_VISUAL_SCALE, scaleM
   const radius = Number(radiusRsun);
   const source = Number.isFinite(radius) && radius > 0 ? radius : Number(policy.fallback_rsun || 0.55);
   const mode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
+  if (mode === "true_orbits") {
+    return clampNumber(Math.sqrt(source) * 0.012, 0.004, 0.018);
+  }
   if (mode === "true_bodies") {
     return clampNumber(source * TRUE_BODY_STAR_RADIUS_FACTOR, 0.018, Number(policy.max_scene || 1.35));
   }
@@ -191,6 +194,9 @@ function scaledPlanetRadius(radiusEarth, visualScale = DEFAULT_VISUAL_SCALE, sca
   const radius = Number(radiusEarth);
   const source = Number.isFinite(radius) && radius > 0 ? radius : Number(policy.fallback_rearth || 1);
   const mode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
+  if (mode === "true_orbits") {
+    return clampNumber(Math.sqrt(source) * 0.0024, 0.0012, 0.006);
+  }
   if (mode === "true_bodies") {
     return clampNumber(source * TRUE_BODY_STAR_RADIUS_FACTOR * EARTH_RADIUS_IN_SOLAR_RADII, 0.0015, 0.035);
   }
@@ -1109,7 +1115,12 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   const compactRadiusFallback = bodyClass === "white_dwarf" ? 0.018 : (bodyClass === "neutron_star" || bodyClass === "pulsar" || bodyClass === "magnetar" ? 0.00003 : 0.55);
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || compactRadiusFallback);
   const radius = Number(star.display_radius_scene) || scaledStarRadius(radiusRsun, star.visualScale, star.visual_scale_mode);
-  const haloRadius = Number(star.display_halo_radius_scene) || Math.max(radius * (bodyClass === "white_dwarf" ? 2.35 : 1.75), radius + 0.18);
+  const scaleMode = normalizeScaleMode(star.visual_scale_mode);
+  const haloRadius = Number(star.display_halo_radius_scene) || (
+    scaleMode === "true_orbits"
+      ? Math.max(radius * (bodyClass === "white_dwarf" ? 2.1 : 1.65), radius + 0.025)
+      : Math.max(radius * (bodyClass === "white_dwarf" ? 2.35 : 1.75), radius + 0.18)
+  );
   const pickRadius = Number(star.pick_radius_scene) || Math.max(radius * 1.8, 0.34);
   const teffK = numericField(star.fields, "teff_k") || Number(star.teffK || 0);
   const visualClass = String(visualStellarClassValue(star) || "").slice(0, 1).toUpperCase();
@@ -2461,6 +2472,9 @@ function SceneMotionMetrics({
   planetDisplayEccentricityCappedCount = 0,
   trueOrbitScaleSampleCount = 0,
   trueOrbitScaleMaxRelativeError = null,
+  trueOrbitMaxBodyRadius = null,
+  trueOrbitMinPlanetOrbitRadius = null,
+  trueOrbitMaxBodyToMinOrbitRatio = null,
   habitableZoneCount = 0,
   habitableZoneMaxPlaneInclinationDeg = 0,
   starClassStatusCounts = {},
@@ -2526,6 +2540,15 @@ function SceneMotionMetrics({
     gl.domElement.dataset.trueOrbitScaleMaxRelativeError = Number.isFinite(Number(trueOrbitScaleMaxRelativeError))
       ? Number(trueOrbitScaleMaxRelativeError).toExponential(3)
       : "";
+    gl.domElement.dataset.trueOrbitMaxBodyRadius = Number.isFinite(Number(trueOrbitMaxBodyRadius))
+      ? Number(trueOrbitMaxBodyRadius).toFixed(5)
+      : "";
+    gl.domElement.dataset.trueOrbitMinPlanetOrbitRadius = Number.isFinite(Number(trueOrbitMinPlanetOrbitRadius))
+      ? Number(trueOrbitMinPlanetOrbitRadius).toFixed(5)
+      : "";
+    gl.domElement.dataset.trueOrbitMaxBodyToMinOrbitRatio = Number.isFinite(Number(trueOrbitMaxBodyToMinOrbitRatio))
+      ? Number(trueOrbitMaxBodyToMinOrbitRatio).toFixed(5)
+      : "";
     gl.domElement.dataset.habitableZoneCount = String(habitableZoneCount || 0);
     gl.domElement.dataset.habitableZoneMaxPlaneInclinationDeg = Number.isFinite(Number(habitableZoneMaxPlaneInclinationDeg)) ? Number(habitableZoneMaxPlaneInclinationDeg).toFixed(3) : "";
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
@@ -2565,6 +2588,9 @@ function SceneMotionMetrics({
     planetDisplayEccentricityCappedCount,
     trueOrbitScaleSampleCount,
     trueOrbitScaleMaxRelativeError,
+    trueOrbitMaxBodyRadius,
+    trueOrbitMinPlanetOrbitRadius,
+    trueOrbitMaxBodyToMinOrbitRatio,
     planetHostGroupCount,
     treeHostedPlanetCount,
     planetTrailCount,
@@ -2853,6 +2879,24 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   const trueOrbitDiagnostics = useMemo(() => (
     trueOrbitScaleDiagnostics(displayPlanets, activeScaleMode)
   ), [displayPlanets, activeScaleMode]);
+  const trueOrbitBodyDiagnostics = useMemo(() => {
+    if (activeScaleMode !== "true_orbits") {
+      return { maxBodyRadius: null, minPlanetOrbitRadius: null, maxBodyToMinOrbitRatio: null };
+    }
+    const bodyRadii = [
+      ...displayStars.map((star) => Number(star.display_radius_scene)),
+      ...displayPlanets.map((planet) => Number(planet.radius)),
+    ].filter((value) => Number.isFinite(value) && value > 0);
+    const orbitRadii = displayPlanets
+      .map((planet) => Number(planet.orbit_radius_scene))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    const maxBodyRadius = bodyRadii.length ? Math.max(...bodyRadii) : null;
+    const minPlanetOrbitRadius = orbitRadii.length ? Math.min(...orbitRadii) : null;
+    const maxBodyToMinOrbitRatio = Number.isFinite(maxBodyRadius) && Number.isFinite(minPlanetOrbitRadius) && minPlanetOrbitRadius > 0
+      ? maxBodyRadius / minPlanetOrbitRadius
+      : null;
+    return { maxBodyRadius, minPlanetOrbitRadius, maxBodyToMinOrbitRatio };
+  }, [activeScaleMode, displayPlanets, displayStars]);
   const hostPlacementForPlanet = (planet) => {
     const placementForStarKey = (starKey) => ({
       center: layout.starPositions.get(starKey),
@@ -2929,6 +2973,9 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         planetDisplayEccentricityCappedCount={planetDisplayEccentricityCappedCount}
         trueOrbitScaleSampleCount={trueOrbitDiagnostics.count}
         trueOrbitScaleMaxRelativeError={trueOrbitDiagnostics.maxRelativeError}
+        trueOrbitMaxBodyRadius={trueOrbitBodyDiagnostics.maxBodyRadius}
+        trueOrbitMinPlanetOrbitRadius={trueOrbitBodyDiagnostics.minPlanetOrbitRadius}
+        trueOrbitMaxBodyToMinOrbitRatio={trueOrbitBodyDiagnostics.maxBodyToMinOrbitRatio}
         habitableZoneCount={showHabitableZones ? habitableZoneStars.length : 0}
         habitableZoneMaxPlaneInclinationDeg={showHabitableZones ? habitableZoneMaxPlaneInclinationDeg : 0}
         starClassStatusCounts={starClassStatusCounts}

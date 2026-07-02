@@ -867,6 +867,10 @@ Readiness gaps:
   changing selected system or refocusing the camera, moves the Enterprise menu
   below the header bar, recolors the Peek/Explorer system-title chip, and
   groups selected-system vitals into a continuous LCARS control strip.
+- July 2, 2026 Star Map/System Simulation polish extends the continuous LCARS
+  strip treatment to header Coolstars stats plus Search/Detail/menu actions,
+  and tightens Orbit scale body meshes toward marker scale so true-orbit
+  inspection no longer swallows the inner system inside oversized bodies.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

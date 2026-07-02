@@ -436,6 +436,11 @@ test.describe("public 3D map beta", () => {
       const headerRail = window.getComputedStyle(header, "::before");
       const menuPanel = document.querySelector(".map-header-menu-panel");
       const title = document.querySelector(".map-title-block h1");
+      const headerStats = Array.from(document.querySelectorAll(".map-header-readout span"));
+      const actionItems = [
+        ...Array.from(document.querySelectorAll(".map-actions > .map-hud-button")).filter((item) => window.getComputedStyle(item).display !== "none"),
+        document.querySelector(".map-actions > .map-header-menu > .map-menu-button"),
+      ].filter(Boolean);
       const button = document.querySelector(".map-hud-button");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const drillRail = window.getComputedStyle(drill, "::before");
@@ -459,6 +464,16 @@ test.describe("public 3D map beta", () => {
       const previewCanvasRect = previewCanvas.getBoundingClientRect();
       const firstVitalRect = vitalItems[0].getBoundingClientRect();
       const secondVitalRect = vitalItems[1].getBoundingClientRect();
+      const firstStatStyle = window.getComputedStyle(headerStats[0]);
+      const secondStatStyle = window.getComputedStyle(headerStats[1]);
+      const lastStatStyle = window.getComputedStyle(headerStats[headerStats.length - 1]);
+      const firstStatRect = headerStats[0].getBoundingClientRect();
+      const secondStatRect = headerStats[1].getBoundingClientRect();
+      const firstActionStyle = window.getComputedStyle(actionItems[0]);
+      const secondActionStyle = window.getComputedStyle(actionItems[1]);
+      const lastActionStyle = window.getComputedStyle(actionItems[actionItems.length - 1]);
+      const firstActionRect = actionItems[0].getBoundingClientRect();
+      const secondActionRect = actionItems[1].getBoundingClientRect();
       return {
         headerBackground: headerStyle.backgroundColor,
         headerBorderTop: headerStyle.borderTopColor,
@@ -481,6 +496,14 @@ test.describe("public 3D map beta", () => {
         secondVitalLeftRadius: secondVitalStyle.borderTopLeftRadius,
         lastVitalRightRadius: lastVitalStyle.borderTopRightRadius,
         vitalGap: Math.round(secondVitalRect.left - firstVitalRect.right),
+        firstStatLeftRadius: firstStatStyle.borderTopLeftRadius,
+        secondStatLeftRadius: secondStatStyle.borderTopLeftRadius,
+        lastStatRightRadius: lastStatStyle.borderTopRightRadius,
+        statGap: Math.round(secondStatRect.left - firstStatRect.right),
+        firstActionLeftRadius: firstActionStyle.borderTopLeftRadius,
+        secondActionLeftRadius: secondActionStyle.borderTopLeftRadius,
+        lastActionRightRadius: lastActionStyle.borderTopRightRadius,
+        actionGap: Math.round(secondActionRect.left - firstActionRect.right),
       };
     });
     expect(themeStyles.headerBackground).toBe("rgb(0, 0, 0)");
@@ -503,6 +526,14 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.secondVitalLeftRadius).toBe("0px");
     expect(themeStyles.lastVitalRightRadius).not.toBe("0px");
     expect(themeStyles.vitalGap).toBeLessThanOrEqual(0);
+    expect(themeStyles.firstStatLeftRadius).not.toBe("0px");
+    expect(themeStyles.secondStatLeftRadius).toBe("0px");
+    expect(themeStyles.lastStatRightRadius).not.toBe("0px");
+    expect(themeStyles.statGap).toBeLessThanOrEqual(0);
+    expect(themeStyles.firstActionLeftRadius).not.toBe("0px");
+    expect(themeStyles.secondActionLeftRadius).toBe("0px");
+    expect(themeStyles.lastActionRightRadius).not.toBe("0px");
+    expect(themeStyles.actionGap).toBeLessThanOrEqual(0);
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {
@@ -661,6 +692,10 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.trueOrbitScaleMaxRelativeError || 1)),
       { timeout: 3000 }
     ).toBeLessThan(0.001);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.trueOrbitMaxBodyToMinOrbitRatio || 1)),
+      { timeout: 3000 }
+    ).toBeLessThan(0.45);
     await scaleModeSelect.selectOption("true_bodies");
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
@@ -1337,6 +1372,15 @@ test.describe("public 3D map beta", () => {
             () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.planetDisplayEccentricityCappedCount || 0)),
             { timeout: 3000 }
           ).toBeGreaterThanOrEqual(1);
+          await page.locator("[data-testid='system-preview-scale-mode']").selectOption("true_orbits");
+          await expect.poll(
+            () => previewCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
+            { timeout: 3000 }
+          ).toBe("true_orbits");
+          await expect.poll(
+            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.trueOrbitMaxBodyToMinOrbitRatio || 1)),
+            { timeout: 3000 }
+          ).toBeLessThan(0.9);
         }
         await expectPreviewCanvasPainted(previewCanvas, benchmark.query);
       });

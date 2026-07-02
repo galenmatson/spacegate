@@ -355,6 +355,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   text labels, camera-facing screen-size scaling, and renderer diagnostics
 - [x] Correct True Orbits mode to preserve linear source semi-major-axis ratios
   without an inner readability offset, with browser diagnostics
+- [x] Shrink True Orbits body meshes toward marker scale so close-in orbits
+  remain outside visible stars/planets while halos, labels, trails, and pick
+  radii preserve usability
 - [x] Sort rendered planet bodies by orbital semi-major axis/period so Sol and
   benchmark systems display in orbital order
 - [x] Carry full provenance field objects into planet-orbit hover/pinned
@@ -495,6 +498,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   camera during route layout
 - [x] Fix Enterprise/LCARS map menu layering, colored system-title chip, and
   continuous selected-vitals strip
+- [x] Apply the same continuous LCARS strip treatment to Coolstars header stats
+  and Search/Detail/menu actions in the Star Map header
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

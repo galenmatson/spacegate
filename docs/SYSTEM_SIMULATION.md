@@ -153,8 +153,11 @@ Already in place:
   and binary/group orbit display radii; the browser exposes Structure,
   True Orbits, True Bodies, and Log Scale modes and summarizes the active
   local-time, scale-mode, assumption-persistence, and fallback policy. True
+  Orbits/Orbit mode keeps planet orbit radii linearly proportional inside the
+  scene envelope and therefore uses deliberately tiny presentation body meshes
+  so close-in orbits are not swallowed by oversized stars or planets. True
   Bodies mode uses Earth-to-Sun radius conversion for planet meshes relative to
-  star meshes, while trails, labels, and pick radii preserve usability.
+  star meshes, while trails, labels, halos, and pick radii preserve usability.
 - selected-system `disc.simulation_assumptions` materialization is available
   through `scripts/materialize_simulation_assumptions.py`; the API annotates
   matching rendered assumptions with `persistence_status="persisted"`
@@ -304,10 +307,12 @@ Rules:
   keeping glow and pick radii separate. `true_orbits` uses a pure linear
   semi-major-axis-to-scene transform with no fixed inner padding, so rendered
   planet orbit radii preserve their source AU ratios inside the current scene
-  envelope; close-in worlds may therefore become visually tight. `true_bodies`
-  preserves more body-size contrast, and `log` compresses large ranges. All
-  modes are browser/render transforms only; source values remain in provenance
-  fields and core/ARM rows.
+  envelope; close-in worlds may therefore become visually tight. In that mode
+  body meshes are intentionally reduced toward marker scale, with halos, trails,
+  labels, and pick radii carrying readability. `true_bodies` preserves more
+  body-size contrast, and `log` compresses large ranges. All modes are
+  browser/render transforms only; source values remain in provenance fields and
+  core/ARM rows.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 

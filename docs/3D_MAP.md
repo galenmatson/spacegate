@@ -198,7 +198,9 @@ Initial layers:
     nontransparent surfaces, bright yellow borders, and orange/peach/lilac/blue
     solid LCARS block controls without glow, keeps header menus above/outside
     the header bar, and groups selected-system vitals into a continuous LCARS
-    control strip; Cyberpunk uses neon magenta/cyan glass, scanlines,
+    control strip; header Coolstars stats and Search/Detail/menu actions use
+    the same continuous segmented strip treatment instead of separate rounded
+    bullets; Cyberpunk uses neon magenta/cyan glass, scanlines,
     terminal-green title/HUD text, and glow-heavy explorer chrome, Simple Light
     uses more opaque surfaces for readability, and Geocities
     intentionally uses stereotypical 90s web chrome with beveled windows,
