@@ -890,6 +890,13 @@ Readiness gaps:
   text from the bottom-right HUD, hides the snapshot chip in Explorer, and
   replaces the fixed Sol-neighborhood label set with camera-distance plus
   coolness-priority fading labels.
+- July 2, 2026 Star Map display-density pass makes the in-scene label budget
+  respond to the current camera field: sparse views admit more labels, crowded
+  views keep fewer strong labels and fade lower-coolness labels harder. The
+  same pass narrows the Selection History tray, adds the Coolstars/Spacegate
+  mark beside the configurable map title, and changes the selected-system
+  marker from a bright circle to a spectral star with a tilted orbiting-planet
+  accent.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

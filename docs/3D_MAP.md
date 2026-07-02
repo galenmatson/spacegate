@@ -67,6 +67,8 @@ Public branding:
   `map_title`
 - default install behavior is `Coolstars Map`, derived from
   `SPACEGATE_SITE_NAME=Coolstars`
+- the map header shows the current Coolstars/Spacegate mark next to the
+  configured title; the title remains installation-configurable
 - future installer work should prompt for the public site name and write the
   corresponding environment value rather than hard-coding Coolstars branding
 
@@ -160,10 +162,15 @@ Initial layers:
   - nearby systems fade in as the camera approaches them
   - distant systems fade out unless their coolness/map priority keeps them
     visible at a lower opacity
+  - sparse fields admit more labels, while crowded fields tighten the label
+    budget and fade lower-coolness/priority labels more aggressively
   - the candidate set is periodically re-ranked from camera distance plus
     map-priority score so exploration does not remain visually anchored only
     around Sol
 - reticle and selection marker
+  - selected systems use a spectral-color star glyph with a tilted orbiting
+    planet accent instead of a bright center circle, preserving the object
+    label while echoing the Coolstars/Spacegate mark
 - ephemeral client-side route measurement overlay:
   - right-click target system and choose `Measure from selected`
   - rendered route segments show per-leg light-year distance and total route

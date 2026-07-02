@@ -449,6 +449,23 @@ function createPointTexture() {
   return texture;
 }
 
+function createStarShape({ points = 5, outerRadius = 0.42, innerRadius = 0.19 } = {}) {
+  const shape = new THREE.Shape();
+  for (let index = 0; index < points * 2; index += 1) {
+    const radius = index % 2 === 0 ? outerRadius : innerRadius;
+    const angle = -Math.PI / 2 + (index / (points * 2)) * Math.PI * 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (index === 0) {
+      shape.moveTo(x, y);
+    } else {
+      shape.lineTo(x, y);
+    }
+  }
+  shape.closePath();
+  return shape;
+}
+
 function StarField({ systems }) {
   const geometry = useMemo(() => {
     const positions = new Float32Array(systems.length * 3);
@@ -657,7 +674,16 @@ function createLabelTexture(label, { selected = false, tone = "default" } = {}) 
   return { texture, width, height };
 }
 
-function LabelSprite({ label, position, selected = false, tone = "default", priority = 0, onSelect = null }) {
+function LabelSprite({
+  label,
+  position,
+  selected = false,
+  tone = "default",
+  priority = 0,
+  labelRank = 0,
+  labelCount = 1,
+  onSelect = null,
+}) {
   const spriteRef = useRef(null);
   const payload = useMemo(
     () => createLabelTexture(label, { selected, tone }),
@@ -674,8 +700,11 @@ function LabelSprite({ label, position, selected = false, tone = "default", prio
     const sticky = selected || tone === "sol" || tone === "route" || tone === "direction";
     const normalizedPriority = THREE.MathUtils.clamp(Number(priority || 0) / 12, 0, 1);
     const nearFade = 1 - THREE.MathUtils.smoothstep(distance, 12, 42);
-    const stickyFloor = sticky ? 0.92 : normalizedPriority * 0.44;
-    const opacity = THREE.MathUtils.clamp(Math.max(stickyFloor, nearFade), 0.05, 0.98);
+    const crowdPressure = THREE.MathUtils.clamp((Number(labelCount || 1) - 34) / 34, 0, 1);
+    const rankPressure = THREE.MathUtils.smoothstep(Number(labelRank || 0), 24, Math.max(34, Number(labelCount || 1)));
+    const lowPriorityPenalty = (1 - normalizedPriority) * crowdPressure * rankPressure * 0.52;
+    const stickyFloor = sticky ? 0.92 : normalizedPriority * (0.46 - crowdPressure * 0.18);
+    const opacity = THREE.MathUtils.clamp(Math.max(stickyFloor, nearFade) - lowPriorityPenalty, 0.035, 0.98);
     const scale = THREE.MathUtils.clamp(distance / 18, 0.45, sticky ? 2.8 : 2.15);
     spriteRef.current.scale.set((payload.width / 95) * scale, (payload.height / 95) * scale, 1);
     spriteRef.current.material.opacity = opacity;
@@ -699,7 +728,7 @@ function LabelSprite({ label, position, selected = false, tone = "default", prio
 }
 
 function PriorityLabels({ systems, selectedSystem, onSelect }) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
   const buildLabelSet = useCallback(() => {
     const seen = new Set();
@@ -714,7 +743,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
     if (selectedSystem) {
       add(selectedSystem);
     }
-    systems
+    const scored = systems
       .filter((system) => !isCatalogFallbackName(system.display_name))
       .map((system) => {
         const position = new THREE.Vector3().fromArray(system.scene_position);
@@ -722,11 +751,19 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
         const nearScore = Math.max(0, 36 - cameraDistanceLy) * 0.42;
         return {
           system,
+          cameraDistanceLy,
           score: nearScore + Number(system.map_priority || 0),
         };
       })
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 46)
+      .sort((left, right) => right.score - left.score);
+    const strongVisibleCount = scored.filter(({ cameraDistanceLy, score }) => cameraDistanceLy < 24 || score >= 10).length;
+    const labelBudget = strongVisibleCount < 16
+      ? 64
+      : strongVisibleCount > 36
+        ? 34
+        : 46;
+    scored
+      .slice(0, labelBudget)
       .forEach(({ system }) => add(system));
     return candidates;
   }, [camera, selectedSystem, systems]);
@@ -735,6 +772,10 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
   useEffect(() => {
     setLabelSystems(buildLabelSet());
   }, [buildLabelSet]);
+
+  useEffect(() => {
+    gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
+  }, [gl.domElement, labelSystems.length]);
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
@@ -747,13 +788,15 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
 
   return (
     <group>
-      {labelSystems.map((system) => (
+      {labelSystems.map((system, index) => (
         <LabelSprite
           key={system.system_id}
           label={system.display_name}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
           priority={system.map_priority}
+          labelRank={index}
+          labelCount={labelSystems.length}
           onSelect={() => onSelect(system)}
         />
       ))}
@@ -762,19 +805,36 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
 }
 
 function SelectionMarker({ system }) {
+  const groupRef = useRef(null);
+  const { camera } = useThree();
+  const starShape = useMemo(() => createStarShape(), []);
+  const spectralColor = SPECTRAL_COLORS[system?.dominant_spectral_class] || SPECTRAL_COLORS.UNKNOWN;
+
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.quaternion.copy(camera.quaternion);
+    }
+  });
+
   if (!system) {
     return null;
   }
   return (
-    <group position={system.scene_position}>
-      <mesh>
-        <sphereGeometry args={[0.34, 20, 20]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
+    <group ref={groupRef} position={system.scene_position}>
+      <mesh renderOrder={8}>
+        <shapeGeometry args={[starShape]} />
+        <meshBasicMaterial color={spectralColor} transparent opacity={0.95} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.68, 0.74, 48]} />
-        <meshBasicMaterial color="#7dfbff" transparent opacity={0.82} side={THREE.DoubleSide} />
-      </mesh>
+      <group rotation={[1.02, 0.16, -0.58]}>
+        <mesh renderOrder={7}>
+          <ringGeometry args={[0.62, 0.655, 72]} />
+          <meshBasicMaterial color="#55dfff" transparent opacity={0.78} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+        <mesh position={[0.65, 0, 0]} renderOrder={9}>
+          <sphereGeometry args={[0.09, 16, 16]} />
+          <meshBasicMaterial color="#55dfff" transparent opacity={0.96} depthWrite={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -1872,7 +1932,10 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           <a className="map-eyebrow map-eyebrow-link" href="https://spacegates.org/">
             Spacegate Stellar Database
           </a>
-          <h1>{mapTitle}</h1>
+          <div className="map-title-row">
+            <img className="map-brand-mark" src="/favicon.svg" alt="" aria-hidden="true" />
+            <h1>{mapTitle}</h1>
+          </div>
           <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
         </div>
         <div className="map-header-readout" aria-live="polite">

@@ -52,6 +52,8 @@ test.describe("public 3D map beta", () => {
     await openMap(page);
     await expect(page.locator(".map-eyebrow-link")).toHaveText("Spacegate Stellar Database");
     await expect(page.locator(".map-eyebrow-link")).toHaveAttribute("href", "https://spacegates.org/");
+    await expect(page.locator(".map-brand-mark")).toBeVisible();
+    await expect(page.locator(".map-brand-mark")).toHaveAttribute("src", "/favicon.svg");
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
   });
 
@@ -122,6 +124,10 @@ test.describe("public 3D map beta", () => {
       () => canvas.evaluate((node) => node.dataset.mapDirectionLabels || ""),
       { timeout: 3000 }
     ).toBe("true");
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.mapLabelCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(24);
 
     await frameSelect.selectOption("galactic");
     await expect.poll(

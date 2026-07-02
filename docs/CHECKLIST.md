@@ -275,6 +275,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map adaptive in-scene labels that fade by camera distance while
   keeping selected, Sol, route, direction, and high-coolness labels stickier
   without returning to a fixed Sol-neighborhood label set
+- [x] 3D map label-density adaptation that admits more labels in sparse camera
+  fields and fades lower-priority labels harder when the field is crowded
 - [x] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
 - [x] Add alias-search build gate covering restored AT-HYG common names,
@@ -520,6 +522,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   system, or Sol when no system is selected
 - [x] Remove low-value Star Map flight telemetry text from the bottom-right HUD
   and hide the snapshot status chip in Explorer mode
+- [x] Add the Coolstars/Spacegate mark to the map title, narrow the
+  Selection History tray, and replace the selected-system center circle with a
+  spectral star plus tilted orbiting-planet accent
 - [x] Keep the Star Map burger menu above Peek/Explore and prevent right-drag
   truck context-menu suppression from closing Explore
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical

@@ -167,6 +167,21 @@
   min-width: 0;
 }
 
+.map-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-brand-mark {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
 .map-eyebrow,
 .map-panel-label,
 .map-build {
@@ -198,6 +213,7 @@
 }
 
 .map-title-block h1 {
+  min-width: 0;
   font-size: clamp(1.24rem, 1.9vw, 1.72rem);
   line-height: 1;
 }
@@ -1011,7 +1027,7 @@
 .map-contacts-panel {
   left: 18px;
   top: 92px;
-  width: min(280px, calc(100vw - 36px));
+  width: min(252px, calc(100vw - 36px));
   display: grid;
   gap: 12px;
 }
@@ -2011,6 +2027,12 @@
 
   .map-title-block h1 {
     font-size: 1.42rem;
+  }
+
+  .map-brand-mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
   }
 
   .map-eyebrow,
