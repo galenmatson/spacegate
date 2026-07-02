@@ -851,6 +851,10 @@ Readiness gaps:
   to physical numpad keys, adds route leg truncation from clicked route
   segments/recent leg rows, and gives the map/explorer Cyberpunk theme
   stronger neon magenta/cyan chrome, scanlines, and dark glass panels.
+- July 2, 2026 Star Map control/theme polish adds mouse-wheel flight over the
+  map canvas, renames Peek's `Back to Map` action to `Close`, tightens
+  Cyberpunk/Geocities Peek header alignment, and shifts Cyberpunk map title and
+  HUD text toward terminal green with a sharper futuristic font stack.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

@@ -479,6 +479,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   leg row, removing the severed leg and every downstream leg
 - [x] Retune the Star Map/System Explorer Cyberpunk theme toward neon
   magenta/cyan map chrome with scanlines, glow, and darker glass panels
+- [x] Add mouse-wheel forward/back flight over the Star Map canvas
+- [x] Rename System Peek `Back to Map` action to `Close`
+- [x] Tighten Cyberpunk/Geocities System Peek header alignment and retune
+  Cyberpunk title/HUD text toward terminal green
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

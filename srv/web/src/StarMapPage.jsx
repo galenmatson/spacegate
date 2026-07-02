@@ -54,6 +54,7 @@ const TOUCH_LOOK_SENSITIVITY = 0.003;
 const TOUCH_PINCH_SPEED = 0.018;
 const TOUCH_PAN_SPEED = 0.012;
 const MOUSE_LOOK_SENSITIVITY = 0.002;
+const MOUSE_WHEEL_FLY_SPEED = 1.25;
 const SPECTRAL_COLORS = {
   O: "#74a9ff",
   B: "#9fc9ff",
@@ -1086,19 +1087,34 @@ function FlightControls({
       resetPinchState();
     };
 
+    const onWheel = (event) => {
+      if (!controlsEnabled && document.pointerLockElement !== canvas) {
+        return;
+      }
+      event.preventDefault();
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction).normalize();
+      const wheelMagnitude = Math.min(6, Math.max(0.5, Math.abs(event.deltaY) / 90));
+      const wheelDirection = event.deltaY < 0 ? 1 : -1;
+      camera.position.addScaledVector(direction, wheelDirection * wheelMagnitude * MOUSE_WHEEL_FLY_SPEED);
+      gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+    };
+
     canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
     canvas.addEventListener("pointermove", onPointerMove, { passive: false });
     canvas.addEventListener("pointerup", onPointerEnd, { passive: false });
     canvas.addEventListener("pointercancel", onPointerEnd, { passive: false });
+    canvas.addEventListener("wheel", onWheel, { passive: false });
     canvas.addEventListener("contextmenu", openRouteContext);
     return () => {
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerEnd);
       canvas.removeEventListener("pointercancel", onPointerEnd);
+      canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("contextmenu", openRouteContext);
     };
-  }, [applyLookDelta, camera, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget]);
+  }, [applyLookDelta, camera, controlsEnabled, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget]);
 
   useFrame((_, delta) => {
     if (focusRef.current) {
@@ -1848,7 +1864,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 Detail
               </Link>
               <button type="button" className="map-command-button ghost" onClick={() => exitDrillMode()}>
-                Back to Map
+                {drillMode === "peek" ? "Close" : "Back to Map"}
               </button>
             </div>
           </div>

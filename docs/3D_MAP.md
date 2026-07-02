@@ -28,6 +28,8 @@ Controls:
     browser/system shortcuts
 - arrow keys: same forward/back/left/right controls as WASD
 - mouse look through pointer lock
+- mouse wheel over the flight canvas flies forward on wheel-up and backward on
+  wheel-down
 - Shift: boost
 - stabilized vertical on by default
 - desktop free-cursor mode:
@@ -163,6 +165,8 @@ Initial layers:
   - `Esc`, browser Back, or `Back to Map` returns from Explorer to flight; the
     current implementation keeps the star map and system simulation as
     coordinated layers rather than one continuous LY-to-AU canvas
+  - Peek uses a compact `Close` action because it is an inspection overlay
+    rather than a full navigation state
   - suggested nearby systems are computed client-side from the 100 ly payload
     using coolness, distance, planet count, multiplicity, and human-readable
     naming signals
@@ -186,8 +190,9 @@ Initial layers:
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
     nontransparent cards with bright yellow borders and no glow, Cyberpunk uses
-    neon magenta/cyan glass, scanlines, and glow-heavy explorer chrome, Simple
-    Light uses more opaque surfaces for readability, and Geocities
+    neon magenta/cyan glass, scanlines, terminal-green title/HUD text, and
+    glow-heavy explorer chrome, Simple Light uses more opaque surfaces for
+    readability, and Geocities
     intentionally uses stereotypical 90s web chrome with beveled windows,
     bright web-safe accents, title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact

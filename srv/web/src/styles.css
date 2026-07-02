@@ -1184,10 +1184,10 @@
   --map-hud-bg: rgba(9, 3, 22, 0.66);
   --map-hud-border: rgba(0, 245, 255, 0.66);
   --map-hud-glow: rgba(255, 0, 204, 0.38);
-  --map-hud-strong: #f8fbff;
+  --map-hud-strong: #39ff14;
   --map-hud-muted: #48f7ff;
   --map-select-bg: #14071f;
-  --map-select-ink: #f8fbff;
+  --map-select-ink: #39ff14;
   --map-select-checked-bg: #3d0d50;
 }
 
@@ -1240,10 +1240,15 @@
 }
 
 :root[data-theme="cyberpunk"] .map-title-block h1 {
-  color: #f8fbff;
+  color: #39ff14;
+  font-family: "Orbitron", "Audiowide", "Michroma", "Bank Gothic", "Antonio", "Arial Narrow", sans-serif;
+  font-stretch: condensed;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   text-shadow:
-    0 0 10px rgba(0, 245, 255, 0.88),
-    0 0 18px rgba(255, 0, 204, 0.58);
+    0 0 6px rgba(57, 255, 20, 0.92),
+    0 0 16px rgba(0, 245, 255, 0.62),
+    0 0 24px rgba(255, 0, 204, 0.36);
 }
 
 :root[data-theme="cyberpunk"] .map-eyebrow,
@@ -1262,7 +1267,7 @@
 :root[data-theme="cyberpunk"] .map-world-label {
   border-color: rgba(0, 245, 255, 0.62);
   background: rgba(14, 4, 32, 0.82);
-  color: #eaffff;
+  color: #39ff14;
   box-shadow:
     inset 0 0 12px rgba(0, 245, 255, 0.08),
     0 0 14px rgba(255, 0, 204, 0.14);
@@ -1283,7 +1288,7 @@
   background:
     linear-gradient(180deg, rgba(0, 245, 255, 0.12), rgba(255, 0, 204, 0.08)),
     rgba(14, 4, 32, 0.88);
-  color: #f8fbff;
+  color: #39ff14;
   box-shadow:
     inset 0 0 12px rgba(0, 245, 255, 0.08),
     0 0 14px rgba(255, 0, 204, 0.16);
@@ -1297,8 +1302,8 @@
   background:
     linear-gradient(90deg, rgba(0, 245, 255, 0.24), rgba(255, 0, 204, 0.2)),
     rgba(18, 5, 40, 0.96);
-  color: #ffffff;
-  text-shadow: 0 0 8px rgba(0, 245, 255, 0.84);
+  color: #39ff14;
+  text-shadow: 0 0 8px rgba(57, 255, 20, 0.84);
 }
 
 :root[data-theme="cyberpunk"] .map-system-drill .system-preview-canvas {
@@ -1320,9 +1325,30 @@
 :root[data-theme="cyberpunk"] .map-system-drill .system-preview-pinned {
   border-color: rgba(0, 245, 255, 0.48);
   background: rgba(9, 3, 22, 0.84);
-  color: #f8fbff;
+  color: #39ff14;
   box-shadow: 0 0 18px rgba(0, 245, 255, 0.14);
   backdrop-filter: blur(8px);
+}
+
+:root[data-theme="cyberpunk"] .map-system-drill-bar {
+  align-items: flex-start;
+}
+
+:root[data-theme="cyberpunk"] .map-system-drill-title-group {
+  flex: 1 1 auto;
+  max-width: min(540px, calc(100% - 220px));
+}
+
+:root[data-theme="cyberpunk"] .map-system-drill-title,
+:root[data-theme="cyberpunk"] .map-system-drill-resize,
+:root[data-theme="cyberpunk"] .map-system-drill-actions .map-command-button {
+  min-height: 34px;
+}
+
+:root[data-theme="cyberpunk"] .map-system-drill-actions {
+  flex: 0 0 auto;
+  align-items: flex-start;
+  flex-wrap: nowrap;
 }
 
 :root[data-theme="cyberpunk"] .map-reticle {
@@ -1459,6 +1485,25 @@
 
 :root[data-theme="retro_90s"] .map-system-drill-bar {
   top: 30px;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill-title-group {
+  flex: 1 1 auto;
+  max-width: min(520px, calc(100% - 214px));
+}
+
+:root[data-theme="retro_90s"] .map-system-drill-title,
+:root[data-theme="retro_90s"] .map-system-drill-resize,
+:root[data-theme="retro_90s"] .map-system-drill-actions .map-command-button {
+  min-height: 32px;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill-actions {
+  flex: 0 0 auto;
+  align-items: flex-start;
+  flex-wrap: nowrap;
 }
 
 :root[data-theme="retro_90s"] .map-header-menu-panel {

@@ -116,6 +116,19 @@ test.describe("public 3D map beta", () => {
 
     await page.locator(".map-title-block").click();
     await expect(menu.locator(".map-header-menu-panel")).toBeHidden();
+
+    const mapBox = await canvasBox(page);
+    const beforeWheelForward = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.move(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2);
+    await page.mouse.wheel(0, -500);
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeWheelForward);
+    const beforeWheelBack = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.wheel(0, 500);
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeWheelBack);
   });
 
   test("desktop route tools create, undo, and clear ephemeral measurements", async ({ page }, testInfo) => {
@@ -203,6 +216,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill).toHaveAttribute("data-drill-mode", "peek");
     await expect(drill).toContainText(/System:/i);
     await expect(drill).not.toContainText(/System Simulation Peek/i);
+    await expect(drill.getByRole("button", { name: /^Close$/i })).toBeVisible();
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
@@ -309,7 +323,7 @@ test.describe("public 3D map beta", () => {
     await expect(scaleSelect).toBeVisible();
     await expect(speedSelect).toBeVisible();
 
-    for (const themeId of ["aurora", "lcars"]) {
+    for (const themeId of ["aurora", "lcars", "cyberpunk", "retro_90s"]) {
       if (!(await themeSelect.isVisible())) {
         await menu.locator("summary").click();
         await expect(menu.locator(".map-header-menu-panel")).toBeVisible();
@@ -347,10 +361,14 @@ test.describe("public 3D map beta", () => {
       const header = document.querySelector(".map-hud-top");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const title = document.querySelector(".map-title-block h1");
+      const drillTitleGroup = document.querySelector(".map-system-drill-title-group");
+      const drillActions = document.querySelector(".map-system-drill-actions");
       const headerStyle = window.getComputedStyle(header);
       const headerTitleStyle = window.getComputedStyle(header, "::before");
       const drillTitleStyle = window.getComputedStyle(drill, "::before");
       const titleStyle = window.getComputedStyle(title);
+      const titleRect = drillTitleGroup.getBoundingClientRect();
+      const actionsRect = drillActions.getBoundingClientRect();
       return {
         headerBackground: headerStyle.backgroundColor,
         headerBorderTop: headerStyle.borderTopColor,
@@ -358,6 +376,8 @@ test.describe("public 3D map beta", () => {
         headerTitleContent: headerTitleStyle.content,
         drillTitleContent: drillTitleStyle.content,
         titleColor: titleStyle.color,
+        drillHeaderOverlap: titleRect.right > actionsRect.left && titleRect.left < actionsRect.right
+          && titleRect.bottom > actionsRect.top && titleRect.top < actionsRect.bottom,
       };
     });
     expect(themeStyles.headerBackground).toBe("rgb(192, 192, 192)");
@@ -366,6 +386,7 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerTitleContent).toContain("COOLSTARS.EXE");
     expect(themeStyles.drillTitleContent).toContain("SYSTEM_SIM.EXE");
     expect(themeStyles.titleColor).toBe("rgb(255, 255, 0)");
+    expect(themeStyles.drillHeaderOverlap).toBe(false);
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {
@@ -382,23 +403,36 @@ test.describe("public 3D map beta", () => {
       const header = document.querySelector(".map-hud-top");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const title = document.querySelector(".map-title-block h1");
+      const drillTitleGroup = document.querySelector(".map-system-drill-title-group");
+      const drillActions = document.querySelector(".map-system-drill-actions");
       const headerStyle = window.getComputedStyle(header);
       const headerRuleStyle = window.getComputedStyle(header, "::before");
       const drillStyle = window.getComputedStyle(drill);
       const titleStyle = window.getComputedStyle(title);
+      const titleRect = drillTitleGroup.getBoundingClientRect();
+      const actionsRect = drillActions.getBoundingClientRect();
       return {
         headerBorderTop: headerStyle.borderTopColor,
         headerShadow: headerStyle.boxShadow,
         headerRuleBackground: headerRuleStyle.backgroundImage,
         drillBackground: drillStyle.backgroundImage,
+        titleColor: titleStyle.color,
+        titleFont: titleStyle.fontFamily,
         titleShadow: titleStyle.textShadow,
+        titleLetterSpacing: titleStyle.letterSpacing,
+        drillHeaderOverlap: titleRect.right > actionsRect.left && titleRect.left < actionsRect.right
+          && titleRect.bottom > actionsRect.top && titleRect.top < actionsRect.bottom,
       };
     });
     expect(themeStyles.headerBorderTop).toBe("rgba(0, 245, 255, 0.72)");
     expect(themeStyles.headerShadow).toContain("255, 0, 204");
     expect(themeStyles.headerRuleBackground).toContain("0, 245, 255");
     expect(themeStyles.drillBackground).toContain("255, 0, 204");
+    expect(themeStyles.titleColor).toBe("rgb(57, 255, 20)");
+    expect(themeStyles.titleFont).toMatch(/Orbitron|Audiowide|Michroma|Bank Gothic|Antonio/);
+    expect(themeStyles.titleLetterSpacing).not.toBe("normal");
     expect(themeStyles.titleShadow).toContain("0, 245, 255");
+    expect(themeStyles.drillHeaderOverlap).toBe(false);
   });
 
   test("mobile layout keeps map controls compact", async ({ page }, testInfo) => {
