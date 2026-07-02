@@ -20,6 +20,14 @@ const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
+const DEFAULT_MOBILE_FLIGHT_STATE = {
+  forward: false,
+  back: false,
+  left: false,
+  right: false,
+  up: false,
+  down: false,
+};
 const KEYBOARD_BASE_SPEED = 7;
 const KEYBOARD_BOOST_SPEED = 18;
 const MAP_KEYBIND_SCHEMES = {
@@ -932,6 +940,7 @@ function FlightControls({
   reticleSelectRequest,
   focusTarget,
   focusToken,
+  mobileFlightIntent = DEFAULT_MOBILE_FLIGHT_STATE,
 }) {
   const { camera, gl } = useThree();
   const keysRef = useRef(new Set());
@@ -1388,12 +1397,12 @@ function FlightControls({
     camera.getWorldDirection(direction).normalize();
     strafe.crossVectors(direction, WORLD_UP).normalize();
     const baseSpeed = keys.has("shift") ? KEYBOARD_BOOST_SPEED : KEYBOARD_BASE_SPEED;
-    if (keys.has(activeKeybind.forward) || keys.has("arrowup")) movement.add(direction);
-    if (keys.has(activeKeybind.back) || keys.has("arrowdown")) movement.sub(direction);
-    if (keys.has(activeKeybind.right) || keys.has("arrowright")) movement.add(strafe);
-    if (keys.has(activeKeybind.left) || keys.has("arrowleft")) movement.sub(strafe);
-    if (keys.has(activeKeybind.up)) movement.add(WORLD_UP);
-    if (keys.has(activeKeybind.down)) movement.sub(WORLD_UP);
+    if (keys.has(activeKeybind.forward) || keys.has("arrowup") || mobileFlightIntent.forward) movement.add(direction);
+    if (keys.has(activeKeybind.back) || keys.has("arrowdown") || mobileFlightIntent.back) movement.sub(direction);
+    if (keys.has(activeKeybind.right) || keys.has("arrowright") || mobileFlightIntent.right) movement.add(strafe);
+    if (keys.has(activeKeybind.left) || keys.has("arrowleft") || mobileFlightIntent.left) movement.sub(strafe);
+    if (keys.has(activeKeybind.up) || mobileFlightIntent.up) movement.add(WORLD_UP);
+    if (keys.has(activeKeybind.down) || mobileFlightIntent.down) movement.sub(WORLD_UP);
     if (movement.lengthSq() > 0) {
       movement.normalize().multiplyScalar(baseSpeed * delta);
       camera.position.add(movement);
@@ -1407,6 +1416,7 @@ function FlightControls({
         locked: document.pointerLockElement === gl.domElement,
       });
       gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
+      gl.domElement.dataset.mapMobileFlightActive = Object.values(mobileFlightIntent).some(Boolean) ? "true" : "false";
       gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
       gl.domElement.dataset.mapFrame = mapFrame || "icrs";
       gl.domElement.dataset.mapDirectionLabels = showDirectionLabels ? "true" : "false";
@@ -1432,6 +1442,7 @@ function StarMapScene({
   reticleSelectRequest,
   focusTarget,
   focusToken,
+  mobileFlightIntent,
 }) {
   return (
     <Canvas
@@ -1460,6 +1471,7 @@ function StarMapScene({
         reticleSelectRequest={reticleSelectRequest}
         focusTarget={focusTarget}
         focusToken={focusToken}
+        mobileFlightIntent={mobileFlightIntent}
       />
     </Canvas>
   );
@@ -1484,6 +1496,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [selectionHistory, setSelectionHistory] = useState([]);
   const [drillMode, setDrillMode] = useState("flight");
   const [focusToken, setFocusToken] = useState(0);
+  const [mobileFlightIntent, setMobileFlightIntent] = useState(DEFAULT_MOBILE_FLIGHT_STATE);
   const [peekSize, setPeekSize] = useState(readStoredMapPeekSize);
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
   const [mapFrame, setMapFrame] = useState(readStoredMapFrame);
@@ -1827,6 +1840,45 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     pageRef.current?.requestFullscreen?.({ navigationUI: "hide" });
   };
 
+  const setMobileFlightDirection = useCallback((direction, active) => {
+    setMobileFlightIntent((current) => (
+      current[direction] === active ? current : { ...current, [direction]: active }
+    ));
+  }, []);
+
+  const clearMobileFlight = useCallback(() => {
+    setMobileFlightIntent(DEFAULT_MOBILE_FLIGHT_STATE);
+  }, []);
+
+  const mobileFlightButtonProps = (direction) => ({
+    onPointerDown: (event) => {
+      event.preventDefault();
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Synthetic pointer events may not create capturable pointers.
+      }
+      setMobileFlightDirection(direction, true);
+    },
+    onPointerUp: (event) => {
+      event.preventDefault();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Ignore non-captured synthetic pointers.
+      }
+      setMobileFlightDirection(direction, false);
+    },
+    onPointerCancel: () => setMobileFlightDirection(direction, false),
+    onPointerLeave: (event) => {
+      if (event.buttons) {
+        setMobileFlightDirection(direction, false);
+      }
+    },
+    onBlur: () => setMobileFlightDirection(direction, false),
+    onContextMenu: (event) => event.preventDefault(),
+  });
+
   const systemDetailPath = (system) => (
     system?.system_id ? `/systems/${system.system_id}?from=map` : "/"
   );
@@ -1855,6 +1907,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           reticleSelectRequest={reticleSelectRequest}
           focusTarget={selectedSystem}
           focusToken={focusToken}
+          mobileFlightIntent={mobileFlightIntent}
         />
       )}
 
@@ -1979,8 +2032,64 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Select reticle
           </button>
         </div>
+        <div className="map-mobile-flight-pad" aria-label="Mobile flight controls" onPointerCancel={clearMobileFlight}>
+          <button
+            type="button"
+            className="map-mobile-flight-button map-mobile-flight-forward"
+            aria-label="Fly forward"
+            data-testid="map-mobile-flight-forward"
+            {...mobileFlightButtonProps("forward")}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className="map-mobile-flight-button map-mobile-flight-left"
+            aria-label="Fly left"
+            data-testid="map-mobile-flight-left"
+            {...mobileFlightButtonProps("left")}
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            className="map-mobile-flight-button map-mobile-flight-right"
+            aria-label="Fly right"
+            data-testid="map-mobile-flight-right"
+            {...mobileFlightButtonProps("right")}
+          >
+            →
+          </button>
+          <button
+            type="button"
+            className="map-mobile-flight-button map-mobile-flight-back"
+            aria-label="Fly backward"
+            data-testid="map-mobile-flight-back"
+            {...mobileFlightButtonProps("back")}
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            className="map-mobile-flight-button map-mobile-flight-up"
+            aria-label="Fly up"
+            data-testid="map-mobile-flight-up"
+            {...mobileFlightButtonProps("up")}
+          >
+            ⇧
+          </button>
+          <button
+            type="button"
+            className="map-mobile-flight-button map-mobile-flight-down"
+            aria-label="Fly down"
+            data-testid="map-mobile-flight-down"
+            {...mobileFlightButtonProps("down")}
+          >
+            ⇩
+          </button>
+        </div>
         <p className="map-desktop-hint">Desktop: drag look · wheel fly · L+R drag orbit · tilt wheel/RMB drag truck · MMB drag pedestal · {activeKeybind.hint}</p>
-        <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
+        <p className="map-touch-hint">Touch: drag look · hold arrows to fly · tap/select reticle · pinch fly · two-finger pan</p>
         {routeSegments.length > 0 && (
           <div className="map-route-summary">
             <span>{routeSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>

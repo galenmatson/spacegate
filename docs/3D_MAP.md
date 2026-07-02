@@ -57,6 +57,8 @@ Controls:
   selecting the nearest center-view target
 - touch-first mobile controls:
   - one-finger drag looks around
+  - hold on-screen arrows to fly forward/back, truck left/right, and pedestal
+    up/down
   - tap or `Select reticle` selects the nearest reticle target
   - two-finger pinch flies forward/back
   - two-finger drag pans laterally/vertically

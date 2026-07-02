@@ -746,6 +746,8 @@ test.describe("public 3D map beta", () => {
     await openMap(page);
     await expect(page.locator(".map-fullscreen-command")).toBeVisible();
     await expect(page.locator(".map-contacts-panel")).toBeHidden();
+    await expect(page.locator(".map-mobile-flight-button")).toHaveCount(6);
+    await expect(page.locator("[data-testid='map-mobile-flight-forward']")).toBeVisible();
 
     const metrics = await page.evaluate(() => {
       const canvas = document.querySelector(".map-canvas canvas")?.getBoundingClientRect();
@@ -759,6 +761,36 @@ test.describe("public 3D map beta", () => {
     expect(metrics.canvasWidth).toBeGreaterThan(100);
     expect(metrics.canvasHeight).toBeGreaterThan(100);
     expect(metrics.headerHeight).toBeLessThanOrEqual(88);
+
+    const canvas = page.locator(".map-canvas canvas");
+    const beforeMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.locator("[data-testid='map-mobile-flight-forward']").evaluate((node) => {
+      node.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 901,
+        pointerType: "touch",
+        isPrimary: true,
+      }));
+    });
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapMobileFlightActive || ""),
+      { timeout: 3000 }
+    ).toBe("true");
+    await page.waitForTimeout(450);
+    await page.locator("[data-testid='map-mobile-flight-forward']").evaluate((node) => {
+      node.dispatchEvent(new PointerEvent("pointerup", {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 901,
+        pointerType: "touch",
+        isPrimary: true,
+      }));
+    });
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""),
+      { timeout: 3000 }
+    ).not.toBe(beforeMove);
   });
 
   test("system detail renders live simulation preview", async ({ page }, testInfo) => {

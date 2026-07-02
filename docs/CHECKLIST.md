@@ -253,6 +253,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map pilot baseline controls (WASD, mouse look, `Q` up, `Z` down, Shift boost)
 - [x] 3D map arrow-key aliases for WASD-style desktop flight controls
 - [x] 3D map v0.2 touch controls (drag-look, tap/select-reticle, two-finger pinch flight, two-finger pan)
+- [x] 3D map mobile six-direction hold-to-fly arrow pad for forward/back,
+  left/right, and up/down movement
 - [x] 3D map v0.2 mobile HUD layout with non-overlap Playwright checks
 - [x] 3D map pilot baseline orientation aids, priority labels, reticle selection, and detail handoff
 - [x] 3D map Playwright visual/interaction QA across desktop and mobile

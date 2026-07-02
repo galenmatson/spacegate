@@ -842,6 +842,30 @@
   justify-content: flex-end;
 }
 
+.map-mobile-flight-pad {
+  display: none;
+}
+
+.map-mobile-flight-button {
+  border: 1px solid var(--map-hud-border);
+  border-radius: 8px;
+  color: var(--map-hud-strong);
+  background: color-mix(in srgb, var(--surface-soft) 44%, transparent);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.map-mobile-flight-button:active,
+.map-mobile-flight-button.active {
+  border-color: color-mix(in srgb, var(--accent) 74%, white 8%);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
 .map-controls-panel p,
 .map-status-panel span,
 .map-controls-panel span,
@@ -2222,6 +2246,56 @@
 
   .map-control-buttons {
     justify-content: flex-start;
+  }
+
+  .map-mobile-flight-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 42px);
+    grid-template-areas:
+      ". forward up"
+      "left . right"
+      ". back down";
+    gap: 7px;
+    width: max-content;
+    padding: 7px;
+    border: 1px solid color-mix(in srgb, var(--map-hud-border) 46%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--panel) 28%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 10%, transparent);
+    backdrop-filter: blur(4px);
+  }
+
+  .map-mobile-flight-button {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .map-mobile-flight-forward {
+    grid-area: forward;
+  }
+
+  .map-mobile-flight-back {
+    grid-area: back;
+  }
+
+  .map-mobile-flight-left {
+    grid-area: left;
+  }
+
+  .map-mobile-flight-right {
+    grid-area: right;
+  }
+
+  .map-mobile-flight-up {
+    grid-area: up;
+  }
+
+  .map-mobile-flight-down {
+    grid-area: down;
   }
 
   .map-status-panel {
