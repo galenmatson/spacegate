@@ -278,6 +278,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   without returning to a fixed Sol-neighborhood label set
 - [x] 3D map label-density adaptation that admits more labels in sparse camera
   fields and fades lower-priority labels harder when the field is crowded
+- [ ] Design configurable Star Map label controls alongside the Star Browser
+  rewrite: allow users to materialize labeled systems by distance from camera,
+  coolness, planet count, spectral/object type, and other browser-like filters
+  without falling back to noisy Gaia-only labels by default
 - [x] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
 - [x] Add alias-search build gate covering restored AT-HYG common names,
