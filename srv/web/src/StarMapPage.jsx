@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystemDetail } from "./api.js";
+import { fetchMapSystems, fetchPublicConfig } from "./api.js";
 
 const MAP_RADIUS_LY = 100;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
@@ -290,73 +290,6 @@ function SystemNameDisplay({ system, linkTo = null, className = "", showCopyButt
   );
 }
 
-function SnapshotStatusChip({ system }) {
-  const [open, setOpen] = useState(false);
-  const [snapshot, setSnapshot] = useState(null);
-  const [status, setStatus] = useState("idle");
-  const hasSnapshot = Boolean(system?.has_snapshot);
-  const systemId = system?.system_id;
-
-  useEffect(() => {
-    setSnapshot(null);
-    setStatus("idle");
-    setOpen(false);
-  }, [systemId]);
-
-  useEffect(() => {
-    if (!open || !hasSnapshot || !systemId || snapshot) {
-      return;
-    }
-    let active = true;
-    setStatus("loading");
-    fetchSystemDetail(systemId)
-      .then((payload) => {
-        if (!active) {
-          return;
-        }
-        setSnapshot(payload?.system?.snapshot || null);
-        setStatus(payload?.system?.snapshot?.url ? "ready" : "missing");
-      })
-      .catch(() => {
-        if (active) {
-          setStatus("error");
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [hasSnapshot, open, snapshot, systemId]);
-
-  const showPopover = open && hasSnapshot;
-  const snapshotUrl = snapshot?.url ? apiUrl(snapshot.url) : "";
-  return (
-    <span
-      className={`map-snapshot-chip ${hasSnapshot ? "ready" : "pending"}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-      tabIndex={0}
-    >
-      <span>Snapshot</span>
-      <strong>{hasSnapshot ? "Ready" : "Pending"}</strong>
-      {showPopover && (
-        <span className="map-snapshot-popover" role="tooltip">
-          {status === "loading" && <span>Loading snapshot...</span>}
-          {status === "error" && <span>Snapshot metadata unavailable.</span>}
-          {(status === "missing" || (status === "ready" && !snapshotUrl)) && <span>Snapshot manifest missing.</span>}
-          {status === "ready" && snapshotUrl && (
-            <>
-              <img src={snapshotUrl} alt={`${formatName(system?.display_name || system?.system_name)} deterministic snapshot`} />
-              <span>{snapshot.view_type || "system_card"} / {String(snapshot.params_hash || "").slice(0, 8) || "current"}</span>
-            </>
-          )}
-        </span>
-      )}
-    </span>
-  );
-}
-
 function galacticCoordinatesFromIcrs(item) {
   const x = Number(item.x_helio_ly || 0);
   const y = Number(item.y_helio_ly || 0);
@@ -447,23 +380,6 @@ function createPointTexture() {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
-}
-
-function createStarShape({ points = 5, outerRadius = 0.42, innerRadius = 0.19 } = {}) {
-  const shape = new THREE.Shape();
-  for (let index = 0; index < points * 2; index += 1) {
-    const radius = index % 2 === 0 ? outerRadius : innerRadius;
-    const angle = -Math.PI / 2 + (index / (points * 2)) * Math.PI * 2;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (index === 0) {
-      shape.moveTo(x, y);
-    } else {
-      shape.lineTo(x, y);
-    }
-  }
-  shape.closePath();
-  return shape;
 }
 
 function StarField({ systems }) {
@@ -807,8 +723,6 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
 function SelectionMarker({ system }) {
   const groupRef = useRef(null);
   const { camera } = useThree();
-  const starShape = useMemo(() => createStarShape(), []);
-  const spectralColor = SPECTRAL_COLORS[system?.dominant_spectral_class] || SPECTRAL_COLORS.UNKNOWN;
 
   useFrame(() => {
     if (groupRef.current) {
@@ -821,10 +735,6 @@ function SelectionMarker({ system }) {
   }
   return (
     <group ref={groupRef} position={system.scene_position}>
-      <mesh renderOrder={8}>
-        <shapeGeometry args={[starShape]} />
-        <meshBasicMaterial color={spectralColor} transparent opacity={0.95} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
       <group rotation={[1.02, 0.16, -0.58]}>
         <mesh renderOrder={7}>
           <ringGeometry args={[0.62, 0.655, 72]} />
@@ -2232,7 +2142,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               <span>{formatNumber(selectedSystem.planet_count, 0)} planets</span>
               <span>cool {formatNumber(selectedSystem.coolness_score, 1)}</span>
               <span>rank {formatNumber(selectedSystem.coolness_rank, 0)}</span>
-              {drillMode === "peek" && <SnapshotStatusChip system={selectedSystem} />}
             </div>
             <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
               <SystemPreviewPanel

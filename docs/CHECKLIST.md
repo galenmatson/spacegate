@@ -261,9 +261,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   per-leg line labels, route total, undo/clear)
 - [x] 3D map beta desktop declutter with compact header readouts, selection
   history pills, route leg list, and long-ID popover/copy controls
-- [x] 3D map selected-system snapshot hover/focus preview
-- [x] Checked-in public map Playwright suite for route tools, snapshot preview,
-  mobile HUD, and live-preview smoke tests
+- [x] Retire the 3D map selected-system snapshot hover pill; deterministic
+  snapshots remain simulator fallback/reference artifacts
+- [x] Checked-in public map Playwright suite for route tools, mobile HUD, and
+  live-preview smoke tests
 - [x] Public system simulation scene-readiness API
   (`/api/v1/systems/{system_id}/simulation-scene`)
 - [x] System simulation contract and orbital source-refresh strategy documented
@@ -521,10 +522,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add simultaneous left+right mouse drag camera orbit around the selected
   system, or Sol when no system is selected
 - [x] Remove low-value Star Map flight telemetry text from the bottom-right HUD
-  and hide the snapshot status chip in Explorer mode
+  and hide the snapshot status chip from map Peek/Explorer drill-in
 - [x] Add the Coolstars/Spacegate mark to the map title, narrow the
   Selection History tray, and replace the selected-system center circle with a
-  spectral star plus tilted orbiting-planet accent
+  tilted orbiting-planet accent
 - [x] Keep the Star Map burger menu above Peek/Explore and prevent right-drag
   truck context-menu suppression from closing Explore
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
@@ -540,8 +541,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined
 - [ ] Restore deterministic snapshot manifest coverage on the current public
-  side-sliced deployment so map snapshot hover checks exercise real fallback
-  assets on antiproton
+  side-sliced deployment so System Simulation fallback checks exercise real
+  fallback assets on antiproton
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts

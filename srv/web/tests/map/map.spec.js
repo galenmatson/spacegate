@@ -252,32 +252,6 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-route-summary")).toHaveCount(0);
   });
 
-  test("selected snapshot chip opens deterministic snapshot preview", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.includes("mobile"), "hover preview is a desktop affordance");
-    const mapResponse = await page.request.get("/api/v1/map/systems", {
-      params: { radius_ly: "100", limit: "20000", compact: "true" },
-    });
-    expect(mapResponse.ok()).toBeTruthy();
-    const mapPayload = await mapResponse.json();
-    const hasSnapshot = (mapPayload.items || []).some((item) => item.has_snapshot);
-    test.skip(!hasSnapshot, "served build has no map systems with deterministic snapshots");
-
-    await openMap(page);
-    await page.locator(".map-history-pill").first().click();
-    const drill = page.locator("[data-testid='map-system-drill']");
-    await expect(drill).toBeVisible();
-    const chip = drill.locator(".map-snapshot-chip.ready").first();
-    test.skip(await chip.count() === 0, "initial selected map system has no deterministic snapshot");
-    await expect(chip).toBeVisible();
-    await chip.hover();
-    await expect(page.locator(".map-snapshot-popover img")).toBeVisible();
-    const popoverBox = await page.locator(".map-snapshot-popover").boundingBox();
-    const viewport = page.viewportSize();
-    expect(popoverBox, "snapshot popover bounds").toBeTruthy();
-    expect(popoverBox.x).toBeGreaterThanOrEqual(0);
-    expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewport.width);
-  });
-
   test("map selection opens System Simulation peek and explore drill-in", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop drill-in smoke uses hover/canvas layout");
     await openMap(page);
@@ -298,7 +272,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
-    await expect(drill.locator(".map-snapshot-chip")).toHaveCount(1);
+    await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     const resizeHandle = drill.locator(".map-system-drill-resize");
     await expect(resizeHandle).toBeVisible();
     const titleBox = await drill.locator(".map-system-drill-title").boundingBox();
@@ -531,7 +505,7 @@ test.describe("public 3D map beta", () => {
       const drillBar = document.querySelector(".map-system-drill-bar");
       const drillTitle = document.querySelector(".map-system-drill-title");
       const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
-      const vitalItems = Array.from(document.querySelectorAll(".map-system-vital-strip > span, .map-system-vital-strip .map-snapshot-chip"));
+      const vitalItems = Array.from(document.querySelectorAll(".map-system-vital-strip > span"));
       const historyMeta = document.querySelector(".map-contacts-panel .map-history-pill > span:not(.map-name-wrap)");
       const headerStyle = window.getComputedStyle(header);
       const menuPanelStyle = window.getComputedStyle(menuPanel);

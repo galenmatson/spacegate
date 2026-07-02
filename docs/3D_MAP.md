@@ -168,9 +168,9 @@ Initial layers:
     map-priority score so exploration does not remain visually anchored only
     around Sol
 - reticle and selection marker
-  - selected systems use a spectral-color star glyph with a tilted orbiting
-    planet accent instead of a bright center circle, preserving the object
-    label while echoing the Coolstars/Spacegate mark
+  - selected systems use a tilted orbiting-planet accent instead of a bright
+    center circle, preserving the object label while echoing the
+    Coolstars/Spacegate mark
 - ephemeral client-side route measurement overlay:
   - right-click target system and choose `Measure from selected`
   - rendered route segments show per-leg light-year distance and total route
@@ -186,8 +186,6 @@ Initial layers:
   - selection history pills instead of wide priority-contact cards
   - selected-system title link to public detail
   - long-ID metadata popovers and copy controls
-  - selected-system snapshot pill that lazy-loads the deterministic snapshot
-    preview on hover/focus when the map payload says a snapshot is ready
   - route summary with recent leg list, total distance, undo, and clear
 - System Simulation drill-in layer:
   - clicking/selecting a star opens a framed `Peek` overlay without moving the
@@ -218,9 +216,9 @@ Initial layers:
     uses a shorter/thinner transparent Peek panel, lets the canvas fill the
     window, and allows desktop users to resize Peek for the current browser
     session
-  - Peek may show snapshot readiness because it is a quick inspection overlay;
-    Explorer hides the snapshot status chip because the live System Simulation
-    is the primary visual surface there
+  - Peek and Explorer no longer show a map-level snapshot status pill; the live
+    System Simulation is the primary visual surface, and deterministic
+    snapshots remain simulator fallback/reference artifacts
   - Explorer mode uses a less-transparent simulator shell/canvas than Peek, and
     separates compact one-line readout pills from a Diagnostics disclosure that
     contains Evidence and Render Policy, so diagnostic panels cannot stretch the
@@ -288,8 +286,9 @@ Checked-in browser QA:
 
 - `srv/web/tests/map/map.spec.js`
 - `npm run test:map`
-- covers route create/undo/clear, selected snapshot hover preview, mobile HUD
-  compaction, and the System Simulation Peek/Explore smoke path
+- covers route create/undo/clear, mobile HUD compaction, System Simulation
+  Peek/Explore smoke paths, and deterministic snapshot fallback where the
+  simulator owns that fallback
 
 ## Deferred Decisions
 

@@ -573,8 +573,8 @@ Delivered baseline:
   detail-page handoff
 - beta HUD declutter: long-ID truncation with hover/tap metadata popovers and
   copy controls, selected-name detail links, and tighter desktop/mobile layouts
-- selected-system snapshot preview on the map: `Snapshot Ready` hover/focus
-  lazy-loads the deterministic snapshot from system detail metadata
+- deterministic snapshots remain system-simulation fallback/reference
+  artifacts; the map no longer shows a selected-system snapshot status pill
 - ephemeral route measurement overlay: right-click a target system, measure
   from the selected system, draw per-leg distance lines, show recent leg list
   and total distance, and undo/clear without persisting Rim/worldbuilding route
@@ -887,7 +887,7 @@ Readiness gaps:
   direction labels available in ICRS by projecting the true Galactic vectors
   into the active scene frame, adds simultaneous left+right mouse drag camera
   orbit around the selected system or Sol, removes low-value flight telemetry
-  text from the bottom-right HUD, hides the snapshot chip in Explorer, and
+  text from the bottom-right HUD, hides the snapshot chip from map drill-in, and
   replaces the fixed Sol-neighborhood label set with camera-distance plus
   coolness-priority fading labels.
 - July 2, 2026 Star Map display-density pass makes the in-scene label budget
@@ -895,8 +895,7 @@ Readiness gaps:
   views keep fewer strong labels and fade lower-coolness labels harder. The
   same pass narrows the Selection History tray, adds the Coolstars/Spacegate
   mark beside the configurable map title, and changes the selected-system
-  marker from a bright circle to a spectral star with a tilted orbiting-planet
-  accent.
+  marker from a bright circle to a tilted orbiting-planet accent.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.
@@ -937,8 +936,8 @@ Readiness gaps:
   materialization gap is no longer a known data-loss issue in the builder.
 - Local served build has restored deterministic snapshot fallback coverage for
   the first map page; the public side-sliced deployment still needs equivalent
-  `disc.snapshot_manifest` restoration/deployment before public map snapshot
-  hover checks can exercise real fallback assets again.
+  `disc.snapshot_manifest` restoration/deployment before public System
+  Simulation fallback checks can exercise real fallback assets again.
 - June 30, 2026 simulator API patch attaches core planet render bodies to
   rendered host stars with `host_body_key` when `core.planets.star_id` resolves
   cleanly. Local Playwright now covers the 16 Cyg hosted-planet scene, and API

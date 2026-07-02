@@ -751,20 +751,13 @@
   pointer-events: none;
 }
 
-.map-system-vital-strip > span,
-.map-system-vital-strip .map-snapshot-chip {
+.map-system-vital-strip > span {
   min-height: 25px;
   border-color: color-mix(in srgb, var(--map-hud-border) 44%, transparent);
   background: color-mix(in srgb, var(--panel) 14%, transparent);
   color: var(--map-hud-strong);
   backdrop-filter: blur(8px);
   pointer-events: auto;
-}
-
-.map-system-vital-strip .map-snapshot-popover {
-  top: auto;
-  bottom: calc(100% + 8px);
-  z-index: 20;
 }
 
 .map-system-vital-strip > span {
@@ -822,69 +815,6 @@
 .map-fact-grid dd {
   margin: 2px 0 0;
   overflow-wrap: anywhere;
-}
-
-.map-snapshot-chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: 4px 7px;
-  border: 1px solid color-mix(in srgb, var(--map-hud-border) 72%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-soft) 20%, transparent);
-  color: var(--map-hud-muted);
-  cursor: default;
-  outline: none;
-}
-
-.map-snapshot-chip strong {
-  color: var(--map-hud-strong);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.map-snapshot-chip.ready {
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--map-hud-border));
-}
-
-.map-snapshot-chip:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
-.map-snapshot-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 16;
-  display: grid;
-  gap: 7px;
-  width: min(300px, calc(100vw - 32px));
-  padding: 9px;
-  border: 1px solid color-mix(in srgb, var(--map-hud-border) 82%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.34);
-  color: var(--map-hud-muted);
-  text-transform: none;
-}
-
-.map-snapshot-popover img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--map-hud-border) 72%, transparent);
-  background: #07101b;
-}
-
-.map-snapshot-popover span {
-  color: var(--map-hud-muted);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
 }
 
 .map-controls-panel {
@@ -1257,7 +1187,6 @@
 :root[data-theme="lcars"] .map-history-pill,
 :root[data-theme="lcars"] .map-header-readout span,
 :root[data-theme="lcars"] .map-system-vital-strip > span,
-:root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="lcars"] .map-theme-select select,
 :root[data-theme="lcars"] .map-keybind-select select,
 :root[data-theme="lcars"] .map-frame-select select,
@@ -1369,8 +1298,7 @@
   overflow: visible;
 }
 
-:root[data-theme="lcars"] .map-system-vital-strip > span,
-:root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip {
+:root[data-theme="lcars"] .map-system-vital-strip > span {
   display: inline-flex;
   align-items: center;
   border-width: 0;
@@ -1386,21 +1314,18 @@
   padding-left: 12px;
 }
 
-:root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip:last-child,
 :root[data-theme="lcars"] .map-system-vital-strip > span:last-child {
   border-right: 0;
   border-radius: 0 999px 999px 0;
   padding-right: 12px;
 }
 
-:root[data-theme="lcars"] .map-system-vital-strip > span:nth-child(2n),
-:root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip:nth-child(2n) {
+:root[data-theme="lcars"] .map-system-vital-strip > span:nth-child(2n) {
   background: var(--lcars-peach);
   color: var(--lcars-text-dark);
 }
 
-:root[data-theme="lcars"] .map-system-vital-strip > span:nth-child(3n),
-:root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip:nth-child(3n) {
+:root[data-theme="lcars"] .map-system-vital-strip > span:nth-child(3n) {
   background: var(--lcars-lilac);
   color: var(--lcars-text-dark);
 }
@@ -1553,7 +1478,6 @@
 
 :root[data-theme="cyberpunk"] .map-header-readout span,
 :root[data-theme="cyberpunk"] .map-system-vital-strip > span,
-:root[data-theme="cyberpunk"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="cyberpunk"] .map-history-pill,
 :root[data-theme="cyberpunk"] .map-world-label {
   border-color: rgba(0, 245, 255, 0.62);
@@ -1704,7 +1628,6 @@
 :root[data-theme="simple_light"] .map-command-button,
 :root[data-theme="simple_light"] .map-history-pill,
 :root[data-theme="simple_light"] .map-system-vital-strip > span,
-:root[data-theme="simple_light"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="simple_light"] .map-theme-select select,
 :root[data-theme="simple_light"] .map-keybind-select select,
 :root[data-theme="simple_light"] .map-frame-select select,
@@ -1722,7 +1645,6 @@
 :root[data-theme="retro_90s"] .map-command-button,
 :root[data-theme="retro_90s"] .map-history-pill,
 :root[data-theme="retro_90s"] .map-system-vital-strip > span,
-:root[data-theme="retro_90s"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="retro_90s"] .map-theme-select select,
 :root[data-theme="retro_90s"] .map-keybind-select select,
 :root[data-theme="retro_90s"] .map-frame-select select,
@@ -1854,7 +1776,6 @@
 
 :root[data-theme="retro_90s"] .map-header-readout span,
 :root[data-theme="retro_90s"] .map-system-vital-strip > span,
-:root[data-theme="retro_90s"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="retro_90s"] .map-world-label,
 :root[data-theme="retro_90s"] .map-history-pill {
   border-radius: 0;
