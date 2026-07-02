@@ -1570,7 +1570,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         distance_ly: distanceLy,
       },
     ]);
-    selectSystem(target);
     setRouteMenu(null);
   };
 

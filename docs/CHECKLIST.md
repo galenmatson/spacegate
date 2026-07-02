@@ -491,6 +491,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   while preserving black nontransparent panels
 - [x] Restore Enterprise/LCARS Peek/Explore drill layout so the simulator canvas
   remains the main pane and LCARS rails use solid color blocks
+- [x] Keep Star Map `Measure` from changing selected system or refocusing the
+  camera during route layout
+- [x] Fix Enterprise/LCARS map menu layering, colored system-title chip, and
+  continuous selected-vitals strip
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

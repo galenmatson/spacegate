@@ -863,6 +863,10 @@ Readiness gaps:
 - July 2, 2026 LCARS map drill fix restores absolute Peek/Explore header
   positioning after the Enterprise theme pass so the System Simulation canvas
   remains the dominant pane instead of being squeezed below the controls.
+- July 2, 2026 Star Map route/LCARS usability pass keeps `Measure` from
+  changing selected system or refocusing the camera, moves the Enterprise menu
+  below the header bar, recolors the Peek/Explorer system-title chip, and
+  groups selected-system vitals into a continuous LCARS control strip.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

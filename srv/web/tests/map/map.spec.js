@@ -173,11 +173,13 @@ test.describe("public 3D map beta", () => {
     await expect(contextMenu.getByRole("button", { name: /^Select$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Explore$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Measure$/i })).toBeVisible();
+    const selectedBeforeMeasure = await page.locator(".map-history-pill.active").first().textContent();
     await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
 
     await expect(page.locator(".map-route-summary")).toContainText(/1 legs/i);
     await expect(page.locator(".map-route-summary")).toContainText(/total/i);
     await expect(page.locator(".map-route-leg-list li")).toHaveCount(1);
+    await expect(page.locator(".map-history-pill.active").first()).toHaveText(selectedBeforeMeasure);
 
     await page.getByRole("button", { name: /undo/i }).click();
     await expect(page.locator(".map-route-summary")).toHaveCount(0);
@@ -432,24 +434,39 @@ test.describe("public 3D map beta", () => {
     const themeStyles = await page.evaluate(() => {
       const header = document.querySelector(".map-hud-top");
       const headerRail = window.getComputedStyle(header, "::before");
+      const menuPanel = document.querySelector(".map-header-menu-panel");
       const title = document.querySelector(".map-title-block h1");
       const button = document.querySelector(".map-hud-button");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const drillRail = window.getComputedStyle(drill, "::before");
       const drillBar = document.querySelector(".map-system-drill-bar");
+      const drillTitle = document.querySelector(".map-system-drill-title");
       const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
+      const vitalItems = Array.from(document.querySelectorAll(".map-system-vital-strip > span, .map-system-vital-strip .map-snapshot-chip"));
       const headerStyle = window.getComputedStyle(header);
+      const menuPanelStyle = window.getComputedStyle(menuPanel);
       const titleStyle = window.getComputedStyle(title);
       const buttonStyle = window.getComputedStyle(button);
       const drillStyle = window.getComputedStyle(drill);
       const drillBarStyle = window.getComputedStyle(drillBar);
+      const drillTitleStyle = window.getComputedStyle(drillTitle);
+      const firstVitalStyle = window.getComputedStyle(vitalItems[0]);
+      const secondVitalStyle = window.getComputedStyle(vitalItems[1]);
+      const lastVitalStyle = window.getComputedStyle(vitalItems[vitalItems.length - 1]);
+      const headerRect = header.getBoundingClientRect();
+      const menuPanelRect = menuPanel.getBoundingClientRect();
       const drillRect = drill.getBoundingClientRect();
       const previewCanvasRect = previewCanvas.getBoundingClientRect();
+      const firstVitalRect = vitalItems[0].getBoundingClientRect();
+      const secondVitalRect = vitalItems[1].getBoundingClientRect();
       return {
         headerBackground: headerStyle.backgroundColor,
         headerBorderTop: headerStyle.borderTopColor,
         headerRadius: headerStyle.borderTopLeftRadius,
         headerRailBackground: headerRail.backgroundColor,
+        menuPanelTop: menuPanelRect.top,
+        menuPanelZIndex: menuPanelStyle.zIndex,
+        headerBottom: headerRect.bottom,
         titleColor: titleStyle.color,
         titleLetterSpacing: titleStyle.letterSpacing,
         buttonBackground: buttonStyle.backgroundColor,
@@ -457,7 +474,13 @@ test.describe("public 3D map beta", () => {
         drillBackground: drillStyle.backgroundColor,
         drillRailBackground: drillRail.backgroundColor,
         drillBarPosition: drillBarStyle.position,
+        drillTitleBackground: drillTitleStyle.backgroundColor,
+        drillTitleColor: drillTitleStyle.color,
         previewCanvasHeightRatio: previewCanvasRect.height / Math.max(1, drillRect.height),
+        firstVitalLeftRadius: firstVitalStyle.borderTopLeftRadius,
+        secondVitalLeftRadius: secondVitalStyle.borderTopLeftRadius,
+        lastVitalRightRadius: lastVitalStyle.borderTopRightRadius,
+        vitalGap: Math.round(secondVitalRect.left - firstVitalRect.right),
       };
     });
     expect(themeStyles.headerBackground).toBe("rgb(0, 0, 0)");
@@ -465,13 +488,21 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerBorderTop).toBe("rgb(255, 212, 0)");
     expect(themeStyles.headerRadius).toBe("32px");
     expect(themeStyles.headerRailBackground).toBe("rgb(245, 162, 46)");
+    expect(themeStyles.menuPanelTop).toBeGreaterThanOrEqual(themeStyles.headerBottom - 1);
+    expect(Number(themeStyles.menuPanelZIndex)).toBeGreaterThan(40);
     expect(themeStyles.drillRailBackground).toBe("rgb(245, 162, 46)");
     expect(themeStyles.titleColor).toBe("rgb(245, 162, 46)");
     expect(themeStyles.titleLetterSpacing).not.toBe("normal");
     expect(themeStyles.buttonBackground).toBe("rgb(145, 160, 255)");
     expect(themeStyles.buttonColor).toBe("rgb(20, 15, 27)");
     expect(themeStyles.drillBarPosition).toBe("absolute");
+    expect(themeStyles.drillTitleBackground).toBe("rgb(246, 201, 76)");
+    expect(themeStyles.drillTitleColor).toBe("rgb(20, 15, 27)");
     expect(themeStyles.previewCanvasHeightRatio).toBeGreaterThan(0.82);
+    expect(themeStyles.firstVitalLeftRadius).not.toBe("0px");
+    expect(themeStyles.secondVitalLeftRadius).toBe("0px");
+    expect(themeStyles.lastVitalRightRadius).not.toBe("0px");
+    expect(themeStyles.vitalGap).toBeLessThanOrEqual(0);
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {

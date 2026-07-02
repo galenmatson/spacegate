@@ -146,6 +146,8 @@ Initial layers:
   - right-click target system and choose `Measure from selected`
   - rendered route segments show per-leg light-year distance and total route
   - not persisted and not a Rim/worldbuilding route record
+  - measuring a route leg does not change selected system or focus the camera,
+    so users can keep scanning the same local field while laying out paths
   - clicking a route segment, or its recent leg row in the Flight panel,
     removes that leg and every later leg so detached route fragments are not
     orphaned
@@ -194,9 +196,11 @@ Initial layers:
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
     nontransparent surfaces, bright yellow borders, and orange/peach/lilac/blue
-    solid LCARS block controls without glow, Cyberpunk uses neon magenta/cyan
-    glass, scanlines, terminal-green title/HUD text, and glow-heavy explorer
-    chrome, Simple Light uses more opaque surfaces for readability, and Geocities
+    solid LCARS block controls without glow, keeps header menus above/outside
+    the header bar, and groups selected-system vitals into a continuous LCARS
+    control strip; Cyberpunk uses neon magenta/cyan glass, scanlines,
+    terminal-green title/HUD text, and glow-heavy explorer chrome, Simple Light
+    uses more opaque surfaces for readability, and Geocities
     intentionally uses stereotypical 90s web chrome with beveled windows,
     bright web-safe accents, title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact
