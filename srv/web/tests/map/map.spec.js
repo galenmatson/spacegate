@@ -69,8 +69,12 @@ test.describe("public 3D map beta", () => {
     await expect(menu.locator(".map-header-menu-panel")).toBeVisible();
     const themeSelect = menu.locator(".map-theme-select select");
     const keybindSelect = menu.locator(".map-keybind-select select");
+    const frameSelect = menu.locator("[data-testid='map-frame-select']");
+    const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
+    await expect(frameSelect).toBeVisible();
+    await expect(directionToggle).toBeVisible();
 
     await themeSelect.selectOption("aurora");
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("aurora");
@@ -112,6 +116,22 @@ test.describe("public 3D map beta", () => {
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeNumberMove);
 
+    await frameSelect.selectOption("galactic");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapFrame || ""),
+      { timeout: 3000 }
+    ).toBe("galactic");
+    await expect(page.locator(".map-header-readout")).toContainText(/Galactic frame/i);
+    await expect(directionToggle).toBeEnabled();
+    await directionToggle.check();
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapDirectionLabels || ""),
+      { timeout: 3000 }
+    ).toBe("true");
+
+    await page.locator(".map-title-block").click();
+    await expect(menu.locator(".map-header-menu-panel")).toBeHidden();
+
     const beforeArrowMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
     await page.keyboard.down("ArrowUp");
     await page.waitForTimeout(350);
@@ -119,9 +139,6 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeArrowMove);
-
-    await page.locator(".map-title-block").click();
-    await expect(menu.locator(".map-header-menu-panel")).toBeHidden();
 
     const mapBox = await canvasBox(page);
     const beforeWheelForward = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
@@ -328,6 +345,31 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("explore");
+
+    const exploreBox = await drill.boundingBox();
+    expect(exploreBox, "explore bounds").toBeTruthy();
+    await page.mouse.move(exploreBox.x + exploreBox.width * 0.42, exploreBox.y + exploreBox.height * 0.5);
+    await page.mouse.down({ button: "right" });
+    await page.mouse.move(exploreBox.x + exploreBox.width * 0.42 + 120, exploreBox.y + exploreBox.height * 0.5, { steps: 8 });
+    await page.mouse.up({ button: "right" });
+    await expect(drill).toBeVisible();
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("explore");
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    await expect(menu.locator(".map-header-menu-panel")).toBeVisible();
+    const menuLayer = await page.evaluate(() => {
+      const panel = document.querySelector(".map-header-menu-panel");
+      const drillNode = document.querySelector("[data-testid='map-system-drill']");
+      return {
+        panelZ: Number(window.getComputedStyle(panel).zIndex),
+        drillZ: Number(window.getComputedStyle(drillNode).zIndex),
+      };
+    });
+    expect(menuLayer.panelZ).toBeGreaterThan(menuLayer.drillZ);
 
     await page.evaluate(() => window.history.back());
     await expect(drill).toHaveCount(0);

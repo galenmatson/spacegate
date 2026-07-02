@@ -878,6 +878,10 @@ Readiness gaps:
   dismissal, adds compact color-coded spectral/visual-class badges above
   simulator stars, lowers the Geocities history/nearby tray below its taller
   header, and restores dark LCARS metadata text on light history pills.
+- July 2, 2026 Star Map orientation pass adds a client-side Galactic frame
+  toggle using an explicit ICRS-to-Galactic presentation transform, optional
+  Coreward/Rimward/Spinward/Antispinward labels, burger-menu stacking above
+  Peek/Explore, and right-drag truck suppression that no longer closes Explore.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

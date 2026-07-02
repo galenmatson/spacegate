@@ -508,6 +508,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   labels without weakening provenance boundaries
 - [x] Fix Geocities Star Map tray overlap and Enterprise/LCARS history metadata
   contrast in the Selection History/Cool Stars Nearby panel
+- [x] Add client-side Galactic frame toggle with optional Coreward/Rimward and
+  Spinward/Antispinward direction labels as presentation transforms over ICRS
+  source coordinates
+- [x] Keep the Star Map burger menu above Peek/Explore and prevent right-drag
+  truck context-menu suppression from closing Explore
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

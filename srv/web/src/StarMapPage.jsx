@@ -11,6 +11,8 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
+const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
+const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const KEYBOARD_BASE_SPEED = 7;
 const KEYBOARD_BOOST_SPEED = 18;
@@ -71,6 +73,15 @@ const SPECTRAL_COLORS = {
   D: "#d7e0ea",
   UNKNOWN: "#8b99b0",
 };
+const MAP_FRAME_OPTIONS = {
+  icrs: { id: "icrs", label: "ICRS", detail: "Scene up = ICRS Z" },
+  galactic: { id: "galactic", label: "Galactic", detail: "Scene up = Galactic North" },
+};
+const ICRS_TO_GALACTIC = [
+  [-0.0548755604, -0.8734370902, -0.4838350155],
+  [0.4941094279, -0.4448296300, 0.7469822445],
+  [-0.8676661490, -0.1980763734, 0.4559837762],
+];
 
 function formatNumber(value, digits = 1) {
   const numeric = Number(value);
@@ -122,6 +133,29 @@ function readStoredMapKeybindScheme() {
     return MAP_KEYBIND_SCHEMES[stored] ? stored : "wasd";
   } catch {
     return "wasd";
+  }
+}
+
+function readStoredMapFrame() {
+  if (typeof window === "undefined") {
+    return "icrs";
+  }
+  try {
+    const stored = window.localStorage.getItem(MAP_FRAME_STORAGE_KEY);
+    return MAP_FRAME_OPTIONS[stored] ? stored : "icrs";
+  } catch {
+    return "icrs";
+  }
+}
+
+function readStoredDirectionLabelsEnabled() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(MAP_DIRECTION_LABELS_STORAGE_KEY) === "true";
+  } catch {
+    return false;
   }
 }
 
@@ -321,7 +355,22 @@ function SnapshotStatusChip({ system }) {
   );
 }
 
-function mapToScenePosition(item) {
+function galacticCoordinatesFromIcrs(item) {
+  const x = Number(item.x_helio_ly || 0);
+  const y = Number(item.y_helio_ly || 0);
+  const z = Number(item.z_helio_ly || 0);
+  return ICRS_TO_GALACTIC.map((row) => row[0] * x + row[1] * y + row[2] * z);
+}
+
+function mapToScenePosition(item, frame = "icrs") {
+  if (frame === "galactic") {
+    const [corewardLy, spinwardLy, northLy] = galacticCoordinatesFromIcrs(item);
+    return [
+      corewardLy * LY_TO_SCENE,
+      northLy * LY_TO_SCENE,
+      spinwardLy * LY_TO_SCENE,
+    ];
+  }
   const x = Number(item.x_helio_ly || 0) * LY_TO_SCENE;
   const y = Number(item.z_helio_ly || 0) * LY_TO_SCENE;
   const z = -Number(item.y_helio_ly || 0) * LY_TO_SCENE;
@@ -353,7 +402,7 @@ function neighborInterestScore(system, selectedSystem) {
   return coolScore + nearbyScore + planetBoost + multiBoost + nameBoost;
 }
 
-function prepareMapItems(rawItems) {
+function prepareMapItems(rawItems, frame = "icrs") {
   return (rawItems || [])
     .map((item) => {
       const dominant = String(item.dominant_spectral_class || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
@@ -361,7 +410,7 @@ function prepareMapItems(rawItems) {
         ...item,
         display_name: formatName(item.system_name),
         dominant_spectral_class: SPECTRAL_COLORS[dominant] ? dominant : "UNKNOWN",
-        scene_position: mapToScenePosition(item),
+        scene_position: mapToScenePosition(item, frame),
         map_priority: priorityForSystem(item),
       };
     })
@@ -454,7 +503,23 @@ function DistanceRings() {
   );
 }
 
-function OrientationAxes() {
+function DirectionLabels({ frame = "icrs", visible = false }) {
+  if (!visible || frame !== "galactic") {
+    return null;
+  }
+  const radius = MAP_RADIUS_LY * LY_TO_SCENE * 0.78;
+  return (
+    <group>
+      <LabelSprite label="Coreward" position={[radius, 0, 0]} tone="direction" />
+      <LabelSprite label="Rimward" position={[-radius, 0, 0]} tone="direction" />
+      <LabelSprite label="Spinward" position={[0, 0, radius]} tone="direction" />
+      <LabelSprite label="Antispinward" position={[0, 0, -radius]} tone="direction" />
+      <LabelSprite label="Galactic North" position={[0, radius * 0.72, 0]} tone="direction" />
+    </group>
+  );
+}
+
+function OrientationAxes({ frame = "icrs", showDirectionLabels = false }) {
   return (
     <group>
       <mesh position={[0, 0, 0]}>
@@ -489,6 +554,7 @@ function OrientationAxes() {
         </bufferGeometry>
         <lineBasicMaterial color="#ff8fd8" transparent opacity={0.18} />
       </line>
+      <DirectionLabels frame={frame} visible={showDirectionLabels} />
     </group>
   );
 }
@@ -512,19 +578,15 @@ function createLabelTexture(label, { selected = false, tone = "default" } = {}) 
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.textBaseline = "middle";
 
-  const border = tone === "sol"
-    ? "rgba(255,245,184,0.86)"
-    : tone === "route"
-      ? "rgba(151,255,207,0.9)"
-    : selected
-      ? "rgba(125,251,255,0.9)"
-      : "rgba(158,221,255,0.52)";
-  const fill = tone === "route"
-    ? "rgba(5,29,24,0.82)"
-    : selected
-      ? "rgba(7,27,44,0.9)"
-      : "rgba(4,10,22,0.78)";
-  const ink = tone === "sol" ? "#fff5b8" : tone === "route" ? "#d9fff0" : "#eef9ff";
+  const toneStyles = {
+    sol: { border: "rgba(255,245,184,0.86)", fill: "rgba(4,10,22,0.78)", ink: "#fff5b8" },
+    route: { border: "rgba(151,255,207,0.9)", fill: "rgba(5,29,24,0.82)", ink: "#d9fff0" },
+    direction: { border: "rgba(255,220,117,0.92)", fill: "rgba(32,20,5,0.82)", ink: "#ffe7a3" },
+    selected: { border: "rgba(125,251,255,0.9)", fill: "rgba(7,27,44,0.9)", ink: "#eef9ff" },
+    default: { border: "rgba(158,221,255,0.52)", fill: "rgba(4,10,22,0.78)", ink: "#eef9ff" },
+  };
+  const style = toneStyles[tone] || (selected ? toneStyles.selected : toneStyles.default);
+  const { border, fill, ink } = style;
 
   ctx.fillStyle = fill;
   ctx.strokeStyle = border;
@@ -784,6 +846,8 @@ function FlightControls({
   onSelect,
   onRouteContext,
   keybindScheme,
+  mapFrame,
+  showDirectionLabels,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -876,10 +940,16 @@ function FlightControls({
 
   const updateCameraDataset = useCallback((gesture = "") => {
     gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+    gl.domElement.dataset.mapFrame = mapFrame || "icrs";
+    gl.domElement.dataset.mapDirectionLabels = showDirectionLabels ? "true" : "false";
     if (gesture) {
       gl.domElement.dataset.mapCameraGesture = gesture;
     }
-  }, [camera, gl.domElement]);
+  }, [camera, gl.domElement, mapFrame, showDirectionLabels]);
+
+  useEffect(() => {
+    updateCameraDataset();
+  }, [updateCameraDataset]);
 
   useEffect(() => {
     camera.position.set(0, 3.5, 17);
@@ -1080,6 +1150,7 @@ function FlightControls({
         const duration = performance.now() - mouseDrag.startTime;
         if (mouseDrag.mode === "truck" && mouseDrag.moved) {
           suppressContextMenuRef.current = true;
+          window.__spacegateMapSuppressNextContextMenu = true;
         }
         if (mouseDrag.mode === "look" && !mouseDrag.moved && duration < 320) {
           selectPointerTarget(event.clientX, event.clientY);
@@ -1212,6 +1283,8 @@ function FlightControls({
       });
       gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
       gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+      gl.domElement.dataset.mapFrame = mapFrame || "icrs";
+      gl.domElement.dataset.mapDirectionLabels = showDirectionLabels ? "true" : "false";
     }
   });
 
@@ -1224,6 +1297,8 @@ function StarMapScene({
   onSelect,
   onRouteContext,
   keybindScheme,
+  mapFrame,
+  showDirectionLabels,
   routeSegments,
   onRemoveRouteSegment,
   controlsEnabled,
@@ -1242,7 +1317,7 @@ function StarMapScene({
       <color attach="background" args={["#01030a"]} />
       <fog attach="fog" args={["#01030a", 80, 190]} />
       <DistanceRings />
-      <OrientationAxes />
+      <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} />
       <StarField systems={systems} />
       <PriorityLabels systems={systems} selectedSystem={selectedSystem} onSelect={onSelect} />
       <RouteOverlays segments={routeSegments} onRemoveSegment={onRemoveRouteSegment} />
@@ -1252,6 +1327,8 @@ function StarMapScene({
         onSelect={onSelect}
         onRouteContext={onRouteContext}
         keybindScheme={keybindScheme}
+        mapFrame={mapFrame}
+        showDirectionLabels={showDirectionLabels}
         controlsEnabled={controlsEnabled}
         stabilizationEnabled={stabilizationEnabled}
         onTelemetry={onTelemetry}
@@ -1265,6 +1342,7 @@ function StarMapScene({
 
 export default function StarMapPage({ buildId = "", theme, setTheme, themeOptions = [] }) {
   const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
+  const [rawSystems, setRawSystems] = useState([]);
   const [systems, setSystems] = useState([]);
   const [summary, setSummary] = useState(null);
   const [selectedSystem, setSelectedSystem] = useState(null);
@@ -1283,6 +1361,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [focusToken, setFocusToken] = useState(0);
   const [peekSize, setPeekSize] = useState(readStoredMapPeekSize);
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
+  const [mapFrame, setMapFrame] = useState(readStoredMapFrame);
+  const [showDirectionLabels, setShowDirectionLabels] = useState(readStoredDirectionLabelsEnabled);
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
@@ -1326,6 +1406,22 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       // Control preference persistence is optional.
     }
   }, [keybindScheme]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_FRAME_STORAGE_KEY, mapFrame);
+    } catch {
+      // Map frame persistence is optional.
+    }
+  }, [mapFrame]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_DIRECTION_LABELS_STORAGE_KEY, showDirectionLabels ? "true" : "false");
+    } catch {
+      // Direction-label preference persistence is optional.
+    }
+  }, [showDirectionLabels]);
 
   useEffect(() => {
     const onPointerDown = (event) => {
@@ -1450,6 +1546,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
 
   useEffect(() => {
     const onContextMenu = (event) => {
+      if (window.__spacegateMapSuppressNextContextMenu) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.__spacegateMapSuppressNextContextMenu = false;
+        return;
+      }
       const inContextMenu = event.target?.closest?.(".map-context-menu");
       if (inContextMenu) {
         event.preventDefault();
@@ -1475,6 +1577,25 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, [drillMode, exitDrillMode, routeMenu]);
 
   useEffect(() => {
+    if (!rawSystems.length) {
+      setSystems([]);
+      return;
+    }
+    const prepared = prepareMapItems(rawSystems, mapFrame);
+    const byId = new Map(prepared.map((system) => [system.system_id, system]));
+    const refreshSystem = (system) => byId.get(system?.system_id) || system || null;
+    setSystems(prepared);
+    setSelectedSystem((system) => refreshSystem(system));
+    setSelectionHistory((history) => history.map(refreshSystem).filter(Boolean).slice(0, 8));
+    setRouteSegments((segments) => segments.map((segment) => ({
+      ...segment,
+      from: refreshSystem(segment.from),
+      to: refreshSystem(segment.to),
+    })).filter((segment) => segment.from && segment.to));
+    setRouteMenu((menu) => (menu?.target ? { ...menu, target: refreshSystem(menu.target) } : menu));
+  }, [mapFrame, rawSystems]);
+
+  useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
@@ -1483,8 +1604,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         if (!active) {
           return;
         }
-        const prepared = prepareMapItems(payload?.items || []);
-        setSystems(prepared);
+        const rows = payload?.items || [];
+        const prepared = prepareMapItems(rows, mapFrame);
+        setRawSystems(rows);
         setSummary(payload || null);
         const initial = prepared.find((item) => Number(item.planet_count || 0) > 0 && !isCatalogFallbackName(item.display_name))
           || prepared.find((item) => !isCatalogFallbackName(item.display_name))
@@ -1598,6 +1720,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           onSelect={(system) => selectSystem(system, { openPeek: true })}
           onRouteContext={setRouteMenu}
           keybindScheme={keybindScheme}
+          mapFrame={mapFrame}
+          showDirectionLabels={showDirectionLabels}
           routeSegments={routeSegments}
           onRemoveRouteSegment={truncateRouteAtSegment}
           controlsEnabled={controlsEnabled}
@@ -1627,7 +1751,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               <span>{formatNumber(summary.returned, 0)} systems</span>
               <span>{formatNumber(summary.planet_systems, 0)} planet hosts</span>
               <span>{formatNumber(summary.multi_star_systems, 0)} multi-star</span>
-              <span>ICRS J2016</span>
+              <span>{mapFrame === "galactic" ? "Galactic frame" : "ICRS J2016"}</span>
             </>
           )}
         </div>
@@ -1668,6 +1792,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                     <option key={option.id} value={option.id}>{option.label}</option>
                   ))}
                 </select>
+              </label>
+              <label className="map-menu-field map-frame-select">
+                <span>Frame</span>
+                <select
+                  value={mapFrame}
+                  onChange={(event) => setMapFrame(
+                    MAP_FRAME_OPTIONS[event.target.value] ? event.target.value : "icrs",
+                  )}
+                  data-testid="map-frame-select"
+                >
+                  {Object.values(MAP_FRAME_OPTIONS).map((option) => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="map-menu-toggle">
+                <input
+                  type="checkbox"
+                  checked={showDirectionLabels}
+                  onChange={(event) => setShowDirectionLabels(event.target.checked)}
+                  disabled={mapFrame !== "galactic"}
+                  data-testid="map-direction-labels-toggle"
+                />
+                <span>Direction labels</span>
               </label>
               <span className="map-menu-note">Arrow keys always fly.</span>
             </div>

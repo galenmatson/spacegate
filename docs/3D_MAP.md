@@ -21,6 +21,9 @@ Controls:
 - header burger menu:
   - Theme selector
   - keybind selector for `WASD`, `ESDF`, and `8456`
+  - frame selector for current ICRS presentation or Galactic presentation
+  - Galactic direction-label toggle for Coreward, Rimward, Spinward, and
+    Antispinward labels when the Galactic frame is active
 - `WASD`: forward/back/left/right, `Q` up, `Z` down
 - `ESDF`: forward/back/left/right, `A` up, `Z` down
 - `8456`: forward/back/left/right, `7` up, `1` down
@@ -69,14 +72,20 @@ Frame note:
 
 - current map coordinates are heliocentric, ICRS/J2016-derived positions from
   core fields
-- scene axes are a presentation transform over canonical heliocentric ICRS:
+- default scene axes are a presentation transform over canonical heliocentric
+  ICRS:
   - scene X = canonical `x_helio_ly`
   - scene Y = canonical `z_helio_ly`
   - scene Z = negative canonical `y_helio_ly`
 - scene vertical is intentionally a stable navigation convention, not a
   galactic-north claim
-- future galactic-frame rendering/markers must apply an explicit ICRS-to-
-  galactic transform and should not reuse the scene-up convention implicitly
+- Galactic frame mode applies the standard ICRS/J2000-to-Galactic rotation as
+  a browser presentation transform:
+  - scene X = Galactic coreward/rimward axis
+  - scene Y = Galactic north/south axis
+  - scene Z = Galactic spinward/antispinward axis
+- Galactic frame mode and direction labels do not alter core coordinates,
+  API payloads, source evidence, or distance calculations
 
 ## Data Contract
 

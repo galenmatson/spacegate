@@ -150,6 +150,7 @@
 }
 
 .map-hud-top {
+  z-index: 32;
   top: 18px;
   left: 18px;
   right: 18px;
@@ -323,7 +324,7 @@
 
 .map-header-menu-panel {
   position: absolute;
-  z-index: 30;
+  z-index: 80;
   top: calc(100% + 8px);
   right: 0;
   display: grid;
@@ -394,7 +395,8 @@
 }
 
 .map-theme-select select,
-.map-keybind-select select {
+.map-keybind-select select,
+.map-frame-select select {
   min-height: 34px;
   width: 100%;
   border: 1px solid var(--map-hud-border);
@@ -403,6 +405,21 @@
   background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+
+.map-menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--map-hud-strong);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.map-menu-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 .map-page select option {
@@ -1227,6 +1244,7 @@
 :root[data-theme="lcars"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="lcars"] .map-theme-select select,
 :root[data-theme="lcars"] .map-keybind-select select,
+:root[data-theme="lcars"] .map-frame-select select,
 :root[data-theme="lcars"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="lcars"] .map-system-drill .system-preview-toggle,
 :root[data-theme="lcars"] .map-system-drill .system-preview-speed select,
@@ -1536,6 +1554,7 @@
 :root[data-theme="cyberpunk"] .map-context-command,
 :root[data-theme="cyberpunk"] .map-theme-select select,
 :root[data-theme="cyberpunk"] .map-keybind-select select,
+:root[data-theme="cyberpunk"] .map-frame-select select,
 :root[data-theme="cyberpunk"] .map-system-drill-title,
 :root[data-theme="cyberpunk"] .map-system-drill-resize,
 :root[data-theme="cyberpunk"] .map-system-drill .system-preview-toggle,
@@ -1672,6 +1691,7 @@
 :root[data-theme="simple_light"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="simple_light"] .map-theme-select select,
 :root[data-theme="simple_light"] .map-keybind-select select,
+:root[data-theme="simple_light"] .map-frame-select select,
 :root[data-theme="simple_light"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="simple_light"] .map-system-drill .system-preview-toggle,
 :root[data-theme="simple_light"] .map-system-drill .system-preview-speed select,
@@ -1689,6 +1709,7 @@
 :root[data-theme="retro_90s"] .map-system-vital-strip .map-snapshot-chip,
 :root[data-theme="retro_90s"] .map-theme-select select,
 :root[data-theme="retro_90s"] .map-keybind-select select,
+:root[data-theme="retro_90s"] .map-frame-select select,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-floating-actions,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-toggle,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-speed select,
@@ -1837,6 +1858,7 @@
 :root[data-theme="retro_90s"] .map-context-command,
 :root[data-theme="retro_90s"] .map-theme-select select,
 :root[data-theme="retro_90s"] .map-keybind-select select,
+:root[data-theme="retro_90s"] .map-frame-select select,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-toggle,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-speed select,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-scale select {
@@ -2012,7 +2034,8 @@
   }
 
   .map-theme-select select,
-  .map-keybind-select select {
+  .map-keybind-select select,
+  .map-frame-select select {
     min-height: 34px;
     font-size: 0.68rem;
   }
@@ -2172,7 +2195,8 @@
 
   .map-hud-button,
   .map-theme-select select,
-  .map-keybind-select select {
+  .map-keybind-select select,
+  .map-frame-select select {
     background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
     box-shadow: 0 1px 10px color-mix(in srgb, var(--bg) 66%, transparent);
     backdrop-filter: blur(10px);
@@ -2191,7 +2215,8 @@
   }
 
   .map-theme-select select,
-  .map-keybind-select select {
+  .map-keybind-select select,
+  .map-frame-select select {
     min-height: 32px;
     font-size: 0.63rem;
   }
