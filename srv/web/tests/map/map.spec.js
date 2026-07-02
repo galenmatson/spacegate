@@ -633,15 +633,27 @@ test.describe("public 3D map beta", () => {
       const headerStrip = window.getComputedStyle(header, "::before");
       const title = document.querySelector(".map-title-block h1");
       const primaryButton = document.querySelector(".map-hud-button.primary");
+      const utilityLinks = Array.from(document.querySelectorAll(".map-utility-link")).map((link) => {
+        const rect = link.getBoundingClientRect();
+        return {
+          text: link.textContent.trim(),
+          visible: rect.width > 0 && rect.height > 0,
+          pointerEvents: window.getComputedStyle(link).pointerEvents,
+        };
+      });
       const readout = document.querySelector(".map-header-readout span");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
+      const contacts = document.querySelector(".map-contacts-panel");
       const headerStyle = window.getComputedStyle(header);
       const titleStyle = window.getComputedStyle(title);
       const buttonStyle = window.getComputedStyle(primaryButton);
       const readoutStyle = window.getComputedStyle(readout);
       const drillStyle = window.getComputedStyle(drill);
       const previewStyle = window.getComputedStyle(previewCanvas);
+      const headerRect = header.getBoundingClientRect();
+      const contactsRect = contacts.getBoundingClientRect();
+      const canvas = document.querySelector(".map-canvas canvas");
       return {
         headerStripContent: headerStrip.content,
         headerStripColor: headerStrip.color,
@@ -649,12 +661,17 @@ test.describe("public 3D map beta", () => {
         headerRadius: headerStyle.borderTopLeftRadius,
         titleTransform: titleStyle.textTransform,
         titleLetterSpacing: titleStyle.letterSpacing,
+        utilityLinks,
         buttonColor: buttonStyle.color,
         buttonBackground: buttonStyle.backgroundImage,
+        buttonShadow: buttonStyle.boxShadow,
         readoutColor: readoutStyle.color,
         readoutBackground: readoutStyle.backgroundImage,
         drillRadius: drillStyle.borderTopLeftRadius,
         previewBackground: previewStyle.backgroundImage,
+        contactsBelowHeader: contactsRect.top > headerRect.bottom,
+        labelStrategy: canvas?.dataset.mapLabelStrategy,
+        localLabelCount: Number(canvas?.dataset.mapLocalLabelCount || 0),
       };
     });
     expect(themeStyles.headerStripContent).toContain("MOCR 2");
@@ -664,12 +681,18 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerRadius).toBe("3px");
     expect(themeStyles.titleTransform).toBe("uppercase");
     expect(themeStyles.titleLetterSpacing).not.toBe("normal");
+    expect(themeStyles.utilityLinks.map((link) => link.text)).toEqual(["ABT", "SPT", "SRC", "DATA"]);
+    expect(themeStyles.utilityLinks.every((link) => link.visible && link.pointerEvents === "auto")).toBeTruthy();
     expect(themeStyles.buttonColor).toBe("rgb(24, 26, 18)");
-    expect(themeStyles.buttonBackground).toContain("rgb(241, 205, 117)");
+    expect(themeStyles.buttonBackground).toContain("rgb(255, 225, 147)");
+    expect(themeStyles.buttonShadow).toContain("inset");
     expect(themeStyles.readoutColor).toBe("rgb(185, 246, 170)");
     expect(themeStyles.readoutBackground).toContain("repeating-linear-gradient");
     expect(themeStyles.drillRadius).toBe("3px");
     expect(themeStyles.previewBackground).toContain("repeating-linear-gradient");
+    expect(themeStyles.contactsBelowHeader).toBeTruthy();
+    expect(themeStyles.labelStrategy).toBe("camera_near_10ly_nearest_plus_coolness");
+    expect(themeStyles.localLabelCount).toBeGreaterThan(0);
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {

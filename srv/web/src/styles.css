@@ -254,6 +254,11 @@
   margin-left: auto;
 }
 
+.map-utility-link {
+  min-width: 38px;
+  justify-content: center;
+}
+
 .map-hud-button,
 .map-command-button,
 .map-mini-command,
@@ -1634,6 +1639,10 @@
   padding-top: 24px;
 }
 
+:root[data-theme="mission_control"] .map-contacts-panel {
+  top: 128px;
+}
+
 :root[data-theme="mission_control"] .map-title-block h1 {
   color: #f0eed5;
   text-transform: uppercase;
@@ -1662,12 +1671,51 @@
   border-radius: 2px;
   border-color: rgba(218, 213, 176, 0.46);
   background:
-    linear-gradient(180deg, rgba(32, 40, 30, 0.96), rgba(23, 28, 19, 0.96));
+    radial-gradient(circle at 50% 14%, rgba(230, 255, 202, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(74, 86, 62, 0.98) 0%, rgba(39, 48, 33, 0.98) 48%, rgba(16, 20, 14, 0.98) 100%);
   color: #e7ead9;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 230, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+    inset 0 2px 0 rgba(255, 255, 226, 0.24),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.46),
+    0 2px 0 rgba(0, 0, 0, 0.82),
+    0 0 8px rgba(185, 246, 170, 0.08);
   text-transform: uppercase;
+  text-shadow: 0 0 5px rgba(185, 246, 170, 0.2);
+}
+
+:root[data-theme="mission_control"] .map-hud-button:hover,
+:root[data-theme="mission_control"] .map-hud-button:focus-visible,
+:root[data-theme="mission_control"] .map-command-button:hover,
+:root[data-theme="mission_control"] .map-command-button:focus-visible,
+:root[data-theme="mission_control"] .map-mini-command:hover,
+:root[data-theme="mission_control"] .map-mini-command:focus-visible,
+:root[data-theme="mission_control"] .map-theme-select select:hover,
+:root[data-theme="mission_control"] .map-keybind-select select:hover,
+:root[data-theme="mission_control"] .map-frame-select select:hover,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-toggle:hover,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-speed select:hover,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-scale select:hover {
+  border-color: rgba(222, 242, 172, 0.7);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(230, 255, 202, 0.32), transparent 38%),
+    linear-gradient(180deg, rgba(91, 108, 74, 0.98) 0%, rgba(45, 58, 38, 0.98) 48%, rgba(18, 24, 16, 0.98) 100%);
+  color: #f5ffe8;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 226, 0.28),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.48),
+    0 2px 0 rgba(0, 0, 0, 0.82),
+    0 0 12px rgba(185, 246, 170, 0.18);
+}
+
+:root[data-theme="mission_control"] .map-hud-button:active,
+:root[data-theme="mission_control"] .map-command-button:active,
+:root[data-theme="mission_control"] .map-mini-command:active,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-toggle:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 226, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.48),
+    0 1px 0 rgba(0, 0, 0, 0.82);
 }
 
 :root[data-theme="mission_control"] .map-header-readout span,
@@ -1689,10 +1737,24 @@
 :root[data-theme="mission_control"] .map-command-button.active,
 :root[data-theme="mission_control"] .map-history-pill.active {
   background:
-    linear-gradient(180deg, #f1cd75 0%, #c58e34 100%);
+    radial-gradient(circle at 50% 14%, rgba(255, 246, 184, 0.5), transparent 36%),
+    linear-gradient(180deg, #ffe193 0%, #d59e3b 54%, #8f5c1e 100%);
   border-color: rgba(81, 57, 15, 0.46);
   color: var(--mc-ink-dark);
   text-shadow: none;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 226, 0.5),
+    inset 0 -3px 0 rgba(65, 37, 9, 0.58),
+    0 2px 0 rgba(0, 0, 0, 0.82),
+    0 0 12px rgba(243, 194, 74, 0.22);
+}
+
+:root[data-theme="mission_control"] .map-utility-link {
+  min-width: 40px;
+  min-height: 28px;
+  padding: 5px 7px;
+  color: var(--mc-crt);
+  font-size: 0.66rem;
 }
 
 :root[data-theme="mission_control"] .map-system-drill .system-preview-canvas {

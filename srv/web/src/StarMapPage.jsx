@@ -9,6 +9,12 @@ const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
+const MAP_UTILITY_LINKS = [
+  { label: "ABT", href: "/about", title: "About this site", external: false },
+  { label: "SPT", href: "https://github.com/sponsors/galenmatson", title: "Support this project", external: true },
+  { label: "SRC", href: "https://github.com/galenmatson/spacegate", title: "Source code", external: true },
+  { label: "DATA", href: "/data", title: "Source data", external: false },
+];
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
@@ -649,38 +655,53 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
   const buildLabelSet = useCallback(() => {
     const seen = new Set();
     const candidates = [];
-    const add = (system) => {
+    const add = (system, labelPriority = system?.map_priority, cameraDistanceLy = null) => {
       if (!system?.system_id || seen.has(system.system_id)) {
         return;
       }
       seen.add(system.system_id);
-      candidates.push(system);
+      candidates.push({ ...system, label_priority: labelPriority, label_camera_distance_ly: cameraDistanceLy });
     };
     if (selectedSystem) {
-      add(selectedSystem);
+      const selectedPosition = new THREE.Vector3().fromArray(selectedSystem.scene_position);
+      const selectedDistanceLy = selectedPosition.distanceTo(camera.position) / LY_TO_SCENE;
+      add(selectedSystem, Math.max(14, Number(selectedSystem.map_priority || 0)), selectedDistanceLy);
     }
     const scored = systems
       .filter((system) => !isCatalogFallbackName(system.display_name))
       .map((system) => {
         const position = new THREE.Vector3().fromArray(system.scene_position);
         const cameraDistanceLy = position.distanceTo(camera.position) / LY_TO_SCENE;
-        const nearScore = Math.max(0, 36 - cameraDistanceLy) * 0.42;
+        const priority = Number(system.map_priority || 0);
+        const coolness = Number(system.coolness_score);
+        const coolScore = Number.isFinite(coolness) ? coolness / 5 : 0;
+        const nearScore = cameraDistanceLy <= 10
+          ? 100 - cameraDistanceLy
+          : Math.max(0, 26 - cameraDistanceLy) * 0.8;
         return {
           system,
           cameraDistanceLy,
-          score: nearScore + Number(system.map_priority || 0),
+          priority,
+          score: nearScore + priority * 1.25 + coolScore,
         };
       })
       .sort((left, right) => right.score - left.score);
-    const strongVisibleCount = scored.filter(({ cameraDistanceLy, score }) => cameraDistanceLy < 24 || score >= 10).length;
-    const labelBudget = strongVisibleCount < 16
-      ? 64
-      : strongVisibleCount > 36
-        ? 34
-        : 46;
+    const localSystems = scored.filter(({ cameraDistanceLy }) => cameraDistanceLy <= 10);
+    const localCount = localSystems.length;
+    const totalBudget = localCount < 12
+      ? 58
+      : localCount < 28
+        ? 50
+        : Math.min(72, localCount + 20);
+    localSystems.forEach(({ system, priority, cameraDistanceLy }) => add(system, Math.max(12, priority), cameraDistanceLy));
     scored
-      .slice(0, labelBudget)
-      .forEach(({ system }) => add(system));
+      .filter(({ cameraDistanceLy }) => cameraDistanceLy > 10 && cameraDistanceLy <= 24)
+      .slice(0, Math.max(0, 12 - localCount))
+      .forEach(({ system, priority, score, cameraDistanceLy }) => add(system, Math.max(priority, score / 4), cameraDistanceLy));
+    scored
+      .filter(({ cameraDistanceLy, score }) => cameraDistanceLy > 10 && score >= 9)
+      .slice(0, Math.max(0, totalBudget - candidates.length))
+      .forEach(({ system, priority, score, cameraDistanceLy }) => add(system, Math.max(priority, score / 4), cameraDistanceLy));
     return candidates;
   }, [camera, selectedSystem, systems]);
   const [labelSystems, setLabelSystems] = useState(buildLabelSet);
@@ -691,7 +712,9 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
 
   useEffect(() => {
     gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
-  }, [gl.domElement, labelSystems.length]);
+    gl.domElement.dataset.mapLocalLabelCount = String(labelSystems.filter((system) => Number(system.label_camera_distance_ly) <= 10).length);
+    gl.domElement.dataset.mapLabelStrategy = "camera_near_10ly_nearest_plus_coolness";
+  }, [gl.domElement, labelSystems]);
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
@@ -710,7 +733,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
           label={system.display_name}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
-          priority={system.map_priority}
+          priority={system.label_priority ?? system.map_priority}
           labelRank={index}
           labelCount={labelSystems.length}
           onSelect={() => onSelect(system)}
@@ -1861,6 +1884,24 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           )}
         </div>
         <nav className="map-actions" aria-label="Map actions">
+          {MAP_UTILITY_LINKS.map((item) => (
+            item.external ? (
+              <a
+                key={item.label}
+                href={item.href}
+                className="map-hud-button map-utility-link"
+                title={item.title}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <Link key={item.label} to={item.href} className="map-hud-button map-utility-link" title={item.title}>
+                {item.label}
+              </Link>
+            )
+          ))}
           <Link to="/" className="map-hud-button">Search</Link>
           {selectedSystem?.system_id && (
             <Link to={systemDetailPath(selectedSystem)} className="map-hud-button primary">
