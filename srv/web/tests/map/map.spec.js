@@ -61,6 +61,9 @@ test.describe("public 3D map beta", () => {
     const menu = page.locator(".map-header-menu");
     const canvas = page.locator(".map-canvas canvas");
     await expect(menu).toBeVisible();
+    await expect(page.locator(".map-fullscreen-command")).toBeVisible();
+    await expect(page.getByRole("button", { name: /capture mouse/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /stabilize/i })).toHaveCount(0);
     await expect(page.locator(".map-actions > .map-theme-select")).toHaveCount(0);
     await menu.locator("summary").click();
     await expect(menu.locator(".map-header-menu-panel")).toBeVisible();

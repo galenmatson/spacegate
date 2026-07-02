@@ -27,7 +27,7 @@ Controls:
   - limited to physical numpad keys so top-row numbers remain available for
     browser/system shortcuts
 - arrow keys: same forward/back/left/right controls as WASD
-- mouse look through pointer lock
+- desktop mouse look through left-drag free-look
 - mouse wheel over the flight canvas flies forward on wheel-up and backward on
   wheel-down
 - tilt-wheel/horizontal wheel over the flight canvas trucks left/right
@@ -46,9 +46,8 @@ Controls:
 - selection history is shown as compact pills with distance/class metadata
 - long catalog identifiers are truncated in the HUD and expandable via
   hover/focus/tap popovers with copy actions
-- captured-pointer mode:
-  - reticle selects the nearest center-view target
-  - `Esc` releases pointer lock
+- `Select reticle` remains available on touch/coarse-pointer layouts for
+  selecting the nearest center-view target
 - touch-first mobile controls:
   - one-finger drag looks around
   - tap or `Select reticle` selects the nearest reticle target

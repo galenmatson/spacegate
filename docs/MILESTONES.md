@@ -871,6 +871,9 @@ Readiness gaps:
   strip treatment to header Coolstars stats plus Search/Detail/menu actions,
   and tightens Orbit scale body meshes toward marker scale so true-orbit
   inspection no longer swallows the inner system inside oversized bodies.
+- July 2, 2026 Star Map control simplification makes the fullscreen action
+  visible across themes and removes low-use Capture Mouse/Stabilize buttons
+  while keeping stabilized vertical as the default navigation behavior.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

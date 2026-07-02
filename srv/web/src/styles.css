@@ -267,7 +267,7 @@
 }
 
 .map-fullscreen-command {
-  display: none;
+  display: inline-flex;
 }
 
 .map-header-menu {
@@ -2168,10 +2168,6 @@
     backdrop-filter: blur(10px);
   }
 
-  .map-fullscreen-command {
-    display: inline-flex;
-  }
-
   .map-touch-hint {
     display: block;
   }
@@ -2196,10 +2192,6 @@
 
   .map-status-panel,
   .map-fact-grid {
-    display: none;
-  }
-
-  .map-pointer-lock-command {
     display: none;
   }
 

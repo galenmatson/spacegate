@@ -500,6 +500,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   continuous selected-vitals strip
 - [x] Apply the same continuous LCARS strip treatment to Coolstars header stats
   and Search/Detail/menu actions in the Star Map header
+- [x] Show the Star Map fullscreen action consistently across themes and remove
+  low-use Capture Mouse/Stabilize buttons from the visible Flight controls
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

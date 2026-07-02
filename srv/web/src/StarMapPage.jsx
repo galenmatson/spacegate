@@ -1229,7 +1229,6 @@ function StarMapScene({
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
-  onCanvasReady,
   reticleSelectRequest,
   focusTarget,
   focusToken,
@@ -1239,7 +1238,6 @@ function StarMapScene({
       className="map-canvas"
       camera={{ fov: 62, near: 0.01, far: 1200, position: [0, 3.5, 17] }}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
-      onCreated={({ gl }) => onCanvasReady(gl.domElement)}
     >
       <color attach="background" args={["#01030a"]} />
       <fog attach="fog" args={["#01030a", 80, 190]} />
@@ -1272,8 +1270,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [controlsEnabled, setControlsEnabled] = useState(true);
-  const [stabilizationEnabled, setStabilizationEnabled] = useState(true);
+  const controlsEnabled = true;
+  const stabilizationEnabled = true;
   const [reticleSelectRequest, setReticleSelectRequest] = useState(0);
   const [telemetry, setTelemetry] = useState({ distLy: 0, speedLyS: 0, locked: false });
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
@@ -1286,7 +1284,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [peekSize, setPeekSize] = useState(readStoredMapPeekSize);
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
   const pageRef = useRef(null);
-  const canvasRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
@@ -1588,11 +1585,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     setRouteMenu(null);
   }, []);
 
-  const requestPointerLock = () => {
-    setControlsEnabled(true);
-    canvasRef.current?.requestPointerLock?.();
-  };
-
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       document.exitFullscreen?.();
@@ -1624,9 +1616,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           controlsEnabled={controlsEnabled}
           stabilizationEnabled={stabilizationEnabled}
           onTelemetry={setTelemetry}
-          onCanvasReady={(canvas) => {
-            canvasRef.current = canvas;
-          }}
           reticleSelectRequest={reticleSelectRequest}
           focusTarget={selectedSystem}
           focusToken={focusToken}
@@ -1702,22 +1691,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       <aside className="map-hud map-controls-panel">
         <span className="map-panel-label">Flight</span>
         <div className="map-control-buttons">
-          <button type="button" className="map-command-button map-pointer-lock-command" onClick={requestPointerLock}>
-            Capture mouse
-          </button>
           <button
             type="button"
             className="map-command-button ghost map-reticle-command"
             onClick={() => setReticleSelectRequest((value) => value + 1)}
           >
             Select reticle
-          </button>
-          <button
-            type="button"
-            className={`map-command-button ghost ${stabilizationEnabled ? "active" : ""}`}
-            onClick={() => setStabilizationEnabled((value) => !value)}
-          >
-            Stabilize
           </button>
         </div>
         <p className="map-desktop-hint">Desktop: drag look · wheel fly · tilt wheel/RMB drag truck · MMB drag pedestal · {activeKeybind.hint} · arrows always fly</p>
