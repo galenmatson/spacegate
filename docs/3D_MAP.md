@@ -180,8 +180,10 @@ Initial layers:
     pills
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
-    nontransparent cards with bright yellow borders and no glow, while Simple
-    Light and Geocities use more opaque map overlay surfaces for readability
+    nontransparent cards with bright yellow borders and no glow, Simple Light
+    uses more opaque surfaces for readability, and Geocities intentionally uses
+    stereotypical 90s web chrome with beveled windows, bright web-safe accents,
+    title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact
     history/nearby/drill titles text-only, and moves mobile simulator
     speed/scale controls below the map drill action row so long Gaia-style

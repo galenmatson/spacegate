@@ -1171,28 +1171,28 @@
 
 :root[data-theme="simple_light"] .map-page,
 :root[data-theme="retro_90s"] .map-page {
-  --map-hud-bg: rgba(255, 255, 255, 0.92);
-  --map-hud-border: rgba(23, 37, 47, 0.36);
-  --map-hud-glow: rgba(23, 37, 47, 0.12);
-  --map-hud-strong: #17252f;
-  --map-hud-muted: #445963;
+  --map-hud-bg: #c0c0c0;
+  --map-hud-border: #7c7c7c;
+  --map-hud-glow: rgba(0, 0, 0, 0.34);
+  --map-hud-strong: #000000;
+  --map-hud-muted: #000080;
   --map-select-bg: #ffffff;
-  --map-select-ink: #17252f;
-  --map-select-checked-bg: #dce9f1;
+  --map-select-ink: #000000;
+  --map-select-checked-bg: #000080;
 }
 
 :root[data-theme="simple_light"] .map-system-drill,
 :root[data-theme="simple_light"] .map-header-menu-panel,
 :root[data-theme="retro_90s"] .map-system-drill,
 :root[data-theme="retro_90s"] .map-header-menu-panel {
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(23, 37, 47, 0.34);
+  background: #c0c0c0;
+  border-color: #7c7c7c;
   backdrop-filter: none;
 }
 
 :root[data-theme="simple_light"] .map-system-drill .system-preview-canvas,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-canvas {
-  background: rgba(244, 248, 251, 0.72);
+  background: #000000;
 }
 
 :root[data-theme="simple_light"] .map-system-drill-title,
@@ -1217,21 +1217,203 @@
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-toggle,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-speed select,
 :root[data-theme="retro_90s"] .map-system-drill .system-preview-scale select {
-  background: rgba(255, 255, 255, 0.9);
-  color: #17252f;
-  border-color: rgba(23, 37, 47, 0.38);
+  background: #ffffff;
+  color: #000000;
+  border-color: #7c7c7c;
   backdrop-filter: none;
 }
 
+:root[data-theme="retro_90s"] .map-page {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(0, 255, 255, 0.18), transparent 28%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 128, 0.28) 0 2px, transparent 2px 18px),
+    repeating-linear-gradient(-45deg, rgba(128, 0, 128, 0.2) 0 2px, transparent 2px 22px),
+    #000000;
+  font-family: "Verdana", "Tahoma", "Arial", sans-serif;
+}
+
+:root[data-theme="retro_90s"] .map-background-grid {
+  opacity: 0.34;
+  background:
+    radial-gradient(circle, rgba(255, 255, 0, 0.92) 0 1px, transparent 1.5px),
+    repeating-linear-gradient(90deg, rgba(0, 255, 255, 0.12) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(0deg, rgba(255, 0, 255, 0.1) 0 1px, transparent 1px 16px);
+  background-size: 34px 34px, 16px 16px, 16px 16px;
+  mask-image: none;
+}
+
 :root[data-theme="retro_90s"] .map-system-drill,
-:root[data-theme="retro_90s"] .map-hud {
+:root[data-theme="retro_90s"] .map-hud,
+:root[data-theme="retro_90s"] .map-header-menu-panel,
+:root[data-theme="retro_90s"] .map-context-menu {
   border-radius: 0;
+  border: 2px solid #7c7c7c;
   border-top-color: #ffffff;
   border-left-color: #ffffff;
-  border-right-color: #585858;
-  border-bottom-color: #585858;
-  background: rgba(203, 203, 203, 0.94);
+  border-right-color: #404040;
+  border-bottom-color: #404040;
+  background: #c0c0c0;
+  box-shadow:
+    inset 1px 1px 0 #e6e6e6,
+    inset -1px -1px 0 #2f2f2f,
+    3px 3px 0 rgba(0, 0, 0, 0.38);
+}
+
+:root[data-theme="retro_90s"] .map-hud-top {
+  min-height: 76px;
+  padding-top: 30px;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill-bar {
+  top: 30px;
+}
+
+:root[data-theme="retro_90s"] .map-header-menu-panel {
+  padding-top: 31px;
+}
+
+:root[data-theme="retro_90s"] .map-hud-top::before,
+:root[data-theme="retro_90s"] .map-system-drill::before,
+:root[data-theme="retro_90s"] .map-header-menu-panel::before {
+  content: "COOLSTARS.EXE";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  color: #ffffff;
+  background: linear-gradient(90deg, #000080 0%, #0000cc 64%, #008080 100%);
+  font-family: "Tahoma", "Verdana", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-shadow: 1px 1px 0 #000000;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill::before {
+  content: "SYSTEM_SIM.EXE";
+  z-index: 16;
+}
+
+:root[data-theme="retro_90s"] .map-header-menu-panel::before {
+  content: "SETTINGS.INI";
+}
+
+:root[data-theme="retro_90s"] .map-title-block h1 {
+  color: #ffff00;
+  font-family: "Comic Sans MS", "Trebuchet MS", "Verdana", sans-serif;
+  text-shadow:
+    2px 2px 0 #000080,
+    3px 3px 0 #ff00ff;
+}
+
+:root[data-theme="retro_90s"] .map-eyebrow,
+:root[data-theme="retro_90s"] .map-build,
+:root[data-theme="retro_90s"] .map-panel-label,
+:root[data-theme="retro_90s"] .map-menu-field > span,
+:root[data-theme="retro_90s"] .map-menu-note {
+  color: #000080;
+  font-family: "Tahoma", "Verdana", sans-serif;
+  font-weight: 700;
+}
+
+:root[data-theme="retro_90s"] .map-header-readout span,
+:root[data-theme="retro_90s"] .map-system-vital-strip > span,
+:root[data-theme="retro_90s"] .map-system-vital-strip .map-snapshot-chip,
+:root[data-theme="retro_90s"] .map-world-label,
+:root[data-theme="retro_90s"] .map-history-pill {
+  border-radius: 0;
+  border: 2px solid #7c7c7c;
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+  border-right-color: #404040;
+  border-bottom-color: #404040;
+  background: #ffff99;
+  color: #000080;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme="retro_90s"] .map-hud-button,
+:root[data-theme="retro_90s"] .map-command-button,
+:root[data-theme="retro_90s"] .map-mini-command,
+:root[data-theme="retro_90s"] .map-context-command,
+:root[data-theme="retro_90s"] .map-theme-select select,
+:root[data-theme="retro_90s"] .map-keybind-select select,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-toggle,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-speed select,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-scale select {
+  border-radius: 0;
+  border: 2px solid #7c7c7c;
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+  border-right-color: #404040;
+  border-bottom-color: #404040;
+  background: #dcdcdc;
+  color: #0000ee;
+  font-family: "Tahoma", "Verdana", sans-serif;
+  text-decoration: underline;
+  box-shadow: none;
+}
+
+:root[data-theme="retro_90s"] .map-hud-button.primary,
+:root[data-theme="retro_90s"] .map-command-button.primary,
+:root[data-theme="retro_90s"] .map-command-button.active,
+:root[data-theme="retro_90s"] .map-history-pill.active {
+  background: #ffcc00;
+  color: #800080;
+  border-top-color: #404040;
+  border-left-color: #404040;
+  border-right-color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill-title,
+:root[data-theme="retro_90s"] .map-system-drill-resize,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-floating-actions,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-readout > div,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-diagnostics,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-diagnostics-body > div,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-hover,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-pinned {
+  border-radius: 0;
+  border: 2px solid #7c7c7c;
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+  border-right-color: #404040;
+  border-bottom-color: #404040;
+  background: #c0c0c0;
+  color: #000000;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.28);
+  backdrop-filter: none;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-canvas {
+  border-radius: 0;
+  border: 3px inset #7c7c7c;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 255, 0, 0.08) 0 1px, transparent 1px 5px),
+    #000000;
+}
+
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-speed span,
+:root[data-theme="retro_90s"] .map-system-drill .system-preview-scale span {
+  color: #000080;
+  font-family: "Tahoma", "Verdana", sans-serif;
+  font-weight: 700;
+}
+
+:root[data-theme="retro_90s"] .map-reticle {
+  border-color: #ffff00;
+  border-radius: 0;
+  box-shadow: 0 0 0 2px #ff00ff;
+}
+
+:root[data-theme="retro_90s"] .map-reticle::before,
+:root[data-theme="retro_90s"] .map-reticle::after {
+  background: #00ffff;
 }
 
 @media (max-width: 900px) {

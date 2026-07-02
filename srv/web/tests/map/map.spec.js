@@ -104,6 +104,9 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeArrowMove);
+
+    await page.locator(".map-title-block").click();
+    await expect(menu.locator(".map-header-menu-panel")).toBeHidden();
   });
 
   test("desktop route tools create, undo, and clear ephemeral measurements", async ({ page }, testInfo) => {
@@ -287,6 +290,10 @@ test.describe("public 3D map beta", () => {
     await expect(speedSelect).toBeVisible();
 
     for (const themeId of ["aurora", "lcars"]) {
+      if (!(await themeSelect.isVisible())) {
+        await menu.locator("summary").click();
+        await expect(menu.locator(".map-header-menu-panel")).toBeVisible();
+      }
       await themeSelect.selectOption(themeId);
       await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe(themeId);
       await scaleSelect.click();
@@ -304,6 +311,41 @@ test.describe("public 3D map beta", () => {
       await scaleSelect.selectOption("structure");
       await speedSelect.selectOption("1");
     }
+  });
+
+  test("geocities map theme uses 90s web chrome", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    await menu.locator(".map-theme-select select").selectOption("retro_90s");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("retro_90s");
+
+    const themeStyles = await page.evaluate(() => {
+      const header = document.querySelector(".map-hud-top");
+      const drill = document.querySelector("[data-testid='map-system-drill']");
+      const title = document.querySelector(".map-title-block h1");
+      const headerStyle = window.getComputedStyle(header);
+      const headerTitleStyle = window.getComputedStyle(header, "::before");
+      const drillTitleStyle = window.getComputedStyle(drill, "::before");
+      const titleStyle = window.getComputedStyle(title);
+      return {
+        headerBackground: headerStyle.backgroundColor,
+        headerBorderTop: headerStyle.borderTopColor,
+        headerBorderBottom: headerStyle.borderBottomColor,
+        headerTitleContent: headerTitleStyle.content,
+        drillTitleContent: drillTitleStyle.content,
+        titleColor: titleStyle.color,
+      };
+    });
+    expect(themeStyles.headerBackground).toBe("rgb(192, 192, 192)");
+    expect(themeStyles.headerBorderTop).toBe("rgb(255, 255, 255)");
+    expect(themeStyles.headerBorderBottom).toBe("rgb(64, 64, 64)");
+    expect(themeStyles.headerTitleContent).toContain("COOLSTARS.EXE");
+    expect(themeStyles.drillTitleContent).toContain("SYSTEM_SIM.EXE");
+    expect(themeStyles.titleColor).toBe("rgb(255, 255, 0)");
   });
 
   test("mobile layout keeps map controls compact", async ({ page }, testInfo) => {

@@ -1184,6 +1184,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
+  const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
@@ -1225,6 +1226,20 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       // Control preference persistence is optional.
     }
   }, [keybindScheme]);
+
+  useEffect(() => {
+    const onPointerDown = (event) => {
+      const menu = headerMenuRef.current;
+      if (!menu?.open || menu.contains(event.target)) {
+        return;
+      }
+      menu.open = false;
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, []);
 
   const beginPeekResize = useCallback((event) => {
     if (drillMode !== "peek") {
@@ -1542,7 +1557,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               {isFullscreen ? "Exit" : "Full"}
             </button>
           )}
-          <details className="map-header-menu">
+          <details className="map-header-menu" ref={headerMenuRef}>
             <summary className="map-hud-button map-menu-button" aria-label="Map menu" title="Map menu">
               <span className="map-menu-bars" aria-hidden="true" />
             </summary>

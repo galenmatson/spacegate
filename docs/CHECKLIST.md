@@ -473,6 +473,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Move Star Map theme selector into a right-header burger menu and add
   persistent `WASD` / `ESDF` / `8456` keybind selector with permanent arrow
   aliases
+- [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
+  90s web chrome with beveled windows, bright web-safe accents, and tiled
+  page overlays
 - [x] Generalize Star Map right-click target menu to Select/Explore/Measure
   with outside-right-click dismissal for menus and Peek
 - [ ] Add installer/runtime configuration prompt for public site branding so
