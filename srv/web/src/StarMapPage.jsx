@@ -2,12 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { apiUrl, fetchMapSystems, fetchSystemDetail } from "./api.js";
+import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystemDetail } from "./api.js";
 
 const MAP_RADIUS_LY = 100;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
+const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
+const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const KEYBOARD_BASE_SPEED = 7;
 const KEYBOARD_BOOST_SPEED = 18;
 const TOUCH_LOOK_SENSITIVITY = 0.003;
@@ -40,6 +43,34 @@ function formatNumber(value, digits = 1) {
 function formatName(value) {
   const text = String(value || "").trim();
   return text || "Unnamed system";
+}
+
+function clampMapPeekSize(size) {
+  const viewportWidth = typeof window === "undefined" ? 1440 : window.innerWidth || 1440;
+  const viewportHeight = typeof window === "undefined" ? 900 : window.innerHeight || 900;
+  const maxWidth = Math.max(360, viewportWidth - 336);
+  const maxHeight = Math.max(280, viewportHeight - 128);
+  const width = Number(size?.width);
+  const height = Number(size?.height);
+  return {
+    width: Math.round(Math.min(Math.max(Number.isFinite(width) ? width : DEFAULT_MAP_PEEK_SIZE.width, 360), maxWidth)),
+    height: Math.round(Math.min(Math.max(Number.isFinite(height) ? height : DEFAULT_MAP_PEEK_SIZE.height, 280), maxHeight)),
+  };
+}
+
+function readStoredMapPeekSize() {
+  if (typeof window === "undefined") {
+    return DEFAULT_MAP_PEEK_SIZE;
+  }
+  try {
+    const stored = window.sessionStorage.getItem(MAP_PEEK_SIZE_STORAGE_KEY);
+    if (!stored) {
+      return DEFAULT_MAP_PEEK_SIZE;
+    }
+    return clampMapPeekSize(JSON.parse(stored));
+  } catch {
+    return DEFAULT_MAP_PEEK_SIZE;
+  }
 }
 
 function isCatalogFallbackName(value) {
@@ -747,7 +778,7 @@ function FlightControls({
   }, [camera]);
 
   useEffect(() => {
-    const movementKeys = new Set(["w", "a", "s", "d", "q", "z", "shift"]);
+    const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "q", "z", "shift"]);
     const onKeyDown = (event) => {
       const key = event.key.toLowerCase();
       if (movementKeys.has(key) && (controlsEnabled || document.pointerLockElement === gl.domElement)) {
@@ -980,10 +1011,10 @@ function FlightControls({
     camera.getWorldDirection(direction).normalize();
     strafe.crossVectors(direction, WORLD_UP).normalize();
     const baseSpeed = keys.has("shift") ? KEYBOARD_BOOST_SPEED : KEYBOARD_BASE_SPEED;
-    if (keys.has("w")) movement.add(direction);
-    if (keys.has("s")) movement.sub(direction);
-    if (keys.has("d")) movement.add(strafe);
-    if (keys.has("a")) movement.sub(strafe);
+    if (keys.has("w") || keys.has("arrowup")) movement.add(direction);
+    if (keys.has("s") || keys.has("arrowdown")) movement.sub(direction);
+    if (keys.has("d") || keys.has("arrowright")) movement.add(strafe);
+    if (keys.has("a") || keys.has("arrowleft")) movement.sub(strafe);
     if (keys.has("q")) movement.add(WORLD_UP);
     if (keys.has("z")) movement.sub(WORLD_UP);
     if (movement.lengthSq() > 0) {
@@ -1049,6 +1080,7 @@ function StarMapScene({
 }
 
 export default function StarMapPage({ buildId = "", theme, setTheme, themeOptions = [] }) {
+  const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
   const [systems, setSystems] = useState([]);
   const [summary, setSummary] = useState(null);
   const [selectedSystem, setSelectedSystem] = useState(null);
@@ -1065,9 +1097,69 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [selectionHistory, setSelectionHistory] = useState([]);
   const [drillMode, setDrillMode] = useState("flight");
   const [focusToken, setFocusToken] = useState(0);
+  const [peekSize, setPeekSize] = useState(readStoredMapPeekSize);
   const pageRef = useRef(null);
   const canvasRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
+  const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPublicConfig()
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        setPublicConfig({
+          site_name: payload?.site_name || PUBLIC_CONFIG_FALLBACK.site_name,
+          map_title: payload?.map_title || PUBLIC_CONFIG_FALLBACK.map_title,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPublicConfig(PUBLIC_CONFIG_FALLBACK);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(MAP_PEEK_SIZE_STORAGE_KEY, JSON.stringify(peekSize));
+    } catch {
+      // Session persistence is a convenience; the default size remains usable.
+    }
+  }, [peekSize]);
+
+  const beginPeekResize = useCallback((event) => {
+    if (drillMode !== "peek") {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const start = {
+      x: event.clientX,
+      y: event.clientY,
+      width: peekSize.width,
+      height: peekSize.height,
+    };
+    const onPointerMove = (moveEvent) => {
+      setPeekSize(clampMapPeekSize({
+        width: start.width - (moveEvent.clientX - start.x),
+        height: start.height - (moveEvent.clientY - start.y),
+      }));
+    };
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
+  }, [drillMode, peekSize.height, peekSize.width]);
 
   const exitDrillMode = useCallback((consumeHistory = true) => {
     setDrillMode("flight");
@@ -1303,7 +1395,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       <header className="map-hud map-hud-top">
         <div className="map-title-block">
           <span className="map-eyebrow">Spacegate 3D Pilot</span>
-          <h1>Local Star Map</h1>
+          <h1>{mapTitle}</h1>
           <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
         </div>
         <div className="map-header-readout" aria-live="polite">
@@ -1505,6 +1597,10 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           className={`map-system-drill map-system-drill-${drillMode}`}
           data-testid="map-system-drill"
           data-drill-mode={drillMode}
+          style={drillMode === "peek" ? {
+            "--map-peek-width": `${peekSize.width}px`,
+            "--map-peek-height": `${peekSize.height}px`,
+          } : undefined}
           aria-label={`${formatName(selectedSystem.display_name)} system simulation`}
         >
           <div className="map-system-drill-bar">
@@ -1560,6 +1656,15 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               />
             </React.Suspense>
           </div>
+          {drillMode === "peek" && (
+            <button
+              type="button"
+              className="map-system-drill-resize"
+              aria-label="Resize System Peek"
+              title="Resize System Peek"
+              onPointerDown={beginPeekResize}
+            />
+          )}
         </section>
       )}
     </div>

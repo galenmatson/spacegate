@@ -44,6 +44,15 @@ async function expectPreviewCanvasPainted(previewCanvas, label) {
 }
 
 test.describe("public 3D map beta", () => {
+  test("map title comes from public branding config", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop header title check");
+    const configResponse = await page.request.get("/api/v1/public-config");
+    expect(configResponse.ok()).toBeTruthy();
+    const config = await configResponse.json();
+    await openMap(page);
+    await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
+  });
+
   test("desktop route tools create, undo, and clear ephemeral measurements", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop route workflow uses right-click");
     await openMap(page);
@@ -113,6 +122,26 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
+    const resizeHandle = drill.locator(".map-system-drill-resize");
+    await expect(resizeHandle).toBeVisible();
+    const beforeResize = await drill.boundingBox();
+    const handleBox = await resizeHandle.boundingBox();
+    expect(beforeResize, "peek bounds before resize").toBeTruthy();
+    expect(handleBox, "peek resize handle bounds").toBeTruthy();
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x - 80, handleBox.y - 60, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(
+      () => drill.boundingBox().then((box) => Math.round(box?.width || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(Math.round(beforeResize.width) + 30);
+    await expect.poll(
+      () => drill.boundingBox().then((box) => Math.round(box?.height || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(Math.round(beforeResize.height) + 20);
+    const storedPeekSize = await page.evaluate(() => window.sessionStorage.getItem("spacegate.map.peekSize") || "");
+    expect(storedPeekSize).toContain("width");
     await expect(page.getByText("Cool Stars Nearby")).toBeVisible();
     await expect(page.getByText("Next Nearby")).toHaveCount(0);
     await expect.poll(

@@ -492,8 +492,8 @@
 .map-system-drill-peek {
   right: 18px;
   bottom: 18px;
-  width: min(675px, calc(100vw - 336px));
-  height: min(52vh, 510px);
+  width: min(var(--map-peek-width, 675px), calc(100vw - 336px));
+  height: min(var(--map-peek-height, 468px), calc(100vh - 128px));
   min-width: 460px;
   padding: 0;
   border-radius: 10px;
@@ -566,6 +566,31 @@
 
 .map-system-drill-explore .map-system-drill-body {
   height: 100%;
+}
+
+.map-system-drill-resize {
+  position: absolute;
+  z-index: 20;
+  left: 8px;
+  bottom: 8px;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--map-hud-strong) 74%, transparent) 48% 54%, transparent 56%),
+    color-mix(in srgb, var(--panel) 24%, transparent);
+  color: var(--map-hud-strong);
+  cursor: nesw-resize;
+  opacity: 0.72;
+  pointer-events: auto;
+  backdrop-filter: blur(3px);
+}
+
+.map-system-drill-resize:hover,
+.map-system-drill-resize:focus-visible {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--accent) 72%, transparent);
 }
 
 .map-system-vital-strip {
@@ -1138,6 +1163,10 @@
     height: min(54vh, calc(100vh - 96px));
     max-height: calc(100vh - 96px);
     overflow: hidden;
+  }
+
+  .map-system-drill-resize {
+    display: none;
   }
 
   .map-system-drill-body,

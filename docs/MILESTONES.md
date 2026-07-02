@@ -837,6 +837,13 @@ Readiness gaps:
   long-ID copy/info buttons from compact history/nearby pills and the map
   drill title, and moves mobile Peek simulator speed/scale controls below the
   Explore/Detail/Back row so phone portrait layouts stay readable.
+- July 2, 2026 map install-branding and control polish adds
+  `GET /api/v1/public-config`, derives the `/map` title from
+  `SPACEGATE_SITE_NAME` / `SPACEGATE_MAP_TITLE` with `Coolstars Map` as the
+  default, adds desktop arrow-key flight aliases, and makes the System
+  Simulation Peek panel resizable for the current browser session. A later
+  installer/runtime configuration milestone should prompt for the public site
+  name instead of relying on operators to edit env files manually.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

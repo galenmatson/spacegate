@@ -251,6 +251,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] 3D map public route scaffolded at `/map` with lazy-loaded Three.js/R3F runtime
 - [x] 3D map compact 100 ly API endpoint (`/api/v1/map/systems`)
 - [x] 3D map pilot baseline controls (WASD, mouse look, `Q` up, `Z` down, Shift boost)
+- [x] 3D map arrow-key aliases for WASD-style desktop flight controls
 - [x] 3D map v0.2 touch controls (drag-look, tap/select-reticle, two-finger pinch flight, two-finger pan)
 - [x] 3D map v0.2 mobile HUD layout with non-overlap Playwright checks
 - [x] 3D map pilot baseline orientation aids, priority labels, reticle selection, and detail handoff
@@ -466,6 +467,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   pills and drill titles no longer show inline long-ID copy/info buttons,
   desktop header chrome is denser, and mobile Peek controls no longer overlap
   Explore/Detail/Back actions
+- [x] Add public map branding config (`SPACEGATE_SITE_NAME` /
+  `SPACEGATE_MAP_TITLE`) with `Coolstars Map` default
+- [x] Add desktop System Peek resize control with session persistence
+- [ ] Add installer/runtime configuration prompt for public site branding so
+  third-party Spacegate installs can set their own site name cleanly
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
 - [ ] Define science-grade epoch/propagation controls beyond the current

@@ -49,6 +49,16 @@ export async function fetchMapSystems(params = {}) {
   return res.json();
 }
 
+export async function fetchPublicConfig() {
+  const url = apiUrl("/api/v1/public-config");
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Public config failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
+
 export async function fetchHealth() {
   const url = apiUrl("/api/v1/health");
   const res = await fetch(url);

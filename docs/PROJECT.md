@@ -574,9 +574,12 @@ Current contract:
 - compact map endpoint: `GET /api/v1/map/systems`
 - first slice: Sol-centered systems within 100 ly
 - rendering stack: React 19 + Three.js through React Three Fiber
-- controls: WASD, mouse look, `Q` up, `Z` down, Shift boost, stabilized
-  vertical by default; v0.2 adds touch-first phone/tablet controls with
+- controls: WASD/arrow-key flight, mouse look, `Q` up, `Z` down, Shift boost,
+  stabilized vertical by default; v0.2 adds touch-first phone/tablet controls with
   drag-look, tap/select-reticle, two-finger pinch flight, and two-finger pan
+- public map branding comes from `GET /api/v1/public-config`, backed by
+  `SPACEGATE_SITE_NAME` / `SPACEGATE_MAP_TITLE`, with `Coolstars Map` as the
+  default until installer prompts are added
 - ephemeral route measurement: desktop right-click can measure from the
   selected system to a target, draw client-side per-leg distance lines, and
   show total route length; this is a map tool, not persisted Rim route data
@@ -588,6 +591,8 @@ Current contract:
   Simple Light and Geocities use more opaque map overlays; embedded System
   Simulation controls, dropdown option menus, and vitals must remain
   readable/clickable over WebGL
+- System Simulation Peek is a lightweight map overlay and can be resized on
+  desktop for the current browser session
 
 Layer rules:
 

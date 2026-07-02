@@ -19,6 +19,7 @@ Runtime choices:
 Controls:
 
 - WASD: forward/back/left/right
+- arrow keys: same forward/back/left/right controls as WASD
 - mouse look through pointer lock
 - `Q`: translate up
 - `Z`: translate down
@@ -39,6 +40,15 @@ Controls:
   - tap or `Select reticle` selects the nearest reticle target
   - two-finger pinch flies forward/back
   - two-finger drag pans laterally/vertically
+
+Public branding:
+
+- `/map` reads `GET /api/v1/public-config` and titles the header from
+  `map_title`
+- default install behavior is `Coolstars Map`, derived from
+  `SPACEGATE_SITE_NAME=Coolstars`
+- future installer work should prompt for the public site name and write the
+  corresponding environment value rather than hard-coding Coolstars branding
 
 Frame note:
 
@@ -155,8 +165,9 @@ Initial layers:
   - the map drill-in presentation keeps Pause/Start and Reset as transparent
     simulator overlays, restores the Structured/Orbit/Body/Log scale selector,
     keeps the speed selector including 1000x for long-period orbit inspection,
-    uses a shorter/thinner transparent Peek panel, and lets the canvas fill the
-    window
+    uses a shorter/thinner transparent Peek panel, lets the canvas fill the
+    window, and allows desktop users to resize Peek for the current browser
+    session
   - Explorer mode uses a less-transparent simulator shell/canvas than Peek, and
     separates compact one-line readout pills from a Diagnostics disclosure that
     contains Evidence and Render Policy, so diagnostic panels cannot stretch the

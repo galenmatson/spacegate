@@ -71,6 +71,24 @@ SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", 
 SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 SIM_VISUAL_STELLAR_CLASS_VERSION = "mass_main_sequence_prior_v1"
 SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_beta_v1"
+
+
+def _public_text_env(name: str, fallback: str, max_length: int = 80) -> str:
+    value = " ".join(str(os.getenv(name) or "").split()).strip()
+    if not value:
+        value = fallback
+    return value[:max_length]
+
+
+def _public_site_name() -> str:
+    return _public_text_env("SPACEGATE_SITE_NAME", "Coolstars", max_length=80)
+
+
+def _public_map_title(site_name: str) -> str:
+    explicit = _public_text_env("SPACEGATE_MAP_TITLE", "", max_length=100)
+    return explicit or f"{site_name} Map"
+
+
 SIM_VISUAL_SCALE_POLICY = {
     "schema_version": SIM_VISUAL_SCALE_POLICY_VERSION,
     "scale_mode": "clarity_scaled_not_physical",
@@ -4636,6 +4654,16 @@ def health():
         "status": "ok",
         "build_id": build_id,
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+
+
+@app.get("/api/v1/public-config")
+def public_config():
+    site_name = _public_site_name()
+    return {
+        "site_name": site_name,
+        "map_title": _public_map_title(site_name),
+        "branding_source": "environment",
     }
 
 

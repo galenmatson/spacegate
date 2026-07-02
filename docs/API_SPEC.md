@@ -72,6 +72,23 @@ If a cursor is invalid or does not match the requested sort, the API returns `40
 
 ## Endpoints
 
+### GET /public-config
+Returns nonsecret public runtime branding used by browser clients.
+
+Source:
+- `SPACEGATE_SITE_NAME` (default `Coolstars`)
+- optional `SPACEGATE_MAP_TITLE`; when unset the API returns
+  `<SPACEGATE_SITE_NAME> Map`
+
+Response:
+```json
+{
+  "site_name": "Coolstars",
+  "map_title": "Coolstars Map",
+  "branding_source": "environment"
+}
+```
+
 ### GET /auth/login/google
 Starts OIDC login flow when auth is enabled (`SPACEGATE_AUTH_ENABLE=1`).
 
