@@ -847,6 +847,10 @@ Readiness gaps:
 - July 2, 2026 Star Map header menu pass moves the theme selector into a
   right-side burger menu and adds persistent `WASD`, `ESDF`, and `8456`
   keybind layouts while keeping arrow keys as always-available flight aliases.
+- July 2, 2026 Star Map interaction/theme pass limits `8456` flight controls
+  to physical numpad keys, adds route leg truncation from clicked route
+  segments/recent leg rows, and gives the map/explorer Cyberpunk theme
+  stronger neon magenta/cyan chrome, scanlines, and dark glass panels.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

@@ -24,6 +24,8 @@ Controls:
 - `WASD`: forward/back/left/right, `Q` up, `Z` down
 - `ESDF`: forward/back/left/right, `A` up, `Z` down
 - `8456`: forward/back/left/right, `7` up, `1` down
+  - limited to physical numpad keys so top-row numbers remain available for
+    browser/system shortcuts
 - arrow keys: same forward/back/left/right controls as WASD
 - mouse look through pointer lock
 - Shift: boost
@@ -138,6 +140,9 @@ Initial layers:
   - right-click target system and choose `Measure from selected`
   - rendered route segments show per-leg light-year distance and total route
   - not persisted and not a Rim/worldbuilding route record
+  - clicking a route segment, or its recent leg row in the Flight panel,
+    removes that leg and every later leg so detached route fragments are not
+    orphaned
 - HUD panels for selection, controls, status, and priority contacts
 - compact beta HUD:
   - dense header instrument strip with system/planet-host/multiple counts
@@ -180,10 +185,11 @@ Initial layers:
     pills
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
-    nontransparent cards with bright yellow borders and no glow, Simple Light
-    uses more opaque surfaces for readability, and Geocities intentionally uses
-    stereotypical 90s web chrome with beveled windows, bright web-safe accents,
-    title bars, and tiled-page overlays
+    nontransparent cards with bright yellow borders and no glow, Cyberpunk uses
+    neon magenta/cyan glass, scanlines, and glow-heavy explorer chrome, Simple
+    Light uses more opaque surfaces for readability, and Geocities
+    intentionally uses stereotypical 90s web chrome with beveled windows,
+    bright web-safe accents, title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact
     history/nearby/drill titles text-only, and moves mobile simulator
     speed/scale controls below the map drill action row so long Gaia-style

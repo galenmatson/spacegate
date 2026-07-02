@@ -40,12 +40,12 @@ const MAP_KEYBIND_SCHEMES = {
   num8456: {
     id: "num8456",
     label: "8456",
-    forward: "8",
-    back: "5",
-    left: "4",
-    right: "6",
-    up: "7",
-    down: "1",
+    forward: "numpad8",
+    back: "numpad5",
+    left: "numpad4",
+    right: "numpad6",
+    up: "numpad7",
+    down: "numpad1",
     hint: "8456 fly · 7/1 vertical",
   },
 };
@@ -125,6 +125,14 @@ function readStoredMapKeybindScheme() {
 function isKeyboardInputTarget(target) {
   const element = target instanceof Element ? target : null;
   return Boolean(element?.closest?.("input, select, textarea, [contenteditable='true']"));
+}
+
+function mapMovementToken(event) {
+  const code = String(event.code || "").toLowerCase();
+  if (/^numpad[0-9]$/.test(code)) {
+    return code;
+  }
+  return String(event.key || "").toLowerCase();
 }
 
 function isCatalogFallbackName(value) {
@@ -642,7 +650,36 @@ function RouteSegmentLine({ segment }) {
   );
 }
 
-function RouteOverlays({ segments }) {
+function RouteSegmentHitTarget({ segment, onClick }) {
+  const shape = useMemo(() => {
+    const from = new THREE.Vector3().fromArray(segment.from.scene_position);
+    const to = new THREE.Vector3().fromArray(segment.to.scene_position);
+    const midpoint = from.clone().add(to).multiplyScalar(0.5);
+    const direction = to.clone().sub(from);
+    const length = direction.length();
+    const quaternion = new THREE.Quaternion();
+    if (length > 0.0001) {
+      quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    }
+    return { midpoint, quaternion, length };
+  }, [segment.from.scene_position, segment.to.scene_position]);
+
+  return (
+    <mesh
+      position={shape.midpoint}
+      quaternion={shape.quaternion}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
+    >
+      <cylinderGeometry args={[0.16, 0.16, Math.max(shape.length, 0.01), 8, 1, true]} />
+      <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
+    </mesh>
+  );
+}
+
+function RouteOverlays({ segments, onRemoveSegment }) {
   if (!segments.length) {
     return null;
   }
@@ -665,6 +702,7 @@ function RouteOverlays({ segments }) {
         return (
           <group key={segment.id}>
             <RouteSegmentLine segment={segment} />
+            <RouteSegmentHitTarget segment={segment} onClick={() => onRemoveSegment?.(index)} />
             <LabelSprite
               label={`${formatNumber(segment.distance_ly, 2)} ly`}
               position={midpoint}
@@ -856,7 +894,7 @@ function FlightControls({
       "shift",
     ]);
     const onKeyDown = (event) => {
-      const key = event.key.toLowerCase();
+      const key = mapMovementToken(event);
       if (isKeyboardInputTarget(event.target)) {
         return;
       }
@@ -869,7 +907,7 @@ function FlightControls({
       keysRef.current.add(key);
     };
     const onKeyUp = (event) => {
-      keysRef.current.delete(event.key.toLowerCase());
+      keysRef.current.delete(mapMovementToken(event));
     };
     const onMouseMove = (event) => {
       if (document.pointerLockElement !== gl.domElement) {
@@ -1123,6 +1161,7 @@ function StarMapScene({
   onRouteContext,
   keybindScheme,
   routeSegments,
+  onRemoveRouteSegment,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -1144,7 +1183,7 @@ function StarMapScene({
       <OrientationAxes />
       <StarField systems={systems} />
       <PriorityLabels systems={systems} selectedSystem={selectedSystem} onSelect={onSelect} />
-      <RouteOverlays segments={routeSegments} />
+      <RouteOverlays segments={routeSegments} onRemoveSegment={onRemoveRouteSegment} />
       <SelectionMarker system={selectedSystem} />
       <FlightControls
         systems={systems}
@@ -1481,6 +1520,11 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     setRouteMenu(null);
   };
 
+  const truncateRouteAtSegment = useCallback((index) => {
+    setRouteSegments((segments) => segments.slice(0, Math.max(0, index)));
+    setRouteMenu(null);
+  }, []);
+
   const requestPointerLock = () => {
     setControlsEnabled(true);
     canvasRef.current?.requestPointerLock?.();
@@ -1513,6 +1557,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           onRouteContext={setRouteMenu}
           keybindScheme={keybindScheme}
           routeSegments={routeSegments}
+          onRemoveRouteSegment={truncateRouteAtSegment}
           controlsEnabled={controlsEnabled}
           stabilizationEnabled={stabilizationEnabled}
           onTelemetry={setTelemetry}
@@ -1617,14 +1662,23 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           <div className="map-route-summary">
             <span>{routeSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>
             <ol className="map-route-leg-list">
-              {routeSegments.slice(-4).map((segment) => (
+              {routeSegments.slice(-4).map((segment, visibleIndex) => {
+                const segmentIndex = Math.max(0, routeSegments.length - 4) + visibleIndex;
+                return (
                 <li key={segment.id}>
-                  <span>{shortDisplayName(segment.from.display_name)}</span>
-                  <span>→</span>
-                  <span>{shortDisplayName(segment.to.display_name)}</span>
-                  <strong>{formatNumber(segment.distance_ly, 2)} ly</strong>
+                  <button
+                    type="button"
+                    title="Remove this leg and later route legs"
+                    onClick={() => truncateRouteAtSegment(segmentIndex)}
+                  >
+                    <span>{shortDisplayName(segment.from.display_name)}</span>
+                    <span>→</span>
+                    <span>{shortDisplayName(segment.to.display_name)}</span>
+                    <strong>{formatNumber(segment.distance_ly, 2)} ly</strong>
+                  </button>
                 </li>
-              ))}
+                );
+              })}
             </ol>
             <div>
               <button type="button" className="map-mini-command" onClick={undoRouteSegment}>

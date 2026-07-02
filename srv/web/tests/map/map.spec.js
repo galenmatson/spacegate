@@ -89,10 +89,19 @@ test.describe("public 3D map beta", () => {
       () => canvas.evaluate((node) => node.dataset.mapKeybindScheme || ""),
       { timeout: 3000 }
     ).toBe("num8456");
-    const beforeNumberMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    const beforeTopRowNumber = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
     await page.keyboard.down("8");
     await page.waitForTimeout(350);
     await page.keyboard.up("8");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""),
+      { timeout: 3000 }
+    ).toBe(beforeTopRowNumber);
+
+    const beforeNumberMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.keyboard.down("Numpad8");
+    await page.waitForTimeout(350);
+    await page.keyboard.up("Numpad8");
     await expect
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeNumberMove);
@@ -134,6 +143,17 @@ test.describe("public 3D map beta", () => {
     await expect(contextMenu).toBeVisible();
     await page.mouse.click(box.x + 24, box.y + 24, { button: "right" });
     await expect(contextMenu).toHaveCount(0);
+
+    await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
+    await expect(contextMenu).toBeVisible();
+    await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
+    await expect(page.locator(".map-route-summary")).toBeVisible();
+    await page.mouse.click(box.x + box.width / 2 - 120, box.y + box.height / 2 - 80, { button: "right" });
+    await expect(contextMenu).toBeVisible();
+    await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
+    await expect(page.locator(".map-route-leg-list li")).toHaveCount(2);
+    await page.locator(".map-route-leg-list li").first().getByRole("button").click();
+    await expect(page.locator(".map-route-summary")).toHaveCount(0);
 
     await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
     await expect(contextMenu).toBeVisible();
@@ -346,6 +366,39 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerTitleContent).toContain("COOLSTARS.EXE");
     expect(themeStyles.drillTitleContent).toContain("SYSTEM_SIM.EXE");
     expect(themeStyles.titleColor).toBe("rgb(255, 255, 0)");
+  });
+
+  test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    await menu.locator(".map-theme-select select").selectOption("cyberpunk");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("cyberpunk");
+
+    const themeStyles = await page.evaluate(() => {
+      const header = document.querySelector(".map-hud-top");
+      const drill = document.querySelector("[data-testid='map-system-drill']");
+      const title = document.querySelector(".map-title-block h1");
+      const headerStyle = window.getComputedStyle(header);
+      const headerRuleStyle = window.getComputedStyle(header, "::before");
+      const drillStyle = window.getComputedStyle(drill);
+      const titleStyle = window.getComputedStyle(title);
+      return {
+        headerBorderTop: headerStyle.borderTopColor,
+        headerShadow: headerStyle.boxShadow,
+        headerRuleBackground: headerRuleStyle.backgroundImage,
+        drillBackground: drillStyle.backgroundImage,
+        titleShadow: titleStyle.textShadow,
+      };
+    });
+    expect(themeStyles.headerBorderTop).toBe("rgba(0, 245, 255, 0.72)");
+    expect(themeStyles.headerShadow).toContain("255, 0, 204");
+    expect(themeStyles.headerRuleBackground).toContain("0, 245, 255");
+    expect(themeStyles.drillBackground).toContain("255, 0, 204");
+    expect(themeStyles.titleShadow).toContain("0, 245, 255");
   });
 
   test("mobile layout keeps map controls compact", async ({ page }, testInfo) => {
