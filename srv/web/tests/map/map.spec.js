@@ -44,6 +44,26 @@ async function expectPreviewCanvasPainted(previewCanvas, label) {
 }
 
 test.describe("public 3D map beta", () => {
+  test("mission control browser header keeps utility links visible", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop browser header check");
+    await page.addInitScript(() => {
+      window.localStorage.setItem("spacegate.theme", "mission_control");
+    });
+    await page.goto("/", { waitUntil: "networkidle" });
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
+    const expectedLabels = ["ABT", "MAP", "SPT", "SRC"];
+    const headerBox = await page.locator(".site-header").boundingBox();
+    expect(headerBox, "mission control header box").toBeTruthy();
+    for (const label of expectedLabels) {
+      const link = page.locator(".header-top-link", { hasText: label });
+      await expect(link, `${label} header utility link`).toBeVisible();
+      await expect(link, `${label} header utility link should be clickable`).toHaveCSS("pointer-events", "auto");
+      const box = await link.boundingBox();
+      expect(box, `${label} header utility link box`).toBeTruthy();
+      expect(box.y - headerBox.y, `${label} should sit in the mission control top strip`).toBeLessThan(32);
+    }
+  });
+
   test("map title comes from public branding config", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop header title check");
     const configResponse = await page.request.get("/api/v1/public-config");

@@ -4178,16 +4178,48 @@ select:focus-visible {
 }
 
 :root[data-theme="mission_control"] .header-topline {
+  top: 4px;
   right: 132px;
+  height: 22px;
+  z-index: 4;
+  align-items: center;
+}
+
+:root[data-theme="mission_control"] .header-top-links {
+  gap: 4px;
 }
 
 :root[data-theme="mission_control"] .header-top-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 6px;
+  border: 1px solid rgba(218, 213, 176, 0.42);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(32, 40, 30, 0.96), rgba(23, 28, 19, 0.96));
   color: var(--mc-crt);
-  opacity: 0.92;
+  opacity: 1;
+  text-decoration: none;
+  text-shadow: 0 0 5px rgba(185, 246, 170, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 230, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.42);
 }
 
-:root[data-theme="mission_control"] .header-top-link:hover {
+:root[data-theme="mission_control"] .header-top-link:hover,
+:root[data-theme="mission_control"] .header-top-link:focus-visible {
+  border-color: rgba(185, 246, 170, 0.54);
   color: #e6ffdb;
+  background:
+    repeating-linear-gradient(0deg, rgba(185, 246, 170, 0.045) 0 1px, transparent 1px 5px),
+    #172015;
+  text-decoration: none;
+}
+
+:root[data-theme="mission_control"] .site-header > *:not(.header-topline) {
+  position: relative;
+  z-index: 2;
 }
 
 :root[data-theme="mission_control"] .site-header::before {
@@ -4210,6 +4242,7 @@ select:focus-visible {
   text-shadow: 0 0 6px rgba(185, 246, 170, 0.34);
   white-space: nowrap;
   overflow: hidden;
+  z-index: 1;
 }
 
 :root[data-theme="mission_control"] .site-header::after {
@@ -4236,6 +4269,7 @@ select:focus-visible {
   font-family: var(--font-display);
   font-size: 0.58rem;
   letter-spacing: 0.16em;
+  z-index: 1;
 }
 
 :root[data-theme="mission_control"] .site-header h1 {
