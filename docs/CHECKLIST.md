@@ -502,6 +502,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and Search/Detail/menu actions in the Star Map header
 - [x] Show the Star Map fullscreen action consistently across themes and remove
   low-use Capture Mouse/Stabilize buttons from the visible Flight controls
+- [x] Stop mouse-wheel back/scroll-down from dismissing System Simulation Peek
+  now that wheel movement is a flight control
+- [x] Add compact color-coded spectral/visual-class badges above simulator star
+  labels without weakening provenance boundaries
+- [x] Fix Geocities Star Map tray overlap and Enterprise/LCARS history metadata
+  contrast in the Selection History/Cool Stars Nearby panel
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays

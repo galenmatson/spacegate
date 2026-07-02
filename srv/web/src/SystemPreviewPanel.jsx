@@ -571,6 +571,20 @@ function starClassProvenanceField(body) {
   };
 }
 
+function compactSpectralLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  const token = text.replace(/\s+/g, "").replace(/[^A-Za-z0-9.+/-]/g, "");
+  return token.length > 7 ? `${token.slice(0, 6)}…` : token;
+}
+
+function spectralClassLetter(value) {
+  const match = String(value || "").trim().match(/[OBAFGKMLTYD]/i);
+  return match ? match[0].toUpperCase() : "";
+}
+
 function payloadId(payload) {
   return String(payload?.id || "");
 }
@@ -1127,6 +1141,10 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   const color = bodyClass === "white_dwarf"
     ? "#dceaff"
     : (teffK && fieldRecord(star.fields, "teff_k")?.status !== "assumed" ? starColor(teffK) : (STAR_COLORS[visualClass] || "#ff9d6b"));
+  const classField = starClassProvenanceField(star);
+  const classLabel = compactSpectralLabel(classField.value);
+  const classLetter = spectralClassLetter(classField.value) || visualClass;
+  const classColor = STAR_COLORS[classLetter] || color;
   const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("star", star), [star]);
@@ -1170,6 +1188,13 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
         color="#fff4c4"
         scale={bodyClass === "white_dwarf" ? 0.78 : 0.92}
         visible={showLabels}
+      />
+      <SceneLabel
+        text={classLabel}
+        position={[0, Math.max(radius + 0.24, pickRadius * 0.76), 0]}
+        color={classColor}
+        scale={0.78}
+        visible={showLabels && Boolean(classLabel)}
       />
     </group>
   );
@@ -2488,6 +2513,7 @@ function SceneMotionMetrics({
   planetHostGroupCount = 0,
   treeHostedPlanetCount = 0,
   labelCount = 0,
+  spectralLabelCount = 0,
   simClockRef,
   running = true,
   speedMultiplier = 1,
@@ -2528,6 +2554,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.treeHostedPlanetCount = String(treeHostedPlanetCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
     gl.domElement.dataset.sceneLabelRenderer = labelCount > 0 ? "troika_sdf_text_v1" : "none";
+    gl.domElement.dataset.spectralClassLabelCount = String(spectralLabelCount || 0);
     gl.domElement.dataset.directOrbitGuideCount = String(directOrbitCount || 0);
     gl.domElement.dataset.directOrbitTraceCount = String((directOrbitCount || 0) * 2);
     gl.domElement.dataset.groupOrbitGuideCount = String(groupOrbitCount || 0);
@@ -2576,6 +2603,7 @@ function SceneMotionMetrics({
     habitableZoneCount,
     habitableZoneMaxPlaneInclinationDeg,
     labelCount,
+    spectralLabelCount,
     massWeightedGroupMotionCount,
     groupOrbitCount,
     inspectableOrbitCount,
@@ -2946,6 +2974,9 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   const sceneLabelCount = showLabels
     ? displayStars.length + planetPlacements.length + subsystems.length + (showHabitableZones ? habitableZoneStars.length : 0)
     : 0;
+  const spectralLabelCount = showLabels
+    ? displayStars.filter((star) => Boolean(compactSpectralLabel(starClassProvenanceField(star).value))).length
+    : 0;
   const starClassStatusCounts = useMemo(() => {
     const counts = { source: 0, derived: 0, assumed: 0, missing: 0, unsafeSource: 0 };
     displayStars.forEach((star) => {
@@ -2988,7 +3019,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         useSimulationTree={useSimulationTree}
         planetHostGroupCount={planetHostGroupCount}
         treeHostedPlanetCount={treeHostedPlanetCount}
-        labelCount={sceneLabelCount}
+        labelCount={sceneLabelCount + spectralLabelCount}
+        spectralLabelCount={spectralLabelCount}
         simClockRef={simClockRef}
         running={running}
         speedMultiplier={speedMultiplier}

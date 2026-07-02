@@ -874,6 +874,10 @@ Readiness gaps:
 - July 2, 2026 Star Map control simplification makes the fullscreen action
   visible across themes and removes low-use Capture Mouse/Stabilize buttons
   while keeping stabilized vertical as the default navigation behavior.
+- July 2, 2026 Star Map/System Simulation polish removes wheel-scroll Peek
+  dismissal, adds compact color-coded spectral/visual-class badges above
+  simulator stars, lowers the Geocities history/nearby tray below its taller
+  header, and restores dark LCARS metadata text on light history pills.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

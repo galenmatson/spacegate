@@ -1449,19 +1449,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, [drillMode, exitDrillMode]);
 
   useEffect(() => {
-    const onWheel = (event) => {
-      const inSystemDrill = event.target?.closest?.(".map-system-drill");
-      if (drillMode !== "flight" && !inSystemDrill && event.deltaY > 60) {
-        exitDrillMode();
-      }
-    };
-    window.addEventListener("wheel", onWheel, { passive: true });
-    return () => {
-      window.removeEventListener("wheel", onWheel);
-    };
-  }, [drillMode, exitDrillMode]);
-
-  useEffect(() => {
     const onContextMenu = (event) => {
       const inContextMenu = event.target?.closest?.(".map-context-menu");
       if (inContextMenu) {

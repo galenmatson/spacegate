@@ -287,6 +287,13 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe("peek");
     const mapBox = await canvasBox(page);
+    await page.mouse.move(mapBox.x + 28, mapBox.y + 28);
+    await page.mouse.wheel(0, 260);
+    await expect(drill).toBeVisible();
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("peek");
     await page.mouse.click(mapBox.x + 28, mapBox.y + 28, { button: "right" });
     await expect(drill).toHaveCount(0);
     await expect.poll(
@@ -398,10 +405,13 @@ test.describe("public 3D map beta", () => {
       const title = document.querySelector(".map-title-block h1");
       const drillTitleGroup = document.querySelector(".map-system-drill-title-group");
       const drillActions = document.querySelector(".map-system-drill-actions");
+      const contacts = document.querySelector(".map-contacts-panel");
       const headerStyle = window.getComputedStyle(header);
       const headerTitleStyle = window.getComputedStyle(header, "::before");
       const drillTitleStyle = window.getComputedStyle(drill, "::before");
       const titleStyle = window.getComputedStyle(title);
+      const headerRect = header.getBoundingClientRect();
+      const contactsRect = contacts.getBoundingClientRect();
       const titleRect = drillTitleGroup.getBoundingClientRect();
       const actionsRect = drillActions.getBoundingClientRect();
       return {
@@ -411,6 +421,8 @@ test.describe("public 3D map beta", () => {
         headerTitleContent: headerTitleStyle.content,
         drillTitleContent: drillTitleStyle.content,
         titleColor: titleStyle.color,
+        contactsTop: contactsRect.top,
+        headerBottom: headerRect.bottom,
         drillHeaderOverlap: titleRect.right > actionsRect.left && titleRect.left < actionsRect.right
           && titleRect.bottom > actionsRect.top && titleRect.top < actionsRect.bottom,
       };
@@ -421,6 +433,7 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerTitleContent).toContain("COOLSTARS.EXE");
     expect(themeStyles.drillTitleContent).toContain("SYSTEM_SIM.EXE");
     expect(themeStyles.titleColor).toBe("rgb(255, 255, 0)");
+    expect(themeStyles.contactsTop).toBeGreaterThanOrEqual(themeStyles.headerBottom + 6);
     expect(themeStyles.drillHeaderOverlap).toBe(false);
   });
 
@@ -451,6 +464,7 @@ test.describe("public 3D map beta", () => {
       const drillTitle = document.querySelector(".map-system-drill-title");
       const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
       const vitalItems = Array.from(document.querySelectorAll(".map-system-vital-strip > span, .map-system-vital-strip .map-snapshot-chip"));
+      const historyMeta = document.querySelector(".map-contacts-panel .map-history-pill > span:not(.map-name-wrap)");
       const headerStyle = window.getComputedStyle(header);
       const menuPanelStyle = window.getComputedStyle(menuPanel);
       const titleStyle = window.getComputedStyle(title);
@@ -458,6 +472,7 @@ test.describe("public 3D map beta", () => {
       const drillStyle = window.getComputedStyle(drill);
       const drillBarStyle = window.getComputedStyle(drillBar);
       const drillTitleStyle = window.getComputedStyle(drillTitle);
+      const historyMetaStyle = window.getComputedStyle(historyMeta);
       const firstVitalStyle = window.getComputedStyle(vitalItems[0]);
       const secondVitalStyle = window.getComputedStyle(vitalItems[1]);
       const lastVitalStyle = window.getComputedStyle(vitalItems[vitalItems.length - 1]);
@@ -507,6 +522,7 @@ test.describe("public 3D map beta", () => {
         secondActionLeftRadius: secondActionStyle.borderTopLeftRadius,
         lastActionRightRadius: lastActionStyle.borderTopRightRadius,
         actionGap: Math.round(secondActionRect.left - firstActionRect.right),
+        historyMetaColor: historyMetaStyle.color,
       };
     });
     expect(themeStyles.headerBackground).toBe("rgb(0, 0, 0)");
@@ -537,6 +553,7 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.secondActionLeftRadius).toBe("0px");
     expect(themeStyles.lastActionRightRadius).not.toBe("0px");
     expect(themeStyles.actionGap).toBeLessThanOrEqual(0);
+    expect(themeStyles.historyMetaColor).toBe("rgb(20, 15, 27)");
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {
@@ -721,6 +738,10 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.sceneLabelCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(8);
+    await expect.poll(
+      () => sharedClockCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassLabelCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.sceneLabelRenderer || ""),
       { timeout: 3000 }

@@ -30,6 +30,8 @@ Controls:
 - desktop mouse look through left-drag free-look
 - mouse wheel over the flight canvas flies forward on wheel-up and backward on
   wheel-down
+- wheel movement never dismisses System Simulation Peek; Peek closes through
+  `Close`, `Esc`, browser back from Explore, or right-click outside Peek
 - tilt-wheel/horizontal wheel over the flight canvas trucks left/right
 - right-button drag trucks left/right after the drag threshold; short
   right-click still opens the system context menu

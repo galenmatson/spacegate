@@ -1267,6 +1267,12 @@
   color: var(--lcars-text-dark);
 }
 
+:root[data-theme="lcars"] .map-history-pill > span:not(.map-name-wrap),
+:root[data-theme="lcars"] .map-history-pill .map-name-wrap,
+:root[data-theme="lcars"] .map-history-pill .map-selection-title-link {
+  color: var(--lcars-text-dark);
+}
+
 :root[data-theme="lcars"] .map-system-drill-title {
   background: var(--lcars-yellow);
   color: var(--lcars-text-dark);
@@ -1903,6 +1909,10 @@
 :root[data-theme="retro_90s"] .map-reticle::before,
 :root[data-theme="retro_90s"] .map-reticle::after {
   background: #00ffff;
+}
+
+:root[data-theme="retro_90s"] .map-contacts-panel {
+  top: 138px;
 }
 
 @media (max-width: 900px) {

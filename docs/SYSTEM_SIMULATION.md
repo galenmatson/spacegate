@@ -130,6 +130,10 @@ Already in place:
   contrast, do not participate in picking, and do not create or alter
   science-layer fields. Dense-scene label priority/collision management remains
   future presentation work.
+- star labels include a compact color-coded spectral/visual-class badge above
+  the star when a source, derived, or explicit visual-prior class is available.
+  The badge uses the same provenance-safe class policy as simulator readouts
+  and does not turn visual priors into catalog spectral facts.
 - the 3D map can open System Simulation as a coordinated drill-in layer. Peek
   mode inspects the selected system in a framed overlay without moving the map
   camera. Explore mode flies the map camera toward the selected system and
