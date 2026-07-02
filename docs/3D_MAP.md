@@ -23,7 +23,7 @@ Controls:
   - keybind selector for `WASD`, `ESDF`, and `8456`
   - frame selector for current ICRS presentation or Galactic presentation
   - Galactic direction-label toggle for Coreward, Rimward, Spinward, and
-    Antispinward labels when the Galactic frame is active
+    Antispinward arrows/labels in either active presentation frame
 - `WASD`: forward/back/left/right, `Q` up, `Z` down
 - `ESDF`: forward/back/left/right, `A` up, `Z` down
 - `8456`: forward/back/left/right, `7` up, `1` down
@@ -31,6 +31,8 @@ Controls:
     browser/system shortcuts
 - arrow keys: same forward/back/left/right controls as WASD
 - desktop mouse look through left-drag free-look
+- simultaneous left+right mouse drag orbits the selected system; if no system
+  is selected, it orbits Sol
 - mouse wheel over the flight canvas flies forward on wheel-up and backward on
   wheel-down
 - wheel movement never dismisses System Simulation Peek; Peek closes through
@@ -84,8 +86,11 @@ Frame note:
   - scene X = Galactic coreward/rimward axis
   - scene Y = Galactic north/south axis
   - scene Z = Galactic spinward/antispinward axis
-- Galactic frame mode and direction labels do not alter core coordinates,
-  API payloads, source evidence, or distance calculations
+- direction arrows always describe true Galactic Coreward, Rimward, Spinward,
+  and Antispinward directions; in ICRS presentation they are projected into the
+  current ICRS scene axes instead of hidden
+- Galactic frame mode and direction labels/arrows do not alter core
+  coordinates, API payloads, source evidence, or distance calculations
 
 ## Data Contract
 
@@ -150,7 +155,14 @@ Initial layers:
 - science point cloud
 - Sol marker
 - distance rings
-- sparse priority labels
+- adaptive priority labels:
+  - selected/Sol/route/direction labels remain sticky
+  - nearby systems fade in as the camera approaches them
+  - distant systems fade out unless their coolness/map priority keeps them
+    visible at a lower opacity
+  - the candidate set is periodically re-ranked from camera distance plus
+    map-priority score so exploration does not remain visually anchored only
+    around Sol
 - reticle and selection marker
 - ephemeral client-side route measurement overlay:
   - right-click target system and choose `Measure from selected`
@@ -199,6 +211,9 @@ Initial layers:
     uses a shorter/thinner transparent Peek panel, lets the canvas fill the
     window, and allows desktop users to resize Peek for the current browser
     session
+  - Peek may show snapshot readiness because it is a quick inspection overlay;
+    Explorer hides the snapshot status chip because the live System Simulation
+    is the primary visual surface there
   - Explorer mode uses a less-transparent simulator shell/canvas than Peek, and
     separates compact one-line readout pills from a Diagnostics disclosure that
     contains Evidence and Render Policy, so diagnostic panels cannot stretch the

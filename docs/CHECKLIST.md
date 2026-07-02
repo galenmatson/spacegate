@@ -272,7 +272,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   `source_native_planet_orbit` rows while keeping `core.planets` orbit scalars
   as promoted serving summaries
 - [x] First lazy-loaded live system preview renderer on system detail pages
-- [ ] 3D map fallback Gaia-label priority and mobile label-display polish
+- [x] 3D map adaptive in-scene labels that fade by camera distance while
+  keeping selected, Sol, route, direction, and high-coolness labels stickier
+  without returning to a fixed Sol-neighborhood label set
 - [x] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
 - [x] Add alias-search build gate covering restored AT-HYG common names,
@@ -511,6 +513,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add client-side Galactic frame toggle with optional Coreward/Rimward and
   Spinward/Antispinward direction labels as presentation transforms over ICRS
   source coordinates
+- [x] Add visible Coreward/Rimward/Spinward/Antispinward direction arrows and
+  keep those labels available in ICRS presentation by projecting true Galactic
+  directions into the active scene axes
+- [x] Add simultaneous left+right mouse drag camera orbit around the selected
+  system, or Sol when no system is selected
+- [x] Remove low-value Star Map flight telemetry text from the bottom-right HUD
+  and hide the snapshot status chip in Explorer mode
 - [x] Keep the Star Map burger menu above Peek/Explore and prevent right-drag
   truck context-menu suppression from closing Explore
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical

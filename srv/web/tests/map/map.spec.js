@@ -116,14 +116,19 @@ test.describe("public 3D map beta", () => {
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeNumberMove);
 
+    await expect(directionToggle).toBeEnabled();
+    await directionToggle.check();
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapDirectionLabels || ""),
+      { timeout: 3000 }
+    ).toBe("true");
+
     await frameSelect.selectOption("galactic");
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.mapFrame || ""),
       { timeout: 3000 }
     ).toBe("galactic");
     await expect(page.locator(".map-header-readout")).toContainText(/Galactic frame/i);
-    await expect(directionToggle).toBeEnabled();
-    await directionToggle.check();
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.mapDirectionLabels || ""),
       { timeout: 3000 }
@@ -168,6 +173,19 @@ test.describe("public 3D map beta", () => {
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeRightTruck);
     await expect.poll(() => canvas.evaluate((node) => node.dataset.mapCameraGesture || "")).toBe("right-drag-truck");
+    await expect(page.locator(".map-context-menu")).toHaveCount(0);
+
+    const beforeTwoButtonOrbit = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.move(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 2);
+    await page.mouse.down({ button: "right" });
+    await page.mouse.down({ button: "left" });
+    await page.mouse.move(mapBox.x + mapBox.width / 2 + 110, mapBox.y + mapBox.height / 2 + 40, { steps: 8 });
+    await page.mouse.up({ button: "left" });
+    await page.mouse.up({ button: "right" });
+    await expect
+      .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
+      .not.toBe(beforeTwoButtonOrbit);
+    await expect.poll(() => canvas.evaluate((node) => node.dataset.mapCameraGesture || "")).toBe("two-button-orbit");
     await expect(page.locator(".map-context-menu")).toHaveCount(0);
 
     const beforeMiddlePedestal = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
@@ -274,6 +292,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
+    await expect(drill.locator(".map-snapshot-chip")).toHaveCount(1);
     const resizeHandle = drill.locator(".map-system-drill-resize");
     await expect(resizeHandle).toBeVisible();
     const titleBox = await drill.locator(".map-system-drill-title").boundingBox();
@@ -323,6 +342,7 @@ test.describe("public 3D map beta", () => {
     await drill.locator(".map-system-drill-title").click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill).toContainText(/System:/i);
+    await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     await expect.poll(
       () => drill.evaluate((node) => node.querySelectorAll(
         ".system-preview-readout > div:not(.system-preview-evidence):not(.system-preview-policy)"

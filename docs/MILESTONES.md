@@ -882,6 +882,14 @@ Readiness gaps:
   toggle using an explicit ICRS-to-Galactic presentation transform, optional
   Coreward/Rimward/Spinward/Antispinward labels, burger-menu stacking above
   Peek/Explore, and right-drag truck suppression that no longer closes Explore.
+- July 2, 2026 Star Map orientation/label pass adds visible direction arrows
+  to Coreward/Rimward/Spinward/Antispinward labels, keeps those Galactic
+  direction labels available in ICRS by projecting the true Galactic vectors
+  into the active scene frame, adds simultaneous left+right mouse drag camera
+  orbit around the selected system or Sol, removes low-value flight telemetry
+  text from the bottom-right HUD, hides the snapshot chip in Explorer, and
+  replaces the fixed Sol-neighborhood label set with camera-distance plus
+  coolness-priority fading labels.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

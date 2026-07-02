@@ -59,6 +59,8 @@ const MOUSE_LOOK_SENSITIVITY = 0.002;
 const MOUSE_DRAG_TRANSLATE_SPEED = 0.026;
 const MOUSE_WHEEL_FLY_SPEED = 1.25;
 const MOUSE_WHEEL_TRUCK_SPEED = 0.9;
+const MOUSE_ORBIT_SENSITIVITY = 0.006;
+const MOUSE_ORBIT_PITCH_SENSITIVITY = 0.0045;
 const SPECTRAL_COLORS = {
   O: "#74a9ff",
   B: "#9fc9ff",
@@ -362,6 +364,17 @@ function galacticCoordinatesFromIcrs(item) {
   return ICRS_TO_GALACTIC.map((row) => row[0] * x + row[1] * y + row[2] * z);
 }
 
+function galacticDirectionToScene(direction, frame = "icrs") {
+  const [coreward = 0, spinward = 0, north = 0] = direction;
+  if (frame === "galactic") {
+    return [coreward, north, spinward];
+  }
+  const icrsX = ICRS_TO_GALACTIC[0][0] * coreward + ICRS_TO_GALACTIC[1][0] * spinward + ICRS_TO_GALACTIC[2][0] * north;
+  const icrsY = ICRS_TO_GALACTIC[0][1] * coreward + ICRS_TO_GALACTIC[1][1] * spinward + ICRS_TO_GALACTIC[2][1] * north;
+  const icrsZ = ICRS_TO_GALACTIC[0][2] * coreward + ICRS_TO_GALACTIC[1][2] * spinward + ICRS_TO_GALACTIC[2][2] * north;
+  return [icrsX, icrsZ, -icrsY];
+}
+
 function mapToScenePosition(item, frame = "icrs") {
   if (frame === "galactic") {
     const [corewardLy, spinwardLy, northLy] = galacticCoordinatesFromIcrs(item);
@@ -503,23 +516,63 @@ function DistanceRings() {
   );
 }
 
-function DirectionLabels({ frame = "icrs", visible = false }) {
-  if (!visible || frame !== "galactic") {
+function DirectionArrow({ direction = [1, 0, 0], color = "#ffe7a3" }) {
+  const vector = useMemo(() => new THREE.Vector3().fromArray(direction).normalize(), [direction]);
+  const start = vector.clone().multiplyScalar(MAP_RADIUS_LY * LY_TO_SCENE * 0.58);
+  const end = vector.clone().multiplyScalar(MAP_RADIUS_LY * LY_TO_SCENE * 0.74);
+  const side = new THREE.Vector3().crossVectors(vector, WORLD_UP);
+  if (side.lengthSq() < 0.0001) {
+    side.crossVectors(vector, new THREE.Vector3(1, 0, 0));
+  }
+  side.normalize();
+  const headBase = end.clone().addScaledVector(vector, -2.6);
+  const left = headBase.clone().addScaledVector(side, 1.25);
+  const right = headBase.clone().addScaledVector(side, -1.25);
+  const positions = new Float32Array([
+    start.x, start.y, start.z,
+    end.x, end.y, end.z,
+    end.x, end.y, end.z,
+    left.x, left.y, left.z,
+    end.x, end.y, end.z,
+    right.x, right.y, right.z,
+  ]);
+  return (
+    <lineSegments>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <lineBasicMaterial color={color} transparent opacity={0.62} depthWrite={false} />
+    </lineSegments>
+  );
+}
+
+function DirectionLabels({ visible = false, vectors }) {
+  if (!visible) {
     return null;
   }
   const radius = MAP_RADIUS_LY * LY_TO_SCENE * 0.78;
+  const positionFor = (vector) => new THREE.Vector3().fromArray(vector).normalize().multiplyScalar(radius).toArray();
   return (
     <group>
-      <LabelSprite label="Coreward" position={[radius, 0, 0]} tone="direction" />
-      <LabelSprite label="Rimward" position={[-radius, 0, 0]} tone="direction" />
-      <LabelSprite label="Spinward" position={[0, 0, radius]} tone="direction" />
-      <LabelSprite label="Antispinward" position={[0, 0, -radius]} tone="direction" />
-      <LabelSprite label="Galactic North" position={[0, radius * 0.72, 0]} tone="direction" />
+      <DirectionArrow direction={vectors.coreward} />
+      <DirectionArrow direction={vectors.rimward} />
+      <DirectionArrow direction={vectors.spinward} />
+      <DirectionArrow direction={vectors.antispinward} />
+      <LabelSprite label="Coreward" position={positionFor(vectors.coreward)} tone="direction" />
+      <LabelSprite label="Rimward" position={positionFor(vectors.rimward)} tone="direction" />
+      <LabelSprite label="Spinward" position={positionFor(vectors.spinward)} tone="direction" />
+      <LabelSprite label="Antispinward" position={positionFor(vectors.antispinward)} tone="direction" />
     </group>
   );
 }
 
 function OrientationAxes({ frame = "icrs", showDirectionLabels = false }) {
+  const directionVectors = useMemo(() => ({
+    coreward: galacticDirectionToScene([1, 0, 0], frame),
+    rimward: galacticDirectionToScene([-1, 0, 0], frame),
+    spinward: galacticDirectionToScene([0, 1, 0], frame),
+    antispinward: galacticDirectionToScene([0, -1, 0], frame),
+  }), [frame]);
   return (
     <group>
       <mesh position={[0, 0, 0]}>
@@ -554,7 +607,7 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false }) {
         </bufferGeometry>
         <lineBasicMaterial color="#ff8fd8" transparent opacity={0.18} />
       </line>
-      <DirectionLabels frame={frame} visible={showDirectionLabels} />
+      <DirectionLabels visible={showDirectionLabels} vectors={directionVectors} />
     </group>
   );
 }
@@ -604,7 +657,7 @@ function createLabelTexture(label, { selected = false, tone = "default" } = {}) 
   return { texture, width, height };
 }
 
-function LabelSprite({ label, position, selected = false, tone = "default", onSelect = null }) {
+function LabelSprite({ label, position, selected = false, tone = "default", priority = 0, onSelect = null }) {
   const spriteRef = useRef(null);
   const payload = useMemo(
     () => createLabelTexture(label, { selected, tone }),
@@ -618,8 +671,14 @@ function LabelSprite({ label, position, selected = false, tone = "default", onSe
       return;
     }
     const distance = camera.position.distanceTo(spriteRef.current.position);
-    const scale = THREE.MathUtils.clamp(distance / 18, 0.45, 2.8);
+    const sticky = selected || tone === "sol" || tone === "route" || tone === "direction";
+    const normalizedPriority = THREE.MathUtils.clamp(Number(priority || 0) / 12, 0, 1);
+    const nearFade = 1 - THREE.MathUtils.smoothstep(distance, 12, 42);
+    const stickyFloor = sticky ? 0.92 : normalizedPriority * 0.44;
+    const opacity = THREE.MathUtils.clamp(Math.max(stickyFloor, nearFade), 0.05, 0.98);
+    const scale = THREE.MathUtils.clamp(distance / 18, 0.45, sticky ? 2.8 : 2.15);
     spriteRef.current.scale.set((payload.width / 95) * scale, (payload.height / 95) * scale, 1);
+    spriteRef.current.material.opacity = opacity;
   });
 
   return (
@@ -634,13 +693,15 @@ function LabelSprite({ label, position, selected = false, tone = "default", onSe
         onSelect();
       }}
     >
-      <spriteMaterial map={payload.texture} transparent depthWrite={false} depthTest={false} />
+      <spriteMaterial map={payload.texture} transparent depthWrite={false} depthTest={false} opacity={1} />
     </sprite>
   );
 }
 
 function PriorityLabels({ systems, selectedSystem, onSelect }) {
-  const labelSystems = useMemo(() => {
+  const { camera } = useThree();
+  const updateClockRef = useRef(0);
+  const buildLabelSet = useCallback(() => {
     const seen = new Set();
     const candidates = [];
     const add = (system) => {
@@ -655,11 +716,34 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
     }
     systems
       .filter((system) => !isCatalogFallbackName(system.display_name))
-      .sort((a, b) => b.map_priority - a.map_priority)
-      .slice(0, 28)
-      .forEach(add);
+      .map((system) => {
+        const position = new THREE.Vector3().fromArray(system.scene_position);
+        const cameraDistanceLy = position.distanceTo(camera.position) / LY_TO_SCENE;
+        const nearScore = Math.max(0, 36 - cameraDistanceLy) * 0.42;
+        return {
+          system,
+          score: nearScore + Number(system.map_priority || 0),
+        };
+      })
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 46)
+      .forEach(({ system }) => add(system));
     return candidates;
-  }, [selectedSystem, systems]);
+  }, [camera, selectedSystem, systems]);
+  const [labelSystems, setLabelSystems] = useState(buildLabelSet);
+
+  useEffect(() => {
+    setLabelSystems(buildLabelSet());
+  }, [buildLabelSet]);
+
+  useFrame((_, delta) => {
+    updateClockRef.current += delta;
+    if (updateClockRef.current < 0.42) {
+      return;
+    }
+    updateClockRef.current = 0;
+    setLabelSystems(buildLabelSet());
+  });
 
   return (
     <group>
@@ -669,6 +753,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
           label={system.display_name}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
+          priority={system.map_priority}
           onSelect={() => onSelect(system)}
         />
       ))}
@@ -947,6 +1032,41 @@ function FlightControls({
     }
   }, [camera, gl.domElement, mapFrame, showDirectionLabels]);
 
+  const orbitTargetPosition = useCallback(() => {
+    const targetSystem = focusTarget?.scene_position
+      ? focusTarget
+      : systems.find((system) => String(system.display_name || system.system_name || "").toLowerCase() === "sol");
+    return new THREE.Vector3().fromArray(targetSystem?.scene_position || [0, 0, 0]);
+  }, [focusTarget, systems]);
+
+  const syncYawPitchFromCamera = useCallback(() => {
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction).normalize();
+    yawRef.current = Math.atan2(-direction.x, -direction.z);
+    pitchRef.current = Math.asin(THREE.MathUtils.clamp(direction.y, -0.98, 0.98));
+  }, [camera]);
+
+  const applyOrbitDelta = useCallback((deltaX, deltaY) => {
+    const target = orbitTargetPosition();
+    const offset = camera.position.clone().sub(target);
+    if (offset.lengthSq() < 0.0001) {
+      offset.set(0, 2.5, 8);
+    }
+    offset.applyAxisAngle(WORLD_UP, -deltaX * MOUSE_ORBIT_SENSITIVITY);
+    const strafe = new THREE.Vector3().crossVectors(offset.clone().normalize(), WORLD_UP).normalize();
+    if (strafe.lengthSq() > 0.0001) {
+      offset.applyAxisAngle(strafe, -deltaY * MOUSE_ORBIT_PITCH_SENSITIVITY);
+    }
+    const minRadius = 1.2;
+    if (offset.length() < minRadius) {
+      offset.setLength(minRadius);
+    }
+    camera.position.copy(target).add(offset);
+    camera.lookAt(target);
+    syncYawPitchFromCamera();
+    updateCameraDataset("two-button-orbit");
+  }, [camera, orbitTargetPosition, syncYawPitchFromCamera, updateCameraDataset]);
+
   useEffect(() => {
     updateCameraDataset();
   }, [updateCameraDataset]);
@@ -1037,7 +1157,14 @@ function FlightControls({
         if (![0, 1, 2].includes(event.button) || document.pointerLockElement === canvas) {
           return;
         }
-        if (event.button !== 2) {
+        if (mouseDrag.active && (event.buttons & 1) && (event.buttons & 2)) {
+          event.preventDefault();
+          mouseDrag.mode = "orbit";
+          mouseDrag.lastX = event.clientX;
+          mouseDrag.lastY = event.clientY;
+          return;
+        }
+        if (event.button !== 2 || (event.buttons & 1)) {
           event.preventDefault();
         }
         try {
@@ -1046,7 +1173,9 @@ function FlightControls({
           // Synthetic pointer events used by tests may not create capturable pointers.
         }
         mouseDrag.active = true;
-        mouseDrag.mode = event.button === 1 ? "pedestal" : event.button === 2 ? "truck" : "look";
+        mouseDrag.mode = (event.buttons & 1) && (event.buttons & 2)
+          ? "orbit"
+          : event.button === 1 ? "pedestal" : event.button === 2 ? "truck" : "look";
         mouseDrag.pointerId = event.pointerId;
         mouseDrag.lastX = event.clientX;
         mouseDrag.lastY = event.clientY;
@@ -1082,7 +1211,10 @@ function FlightControls({
         mouseDrag.lastY = event.clientY;
         const totalMove = Math.hypot(event.clientX - mouseDrag.startX, event.clientY - mouseDrag.startY);
         mouseDrag.moved = mouseDrag.moved || totalMove > 5;
-        if (mouseDrag.mode === "truck") {
+        if (mouseDrag.mode === "orbit" || ((event.buttons & 1) && (event.buttons & 2))) {
+          mouseDrag.mode = "orbit";
+          applyOrbitDelta(deltaX, deltaY);
+        } else if (mouseDrag.mode === "truck") {
           const direction = new THREE.Vector3();
           const strafe = new THREE.Vector3();
           camera.getWorldDirection(direction).normalize();
@@ -1148,7 +1280,7 @@ function FlightControls({
           // Ignore non-captured synthetic pointers.
         }
         const duration = performance.now() - mouseDrag.startTime;
-        if (mouseDrag.mode === "truck" && mouseDrag.moved) {
+        if ((mouseDrag.mode === "truck" || mouseDrag.mode === "orbit") && mouseDrag.moved) {
           suppressContextMenuRef.current = true;
           window.__spacegateMapSuppressNextContextMenu = true;
         }
@@ -1233,7 +1365,7 @@ function FlightControls({
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [applyLookDelta, camera, controlsEnabled, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget, updateCameraDataset]);
+  }, [applyLookDelta, applyOrbitDelta, camera, controlsEnabled, gl.domElement, openRouteContext, selectPointerTarget, selectReticleTarget, updateCameraDataset]);
 
   useFrame((_, delta) => {
     if (focusRef.current) {
@@ -1812,7 +1944,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                   type="checkbox"
                   checked={showDirectionLabels}
                   onChange={(event) => setShowDirectionLabels(event.target.checked)}
-                  disabled={mapFrame !== "galactic"}
                   data-testid="map-direction-labels-toggle"
                 />
                 <span>Direction labels</span>
@@ -1834,9 +1965,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             Select reticle
           </button>
         </div>
-        <p className="map-desktop-hint">Desktop: drag look · wheel fly · tilt wheel/RMB drag truck · MMB drag pedestal · {activeKeybind.hint} · arrows always fly</p>
+        <p className="map-desktop-hint">Desktop: drag look · wheel fly · L+R drag orbit · tilt wheel/RMB drag truck · MMB drag pedestal · {activeKeybind.hint}</p>
         <p className="map-touch-hint">Touch: drag look · tap/select reticle · two-finger pinch fly · two-finger drag pan</p>
-        <span>{telemetry.locked ? "Pointer locked" : "Pointer free"} · speed {formatNumber(telemetry.speedLyS, 1)} ly/s · range {formatNumber(telemetry.distLy, 1)} ly</span>
         {routeSegments.length > 0 && (
           <div className="map-route-summary">
             <span>{routeSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>
@@ -2039,7 +2169,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               <span>{formatNumber(selectedSystem.planet_count, 0)} planets</span>
               <span>cool {formatNumber(selectedSystem.coolness_score, 1)}</span>
               <span>rank {formatNumber(selectedSystem.coolness_rank, 0)}</span>
-              <SnapshotStatusChip system={selectedSystem} />
+              {drillMode === "peek" && <SnapshotStatusChip system={selectedSystem} />}
             </div>
             <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
               <SystemPreviewPanel
