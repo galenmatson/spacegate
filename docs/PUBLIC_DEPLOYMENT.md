@@ -53,8 +53,11 @@ For the June 29, 2026 public side-sliced build, the expected build id is:
 
 ## SSH Hygiene
 
-Antiproton runs UFW and fail2ban. Deploy scripts should use a small cooldown
-between SSH connections to avoid looking like a bursty automation probe.
+Antiproton runs UFW and fail2ban. Deploy scripts should use the private
+operator SSH route configured in local, untracked environment files and a small
+cooldown between SSH connections to avoid looking like a bursty automation
+probe. Do not track private network aliases, tunnel addresses, or deploy-key
+paths in the repository.
 
 Use:
 
@@ -67,6 +70,27 @@ antiproton during deploy. If a connection is refused after a burst, wait before
 retrying and check UFW/fail2ban status from an existing trusted session if
 available.
 
+Useful antiproton-side checks and recovery commands:
+
+```bash
+sudo ufw status numbered
+sudo fail2ban-client status
+sudo fail2ban-client status sshd
+sudo fail2ban-client set sshd unbanip <trusted-source-ip>
+```
+
+To allow trusted operator addresses through UFW, prefer narrow source-specific
+rules:
+
+```bash
+sudo ufw allow from <trusted-source-ip-or-cidr> to any port 22 proto tcp comment 'trusted Spacegate deploy SSH'
+sudo ufw reload
+sudo ufw status numbered
+```
+
+If an incorrect rule is added, delete by number after checking
+`sudo ufw status numbered`.
+
 ## Publish the Database Archive
 
 Publishing copies the current local DB archive and metadata to
@@ -74,7 +98,7 @@ Publishing copies the current local DB archive and metadata to
 
 ```bash
 scripts/push_published_db.sh \
-  --remote sgdeploy@158.69.198.29 \
+  --remote <deploy-user>@<deploy-host> \
   --ssh-key ~/.ssh/spacegate_antiproton \
   --ssh-cooldown 2 \
   --skip-catalogs \
@@ -88,7 +112,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   -o IdentitiesOnly=yes \
   -o BatchMode=yes \
   -o ConnectTimeout=8 \
-  sgdeploy@158.69.198.29 \
+  <deploy-user>@<deploy-host> \
   "ls -lh /srv/spacegate/dl/current.json /srv/spacegate/dl/current && readlink -f /srv/spacegate/dl/current"
 ```
 
@@ -103,7 +127,7 @@ ssh -i ~/.ssh/spacegate_antiproton \
   -o IdentitiesOnly=yes \
   -o BatchMode=yes \
   -o ConnectTimeout=8 \
-  sgdeploy@158.69.198.29 \
+  <deploy-user>@<deploy-host> \
   "cd /srv/spacegate/app && SPACEGATE_STATE_DIR=/srv/spacegate/data scripts/bootstrap_core_db.sh --meta-url file:///srv/spacegate/dl/current.json --base-url file:///srv/spacegate/dl/"
 ```
 
@@ -116,11 +140,8 @@ After the runtime DB is activated, sync the app and restart containers:
 
 ```bash
 scripts/deploy_antiproton.sh \
-  --remote sgdeploy@158.69.198.29 \
   --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 2 \
-  --public-url https://coolstars.org \
-  --expect-auth enabled
+  --ssh-cooldown 2
 ```
 
 The deploy script preserves remote environment files and rebuilds/restarts the

@@ -238,17 +238,18 @@ By default it does **not** update the remote `current` symlink. If you still wan
 scripts/push_published_db.sh --remote antiproton --set-current-link
 ```
 
-If your deploy key is not selected by ssh config automatically:
+For private deployment routes, set host-specific defaults in a local untracked
+env file. If your deploy key is not selected by ssh config automatically:
 
 ```bash
-scripts/push_published_db.sh --remote sgdeploy@antiproton --ssh-key ~/.ssh/spacegate_antiproton
+scripts/push_published_db.sh --remote <deploy-user>@<deploy-host> --ssh-key ~/.ssh/spacegate_deploy_key
 ```
 
 If your remote host keeps `ufw limit` enabled for SSH, add a short gap between
 new connections:
 
 ```bash
-scripts/push_published_db.sh --remote sgdeploy@antiproton --ssh-key ~/.ssh/spacegate_antiproton --ssh-cooldown 3
+scripts/push_published_db.sh --remote <deploy-user>@<deploy-host> --ssh-key ~/.ssh/spacegate_deploy_key --ssh-cooldown 3
 ```
 
 Use `--skip-catalogs` if you want to push only DB/reports and leave the remote
@@ -273,7 +274,7 @@ catching up with the richer hierarchy model.
 To sync the app and restart containers without overwriting remote secrets:
 
 ```bash
-scripts/deploy_spacegate.sh --remote antiproton --expect-auth enabled
+scripts/deploy_antiproton.sh
 ```
 
 This deploy helper excludes these remote-local env files from rsync:
