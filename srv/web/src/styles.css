@@ -1580,6 +1580,149 @@
   box-shadow: 0 0 8px rgba(255, 0, 204, 0.88);
 }
 
+:root[data-theme="mission_control"] .map-page {
+  --map-hud-bg:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 30px),
+    linear-gradient(180deg, rgba(83, 98, 79, 0.88), rgba(47, 58, 50, 0.92));
+  --map-hud-border: rgba(218, 213, 176, 0.52);
+  --map-hud-glow: rgba(0, 0, 0, 0.18);
+  --map-hud-strong: #f0eed5;
+  --map-hud-muted: #c6c9ad;
+  --map-select-bg: #171c13;
+  --map-select-ink: #dcebd2;
+  --map-select-checked-bg: #2d3a2d;
+}
+
+:root[data-theme="mission_control"] .map-hud,
+:root[data-theme="mission_control"] .map-system-drill,
+:root[data-theme="mission_control"] .map-header-menu-panel {
+  border-radius: 3px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 230, 0.09),
+    inset 0 -2px 0 rgba(12, 14, 10, 0.72),
+    0 10px 22px rgba(0, 0, 0, 0.26);
+  backdrop-filter: none;
+}
+
+:root[data-theme="mission_control"] .map-hud-top {
+  border-top: 5px solid #1a211c;
+  border-bottom: 5px solid #1a211c;
+}
+
+:root[data-theme="mission_control"] .map-hud-top::before {
+  content: "MOCR 2  |  FLIGHT  FDO  GNC  EECOM  INCO  CAPCOM  BOOSTER";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -5px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(218, 213, 176, 0.42);
+  background: #20281f;
+  color: var(--mc-crt);
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  letter-spacing: 0.13em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-shadow: 0 0 6px rgba(185, 246, 170, 0.34);
+}
+
+:root[data-theme="mission_control"] .map-hud-top {
+  padding-top: 24px;
+}
+
+:root[data-theme="mission_control"] .map-title-block h1 {
+  color: #f0eed5;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+:root[data-theme="mission_control"] .map-brand-mark {
+  border-radius: 3px;
+  filter: sepia(0.3) saturate(0.85);
+  box-shadow: 0 0 0 1px rgba(218, 213, 176, 0.38);
+}
+
+:root[data-theme="mission_control"] .map-header-readout span,
+:root[data-theme="mission_control"] .map-history-pill,
+:root[data-theme="mission_control"] .map-system-vital-strip > span,
+:root[data-theme="mission_control"] .map-system-drill-title,
+:root[data-theme="mission_control"] .map-hud-button,
+:root[data-theme="mission_control"] .map-command-button,
+:root[data-theme="mission_control"] .map-mini-command,
+:root[data-theme="mission_control"] .map-theme-select select,
+:root[data-theme="mission_control"] .map-keybind-select select,
+:root[data-theme="mission_control"] .map-frame-select select,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-toggle,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-speed select,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-scale select {
+  border-radius: 2px;
+  border-color: rgba(218, 213, 176, 0.46);
+  background:
+    linear-gradient(180deg, rgba(32, 40, 30, 0.96), rgba(23, 28, 19, 0.96));
+  color: #e7ead9;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 230, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.42);
+  text-transform: uppercase;
+}
+
+:root[data-theme="mission_control"] .map-header-readout span,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-readout > div,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-diagnostics,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-diagnostics-body > div,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-hover,
+:root[data-theme="mission_control"] .map-system-drill .system-preview-pinned {
+  background:
+    repeating-linear-gradient(0deg, rgba(185, 246, 170, 0.035) 0 1px, transparent 1px 5px),
+    rgba(18, 25, 17, 0.9);
+  border-color: rgba(185, 246, 170, 0.26);
+  color: var(--mc-crt);
+  text-shadow: 0 0 5px rgba(185, 246, 170, 0.18);
+}
+
+:root[data-theme="mission_control"] .map-hud-button.primary,
+:root[data-theme="mission_control"] .map-command-button.primary,
+:root[data-theme="mission_control"] .map-command-button.active,
+:root[data-theme="mission_control"] .map-history-pill.active {
+  background:
+    linear-gradient(180deg, #f1cd75 0%, #c58e34 100%);
+  border-color: rgba(81, 57, 15, 0.46);
+  color: var(--mc-ink-dark);
+  text-shadow: none;
+}
+
+:root[data-theme="mission_control"] .map-system-drill .system-preview-canvas {
+  border: 1px solid rgba(218, 213, 176, 0.3);
+  border-radius: 2px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(185, 246, 170, 0.05), transparent 46%),
+    repeating-linear-gradient(0deg, rgba(185, 246, 170, 0.03) 0 1px, transparent 1px 5px),
+    rgba(7, 10, 8, 0.9);
+  box-shadow:
+    inset 0 0 32px rgba(185, 246, 170, 0.06),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme="mission_control"] .map-system-drill .system-preview-floating-actions {
+  border-color: rgba(218, 213, 176, 0.34);
+  background: rgba(32, 40, 30, 0.86);
+  box-shadow: none;
+}
+
+:root[data-theme="mission_control"] .map-reticle {
+  border-color: var(--mc-amber);
+  box-shadow: 0 0 0 1px rgba(24, 26, 18, 0.9);
+}
+
+:root[data-theme="mission_control"] .map-reticle::before,
+:root[data-theme="mission_control"] .map-reticle::after {
+  background: var(--mc-amber);
+}
+
 :root[data-theme="simple_light"] .map-page {
   --map-hud-bg: rgba(255, 255, 255, 0.92);
   --map-hud-border: rgba(23, 37, 47, 0.36);
@@ -2370,48 +2513,55 @@
 }
 
 :root[data-theme="mission_control"] {
-  --bg: #0b121b;
-  --bg-accent: #0f1a27;
-  --ink: #d9e6f4;
-  --muted: #9bacbf;
-  --accent: #f0bf55;
-  --accent-dark: #ffd88a;
-  --panel: #17212d;
-  --border: rgba(130, 156, 183, 0.45);
+  --bg: #14170f;
+  --bg-accent: #202417;
+  --ink: #e7ead9;
+  --muted: #aeb49b;
+  --accent: #d9a441;
+  --accent-dark: #f2ca74;
+  --panel: #3e493f;
+  --border: rgba(202, 197, 159, 0.46);
   --shadow: none;
-  --radius: 6px;
+  --radius: 3px;
   --page-bg:
-    linear-gradient(180deg, #0a1119 0%, #0c1622 52%, #0a1119 100%),
+    linear-gradient(180deg, #1b1d13 0%, #11150f 58%, #0d100b 100%),
     repeating-linear-gradient(
       90deg,
-      rgba(134, 161, 189, 0.05) 0,
-      rgba(134, 161, 189, 0.05) 1px,
+      rgba(214, 210, 170, 0.06) 0,
+      rgba(214, 210, 170, 0.06) 1px,
       transparent 1px,
-      transparent 44px
+      transparent 46px
     );
-  --header-bg: linear-gradient(180deg, #202c3a 0%, #1a2532 100%);
-  --input-bg: #101923;
-  --input-ink: #dce8f6;
-  --surface-soft: #1c2734;
-  --surface-soft-2: #1a2431;
-  --surface-muted: #161f2b;
-  --metric-bg: rgba(17, 24, 34, 0.95);
-  --subtle-ink: #a3b5c8;
-  --subtle-ink-2: #9db0c5;
-  --meta-ink: #dce8f6;
-  --copy-bg: #243241;
-  --copy-bg-hover: #2f4358;
-  --copy-ink: #dbe8f8;
-  --tooltip-bg: rgba(8, 12, 19, 0.98);
-  --tooltip-ink: #d8e8fa;
-  --focus-ring: rgba(116, 197, 255, 0.78);
-  --font-body: "IBM Plex Sans", "Space Grotesk", system-ui, sans-serif;
-  --font-display: "IBM Plex Mono", "Spline Sans Mono", ui-monospace, monospace;
-  --mc-amber: #f0bf55;
-  --mc-green: #6fd58f;
-  --mc-cyan: #6fb9ff;
-  --mc-red: #df736f;
-  --mc-ink-dark: #10151d;
+  --header-bg:
+    linear-gradient(180deg, rgba(89, 101, 83, 0.96) 0%, rgba(58, 70, 58, 0.98) 100%);
+  --input-bg: #171c13;
+  --input-ink: #dcebd2;
+  --surface-soft: #4c5748;
+  --surface-soft-2: #303b31;
+  --surface-muted: #222a22;
+  --metric-bg: #1b211b;
+  --subtle-ink: #bfc6a7;
+  --subtle-ink-2: #d0d1b2;
+  --meta-ink: #edf1d6;
+  --copy-bg: #20281e;
+  --copy-bg-hover: #303b2c;
+  --copy-ink: #f1c66a;
+  --tooltip-bg: rgba(19, 23, 14, 0.98);
+  --tooltip-ink: #f0f1dc;
+  --focus-ring: rgba(255, 205, 97, 0.78);
+  --font-body: "IBM Plex Mono", "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  --font-display: "IBM Plex Mono", "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  --mc-console: #53624f;
+  --mc-console-dark: #2f3a32;
+  --mc-console-light: #73816d;
+  --mc-paper: #d7d0ad;
+  --mc-paper-ink: #26271c;
+  --mc-crt: #b9f6aa;
+  --mc-crt-dim: #71946d;
+  --mc-amber: #d9a441;
+  --mc-red: #b85b4d;
+  --mc-blue: #86a4b7;
+  --mc-ink-dark: #181a12;
 }
 
 :root[data-theme="aurora"] {
@@ -4002,11 +4152,14 @@ select:focus-visible {
 :root[data-theme="mission_control"] .system-identifiers-row {
   position: relative;
   box-shadow:
-    inset 0 1px 0 rgba(227, 239, 255, 0.07),
-    inset 0 -1px 0 rgba(4, 7, 11, 0.72);
-  background: linear-gradient(180deg, #1b2633 0%, #151f2a 100%);
-  border: 1px solid rgba(125, 151, 177, 0.5);
-  border-radius: 4px;
+    inset 0 2px 0 rgba(255, 255, 230, 0.09),
+    inset 0 -2px 0 rgba(12, 14, 10, 0.72),
+    0 10px 22px rgba(0, 0, 0, 0.26);
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 34px),
+    linear-gradient(180deg, var(--mc-console) 0%, var(--mc-console-dark) 100%);
+  border: 1px solid rgba(218, 213, 176, 0.54);
+  border-radius: 3px;
   backdrop-filter: none;
 }
 
@@ -4017,73 +4170,88 @@ select:focus-visible {
 
 :root[data-theme="mission_control"] .site-header {
   --header-utility-top: 0;
-  --header-utility-height: 24px;
+  --header-utility-height: 30px;
   overflow: hidden;
-  padding-top: 34px;
+  padding-top: 42px;
+  border-top: 5px solid #1a211c;
+  border-bottom: 5px solid #1a211c;
 }
 
 :root[data-theme="mission_control"] .header-topline {
-  right: 88px;
+  right: 132px;
 }
 
 :root[data-theme="mission_control"] .header-top-link {
-  color: #9fd0ff;
-  opacity: 0.84;
+  color: var(--mc-crt);
+  opacity: 0.92;
 }
 
 :root[data-theme="mission_control"] .header-top-link:hover {
-  color: #d8eeff;
+  color: #e6ffdb;
 }
 
 :root[data-theme="mission_control"] .site-header::before {
-  content: "FLIGHT  FDO  GNC  EECOM  INCO  CAPCOM  BOOSTER  FAO  TELMU  PROP";
+  content: "MOCR 2  |  FLIGHT  FDO  GNC  EECOM  INCO  CAPCOM  BOOSTER  FAO  TELMU  RETRO";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 24px;
+  height: 30px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  background: linear-gradient(90deg, #23364b 0%, #1a2a3b 45%, #172534 100%);
-  border-bottom: 1px solid rgba(111, 185, 255, 0.35);
-  color: #9fd0ff;
+  padding: 0 14px;
+  background:
+    linear-gradient(90deg, #20281f 0%, #354234 45%, #20281f 100%);
+  border-bottom: 2px solid rgba(222, 213, 164, 0.46);
+  color: var(--mc-crt);
   font-family: var(--font-display);
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 6px rgba(185, 246, 170, 0.34);
   white-space: nowrap;
   overflow: hidden;
 }
 
 :root[data-theme="mission_control"] .site-header::after {
-  content: "";
+  content: "GO";
   position: absolute;
   right: 14px;
-  top: 5px;
-  width: 70px;
-  height: 12px;
-  border-radius: 999px;
+  top: 6px;
+  width: 108px;
+  height: 18px;
+  display: grid;
+  align-items: center;
+  justify-items: end;
+  padding-right: 8px;
+  border: 1px solid rgba(230, 221, 174, 0.58);
+  border-radius: 2px;
   background:
-    radial-gradient(circle at 10% 50%, var(--mc-green) 0 2px, transparent 3px),
-    radial-gradient(circle at 30% 50%, var(--mc-green) 0 2px, transparent 3px),
-    radial-gradient(circle at 50% 50%, var(--mc-amber) 0 2px, transparent 3px),
-    radial-gradient(circle at 70% 50%, var(--mc-cyan) 0 2px, transparent 3px),
-    radial-gradient(circle at 90% 50%, var(--mc-red) 0 2px, transparent 3px);
+    radial-gradient(circle at 10% 50%, var(--mc-crt) 0 2px, transparent 3px),
+    radial-gradient(circle at 24% 50%, var(--mc-crt) 0 2px, transparent 3px),
+    radial-gradient(circle at 38% 50%, var(--mc-amber) 0 2px, transparent 3px),
+    radial-gradient(circle at 52% 50%, var(--mc-blue) 0 2px, transparent 3px),
+    radial-gradient(circle at 66% 50%, var(--mc-red) 0 2px, transparent 3px),
+    #151b14;
+  color: var(--mc-crt);
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
 }
 
 :root[data-theme="mission_control"] .site-header h1 {
   margin-top: 2px;
-  color: #e6eff8;
+  color: #f0eed5;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 0 #11140e;
 }
 
 :root[data-theme="mission_control"] .eyebrow {
-  color: #8cc4f8;
+  color: var(--mc-paper);
 }
 
 :root[data-theme="mission_control"] .header-subtitle {
-  color: #a4b8cd;
+  color: #c6c9ad;
 }
 
 :root[data-theme="mission_control"] .theme-select,
@@ -4098,29 +4266,34 @@ select:focus-visible {
 }
 
 :root[data-theme="mission_control"] .theme-select {
-  border-color: rgba(111, 185, 255, 0.4);
-  background: #132030;
-  color: #cfe2f8;
+  border-color: rgba(222, 213, 164, 0.52);
+  background: #20281e;
+  color: #e6ecd5;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 :root[data-theme="mission_control"] .button {
-  background: linear-gradient(180deg, #f1c76f 0%, #d8a74b 100%);
+  border: 1px solid rgba(81, 57, 15, 0.46);
+  background:
+    linear-gradient(180deg, #f1cd75 0%, #c58e34 100%);
   color: var(--mc-ink-dark);
   font-weight: 700;
   letter-spacing: 0.03em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 247, 204, 0.5),
+    inset 0 -2px 0 rgba(78, 48, 10, 0.35);
 }
 
 :root[data-theme="mission_control"] .button:hover {
   transform: none;
-  background: linear-gradient(180deg, #ffd98a 0%, #e0b25a 100%);
+  background: linear-gradient(180deg, #ffe098 0%, #d69b3e 100%);
 }
 
 :root[data-theme="mission_control"] .button.ghost {
-  border: 1px solid rgba(111, 185, 255, 0.46);
-  background: #18293b;
-  color: #d7e8fb;
+  border: 1px solid rgba(218, 213, 176, 0.46);
+  background: #20281e;
+  color: #e6ecd5;
 }
 
 :root[data-theme="mission_control"] .results-toolbar,
@@ -4129,50 +4302,52 @@ select:focus-visible {
 :root[data-theme="mission_control"] .tri-state,
 :root[data-theme="mission_control"] .metric-chip,
 :root[data-theme="mission_control"] .snapshot-meta {
-  background: #111b27;
-  border-color: rgba(111, 185, 255, 0.22);
+  background:
+    repeating-linear-gradient(0deg, rgba(185, 246, 170, 0.035) 0 1px, transparent 1px 5px),
+    #151b14;
+  border-color: rgba(185, 246, 170, 0.24);
 }
 
 :root[data-theme="mission_control"] .tri-state-btn.active,
 :root[data-theme="mission_control"] .chip.active {
-  border-color: transparent;
-  background: #2a3f56;
-  color: #eaf2fb;
+  border-color: rgba(185, 246, 170, 0.54);
+  background: #20301f;
+  color: var(--mc-crt);
 }
 
 :root[data-theme="mission_control"] .metric-chip span,
 :root[data-theme="mission_control"] .snapshot-caption {
-  color: #9fb6cb;
+  color: #c6c9ad;
 }
 
 :root[data-theme="mission_control"] .result-source {
   border-top-style: solid;
-  border-top-color: rgba(111, 185, 255, 0.26);
+  border-top-color: rgba(218, 213, 176, 0.28);
 }
 
 :root[data-theme="mission_control"] .snapshot-frame img {
   border-radius: 3px;
-  border-color: rgba(111, 185, 255, 0.32);
-  box-shadow: inset 0 0 0 1px rgba(111, 185, 255, 0.14);
+  border-color: rgba(218, 213, 176, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(185, 246, 170, 0.12);
 }
 
 :root[data-theme="mission_control"] a {
-  color: #8dcdff;
+  color: var(--mc-crt);
 }
 
 :root[data-theme="mission_control"] a:visited {
-  color: #b2c7ff;
+  color: #d3c99f;
 }
 
 :root[data-theme="mission_control"] .id-chip {
-  background: #14202d;
-  border-color: rgba(111, 185, 255, 0.28);
+  background: #20281e;
+  border-color: rgba(218, 213, 176, 0.3);
 }
 
 :root[data-theme="mission_control"] .warning-chip {
-  border-color: rgba(240, 191, 85, 0.72);
-  background: rgba(240, 191, 85, 0.17);
-  color: #ffdd96;
+  border-color: rgba(217, 164, 65, 0.72);
+  background: rgba(217, 164, 65, 0.18);
+  color: #f5d893;
 }
 
 :root[data-theme="aurora"] .app {

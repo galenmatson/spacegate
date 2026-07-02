@@ -598,6 +598,60 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.historyMetaColor).toBe("rgb(20, 15, 27)");
   });
 
+  test("mission control map theme uses Apollo console chrome", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+
+    const menu = page.locator(".map-header-menu");
+    await menu.locator("summary").click();
+    await menu.locator(".map-theme-select select").selectOption("mission_control");
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
+
+    const themeStyles = await page.evaluate(() => {
+      const header = document.querySelector(".map-hud-top");
+      const headerStrip = window.getComputedStyle(header, "::before");
+      const title = document.querySelector(".map-title-block h1");
+      const primaryButton = document.querySelector(".map-hud-button.primary");
+      const readout = document.querySelector(".map-header-readout span");
+      const drill = document.querySelector("[data-testid='map-system-drill']");
+      const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
+      const headerStyle = window.getComputedStyle(header);
+      const titleStyle = window.getComputedStyle(title);
+      const buttonStyle = window.getComputedStyle(primaryButton);
+      const readoutStyle = window.getComputedStyle(readout);
+      const drillStyle = window.getComputedStyle(drill);
+      const previewStyle = window.getComputedStyle(previewCanvas);
+      return {
+        headerStripContent: headerStrip.content,
+        headerStripColor: headerStrip.color,
+        headerBackground: headerStyle.backgroundImage,
+        headerRadius: headerStyle.borderTopLeftRadius,
+        titleTransform: titleStyle.textTransform,
+        titleLetterSpacing: titleStyle.letterSpacing,
+        buttonColor: buttonStyle.color,
+        buttonBackground: buttonStyle.backgroundImage,
+        readoutColor: readoutStyle.color,
+        readoutBackground: readoutStyle.backgroundImage,
+        drillRadius: drillStyle.borderTopLeftRadius,
+        previewBackground: previewStyle.backgroundImage,
+      };
+    });
+    expect(themeStyles.headerStripContent).toContain("MOCR 2");
+    expect(themeStyles.headerStripContent).toContain("EECOM");
+    expect(themeStyles.headerStripColor).toBe("rgb(185, 246, 170)");
+    expect(themeStyles.headerBackground).toContain("83, 98, 79");
+    expect(themeStyles.headerRadius).toBe("3px");
+    expect(themeStyles.titleTransform).toBe("uppercase");
+    expect(themeStyles.titleLetterSpacing).not.toBe("normal");
+    expect(themeStyles.buttonColor).toBe("rgb(24, 26, 18)");
+    expect(themeStyles.buttonBackground).toContain("rgb(241, 205, 117)");
+    expect(themeStyles.readoutColor).toBe("rgb(185, 246, 170)");
+    expect(themeStyles.readoutBackground).toContain("repeating-linear-gradient");
+    expect(themeStyles.drillRadius).toBe("3px");
+    expect(themeStyles.previewBackground).toContain("repeating-linear-gradient");
+  });
+
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
     await openMap(page);

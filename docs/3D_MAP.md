@@ -231,8 +231,11 @@ Initial layers:
     control strip; header Coolstars stats and Search/Detail/menu actions use
     the same continuous segmented strip treatment instead of separate rounded
     bullets; Cyberpunk uses neon magenta/cyan glass, scanlines,
-    terminal-green title/HUD text, and glow-heavy explorer chrome, Simple Light
-    uses more opaque surfaces for readability, and Geocities
+    terminal-green title/HUD text, and glow-heavy explorer chrome; Mission
+    Control uses Apollo-era MOCR cues including olive/gray console metal, CRT
+    green readouts, amber pushbutton accents, station-label strips, and hard
+    rectangular panels; Simple Light uses more opaque surfaces for readability,
+    and Geocities
     intentionally uses stereotypical 90s web chrome with beveled windows,
     bright web-safe accents, title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact

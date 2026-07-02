@@ -896,6 +896,11 @@ Readiness gaps:
   same pass narrows the Selection History tray, adds the Coolstars/Spacegate
   mark beside the configurable map title, and changes the selected-system
   marker from a bright circle to a tilted orbiting-planet accent.
+- July 2, 2026 Mission Control theme pass retunes the Star Browser and Star
+  Map theme toward Apollo-era MOCR references: olive/gray metal console
+  surfaces, CRT-green readouts, amber pushbutton accents, station-label strips,
+  and hard rectangular panel chrome. Focused Playwright coverage now checks
+  the map-side Mission Control styling.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.
