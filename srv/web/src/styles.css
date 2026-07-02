@@ -1145,10 +1145,20 @@
 }
 
 :root[data-theme="lcars"] .map-hud > *,
-:root[data-theme="lcars"] .map-system-drill > *,
 :root[data-theme="lcars"] .map-header-menu-panel > * {
   position: relative;
   z-index: 1;
+}
+
+:root[data-theme="lcars"] .map-system-drill-bar {
+  position: absolute;
+  z-index: 17;
+}
+
+:root[data-theme="lcars"] .map-system-drill-body {
+  position: relative;
+  z-index: 1;
+  height: 100%;
 }
 
 :root[data-theme="lcars"] .map-hud-top {
@@ -1162,9 +1172,7 @@
   top: 0;
   bottom: 0;
   width: 72px;
-  background:
-    linear-gradient(#000000 0 12px, transparent 12px calc(100% - 12px), #000000 calc(100% - 12px)),
-    linear-gradient(180deg, var(--lcars-orange), var(--lcars-peach) 44%, var(--lcars-blue));
+  background: var(--lcars-orange);
   border-radius: 28px 0 0 28px;
   border-right: 10px solid #000000;
 }
@@ -1175,7 +1183,7 @@
   top: 0;
   bottom: 0;
   width: 16px;
-  background: linear-gradient(180deg, var(--lcars-yellow), var(--lcars-orange) 52%, var(--lcars-lilac));
+  background: var(--lcars-yellow);
 }
 
 :root[data-theme="lcars"] .map-controls-panel,
@@ -1193,7 +1201,7 @@
   top: 0;
   bottom: 0;
   width: 24px;
-  background: linear-gradient(180deg, var(--lcars-orange), var(--lcars-yellow) 40%, var(--lcars-blue));
+  background: var(--lcars-orange);
   border-right: 10px solid #000000;
 }
 

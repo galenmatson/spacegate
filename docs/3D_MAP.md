@@ -194,9 +194,9 @@ Initial layers:
   - theme-specific map overlay styling keeps the embedded simulator controls in
     a floating layer above the WebGL canvas; LCARS/Enterprise uses black
     nontransparent surfaces, bright yellow borders, and orange/peach/lilac/blue
-    LCARS block controls without glow, Cyberpunk uses neon magenta/cyan glass,
-    scanlines, terminal-green title/HUD text, and glow-heavy explorer chrome,
-    Simple Light uses more opaque surfaces for readability, and Geocities
+    solid LCARS block controls without glow, Cyberpunk uses neon magenta/cyan
+    glass, scanlines, terminal-green title/HUD text, and glow-heavy explorer
+    chrome, Simple Light uses more opaque surfaces for readability, and Geocities
     intentionally uses stereotypical 90s web chrome with beveled windows,
     bright web-safe accents, title bars, and tiled-page overlays
   - July 2026 showcase polish densifies the desktop HUD, keeps compact

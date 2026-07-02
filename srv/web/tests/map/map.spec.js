@@ -436,33 +436,42 @@ test.describe("public 3D map beta", () => {
       const button = document.querySelector(".map-hud-button");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const drillRail = window.getComputedStyle(drill, "::before");
+      const drillBar = document.querySelector(".map-system-drill-bar");
+      const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
       const headerStyle = window.getComputedStyle(header);
       const titleStyle = window.getComputedStyle(title);
       const buttonStyle = window.getComputedStyle(button);
       const drillStyle = window.getComputedStyle(drill);
+      const drillBarStyle = window.getComputedStyle(drillBar);
+      const drillRect = drill.getBoundingClientRect();
+      const previewCanvasRect = previewCanvas.getBoundingClientRect();
       return {
         headerBackground: headerStyle.backgroundColor,
         headerBorderTop: headerStyle.borderTopColor,
         headerRadius: headerStyle.borderTopLeftRadius,
-        headerRailBackground: headerRail.backgroundImage,
+        headerRailBackground: headerRail.backgroundColor,
         titleColor: titleStyle.color,
         titleLetterSpacing: titleStyle.letterSpacing,
         buttonBackground: buttonStyle.backgroundColor,
         buttonColor: buttonStyle.color,
         drillBackground: drillStyle.backgroundColor,
-        drillRailBackground: drillRail.backgroundImage,
+        drillRailBackground: drillRail.backgroundColor,
+        drillBarPosition: drillBarStyle.position,
+        previewCanvasHeightRatio: previewCanvasRect.height / Math.max(1, drillRect.height),
       };
     });
     expect(themeStyles.headerBackground).toBe("rgb(0, 0, 0)");
     expect(themeStyles.drillBackground).toBe("rgb(0, 0, 0)");
     expect(themeStyles.headerBorderTop).toBe("rgb(255, 212, 0)");
     expect(themeStyles.headerRadius).toBe("32px");
-    expect(themeStyles.headerRailBackground).toContain("245, 162, 46");
-    expect(themeStyles.drillRailBackground).toContain("245, 162, 46");
+    expect(themeStyles.headerRailBackground).toBe("rgb(245, 162, 46)");
+    expect(themeStyles.drillRailBackground).toBe("rgb(245, 162, 46)");
     expect(themeStyles.titleColor).toBe("rgb(245, 162, 46)");
     expect(themeStyles.titleLetterSpacing).not.toBe("normal");
     expect(themeStyles.buttonBackground).toBe("rgb(145, 160, 255)");
     expect(themeStyles.buttonColor).toBe("rgb(20, 15, 27)");
+    expect(themeStyles.drillBarPosition).toBe("absolute");
+    expect(themeStyles.previewCanvasHeightRatio).toBeGreaterThan(0.82);
   });
 
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {

@@ -858,8 +858,11 @@ Readiness gaps:
 - July 2, 2026 Star Map mouse/LCARS polish adds horizontal wheel truck,
   right-button drag truck, middle-button drag pedestal controls, links the map
   header eyebrow to `spacegates.org` as `Spacegate Stellar Database`, and
-  retunes Enterprise/LCARS map chrome with colored LCARS block controls while
-  preserving black nontransparent panels.
+  retunes Enterprise/LCARS map chrome with solid colored LCARS block controls
+  while preserving black nontransparent panels.
+- July 2, 2026 LCARS map drill fix restores absolute Peek/Explore header
+  positioning after the Enterprise theme pass so the System Simulation canvas
+  remains the dominant pane instead of being squeezed below the controls.
 - June 30, 2026 class-provenance hardening pass makes stellar class readouts
   use field provenance and adds browser diagnostics for source-like classes
   without component-specific spectral evidence.

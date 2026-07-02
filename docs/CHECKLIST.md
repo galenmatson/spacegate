@@ -489,6 +489,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   `Spacegate Stellar Database`
 - [x] Retune Enterprise/LCARS Star Map chrome with colored LCARS block controls
   while preserving black nontransparent panels
+- [x] Restore Enterprise/LCARS Peek/Explore drill layout so the simulator canvas
+  remains the main pane and LCARS rails use solid color blocks
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
   90s web chrome with beveled windows, bright web-safe accents, and tiled
   page overlays
