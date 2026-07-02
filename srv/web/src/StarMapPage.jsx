@@ -736,6 +736,10 @@ function FlightControls({
   const openRouteContext = useCallback((event) => {
     event.preventDefault();
     const target = nearestSystemToPointer(camera, gl.domElement, event.clientX, event.clientY, systems);
+    if (!target) {
+      onRouteContext(null);
+      return;
+    }
     onRouteContext({
       x: Math.min(event.clientX, window.innerWidth - 264),
       y: Math.min(event.clientY, window.innerHeight - 180),
@@ -1254,6 +1258,32 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, [drillMode, exitDrillMode]);
 
   useEffect(() => {
+    const onContextMenu = (event) => {
+      const inContextMenu = event.target?.closest?.(".map-context-menu");
+      if (inContextMenu) {
+        event.preventDefault();
+        return;
+      }
+      if (routeMenu) {
+        event.preventDefault();
+        event.stopPropagation();
+        setRouteMenu(null);
+        return;
+      }
+      const inSystemDrill = event.target?.closest?.(".map-system-drill");
+      if (drillMode === "peek" && !inSystemDrill) {
+        event.preventDefault();
+        event.stopPropagation();
+        exitDrillMode(false);
+      }
+    };
+    window.addEventListener("contextmenu", onContextMenu, true);
+    return () => {
+      window.removeEventListener("contextmenu", onContextMenu, true);
+    };
+  }, [drillMode, exitDrillMode, routeMenu]);
+
+  useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
@@ -1534,62 +1564,55 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         )}
       </aside>
 
-      {routeMenu && (
+      {routeMenu?.target && (
         <div
           className="map-context-menu"
           style={{ left: `${routeMenu.x}px`, top: `${routeMenu.y}px` }}
           role="menu"
         >
-          {routeMenu.target ? (
-            <>
-              <span className="map-panel-label">Route Tool</span>
-              <strong><SystemNameDisplay system={routeMenu.target} /></strong>
-              <span>
-                {formatNumber(routeMenu.target.dist_ly, 2)} ly from Sol · {routeMenu.target.dominant_spectral_class}
-              </span>
-              {selectedSystem && selectedSystem.system_id !== routeMenu.target.system_id && (
-                <span>
-                  {formatNumber(distanceBetweenSystems(selectedSystem, routeMenu.target), 2)} ly from {shortDisplayName(selectedSystem.display_name)}
-                </span>
-              )}
-              <button
-                type="button"
-                className="map-context-command"
-                disabled={!selectedSystem || selectedSystem.system_id === routeMenu.target.system_id}
-                onClick={addRouteSegment}
-              >
-                Measure from selected
-              </button>
-              <button
-                type="button"
-                className="map-context-command ghost"
-                onClick={() => {
-                  selectSystem(routeMenu.target, { openPeek: true });
-                  setRouteMenu(null);
-                }}
-              >
-                Select system
-              </button>
-              {routeSegments.length > 0 && (
-                <button type="button" className="map-context-command ghost" onClick={clearRoute}>
-                  Clear route
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="map-panel-label">Route Tool</span>
-              <span>No system under cursor.</span>
-              {routeSegments.length > 0 && (
-                <button type="button" className="map-context-command ghost" onClick={clearRoute}>
-                  Clear route
-                </button>
-              )}
-            </>
+          <strong><SystemNameDisplay system={routeMenu.target} /></strong>
+          <span>
+            {formatNumber(routeMenu.target.dist_ly, 2)} ly from Sol · {routeMenu.target.dominant_spectral_class}
+          </span>
+          {selectedSystem && selectedSystem.system_id !== routeMenu.target.system_id && (
+            <span>
+              {formatNumber(distanceBetweenSystems(selectedSystem, routeMenu.target), 2)} ly from {shortDisplayName(selectedSystem.display_name)}
+            </span>
           )}
-          <button type="button" className="map-context-close" onClick={() => setRouteMenu(null)}>
-            Close
+          <button
+            type="button"
+            className="map-context-command"
+            onClick={() => {
+              selectSystem(routeMenu.target, { openPeek: true });
+              setRouteMenu(null);
+            }}
+          >
+            Select
           </button>
+          <button
+            type="button"
+            className="map-context-command ghost"
+            onClick={() => {
+              selectSystem(routeMenu.target, { openPeek: true, focus: true });
+              setDrillMode("explore");
+              setRouteMenu(null);
+            }}
+          >
+            Explore
+          </button>
+          <button
+            type="button"
+            className="map-context-command ghost"
+            disabled={!selectedSystem || selectedSystem.system_id === routeMenu.target.system_id}
+            onClick={addRouteSegment}
+          >
+            Measure
+          </button>
+          {routeSegments.length > 0 && (
+            <button type="button" className="map-context-command ghost" onClick={clearRoute}>
+              Clear route
+            </button>
+          )}
         </div>
       )}
       {selectedSystem?.system_id && drillMode !== "flight" && (
@@ -1604,19 +1627,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           aria-label={`${formatName(selectedSystem.display_name)} system simulation`}
         >
           <div className="map-system-drill-bar">
-            <button
-              type="button"
-              className="map-system-drill-title"
-              onClick={() => {
-                if (drillMode === "peek") {
-                  setDrillMode("explore");
-                  setFocusToken((value) => value + 1);
-                }
-              }}
-            >
-              <span>System:</span>
-              <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
-            </button>
+            <div className="map-system-drill-title-group">
+              {drillMode === "peek" && (
+                <button
+                  type="button"
+                  className="map-system-drill-resize"
+                  aria-label="Resize System Peek"
+                  title="Resize System Peek"
+                  onPointerDown={beginPeekResize}
+                />
+              )}
+              <button
+                type="button"
+                className="map-system-drill-title"
+                onClick={() => {
+                  if (drillMode === "peek") {
+                    setDrillMode("explore");
+                    setFocusToken((value) => value + 1);
+                  }
+                }}
+              >
+                <span>System:</span>
+                <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
+              </button>
+            </div>
             <div className="map-system-drill-actions">
               {drillMode === "peek" && (
                 <button
@@ -1656,15 +1690,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               />
             </React.Suspense>
           </div>
-          {drillMode === "peek" && (
-            <button
-              type="button"
-              className="map-system-drill-resize"
-              aria-label="Resize System Peek"
-              title="Resize System Peek"
-              onPointerDown={beginPeekResize}
-            />
-          )}
         </section>
       )}
     </div>

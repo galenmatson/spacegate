@@ -28,7 +28,10 @@ Controls:
 - desktop free-cursor mode:
   - left-click selects the system under the cursor ray
   - left-drag free-looks without pointer lock
-- right-click opens an ephemeral route/distance context menu
+- right-click on a target system opens a generalized system context menu:
+  `Select`, `Explore`, and `Measure`
+- right-click outside the context menu closes it; right-click outside System
+  Simulation Peek closes Peek
 - selection history is shown as compact pills with distance/class metadata
 - long catalog identifiers are truncated in the HUD and expandable via
   hover/focus/tap popovers with copy actions

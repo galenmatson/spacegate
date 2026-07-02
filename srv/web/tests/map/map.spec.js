@@ -59,8 +59,13 @@ test.describe("public 3D map beta", () => {
     const box = await canvasBox(page);
 
     await page.mouse.click(box.x + box.width / 2 + 170, box.y + box.height / 2 + 40, { button: "right" });
-    await expect(page.locator(".map-context-menu")).toBeVisible();
-    await page.getByRole("button", { name: /measure from selected/i }).click();
+    const contextMenu = page.locator(".map-context-menu");
+    await expect(contextMenu).toBeVisible();
+    await expect(contextMenu).not.toContainText(/Route Tool/i);
+    await expect(contextMenu.getByRole("button", { name: /^Select$/i })).toBeVisible();
+    await expect(contextMenu.getByRole("button", { name: /^Explore$/i })).toBeVisible();
+    await expect(contextMenu.getByRole("button", { name: /^Measure$/i })).toBeVisible();
+    await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
 
     await expect(page.locator(".map-route-summary")).toContainText(/1 legs/i);
     await expect(page.locator(".map-route-summary")).toContainText(/total/i);
@@ -70,8 +75,13 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-route-summary")).toHaveCount(0);
 
     await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
-    await expect(page.locator(".map-context-menu")).toBeVisible();
-    await page.getByRole("button", { name: /measure from selected/i }).click();
+    await expect(contextMenu).toBeVisible();
+    await page.mouse.click(box.x + 24, box.y + 24, { button: "right" });
+    await expect(contextMenu).toHaveCount(0);
+
+    await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
+    await expect(contextMenu).toBeVisible();
+    await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
     await expect(page.locator(".map-route-summary")).toBeVisible();
     await page.getByRole("button", { name: /clear/i }).click();
     await expect(page.locator(".map-route-summary")).toHaveCount(0);
@@ -124,10 +134,13 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
     const resizeHandle = drill.locator(".map-system-drill-resize");
     await expect(resizeHandle).toBeVisible();
+    const titleBox = await drill.locator(".map-system-drill-title").boundingBox();
     const beforeResize = await drill.boundingBox();
     const handleBox = await resizeHandle.boundingBox();
     expect(beforeResize, "peek bounds before resize").toBeTruthy();
     expect(handleBox, "peek resize handle bounds").toBeTruthy();
+    expect(titleBox, "peek title bounds").toBeTruthy();
+    expect(handleBox.x + handleBox.width).toBeLessThanOrEqual(titleBox.x);
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(handleBox.x - 80, handleBox.y - 60, { steps: 8 });
@@ -148,7 +161,16 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("peek");
+    const mapBox = await canvasBox(page);
+    await page.mouse.click(mapBox.x + 28, mapBox.y + 28, { button: "right" });
+    await expect(drill).toHaveCount(0);
+    await expect.poll(
+      () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
+      { timeout: 3000 }
+    ).toBe("flight");
 
+    await page.locator(".map-history-pill").first().click();
+    await expect(drill).toBeVisible();
     await drill.locator(".map-system-drill-title").click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill).toContainText(/System:/i);

@@ -522,12 +522,21 @@
   pointer-events: none;
 }
 
+.map-system-drill-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: min(500px, calc(100% - 260px));
+  pointer-events: auto;
+}
+
 .map-system-drill-title {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
-  max-width: min(460px, calc(100% - 260px));
+  max-width: 100%;
   padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 46%, transparent);
   border-radius: 999px;
@@ -569,10 +578,9 @@
 }
 
 .map-system-drill-resize {
-  position: absolute;
-  z-index: 20;
-  left: 8px;
-  bottom: 8px;
+  position: relative;
+  z-index: 18;
+  flex: 0 0 auto;
   width: 26px;
   height: 26px;
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
@@ -581,7 +589,7 @@
     linear-gradient(135deg, transparent 0 46%, color-mix(in srgb, var(--map-hud-strong) 74%, transparent) 48% 54%, transparent 56%),
     color-mix(in srgb, var(--panel) 24%, transparent);
   color: var(--map-hud-strong);
-  cursor: nesw-resize;
+  cursor: nwse-resize;
   opacity: 0.72;
   pointer-events: auto;
   backdrop-filter: blur(3px);
@@ -1298,6 +1306,10 @@
 
   .map-system-drill-actions {
     justify-content: flex-start;
+  }
+
+  .map-system-drill-title-group {
+    max-width: 100%;
   }
 
   .map-system-drill-title {
