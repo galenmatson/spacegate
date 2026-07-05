@@ -49,7 +49,7 @@ test.describe("public 3D map beta", () => {
     await page.addInitScript(() => {
       window.localStorage.setItem("spacegate.theme", "mission_control");
     });
-    await page.goto("/", { waitUntil: "networkidle" });
+    await page.goto("/search", { waitUntil: "networkidle" });
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
     const expectedLabels = ["ABT", "MAP", "SPT", "SRC"];
     const headerBox = await page.locator(".site-header").boundingBox();
@@ -62,6 +62,24 @@ test.describe("public 3D map beta", () => {
       expect(box, `${label} header utility link box`).toBeTruthy();
       expect(box.y - headerBox.y, `${label} should sit in the mission control top strip`).toBeLessThan(32);
     }
+  });
+
+  test("default route opens map-native Star Search controls", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop default route check");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.locator(".map-canvas canvas").waitFor();
+    await expect(page.locator(".map-star-search")).toBeVisible();
+    await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
+    await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
+    await expect(page.locator(".map-search-habitable")).toBeVisible();
+    await page.locator(".map-search-spectral", { hasText: "G" }).click();
+    await expect
+      .poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelStrategy || ""), { timeout: 3000 })
+      .toBe("star_search_filters");
+    await page.locator("[data-testid='map-star-search-input']").fill("Sol");
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    await expect(page.locator("[data-testid='map-star-search-results']")).toBeVisible();
+    await expect(page.locator(".map-search-card").first()).toBeVisible({ timeout: 10000 });
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {

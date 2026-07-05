@@ -694,6 +694,15 @@ def fetch_map_systems(
           s.min_star_teff_k,
           s.max_star_teff_k,
           s.spectral_classes_json,
+          EXISTS (
+            SELECT 1
+            FROM planets p
+            WHERE p.system_id = s.system_id
+              AND COALESCE(p.match_confidence, 0.0) >= 0.80
+              AND COALESCE(p.eq_temp_k, -1.0) BETWEEN 180.0 AND 350.0
+              AND COALESCE(p.mass_earth, p.mass_jup * 317.8, -1.0) BETWEEN 0.3 AND 8.0
+              AND COALESCE(p.eccentricity, 0.0) <= 0.35
+          ) AS has_habitable_candidate,
           {coolness_select},
           {snapshot_select}
         FROM systems s
@@ -730,6 +739,7 @@ def fetch_map_systems(
         item["nice_planet_count"] = int(item.get("nice_planet_count") or 0)
         item["weird_planet_count"] = int(item.get("weird_planet_count") or 0)
         item["has_snapshot"] = bool(item.get("has_snapshot"))
+        item["has_habitable_candidate"] = bool(item.get("has_habitable_candidate"))
         if compact:
             for key in ("dist_ly", "x_helio_ly", "y_helio_ly", "z_helio_ly"):
                 value = item.get(key)
@@ -740,11 +750,8 @@ def fetch_map_systems(
                 item["coolness_score"] = round(float(score), 3)
             item.pop("stable_object_key", None)
             item.pop("star_teff_count", None)
-            item.pop("min_star_teff_k", None)
-            item.pop("max_star_teff_k", None)
             item.pop("nice_planet_count", None)
             item.pop("weird_planet_count", None)
-            item.pop("spectral_classes", None)
         spectral_counts[dominant] = spectral_counts.get(dominant, 0) + 1
         if item["planet_count"] > 0:
             planet_systems += 1
@@ -2372,6 +2379,9 @@ def search_systems(
     id_query: Optional[Dict[str, Any]],
     max_dist_ly: Optional[float],
     min_dist_ly: Optional[float],
+    origin_x_ly: Optional[float],
+    origin_y_ly: Optional[float],
+    origin_z_ly: Optional[float],
     min_star_count: Optional[int],
     max_star_count: Optional[int],
     min_planet_count: Optional[int],
@@ -2393,6 +2403,11 @@ def search_systems(
 ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
     conditions: List[str] = []
     params: List[Any] = []
+    has_origin = (
+        origin_x_ly is not None
+        and origin_y_ly is not None
+        and origin_z_ly is not None
+    )
 
     match_rank_expr = "0 AS match_rank"
     match_params: List[Any] = []
@@ -2680,12 +2695,25 @@ def search_systems(
         conditions.append("s.system_id = ?")
         params.append(system_id_exact)
 
+    distance_filter_expr = (
+        "sqrt("
+        "pow(COALESCE(s.x_helio_ly, 0) - ?, 2) + "
+        "pow(COALESCE(s.y_helio_ly, 0) - ?, 2) + "
+        "pow(COALESCE(s.z_helio_ly, 0) - ?, 2)"
+        ")"
+        if has_origin
+        else "s.dist_ly"
+    )
+    distance_filter_params = [origin_x_ly, origin_y_ly, origin_z_ly] if has_origin else []
+
     if max_dist_ly is not None:
-        conditions.append("s.dist_ly <= ?")
+        conditions.append(f"{distance_filter_expr} <= ?")
+        params.extend(distance_filter_params)
         params.append(max_dist_ly)
 
     if min_dist_ly is not None:
-        conditions.append("s.dist_ly >= ?")
+        conditions.append(f"{distance_filter_expr} >= ?")
+        params.extend(distance_filter_params)
         params.append(min_dist_ly)
 
     if min_temp_k is not None or max_temp_k is not None:
@@ -2828,6 +2856,18 @@ def search_systems(
         params.append(max_coolness_score)
 
     use_coolness_sort = sort == "coolness" and not match_mode and has_coolness_scores
+    origin_distance_expr = (
+        "sqrt("
+        "pow(COALESCE(s.x_helio_ly, 0) - ?, 2) + "
+        "pow(COALESCE(s.y_helio_ly, 0) - ?, 2) + "
+        "pow(COALESCE(s.z_helio_ly, 0) - ?, 2)"
+        ") AS origin_distance_ly,"
+        if has_origin
+        else "NULL::DOUBLE AS origin_distance_ly,"
+    )
+    origin_distance_params: List[Any] = (
+        [origin_x_ly, origin_y_ly, origin_z_ly] if has_origin else []
+    )
 
     order_by = "system_name_norm ASC NULLS LAST, system_id ASC"
     cursor_clause = ""
@@ -2871,14 +2911,15 @@ def search_systems(
         filtered_clause = "WHERE match_rank IS NOT NULL"
     else:
         if sort == "distance":
-            order_by = "dist_ly ASC NULLS LAST, system_id ASC"
+            distance_sort_field = "origin_distance_ly" if has_origin else "dist_ly"
+            order_by = f"{distance_sort_field} ASC NULLS LAST, system_id ASC"
             if cursor_values:
                 cursor_dist = cursor_values.get("dist")
                 if cursor_dist is None:
                     cursor_dist = 1e12
                 cursor_clause = (
-                    "(COALESCE(dist_ly, 1e12) > ? OR "
-                    "(COALESCE(dist_ly, 1e12) = ? AND system_id > ?))"
+                    f"(COALESCE({distance_sort_field}, 1e12) > ? OR "
+                    f"(COALESCE({distance_sort_field}, 1e12) = ? AND system_id > ?))"
                 )
                 cursor_params.extend(
                     [
@@ -2890,6 +2931,8 @@ def search_systems(
         elif sort == "coolness" and use_coolness_sort:
             order_by = (
                 "COALESCE(coolness_rank, 9223372036854775807) ASC, "
+                + ("COALESCE(origin_distance_ly, 1e12) ASC, " if has_origin else "")
+                +
                 "COALESCE(system_name_norm, '') ASC, system_id ASC"
             )
             if cursor_values:
@@ -2998,6 +3041,7 @@ def search_systems(
                 CAST(s.gaia_id AS VARCHAR) AS gaia_id_text,
                 CAST(s.hip_id AS VARCHAR) AS hip_id_text,
                 CAST(s.hd_id AS VARCHAR) AS hd_id_text,
+                {origin_distance_expr}
                 {coolness_select}
                 {match_rank_expr}
             FROM systems s
@@ -3024,7 +3068,15 @@ def search_systems(
         ORDER BY {order_by}
         LIMIT ?
     """
-    all_params = alias_cte_params + identifier_cte_params + match_params + params + cursor_params + [limit]
+    all_params = (
+        alias_cte_params
+        + identifier_cte_params
+        + origin_distance_params
+        + match_params
+        + params
+        + cursor_params
+        + [limit]
+    )
     cursor = con.execute(sql, all_params)
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]

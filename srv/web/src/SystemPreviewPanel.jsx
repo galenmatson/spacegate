@@ -3594,8 +3594,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
   const orientation = orientationSummary(scene);
 
-  const normalizedPresentationMode = ["detail", "peek", "explore"].includes(presentationMode) ? presentationMode : "detail";
-  const compactPresentation = normalizedPresentationMode === "peek";
+  const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
+  const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
   const embeddedPresentation = normalizedPresentationMode !== "detail";
   const showDiagnostics = !compactPresentation && (evidenceFields.length > 0 || (status === "ready" && scene));
 
@@ -3718,7 +3718,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           <HoverReadout object={hoveredObject && !pinnedObject ? hoveredObject : null} />
           <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
         </div>
-        <div className="system-preview-readout">
+        {normalizedPresentationMode !== "card" && <div className="system-preview-readout">
           <div>
             <strong>{formatNumber(renderBodies.stars?.length || bodies.stars?.length, 0)}</strong>
             <span>rendered stars</span>
@@ -3791,9 +3791,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               </div>
             </details>
           )}
-        </div>
+        </div>}
       </div>
-      {embeddedPresentation && <div className="system-preview-floating-actions">{renderPreviewActions()}</div>}
+      {embeddedPresentation && normalizedPresentationMode !== "card" && <div className="system-preview-floating-actions">{renderPreviewActions()}</div>}
     </section>
   );
 }

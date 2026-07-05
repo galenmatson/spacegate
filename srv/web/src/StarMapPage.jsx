@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { fetchMapSystems, fetchPublicConfig } from "./api.js";
+import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
 
 const MAP_RADIUS_LY = 100;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
+const STAR_SEARCH_LIVE_PREVIEW_DESKTOP = 4;
+const STAR_SEARCH_LIVE_PREVIEW_MOBILE = 1;
+const STAR_SEARCH_SPECTRAL_OPTIONS = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
+const STAR_SEARCH_DEFAULT_TEMP_RANGE = [0, 50000];
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
@@ -337,6 +341,35 @@ function mapToScenePosition(item, frame = "icrs") {
   return [x, y, z];
 }
 
+function sceneToHelioCoordinates(position, frame = "icrs") {
+  const source = Array.isArray(position) ? position : [0, 0, 0];
+  const sceneX = Number(source[0] || 0) / LY_TO_SCENE;
+  const sceneY = Number(source[1] || 0) / LY_TO_SCENE;
+  const sceneZ = Number(source[2] || 0) / LY_TO_SCENE;
+  if (frame === "galactic") {
+    const coreward = sceneX;
+    const spinward = sceneZ;
+    const north = sceneY;
+    return {
+      x: ICRS_TO_GALACTIC[0][0] * coreward + ICRS_TO_GALACTIC[1][0] * spinward + ICRS_TO_GALACTIC[2][0] * north,
+      y: ICRS_TO_GALACTIC[0][1] * coreward + ICRS_TO_GALACTIC[1][1] * spinward + ICRS_TO_GALACTIC[2][1] * north,
+      z: ICRS_TO_GALACTIC[0][2] * coreward + ICRS_TO_GALACTIC[1][2] * spinward + ICRS_TO_GALACTIC[2][2] * north,
+    };
+  }
+  return { x: sceneX, y: -sceneZ, z: sceneY };
+}
+
+function distanceFromHelioOrigin(system, origin) {
+  if (!system || !origin) {
+    return Number(system?.dist_ly || 0);
+  }
+  return Math.hypot(
+    Number(system.x_helio_ly || 0) - Number(origin.x || 0),
+    Number(system.y_helio_ly || 0) - Number(origin.y || 0),
+    Number(system.z_helio_ly || 0) - Number(origin.z || 0),
+  );
+}
+
 function priorityForSystem(item) {
   const rank = Number(item.coolness_rank);
   const coolness = Number(item.coolness_score);
@@ -377,6 +410,34 @@ function prepareMapItems(rawItems, frame = "icrs") {
     .filter((item) => item.scene_position.every((value) => Number.isFinite(value)));
 }
 
+function systemDisplayName(system) {
+  return formatName(system?.display_name || system?.system_name);
+}
+
+function mapItemFromSearchResult(item, frame = "icrs") {
+  return prepareMapItems([{ ...item, system_name: systemDisplayName(item) }], frame)[0] || null;
+}
+
+function compactSnapshotUrl(snapshot) {
+  return snapshot?.url ? apiUrl(snapshot.url) : "";
+}
+
+function StarSearchSnapshot({ snapshot, systemName }) {
+  const snapshotUrl = compactSnapshotUrl(snapshot);
+  if (!snapshotUrl) {
+    return <div className="map-search-card-fallback">Preview pending</div>;
+  }
+  return (
+    <img
+      className="map-search-card-snapshot"
+      src={snapshotUrl}
+      alt={`${systemName} deterministic snapshot fallback`}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
 function createPointTexture() {
   const size = 64;
   const canvas = document.createElement("canvas");
@@ -396,10 +457,11 @@ function createPointTexture() {
   return texture;
 }
 
-function StarField({ systems }) {
+function StarField({ systems, filterMatchIds = null, filterActive = false }) {
   const geometry = useMemo(() => {
     const positions = new Float32Array(systems.length * 3);
     const colors = new Float32Array(systems.length * 3);
+    const matches = filterMatchIds instanceof Set ? filterMatchIds : new Set();
     systems.forEach((system, idx) => {
       const base = idx * 3;
       positions[base] = system.scene_position[0];
@@ -408,6 +470,13 @@ function StarField({ systems }) {
       const color = new THREE.Color(SPECTRAL_COLORS[system.dominant_spectral_class] || SPECTRAL_COLORS.UNKNOWN);
       if (Number(system.planet_count || 0) > 0) {
         color.lerp(new THREE.Color("#95ffcf"), 0.24);
+      }
+      if (filterActive) {
+        if (matches.has(String(system.system_id))) {
+          color.lerp(new THREE.Color("#ffffff"), 0.32);
+        } else {
+          color.multiplyScalar(0.28);
+        }
       }
       colors[base] = color.r;
       colors[base + 1] = color.g;
@@ -418,7 +487,7 @@ function StarField({ systems }) {
     next.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     next.computeBoundingSphere();
     return next;
-  }, [systems]);
+  }, [filterActive, filterMatchIds, systems]);
   const pointTexture = useMemo(() => createPointTexture(), []);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -432,7 +501,7 @@ function StarField({ systems }) {
         sizeAttenuation
         vertexColors
         transparent
-        opacity={0.86}
+        opacity={filterActive ? 0.74 : 0.86}
         alphaTest={0.04}
         depthWrite={false}
       />
@@ -657,7 +726,7 @@ function LabelSprite({
   );
 }
 
-function PriorityLabels({ systems, selectedSystem, onSelect }) {
+function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false }) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
   const buildLabelSet = useCallback(() => {
@@ -670,6 +739,22 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
       seen.add(system.system_id);
       candidates.push({ ...system, label_priority: labelPriority, label_camera_distance_ly: cameraDistanceLy });
     };
+    if (forcedLabelActive) {
+      (forcedLabelSystems || [])
+        .filter((system) => !isCatalogFallbackName(system.display_name))
+        .slice(0, 140)
+        .forEach((system) => {
+          const position = new THREE.Vector3().fromArray(system.scene_position);
+          const cameraDistanceLy = position.distanceTo(camera.position) / LY_TO_SCENE;
+          add(system, Math.max(16, Number(system.map_priority || 0)), cameraDistanceLy);
+        });
+      if (selectedSystem) {
+        const selectedPosition = new THREE.Vector3().fromArray(selectedSystem.scene_position);
+        const selectedDistanceLy = selectedPosition.distanceTo(camera.position) / LY_TO_SCENE;
+        add(selectedSystem, Math.max(18, Number(selectedSystem.map_priority || 0)), selectedDistanceLy);
+      }
+      return candidates;
+    }
     if (selectedSystem) {
       const selectedPosition = new THREE.Vector3().fromArray(selectedSystem.scene_position);
       const selectedDistanceLy = selectedPosition.distanceTo(camera.position) / LY_TO_SCENE;
@@ -711,7 +796,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
       .slice(0, Math.max(0, totalBudget - candidates.length))
       .forEach(({ system, priority, score, cameraDistanceLy }) => add(system, Math.max(priority, score / 4), cameraDistanceLy));
     return candidates;
-  }, [camera, selectedSystem, systems]);
+  }, [camera, forcedLabelActive, forcedLabelSystems, selectedSystem, systems]);
   const [labelSystems, setLabelSystems] = useState(buildLabelSet);
 
   useEffect(() => {
@@ -721,8 +806,8 @@ function PriorityLabels({ systems, selectedSystem, onSelect }) {
   useEffect(() => {
     gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
     gl.domElement.dataset.mapLocalLabelCount = String(labelSystems.filter((system) => Number(system.label_camera_distance_ly) <= 10).length);
-    gl.domElement.dataset.mapLabelStrategy = "camera_near_10ly_nearest_plus_coolness";
-  }, [gl.domElement, labelSystems]);
+    gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
+  }, [forcedLabelActive, gl.domElement, labelSystems]);
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
@@ -1419,6 +1504,8 @@ function FlightControls({
         distLy: camera.position.length() / LY_TO_SCENE,
         speedLyS: baseSpeed / LY_TO_SCENE,
         locked: document.pointerLockElement === gl.domElement,
+        cameraScenePosition: camera.position.toArray(),
+        originLy: sceneToHelioCoordinates(camera.position.toArray(), mapFrame || "icrs"),
       });
       gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
       gl.domElement.dataset.mapMobileFlightActive = Object.values(mobileFlightIntent).some(Boolean) ? "true" : "false";
@@ -1434,6 +1521,9 @@ function FlightControls({
 function StarMapScene({
   systems,
   selectedSystem,
+  filterMatchIds,
+  filterActive,
+  filterLabelSystems,
   onSelect,
   onRouteContext,
   keybindScheme,
@@ -1459,8 +1549,14 @@ function StarMapScene({
       <fog attach="fog" args={["#01030a", 80, 190]} />
       <DistanceRings />
       <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} />
-      <StarField systems={systems} />
-      <PriorityLabels systems={systems} selectedSystem={selectedSystem} onSelect={onSelect} />
+      <StarField systems={systems} filterMatchIds={filterMatchIds} filterActive={filterActive} />
+      <PriorityLabels
+        systems={systems}
+        selectedSystem={selectedSystem}
+        onSelect={onSelect}
+        forcedLabelSystems={filterLabelSystems}
+        forcedLabelActive={filterActive}
+      />
       <RouteOverlays segments={routeSegments} onRemoveSegment={onRemoveRouteSegment} />
       <SelectionMarker system={selectedSystem} />
       <FlightControls
@@ -1482,7 +1578,307 @@ function StarMapScene({
   );
 }
 
-export default function StarMapPage({ buildId = "", theme, setTheme, themeOptions = [] }) {
+function DualRangeControl({ label, min, max, step = 1, value, onChange, format = (item) => item }) {
+  const safeMin = Number.isFinite(Number(min)) ? Number(min) : 0;
+  const safeMax = Math.max(safeMin + Number(step || 1), Number.isFinite(Number(max)) ? Number(max) : safeMin + 1);
+  const currentMin = Math.min(Math.max(Number(value?.[0] ?? safeMin), safeMin), safeMax);
+  const currentMax = Math.max(Math.min(Number(value?.[1] ?? safeMax), safeMax), safeMin);
+  const low = Math.min(currentMin, currentMax);
+  const high = Math.max(currentMin, currentMax);
+  const span = safeMax - safeMin || 1;
+  const leftPct = ((low - safeMin) / span) * 100;
+  const rightPct = 100 - ((high - safeMin) / span) * 100;
+  const updateLow = (nextValue) => onChange([Math.min(Number(nextValue), high), high]);
+  const updateHigh = (nextValue) => onChange([low, Math.max(Number(nextValue), low)]);
+  return (
+    <div className="map-search-range">
+      <div className="map-search-range-head">
+        <span>{label}</span>
+        <strong>{format(low)} - {format(high)}</strong>
+      </div>
+      <div className="map-search-range-track" style={{ "--range-left": `${leftPct}%`, "--range-right": `${rightPct}%` }}>
+        <input
+          type="range"
+          min={safeMin}
+          max={safeMax}
+          step={step}
+          value={low}
+          onChange={(event) => updateLow(event.target.value)}
+          aria-label={`${label} minimum`}
+        />
+        <input
+          type="range"
+          min={safeMin}
+          max={safeMax}
+          step={step}
+          value={high}
+          onChange={(event) => updateHigh(event.target.value)}
+          aria-label={`${label} maximum`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function spectralTokens(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim().toUpperCase()).filter(Boolean);
+  }
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function systemMatchesMapFilters(system, filters, origin) {
+  const viewpointDistance = distanceFromHelioOrigin(system, origin);
+  const starCount = Number(system.star_count || 0);
+  const planetCount = Number(system.planet_count || 0);
+  const coolness = Number(system.coolness_score || 0);
+  const minTemp = Number(system.min_star_teff_k);
+  const maxTemp = Number(system.max_star_teff_k);
+  const systemSpectral = spectralTokens(system.spectral_classes?.length ? system.spectral_classes : system.dominant_spectral_class);
+  const activeSpectral = spectralTokens(filters.spectralClass);
+  const tempLow = Number(filters.temperatureRange?.[0] ?? STAR_SEARCH_DEFAULT_TEMP_RANGE[0]);
+  const tempHigh = Number(filters.temperatureRange?.[1] ?? STAR_SEARCH_DEFAULT_TEMP_RANGE[1]);
+  if (viewpointDistance < filters.distanceRange[0] || viewpointDistance > filters.distanceRange[1]) return false;
+  if (starCount < filters.starRange[0] || starCount > filters.starRange[1]) return false;
+  if (planetCount < filters.planetRange[0] || planetCount > filters.planetRange[1]) return false;
+  if (coolness < filters.coolnessRange[0] || coolness > filters.coolnessRange[1]) return false;
+  if (filters.habitableOnly && !system.has_habitable_candidate) return false;
+  if (activeSpectral.length && !activeSpectral.some((token) => systemSpectral.includes(token))) return false;
+  if ((tempLow > STAR_SEARCH_DEFAULT_TEMP_RANGE[0] || tempHigh < STAR_SEARCH_DEFAULT_TEMP_RANGE[1])) {
+    if (!Number.isFinite(minTemp) || !Number.isFinite(maxTemp)) return false;
+    if (maxTemp < tempLow || minTemp > tempHigh) return false;
+  }
+  return true;
+}
+
+function buildSearchParamsFromFilters(filters, origin, query = "", limit = 24) {
+  const params = {
+    sort: query.trim() ? "name" : "distance",
+    limit: String(limit),
+    min_dist_ly: String(Math.max(0, filters.distanceRange[0])),
+    max_dist_ly: String(Math.max(filters.distanceRange[0], filters.distanceRange[1])),
+    min_star_count: String(filters.starRange[0]),
+    max_star_count: String(filters.starRange[1]),
+    min_planet_count: String(filters.planetRange[0]),
+    max_planet_count: String(filters.planetRange[1]),
+    min_coolness_score: String(filters.coolnessRange[0]),
+    max_coolness_score: String(filters.coolnessRange[1]),
+    origin_x_ly: String(origin.x),
+    origin_y_ly: String(origin.y),
+    origin_z_ly: String(origin.z),
+    origin_label: "camera",
+  };
+  const q = query.trim();
+  if (q) params.q = q;
+  if (filters.habitableOnly) params.has_habitable = "true";
+  const spectral = spectralTokens(filters.spectralClass);
+  if (spectral.length) params.spectral_class = spectral.join(",");
+  if (filters.temperatureRange[0] > STAR_SEARCH_DEFAULT_TEMP_RANGE[0]) params.min_temp_k = String(filters.temperatureRange[0]);
+  if (filters.temperatureRange[1] < STAR_SEARCH_DEFAULT_TEMP_RANGE[1]) params.max_temp_k = String(filters.temperatureRange[1]);
+  return params;
+}
+
+function MapStarSearchShell({
+  open,
+  systems,
+  selectedSystem,
+  selectionHistory,
+  filters,
+  filterExtents,
+  matchedCount,
+  query,
+  setQuery,
+  setFilters,
+  onSubmitSearch,
+  onCloseResults,
+  onSelectSystem,
+  onExploreSystem,
+  results,
+  resultsOpen,
+  loading,
+  error,
+  hasMore,
+  onLoadMore,
+  searchStats,
+}) {
+  const [livePreviewCap, setLivePreviewCap] = useState(STAR_SEARCH_LIVE_PREVIEW_DESKTOP);
+  useEffect(() => {
+    const updateCap = () => {
+      const mobile = window.matchMedia?.("(max-width: 720px)")?.matches;
+      setLivePreviewCap(mobile ? STAR_SEARCH_LIVE_PREVIEW_MOBILE : STAR_SEARCH_LIVE_PREVIEW_DESKTOP);
+    };
+    updateCap();
+    window.addEventListener("resize", updateCap);
+    return () => window.removeEventListener("resize", updateCap);
+  }, []);
+
+  const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
+  const toggleSpectral = (token) => {
+    setFilters((current) => {
+      const active = new Set(spectralTokens(current.spectralClass));
+      if (active.has(token)) active.delete(token);
+      else active.add(token);
+      return { ...current, spectralClass: STAR_SEARCH_SPECTRAL_OPTIONS.filter((item) => active.has(item)).join(",") };
+    });
+  };
+  const resetFilters = () => setFilters({
+    distanceRange: [0, MAP_RADIUS_LY],
+    starRange: [0, filterExtents.maxStars],
+    planetRange: [0, filterExtents.maxPlanets],
+    coolnessRange: [0, filterExtents.maxCoolness],
+    temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
+    spectralClass: "",
+    habitableOnly: false,
+  });
+  const activeSpectral = new Set(spectralTokens(filters.spectralClass));
+
+  return (
+    <section className={`map-star-search ${open ? "is-open" : ""}`} aria-label="Map-native Star Search">
+      <form className="map-search-topbar" onSubmit={onSubmitSearch}>
+        <label className="map-search-main">
+          <span className="sr-only">Search systems</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search stars, systems, or catalog IDs..."
+            data-testid="map-star-search-input"
+          />
+        </label>
+        <button type="submit" className="map-command-button primary" disabled={loading}>
+          {loading ? "Searching" : "Search"}
+        </button>
+        {resultsOpen && (
+          <button type="button" className="map-command-button ghost" onClick={onCloseResults}>
+            Close Results
+          </button>
+        )}
+        <div className="map-search-spectral-bar" role="group" aria-label="Spectral class filter">
+          {STAR_SEARCH_SPECTRAL_OPTIONS.map((token) => (
+            <button
+              key={token}
+              type="button"
+              className={`map-search-spectral spectral-${token.toLowerCase()} ${activeSpectral.has(token) ? "active" : ""}`}
+              onClick={() => toggleSpectral(token)}
+              aria-pressed={activeSpectral.has(token)}
+            >
+              {token}
+            </button>
+          ))}
+        </div>
+        <DualRangeControl
+          label="Temp K"
+          min={STAR_SEARCH_DEFAULT_TEMP_RANGE[0]}
+          max={filterExtents.maxTemp}
+          step={100}
+          value={filters.temperatureRange}
+          onChange={(value) => updateRange("temperatureRange", value)}
+          format={(value) => formatNumber(value, 0)}
+        />
+      </form>
+
+      <aside className="map-search-sidebar">
+        <div className="map-search-sidebar-head">
+          <span className="map-panel-label">Filters</span>
+          <strong>{formatNumber(matchedCount, 0)} labeled</strong>
+        </div>
+        <DualRangeControl label="Distance" min={0} max={MAP_RADIUS_LY} step={1} value={filters.distanceRange} onChange={(value) => updateRange("distanceRange", value)} format={(value) => `${formatNumber(value, 0)} ly`} />
+        <DualRangeControl label="Stars" min={0} max={filterExtents.maxStars} step={1} value={filters.starRange} onChange={(value) => updateRange("starRange", value)} format={(value) => formatNumber(value, 0)} />
+        <DualRangeControl label="Planets" min={0} max={filterExtents.maxPlanets} step={1} value={filters.planetRange} onChange={(value) => updateRange("planetRange", value)} format={(value) => formatNumber(value, 0)} />
+        <DualRangeControl label="Coolness" min={0} max={filterExtents.maxCoolness} step={1} value={filters.coolnessRange} onChange={(value) => updateRange("coolnessRange", value)} format={(value) => formatNumber(value, 0)} />
+        <button
+          type="button"
+          className={`map-search-habitable ${filters.habitableOnly ? "active" : ""}`}
+          onClick={() => setFilters((current) => ({ ...current, habitableOnly: !current.habitableOnly }))}
+          aria-pressed={filters.habitableOnly}
+          title="Filters to systems with a planet candidate in the broad habitable-zone temperature and mass range."
+        >
+          Habitable-zone planets
+        </button>
+        <button type="button" className="map-command-button ghost map-search-reset" onClick={resetFilters}>
+          Reset filters
+        </button>
+        <details className="map-search-recents" open>
+          <summary><span className="map-panel-label">Recents</span></summary>
+          <div>
+            {(selectionHistory || []).slice(0, 8).map((system) => (
+              <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
+                <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} />
+                <span>{formatNumber(system.dist_ly, 1)} ly</span>
+              </button>
+            ))}
+          </div>
+        </details>
+      </aside>
+
+      {resultsOpen && (
+        <section className="map-search-results" data-testid="map-star-search-results" aria-label="Star Search results">
+          <div className="map-search-results-head">
+            <div>
+              <span className="map-panel-label">Results</span>
+              <strong>{searchStats || `${formatNumber(results.length, 0)} systems`}</strong>
+            </div>
+            <button type="button" className="map-command-button ghost" onClick={onCloseResults}>Close</button>
+          </div>
+          {error && <div className="map-search-error">{error}</div>}
+          {loading && results.length === 0 && <div className="map-search-empty">Searching...</div>}
+          {!loading && !error && results.length === 0 && <div className="map-search-empty">No systems match the current search.</div>}
+          <div className="map-search-card-list">
+            {results.map((system, index) => {
+              const displayName = systemDisplayName(system);
+              const originDistance = Number(system.origin_distance_ly);
+              const livePreview = index < livePreviewCap;
+              return (
+                <article key={system.system_id} className="map-search-card">
+                  <div className="map-search-card-preview">
+                    {livePreview ? (
+                      <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
+                        <SystemPreviewPanel
+                          systemId={system.system_id}
+                          systemName={displayName}
+                          snapshot={system.snapshot}
+                          presentationMode="card"
+                        />
+                      </React.Suspense>
+                    ) : (
+                      <StarSearchSnapshot snapshot={system.snapshot} systemName={displayName} />
+                    )}
+                  </div>
+                  <div className="map-search-card-body">
+                    <h3>{displayName}</h3>
+                    <div className="map-search-card-metrics">
+                      <span>{formatNumber(system.dist_ly, 2)} ly Sol</span>
+                      {Number.isFinite(originDistance) && <span>{formatNumber(originDistance, 2)} ly view</span>}
+                      <span>{formatNumber(system.star_count, 0)} stars</span>
+                      <span>{formatNumber(system.planet_count, 0)} planets</span>
+                      <span>cool {formatNumber(system.coolness_score, 1)}</span>
+                    </div>
+                    <div className="map-search-card-actions">
+                      <button type="button" className="map-command-button primary" onClick={() => onSelectSystem(system)}>Peek</button>
+                      <button type="button" className="map-command-button ghost" onClick={() => onExploreSystem(system)}>Explore</button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {hasMore && (
+            <button type="button" className="map-command-button ghost map-search-load-more" onClick={onLoadMore} disabled={loading}>
+              {loading ? "Loading" : "Load more"}
+            </button>
+          )}
+        </section>
+      )}
+    </section>
+  );
+}
+
+export default function StarMapPage({ buildId = "", theme, setTheme, themeOptions = [], defaultSearchOpen = false }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
   const [rawSystems, setRawSystems] = useState([]);
   const [systems, setSystems] = useState([]);
@@ -1493,7 +1889,13 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const controlsEnabled = true;
   const stabilizationEnabled = true;
   const [reticleSelectRequest, setReticleSelectRequest] = useState(0);
-  const [telemetry, setTelemetry] = useState({ distLy: 0, speedLyS: 0, locked: false });
+  const [telemetry, setTelemetry] = useState({
+    distLy: 0,
+    speedLyS: 0,
+    locked: false,
+    cameraScenePosition: [0, 3.5, 17],
+    originLy: sceneToHelioCoordinates([0, 3.5, 17], "icrs"),
+  });
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [routeSegments, setRouteSegments] = useState([]);
@@ -1506,11 +1908,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
   const [mapFrame, setMapFrame] = useState(readStoredMapFrame);
   const [showDirectionLabels, setShowDirectionLabels] = useState(readStoredDirectionLabelsEnabled);
+  const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
+  const [mapSearchFilters, setMapSearchFilters] = useState({
+    distanceRange: [0, MAP_RADIUS_LY],
+    starRange: [0, 1],
+    planetRange: [0, 1],
+    coolnessRange: [0, 1],
+    temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
+    spectralClass: "",
+    habitableOnly: false,
+  });
+  const [mapSearchResults, setMapSearchResults] = useState([]);
+  const [mapSearchResultsOpen, setMapSearchResultsOpen] = useState(false);
+  const [mapSearchLoading, setMapSearchLoading] = useState(false);
+  const [mapSearchError, setMapSearchError] = useState("");
+  const [mapSearchCursor, setMapSearchCursor] = useState(null);
+  const [mapSearchHasMore, setMapSearchHasMore] = useState(false);
+  const [mapSearchStats, setMapSearchStats] = useState("");
+  const mapSearchTokenRef = useRef(0);
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
+  const mapSearchOpen = defaultSearchOpen || location.pathname === "/" || location.pathname === "/search";
 
   useEffect(() => {
     let cancelled = false;
@@ -1672,22 +2093,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, []);
 
   useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setRouteMenu(null);
-        if (drillMode !== "flight") {
-          event.preventDefault();
-          exitDrillMode();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [drillMode, exitDrillMode]);
-
-  useEffect(() => {
     const onContextMenu = (event) => {
       if (window.__spacegateMapSuppressNextContextMenu) {
         event.preventDefault();
@@ -1777,6 +2182,68 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const routeTotalLy = useMemo(
     () => routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
     [routeSegments],
+  );
+
+  const filterExtents = useMemo(() => {
+    const maxStars = Math.max(1, ...systems.map((system) => Number(system.star_count || 0)));
+    const maxPlanets = Math.max(1, ...systems.map((system) => Number(system.planet_count || 0)));
+    const maxCoolness = Math.max(1, Math.ceil(Math.max(...systems.map((system) => Number(system.coolness_score || 0)))));
+    const maxTemp = Math.max(
+      STAR_SEARCH_DEFAULT_TEMP_RANGE[1],
+      Math.ceil(Math.max(...systems.map((system) => Number(system.max_star_teff_k || 0))) / 100) * 100,
+    );
+    return { maxStars, maxPlanets, maxCoolness, maxTemp };
+  }, [systems]);
+
+  useEffect(() => {
+    setMapSearchFilters((current) => ({
+      ...current,
+      starRange: [Math.min(current.starRange[0], filterExtents.maxStars), filterExtents.maxStars],
+      planetRange: [Math.min(current.planetRange[0], filterExtents.maxPlanets), filterExtents.maxPlanets],
+      coolnessRange: [Math.min(current.coolnessRange[0], filterExtents.maxCoolness), filterExtents.maxCoolness],
+      temperatureRange: [
+        Math.max(STAR_SEARCH_DEFAULT_TEMP_RANGE[0], current.temperatureRange[0]),
+        Math.min(filterExtents.maxTemp, Math.max(current.temperatureRange[1], STAR_SEARCH_DEFAULT_TEMP_RANGE[1])),
+      ],
+    }));
+  }, [filterExtents]);
+
+  const mapSearchOrigin = telemetry.originLy || sceneToHelioCoordinates(telemetry.cameraScenePosition, mapFrame);
+
+  const activeMapFilter = useMemo(() => {
+    const filters = mapSearchFilters;
+    return (
+      filters.distanceRange[0] > 0
+      || filters.distanceRange[1] < MAP_RADIUS_LY
+      || filters.starRange[0] > 0
+      || filters.starRange[1] < filterExtents.maxStars
+      || filters.planetRange[0] > 0
+      || filters.planetRange[1] < filterExtents.maxPlanets
+      || filters.coolnessRange[0] > 0
+      || filters.coolnessRange[1] < filterExtents.maxCoolness
+      || filters.temperatureRange[0] > STAR_SEARCH_DEFAULT_TEMP_RANGE[0]
+      || filters.temperatureRange[1] < STAR_SEARCH_DEFAULT_TEMP_RANGE[1]
+      || Boolean(filters.spectralClass)
+      || Boolean(filters.habitableOnly)
+    );
+  }, [filterExtents, mapSearchFilters]);
+
+  const filteredMapSystems = useMemo(() => {
+    if (!activeMapFilter) {
+      return [];
+    }
+    return systems
+      .filter((system) => systemMatchesMapFilters(system, mapSearchFilters, mapSearchOrigin))
+      .sort((left, right) => {
+        const leftDistance = distanceFromHelioOrigin(left, mapSearchOrigin);
+        const rightDistance = distanceFromHelioOrigin(right, mapSearchOrigin);
+        return right.map_priority - left.map_priority || leftDistance - rightDistance;
+      });
+  }, [activeMapFilter, mapSearchFilters, mapSearchOrigin, systems]);
+
+  const filteredMapIds = useMemo(
+    () => new Set(filteredMapSystems.map((system) => String(system.system_id))),
+    [filteredMapSystems],
   );
 
   const suggestedNeighbors = useMemo(() => {
@@ -1888,6 +2355,100 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     system?.system_id ? `/systems/${system.system_id}?from=map` : "/"
   );
 
+  const selectSearchSystem = useCallback((system, options = {}) => {
+    const existing = systems.find((item) => String(item.system_id) === String(system?.system_id));
+    const mapItem = existing || mapItemFromSearchResult(system, mapFrame);
+    if (!mapItem) {
+      return;
+    }
+    selectSystem(mapItem, { openPeek: true, focus: Boolean(options.focus) });
+    if (options.explore) {
+      setDrillMode("explore");
+      setFocusToken((value) => value + 1);
+    }
+  }, [mapFrame, selectSystem, systems]);
+
+  const runMapSearch = useCallback(async ({ cursorValue = null, append = false } = {}) => {
+    const token = mapSearchTokenRef.current + 1;
+    mapSearchTokenRef.current = token;
+    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, mapSearchQuery, 24);
+    const requestParams = cursorValue ? { ...params, cursor: cursorValue } : params;
+    setMapSearchLoading(true);
+    setMapSearchError("");
+    setMapSearchResultsOpen(true);
+    if (!append) {
+      setSearchParams(mapSearchQuery.trim() ? { q: mapSearchQuery.trim() } : {}, { replace: false });
+    }
+    try {
+      const started = performance.now();
+      const payload = await fetchSystems(requestParams);
+      if (mapSearchTokenRef.current !== token) {
+        return;
+      }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      setMapSearchResults((current) => (append ? [...current, ...items] : items));
+      setMapSearchCursor(payload.next_cursor || null);
+      setMapSearchHasMore(Boolean(payload.has_more));
+      const elapsed = Number(payload.query_time_ms);
+      setMapSearchStats(`${formatNumber(append ? mapSearchResults.length + items.length : items.length, 0)} systems · ${formatNumber(Number.isFinite(elapsed) ? elapsed : performance.now() - started, 0)} ms`);
+    } catch (exc) {
+      if (mapSearchTokenRef.current === token) {
+        setMapSearchError(exc instanceof Error ? exc.message : "Star Search unavailable");
+        if (!append) {
+          setMapSearchResults([]);
+          setMapSearchCursor(null);
+          setMapSearchHasMore(false);
+        }
+      }
+    } finally {
+      if (mapSearchTokenRef.current === token) {
+        setMapSearchLoading(false);
+      }
+    }
+  }, [mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, setSearchParams]);
+
+  const closeMapSearchResults = useCallback(() => {
+    setMapSearchResultsOpen(false);
+    setMapSearchResults([]);
+    setMapSearchCursor(null);
+    setMapSearchHasMore(false);
+    setMapSearchError("");
+  }, []);
+
+  const closeMapSearch = useCallback(() => {
+    closeMapSearchResults();
+    if (location.pathname === "/" || location.pathname === "/search") {
+      navigate("/map");
+    }
+  }, [closeMapSearchResults, location.pathname, navigate]);
+
+  const submitMapSearch = useCallback((event) => {
+    event?.preventDefault?.();
+    runMapSearch({ append: false });
+  }, [runMapSearch]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setRouteMenu(null);
+        if (drillMode !== "flight") {
+          event.preventDefault();
+          exitDrillMode();
+        } else if (mapSearchResultsOpen) {
+          event.preventDefault();
+          closeMapSearchResults();
+        } else if (mapSearchOpen && location.pathname !== "/map") {
+          event.preventDefault();
+          closeMapSearch();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [closeMapSearch, closeMapSearchResults, drillMode, exitDrillMode, location.pathname, mapSearchOpen, mapSearchResultsOpen]);
+
   return (
     <div
       className={`map-page ${telemetry.locked ? "reticle-active" : ""} map-drill-${drillMode}`}
@@ -1899,6 +2460,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         <StarMapScene
           systems={systems}
           selectedSystem={selectedSystem}
+          filterMatchIds={filteredMapIds}
+          filterActive={activeMapFilter}
+          filterLabelSystems={filteredMapSystems}
           onSelect={(system) => selectSystem(system, { openPeek: true })}
           onRouteContext={setRouteMenu}
           keybindScheme={keybindScheme}
@@ -1962,9 +2526,16 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           ))}
           <Link to="/" className="map-hud-button">Search</Link>
           {selectedSystem?.system_id && (
-            <Link to={systemDetailPath(selectedSystem)} className="map-hud-button primary">
-              Detail
-            </Link>
+            <button
+              type="button"
+              className="map-hud-button primary"
+              onClick={() => {
+                setDrillMode("explore");
+                setFocusToken((value) => value + 1);
+              }}
+            >
+              Explore
+            </button>
           )}
           {fullscreenAvailable && (
             <button type="button" className="map-hud-button map-fullscreen-command" onClick={toggleFullscreen}>
@@ -2025,6 +2596,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           </details>
         </nav>
       </header>
+
+      <MapStarSearchShell
+        open={mapSearchOpen}
+        systems={systems}
+        selectedSystem={selectedSystem}
+        selectionHistory={selectionHistory}
+        filters={mapSearchFilters}
+        filterExtents={filterExtents}
+        matchedCount={activeMapFilter ? filteredMapSystems.length : systems.length}
+        query={mapSearchQuery}
+        setQuery={setMapSearchQuery}
+        setFilters={setMapSearchFilters}
+        onSubmitSearch={submitMapSearch}
+        onCloseResults={closeMapSearchResults}
+        onSelectSystem={(system) => selectSearchSystem(system)}
+        onExploreSystem={(system) => selectSearchSystem(system, { explore: true, focus: true })}
+        results={mapSearchResults}
+        resultsOpen={mapSearchResultsOpen}
+        loading={mapSearchLoading}
+        error={mapSearchError}
+        hasMore={mapSearchHasMore}
+        onLoadMore={() => runMapSearch({ cursorValue: mapSearchCursor, append: true })}
+        searchStats={mapSearchStats}
+      />
 
       <aside className="map-hud map-controls-panel">
         <span className="map-panel-label">Flight</span>

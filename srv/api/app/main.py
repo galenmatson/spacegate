@@ -4152,6 +4152,9 @@ def _admin_search_system_by_id(
         id_query=None,
         max_dist_ly=None,
         min_dist_ly=None,
+        origin_x_ly=None,
+        origin_y_ly=None,
+        origin_z_ly=None,
         min_star_count=None,
         max_star_count=None,
         min_planet_count=None,
@@ -4687,6 +4690,10 @@ def systems_search(
     q: Optional[str] = Query(default=None),
     max_dist_ly: Optional[float] = Query(default=None, ge=0),
     min_dist_ly: Optional[float] = Query(default=None, ge=0),
+    origin_x_ly: Optional[float] = Query(default=None),
+    origin_y_ly: Optional[float] = Query(default=None),
+    origin_z_ly: Optional[float] = Query(default=None),
+    origin_label: Optional[str] = Query(default=None),
     min_star_count: Optional[int] = Query(default=None, ge=0),
     max_star_count: Optional[int] = Query(default=None, ge=0),
     min_planet_count: Optional[int] = Query(default=None, ge=0),
@@ -4710,6 +4717,19 @@ def systems_search(
                 "code": "bad_request",
                 "message": "Invalid distance range",
                 "details": {},
+            },
+        )
+    origin_values = [origin_x_ly, origin_y_ly, origin_z_ly]
+    has_origin = any(value is not None for value in origin_values)
+    if has_origin and not all(value is not None for value in origin_values):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Incomplete search origin",
+                "details": {
+                    "required": ["origin_x_ly", "origin_y_ly", "origin_z_ly"],
+                },
             },
         )
     if max_star_count is not None and min_star_count is not None and min_star_count > max_star_count:
@@ -4865,6 +4885,9 @@ def systems_search(
                 id_query=id_query,
                 max_dist_ly=max_dist_ly,
                 min_dist_ly=min_dist_ly,
+                origin_x_ly=origin_x_ly,
+                origin_y_ly=origin_y_ly,
+                origin_z_ly=origin_z_ly,
                 min_star_count=min_star_count,
                 max_star_count=max_star_count,
                 min_planet_count=min_planet_count,
@@ -4942,7 +4965,7 @@ def systems_search(
                 }
             )
         elif sort_key == "distance":
-            dist_value = last.get("dist_ly")
+            dist_value = last.get("origin_distance_ly") if has_origin else last.get("dist_ly")
             if dist_value is None:
                 dist_value = 1e12
             next_cursor = encode_cursor(
@@ -5008,6 +5031,12 @@ def systems_search(
         "has_more": has_more,
         "total_count": total_count,
         "query_time_ms": duration_ms,
+        "origin": {
+            "x_ly": origin_x_ly,
+            "y_ly": origin_y_ly,
+            "z_ly": origin_z_ly,
+            "label": origin_label,
+        } if has_origin else None,
     }
 
 
@@ -8681,6 +8710,9 @@ def admin_objects_search(
             id_query=id_query,
             max_dist_ly=None,
             min_dist_ly=None,
+            origin_x_ly=None,
+            origin_y_ly=None,
+            origin_z_ly=None,
             min_star_count=None,
             max_star_count=None,
             min_planet_count=None,

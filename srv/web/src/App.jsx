@@ -3524,7 +3524,22 @@ export default function App() {
   return (
     <ThemeContext.Provider value={themeContextValue}>
       <Routes>
-        <Route path="/" element={<SearchPage buildId={buildId} />} />
+        <Route
+          path="/"
+          element={(
+            <React.Suspense fallback={<div className="route-loading">Loading map...</div>}>
+              <StarMapPage
+                buildId={buildId}
+                theme={theme}
+                setTheme={setTheme}
+                themeOptions={THEME_OPTIONS}
+                defaultSearchOpen
+              />
+            </React.Suspense>
+          )}
+        />
+        <Route path="/classic-search" element={<SearchPage buildId={buildId} />} />
+        <Route path="/search" element={<SearchPage buildId={buildId} />} />
         <Route path="/about" element={<AboutPage buildId={buildId} />} />
         <Route path="/data" element={<DataPage buildId={buildId} />} />
         <Route
