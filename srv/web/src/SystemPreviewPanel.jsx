@@ -3804,19 +3804,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       <button
         className="system-preview-toggle"
         type="button"
-        onClick={() => {
-          setSimulationDays(0);
-          setShowHabitableZones(true);
-          setShowFormationLines(defaultFormationLineVisibility());
-          setResetToken((value) => value + 1);
-        }}
-        disabled={status !== "ready" || webglReady === false}
-      >
-        Reset
-      </button>
-      <button
-        className="system-preview-toggle"
-        type="button"
         onClick={() => setShowOrbits((value) => !value)}
         aria-pressed={showOrbits}
         disabled={status !== "ready" || webglReady === false}
@@ -3859,6 +3846,19 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         disabled={status !== "ready" || webglReady === false}
       >
         {showLabels ? "Labels On" : "Labels Off"}
+      </button>
+      <button
+        className="system-preview-toggle"
+        type="button"
+        onClick={() => {
+          setSimulationDays(0);
+          setShowHabitableZones(true);
+          setShowFormationLines(defaultFormationLineVisibility());
+          setResetToken((value) => value + 1);
+        }}
+        disabled={status !== "ready" || webglReady === false}
+      >
+        Reset
       </button>
       {status === "ready" && scene && <span className="status-chip" title={orientation.detail}>{orientation.label}</span>}
       {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}

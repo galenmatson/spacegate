@@ -1944,6 +1944,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   });
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenEpoch, setFullscreenEpoch] = useState(0);
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
   const [selectionHistory, setSelectionHistory] = useState([]);
@@ -2128,14 +2129,22 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, []);
 
   useEffect(() => {
+    let fullscreenFrame = 0;
     const updateFullscreenState = () => {
       setFullscreenAvailable(Boolean(document.fullscreenEnabled && pageRef.current?.requestFullscreen));
       setIsFullscreen(document.fullscreenElement === pageRef.current);
+      if (fullscreenFrame) {
+        window.cancelAnimationFrame(fullscreenFrame);
+      }
+      fullscreenFrame = window.requestAnimationFrame(() => setFullscreenEpoch((value) => value + 1));
     };
     updateFullscreenState();
     document.addEventListener("fullscreenchange", updateFullscreenState);
     return () => {
       document.removeEventListener("fullscreenchange", updateFullscreenState);
+      if (fullscreenFrame) {
+        window.cancelAnimationFrame(fullscreenFrame);
+      }
     };
   }, []);
 
@@ -2517,6 +2526,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   useEffect(() => {
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
+        if (document.fullscreenElement) {
+          return;
+        }
         setRouteMenu(null);
         if (drillMode !== "flight") {
           event.preventDefault();
@@ -2985,6 +2997,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             </div>
             <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
               <SystemPreviewPanel
+                key={`${selectedSystem.system_id}:${drillMode}:${fullscreenEpoch}`}
                 systemId={selectedSystem.system_id}
                 systemName={formatName(selectedSystem.display_name)}
                 presentationMode={drillMode}

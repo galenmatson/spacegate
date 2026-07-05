@@ -394,6 +394,22 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe("explore");
 
+    const fullButton = page.locator(".map-fullscreen-command");
+    await expect(fullButton).toBeVisible();
+    await fullButton.click();
+    await expect(fullButton).toHaveText(/Exit/i);
+    await page.keyboard.press("Escape");
+    await expect(drill).toBeVisible();
+    await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(drill.locator(".system-preview-toggle").last()).toHaveText(/^Reset$/i);
+    if (await page.evaluate(() => Boolean(document.fullscreenElement))) {
+      await fullButton.click();
+    }
+    await expect(fullButton).toHaveText(/Full/i);
+    await expect(drill).toBeVisible();
+    await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect(drill.locator(".system-preview-toggle").last()).toHaveText(/^Reset$/i);
+
     const exploreBox = await drill.boundingBox();
     expect(exploreBox, "explore bounds").toBeTruthy();
     await page.mouse.move(exploreBox.x + exploreBox.width * 0.42, exploreBox.y + exploreBox.height * 0.5);
