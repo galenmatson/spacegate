@@ -243,6 +243,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Canonical hierarchy artifact from canonical objects + arm role evidence
 - [x] Canonical build emitter + runtime canonical-hierarchy fallback
 - [ ] Agent evidence-link pipeline in `disc` (citations/source manifests backing factsheets and narratives)
+- [ ] AAA/narration pass should evaluate whether binary/multiple-star orbital
+  architecture disrupts otherwise nominal habitable zones, with Sirius A/B as a
+  benchmark narrative case
 - [ ] Agent adjudication tables in `arm` for ambiguity resolution and missing-field proposals
 - [x] Initial role-based agent eval harness with seed golden cases and quarantined anomaly inbox reports
 - [ ] Local inference adjudicator cook-off with pinned TurboQuant KV-cache evaluation for long-context profiles
@@ -369,6 +372,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   eccentricity caps so compressed Sol orbits do not visually cross
 - [x] Add toggleable, inspectable habitable-zone bands as render-scene
   presentation guides from stellar luminosity and broad flux bounds
+- [x] Add optional System Simulation formation/freeze-line overlays for
+  vaporization, soot, water snowline, carbon dioxide, methane/carbon monoxide,
+  and nitrogen boundaries, defaulting HZ on and the extra lines off
 - [x] Make HZ bands default-on, increase their visual weight, and add
   default-on object labels with a compact labels toggle
 - [x] Replace Live System Preview canvas-sprite labels with Drei/Troika SDF

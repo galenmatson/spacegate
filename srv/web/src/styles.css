@@ -6850,7 +6850,6 @@ main {
   backdrop-filter: blur(4px);
 }
 
-.map-system-drill .system-preview-actions .system-preview-toggle:nth-of-type(n + 3),
 .map-system-drill .system-preview-actions .status-chip {
   display: none;
 }
@@ -6960,6 +6959,12 @@ main {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.system-preview-header > div:first-child {
+  flex: 1 1 260px;
+  min-width: 220px;
 }
 
 .system-preview-header h3 {
@@ -6977,8 +6982,10 @@ main {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 1 1 560px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .system-preview-toggle,
@@ -7032,6 +7039,16 @@ main {
 .system-preview-scale select:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.system-preview-line-toggle {
+  border-color: color-mix(in srgb, var(--line-color, var(--accent)) 52%, var(--border));
+}
+
+.system-preview-line-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--line-color, var(--accent)) 18%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--line-color, var(--accent)) 78%, white 8%);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--line-color, var(--accent)) 24%, transparent);
 }
 
 .system-preview-layout {

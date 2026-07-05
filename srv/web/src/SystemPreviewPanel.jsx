@@ -782,6 +782,54 @@ function planetDisplayEccentricityField(planet) {
   };
 }
 
+const FORMATION_LINE_TYPES = {
+  vaporization: {
+    label: "Vaporization",
+    shortLabel: "Vapor",
+    tempK: 1500,
+    color: "#ff6e47",
+    tooltip: "Vaporization Line: This is the absolute inner edge of a star system where planets can begin to form. Closer to the star, the intense heat vaporizes even heavy rocks and metals directly into gas. Moving past this ~1,500 K (~2,240 F) boundary allows rocky dust to finally stay solid and stick together. Because worlds like Mercury, Earth, and Mars formed safely outside this line, they were able to successfully build and keep their solid, rocky crusts.",
+  },
+  soot: {
+    label: "Soot",
+    shortLabel: "Soot",
+    tempK: 300,
+    color: "#d49a58",
+    tooltip: "Soot Line: This boundary marks the spot where complex, carbon-based molecules can survive without being destroyed by the star's heat. Outside this ~300 K (~80 F) line, carbon chains safely condense into a solid, sooty dust that mixes with growing planets and asteroids. Many dark, carbon-rich asteroids in our own main asteroid belt formed just past this line. Scientists believe these drifting space rocks eventually crashed into a young Earth, delivering the crucial carbon needed to build the chemistry of life.",
+  },
+  water: {
+    label: "Water freeze",
+    shortLabel: "Snow",
+    tempK: 160,
+    color: "#93d7ff",
+    tooltip: "Water Freeze Line: Often just called the Snowline, this is the crucial border where water turns from a gas directly into solid ice. Crossing into this ~150 to 170 K (~-190 to -154 F) deep freeze creates a massive abundance of solid ice crystals for planet-building. This extra material allows baby planets to quickly grow massive cores with enough gravity to sweep up surrounding gas. Jupiter and Saturn formed just past this line, allowing them to become massive gas giants circled by profoundly icy moons like Europa and Enceladus.",
+  },
+  carbon_dioxide: {
+    label: "CO2 freeze",
+    shortLabel: "CO2",
+    tempK: 70,
+    color: "#b9ebff",
+    tooltip: "Carbon Dioxide Freeze Line: Further out in the dark, the temperature drops until carbon dioxide gas finally freezes solid. At roughly 70 K (~-334 F), what we know on Earth as dry ice becomes a permanent, natural part of the landscape. Planets and moons forming in this region can build up incredibly thick, heavy layers of trapped carbon dioxide. The moons of Uranus, such as Ariel and Umbriel, formed safely past this line, which is why their cratered surfaces still contain hidden deposits of frozen dry ice.",
+  },
+  methane_co: {
+    label: "Methane/CO freeze",
+    shortLabel: "CH4/CO",
+    tempK: 25,
+    color: "#75a8ff",
+    tooltip: "Methane & Carbon Monoxide Freeze Line: In the extreme outer reaches of a star system, it is finally cold enough for methane and carbon monoxide to freeze solid. Worlds that form past this ~20 to 30 K (~-424 to -406 F) boundary sweep up massive amounts of these deep-freeze chemicals. Because these compounds are so common in space, they end up making up a huge percentage of these distant worlds' overall volume. Sweeping up all this frozen methane is exactly what gives ice giants like Uranus and Neptune their beautiful, deep blue colors.",
+  },
+  nitrogen: {
+    label: "Nitrogen freeze",
+    shortLabel: "N2",
+    tempK: 13.5,
+    color: "#b58cff",
+    tooltip: "Nitrogen Freeze Line: This ultimate boundary marks the very edge of the planetary system, where almost nothing can exist as a gas except hydrogen and helium. Temperatures of ~12 to 15 K (~-438 to -433 F) are so close to absolute zero that even nitrogen gas freezes solid. Worlds born past this line are quiet, frozen time capsules made of the most fragile ices in the universe. We see this exact phenomenon on dwarf planets like Pluto, where the extreme cold creates massive, slowly flowing glaciers made entirely of solid nitrogen.",
+  },
+};
+
+const FORMATION_LINE_ORDER = ["vaporization", "soot", "water", "carbon_dioxide", "methane_co", "nitrogen"];
+const DEFAULT_FORMATION_LINE_VISIBILITY = FORMATION_LINE_ORDER.reduce((acc, key) => ({ ...acc, [key]: false }), {});
+
 function habitableZoneBoundsAu(star) {
   const luminosity = numericField(star?.fields, "luminosity_lsun");
   if (!Number.isFinite(luminosity) || luminosity <= 0) {
@@ -791,6 +839,49 @@ function habitableZoneBoundsAu(star) {
     luminosity,
     innerAu: Math.sqrt(luminosity / 1.7),
     outerAu: Math.sqrt(luminosity / 0.35),
+  };
+}
+
+function formationLineRadiusAu(star, line) {
+  const luminosity = numericField(star?.fields, "luminosity_lsun");
+  const tempK = Number(line?.tempK);
+  if (!Number.isFinite(luminosity) || luminosity <= 0 || !Number.isFinite(tempK) || tempK <= 0) {
+    return null;
+  }
+  return Math.sqrt(luminosity) * (278 / tempK) ** 2;
+}
+
+function formationLineGuideField(star, line, radiusAu) {
+  const luminosityField = fieldRecord(star?.fields, "luminosity_lsun");
+  return {
+    key: `${line.shortLabel.toLowerCase()}_formation_line_guide`,
+    label: `${line.label} line`,
+    value: radiusAu,
+    unit: "AU",
+    status: luminosityField?.status === "missing" ? "missing" : "derived",
+    layer: "render_scene",
+    source_catalog: luminosityField?.source_catalog || "spacegate_renderer",
+    source_reference: luminosityField?.source_reference,
+    basis: "sqrt(luminosity_lsun) * (278K / condensation_temperature_K)^2",
+    confidence: luminosityField?.confidence ?? null,
+    notes: `Presentation guide for a ${formatNumber(line.tempK, 1)} K condensation/freeze boundary; radius=${formatNumber(radiusAu, 3)} AU. This is not a protoplanetary disk chemistry model.`,
+  };
+}
+
+function formationLineHoverPayload(star, line, radiusAu) {
+  const guideField = formationLineGuideField(star, line, radiusAu);
+  return {
+    kind: "Formation line",
+    name: `${star.display_name || star.name || "Star"} ${line.label} line`,
+    id: `${star.render_key || star.key || "star"}:${line.shortLabel.toLowerCase()}-line`,
+    sourceLayer: "render_scene",
+    rows: [
+      readoutRow(star.fields, "luminosity_lsun", "Luminosity", "Unknown", 3),
+      staticReadoutRow("Boundary", `${formatNumber(radiusAu, 3)} AU`, "derived", guideField),
+      staticReadoutRow("Temperature", `${formatNumber(line.tempK, 1)} K`, "derived", guideField),
+      staticReadoutRow("Basis", "Blackbody guide", "derived", guideField),
+    ],
+    fields: [guideField],
   };
 }
 
@@ -2831,7 +2922,50 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], simulationTree = null, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, showLabels = true, selectedObjectId = "" }) {
+  const groupRef = React.useRef(null);
+  const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
+  const planeInclinationRad = THREE.MathUtils.degToRad(planeInclinationDeg);
+  const radiusAu = formationLineRadiusAu(star, line);
+  const radius = radiusAu ? scaledPlanetOrbitRadius(radiusAu, maxOrbit, visualScale, scaleMode) : 0;
+  const points = useMemo(() => sampledOrbitPoints(radius, 0, planeInclinationRad, 192), [radius, planeInclinationRad]);
+  const labelPosition = useMemo(() => orbitalPosition(Math.PI / 3, radius, 0, planeInclinationRad), [radius, planeInclinationRad]);
+  const hoverPayload = useMemo(() => (radiusAu ? formationLineHoverPayload(star, line, radiusAu) : null), [star, line, radiusAu]);
+  const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
+
+  useFrame(() => {
+    if (!groupRef.current) {
+      return;
+    }
+    const simDays = currentSimulationDays(simClockRef);
+    const treeCenter = simulationTreeBodyPositionAt(treeContext, treeHostBodyKey, simDays);
+    groupRef.current.position.set(...(treeCenter || addVector(center, combinedGroupOffsetAt(groupKeys, groupMotionSpecs, simDays, layout))));
+  });
+
+  if (!radiusAu || radius <= 0) {
+    return null;
+  }
+
+  return (
+    <group ref={groupRef} position={center} data-testid={`system-preview-formation-line-${lineKey}`}>
+      <lineLoop userData={{ hoverPayload }}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[points, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={line.color} transparent opacity={selected ? 0.95 : 0.7} />
+      </lineLoop>
+      <SceneLabel
+        text={line.shortLabel}
+        position={labelPosition}
+        color={line.color}
+        scale={0.7}
+        visible={showLabels}
+      />
+    </group>
+  );
+}
+
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], simulationTree = null, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -2896,10 +3030,17 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   const hzOuterAuValues = displayStars
     .map((star) => habitableZoneBoundsAu(star)?.outerAu)
     .filter((value) => Number.isFinite(value) && value > 0);
+  const activeFormationLineKeys = FORMATION_LINE_ORDER.filter((key) => showFormationLines?.[key]);
+  const formationLineAuValues = activeFormationLineKeys.flatMap((key) => (
+    displayStars
+      .map((star) => formationLineRadiusAu(star, FORMATION_LINE_TYPES[key]))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  ));
   const maxOrbit = Math.max(
     0.1,
     ...planets.map((planet) => planet.orbitAu || 0.1),
     ...hzOuterAuValues,
+    ...formationLineAuValues,
   );
   const displayPlanets = useMemo(() => (
     applyPlanetDisplayOrbitGeometry(planets, maxOrbit, visualScale, activeScaleMode)
@@ -2972,7 +3113,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     ...habitableZoneStars.map((star) => Number(star.habitable_zone_plane_inclination_deg) || 0),
   );
   const sceneLabelCount = showLabels
-    ? displayStars.length + planetPlacements.length + subsystems.length + (showHabitableZones ? habitableZoneStars.length : 0)
+    ? displayStars.length + planetPlacements.length + subsystems.length + (showHabitableZones ? habitableZoneStars.length : 0) + (activeFormationLineKeys.length * habitableZoneStars.length)
     : 0;
   const spectralLabelCount = showLabels
     ? displayStars.filter((star) => Boolean(compactSpectralLabel(starClassProvenanceField(star).value))).length
@@ -3051,6 +3192,29 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
           />
         );
       })}
+      {activeFormationLineKeys.flatMap((lineKey) => habitableZoneStars.map((star) => {
+        const starKey = star.render_key || star.key;
+        return (
+          <FormationLineRing
+            key={`${starKey}:${lineKey}`}
+            star={star}
+            lineKey={lineKey}
+            line={FORMATION_LINE_TYPES[lineKey]}
+            center={layout.starPositions.get(starKey) || [0, 0, 0]}
+            maxOrbit={maxOrbit}
+            visualScale={visualScale}
+            scaleMode={activeScaleMode}
+            groupKeys={groupKeysForStarKeys([starKey], layout)}
+            groupMotionSpecs={groupMotionSpecs}
+            layout={layout}
+            treeContext={simulationTreeContext}
+            treeHostBodyKey={starKey}
+            simClockRef={simClockRef}
+            showLabels={showLabels}
+            selectedObjectId={selectedObjectId}
+          />
+        );
+      }))}
       {useSimulationTree && (
         <SimulationTreeObjects
           simulationTree={simulationTree}
@@ -3209,7 +3373,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showLabels = true, selectedObjectId = "", transparentBackground = false, onHover, onSelect, onClockSample }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, onHover, onSelect, onClockSample }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3302,6 +3466,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         resetToken={resetToken}
         showOrbits={showOrbits}
         showHabitableZones={showHabitableZones}
+        showFormationLines={showFormationLines}
         showLabels={showLabels}
         selectedObjectId={selectedObjectId}
         onHover={onHover}
@@ -3536,6 +3701,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [resetToken, setResetToken] = useState(0);
   const [showOrbits, setShowOrbits] = useState(true);
   const [showHabitableZones, setShowHabitableZones] = useState(true);
+  const [showFormationLines, setShowFormationLines] = useState(DEFAULT_FORMATION_LINE_VISIBILITY);
   const [showLabels, setShowLabels] = useState(true);
   const [scaleMode, setScaleMode] = useState("structure");
   const [hoveredObject, setHoveredObject] = useState(null);
@@ -3658,9 +3824,28 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         onClick={() => setShowHabitableZones((value) => !value)}
         aria-pressed={showHabitableZones}
         disabled={status !== "ready" || webglReady === false}
+        title="Show or hide the broad stellar habitable zone. This is a presentation guide from stellar luminosity and broad flux bounds, not a climate model."
       >
         {showHabitableZones ? "HZ On" : "HZ Off"}
       </button>
+      {FORMATION_LINE_ORDER.map((lineKey) => {
+        const line = FORMATION_LINE_TYPES[lineKey];
+        const active = Boolean(showFormationLines[lineKey]);
+        return (
+          <button
+            key={lineKey}
+            className="system-preview-toggle system-preview-line-toggle"
+            type="button"
+            onClick={() => setShowFormationLines((current) => ({ ...current, [lineKey]: !current[lineKey] }))}
+            aria-pressed={active}
+            disabled={status !== "ready" || webglReady === false}
+            title={line.tooltip}
+            style={{ "--line-color": line.color }}
+          >
+            {active ? `${line.shortLabel} On` : `${line.shortLabel} Off`}
+          </button>
+        );
+      })}
       <button
         className="system-preview-toggle"
         type="button"
@@ -3704,6 +3889,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 resetToken={resetToken}
                 showOrbits={showOrbits}
                 showHabitableZones={showHabitableZones}
+                showFormationLines={showFormationLines}
                 showLabels={showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
                 transparentBackground={normalizedPresentationMode !== "detail"}

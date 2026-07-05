@@ -785,6 +785,10 @@ Readiness gaps:
   render-scene HZ band based on stellar luminosity and broad 0.35-1.70 Earth
   flux bounds; browser coverage verifies the Sol overlay registers in the
   rendered scene.
+- July 5, 2026 formation-line overlay pass adds default-off simulator toggles
+  for vaporization, soot, water snowline, carbon dioxide, methane/carbon
+  monoxide, and nitrogen freeze boundaries with explanatory tooltips, while HZ
+  remains default-on.
 - June 30, 2026 simulator label pass makes HZ bands default-on, increases HZ
   contrast, and adds default-on billboarding labels below rendered stars,
   planets, and subsystem handles with a compact labels toggle.

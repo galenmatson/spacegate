@@ -344,7 +344,7 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThan(Math.round(beforeResize.height) + 20);
     const storedPeekSize = await page.evaluate(() => window.sessionStorage.getItem("spacegate.map.peekSize") || "");
     expect(storedPeekSize).toContain("width");
-    await expect(page.getByText("Cool Stars Nearby")).toBeVisible();
+    await expect(page.locator(".map-contacts-panel").getByText("Cool Stars Nearby")).toBeVisible();
     await expect(page.getByText("Next Nearby")).toHaveCount(0);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
@@ -902,6 +902,11 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-readout")).not.toContainText(/missing inputs/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/structure/i);
+    await expect(page.locator(".system-preview-toggle", { hasText: "HZ On" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".system-preview-toggle", { hasText: "Vapor Off" })).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("title", /Water Freeze Line/);
+    await page.locator(".system-preview-toggle", { hasText: "Snow Off" }).click();
+    await expect(page.locator(".system-preview-toggle", { hasText: "Snow On" })).toHaveAttribute("aria-pressed", "true");
     const scaleModeSelect = page.locator("[data-testid='system-preview-scale-mode']");
     await expect(scaleModeSelect).toBeVisible();
     await expect.poll(

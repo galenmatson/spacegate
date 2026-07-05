@@ -123,6 +123,16 @@ Already in place:
   the planet orbits. HZ display scaling is normalized against both planet
   orbit radii and all rendered HZ outer bounds in the scene so planetless
   multi-star systems do not inflate every HZ band to planet-orbit scale.
+- optional formation/freeze-line rings can be toggled in the simulator for
+  vaporization, soot, water snowline, carbon dioxide, methane/carbon monoxide,
+  and nitrogen boundaries. These are renderer-only luminosity/temperature
+  guides based on a simple blackbody-radius approximation, default off, and
+  must not be treated as disk-chemistry source facts or canonical habitability
+  claims.
+- AAA/narration work should separately analyze whether binary/multiple-star
+  orbital architecture disrupts a nominal HZ. Sirius A/B is the benchmark case:
+  the renderer can draw the broad HZ guide, while narration should explain how
+  the companion orbit changes the practical habitability story.
 - object labels are visible by default and can be toggled off. Labels are
   renderer-only Drei/Troika SDF text billboards placed just below stars,
   planets, and subsystem handles; HZ labels are placed on the band itself.
