@@ -276,10 +276,11 @@ Initial layers:
     aligned while keeping reloads reproducible
   - surfaces source/derived/assumed/missing provenance pills in the preview
   - deterministic snapshots remain the fallback/reference artifact
-  - Star Search result cards render deterministic snapshot fallbacks by
-    default and promote up to four cards to live WebGL previews on explicit
-    hover/focus/tap activation, protecting the main map canvas from browser
-    WebGL context limits while keeping comparison browsing useful
+  - Star Search result cards render deterministic frame-0 System Simulation
+    snapshots by default when generated, then promote up to four cards to live
+    WebGL previews on explicit hover/focus/tap activation. The transition is
+    designed to feel like the paused card image starts playing while protecting
+    the main map canvas from browser WebGL context limits.
   - summarizes orbit-orientation evidence as source orientation, partial
     sky-plane orientation, assumed roll, or local-clarity layout; this is an
     audit label, not a galactic-alignment guarantee

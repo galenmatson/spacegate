@@ -1142,6 +1142,34 @@ test.describe("public 3D map beta", () => {
     await expect(fallback).toContainText(/WebGL unavailable/i);
   });
 
+  test("internal System Simulation snapshot route renders paused frame", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "snapshot capture route is a fixed desktop artifact surface");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "TRAPPIST-1", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
+
+    await page.setViewportSize({ width: 980, height: 552 });
+    await page.goto(`/internal/sim-snapshot/${systemId}?name=TRAPPIST-1`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-testid='sim-snapshot-capture']")).toBeVisible();
+    const canvasWrap = page.locator(".system-preview-canvas").first();
+    await expect(canvasWrap.locator("canvas")).toBeVisible();
+    await expect.poll(
+      () => canvasWrap.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        return `${Math.round(box.width)}x${Math.round(box.height)}`;
+      }),
+      { timeout: 3000 }
+    ).toBe("980x552");
+    await expect.poll(
+      () => canvasWrap.locator("canvas").evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
+      { timeout: 3000 }
+    ).toBe(0);
+  });
+
   test("system preview falls back when the live scene request fails", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "fallback smoke only needs one browser project");
     const response = await page.request.get("/api/v1/systems/search", {

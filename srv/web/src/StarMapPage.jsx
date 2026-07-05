@@ -1736,7 +1736,7 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
             systemName={displayName}
             snapshot={system.snapshot}
             presentationMode="card"
-            autoRun={false}
+            autoRun
           />
         </React.Suspense>
       ) : (

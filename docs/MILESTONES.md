@@ -931,6 +931,12 @@ Readiness gaps:
   `20260630T_sim_beta_sol_smallbody_v1`, restored `disc.snapshot_manifest`
   coverage for the first map page, and added
   `scripts/verify_snapshot_fallback.py` to prove served fallback assets resolve.
+- July 5, 2026 simulator snapshot pass adds deterministic frame-0 System
+  Simulation PNG generation through `scripts/generate_sim_snapshots.sh` and
+  `/internal/sim-snapshot/{system_id}`. Star Search cards can now display the
+  simulator's paused starting frame, then promote into a running live preview
+  under the four-WebGL-preview budget. Local verification generated PNG
+  `system_card` artifacts for the top five coolness systems.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

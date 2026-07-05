@@ -329,6 +329,50 @@ def _attach_snapshot_url(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+def _resolve_snapshot_build_root(build_id: str) -> Optional[Path]:
+    state_dir = _state_dir()
+    out_dir = (state_dir / "out").resolve()
+
+    def _candidate_metadata_matches(candidate: Path) -> bool:
+        core_path = candidate / "core.duckdb"
+        if not core_path.is_file():
+            return False
+        try:
+            con = duckdb.connect(str(core_path), read_only=True)
+            try:
+                row = con.execute(
+                    """
+                    SELECT value
+                    FROM build_metadata
+                    WHERE key = 'build_id'
+                    LIMIT 1
+                    """
+                ).fetchone()
+            finally:
+                con.close()
+        except Exception:
+            return False
+        return bool(row and str(row[0]) == str(build_id))
+
+    served = state_dir / "served" / "current"
+    if served.exists():
+        served_resolved = served.resolve()
+        if served_resolved.is_dir() and _candidate_metadata_matches(served_resolved):
+            return served_resolved
+
+    direct = (out_dir / build_id).resolve()
+    if direct.is_dir() and out_dir in direct.parents:
+        return direct
+    if not out_dir.is_dir():
+        return None
+    for candidate in out_dir.iterdir():
+        if not candidate.is_dir() or candidate.name.endswith(".tmp"):
+            continue
+        if _candidate_metadata_matches(candidate):
+            return candidate.resolve()
+    return None
+
+
 OBJECT_PROVENANCE_REQUIRED_KEYS = [
     "source_catalog",
     "source_version",
@@ -5263,7 +5307,16 @@ def system_detail_by_key(stable_object_key: str):
 
 @app.get("/api/v1/snapshots/{build_id}/{artifact_path:path}")
 def system_snapshot_asset(build_id: str, artifact_path: str):
-    out_root = (_state_dir() / "out" / build_id).resolve()
+    out_root = _resolve_snapshot_build_root(build_id)
+    if out_root is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "Snapshot not found",
+                "details": {},
+            },
+        )
     candidate = (out_root / artifact_path).resolve()
     if out_root not in candidate.parents and candidate != out_root:
         raise HTTPException(
@@ -5284,7 +5337,13 @@ def system_snapshot_asset(build_id: str, artifact_path: str):
             },
         )
     ext = candidate.suffix.lower()
-    media_type = "image/svg+xml" if ext == ".svg" else "application/octet-stream"
+    media_type = {
+        ".svg": "image/svg+xml",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+    }.get(ext, "application/octet-stream")
     return FileResponse(
         str(candidate),
         media_type=media_type,

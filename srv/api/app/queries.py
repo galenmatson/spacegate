@@ -2338,6 +2338,7 @@ def fetch_snapshot_for_system(
           sm.build_id AS snapshot_build_id,
           sm.view_type AS snapshot_view_type,
           sm.artifact_path AS snapshot_artifact_path,
+          sm.artifact_mime AS snapshot_artifact_mime,
           sm.params_hash AS snapshot_params_hash,
           sm.width_px AS snapshot_width_px,
           sm.height_px AS snapshot_height_px
@@ -2353,6 +2354,7 @@ def fetch_snapshot_for_system(
           AND (sm.system_id = ? OR sm.stable_object_key = ?)
         ORDER BY
           CASE WHEN sm.view_type = 'system_card' THEN 0 ELSE 1 END ASC,
+          CASE WHEN sm.artifact_mime IN ('image/png', 'image/webp', 'image/jpeg') THEN 0 ELSE 1 END ASC,
           sm.created_at DESC
         LIMIT 1
         """,
@@ -2364,9 +2366,10 @@ def fetch_snapshot_for_system(
         "build_id": row[0],
         "view_type": row[1],
         "artifact_path": row[2],
-        "params_hash": row[3],
-        "width_px": int(row[4]) if row[4] is not None else None,
-        "height_px": int(row[5]) if row[5] is not None else None,
+        "artifact_mime": row[3],
+        "params_hash": row[4],
+        "width_px": int(row[5]) if row[5] is not None else None,
+        "height_px": int(row[6]) if row[6] is not None else None,
     }
 
 
@@ -3369,6 +3372,7 @@ def search_systems(
                       sm.build_id AS snapshot_build_id,
                       sm.view_type AS snapshot_view_type,
                       sm.artifact_path AS snapshot_artifact_path,
+                      sm.artifact_mime AS snapshot_artifact_mime,
                       sm.params_hash AS snapshot_params_hash,
                       sm.width_px AS snapshot_width_px,
                       sm.height_px AS snapshot_height_px,
@@ -3376,6 +3380,7 @@ def search_systems(
                         PARTITION BY sm.system_id
                         ORDER BY
                           CASE WHEN sm.view_type = 'system_card' THEN 0 ELSE 1 END ASC,
+                          CASE WHEN sm.artifact_mime IN ('image/png', 'image/webp', 'image/jpeg') THEN 0 ELSE 1 END ASC,
                           sm.created_at DESC
                       ) AS snapshot_rn
                     FROM disc_db.snapshot_manifest sm
@@ -3394,6 +3399,7 @@ def search_systems(
                   snapshot_build_id,
                   snapshot_view_type,
                   snapshot_artifact_path,
+                  snapshot_artifact_mime,
                   snapshot_params_hash,
                   snapshot_width_px,
                   snapshot_height_px
@@ -3408,9 +3414,10 @@ def search_systems(
                     "build_id": row[1],
                     "view_type": row[2],
                     "artifact_path": row[3],
-                    "params_hash": row[4],
-                    "width_px": int(row[5]) if row[5] is not None else None,
-                    "height_px": int(row[6]) if row[6] is not None else None,
+                    "artifact_mime": row[4],
+                    "params_hash": row[5],
+                    "width_px": int(row[6]) if row[6] is not None else None,
+                    "height_px": int(row[7]) if row[7] is not None else None,
                 }
             for item in results:
                 sid = int(item.get("system_id") or 0)

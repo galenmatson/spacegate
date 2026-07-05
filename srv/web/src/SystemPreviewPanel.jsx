@@ -3922,7 +3922,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 showLabels={showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
                 transparentBackground={normalizedPresentationMode !== "detail"}
-                frameLoop={cardPresentation ? "demand" : "always"}
+                frameLoop={cardPresentation && !running ? "demand" : "always"}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}

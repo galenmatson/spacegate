@@ -2083,6 +2083,25 @@ function DataPage({ buildId = "" }) {
   );
 }
 
+function SystemSnapshotCapturePage() {
+  const { systemId } = useParams();
+  const [searchParams] = useSearchParams();
+  const systemName = searchParams.get("name") || `System ${systemId}`;
+
+  return (
+    <main className="sim-snapshot-capture" data-testid="sim-snapshot-capture">
+      <React.Suspense fallback={<div className="route-loading">Loading System Simulation...</div>}>
+        <SystemPreviewPanel
+          systemId={systemId}
+          systemName={systemName}
+          presentationMode="card"
+          autoRun={false}
+        />
+      </React.Suspense>
+    </main>
+  );
+}
+
 function SearchPage({ buildId = "" }) {
   const { theme } = useThemeControls();
   const navigate = useNavigate();
@@ -3556,6 +3575,7 @@ export default function App() {
           )}
         />
         <Route path="/systems/:systemId" element={<SystemDetailPage buildId={buildId} />} />
+        <Route path="/internal/sim-snapshot/:systemId" element={<SystemSnapshotCapturePage />} />
       </Routes>
     </ThemeContext.Provider>
   );

@@ -316,7 +316,7 @@ def _auto_coolness_profile_version(weights_json: str) -> str:
 
 
 def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
-    cmd = [str(ROOT_DIR / "scripts" / "generate_snapshots.sh")]
+    cmd = [str(ROOT_DIR / "scripts" / "generate_sim_snapshots.sh")]
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.extend(["--build-id", build_id])
@@ -1051,7 +1051,7 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
     },
     "generate_snapshots": {
         "group_key": "presentation",
-        "purpose": "Renders snapshot images for filtered coolness-ranked systems.",
+        "purpose": "Renders frame-0 System Simulation snapshot images for filtered coolness-ranked systems.",
         "prerequisites": "Run after scoring when top targets or view parameters changed.",
         "writes_to": "Snapshot assets and manifests in disc/build artifact paths.",
         "outputs": ["snapshot files", "snapshot_manifest rows/artifacts", "snapshot_report.json", "structured progress lines in the job log"],
@@ -1414,7 +1414,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "generate_snapshots": ActionSpec(
         name="generate_snapshots",
         display_name="Generate Snapshots",
-        description="Render system snapshot images for filtered top coolness-ranked systems (defaults to top 1,000).",
+        description="Render frame-0 System Simulation snapshot images for filtered top coolness-ranked systems (defaults to top 1,000).",
         params_schema={
             "build_id": {
                 "type": "string",

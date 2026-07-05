@@ -524,8 +524,14 @@ Success criteria:
   deterministic snapshot fallback. Star Search cards use snapshot-first
   previews and a four-live-preview budget to avoid Chromium/Brave context
   exhaustion while scrolling large result lists.
+- `scripts/generate_sim_snapshots.sh` captures deterministic frame-0
+  System Simulation PNG artifacts through the internal
+  `/internal/sim-snapshot/{system_id}` route. These `system_card` images use
+  the same Three.js/R3F renderer, camera, structure scale, deterministic phase
+  seeds, and paused simulation day 0 that live card previews use before they
+  start running on hover/focus/tap.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
-  map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
+  map snapshot coverage and that sampled detail snapshot URLs resolve to image
   fallback assets
 - source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness/render payloads
@@ -535,7 +541,9 @@ Success criteria:
 - benchmark simulator assumptions are materialized in the current DISC artifact
   with `simulation_assumptions_materializer_v1`; broader reviewed curation and
   batch policy remain future work
-- static snapshots remain the fallback for browsers/devices without usable 3D
+- static snapshots remain the fallback for browsers/devices without usable 3D;
+  generated card snapshots should now come from the System Simulation renderer,
+  with the older SVG generator retained only as a simple emergency fallback
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 
 Resolved local benchmark blockers:

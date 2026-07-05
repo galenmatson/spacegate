@@ -564,6 +564,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Make Star Search result cards snapshot-first with a four-active live
   WebGL preview and simulator context-loss fallback to avoid browser WebGL
   context exhaustion while scrolling
+- [x] Add deterministic frame-0 System Simulation PNG snapshot generation and
+  make generated card images transition into running live previews on
+  hover/focus/tap
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

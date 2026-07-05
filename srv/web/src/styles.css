@@ -8161,3 +8161,29 @@ main {
     margin-left: 0;
   }
 }
+
+.sim-snapshot-capture {
+  width: 980px;
+  height: 552px;
+  overflow: hidden;
+  background: #050b12;
+}
+
+.sim-snapshot-capture .system-preview-panel,
+.sim-snapshot-capture .system-preview-layout,
+.sim-snapshot-capture .system-preview-canvas {
+  width: 980px;
+  height: 552px;
+  min-height: 552px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #050b12;
+  box-shadow: none;
+}
+
+.sim-snapshot-capture .system-preview-snapshot-fallback,
+.sim-snapshot-capture .system-preview-fallback {
+  width: 980px;
+  height: 552px;
+}
