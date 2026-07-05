@@ -1701,7 +1701,7 @@ function LazyStarSearchPreview({ system, displayName }) {
         const entry = entries[0];
         setVisible(Boolean(entry?.isIntersecting));
       },
-      { root: null, rootMargin: "360px 0px", threshold: 0.01 }
+      { root: null, rootMargin: "120px 0px", threshold: 0.01 }
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -1716,6 +1716,7 @@ function LazyStarSearchPreview({ system, displayName }) {
             systemName={displayName}
             snapshot={system.snapshot}
             presentationMode="card"
+            autoRun={false}
           />
         </React.Suspense>
       ) : (

@@ -904,9 +904,14 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/structure/i);
     await expect(page.locator(".system-preview-toggle", { hasText: "HZ On" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".system-preview-toggle", { hasText: "Vapor Off" })).toHaveAttribute("aria-pressed", "false");
-    await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("title", /Water Freeze Line/);
+    await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("title", /Water Freeze Line.*deg F/);
     await page.locator(".system-preview-toggle", { hasText: "Snow Off" }).click();
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow On" })).toHaveAttribute("aria-pressed", "true");
+    await page.locator(".system-preview-toggle", { hasText: "HZ On" }).click();
+    await expect(page.locator(".system-preview-toggle", { hasText: "HZ Off" })).toHaveAttribute("aria-pressed", "false");
+    await page.locator(".system-preview-toggle", { hasText: "Reset" }).click();
+    await expect(page.locator(".system-preview-toggle", { hasText: "HZ On" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("aria-pressed", "false");
     const scaleModeSelect = page.locator("[data-testid='system-preview-scale-mode']");
     await expect(scaleModeSelect).toBeVisible();
     await expect.poll(

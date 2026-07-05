@@ -788,47 +788,48 @@ const FORMATION_LINE_TYPES = {
     shortLabel: "Vapor",
     tempK: 1500,
     color: "#ff6e47",
-    tooltip: "Vaporization Line: This is the absolute inner edge of a star system where planets can begin to form. Closer to the star, the intense heat vaporizes even heavy rocks and metals directly into gas. Moving past this ~1,500 K (~2,240 F) boundary allows rocky dust to finally stay solid and stick together. Because worlds like Mercury, Earth, and Mars formed safely outside this line, they were able to successfully build and keep their solid, rocky crusts.",
+    tooltip: "Vaporization Line: This is the absolute inner edge of a star system where planets can begin to form. Closer to the star, the intense heat vaporizes even heavy rocks and metals directly into gas. Moving past this ~1,500 K (~2,240 deg F) boundary allows rocky dust to finally stay solid and stick together. Because worlds like Mercury, Earth, and Mars formed safely outside this line, they were able to successfully build and keep their solid, rocky crusts.",
   },
   soot: {
     label: "Soot",
     shortLabel: "Soot",
     tempK: 300,
     color: "#d49a58",
-    tooltip: "Soot Line: This boundary marks the spot where complex, carbon-based molecules can survive without being destroyed by the star's heat. Outside this ~300 K (~80 F) line, carbon chains safely condense into a solid, sooty dust that mixes with growing planets and asteroids. Many dark, carbon-rich asteroids in our own main asteroid belt formed just past this line. Scientists believe these drifting space rocks eventually crashed into a young Earth, delivering the crucial carbon needed to build the chemistry of life.",
+    tooltip: "Soot Line: This boundary marks the spot where complex, carbon-based molecules can survive without being destroyed by the star's heat. Outside this ~300 K (~80 deg F) line, carbon chains safely condense into a solid, sooty dust that mixes with growing planets and asteroids. Many dark, carbon-rich asteroids in our own main asteroid belt formed just past this line. Scientists believe these drifting space rocks eventually crashed into a young Earth, delivering the crucial carbon needed to build the chemistry of life.",
   },
   water: {
     label: "Water freeze",
     shortLabel: "Snow",
     tempK: 160,
     color: "#93d7ff",
-    tooltip: "Water Freeze Line: Often just called the Snowline, this is the crucial border where water turns from a gas directly into solid ice. Crossing into this ~150 to 170 K (~-190 to -154 F) deep freeze creates a massive abundance of solid ice crystals for planet-building. This extra material allows baby planets to quickly grow massive cores with enough gravity to sweep up surrounding gas. Jupiter and Saturn formed just past this line, allowing them to become massive gas giants circled by profoundly icy moons like Europa and Enceladus.",
+    tooltip: "Water Freeze Line: Often just called the Snowline, this is the crucial border where water turns from a gas directly into solid ice. Crossing into this ~150 to 170 K (~-190 to -154 deg F) deep freeze creates a massive abundance of solid ice crystals for planet-building. This extra material allows baby planets to quickly grow massive cores with enough gravity to sweep up surrounding gas. Jupiter and Saturn formed just past this line, allowing them to become massive gas giants circled by profoundly icy moons like Europa and Enceladus.",
   },
   carbon_dioxide: {
     label: "CO2 freeze",
     shortLabel: "CO2",
     tempK: 70,
     color: "#b9ebff",
-    tooltip: "Carbon Dioxide Freeze Line: Further out in the dark, the temperature drops until carbon dioxide gas finally freezes solid. At roughly 70 K (~-334 F), what we know on Earth as dry ice becomes a permanent, natural part of the landscape. Planets and moons forming in this region can build up incredibly thick, heavy layers of trapped carbon dioxide. The moons of Uranus, such as Ariel and Umbriel, formed safely past this line, which is why their cratered surfaces still contain hidden deposits of frozen dry ice.",
+    tooltip: "Carbon Dioxide Freeze Line: Further out in the dark, the temperature drops until carbon dioxide gas finally freezes solid. At roughly 70 K (~-334 deg F), what we know on Earth as dry ice becomes a permanent, natural part of the landscape. Planets and moons forming in this region can build up incredibly thick, heavy layers of trapped carbon dioxide. The moons of Uranus, such as Ariel and Umbriel, formed safely past this line, which is why their cratered surfaces still contain hidden deposits of frozen dry ice.",
   },
   methane_co: {
     label: "Methane/CO freeze",
     shortLabel: "CH4/CO",
     tempK: 25,
     color: "#75a8ff",
-    tooltip: "Methane & Carbon Monoxide Freeze Line: In the extreme outer reaches of a star system, it is finally cold enough for methane and carbon monoxide to freeze solid. Worlds that form past this ~20 to 30 K (~-424 to -406 F) boundary sweep up massive amounts of these deep-freeze chemicals. Because these compounds are so common in space, they end up making up a huge percentage of these distant worlds' overall volume. Sweeping up all this frozen methane is exactly what gives ice giants like Uranus and Neptune their beautiful, deep blue colors.",
+    tooltip: "Methane & Carbon Monoxide Freeze Line: In the extreme outer reaches of a star system, it is finally cold enough for methane and carbon monoxide to freeze solid. Worlds that form past this ~20 to 30 K (~-424 to -406 deg F) boundary sweep up massive amounts of these deep-freeze chemicals. Because these compounds are so common in space, they end up making up a huge percentage of these distant worlds' overall volume. Sweeping up all this frozen methane is exactly what gives ice giants like Uranus and Neptune their beautiful, deep blue colors.",
   },
   nitrogen: {
     label: "Nitrogen freeze",
     shortLabel: "N2",
     tempK: 13.5,
     color: "#b58cff",
-    tooltip: "Nitrogen Freeze Line: This ultimate boundary marks the very edge of the planetary system, where almost nothing can exist as a gas except hydrogen and helium. Temperatures of ~12 to 15 K (~-438 to -433 F) are so close to absolute zero that even nitrogen gas freezes solid. Worlds born past this line are quiet, frozen time capsules made of the most fragile ices in the universe. We see this exact phenomenon on dwarf planets like Pluto, where the extreme cold creates massive, slowly flowing glaciers made entirely of solid nitrogen.",
+    tooltip: "Nitrogen Freeze Line: This ultimate boundary marks the very edge of the planetary system, where almost nothing can exist as a gas except hydrogen and helium. Temperatures of ~12 to 15 K (~-438 to -433 deg F) are so close to absolute zero that even nitrogen gas freezes solid. Worlds born past this line are quiet, frozen time capsules made of the most fragile ices in the universe. We see this exact phenomenon on dwarf planets like Pluto, where the extreme cold creates massive, slowly flowing glaciers made entirely of solid nitrogen.",
   },
 };
 
 const FORMATION_LINE_ORDER = ["vaporization", "soot", "water", "carbon_dioxide", "methane_co", "nitrogen"];
 const DEFAULT_FORMATION_LINE_VISIBILITY = FORMATION_LINE_ORDER.reduce((acc, key) => ({ ...acc, [key]: false }), {});
+const defaultFormationLineVisibility = () => ({ ...DEFAULT_FORMATION_LINE_VISIBILITY });
 
 function habitableZoneBoundsAu(star) {
   const luminosity = numericField(star?.fields, "luminosity_lsun");
@@ -3373,7 +3374,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, onHover, onSelect, onClockSample }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", onHover, onSelect, onClockSample }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3447,6 +3448,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
     <Canvas
       camera={{ position: [0, 6.2, 10.8], fov: 43 }}
       dpr={[1, 1.75]}
+      frameloop={frameLoop}
       gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
     >
       {!transparentBackground && <color attach="background" args={["#050b12"]} />}
@@ -3692,16 +3694,16 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail" }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
-  const [running, setRunning] = useState(true);
+  const [running, setRunning] = useState(Boolean(autoRun));
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
   const [showOrbits, setShowOrbits] = useState(true);
   const [showHabitableZones, setShowHabitableZones] = useState(true);
-  const [showFormationLines, setShowFormationLines] = useState(DEFAULT_FORMATION_LINE_VISIBILITY);
+  const [showFormationLines, setShowFormationLines] = useState(defaultFormationLineVisibility);
   const [showLabels, setShowLabels] = useState(true);
   const [scaleMode, setScaleMode] = useState("structure");
   const [hoveredObject, setHoveredObject] = useState(null);
@@ -3763,6 +3765,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
   const embeddedPresentation = normalizedPresentationMode !== "detail";
+  const cardPresentation = normalizedPresentationMode === "card";
   const showDiagnostics = !compactPresentation && (evidenceFields.length > 0 || (status === "ready" && scene));
 
   const renderPreviewActions = () => (
@@ -3803,6 +3806,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         type="button"
         onClick={() => {
           setSimulationDays(0);
+          setShowHabitableZones(true);
+          setShowFormationLines(defaultFormationLineVisibility());
           setResetToken((value) => value + 1);
         }}
         disabled={status !== "ready" || webglReady === false}
@@ -3893,6 +3898,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 showLabels={showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
                 transparentBackground={normalizedPresentationMode !== "detail"}
+                frameLoop={cardPresentation ? "demand" : "always"}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}

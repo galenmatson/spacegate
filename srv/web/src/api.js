@@ -1,5 +1,7 @@
 const rawBase = import.meta.env.VITE_API_BASE || "";
 const API_BASE = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
+const SIMULATION_SCENE_CACHE_LIMIT = 128;
+const simulationSceneCache = new Map();
 
 export function apiUrl(path) {
   const normalizedPath = String(path || "").startsWith("/") ? path : `/${path}`;
@@ -28,13 +30,32 @@ export async function fetchSystemDetail(systemId) {
 }
 
 export async function fetchSystemSimulationScene(systemId) {
-  const url = apiUrl(`/api/v1/systems/${systemId}/simulation-scene`);
-  const res = await fetch(url);
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Simulation scene failed: ${res.status} ${detail}`);
+  const cacheKey = String(systemId || "");
+  if (simulationSceneCache.has(cacheKey)) {
+    const cached = simulationSceneCache.get(cacheKey);
+    simulationSceneCache.delete(cacheKey);
+    simulationSceneCache.set(cacheKey, cached);
+    return cached;
   }
-  return res.json();
+  const url = apiUrl(`/api/v1/systems/${systemId}/simulation-scene`);
+  const request = fetch(url)
+    .then(async (res) => {
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`Simulation scene failed: ${res.status} ${detail}`);
+      }
+      return res.json();
+    })
+    .catch((error) => {
+      simulationSceneCache.delete(cacheKey);
+      throw error;
+    });
+  simulationSceneCache.set(cacheKey, request);
+  if (simulationSceneCache.size > SIMULATION_SCENE_CACHE_LIMIT) {
+    const oldestKey = simulationSceneCache.keys().next().value;
+    simulationSceneCache.delete(oldestKey);
+  }
+  return request;
 }
 
 export async function fetchMapSystems(params = {}) {
