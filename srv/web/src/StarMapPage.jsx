@@ -1686,6 +1686,7 @@ function MapStarSearchShell({
   systems,
   selectedSystem,
   selectionHistory,
+  suggestedNeighbors,
   filters,
   filterExtents,
   matchedCount,
@@ -1811,6 +1812,19 @@ function MapStarSearchShell({
             ))}
           </div>
         </details>
+        {selectedSystem && suggestedNeighbors?.length > 0 && (
+          <details className="map-search-recents" open>
+            <summary><span className="map-panel-label">Cool Stars Nearby</span></summary>
+            <div>
+              {suggestedNeighbors.slice(0, 8).map(({ system, routeDistance }) => (
+                <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
+                  <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} />
+                  <span>{formatNumber(routeDistance, 1)} ly</span>
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
       </aside>
 
       {resultsOpen && (
@@ -2451,7 +2465,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
 
   return (
     <div
-      className={`map-page ${telemetry.locked ? "reticle-active" : ""} map-drill-${drillMode}`}
+      className={`map-page ${telemetry.locked ? "reticle-active" : ""} ${mapSearchOpen ? "map-search-active" : ""} map-drill-${drillMode}`}
       ref={pageRef}
       data-map-drill-mode={drillMode}
     >
@@ -2602,6 +2616,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         systems={systems}
         selectedSystem={selectedSystem}
         selectionHistory={selectionHistory}
+        suggestedNeighbors={suggestedNeighbors}
         filters={mapSearchFilters}
         filterExtents={filterExtents}
         matchedCount={activeMapFilter ? filteredMapSystems.length : systems.length}
