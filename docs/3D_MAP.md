@@ -169,11 +169,14 @@ Initial layers:
   - the candidate set is periodically re-ranked from camera distance plus
     map-priority score so exploration does not remain visually anchored only
     around Sol
-  - future label controls should let users tune labeled systems by distance
-    from camera, coolness, planet count, spectral/object type, and other
-    Star-Browser-like filters; the current showcase avoids flooding the map
-    with Gaia-only identifiers, which can leave sparse views in weakly named
-    regions
+  - future Star Search-on-map controls should let users materialize labeled
+    systems through filters rather than only through adaptive priority:
+    distance from the current camera/viewpoint, star count, planet count,
+    coolness, habitable-zone planet presence, spectral classes, and
+    temperature range. Active filters override the default adaptive labeling
+    behavior: matching systems receive labels and nonmatching systems fade or
+    hide. The current showcase avoids flooding the map with Gaia-only
+    identifiers, which can leave sparse views in weakly named regions.
 - reticle and selection marker
   - selected systems use a tilted orbiting-planet accent instead of a bright
     center circle, preserving the object label while echoing the

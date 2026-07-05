@@ -280,10 +280,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   without returning to a fixed Sol-neighborhood label set
 - [x] 3D map label-density adaptation that admits more labels in sparse camera
   fields and fades lower-priority labels harder when the field is crowded
-- [ ] Design configurable Star Map label controls alongside the Star Browser
-  rewrite: allow users to materialize labeled systems by distance from camera,
-  coolness, planet count, spectral/object type, and other browser-like filters
-  without falling back to noisy Gaia-only labels by default
+- [ ] Design configurable Star Search-on-map controls: tight sidebar filters,
+  top search, recent systems, dual-handle ranges for viewpoint distance, star
+  count, planet count, and coolness, habitable-zone toggle with explanatory
+  tooltip, spectral-class selector bar, and temperature range slider
+- [ ] Make active Star Search-on-map filters override default adaptive map
+  labels: matching systems materialize labels and nonmatching systems fade or
+  hide without falling back to noisy Gaia-only labels by default
 - [x] Fix common-name alias regression: `Castor` should resolve to
   `66alp Gem` / WDS 07346+3153 in search and system detail aliases
 - [x] Add alias-search build gate covering restored AT-HYG common names,
@@ -354,6 +357,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   the browser for clarity-scaled radii/orbit spacing
 - [x] Add selectable simulator scale modes for Structure, True Orbits, True
   Bodies, and Log Scale without changing science-layer values
+- [ ] Add a true physical simulator scale mode where both orbit distances and
+  body radii use one shared linear scale, with explicit usability warnings and
+  enough zoom range to inspect compact inner systems inside wide outer systems
+- [ ] Add WASD/ESDF/numpad/arrow-style flight controls to standalone System
+  Simulation Explorer/detail contexts, matching Star Map keybind policy where
+  practical
 - [x] Add collision-safe Structure-mode star radius caps with separate visible,
   halo, and picking radii, plus browser diagnostics/coverage
 - [x] Add animated planet trails for strict body-scale views and display-only

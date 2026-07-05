@@ -808,6 +808,17 @@ Readiness gaps:
   toward the selected system and expands the same simulation layer. Suggested
   nearby systems are ranked from the current 100 ly map payload by coolness,
   distance, planets, multiplicity, and readable names.
+- Future Star Search-on-map milestone should rebuild search as a map-native
+  exploration layer rather than a separate page: a tight sidebar for filters
+  and recents, top search, dual-handle ranges for viewpoint-relative distance,
+  star count, planet count, and coolness, a habitable-zone toggle, and a
+  compact spectral/temperature selector bar. Active filters should override
+  adaptive label selection so matching systems materialize labels directly in
+  the 3D field while nonmatches fade or hide.
+- Future System Simulation scale/control milestone should add a true physical
+  scale mode with one shared linear scale for bodies and orbits, improve zoom
+  range for compact inner-system inspection inside wide systems, and extend
+  Star Map-style keyboard flight controls into Explorer/detail simulations.
 - July 1, 2026 map minimization pass removes the redundant selected-system
   card entirely, moves selected vitals into transparent simulation overlay
   pills, places Pause/Start/Reset plus speed and Structured/Orbit/Body/Log

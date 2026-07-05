@@ -317,6 +317,11 @@ Rules:
   body-size contrast, and `log` compresses large ranges. All modes are
   browser/render transforms only; source values remain in provenance fields and
   core/ARM rows.
+- Future scale work should add a distinct true-physical mode where bodies and
+  orbits share one linear scale. This mode is expected to make most bodies tiny
+  and most compact inner systems difficult to inspect without extended zoom
+  range, halos, labels, and camera aids. It is a reference/education mode, not
+  the default readability mode.
 - Unreviewed Agency output may propose evidence or assumptions, but must not
   write directly into `core`.
 
