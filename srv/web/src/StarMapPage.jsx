@@ -2139,6 +2139,30 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, [drillMode, exitDrillMode, routeMenu]);
 
   useEffect(() => {
+    const onPointerDown = (event) => {
+      if (drillMode === "flight" || event.button !== 0) {
+        return;
+      }
+      const target = event.target;
+      const inSystemDrill = target?.closest?.(".map-system-drill");
+      const inMapHud = target?.closest?.(
+        ".map-hud-top, .map-star-search, .map-context-menu, .map-controls-panel, .map-contacts-panel, .map-status-panel, .map-return-banner"
+      );
+      if (inSystemDrill || inMapHud) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      exitDrillMode(drillMode === "explore");
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [drillMode, exitDrillMode]);
+
+  useEffect(() => {
     if (!rawSystems.length) {
       setSystems([]);
       return;
