@@ -520,6 +520,10 @@ Success criteria:
   the active `sceneLabelRenderer` diagnostic.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
+- WebGL context loss inside a simulator panel is trapped and downgraded to the
+  deterministic snapshot fallback. Star Search cards use snapshot-first
+  previews and only one active live preview to avoid Chromium/Brave context
+  exhaustion while scrolling large result lists.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
   fallback assets

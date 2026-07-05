@@ -561,6 +561,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   third-party Spacegate installs can set their own site name cleanly
 - [x] Surface simulator orientation basis labels for source orientation,
   partial sky-plane orientation, assumed roll, and local-clarity layout
+- [x] Make Star Search result cards snapshot-first with one active live
+  WebGL preview and simulator context-loss fallback to avoid browser WebGL
+  context exhaustion while scrolling
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

@@ -90,6 +90,11 @@ test.describe("public 3D map beta", () => {
       const box = await page.locator(".map-search-card-preview").first().boundingBox();
       return Math.round(box?.height || 0);
     }).toBeGreaterThan(180);
+    await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(0);
+    const liveButton = page.locator(".map-search-card-preview").first().getByRole("button", { name: /live preview/i });
+    await expect(liveButton).toBeVisible();
+    await liveButton.click();
+    await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(1);
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {

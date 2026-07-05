@@ -1687,9 +1687,20 @@ function buildSearchParamsFromFilters(filters, origin, query = "", sort = "dista
   return params;
 }
 
-function LazyStarSearchPreview({ system, displayName }) {
+function LazyStarSearchPreview({ system, displayName, liveActive = false, onActivate, onDeactivate }) {
   const ref = useRef(null);
+  const hoverTimerRef = useRef(0);
   const [visible, setVisible] = useState(false);
+  const activateLive = useCallback(() => {
+    window.clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => onActivate?.(system.system_id), 180);
+  }, [onActivate, system.system_id]);
+  const deactivateLive = useCallback(() => {
+    window.clearTimeout(hoverTimerRef.current);
+    if (liveActive) {
+      onDeactivate?.(system.system_id);
+    }
+  }, [liveActive, onDeactivate, system.system_id]);
 
   useEffect(() => {
     const node = ref.current;
@@ -1707,9 +1718,26 @@ function LazyStarSearchPreview({ system, displayName }) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => () => window.clearTimeout(hoverTimerRef.current), []);
+
+  useEffect(() => {
+    if (!visible && liveActive) {
+      onDeactivate?.(system.system_id);
+    }
+  }, [liveActive, onDeactivate, system.system_id, visible]);
+
+  const showLivePreview = visible && liveActive;
+
   return (
-    <div ref={ref} className="map-search-card-preview">
-      {visible ? (
+    <div
+      ref={ref}
+      className={`map-search-card-preview ${showLivePreview ? "is-live" : ""}`}
+      onPointerEnter={activateLive}
+      onPointerLeave={deactivateLive}
+      onFocusCapture={() => onActivate?.(system.system_id)}
+      onBlurCapture={deactivateLive}
+    >
+      {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
           <SystemPreviewPanel
             systemId={system.system_id}
@@ -1721,6 +1749,11 @@ function LazyStarSearchPreview({ system, displayName }) {
         </React.Suspense>
       ) : (
         <StarSearchSnapshot snapshot={system.snapshot} systemName={displayName} />
+      )}
+      {!showLivePreview && (
+        <button type="button" className="map-search-preview-live" onClick={() => onActivate?.(system.system_id)}>
+          Live Preview
+        </button>
       )}
     </div>
   );
@@ -1752,6 +1785,7 @@ function MapStarSearchShell({
   onLoadMore,
   searchStats,
 }) {
+  const [activePreviewSystemId, setActivePreviewSystemId] = useState(null);
   const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
   const toggleSpectral = (token) => {
     setFilters((current) => {
@@ -1773,6 +1807,12 @@ function MapStarSearchShell({
   const activeSpectral = new Set(spectralTokens(filters.spectralClass));
   const hasQuery = Boolean(query.trim());
   const selectedSort = !hasQuery && sort === "match" ? "distance" : sort;
+
+  useEffect(() => {
+    if (!resultsOpen || !results.some((system) => String(system.system_id) === String(activePreviewSystemId))) {
+      setActivePreviewSystemId(null);
+    }
+  }, [activePreviewSystemId, results, resultsOpen]);
 
   return (
     <section className={`map-star-search ${open ? "is-open" : ""}`} aria-label="Map-native Star Search">
@@ -1891,7 +1931,15 @@ function MapStarSearchShell({
               const originDistance = Number(system.origin_distance_ly);
               return (
                 <article key={system.system_id} className="map-search-card">
-                  <LazyStarSearchPreview system={system} displayName={displayName} />
+                  <LazyStarSearchPreview
+                    system={system}
+                    displayName={displayName}
+                    liveActive={String(activePreviewSystemId) === String(system.system_id)}
+                    onActivate={(systemId) => setActivePreviewSystemId(systemId)}
+                    onDeactivate={(systemId) => {
+                      setActivePreviewSystemId((current) => (String(current) === String(systemId) ? null : current));
+                    }}
+                  />
                   <div className="map-search-card-body">
                     <h3>{displayName}</h3>
                     <div className="map-search-card-metrics">

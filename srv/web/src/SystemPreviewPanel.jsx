@@ -2525,6 +2525,27 @@ function CanvasHoverRaycaster({ onHover }) {
   return null;
 }
 
+function WebGLContextGuard({ onContextLost }) {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const target = gl.domElement;
+    if (!target) {
+      return undefined;
+    }
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      onContextLost?.();
+    };
+    target.addEventListener("webglcontextlost", handleContextLost, false);
+    return () => {
+      target.removeEventListener("webglcontextlost", handleContextLost, false);
+    };
+  }, [gl, onContextLost]);
+
+  return null;
+}
+
 function CameraControls({ resetToken = 0 }) {
   const { camera, gl } = useThree();
   const controlsRef = React.useRef(null);
@@ -3374,7 +3395,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", onHover, onSelect, onClockSample }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", onHover, onSelect, onClockSample, onContextLost }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3452,6 +3473,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
     >
       {!transparentBackground && <color attach="background" args={["#050b12"]} />}
+      <WebGLContextGuard onContextLost={onContextLost} />
       <CameraControls resetToken={resetToken} />
       <CanvasHoverRaycaster onHover={onHover} />
       <PreviewObjects
@@ -3698,6 +3720,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
+  const [contextLost, setContextLost] = useState(false);
   const [running, setRunning] = useState(Boolean(autoRun));
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
@@ -3718,6 +3741,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     const canRenderWebGL = hasUsableWebGL();
     setWebglReady(canRenderWebGL);
     setStatus("loading");
+    setContextLost(false);
     setScene(null);
     setHoveredObject(null);
     setPinnedObject(null);
@@ -3882,8 +3906,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       )}
       <div className="system-preview-layout">
         <div className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
-          {status === "fallback" || webglReady === false
-            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="WebGL unavailable" />
+          {status === "fallback" || webglReady === false || contextLost
+            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason={contextLost ? "WebGL context lost" : "WebGL unavailable"} />
             : status === "ready" && scene
             ? (
               <SceneCanvas
@@ -3902,6 +3926,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}
+                onContextLost={() => setContextLost(true)}
               />
             )
             : (status === "error"

@@ -550,6 +550,7 @@
 }
 
 .map-search-card-preview {
+  position: relative;
   min-height: 192px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--map-hud-border) 36%, transparent);
@@ -579,6 +580,29 @@
 .map-search-card-snapshot {
   display: block;
   object-fit: cover;
+}
+
+.map-search-preview-live {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  color: var(--map-hud-strong);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.map-search-card-preview:hover .map-search-preview-live,
+.map-search-preview-live:focus-visible {
+  border-color: var(--map-hud-border);
+  background: color-mix(in srgb, var(--map-hud-border) 28%, var(--panel));
 }
 
 .map-search-card-fallback,
