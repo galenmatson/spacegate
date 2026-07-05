@@ -16,7 +16,7 @@ Spacegate is now Gaia-first. We preserve source-native records with provenance, 
 | Source | Role | Status | Default |
 | --- | --- | --- | --- |
 | Gaia DR3 backbone (`gaia_source`) | Canonical star inventory | Mandatory | On |
-| Sol authority (`sol_authority`, JPL Horizons) | Sol/Sun/major planets + authoritative Sol orbital scaffold | Mandatory | On |
+| Sol authority (`sol_authority`, JPL Horizons) | Sol/Sun/major planets | Mandatory | On |
 | Sol artificial (`sol_artificial`, JPL Horizons) | Sol spacecraft/station overlay in `arm` | Auxiliary | On |
 | NASA Exoplanet Archive (`pscomppars`) | Canonical exoplanet layer + aliases | Mandatory | On |
 | Exoplanet lifecycle overlays (OEC, Exoplanet.eu, ExoKyoto) | Candidate/controversial lifecycle tracking in `arm` | Auxiliary | On |
@@ -52,15 +52,3 @@ Spacegate is now Gaia-first. We preserve source-native records with provenance, 
 - Deterministic transforms: cooked outputs are reproducible from raw manifests.
 - Conservative matching: confidence-gated cross-catalog joins avoid speculative merges.
 - Canonical separation: immutable science layers (`core/arm`) remain distinct from generated/user layers (`disc/rim`).
-
-## Transport and Security Notes
-
-- HTTPS/TLS sources are preferred by default.
-- Any insecure transport source is explicitly risk-flagged and should be mirrored/pinned before production-default use.
-- Build verification includes source lineage and quality gates before promotion.
-
-## Where To Find More Detail
-
-- Full source policy and matrix: `docs/DATA_SOURCES.md`
-- Iteration history and catalog decisions: `docs/DATASET_ITERATION_HISTORY.md`
-- Sol authority and volatile overlays: `docs/SOL_AUTHORITY.md`
