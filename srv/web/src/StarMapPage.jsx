@@ -14,6 +14,7 @@ const STAR_SEARCH_SORT_OPTIONS = [
   { value: "coolness", label: "Coolest" },
   { value: "name", label: "Name" },
 ];
+const MAX_LIVE_SEARCH_PREVIEWS = 4;
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
@@ -1695,13 +1696,6 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
     window.clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = window.setTimeout(() => onActivate?.(system.system_id), 180);
   }, [onActivate, system.system_id]);
-  const deactivateLive = useCallback(() => {
-    window.clearTimeout(hoverTimerRef.current);
-    if (liveActive) {
-      onDeactivate?.(system.system_id);
-    }
-  }, [liveActive, onDeactivate, system.system_id]);
-
   useEffect(() => {
     const node = ref.current;
     if (!node) {
@@ -1733,9 +1727,7 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
       ref={ref}
       className={`map-search-card-preview ${showLivePreview ? "is-live" : ""}`}
       onPointerEnter={activateLive}
-      onPointerLeave={deactivateLive}
       onFocusCapture={() => onActivate?.(system.system_id)}
-      onBlurCapture={deactivateLive}
     >
       {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
@@ -1785,7 +1777,7 @@ function MapStarSearchShell({
   onLoadMore,
   searchStats,
 }) {
-  const [activePreviewSystemId, setActivePreviewSystemId] = useState(null);
+  const [activePreviewSystemIds, setActivePreviewSystemIds] = useState([]);
   const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
   const toggleSpectral = (token) => {
     setFilters((current) => {
@@ -1809,10 +1801,25 @@ function MapStarSearchShell({
   const selectedSort = !hasQuery && sort === "match" ? "distance" : sort;
 
   useEffect(() => {
-    if (!resultsOpen || !results.some((system) => String(system.system_id) === String(activePreviewSystemId))) {
-      setActivePreviewSystemId(null);
+    if (!resultsOpen) {
+      setActivePreviewSystemIds([]);
+      return;
     }
-  }, [activePreviewSystemId, results, resultsOpen]);
+    const resultIds = new Set(results.map((system) => String(system.system_id)));
+    setActivePreviewSystemIds((current) => current.filter((systemId) => resultIds.has(String(systemId))));
+  }, [results, resultsOpen]);
+
+  const activateLivePreview = useCallback((systemId) => {
+    setActivePreviewSystemIds((current) => {
+      const next = current.filter((item) => String(item) !== String(systemId));
+      next.push(systemId);
+      return next.slice(-MAX_LIVE_SEARCH_PREVIEWS);
+    });
+  }, []);
+
+  const deactivateLivePreview = useCallback((systemId) => {
+    setActivePreviewSystemIds((current) => current.filter((item) => String(item) !== String(systemId)));
+  }, []);
 
   return (
     <section className={`map-star-search ${open ? "is-open" : ""}`} aria-label="Map-native Star Search">
@@ -1934,11 +1941,9 @@ function MapStarSearchShell({
                   <LazyStarSearchPreview
                     system={system}
                     displayName={displayName}
-                    liveActive={String(activePreviewSystemId) === String(system.system_id)}
-                    onActivate={(systemId) => setActivePreviewSystemId(systemId)}
-                    onDeactivate={(systemId) => {
-                      setActivePreviewSystemId((current) => (String(current) === String(systemId) ? null : current));
-                    }}
+                    liveActive={activePreviewSystemIds.some((systemId) => String(systemId) === String(system.system_id))}
+                    onActivate={activateLivePreview}
+                    onDeactivate={deactivateLivePreview}
                   />
                   <div className="map-search-card-body">
                     <h3>{displayName}</h3>

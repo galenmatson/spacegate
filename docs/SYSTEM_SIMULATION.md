@@ -522,7 +522,7 @@ Success criteria:
   preview panel instead of a blank or broken canvas
 - WebGL context loss inside a simulator panel is trapped and downgraded to the
   deterministic snapshot fallback. Star Search cards use snapshot-first
-  previews and only one active live preview to avoid Chromium/Brave context
+  previews and a four-live-preview budget to avoid Chromium/Brave context
   exhaustion while scrolling large result lists.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to SVG

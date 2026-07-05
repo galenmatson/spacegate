@@ -95,6 +95,12 @@ test.describe("public 3D map beta", () => {
     await expect(liveButton).toBeVisible();
     await liveButton.click();
     await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(1);
+    const liveButtons = page.locator(".map-search-card-preview").getByRole("button", { name: /live preview/i });
+    const activations = Math.min(5, await liveButtons.count());
+    for (let idx = 0; idx < activations; idx += 1) {
+      await liveButtons.first().click();
+    }
+    await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(Math.min(4, activations + 1));
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {
