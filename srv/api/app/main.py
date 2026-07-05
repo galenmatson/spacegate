@@ -66,7 +66,7 @@ from .utils import (
 app = FastAPI(title="Spacegate API", version="0.1")
 ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
-SUPPORTED_SEARCH_SORTS = {"name", "distance", "coolness"}
+SUPPORTED_SEARCH_SORTS = {"match", "name", "distance", "coolness"}
 SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
 SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 SIM_VISUAL_STELLAR_CLASS_VERSION = "mass_main_sequence_prior_v1"
@@ -4815,9 +4815,8 @@ def systems_search(
                     "details": {},
                 },
             )
-        if cursor_values.get("sort") and cursor_values.get("sort") != (
-            "match" if match_mode else sort_key
-        ):
+        effective_cursor_sort = "match" if match_mode and sort_key == "match" else sort_key
+        if cursor_values.get("sort") and cursor_values.get("sort") != effective_cursor_sort:
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -4951,7 +4950,8 @@ def systems_search(
     next_cursor = None
     if has_more and items:
         last = items[-1]
-        if match_mode:
+        effective_cursor_sort = "match" if match_mode and sort_key == "match" else sort_key
+        if effective_cursor_sort == "match":
             dist_value = last.get("dist_ly")
             if dist_value is None:
                 dist_value = 1e12
@@ -4964,7 +4964,7 @@ def systems_search(
                     "id": last.get("system_id"),
                 }
             )
-        elif sort_key == "distance":
+        elif effective_cursor_sort == "distance":
             dist_value = last.get("origin_distance_ly") if has_origin else last.get("dist_ly")
             if dist_value is None:
                 dist_value = 1e12
@@ -4975,13 +4975,13 @@ def systems_search(
                     "id": last.get("system_id"),
                 }
             )
-        elif sort_key == "coolness":
+        elif effective_cursor_sort == "coolness":
             rank_value = last.get("coolness_rank")
             if rank_value is None:
                 rank_value = 9223372036854775807
             next_cursor = encode_cursor(
                 {
-                    "sort": sort_key,
+                    "sort": "coolness",
                     "cool_rank": rank_value,
                     "name": last.get("system_name_norm") or "",
                     "id": last.get("system_id"),

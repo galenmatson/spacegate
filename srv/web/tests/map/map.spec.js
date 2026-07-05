@@ -72,6 +72,9 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
     await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
     await expect(page.locator(".map-search-habitable")).toBeVisible();
+    await page.locator(".map-search-recent-pill").first().hover();
+    await page.waitForTimeout(150);
+    await expect(page.locator(".map-name-popover")).toHaveCount(0);
     await page.locator(".map-search-spectral", { hasText: "G" }).click();
     await expect
       .poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelStrategy || ""), { timeout: 3000 })
@@ -79,7 +82,14 @@ test.describe("public 3D map beta", () => {
     await page.locator("[data-testid='map-star-search-input']").fill("Sol");
     await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
     await expect(page.locator("[data-testid='map-star-search-results']")).toBeVisible();
+    await expect(page.locator(".map-search-sort select")).toBeVisible();
+    await page.locator(".map-search-sort select").selectOption("distance");
+    await expect(page.locator(".map-search-sort select")).toHaveValue("distance");
     await expect(page.locator(".map-search-card").first()).toBeVisible({ timeout: 10000 });
+    await expect.poll(async () => {
+      const box = await page.locator(".map-search-card-preview").first().boundingBox();
+      return Math.round(box?.height || 0);
+    }).toBeGreaterThan(180);
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {

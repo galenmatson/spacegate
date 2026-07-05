@@ -6,10 +6,14 @@ import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.
 
 const MAP_RADIUS_LY = 100;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
-const STAR_SEARCH_LIVE_PREVIEW_DESKTOP = 4;
-const STAR_SEARCH_LIVE_PREVIEW_MOBILE = 1;
 const STAR_SEARCH_SPECTRAL_OPTIONS = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
 const STAR_SEARCH_DEFAULT_TEMP_RANGE = [0, 50000];
+const STAR_SEARCH_SORT_OPTIONS = [
+  { value: "match", label: "Best match" },
+  { value: "distance", label: "Nearest view" },
+  { value: "coolness", label: "Coolest" },
+  { value: "name", label: "Name" },
+];
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
@@ -240,7 +244,7 @@ function distanceBetweenSystems(a, b) {
   return Math.hypot(dx, dy, dz);
 }
 
-function SystemNameDisplay({ system, linkTo = null, className = "", showCopyButton = true, showInfoButton = true }) {
+function SystemNameDisplay({ system, linkTo = null, className = "", showCopyButton = true, showInfoButton = true, enablePopover = true }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   if (!system) {
@@ -268,10 +272,10 @@ function SystemNameDisplay({ system, linkTo = null, className = "", showCopyButt
   return (
     <span
       className={`map-name-wrap ${isTruncated ? "truncated" : ""} ${className}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocusCapture={() => setOpen(true)}
-      onBlurCapture={() => setOpen(false)}
+      onMouseEnter={() => enablePopover && setOpen(true)}
+      onMouseLeave={() => enablePopover && setOpen(false)}
+      onFocusCapture={() => enablePopover && setOpen(true)}
+      onBlurCapture={() => enablePopover && setOpen(false)}
     >
       {nameNode}
       {isTruncated && showCopyButton && (
@@ -286,14 +290,16 @@ function SystemNameDisplay({ system, linkTo = null, className = "", showCopyButt
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            setOpen((value) => !value);
+            if (enablePopover) {
+              setOpen((value) => !value);
+            }
           }}
           aria-label={`Show metadata for ${fullName}`}
         >
           i
         </button>
       )}
-      {open && (
+      {enablePopover && open && (
         <span className="map-name-popover" role="tooltip">
           <strong>{fullName}</strong>
           <span>{catalogFamily(fullName)} · system {system.system_id}</span>
@@ -1654,9 +1660,9 @@ function systemMatchesMapFilters(system, filters, origin) {
   return true;
 }
 
-function buildSearchParamsFromFilters(filters, origin, query = "", limit = 24) {
+function buildSearchParamsFromFilters(filters, origin, query = "", sort = "distance", limit = 24) {
   const params = {
-    sort: query.trim() ? "name" : "distance",
+    sort: sort || (query.trim() ? "match" : "distance"),
     limit: String(limit),
     min_dist_ly: String(Math.max(0, filters.distanceRange[0])),
     max_dist_ly: String(Math.max(filters.distanceRange[0], filters.distanceRange[1])),
@@ -1681,6 +1687,44 @@ function buildSearchParamsFromFilters(filters, origin, query = "", limit = 24) {
   return params;
 }
 
+function LazyStarSearchPreview({ system, displayName }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) {
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setVisible(Boolean(entry?.isIntersecting));
+      },
+      { root: null, rootMargin: "360px 0px", threshold: 0.01 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="map-search-card-preview">
+      {visible ? (
+        <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
+          <SystemPreviewPanel
+            systemId={system.system_id}
+            systemName={displayName}
+            snapshot={system.snapshot}
+            presentationMode="card"
+          />
+        </React.Suspense>
+      ) : (
+        <StarSearchSnapshot snapshot={system.snapshot} systemName={displayName} />
+      )}
+    </div>
+  );
+}
+
 function MapStarSearchShell({
   open,
   systems,
@@ -1692,6 +1736,8 @@ function MapStarSearchShell({
   matchedCount,
   query,
   setQuery,
+  sort,
+  onSortChange,
   setFilters,
   onSubmitSearch,
   onCloseResults,
@@ -1705,17 +1751,6 @@ function MapStarSearchShell({
   onLoadMore,
   searchStats,
 }) {
-  const [livePreviewCap, setLivePreviewCap] = useState(STAR_SEARCH_LIVE_PREVIEW_DESKTOP);
-  useEffect(() => {
-    const updateCap = () => {
-      const mobile = window.matchMedia?.("(max-width: 720px)")?.matches;
-      setLivePreviewCap(mobile ? STAR_SEARCH_LIVE_PREVIEW_MOBILE : STAR_SEARCH_LIVE_PREVIEW_DESKTOP);
-    };
-    updateCap();
-    window.addEventListener("resize", updateCap);
-    return () => window.removeEventListener("resize", updateCap);
-  }, []);
-
   const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
   const toggleSpectral = (token) => {
     setFilters((current) => {
@@ -1735,6 +1770,8 @@ function MapStarSearchShell({
     habitableOnly: false,
   });
   const activeSpectral = new Set(spectralTokens(filters.spectralClass));
+  const hasQuery = Boolean(query.trim());
+  const selectedSort = !hasQuery && sort === "match" ? "distance" : sort;
 
   return (
     <section className={`map-star-search ${open ? "is-open" : ""}`} aria-label="Map-native Star Search">
@@ -1806,7 +1843,7 @@ function MapStarSearchShell({
           <div>
             {(selectionHistory || []).slice(0, 8).map((system) => (
               <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
-                <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} />
+                <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} />
                 <span>{formatNumber(system.dist_ly, 1)} ly</span>
               </button>
             ))}
@@ -1818,7 +1855,7 @@ function MapStarSearchShell({
             <div>
               {suggestedNeighbors.slice(0, 8).map(({ system, routeDistance }) => (
                 <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
-                  <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} />
+                  <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} />
                   <span>{formatNumber(routeDistance, 1)} ly</span>
                 </button>
               ))}
@@ -1834,32 +1871,26 @@ function MapStarSearchShell({
               <span className="map-panel-label">Results</span>
               <strong>{searchStats || `${formatNumber(results.length, 0)} systems`}</strong>
             </div>
+            <label className="map-search-sort">
+              <span>Sort</span>
+              <select value={selectedSort} onChange={(event) => onSortChange(event.target.value)} disabled={loading}>
+                {STAR_SEARCH_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value} disabled={option.value === "match" && !hasQuery}>{option.label}</option>
+                ))}
+              </select>
+            </label>
             <button type="button" className="map-command-button ghost" onClick={onCloseResults}>Close</button>
           </div>
           {error && <div className="map-search-error">{error}</div>}
           {loading && results.length === 0 && <div className="map-search-empty">Searching...</div>}
           {!loading && !error && results.length === 0 && <div className="map-search-empty">No systems match the current search.</div>}
           <div className="map-search-card-list">
-            {results.map((system, index) => {
+            {results.map((system) => {
               const displayName = systemDisplayName(system);
               const originDistance = Number(system.origin_distance_ly);
-              const livePreview = index < livePreviewCap;
               return (
                 <article key={system.system_id} className="map-search-card">
-                  <div className="map-search-card-preview">
-                    {livePreview ? (
-                      <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
-                        <SystemPreviewPanel
-                          systemId={system.system_id}
-                          systemName={displayName}
-                          snapshot={system.snapshot}
-                          presentationMode="card"
-                        />
-                      </React.Suspense>
-                    ) : (
-                      <StarSearchSnapshot snapshot={system.snapshot} systemName={displayName} />
-                    )}
-                  </div>
+                  <LazyStarSearchPreview system={system} displayName={displayName} />
                   <div className="map-search-card-body">
                     <h3>{displayName}</h3>
                     <div className="map-search-card-metrics">
@@ -1923,6 +1954,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [mapFrame, setMapFrame] = useState(readStoredMapFrame);
   const [showDirectionLabels, setShowDirectionLabels] = useState(readStoredDirectionLabelsEnabled);
   const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
+  const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
   const [mapSearchFilters, setMapSearchFilters] = useState({
     distanceRange: [0, MAP_RADIUS_LY],
     starRange: [0, 1],
@@ -2406,16 +2438,25 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     }
   }, [mapFrame, selectSystem, systems]);
 
-  const runMapSearch = useCallback(async ({ cursorValue = null, append = false } = {}) => {
+  const runMapSearch = useCallback(async ({ cursorValue = null, append = false, sortOverride = null } = {}) => {
     const token = mapSearchTokenRef.current + 1;
     mapSearchTokenRef.current = token;
-    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, mapSearchQuery, 24);
+    const requestedSort = sortOverride || mapSearchSort;
+    const effectiveSort = !mapSearchQuery.trim() && requestedSort === "match" ? "distance" : requestedSort;
+    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, mapSearchQuery, effectiveSort, 24);
     const requestParams = cursorValue ? { ...params, cursor: cursorValue } : params;
     setMapSearchLoading(true);
     setMapSearchError("");
     setMapSearchResultsOpen(true);
     if (!append) {
-      setSearchParams(mapSearchQuery.trim() ? { q: mapSearchQuery.trim() } : {}, { replace: false });
+      const nextParams = {};
+      if (mapSearchQuery.trim()) {
+        nextParams.q = mapSearchQuery.trim();
+      }
+      if (effectiveSort && effectiveSort !== (mapSearchQuery.trim() ? "match" : "distance")) {
+        nextParams.sort = effectiveSort;
+      }
+      setSearchParams(nextParams, { replace: false });
     }
     try {
       const started = performance.now();
@@ -2443,7 +2484,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         setMapSearchLoading(false);
       }
     }
-  }, [mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, setSearchParams]);
+  }, [mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, setSearchParams]);
 
   const closeMapSearchResults = useCallback(() => {
     setMapSearchResultsOpen(false);
@@ -2464,6 +2505,13 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     event?.preventDefault?.();
     runMapSearch({ append: false });
   }, [runMapSearch]);
+
+  const changeMapSearchSort = useCallback((nextSort) => {
+    const requested = STAR_SEARCH_SORT_OPTIONS.some((option) => option.value === nextSort) ? nextSort : "distance";
+    const normalized = !mapSearchQuery.trim() && requested === "match" ? "distance" : requested;
+    setMapSearchSort(normalized);
+    runMapSearch({ append: false, sortOverride: normalized });
+  }, [mapSearchQuery, runMapSearch]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -2646,6 +2694,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         matchedCount={activeMapFilter ? filteredMapSystems.length : systems.length}
         query={mapSearchQuery}
         setQuery={setMapSearchQuery}
+        sort={mapSearchSort}
+        onSortChange={changeMapSearchSort}
         setFilters={setMapSearchFilters}
         onSubmitSearch={submitMapSearch}
         onCloseResults={closeMapSearchResults}

@@ -2836,7 +2836,7 @@ def search_systems(
         alias="disc_db",
         table_name="snapshot_manifest",
     )
-    if sort == "coolness" and not match_mode and not has_coolness_scores:
+    if sort == "coolness" and not has_coolness_scores:
         raise ValueError(
             "Coolness sort is unavailable for this build; run score_coolness first."
         )
@@ -2855,7 +2855,7 @@ def search_systems(
         conditions.append("COALESCE(c.coolness_score, 1e18) <= ?")
         params.append(max_coolness_score)
 
-    use_coolness_sort = sort == "coolness" and not match_mode and has_coolness_scores
+    use_coolness_sort = sort == "coolness" and has_coolness_scores
     origin_distance_expr = (
         "sqrt("
         "pow(COALESCE(s.x_helio_ly, 0) - ?, 2) + "
@@ -2874,7 +2874,7 @@ def search_systems(
     filtered_clause = ""
     cursor_params: List[Any] = []
 
-    if match_mode:
+    if match_mode and sort == "match":
         order_by = (
             "match_rank ASC, COALESCE(dist_ly, 1e12) ASC, "
             "COALESCE(system_name_norm, '') ASC, system_id ASC"
@@ -2941,19 +2941,45 @@ def search_systems(
                     cursor_rank = 9223372036854775807
                 cursor_clause = (
                     "(COALESCE(coolness_rank, 9223372036854775807) > ? OR "
-                    "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(system_name_norm, '') > ?) OR "
-                    "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(system_name_norm, '') = ? AND system_id > ?))"
+                    + (
+                        "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(origin_distance_ly, 1e12) > ?) OR "
+                        "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(origin_distance_ly, 1e12) = ? AND COALESCE(system_name_norm, '') > ?) OR "
+                        "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(origin_distance_ly, 1e12) = ? AND COALESCE(system_name_norm, '') = ? AND system_id > ?))"
+                        if has_origin
+                        else
+                        "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(system_name_norm, '') > ?) OR "
+                        "(COALESCE(coolness_rank, 9223372036854775807) = ? AND COALESCE(system_name_norm, '') = ? AND system_id > ?))"
+                    )
                 )
-                cursor_params.extend(
-                    [
-                        cursor_rank,
-                        cursor_rank,
-                        cursor_values.get("name", ""),
-                        cursor_rank,
-                        cursor_values.get("name", ""),
-                        cursor_values.get("id"),
-                    ]
-                )
+                if has_origin:
+                    cursor_dist = cursor_values.get("dist")
+                    if cursor_dist is None:
+                        cursor_dist = 1e12
+                    cursor_params.extend(
+                        [
+                            cursor_rank,
+                            cursor_rank,
+                            cursor_dist,
+                            cursor_rank,
+                            cursor_dist,
+                            cursor_values.get("name", ""),
+                            cursor_rank,
+                            cursor_dist,
+                            cursor_values.get("name", ""),
+                            cursor_values.get("id"),
+                        ]
+                    )
+                else:
+                    cursor_params.extend(
+                        [
+                            cursor_rank,
+                            cursor_rank,
+                            cursor_values.get("name", ""),
+                            cursor_rank,
+                            cursor_values.get("name", ""),
+                            cursor_values.get("id"),
+                        ]
+                    )
         else:
             if cursor_values:
                 cursor_clause = (
@@ -2967,6 +2993,9 @@ def search_systems(
                         cursor_values.get("id"),
                     ]
                 )
+
+        if match_mode:
+            filtered_clause = "WHERE match_rank IS NOT NULL"
 
     where_sql = ""
     if conditions:
