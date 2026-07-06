@@ -526,6 +526,10 @@ Success criteria:
   while scrolling large result lists. Bulk browser-rendered PNG snapshot
   generation was tested and removed because headless WebGL rendering was too
   slow and CPU-heavy for routine presentation updates.
+- `/api/v1/systems/{system_id}/simulation-scene` uses a small in-process LRU
+  cache keyed by served build and system id. This avoids recomputing ARM
+  diagnostics, readiness, assumptions, and render-scene contracts when users
+  scroll back through recently previewed systems.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
   fallback assets

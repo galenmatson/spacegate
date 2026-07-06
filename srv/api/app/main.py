@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import datetime
 import errno
 import grp
@@ -12,14 +13,16 @@ import re
 import shutil
 import stat
 import subprocess
+import threading
 import time
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import duckdb
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -180,6 +183,10 @@ COOLNESS_WEIGHT_KEYS = [
 
 DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
+SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
+SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
+_SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
+_SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 
 
 def _state_dir() -> Path:
@@ -4072,9 +4079,35 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
     }
 
 
-def _system_simulation_scene_payload(system_id: int) -> Dict[str, Any]:
-    with db.connection_scope() as con:
-        build_id = fetch_build_id(con)
+def _simulation_scene_cache_get(build_id: str, system_id: int) -> Optional[Dict[str, Any]]:
+    now = time.time()
+    key = (str(build_id), int(system_id))
+    with _SIMULATION_SCENE_CACHE_LOCK:
+        cached = _SIMULATION_SCENE_CACHE.get(key)
+        if not cached:
+            return None
+        age_s = now - float(cached.get("cached_at_ts") or 0.0)
+        if age_s > SIMULATION_SCENE_CACHE_TTL_S:
+            _SIMULATION_SCENE_CACHE.pop(key, None)
+            return None
+        _SIMULATION_SCENE_CACHE.move_to_end(key)
+        return copy.deepcopy(cached["payload"])
+
+
+def _simulation_scene_cache_set(build_id: str, system_id: int, payload: Dict[str, Any]) -> None:
+    key = (str(build_id), int(system_id))
+    cached = {"cached_at_ts": time.time(), "payload": copy.deepcopy(payload)}
+    with _SIMULATION_SCENE_CACHE_LOCK:
+        _SIMULATION_SCENE_CACHE[key] = cached
+        _SIMULATION_SCENE_CACHE.move_to_end(key)
+        while len(_SIMULATION_SCENE_CACHE) > SIMULATION_SCENE_CACHE_MAX_ITEMS:
+            _SIMULATION_SCENE_CACHE.popitem(last=False)
+
+
+def _system_simulation_scene_payload(system_id: int, *, build_id: Optional[str] = None) -> Dict[str, Any]:
+    if build_id is None:
+        with db.connection_scope() as con:
+            build_id = fetch_build_id(con)
     public = _object_public_system_payload(system_id)
     system = public["system"]
     stars = public["stars"]
@@ -5068,9 +5101,18 @@ def map_systems(
 
 
 @app.get("/api/v1/systems/{system_id}/simulation-scene")
-def system_simulation_scene(system_id: int):
+def system_simulation_scene(system_id: int, response: Response):
     try:
-        return _system_simulation_scene_payload(system_id)
+        with db.connection_scope() as con:
+            build_id = fetch_build_id(con)
+        cached = _simulation_scene_cache_get(build_id, system_id)
+        if cached is not None:
+            response.headers["X-Spacegate-Simulation-Scene-Cache"] = "hit"
+            return cached
+        payload = _system_simulation_scene_payload(system_id, build_id=build_id)
+        _simulation_scene_cache_set(build_id, system_id, payload)
+        response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
+        return payload
     except KeyError:
         raise HTTPException(
             status_code=404,
