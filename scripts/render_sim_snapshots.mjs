@@ -50,7 +50,14 @@ async function main() {
     width: Number(payload.width_px || 980),
     height: Number(payload.height_px || 552),
   };
-  const browser = await chromium.launch({ headless: true });
+  const launchOptions = {
+    headless: true,
+    args: ["--disable-crash-reporter", "--disable-crashpad"],
+  };
+  if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+    launchOptions.executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  }
+  const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({
     viewport,
     ignoreHTTPSErrors: true,

@@ -534,6 +534,9 @@ Success criteria:
   Operators can select top coolness or nearest systems, set the system count
   and filters, optionally override the render base URL, and review
   `sim_snapshot_report.json` status without leaving the Presentation workspace.
+  Dockerized Admin jobs run the renderer from the API container, which includes
+  Node, Playwright Chromium, and a default `SPACEGATE_SNAPSHOT_BASE_URL` of
+  `https://web`; snapshot outputs still write to the mounted `/data` state tree.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to image
   fallback assets
