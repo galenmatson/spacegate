@@ -567,6 +567,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add deterministic frame-0 System Simulation PNG snapshot generation and
   make generated card images transition into running live previews on
   hover/focus/tap
+- [x] Wire System Simulation PNG snapshot generation into Admin Presentation
+  with top-coolness and nearest-system selection modes for public discovery and
+  blank map-search fallback coverage
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

@@ -937,6 +937,10 @@ Readiness gaps:
   simulator's paused starting frame, then promote into a running live preview
   under the four-WebGL-preview budget. Local verification generated PNG
   `system_card` artifacts for the top five coolness systems.
+- July 6, 2026 Admin Presentation wiring adds top-coolness and nearest-system
+  selection modes for frame-0 System Simulation PNG generation, surfaces the
+  selected sort/report kind in Presentation, and supports optional render base
+  URL overrides for local/public snapshot batches.
 - June 29, 2026 simulator assumption materialization pass adds
   `scripts/materialize_simulation_assumptions.py`, creates
   `disc.simulation_assumptions` rows and Parquet for selected/benchmark

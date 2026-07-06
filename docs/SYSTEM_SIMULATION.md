@@ -530,6 +530,10 @@ Success criteria:
   the same Three.js/R3F renderer, camera, structure scale, deterministic phase
   seeds, and paused simulation day 0 that live card previews use before they
   start running on hover/focus/tap.
+- Admin Presentation exposes the same generator as `Generate Snapshots`.
+  Operators can select top coolness or nearest systems, set the system count
+  and filters, optionally override the render base URL, and review
+  `sim_snapshot_report.json` status without leaving the Presentation workspace.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to image
   fallback assets

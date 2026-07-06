@@ -16,6 +16,7 @@ from generate_snapshots import (  # type: ignore
     DEFAULT_HEIGHT_PX,
     DEFAULT_WIDTH_PX,
     DEFAULT_VIEW_TYPE,
+    _disc_has_coolness_scores,
     _emit_progress,
     _ensure_manifest_table,
     _export_manifest_parquet,
@@ -65,6 +66,106 @@ def _node_bin(root: Path) -> str:
     return "node"
 
 
+def _load_system_rows_by_distance(
+    core_con: duckdb.DuckDBPyConnection,
+    *,
+    system_ids: List[int],
+    limit: int,
+    min_dist_ly: float | None,
+    max_dist_ly: float | None,
+    min_star_count: int | None,
+    max_star_count: int | None,
+    min_planet_count: int | None,
+    max_planet_count: int | None,
+    min_coolness_score: float | None,
+    max_coolness_score: float | None,
+    disc_path: Path,
+) -> List[Dict[str, Any]]:
+    if system_ids:
+        return _load_system_rows(
+            core_con,
+            system_ids=system_ids,
+            limit=limit,
+            top_coolness=0,
+            disc_path=Path("__unused__"),
+            min_dist_ly=min_dist_ly,
+            max_dist_ly=max_dist_ly,
+            min_star_count=min_star_count,
+            max_star_count=max_star_count,
+            min_planet_count=min_planet_count,
+            max_planet_count=max_planet_count,
+            min_coolness_score=None,
+            max_coolness_score=None,
+        )
+
+    conditions: list[str] = []
+    params: list[Any] = []
+    if min_dist_ly is not None:
+        conditions.append("s.dist_ly >= ?")
+        params.append(min_dist_ly)
+    if max_dist_ly is not None:
+        conditions.append("s.dist_ly <= ?")
+        params.append(max_dist_ly)
+    if min_star_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) >= ?")
+        params.append(min_star_count)
+    if max_star_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id) <= ?")
+        params.append(max_star_count)
+    if min_planet_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) >= ?")
+        params.append(min_planet_count)
+    if max_planet_count is not None:
+        conditions.append("(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id) <= ?")
+        params.append(max_planet_count)
+    wants_coolness_filter = min_coolness_score is not None or max_coolness_score is not None
+    if wants_coolness_filter and not _disc_has_coolness_scores(disc_path):
+        raise SystemExit(
+            "Snapshot selection requested coolness filtering, but disc.coolness_scores is unavailable. "
+            "Run score_coolness first."
+        )
+    if min_coolness_score is not None:
+        conditions.append("c.score_total >= ?")
+        params.append(min_coolness_score)
+    if max_coolness_score is not None:
+        conditions.append("c.score_total <= ?")
+        params.append(max_coolness_score)
+    where_sql = "WHERE " + " AND ".join(conditions) if conditions else ""
+    from_sql = "systems s"
+    if wants_coolness_filter:
+        escaped = str(disc_path).replace("'", "''")
+        core_con.execute(f"ATTACH '{escaped}' AS disc_db (READ_ONLY)")
+        from_sql = "systems s JOIN disc_db.coolness_scores c USING (system_id)"
+    sql = f"""
+        SELECT
+          s.system_id,
+          s.stable_object_key,
+          s.system_name,
+          s.dist_ly,
+          s.ra_deg,
+          s.dec_deg,
+          s.x_helio_ly,
+          s.y_helio_ly,
+          s.z_helio_ly
+        FROM {from_sql}
+        {where_sql}
+        ORDER BY COALESCE(s.dist_ly, 1e18) ASC, s.system_id ASC
+    """
+    try:
+        if limit > 0:
+            sql += " LIMIT ?"
+            params.append(limit)
+        cur = core_con.execute(sql, params)
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    finally:
+        if wants_coolness_filter:
+            try:
+                core_con.execute("DETACH disc_db")
+            except Exception:
+                pass
+
+
 def run(args: argparse.Namespace) -> Dict[str, Any]:
     root = _root_dir()
     state_dir = _state_dir(root)
@@ -86,21 +187,37 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     }
     params_hash = hashlib.sha256(_json_canonical(params).encode("utf-8")).hexdigest()[:16]
 
-    system_rows = _load_system_rows(
-        core_con,
-        system_ids=args.system_id or [],
-        limit=args.limit,
-        top_coolness=args.top_coolness,
-        disc_path=build_dir / "disc.duckdb",
-        min_dist_ly=args.min_dist_ly,
-        max_dist_ly=args.max_dist_ly,
-        min_star_count=args.min_star_count,
-        max_star_count=args.max_star_count,
-        min_planet_count=args.min_planet_count,
-        max_planet_count=args.max_planet_count,
-        min_coolness_score=args.min_coolness_score,
-        max_coolness_score=args.max_coolness_score,
-    )
+    if args.sort == "distance":
+        system_rows = _load_system_rows_by_distance(
+            core_con,
+            system_ids=args.system_id or [],
+            limit=args.limit,
+            min_dist_ly=args.min_dist_ly,
+            max_dist_ly=args.max_dist_ly,
+            min_star_count=args.min_star_count,
+            max_star_count=args.max_star_count,
+            min_planet_count=args.min_planet_count,
+            max_planet_count=args.max_planet_count,
+            min_coolness_score=args.min_coolness_score,
+            max_coolness_score=args.max_coolness_score,
+            disc_path=build_dir / "disc.duckdb",
+        )
+    else:
+        system_rows = _load_system_rows(
+            core_con,
+            system_ids=args.system_id or [],
+            limit=args.limit,
+            top_coolness=args.top_coolness,
+            disc_path=build_dir / "disc.duckdb",
+            min_dist_ly=args.min_dist_ly,
+            max_dist_ly=args.max_dist_ly,
+            min_star_count=args.min_star_count,
+            max_star_count=args.max_star_count,
+            min_planet_count=args.min_planet_count,
+            max_planet_count=args.max_planet_count,
+            min_coolness_score=args.min_coolness_score,
+            max_coolness_score=args.max_coolness_score,
+        )
 
     disc_con, disc_temp_path, disc_target_path = _open_disc_db(build_dir)
     try:
@@ -122,6 +239,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
                 "snapshot_root": str(snapshots_root),
                 "params_hash": params_hash,
                 "generator_version": args.generator_version,
+                "sort": args.sort,
             }
         )
 
@@ -233,6 +351,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
             "params": params,
             "params_hash": params_hash,
             "base_url": render_payload["base_url"],
+            "sort": args.sort,
             "requested": len(system_rows),
             "generated": generated,
             "reused": reused,
@@ -276,6 +395,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--system-id", action="append", type=int, default=[], help="Generate snapshots for specific system_id (can be repeated).")
     parser.add_argument("--limit", type=int, default=100, help="How many systems to process when --system-id is not provided.")
     parser.add_argument("--top-coolness", type=int, default=0, help="If >0 and disc.coolness_scores exists, generate for top-N coolness systems.")
+    parser.add_argument("--sort", choices=["coolness", "distance"], default="coolness", help="Selection order when --system-id is not provided.")
     parser.add_argument("--min-dist-ly", type=float, default=None)
     parser.add_argument("--max-dist-ly", type=float, default=None)
     parser.add_argument("--min-star-count", type=int, default=None)
@@ -297,6 +417,8 @@ def main() -> int:
     args = parse_args()
     if args.limit < 1 and not args.system_id:
         raise SystemExit("--limit must be >= 1 unless --system-id is provided")
+    if args.sort == "coolness" and args.top_coolness <= 0 and not args.system_id:
+        args.top_coolness = args.limit
     if args.width < 64 or args.height < 64:
         raise SystemExit("--width and --height must be >= 64")
     result = run(args)
