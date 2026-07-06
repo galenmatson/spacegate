@@ -123,8 +123,8 @@ const fallbackActionGuidance = {
   },
   generate_snapshots: {
     group: "presentation",
-    purpose: "Renders frame-0 System Simulation PNG images for filtered coolness-ranked or nearby systems.",
-    prerequisites: "Run after scoring when top-coolness targets changed, or use nearest systems to cover blank map search cards.",
+    purpose: "Renders snapshot images for filtered coolness-ranked systems.",
+    prerequisites: "Run after scoring when the top targets or view parameters changed.",
     writes: "Snapshot assets and manifests in disc/build artifact paths.",
     next: "Reload public search/detail views to confirm new images are referenced correctly.",
     duration: "Medium to long",
@@ -1771,7 +1771,6 @@ function SnapshotReportPanel({ build, snapshotJob, scoreJob, openOperationsJob }
           <OverviewFact label="Manifest rows upserted" value={formatInt(snapshot.manifest_rows_upserted)} />
           <OverviewFact label="Generated at" value={formatDate(snapshot.generated_at)} />
           <OverviewFact label="Generator / view" value={`${snapshot.generator_version || "n/a"} / ${snapshot.view_type || "n/a"}`} />
-          <OverviewFact label="Report / sort" value={`${snapshot.report_kind || "n/a"} / ${snapshot.sort || "n/a"}`} />
           <OverviewFact label="Params hash" value={snapshot.params_hash || "n/a"} />
           <OverviewFact label="Snapshot root" value={snapshot.snapshot_root || "n/a"} />
           <OverviewFact label="Selected artifact size" value={formatBytes(snapshot.selected_artifact_size_bytes || snapshot.snapshot_root_size_bytes)} />
@@ -6182,7 +6181,6 @@ function snapshotRunWarnings(topCount) {
 
 function SnapshotActionSafety({ values, snapshotControl }) {
   const topCount = Number(values?.top_coolness || 0);
-  const mode = String(values?.selection_mode || "coolness") === "distance" ? "nearest systems" : "top coolness";
   const warnings = snapshotRunWarnings(topCount);
   const average = Number(snapshotControl?.estimate?.average_bytes_per_requested);
   const estimatedBytes = Number.isFinite(average) && average > 0 && topCount > 0 ? average * topCount : null;
@@ -6190,7 +6188,7 @@ function SnapshotActionSafety({ values, snapshotControl }) {
   return (
     <div className="snapshot-safety">
       <strong>Snapshot run safety</strong>
-      <span>Mode: {mode} | requested count: {formatInt(topCount)}{estimatedBytes ? ` | estimated footprint ${formatBytes(estimatedBytes)}` : " | no footprint estimate yet"}</span>
+      <span>Requested count: {formatInt(topCount)}{estimatedBytes ? ` | estimated footprint ${formatBytes(estimatedBytes)}` : " | no footprint estimate yet"}</span>
       {bulk ? <span>Bulk root: {runtimeStatusLabel(bulk.status)} | {bulk.path}</span> : null}
       {warnings.length ? <span className="warning-text">{warnings.join(" ")}</span> : <span>No large-run threshold warning for this count.</span>}
     </div>

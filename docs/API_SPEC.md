@@ -1308,14 +1308,13 @@ Response 200:
       "coolness_weird_planet_count": 0,
       "coolness_dominant_spectral_class": "G",
       "snapshot": {
-        "build_id": "20260630T_sim_beta_sol_smallbody_v1",
+        "build_id": "2026-02-19T221543Z_2774126",
         "view_type": "system_card",
-        "artifact_path": "snapshots/system_card/system_gaia_19316224572460416/0ee1a5a64785b123.png",
-        "artifact_mime": "image/png",
-        "params_hash": "0ee1a5a64785b123",
+        "artifact_path": "snapshots/system_card/system_gaia_19316224572460416/ea9f1d1a15216a90.svg",
+        "params_hash": "ea9f1d1a15216a90",
         "width_px": 980,
-        "height_px": 552,
-        "url": "/api/v1/snapshots/20260630T_sim_beta_sol_smallbody_v1/snapshots/system_card/system_gaia_19316224572460416/0ee1a5a64785b123.png"
+        "height_px": 560,
+        "url": "/api/v1/snapshots/2026-02-19T221543Z_2774126/snapshots/system_card/system_gaia_19316224572460416/ea9f1d1a15216a90.svg"
       },
       "provenance": {"source_catalog":"gaia_dr3", "source_version":"dr3_gaia_source_parallax_gte_3.26156", "license":"ESA Gaia Archive terms", "redistribution_ok":true, "retrieved_at":"...", "transform_version":"...", "source_url":"...", "source_download_url":"...", "source_pk":19316224572460416, "source_row_id":19316224572460416, "source_row_hash":null, "license_note":"...", "retrieval_etag":null, "retrieval_checksum":"...", "ingested_at":"...", "source_doi":null}
     }

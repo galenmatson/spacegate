@@ -425,26 +425,6 @@ function mapItemFromSearchResult(item, frame = "icrs") {
   return prepareMapItems([{ ...item, system_name: systemDisplayName(item) }], frame)[0] || null;
 }
 
-function compactSnapshotUrl(snapshot) {
-  return snapshot?.url ? apiUrl(snapshot.url) : "";
-}
-
-function StarSearchSnapshot({ snapshot, systemName }) {
-  const snapshotUrl = compactSnapshotUrl(snapshot);
-  if (!snapshotUrl) {
-    return <div className="map-search-card-fallback">Preview pending</div>;
-  }
-  return (
-    <img
-      className="map-search-card-snapshot"
-      src={snapshotUrl}
-      alt={`${systemName} deterministic snapshot fallback`}
-      loading="lazy"
-      decoding="async"
-    />
-  );
-}
-
 function createPointTexture() {
   const size = 64;
   const canvas = document.createElement("canvas");
@@ -1690,12 +1670,8 @@ function buildSearchParamsFromFilters(filters, origin, query = "", sort = "dista
 
 function LazyStarSearchPreview({ system, displayName, liveActive = false, onActivate, onDeactivate }) {
   const ref = useRef(null);
-  const hoverTimerRef = useRef(0);
+  const requestedLiveRef = useRef(false);
   const [visible, setVisible] = useState(false);
-  const activateLive = useCallback(() => {
-    window.clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = window.setTimeout(() => onActivate?.(system.system_id), 180);
-  }, [onActivate, system.system_id]);
   useEffect(() => {
     const node = ref.current;
     if (!node) {
@@ -1712,13 +1688,17 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => () => window.clearTimeout(hoverTimerRef.current), []);
-
   useEffect(() => {
-    if (!visible && liveActive) {
+    if (visible && !requestedLiveRef.current) {
+      requestedLiveRef.current = true;
+      onActivate?.(system.system_id);
+      return;
+    }
+    if (!visible && requestedLiveRef.current) {
+      requestedLiveRef.current = false;
       onDeactivate?.(system.system_id);
     }
-  }, [liveActive, onDeactivate, system.system_id, visible]);
+  }, [onActivate, onDeactivate, system.system_id, visible]);
 
   const showLivePreview = visible && liveActive;
 
@@ -1726,8 +1706,6 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
     <div
       ref={ref}
       className={`map-search-card-preview ${showLivePreview ? "is-live" : ""}`}
-      onPointerEnter={activateLive}
-      onFocusCapture={() => onActivate?.(system.system_id)}
     >
       {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
@@ -1736,16 +1714,11 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
             systemName={displayName}
             snapshot={system.snapshot}
             presentationMode="card"
-            autoRun
+            autoRun={false}
           />
         </React.Suspense>
       ) : (
-        <StarSearchSnapshot snapshot={system.snapshot} systemName={displayName} />
-      )}
-      {!showLivePreview && (
-        <button type="button" className="map-search-preview-live" onClick={() => onActivate?.(system.system_id)}>
-          Live Preview
-        </button>
+        <div className="map-search-card-fallback">{visible ? "Preview queued" : "Loading preview"}</div>
       )}
     </div>
   );

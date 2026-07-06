@@ -316,20 +316,14 @@ def _auto_coolness_profile_version(weights_json: str) -> str:
 
 
 def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
-    cmd = [str(ROOT_DIR / "scripts" / "generate_sim_snapshots.sh")]
+    cmd = [str(ROOT_DIR / "scripts" / "generate_snapshots.sh")]
     build_id = str(params.get("build_id", "") or "").strip()
     if build_id:
         cmd.extend(["--build-id", build_id])
-    selection_mode = str(params.get("selection_mode") or "coolness").strip().lower()
-    if selection_mode not in {"coolness", "distance"}:
-        raise ActionValidationError("selection_mode must be 'coolness' or 'distance'")
     top_coolness = _normalize_integer(params.get("top_coolness", 1000))
     if top_coolness <= 0:
-        raise ActionValidationError("system count must be > 0")
-    if selection_mode == "distance":
-        cmd.extend(["--sort", "distance", "--limit", str(top_coolness)])
-    else:
-        cmd.extend(["--sort", "coolness", "--top-coolness", str(top_coolness)])
+        raise ActionValidationError("top_coolness must be > 0")
+    cmd.extend(["--top-coolness", str(top_coolness)])
     for param_name, flag_name in (
         ("min_dist_ly", "--min-dist-ly"),
         ("max_dist_ly", "--max-dist-ly"),
@@ -349,9 +343,6 @@ def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
         view_type = "system_card"
     if view_type:
         cmd.extend(["--view-type", view_type])
-    base_url = str(params.get("base_url", "") or "").strip()
-    if base_url:
-        cmd.extend(["--base-url", base_url])
     if _normalize_boolean(params.get("force", False)):
         cmd.append("--force")
     return cmd
@@ -1060,10 +1051,10 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
     },
     "generate_snapshots": {
         "group_key": "presentation",
-        "purpose": "Renders frame-0 System Simulation snapshot images for filtered coolness-ranked or nearby systems.",
-        "prerequisites": "Run after scoring when top targets or view parameters changed, or use nearest-system mode to cover blank map search cards.",
+        "purpose": "Renders snapshot images for filtered coolness-ranked systems.",
+        "prerequisites": "Run after scoring when top targets or view parameters changed.",
         "writes_to": "Snapshot assets and manifests in disc/build artifact paths.",
-        "outputs": ["snapshot files", "snapshot_manifest rows/artifacts", "sim_snapshot_report.json", "structured progress lines in the job log"],
+        "outputs": ["snapshot files", "snapshot_manifest rows/artifacts", "snapshot_report.json", "structured progress lines in the job log"],
         "expected_duration": "medium_to_long",
         "success_next_actions": ["Reload public search/detail views to confirm new images are referenced correctly."],
         "failure_next_actions": ["Inspect renderer errors and target build coolness availability."],
@@ -1423,7 +1414,7 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
     "generate_snapshots": ActionSpec(
         name="generate_snapshots",
         display_name="Generate Snapshots",
-        description="Render frame-0 System Simulation snapshot images for filtered coolness-ranked or nearby systems (defaults to top 1,000).",
+        description="Render system snapshot images for filtered top coolness-ranked systems (defaults to top 1,000).",
         params_schema={
             "build_id": {
                 "type": "string",
@@ -1433,33 +1424,12 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                 "placeholder": "leave empty for served/current",
                 "label": "Build ID (optional)",
             },
-            "selection_mode": {
-                "type": "string",
-                "required": False,
-                "default": "coolness",
-                "allow_empty": False,
-                "label": "Selection mode",
-                "enum": ["coolness", "distance"],
-                "options": [
-                    {
-                        "value": "coolness",
-                        "label": "Top coolness",
-                        "description": "Generate snapshots for the highest-ranked systems after current filters.",
-                    },
-                    {
-                        "value": "distance",
-                        "label": "Nearest systems",
-                        "description": "Generate snapshots in distance order from Sol; useful for blank map search coverage.",
-                    },
-                ],
-                "help": "Nearest systems matches the default empty map search more closely. Top coolness is useful for public discovery cards.",
-            },
             "top_coolness": {
                 "type": "integer",
                 "required": False,
                 "default": 1000,
                 "min": 1,
-                "label": "System count",
+                "label": "Top coolness systems",
             },
             "min_dist_ly": {
                 "type": "string",
@@ -1524,18 +1494,10 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
                     {
                         "value": "system_card",
                         "label": "System card",
-                        "description": "Frame-0 System Simulation PNG card used by public search/detail presentation.",
+                        "description": "Default deterministic SVG card used by public search/detail presentation.",
                     }
                 ],
-                "help": "Only System card is implemented today.",
-            },
-            "base_url": {
-                "type": "string",
-                "required": False,
-                "default": "",
-                "allow_empty": True,
-                "placeholder": "leave empty for configured local/public URL",
-                "label": "Snapshot render base URL (optional)",
+                "help": "Only System card is implemented today. Add new renderer-backed view types here when they exist.",
             },
             "force": {
                 "type": "boolean",
@@ -2863,9 +2825,9 @@ def _job_artifact_hints(job: Dict[str, Any]) -> List[Dict[str, Any]]:
         build_dir = state_dir / "out" / build_id
         hints.extend(
             [
-                _path_hint(kind="snapshot_root", label=f"Snapshots: {view_type}", path=build_dir / "snapshots" / view_type, description="Generated System Simulation snapshot image assets."),
+                _path_hint(kind="snapshot_root", label=f"Snapshots: {view_type}", path=build_dir / "snapshots" / view_type, description="Generated SVG snapshot assets."),
                 _path_hint(kind="parquet", label="snapshot_manifest.parquet", path=build_dir / "disc" / "snapshot_manifest.parquet", description="Snapshot manifest parquet export."),
-                _path_hint(kind="report", label="sim_snapshot_report.json", path=state_dir / "reports" / build_id / "sim_snapshot_report.json", description="System Simulation snapshot generation report."),
+                _path_hint(kind="report", label="snapshot_report.json", path=state_dir / "reports" / build_id / "snapshot_report.json", description="Snapshot generation report."),
             ]
         )
     elif action in {"save_coolness_profile", "apply_coolness_profile"}:
@@ -3118,18 +3080,14 @@ def _build_verification_summary(reports_dir: Path, build_id: str, jobs: Sequence
 
 
 def _snapshot_report_summary(reports_dir: Path) -> Dict[str, Any]:
-    sim_path = reports_dir / "sim_snapshot_report.json"
-    legacy_path = reports_dir / "snapshot_report.json"
-    path = sim_path if sim_path.exists() else legacy_path
+    path = reports_dir / "snapshot_report.json"
     out: Dict[str, Any] = {
         "has_report": path.exists() and path.is_file(),
         "status": "missing",
         "path": str(path),
-        "report_kind": "sim_snapshot" if path == sim_path else "legacy_snapshot",
         "generated_at": None,
         "generator_version": None,
         "view_type": None,
-        "sort": None,
         "force": None,
         "params_hash": None,
         "requested": None,
@@ -3157,7 +3115,6 @@ def _snapshot_report_summary(reports_dir: Path) -> Dict[str, Any]:
         "generated_at",
         "generator_version",
         "view_type",
-        "sort",
         "force",
         "params_hash",
         "requested",

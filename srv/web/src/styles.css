@@ -571,38 +571,9 @@
   box-shadow: none;
 }
 
-.map-search-card-snapshot,
 .map-search-card-fallback {
   width: 100%;
   height: 192px;
-}
-
-.map-search-card-snapshot {
-  display: block;
-  object-fit: cover;
-}
-
-.map-search-preview-live {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  z-index: 2;
-  padding: 5px 8px;
-  border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 72%, transparent);
-  color: var(--map-hud-strong);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-}
-
-.map-search-card-preview:hover .map-search-preview-live,
-.map-search-preview-live:focus-visible {
-  border-color: var(--map-hud-border);
-  background: color-mix(in srgb, var(--map-hud-border) 28%, var(--panel));
 }
 
 .map-search-card-fallback,
@@ -8101,7 +8072,6 @@ main {
   .map-search-card-preview .system-preview-panel,
   .map-search-card-preview .system-preview-layout,
   .map-search-card-preview .system-preview-canvas,
-  .map-search-card-snapshot,
   .map-search-card-fallback {
     height: 220px;
     min-height: 220px;
@@ -8145,7 +8115,6 @@ main {
   .map-search-card-preview .system-preview-panel,
   .map-search-card-preview .system-preview-layout,
   .map-search-card-preview .system-preview-canvas,
-  .map-search-card-snapshot,
   .map-search-card-fallback {
     height: 210px;
     min-height: 210px;
@@ -8160,30 +8129,4 @@ main {
     width: 100%;
     margin-left: 0;
   }
-}
-
-.sim-snapshot-capture {
-  width: 980px;
-  height: 552px;
-  overflow: hidden;
-  background: #050b12;
-}
-
-.sim-snapshot-capture .system-preview-panel,
-.sim-snapshot-capture .system-preview-layout,
-.sim-snapshot-capture .system-preview-canvas {
-  width: 980px;
-  height: 552px;
-  min-height: 552px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: #050b12;
-  box-shadow: none;
-}
-
-.sim-snapshot-capture .system-preview-snapshot-fallback,
-.sim-snapshot-capture .system-preview-fallback {
-  width: 980px;
-  height: 552px;
 }

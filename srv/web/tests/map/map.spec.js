@@ -90,17 +90,11 @@ test.describe("public 3D map beta", () => {
       const box = await page.locator(".map-search-card-preview").first().boundingBox();
       return Math.round(box?.height || 0);
     }).toBeGreaterThan(180);
-    await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(0);
-    const liveButton = page.locator(".map-search-card-preview").first().getByRole("button", { name: /live preview/i });
-    await expect(liveButton).toBeVisible();
-    await liveButton.click();
-    await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(1);
-    const liveButtons = page.locator(".map-search-card-preview").getByRole("button", { name: /live preview/i });
-    const activations = Math.min(5, await liveButtons.count());
-    for (let idx = 0; idx < activations; idx += 1) {
-      await liveButtons.first().click();
-    }
-    await expect(page.locator(".map-search-card-preview .system-preview-canvas canvas")).toHaveCount(Math.min(4, activations + 1));
+    await expect
+      .poll(() => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(), { timeout: 10000 })
+      .toBeGreaterThan(0);
+    await expect(page.locator(".map-search-card-preview").getByRole("button", { name: /live preview/i })).toHaveCount(0);
+    expect(await page.locator(".map-search-card-preview .system-preview-canvas canvas").count()).toBeLessThanOrEqual(4);
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {
@@ -1140,34 +1134,6 @@ test.describe("public 3D map beta", () => {
     }
     await expect(page.locator(".system-preview-canvas canvas")).toHaveCount(0);
     await expect(fallback).toContainText(/WebGL unavailable/i);
-  });
-
-  test("internal System Simulation snapshot route renders paused frame", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name.includes("mobile"), "snapshot capture route is a fixed desktop artifact surface");
-    const response = await page.request.get("/api/v1/systems/search", {
-      params: { q: "TRAPPIST-1", limit: "1" },
-    });
-    expect(response.ok()).toBeTruthy();
-    const payload = await response.json();
-    const systemId = payload.items?.[0]?.system_id;
-    expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
-
-    await page.setViewportSize({ width: 980, height: 552 });
-    await page.goto(`/internal/sim-snapshot/${systemId}?name=TRAPPIST-1`, { waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-testid='sim-snapshot-capture']")).toBeVisible();
-    const canvasWrap = page.locator(".system-preview-canvas").first();
-    await expect(canvasWrap.locator("canvas")).toBeVisible();
-    await expect.poll(
-      () => canvasWrap.evaluate((node) => {
-        const box = node.getBoundingClientRect();
-        return `${Math.round(box.width)}x${Math.round(box.height)}`;
-      }),
-      { timeout: 3000 }
-    ).toBe("980x552");
-    await expect.poll(
-      () => canvasWrap.locator("canvas").evaluate((canvas) => Number(canvas.dataset.simulationDays || 0)),
-      { timeout: 3000 }
-    ).toBe(0);
   });
 
   test("system preview falls back when the live scene request fails", async ({ page }, testInfo) => {

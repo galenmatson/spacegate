@@ -521,24 +521,13 @@ Success criteria:
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - WebGL context loss inside a simulator panel is trapped and downgraded to the
-  deterministic snapshot fallback. Star Search cards use snapshot-first
-  previews and a four-live-preview budget to avoid Chromium/Brave context
-  exhaustion while scrolling large result lists.
-- `scripts/generate_sim_snapshots.sh` captures deterministic frame-0
-  System Simulation PNG artifacts through the internal
-  `/internal/sim-snapshot/{system_id}` route. These `system_card` images use
-  the same Three.js/R3F renderer, camera, structure scale, deterministic phase
-  seeds, and paused simulation day 0 that live card previews use before they
-  start running on hover/focus/tap.
-- Admin Presentation exposes the same generator as `Generate Snapshots`.
-  Operators can select top coolness or nearest systems, set the system count
-  and filters, optionally override the render base URL, and review
-  `sim_snapshot_report.json` status without leaving the Presentation workspace.
-  Dockerized Admin jobs run the renderer from the API container, which includes
-  Node, Playwright Chromium, and a default `SPACEGATE_SNAPSHOT_BASE_URL` of
-  `https://web`; snapshot outputs still write to the mounted `/data` state tree.
+  deterministic snapshot fallback. Star Search cards are live-preview-first
+  with a four-live-preview budget to avoid Chromium/Brave context exhaustion
+  while scrolling large result lists. Bulk browser-rendered PNG snapshot
+  generation was tested and removed because headless WebGL rendering was too
+  slow and CPU-heavy for routine presentation updates.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
-  map snapshot coverage and that sampled detail snapshot URLs resolve to image
+  map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
   fallback assets
 - source/derived/assumed/missing fields surface as visible provenance pills
 - every rendered assumption is visible in the readiness/render payloads
@@ -548,9 +537,7 @@ Success criteria:
 - benchmark simulator assumptions are materialized in the current DISC artifact
   with `simulation_assumptions_materializer_v1`; broader reviewed curation and
   batch policy remain future work
-- static snapshots remain the fallback for browsers/devices without usable 3D;
-  generated card snapshots should now come from the System Simulation renderer,
-  with the older SVG generator retained only as a simple emergency fallback
+- static snapshots remain the fallback for browsers/devices without usable 3D
 - no `rim` artifacts or fictional orbits are mixed into science scenes
 
 Resolved local benchmark blockers:

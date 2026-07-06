@@ -275,12 +275,11 @@ Initial layers:
   - assigns deterministic per-body starting phases so planets do not begin
     aligned while keeping reloads reproducible
   - surfaces source/derived/assumed/missing provenance pills in the preview
-  - deterministic snapshots remain the fallback/reference artifact
-  - Star Search result cards render deterministic frame-0 System Simulation
-    snapshots by default when generated, then promote up to four cards to live
-    WebGL previews on explicit hover/focus/tap activation. The transition is
-    designed to feel like the paused card image starts playing while protecting
-    the main map canvas from browser WebGL context limits.
+  - deterministic snapshots remain a fallback/reference artifact for
+    no-WebGL or context-loss states
+  - Star Search result cards use live System Simulation previews for visible
+    cards with a four-active-preview WebGL budget, avoiding the rejected bulk
+    browser-rendered PNG snapshot path while reducing context-loss risk
   - summarizes orbit-orientation evidence as source orientation, partial
     sky-plane orientation, assumed roll, or local-clarity layout; this is an
     audit label, not a galactic-alignment guarantee
