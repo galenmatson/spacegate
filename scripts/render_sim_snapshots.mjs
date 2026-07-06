@@ -85,7 +85,7 @@ async function main() {
         await panel.waitFor({ timeout: 15000 });
         const canvas = page.locator(".system-preview-canvas canvas").first();
         await waitForPaintedCanvas(canvas);
-        await page.locator(".system-preview-canvas").first().screenshot({
+        await page.screenshot({
           path: outPath,
           type: "png",
           animations: "disabled",
