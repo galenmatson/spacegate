@@ -98,6 +98,19 @@ const SPECTRAL_COLORS = {
   D: "#d7e0ea",
   UNKNOWN: "#8b99b0",
 };
+const SPECTRAL_CLASS_TOOLTIPS = {
+  O: "O class: extremely hot blue stars, usually massive, rare, short-lived, and intensely luminous.",
+  B: "B class: hot blue-white stars, massive and bright, often young and scientifically dramatic.",
+  A: "A class: white stars hotter and brighter than the Sun, including familiar bright naked-eye systems.",
+  F: "F class: yellow-white stars somewhat hotter and brighter than the Sun.",
+  G: "G class: Sun-like yellow stars with moderate temperatures and long stable lifetimes.",
+  K: "K class: orange stars cooler than the Sun, long-lived, common, and often good planet-search targets.",
+  M: "M class: red dwarfs, the smallest normal stars, extremely common and very long-lived.",
+  L: "L class: ultracool red/brown-dwarf objects near or below the hydrogen-burning boundary.",
+  T: "T class: cool methane-bearing brown dwarfs, dim objects between stars and giant planets.",
+  Y: "Y class: the coldest brown dwarfs, faint objects approaching planetary temperatures.",
+  D: "D class: white dwarfs and related stellar remnants, the compact cores left after stellar evolution.",
+};
 const MAP_FRAME_OPTIONS = {
   icrs: { id: "icrs", label: "ICRS", detail: "Scene up = ICRS Z" },
   galactic: { id: "galactic", label: "Galactic", detail: "Scene up = Galactic North" },
@@ -1822,6 +1835,8 @@ function MapStarSearchShell({
               className={`map-search-spectral spectral-${token.toLowerCase()} ${activeSpectral.has(token) ? "active" : ""}`}
               onClick={() => toggleSpectral(token)}
               aria-pressed={activeSpectral.has(token)}
+              aria-label={`${token} spectral class filter`}
+              title={SPECTRAL_CLASS_TOOLTIPS[token] || `${token} spectral class filter`}
             >
               {token}
             </button>

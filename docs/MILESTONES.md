@@ -1226,6 +1226,15 @@ motion, multiplicity, stellar rarity, giant/supergiant status, planet interest,
 system complexity, source quality, public recognizability, and narrative or
 Agency prioritization value.
 
+### System Scene Runtime Cache
+
+July 6, 2026 Star Search performance pass adds prebuilt compressed
+`disc/simulation_scenes/system_<system_id>.json.gz` artifacts plus API serving
+ahead of runtime assembly. This keeps `/simulation-scene` as the public
+contract, avoids repeating expensive ARM/readiness/render-scene assembly for
+materialized systems, and preserves runtime assembly as the fallback for cold
+or unmaterialized systems.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

@@ -4104,6 +4104,23 @@ def _simulation_scene_cache_set(build_id: str, system_id: int, payload: Dict[str
             _SIMULATION_SCENE_CACHE.popitem(last=False)
 
 
+def _simulation_scene_artifact_path(build_id: str, system_id: int) -> Optional[Path]:
+    scene_name = f"system_{int(system_id)}.json.gz"
+    state_dir = _state_dir()
+    candidates = [
+        state_dir / "served" / "current" / "disc" / "simulation_scenes" / scene_name,
+        state_dir / "out" / str(build_id) / "disc" / "simulation_scenes" / scene_name,
+    ]
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve(strict=True)
+        except FileNotFoundError:
+            continue
+        if resolved.is_file():
+            return resolved
+    return None
+
+
 def _system_simulation_scene_payload(system_id: int, *, build_id: Optional[str] = None) -> Dict[str, Any]:
     if build_id is None:
         with db.connection_scope() as con:
@@ -5105,6 +5122,16 @@ def system_simulation_scene(system_id: int, response: Response):
     try:
         with db.connection_scope() as con:
             build_id = fetch_build_id(con)
+        artifact_path = _simulation_scene_artifact_path(build_id, system_id)
+        if artifact_path is not None:
+            response.headers["X-Spacegate-Simulation-Scene-Cache"] = "prebuilt"
+            response.headers["Content-Encoding"] = "gzip"
+            response.headers["Cache-Control"] = "public, max-age=3600"
+            return Response(
+                content=artifact_path.read_bytes(),
+                media_type="application/json",
+                headers=dict(response.headers),
+            )
         cached = _simulation_scene_cache_get(build_id, system_id)
         if cached is not None:
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "hit"

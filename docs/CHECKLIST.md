@@ -564,6 +564,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Keep Star Search result cards live-preview-first with a four-active
   WebGL preview budget and simulator context-loss fallback; reject bulk
   browser-rendered PNG generation as too slow/heavy for routine use
+- [x] Add prebuilt compressed System Simulation scene artifacts for hot Star
+  Search results, served before runtime scene assembly
+- [x] Add layperson spectral-class tooltips to the map-native Star Search
+  spectral filter buttons
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

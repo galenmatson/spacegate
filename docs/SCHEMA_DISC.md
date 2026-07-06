@@ -64,6 +64,9 @@ Current status snapshot:
 - `simulation_assumptions`: implemented for selected-system simulator
   materialization (`scripts/materialize_simulation_assumptions.py`); broader
   reviewed curation workflow remains planned
+- `simulation_scenes`: implemented as compressed presentation artifacts under
+  `disc/simulation_scenes/` (`scripts/materialize_simulation_scenes.py`), not
+  as canonical science rows
 - `external_reference_links`: planned
 - `source_evidence_links`: planned
 - Evidence Portfolio operational store: implemented in the Admin DB as mutable

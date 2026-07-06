@@ -530,6 +530,13 @@ Success criteria:
   cache keyed by served build and system id. This avoids recomputing ARM
   diagnostics, readiness, assumptions, and render-scene contracts when users
   scroll back through recently previewed systems.
+- `scripts/materialize_simulation_scenes.py` can prebuild compressed
+  `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
+  systems. The API serves those artifacts first, then falls back to the
+  in-process LRU cache, then runtime assembly. This removes first-pass CPU
+  spikes for materialized systems without changing the simulation-scene
+  contract. Photon default hot-cache command:
+  `SPACEGATE_STATE_DIR=/data/spacegate/state .venv/bin/python scripts/materialize_simulation_scenes.py --limit 1000 --sort distance --max-dist-ly 100`.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
   fallback assets

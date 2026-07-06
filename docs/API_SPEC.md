@@ -284,6 +284,12 @@ This endpoint is read-only. It assembles existing public detail rows,
 hierarchy, arm graph/orbit rows, and simulation-readiness diagnostics. It does
 not persist generated assumptions and does not promote Agency output.
 
+Runtime may serve a prebuilt compressed scene artifact from
+`disc/simulation_scenes/` before falling back to in-process cache or live
+assembly. The JSON contract is unchanged. Responses expose
+`X-Spacegate-Simulation-Scene-Cache` with `prebuilt`, `hit`, or `miss` for
+diagnostics.
+
 Response:
 ```json
 {
