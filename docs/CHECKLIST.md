@@ -594,7 +594,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Treat MSC endpoint `WD` spectral evidence as compact-object evidence in
   System Simulation render bodies, preventing main-sequence mass visual priors
   from masquerading as white-dwarf facts
-- [ ] Tighten exact/common-name search ranking so queries like `55 Cnc` prefer
+- [x] Tighten exact/common-name search ranking so queries like `55 Cnc` prefer
   the exact named system before WDS/catalog neighbors with overlapping tokens
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after

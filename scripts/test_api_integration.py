@@ -329,6 +329,26 @@ def main():
     )
     if castor_item is None:
         raise AssertionError("Castor WDS lookup returned no 07346+3153 result")
+
+    _, fifty_five_cnc_search = get_json(
+        base_url,
+        "/systems/search",
+        params={"q": "55 Cnc", "limit": 5, "sort": "match"},
+        label="search exact 55 Cnc",
+    )
+    fifty_five_cnc_first = (fifty_five_cnc_search.get("items") or [None])[0]
+    if not isinstance(fifty_five_cnc_first, dict):
+        raise AssertionError("55 Cnc search returned no items")
+    fifty_five_cnc_name = str(
+        fifty_five_cnc_first.get("display_name")
+        or fifty_five_cnc_first.get("system_name")
+        or ""
+    ).strip().lower()
+    if fifty_five_cnc_name != "55 cnc":
+        raise AssertionError(
+            f"55 Cnc exact/common-name search should return 55 Cnc first, got {fifty_five_cnc_name!r}"
+        )
+
     _, castor_detail = get_json(
         base_url,
         f"/systems/{castor_item['system_id']}",
