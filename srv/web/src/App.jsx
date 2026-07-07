@@ -2340,7 +2340,7 @@ function SearchPage({ buildId = "" }) {
   ));
   const [sort, setSort] = useState(() => {
     const value = String(searchParams.get("sort") || (searchParams.get("q") ? "match" : "coolness")).toLowerCase();
-    return ["match", "coolness", "name", "distance"].includes(value) ? value : "coolness";
+    return ["match", "coolness", "name", "distance", "planet_count", "star_count"].includes(value) ? value : "coolness";
   });
   const [spectral, setSpectral] = useState(() => {
     if (hasExplicitSpectralOverrides) {
@@ -3158,6 +3158,8 @@ function SearchPage({ buildId = "" }) {
                     <option value="coolness">Coolness</option>
                     <option value="name">Name</option>
                     <option value="distance">Distance</option>
+                    <option value="planet_count">Planets</option>
+                    <option value="star_count">Stars</option>
                   </select>
                 </label>
 

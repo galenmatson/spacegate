@@ -113,6 +113,8 @@ Search results can be sorted by:
 - Nearest to current viewpoint.
 - Coolest.
 - Name.
+- Planet count.
+- Star count.
 
 ### Search Cards
 

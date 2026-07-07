@@ -2461,18 +2461,15 @@ def search_systems(
     has_system_spectral_class_mask = _has_local_column(con, "systems", "spectral_class_mask")
     has_star_teff_k = _has_local_column(con, "stars", "teff_k")
     star_teff_select = "teff_k" if has_star_teff_k else "NULL::DOUBLE AS teff_k"
-    arm_attached = bool(arm_db_path and _attach_side_db(con, arm_db_path, alias="arm_db"))
-    has_arm_star_overlay = (
-        arm_attached
-        and _has_table(con, alias="arm_db", table_name="component_entities")
-        and _has_table(con, alias="arm_db", table_name="system_hierarchy_edges")
-    )
-    effective_star_count_expr = (
-        f"GREATEST(COALESCE(s.star_count, 0), {_arm_star_overlay_expr('s')})"
-        if has_arm_star_overlay and has_system_star_count
-        else "COALESCE(s.star_count, 0)"
+    search_star_count_expr = (
+        "COALESCE(s.star_count, 0)"
         if has_system_star_count
         else "(SELECT COUNT(*) FROM stars st WHERE st.system_id = s.system_id)"
+    )
+    effective_planet_count_expr = (
+        "COALESCE(s.planet_count, 0)"
+        if has_system_planet_count
+        else "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id)"
     )
 
     if q_norm:
@@ -2822,11 +2819,11 @@ def search_systems(
             )
 
     if min_star_count is not None:
-        conditions.append(f"{effective_star_count_expr} >= ?")
+        conditions.append(f"{search_star_count_expr} >= ?")
         params.append(min_star_count)
 
     if max_star_count is not None:
-        conditions.append(f"{effective_star_count_expr} <= ?")
+        conditions.append(f"{search_star_count_expr} <= ?")
         params.append(max_star_count)
 
     if min_planet_count is not None:
@@ -3014,6 +3011,31 @@ def search_systems(
                             cursor_values.get("id"),
                         ]
                     )
+        elif sort in {"planet_count", "star_count"}:
+            count_field = "sort_planet_count" if sort == "planet_count" else "sort_star_count"
+            order_by = (
+                f"COALESCE({count_field}, 0) DESC, "
+                "COALESCE(system_name_norm, '') ASC, system_id ASC"
+            )
+            if cursor_values:
+                cursor_count = cursor_values.get("count")
+                if cursor_count is None:
+                    cursor_count = 0
+                cursor_clause = (
+                    f"(COALESCE({count_field}, 0) < ? OR "
+                    f"(COALESCE({count_field}, 0) = ? AND COALESCE(system_name_norm, '') > ?) OR "
+                    f"(COALESCE({count_field}, 0) = ? AND COALESCE(system_name_norm, '') = ? AND system_id > ?))"
+                )
+                cursor_params.extend(
+                    [
+                        cursor_count,
+                        cursor_count,
+                        cursor_values.get("name", ""),
+                        cursor_count,
+                        cursor_values.get("name", ""),
+                        cursor_values.get("id"),
+                    ]
+                )
         else:
             if cursor_values:
                 cursor_clause = (
@@ -3104,6 +3126,8 @@ def search_systems(
                 CAST(s.gaia_id AS VARCHAR) AS gaia_id_text,
                 CAST(s.hip_id AS VARCHAR) AS hip_id_text,
                 CAST(s.hd_id AS VARCHAR) AS hd_id_text,
+                {search_star_count_expr}::BIGINT AS sort_star_count,
+                {effective_planet_count_expr}::BIGINT AS sort_planet_count,
                 {origin_distance_expr}
                 {coolness_select}
                 {match_rank_expr}
@@ -3332,7 +3356,7 @@ def search_systems(
                     for token in item.get("spectral_classes", [])
                     if str(token).strip()
                 ]
-            if arm_star_overlay_counts:
+            if arm_star_overlay_counts and sort != "star_count":
                 item["star_count"] = max(
                     int(item.get("star_count") or 0),
                     int(arm_star_overlay_counts.get(sid, 0)),

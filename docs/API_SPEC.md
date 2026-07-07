@@ -1232,7 +1232,7 @@ Query params:
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
-- `sort` (`match` | `name` | `distance` | `coolness`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)
+- `sort` (`match` | `name` | `distance` | `coolness` | `planet_count` | `star_count`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)
 - `limit` (int, default 50, max 200)
 - `include_total` (`true|false`, optional, default `false`)
 - `cursor` (string, optional)
@@ -1257,7 +1257,7 @@ Implementation notes:
   is the first reviewed exception and restores `Alpha Canis Majoris` without
   assigning that alias only to Sirius B.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
-- when `arm` exposes a richer multiplicity root (for example WDS/MSC synthetic system roots), star-count filters and returned `star_count` values use the larger effective descendant-star count instead of only counting direct `core.stars` rows.
+- Star Search `star_count` filters and `sort=star_count` use the materialized search facet for fast, stable public browsing. Detail, hierarchy, and simulation payloads may expose richer descendant-aware multiplicity counts from `arm`; a later build-normalization pass should promote the best audited hierarchy count into the search facet.
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.
@@ -1266,6 +1266,8 @@ When `q` is not provided:
 - `sort=name`: `system_name_norm` asc, `system_id` asc
 - `sort=distance`: `dist_ly` asc nulls last, `system_id` asc
 - `sort=coolness`: `coolness_rank` asc, `system_name_norm` asc, `system_id` asc
+- `sort=planet_count`: materialized browse `planet_count` desc, `system_name_norm` asc, `system_id` asc
+- `sort=star_count`: materialized browse `star_count` desc, `system_name_norm` asc, `system_id` asc
 
 Validation and availability behavior:
 - Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.
@@ -1501,7 +1503,7 @@ Display-name behavior:
   (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
 - `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
 - `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
-- `system.star_count` and search `star_count` filters are descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list.
+- `system.star_count` in detail payloads is descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list. Star Search browse filters use the materialized search facet for public-performance reasons.
 - the flat `stars` array remains the canonical direct core membership list; it is not guaranteed to enumerate every nested scientific leaf shown in `hierarchy`.
 
 ### GET /systems/by-key/{stable_object_key}

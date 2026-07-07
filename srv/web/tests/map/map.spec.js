@@ -176,7 +176,10 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop catalog search preview check");
     await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".results-toolbar")).toBeVisible();
-    await expect(page.locator(".results-search-options select").first()).toHaveValue("match");
+    const sortSelect = page.locator(".results-search-options select").first();
+    await expect(sortSelect).toHaveValue("match");
+    await expect(sortSelect.locator("option[value='planet_count']")).toHaveCount(1);
+    await expect(sortSelect.locator("option[value='star_count']")).toHaveCount(1);
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
     const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
     await expect(firstPreview).toBeVisible();
@@ -191,6 +194,12 @@ test.describe("public 3D map beta", () => {
       .poll(() => page.locator("[data-testid='star-search-simulation-preview'] .system-preview-canvas canvas").count(), { timeout: 10000 })
       .toBeGreaterThan(0);
     await expect(page.locator("[data-testid='star-search-simulation-preview'] .system-preview-hover")).toHaveCount(0);
+    await sortSelect.selectOption("planet_count");
+    await expect(sortSelect).toHaveValue("planet_count");
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await sortSelect.selectOption("star_count");
+    await expect(sortSelect).toHaveValue("star_count");
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
   });
 
   test("system page v2 stages simulation, overview, and technical evidence", async ({ page }, testInfo) => {

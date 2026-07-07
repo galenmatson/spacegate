@@ -55,6 +55,12 @@ def assert_non_decreasing(values: list[float], label: str) -> None:
             raise AssertionError(f"{label} not sorted ascending: {prev} then {current}")
 
 
+def assert_non_increasing(values: list[float], label: str) -> None:
+    for prev, current in zip(values, values[1:]):
+        if current > prev:
+            raise AssertionError(f"{label} not sorted descending: {prev} then {current}")
+
+
 def iter_hierarchy_nodes(node: Dict[str, Any]):
     yield node
     for child in node.get("children") or []:
@@ -201,6 +207,50 @@ def main():
     ]
     if len(distance_values) >= 2:
         assert_non_decreasing(distance_values, "distance sort")
+
+    _, planet_count_page = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "planet_count", "limit": 20},
+        label="search sort planet_count",
+    )
+    planet_counts = [
+        float(item.get("planet_count") or 0)
+        for item in planet_count_page["items"]
+    ]
+    if len(planet_counts) >= 2:
+        assert_non_increasing(planet_counts, "planet_count sort")
+    if planet_count_page.get("has_more") and planet_count_page.get("next_cursor"):
+        _, planet_count_page2 = get_json(
+            base_url,
+            "/systems/search",
+            params={"sort": "planet_count", "limit": 20, "cursor": planet_count_page["next_cursor"]},
+            label="search sort planet_count page2",
+        )
+        overlap = {
+            item.get("system_id")
+            for item in planet_count_page["items"]
+            if item.get("system_id") is not None
+        } & {
+            item.get("system_id")
+            for item in planet_count_page2["items"]
+            if item.get("system_id") is not None
+        }
+        if overlap:
+            raise AssertionError(f"Planet-count cursor pagination returned overlapping system_ids: {sorted(overlap)}")
+
+    _, star_count_page = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "star_count", "limit": 20},
+        label="search sort star_count",
+    )
+    star_counts = [
+        float(item.get("star_count") or 0)
+        for item in star_count_page["items"]
+    ]
+    if len(star_counts) >= 2:
+        assert_non_increasing(star_counts, "star_count sort")
 
     coolness_response = requests.get(
         f"{base_url}/systems/search",
