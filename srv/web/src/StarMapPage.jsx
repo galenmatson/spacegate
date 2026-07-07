@@ -17,6 +17,9 @@ const STAR_SEARCH_SORT_OPTIONS = [
 const MAP_RADIUS_OPTIONS_LY = [100, 250, 500, 1000];
 const WEBGL_CONTEXT_BUDGET = 6;
 const SEARCH_PREVIEW_POOL_SIZE = 4;
+const SEARCH_PREVIEW_ACTIVATION_INTERVAL_MS = 450;
+const SEARCH_PREVIEW_CONTEXT_COOLDOWN_MS = 3500;
+const SEARCH_PREVIEW_HIGH_RECOVERY_BUDGET = 1;
 const RUNTIME_QUALITY_PROFILES = {
   high: { tier: "high", label: "High", mapDpr: [1, 1.75], previewDpr: [1, 1.5], cardBudget: 4 },
   balanced: { tier: "balanced", label: "Balanced", mapDpr: [1, 1.35], previewDpr: [0.9, 1.25], cardBudget: 3 },
@@ -37,6 +40,11 @@ const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
+const DEFAULT_MAP_CAMERA_STATE = {
+  position: [0, 3.5, 17],
+  yaw: 0,
+  pitch: -0.08,
+};
 const DEFAULT_MOBILE_FLIGHT_STATE = {
   forward: false,
   back: false,
@@ -238,6 +246,26 @@ function runtimeQualityFor({ activeSurfaces = 1, contextLossRecoveries = 0, devi
     return RUNTIME_QUALITY_PROFILES.balanced;
   }
   return RUNTIME_QUALITY_PROFILES.high;
+}
+
+function cameraStateDistance(a, b) {
+  const first = Array.isArray(a?.position) ? a.position : [];
+  const second = Array.isArray(b?.position) ? b.position : [];
+  if (first.length !== 3 || second.length !== 3) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.hypot(
+    Number(first[0] || 0) - Number(second[0] || 0),
+    Number(first[1] || 0) - Number(second[1] || 0),
+    Number(first[2] || 0) - Number(second[2] || 0),
+  );
+}
+
+function parseMapCameraDatasetPosition(value) {
+  const parts = String(value || "")
+    .split(",")
+    .map((item) => Number(item));
+  return parts.length === 3 && parts.every((item) => Number.isFinite(item)) ? parts : null;
 }
 
 function isKeyboardInputTarget(target) {
@@ -1065,6 +1093,8 @@ function FlightControls({
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
+  onCameraState,
+  initialCameraState,
   reticleSelectRequest,
   focusTarget,
   focusToken,
@@ -1095,6 +1125,8 @@ function FlightControls({
     moved: false,
   });
   const focusRef = useRef(null);
+  const handledFocusTokenRef = useRef(focusToken || 0);
+  const initialCameraStateRef = useRef(initialCameraState || DEFAULT_MAP_CAMERA_STATE);
   const handledReticleSelectRequestRef = useRef(0);
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
 
@@ -1140,6 +1172,10 @@ function FlightControls({
     if (!focusTarget?.scene_position || !focusToken) {
       return;
     }
+    if (focusToken === handledFocusTokenRef.current) {
+      return;
+    }
+    handledFocusTokenRef.current = focusToken;
     const target = new THREE.Vector3().fromArray(focusTarget.scene_position);
     const fromTarget = camera.position.clone().sub(target);
     const approach = fromTarget.lengthSq() > 0.0001
@@ -1165,7 +1201,13 @@ function FlightControls({
     if (gesture) {
       gl.domElement.dataset.mapCameraGesture = gesture;
     }
-  }, [camera, gl.domElement, mapFrame, showDirectionLabels]);
+    onCameraState?.({
+      position: camera.position.toArray(),
+      yaw: yawRef.current,
+      pitch: pitchRef.current,
+      mapFrame: mapFrame || "icrs",
+    });
+  }, [camera, gl.domElement, mapFrame, onCameraState, showDirectionLabels]);
 
   const orbitTargetPosition = useCallback(() => {
     const targetSystem = focusTarget?.scene_position
@@ -1207,10 +1249,34 @@ function FlightControls({
   }, [updateCameraDataset]);
 
   useEffect(() => {
-    camera.position.set(0, 3.5, 17);
+    const state = initialCameraStateRef.current || DEFAULT_MAP_CAMERA_STATE;
+    const position = Array.isArray(state.position) && state.position.length === 3
+      ? state.position
+      : DEFAULT_MAP_CAMERA_STATE.position;
+    yawRef.current = Number.isFinite(Number(state.yaw))
+      ? Number(state.yaw)
+      : DEFAULT_MAP_CAMERA_STATE.yaw;
+    pitchRef.current = Number.isFinite(Number(state.pitch))
+      ? Number(state.pitch)
+      : DEFAULT_MAP_CAMERA_STATE.pitch;
+    camera.position.set(
+      Number(position[0]) || 0,
+      Number(position[1]) || 0,
+      Number(position[2]) || 0,
+    );
     camera.rotation.order = "YXZ";
     camera.rotation.set(pitchRef.current, yawRef.current, 0);
-  }, [camera]);
+    gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+    gl.domElement.dataset.mapFrame = mapFrame || "icrs";
+    gl.domElement.dataset.mapDirectionLabels = showDirectionLabels ? "true" : "false";
+    gl.domElement.dataset.mapCameraGesture = "restore";
+    onCameraState?.({
+      position: camera.position.toArray(),
+      yaw: yawRef.current,
+      pitch: pitchRef.current,
+      mapFrame: mapFrame || "icrs",
+    });
+  }, [camera, gl.domElement]);
 
   useEffect(() => {
     gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
@@ -1548,6 +1614,8 @@ function FlightControls({
         speedLyS: baseSpeed / LY_TO_SCENE,
         locked: document.pointerLockElement === gl.domElement,
         cameraScenePosition: camera.position.toArray(),
+        yaw: yawRef.current,
+        pitch: pitchRef.current,
         originLy: sceneToHelioCoordinates(camera.position.toArray(), mapFrame || "icrs"),
       });
       gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
@@ -1562,7 +1630,7 @@ function FlightControls({
 }
 
 function MapWebGLContextGuard({ onContextLost }) {
-  const { gl } = useThree();
+  const { camera, gl } = useThree();
 
   useEffect(() => {
     const target = gl.domElement;
@@ -1571,13 +1639,18 @@ function MapWebGLContextGuard({ onContextLost }) {
     }
     const handleContextLost = (event) => {
       event.preventDefault();
-      onContextLost?.();
+      onContextLost?.({
+        position: camera.position.toArray(),
+        yaw: camera.rotation.y,
+        pitch: camera.rotation.x,
+        datasetPosition: target.dataset.mapCameraPosition || "",
+      });
     };
     target.addEventListener("webglcontextlost", handleContextLost, false);
     return () => {
       target.removeEventListener("webglcontextlost", handleContextLost, false);
     };
-  }, [gl, onContextLost]);
+  }, [camera, gl, onContextLost]);
 
   return null;
 }
@@ -1591,6 +1664,7 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
     target.dataset.runtimeContextBudget = String(runtimeDiagnostics?.contextBudget ?? "");
     target.dataset.runtimePreviewPoolActive = String(runtimeDiagnostics?.activePreviews ?? "");
     target.dataset.runtimePreviewPoolBudget = String(runtimeDiagnostics?.previewBudget ?? "");
+    target.dataset.runtimePreviewCooldown = runtimeDiagnostics?.previewCooldown ? "true" : "false";
     target.dataset.runtimeContextRecoveries = String(runtimeDiagnostics?.contextLossRecoveries ?? "");
     target.dataset.runtimeRadiusOptionsLy = (runtimeDiagnostics?.supportedRadiusSteps || []).join(",");
   }, [gl.domElement, runtimeDiagnostics, runtimeQuality]);
@@ -1614,6 +1688,8 @@ function StarMapScene({
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
+  onCameraState,
+  initialCameraState,
   reticleSelectRequest,
   focusTarget,
   focusToken,
@@ -1622,10 +1698,13 @@ function StarMapScene({
   runtimeQuality,
   runtimeDiagnostics,
 }) {
+  const initialPosition = Array.isArray(initialCameraState?.position) && initialCameraState.position.length === 3
+    ? initialCameraState.position
+    : DEFAULT_MAP_CAMERA_STATE.position;
   return (
     <Canvas
       className="map-canvas"
-      camera={{ fov: 62, near: 0.01, far: 1200, position: [0, 3.5, 17] }}
+      camera={{ fov: 62, near: 0.01, far: 1200, position: initialPosition }}
       dpr={runtimeQuality?.mapDpr || RUNTIME_QUALITY_PROFILES.high.mapDpr}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: "high-performance" }}
     >
@@ -1655,6 +1734,8 @@ function StarMapScene({
         controlsEnabled={controlsEnabled}
         stabilizationEnabled={stabilizationEnabled}
         onTelemetry={onTelemetry}
+        onCameraState={onCameraState}
+        initialCameraState={initialCameraState}
         reticleSelectRequest={reticleSelectRequest}
         focusTarget={focusTarget}
         focusToken={focusToken}
@@ -1867,6 +1948,7 @@ function MapStarSearchShell({
   previewPoolBudget,
   previewRuntimeQualityTier,
   previewPaused,
+  previewCooldownActive,
   onRequestPreview,
   onReleasePreview,
   onRuntimeEvent,
@@ -2025,7 +2107,13 @@ function MapStarSearchShell({
                     displayName={displayName}
                     liveActive={previewAllocationsBySystemId.has(String(system.system_id))}
                     poolSlot={previewAllocationsBySystemId.get(String(system.system_id))?.slot ?? null}
-                    previewDisabledReason={previewPaused ? "Preview paused" : (previewPoolBudget <= 0 ? "Preview budget full" : "")}
+                    previewDisabledReason={
+                      previewPaused
+                        ? "Preview paused while inspecting"
+                        : previewCooldownActive
+                          ? "Preview cooling down"
+                          : (previewPoolBudget <= 0 ? "Preview budget full" : "")
+                    }
                     runtimeQualityTier={previewRuntimeQualityTier}
                     onActivate={onRequestPreview}
                     onDeactivate={onReleasePreview}
@@ -2079,6 +2167,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     speedLyS: 0,
     locked: false,
     cameraScenePosition: [0, 3.5, 17],
+    yaw: DEFAULT_MAP_CAMERA_STATE.yaw,
+    pitch: DEFAULT_MAP_CAMERA_STATE.pitch,
     originLy: sceneToHelioCoordinates([0, 3.5, 17], "icrs"),
   });
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
@@ -2086,6 +2176,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [fullscreenEpoch, setFullscreenEpoch] = useState(0);
   const [mapContextEpoch, setMapContextEpoch] = useState(0);
   const [mapContextRecovering, setMapContextRecovering] = useState(false);
+  const [mapRecoveryCameraState, setMapRecoveryCameraState] = useState(DEFAULT_MAP_CAMERA_STATE);
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
   const [selectionHistory, setSelectionHistory] = useState([]);
@@ -2101,6 +2192,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readDeviceRuntimeProfile);
   const [contextLossRecoveries, setContextLossRecoveries] = useState(0);
   const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
+  const [previewCooldownActive, setPreviewCooldownActive] = useState(false);
   const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
   const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
   const [mapSearchFilters, setMapSearchFilters] = useState({
@@ -2120,6 +2212,11 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [mapSearchHasMore, setMapSearchHasMore] = useState(false);
   const [mapSearchStats, setMapSearchStats] = useState("");
   const mapSearchTokenRef = useRef(0);
+  const mapCameraStateRef = useRef(DEFAULT_MAP_CAMERA_STATE);
+  const previewPoolIdsRef = useRef(new Set());
+  const previewRequestQueueRef = useRef([]);
+  const previewActivationTimerRef = useRef(null);
+  const previewCooldownTimerRef = useRef(null);
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
@@ -2135,32 +2232,103 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     deviceProfile: deviceRuntimeProfile,
   }), [activeWebGLSurfaceCount, contextLossRecoveries, deviceRuntimeProfile]);
   const previewPaused = drillSurfaceActive;
+  const previewRecoveryBudget = contextLossRecoveries >= 6
+    ? SEARCH_PREVIEW_HIGH_RECOVERY_BUDGET
+    : runtimeQuality.cardBudget;
   const previewPoolBudget = previewPaused
     ? 0
-    : Math.min(SEARCH_PREVIEW_POOL_SIZE, runtimeQuality.cardBudget, Math.max(0, WEBGL_CONTEXT_BUDGET - (mapSurfaceActive ? 1 : 0)));
+    : mapContextRecovering || previewCooldownActive
+      ? 0
+      : Math.min(SEARCH_PREVIEW_POOL_SIZE, previewRecoveryBudget, Math.max(0, WEBGL_CONTEXT_BUDGET - (mapSurfaceActive ? 1 : 0)));
   const runtimeDiagnostics = {
     fps: fpsSample,
     activeSurfaces: activeWebGLSurfaceCount,
     contextBudget: WEBGL_CONTEXT_BUDGET,
     activePreviews: previewPoolAllocations.length,
     previewBudget: previewPoolBudget,
+    previewCooldown: previewCooldownActive,
     contextLossRecoveries,
     qualityTier: runtimeQuality.tier,
     mapRadiusLy: MAP_RADIUS_LY,
     supportedRadiusSteps: MAP_RADIUS_OPTIONS_LY,
   };
 
-  const handleMapContextLost = useCallback(() => {
+  const clearPreviewActivationTimer = useCallback(() => {
+    if (previewActivationTimerRef.current) {
+      window.clearTimeout(previewActivationTimerRef.current);
+      previewActivationTimerRef.current = null;
+    }
+  }, []);
+
+  const enterPreviewCooldown = useCallback(() => {
+    previewRequestQueueRef.current = [];
+    clearPreviewActivationTimer();
+    setPreviewPoolAllocations([]);
+    setPreviewCooldownActive(true);
+    if (previewCooldownTimerRef.current) {
+      window.clearTimeout(previewCooldownTimerRef.current);
+    }
+    previewCooldownTimerRef.current = window.setTimeout(() => {
+      previewCooldownTimerRef.current = null;
+      setPreviewCooldownActive(false);
+    }, SEARCH_PREVIEW_CONTEXT_COOLDOWN_MS);
+  }, [clearPreviewActivationTimer]);
+
+  const handleMapCameraState = useCallback((state) => {
+    if (!state || !Array.isArray(state.position) || state.position.length !== 3) {
+      return;
+    }
+    mapCameraStateRef.current = {
+      position: state.position.map((value) => Number(value) || 0),
+      yaw: Number.isFinite(Number(state.yaw)) ? Number(state.yaw) : DEFAULT_MAP_CAMERA_STATE.yaw,
+      pitch: Number.isFinite(Number(state.pitch)) ? Number(state.pitch) : DEFAULT_MAP_CAMERA_STATE.pitch,
+      mapFrame: state.mapFrame || mapFrame,
+    };
+  }, [mapFrame]);
+
+  const handleMapTelemetry = useCallback((nextTelemetry) => {
+    setTelemetry(nextTelemetry);
+    handleMapCameraState({
+      position: nextTelemetry?.cameraScenePosition,
+      yaw: nextTelemetry?.yaw,
+      pitch: nextTelemetry?.pitch,
+      mapFrame,
+    });
+  }, [handleMapCameraState, mapFrame]);
+
+  const handleMapContextLost = useCallback((cameraState = null) => {
+    const storedState = mapCameraStateRef.current;
+    const datasetPosition = parseMapCameraDatasetPosition(cameraState?.datasetPosition);
+    const datasetState = datasetPosition
+      ? {
+        position: datasetPosition,
+        yaw: Number.isFinite(Number(cameraState?.yaw)) ? Number(cameraState.yaw) : storedState.yaw,
+        pitch: Number.isFinite(Number(cameraState?.pitch)) ? Number(cameraState.pitch) : storedState.pitch,
+        mapFrame,
+      }
+      : null;
+    const eventLooksDefault = cameraStateDistance(cameraState, DEFAULT_MAP_CAMERA_STATE) < 0.01;
+    const storedLooksMoved = cameraStateDistance(storedState, DEFAULT_MAP_CAMERA_STATE) > 0.01;
+    const datasetLooksMoved = cameraStateDistance(datasetState, DEFAULT_MAP_CAMERA_STATE) > 0.01;
+    const restoreState = datasetLooksMoved
+      ? datasetState
+      : eventLooksDefault && storedLooksMoved ? storedState : cameraState;
+    handleMapCameraState(restoreState);
+    setMapRecoveryCameraState(restoreState || storedState || DEFAULT_MAP_CAMERA_STATE);
     setContextLossRecoveries((value) => value + 1);
+    enterPreviewCooldown();
     setMapContextRecovering(true);
     setMapContextEpoch((value) => value + 1);
     window.setTimeout(() => setMapContextRecovering(false), 1200);
-  }, []);
+  }, [enterPreviewCooldown, handleMapCameraState, mapFrame]);
   const handleRuntimeEvent = useCallback((event) => {
     if (event?.type === "webgl-context-lost") {
       setContextLossRecoveries((value) => value + 1);
+      if (event.surface === "system-preview" && event.presentationMode === "card") {
+        enterPreviewCooldown();
+      }
     }
-  }, []);
+  }, [enterPreviewCooldown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2232,7 +2400,21 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, [showFpsOverlay]);
 
   useEffect(() => {
+    previewPoolIdsRef.current = new Set(previewPoolAllocations.map((allocation) => String(allocation.systemId)));
+  }, [previewPoolAllocations]);
+
+  useEffect(() => () => {
+    clearPreviewActivationTimer();
+    if (previewCooldownTimerRef.current) {
+      window.clearTimeout(previewCooldownTimerRef.current);
+      previewCooldownTimerRef.current = null;
+    }
+  }, [clearPreviewActivationTimer]);
+
+  useEffect(() => {
     if (!mapSearchResultsOpen || previewPoolBudget <= 0) {
+      previewRequestQueueRef.current = [];
+      clearPreviewActivationTimer();
       setPreviewPoolAllocations([]);
       return;
     }
@@ -2241,9 +2423,10 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       .filter((allocation) => resultIds.has(String(allocation.systemId)))
       .slice(-previewPoolBudget)
       .map((allocation, index) => ({ ...allocation, slot: index })));
-  }, [mapSearchResults, mapSearchResultsOpen, previewPoolBudget]);
+    previewRequestQueueRef.current = previewRequestQueueRef.current.filter((systemId) => resultIds.has(String(systemId)));
+  }, [clearPreviewActivationTimer, mapSearchResults, mapSearchResultsOpen, previewPoolBudget]);
 
-  const requestSearchPreview = useCallback((systemId) => {
+  const activateSearchPreviewNow = useCallback((systemId) => {
     if (previewPoolBudget <= 0) {
       return;
     }
@@ -2254,9 +2437,43 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     });
   }, [previewPoolBudget]);
 
+  const schedulePreviewActivation = useCallback(() => {
+    if (previewActivationTimerRef.current || previewPoolBudget <= 0) {
+      return;
+    }
+    previewActivationTimerRef.current = window.setTimeout(() => {
+      previewActivationTimerRef.current = null;
+      if (previewPoolBudget <= 0) {
+        previewRequestQueueRef.current = [];
+        return;
+      }
+      const nextSystemId = previewRequestQueueRef.current.shift();
+      if (nextSystemId) {
+        activateSearchPreviewNow(nextSystemId);
+      }
+      if (previewRequestQueueRef.current.length > 0) {
+        schedulePreviewActivation();
+      }
+    }, SEARCH_PREVIEW_ACTIVATION_INTERVAL_MS);
+  }, [activateSearchPreviewNow, previewPoolBudget]);
+
+  const requestSearchPreview = useCallback((systemId) => {
+    if (previewPoolBudget <= 0 || !systemId) {
+      return;
+    }
+    const key = String(systemId);
+    if (previewPoolIdsRef.current.has(key) || previewRequestQueueRef.current.includes(key)) {
+      return;
+    }
+    previewRequestQueueRef.current.push(key);
+    schedulePreviewActivation();
+  }, [previewPoolBudget, schedulePreviewActivation]);
+
   const releaseSearchPreview = useCallback((systemId) => {
+    const key = String(systemId);
+    previewRequestQueueRef.current = previewRequestQueueRef.current.filter((queuedId) => String(queuedId) !== key);
     setPreviewPoolAllocations((current) => current
-      .filter((allocation) => String(allocation.systemId) !== String(systemId))
+      .filter((allocation) => String(allocation.systemId) !== key)
       .map((allocation, index) => ({ ...allocation, slot: index })));
   }, []);
 
@@ -2826,7 +3043,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           onRemoveRouteSegment={truncateRouteAtSegment}
           controlsEnabled={controlsEnabled}
           stabilizationEnabled={stabilizationEnabled}
-          onTelemetry={setTelemetry}
+          onTelemetry={handleMapTelemetry}
+          onCameraState={handleMapCameraState}
+          initialCameraState={mapRecoveryCameraState}
           reticleSelectRequest={reticleSelectRequest}
           focusTarget={selectedSystem}
           focusToken={focusToken}
@@ -3033,6 +3252,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         previewPoolBudget={previewPoolBudget}
         previewRuntimeQualityTier={runtimeQuality.tier}
         previewPaused={previewPaused}
+        previewCooldownActive={previewCooldownActive}
         onRequestPreview={requestSearchPreview}
         onReleasePreview={releaseSearchPreview}
         onRuntimeEvent={handleRuntimeEvent}

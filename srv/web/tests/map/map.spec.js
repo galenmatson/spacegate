@@ -12,6 +12,22 @@ async function canvasBox(page) {
   return box;
 }
 
+function parseCameraPosition(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item));
+}
+
+function cameraDistance(a, b) {
+  const first = parseCameraPosition(a);
+  const second = parseCameraPosition(b);
+  if (first.length !== 3 || second.length !== 3) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.hypot(first[0] - second[0], first[1] - second[1], first[2] - second[2]);
+}
+
 async function expectPreviewCanvasPainted(previewCanvas, label) {
   await expect.poll(
     () => previewCanvas.evaluate((canvas) => {
@@ -167,11 +183,29 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop context recovery smoke");
     await openMap(page);
     const initialCanvas = page.locator(".map-canvas canvas");
+    const box = await initialCanvas.boundingBox();
+    expect(box, "map canvas box before forced recovery").toBeTruthy();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    const defaultCamera = await initialCanvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.mouse.wheel(0, -420);
+    await expect.poll(
+      async () => cameraDistance(defaultCamera, await initialCanvas.evaluate((node) => node.dataset.mapCameraPosition || "")),
+      { timeout: 3000 }
+    ).toBeGreaterThan(0.5);
+    const beforeRecoveryCamera = await initialCanvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    expect(parseCameraPosition(beforeRecoveryCamera).length).toBe(3);
     await initialCanvas.evaluate((canvas) => {
       canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
     });
     await expect(page.locator(".map-context-recovery")).toBeVisible();
     await expect(page.locator(".map-canvas canvas")).toBeVisible();
+    await expect.poll(
+      async () => cameraDistance(
+        beforeRecoveryCamera,
+        await page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapCameraPosition || "")
+      ),
+      { timeout: 5000 }
+    ).toBeLessThan(0.25);
     await expect.poll(
       () => page.locator(".map-canvas canvas").evaluate((node) => Number(node.dataset.runtimeContextRecoveries || 0)),
       { timeout: 5000 }
