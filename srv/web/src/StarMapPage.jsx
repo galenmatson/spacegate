@@ -17,6 +17,7 @@ const STAR_SEARCH_SORT_OPTIONS = [
 const MAP_RADIUS_OPTIONS_LY = [100, 250, 500, 1000];
 const WEBGL_CONTEXT_BUDGET = 6;
 const SEARCH_PREVIEW_POOL_SIZE = 4;
+const SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT = 96;
 const SEARCH_PREVIEW_ACTIVATION_INTERVAL_MS = 450;
 const SEARCH_PREVIEW_CONTEXT_COOLDOWN_MS = 3500;
 const SEARCH_PREVIEW_HIGH_RECOVERY_BUDGET = 1;
@@ -1893,17 +1894,21 @@ function buildSearchParamsFromFilters(filters, origin, query = "", sort = "dista
 function LazyStarSearchPreview({
   system,
   displayName,
+  cachedPreviewImage = "",
   liveActive = false,
   poolSlot = null,
   previewDisabledReason = "",
   runtimeQualityTier = "high",
   onActivate,
   onDeactivate,
+  onCapture,
   onRuntimeEvent,
 }) {
   const ref = useRef(null);
   const requestedLiveRef = useRef(false);
+  const hoverIntentRef = useRef(false);
   const [visible, setVisible] = useState(false);
+  const [hoverIntent, setHoverIntent] = useState(false);
   useEffect(() => {
     const node = ref.current;
     if (!node) {
@@ -1921,25 +1926,45 @@ function LazyStarSearchPreview({
   }, []);
 
   useEffect(() => {
-    if (visible && !requestedLiveRef.current) {
+    const wantsLive = visible && (!cachedPreviewImage || hoverIntent);
+    if (wantsLive && !requestedLiveRef.current) {
       requestedLiveRef.current = true;
       onActivate?.(system.system_id);
       return;
     }
-    if (!visible && requestedLiveRef.current) {
+    if (!wantsLive && requestedLiveRef.current) {
       requestedLiveRef.current = false;
       onDeactivate?.(system.system_id);
     }
-  }, [onActivate, onDeactivate, system.system_id, visible]);
+  }, [cachedPreviewImage, hoverIntent, onActivate, onDeactivate, system.system_id, visible]);
+
+  const setHovering = useCallback((nextValue) => {
+    hoverIntentRef.current = nextValue;
+    setHoverIntent(nextValue);
+  }, []);
+
+  const handleFrameCapture = useCallback((dataUrl) => {
+    onCapture?.(system.system_id, dataUrl);
+    if (!hoverIntentRef.current) {
+      requestedLiveRef.current = false;
+      onDeactivate?.(system.system_id);
+    }
+  }, [onCapture, onDeactivate, system.system_id]);
 
   const showLivePreview = visible && liveActive;
+  const showCachedPreview = Boolean(cachedPreviewImage) && !showLivePreview;
 
   return (
     <div
       ref={ref}
-      className={`map-search-card-preview ${showLivePreview ? "is-live" : ""}`}
-      data-preview-state={showLivePreview ? "live" : (visible && previewDisabledReason ? "paused" : "queued")}
+      className={`map-search-card-preview ${showLivePreview ? "is-live" : ""} ${showCachedPreview ? "is-cached" : ""}`}
+      data-preview-state={showLivePreview ? "live" : showCachedPreview ? "cached" : (visible && previewDisabledReason ? "paused" : "queued")}
       data-preview-pool-slot={poolSlot ?? ""}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      onFocus={() => setHovering(true)}
+      onBlur={() => setHovering(false)}
+      tabIndex={0}
     >
       {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
@@ -1951,9 +1976,16 @@ function LazyStarSearchPreview({
             presentationMode="card"
             autoRun={false}
             qualityTier={runtimeQualityTier}
+            captureFrame={!cachedPreviewImage}
+            onFrameCapture={handleFrameCapture}
             onRuntimeEvent={onRuntimeEvent}
           />
         </React.Suspense>
+      ) : showCachedPreview ? (
+        <>
+          <img className="map-search-card-capture" src={cachedPreviewImage} alt={`${displayName} cached System Simulation preview`} />
+          <span className="map-search-card-preview-chip">{hoverIntent ? "Live queued" : "Hover to animate"}</span>
+        </>
       ) : (
         <div className="map-search-card-fallback">{visible ? (previewDisabledReason || "Preview queued") : "Loading preview"}</div>
       )}
@@ -1986,6 +2018,7 @@ function MapStarSearchShell({
   hasMore,
   onLoadMore,
   searchStats,
+  previewSnapshotCache,
   previewPoolAllocations,
   previewPoolBudget,
   previewRuntimeQualityTier,
@@ -1993,6 +2026,7 @@ function MapStarSearchShell({
   previewCooldownActive,
   onRequestPreview,
   onReleasePreview,
+  onCapturePreview,
   onRuntimeEvent,
 }) {
   const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
@@ -2147,6 +2181,7 @@ function MapStarSearchShell({
                   <LazyStarSearchPreview
                     system={system}
                     displayName={displayName}
+                    cachedPreviewImage={previewSnapshotCache?.get(String(system.system_id))?.url || ""}
                     liveActive={previewAllocationsBySystemId.has(String(system.system_id))}
                     poolSlot={previewAllocationsBySystemId.get(String(system.system_id))?.slot ?? null}
                     previewDisabledReason={
@@ -2159,6 +2194,7 @@ function MapStarSearchShell({
                     runtimeQualityTier={previewRuntimeQualityTier}
                     onActivate={onRequestPreview}
                     onDeactivate={onReleasePreview}
+                    onCapture={onCapturePreview}
                     onRuntimeEvent={onRuntimeEvent}
                   />
                   <div className="map-search-card-body">
@@ -2245,6 +2281,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [contextLossRecoveries, setContextLossRecoveries] = useState(0);
   const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
   const [previewCooldownActive, setPreviewCooldownActive] = useState(false);
+  const [previewSnapshotCache, setPreviewSnapshotCache] = useState(() => new Map());
   const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
   const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
   const [mapSearchFilters, setMapSearchFilters] = useState({
@@ -2527,6 +2564,28 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     setPreviewPoolAllocations((current) => current
       .filter((allocation) => String(allocation.systemId) !== key)
       .map((allocation, index) => ({ ...allocation, slot: index })));
+  }, []);
+
+  const captureSearchPreview = useCallback((systemId, dataUrl) => {
+    const key = String(systemId || "");
+    if (!key || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
+      return;
+    }
+    setPreviewSnapshotCache((current) => {
+      if (current.get(key)?.url === dataUrl) {
+        return current;
+      }
+      const next = new Map(current);
+      next.set(key, { url: dataUrl, capturedAt: performance.now() });
+      while (next.size > SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT) {
+        const oldestKey = next.keys().next().value;
+        if (!oldestKey) {
+          break;
+        }
+        next.delete(oldestKey);
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -3335,6 +3394,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         hasMore={mapSearchHasMore}
         onLoadMore={() => runMapSearch({ cursorValue: mapSearchCursor, append: true })}
         searchStats={mapSearchStats}
+        previewSnapshotCache={previewSnapshotCache}
         previewPoolAllocations={previewPoolAllocations}
         previewPoolBudget={previewPoolBudget}
         previewRuntimeQualityTier={runtimeQuality.tier}
@@ -3342,6 +3402,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         previewCooldownActive={previewCooldownActive}
         onRequestPreview={requestSearchPreview}
         onReleasePreview={releaseSearchPreview}
+        onCapturePreview={captureSearchPreview}
         onRuntimeEvent={handleRuntimeEvent}
       />
 

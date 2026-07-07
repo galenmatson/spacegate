@@ -3436,7 +3436,52 @@ function previewDprForQuality(qualityTier = "high") {
   return [1, 1.75];
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", onHover, onSelect, onClockSample, onContextLost }) {
+function CanvasFrameCapture({ enabled = false, onCapture = null }) {
+  const { gl, invalidate } = useThree();
+  const capturedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!enabled || typeof onCapture !== "function" || capturedRef.current) {
+      return undefined;
+    }
+    let cancelled = false;
+    let timeoutId = 0;
+    let rafId = 0;
+    let secondRafId = 0;
+    const capture = () => {
+      if (cancelled || capturedRef.current) {
+        return;
+      }
+      try {
+        const canvas = gl.domElement;
+        const dataUrl = canvas.toDataURL("image/webp", 0.82);
+        if (typeof dataUrl === "string" && dataUrl.startsWith("data:image/")) {
+          capturedRef.current = true;
+          onCapture(dataUrl);
+        }
+      } catch {
+        // Canvas capture is opportunistic; live WebGL remains the source of truth.
+      }
+    };
+    invalidate();
+    rafId = window.requestAnimationFrame(() => {
+      invalidate();
+      secondRafId = window.requestAnimationFrame(() => {
+        timeoutId = window.setTimeout(capture, 80);
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(rafId);
+      window.cancelAnimationFrame(secondRafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [enabled, gl.domElement, invalidate, onCapture]);
+
+  return null;
+}
+
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onHover, onSelect, onClockSample, onContextLost }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3515,6 +3560,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
     >
       {!transparentBackground && <color attach="background" args={["#050b12"]} />}
       <WebGLContextGuard onContextLost={onContextLost} />
+      <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
       <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} />
       <CanvasHoverRaycaster onHover={onHover} />
       <PreviewObjects
@@ -3758,7 +3804,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", onRuntimeEvent = null }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4005,8 +4051,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 selectedObjectId={payloadId(pinnedObject)}
                 transparentBackground={normalizedPresentationMode !== "detail"}
                 frameLoop={cardPresentation ? "demand" : "always"}
-                preserveDrawingBuffer={!cardPresentation}
+                preserveDrawingBuffer={captureFrame || !cardPresentation}
                 qualityTier={qualityTier}
+                captureFrame={captureFrame}
+                onFrameCapture={onFrameCapture}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}

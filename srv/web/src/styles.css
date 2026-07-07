@@ -590,6 +590,29 @@
   box-shadow: none;
 }
 
+.map-search-card-capture {
+  display: block;
+  width: 100%;
+  height: 192px;
+  object-fit: cover;
+}
+
+.map-search-card-preview-chip {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--map-hud-bg) 76%, transparent);
+  color: var(--map-hud-text);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
 .map-search-card-fallback {
   width: 100%;
   height: 192px;

@@ -118,6 +118,21 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(), { timeout: 10000 })
       .toBeGreaterThan(0);
+    await expect
+      .poll(() => page.locator(".map-search-card-preview img.map-search-card-capture").count(), { timeout: 10000 })
+      .toBeGreaterThan(0);
+    await expect
+      .poll(() => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(), { timeout: 10000 })
+      .toBeLessThanOrEqual(1);
+    const cachedPreview = page.locator(".map-search-card-preview.is-cached").first();
+    await cachedPreview.hover();
+    await expect
+      .poll(() => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(), { timeout: 10000 })
+      .toBeGreaterThan(0);
+    await page.mouse.move(20, 20);
+    await expect
+      .poll(() => page.locator(".map-search-card-preview img.map-search-card-capture").count(), { timeout: 10000 })
+      .toBeGreaterThan(0);
     await expect(page.locator(".map-search-card-preview").getByRole("button", { name: /live preview/i })).toHaveCount(0);
     expect(await page.locator(".map-search-card-preview .system-preview-canvas canvas").count()).toBeLessThanOrEqual(4);
     await expect.poll(
