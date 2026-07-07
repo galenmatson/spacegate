@@ -133,6 +133,13 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         min_scene_stars=3,
         min_scene_planets=1,
     ),
+    BenchmarkCase(
+        "V1513 Cyg",
+        expected_wds_id="20050+5426",
+        max_dist_ly=60.0,
+        min_star_count=2,
+        min_scene_stars=3,
+    ),
 )
 
 
@@ -490,6 +497,32 @@ def assert_render_scene_contract(
             field = field_by_key(fallback.get("fields"), field_key)
             if not field or field.get("status") != "assumed" or field.get("layer") != "disc_assumption":
                 raise AssertionError(f"{case.query}: fallback orbit field {field_key} is not a disc assumption: {field}")
+
+    if query_norm == "v1513 cyg":
+        aa = next((star for star in scene_stars if normalize(star.get("display_name")) == "v1513 cyg aa"), None)
+        ab = next((star for star in scene_stars if normalize(star.get("display_name")) == "v1513 cyg ab"), None)
+        b = next((star for star in scene_stars if normalize(star.get("display_name")) == "v1513 cyg b"), None)
+        if not aa or not ab or not b:
+            raise AssertionError(
+                f"{case.query}: expected AA/AB/B rendered components, "
+                f"got {[star.get('display_name') for star in scene_stars]}"
+            )
+        if aa.get("body_class") != "white_dwarf" or aa.get("compact_type") != "white_dwarf":
+            raise AssertionError(f"{case.query}: AA should render as white_dwarf from WD endpoint evidence, got {aa}")
+        aa_visual_class = field_by_key(aa.get("fields"), "visual_stellar_class")
+        if (
+            not aa_visual_class
+            or aa_visual_class.get("value") != "D"
+            or aa_visual_class.get("basis") != "render_scene:compact_object_visual_class"
+        ):
+            raise AssertionError(f"{case.query}: AA visual class should be compact-object D, got {aa_visual_class}")
+        aa_teff = field_by_key(aa.get("fields"), "teff_k")
+        if aa_teff and aa_teff.get("basis") == "arm.msc_system_details:mass_visual_proxy":
+            raise AssertionError(f"{case.query}: AA white dwarf must not use main-sequence mass visual Teff proxy, got {aa_teff}")
+        if ab.get("body_class") != "star":
+            raise AssertionError(f"{case.query}: AB should remain the cool stellar endpoint, got {ab}")
+        if b.get("body_class") != "brown_dwarf":
+            raise AssertionError(f"{case.query}: B should remain the T-dwarf endpoint, got {b}")
 
     if query_norm == "castor":
         orbit_count = len(render_orbits)

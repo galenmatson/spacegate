@@ -175,9 +175,12 @@ Already in place:
 - selected-system `disc.simulation_assumptions` materialization is available
   through `scripts/materialize_simulation_assumptions.py`; the API annotates
   matching rendered assumptions with `persistence_status="persisted"`
-- the browser renderer checks WebGL capability before mounting R3F and falls
-  back inside the preview panel to the deterministic snapshot artifact when 3D
-  is unavailable or the live scene load fails
+- the browser renderer checks WebGL capability before mounting R3F. If 3D is
+  unavailable or the live scene load fails, the preview panel uses the
+  deterministic snapshot artifact as a last-resort fallback. Transient WebGL
+  context loss inside an otherwise capable simulator panel is treated as
+  recoverable: the live canvas remounts with a short recovery notice instead of
+  immediately demoting the user to a static snapshot.
 - browser QA covers both WebGL-unavailable and failed-scene-load fallback paths
   so the preview panel must render a deterministic snapshot fallback instead of
   a blank or broken canvas
@@ -520,12 +523,16 @@ Success criteria:
   the active `sceneLabelRenderer` diagnostic.
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
-- WebGL context loss inside a simulator panel is trapped and downgraded to the
-  deterministic snapshot fallback. Star Search cards are live-preview-first
-  with a four-live-preview budget to avoid Chromium/Brave context exhaustion
-  while scrolling large result lists. Bulk browser-rendered PNG snapshot
-  generation was tested and removed because headless WebGL rendering was too
-  slow and CPU-heavy for routine presentation updates.
+- WebGL context loss inside a simulator panel is trapped and the live canvas is
+  remounted. Star Search cards are live-preview-first with a four-live-preview
+  budget to avoid Chromium/Brave context exhaustion while scrolling large
+  result lists. Deterministic snapshots remain last-resort no-WebGL/load-failure
+  artifacts, not the preferred context-loss response. Bulk browser-rendered PNG
+  snapshot generation was tested and removed because headless WebGL rendering
+  was too slow and CPU-heavy for routine presentation updates.
+- Formation/freeze-line hover readouts use the same explanatory text as the
+  Lines disclosure controls, so the snowline and other chemistry boundaries
+  read as teaching overlays rather than generic radius guides.
 - `/api/v1/systems/{system_id}/simulation-scene` uses a small in-process LRU
   cache keyed by served build and system id. This avoids recomputing ARM
   diagnostics, readiness, assumptions, and render-scene contracts when users

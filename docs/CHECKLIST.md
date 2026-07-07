@@ -574,6 +574,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   into a compact Lines disclosure
 - [x] Increase System Simulation close-zoom range for true-orbit, true-body,
   and log scale modes without changing science-layer scale semantics
+- [x] Recover live System Simulation panels from transient WebGL context loss
+  by remounting the canvas instead of immediately showing static snapshot
+  fallback
+- [x] Show the full layperson explanation when hovering System Simulation
+  formation/freeze-line overlays such as the water snowline
+- [x] Treat MSC endpoint `WD` spectral evidence as compact-object evidence in
+  System Simulation render bodies, preventing main-sequence mass visual priors
+  from masquerading as white-dwarf facts
+- [ ] Tighten exact/common-name search ranking so queries like `55 Cnc` prefer
+  the exact named system before WDS/catalog neighbors with overlapping tokens
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

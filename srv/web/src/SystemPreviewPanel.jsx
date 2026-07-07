@@ -876,6 +876,7 @@ function formationLineHoverPayload(star, line, radiusAu) {
     name: `${star.display_name || star.name || "Star"} ${line.label} line`,
     id: `${star.render_key || star.key || "star"}:${line.shortLabel.toLowerCase()}-line`,
     sourceLayer: "render_scene",
+    description: line.tooltip,
     rows: [
       readoutRow(star.fields, "luminosity_lsun", "Luminosity", "Unknown", 3),
       staticReadoutRow("Boundary", `${formatNumber(radiusAu, 3)} AU`, "derived", guideField),
@@ -2954,7 +2955,7 @@ function HabitableZoneBand({ star, center = [0, 0, 0], maxOrbit = 1, visualScale
   );
 }
 
-function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, showLabels = true, selectedObjectId = "" }) {
+function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit = 1, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", groupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const planeInclinationDeg = Number(star.habitable_zone_plane_inclination_deg) || 0;
   const planeInclinationRad = THREE.MathUtils.degToRad(planeInclinationDeg);
@@ -2964,6 +2965,24 @@ function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit =
   const labelPosition = useMemo(() => orbitalPosition(Math.PI / 3, radius, 0, planeInclinationRad), [radius, planeInclinationRad]);
   const hoverPayload = useMemo(() => (radiusAu ? formationLineHoverPayload(star, line, radiusAu) : null), [star, line, radiusAu]);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
+  const handlers = {
+    onPointerOver: (event) => {
+      event.stopPropagation();
+      onHover?.(hoverPayload);
+    },
+    onPointerMove: (event) => {
+      event.stopPropagation();
+      onHover?.(hoverPayload);
+    },
+    onPointerOut: (event) => {
+      event.stopPropagation();
+      onHover?.(null);
+    },
+    onClick: (event) => {
+      event.stopPropagation();
+      onSelect?.(hoverPayload);
+    },
+  };
 
   useFrame(() => {
     if (!groupRef.current) {
@@ -2980,7 +2999,7 @@ function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit =
 
   return (
     <group ref={groupRef} position={center} data-testid={`system-preview-formation-line-${lineKey}`}>
-      <lineLoop userData={{ hoverPayload }}>
+      <lineLoop {...handlers} userData={{ hoverPayload }}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[points, 3]} />
         </bufferGeometry>
@@ -3244,6 +3263,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
             simClockRef={simClockRef}
             showLabels={showLabels}
             selectedObjectId={selectedObjectId}
+            onHover={onHover}
+            onSelect={onSelect}
           />
         );
       }))}
@@ -3521,6 +3542,7 @@ function HoverReadout({ object }) {
         <strong>{object.name}</strong>
         <span>{object.kind}</span>
       </div>
+      {object.description ? <p>{object.description}</p> : null}
       <dl>
         {object.rows.map(([label, value, status, field]) => (
           <React.Fragment key={label}>
@@ -3730,7 +3752,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
-  const [contextLost, setContextLost] = useState(false);
+  const [contextRecoveryEpoch, setContextRecoveryEpoch] = useState(0);
+  const [contextRecovering, setContextRecovering] = useState(false);
+  const [contextLossCount, setContextLossCount] = useState(0);
   const [running, setRunning] = useState(Boolean(autoRun));
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
@@ -3742,8 +3766,24 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
+  const contextRecoveryTimerRef = React.useRef(null);
   const handleClockSample = useCallback((days) => {
     setSimulationDays(Number.isFinite(Number(days)) ? Number(days) : 0);
+  }, []);
+  const handleContextLost = useCallback(() => {
+    window.clearTimeout(contextRecoveryTimerRef.current);
+    setContextRecovering(true);
+    setHoveredObject(null);
+    setPinnedObject(null);
+    setContextLossCount((value) => value + 1);
+    setContextRecoveryEpoch((value) => value + 1);
+    contextRecoveryTimerRef.current = window.setTimeout(() => {
+      setContextRecovering(false);
+    }, 1400);
+  }, []);
+
+  useEffect(() => () => {
+    window.clearTimeout(contextRecoveryTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -3751,7 +3791,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     const canRenderWebGL = hasUsableWebGL();
     setWebglReady(canRenderWebGL);
     setStatus("loading");
-    setContextLost(false);
+    setContextRecovering(false);
+    setContextLossCount(0);
+    setContextRecoveryEpoch(0);
     setScene(null);
     setHoveredObject(null);
     setPinnedObject(null);
@@ -3917,18 +3959,19 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         <div className="system-preview-header">
           <div>
             <h3>System Simulation v1</h3>
-            <p>Source-aware system renderer from the simulation-scene contract. Static snapshot remains the fallback.</p>
+            <p>Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.</p>
           </div>
           {renderPreviewActions()}
         </div>
       )}
       <div className="system-preview-layout">
         <div className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
-          {status === "fallback" || webglReady === false || contextLost
-            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason={contextLost ? "WebGL context lost" : "WebGL unavailable"} />
+          {status === "fallback" || webglReady === false
+            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="WebGL unavailable" />
             : status === "ready" && scene
             ? (
               <SceneCanvas
+                key={`${systemId || "system"}:${contextRecoveryEpoch}`}
                 scene={scene}
                 scaleMode={activeScaleMode}
                 running={running}
@@ -3945,12 +3988,18 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}
-                onContextLost={() => setContextLost(true)}
+                onContextLost={handleContextLost}
               />
             )
             : (status === "error"
               ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="Live preview unavailable" />
               : <div className="system-preview-fallback">Loading preview...</div>)}
+          {contextRecovering ? (
+            <div className="system-preview-recovery" data-testid="system-preview-context-recovery">
+              <strong>Restoring WebGL context</strong>
+              <span>{contextLossCount > 1 ? `Recovery ${contextLossCount}` : "Live simulator restarting"}</span>
+            </div>
+          ) : null}
           <HoverReadout object={hoveredObject && !pinnedObject ? hoveredObject : null} />
           <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
         </div>

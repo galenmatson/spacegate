@@ -276,7 +276,8 @@ Initial layers:
     aligned while keeping reloads reproducible
   - surfaces source/derived/assumed/missing provenance pills in the preview
   - deterministic snapshots remain a fallback/reference artifact for
-    no-WebGL or context-loss states
+    no-WebGL or failed-scene-load states; transient context loss in a capable
+    live simulator remounts the canvas instead
   - Star Search result cards use live System Simulation previews for visible
     cards with a four-active-preview WebGL budget, avoiding the rejected bulk
     browser-rendered PNG snapshot path while reducing context-loss risk

@@ -921,6 +921,12 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.raycasterLineThreshold || ""),
       { timeout: 3000 }
     ).toBe("0.12");
+    await sharedClockCanvas.evaluate((canvas) => {
+      canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+    });
+    await expect(page.locator("[data-testid='system-preview-context-recovery']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-snapshot-fallback']")).toHaveCount(0);
+    await expect(page.locator(".system-preview-canvas canvas")).toBeVisible({ timeout: 5000 });
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
       { timeout: 3000 }

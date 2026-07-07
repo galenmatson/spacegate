@@ -6959,9 +6959,9 @@ main {
 }
 
 .map-system-drill .system-preview-hover {
-  top: 62px;
+  top: 104px;
   bottom: auto;
-  z-index: 12;
+  z-index: 90;
 }
 
 .map-system-drill .system-preview-pinned {
@@ -7206,12 +7206,41 @@ main {
   color: #9fb8cb;
 }
 
+.system-preview-recovery {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 78;
+  display: grid;
+  gap: 3px;
+  max-width: min(320px, calc(100% - 24px));
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #07111c 84%, transparent);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.system-preview-recovery strong,
+.system-preview-recovery span {
+  color: #eef6ff;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.system-preview-recovery span {
+  color: #9fb8cb;
+}
+
 .system-preview-hover {
   position: absolute;
   left: 10px;
   bottom: 10px;
-  z-index: 4;
-  width: min(280px, calc(100% - 20px));
+  z-index: 90;
+  width: min(420px, calc(100% - 20px));
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-radius: 8px;
@@ -7219,6 +7248,12 @@ main {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(10px);
   pointer-events: none;
+}
+
+.map-system-drill .system-preview-hover {
+  top: 104px;
+  bottom: auto;
+  z-index: 90;
 }
 
 .system-preview-hover > div {
@@ -7246,6 +7281,13 @@ main {
   font-size: 0.66rem;
   font-style: normal;
   text-transform: uppercase;
+}
+
+.system-preview-hover p {
+  margin: 0 0 8px;
+  color: #d8e6f2;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .system-preview-hover dl {

@@ -1234,8 +1234,17 @@ def _field_map(fields: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     return {str(field.get("key")): field for field in fields or [] if field.get("key")}
 
 
+def _spectral_type_indicates_white_dwarf(value: Any) -> bool:
+    text = str(value or "").strip().upper()
+    if not text:
+        return False
+    return text.startswith("WD") or text[:2] in {"DA", "DB", "DC", "DO", "DQ", "DZ", "DX"}
+
+
 def _visual_star_color_class(star: Dict[str, Any], fallback: Optional[str] = None) -> str:
     value = str(star.get("spectral_class") or fallback or "").strip().upper()
+    if _spectral_type_indicates_white_dwarf(value):
+        return "D"
     return value[:1] if value[:1] in {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"} else "M"
 
 
@@ -1383,7 +1392,7 @@ def _stellar_body_class(star: Dict[str, Any], fallback: Optional[str] = None) ->
     spectral_type = str(star.get("spectral_type_raw") or star.get("spectral_type") or "").strip().upper()
     if raw_type in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar", "brown_dwarf"}:
         return raw_type
-    if spectral_type.startswith("D") or spectral_class == "D":
+    if _spectral_type_indicates_white_dwarf(spectral_type) or spectral_class == "D":
         return "white_dwarf"
     if spectral_class in {"L", "T", "Y"}:
         return "brown_dwarf"
@@ -1497,6 +1506,8 @@ def _field_from_hierarchy_quick_fact(
 
 
 def _teff_from_spectral_type(spectral_type: Any) -> Optional[float]:
+    if _spectral_type_indicates_white_dwarf(spectral_type):
+        return 9000.0
     token = str(spectral_type or "").strip().upper()[:1]
     return {
         "O": 32000.0,
@@ -1937,11 +1948,17 @@ def _render_scene_contract(
         seed = _stable_seed(system.get("stable_object_key"), component_key, "star_visual")
         spectral_type_raw = evidence.get("spectral_type_raw")
         source_mass = _float_or_none(evidence.get("mass_msun"))
-        source_teff = _teff_from_spectral_type(spectral_type_raw)
-        mass_proxy_teff = _teff_from_mass_visual_proxy(source_mass)
-        radius_proxy = _radius_from_mass_visual_proxy(source_mass)
         spectral_class = _visual_star_color_class({}, fallback=spectral_type_raw) if spectral_type_raw else None
         body_class = _stellar_body_class({"spectral_class": spectral_class, "spectral_type_raw": spectral_type_raw})
+        source_teff = _teff_from_spectral_type(spectral_type_raw)
+        mass_proxy_teff = None if body_class in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar"} else _teff_from_mass_visual_proxy(source_mass)
+        radius_proxy = 0.012 if body_class == "white_dwarf" else _radius_from_mass_visual_proxy(source_mass)
+        radius_proxy_basis = (
+            "arm.msc_system_details:compact_object_radius_visual_proxy"
+            if body_class == "white_dwarf"
+            else "arm.msc_system_details:mass_radius_visual_proxy"
+        )
+        radius_proxy_confidence = 0.2 if body_class == "white_dwarf" else 0.25
         component_fields = {
             "object_type": _stellar_body_class_field(
                 value=body_class,
@@ -2056,13 +2073,13 @@ def _render_scene_contract(
                     value=radius_proxy,
                     unit="Rsun",
                     status="derived",
-                    basis="arm.msc_system_details:mass_radius_visual_proxy",
+                    basis=radius_proxy_basis,
                     layer="arm",
                     confidence_tier="illustrative",
                     replacement_target="source radius for this component",
                     source_catalog=evidence.get("source_catalog") or "msc",
                     source_reference=evidence.get("source_reference"),
-                    confidence=0.25,
+                    confidence=radius_proxy_confidence,
                 )
                 if radius_proxy is not None
                 else _procedural_field(
