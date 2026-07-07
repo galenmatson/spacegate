@@ -570,8 +570,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectral filter buttons
 - [x] Add Star Map WebGL context-loss recovery and stricter live-card preview
   activation to mitigate fast-scroll browser context eviction
-- [x] Add a persisted client-side Star Map FPS overlay toggle in the burger
-  menu for live performance inspection
+- [x] Add a persisted client-side Star Map runtime diagnostics toggle in the
+  burger menu showing FPS, active WebGL surfaces, preview-pool pressure,
+  context-loss recoveries, and quality tier
 - [x] Collapse System Simulation habitable-zone and temperature-line toggles
   into a compact Lines disclosure
 - [x] Increase System Simulation close-zoom range for true-orbit, true-body,
@@ -605,10 +606,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Preserve MSC inferred leaf hierarchy through canonical hierarchy emit
   after the ARM builder moved to source-native nested MSC subsystem edges
 - [ ] 3D map real-device mid-tier mobile performance check
-- [ ] Live-WebGL runtime manager for shared context budgeting, adaptive quality,
-  preview pooling, and fallback-last policy across Map, Peek, Explorer, and
-  Star Search result cards
-- [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
+- [x] Live-WebGL runtime manager foundation for shared context budgeting,
+  adaptive quality, preview pooling, and fallback-last policy across Map, Peek,
+  Explorer, and Star Search result cards
+- [ ] Expand the Live-WebGL runtime manager with richer admin/dev telemetry,
+  observed browser context limits, and real-device automatic quality tuning
+- [ ] 3D map tiled 250 ly / 500 ly / 1000 ly runtime integration over
+  Gaia-first slice
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star
   Search, no-WebGL clients, crawlers/share cards, and fallback/reference
   surfaces

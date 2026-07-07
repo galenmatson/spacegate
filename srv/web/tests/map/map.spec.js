@@ -79,6 +79,9 @@ test.describe("public 3D map beta", () => {
     await page.locator("[data-testid='map-fps-toggle']").check();
     await expect(page.locator("[data-testid='map-fps-overlay']")).toBeVisible();
     await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/FPS/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/WebGL/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Previews/i);
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/Quality/i);
     await page.locator("[data-testid='map-fps-toggle']").uncheck();
     await expect(page.locator("[data-testid='map-fps-overlay']")).toHaveCount(0);
     await page.locator(".map-search-spectral", { hasText: "G" }).click();
@@ -101,6 +104,24 @@ test.describe("public 3D map beta", () => {
       .toBeGreaterThan(0);
     await expect(page.locator(".map-search-card-preview").getByRole("button", { name: /live preview/i })).toHaveCount(0);
     expect(await page.locator(".map-search-card-preview .system-preview-canvas canvas").count()).toBeLessThanOrEqual(4);
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimePreviewPoolBudget || ""),
+      { timeout: 3000 }
+    ).toMatch(/[1-4]/);
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimeQualityTier || ""),
+      { timeout: 3000 }
+    ).toMatch(/high|balanced|low/);
+    await page.locator(".map-search-card-actions .map-command-button.primary").first().click();
+    await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
+    await expect.poll(
+      () => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(),
+      { timeout: 5000 }
+    ).toBe(0);
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimePreviewPoolBudget || ""),
+      { timeout: 3000 }
+    ).toBe("0");
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {
@@ -116,6 +137,32 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
   });
 
+  test("fast search-result scrolling keeps live preview pool bounded", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop fast-scroll stress check");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.locator(".map-canvas canvas").waitFor();
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    await expect(page.locator("[data-testid='map-star-search-results']")).toBeVisible();
+    await expect(page.locator(".map-search-card").first()).toBeVisible({ timeout: 10000 });
+    for (let idx = 0; idx < 10; idx += 1) {
+      await page.mouse.wheel(0, 900);
+      await page.waitForTimeout(35);
+    }
+    await expect(page.locator(".map-canvas canvas")).toBeVisible();
+    await expect.poll(
+      () => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(),
+      { timeout: 10000 }
+    ).toBeLessThanOrEqual(4);
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => Number(node.dataset.runtimePreviewPoolActive || 0)),
+      { timeout: 3000 }
+    ).toBeLessThanOrEqual(4);
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimeQualityTier || ""),
+      { timeout: 3000 }
+    ).toMatch(/high|balanced|low/);
+  });
+
   test("map canvas recovers from WebGL context loss", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop context recovery smoke");
     await openMap(page);
@@ -125,6 +172,10 @@ test.describe("public 3D map beta", () => {
     });
     await expect(page.locator(".map-context-recovery")).toBeVisible();
     await expect(page.locator(".map-canvas canvas")).toBeVisible();
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => Number(node.dataset.runtimeContextRecoveries || 0)),
+      { timeout: 5000 }
+    ).toBeGreaterThanOrEqual(1);
   });
 
   test("header menu controls theme and map keybind scheme", async ({ page }, testInfo) => {

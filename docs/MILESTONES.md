@@ -629,6 +629,19 @@ Deliverables:
   loss; deterministic/static artifacts remain for no-WebGL, failed scene-load,
   crawler/share surfaces, and repeated unrecoverable failures
 
+Implemented foundation:
+
+- Star Map owns centralized runtime state for active WebGL surfaces, a
+  search-card live-preview pool, context-loss recovery count, and adaptive
+  quality tier
+- runtime diagnostics overlay is toggled from the map burger menu and reports
+  FPS, active WebGL surfaces, preview-pool pressure, recovery count, and quality
+  tier
+- search-card previews unmount when Peek/Explorer is active and remount from
+  the pool when the user returns to flight/search browsing
+- map and System Simulation canvases receive adaptive DPR profiles from the
+  runtime quality tier
+
 Future deep-map constraint:
 
 - design the runtime manager to support user-selectable 100/250/500/1000 ly map
@@ -648,8 +661,8 @@ Success criteria:
 
 Goal:
 
-- expand the map to 250 ly and 1000 ly using explicit tile/LOD loading rather
-  than one large browser payload.
+- expand the map to selectable 250 ly, 500 ly, and 1000 ly radii using explicit
+  tile/LOD loading rather than one large browser payload.
 
 Deliverables:
 

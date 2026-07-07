@@ -524,12 +524,16 @@ Success criteria:
 - WebGL-disabled browsers receive the deterministic system snapshot in the live
   preview panel instead of a blank or broken canvas
 - WebGL context loss inside a simulator panel is trapped and the live canvas is
-  remounted. Star Search cards are live-preview-first with a four-live-preview
-  budget to avoid Chromium/Brave context exhaustion while scrolling large
-  result lists. Deterministic snapshots remain last-resort no-WebGL/load-failure
-  artifacts, not the preferred context-loss response. Bulk browser-rendered PNG
-  snapshot generation was tested and removed because headless WebGL rendering
-  was too slow and CPU-heavy for routine presentation updates.
+  remounted. After repeated unrecoverable panel-level context loss, the panel may
+  demote to the deterministic snapshot artifact rather than spinning forever.
+  Star Search cards are live-preview-first through the Star Map runtime
+  manager's small preview pool; the pool pauses lower-priority card previews
+  while Peek or Explorer is active and adapts DPR quality under context/device
+  pressure. Deterministic snapshots remain last-resort no-WebGL/load-failure/
+  repeated-failure artifacts, not the preferred context-loss response. Bulk
+  browser-rendered PNG snapshot generation was tested and removed because
+  headless WebGL rendering was too slow and CPU-heavy for routine presentation
+  updates.
 - Formation/freeze-line hover readouts use the same explanatory text as the
   Lines disclosure controls, so the snowline and other chemistry boundaries
   read as teaching overlays rather than generic radius guides.

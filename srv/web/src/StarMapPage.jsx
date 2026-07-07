@@ -14,7 +14,14 @@ const STAR_SEARCH_SORT_OPTIONS = [
   { value: "coolness", label: "Coolest" },
   { value: "name", label: "Name" },
 ];
-const MAX_LIVE_SEARCH_PREVIEWS = 4;
+const MAP_RADIUS_OPTIONS_LY = [100, 250, 500, 1000];
+const WEBGL_CONTEXT_BUDGET = 6;
+const SEARCH_PREVIEW_POOL_SIZE = 4;
+const RUNTIME_QUALITY_PROFILES = {
+  high: { tier: "high", label: "High", mapDpr: [1, 1.75], previewDpr: [1, 1.5], cardBudget: 4 },
+  balanced: { tier: "balanced", label: "Balanced", mapDpr: [1, 1.35], previewDpr: [0.9, 1.25], cardBudget: 3 },
+  low: { tier: "low", label: "Low", mapDpr: [0.75, 1], previewDpr: [0.75, 1], cardBudget: 2 },
+};
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
@@ -207,6 +214,30 @@ function readStoredFpsOverlayEnabled() {
   } catch {
     return false;
   }
+}
+
+function readDeviceRuntimeProfile() {
+  if (typeof window === "undefined") {
+    return { width: 1440, height: 900, dpr: 1, touch: false };
+  }
+  return {
+    width: window.innerWidth || 1440,
+    height: window.innerHeight || 900,
+    dpr: window.devicePixelRatio || 1,
+    touch: Boolean(window.matchMedia?.("(pointer: coarse)")?.matches),
+  };
+}
+
+function runtimeQualityFor({ activeSurfaces = 1, contextLossRecoveries = 0, deviceProfile = readDeviceRuntimeProfile() } = {}) {
+  const mobileSized = Number(deviceProfile.width || 0) < 760 || Boolean(deviceProfile.touch);
+  const highDpr = Number(deviceProfile.dpr || 1) > 1.75;
+  if (contextLossRecoveries >= 2 || activeSurfaces >= WEBGL_CONTEXT_BUDGET || (mobileSized && activeSurfaces >= 3)) {
+    return RUNTIME_QUALITY_PROFILES.low;
+  }
+  if (contextLossRecoveries >= 1 || activeSurfaces >= 4 || mobileSized || highDpr) {
+    return RUNTIME_QUALITY_PROFILES.balanced;
+  }
+  return RUNTIME_QUALITY_PROFILES.high;
 }
 
 function isKeyboardInputTarget(target) {
@@ -1551,6 +1582,22 @@ function MapWebGLContextGuard({ onContextLost }) {
   return null;
 }
 
+function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
+  const { gl } = useThree();
+  useEffect(() => {
+    const target = gl.domElement;
+    target.dataset.runtimeQualityTier = runtimeQuality?.tier || "high";
+    target.dataset.runtimeActiveSurfaces = String(runtimeDiagnostics?.activeSurfaces ?? "");
+    target.dataset.runtimeContextBudget = String(runtimeDiagnostics?.contextBudget ?? "");
+    target.dataset.runtimePreviewPoolActive = String(runtimeDiagnostics?.activePreviews ?? "");
+    target.dataset.runtimePreviewPoolBudget = String(runtimeDiagnostics?.previewBudget ?? "");
+    target.dataset.runtimeContextRecoveries = String(runtimeDiagnostics?.contextLossRecoveries ?? "");
+    target.dataset.runtimeRadiusOptionsLy = (runtimeDiagnostics?.supportedRadiusSteps || []).join(",");
+  }, [gl.domElement, runtimeDiagnostics, runtimeQuality]);
+
+  return null;
+}
+
 function StarMapScene({
   systems,
   selectedSystem,
@@ -1572,16 +1619,20 @@ function StarMapScene({
   focusToken,
   mobileFlightIntent,
   onContextLost,
+  runtimeQuality,
+  runtimeDiagnostics,
 }) {
   return (
     <Canvas
       className="map-canvas"
       camera={{ fov: 62, near: 0.01, far: 1200, position: [0, 3.5, 17] }}
+      dpr={runtimeQuality?.mapDpr || RUNTIME_QUALITY_PROFILES.high.mapDpr}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: "high-performance" }}
     >
       <color attach="background" args={["#01030a"]} />
       <fog attach="fog" args={["#01030a", 80, 190]} />
       <MapWebGLContextGuard onContextLost={onContextLost} />
+      <MapRuntimeBridge runtimeDiagnostics={runtimeDiagnostics} runtimeQuality={runtimeQuality} />
       <DistanceRings />
       <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} />
       <StarField systems={systems} filterMatchIds={filterMatchIds} filterActive={filterActive} />
@@ -1716,7 +1767,17 @@ function buildSearchParamsFromFilters(filters, origin, query = "", sort = "dista
   return params;
 }
 
-function LazyStarSearchPreview({ system, displayName, liveActive = false, onActivate, onDeactivate }) {
+function LazyStarSearchPreview({
+  system,
+  displayName,
+  liveActive = false,
+  poolSlot = null,
+  previewDisabledReason = "",
+  runtimeQualityTier = "high",
+  onActivate,
+  onDeactivate,
+  onRuntimeEvent,
+}) {
   const ref = useRef(null);
   const requestedLiveRef = useRef(false);
   const [visible, setVisible] = useState(false);
@@ -1754,19 +1815,24 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
     <div
       ref={ref}
       className={`map-search-card-preview ${showLivePreview ? "is-live" : ""}`}
+      data-preview-state={showLivePreview ? "live" : (visible && previewDisabledReason ? "paused" : "queued")}
+      data-preview-pool-slot={poolSlot ?? ""}
     >
       {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
           <SystemPreviewPanel
+            key={`search-preview:${poolSlot ?? system.system_id}:${system.system_id}`}
             systemId={system.system_id}
             systemName={displayName}
             snapshot={system.snapshot}
             presentationMode="card"
             autoRun={false}
+            qualityTier={runtimeQualityTier}
+            onRuntimeEvent={onRuntimeEvent}
           />
         </React.Suspense>
       ) : (
-        <div className="map-search-card-fallback">{visible ? "Preview queued" : "Loading preview"}</div>
+        <div className="map-search-card-fallback">{visible ? (previewDisabledReason || "Preview queued") : "Loading preview"}</div>
       )}
     </div>
   );
@@ -1797,8 +1863,14 @@ function MapStarSearchShell({
   hasMore,
   onLoadMore,
   searchStats,
+  previewPoolAllocations,
+  previewPoolBudget,
+  previewRuntimeQualityTier,
+  previewPaused,
+  onRequestPreview,
+  onReleasePreview,
+  onRuntimeEvent,
 }) {
-  const [activePreviewSystemIds, setActivePreviewSystemIds] = useState([]);
   const updateRange = (key, value) => setFilters((current) => ({ ...current, [key]: value.map((item) => Math.round(Number(item))) }));
   const toggleSpectral = (token) => {
     setFilters((current) => {
@@ -1821,26 +1893,13 @@ function MapStarSearchShell({
   const hasQuery = Boolean(query.trim());
   const selectedSort = !hasQuery && sort === "match" ? "distance" : sort;
 
-  useEffect(() => {
-    if (!resultsOpen) {
-      setActivePreviewSystemIds([]);
-      return;
-    }
-    const resultIds = new Set(results.map((system) => String(system.system_id)));
-    setActivePreviewSystemIds((current) => current.filter((systemId) => resultIds.has(String(systemId))));
-  }, [results, resultsOpen]);
-
-  const activateLivePreview = useCallback((systemId) => {
-    setActivePreviewSystemIds((current) => {
-      const next = current.filter((item) => String(item) !== String(systemId));
-      next.push(systemId);
-      return next.slice(-MAX_LIVE_SEARCH_PREVIEWS);
+  const previewAllocationsBySystemId = useMemo(() => {
+    const out = new Map();
+    (previewPoolAllocations || []).forEach((allocation, index) => {
+      out.set(String(allocation.systemId), { ...allocation, slot: allocation.slot ?? index });
     });
-  }, []);
-
-  const deactivateLivePreview = useCallback((systemId) => {
-    setActivePreviewSystemIds((current) => current.filter((item) => String(item) !== String(systemId)));
-  }, []);
+    return out;
+  }, [previewPoolAllocations]);
 
   return (
     <section className={`map-star-search ${open ? "is-open" : ""}`} aria-label="Map-native Star Search">
@@ -1964,9 +2023,13 @@ function MapStarSearchShell({
                   <LazyStarSearchPreview
                     system={system}
                     displayName={displayName}
-                    liveActive={activePreviewSystemIds.some((systemId) => String(systemId) === String(system.system_id))}
-                    onActivate={activateLivePreview}
-                    onDeactivate={deactivateLivePreview}
+                    liveActive={previewAllocationsBySystemId.has(String(system.system_id))}
+                    poolSlot={previewAllocationsBySystemId.get(String(system.system_id))?.slot ?? null}
+                    previewDisabledReason={previewPaused ? "Preview paused" : (previewPoolBudget <= 0 ? "Preview budget full" : "")}
+                    runtimeQualityTier={previewRuntimeQualityTier}
+                    onActivate={onRequestPreview}
+                    onDeactivate={onReleasePreview}
+                    onRuntimeEvent={onRuntimeEvent}
                   />
                   <div className="map-search-card-body">
                     <h3>{displayName}</h3>
@@ -2035,6 +2098,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [showDirectionLabels, setShowDirectionLabels] = useState(readStoredDirectionLabelsEnabled);
   const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
   const [fpsSample, setFpsSample] = useState(0);
+  const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readDeviceRuntimeProfile);
+  const [contextLossRecoveries, setContextLossRecoveries] = useState(0);
+  const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
   const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
   const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
   const [mapSearchFilters, setMapSearchFilters] = useState({
@@ -2060,11 +2126,40 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
   const mapSearchOpen = defaultSearchOpen || location.pathname === "/" || location.pathname === "/search";
+  const mapSurfaceActive = systems.length > 0;
+  const drillSurfaceActive = drillMode !== "flight" && Boolean(selectedSystem?.system_id);
+  const activeWebGLSurfaceCount = (mapSurfaceActive ? 1 : 0) + (drillSurfaceActive ? 1 : 0) + previewPoolAllocations.length;
+  const runtimeQuality = useMemo(() => runtimeQualityFor({
+    activeSurfaces: activeWebGLSurfaceCount,
+    contextLossRecoveries,
+    deviceProfile: deviceRuntimeProfile,
+  }), [activeWebGLSurfaceCount, contextLossRecoveries, deviceRuntimeProfile]);
+  const previewPaused = drillSurfaceActive;
+  const previewPoolBudget = previewPaused
+    ? 0
+    : Math.min(SEARCH_PREVIEW_POOL_SIZE, runtimeQuality.cardBudget, Math.max(0, WEBGL_CONTEXT_BUDGET - (mapSurfaceActive ? 1 : 0)));
+  const runtimeDiagnostics = {
+    fps: fpsSample,
+    activeSurfaces: activeWebGLSurfaceCount,
+    contextBudget: WEBGL_CONTEXT_BUDGET,
+    activePreviews: previewPoolAllocations.length,
+    previewBudget: previewPoolBudget,
+    contextLossRecoveries,
+    qualityTier: runtimeQuality.tier,
+    mapRadiusLy: MAP_RADIUS_LY,
+    supportedRadiusSteps: MAP_RADIUS_OPTIONS_LY,
+  };
 
   const handleMapContextLost = useCallback(() => {
+    setContextLossRecoveries((value) => value + 1);
     setMapContextRecovering(true);
     setMapContextEpoch((value) => value + 1);
     window.setTimeout(() => setMapContextRecovering(false), 1200);
+  }, []);
+  const handleRuntimeEvent = useCallback((event) => {
+    if (event?.type === "webgl-context-lost") {
+      setContextLossRecoveries((value) => value + 1);
+    }
   }, []);
 
   useEffect(() => {
@@ -2122,12 +2217,48 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   }, [showDirectionLabels]);
 
   useEffect(() => {
+    const updateProfile = () => setDeviceRuntimeProfile(readDeviceRuntimeProfile());
+    updateProfile();
+    window.addEventListener("resize", updateProfile);
+    return () => window.removeEventListener("resize", updateProfile);
+  }, []);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(MAP_FPS_OVERLAY_STORAGE_KEY, showFpsOverlay ? "true" : "false");
     } catch {
       // FPS overlay preference persistence is optional.
     }
   }, [showFpsOverlay]);
+
+  useEffect(() => {
+    if (!mapSearchResultsOpen || previewPoolBudget <= 0) {
+      setPreviewPoolAllocations([]);
+      return;
+    }
+    const resultIds = new Set(mapSearchResults.map((system) => String(system.system_id)));
+    setPreviewPoolAllocations((current) => current
+      .filter((allocation) => resultIds.has(String(allocation.systemId)))
+      .slice(-previewPoolBudget)
+      .map((allocation, index) => ({ ...allocation, slot: index })));
+  }, [mapSearchResults, mapSearchResultsOpen, previewPoolBudget]);
+
+  const requestSearchPreview = useCallback((systemId) => {
+    if (previewPoolBudget <= 0) {
+      return;
+    }
+    setPreviewPoolAllocations((current) => {
+      const next = current.filter((allocation) => String(allocation.systemId) !== String(systemId));
+      next.push({ systemId, requestedAt: performance.now() });
+      return next.slice(-previewPoolBudget).map((allocation, index) => ({ ...allocation, slot: index }));
+    });
+  }, [previewPoolBudget]);
+
+  const releaseSearchPreview = useCallback((systemId) => {
+    setPreviewPoolAllocations((current) => current
+      .filter((allocation) => String(allocation.systemId) !== String(systemId))
+      .map((allocation, index) => ({ ...allocation, slot: index })));
+  }, []);
 
   useEffect(() => {
     if (!showFpsOverlay) {
@@ -2701,6 +2832,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           focusToken={focusToken}
           mobileFlightIntent={mobileFlightIntent}
           onContextLost={handleMapContextLost}
+          runtimeQuality={runtimeQuality}
+          runtimeDiagnostics={runtimeDiagnostics}
         />
       )}
 
@@ -2828,7 +2961,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                   onChange={(event) => setShowFpsOverlay(event.target.checked)}
                   data-testid="map-fps-toggle"
                 />
-                <span>Show FPS</span>
+                <span>Runtime diagnostics</span>
               </label>
               <span className="map-menu-note">Arrow keys always fly.</span>
             </div>
@@ -2837,9 +2970,37 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       </header>
 
       {showFpsOverlay && (
-        <div className="map-fps-overlay" role="status" aria-live="polite" data-testid="map-fps-overlay">
-          <strong>{fpsSample > 0 ? fpsSample : "--"}</strong>
-          <span>FPS</span>
+        <div
+          className="map-fps-overlay"
+          role="status"
+          aria-live="polite"
+          data-testid="map-fps-overlay"
+          data-quality-tier={runtimeDiagnostics.qualityTier}
+          data-active-webgl-surfaces={runtimeDiagnostics.activeSurfaces}
+          data-preview-pool-active={runtimeDiagnostics.activePreviews}
+          data-preview-pool-budget={runtimeDiagnostics.previewBudget}
+          data-context-recoveries={runtimeDiagnostics.contextLossRecoveries}
+        >
+          <div>
+            <strong>{fpsSample > 0 ? fpsSample : "--"}</strong>
+            <span>FPS</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.activeSurfaces}/{runtimeDiagnostics.contextBudget}</strong>
+            <span>WebGL</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.activePreviews}/{runtimeDiagnostics.previewBudget}</strong>
+            <span>Previews</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.contextLossRecoveries}</strong>
+            <span>Recoveries</span>
+          </div>
+          <div>
+            <strong>{runtimeDiagnostics.qualityTier}</strong>
+            <span>Quality</span>
+          </div>
         </div>
       )}
 
@@ -2868,6 +3029,13 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         hasMore={mapSearchHasMore}
         onLoadMore={() => runMapSearch({ cursorValue: mapSearchCursor, append: true })}
         searchStats={mapSearchStats}
+        previewPoolAllocations={previewPoolAllocations}
+        previewPoolBudget={previewPoolBudget}
+        previewRuntimeQualityTier={runtimeQuality.tier}
+        previewPaused={previewPaused}
+        onRequestPreview={requestSearchPreview}
+        onReleasePreview={releaseSearchPreview}
+        onRuntimeEvent={handleRuntimeEvent}
       />
 
       <aside className="map-hud map-controls-panel">
@@ -3148,6 +3316,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 systemId={selectedSystem.system_id}
                 systemName={formatName(selectedSystem.display_name)}
                 presentationMode={drillMode}
+                qualityTier={runtimeQuality.tier}
+                onRuntimeEvent={handleRuntimeEvent}
               />
             </React.Suspense>
           </div>

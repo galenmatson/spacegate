@@ -3426,7 +3426,17 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, onHover, onSelect, onClockSample, onContextLost }) {
+function previewDprForQuality(qualityTier = "high") {
+  if (qualityTier === "low") {
+    return [0.75, 1];
+  }
+  if (qualityTier === "balanced") {
+    return [0.9, 1.25];
+  }
+  return [1, 1.75];
+}
+
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", onHover, onSelect, onClockSample, onContextLost }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3499,7 +3509,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   return (
     <Canvas
       camera={{ position: [0, 6.2, 10.8], fov: 43 }}
-      dpr={[1, 1.75]}
+      dpr={previewDprForQuality(qualityTier)}
       frameloop={frameLoop}
       gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer, powerPreference: "high-performance" }}
     >
@@ -3748,13 +3758,14 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", onRuntimeEvent = null }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
   const [contextRecoveryEpoch, setContextRecoveryEpoch] = useState(0);
   const [contextRecovering, setContextRecovering] = useState(false);
   const [contextLossCount, setContextLossCount] = useState(0);
+  const [contextFailureLocked, setContextFailureLocked] = useState(false);
   const [running, setRunning] = useState(Boolean(autoRun));
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [resetToken, setResetToken] = useState(0);
@@ -3767,20 +3778,28 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [pinnedObject, setPinnedObject] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
   const contextRecoveryTimerRef = React.useRef(null);
+  const contextLossCountRef = React.useRef(0);
   const handleClockSample = useCallback((days) => {
     setSimulationDays(Number.isFinite(Number(days)) ? Number(days) : 0);
   }, []);
   const handleContextLost = useCallback(() => {
+    onRuntimeEvent?.({ type: "webgl-context-lost", surface: "system-preview", systemId, presentationMode });
     window.clearTimeout(contextRecoveryTimerRef.current);
     setContextRecovering(true);
     setHoveredObject(null);
     setPinnedObject(null);
-    setContextLossCount((value) => value + 1);
-    setContextRecoveryEpoch((value) => value + 1);
+    const nextLossCount = contextLossCountRef.current + 1;
+    contextLossCountRef.current = nextLossCount;
+    setContextLossCount(nextLossCount);
+    if (nextLossCount >= 3) {
+      setContextFailureLocked(true);
+    } else {
+      setContextRecoveryEpoch((epoch) => epoch + 1);
+    }
     contextRecoveryTimerRef.current = window.setTimeout(() => {
       setContextRecovering(false);
     }, 1400);
-  }, []);
+  }, [onRuntimeEvent, presentationMode, systemId]);
 
   useEffect(() => () => {
     window.clearTimeout(contextRecoveryTimerRef.current);
@@ -3793,7 +3812,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setStatus("loading");
     setContextRecovering(false);
     setContextLossCount(0);
+    contextLossCountRef.current = 0;
     setContextRecoveryEpoch(0);
+    setContextFailureLocked(false);
     setScene(null);
     setHoveredObject(null);
     setPinnedObject(null);
@@ -3966,8 +3987,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       )}
       <div className="system-preview-layout">
         <div className="system-preview-canvas" aria-label={`${systemName} System Simulation`}>
-          {status === "fallback" || webglReady === false
-            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason="WebGL unavailable" />
+          {status === "fallback" || webglReady === false || contextFailureLocked
+            ? <SnapshotFallbackVisual snapshot={snapshot} systemName={systemName} reason={contextFailureLocked ? "Repeated WebGL context loss" : "WebGL unavailable"} />
             : status === "ready" && scene
             ? (
               <SceneCanvas
@@ -3985,6 +4006,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 transparentBackground={normalizedPresentationMode !== "detail"}
                 frameLoop={cardPresentation ? "demand" : "always"}
                 preserveDrawingBuffer={!cardPresentation}
+                qualityTier={qualityTier}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}

@@ -278,14 +278,18 @@ Initial layers:
   - deterministic snapshots remain a fallback/reference artifact for
     no-WebGL or failed-scene-load states; transient context loss in a capable
     live simulator remounts the canvas instead
-  - Star Search result cards use live System Simulation previews for visible
-    cards with a four-active-preview WebGL budget, avoiding the rejected bulk
-    browser-rendered PNG snapshot path while reducing context-loss risk
-  - card previews activate only when actually visible, and the background map
-    canvas remounts after WebGL context loss so fast-scroll browser context
-    eviction can recover without a full page reload
-  - the map burger menu includes a persisted client-side FPS overlay toggle for
-    live hardware/performance checks without opening browser devtools
+  - Star Search result cards use a centralized live-preview pool with a
+    four-preview upper budget, avoiding the rejected bulk browser-rendered PNG
+    snapshot path while reducing context-loss risk
+  - card previews activate only when actually visible, pause/unmount when Peek
+    or Explorer owns attention, and the background map canvas remounts after
+    WebGL context loss so fast-scroll browser context eviction can recover
+    without a full page reload
+  - the map burger menu includes a persisted client-side runtime diagnostics
+    overlay for FPS, active WebGL surfaces, preview-pool pressure, recovery
+    count, and adaptive quality tier
+  - the runtime manager applies adaptive DPR quality tiers from active surface
+    count, viewport/device profile, DPR, and context-loss frequency
   - Peek hover readouts omit provenance pills to stay lightweight; Explorer and
     detail contexts keep provenance pills for deeper inspection
   - summarizes orbit-orientation evidence as source orientation, partial
