@@ -88,6 +88,14 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
     await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
     await expect(page.locator(".map-search-habitable")).toBeVisible();
+    const searchToggle = page.locator("[data-testid='map-search-toggle']");
+    await expect(searchToggle).toHaveAttribute("aria-pressed", "true");
+    await searchToggle.click();
+    await expect(page.locator(".map-star-search")).toBeHidden();
+    await expect(searchToggle).toHaveAttribute("aria-pressed", "false");
+    await searchToggle.click();
+    await expect(page.locator(".map-star-search")).toBeVisible();
+    await expect(searchToggle).toHaveAttribute("aria-pressed", "true");
     await page.locator(".map-search-recent-pill").first().hover();
     await page.waitForTimeout(150);
     await expect(page.locator(".map-name-popover")).toHaveCount(0);
@@ -946,10 +954,18 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-contacts-panel")).toBeHidden();
     await expect(page.locator(".map-mobile-flight-button")).toHaveCount(6);
     await expect(page.locator("[data-testid='map-mobile-flight-forward']")).toBeVisible();
-    await page.getByRole("link", { name: /^Search$/i }).tap();
+    const searchToggle = page.locator("[data-testid='map-search-toggle']");
+    await expect(searchToggle).toHaveAttribute("aria-pressed", "false");
+    await searchToggle.tap();
     await expect(page.locator(".map-star-search")).toBeVisible();
     await expect(page.locator(".map-search-topbar")).toBeVisible();
     await expect(page.locator(".map-search-sidebar")).toBeVisible();
+    await expect(searchToggle).toHaveAttribute("aria-pressed", "true");
+    await searchToggle.tap();
+    await expect(page.locator(".map-star-search")).toBeHidden();
+    await expect(searchToggle).toHaveAttribute("aria-pressed", "false");
+    await searchToggle.tap();
+    await expect(page.locator(".map-star-search")).toBeVisible();
 
     const metrics = await page.evaluate(() => {
       const canvas = document.querySelector(".map-canvas canvas")?.getBoundingClientRect();

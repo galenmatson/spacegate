@@ -808,6 +808,7 @@
 }
 
 .map-hud-button.primary,
+.map-hud-button.active,
 .map-command-button.active {
   border-color: color-mix(in srgb, var(--accent) 72%, white 8%);
   background: color-mix(in srgb, var(--accent) 24%, transparent);
@@ -1813,6 +1814,7 @@
 
 :root[data-theme="lcars"] .map-command-button.primary,
 :root[data-theme="lcars"] .map-hud-button.primary,
+:root[data-theme="lcars"] .map-hud-button.active,
 :root[data-theme="lcars"] .map-history-pill.active {
   border-color: transparent;
   background: var(--lcars-orange);
@@ -2119,6 +2121,7 @@
 }
 
 :root[data-theme="cyberpunk"] .map-hud-button.primary,
+:root[data-theme="cyberpunk"] .map-hud-button.active,
 :root[data-theme="cyberpunk"] .map-command-button.primary,
 :root[data-theme="cyberpunk"] .map-command-button.active,
 :root[data-theme="cyberpunk"] .map-history-pill.active {
@@ -2336,6 +2339,7 @@
 }
 
 :root[data-theme="mission_control"] .map-hud-button.primary,
+:root[data-theme="mission_control"] .map-hud-button.active,
 :root[data-theme="mission_control"] .map-command-button.primary,
 :root[data-theme="mission_control"] .map-command-button.active,
 :root[data-theme="mission_control"] .map-history-pill.active {
@@ -2621,6 +2625,7 @@
 }
 
 :root[data-theme="retro_90s"] .map-hud-button.primary,
+:root[data-theme="retro_90s"] .map-hud-button.active,
 :root[data-theme="retro_90s"] .map-command-button.primary,
 :root[data-theme="retro_90s"] .map-command-button.active,
 :root[data-theme="retro_90s"] .map-history-pill.active {

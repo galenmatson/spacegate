@@ -3129,6 +3129,14 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     }
   }, [closeMapSearchResults, location.pathname, navigate]);
 
+  const toggleMapSearch = useCallback(() => {
+    if (mapSearchOpen) {
+      closeMapSearch();
+      return;
+    }
+    navigate("/");
+  }, [closeMapSearch, mapSearchOpen, navigate]);
+
   const submitMapSearch = useCallback((event) => {
     event?.preventDefault?.();
     runMapSearch({ append: false });
@@ -3253,7 +3261,15 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               </Link>
             )
           ))}
-          <Link to="/" className="map-hud-button">Search</Link>
+          <button
+            type="button"
+            className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
+            aria-pressed={mapSearchOpen}
+            data-testid="map-search-toggle"
+            onClick={toggleMapSearch}
+          >
+            Search
+          </button>
           {selectedSystem?.system_id && (
             <button
               type="button"
