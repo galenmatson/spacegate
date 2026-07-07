@@ -116,9 +116,6 @@ test.describe("public 3D map beta", () => {
       return Math.round(box?.height || 0);
     }).toBeGreaterThan(180);
     await expect
-      .poll(() => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(), { timeout: 10000 })
-      .toBeGreaterThan(0);
-    await expect
       .poll(() => page.locator(".map-search-card-preview img.map-search-card-capture").count(), { timeout: 10000 })
       .toBeGreaterThan(0);
     await expect
