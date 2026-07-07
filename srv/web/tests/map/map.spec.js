@@ -279,6 +279,30 @@ test.describe("public 3D map beta", () => {
     }
   });
 
+  test("mobile Star Search v2 and system page stay readable", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only public search smoke");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Tau Ceti", limit: "1", sort: "match" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Tau Ceti system_id").toBeTruthy();
+
+    await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".results-toolbar")).toBeVisible();
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("[data-testid='star-search-simulation-preview']").first()).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4)).toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".system-detail-v2 h1")).toContainText(/tau Cet|Tau Ceti/i);
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Overview" })).toBeVisible();
+    await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4)).toBeTruthy();
+  });
+
   test("map title comes from public branding config", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop header title check");
     const configResponse = await page.request.get("/api/v1/public-config");
