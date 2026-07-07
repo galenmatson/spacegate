@@ -75,7 +75,7 @@ test.describe("public 3D map beta", () => {
     await page.addInitScript(() => {
       window.localStorage.setItem("spacegate.theme", "mission_control");
     });
-    await page.goto("/search", { waitUntil: "networkidle" });
+    await page.goto("/search", { waitUntil: "domcontentloaded" });
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
     const expectedLabels = ["HELP", "ABT", "MAP", "SPT", "SRC"];
     const headerBox = await page.locator(".site-header").boundingBox();
@@ -1951,7 +1951,7 @@ test.describe("public 3D map beta", () => {
     for (const benchmark of cases) {
       await test.step(`render ${benchmark.query}`, async () => {
         const response = await page.request.get("/api/v1/systems/search", {
-          params: { q: benchmark.query, limit: "1" },
+          params: { q: benchmark.query, limit: "1", sort: "match" },
         });
         expect(response.ok()).toBeTruthy();
         const payload = await response.json();
