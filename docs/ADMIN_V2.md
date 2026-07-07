@@ -532,7 +532,7 @@ Score Weights breakdown before operators run a scoring job, and surface the
 latest score/snapshot job status without requiring a trip to Operations. A
 slider-based `score_coolness` run should automatically save an immutable
 timestamp/hash profile version and activate it after scoring so operators can
-adjust, score, inspect the Star Browser, and rerun earlier mixes from the
+adjust, score, inspect Star Search, and rerun earlier mixes from the
 Presentation profile history without hand-editing profile versions.
 
 The action catalog should eventually grow structured metadata instead of

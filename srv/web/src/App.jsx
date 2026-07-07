@@ -3096,7 +3096,7 @@ function SearchPage({ buildId = "" }) {
         <section className="results">
           <div className="results-toolbar panel">
             <div className="results-toolbar-head">
-              <h3>Star Selector</h3>
+              <h3>Star Search</h3>
             </div>
 
             <div className="results-spectral-row">

@@ -102,7 +102,7 @@ const fallbackActionGuidance = {
     purpose: "Generates deterministic disc coolness ranking and scoring reports for a build.",
     prerequisites: "Use after a valid build exists. Slider changes are saved automatically as immutable timestamped profiles.",
     writes: "Disc scoring artifacts, reports, immutable coolness profile metadata, and the active profile pointer.",
-    next: "Reload the Star Browser to inspect the new ranking, or rerun an earlier profile from the Presentation profile picker.",
+    next: "Reload Star Search to inspect the new ranking, or rerun an earlier profile from the Presentation profile picker.",
     duration: "Medium",
   },
   save_coolness_profile: {

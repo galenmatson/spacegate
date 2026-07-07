@@ -176,6 +176,7 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop catalog search preview check");
     await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".results-toolbar")).toBeVisible();
+    await expect(page.locator(".results-toolbar-head")).toContainText("Star Search");
     const sortSelect = page.locator(".results-search-options select").first();
     await expect(sortSelect).toHaveValue("match");
     await expect(sortSelect.locator("option[value='planet_count']")).toHaveCount(1);

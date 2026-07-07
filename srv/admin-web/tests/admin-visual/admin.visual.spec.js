@@ -71,7 +71,7 @@ async function waitForAdminSettled(page) {
 
 async function publicSiteVisible(page) {
   const text = await visibleText(page);
-  return /CoolStars|Star Selector|Search systems by name/i.test(text);
+  return /CoolStars|Star Search|Search systems by name/i.test(text);
 }
 
 async function prepareObjectDiagnostics(page) {
