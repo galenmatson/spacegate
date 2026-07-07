@@ -2471,6 +2471,20 @@ def search_systems(
         if has_system_planet_count
         else "(SELECT COUNT(*) FROM planets p WHERE p.system_id = s.system_id)"
     )
+    sort_hottest_expr = (
+        "s.max_star_teff_k"
+        if has_system_max_star_teff_k
+        else "(SELECT MAX(st.teff_k) FROM stars st WHERE st.system_id = s.system_id)"
+        if has_star_teff_k
+        else "NULL::DOUBLE"
+    )
+    sort_coolest_expr = (
+        "s.min_star_teff_k"
+        if has_system_min_star_teff_k
+        else "(SELECT MIN(st.teff_k) FROM stars st WHERE st.system_id = s.system_id)"
+        if has_star_teff_k
+        else "NULL::DOUBLE"
+    )
 
     if q_norm:
         short_query_mode = len(q_norm) < 2
@@ -3036,6 +3050,34 @@ def search_systems(
                         cursor_values.get("id"),
                     ]
                 )
+        elif sort in {"hottest", "coolest"}:
+            temp_field = "sort_hottest_k" if sort == "hottest" else "sort_coolest_k"
+            null_sentinel = -1e18 if sort == "hottest" else 1e18
+            comparison = "<" if sort == "hottest" else ">"
+            direction = "DESC" if sort == "hottest" else "ASC"
+            order_by = (
+                f"COALESCE({temp_field}, {null_sentinel}) {direction}, "
+                "COALESCE(system_name_norm, '') ASC, system_id ASC"
+            )
+            if cursor_values:
+                cursor_temp = cursor_values.get("temp")
+                if cursor_temp is None:
+                    cursor_temp = null_sentinel
+                cursor_clause = (
+                    f"(COALESCE({temp_field}, {null_sentinel}) {comparison} ? OR "
+                    f"(COALESCE({temp_field}, {null_sentinel}) = ? AND COALESCE(system_name_norm, '') > ?) OR "
+                    f"(COALESCE({temp_field}, {null_sentinel}) = ? AND COALESCE(system_name_norm, '') = ? AND system_id > ?))"
+                )
+                cursor_params.extend(
+                    [
+                        cursor_temp,
+                        cursor_temp,
+                        cursor_values.get("name", ""),
+                        cursor_temp,
+                        cursor_values.get("name", ""),
+                        cursor_values.get("id"),
+                    ]
+                )
         else:
             if cursor_values:
                 cursor_clause = (
@@ -3128,6 +3170,8 @@ def search_systems(
                 CAST(s.hd_id AS VARCHAR) AS hd_id_text,
                 {search_star_count_expr}::BIGINT AS sort_star_count,
                 {effective_planet_count_expr}::BIGINT AS sort_planet_count,
+                {sort_hottest_expr}::DOUBLE AS sort_hottest_k,
+                {sort_coolest_expr}::DOUBLE AS sort_coolest_k,
                 {origin_distance_expr}
                 {coolness_select}
                 {match_rank_expr}

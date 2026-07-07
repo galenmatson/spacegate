@@ -1232,7 +1232,7 @@ Query params:
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
-- `sort` (`match` | `name` | `distance` | `coolness` | `planet_count` | `star_count`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)
+- `sort` (`match` | `name` | `distance` | `coolness` | `planet_count` | `star_count` | `hottest` | `coolest`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)
 - `limit` (int, default 50, max 200)
 - `include_total` (`true|false`, optional, default `false`)
 - `cursor` (string, optional)
@@ -1258,6 +1258,7 @@ Implementation notes:
   assigning that alias only to Sirius B.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
 - Star Search `star_count` filters and `sort=star_count` use the materialized search facet for fast, stable public browsing. Detail, hierarchy, and simulation payloads may expose richer descendant-aware multiplicity counts from `arm`; a later build-normalization pass should promote the best audited hierarchy count into the search facet.
+- `sort=hottest` and `sort=coolest` use system-level stellar-temperature facets (`max_star_teff_k` and `min_star_teff_k`) when available, falling back to per-star aggregation on legacy builds. Systems without temperature evidence sort last.
 
 Responses include `match_rank` and are sorted by:
 `match_rank` asc, `dist_ly` asc, `system_name_norm` asc.
@@ -1268,6 +1269,8 @@ When `q` is not provided:
 - `sort=coolness`: `coolness_rank` asc, `system_name_norm` asc, `system_id` asc
 - `sort=planet_count`: materialized browse `planet_count` desc, `system_name_norm` asc, `system_id` asc
 - `sort=star_count`: materialized browse `star_count` desc, `system_name_norm` asc, `system_id` asc
+- `sort=hottest`: `max_star_teff_k` desc nulls last, `system_name_norm` asc, `system_id` asc
+- `sort=coolest`: `min_star_teff_k` asc nulls last, `system_name_norm` asc, `system_id` asc
 
 Validation and availability behavior:
 - Logical range inversions (for example `min_dist_ly > max_dist_ly`) return `400 bad_request`.

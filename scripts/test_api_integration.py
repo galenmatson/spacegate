@@ -252,6 +252,52 @@ def main():
     if len(star_counts) >= 2:
         assert_non_increasing(star_counts, "star_count sort")
 
+    _, hottest_page = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "hottest", "limit": 20},
+        label="search sort hottest",
+    )
+    hottest_values = [
+        float(item["max_star_teff_k"])
+        for item in hottest_page["items"]
+        if item.get("max_star_teff_k") is not None
+    ]
+    if len(hottest_values) >= 2:
+        assert_non_increasing(hottest_values, "hottest sort")
+    if hottest_page.get("has_more") and hottest_page.get("next_cursor"):
+        _, hottest_page2 = get_json(
+            base_url,
+            "/systems/search",
+            params={"sort": "hottest", "limit": 20, "cursor": hottest_page["next_cursor"]},
+            label="search sort hottest page2",
+        )
+        overlap = {
+            item.get("system_id")
+            for item in hottest_page["items"]
+            if item.get("system_id") is not None
+        } & {
+            item.get("system_id")
+            for item in hottest_page2["items"]
+            if item.get("system_id") is not None
+        }
+        if overlap:
+            raise AssertionError(f"Hottest cursor pagination returned overlapping system_ids: {sorted(overlap)}")
+
+    _, coolest_page = get_json(
+        base_url,
+        "/systems/search",
+        params={"sort": "coolest", "limit": 20},
+        label="search sort coolest",
+    )
+    coolest_values = [
+        float(item["min_star_teff_k"])
+        for item in coolest_page["items"]
+        if item.get("min_star_teff_k") is not None
+    ]
+    if len(coolest_values) >= 2:
+        assert_non_decreasing(coolest_values, "coolest sort")
+
     coolness_response = requests.get(
         f"{base_url}/systems/search",
         params={"sort": "coolness", "limit": 20},

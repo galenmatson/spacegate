@@ -115,6 +115,7 @@ Search results can be sorted by:
 - Name.
 - Planet count.
 - Star count.
+- Hottest or coolest stellar temperature.
 
 ### Search Cards
 

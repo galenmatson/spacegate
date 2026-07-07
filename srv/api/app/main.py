@@ -69,7 +69,16 @@ from .utils import (
 app = FastAPI(title="Spacegate API", version="0.1")
 ROOT_DIR = Path(__file__).resolve().parents[3]
 SCORE_COOLNESS_SCRIPT = ROOT_DIR / "scripts" / "score_coolness.py"
-SUPPORTED_SEARCH_SORTS = {"match", "name", "distance", "coolness", "planet_count", "star_count"}
+SUPPORTED_SEARCH_SORTS = {
+    "match",
+    "name",
+    "distance",
+    "coolness",
+    "planet_count",
+    "star_count",
+    "hottest",
+    "coolest",
+}
 SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
 SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 SIM_VISUAL_STELLAR_CLASS_VERSION = "mass_main_sequence_prior_v1"
@@ -5067,6 +5076,19 @@ def systems_search(
                     "id": last.get("system_id"),
                 }
             )
+        elif effective_cursor_sort in {"hottest", "coolest"}:
+            temp_key = "sort_hottest_k" if effective_cursor_sort == "hottest" else "sort_coolest_k"
+            temp_value = last.get(temp_key)
+            if temp_value is None:
+                temp_value = -1e18 if effective_cursor_sort == "hottest" else 1e18
+            next_cursor = encode_cursor(
+                {
+                    "sort": effective_cursor_sort,
+                    "temp": float(temp_value),
+                    "name": last.get("system_name_norm") or "",
+                    "id": last.get("system_id"),
+                }
+            )
         else:
             next_cursor = encode_cursor(
                 {
@@ -5079,6 +5101,8 @@ def systems_search(
     for item in items:
         item.pop("sort_star_count", None)
         item.pop("sort_planet_count", None)
+        item.pop("sort_hottest_k", None)
+        item.pop("sort_coolest_k", None)
 
     duration_ms = max(0, int((datetime.datetime.utcnow() - started_at).total_seconds() * 1000))
 

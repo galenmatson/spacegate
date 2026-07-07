@@ -180,6 +180,8 @@ test.describe("public 3D map beta", () => {
     await expect(sortSelect).toHaveValue("match");
     await expect(sortSelect.locator("option[value='planet_count']")).toHaveCount(1);
     await expect(sortSelect.locator("option[value='star_count']")).toHaveCount(1);
+    await expect(sortSelect.locator("option[value='hottest']")).toHaveCount(1);
+    await expect(sortSelect.locator("option[value='coolest']")).toHaveCount(1);
     await expect(page.locator(".spectral-chip", { hasText: "T" })).toBeVisible();
     await expect(page.locator(".spectral-chip", { hasText: "Y" })).toBeVisible();
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
@@ -202,6 +204,12 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
     await sortSelect.selectOption("star_count");
     await expect(sortSelect).toHaveValue("star_count");
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await sortSelect.selectOption("hottest");
+    await expect(sortSelect).toHaveValue("hottest");
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await sortSelect.selectOption("coolest");
+    await expect(sortSelect).toHaveValue("coolest");
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
   });
 

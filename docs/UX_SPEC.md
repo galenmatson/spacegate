@@ -95,7 +95,7 @@ Useful sort axes:
 - name
 - planet count
 - star count
-- temperature where meaningful
+- hottest / coolest stellar temperature where meaningful
 
 ### Result Cards
 
