@@ -24,7 +24,7 @@ Coolstars currently includes:
 - System pages with hierarchy, object vitals, source-aware simulation data, and technical details.
 - Data-source documentation and build identifiers for reproducibility.
 
-The 3D map is the main exploration interface. The classic catalog-style Star Search remains available and will be redesigned around the newer simulation and map work.
+The 3D map is the main exploration interface. Star Search v2 is the structured catalog counterpart: readable result cards, simulation previews, and simulation-first system pages for visitors who arrive by name, catalog ID, or curiosity.
 
 ## Data Philosophy
 

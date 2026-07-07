@@ -316,7 +316,7 @@ Current limitations include:
 - The public build is sliced for performance and is not the full raw catalog universe.
 - Some long catalog identifiers are difficult to read and are still being refined in the interface.
 - Some multiple-star systems remain limited by incomplete or ambiguous source orbital data.
-- Static search pages and older system detail layouts are being redesigned around the newer map and simulation work.
+- High-quality static simulation-derived snapshots are still future work; live System Simulation is the preferred visual surface for capable browsers.
 - AI-generated narration is planned, but the public site does not yet contain the full AI Astronomy Agency narrative layer.
 
 ## Tips
