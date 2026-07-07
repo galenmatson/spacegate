@@ -1,0 +1,85 @@
+export const PUBLIC_EXPERIENCE_GOLDENS = [
+  {
+    id: "tau_ceti",
+    query: "Tau Ceti",
+    expectedNamePattern: /tau Cet|Tau Ceti/i,
+    minPlanets: 3,
+    reason: "Recognizable nearby exoplanet system and public narrative benchmark.",
+  },
+  {
+    id: "trappist_1",
+    query: "TRAPPIST-1",
+    expectedNamePattern: /TRAPPIST-1/i,
+    minPlanets: 7,
+    reason: "Compact planetary-system benchmark with strong public appeal.",
+  },
+  {
+    id: "alpha_centauri",
+    query: "Alpha Centauri",
+    expectedNamePattern: /Alpha Centauri/i,
+    minStars: 3,
+    reason: "Nearest famous multi-star system and map-to-system benchmark.",
+  },
+  {
+    id: "proxima_centauri",
+    query: "Proxima Centauri",
+    expectedNamePattern: /Proxima Centauri/i,
+    minPlanets: 2,
+    reason: "Nearest known exoplanet host and Alpha/Proxima host-rollup watch item.",
+  },
+  {
+    id: "sirius",
+    query: "Sirius",
+    expectedNamePattern: /Sirius/i,
+    minStars: 2,
+    reason: "Bright public-recognition benchmark with compact companion.",
+  },
+  {
+    id: "55_cancri",
+    query: "55 Cnc",
+    expectedNamePattern: /55 Cnc|Copernicus/i,
+    minPlanets: 5,
+    reason: "Familiar multi-planet benchmark for search, system page, and simulation ordering.",
+  },
+  {
+    id: "epsilon_eridani",
+    query: "Epsilon Eridani",
+    expectedNamePattern: /Epsilon Eridani|eps Eri/i,
+    minPlanets: 1,
+    reason: "Nearby K-star exoplanet system with strong layperson discovery value.",
+  },
+  {
+    id: "barnards_star",
+    query: "Barnard's Star",
+    expectedNamePattern: /Barnard/i,
+    minPlanets: 1,
+    reason: "Famous high-proper-motion nearby system and public-search naming benchmark.",
+  },
+  {
+    id: "wolf_359",
+    query: "Wolf 359",
+    expectedNamePattern: /Wolf 359/i,
+    reason: "Nearby red-dwarf public-recognition benchmark.",
+  },
+  {
+    id: "vega",
+    query: "Vega",
+    expectedNamePattern: /Vega|Alpha Lyrae/i,
+    expectedStatus: "known_gap",
+    reason: "Bright public-recognition benchmark; current served build does not resolve Vega aliases correctly.",
+  },
+  {
+    id: "fomalhaut",
+    query: "Fomalhaut",
+    expectedNamePattern: /Fomalhaut/i,
+    reason: "Bright nearby debris-disk system and public-recognition benchmark.",
+  },
+];
+
+export const TECHNICAL_SYSTEM_GOLDENS = [
+  { id: "castor", query: "Castor", expectedNamePattern: /Castor/i, minStars: 6 },
+  { id: "nu_sco", query: "Nu Sco", expectedNamePattern: /Nu Sco/i, minStars: 6 },
+  { id: "hd_213885", query: "HD 213885", expectedNamePattern: /HD 213885/i, minStars: 3, minPlanets: 2 },
+  { id: "eps_ind", query: "eps Ind", expectedNamePattern: /Eps Ind|eps Ind/i, minStars: 3 },
+  { id: "16_cyg", query: "16 Cyg", expectedNamePattern: /16 Cyg/i, minStars: 2 },
+];

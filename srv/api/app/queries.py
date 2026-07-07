@@ -229,6 +229,27 @@ def _canonical_name_rank(value: Any) -> int:
     return 0
 
 
+def _is_abbreviated_bayer_name(value: Any) -> bool:
+    norm = _name_norm(value)
+    if not norm:
+        return False
+    if re.match(r"^[a-z]{3}[0-9-]*\s+[a-z]{3}$", norm):
+        return True
+    return False
+
+
+def _is_full_expanded_bayer_alias(row: Dict[str, Any], candidate: str) -> bool:
+    kind = str(row.get("alias_kind") or "").strip()
+    if "bayer_expanded_name" not in kind:
+        return False
+    parts = _clean_name(candidate).split()
+    if len(parts) < 2:
+        return False
+    # Prefer full constellation names over three-letter abbreviations such as
+    # "Alpha Cen" when both are available.
+    return len(parts[-1]) > 3
+
+
 def _query_name_match_rank(name: Any, preferred_query_norm: Optional[str]) -> Optional[Tuple[int, int, str]]:
     query_norm = _name_norm(preferred_query_norm)
     name_norm = _name_norm(name)
@@ -342,23 +363,36 @@ def choose_display_name(
     if best_match_name:
         display_name = best_match_name
     else:
-        best_alias_name: Optional[str] = None
-        best_alias_rank = 99
-        for row, candidate in zip(ordered_name_rows, ordered_names):
-            if _is_gaia_placeholder_name(candidate):
-                continue
-            best_alias_name = candidate
-            best_alias_rank = _alias_rank(row)[0]
-            break
-        canonical_rank = _canonical_name_rank(canonical)
-        if best_alias_name and (
-            not display_name
-            or _is_gaia_placeholder_name(display_name)
-            or best_alias_rank < canonical_rank
-        ):
-            display_name = best_alias_name
-        elif (not display_name) and ordered_names:
-            display_name = ordered_names[0]
+        full_expanded_alias: Optional[str] = None
+        full_expanded_rank: Optional[Tuple[int, int, int, str]] = None
+        if _is_abbreviated_bayer_name(canonical):
+            for row, candidate in zip(ordered_name_rows, ordered_names):
+                if not _is_full_expanded_bayer_alias(row, candidate):
+                    continue
+                candidate_rank = _alias_rank(row)
+                if full_expanded_rank is None or candidate_rank < full_expanded_rank:
+                    full_expanded_alias = candidate
+                    full_expanded_rank = candidate_rank
+        if full_expanded_alias:
+            display_name = full_expanded_alias
+        else:
+            best_alias_name: Optional[str] = None
+            best_alias_rank = 99
+            for row, candidate in zip(ordered_name_rows, ordered_names):
+                if _is_gaia_placeholder_name(candidate):
+                    continue
+                best_alias_name = candidate
+                best_alias_rank = _alias_rank(row)[0]
+                break
+            canonical_rank = _canonical_name_rank(canonical)
+            if best_alias_name and (
+                not display_name
+                or _is_gaia_placeholder_name(display_name)
+                or best_alias_rank < canonical_rank
+            ):
+                display_name = best_alias_name
+            elif (not display_name) and ordered_names:
+                display_name = ordered_names[0]
 
     secondary: List[str] = []
     secondary_seen: set[str] = set()

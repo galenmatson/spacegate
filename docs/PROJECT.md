@@ -607,6 +607,9 @@ Current contract:
 - Star Search v2 pages preserve map-to-system return context when opened from
   the map, while `/search` remains the article-like catalog/search surface for
   users arriving by name, catalog ID, or general curiosity.
+- Public UX goldens are tracked separately from ingestion/multiplicity goldens
+  in `docs/PUBLIC_UX_GOLDENS.md`; they benchmark whether recognizable systems
+  resolve, render, and explain well for ordinary visitors.
 
 Layer rules:
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { PUBLIC_EXPERIENCE_GOLDENS, TECHNICAL_SYSTEM_GOLDENS } from "../fixtures/publicExperienceGoldens.mjs";
 
 async function openMap(page) {
   await page.goto("/map", { waitUntil: "networkidle" });
@@ -57,6 +58,15 @@ async function expectPreviewCanvasPainted(previewCanvas, label) {
     }),
     { timeout: 5000, message: `${label} preview canvas should paint visible scene pixels` }
   ).toBeGreaterThan(30);
+}
+
+async function resolveGoldenSystem(page, golden) {
+  const response = await page.request.get("/api/v1/systems/search", {
+    params: { q: golden.query, limit: "1", sort: "match" },
+  });
+  expect(response.ok(), `${golden.query} search response`).toBeTruthy();
+  const payload = await response.json();
+  return payload.items?.[0] || null;
 }
 
 test.describe("public 3D map beta", () => {
@@ -199,6 +209,61 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
     await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
+  });
+
+  test("public experience goldens resolve through Star Search", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "API-level public golden search check");
+    const unresolved = [];
+    for (const golden of PUBLIC_EXPERIENCE_GOLDENS) {
+      const item = await resolveGoldenSystem(page, golden);
+      if (!item) {
+        unresolved.push(golden.id);
+        expect(golden.expectedStatus, `${golden.query} unresolved`).toBe("known_gap");
+        continue;
+      }
+      const displayName = String(item.display_name || item.system_name || "");
+      expect(displayName, `${golden.query} display name`).toMatch(golden.expectedNamePattern);
+      if (Number.isFinite(Number(golden.minStars))) {
+        expect(Number(item.star_count || 0), `${golden.query} star count`).toBeGreaterThanOrEqual(Number(golden.minStars));
+      }
+      if (Number.isFinite(Number(golden.minPlanets))) {
+        expect(Number(item.planet_count || 0), `${golden.query} planet count`).toBeGreaterThanOrEqual(Number(golden.minPlanets));
+      }
+    }
+    expect(unresolved, "Only documented known-gap public goldens may be unresolved").toEqual(["vega"]);
+  });
+
+  test("technical stress goldens remain reachable for system-page checks", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "API-level technical golden search check");
+    for (const golden of TECHNICAL_SYSTEM_GOLDENS) {
+      const item = await resolveGoldenSystem(page, golden);
+      expect(item, `${golden.query} should resolve`).toBeTruthy();
+      const displayName = String(item.display_name || item.system_name || "");
+      expect(displayName, `${golden.query} display name`).toMatch(golden.expectedNamePattern);
+      if (Number.isFinite(Number(golden.minStars))) {
+        expect(Number(item.star_count || 0), `${golden.query} star count`).toBeGreaterThanOrEqual(Number(golden.minStars));
+      }
+      if (Number.isFinite(Number(golden.minPlanets))) {
+        expect(Number(item.planet_count || 0), `${golden.query} planet count`).toBeGreaterThanOrEqual(Number(golden.minPlanets));
+      }
+    }
+  });
+
+  test("public experience golden system pages expose v2 anatomy", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop public golden anatomy smoke");
+    const anatomyGoldenIds = new Set(["tau_ceti", "trappist_1", "alpha_centauri", "sirius", "55_cancri"]);
+    const targets = PUBLIC_EXPERIENCE_GOLDENS.filter((golden) => anatomyGoldenIds.has(golden.id));
+    for (const golden of targets) {
+      const item = await resolveGoldenSystem(page, golden);
+      expect(item, `${golden.query} should resolve for page anatomy`).toBeTruthy();
+      await page.goto(`/systems/${item.system_id}`, { waitUntil: "domcontentloaded" });
+      await expect(page.locator(".system-detail-v2 h1")).toContainText(golden.expectedNamePattern);
+      await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+      await expect(page.locator(".system-story-card", { hasText: "Overview" })).toBeVisible();
+      await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
+      await expect(page.locator(".concept-panel")).toContainText(/Spectral class/i);
+      await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
+    }
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {
