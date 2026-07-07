@@ -216,7 +216,7 @@ Initial layers:
   - selected-system vitals are merged into transparent pills over the
     simulation canvas, replacing the former selected-system card entirely while
     preserving distance, class, star/planet counts, coolness, rank, and
-    snapshot status
+    key discovery stats
   - selection history and `Cool Stars Nearby` suggestions share the same
     left-side tray as collapsible sections, expanded by default, with both
     lists capped at eight compact pills
@@ -281,6 +281,9 @@ Initial layers:
   - Star Search result cards use a centralized live-preview pool with a
     four-preview upper budget, avoiding the rejected bulk browser-rendered PNG
     snapshot path while reducing context-loss risk
+  - standalone Star Search v2 uses the same simulation-first result-card
+    policy outside the map: bounded live previews, cached first-frame reuse,
+    and deterministic snapshots only as fallback/reference metadata
   - card previews activate only when actually visible, pause/unmount when Peek
     or Explorer owns attention, and the background map canvas remounts after
     WebGL context loss so fast-scroll browser context eviction can recover

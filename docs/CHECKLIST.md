@@ -564,6 +564,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Keep Star Search result cards live-preview-first with a four-active
   WebGL preview budget and simulator context-loss fallback; reject bulk
   browser-rendered PNG generation as too slow/heavy for routine use
+- [x] Rebuild standalone `/search` cards around bounded System Simulation
+  previews with cached first-frame reuse, hover/focus live promotion, and
+  deterministic snapshots demoted to fallback/reference metadata
+- [x] Rework public `/systems/{system_id}` pages into a simulation-first
+  progressive-disclosure layout with overview, why-it-matters, habitability
+  context, future AAA narrative slot, concept explanations, and secondary
+  catalog/evidence sections
 - [x] Add prebuilt compressed System Simulation scene artifacts for hot Star
   Search results, served before runtime scene assembly
 - [x] Add layperson spectral-class tooltips to the map-native Star Search
@@ -616,6 +623,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star
   Search, no-WebGL clients, crawlers/share cards, and fallback/reference
   surfaces
+- [ ] Define public-experience golden-system review checklist for Tau Ceti,
+  TRAPPIST-1, Alpha/Proxima Centauri, Sirius, 55 Cnc, Epsilon Eridani,
+  Barnard's Star, Wolf 359, Vega, and Fomalhaut
+- [ ] Integrate reviewed AI Astronomy Agency public narration slots into
+  Star Search v2 system pages without mixing unreviewed generated prose into
+  canonical science
 - [ ] Authenticated admin map overlay for per-system/object review controls,
   evidence portfolio access, and AAA research promotion
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,

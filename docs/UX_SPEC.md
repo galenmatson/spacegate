@@ -1,5 +1,10 @@
 # Spacegate v1.1 UX Spec (Public Database Browser)
 
+Status: legacy reference. This document describes the pre-map/pre-System
+Simulation public browser. The current public direction is Star Search v2 plus
+System Simulation-first system pages, documented in `docs/PROJECT.md`,
+`docs/MILESTONES.md`, `docs/3D_MAP.md`, and `docs/SYSTEM_SIMULATION.md`.
+
 Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only disc overlays (`disc` artifacts) for coolness ranking and deterministic system snapshots. No 3D map, no rim overlays.
 
 ## Current Implementation Notes

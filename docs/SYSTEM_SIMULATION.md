@@ -526,14 +526,15 @@ Success criteria:
 - WebGL context loss inside a simulator panel is trapped and the live canvas is
   remounted. After repeated unrecoverable panel-level context loss, the panel may
   demote to the deterministic snapshot artifact rather than spinning forever.
-  Star Search cards are live-preview-first through the Star Map runtime
-  manager's small preview pool; the pool pauses lower-priority card previews
-  while Peek or Explorer is active and adapts DPR quality under context/device
-  pressure. Deterministic snapshots remain last-resort no-WebGL/load-failure/
-  repeated-failure artifacts, not the preferred context-loss response. Bulk
-  browser-rendered PNG snapshot generation was tested and removed because
-  headless WebGL rendering was too slow and CPU-heavy for routine presentation
-  updates.
+  Star Search cards are live-preview-first through bounded preview pools: the
+  Star Map owns the pool for map-native search cards, while standalone Star
+  Search v2 owns a separate small pool for `/search`. Both reuse captured first
+  frames as cached card imagery and promote a card back to live simulation on
+  hover/focus when budget is available. Deterministic snapshots remain
+  last-resort no-WebGL/load-failure/repeated-failure artifacts, not the
+  preferred context-loss response. Bulk browser-rendered PNG snapshot generation
+  was tested and removed because headless WebGL rendering was too slow and
+  CPU-heavy for routine presentation updates.
 - Formation/freeze-line hover readouts use the same explanatory text as the
   Lines disclosure controls, so the snowline and other chemistry boundaries
   read as teaching overlays rather than generic radius guides.

@@ -123,7 +123,8 @@ const LCARS_HISTORY_LIMIT = 32;
 const LCARS_LEFT_DECORATIVE_CHIP_COUNT = 2;
 const LCARS_RIGHT_CHIP_COUNT = 4;
 const LCARS_TEXT_SLOTS_PER_LINE = 5;
-const SEARCH_EAGER_SNAPSHOT_COUNT = 6;
+const SEARCH_RESULT_PREVIEW_POOL_SIZE = 4;
+const SEARCH_RESULT_PREVIEW_CACHE_LIMIT = 160;
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
@@ -1415,80 +1416,6 @@ function groupingSourceLabel(groupingBasis, groupingSources) {
   }
 }
 
-function LazySnapshotImage({ src, alt, eager = false }) {
-  const imgRef = React.useRef(null);
-  const [shouldLoad, setShouldLoad] = useState(Boolean(eager));
-
-  useEffect(() => {
-    if (eager || shouldLoad) {
-      return;
-    }
-    const node = imgRef.current;
-    if (!node || typeof IntersectionObserver === "undefined") {
-      setShouldLoad(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting || entry.intersectionRatio > 0) {
-            setShouldLoad(true);
-            observer.disconnect();
-            break;
-          }
-        }
-      },
-      { rootMargin: "280px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [eager, shouldLoad]);
-
-  return (
-    <img
-      ref={imgRef}
-      src={shouldLoad ? src : undefined}
-      alt={alt}
-      loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      fetchPriority={eager ? "high" : "low"}
-    />
-  );
-}
-
-function SnapshotVisual({ snapshot, systemName, compact = false, eager = false }) {
-  const hasImage = Boolean(snapshot?.url);
-  if (!hasImage) {
-    return (
-      <div className={`snapshot-fallback ${compact ? "compact" : ""}`}>
-        <span>Snapshot pending</span>
-        <small>Run the snapshot generator for this build to populate deterministic visuals.</small>
-      </div>
-    );
-  }
-
-  const labelBits = [];
-  if (snapshot?.view_type) {
-    labelBits.push(String(snapshot.view_type));
-  }
-  if (snapshot?.params_hash) {
-    labelBits.push(String(snapshot.params_hash).slice(0, 8));
-  }
-
-  return (
-    <figure className={`snapshot-frame ${compact ? "compact" : ""}`}>
-      <LazySnapshotImage
-        src={snapshot.url}
-        alt={`${formatText(systemName)} deterministic system snapshot`}
-        eager={eager}
-      />
-      {labelBits.length > 0 && (
-        <figcaption className="snapshot-caption">{labelBits.join(" · ")}</figcaption>
-      )}
-    </figure>
-  );
-}
-
 function SnapshotMetadata({ system, snapshot }) {
   const rows = [
     { label: "System", value: formatText(systemDisplayName(system)), copyValue: systemDisplayName(system), copyLabel: "system name" },
@@ -1525,6 +1452,108 @@ function SnapshotMetadata({ system, snapshot }) {
   );
 }
 
+function StarSearchSimulationPreview({
+  system,
+  displayName,
+  cachedPreviewImage = "",
+  liveActive = false,
+  poolSlot = null,
+  onActivate,
+  onDeactivate,
+  onCapture,
+}) {
+  const ref = React.useRef(null);
+  const requestedLiveRef = React.useRef(false);
+  const hoverIntentRef = React.useRef(false);
+  const [visible, setVisible] = React.useState(false);
+  const [hoverIntent, setHoverIntent] = React.useState(false);
+
+  React.useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setVisible(Boolean(entry?.isIntersecting));
+      },
+      { root: null, rootMargin: "120px 0px", threshold: 0.18 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => {
+    const wantsLive = visible && (!cachedPreviewImage || hoverIntent);
+    if (wantsLive && !requestedLiveRef.current) {
+      requestedLiveRef.current = true;
+      onActivate?.(system.system_id);
+      return;
+    }
+    if (!wantsLive && requestedLiveRef.current) {
+      requestedLiveRef.current = false;
+      onDeactivate?.(system.system_id);
+    }
+  }, [cachedPreviewImage, hoverIntent, onActivate, onDeactivate, system.system_id, visible]);
+
+  const setHovering = React.useCallback((nextValue) => {
+    hoverIntentRef.current = nextValue;
+    setHoverIntent(nextValue);
+  }, []);
+
+  const handleFrameCapture = React.useCallback((dataUrl) => {
+    onCapture?.(system.system_id, dataUrl);
+    if (!hoverIntentRef.current) {
+      requestedLiveRef.current = false;
+      onDeactivate?.(system.system_id);
+    }
+  }, [onCapture, onDeactivate, system.system_id]);
+
+  const showLivePreview = visible && liveActive;
+  const showCachedPreview = Boolean(cachedPreviewImage) && !showLivePreview;
+
+  return (
+    <div
+      ref={ref}
+      className={`star-search-preview map-search-card-preview ${showLivePreview ? "is-live" : ""} ${showCachedPreview ? "is-cached" : ""}`}
+      data-testid="star-search-simulation-preview"
+      data-preview-state={showLivePreview ? "live" : showCachedPreview ? "cached" : visible ? "queued" : "pending"}
+      data-preview-pool-slot={poolSlot ?? ""}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      onFocus={() => setHovering(true)}
+      onBlur={() => setHovering(false)}
+      tabIndex={0}
+      aria-label={`${displayName} simulation preview`}
+    >
+      {showLivePreview ? (
+        <React.Suspense fallback={<div className="map-search-card-fallback">Loading simulation</div>}>
+          <SystemPreviewPanel
+            key={`catalog-preview:${poolSlot ?? system.system_id}:${system.system_id}`}
+            systemId={system.system_id}
+            systemName={displayName}
+            snapshot={system.snapshot}
+            presentationMode="card"
+            autoRun={false}
+            qualityTier="balanced"
+            captureFrame={!cachedPreviewImage}
+            onFrameCapture={handleFrameCapture}
+          />
+        </React.Suspense>
+      ) : showCachedPreview ? (
+        <>
+          <img className="map-search-card-capture" src={cachedPreviewImage} alt={`${displayName} cached System Simulation preview`} />
+          <span className="map-search-card-preview-chip">{hoverIntent ? "Live queued" : "Hover to animate"}</span>
+        </>
+      ) : (
+        <div className="map-search-card-fallback">{visible ? "Simulation queued" : "Loading preview"}</div>
+      )}
+    </div>
+  );
+}
+
 function hierarchyTypeLabel(componentType) {
   const key = String(componentType || "").trim().toLowerCase();
   const labels = {
@@ -1537,6 +1566,139 @@ function hierarchyTypeLabel(componentType) {
     artificial: "Artificial",
   };
   return labels[key] || (key ? key.replace(/_/g, " ") : "Node");
+}
+
+function SystemFactPill({ label, value, title = "" }) {
+  return (
+    <div className="system-fact-pill" title={title || undefined}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function bestSpectralSummary(system, stars = []) {
+  const classes = Array.isArray(system?.spectral_classes) ? system.spectral_classes : [];
+  if (classes.length > 0) {
+    return classes.slice(0, 4).join(", ");
+  }
+  const fromStars = Array.from(new Set(
+    (Array.isArray(stars) ? stars : [])
+      .map((star) => String(star?.spectral_class || "").trim().toUpperCase())
+      .filter(Boolean),
+  ));
+  if (fromStars.length > 0) {
+    return fromStars.slice(0, 4).join(", ");
+  }
+  return formatText(system?.coolness_dominant_spectral_class);
+}
+
+function systemOverviewSentence(system, stars = [], planets = []) {
+  const name = systemDisplayName(system);
+  const distance = Number(system?.dist_ly);
+  const distanceText = Number.isFinite(distance) ? `${formatNumber(distance, 1)} light-years away` : "at an unknown distance";
+  const starCount = Number(system?.star_count ?? stars.length ?? 0);
+  const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
+  const spectral = bestSpectralSummary(system, stars);
+  const starText = starCount === 1 ? "one known stellar member" : `${formatNumber(starCount, 0)} known stellar members`;
+  const planetText = planetCount === 1 ? "one confirmed planet" : `${formatNumber(planetCount, 0)} confirmed planets`;
+  const spectralText = spectral && spectral !== "Unknown" ? ` Its current spectral summary is ${spectral}.` : "";
+  return `${formatText(name)} is ${distanceText} with ${starText} and ${planetText} in the current public database.${spectralText}`;
+}
+
+function whySystemMatters(system, stars = [], planets = [], hierarchy = null) {
+  const notes = [];
+  const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
+  const starCount = Number(system?.star_count ?? stars.length ?? 0);
+  const coolness = Number(system?.coolness_score);
+  const habitableCount = Number(system?.coolness_nice_planet_count || 0);
+  const evidenceCatalogs = collectSystemEvidenceCatalogs(system);
+  if (planetCount > 0) {
+    notes.push(`${planetCount === 1 ? "It has a confirmed planet" : `It has ${formatNumber(planetCount, 0)} confirmed planets`}, making it useful for comparing real orbital systems.`);
+  }
+  if (habitableCount > 0 || system?.has_habitable_candidate) {
+    notes.push("At least one linked planet currently triggers a broad habitable-zone style signal. That is an exploration clue, not a claim of habitability.");
+  }
+  if (starCount > 1 || Number(hierarchy?.counts?.subsystems || 0) > 0) {
+    notes.push("Its stellar hierarchy matters: multi-star systems can reshape or disrupt otherwise simple planetary zones.");
+  }
+  if (Number.isFinite(coolness) && coolness > 0) {
+    notes.push(`Coolstars ranks it at ${formatNumber(coolness, 1)} on the active coolness profile, which blends discovery value, planets, proximity, and other public-interest signals.`);
+  }
+  if (evidenceCatalogs.length > 0) {
+    notes.push(`The public record is assembled from ${formatEvidenceSummary(evidenceCatalogs)} evidence.`);
+  }
+  if (notes.length === 0) {
+    notes.push("This system is part of the nearby-space inventory. Even quiet systems help define the shape, density, and variety of the local stellar neighborhood.");
+  }
+  return notes.slice(0, 4);
+}
+
+function habitabilityContext(system, planets = []) {
+  const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
+  if (planetCount <= 0) {
+    return "No confirmed planets are currently linked to this system in the public database, so habitability context is limited to the stars and their radiation environment.";
+  }
+  const niceCount = Number(system?.coolness_nice_planet_count || 0);
+  if (niceCount > 0 || system?.has_habitable_candidate) {
+    return "Spacegate marks at least one planet as habitable-zone-like under broad screening criteria. A real habitability judgment would need atmosphere, composition, stellar activity, orbital stability, and uncertainty review.";
+  }
+  return "Confirmed planets are present, but none currently pass the broad habitable-zone candidate screen used by the public coolness profile.";
+}
+
+function SystemNarrativeScaffold({ system, stars, planets, hierarchy }) {
+  const name = systemDisplayName(system);
+  const matterNotes = whySystemMatters(system, stars, planets, hierarchy);
+  return (
+    <section className="system-story-grid">
+      <article className="panel system-story-card system-story-card-primary">
+        <span className="system-story-kicker">Overview</span>
+        <h2>{formatText(name)}</h2>
+        <p>{systemOverviewSentence(system, stars, planets)}</p>
+      </article>
+      <article className="panel system-story-card">
+        <span className="system-story-kicker">Why It Matters</span>
+        <ul>
+          {matterNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      </article>
+      <article className="panel system-story-card">
+        <span className="system-story-kicker">Habitability Context</span>
+        <p>{habitabilityContext(system, planets)}</p>
+      </article>
+      <article className="panel system-story-card">
+        <span className="system-story-kicker">Future AAA Narrative Slot</span>
+        <p>
+          The AI Astronomy Agency will eventually fill this space with reviewed public narration: what we know,
+          what remains uncertain, why the system is interesting, and where the evidence comes from.
+        </p>
+      </article>
+    </section>
+  );
+}
+
+function ConceptExplainerGrid() {
+  const items = [
+    ["Spectral class", "A star's color and temperature family. O and B stars are hot and blue; K and M stars are cooler and longer-lived; D marks white-dwarf remnants."],
+    ["Habitable zone", "A broad orbital region where stellar energy could allow liquid water on a suitable rocky world. It is not proof that a planet is habitable."],
+    ["Orbital period", "How long a body takes to complete one orbit. In the simulation, source periods are preferred over derived or assumed values."],
+    ["Eccentricity", "How stretched an orbit is. Zero is circular; higher values produce more elongated paths and larger seasonal energy swings."],
+    ["Hierarchy", "The nesting of stars, subsystems, planets, and orbits. Multi-star systems need hierarchy so the simulation does not flatten everything into one decorative cluster."],
+    ["Uncertainty", "Some values are source facts, some are derived, some are presentation assumptions, and some are missing. Evidence sections keep those roles visible."],
+  ];
+  return (
+    <section className="panel concept-panel">
+      <h3>Reading This System</h3>
+      <div className="concept-grid">
+        {items.map(([label, text]) => (
+          <div key={label} className="concept-card">
+            <strong>{label}</strong>
+            <span>{text}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function hierarchyDisplayType(node, children) {
@@ -2177,8 +2339,8 @@ function SearchPage({ buildId = "" }) {
     filterLimits.coolness.integer,
   ));
   const [sort, setSort] = useState(() => {
-    const value = String(searchParams.get("sort") || "coolness").toLowerCase();
-    return ["coolness", "name", "distance"].includes(value) ? value : "coolness";
+    const value = String(searchParams.get("sort") || (searchParams.get("q") ? "match" : "coolness")).toLowerCase();
+    return ["match", "coolness", "name", "distance"].includes(value) ? value : "coolness";
   });
   const [spectral, setSpectral] = useState(() => {
     if (hasExplicitSpectralOverrides) {
@@ -2235,8 +2397,12 @@ function SearchPage({ buildId = "" }) {
   const [spectralMix, setSpectralMix] = useState(null);
   const [spectralMixLoading, setSpectralMixLoading] = useState(true);
   const [spectralMixError, setSpectralMixError] = useState("");
+  const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
+  const [previewSnapshotCache, setPreviewSnapshotCache] = useState(() => new Map());
   const latestSearchTokenRef = useRef(0);
   const latestTotalTokenRef = useRef(0);
+  const previewPoolIdsRef = useRef(new Set());
+  const previewRequestQueueRef = useRef([]);
 
   const spectralMixCountByClass = useMemo(() => {
     const map = new Map();
@@ -2409,7 +2575,7 @@ function SearchPage({ buildId = "" }) {
     if (filters.hasHabitableMode) {
       params.has_habitable = filters.hasHabitableMode;
     }
-    params.sort = filters.sort;
+    params.sort = filters.sort === "match" && !filters.query.trim() ? "coolness" : filters.sort;
     params.limit = filters.pageSize;
     return params;
   };
@@ -2517,6 +2683,93 @@ function SearchPage({ buildId = "" }) {
   }, []);
 
   useEffect(() => {
+    previewPoolIdsRef.current = new Set(previewPoolAllocations.map((allocation) => String(allocation.systemId)));
+  }, [previewPoolAllocations]);
+
+  useEffect(() => {
+    setPreviewPoolAllocations((current) => current.filter((allocation) => (
+      results.some((item) => String(item.system_id) === String(allocation.systemId))
+    )));
+  }, [results]);
+
+  const activateNextPreviewFromQueue = React.useCallback(() => {
+    setPreviewPoolAllocations((current) => {
+      if (current.length >= SEARCH_RESULT_PREVIEW_POOL_SIZE) {
+        return current;
+      }
+      while (previewRequestQueueRef.current.length > 0) {
+        const nextSystemId = previewRequestQueueRef.current.shift();
+        if (!nextSystemId || current.some((allocation) => String(allocation.systemId) === String(nextSystemId))) {
+          continue;
+        }
+        const stillInResults = results.some((item) => String(item.system_id) === String(nextSystemId));
+        if (!stillInResults) {
+          continue;
+        }
+        const next = [...current, { systemId: nextSystemId, slot: current.length }];
+        return next.map((allocation, index) => ({ ...allocation, slot: index }));
+      }
+      return current;
+    });
+  }, [results]);
+
+  const requestSearchPreview = React.useCallback((systemId) => {
+    const key = String(systemId || "");
+    if (!key || previewPoolIdsRef.current.has(key) || previewRequestQueueRef.current.includes(key)) {
+      return;
+    }
+    setPreviewPoolAllocations((current) => {
+      if (current.some((allocation) => String(allocation.systemId) === key)) {
+        return current;
+      }
+      if (current.length < SEARCH_RESULT_PREVIEW_POOL_SIZE) {
+        return [...current, { systemId: key, slot: current.length }];
+      }
+      previewRequestQueueRef.current = [
+        ...previewRequestQueueRef.current.filter((item) => item !== key),
+        key,
+      ].slice(-SEARCH_RESULT_PREVIEW_POOL_SIZE * 3);
+      return current;
+    });
+  }, []);
+
+  const releaseSearchPreview = React.useCallback((systemId) => {
+    const key = String(systemId || "");
+    previewRequestQueueRef.current = previewRequestQueueRef.current.filter((item) => item !== key);
+    setPreviewPoolAllocations((current) => (
+      current
+        .filter((allocation) => String(allocation.systemId) !== key)
+        .map((allocation, index) => ({ ...allocation, slot: index }))
+    ));
+    window.setTimeout(() => activateNextPreviewFromQueue(), 80);
+  }, [activateNextPreviewFromQueue]);
+
+  const captureSearchPreview = React.useCallback((systemId, dataUrl) => {
+    const key = String(systemId || "");
+    if (!key || !dataUrl) {
+      return;
+    }
+    setPreviewSnapshotCache((current) => {
+      const next = new Map(current);
+      next.delete(key);
+      next.set(key, { url: dataUrl, capturedAt: Date.now() });
+      while (next.size > SEARCH_RESULT_PREVIEW_CACHE_LIMIT) {
+        const oldest = next.keys().next().value;
+        next.delete(oldest);
+      }
+      return next;
+    });
+  }, []);
+
+  const previewAllocationsBySystemId = useMemo(() => {
+    const out = new Map();
+    previewPoolAllocations.forEach((allocation, index) => {
+      out.set(String(allocation.systemId), { ...allocation, slot: allocation.slot ?? index });
+    });
+    return out;
+  }, [previewPoolAllocations]);
+
+  useEffect(() => {
     let active = true;
     setSpectralMixLoading(true);
     setSpectralMixError("");
@@ -2616,7 +2869,7 @@ function SearchPage({ buildId = "" }) {
       return;
     }
     if (event.target instanceof Element) {
-      const interactive = event.target.closest("a, button, input, select, textarea, label");
+      const interactive = event.target.closest("a, button, input, select, textarea, label, .star-search-preview, .map-search-card-preview");
       if (interactive) {
         return;
       }
@@ -2901,6 +3154,7 @@ function SearchPage({ buildId = "" }) {
                 <label className="results-search-option">
                   <span>Sort</span>
                   <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
+                    <option value="match" disabled={!query.trim()}>Relevance</option>
                     <option value="coolness">Coolness</option>
                     <option value="name">Name</option>
                     <option value="distance">Distance</option>
@@ -2944,7 +3198,7 @@ function SearchPage({ buildId = "" }) {
 
           {results.length > 0 && (
             <div className="results-list">
-              {results.map((item, idx) => {
+              {results.map((item) => {
                 const displayName = systemDisplayName(item);
                 const canonicalName = String(item?.system_name || "").trim();
                 return (
@@ -2955,14 +3209,16 @@ function SearchPage({ buildId = "" }) {
                 >
                   <div className="result-shell">
                     <div className="result-left-rail">
-                      <Link to={`/systems/${item.system_id}`} className="result-snapshot-link">
-                        <SnapshotVisual
-                          snapshot={item.snapshot}
-                          systemName={displayName}
-                          compact
-                          eager={idx < SEARCH_EAGER_SNAPSHOT_COUNT}
-                        />
-                      </Link>
+                      <StarSearchSimulationPreview
+                        system={item}
+                        displayName={displayName}
+                        cachedPreviewImage={previewSnapshotCache.get(String(item.system_id))?.url || ""}
+                        liveActive={previewAllocationsBySystemId.has(String(item.system_id))}
+                        poolSlot={previewAllocationsBySystemId.get(String(item.system_id))?.slot ?? null}
+                        onActivate={requestSearchPreview}
+                        onDeactivate={releaseSearchPreview}
+                        onCapture={captureSearchPreview}
+                      />
                     </div>
                     <div className="result-content">
                       <div className="result-header">
@@ -3235,7 +3491,7 @@ function SystemDetailPage({ buildId = "" }) {
 
   return (
     <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar />}>
-      <section className="detail">
+      <section className="detail system-detail-v2">
         {fromMap && (
           <div className="map-return-banner">
             <div>
@@ -3245,23 +3501,26 @@ function SystemDetailPage({ buildId = "" }) {
             <Link to={mapReturnPath} className="button map-return-button">Back to 3D map</Link>
           </div>
         )}
-        <div className="system-identifiers-row">
-          <span className="system-identifiers-name">{formatText(currentSystemDisplayName)}</span>
-          <div className="id-line id-line-inline">
-            <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
-            <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
-            <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
-          </div>
-        </div>
-        {systemAliasSummary ? (
-          <div className="muted">Aliases: {systemAliasSummary}</div>
-        ) : null}
 
-        <section className="panel snapshot-panel">
-          <h3>System Snapshot</h3>
-          <div className="snapshot-panel-layout">
-            <SnapshotMetadata system={system} snapshot={system.snapshot} />
-            <SnapshotVisual snapshot={system.snapshot} systemName={currentSystemDisplayName} eager />
+        <section className="system-detail-hero panel">
+          <div className="system-detail-hero-copy">
+            <span className="system-story-kicker">Star Search system page</span>
+            <h1>{formatText(currentSystemDisplayName)}</h1>
+            {systemAliasSummary ? (
+              <p className="system-alias-line">Also cataloged as {systemAliasSummary}</p>
+            ) : null}
+            <div className="system-detail-facts">
+              <SystemFactPill label="Distance" value={`${formatNumber(system.dist_ly, 2)} ly`} />
+              <SystemFactPill label="Stars" value={formatNumber(system.star_count, 0)} />
+              <SystemFactPill label="Planets" value={formatNumber(system.planet_count, 0)} />
+              <SystemFactPill label="Spectral" value={bestSpectralSummary(system, stars)} />
+              <SystemFactPill label="Coolness" value={formatNumber(system.coolness_score, 1)} />
+            </div>
+            <div className="id-line id-line-inline system-detail-ids">
+              <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
+              <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
+              <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
+            </div>
           </div>
         </section>
 
@@ -3269,42 +3528,43 @@ function SystemDetailPage({ buildId = "" }) {
           <SystemPreviewPanel systemId={system.system_id} systemName={currentSystemDisplayName} snapshot={system.snapshot} />
         </React.Suspense>
 
-        <div className="quick-facts">
+        <SystemNarrativeScaffold system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
+
+        <section className="quick-facts system-knowledge-strip">
           <div>
             <strong>Distance</strong>
             <span>{formatNumber(system.dist_ly, 2)} ly ({formatNumber(distanceLyToPc(system.dist_ly), 2)} pc)</span>
           </div>
           <div>
-            <strong>RA / Dec</strong>
-            <span>{formatCoordinate(system.ra_deg)} / {formatCoordinate(system.dec_deg)} deg</span>
+            <strong>Sky Position</strong>
+            <span>RA {formatCoordinate(system.ra_deg)} / Dec {formatCoordinate(system.dec_deg)} deg</span>
           </div>
           <div>
-            <strong>XYZ (helio)</strong>
-            <span>
-              {formatCoordinate(system.x_helio_ly)}, {formatCoordinate(system.y_helio_ly)}, {formatCoordinate(system.z_helio_ly)}
-            </span>
+            <strong>Galactic Map XYZ</strong>
+            <span>{formatCoordinate(system.x_helio_ly)}, {formatCoordinate(system.y_helio_ly)}, {formatCoordinate(system.z_helio_ly)} ly</span>
           </div>
           <div>
-            <strong>Stars</strong>
-            <span>{formatNumber(system.star_count, 0)}</span>
+            <strong>Database Evidence</strong>
+            <span>{formatEvidenceSummary(collectSystemEvidenceCatalogs(system))}</span>
           </div>
           <div>
-            <strong>Planets</strong>
-            <span>{formatNumber(system.planet_count, 0)}</span>
-          </div>
-          <div>
-            <strong>Arm Evidence</strong>
+            <strong>ARM Evidence</strong>
             <span>
               {formatNumber(armSummary.stars_with_arm_evidence ?? 0, 0)} stars
               {armSummary.high_variability_stars ? ` · ${formatNumber(armSummary.high_variability_stars, 0)} high variability` : ""}
             </span>
           </div>
-        </div>
+        </section>
+
+        <ConceptExplainerGrid />
 
         <SystemHierarchyPanel hierarchy={hierarchy} />
 
-        <section className="panel">
-          <h3>Catalog Star Rows</h3>
+        <details className="panel detail-disclosure" open>
+          <summary>
+            <span>Stars and Catalog Rows</span>
+            <strong>{formatNumber(stars.length, 0)} rows</strong>
+          </summary>
           {stars.length === 0 && <p className="muted">No star members recorded.</p>}
           {stars.length > 0 && (
             <div className="table">
@@ -3378,10 +3638,13 @@ function SystemDetailPage({ buildId = "" }) {
               ))}
             </div>
           )}
-        </section>
+        </details>
 
-        <section className="panel">
-          <h3>Planets</h3>
+        <details className="panel detail-disclosure" open>
+          <summary>
+            <span>Planets and Orbits</span>
+            <strong>{formatNumber(planets.length, 0)} rows</strong>
+          </summary>
           {planets.length === 0 && <p className="muted">No confirmed exoplanets recorded.</p>}
           {planets.length > 0 && (
             <div className="table">
@@ -3444,10 +3707,13 @@ function SystemDetailPage({ buildId = "" }) {
               ))}
             </div>
           )}
-        </section>
+        </details>
 
-        <section className="panel">
-          <h3>Eclipsing Evidence</h3>
+        <details className="panel detail-disclosure">
+          <summary>
+            <span>Eclipsing Evidence</span>
+            <strong>{formatNumber(eclipsingBinaries.length, 0)} rows</strong>
+          </summary>
           {eclipsingBinaries.length === 0 && <p className="muted">No eclipsing-binary catalog evidence linked to this system.</p>}
           {eclipsingBinaries.length > 0 && (
             <div className="table">
@@ -3487,12 +3753,20 @@ function SystemDetailPage({ buildId = "" }) {
               })}
             </div>
           )}
-        </section>
+        </details>
 
-        <section className="panel">
-          <h3>Provenance</h3>
+        <details className="panel detail-disclosure">
+          <summary>
+            <span>Evidence and Technical Provenance</span>
+            <strong>Source chain</strong>
+          </summary>
           <ProvenanceBlock provenance={system.provenance} grouping={system} />
-        </section>
+          {system.snapshot ? (
+            <div className="snapshot-technical-note">
+              <SnapshotMetadata system={system} snapshot={system.snapshot} />
+            </div>
+          ) : null}
+        </details>
       </section>
     </Layout>
   );

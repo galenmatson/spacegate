@@ -262,15 +262,16 @@ System pages provide the more traditional information view for a star system.
 
 Look there for:
 
+- A large System Simulation at the top of the page.
+- A plain-language overview and "why this matters" section.
 - System hierarchy.
 - Star and planet lists.
 - Object vitals.
-- Simulation preview.
 - Identifiers and aliases.
 - Source/evidence notes.
-- Technical diagnostics where available.
+- Technical catalog rows and diagnostics in secondary sections.
 
-Some system pages still contain older Star Search design patterns. The project is actively moving toward the newer Map plus System Simulation experience.
+Star Search v2 and system pages are designed for progressive disclosure: start with the visual simulation and public explanation, then open the detailed catalog/evidence sections when you want the source-level rows.
 
 ## Reading Provenance Labels
 

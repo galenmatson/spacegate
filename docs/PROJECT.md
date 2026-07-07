@@ -242,6 +242,16 @@ Implementation note:
   is the first production bridge between browsable local-space flight and
   system-level inspection, but it remains a coordinated two-layer runtime
   rather than a single continuous galaxy-to-AU physical simulation.
+- Star Search v2 is the structured catalog counterpart to the immersive 3D
+  map. It keeps the existing public search/filter API but presents results as
+  readable system cards with bounded live System Simulation previews, cached
+  first-frame reuse, and deterministic snapshots only as fallback/reference
+  artifacts. Public system pages are now simulation-first: the top of the page
+  stages a visual simulation, quick system facts, plain-language overview,
+  "why it matters", habitability context, and future AAA narration slots before
+  exposing hierarchy, catalog rows, evidence, and technical provenance. This is
+  presentation structure over existing `core`/`arm`/`disc` contracts; it does
+  not promote visual assumptions into catalog facts.
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.
@@ -594,6 +604,9 @@ Current contract:
   readable/clickable over WebGL
 - System Simulation Peek is a lightweight map overlay and can be resized on
   desktop for the current browser session
+- Star Search v2 pages preserve map-to-system return context when opened from
+  the map, while `/search` remains the article-like catalog/search surface for
+  users arriving by name, catalog ID, or general curiosity.
 
 Layer rules:
 

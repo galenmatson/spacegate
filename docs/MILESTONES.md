@@ -657,6 +657,51 @@ Success criteria:
 - the interface remains smooth on tested mobile hardware at the current 100 ly
   radius and degrades quality rather than failing when context pressure rises
 
+### M8.0b. Star Search v2 and Simulation-First System Pages
+
+Goal:
+
+- make `/search` the structured public catalog/search counterpart to the 3D
+  map and make `/systems/{system_id}` readable for laypeople without hiding
+  scientific evidence.
+
+Implemented foundation:
+
+- standalone Star Search result cards now use bounded System Simulation
+  previews with first-frame capture reuse and hover/focus live promotion,
+  avoiding unbounded WebGL contexts in long result lists
+- deterministic snapshot rows remain fallback/reference metadata rather than
+  the preferred capable-browser visual
+- public system pages now lead with System Simulation, quick facts,
+  plain-language overview, why-it-matters notes, habitability context, concept
+  explanations, and reserved AAA narration slots
+- raw catalog rows, eclipsing evidence, snapshot metadata, and provenance are
+  still available in secondary/collapsible sections
+- `sort=match`/Relevance is available for named Star Search queries while
+  blank browsing falls back to coolness/name/distance modes
+
+Future work:
+
+- define public-experience golden review cases distinct from ingestion goldens:
+  Tau Ceti, TRAPPIST-1, Alpha Centauri/Proxima Centauri, Sirius, 55 Cnc,
+  Epsilon Eridani, Barnard's Star, Wolf 359, Vega, and Fomalhaut
+- integrate reviewed AAA public narration into the reserved system-page slots:
+  summary, why it matters, what we know, what remains uncertain, worlds and
+  orbits, and evidence/further reading
+- add optional future RIM/pop-culture hooks as clearly separated overlays, not
+  mixed into canonical science
+- finish high-fidelity static System Snapshot v2 for no-WebGL clients,
+  crawlers, share cards, and intentional low-intensity catalog contexts
+
+Success criteria:
+
+- users arriving by star name or catalog ID can understand a system without
+  reading raw table fields first
+- system pages clearly distinguish source facts, derived values, assumptions,
+  missing data, and presentation-only render choices
+- Star Search remains fast and stable on ordinary browsers while using live
+  simulation where it adds value
+
 ### M8.1. Tiled Deep Map
 
 Goal:

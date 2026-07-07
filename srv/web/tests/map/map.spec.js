@@ -162,6 +162,45 @@ test.describe("public 3D map beta", () => {
     ).toBe("1");
   });
 
+  test("standalone Star Search v2 uses bounded simulation previews", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop catalog search preview check");
+    await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".results-toolbar")).toBeVisible();
+    await expect(page.locator(".results-search-options select").first()).toHaveValue("match");
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
+    await expect(firstPreview).toBeVisible();
+    await expect
+      .poll(() => page.locator("[data-testid='star-search-simulation-preview'] .system-preview-canvas canvas").count(), { timeout: 10000 })
+      .toBeLessThanOrEqual(4);
+    await expect
+      .poll(() => page.locator("[data-testid='star-search-simulation-preview'][data-preview-state='cached']").count(), { timeout: 15000 })
+      .toBeGreaterThan(0);
+    await firstPreview.hover();
+    await expect
+      .poll(() => page.locator("[data-testid='star-search-simulation-preview'] .system-preview-canvas canvas").count(), { timeout: 10000 })
+      .toBeGreaterThan(0);
+    await expect(page.locator("[data-testid='star-search-simulation-preview'] .system-preview-hover")).toHaveCount(0);
+  });
+
+  test("system page v2 stages simulation, overview, and technical evidence", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop system page anatomy check");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Tau Ceti", limit: "1", sort: "match" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "Tau Ceti system_id").toBeTruthy();
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".system-detail-v2 h1")).toContainText(/tau Cet|Tau Ceti/i);
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
+    await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
+    await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
+  });
+
   test("map title comes from public branding config", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop header title check");
     const configResponse = await page.request.get("/api/v1/public-config");

@@ -1232,7 +1232,7 @@ Query params:
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
-- `sort` (`name` | `distance` | `coolness`, default `name`)
+- `sort` (`match` | `name` | `distance` | `coolness`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)
 - `limit` (int, default 50, max 200)
 - `include_total` (`true|false`, optional, default `false`)
 - `cursor` (string, optional)
@@ -1331,8 +1331,19 @@ Response 200:
 }
 ```
 
+Client contract:
+- Star Search v2 treats `snapshot.url` as fallback/reference metadata. Capable
+  browsers should prefer the `/systems/{system_id}/simulation-scene` contract
+  for live or simulation-derived previews, with bounded concurrent WebGL
+  contexts and cached frame reuse in result lists.
+- Search cards should keep catalog IDs copyable but visually secondary.
+
 ### GET /systems/{system_id}
-Fetch a system with its stars and planets.
+Fetch a system with its stars, planets, aliases, hierarchy, provenance, and
+fallback snapshot metadata. Public system pages should be simulation-first:
+the live `/systems/{system_id}/simulation-scene` payload is the primary visual
+anchor when WebGL is available, while this detail payload supplies inventory,
+copyable identifiers, table rows, hierarchy, and evidence/provenance sections.
 
 Path params:
 - `system_id` (int)
