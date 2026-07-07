@@ -606,6 +606,44 @@ Success criteria:
 - implementation remains layer-ready for future tiled science, extended-object,
   system-simulation, and rim overlays
 
+### M8.0a. Live-WebGL Runtime Manager
+
+Goal:
+
+- make Spacegate exploration live-WebGL-first while keeping static artifacts as
+  last-resort fallback, not the normal presentation path.
+
+Deliverables:
+
+- global WebGL runtime/context budget across Star Map, Peek, Explorer, and Star
+  Search result-card previews
+- reusable live-preview pool for search cards so visible cards do not create
+  unbounded independent WebGL contexts
+- adaptive quality profile for device class, viewport, DPR, context-loss
+  frequency, and user-selected map radius
+- lifecycle rules that pause/unmount lower-priority previews when Peek or
+  Explorer is active
+- client telemetry overlay and diagnostics for FPS, active WebGL contexts,
+  context-loss recoveries, preview pool pressure, and dropped quality tier
+- fallback-last policy: live WebGL recovers/remounts after transient context
+  loss; deterministic/static artifacts remain for no-WebGL, failed scene-load,
+  crawler/share surfaces, and repeated unrecoverable failures
+
+Future deep-map constraint:
+
+- design the runtime manager to support user-selectable 100/250/500/1000 ly map
+  radii, but do not ship those radii as a single monolithic payload. Larger
+  radii require tile/LOD loading, label density controls, priority sampling,
+  and public-edge slice/SLO checks before promotion.
+
+Success criteria:
+
+- fast-scrolling Star Search result cards no longer crash the background map or
+  active Peek/Explorer canvas
+- users can enable live FPS diagnostics from the map menu
+- the interface remains smooth on tested mobile hardware at the current 100 ly
+  radius and degrades quality rather than failing when context pressure rises
+
 ### M8.1. Tiled Deep Map
 
 Goal:
@@ -665,6 +703,62 @@ Deliverables:
   `ASSUMED` visual priors
 - persisted `disc` assumption rows for visualization-only defaults
 - fallback rules for browsers or devices that cannot support 3D previews
+
+### M8.3a. High-Fidelity Static System Snapshot Generator
+
+Goal:
+
+- replace the prototype concentric-ring static snapshots with high-quality,
+  deterministic, object-level system representations for traditional Star
+  Search, no-WebGL clients, crawlers, sharing, and fallback/reference surfaces.
+
+Deliverables:
+
+- snapshot generator that consumes the same `simulation-scene` contract and
+  visual scale policy as System Simulation
+- deterministic layout that shows multi-star hierarchy, compact objects,
+  planets, orbit ordering, habitable/temperature-line context where useful, and
+  clear labels without pretending to be physical scale
+- theme-neutral SVG or raster output suitable for search result cards and social
+  preview metadata
+- provenance metadata tying each snapshot to served build, system id,
+  render-scene schema, visual-scale version, generator version, and fallback
+  limitations
+- admin Presentation job for snapshot refresh with bounded batch controls and
+  status reporting
+
+Success criteria:
+
+- static search cards are visually useful enough to stand on their own when
+  live previews are disabled, unavailable, or intentionally not mounted
+- snapshot generation is much lighter than browser-rendered WebGL captures and
+  can be run routinely for hot/coolness-selected systems
+
+### M8.4. Admin Map Overlay and AAA Research Promotion
+
+Goal:
+
+- give authenticated admins operational/research controls directly over the 3D
+  map and system surfaces without exposing write controls to public users.
+
+Deliverables:
+
+- authenticated admin overlay mode for Star Map and System Explorer
+- per-system/object controls for `Needs review`, `Promote to AAA research`,
+  evidence portfolio, source-refresh notes, and simulation-readiness gaps
+- research queue state separated from public science facts; admin writes must
+  not mutate `core`/`arm` source evidence directly
+- V1513 Cyg/Wolf 1130 benchmark item for AAA research-promotion flow because it
+  exposes compact-remnant, M-subdwarf, T-dwarf, variability, and classification
+  presentation nuance
+- audit trail for who promoted/reviewed a system and why
+
+Success criteria:
+
+- admins can promote a visible system from map/explorer context into the AAA
+  research pipeline
+- public visitors see no admin controls and no unreviewed agency output in
+  canonical science layers
 
 Readiness gaps:
 

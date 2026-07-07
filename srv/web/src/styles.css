@@ -945,6 +945,41 @@
   accent-color: var(--accent);
 }
 
+.map-fps-overlay {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 62;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 44%, transparent);
+  border-radius: 6px;
+  color: var(--map-hud-strong);
+  background: color-mix(in srgb, var(--panel) 48%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--map-hud-glow) 60%, transparent);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.map-fps-overlay strong,
+.map-fps-overlay span {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.map-fps-overlay strong {
+  min-width: 2ch;
+  color: var(--map-hud-strong);
+  text-align: right;
+}
+
+.map-fps-overlay span {
+  color: var(--map-hud-muted);
+}
+
 .map-page select option {
   color: var(--map-select-ink);
   background: var(--map-select-bg);
@@ -7288,6 +7323,28 @@ main {
   color: #d8e6f2;
   font-size: 0.72rem;
   line-height: 1.35;
+}
+
+.system-preview-hover-compact {
+  width: min(300px, calc(100% - 20px));
+  padding: 8px;
+}
+
+.system-preview-hover-compact > div {
+  margin-bottom: 5px;
+}
+
+.system-preview-hover-compact dl {
+  gap: 3px 8px;
+}
+
+.system-preview-hover-compact dd {
+  justify-content: flex-start;
+}
+
+.system-preview-hover-compact p {
+  max-height: 5.6em;
+  overflow: hidden;
 }
 
 .system-preview-hover dl {

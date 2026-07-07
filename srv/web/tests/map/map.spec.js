@@ -75,6 +75,12 @@ test.describe("public 3D map beta", () => {
     await page.locator(".map-search-recent-pill").first().hover();
     await page.waitForTimeout(150);
     await expect(page.locator(".map-name-popover")).toHaveCount(0);
+    await page.locator(".map-menu-button").click();
+    await page.locator("[data-testid='map-fps-toggle']").check();
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toBeVisible();
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toContainText(/FPS/i);
+    await page.locator("[data-testid='map-fps-toggle']").uncheck();
+    await expect(page.locator("[data-testid='map-fps-overlay']")).toHaveCount(0);
     await page.locator(".map-search-spectral", { hasText: "G" }).click();
     await expect
       .poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelStrategy || ""), { timeout: 3000 })

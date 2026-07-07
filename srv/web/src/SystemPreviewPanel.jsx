@@ -3532,12 +3532,12 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
   );
 }
 
-function HoverReadout({ object }) {
+function HoverReadout({ object, compact = false }) {
   if (!object) {
     return null;
   }
   return (
-    <div className="system-preview-hover" role="status" aria-live="polite">
+    <div className={`system-preview-hover ${compact ? "system-preview-hover-compact" : ""}`} role="status" aria-live="polite">
       <div>
         <strong>{object.name}</strong>
         <span>{object.kind}</span>
@@ -3549,7 +3549,7 @@ function HoverReadout({ object }) {
             <dt>{label}</dt>
             <dd>
               <span>{value}</span>
-              <EvidencePill field={field} fallbackStatus={String(status || "missing").toLowerCase()} />
+              {!compact && <EvidencePill field={field} fallbackStatus={String(status || "missing").toLowerCase()} />}
             </dd>
           </React.Fragment>
         ))}
@@ -4000,7 +4000,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               <span>{contextLossCount > 1 ? `Recovery ${contextLossCount}` : "Live simulator restarting"}</span>
             </div>
           ) : null}
-          <HoverReadout object={hoveredObject && !pinnedObject ? hoveredObject : null} />
+          <HoverReadout
+            object={hoveredObject && !pinnedObject ? hoveredObject : null}
+            compact={normalizedPresentationMode === "peek"}
+          />
           <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
         </div>
         {normalizedPresentationMode !== "card" && <div className="system-preview-readout">

@@ -570,6 +570,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectral filter buttons
 - [x] Add Star Map WebGL context-loss recovery and stricter live-card preview
   activation to mitigate fast-scroll browser context eviction
+- [x] Add a persisted client-side Star Map FPS overlay toggle in the burger
+  menu for live performance inspection
 - [x] Collapse System Simulation habitable-zone and temperature-line toggles
   into a compact Lines disclosure
 - [x] Increase System Simulation close-zoom range for true-orbit, true-body,
@@ -579,6 +581,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   fallback
 - [x] Show the full layperson explanation when hovering System Simulation
   formation/freeze-line overlays such as the water snowline
+- [x] Make System Simulation Peek hover readouts less intrusive by hiding
+  provenance pills while preserving full provenance in Explorer/detail contexts
 - [x] Treat MSC endpoint `WD` spectral evidence as compact-object evidence in
   System Simulation render bodies, preventing main-sequence mass visual priors
   from masquerading as white-dwarf facts
@@ -601,7 +605,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Preserve MSC inferred leaf hierarchy through canonical hierarchy emit
   after the ARM builder moved to source-native nested MSC subsystem edges
 - [ ] 3D map real-device mid-tier mobile performance check
+- [ ] Live-WebGL runtime manager for shared context budgeting, adaptive quality,
+  preview pooling, and fallback-last policy across Map, Peek, Explorer, and
+  Star Search result cards
 - [ ] 3D map tiled 250 ly / 1000 ly runtime integration over Gaia-first slice
+- [ ] High-fidelity static System Snapshot v2 generator for traditional Star
+  Search, no-WebGL clients, crawlers/share cards, and fallback/reference
+  surfaces
+- [ ] Authenticated admin map overlay for per-system/object review controls,
+  evidence portfolio access, and AAA research promotion
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
   clusters, and background-sky context
 - [x] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive

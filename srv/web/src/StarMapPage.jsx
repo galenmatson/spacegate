@@ -28,6 +28,7 @@ const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
+const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const DEFAULT_MOBILE_FLIGHT_STATE = {
   forward: false,
@@ -192,6 +193,17 @@ function readStoredDirectionLabelsEnabled() {
   }
   try {
     return window.localStorage.getItem(MAP_DIRECTION_LABELS_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function readStoredFpsOverlayEnabled() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem(MAP_FPS_OVERLAY_STORAGE_KEY) === "true";
   } catch {
     return false;
   }
@@ -2021,6 +2033,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
   const [mapFrame, setMapFrame] = useState(readStoredMapFrame);
   const [showDirectionLabels, setShowDirectionLabels] = useState(readStoredDirectionLabelsEnabled);
+  const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
+  const [fpsSample, setFpsSample] = useState(0);
   const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
   const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
   const [mapSearchFilters, setMapSearchFilters] = useState({
@@ -2106,6 +2120,43 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       // Direction-label preference persistence is optional.
     }
   }, [showDirectionLabels]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_FPS_OVERLAY_STORAGE_KEY, showFpsOverlay ? "true" : "false");
+    } catch {
+      // FPS overlay preference persistence is optional.
+    }
+  }, [showFpsOverlay]);
+
+  useEffect(() => {
+    if (!showFpsOverlay) {
+      setFpsSample(0);
+      return undefined;
+    }
+    let active = true;
+    let lastCommit = performance.now();
+    let frameCount = 0;
+    let rafId = 0;
+    const tick = (now) => {
+      if (!active) {
+        return;
+      }
+      frameCount += 1;
+      if (now - lastCommit >= 500) {
+        const elapsedSeconds = Math.max(0.001, (now - lastCommit) / 1000);
+        setFpsSample(Math.round(frameCount / elapsedSeconds));
+        frameCount = 0;
+        lastCommit = now;
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+    rafId = window.requestAnimationFrame(tick);
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [showFpsOverlay]);
 
   useEffect(() => {
     const onPointerDown = (event) => {
@@ -2770,11 +2821,27 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 />
                 <span>Direction labels</span>
               </label>
+              <label className="map-menu-toggle">
+                <input
+                  type="checkbox"
+                  checked={showFpsOverlay}
+                  onChange={(event) => setShowFpsOverlay(event.target.checked)}
+                  data-testid="map-fps-toggle"
+                />
+                <span>Show FPS</span>
+              </label>
               <span className="map-menu-note">Arrow keys always fly.</span>
             </div>
           </details>
         </nav>
       </header>
+
+      {showFpsOverlay && (
+        <div className="map-fps-overlay" role="status" aria-live="polite" data-testid="map-fps-overlay">
+          <strong>{fpsSample > 0 ? fpsSample : "--"}</strong>
+          <span>FPS</span>
+        </div>
+      )}
 
       <MapStarSearchShell
         open={mapSearchOpen}

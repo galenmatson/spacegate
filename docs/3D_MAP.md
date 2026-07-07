@@ -284,6 +284,10 @@ Initial layers:
   - card previews activate only when actually visible, and the background map
     canvas remounts after WebGL context loss so fast-scroll browser context
     eviction can recover without a full page reload
+  - the map burger menu includes a persisted client-side FPS overlay toggle for
+    live hardware/performance checks without opening browser devtools
+  - Peek hover readouts omit provenance pills to stay lightweight; Explorer and
+    detail contexts keep provenance pills for deeper inspection
   - summarizes orbit-orientation evidence as source orientation, partial
     sky-plane orientation, assumed roll, or local-clarity layout; this is an
     audit label, not a galactic-alignment guarantee
