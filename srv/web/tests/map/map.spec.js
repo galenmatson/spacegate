@@ -67,7 +67,7 @@ test.describe("public 3D map beta", () => {
     });
     await page.goto("/search", { waitUntil: "networkidle" });
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
-    const expectedLabels = ["ABT", "MAP", "SPT", "SRC"];
+    const expectedLabels = ["HELP", "ABT", "MAP", "SPT", "SRC"];
     const headerBox = await page.locator(".site-header").boundingBox();
     expect(headerBox, "mission control header box").toBeTruthy();
     for (const label of expectedLabels) {
@@ -887,7 +887,7 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerRadius).toBe("3px");
     expect(themeStyles.titleTransform).toBe("uppercase");
     expect(themeStyles.titleLetterSpacing).not.toBe("normal");
-    expect(themeStyles.utilityLinks.map((link) => link.text)).toEqual(["ABT", "SPT", "SRC", "DATA"]);
+    expect(themeStyles.utilityLinks.map((link) => link.text)).toEqual(["HELP", "ABT", "SPT", "SRC", "DATA"]);
     expect(themeStyles.utilityLinks.every((link) => link.visible && link.pointerEvents === "auto")).toBeTruthy();
     expect(themeStyles.buttonColor).toBe("rgb(24, 26, 18)");
     expect(themeStyles.buttonBackground).toContain("rgb(255, 225, 147)");

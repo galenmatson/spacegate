@@ -30,6 +30,7 @@ const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
 const MAP_UTILITY_LINKS = [
+  { label: "HELP", href: "/help", title: "How to use Coolstars", external: false },
   { label: "ABT", href: "/about", title: "About this site", external: false },
   { label: "SPT", href: "https://github.com/sponsors/galenmatson", title: "Support this project", external: true },
   { label: "SRC", href: "https://github.com/galenmatson/spacegate", title: "Source code", external: true },

@@ -128,11 +128,13 @@ const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
 const APP_DISPLAY_NAME = "CoolStars";
+const HEADER_HELP_LINK = "/help";
 const HEADER_ABOUT_LINK = "/about";
 const HEADER_DATA_LINK = "/data";
 const HEADER_SPONSOR_LINK = "https://github.com/sponsors/galenmatson";
 const HEADER_SOURCE_LINK = "https://github.com/galenmatson/spacegate";
 const HEADER_LINKS = [
+  { label: "HELP", href: HEADER_HELP_LINK, title: "How to use Coolstars", external: false },
   { label: "ABT", href: HEADER_ABOUT_LINK, title: "About this site", external: false },
   { label: "MAP", href: "/map", title: "3D local star map", external: false },
   { label: "SPT", href: HEADER_SPONSOR_LINK, title: "Support this project", external: true },
@@ -149,6 +151,12 @@ const ABOUT_MARKDOWN = typeof MARKDOWN_CONTENT["../content/about.md"] === "strin
   : `# About Spacegate
 
 About content is not available in this checkout.
+`;
+const HELP_MARKDOWN = typeof MARKDOWN_CONTENT["../content/help.md"] === "string"
+  ? MARKDOWN_CONTENT["../content/help.md"]
+  : `# Coolstars Help
+
+Help content is not available in this checkout.
 `;
 const DATA_MARKDOWN = typeof MARKDOWN_CONTENT["../content/sources.md"] === "string"
   ? MARKDOWN_CONTENT["../content/sources.md"]
@@ -343,7 +351,7 @@ function LcarsUtilityRail() {
     <HeaderNavLinks
       className="lcars-utility-rail"
       linkClassName="lcars-utility-link"
-      includeLabels={["ABT", "SPT", "SRC"]}
+      includeLabels={["HELP", "ABT", "SPT", "SRC"]}
     />
   );
 }
@@ -2071,6 +2079,18 @@ function AboutPage({ buildId = "" }) {
   );
 }
 
+function HelpPage({ buildId = "" }) {
+  return (
+    <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
+      <section className="detail-layout">
+        <section className="panel markdown-panel">
+          <MarkdownContent markdown={HELP_MARKDOWN} />
+        </section>
+      </section>
+    </Layout>
+  );
+}
+
 function DataPage({ buildId = "" }) {
   return (
     <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
@@ -3542,6 +3562,7 @@ export default function App() {
         />
         <Route path="/classic-search" element={<SearchPage buildId={buildId} />} />
         <Route path="/search" element={<SearchPage buildId={buildId} />} />
+        <Route path="/help" element={<HelpPage buildId={buildId} />} />
         <Route path="/about" element={<AboutPage buildId={buildId} />} />
         <Route path="/data" element={<DataPage buildId={buildId} />} />
         <Route

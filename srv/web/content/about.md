@@ -1,93 +1,79 @@
 # About Spacegate
 
-Spacegate is a public, browsable database of nearby stars and exoplanets designed for exploration, education, and worldbuilding.
+Spacegate is an open source astronomy and worldbuilding platform for browsing nearby space. Its public site, Coolstars, is built to make real stars, planets, and stellar systems easier to explore without burying visitors under catalog tables.
 
-Most online star maps are either visually impressive but scientifically shallow, or scientifically dense but difficult to explore. Spacegate aims to combine the strengths of both: rigorous astronomical data presented through an interface built for curiosity and discovery.
+The project has two goals:
 
-https://coolstars.org is the official public spacegate website available to all for free. Technical project information and aggregated astronomical data is available the project's official page https://spacegates.org
+- Keep canonical astronomy auditable, reproducible, and separated from speculation.
+- Present nearby space in a way that is understandable, beautiful, and compelling.
 
-Spacegate is an open source project, you can clone or contribute at https://github.com/galenmatson/spacegate
+Coolstars is the public exploration site. Spacegate is the underlying database, build system, API, and software project.
 
----
+- Public exploration site: https://coolstars.org
+- Project and technical site: https://spacegates.org
+- Source code: https://github.com/galenmatson/spacegate
 
-## What Spacegate Is
+## What You Can Do Here
 
-Spacegate currently provides:
+Coolstars currently includes:
 
-- A versioned nearby-space database centered on Gaia DR3
-- Searchable systems with strong alias coverage (Gaia, HIP, HD, Bayer/Flamsteed, mission and catalog names)
-- Multiplicity evidence from Gaia NSS, WDS, MSC, ORB6, and SBX
-- Exoplanets from NASA plus lifecycle overlays from additional planet catalogs
-- Provenance metadata and retrieval lineage for derived records
+- A 3D local star map centered on nearby space.
+- Map-native Star Search with filters for distance, spectral class, temperature, planet count, star count, coolness, and habitable-zone planet candidates.
+- System Simulation for stars, planets, orbits, habitable zones, and temperature threshold lines.
+- Search results with live or cached simulation previews.
+- System pages with hierarchy, object vitals, source-aware simulation data, and technical details.
+- Data-source documentation and build identifiers for reproducibility.
 
-The data is real. Nothing is fabricated. All values trace back to public astronomical catalogs.
+The 3D map is the main exploration interface. The classic catalog-style Star Search remains available and will be redesigned around the newer simulation and map work.
 
----
+## Data Philosophy
 
-## The Data Backbone
+Spacegate does not treat all information as equally certain.
 
-Spacegate is now Gaia-first:
+- Source facts are preserved with catalog provenance.
+- Deterministic derived data is kept separate from canonical inventory.
+- Visual assumptions are labeled as assumptions.
+- Fictional and worldbuilding material belongs in separate overlays.
 
-- **Gaia DR3 backbone** for canonical stellar inventory
-- **NASA Exoplanet Archive (pscomppars)** for canonical exoplanets
-- **Multiplicity overlays** (Gaia NSS, WDS, MSC, ORB6, SBX)
-- **Science overlays** in arm (compact objects, variability, cluster context, Sol authority overlays)
+That separation is central to the project. A star catalog, a simulation renderer, an AI-written explanation, and a fictional political map of space may all refer to the same star system, but they should not be confused with one another.
 
-Raw source files are preserved in immutable snapshots. From there, deterministic scripts:
+## Project Layers
 
-- Normalize identifiers and aliases
-- Resolve star/system joins with confidence gates
-- Build canonical `core` plus supplemental `arm` science overlays
-- Attach provenance and retrieval metadata for each transformed record
+Spacegate uses layered data so scientific records, derived products, generated content, and fiction can evolve without contaminating each other.
 
-Each build produces:
+- `core`: accepted public inventory and hot-path browse/search summaries.
+- `arm`: source-native and defensible science relationships, orbits, hierarchy, and other analytical overlays.
+- `disc`: reproducible generated outputs such as scores, presentation artifacts, assumptions, and future AI narration.
+- `rim`: fictional, lore, and worldbuilding overlays.
 
-- A versioned served build (DuckDB + Parquet exports)
-- QC, contribution, and lineage reports
-- Deterministic artifacts suitable for reproducible deployment
+The boundaries are based on role and purpose, not simply confidence. For example, orbital solutions are scientific evidence, but they belong in a relationship/orbit layer rather than being treated as simple immutable object identity.
 
-Spatial indexing uses a 63-bit Morton (Z-order) index over heliocentric light-year coordinates to enable efficient 3D queries and future visualization work.
+## The Current Build
 
-If invariants fail (missing provenance, coordinate inconsistencies, etc.), the build fails.
+The public site serves a sliced nearby-space build optimized for the current VPS. It focuses on nearby systems and trims some distant low-mass stars to keep the public service responsive.
 
-The database is reproducible, inspectable, and designed for long-lived data stewardship.
+Each served build has a build identifier visible in the interface. That identifier matters: it ties the website back to a specific materialized database build, source manifest, and verification run.
 
----
+## Why Spacegate?
 
-## Curation Principles
+The name comes from a fictional faster-than-light network concept developed for a hard science fiction setting. The long-term vision includes real astronomy, public education, and optional worldbuilding overlays where users can draw routes, borders, stations, spacegates, and other speculative artifacts without mixing them into the science database.
 
-- No invented data  
-- No silent inference  
-- Core astronomy remains immutable  
-- Derived enrichments are layered separately  
-- Every derived artifact is traceable to source facts  
+## The AI Astronomy Agency
 
-Future enrichment (descriptions, snapshots, visualizations) will always remain grounded in documented data.
+Spacegate is also building the AI Astronomy Agency, or AAA. The AAA is planned as a research and narration framework that can study astronomical publications, help maintain evidence portfolios, and eventually write clear public explanations grounded in source material.
 
----
+The AAA is not allowed to silently promote unreviewed model output into canonical science. Its job is to assist research, triage, explanation, and review while preserving provenance.
 
-## Why “Spacegate”?
+## Creator
 
-The name comes from a fictional faster-than-light network concept developed for my own hard science fiction setting. The idea of gate or portal travel in scifi goes back to the 1800s but was popularized in stories by Arthur C. Clark and Robert Heinlein before become widespread in television as Star Gates in Stargate, and Ring Gates in the Expanse. 
+Spacegate was created by Galen Matson, an engineer interested in astrophysics, large-scale systems, and science fiction worldbuilding.
 
----
+The project is developed and hosted out of pocket. Sponsorship helps keep Coolstars public and free:
 
-## The Creator
-
-Spacegate was created by Galen Matson, an engineer with a long-standing interest in astrophysics, large-scale systems, and science fiction worldbuilding.
-
-The goal is to build a tool that is scientifically rigorous, openly reproducible, and genuinely enjoyable to explore.
-
-For more of my stuff you can check out galenmatson.com
-
-You can buy my nerd merch at engineeritees.printify.me
-
-I develop and host this project out of pocket. If you think it is worthwhile please consider sponsoring my work at: https://github.com/sponsors/galenmatson
-
----
+https://github.com/sponsors/galenmatson
 
 ## Contact
 
-Questions, suggestions, or collaboration ideas are welcome.
+Questions, suggestions, corrections, and collaboration ideas are welcome.
 
 **ahoy@spacegates.org**
