@@ -129,6 +129,8 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(), { timeout: 10000 })
       .toBeGreaterThan(0);
+    await expect(page.locator(".map-search-card-preview .system-preview-hover")).toHaveCount(0);
+    await expect(page.locator(".map-search-card-preview [data-testid='system-preview-pinned']")).toHaveCount(0);
     await page.mouse.move(20, 20);
     await expect
       .poll(() => page.locator(".map-search-card-preview img.map-search-card-capture").count(), { timeout: 10000 })

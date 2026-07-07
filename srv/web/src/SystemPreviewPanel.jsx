@@ -3909,6 +3909,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
   const embeddedPresentation = normalizedPresentationMode !== "detail";
   const cardPresentation = normalizedPresentationMode === "card";
+  const interactiveReadouts = !cardPresentation;
   const showDiagnostics = !compactPresentation && (evidenceFields.length > 0 || (status === "ready" && scene));
 
   const renderPreviewActions = () => (
@@ -4055,8 +4056,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 qualityTier={qualityTier}
                 captureFrame={captureFrame}
                 onFrameCapture={onFrameCapture}
-                onHover={setHoveredObject}
-                onSelect={setPinnedObject}
+                onHover={interactiveReadouts ? setHoveredObject : null}
+                onSelect={interactiveReadouts ? setPinnedObject : null}
                 onClockSample={handleClockSample}
                 onContextLost={handleContextLost}
               />
@@ -4070,11 +4071,15 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               <span>{contextLossCount > 1 ? `Recovery ${contextLossCount}` : "Live simulator restarting"}</span>
             </div>
           ) : null}
-          <HoverReadout
-            object={hoveredObject && !pinnedObject ? hoveredObject : null}
-            compact={normalizedPresentationMode === "peek"}
-          />
-          <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
+          {interactiveReadouts && (
+            <>
+              <HoverReadout
+                object={hoveredObject && !pinnedObject ? hoveredObject : null}
+                compact={normalizedPresentationMode === "peek"}
+              />
+              <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
+            </>
+          )}
         </div>
         {normalizedPresentationMode !== "card" && <div className="system-preview-readout">
           <div>
