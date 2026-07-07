@@ -111,6 +111,12 @@ Each result card should be compact, readable, and simulation-aware:
 - notable tags
 - copyable IDs where useful
 
+Notable tags are presentation/discovery cues derived from existing search
+payload fields, such as proximity, planet count, stellar multiplicity,
+habitable-zone screening signals, ultracool/white-dwarf spectral classes,
+coolness score, and source evidence catalogs. They must not create new
+science-layer facts.
+
 Visual policy:
 
 - Result cards use bounded System Simulation previews.

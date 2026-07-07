@@ -6285,6 +6285,29 @@ main {
   white-space: nowrap;
 }
 
+.result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.result-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+  color: color-mix(in srgb, var(--accent-dark) 82%, var(--ink));
+  font-family: var(--font-mono);
+  font-size: 0.69rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .result-meta {
   display: flex;
   flex-wrap: wrap;

@@ -1346,6 +1346,54 @@ function formatEvidenceSummary(tokens) {
   return tokens.map((token) => evidenceLabel(token)).filter(Boolean).join(" · ");
 }
 
+function buildSearchResultTags(system) {
+  const tags = [];
+  const addTag = (label, title = "") => {
+    const cleanLabel = String(label || "").trim();
+    if (!cleanLabel || tags.some((tag) => tag.label === cleanLabel)) {
+      return;
+    }
+    tags.push({ label: cleanLabel, title });
+  };
+  const distanceLy = Number(system?.dist_ly);
+  const starCount = Number(system?.star_count || 0);
+  const planetCount = Number(system?.planet_count || 0);
+  const coolness = Number(system?.coolness_score);
+  const nicePlanetCount = Number(system?.coolness_nice_planet_count || 0);
+  const spectralClasses = Array.isArray(system?.spectral_classes)
+    ? system.spectral_classes.map((token) => String(token || "").trim().toUpperCase()).filter(Boolean)
+    : [];
+  if (Number.isFinite(distanceLy) && distanceLy <= 25) {
+    addTag("Nearby", "Within 25 light-years of Sol.");
+  } else if (Number.isFinite(distanceLy) && distanceLy <= 100) {
+    addTag("Local neighborhood", "Within 100 light-years of Sol.");
+  }
+  if (planetCount >= 2) {
+    addTag("Multi-planet", "More than one confirmed planet is linked to this system.");
+  } else if (planetCount === 1) {
+    addTag("Exoplanet", "One confirmed planet is linked to this system.");
+  }
+  if (nicePlanetCount > 0 || system?.has_habitable_candidate) {
+    addTag("HZ signal", "Broad habitable-zone-style screening signal; not a habitability claim.");
+  }
+  if (starCount >= 2) {
+    addTag("Multi-star", "Multiple stellar members are grouped in this system record.");
+  }
+  if (spectralClasses.some((token) => token === "D")) {
+    addTag("White dwarf", "A compact stellar remnant class appears in the spectral summary.");
+  }
+  if (spectralClasses.some((token) => ["L", "T", "Y"].includes(token))) {
+    addTag("Ultracool", "Includes an L, T, or Y ultracool spectral class.");
+  }
+  if (Number.isFinite(coolness) && coolness >= 20) {
+    addTag("High coolness", "Ranks strongly on the active Coolstars discovery profile.");
+  }
+  collectSystemEvidenceCatalogs(system).slice(0, 2).forEach((token) => {
+    addTag(evidenceLabel(token), "Catalog evidence contributing to this system grouping.");
+  });
+  return tags.slice(0, 6);
+}
+
 function formatArmEvidenceDetails(armEvidence) {
   if (!armEvidence || typeof armEvidence !== "object") {
     return "";
@@ -3205,6 +3253,7 @@ function SearchPage({ buildId = "" }) {
               {results.map((item) => {
                 const displayName = systemDisplayName(item);
                 const canonicalName = String(item?.system_name || "").trim();
+                const resultTags = buildSearchResultTags(item);
                 return (
                 <article
                   key={item.system_id}
@@ -3237,6 +3286,15 @@ function SearchPage({ buildId = "" }) {
                           ) : null}
                           {Array.isArray(item?.display_aliases) && item.display_aliases.length > 0 ? (
                             <div className="muted">Aliases: {item.display_aliases.slice(0, 4).join(" · ")}</div>
+                          ) : null}
+                          {resultTags.length > 0 ? (
+                            <div className="result-tags" aria-label={`${displayName} notable tags`}>
+                              {resultTags.map((tag) => (
+                                <span className="result-tag" key={`${item.system_id}-${tag.label}`} title={tag.title || undefined}>
+                                  {tag.label}
+                                </span>
+                              ))}
+                            </div>
                           ) : null}
                         </div>
                         <div className="distance" title="Coolness rank">

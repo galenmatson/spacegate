@@ -119,6 +119,10 @@ Search results can be sorted by:
 ### Search Cards
 
 Search result cards show system vitals and a preview of the System Simulation.
+Small tags call out useful discovery cues such as nearby systems, exoplanets,
+multi-star systems, ultracool dwarfs, white dwarfs, habitable-zone-style
+signals, and major evidence catalogs. These tags are search aids, not new
+catalog facts.
 
 To avoid overwhelming your browser with too many WebGL contexts, cards usually show a cached image after the first live render. Hovering or focusing a card can temporarily animate the preview when resources are available.
 

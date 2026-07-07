@@ -183,6 +183,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".spectral-chip", { hasText: "T" })).toBeVisible();
     await expect(page.locator(".spectral-chip", { hasText: "Y" })).toBeVisible();
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(".result-card").first().locator(".result-tags")).toContainText(/Nearby|Exoplanet|Multi-planet|High coolness|NASA|Gaia/i);
     const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
     await expect(firstPreview).toBeVisible();
     await expect
