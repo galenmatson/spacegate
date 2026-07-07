@@ -2826,6 +2826,9 @@
   }
 
   .map-controls-panel {
+    left: auto;
+    right: 10px;
+    width: max-content;
     bottom: 10px;
     gap: 7px;
     max-height: none;
@@ -2833,7 +2836,7 @@
   }
 
   .map-control-buttons {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
   .map-mobile-flight-pad {
@@ -8288,11 +8291,15 @@ main {
 
 @media (max-width: 680px) {
   .map-star-search {
-    top: 242px;
+    top: 54px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
   }
 
   .map-search-topbar {
     padding: 7px;
+    gap: 6px;
   }
 
   .map-search-spectral-bar {
@@ -8304,19 +8311,19 @@ main {
   }
 
   .map-search-sidebar {
-    top: 96px;
+    top: 92px;
     left: 0;
-    width: min(214px, 58vw);
-    max-height: min(42vh, calc(100% - 96px));
+    width: min(172px, 46vw);
+    max-height: min(42vh, calc(100% - 92px));
     padding: 8px;
   }
 
   .map-search-results {
-    top: 96px;
+    top: 92px;
     left: 0;
     right: 0;
     width: auto;
-    max-height: calc(100% - 96px);
+    max-height: calc(100% - 92px);
   }
 
   .map-search-card-preview,

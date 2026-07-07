@@ -946,19 +946,38 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-contacts-panel")).toBeHidden();
     await expect(page.locator(".map-mobile-flight-button")).toHaveCount(6);
     await expect(page.locator("[data-testid='map-mobile-flight-forward']")).toBeVisible();
+    await page.getByRole("link", { name: /^Search$/i }).tap();
+    await expect(page.locator(".map-star-search")).toBeVisible();
+    await expect(page.locator(".map-search-topbar")).toBeVisible();
+    await expect(page.locator(".map-search-sidebar")).toBeVisible();
 
     const metrics = await page.evaluate(() => {
       const canvas = document.querySelector(".map-canvas canvas")?.getBoundingClientRect();
       const header = document.querySelector(".map-site-header")?.getBoundingClientRect();
+      const search = document.querySelector(".map-star-search")?.getBoundingClientRect();
+      const topbar = document.querySelector(".map-search-topbar")?.getBoundingClientRect();
+      const sidebar = document.querySelector(".map-search-sidebar")?.getBoundingClientRect();
+      const flightPad = document.querySelector(".map-mobile-flight-pad")?.getBoundingClientRect();
+      const overlap = (a, b) => Boolean(
+        a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+      );
       return {
         canvasWidth: canvas?.width || 0,
         canvasHeight: canvas?.height || 0,
         headerHeight: header?.height || 0,
+        searchTop: search?.top || 0,
+        topbarTop: topbar?.top || 0,
+        sidebarWidth: sidebar?.width || 0,
+        sidebarFlightOverlap: overlap(sidebar, flightPad),
       };
     });
     expect(metrics.canvasWidth).toBeGreaterThan(100);
     expect(metrics.canvasHeight).toBeGreaterThan(100);
     expect(metrics.headerHeight).toBeLessThanOrEqual(88);
+    expect(metrics.searchTop).toBeLessThanOrEqual(70);
+    expect(metrics.topbarTop).toBeLessThanOrEqual(76);
+    expect(metrics.sidebarWidth).toBeLessThanOrEqual(186);
+    expect(metrics.sidebarFlightOverlap).toBe(false);
 
     const canvas = page.locator(".map-canvas canvas");
     const beforeMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
