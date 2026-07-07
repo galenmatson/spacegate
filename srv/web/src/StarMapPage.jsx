@@ -2320,15 +2320,16 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     contextLossRecoveries,
     deviceProfile: deviceRuntimeProfile,
   }), [activeWebGLSurfaceCount, contextLossRecoveries, deviceRuntimeProfile]);
-  const previewPaused = drillSurfaceActive;
   const previewRecoveryBudget = contextLossRecoveries >= 6
     ? SEARCH_PREVIEW_HIGH_RECOVERY_BUDGET
     : runtimeQuality.cardBudget;
-  const previewPoolBudget = previewPaused
+  const reservedWebGLSurfaces = (mapSurfaceActive ? 1 : 0) + (drillSurfaceActive ? 1 : 0);
+  const availablePreviewSlots = Math.max(0, WEBGL_CONTEXT_BUDGET - reservedWebGLSurfaces);
+  const desiredPreviewBudget = drillSurfaceActive ? 1 : SEARCH_PREVIEW_POOL_SIZE;
+  const previewPoolBudget = mapContextRecovering || previewCooldownActive
     ? 0
-    : mapContextRecovering || previewCooldownActive
-      ? 0
-      : Math.min(SEARCH_PREVIEW_POOL_SIZE, previewRecoveryBudget, Math.max(0, WEBGL_CONTEXT_BUDGET - (mapSurfaceActive ? 1 : 0)));
+    : Math.min(desiredPreviewBudget, previewRecoveryBudget, availablePreviewSlots);
+  const previewPaused = drillSurfaceActive && previewPoolBudget <= 0;
   const runtimeDiagnostics = {
     fps: fpsSample,
     activeSurfaces: activeWebGLSurfaceCount,

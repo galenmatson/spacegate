@@ -148,11 +148,11 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(),
       { timeout: 5000 }
-    ).toBe(0);
+    ).toBeLessThanOrEqual(1);
     await expect.poll(
       () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimePreviewPoolBudget || ""),
       { timeout: 3000 }
-    ).toBe("0");
+    ).toBe("1");
   });
 
   test("map title comes from public branding config", async ({ page }, testInfo) => {
