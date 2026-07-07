@@ -708,9 +708,9 @@ Current golden framework:
   stress golden sets
 - `srv/web/tests/fixtures/publicExperienceGoldens.mjs` is used by the
   Playwright map suite for search-resolution and system-page anatomy checks
-- Vega / Alpha Lyrae / HD 172167 / HIP 91262 is a known current search/alias
-  gap on the served build and should be fixed in the alias/display-name data
-  milestone rather than papered over in frontend presentation
+- Vega / Alpha Lyrae / HD 172167 / HIP 91262 is a known current source/alias
+  coverage gap on the served build and should be fixed in the data
+  reconciliation milestone rather than papered over in frontend presentation
 
 ### M8.1. Tiled Deep Map
 

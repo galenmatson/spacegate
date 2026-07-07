@@ -626,8 +626,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Define public-experience golden-system review checklist for Tau Ceti,
   TRAPPIST-1, Alpha/Proxima Centauri, Sirius, 55 Cnc, Epsilon Eridani,
   Barnard's Star, Wolf 359, Vega, and Fomalhaut
-- [ ] Fix current public-search alias/display-name gap for Vega / Alpha Lyrae /
-  HD 172167 / HIP 91262 so the public UX golden resolves correctly
+- [ ] Fix current public-search source/alias coverage gap for Vega /
+  Alpha Lyrae / HD 172167 / HIP 91262 so the public UX golden resolves
+  correctly
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

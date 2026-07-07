@@ -368,6 +368,47 @@ def main():
                     f"got display={first_item.get('display_name')!r}, aliases={first_item.get('display_aliases')!r}"
                 )
 
+    identifier_cases = [
+        ("HD 128620", "14396-6050", "Alpha Centauri"),
+        ("HIP 71683", "14396-6050", "Alpha Centauri"),
+    ]
+    for query, expected_wds_id, expected_display_name in identifier_cases:
+        _, payload = get_json(
+            base_url,
+            "/systems/search",
+            params={"q": query, "limit": 5},
+            label=f"search catalog identifier {query}",
+        )
+        items = payload.get("items") or []
+        if not items:
+            raise AssertionError(f"catalog identifier search {query!r} returned no items")
+        first_item = items[0]
+        if first_item.get("wds_id") != expected_wds_id:
+            raise AssertionError(
+                f"catalog identifier search {query!r} expected WDS {expected_wds_id}, got {first_item.get('wds_id')!r}"
+            )
+        aliases = [str(value).lower() for value in first_item.get("display_aliases") or []]
+        if (
+            str(first_item.get("display_name") or "").lower() != expected_display_name.lower()
+            and expected_display_name.lower() not in aliases
+        ):
+            raise AssertionError(
+                f"catalog identifier search {query!r} expected {expected_display_name!r}, "
+                f"got display={first_item.get('display_name')!r}, aliases={first_item.get('display_aliases')!r}"
+            )
+
+    for query in ("HD 172167", "HIP 91262"):
+        _, payload = get_json(
+            base_url,
+            "/systems/search",
+            params={"q": query, "limit": 5},
+            label=f"search absent catalog identifier {query}",
+        )
+        if payload.get("items"):
+            raise AssertionError(
+                f"absent catalog identifier search {query!r} should not return fuzzy substitutes: {payload.get('items')!r}"
+            )
+
     _, planets_true = get_json(
         base_url,
         "/systems/search",

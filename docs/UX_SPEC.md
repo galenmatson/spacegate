@@ -1,180 +1,227 @@
-# Spacegate v1.1 UX Spec (Public Database Browser)
+# Spacegate Public UX Spec
 
-Status: legacy reference. This document describes the pre-map/pre-System
-Simulation public browser. The current public direction is Star Search v2 plus
-System Simulation-first system pages, documented in `docs/PROJECT.md`,
-`docs/MILESTONES.md`, `docs/3D_MAP.md`, and `docs/SYSTEM_SIMULATION.md`.
+Status: current public direction. This document supersedes the legacy
+pre-map Star Browser contract. The public experience is now split into two
+complementary surfaces:
 
-Scope: search/browse core systems, stars, and planets from `core.duckdb`, with read-only disc overlays (`disc` artifacts) for coolness ranking and deterministic system snapshots. No 3D map, no rim overlays.
+- `/map`: immersive 3D exploration of nearby systems.
+- `/search`: Star Search v2, the readable catalog/search counterpart for
+  visitors arriving by name, catalog ID, media reference, or curiosity.
 
-## Current Implementation Notes
-- Theme labels currently exposed in UI: `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`, `Aurora`, `Geocities`, `Deep Space Minimal`.
-- Global search-focus shortcut: `/` (ignored while typing in editable fields).
-- Filters panel supports `Collapse Up`; when collapsed, results expand to full width.
+The system detail route is simulation-first. Static deterministic snapshots are
+fallback/reference artifacts, not the preferred capable-browser experience.
 
-## Global UI Principles
-- Primary task: find a system and understand what is known about it.
-- Secondary task: compare systems by distance and basic characteristics.
-- Always show provenance and match confidence where applicable.
-- Never fabricate values. If a field is null, show "Unknown" and avoid derived guesses.
-- Units: distance in light-years (ly), angles in degrees.
+## UX Principles
 
-## Page: Search / Results
+- Help laypeople become lay astronomers without hiding evidence.
+- Stage complexity: overview first, raw catalog detail later.
+- Never present assumptions as source facts.
+- Keep source, ARM, DISC, render presentation, and RIM/lore roles visible when
+  they affect interpretation.
+- Prefer System Simulation for visual understanding, with cached captures or
+  deterministic snapshots only where live WebGL is inappropriate.
+- Keep map exploration and catalog search connected but not fused into one
+  overloaded page.
 
-### Layout
-- Header: "Spacegate Browser" title, short subtitle, and a global search input.
-- Filters panel (left on desktop, collapsible on mobile).
-- Results list (right on desktop, full width on mobile).
-- Results are clickable rows/cards that navigate to System Detail.
+## Global UI
+
+- Public naming is **Star Search**, not Star Browser.
+- Public renderer naming is **System Simulation v1**.
+- Theme labels currently exposed in UI:
+  `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`,
+  `Aurora`, `Geocities`, and `Deep Space Minimal`.
+- `/` focuses route-level search where available, unless the user is already
+  typing in an editable field.
+- Catalog IDs should be copyable, but not visually dominant.
+
+## Page: 3D Map
+
+The map is the immersive explorer. It should feel like flying through the local
+stellar neighborhood, not operating a form-heavy database.
+
+Primary behavior:
+
+- WASD/arrow/touch navigation for free flight.
+- Map-native search and filters can materialize labels without leaving the map.
+- Selecting a system opens a lightweight System Simulation Peek.
+- Explore opens the focused map drill-in state.
+- Following through to `/systems/:id?from=map&map_return=...` must preserve
+  return context when practical.
+
+Map overlays:
+
+- Selection History and Cool Stars Nearby are compact discovery aids.
+- Search/filter UI can be hidden to free the viewport.
+- Labels should adapt to camera position and active filters.
+- Orientation markers and galactic-direction labels are presentation overlays;
+  they do not change science-layer coordinates.
+
+## Page: Star Search v2
+
+Star Search is the structured catalog/search experience. It should be more
+article-like and readable than the map, but still visually connected to
+Coolstars.
 
 ### Search Input
-- Placeholder: "Search systems by name, ID, or catalog key..."
-- Search matches `system_name_norm` and exact `stable_object_key`. The UI should pass the raw input to the API; the API handles normalization.
+
+- Placeholder direction: search by system name, alias, catalog ID, or stable
+  key.
+- Query text is passed raw to the API; the API normalizes and ranks matches.
+- `sort=match` is the default for named queries.
 
 ### Filters
-- Max distance (ly): numeric input, optional.
-- Spectral class: multi-select (O, B, A, F, G, K, M, L), optional.
-- Has planets: toggle, optional.
+
+Preserve or expose filters where data supports them:
+
+- distance
+- spectral class
+- temperature
+- star count
+- planet count
+- coolness
+- habitable-zone candidates
+- compact objects or notable classes
+
+Filters should be discoverable without making the page feel like an expert
+catalog front-end.
 
 ### Sorting
-- Default: Coolness (top-ranked).
-- Alternate: Distance (nearest first).
-- Alternate: Name (A-Z).
 
-Sorting rules:
-- Coolness: disc score ranking (`disc.coolness_scores.rank` legacy table path) ascending, tie-breakers `system_name_norm`, `system_id`.
-- Name: `system_name_norm` ascending, tie-breaker `system_id`.
-- Distance: `dist_ly` ascending, tie-breaker `system_id`.
+Useful sort axes:
 
-### Result Card Fields (per system)
-- Deterministic snapshot thumbnail (if available in `snapshot_manifest`; otherwise show pending state)
-- System name
-- Distance (ly)
-- RA/Dec (deg)
-- Star count (effective descendant count when the hierarchy overlay exposes more stars than the flat core membership rows)
-- Planet count
-- Spectral classes present (from member stars)
-- IDs: Gaia/HIP/HD where present
-- Provenance badge (source catalog + version)
+- relevance / match
+- coolness
+- distance
+- name
+- planet count
+- star count
+- temperature where meaningful
 
-### Empty / Error States
-- No query + no filters: show a "Start typing to search" empty state.
-- Query with zero results: show "No systems match this search" and suggest relaxing filters.
-- API error: show "Data temporarily unavailable" with a retry button.
+### Result Cards
 
-### Field-to-Schema Mapping (Search/Results)
-- System name: `systems.system_name`
-- Distance (ly): `systems.dist_ly`
-- RA/Dec (deg): `systems.ra_deg`, `systems.dec_deg`
-- XYZ (helio, ly): `systems.x_helio_ly`, `systems.y_helio_ly`, `systems.z_helio_ly` (optional in UI)
-- IDs: `systems.gaia_id`, `systems.hip_id`, `systems.hd_id`
-- Stable key: `systems.stable_object_key`
-- Star count: `systems.star_count` when materialized; effective value may be upgraded by `arm` hierarchy overlays (for example MSC/WDS synthetic roots) when that yields a truer total member count than direct `core.stars`
-- Planet count: `COUNT(planets.planet_id)` grouped by `planets.system_id`
-- Spectral classes: `DISTINCT stars.spectral_class` per `stars.system_id`
-- Provenance badge: `systems.source_catalog`, `systems.source_version`
+Each result card should be compact, readable, and simulation-aware:
 
-## Page: System Detail
+- display name and best aliases
+- distance
+- spectral summary
+- star count
+- planet count
+- coolness score
+- habitability indicators
+- notable tags
+- copyable IDs where useful
 
-### Layout
-- Header section with system name and identifiers.
-- Deterministic snapshot panel near top of page.
-- Quick facts grid (distance, coordinates, counts).
-- Hierarchy section: recursive nested cards from the generic `arm` graph payload, with deeper layers collapsed by default.
-- Stars section: table/list of member stars.
-- Planets section: table/list of known exoplanets.
-- Provenance & Trust section with full provenance details.
+Visual policy:
 
-### Header
-- System name (primary)
-- Stable key (secondary)
-- Catalog IDs: Gaia/HIP/HD (if available)
+- Result cards use bounded System Simulation previews.
+- The normal card state should reuse a cached first-frame capture when
+  available.
+- Live preview is promoted on hover/focus only when the WebGL budget allows.
+- Avoid many simultaneous live WebGL contexts.
+- Deterministic snapshots remain fallback/reference metadata.
 
-### Quick Facts
-- Distance (ly)
-- RA/Dec (deg)
-- XYZ (helio, ly)
-- Star count (effective total stars represented by the hierarchy, not only direct core star rows)
-- Planet count
+## Page: Simulation-First System Detail
 
-### Hierarchy Section
-- Uses one generic hierarchy renderer for Sol, multi-star systems, and ordinary planet-host systems.
-- Each node shows the object name, type badge, descendant summary, optional orbit summary, and nested child cards.
-- Star nodes should expose compact fact chips when available, prioritizing spectral type, temperature, mass, radius, visual magnitude, distance, and separation/context values from authoritative overlays.
-- Deeper layers collapse by default so large systems stay navigable.
-- This section is the primary structural explanation of the system; the flat stars/planets tables remain below it as source-facing catalog views.
+The system detail page should feel like a staged explanation, not a raw catalog
+dump.
 
-### Snapshot Panel
-- Show deterministic snapshot image when present.
-- Show neutral pending state when a snapshot has not been generated yet.
-- Snapshot metadata may include `view_type` and `params_hash` for provenance/debugging.
+### Anatomy
 
-### Stars Section (per star)
-- Star name (or "Unnamed")
-- Component (A/B/C) if available
-- Spectral type (raw + parsed fields where available)
-- Distance (ly)
-- Apparent magnitude (Vmag) if available
-- IDs: Gaia/HIP/HD
+1. Hero: public display name, aliases, quick facts, copyable IDs.
+2. System Simulation: primary visual anchor.
+3. Overview: short layperson-facing summary from current facts.
+4. Why It Matters: discovery hooks such as planets, multiplicity, proximity,
+   coolness, or evidence diversity.
+5. Habitability Context: careful explanation without overstating habitability.
+6. Reading This System: concept explainer for spectral class, habitable zone,
+   orbital period, eccentricity, hierarchy, and uncertainty.
+7. System Hierarchy: nested structure from ARM hierarchy/orbit relationships.
+8. Stars and Catalog Rows: collapsed or secondary raw star facts.
+9. Planets and Orbits: collapsed or secondary raw planet facts.
+10. Evidence and Technical Provenance: source chain, grouping, snapshots, and
+    diagnostic metadata.
 
-### Planets Section (per planet)
-- Planet name
-- Discovery year / method / facility
-- Orbital period (days)
-- Semi-major axis (AU)
-- Eccentricity
-- Planet radius/mass (Earth or Jupiter units as available)
-- Equilibrium temperature (K) and insolation (Earth=1) if available
-- Host match provenance: method, confidence, and notes
+### Simulation Controls
 
-### Empty / Error States
-- If no stars are linked: show "No star members recorded".
-- If no planets are linked: show "No confirmed exoplanets recorded".
-- If system not found: show "System not found" with a link back to search.
+Expose useful controls without overwhelming the page:
 
-### Field-to-Schema Mapping (System Detail)
-System fields:
-- System name: `systems.system_name`
-- Stable key: `systems.stable_object_key`
-- IDs: `systems.gaia_id`, `systems.hip_id`, `systems.hd_id`
-- Distance (ly): `systems.dist_ly`
-- RA/Dec (deg): `systems.ra_deg`, `systems.dec_deg`
-- XYZ (helio, ly): `systems.x_helio_ly`, `systems.y_helio_ly`, `systems.z_helio_ly`
-- Provenance: all required provenance fields from `systems` (see Trust rules)
+- scale mode
+- speed
+- labels
+- habitable zone
+- temperature/freeze lines through a disclosure
+- pause/reset
 
-Star fields:
-- Star name: `stars.star_name`
-- Component: `stars.component`
-- Spectral raw/parsed: `stars.spectral_type_raw`, `stars.spectral_class`, `stars.spectral_subtype`, `stars.luminosity_class`, `stars.spectral_peculiar`
-- Surface temperature: `stars.teff_k`
-- Distance (ly): `stars.dist_ly`
-- Apparent magnitude: `stars.vmag`
-- IDs: `stars.gaia_id`, `stars.hip_id`, `stars.hd_id`
-- Provenance: all required provenance fields from `stars`
+The simulation must distinguish source values, derived values, assumptions, and
+presentation-only render choices.
 
-Hierarchy fields:
-- Root/count summary: derived from `arm.component_entities`, `arm.system_hierarchy_edges`, and `arm.orbit_edges`
-- Synthetic subsystem cards: derived from binary/orbit relationships in `arm.orbit_edges`
-- Orbit summaries: preferred `arm.orbital_solutions` rows when present
-- Presentation rule: a canonical star node that anchors child star nodes should render as a `Subsystem` in the UI even though its underlying core object remains a star
+### Narrative Slots
 
-Planet fields:
-- Planet name: `planets.planet_name`
-- Discovery: `planets.disc_year`, `planets.discovery_method`, `planets.discovery_facility`, `planets.discovery_telescope`, `planets.discovery_instrument`
-- Orbital: `planets.orbital_period_days`, `planets.semi_major_axis_au`, `planets.eccentricity`, `planets.inclination_deg`
-- Physical: `planets.radius_earth`, `planets.radius_jup`, `planets.mass_earth`, `planets.mass_jup`, `planets.eq_temp_k`, `planets.insol_earth`
-- Host identifiers: `planets.host_name_raw`, `planets.host_gaia_id`, `planets.host_hip_id`, `planets.host_hd_id`
-- Match provenance: `planets.match_method`, `planets.match_confidence`, `planets.match_notes`
-- Provenance: all required provenance fields from `planets`
+Reserve page slots for future AI Astronomy Agency content:
 
-## Trust / Provenance Display Rules
-- Always show source catalog and version for system, stars, and planets.
-- Show license and redistribution flag. If `redistribution_ok` is false, display a warning tag.
-- Show retrieval date (`retrieved_at`) and transform version (`transform_version`).
-- For planets, always show host match method + confidence. If `match_confidence` < 0.7, show a caution label.
-- Include source URLs (source_url and source_download_url) as external links in the Provenance section.
+- short public summary
+- why it matters
+- what we know
+- what remains uncertain
+- worlds and orbits
+- further reading / evidence
 
-## Accessibility & Performance
-- Make the search input keyboard-focused on page load.
-- Results should be paginated; do not attempt to load all systems at once.
-- Keep UI usable on mobile with a single-column layout.
+Reviewed/generated DISC narration may fill these slots later. RIM or
+pop-culture hooks are future optional overlays and must not be mixed into
+canonical science.
+
+## Display Names and Aliases
+
+Public display names should prefer recognizable, stable names while preserving
+source names and catalog identifiers as aliases.
+
+Rules:
+
+- Exact user query matches can drive display name in search results.
+- Detail pages have no query context, so they use stable display policy.
+- Proper names can outrank abbreviated catalog/system names.
+- Abbreviated Bayer names such as `alp1 Cen` may promote to full expanded names
+  such as `Alpha Centauri`.
+- Canonical Flamsteed names such as `55 Cnc` should not be displaced by a Bayer
+  expansion unless another stronger public name exists.
+- Gaia/WDS/HIP/HD identifiers should remain copyable but secondary.
+
+Known current public source/alias coverage gap:
+
+- Vega / Alpha Lyrae / HD 172167 / HIP 91262 is absent from the current served
+  core/source alias coverage and is tracked in `docs/PUBLIC_UX_GOLDENS.md`.
+
+## Provenance Display
+
+Top-level public summaries should not be cluttered with provenance pills unless
+uncertainty is central to interpretation. Detailed evidence belongs in
+collapsible evidence/technical sections.
+
+Use these statuses consistently where practical:
+
+- `SOURCE`: catalog/source value.
+- `DERIVED`: deterministic ARM/presentation derivation from source data.
+- `ASSUMED`: DISC or render assumption.
+- `MISSING`: absent value.
+
+Never write visual assumptions into core or ARM.
+
+## Public UX Goldens
+
+Public-experience goldens are defined in `docs/PUBLIC_UX_GOLDENS.md` and used
+by Playwright fixtures in
+`srv/web/tests/fixtures/publicExperienceGoldens.mjs`.
+
+They are distinct from ingestion/multiplicity goldens. Public goldens judge
+search relevance, layout, narrative staging, simulation quality, and data
+clarity.
+
+## Accessibility and Performance
+
+- Keep search usable by keyboard.
+- Keep mobile layouts readable and tappable.
+- Do not load all systems or all live previews at once.
+- Bound active WebGL previews and recover gracefully from context loss.
+- Preserve map return context from system pages when opened from the map.
+- Use cached scene artifacts and preview captures to reduce repeated API and
+  client render work.

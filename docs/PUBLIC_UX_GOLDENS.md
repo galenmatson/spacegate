@@ -22,7 +22,7 @@ simulation quality, and data clarity checks:
 | Epsilon Eridani | Nearby K-star exoplanet system | Resolves |
 | Barnard's Star | Famous high-proper-motion nearby system | Resolves |
 | Wolf 359 | Nearby red dwarf and public-recognition benchmark | Resolves |
-| Vega | Bright public-recognition benchmark | Known current gap: `Vega`, `Alpha Lyrae`, `HD 172167`, and `HIP 91262` do not resolve correctly on the local served build |
+| Vega | Bright public-recognition benchmark | Known current gap: `Vega`, `Alpha Lyrae`, `HD 172167`, and `HIP 91262` are absent from the current served core/source alias coverage |
 | Fomalhaut | Bright debris-disk/public-recognition benchmark | Resolves |
 
 ## Technical Stress Goldens
@@ -51,5 +51,5 @@ The Playwright map suite imports
 - technical stress goldens remain reachable for simulator/system-page checks
 
 Vega is intentionally recorded as a current public-search gap. Fixing it should
-be part of the alias/display-name data milestone, not a one-off frontend label
-patch.
+be part of the source/alias reconciliation milestone, not a one-off frontend
+label patch.

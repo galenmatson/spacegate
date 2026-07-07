@@ -28,7 +28,7 @@ def parse_identifier_query(text: str) -> Optional[Dict[str, Any]]:
             return {"kind": "gaia", "value": int(numeric.group(1))}
         # For shorter numeric IDs, match common catalog IDs (HIP/HD).
         return {"kind": "catalog_numeric", "value": int(numeric.group(1))}
-    match = re.match(r"^(hd|hip|gaia)(?:\\s+dr\\d+)?\\s*(\\d+)$", text)
+    match = re.match(r"^(hd|hip|gaia)(?:\s+dr\d+)?\s*(\d+)$", text)
     if not match:
         return None
     kind = match.group(1)
