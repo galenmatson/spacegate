@@ -180,6 +180,8 @@ test.describe("public 3D map beta", () => {
     await expect(sortSelect).toHaveValue("match");
     await expect(sortSelect.locator("option[value='planet_count']")).toHaveCount(1);
     await expect(sortSelect.locator("option[value='star_count']")).toHaveCount(1);
+    await expect(page.locator(".spectral-chip", { hasText: "T" })).toBeVisible();
+    await expect(page.locator(".spectral-chip", { hasText: "Y" })).toBeVisible();
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
     const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
     await expect(firstPreview).toBeVisible();
@@ -217,6 +219,8 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
+    await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
+    await expect(page.locator("details.detail-disclosure", { hasText: "Planets and Orbits" })).not.toHaveAttribute("open", "");
     await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
   });
 

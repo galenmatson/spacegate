@@ -7,7 +7,7 @@ import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "
 const StarMapPage = React.lazy(() => import("./StarMapPage.jsx"));
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 
-const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "D"];
+const spectralOptions = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
 const SPECTRAL_NON_TEMP_OPTIONS = new Set(["D"]);
 const THEME_STORAGE_KEY = "spacegate.theme";
 const THEME_OPTIONS = [
@@ -66,6 +66,8 @@ const SPECTRAL_CLASS_TEMP_RANGES = {
   K: [3700, 5200],
   M: [2400, 3700],
   L: [1300, 2400],
+  T: [700, 1300],
+  Y: [250, 700],
 };
 const SPECTRAL_TEMP_CLASS_OPTIONS = spectralOptions.filter((token) => !SPECTRAL_NON_TEMP_OPTIONS.has(token));
 const SPECTRAL_TEMP_MIN_K = Math.min(...SPECTRAL_TEMP_CLASS_OPTIONS.map((token) => SPECTRAL_CLASS_TEMP_RANGES[token][0]));
@@ -3562,7 +3564,7 @@ function SystemDetailPage({ buildId = "" }) {
 
         <SystemHierarchyPanel hierarchy={hierarchy} />
 
-        <details className="panel detail-disclosure" open>
+        <details className="panel detail-disclosure">
           <summary>
             <span>Stars and Catalog Rows</span>
             <strong>{formatNumber(stars.length, 0)} rows</strong>
@@ -3642,7 +3644,7 @@ function SystemDetailPage({ buildId = "" }) {
           )}
         </details>
 
-        <details className="panel detail-disclosure" open>
+        <details className="panel detail-disclosure">
           <summary>
             <span>Planets and Orbits</span>
             <strong>{formatNumber(planets.length, 0)} rows</strong>
