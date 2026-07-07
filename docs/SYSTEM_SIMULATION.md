@@ -537,6 +537,13 @@ Success criteria:
   spikes for materialized systems without changing the simulation-scene
   contract. Photon default hot-cache command:
   `SPACEGATE_STATE_DIR=/data/spacegate/state .venv/bin/python scripts/materialize_simulation_scenes.py --limit 1000 --sort distance --max-dist-ly 100`.
+- True-orbit, true-body, and log scale modes allow much closer camera zoom
+  than structure mode so users can inspect inner systems inside wide-orbit
+  systems. This changes only camera control limits; it does not alter the
+  visual scale transforms or science values.
+- Habitable-zone and condensation/freezing-line toggles are grouped in a
+  compact Lines disclosure to keep the simulator controls readable while
+  retaining tooltips for each line.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
   fallback assets

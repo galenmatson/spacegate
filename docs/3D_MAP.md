@@ -280,6 +280,9 @@ Initial layers:
   - Star Search result cards use live System Simulation previews for visible
     cards with a four-active-preview WebGL budget, avoiding the rejected bulk
     browser-rendered PNG snapshot path while reducing context-loss risk
+  - card previews activate only when actually visible, and the background map
+    canvas remounts after WebGL context loss so fast-scroll browser context
+    eviction can recover without a full page reload
   - summarizes orbit-orientation evidence as source orientation, partial
     sky-plane orientation, assumed roll, or local-clarity layout; this is an
     audit label, not a galactic-alignment guarantee

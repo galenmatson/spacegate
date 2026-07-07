@@ -568,6 +568,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Search results, served before runtime scene assembly
 - [x] Add layperson spectral-class tooltips to the map-native Star Search
   spectral filter buttons
+- [x] Add Star Map WebGL context-loss recovery and stricter live-card preview
+  activation to mitigate fast-scroll browser context eviction
+- [x] Collapse System Simulation habitable-zone and temperature-line toggles
+  into a compact Lines disclosure
+- [x] Increase System Simulation close-zoom range for true-orbit, true-body,
+  and log scale modes without changing science-layer scale semantics
 - [ ] Define science-grade epoch/propagation controls beyond the current
   clarity-scaled Keplerian nested group animation for multi-star systems after
   source epochs/scale policy are defined

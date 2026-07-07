@@ -1518,6 +1518,27 @@ function FlightControls({
   return null;
 }
 
+function MapWebGLContextGuard({ onContextLost }) {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const target = gl.domElement;
+    if (!target) {
+      return undefined;
+    }
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      onContextLost?.();
+    };
+    target.addEventListener("webglcontextlost", handleContextLost, false);
+    return () => {
+      target.removeEventListener("webglcontextlost", handleContextLost, false);
+    };
+  }, [gl, onContextLost]);
+
+  return null;
+}
+
 function StarMapScene({
   systems,
   selectedSystem,
@@ -1538,15 +1559,17 @@ function StarMapScene({
   focusTarget,
   focusToken,
   mobileFlightIntent,
+  onContextLost,
 }) {
   return (
     <Canvas
       className="map-canvas"
       camera={{ fov: 62, near: 0.01, far: 1200, position: [0, 3.5, 17] }}
-      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: "high-performance" }}
     >
       <color attach="background" args={["#01030a"]} />
       <fog attach="fog" args={["#01030a", 80, 190]} />
+      <MapWebGLContextGuard onContextLost={onContextLost} />
       <DistanceRings />
       <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} />
       <StarField systems={systems} filterMatchIds={filterMatchIds} filterActive={filterActive} />
@@ -1695,7 +1718,7 @@ function LazyStarSearchPreview({ system, displayName, liveActive = false, onActi
         const entry = entries[0];
         setVisible(Boolean(entry?.isIntersecting));
       },
-      { root: null, rootMargin: "120px 0px", threshold: 0.01 }
+      { root: null, rootMargin: "0px 0px", threshold: 0.2 }
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -1986,6 +2009,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenEpoch, setFullscreenEpoch] = useState(0);
+  const [mapContextEpoch, setMapContextEpoch] = useState(0);
+  const [mapContextRecovering, setMapContextRecovering] = useState(false);
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
   const [selectionHistory, setSelectionHistory] = useState([]);
@@ -2021,6 +2046,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
   const mapSearchOpen = defaultSearchOpen || location.pathname === "/" || location.pathname === "/search";
+
+  const handleMapContextLost = useCallback(() => {
+    setMapContextRecovering(true);
+    setMapContextEpoch((value) => value + 1);
+    window.setTimeout(() => setMapContextRecovering(false), 1200);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -2598,6 +2629,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       <div className="map-background-grid" aria-hidden="true" />
       {systems.length > 0 && (
         <StarMapScene
+          key={mapContextEpoch}
           systems={systems}
           selectedSystem={selectedSystem}
           filterMatchIds={filteredMapIds}
@@ -2617,7 +2649,14 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           focusTarget={selectedSystem}
           focusToken={focusToken}
           mobileFlightIntent={mobileFlightIntent}
+          onContextLost={handleMapContextLost}
         />
+      )}
+
+      {mapContextRecovering && (
+        <div className="map-context-recovery" role="status" aria-live="polite">
+          Restoring star map
+        </div>
       )}
 
       <div className="map-reticle" aria-hidden="true" />

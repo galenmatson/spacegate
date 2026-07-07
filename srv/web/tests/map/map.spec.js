@@ -110,6 +110,17 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
   });
 
+  test("map canvas recovers from WebGL context loss", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop context recovery smoke");
+    await openMap(page);
+    const initialCanvas = page.locator(".map-canvas canvas");
+    await initialCanvas.evaluate((canvas) => {
+      canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+    });
+    await expect(page.locator(".map-context-recovery")).toBeVisible();
+    await expect(page.locator(".map-canvas canvas")).toBeVisible();
+  });
+
   test("header menu controls theme and map keybind scheme", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop header menu and keyboard smoke");
     await openMap(page);
@@ -923,6 +934,10 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-readout")).not.toContainText(/missing inputs/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
     await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/structure/i);
+    const lineMenu = page.locator(".system-preview-line-menu");
+    await expect(lineMenu).toBeVisible();
+    await expect(lineMenu.locator("summary")).toContainText(/Lines/i);
+    await lineMenu.locator("summary").click();
     await expect(page.locator(".system-preview-toggle", { hasText: "HZ On" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".system-preview-toggle", { hasText: "Vapor Off" })).toHaveAttribute("aria-pressed", "false");
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("title", /Water Freeze Line.*deg F/);

@@ -2546,9 +2546,10 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
-function CameraControls({ resetToken = 0 }) {
+function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
   const { camera, gl } = useThree();
   const controlsRef = React.useRef(null);
+  const activeScaleMode = normalizeScaleMode(scaleMode);
   const writeCameraState = useCallback(() => {
     gl.domElement.dataset.cameraPosition = [
       camera.position.x.toFixed(3),
@@ -2562,8 +2563,6 @@ function CameraControls({ resetToken = 0 }) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = true;
-    controls.minDistance = 3.8;
-    controls.maxDistance = 34;
     controls.rotateSpeed = 0.62;
     controls.zoomSpeed = 0.72;
     controls.panSpeed = 0.55;
@@ -2576,6 +2575,17 @@ function CameraControls({ resetToken = 0 }) {
       controlsRef.current = null;
     };
   }, [camera, gl, writeCameraState]);
+
+  useEffect(() => {
+    if (!controlsRef.current) {
+      return;
+    }
+    const closeZoomModes = new Set(["true_orbits", "true_bodies", "log"]);
+    controlsRef.current.minDistance = closeZoomModes.has(activeScaleMode) ? 0.18 : 2.2;
+    controlsRef.current.maxDistance = activeScaleMode === "true_orbits" ? 240 : 70;
+    controlsRef.current.zoomSpeed = activeScaleMode === "true_orbits" ? 0.9 : 0.72;
+    controlsRef.current.update();
+  }, [activeScaleMode]);
 
   useEffect(() => {
     if (!controlsRef.current) {
@@ -3395,7 +3405,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
   );
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", onHover, onSelect, onClockSample, onContextLost }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, onHover, onSelect, onClockSample, onContextLost }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3470,11 +3480,11 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       camera={{ position: [0, 6.2, 10.8], fov: 43 }}
       dpr={[1, 1.75]}
       frameloop={frameLoop}
-      gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+      gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer, powerPreference: "high-performance" }}
     >
       {!transparentBackground && <color attach="background" args={["#050b12"]} />}
       <WebGLContextGuard onContextLost={onContextLost} />
-      <CameraControls resetToken={resetToken} />
+      <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} />
       <CanvasHoverRaycaster onHover={onHover} />
       <PreviewObjects
         stars={stars}
@@ -3834,34 +3844,42 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       >
         {showOrbits ? "Orbits On" : "Orbits Off"}
       </button>
-      <button
-        className="system-preview-toggle"
-        type="button"
-        onClick={() => setShowHabitableZones((value) => !value)}
-        aria-pressed={showHabitableZones}
-        disabled={status !== "ready" || webglReady === false}
-        title="Show or hide the broad stellar habitable zone. This is a presentation guide from stellar luminosity and broad flux bounds, not a climate model."
-      >
-        {showHabitableZones ? "HZ On" : "HZ Off"}
-      </button>
-      {FORMATION_LINE_ORDER.map((lineKey) => {
-        const line = FORMATION_LINE_TYPES[lineKey];
-        const active = Boolean(showFormationLines[lineKey]);
-        return (
+      <details className="system-preview-line-menu">
+        <summary>
+          Lines
+          <span>{showHabitableZones ? "HZ" : "HZ off"} · {FORMATION_LINE_ORDER.filter((lineKey) => showFormationLines[lineKey]).length} temp</span>
+        </summary>
+        <div className="system-preview-line-menu-body">
           <button
-            key={lineKey}
-            className="system-preview-toggle system-preview-line-toggle"
+            className="system-preview-toggle"
             type="button"
-            onClick={() => setShowFormationLines((current) => ({ ...current, [lineKey]: !current[lineKey] }))}
-            aria-pressed={active}
+            onClick={() => setShowHabitableZones((value) => !value)}
+            aria-pressed={showHabitableZones}
             disabled={status !== "ready" || webglReady === false}
-            title={line.tooltip}
-            style={{ "--line-color": line.color }}
+            title="Show or hide the broad stellar habitable zone. This is a presentation guide from stellar luminosity and broad flux bounds, not a climate model."
           >
-            {active ? `${line.shortLabel} On` : `${line.shortLabel} Off`}
+            {showHabitableZones ? "HZ On" : "HZ Off"}
           </button>
-        );
-      })}
+          {FORMATION_LINE_ORDER.map((lineKey) => {
+            const line = FORMATION_LINE_TYPES[lineKey];
+            const active = Boolean(showFormationLines[lineKey]);
+            return (
+              <button
+                key={lineKey}
+                className="system-preview-toggle system-preview-line-toggle"
+                type="button"
+                onClick={() => setShowFormationLines((current) => ({ ...current, [lineKey]: !current[lineKey] }))}
+                aria-pressed={active}
+                disabled={status !== "ready" || webglReady === false}
+                title={line.tooltip}
+                style={{ "--line-color": line.color }}
+              >
+                {active ? `${line.shortLabel} On` : `${line.shortLabel} Off`}
+              </button>
+            );
+          })}
+        </div>
+      </details>
       <button
         className="system-preview-toggle"
         type="button"
@@ -3923,6 +3941,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 selectedObjectId={payloadId(pinnedObject)}
                 transparentBackground={normalizedPresentationMode !== "detail"}
                 frameLoop={cardPresentation ? "demand" : "always"}
+                preserveDrawingBuffer={!cardPresentation}
                 onHover={setHoveredObject}
                 onSelect={setPinnedObject}
                 onClockSample={handleClockSample}
