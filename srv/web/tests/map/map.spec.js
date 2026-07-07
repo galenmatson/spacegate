@@ -212,6 +212,39 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
+  test("system detail return restores map camera and selection", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop detail return flow");
+    await openMap(page);
+    await page.locator(".map-history-pill").first().click();
+    const drill = page.locator("[data-testid='map-system-drill']");
+    await expect(drill).toBeVisible();
+    await drill.getByRole("button", { name: /^Explore$/i }).click();
+    await expect(drill).toHaveAttribute("data-drill-mode", "explore");
+    const selectedTitle = await drill.locator(".map-system-drill-title").innerText();
+    const canvas = page.locator(".map-canvas canvas");
+    await page.waitForTimeout(1100);
+    const cameraBeforeDetail = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    expect(parseCameraPosition(cameraBeforeDetail).length).toBe(3);
+    await drill.getByRole("button", { name: /^Detail$/i }).click();
+    await expect(page).toHaveURL(/\/systems\/.+from=map.+map_return=/);
+    const returnButton = page.locator(".map-return-button");
+    await expect(returnButton).toBeVisible();
+    await expect(returnButton).toHaveAttribute("href", /\/map\?restore=/);
+    await returnButton.click();
+    await expect(page).toHaveURL(/\/map\?restore=/);
+    const restoredDrill = page.locator("[data-testid='map-system-drill']");
+    await expect(restoredDrill).toBeVisible();
+    await expect(restoredDrill).toHaveAttribute("data-drill-mode", "explore");
+    await expect(restoredDrill.locator(".map-system-drill-title")).toContainText(selectedTitle.replace(/\s+/g, " ").trim().replace(/^System:\s*/i, ""));
+    await expect.poll(
+      async () => cameraDistance(
+        cameraBeforeDetail,
+        await page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapCameraPosition || "")
+      ),
+      { timeout: 5000 }
+    ).toBeLessThan(0.25);
+  });
+
   test("header menu controls theme and map keybind scheme", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop header menu and keyboard smoke");
     await openMap(page);

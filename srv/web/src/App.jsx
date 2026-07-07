@@ -3156,6 +3156,8 @@ function SystemDetailPage({ buildId = "" }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const fromMap = searchParams.get("from") === "map";
+  const mapReturnToken = String(searchParams.get("map_return") || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  const mapReturnPath = mapReturnToken ? `/map?restore=${encodeURIComponent(mapReturnToken)}` : "/map";
 
   React.useEffect(() => {
     let isActive = true;
@@ -3220,7 +3222,7 @@ function SystemDetailPage({ buildId = "" }) {
               <strong>Opened from the 3D map</strong>
               <span>Return to the local star map to keep exploring nearby systems.</span>
             </div>
-            <Link to="/map" className="button map-return-button">Back to 3D map</Link>
+            <Link to={mapReturnPath} className="button map-return-button">Back to 3D map</Link>
           </div>
         )}
         <div className="system-identifiers-row">

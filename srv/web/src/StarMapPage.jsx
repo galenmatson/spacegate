@@ -39,6 +39,7 @@ const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
+const MAP_RETURN_STATE_STORAGE_PREFIX = "spacegate.map.return.";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const DEFAULT_MAP_CAMERA_STATE = {
   position: [0, 3.5, 17],
@@ -221,6 +222,47 @@ function readStoredFpsOverlayEnabled() {
     return window.localStorage.getItem(MAP_FPS_OVERLAY_STORAGE_KEY) === "true";
   } catch {
     return false;
+  }
+}
+
+function mapReturnStorageKey(token) {
+  const safeToken = String(token || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  return safeToken ? `${MAP_RETURN_STATE_STORAGE_PREFIX}${safeToken}` : "";
+}
+
+function readStoredMapReturnState(token) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const key = mapReturnStorageKey(token);
+  if (!key) {
+    return null;
+  }
+  try {
+    const stored = window.sessionStorage.getItem(key);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredMapReturnState(state) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const token = `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const key = mapReturnStorageKey(token);
+  if (!key) {
+    return "";
+  }
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify({
+      ...state,
+      savedAt: new Date().toISOString(),
+    }));
+    return token;
+  } catch {
+    return "";
   }
 }
 
@@ -2152,6 +2194,8 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const restoreStateRef = useRef(readStoredMapReturnState(searchParams.get("restore")));
+  const restoredMapState = restoreStateRef.current;
   const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
   const [rawSystems, setRawSystems] = useState([]);
   const [systems, setSystems] = useState([]);
@@ -2166,27 +2210,35 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     distLy: 0,
     speedLyS: 0,
     locked: false,
-    cameraScenePosition: [0, 3.5, 17],
-    yaw: DEFAULT_MAP_CAMERA_STATE.yaw,
-    pitch: DEFAULT_MAP_CAMERA_STATE.pitch,
-    originLy: sceneToHelioCoordinates([0, 3.5, 17], "icrs"),
+    cameraScenePosition: restoredMapState?.camera?.position || [0, 3.5, 17],
+    yaw: Number.isFinite(Number(restoredMapState?.camera?.yaw)) ? Number(restoredMapState.camera.yaw) : DEFAULT_MAP_CAMERA_STATE.yaw,
+    pitch: Number.isFinite(Number(restoredMapState?.camera?.pitch)) ? Number(restoredMapState.camera.pitch) : DEFAULT_MAP_CAMERA_STATE.pitch,
+    originLy: sceneToHelioCoordinates(restoredMapState?.camera?.position || [0, 3.5, 17], restoredMapState?.mapFrame || "icrs"),
   });
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenEpoch, setFullscreenEpoch] = useState(0);
   const [mapContextEpoch, setMapContextEpoch] = useState(0);
   const [mapContextRecovering, setMapContextRecovering] = useState(false);
-  const [mapRecoveryCameraState, setMapRecoveryCameraState] = useState(DEFAULT_MAP_CAMERA_STATE);
+  const [mapRecoveryCameraState, setMapRecoveryCameraState] = useState(restoredMapState?.camera || DEFAULT_MAP_CAMERA_STATE);
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
   const [selectionHistory, setSelectionHistory] = useState([]);
-  const [drillMode, setDrillMode] = useState("flight");
+  const [drillMode, setDrillMode] = useState(() => (
+    ["peek", "explore"].includes(restoredMapState?.drillMode) ? restoredMapState.drillMode : "flight"
+  ));
   const [focusToken, setFocusToken] = useState(0);
   const [mobileFlightIntent, setMobileFlightIntent] = useState(DEFAULT_MOBILE_FLIGHT_STATE);
-  const [peekSize, setPeekSize] = useState(readStoredMapPeekSize);
+  const [peekSize, setPeekSize] = useState(() => clampMapPeekSize(restoredMapState?.peekSize || readStoredMapPeekSize()));
   const [keybindScheme, setKeybindScheme] = useState(readStoredMapKeybindScheme);
-  const [mapFrame, setMapFrame] = useState(readStoredMapFrame);
-  const [showDirectionLabels, setShowDirectionLabels] = useState(readStoredDirectionLabelsEnabled);
+  const [mapFrame, setMapFrame] = useState(() => (
+    MAP_FRAME_OPTIONS[restoredMapState?.mapFrame] ? restoredMapState.mapFrame : readStoredMapFrame()
+  ));
+  const [showDirectionLabels, setShowDirectionLabels] = useState(() => (
+    typeof restoredMapState?.showDirectionLabels === "boolean"
+      ? restoredMapState.showDirectionLabels
+      : readStoredDirectionLabelsEnabled()
+  ));
   const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
   const [fpsSample, setFpsSample] = useState(0);
   const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readDeviceRuntimeProfile);
@@ -2212,7 +2264,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [mapSearchHasMore, setMapSearchHasMore] = useState(false);
   const [mapSearchStats, setMapSearchStats] = useState("");
   const mapSearchTokenRef = useRef(0);
-  const mapCameraStateRef = useRef(DEFAULT_MAP_CAMERA_STATE);
+  const mapCameraStateRef = useRef(restoredMapState?.camera || DEFAULT_MAP_CAMERA_STATE);
   const previewPoolIdsRef = useRef(new Set());
   const previewRequestQueueRef = useRef([]);
   const previewActivationTimerRef = useRef(null);
@@ -2707,12 +2759,24 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         const prepared = prepareMapItems(rows, mapFrame);
         setRawSystems(rows);
         setSummary(payload || null);
-        const initial = prepared.find((item) => Number(item.planet_count || 0) > 0 && !isCatalogFallbackName(item.display_name))
+        const restoredSystem = restoredMapState?.selectedSystemId
+          ? prepared.find((item) => String(item.system_id) === String(restoredMapState.selectedSystemId))
+          : null;
+        const initial = restoredSystem
+          || prepared.find((item) => Number(item.planet_count || 0) > 0 && !isCatalogFallbackName(item.display_name))
           || prepared.find((item) => !isCatalogFallbackName(item.display_name))
           || prepared[0]
           || null;
         setSelectedSystem(initial);
-        setSelectionHistory(initial ? [initial] : []);
+        const historyIds = Array.isArray(restoredMapState?.selectionHistoryIds)
+          ? restoredMapState.selectionHistoryIds.map((item) => String(item))
+          : [];
+        const restoredHistory = historyIds
+          .map((id) => prepared.find((item) => String(item.system_id) === id))
+          .filter(Boolean);
+        setSelectionHistory((initial ? [initial] : [])
+          .concat(restoredHistory.filter((item) => item.system_id !== initial?.system_id))
+          .slice(0, 8));
       })
       .catch((exc) => {
         if (!active) {
@@ -2902,9 +2966,32 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     onContextMenu: (event) => event.preventDefault(),
   });
 
-  const systemDetailPath = (system) => (
-    system?.system_id ? `/systems/${system.system_id}?from=map` : "/"
-  );
+  const openSystemDetail = useCallback((system) => {
+    if (!system?.system_id) {
+      return;
+    }
+    const liveCameraPosition = parseMapCameraDatasetPosition(
+      document.querySelector(".map-canvas canvas")?.dataset?.mapCameraPosition || ""
+    );
+    const cameraState = liveCameraPosition
+      ? { ...mapCameraStateRef.current, position: liveCameraPosition }
+      : mapCameraStateRef.current;
+    const token = writeStoredMapReturnState({
+      camera: cameraState,
+      selectedSystemId: system.system_id,
+      selectedSystemName: system.display_name || system.system_name || "",
+      drillMode,
+      peekSize,
+      mapFrame,
+      showDirectionLabels,
+      selectionHistoryIds: selectionHistory.map((item) => item.system_id).filter(Boolean),
+    });
+    const params = new URLSearchParams({ from: "map" });
+    if (token) {
+      params.set("map_return", token);
+    }
+    navigate(`/systems/${system.system_id}?${params.toString()}`);
+  }, [drillMode, mapFrame, navigate, peekSize, selectionHistory, showDirectionLabels]);
 
   const selectSearchSystem = useCallback((system, options = {}) => {
     const existing = systems.find((item) => String(item.system_id) === String(system?.system_id));
@@ -3513,9 +3600,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                   Explore
                 </button>
               )}
-              <Link to={systemDetailPath(selectedSystem)} className="map-command-button ghost">
+              <button type="button" className="map-command-button ghost" onClick={() => openSystemDetail(selectedSystem)}>
                 Detail
-              </Link>
+              </button>
               <button type="button" className="map-command-button ghost" onClick={() => exitDrillMode()}>
                 {drillMode === "peek" ? "Close" : "Back to Map"}
               </button>
