@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
+import { mapExploreHrefForSystem } from "./mapReturnState.js";
 
 const StarMapPage = React.lazy(() => import("./StarMapPage.jsx"));
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
@@ -1346,7 +1347,7 @@ function formatEvidenceSummary(tokens) {
   return tokens.map((token) => evidenceLabel(token)).filter(Boolean).join(" · ");
 }
 
-function buildSearchResultTags(system) {
+function buildSearchResultTags(system, { limit = 6 } = {}) {
   const tags = [];
   const addTag = (label, title = "") => {
     const cleanLabel = String(label || "").trim();
@@ -1374,10 +1375,10 @@ function buildSearchResultTags(system) {
     addTag("Exoplanet", "One confirmed planet is linked to this system.");
   }
   if (nicePlanetCount > 0 || system?.has_habitable_candidate) {
-    addTag("HZ signal", "Broad habitable-zone-style screening signal; not a habitability claim.");
+    addTag("HZ planet", "Broad habitable-zone-style planet screening signal; not a habitability claim.");
   }
   if (starCount >= 2) {
-    addTag("Multi-star", "Multiple stellar members are grouped in this system record.");
+    addTag("Multistar", "Multiple stellar members are grouped in this system record.");
   }
   if (spectralClasses.some((token) => token === "D")) {
     addTag("White dwarf", "A compact stellar remnant class appears in the spectral summary.");
@@ -1391,7 +1392,7 @@ function buildSearchResultTags(system) {
   collectSystemEvidenceCatalogs(system).slice(0, 2).forEach((token) => {
     addTag(evidenceLabel(token), "Catalog evidence contributing to this system grouping.");
   });
-  return tags.slice(0, 6);
+  return tags.slice(0, limit);
 }
 
 function formatArmEvidenceDetails(armEvidence) {
@@ -2217,6 +2218,7 @@ function HeaderSearchBar({
   setQuery,
   onSubmit,
   onClear,
+  onMap,
   loading = false,
   autoFocus = false,
 }) {
@@ -2225,6 +2227,11 @@ function HeaderSearchBar({
       <button className="button compact search-submit-button" type="submit" disabled={loading}>
         {loading ? "Searching..." : "Search"}
       </button>
+      {onMap ? (
+        <button className="button ghost compact" type="button" onClick={onMap} disabled={loading}>
+          Map
+        </button>
+      ) : null}
       <label className="results-search-field">
         <span className="sr-only">Search systems</span>
         <input
@@ -2244,13 +2251,13 @@ function HeaderSearchBar({
   );
 }
 
-function RouteHeaderSearchBar() {
+function RouteHeaderSearchBar({ mapSystem = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    if (location.pathname === "/") {
+    if (location.pathname === "/" || location.pathname === "/search") {
       const params = new URLSearchParams(location.search);
       setQuery(params.get("q") || "");
       return;
@@ -2261,12 +2268,20 @@ function RouteHeaderSearchBar() {
   const onSubmit = (event) => {
     event.preventDefault();
     const nextQuery = query.trim();
-    navigate(nextQuery ? `/?q=${encodeURIComponent(nextQuery)}` : "/");
+    navigate(nextQuery ? `/search?q=${encodeURIComponent(nextQuery)}&sort=match` : "/search");
   };
 
   const onClear = () => {
     setQuery("");
-    navigate("/");
+    navigate("/search");
+  };
+
+  const onMap = mapSystem?.system_id
+    ? () => navigate(mapExploreHrefForSystem(mapSystem))
+    : null;
+
+  const handleMap = () => {
+    onMap?.();
   };
 
   return (
@@ -2275,6 +2290,7 @@ function RouteHeaderSearchBar() {
       setQuery={setQuery}
       onSubmit={onSubmit}
       onClear={onClear}
+      onMap={onMap ? handleMap : null}
     />
   );
 }
@@ -2931,6 +2947,12 @@ function SearchPage({ buildId = "" }) {
     navigate(`/systems/${systemId}`);
   };
 
+  const openResultInMap = (event, system) => {
+    event.preventDefault();
+    event.stopPropagation();
+    navigate(mapExploreHrefForSystem(system));
+  };
+
   const filtersBodyCollapsed = filtersCollapsedY;
   const searchLayoutClassName = [
     "search-layout",
@@ -3305,6 +3327,14 @@ function SearchPage({ buildId = "" }) {
                             : "Rank unlisted"}
                         </div>
                       </div>
+                      <div className="result-actions" aria-label={`${displayName} actions`}>
+                        <Link className="button compact ghost" to={`/systems/${item.system_id}`}>
+                          Detail
+                        </Link>
+                        <button className="button compact ghost" type="button" onClick={(event) => openResultInMap(event, item)}>
+                          Map
+                        </button>
+                      </div>
                       <div className="result-metrics">
                         <MetricChip
                           label="Distance"
@@ -3539,7 +3569,7 @@ function SystemDetailPage({ buildId = "" }) {
         <div className="panel">
           <h2>System not found</h2>
           <p>{error || "No data returned."}</p>
-          <button className="button ghost" onClick={() => navigate("/")}>Back to search</button>
+          <button className="button ghost" onClick={() => navigate("/search")}>Back to search</button>
         </div>
       </Layout>
     );
@@ -3552,9 +3582,15 @@ function SystemDetailPage({ buildId = "" }) {
     limit: 10,
   });
   const armSummary = system?.arm_evidence_summary || {};
+  const systemTags = buildSearchResultTags({
+    ...system,
+    spectral_classes: Array.from(new Set((stars || [])
+      .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().slice(0, 1).toUpperCase())
+      .filter(Boolean))),
+  }, { limit: 24 });
 
   return (
-    <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar />}>
+    <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar mapSystem={system} />}>
       <section className="detail system-detail-v2">
         {fromMap && (
           <div className="map-return-banner">
@@ -3580,6 +3616,15 @@ function SystemDetailPage({ buildId = "" }) {
               <SystemFactPill label="Spectral" value={bestSpectralSummary(system, stars)} />
               <SystemFactPill label="Coolness" value={formatNumber(system.coolness_score, 1)} />
             </div>
+            {systemTags.length > 0 ? (
+              <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
+                {systemTags.map((tag) => (
+                  <span className="result-tag" key={`${system.system_id}-${tag.label}`} title={tag.title || undefined}>
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <div className="id-line id-line-inline system-detail-ids">
               <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
               <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />

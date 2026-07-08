@@ -187,7 +187,7 @@ Implementation note:
   `/api/v1/systems/{system_id}/simulation-scene`; it assembles current core
   detail, hierarchy, arm graph/orbit rows, and readiness diagnostics without
   persisting visualization assumptions
-- System Simulation v1 is lazy-loaded on system detail pages and from the 3D
+- System Simulation is lazy-loaded on system detail pages and from the 3D
   map's Peek/Explore drill-in layer, and uses the scene-readiness endpoint;
   `render_scene_v0.2` adds renderer-ready
   bodies/orbits and provenance-bearing source/derived/assumed/missing fields;

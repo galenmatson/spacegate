@@ -17,11 +17,12 @@ const SIM_SPEED_OPTIONS = [
   ["1000", "1000x"],
 ];
 const SCALE_MODE_OPTIONS = [
-  { value: "structure", label: "Structured", detail: "Collision-safe clarity scale; preserves hierarchy readability." },
-  { value: "true_orbits", label: "Orbit", detail: "Preserves linear planet semi-major-axis ratios with tiny presentation bodies." },
-  { value: "true_bodies", label: "Body", detail: "Preserves more body-size contrast while keeping targets inspectable." },
-  { value: "log", label: "Log", detail: "Compresses body and orbit ranges with logarithmic transforms." },
+  { value: "structure", label: "Structured", detail: "Best for understanding system structure. It preserves hierarchy readability and prevents common overlaps, but body sizes and orbit spacing are presentation-scaled." },
+  { value: "true_orbits", label: "Orbit", detail: "Best for comparing orbital distances. It preserves linear semi-major-axis ratios where practical, while shrinking bodies toward readable markers so inner orbits are not swallowed." },
+  { value: "true_bodies", label: "Body", detail: "Best for comparing body-size contrast. It makes stars and planets more honest relative to each other, but orbital distances remain compressed for inspection." },
+  { value: "log", label: "Log", detail: "Best for very wide systems. It compresses bodies and orbits logarithmically, sacrificing physical scale to keep inner and outer structures visible together." },
 ];
+const SYSTEM_SIMULATION_TITLE = "Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.";
 const DEFAULT_VISUAL_SCALE = {
   schema_version: "visual_scale_beta_v1",
   scale_mode: "clarity_scaled_not_physical",
@@ -3823,6 +3824,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
+  const hoverDelayRef = React.useRef(null);
   const contextRecoveryTimerRef = React.useRef(null);
   const contextLossCountRef = React.useRef(0);
   const handleClockSample = useCallback((days) => {
@@ -3831,6 +3833,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const handleContextLost = useCallback(() => {
     onRuntimeEvent?.({ type: "webgl-context-lost", surface: "system-preview", systemId, presentationMode });
     window.clearTimeout(contextRecoveryTimerRef.current);
+    window.clearTimeout(hoverDelayRef.current);
     setContextRecovering(true);
     setHoveredObject(null);
     setPinnedObject(null);
@@ -3849,6 +3852,25 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
 
   useEffect(() => () => {
     window.clearTimeout(contextRecoveryTimerRef.current);
+    window.clearTimeout(hoverDelayRef.current);
+  }, []);
+
+  const handleHoverObject = useCallback((payload) => {
+    window.clearTimeout(hoverDelayRef.current);
+    hoverDelayRef.current = null;
+    if (!payload) {
+      setHoveredObject(null);
+      return;
+    }
+    const delayed = ["Formation line", "Habitable zone"].includes(String(payload.kind || ""));
+    if (!delayed) {
+      setHoveredObject(payload);
+      return;
+    }
+    hoverDelayRef.current = window.setTimeout(() => {
+      setHoveredObject(payload);
+      hoverDelayRef.current = null;
+    }, 360);
   }, []);
 
   useEffect(() => {
@@ -3865,6 +3887,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setHoveredObject(null);
     setPinnedObject(null);
     setSimulationDays(0);
+    window.clearTimeout(hoverDelayRef.current);
+    hoverDelayRef.current = null;
     if (!canRenderWebGL) {
       setStatus("fallback");
       return () => {
@@ -3941,8 +3965,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           disabled={status !== "ready" || webglReady === false}
           data-testid="system-preview-scale-mode"
           aria-label="System simulator scale mode"
+          title={scaleModeDetail(activeScaleMode)}
         >
-          {SCALE_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          {SCALE_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value} title={option.detail}>{option.label}</option>)}
         </select>
       </label>
       <button
@@ -3957,7 +3982,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       <details className="system-preview-line-menu">
         <summary>
           Lines
-          <span>{showHabitableZones ? "HZ" : "HZ off"} · {FORMATION_LINE_ORDER.filter((lineKey) => showFormationLines[lineKey]).length} temp</span>
         </summary>
         <div className="system-preview-line-menu-body">
           <button
@@ -4026,8 +4050,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       {!embeddedPresentation && (
         <div className="system-preview-header">
           <div>
-            <h3>System Simulation v1</h3>
-            <p>Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.</p>
+            <h3 title={SYSTEM_SIMULATION_TITLE}>System Simulation</h3>
           </div>
           {renderPreviewActions()}
         </div>
@@ -4056,7 +4079,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 qualityTier={qualityTier}
                 captureFrame={captureFrame}
                 onFrameCapture={onFrameCapture}
-                onHover={interactiveReadouts ? setHoveredObject : null}
+                onHover={interactiveReadouts ? handleHoverObject : null}
                 onSelect={interactiveReadouts ? setPinnedObject : null}
                 onClockSample={handleClockSample}
                 onContextLost={handleContextLost}

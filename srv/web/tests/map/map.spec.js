@@ -187,6 +187,8 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".spectral-chip", { hasText: "Y" })).toBeVisible();
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator(".result-card").first().locator(".result-tags")).toContainText(/Nearby|Exoplanet|Multi-planet|High coolness|NASA|Gaia/i);
+    await expect(page.locator(".result-card").first().getByRole("link", { name: "Detail" })).toBeVisible();
+    await expect(page.locator(".result-card").first().getByRole("button", { name: "Map" })).toBeVisible();
     const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
     await expect(firstPreview).toBeVisible();
     await expect
@@ -227,11 +229,18 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/tau Cet|Tau Ceti/i);
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
+    await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
+    await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
     await expect(page.locator("details.detail-disclosure", { hasText: "Planets and Orbits" })).not.toHaveAttribute("open", "");
     await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
+    await page.locator("[data-global-search-input='true']").fill("Sirius");
+    await page.locator(".header-search-row").getByRole("button", { name: "Search" }).click();
+    await expect(page).toHaveURL(/\/search\?q=Sirius&sort=match/);
+    await expect(page.locator(".results-toolbar")).toBeVisible();
   });
 
   test("public experience goldens resolve through Star Search", async ({ page }, testInfo) => {

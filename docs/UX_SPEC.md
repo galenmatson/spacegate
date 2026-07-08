@@ -26,7 +26,9 @@ fallback/reference artifacts, not the preferred capable-browser experience.
 ## Global UI
 
 - Public naming is **Star Search**, not Star Browser.
-- Public renderer naming is **System Simulation v1**.
+- Public renderer naming is **System Simulation**. Internal contracts may keep
+  schema/version identifiers such as `simulation_scene_v0`,
+  `render_scene_v0.2`, and `visual_scale_beta_v1`.
 - Theme labels currently exposed in UI:
   `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`,
   `Aurora`, `Geocities`, and `Deep Space Minimal`.
@@ -116,6 +118,37 @@ payload fields, such as proximity, planet count, stellar multiplicity,
 habitable-zone screening signals, ultracool/white-dwarf spectral classes,
 coolness score, and source evidence catalogs. They must not create new
 science-layer facts.
+
+Current public discovery tag vocabulary:
+
+- `Nearby`: within 25 ly
+- `Local neighborhood`: within 100 ly
+- `Exoplanet`: one confirmed linked planet
+- `Multi-planet`: two or more confirmed linked planets
+- `HZ planet`: broad habitable-zone planet screening signal, not a
+  habitability claim
+- `Multistar`: multiple stellar members grouped in the system record
+- `White dwarf`: compact-remnant spectral summary includes `D`
+- `Ultracool`: spectral summary includes `L`, `T`, or `Y`
+- `High coolness`: strong score on the active Coolstars discovery profile
+- source/evidence tags such as `NASA`, `Gaia`, `MSC`, `WDS`, `ORB6`, `SBX`,
+  `VSX`, and similar catalog labels where the search/detail payload exposes
+  that evidence
+
+Search result cards should show only the highest-priority subset of tags.
+System pages may show the fuller public tag set because they have more room.
+
+Broader planned taxonomy tag families remain future work: planet size/mass,
+insolation/temperature, orbit class, composition proxy, detection method,
+host context, lifecycle/confidence, stellar element-richness proxy, variability,
+compact-object subtype, debris-disk/context, and other deterministic tags
+derived from source/ARM/DISC presentation evidence.
+
+Future concept pages should make these tags clickable teaching paths. A tag
+such as `White dwarf` should open a readable concept page with a simple
+explanation first, then deeper science, representative systems, images or
+animations where useful, links to adjacent concepts, and a "Find more" link
+back into Star Search with the relevant filter active.
 
 Visual policy:
 

@@ -168,6 +168,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C5.5 Phase D.6 - Planet Taxonomy and Habitability
 
 - [ ] Implement deterministic taxonomy tags from observational data (size/mass, insolation, orbit, composition proxy, detection/host context)
+- [ ] Add educational concept pages for public discovery tags with plain-language explanations, deeper science sections, representative systems, related concepts, and Star Search "Find more" links
 - [x] Implement `spacegate_hab_score` + confidence/reasons metadata
 - [x] Implement element-richness proxy tags from stellar spectroscopy/metallicity inputs
 - [ ] Add API filters/toggles for controversial lifecycle state and habitability range

@@ -688,6 +688,12 @@ Future work:
 - integrate reviewed AAA public narration into the reserved system-page slots:
   summary, why it matters, what we know, what remains uncertain, worlds and
   orbits, and evidence/further reading
+- add clickable educational concept pages for discovery tags such as white
+  dwarfs, habitable-zone planets, multistar systems, ultracool dwarfs,
+  exoplanets, and planet taxonomy classes. Each concept page should start with
+  a plain-language explanation, progressively deepen into the science, link to
+  representative systems and related concepts, and offer a "Find more" Star
+  Search path with the relevant filter active.
 - add optional future RIM/pop-culture hooks as clearly separated overlays, not
   mixed into canonical science
 - finish high-fidelity static System Snapshot v2 for no-WebGL clients,

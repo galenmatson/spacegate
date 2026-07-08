@@ -1,7 +1,7 @@
 # Spacegate System Simulation Contract
 
-This document defines the beta contract for System Simulation v1, formerly
-called the Live System Preview in early implementation notes. The goal is to
+This document defines the beta contract for System Simulation, formerly called
+System Simulation v1 and Live System Preview in early implementation notes. The goal is to
 let the public web client render deterministic stars, planets, and orbits while
 preserving Spacegate's layer boundaries.
 
@@ -9,8 +9,8 @@ preserving Spacegate's layer boundaries.
 
 Already in place:
 
-- public naming: `System Simulation v1` is the public/runtime name for the
-  renderer; the API route remains
+- public naming: `System Simulation` is the public/runtime name for the
+  renderer; internal schema/version identifiers remain explicit and the API route remains
   `/api/v1/systems/{system_id}/simulation-scene`
 - public system detail rows with stable `system_id` and `stable_object_key`
 - `arm.component_entities`, `arm.system_hierarchy_edges`, `arm.orbit_edges`,

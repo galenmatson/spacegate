@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
+import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
 
 const MAP_RADIUS_LY = 100;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
@@ -41,7 +42,6 @@ const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
-const MAP_RETURN_STATE_STORAGE_PREFIX = "spacegate.map.return.";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const DEFAULT_MAP_CAMERA_STATE = {
   position: [0, 3.5, 17],
@@ -224,47 +224,6 @@ function readStoredFpsOverlayEnabled() {
     return window.localStorage.getItem(MAP_FPS_OVERLAY_STORAGE_KEY) === "true";
   } catch {
     return false;
-  }
-}
-
-function mapReturnStorageKey(token) {
-  const safeToken = String(token || "").replace(/[^a-zA-Z0-9_-]/g, "");
-  return safeToken ? `${MAP_RETURN_STATE_STORAGE_PREFIX}${safeToken}` : "";
-}
-
-function readStoredMapReturnState(token) {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const key = mapReturnStorageKey(token);
-  if (!key) {
-    return null;
-  }
-  try {
-    const stored = window.sessionStorage.getItem(key);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredMapReturnState(state) {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  const token = `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-  const key = mapReturnStorageKey(token);
-  if (!key) {
-    return "";
-  }
-  try {
-    window.sessionStorage.setItem(key, JSON.stringify({
-      ...state,
-      savedAt: new Date().toISOString(),
-    }));
-    return token;
-  } catch {
-    return "";
   }
 }
 
@@ -2822,6 +2781,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         setSummary(payload || null);
         const restoredSystem = restoredMapState?.selectedSystemId
           ? prepared.find((item) => String(item.system_id) === String(restoredMapState.selectedSystemId))
+            || mapItemFromSearchResult(restoredMapState.selectedSystem, mapFrame)
           : null;
         const initial = restoredSystem
           || prepared.find((item) => Number(item.planet_count || 0) > 0 && !isCatalogFallbackName(item.display_name))
