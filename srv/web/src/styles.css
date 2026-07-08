@@ -27,6 +27,10 @@
   --map-select-bg: #07111d;
   --map-select-ink: #edf8ff;
   --map-select-checked-bg: #17334d;
+  --map-search-offset-top: 118px;
+  --map-search-sidebar-width: 194px;
+  --map-search-sidebar-gap: 18px;
+  --map-search-content-left: calc(var(--map-search-sidebar-width) + var(--map-search-sidebar-gap));
 }
 
 .route-loading {
@@ -185,7 +189,7 @@
 .map-star-search {
   position: absolute;
   z-index: 24;
-  top: 98px;
+  top: var(--map-search-offset-top);
   left: 18px;
   right: 18px;
   bottom: 18px;
@@ -211,7 +215,7 @@
 .map-search-topbar {
   position: absolute;
   top: 0;
-  left: 260px;
+  left: var(--map-search-content-left);
   right: 0;
   min-height: 46px;
   display: grid;
@@ -384,7 +388,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 242px;
+  width: var(--map-search-sidebar-width);
   max-height: calc(100% - 4px);
   display: grid;
   align-content: start;
@@ -541,8 +545,8 @@
 .map-search-results {
   position: absolute;
   top: 58px;
-  left: 260px;
-  width: min(940px, calc(100vw - 296px));
+  left: var(--map-search-content-left);
+  width: min(940px, calc(100vw - var(--map-search-content-left) - 36px));
   max-height: calc(100% - 58px);
   display: grid;
   align-content: start;
@@ -1225,7 +1229,7 @@
 }
 
 .map-search-active .map-system-drill-explore {
-  inset: 170px 28px 22px 278px;
+  inset: 190px 28px 22px calc(var(--map-search-content-left) + 18px);
 }
 
 .map-system-drill-bar {
@@ -1692,6 +1696,7 @@
   --map-select-bg: #000000;
   --map-select-ink: #fff6bf;
   --map-select-checked-bg: #2a2200;
+  --map-search-offset-top: 98px;
   font-family: var(--font-body);
 }
 
@@ -8512,8 +8517,19 @@ main {
 }
 
 @media (max-width: 980px) {
+  .map-page {
+    --map-search-offset-top: 112px;
+    --map-search-sidebar-width: min(196px, 42vw);
+    --map-search-sidebar-gap: 10px;
+    --map-search-content-left: calc(var(--map-search-sidebar-width) + var(--map-search-sidebar-gap));
+  }
+
+  :root[data-theme="lcars"] .map-page {
+    --map-search-offset-top: 96px;
+  }
+
   .map-star-search {
-    top: 96px;
+    top: var(--map-search-offset-top);
     left: 10px;
     right: 10px;
     bottom: 10px;
@@ -8536,14 +8552,14 @@ main {
 
   .map-search-sidebar {
     top: 116px;
-    width: min(245px, 52vw);
+    width: var(--map-search-sidebar-width);
     max-height: calc(100% - 116px);
   }
 
   .map-search-results {
     top: 116px;
-    left: min(255px, calc(52vw + 10px));
-    width: calc(100% - min(255px, calc(52vw + 10px)));
+    left: var(--map-search-content-left);
+    width: calc(100% - var(--map-search-content-left));
     max-height: calc(100% - 116px);
   }
 
@@ -8562,8 +8578,17 @@ main {
 }
 
 @media (max-width: 680px) {
+  .map-page {
+    --map-search-offset-top: 72px;
+    --map-search-sidebar-width: min(138px, 37vw);
+  }
+
+  :root[data-theme="lcars"] .map-page {
+    --map-search-offset-top: 54px;
+  }
+
   .map-star-search {
-    top: 54px;
+    top: var(--map-search-offset-top);
     left: 8px;
     right: 8px;
     bottom: 8px;
@@ -8585,7 +8610,7 @@ main {
   .map-search-sidebar {
     top: 92px;
     left: 0;
-    width: min(172px, 46vw);
+    width: var(--map-search-sidebar-width);
     max-height: min(42vh, calc(100% - 92px));
     padding: 8px;
   }

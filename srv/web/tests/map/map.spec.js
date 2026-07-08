@@ -1132,6 +1132,7 @@ test.describe("public 3D map beta", () => {
         canvasWidth: canvas?.width || 0,
         canvasHeight: canvas?.height || 0,
         headerHeight: header?.height || 0,
+        headerBottom: header?.bottom || 0,
         searchTop: search?.top || 0,
         topbarTop: topbar?.top || 0,
         sidebarWidth: sidebar?.width || 0,
@@ -1141,8 +1142,9 @@ test.describe("public 3D map beta", () => {
     expect(metrics.canvasWidth).toBeGreaterThan(100);
     expect(metrics.canvasHeight).toBeGreaterThan(100);
     expect(metrics.headerHeight).toBeLessThanOrEqual(88);
-    expect(metrics.searchTop).toBeLessThanOrEqual(70);
-    expect(metrics.topbarTop).toBeLessThanOrEqual(76);
+    expect(metrics.searchTop).toBeGreaterThanOrEqual(metrics.headerBottom);
+    expect(metrics.searchTop).toBeLessThanOrEqual(76);
+    expect(metrics.topbarTop).toBeLessThanOrEqual(78);
     expect(metrics.sidebarWidth).toBeLessThanOrEqual(186);
     expect(metrics.sidebarFlightOverlap).toBe(false);
 
