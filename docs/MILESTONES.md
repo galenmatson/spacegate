@@ -679,6 +679,10 @@ Implemented foundation:
   still available in secondary/collapsible sections
 - `sort=match`/Relevance is available for named Star Search queries while
   blank browsing falls back to coolness/name/distance modes
+- stellar-class education chips now appear across Star Search cards, map-native
+  search cards, system hierarchy leaves, and System Simulation readouts. The
+  first pass covers O/B/A/F/G/K/M/L/T/Y, Wolf-Rayet, white dwarfs, neutron
+  stars, pulsars, magnetars, black holes, and an explicit unknown class.
 
 Future work:
 
@@ -694,6 +698,12 @@ Future work:
   a plain-language explanation, progressively deepen into the science, link to
   representative systems and related concepts, and offer a "Find more" Star
   Search path with the relevant filter active.
+- concept pages should include interactive visualizations where they materially
+  teach the concept. Candidate examples include a SuperPuff planet model whose
+  diffuse envelope expands and escapes as stellar irradiation rises, a
+  core-collapse toy model that supernovas when support energy is removed, and
+  a compact-remnant mass slider that crosses white-dwarf, neutron-star, and
+  black-hole thresholds with clear caveats.
 - add optional future RIM/pop-culture hooks as clearly separated overlays, not
   mixed into canonical science
 - finish high-fidelity static System Snapshot v2 for no-WebGL clients,

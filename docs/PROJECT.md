@@ -249,9 +249,12 @@ Implementation note:
   artifacts. Public system pages are now simulation-first: the top of the page
   stages a visual simulation, quick system facts, plain-language overview,
   "why it matters", habitability context, and future AAA narration slots before
-  exposing hierarchy, catalog rows, evidence, and technical provenance. This is
-  presentation structure over existing `core`/`arm`/`disc` contracts; it does
-  not promote visual assumptions into catalog facts.
+  exposing hierarchy, catalog rows, evidence, and technical provenance.
+  Stellar-class chips are reusable educational affordances across Star Search,
+  the 3D map, System Hierarchy, and System Simulation object readouts; unknown
+  classes are labeled explicitly rather than guessed. This is presentation
+  structure over existing `core`/`arm`/`disc` contracts; it does not promote
+  visual assumptions into catalog facts.
 
 ### Rim (editable overlays)
 User/worldbuilder entities and relationships keyed by `stable_object_key`.

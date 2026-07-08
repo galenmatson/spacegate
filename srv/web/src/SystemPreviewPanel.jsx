@@ -4,6 +4,7 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
+import { StellarClassChips, stellarClassTokensFromRecord } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const SIM_DAYS_PER_SECOND = 0.7;
@@ -615,6 +616,7 @@ function objectHoverPayload(kind, body) {
       name: body.display_name || body.name || "Unnamed star",
       id: body.render_key || body.stable_object_key || body.source?.stable_component_key || body.source?.stable_object_key || body.key || "",
       sourceLayer: body.source?.layer || "unknown",
+      stellarTokens: stellarClassTokensFromRecord(body),
       rows: [
         readoutRow(body.fields, "object_type", "Type", bodyClassLabel(bodyClass), 0),
         staticReadoutRow("Class", classField.value || "Unknown", classField.status, classField),
@@ -638,6 +640,60 @@ function objectHoverPayload(kind, body) {
       readoutRow(body.fields, "radius_earth", "Radius", "Unknown", 2),
     ],
   };
+}
+
+function simulationObjectList(scene) {
+  const renderScene = scene?.render_scene || {};
+  const renderBodies = renderScene.bodies || {};
+  const stars = Array.isArray(renderBodies.stars) ? renderBodies.stars : [];
+  const planets = Array.isArray(renderBodies.planets) ? renderBodies.planets : [];
+  const subsystems = Array.isArray(renderBodies.subsystems) ? renderBodies.subsystems : [];
+  const items = [];
+  subsystems
+    .slice()
+    .sort((a, b) => String(a.display_name || a.name || "").localeCompare(String(b.display_name || b.name || "")))
+    .forEach((subsystem) => {
+      items.push({
+        key: `subsystem:${subsystem.render_key || subsystem.key || subsystem.display_name}`,
+        name: subsystem.display_name || subsystem.name || "Subsystem",
+        label: "Subsystem",
+        depth: 0,
+        payload: objectHoverPayload("subsystem", subsystem),
+      });
+    });
+  stars
+    .slice()
+    .sort((a, b) => String(a.display_name || a.name || "").localeCompare(String(b.display_name || b.name || "")))
+    .forEach((star) => {
+      items.push({
+        key: `star:${star.render_key || star.stable_object_key || star.key || star.display_name}`,
+        name: star.display_name || star.name || "Star",
+        label: bodyClassLabel(stellarBodyClass(star)),
+        depth: subsystems.length ? 1 : 0,
+        payload: objectHoverPayload("star", star),
+        record: star,
+      });
+    });
+  planets
+    .slice()
+    .sort((a, b) => {
+      const aAxis = Number(fieldRecord(a.fields, "semi_major_axis_au")?.value);
+      const bAxis = Number(fieldRecord(b.fields, "semi_major_axis_au")?.value);
+      if (Number.isFinite(aAxis) && Number.isFinite(bAxis)) {
+        return aAxis - bAxis;
+      }
+      return String(a.display_name || a.name || "").localeCompare(String(b.display_name || b.name || ""));
+    })
+    .forEach((planet) => {
+      items.push({
+        key: `planet:${planet.render_key || planet.stable_object_key || planet.key || planet.display_name}`,
+        name: planet.display_name || planet.name || "Planet",
+        label: "Planet",
+        depth: stars.length || subsystems.length ? 2 : 0,
+        payload: objectHoverPayload("planet", planet),
+      });
+    });
+  return items.slice(0, 32);
 }
 
 function orbitGuideProvenanceField(orbit) {
@@ -3599,6 +3655,7 @@ function HoverReadout({ object, compact = false }) {
         <strong>{object.name}</strong>
         <span>{object.kind}</span>
       </div>
+      {object.stellarTokens?.length ? <StellarClassChips tokens={object.stellarTokens} size="compact" className="system-preview-readout-tags" /> : null}
       {object.description ? <p>{object.description}</p> : null}
       <dl>
         {object.rows.map(([label, value, status, field]) => (
@@ -3641,6 +3698,7 @@ function PinnedReadout({ object, onClose }) {
         </div>
         <button type="button" onClick={onClose} aria-label="Close pinned simulator readout">x</button>
       </div>
+      {object.stellarTokens?.length ? <StellarClassChips tokens={object.stellarTokens} size="compact" className="system-preview-readout-tags" /> : null}
       {object.id ? (
         <button
           className="system-preview-id-copy"
@@ -3827,6 +3885,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const hoverDelayRef = React.useRef(null);
   const contextRecoveryTimerRef = React.useRef(null);
   const contextLossCountRef = React.useRef(0);
+  const lineMenuRef = React.useRef(null);
   const handleClockSample = useCallback((days) => {
     setSimulationDays(Number.isFinite(Number(days)) ? Number(days) : 0);
   }, []);
@@ -3853,6 +3912,21 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   useEffect(() => () => {
     window.clearTimeout(contextRecoveryTimerRef.current);
     window.clearTimeout(hoverDelayRef.current);
+  }, []);
+
+  useEffect(() => {
+    const closeLineMenu = (event) => {
+      const node = lineMenuRef.current;
+      if (!node?.open) {
+        return;
+      }
+      if (event.target instanceof Node && node.contains(event.target)) {
+        return;
+      }
+      node.open = false;
+    };
+    window.addEventListener("pointerdown", closeLineMenu, true);
+    return () => window.removeEventListener("pointerdown", closeLineMenu, true);
   }, []);
 
   const handleHoverObject = useCallback((payload) => {
@@ -3928,6 +4002,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
   const orientation = orientationSummary(scene);
+  const objectItems = useMemo(() => simulationObjectList(scene), [scene]);
 
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";
@@ -3979,7 +4054,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       >
         {showOrbits ? "Orbits On" : "Orbits Off"}
       </button>
-      <details className="system-preview-line-menu">
+      <details className="system-preview-line-menu" ref={lineMenuRef}>
         <summary>
           Lines
         </summary>
@@ -4103,44 +4178,58 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
               <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
             </>
           )}
+          {normalizedPresentationMode === "detail" && status === "ready" && scene ? (
+            <div className="system-preview-scene-stats" aria-label="Rendered simulator counts">
+              <span>{formatNumber(renderBodies.stars?.length || bodies.stars?.length, 0)} stars</span>
+              <span>{formatNumber(renderBodies.planets?.length || bodies.planets?.length, 0)} planets</span>
+              <span>{formatNumber(renderOrbits.length, 0)} orbits</span>
+              <span>{formatNumber(renderedAssumptionCount, 0)} assumptions</span>
+            </div>
+          ) : null}
         </div>
         {normalizedPresentationMode !== "card" && <div className="system-preview-readout">
-          <div>
-            <strong>{formatNumber(renderBodies.stars?.length || bodies.stars?.length, 0)}</strong>
-            <span>rendered stars</span>
-          </div>
-          <div>
-            <strong>{formatNumber(renderBodies.planets?.length || bodies.planets?.length, 0)}</strong>
-            <span>rendered planets</span>
-          </div>
-          <div>
-            <strong>{formatNumber(renderBodies.subsystems?.length || 0, 0)}</strong>
-            <span>rendered subsystems</span>
-          </div>
-          <div>
-            <strong>{formatNumber(renderOrbits.length, 0)}</strong>
-            <span>rendered orbits</span>
-          </div>
-          <div>
-            <strong>{formatNumber((readiness.score || 0) * 100, 0)}%</strong>
-            <span>readiness</span>
-          </div>
-          <div data-testid="system-preview-visual-scale">
-            <strong>{scaleModeLabel(activeScaleMode)}</strong>
-            <span>visual scale</span>
-          </div>
-          <div>
-            <strong>{formatNumber(counts.source || 0, 0)}</strong>
-            <span>source fields</span>
-          </div>
-          <div>
-            <strong>{formatNumber(counts.derived || 0, 0)}</strong>
-            <span>derived fields</span>
-          </div>
-          <div>
-            <strong>{formatNumber(renderedAssumptionCount, 0)}</strong>
-            <span>assumptions</span>
-          </div>
+          {normalizedPresentationMode === "detail" ? (
+            <div className="system-preview-object-list" data-testid="system-preview-object-list">
+              <span className="system-preview-object-list-title">Objects</span>
+              {objectItems.length > 0 ? objectItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="system-preview-object-chip"
+                  style={{ "--object-depth": item.depth }}
+                  onClick={() => setPinnedObject(item.payload)}
+                  onMouseEnter={() => setHoveredObject(item.payload)}
+                  onMouseLeave={() => setHoveredObject(null)}
+                  title={`Inspect ${item.name}`}
+                >
+                  <span className="system-preview-object-name">{item.name}</span>
+                  <span className="system-preview-object-kind">{item.label}</span>
+                  {item.record ? <StellarClassChips tokens={stellarClassTokensFromRecord(item.record)} size="compact" /> : null}
+                </button>
+              )) : (
+                <span className="system-preview-object-empty">No rendered objects</span>
+              )}
+            </div>
+          ) : (
+            <>
+              <div>
+                <strong>{formatNumber(renderBodies.stars?.length || bodies.stars?.length, 0)}</strong>
+                <span>rendered stars</span>
+              </div>
+              <div>
+                <strong>{formatNumber(renderBodies.planets?.length || bodies.planets?.length, 0)}</strong>
+                <span>rendered planets</span>
+              </div>
+              <div>
+                <strong>{formatNumber(renderBodies.subsystems?.length || 0, 0)}</strong>
+                <span>rendered subsystems</span>
+              </div>
+              <div data-testid="system-preview-visual-scale">
+                <strong>{scaleModeLabel(activeScaleMode)}</strong>
+                <span>visual scale</span>
+              </div>
+            </>
+          )}
           {showDiagnostics && (
             <details className="system-preview-diagnostics" data-testid="system-preview-diagnostics" open={!embeddedPresentation}>
               <summary>

@@ -4,6 +4,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
+import { StellarClassChips, stellarClassTokensFromSystem } from "./stellarClassTags.jsx";
 
 const MAP_RADIUS_LY = 100;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
@@ -2137,7 +2138,23 @@ function MapStarSearchShell({
               const displayName = systemDisplayName(system);
               const originDistance = Number(system.origin_distance_ly);
               return (
-                <article key={system.system_id} className="map-search-card">
+                <article
+                  key={system.system_id}
+                  className="map-search-card"
+                  title="Open Explorer view for this system"
+                  onClick={(event) => {
+                    if (event.defaultPrevented || event.button !== 0) {
+                      return;
+                    }
+                    if (event.target instanceof Element) {
+                      const interactive = event.target.closest("a, button, input, select, textarea, label, .map-search-card-preview");
+                      if (interactive) {
+                        return;
+                      }
+                    }
+                    onExploreSystem(system);
+                  }}
+                >
                   <LazyStarSearchPreview
                     system={system}
                     displayName={displayName}
@@ -2159,6 +2176,7 @@ function MapStarSearchShell({
                   />
                   <div className="map-search-card-body">
                     <h3>{displayName}</h3>
+                    <StellarClassChips tokens={stellarClassTokensFromSystem(system)} size="compact" className="map-search-stellar-tags" />
                     <div className="map-search-card-metrics">
                       <span>{formatNumber(system.dist_ly, 2)} ly Sol</span>
                       {Number.isFinite(originDistance) && <span>{formatNumber(originDistance, 2)} ly view</span>}
@@ -2169,6 +2187,7 @@ function MapStarSearchShell({
                     <div className="map-search-card-actions">
                       <button type="button" className="map-command-button primary" onClick={() => onSelectSystem(system)}>Peek</button>
                       <button type="button" className="map-command-button ghost" onClick={() => onExploreSystem(system)}>Explore</button>
+                      <Link className="map-command-button ghost" to={`/systems/${system.system_id}`}>Detail</Link>
                     </div>
                   </div>
                 </article>

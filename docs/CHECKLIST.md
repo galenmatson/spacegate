@@ -168,7 +168,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 ### C5.5 Phase D.6 - Planet Taxonomy and Habitability
 
 - [ ] Implement deterministic taxonomy tags from observational data (size/mass, insolation, orbit, composition proxy, detection/host context)
-- [ ] Add educational concept pages for public discovery tags with plain-language explanations, deeper science sections, representative systems, related concepts, and Star Search "Find more" links
+- [ ] Add educational concept pages for public discovery tags with plain-language explanations, deeper science sections, representative systems, related concepts, Star Search "Find more" links, and interactive visualizations where useful
 - [x] Implement `spacegate_hab_score` + confidence/reasons metadata
 - [x] Implement element-richness proxy tags from stellar spectroscopy/metallicity inputs
 - [ ] Add API filters/toggles for controversial lifecycle state and habitability range
@@ -576,6 +576,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Search results, served before runtime scene assembly
 - [x] Add layperson spectral-class tooltips to the map-native Star Search
   spectral filter buttons
+- [x] Add reusable stellar-class chips for Star Search cards, map-native
+  search cards, System Hierarchy star leaves, and System Simulation readouts
 - [x] Add Star Map WebGL context-loss recovery and stricter live-card preview
   activation to mitigate fast-scroll browser context eviction
 - [x] Add a persisted client-side Star Map runtime diagnostics toggle in the
@@ -583,6 +585,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   context-loss recoveries, and quality tier
 - [x] Collapse System Simulation habitable-zone and temperature-line toggles
   into a compact Lines disclosure
+- [x] Make the System Simulation Lines disclosure close on outside click while
+  preserving selected overlay settings
+- [x] Replace System Simulation detail-page render-counter side chips with an
+  inspectable object list for rendered stars, subsystems, and planets
 - [x] Increase System Simulation close-zoom range for true-orbit, true-body,
   and log scale modes without changing science-layer scale semantics
 - [x] Recover live System Simulation panels from transient WebGL context loss

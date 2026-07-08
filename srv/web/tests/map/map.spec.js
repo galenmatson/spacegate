@@ -129,6 +129,8 @@ test.describe("public 3D map beta", () => {
     await page.locator(".map-search-sort select").selectOption("distance");
     await expect(page.locator(".map-search-sort select")).toHaveValue("distance");
     await expect(page.locator(".map-search-card").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(".map-search-card").first().getByRole("link", { name: "Detail" })).toBeVisible();
+    await expect(page.locator(".map-search-card").first().locator(".stellar-class-chip")).toHaveCount(1);
     await expect.poll(async () => {
       const box = await page.locator(".map-search-card-preview").first().boundingBox();
       return Math.round(box?.height || 0);
@@ -187,6 +189,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".spectral-chip", { hasText: "Y" })).toBeVisible();
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator(".result-card").first().locator(".result-tags")).toContainText(/Nearby|Exoplanet|Multi-planet|High coolness|NASA|Gaia/i);
+    await expect(page.locator(".result-card").first().locator(".stellar-class-chip")).toHaveCount(1);
     await expect(page.locator(".result-card").first().getByRole("link", { name: "Detail" })).toBeVisible();
     await expect(page.locator(".result-card").first().getByRole("button", { name: "Map" })).toBeVisible();
     const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
@@ -231,6 +234,13 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
+    await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
+    await expect(page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip")).toHaveCount(4);
+    await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(1);
+    await page.locator(".system-preview-line-menu summary").click();
+    await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
+    await page.locator(".system-detail-v2 h1").click();
+    await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
     await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);

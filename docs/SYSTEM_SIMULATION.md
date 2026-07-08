@@ -479,6 +479,10 @@ Success criteria:
 - missing-input counts remain available in readiness/API diagnostics, but are
   not shown as a primary simulator pill because they are mainly a data-quality
   debugging signal
+- the detail-page side rail prioritizes rendered object chips for stars,
+  subsystems, and planets. These chips are inspection/navigation affordances
+  derived from the `render_scene` payload; they do not create new hierarchy
+  evidence or alter `core`/`arm` records.
 - pinned stars, planets, and orbit paths also receive in-scene visual feedback
   so the selected readout has a visible target in the 3D view
 - hover and pinned readouts use the same source/derived/assumed/missing

@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
+import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromSystem } from "./stellarClassTags.jsx";
 
 const StarMapPage = React.lazy(() => import("./StarMapPage.jsx"));
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
@@ -1897,6 +1898,9 @@ function HierarchyNodeCard({ node, depth = 0 }) {
           <div className="hierarchy-node-title-wrap">
             <div className="hierarchy-node-title-row">
               <strong>{displayName}</strong>
+              {displayType === "star" ? (
+                <StellarClassChips tokens={stellarClassTokensFromRecord(node)} size="compact" />
+              ) : null}
               <span className="hierarchy-node-kind">{hierarchyTypeLabel(displayType)}</span>
             </div>
             <div className="muted hierarchy-node-meta">
@@ -3320,6 +3324,7 @@ function SearchPage({ buildId = "" }) {
                               ))}
                             </div>
                           ) : null}
+                          <StellarClassChips tokens={stellarClassTokensFromSystem(item)} size="compact" className="result-stellar-tags" />
                         </div>
                         <div className="distance" title="Coolness rank">
                           {(item.coolness_rank !== null && item.coolness_rank !== undefined)
@@ -3616,6 +3621,12 @@ function SystemDetailPage({ buildId = "" }) {
               <SystemFactPill label="Spectral" value={bestSpectralSummary(system, stars)} />
               <SystemFactPill label="Coolness" value={formatNumber(system.coolness_score, 1)} />
             </div>
+            <StellarClassChips tokens={stellarClassTokensFromSystem({
+              ...system,
+              spectral_classes: Array.from(new Set((stars || [])
+                .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().toUpperCase())
+                .filter(Boolean))),
+            })} className="system-detail-stellar-tags" />
             {systemTags.length > 0 ? (
               <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
                 {systemTags.map((tag) => (
