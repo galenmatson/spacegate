@@ -211,6 +211,12 @@ test.describe("public 3D map beta", () => {
     await expect.poll(() => page.locator(".catalog-search-sidebar").evaluate((node) => (
       Math.ceil(node.scrollWidth - node.clientWidth)
     ))).toBeLessThanOrEqual(1);
+    await expect.poll(() => page.locator(".catalog-search-sidebar").evaluate((node) => {
+      const rootStyle = window.getComputedStyle(document.documentElement);
+      const railWidth = Number.parseFloat(rootStyle.getPropertyValue("--lcars-rail-width")) || 0;
+      const sidebarWidth = node.getBoundingClientRect().width;
+      return Math.round(Math.abs(sidebarWidth - railWidth));
+    })).toBeLessThanOrEqual(1);
     await expect(page.locator(".results-toolbar")).toBeVisible();
     await expect(page.locator(".results-toolbar-head")).toContainText("Star Search");
     const sortSelect = page.locator(".results-search-options select").first();

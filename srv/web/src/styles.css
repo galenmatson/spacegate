@@ -4431,12 +4431,15 @@ select:focus-visible {
 }
 
 :root[data-theme="lcars"] .catalog-search-shell {
-  grid-template-columns: minmax(174px, 190px) minmax(0, 1fr);
+  grid-template-columns: var(--lcars-rail-width) minmax(0, 1fr);
 }
 
 :root[data-theme="lcars"] .catalog-search-sidebar {
+  box-sizing: border-box;
+  width: var(--lcars-rail-width);
+  justify-self: stretch;
   overflow-x: hidden;
-  padding: 8px;
+  padding: 7px;
 }
 
 :root[data-theme="lcars"] .catalog-search-sidebar .filters-body {
