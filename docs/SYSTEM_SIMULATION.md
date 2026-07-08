@@ -553,6 +553,21 @@ Success criteria:
   spikes for materialized systems without changing the simulation-scene
   contract. Photon default hot-cache command:
   `SPACEGATE_STATE_DIR=/data/spacegate/state .venv/bin/python scripts/materialize_simulation_scenes.py --limit 1000 --sort distance --max-dist-ly 100`.
+- Star Search and map search now use explicit preview tiers:
+  - Tier 0: summary fields only.
+  - Tier 1: `lightweight_singleton`, a client-rendered singleton preview for
+    ordinary one-star/no-planet/no-exotic systems.
+  - Tier 2: `prebuilt_simulation_scene`, a full scene served from
+    `disc/simulation_scenes/`.
+  - Tier 3: `dynamic_simulation_scene`, a full scene assembled from the live
+    API contract and then cached in process.
+  The tier is a presentation/runtime decision only. It does not assert that a
+  system is scientifically simple beyond the visible preview policy.
+- For preview-scene prebuilds, use
+  `SPACEGATE_STATE_DIR=/data/spacegate/state .venv/bin/python scripts/materialize_simulation_scenes.py --priority-profile search-preview --sort coolness --limit 2000 --max-dist-ly 100`.
+  The `search-preview` profile selects planet hosts, multistar systems,
+  compact/white-dwarf style systems, public UX goldens, and top coolness-ranked
+  systems when coolness data is available.
 - True-orbit, true-body, and log scale modes allow much closer camera zoom
   than structure mode so users can inspect inner systems inside wide-orbit
   systems. This changes only camera control limits; it does not alter the

@@ -1413,6 +1413,16 @@ contract, avoids repeating expensive ARM/readiness/render-scene assembly for
 materialized systems, and preserves runtime assembly as the fallback for cold
 or unmaterialized systems.
 
+July 8, 2026 preview-tier pass adds a presentation/runtime policy for Star
+Search and map search cards: ordinary singleton no-planet/no-exotic systems use
+a lightweight client-rendered preview from result fields, while planet hosts,
+multistars, compact/exotic systems, high-coolness systems, public UX goldens,
+and prebuilt scene artifacts remain on the full System Simulation path. The
+simulation-scene materializer now has a `--priority-profile search-preview`
+selector for these high-value full-preview targets. This is a prerequisite for
+larger streamed 250/500/1000 ly map radii, where most displayed systems should
+not trigger dynamic scene assembly.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

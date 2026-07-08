@@ -72,6 +72,52 @@ SPECTRAL_CLASS_MASKS = {
     "D": 1024,
 }
 
+PREVIEW_FULL_SIMULATION_CLASSES = {"D", "WR", "WD", "NS", "PULSAR", "MAGNETAR", "BLACK HOLE"}
+PREVIEW_FULL_SIMULATION_COOLNESS_SCORE = 20.0
+
+
+def _search_preview_policy(payload: Dict[str, Any]) -> Dict[str, Any]:
+    star_count = int(payload.get("star_count") or 0)
+    planet_count = int(payload.get("planet_count") or 0)
+    coolness_score = payload.get("coolness_score")
+    try:
+        coolness_value = float(coolness_score) if coolness_score is not None else 0.0
+    except (TypeError, ValueError):
+        coolness_value = 0.0
+    spectral_classes = {
+        str(token or "").strip().upper()
+        for token in (payload.get("spectral_classes") or [])
+        if str(token or "").strip()
+    }
+    exotic_tokens = sorted(spectral_classes.intersection(PREVIEW_FULL_SIMULATION_CLASSES))
+    basis: List[str] = []
+    needs_full = False
+    if star_count > 1:
+        needs_full = True
+        basis.append("multistar_system")
+    if planet_count > 0:
+        needs_full = True
+        basis.append("planet_host")
+    if exotic_tokens:
+        needs_full = True
+        basis.append("compact_or_exotic_class")
+    if coolness_value >= PREVIEW_FULL_SIMULATION_COOLNESS_SCORE:
+        needs_full = True
+        basis.append("high_coolness")
+    if needs_full:
+        return {
+            "preview_tier": "dynamic_simulation_scene",
+            "preview_basis": basis,
+            "is_lightweight_preview_safe": False,
+            "has_prebuilt_simulation_scene": False,
+        }
+    return {
+        "preview_tier": "lightweight_singleton",
+        "preview_basis": ["single_or_unresolved_star", "no_planets", "low_preview_complexity"],
+        "is_lightweight_preview_safe": True,
+        "has_prebuilt_simulation_scene": False,
+    }
+
 
 def split_provenance(row: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     provenance = {field: row.get(field) for field in PROVENANCE_FIELDS}
@@ -3517,6 +3563,9 @@ def search_systems(
             for item in results:
                 sid = int(item.get("system_id") or 0)
                 item["snapshot"] = snapshot_map.get(sid)
+
+    for item in results:
+        item.update(_search_preview_policy(item))
 
     total_count: Optional[int] = None
     if include_total:

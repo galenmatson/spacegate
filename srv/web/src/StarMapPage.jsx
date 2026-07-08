@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
+import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
 import { StellarClassChips, stellarClassTokensFromSystem } from "./stellarClassTags.jsx";
 
@@ -1871,6 +1872,7 @@ function LazyStarSearchPreview({
   const hoverIntentRef = useRef(false);
   const [visible, setVisible] = useState(false);
   const [hoverIntent, setHoverIntent] = useState(false);
+  const lightweightPreview = isLightweightPreviewSystem(system);
   useEffect(() => {
     const node = ref.current;
     if (!node) {
@@ -1888,7 +1890,7 @@ function LazyStarSearchPreview({
   }, []);
 
   useEffect(() => {
-    const wantsLive = visible && (!cachedPreviewImage || hoverIntent);
+    const wantsLive = !lightweightPreview && visible && (!cachedPreviewImage || hoverIntent);
     if (wantsLive && !requestedLiveRef.current) {
       requestedLiveRef.current = true;
       onActivate?.(system.system_id);
@@ -1898,7 +1900,7 @@ function LazyStarSearchPreview({
       requestedLiveRef.current = false;
       onDeactivate?.(system.system_id);
     }
-  }, [cachedPreviewImage, hoverIntent, onActivate, onDeactivate, system.system_id, visible]);
+  }, [cachedPreviewImage, hoverIntent, lightweightPreview, onActivate, onDeactivate, system.system_id, visible]);
 
   const setHovering = useCallback((nextValue) => {
     hoverIntentRef.current = nextValue;
@@ -1915,12 +1917,26 @@ function LazyStarSearchPreview({
 
   const showLivePreview = visible && liveActive;
   const showCachedPreview = Boolean(cachedPreviewImage) && !showLivePreview;
+  if (lightweightPreview) {
+    return (
+      <div
+        ref={ref}
+        className="map-search-card-preview is-lightweight"
+        data-preview-state="lightweight"
+        data-preview-tier={system?.preview_tier || "lightweight_singleton"}
+        tabIndex={0}
+      >
+        <LightweightSystemPreview system={system} displayName={displayName} />
+      </div>
+    );
+  }
 
   return (
     <div
       ref={ref}
       className={`map-search-card-preview ${showLivePreview ? "is-live" : ""} ${showCachedPreview ? "is-cached" : ""}`}
       data-preview-state={showLivePreview ? "live" : showCachedPreview ? "cached" : (visible && previewDisabledReason ? "paused" : "queued")}
+      data-preview-tier={system?.preview_tier || "dynamic_simulation_scene"}
       data-preview-pool-slot={poolSlot ?? ""}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}

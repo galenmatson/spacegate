@@ -4982,6 +4982,7 @@ def systems_search(
                 disc_db_path=disc_db_path,
                 arm_db_path=arm_db_path,
             )
+            build_id = fetch_build_id(con)
     except ValueError as exc:
         _audit_systems_search(
             request,
@@ -5023,6 +5024,19 @@ def systems_search(
     items = rows[:limit]
     for item in items:
         _attach_snapshot_url(item)
+        system_id = item.get("system_id")
+        if system_id is None:
+            continue
+        artifact_path = _simulation_scene_artifact_path(build_id, int(system_id))
+        item["has_prebuilt_simulation_scene"] = artifact_path is not None
+        if artifact_path is not None and item.get("preview_tier") == "dynamic_simulation_scene":
+            item["preview_tier"] = "prebuilt_simulation_scene"
+            basis = item.get("preview_basis")
+            if isinstance(basis, list):
+                if "prebuilt_artifact" not in basis:
+                    basis.append("prebuilt_artifact")
+            else:
+                item["preview_basis"] = ["prebuilt_artifact"]
     next_cursor = None
     if has_more and items:
         last = items[-1]

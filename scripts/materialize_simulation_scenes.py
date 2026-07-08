@@ -81,6 +81,8 @@ def _select_system_rows(
     system_ids: Sequence[int],
     limit: int,
     sort: str,
+    priority_profile: str,
+    top_coolness_limit: int,
     min_dist_ly: float | None,
     max_dist_ly: float | None,
     min_star_count: int | None,
@@ -129,6 +131,41 @@ def _select_system_rows(
         if min_planet_count is not None:
             conditions.append("COALESCE(s.planet_count, 0) >= ?")
             params.append(int(min_planet_count))
+        if priority_profile == "search-preview":
+            priority_clauses = [
+                "COALESCE(s.planet_count, 0) > 0",
+                "COALESCE(s.star_count, 0) > 1",
+                """
+                EXISTS (
+                  SELECT 1
+                  FROM stars st
+                  WHERE st.system_id = s.system_id
+                    AND (
+                      UPPER(COALESCE(st.spectral_type_raw, '')) LIKE 'D%'
+                      OR UPPER(COALESCE(st.spectral_class, '')) IN ('D', 'WR')
+                    )
+                )
+                """,
+                """
+                lower(COALESCE(s.system_name, s.stable_object_key, '')) IN (
+                  'tau ceti',
+                  'trappist-1',
+                  'alpha centauri',
+                  'proxima centauri',
+                  'sirius',
+                  '55 cnc',
+                  'epsilon eridani',
+                  'barnard''s star',
+                  'wolf 359',
+                  'vega',
+                  'fomalhaut'
+                )
+                """,
+            ]
+            if has_coolness and top_coolness_limit > 0:
+                priority_clauses.append("COALESCE(c.rank, 9223372036854775807) <= ?")
+                params.append(int(top_coolness_limit))
+            conditions.append("(" + " OR ".join(priority_clauses) + ")")
         where_sql = "WHERE " + " AND ".join(conditions) if conditions else ""
 
         coolness_select = "NULL::DOUBLE AS coolness_score, NULL::BIGINT AS coolness_rank"
@@ -213,6 +250,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         system_ids=args.system_id,
         limit=args.limit,
         sort=args.sort,
+        priority_profile=args.priority_profile,
+        top_coolness_limit=args.top_coolness_limit,
         min_dist_ly=args.min_dist_ly,
         max_dist_ly=args.max_dist_ly,
         min_star_count=args.min_star_count,
@@ -294,6 +333,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "generated_at_utc": _utc_now(),
         "params": {
             "sort": args.sort,
+            "priority_profile": args.priority_profile,
+            "top_coolness_limit": args.top_coolness_limit,
             "limit": args.limit,
             "system_id": args.system_id,
             "min_dist_ly": args.min_dist_ly,
@@ -323,6 +364,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--system-id", action="append", type=int, default=[], help="Specific system_id to materialize; can be repeated.")
     parser.add_argument("--limit", type=int, default=1000, help="Maximum systems to select when --system-id is not provided.")
     parser.add_argument("--sort", choices=["distance", "coolness", "name"], default="distance")
+    parser.add_argument("--priority-profile", choices=["none", "search-preview"], default="none", help="Optional priority selector for prebuilding high-value preview scenes.")
+    parser.add_argument("--top-coolness-limit", type=int, default=500, help="When using --priority-profile search-preview, include this many top-ranked coolness systems if available.")
     parser.add_argument("--min-dist-ly", type=float, default=None)
     parser.add_argument("--max-dist-ly", type=float, default=100.0)
     parser.add_argument("--min-star-count", type=int, default=None)
@@ -335,6 +378,8 @@ def main() -> int:
     args = parse_args()
     if args.limit <= 0 and not args.system_id:
         raise SystemExit("--limit must be > 0 unless --system-id is provided")
+    if args.top_coolness_limit < 0:
+        raise SystemExit("--top-coolness-limit must be >= 0")
     if args.min_dist_ly is not None and args.min_dist_ly < 0:
         raise SystemExit("--min-dist-ly must be >= 0")
     if args.max_dist_ly is not None and args.max_dist_ly < 0:

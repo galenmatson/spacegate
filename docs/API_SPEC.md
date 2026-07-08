@@ -1247,6 +1247,9 @@ Matching rules (when `q` is provided):
 Implementation notes:
 - rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
 - rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
+- search responses include presentation-scoped preview policy fields so clients
+  can avoid expensive `/simulation-scene` requests for ordinary singleton
+  systems. These fields are runtime/display policy, not canonical science.
 - current Gaia-first production builds use transitional AT-HYG alias
   crosswalks plus deterministic Bayer expansion for public name coverage; this
   supports lookups such as `Castor`, `Alpha Geminorum`, `Alpha Centauri`,
@@ -1318,6 +1321,10 @@ Response 200:
       "coolness_nice_planet_count": 0,
       "coolness_weird_planet_count": 0,
       "coolness_dominant_spectral_class": "G",
+      "preview_tier": "lightweight_singleton",
+      "preview_basis": ["single_or_unresolved_star", "no_planets", "low_preview_complexity"],
+      "is_lightweight_preview_safe": true,
+      "has_prebuilt_simulation_scene": false,
       "snapshot": {
         "build_id": "2026-02-19T221543Z_2774126",
         "view_type": "system_card",
@@ -1341,6 +1348,18 @@ Client contract:
   browsers should prefer the `/systems/{system_id}/simulation-scene` contract
   for live or simulation-derived previews, with bounded concurrent WebGL
   contexts and cached frame reuse in result lists.
+- `preview_tier` values:
+  - `lightweight_singleton`: render a cheap client-side singleton preview from
+    search fields only; do not fetch `/simulation-scene` until the user opens
+    Peek, Explore, or the system page.
+  - `prebuilt_simulation_scene`: full System Simulation preview is appropriate
+    and the API has a compressed scene artifact available.
+  - `dynamic_simulation_scene`: full System Simulation preview is appropriate
+    but the API will assemble the scene dynamically unless it is already in the
+    in-process runtime cache.
+- `preview_basis` explains the policy trigger, for example `planet_host`,
+  `multistar_system`, `compact_or_exotic_class`, `high_coolness`, or
+  `low_preview_complexity`.
 - Search cards should keep catalog IDs copyable but visually secondary.
 
 ### GET /systems/{system_id}

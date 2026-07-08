@@ -259,6 +259,82 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
   });
 
+  test("standalone Star Search uses lightweight previews for simple singleton systems", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop catalog preview policy check");
+    const sceneRequests = [];
+    await page.route("**/api/v1/systems/search**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            {
+              system_id: 900001,
+              system_name: "Preview Test M Dwarf",
+              display_name: "Preview Test M Dwarf",
+              stable_object_key: "test.preview.m_dwarf",
+              dist_ly: 12.34,
+              ra_deg: 0,
+              dec_deg: 0,
+              star_count: 1,
+              planet_count: 0,
+              coolness_score: 4.2,
+              coolness_rank: null,
+              min_star_teff_k: 3200,
+              max_star_teff_k: 3200,
+              spectral_classes: ["M"],
+              preview_tier: "lightweight_singleton",
+              preview_basis: ["single_or_unresolved_star", "no_planets", "low_preview_complexity"],
+              is_lightweight_preview_safe: true,
+              has_prebuilt_simulation_scene: false,
+              snapshot: null,
+              display_aliases: [],
+            },
+          ],
+          next_cursor: null,
+          has_more: false,
+          total_count: 1,
+          query_time_ms: 1,
+          origin: null,
+        }),
+      });
+    });
+    await page.route("**/api/v1/systems/*/simulation-scene", async (route) => {
+      sceneRequests.push(route.request().url());
+      await route.continue();
+    });
+    await page.goto("/search?spectral_class=M&max_star_count=1&max_planet_count=0&max_coolness_score=19.9&sort=distance&limit=8", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("[data-testid='lightweight-system-preview']").first()).toBeVisible();
+    await expect(page.locator("[data-testid='star-search-simulation-preview'][data-preview-state='lightweight']").first()).toBeVisible();
+    await expect.poll(() => page.locator("[data-testid='star-search-simulation-preview'] .system-preview-canvas canvas").count(), { timeout: 3000 }).toBe(0);
+    expect(sceneRequests).toHaveLength(0);
+  });
+
+  test("standalone Star Search keeps full previews for planet hosts", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop catalog preview policy check");
+    const sceneRequests = [];
+    await page.route("**/api/v1/systems/*/simulation-scene", async (route) => {
+      sceneRequests.push(route.request().url());
+      await route.continue();
+    });
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: {
+        min_planet_count: "1",
+        sort: "distance",
+        limit: "5",
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    expect(payload.items.length).toBeGreaterThan(0);
+    expect(payload.items.some((item) => item.preview_tier === "dynamic_simulation_scene" || item.preview_tier === "prebuilt_simulation_scene")).toBeTruthy();
+    await page.goto("/search?min_planet_count=1&sort=distance&limit=5", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
+    await expect.poll(() => sceneRequests.length, { timeout: 12000 }).toBeGreaterThan(0);
+    await expect.poll(() => page.locator("[data-testid='star-search-simulation-preview'] .system-preview-canvas canvas").count(), { timeout: 12000 }).toBeGreaterThan(0);
+  });
+
   test("system page v2 stages simulation, overview, and technical evidence", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop system page anatomy check");
     const response = await page.request.get("/api/v1/systems/search", {

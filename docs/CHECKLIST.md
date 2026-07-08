@@ -638,6 +638,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Live-WebGL runtime manager foundation for shared context budgeting,
   adaptive quality, preview pooling, and fallback-last policy across Map, Peek,
   Explorer, and Star Search result cards
+- [x] Add Star Search/map-search preview tiers so ordinary singleton systems use
+  cheap client previews while planet hosts, multistars, exotic systems, public
+  goldens, and high-coolness systems keep full System Simulation previews
+- [x] Add `search-preview` simulation-scene materialization profile for
+  priority full-preview systems
 - [ ] Expand the Live-WebGL runtime manager with richer admin/dev telemetry,
   observed browser context limits, and real-device automatic quality tuning
 - [ ] 3D map tiled 250 ly / 500 ly / 1000 ly runtime integration over

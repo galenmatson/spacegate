@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
+import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromSystem } from "./stellarClassTags.jsx";
 
@@ -1569,6 +1570,7 @@ function StarSearchSimulationPreview({
   const hoverIntentRef = React.useRef(false);
   const [visible, setVisible] = React.useState(false);
   const [hoverIntent, setHoverIntent] = React.useState(false);
+  const lightweightPreview = isLightweightPreviewSystem(system);
 
   React.useEffect(() => {
     const node = ref.current;
@@ -1588,7 +1590,7 @@ function StarSearchSimulationPreview({
   }, []);
 
   React.useEffect(() => {
-    const wantsLive = visible && (!cachedPreviewImage || hoverIntent);
+    const wantsLive = !lightweightPreview && visible && (!cachedPreviewImage || hoverIntent);
     if (wantsLive && !requestedLiveRef.current) {
       requestedLiveRef.current = true;
       onActivate?.(system.system_id);
@@ -1598,7 +1600,7 @@ function StarSearchSimulationPreview({
       requestedLiveRef.current = false;
       onDeactivate?.(system.system_id);
     }
-  }, [cachedPreviewImage, hoverIntent, onActivate, onDeactivate, system.system_id, visible]);
+  }, [cachedPreviewImage, hoverIntent, lightweightPreview, onActivate, onDeactivate, system.system_id, visible]);
 
   const setHovering = React.useCallback((nextValue) => {
     hoverIntentRef.current = nextValue;
@@ -1615,6 +1617,21 @@ function StarSearchSimulationPreview({
 
   const showLivePreview = visible && liveActive;
   const showCachedPreview = Boolean(cachedPreviewImage) && !showLivePreview;
+  if (lightweightPreview) {
+    return (
+      <div
+        ref={ref}
+        className="star-search-preview map-search-card-preview is-lightweight"
+        data-testid="star-search-simulation-preview"
+        data-preview-state="lightweight"
+        data-preview-tier={system?.preview_tier || "lightweight_singleton"}
+        tabIndex={0}
+        aria-label={`${displayName} lightweight preview`}
+      >
+        <LightweightSystemPreview system={system} displayName={displayName} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1622,6 +1639,7 @@ function StarSearchSimulationPreview({
       className={`star-search-preview map-search-card-preview ${showLivePreview ? "is-live" : ""} ${showCachedPreview ? "is-cached" : ""}`}
       data-testid="star-search-simulation-preview"
       data-preview-state={showLivePreview ? "live" : showCachedPreview ? "cached" : visible ? "queued" : "pending"}
+      data-preview-tier={system?.preview_tier || "dynamic_simulation_scene"}
       data-preview-pool-slot={poolSlot ?? ""}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}

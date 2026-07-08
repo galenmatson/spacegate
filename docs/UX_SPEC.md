@@ -269,3 +269,11 @@ clarity.
 - Preserve map return context from system pages when opened from the map.
 - Use cached scene artifacts and preview captures to reduce repeated API and
   client render work.
+- Search result previews are tiered. Ordinary singleton systems use a
+  lightweight HTML/CSS preview from existing result fields; planet hosts,
+  multistars, compact/exotic systems, high-coolness systems, and public goldens
+  remain eligible for full System Simulation previews. This keeps blank-search
+  scrolling cheap without reducing Peek, Explore, or system-page fidelity.
+- This preview-tier contract is a prerequisite for larger streamed map radii:
+  a 250/500/1000 ly explorer cannot afford per-card dynamic scene assembly for
+  the ordinary red/brown-dwarf long tail.
