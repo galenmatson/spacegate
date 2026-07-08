@@ -199,8 +199,10 @@ Initial layers:
   - dense header instrument strip with system/planet-host/multiple counts
   - header `Search` toggle controls the search/filter/recents sidebar
   - header `MIN` action, plus keyboard `M`, enters minimal mode by hiding all
-    HUD/text overlays except the restore button; `M` or `Esc` restores the
-    previous interface state
+    passive HUD/text overlays except the restore button; requested Peek/Explore
+    panels and right-click context menus remain available so minimal mode still
+    supports inspection and route work; `M` or `Esc` restores the previous
+    interface state
   - selected-system title link to public detail
   - long-ID metadata popovers and copy controls
   - route summary with recent leg list, total distance, undo, and clear

@@ -552,7 +552,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   the free-flight 3D map; Recents/Nearby now live only inside the Search
   sidebar so the map can be all-on or all-off
 - [x] Add Star Map minimal mode via header `MIN`, keyboard `M`, and `Esc`
-  restore, hiding HUD/text overlays while leaving a small restore control
+  restore, hiding passive HUD/text overlays while leaving a small restore
+  control and keeping requested Peek/Explore/context-menu actions available
 - [x] Move rendered stellar-class pills into the Peek/Explorer title row using
   mass-sorted simulator star entries, with Explorer title click opening the
   system page

@@ -632,16 +632,25 @@ test.describe("public 3D map beta", () => {
     await page.getByRole("button", { name: /undo/i }).click();
     await expect(page.locator(".map-route-summary")).toHaveCount(0);
 
-    await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
+    await page.mouse.click(box.x + box.width / 2 + 170, box.y + box.height / 2 + 40, { button: "right" });
     await expect(contextMenu).toBeVisible();
     await page.mouse.click(box.x + 24, box.y + 24, { button: "right" });
     await expect(contextMenu).toHaveCount(0);
 
-    await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
+    await page.locator("[data-testid='map-minimal-toggle']").click();
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "true");
+    await page.mouse.click(box.x + box.width / 2 + 170, box.y + box.height / 2 + 40, { button: "right" });
+    await expect(contextMenu).toBeVisible();
+    await page.mouse.click(box.x + 24, box.y + 24, { button: "right" });
+    await expect(contextMenu).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "false");
+
+    await page.mouse.click(box.x + box.width / 2 - 120, box.y + box.height / 2 - 80, { button: "right" });
     await expect(contextMenu).toBeVisible();
     await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
     await expect(page.locator(".map-route-summary")).toBeVisible();
-    await page.mouse.click(box.x + box.width / 2 - 120, box.y + box.height / 2 - 80, { button: "right" });
+    await page.mouse.click(box.x + box.width / 2 + 120, box.y + box.height / 2 + 80, { button: "right" });
     await expect(contextMenu).toBeVisible();
     await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
     await expect(page.locator(".map-route-leg-list li")).toHaveCount(2);
@@ -677,6 +686,12 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
     await expect(drill.locator(".map-title-stellar-classes .stellar-class-chip").first()).toBeVisible();
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
+    await page.locator("[data-testid='map-minimal-toggle']").click();
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "true");
+    await expect(drill).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "false");
+    await expect(drill).toBeVisible();
     const resizeHandle = drill.locator(".map-system-drill-resize");
     await expect(resizeHandle).toBeVisible();
     const titleBox = await drill.locator(".map-system-drill-title").boundingBox();

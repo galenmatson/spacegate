@@ -1077,7 +1077,7 @@
   pointer-events: none;
 }
 
-.map-minimal-mode :is(.map-hud, .map-star-search, .map-system-drill, .map-reticle, .map-world-label, .map-mobile-flight-pad, .map-desktop-hint, .map-touch-hint, .map-route-summary, .map-context-menu, .map-fps-overlay, .map-context-recovery) {
+.map-minimal-mode :is(.map-hud, .map-star-search, .map-reticle, .map-world-label, .map-mobile-flight-pad, .map-desktop-hint, .map-touch-hint, .map-route-summary, .map-fps-overlay, .map-context-recovery) {
   display: none !important;
 }
 
@@ -6398,29 +6398,38 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  min-height: 24px;
-  padding: 2px 7px;
-  border: 1px solid color-mix(in srgb, var(--stellar-chip-color) 78%, white 8%);
+  min-width: 26px;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--stellar-chip-color) 88%, white 14%);
   border-radius: 999px;
   background:
-    radial-gradient(circle at 34% 28%, color-mix(in srgb, white 54%, var(--stellar-chip-color)) 0 12%, transparent 35%),
+    radial-gradient(circle at 35% 27%, #ffffff 0 9%, color-mix(in srgb, white 72%, var(--stellar-chip-color)) 10% 21%, transparent 43%),
+    radial-gradient(circle at center, color-mix(in srgb, var(--stellar-chip-color) 58%, white 14%) 0 28%, color-mix(in srgb, var(--stellar-chip-color) 28%, #050a12 72%) 70%),
     color-mix(in srgb, var(--stellar-chip-color) 34%, #050a12 66%);
-  color: color-mix(in srgb, white 88%, var(--stellar-chip-color));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--stellar-chip-color) 28%, transparent);
+  color: #ffffff;
+  box-shadow:
+    0 0 9px color-mix(in srgb, var(--stellar-chip-color) 56%, transparent),
+    0 0 20px color-mix(in srgb, var(--stellar-chip-color) 34%, transparent),
+    inset 0 0 8px color-mix(in srgb, white 22%, transparent);
   font-family: var(--font-mono);
-  font-size: 0.64rem;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.035em;
   line-height: 1;
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.95),
+    0 0 5px rgba(0, 0, 0, 0.7),
+    0 0 7px color-mix(in srgb, var(--stellar-chip-color) 58%, transparent);
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .stellar-class-chips-compact .stellar-class-chip {
-  min-width: 20px;
-  min-height: 20px;
+  min-width: 22px;
+  min-height: 22px;
   padding: 2px 6px;
-  font-size: 0.58rem;
+  font-size: 0.62rem;
 }
 
 .result-stellar-tags,
