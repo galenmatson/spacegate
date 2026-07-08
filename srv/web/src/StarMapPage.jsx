@@ -2242,6 +2242,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const [drillMode, setDrillMode] = useState(() => (
     ["peek", "explore"].includes(restoredMapState?.drillMode) ? restoredMapState.drillMode : "flight"
   ));
+  const [minimalMode, setMinimalMode] = useState(false);
+  const [minimalNotice, setMinimalNotice] = useState(false);
+  const [drillStellarClassEntries, setDrillStellarClassEntries] = useState([]);
   const [focusToken, setFocusToken] = useState(0);
   const [mobileFlightIntent, setMobileFlightIntent] = useState(DEFAULT_MOBILE_FLIGHT_STATE);
   const [peekSize, setPeekSize] = useState(() => clampMapPeekSize(restoredMapState?.peekSize || readStoredMapPeekSize()));
@@ -2398,6 +2401,25 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       }
     }
   }, [enterPreviewCooldown]);
+
+  const enterMinimalMode = useCallback(() => {
+    setMinimalMode(true);
+    setMinimalNotice(true);
+    window.setTimeout(() => setMinimalNotice(false), 3200);
+  }, []);
+
+  const exitMinimalMode = useCallback(() => {
+    setMinimalMode(false);
+    setMinimalNotice(false);
+  }, []);
+
+  const toggleMinimalMode = useCallback(() => {
+    if (minimalMode) {
+      exitMinimalMode();
+    } else {
+      enterMinimalMode();
+    }
+  }, [enterMinimalMode, exitMinimalMode, minimalMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2646,6 +2668,11 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     }
   }, []);
 
+  const backToPeekFromExplore = useCallback(() => {
+    drillHistoryPushedRef.current = false;
+    setDrillMode("peek");
+  }, []);
+
   const selectSystem = useCallback((system, options = {}) => {
     if (!system) {
       setSelectedSystem(null);
@@ -2653,6 +2680,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       return;
     }
     setSelectedSystem(system);
+    setDrillStellarClassEntries([]);
     setSelectionHistory((history) => [
       system,
       ...history.filter((item) => item.system_id !== system.system_id),
@@ -2750,7 +2778,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       const target = event.target;
       const inSystemDrill = target?.closest?.(".map-system-drill");
       const inMapHud = target?.closest?.(
-        ".map-hud-top, .map-star-search, .map-context-menu, .map-controls-panel, .map-contacts-panel, .map-status-panel, .map-return-banner"
+        ".map-hud-top, .map-star-search, .map-context-menu, .map-controls-panel, .map-status-panel, .map-return-banner, .map-minimal-toggle"
       );
       if (inSystemDrill || inMapHud) {
         return;
@@ -3131,8 +3159,23 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      const key = String(event.key || "").toLowerCase();
+      if (key === "m" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const target = event.target;
+        const editing = target?.closest?.("input, textarea, select, [contenteditable='true']");
+        if (!editing) {
+          event.preventDefault();
+          toggleMinimalMode();
+          return;
+        }
+      }
       if (event.key === "Escape") {
         if (document.fullscreenElement) {
+          return;
+        }
+        if (minimalMode) {
+          event.preventDefault();
+          exitMinimalMode();
           return;
         }
         setRouteMenu(null);
@@ -3152,13 +3195,14 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [closeMapSearch, closeMapSearchResults, drillMode, exitDrillMode, location.pathname, mapSearchOpen, mapSearchResultsOpen]);
+  }, [closeMapSearch, closeMapSearchResults, drillMode, exitDrillMode, exitMinimalMode, location.pathname, mapSearchOpen, mapSearchResultsOpen, minimalMode, toggleMinimalMode]);
 
   return (
     <div
-      className={`map-page ${telemetry.locked ? "reticle-active" : ""} ${mapSearchOpen ? "map-search-active" : ""} map-drill-${drillMode}`}
+      className={`map-page ${telemetry.locked ? "reticle-active" : ""} ${mapSearchOpen ? "map-search-active" : ""} ${minimalMode ? "map-minimal-mode" : ""} map-drill-${drillMode}`}
       ref={pageRef}
       data-map-drill-mode={drillMode}
+      data-map-minimal-mode={minimalMode ? "true" : "false"}
     >
       <div className="map-background-grid" aria-hidden="true" />
       {systems.length > 0 && (
@@ -3198,6 +3242,23 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
       )}
 
       <div className="map-reticle" aria-hidden="true" />
+
+      <button
+        type="button"
+        className="map-minimal-toggle"
+        data-testid="map-minimal-toggle"
+        aria-pressed={minimalMode}
+        onClick={toggleMinimalMode}
+        title={minimalMode ? "Restore map interface (M or Esc)" : "Minimal map interface (M)"}
+      >
+        {minimalMode ? "UI" : "MIN"}
+      </button>
+
+      {minimalNotice && (
+        <div className="map-minimal-notice" role="status" aria-live="polite">
+          Minimal mode. Press M or Esc to restore the interface.
+        </div>
+      )}
 
       <header className="map-hud map-hud-top">
         <div className="map-title-block">
@@ -3249,6 +3310,14 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             onClick={toggleMapSearch}
           >
             Search
+          </button>
+          <button
+            type="button"
+            className="map-hud-button"
+            onClick={enterMinimalMode}
+            title="Minimal map interface (M)"
+          >
+            MIN
           </button>
           {selectedSystem?.system_id && (
             <button
@@ -3506,58 +3575,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         )}
       </aside>
 
-      <aside className="map-hud map-contacts-panel">
-        <details className="map-tray-section" open>
-          <summary>
-            <span className="map-panel-label">Selection History</span>
-          </summary>
-          <div className="map-history-list">
-            {selectionHistory.map((system) => (
-              <div
-                key={system.system_id}
-                role="button"
-                tabIndex={0}
-                className={`map-history-pill ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
-                onClick={() => selectSystem(system, { openPeek: true })}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    selectSystem(system, { openPeek: true });
-                  }
-                }}
-              >
-                <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} />
-                <span>{formatNumber(system.dist_ly, 1)} ly</span>
-                <span>{system.dominant_spectral_class}</span>
-                <span>{formatNumber(system.planet_count, 0)}p</span>
-              </div>
-            ))}
-          </div>
-        </details>
-        {selectedSystem && (
-          <details className="map-tray-section" open>
-            <summary>
-              <span className="map-panel-label">Cool Stars Nearby</span>
-            </summary>
-            <div className="map-neighbor-list" aria-label="Suggested nearby systems">
-              {suggestedNeighbors.slice(0, 8).map(({ system, routeDistance }) => (
-                <button
-                  type="button"
-                  key={system.system_id}
-                  className={`map-history-pill map-neighbor-chip ${selectedSystem?.system_id === system.system_id ? "active" : ""}`}
-                  onClick={() => selectSystem(system, { openPeek: true, focus: drillMode === "explore" })}
-                >
-                  <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} />
-                  <span>{formatNumber(routeDistance, 1)} ly</span>
-                  <span>{system.dominant_spectral_class}</span>
-                  <span>{formatNumber(system.planet_count, 0)}p</span>
-                </button>
-              ))}
-            </div>
-          </details>
-        )}
-      </aside>
-
       {routeMenu?.target && (
         <div
           className="map-context-menu"
@@ -3638,11 +3655,25 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                   if (drillMode === "peek") {
                     setDrillMode("explore");
                     setFocusToken((value) => value + 1);
+                  } else {
+                    openSystemDetail(selectedSystem);
                   }
                 }}
               >
                 <span>System:</span>
                 <SystemNameDisplay system={selectedSystem} showCopyButton={false} showInfoButton={false} />
+                {drillStellarClassEntries.length > 0 && (
+                  <span className="map-title-stellar-classes" aria-label="Rendered stellar classes">
+                    {drillStellarClassEntries.map((entry, index) => (
+                      <StellarClassChips
+                        key={`${entry.key || entry.name || "star"}:${index}`}
+                        tokens={entry.tokens}
+                        size="compact"
+                        className="map-title-stellar-class"
+                      />
+                    ))}
+                  </span>
+                )}
               </button>
             </div>
             <div className="map-system-drill-actions">
@@ -3661,15 +3692,25 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               <button type="button" className="map-command-button ghost" onClick={() => openSystemDetail(selectedSystem)}>
                 Detail
               </button>
-              <button type="button" className="map-command-button ghost" onClick={() => exitDrillMode()}>
-                {drillMode === "peek" ? "Close" : "Back to Map"}
-              </button>
+              {drillMode === "explore" ? (
+                <>
+                  <button type="button" className="map-command-button ghost" onClick={backToPeekFromExplore}>
+                    Back
+                  </button>
+                  <button type="button" className="map-command-button ghost map-system-drill-close" onClick={() => exitDrillMode()}>
+                    ×
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="map-command-button ghost" onClick={() => exitDrillMode()}>
+                  Close
+                </button>
+              )}
             </div>
           </div>
           <div className="map-system-drill-body">
             <div className="map-system-vital-strip" aria-label={`${formatName(selectedSystem.display_name)} map vitals`}>
               <span>{formatNumber(selectedSystem.dist_ly, 2)} ly</span>
-              <span>{selectedSystem.dominant_spectral_class}</span>
               <span>{formatNumber(selectedSystem.star_count, 0)} stars</span>
               <span>{formatNumber(selectedSystem.planet_count, 0)} planets</span>
               <span>cool {formatNumber(selectedSystem.coolness_score, 1)}</span>
@@ -3683,6 +3724,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 presentationMode={drillMode}
                 qualityTier={runtimeQuality.tier}
                 onRuntimeEvent={handleRuntimeEvent}
+                onStellarClassEntries={setDrillStellarClassEntries}
               />
             </React.Suspense>
           </div>

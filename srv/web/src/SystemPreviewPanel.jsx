@@ -3863,7 +3863,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4003,6 +4003,31 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
   const orientation = orientationSummary(scene);
   const objectItems = useMemo(() => simulationObjectList(scene), [scene]);
+  const stellarClassEntries = useMemo(() => {
+    const stars = Array.isArray(renderBodies.stars) ? renderBodies.stars : [];
+    return stars
+      .map((star) => ({
+        key: star.render_key || star.stable_object_key || star.key || star.display_name || star.name,
+        name: star.display_name || star.name || "Star",
+        massMsun: numericField(star.fields, "mass_msun"),
+        tokens: stellarClassTokensFromRecord(star),
+      }))
+      .filter((entry) => entry.tokens?.length)
+      .sort((left, right) => {
+        const leftMass = Number(left.massMsun);
+        const rightMass = Number(right.massMsun);
+        if (Number.isFinite(leftMass) && Number.isFinite(rightMass)) {
+          return rightMass - leftMass;
+        }
+        if (Number.isFinite(leftMass)) return -1;
+        if (Number.isFinite(rightMass)) return 1;
+        return String(left.name).localeCompare(String(right.name));
+      });
+  }, [renderBodies.stars]);
+
+  useEffect(() => {
+    onStellarClassEntries?.(stellarClassEntries);
+  }, [onStellarClassEntries, stellarClassEntries]);
 
   const normalizedPresentationMode = ["detail", "peek", "explore", "card"].includes(presentationMode) ? presentationMode : "detail";
   const compactPresentation = normalizedPresentationMode === "peek" || normalizedPresentationMode === "card";

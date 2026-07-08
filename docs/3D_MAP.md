@@ -190,10 +190,17 @@ Initial layers:
   - clicking a route segment, or its recent leg row in the Flight panel,
     removes that leg and every later leg so detached route fragments are not
     orphaned
-- HUD panels for selection, controls, status, and priority contacts
+- HUD panels for search/filter controls, route tools, map status, and
+  drill-in controls. The former always-visible Selection History/Cool Stars
+  Nearby tray has been removed from the free-flight map surface; Recents and
+  Cool Stars Nearby now live inside the Search sidebar so they can be shown or
+  hidden together.
 - compact beta HUD:
   - dense header instrument strip with system/planet-host/multiple counts
-  - selection history pills instead of wide priority-contact cards
+  - header `Search` toggle controls the search/filter/recents sidebar
+  - header `MIN` action, plus keyboard `M`, enters minimal mode by hiding all
+    HUD/text overlays except the restore button; `M` or `Esc` restores the
+    previous interface state
   - selected-system title link to public detail
   - long-ID metadata popovers and copy controls
   - route summary with recent leg list, total distance, undo, and clear
@@ -205,7 +212,8 @@ Initial layers:
   - `Explore` promotes the same selected system to the focus path, flies the map
     camera toward that system, and expands the System Simulation into the main
     inspection layer
-  - `Esc`, browser Back, or `Back to Map` returns from Explorer to flight; the
+  - `Back` returns from Explorer to Peek; the Explorer `X`, `Esc`, browser
+    Back, or clicking off the drill-in closes back to free-flight space. The
     current implementation keeps the star map and system simulation as
     coordinated layers rather than one continuous LY-to-AU canvas
   - Peek uses a compact `Close` action because it is an inspection overlay
@@ -217,8 +225,8 @@ Initial layers:
     simulation canvas, replacing the former selected-system card entirely while
     preserving distance, class, star/planet counts, coolness, rank, and
     key discovery stats
-  - selection history and `Cool Stars Nearby` suggestions share the same
-    left-side tray as collapsible sections, expanded by default, with both
+  - selection history and `Cool Stars Nearby` suggestions are integrated into
+    the Search sidebar as collapsible sections, expanded by default, with both
     lists capped at eight compact pills
   - the map drill-in presentation keeps Pause/Start and Reset as transparent
     simulator overlays, restores the Structured/Orbit/Body/Log scale selector,

@@ -7,6 +7,18 @@ async function openMap(page) {
   await page.waitForTimeout(1200);
 }
 
+async function openMapPeekFromRecents(page) {
+  const searchToggle = page.locator("[data-testid='map-search-toggle']");
+  if (await searchToggle.getAttribute("aria-pressed") !== "true") {
+    await searchToggle.click();
+  }
+  await page.locator(".map-search-recents").first().locator(".map-search-recent-pill").first().click();
+  if (await searchToggle.getAttribute("aria-pressed") === "true") {
+    await searchToggle.click();
+  }
+  await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
+}
+
 async function canvasBox(page) {
   const box = await page.locator(".map-canvas canvas").boundingBox();
   expect(box, "map canvas box").toBeTruthy();
@@ -99,6 +111,19 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
     await expect(page.locator(".map-search-habitable")).toBeVisible();
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
+    const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
+    await expect(minimalToggle).toHaveText("MIN");
+    await minimalToggle.click();
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "true");
+    await expect(page.locator(".map-hud-top")).toBeHidden();
+    await expect(page.locator(".map-minimal-notice")).toContainText(/Minimal mode/i);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "false");
+    await expect(page.locator(".map-hud-top")).toBeVisible();
+    await page.keyboard.press("m");
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "true");
+    await page.keyboard.press("m");
+    await expect(page.locator(".map-page")).toHaveAttribute("data-map-minimal-mode", "false");
     await expect(searchToggle).toHaveAttribute("aria-pressed", "true");
     await searchToggle.click();
     await expect(page.locator(".map-star-search")).toBeHidden();
@@ -407,12 +432,12 @@ test.describe("public 3D map beta", () => {
   test("system detail return restores map camera and selection", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop detail return flow");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
     const drill = page.locator("[data-testid='map-system-drill']");
     await expect(drill).toBeVisible();
     await drill.getByRole("button", { name: /^Explore$/i }).click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
-    const selectedTitle = await drill.locator(".map-system-drill-title").innerText();
+    const selectedTitle = await drill.locator(".map-system-drill-title .map-name-wrap").innerText();
     const canvas = page.locator(".map-canvas canvas");
     await page.waitForTimeout(1100);
     const cameraBeforeDetail = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
@@ -427,7 +452,7 @@ test.describe("public 3D map beta", () => {
     const restoredDrill = page.locator("[data-testid='map-system-drill']");
     await expect(restoredDrill).toBeVisible();
     await expect(restoredDrill).toHaveAttribute("data-drill-mode", "explore");
-    await expect(restoredDrill.locator(".map-system-drill-title")).toContainText(selectedTitle.replace(/\s+/g, " ").trim().replace(/^System:\s*/i, ""));
+    await expect(restoredDrill.locator(".map-system-drill-title .map-name-wrap")).toContainText(selectedTitle.replace(/\s+/g, " ").trim());
     await expect.poll(
       async () => cameraDistance(
         cameraBeforeDetail,
@@ -597,13 +622,12 @@ test.describe("public 3D map beta", () => {
     await expect(contextMenu.getByRole("button", { name: /^Select$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Explore$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Measure$/i })).toBeVisible();
-    const selectedBeforeMeasure = await page.locator(".map-history-pill.active").first().textContent();
     await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
 
     await expect(page.locator(".map-route-summary")).toContainText(/1 legs/i);
     await expect(page.locator(".map-route-summary")).toContainText(/total/i);
     await expect(page.locator(".map-route-leg-list li")).toHaveCount(1);
-    await expect(page.locator(".map-history-pill.active").first()).toHaveText(selectedBeforeMeasure);
+    await expect(page.locator("[data-testid='map-system-drill']")).toHaveCount(0);
 
     await page.getByRole("button", { name: /undo/i }).click();
     await expect(page.locator(".map-route-summary")).toHaveCount(0);
@@ -635,9 +659,8 @@ test.describe("public 3D map beta", () => {
   test("map selection opens System Simulation peek and explore drill-in", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop drill-in smoke uses hover/canvas layout");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
-    await expect(page.locator(".map-contacts-panel .map-name-info")).toHaveCount(0);
-    await expect(page.locator(".map-contacts-panel .map-name-copy")).toHaveCount(0);
+    await expect(page.locator(".map-contacts-panel")).toHaveCount(0);
+    await openMapPeekFromRecents(page);
 
     const drill = page.locator("[data-testid='map-system-drill']");
     await expect(drill).toBeVisible();
@@ -652,6 +675,7 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
+    await expect(drill.locator(".map-title-stellar-classes .stellar-class-chip").first()).toBeVisible();
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     const resizeHandle = drill.locator(".map-system-drill-resize");
     await expect(resizeHandle).toBeVisible();
@@ -676,7 +700,7 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThan(Math.round(beforeResize.height) + 20);
     const storedPeekSize = await page.evaluate(() => window.sessionStorage.getItem("spacegate.map.peekSize") || "");
     expect(storedPeekSize).toContain("width");
-    await expect(page.locator(".map-contacts-panel").getByText("Cool Stars Nearby")).toBeVisible();
+    await expect(page.locator(".map-contacts-panel")).toHaveCount(0);
     await expect(page.getByText("Next Nearby")).toHaveCount(0);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
@@ -697,7 +721,7 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe("flight");
 
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
     await expect(drill).toBeVisible();
     await drill.locator(".map-system-drill-title").click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
@@ -725,6 +749,8 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
     ).toBe("explore");
+    await expect(drill.getByRole("button", { name: /^Back$/i })).toBeVisible();
+    await expect(drill.getByRole("button", { name: "×" })).toBeVisible();
 
     const fullButton = page.locator(".map-fullscreen-command");
     await expect(fullButton).toBeVisible();
@@ -774,11 +800,13 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe("flight");
 
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
     await expect(drill).toBeVisible();
     await drill.getByRole("button", { name: /^Explore$/i }).click();
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
-    await drill.getByRole("button", { name: /Back to Map/i }).click();
+    await drill.getByRole("button", { name: /^Back$/i }).click();
+    await expect(drill).toHaveAttribute("data-drill-mode", "peek");
+    await drill.getByRole("button", { name: /^Close$/i }).click();
     await expect(drill).toHaveCount(0);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
@@ -789,7 +817,7 @@ test.describe("public 3D map beta", () => {
   test("map embedded simulator menus remain clickable across transparent themes", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop menu click regression uses native select controls");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
 
     const drill = page.locator("[data-testid='map-system-drill']");
     const menu = page.locator(".map-header-menu");
@@ -830,7 +858,7 @@ test.describe("public 3D map beta", () => {
   test("geocities map theme uses 90s web chrome", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
 
     const menu = page.locator(".map-header-menu");
     await menu.locator("summary").click();
@@ -843,13 +871,10 @@ test.describe("public 3D map beta", () => {
       const title = document.querySelector(".map-title-block h1");
       const drillTitleGroup = document.querySelector(".map-system-drill-title-group");
       const drillActions = document.querySelector(".map-system-drill-actions");
-      const contacts = document.querySelector(".map-contacts-panel");
       const headerStyle = window.getComputedStyle(header);
       const headerTitleStyle = window.getComputedStyle(header, "::before");
       const drillTitleStyle = window.getComputedStyle(drill, "::before");
       const titleStyle = window.getComputedStyle(title);
-      const headerRect = header.getBoundingClientRect();
-      const contactsRect = contacts.getBoundingClientRect();
       const titleRect = drillTitleGroup.getBoundingClientRect();
       const actionsRect = drillActions.getBoundingClientRect();
       return {
@@ -859,8 +884,7 @@ test.describe("public 3D map beta", () => {
         headerTitleContent: headerTitleStyle.content,
         drillTitleContent: drillTitleStyle.content,
         titleColor: titleStyle.color,
-        contactsTop: contactsRect.top,
-        headerBottom: headerRect.bottom,
+        contactsRemoved: document.querySelector(".map-contacts-panel") === null,
         drillHeaderOverlap: titleRect.right > actionsRect.left && titleRect.left < actionsRect.right
           && titleRect.bottom > actionsRect.top && titleRect.top < actionsRect.bottom,
       };
@@ -871,14 +895,14 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerTitleContent).toContain("COOLSTARS.EXE");
     expect(themeStyles.drillTitleContent).toContain("SYSTEM_SIM.EXE");
     expect(themeStyles.titleColor).toBe("rgb(255, 255, 0)");
-    expect(themeStyles.contactsTop).toBeGreaterThanOrEqual(themeStyles.headerBottom + 6);
+    expect(themeStyles.contactsRemoved).toBe(true);
     expect(themeStyles.drillHeaderOverlap).toBe(false);
   });
 
   test("enterprise map theme uses LCARS block chrome", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
 
     const menu = page.locator(".map-header-menu");
     await menu.locator("summary").click();
@@ -902,7 +926,6 @@ test.describe("public 3D map beta", () => {
       const drillTitle = document.querySelector(".map-system-drill-title");
       const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
       const vitalItems = Array.from(document.querySelectorAll(".map-system-vital-strip > span"));
-      const historyMeta = document.querySelector(".map-contacts-panel .map-history-pill > span:not(.map-name-wrap)");
       const headerStyle = window.getComputedStyle(header);
       const menuPanelStyle = window.getComputedStyle(menuPanel);
       const titleStyle = window.getComputedStyle(title);
@@ -910,7 +933,6 @@ test.describe("public 3D map beta", () => {
       const drillStyle = window.getComputedStyle(drill);
       const drillBarStyle = window.getComputedStyle(drillBar);
       const drillTitleStyle = window.getComputedStyle(drillTitle);
-      const historyMetaStyle = window.getComputedStyle(historyMeta);
       const firstVitalStyle = window.getComputedStyle(vitalItems[0]);
       const secondVitalStyle = window.getComputedStyle(vitalItems[1]);
       const lastVitalStyle = window.getComputedStyle(vitalItems[vitalItems.length - 1]);
@@ -960,7 +982,7 @@ test.describe("public 3D map beta", () => {
         secondActionLeftRadius: secondActionStyle.borderTopLeftRadius,
         lastActionRightRadius: lastActionStyle.borderTopRightRadius,
         actionGap: Math.round(secondActionRect.left - firstActionRect.right),
-        historyMetaColor: historyMetaStyle.color,
+        contactsRemoved: document.querySelector(".map-contacts-panel") === null,
       };
     });
     expect(themeStyles.headerBackground).toBe("rgb(0, 0, 0)");
@@ -991,13 +1013,13 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.secondActionLeftRadius).toBe("0px");
     expect(themeStyles.lastActionRightRadius).not.toBe("0px");
     expect(themeStyles.actionGap).toBeLessThanOrEqual(0);
-    expect(themeStyles.historyMetaColor).toBe("rgb(20, 15, 27)");
+    expect(themeStyles.contactsRemoved).toBe(true);
   });
 
   test("mission control map theme uses Apollo console chrome", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
 
     const menu = page.locator(".map-header-menu");
     await menu.locator("summary").click();
@@ -1020,15 +1042,12 @@ test.describe("public 3D map beta", () => {
       const readout = document.querySelector(".map-header-readout span");
       const drill = document.querySelector("[data-testid='map-system-drill']");
       const previewCanvas = document.querySelector("[data-testid='map-system-drill'] .system-preview-canvas");
-      const contacts = document.querySelector(".map-contacts-panel");
       const headerStyle = window.getComputedStyle(header);
       const titleStyle = window.getComputedStyle(title);
       const buttonStyle = window.getComputedStyle(primaryButton);
       const readoutStyle = window.getComputedStyle(readout);
       const drillStyle = window.getComputedStyle(drill);
       const previewStyle = window.getComputedStyle(previewCanvas);
-      const headerRect = header.getBoundingClientRect();
-      const contactsRect = contacts.getBoundingClientRect();
       const canvas = document.querySelector(".map-canvas canvas");
       return {
         headerStripContent: headerStrip.content,
@@ -1045,7 +1064,7 @@ test.describe("public 3D map beta", () => {
         readoutBackground: readoutStyle.backgroundImage,
         drillRadius: drillStyle.borderTopLeftRadius,
         previewBackground: previewStyle.backgroundImage,
-        contactsBelowHeader: contactsRect.top > headerRect.bottom,
+        contactsRemoved: document.querySelector(".map-contacts-panel") === null,
         labelStrategy: canvas?.dataset.mapLabelStrategy,
         localLabelCount: Number(canvas?.dataset.mapLocalLabelCount || 0),
       };
@@ -1066,7 +1085,7 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.readoutBackground).toContain("repeating-linear-gradient");
     expect(themeStyles.drillRadius).toBe("3px");
     expect(themeStyles.previewBackground).toContain("repeating-linear-gradient");
-    expect(themeStyles.contactsBelowHeader).toBeTruthy();
+    expect(themeStyles.contactsRemoved).toBe(true);
     expect(themeStyles.labelStrategy).toBe("camera_near_10ly_nearest_plus_coolness");
     expect(themeStyles.localLabelCount).toBeGreaterThan(0);
   });
@@ -1074,7 +1093,7 @@ test.describe("public 3D map beta", () => {
   test("cyberpunk map theme uses neon explorer chrome", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop theme chrome check");
     await openMap(page);
-    await page.locator(".map-history-pill").first().click();
+    await openMapPeekFromRecents(page);
 
     const menu = page.locator(".map-header-menu");
     await menu.locator("summary").click();
@@ -1121,7 +1140,7 @@ test.describe("public 3D map beta", () => {
     test.skip(!testInfo.project.name.includes("mobile"), "mobile-only layout check");
     await openMap(page);
     await expect(page.locator(".map-fullscreen-command")).toBeVisible();
-    await expect(page.locator(".map-contacts-panel")).toBeHidden();
+    await expect(page.locator(".map-contacts-panel")).toHaveCount(0);
     await expect(page.locator(".map-mobile-flight-button")).toHaveCount(6);
     await expect(page.locator("[data-testid='map-mobile-flight-forward']")).toBeVisible();
     const searchToggle = page.locator("[data-testid='map-search-toggle']");

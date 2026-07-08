@@ -1030,6 +1030,57 @@
   color: var(--map-hud-muted);
 }
 
+.map-minimal-toggle {
+  position: absolute;
+  z-index: 95;
+  right: 14px;
+  top: 14px;
+  min-width: 44px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--map-hud-bg) 58%, transparent);
+  color: var(--map-hud-strong);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.map-minimal-toggle:hover,
+.map-minimal-toggle:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.map-minimal-notice {
+  position: absolute;
+  z-index: 94;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 54%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--map-hud-bg) 62%, transparent);
+  color: var(--map-hud-strong);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-align: center;
+  text-transform: uppercase;
+  backdrop-filter: blur(7px);
+  pointer-events: none;
+}
+
+.map-minimal-mode :is(.map-hud, .map-star-search, .map-system-drill, .map-reticle, .map-world-label, .map-mobile-flight-pad, .map-desktop-hint, .map-touch-hint, .map-route-summary, .map-context-menu, .map-fps-overlay, .map-context-recovery) {
+  display: none !important;
+}
+
 .map-page select option {
   color: var(--map-select-ink);
   background: var(--map-select-bg);
@@ -1287,6 +1338,25 @@
   pointer-events: auto;
   text-align: left;
   cursor: pointer;
+}
+
+.map-title-stellar-classes {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-left: 5px;
+}
+
+.map-system-drill-title .stellar-class-chip {
+  pointer-events: auto;
+}
+
+.map-system-drill-close {
+  min-width: 32px;
+  width: 32px;
+  padding-inline: 0;
+  font-size: 1rem;
 }
 
 .map-system-drill-title .map-name-wrap {
@@ -1776,7 +1846,7 @@
 
 :root[data-theme="lcars"] .map-header-menu-panel {
   z-index: 90;
-  top: calc(100% + 24px);
+  top: calc(100% + 30px);
   overflow: visible;
   border-radius: 24px 0 0 24px;
 }
@@ -7270,6 +7340,8 @@ main {
   border-color: color-mix(in srgb, var(--map-hud-border) 42%, transparent);
   background: color-mix(in srgb, var(--panel) 74%, #02070d 10%);
   backdrop-filter: blur(10px);
+  width: max-content;
+  min-width: 0;
 }
 
 .map-system-drill .system-preview-actions .status-chip {
@@ -7484,7 +7556,9 @@ main {
   grid-template-columns: repeat(2, max-content);
   justify-content: end;
   gap: 6px;
-  min-width: min(236px, calc(100vw - 24px));
+  width: max-content;
+  min-width: 0;
+  max-width: calc(100vw - 24px);
   padding: 8px;
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   border-radius: 10px;

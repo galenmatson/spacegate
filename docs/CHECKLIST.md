@@ -548,6 +548,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add the Coolstars/Spacegate mark to the map title, narrow the
   Selection History tray, and replace the selected-system center circle with a
   tilted orbiting-planet accent
+- [x] Remove the always-visible Selection History/Cool Stars Nearby tray from
+  the free-flight 3D map; Recents/Nearby now live only inside the Search
+  sidebar so the map can be all-on or all-off
+- [x] Add Star Map minimal mode via header `MIN`, keyboard `M`, and `Esc`
+  restore, hiding HUD/text overlays while leaving a small restore control
+- [x] Move rendered stellar-class pills into the Peek/Explorer title row using
+  mass-sorted simulator star entries, with Explorer title click opening the
+  system page
+- [x] Change Explorer `Back` to return to Peek and add a simple `X` action to
+  close back to free-flight space
 - [x] Keep the Star Map burger menu above Peek/Explore and prevent right-drag
   truck context-menu suppression from closing Explore
 - [x] Retune the Star Map/System Explorer Geocities theme toward stereotypical
