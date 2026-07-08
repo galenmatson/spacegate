@@ -201,9 +201,16 @@ test.describe("public 3D map beta", () => {
 
   test("standalone Star Search v2 uses bounded simulation previews", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop catalog search preview check");
+    await page.addInitScript(() => {
+      window.localStorage.setItem("spacegate.theme", "lcars");
+    });
     await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("lcars");
     await expect(page.locator(".catalog-search-topbar")).toBeVisible();
     await expect(page.locator(".catalog-search-sidebar")).toBeVisible();
+    await expect.poll(() => page.locator(".catalog-search-sidebar").evaluate((node) => (
+      Math.ceil(node.scrollWidth - node.clientWidth)
+    ))).toBeLessThanOrEqual(1);
     await expect(page.locator(".results-toolbar")).toBeVisible();
     await expect(page.locator(".results-toolbar-head")).toContainText("Star Search");
     const sortSelect = page.locator(".results-search-options select").first();

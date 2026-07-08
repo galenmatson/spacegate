@@ -4430,6 +4430,51 @@ select:focus-visible {
   grid-column: 1 / -1;
 }
 
+:root[data-theme="lcars"] .catalog-search-shell {
+  grid-template-columns: minmax(174px, 190px) minmax(0, 1fr);
+}
+
+:root[data-theme="lcars"] .catalog-search-sidebar {
+  overflow-x: hidden;
+  padding: 8px;
+}
+
+:root[data-theme="lcars"] .catalog-search-sidebar .filters-body {
+  gap: 6px;
+}
+
+:root[data-theme="lcars"] .catalog-search-presets {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+:root[data-theme="lcars"] .catalog-search-presets .map-command-button,
+:root[data-theme="lcars"] .catalog-search-sidebar .filter-collapse-btn,
+:root[data-theme="lcars"] .catalog-search-sidebar .map-search-habitable,
+:root[data-theme="lcars"] .catalog-search-sidebar .map-search-reset {
+  min-height: 28px;
+  padding: 5px 7px;
+  font-size: 0.6rem;
+  line-height: 1.1;
+  white-space: normal;
+}
+
+:root[data-theme="lcars"] .catalog-search-sidebar .map-search-range {
+  gap: 4px;
+  font-size: 0.58rem;
+}
+
+:root[data-theme="lcars"] .catalog-search-sidebar .map-search-range-head {
+  align-items: flex-start;
+  gap: 4px;
+}
+
+:root[data-theme="lcars"] .catalog-search-sidebar .map-search-range-head strong {
+  font-size: 0.56rem;
+  white-space: normal;
+  text-align: right;
+}
+
 :root[data-theme="lcars"] .panel,
 :root[data-theme="lcars"] .result-card,
 :root[data-theme="lcars"] .quick-facts,
@@ -5549,6 +5594,7 @@ main {
 
 .catalog-search-shell .map-search-sidebar {
   padding: 10px;
+  overflow-x: hidden;
 }
 
 .catalog-search-shell .filters-body {
@@ -5571,6 +5617,15 @@ main {
   min-height: 30px;
   padding: 6px 8px;
   font-size: 0.66rem;
+}
+
+.catalog-search-sidebar > *,
+.catalog-search-sidebar .filters-body > *,
+.catalog-search-sidebar .map-search-range,
+.catalog-search-sidebar .map-search-habitable,
+.catalog-search-sidebar .map-command-button {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .catalog-search-topbar {
