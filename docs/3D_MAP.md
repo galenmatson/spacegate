@@ -187,6 +187,9 @@ Initial layers:
   - not persisted and not a Rim/worldbuilding route record
   - measuring a route leg does not change selected system or focus the camera,
     so users can keep scanning the same local field while laying out paths
+  - right-click `Neighbors` draws ephemeral measurement spokes from the
+    currently selected system to every loaded neighbor within 10 ly and labels
+    those spokes with neighbor name and distance
   - clicking a route segment, or its recent leg row in the Flight panel,
     removes that leg and every later leg so detached route fragments are not
     orphaned

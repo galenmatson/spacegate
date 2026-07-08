@@ -684,6 +684,56 @@ function CompactRangeControl({
   );
 }
 
+function MapStyleRangeControl({
+  label,
+  minValue,
+  maxValue,
+  minLimit,
+  maxLimit,
+  step = 1,
+  integer = false,
+  format = (value) => formatNumber(value, integer ? 0 : 1),
+  onChangeMin,
+  onChangeMax,
+}) {
+  const safeMinLimit = Number.isFinite(Number(minLimit)) ? Number(minLimit) : 0;
+  const safeMaxLimit = Math.max(safeMinLimit + Number(step || 1), Number.isFinite(Number(maxLimit)) ? Number(maxLimit) : safeMinLimit + 1);
+  const valueMin = clampNumber(Math.min(Number(minValue), Number(maxValue)), safeMinLimit, safeMaxLimit);
+  const valueMax = clampNumber(Math.max(Number(minValue), Number(maxValue)), safeMinLimit, safeMaxLimit);
+  const span = safeMaxLimit - safeMinLimit || 1;
+  const leftPct = ((valueMin - safeMinLimit) / span) * 100;
+  const rightPct = 100 - ((valueMax - safeMinLimit) / span) * 100;
+  const normalize = (value) => (integer ? Math.round(Number(value)) : Number(value));
+  return (
+    <div className="map-search-range">
+      <div className="map-search-range-head">
+        <span>{label}</span>
+        <strong>{format(valueMin)} - {format(valueMax)}</strong>
+      </div>
+      <div className="map-search-range-track" style={{ "--range-left": `${leftPct}%`, "--range-right": `${rightPct}%` }}>
+        <input
+          type="range"
+          min={safeMinLimit}
+          max={safeMaxLimit}
+          step={step}
+          value={valueMin}
+          onChange={(event) => onChangeMin(normalize(clampNumber(Number(event.target.value), safeMinLimit, valueMax)))}
+          aria-label={`${label} minimum`}
+        />
+        <input
+          type="range"
+          min={safeMinLimit}
+          max={safeMaxLimit}
+          step={step}
+          value={valueMax}
+          onChange={(event) => onChangeMax(normalize(clampNumber(Number(event.target.value), valueMin, safeMaxLimit)))}
+          aria-label={`${label} maximum`}
+        />
+      </div>
+    </div>
+  );
+}
+
 function formatNumber(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "Unknown";
@@ -2962,65 +3012,29 @@ function SearchPage({ buildId = "" }) {
     "search-layout",
     filtersCollapsedY ? "filters-collapsed-y" : "",
   ].filter(Boolean).join(" ");
-  const headerSearchBar = (
-    <HeaderSearchBar
-      query={query}
-      setQuery={setQuery}
-      onSubmit={onSubmit}
-      onClear={resetFilters}
-      loading={loading}
-      autoFocus
-    />
-  );
-
   return (
-    <Layout showSearchLink={false} buildId={buildId} headerExtra={headerSearchBar}>
-      <section className={searchLayoutClassName}>
+    <Layout showSearchLink={false} buildId={buildId}>
+      <section className={`${searchLayoutClassName} catalog-search-shell`}>
         <div className="filters-stack">
           <form
             className={[
-              "panel",
-              "filters-panel",
+              "map-search-sidebar",
+              "catalog-search-sidebar",
               filtersCollapsedY ? "filters-panel-collapsed-y" : "",
             ].filter(Boolean).join(" ")}
             onSubmit={onSubmit}
           >
-            <div className="filters-head">
-              <h3>Filters</h3>
-              <div className="filters-head-actions">
-                {filtersCollapsedY && (
-                  <div className="filters-head-presets">
-                    {FILTER_PRESETS.map((preset) => (
-                      <button
-                        key={`head-${preset.id}`}
-                        type="button"
-                        className="button ghost preset-button preset-button-inline"
-                        onClick={() => applyPreset(preset)}
-                        disabled={loading}
-                      >
-                        {presetLabelForTheme(preset, theme)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className={`button ghost compact filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
-                  onClick={() => setFiltersCollapsedY((prev) => !prev)}
-                  aria-pressed={filtersCollapsedY}
-                  title={filtersCollapsedY ? "Expand filter height" : "Collapse filters from bottom to top"}
-                >
-                  {filtersCollapsedY ? "Expand" : "Collapse"}
-                </button>
-              </div>
+            <div className="map-search-sidebar-head">
+              <span className="map-panel-label">Filters</span>
+              <strong>{totalCount !== null ? formatHumanLargeCount(totalCount) : `${formatNumber(results.length, 0)} loaded`}</strong>
             </div>
             <div className={`filters-body ${filtersBodyCollapsed ? "is-collapsed" : ""}`}>
-              <div className="preset-row">
+              <div className="catalog-search-presets">
                 {FILTER_PRESETS.map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
-                    className="button ghost preset-button"
+                    className="map-command-button ghost"
                     onClick={() => applyPreset(preset)}
                     disabled={loading}
                   >
@@ -3029,21 +3043,21 @@ function SearchPage({ buildId = "" }) {
                 ))}
               </div>
 
-              <CompactRangeControl
-                label="Distance Range"
-                unit="ly"
+              <MapStyleRangeControl
+                label="Distance"
                 minValue={minDist}
                 maxValue={maxDist}
                 minLimit={filterLimits.distance.min}
                 maxLimit={filterLimits.distance.max}
                 step={filterLimits.distance.step}
                 integer={filterLimits.distance.integer}
+                format={(value) => `${formatNumber(value, 0)} ly`}
                 onChangeMin={setMinDist}
                 onChangeMax={setMaxDist}
               />
 
-              <CompactRangeControl
-                label="Star Count"
+              <MapStyleRangeControl
+                label="Stars"
                 minValue={minStarCount}
                 maxValue={maxStarCount}
                 minLimit={filterLimits.stars.min}
@@ -3054,8 +3068,8 @@ function SearchPage({ buildId = "" }) {
                 onChangeMax={setMaxStarCount}
               />
 
-              <CompactRangeControl
-                label="Planet Count"
+              <MapStyleRangeControl
+                label="Planets"
                 minValue={minPlanetCount}
                 maxValue={maxPlanetCount}
                 minLimit={filterLimits.planets.min}
@@ -3066,8 +3080,8 @@ function SearchPage({ buildId = "" }) {
                 onChangeMax={setMaxPlanetCount}
               />
 
-              <CompactRangeControl
-                label="Coolness Score"
+              <MapStyleRangeControl
+                label="Coolness"
                 minValue={minCoolnessScore}
                 maxValue={maxCoolnessScore}
                 minLimit={filterLimits.coolness.min}
@@ -3078,11 +3092,18 @@ function SearchPage({ buildId = "" }) {
                 onChangeMax={setMaxCoolnessScore}
               />
 
-              <TriStateToggle
-                label="Habitable candidates"
-                value={hasHabitableMode}
-                onChange={setHasHabitableMode}
-              />
+              <button
+                type="button"
+                className={`map-search-habitable ${hasHabitableMode === "true" ? "active" : ""}`}
+                onClick={() => setHasHabitableMode((current) => (current === "true" ? "" : "true"))}
+                aria-pressed={hasHabitableMode === "true"}
+                title="Filters to systems with a planet candidate in the broad habitable-zone temperature and mass range."
+              >
+                Habitable-zone planets
+              </button>
+              <button type="button" className="map-command-button ghost map-search-reset" onClick={resetFilters}>
+                Reset filters
+              </button>
 
               {error && (
                 <div className="error-box">
@@ -3099,16 +3120,15 @@ function SearchPage({ buildId = "" }) {
               )}
             </div>
 
-            <div className="filters-footer">
-              <a
-                href="https://thelcars.com"
-                className="filters-footer-link"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                LCARS interface
-              </a>
-            </div>
+            <button
+              type="button"
+              className={`map-command-button ghost filter-collapse-btn ${filtersCollapsedY ? "active" : ""}`.trim()}
+              onClick={() => setFiltersCollapsedY((prev) => !prev)}
+              aria-pressed={filtersCollapsedY}
+              title={filtersCollapsedY ? "Expand filters" : "Collapse filters"}
+            >
+              {filtersCollapsedY ? "Expand" : "Collapse"}
+            </button>
           </form>
 
           <SidebarSpectralMixCard
@@ -3120,32 +3140,42 @@ function SearchPage({ buildId = "" }) {
         </div>
 
         <section className="results">
-          <div className="results-toolbar panel">
-            <div className="results-toolbar-head">
-              <h3>Star Search</h3>
-            </div>
-
-            <div className="results-spectral-row">
-              <span className="results-spectral-label">Spectral</span>
-              <div className="results-spectral-chips">
-                {spectralOptions.map((option) => {
-                  const inRange = eligibleSpectralSet.has(option);
-                  const active = effectiveSpectralSet.has(option);
-                  const explicitlyIncluded = explicitIncludeOutsideRangeSet.has(option);
-                  const explicitlyExcluded = inRange && spectralExcludeSet.has(option);
-                  const overrideHint = explicitlyIncluded
-                    ? "Explicit include override"
-                    : explicitlyExcluded
-                      ? "Explicit exclude override"
-                      : inRange
-                        ? "Included by temperature range"
-                        : "Excluded by temperature range";
-                  return (
+          <form className="map-search-topbar catalog-search-topbar" onSubmit={onSubmit}>
+            <label className="map-search-main">
+              <span className="sr-only">Search systems</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search stars, systems, or catalog IDs..."
+                data-global-search-input="true"
+                autoFocus
+              />
+            </label>
+            <button type="submit" className="map-command-button primary" disabled={loading}>
+              {loading ? "Searching" : "Search"}
+            </button>
+            <button type="button" className="map-command-button ghost" onClick={resetFilters}>
+              Clear
+            </button>
+            <div className="map-search-spectral-bar" role="group" aria-label="Spectral class filter">
+              {spectralOptions.map((option) => {
+                const inRange = eligibleSpectralSet.has(option);
+                const active = effectiveSpectralSet.has(option);
+                const explicitlyIncluded = explicitIncludeOutsideRangeSet.has(option);
+                const explicitlyExcluded = inRange && spectralExcludeSet.has(option);
+                const overrideHint = explicitlyIncluded
+                  ? "Explicit include override"
+                  : explicitlyExcluded
+                    ? "Explicit exclude override"
+                    : inRange
+                      ? "Included by temperature range"
+                      : "Excluded by temperature range";
+                return (
                   <button
                     type="button"
                     key={option}
                     className={[
-                      "chip",
+                      "map-search-spectral",
                       "spectral-chip",
                       `spectral-${option.toLowerCase()}`,
                       active ? "active" : "",
@@ -3155,62 +3185,31 @@ function SearchPage({ buildId = "" }) {
                     ].filter(Boolean).join(" ")}
                     onClick={() => toggleSpectral(option)}
                     title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"} · ${overrideHint}`}
+                    aria-pressed={active}
+                    aria-label={`${option} spectral class filter`}
                   >
                     {option}
                   </button>
-                  );
-                })}
-              </div>
-              <div className="results-spectral-range" role="group" aria-label="Spectral range selector">
-                <div className="results-spectral-range-head">
-                  <span className="results-spectral-range-label">
-                    {formatKelvin(Math.min(minTempK, maxTempK), 0)} - {formatKelvin(Math.max(minTempK, maxTempK), 0)}
-                  </span>
-                  <span className="results-spectral-range-value">
-                    {formatNumber(effectiveSpectralCount, 0)} stars ({formatNumber(effectiveSpectralPct, 1)}%)
-                  </span>
-                </div>
-                <div className="results-spectral-slider-row">
-                  <span className="results-spectral-label results-temperature-label">Temperature</span>
-                  <div className="results-spectral-slider">
-                    <div className="results-spectral-slider-track" />
-                    <div
-                      className="results-spectral-slider-fill"
-                      style={{
-                        left: `${(Math.min(minTempSliderPos, maxTempSliderPos) / SPECTRAL_TEMP_SLIDER_MAX) * 100}%`,
-                        width: `${((Math.max(minTempSliderPos, maxTempSliderPos) - Math.min(minTempSliderPos, maxTempSliderPos)) / SPECTRAL_TEMP_SLIDER_MAX) * 100}%`,
-                      }}
-                      aria-hidden="true"
-                    />
-                    <input
-                      type="range"
-                      min={0}
-                      max={SPECTRAL_TEMP_SLIDER_MAX}
-                      step={1}
-                      className="results-spectral-slider-input results-spectral-slider-input-min"
-                      value={minTempSliderPos}
-                      aria-label="Minimum temperature"
-                      onChange={(event) => applyTemperatureRange(
-                        sliderPositionToSpectralTemp(Number(event.target.value)),
-                        maxTempK,
-                      )}
-                    />
-                    <input
-                      type="range"
-                      min={0}
-                      max={SPECTRAL_TEMP_SLIDER_MAX}
-                      step={1}
-                      className="results-spectral-slider-input results-spectral-slider-input-max"
-                      value={maxTempSliderPos}
-                      aria-label="Maximum temperature"
-                      onChange={(event) => applyTemperatureRange(
-                        minTempK,
-                        sliderPositionToSpectralTemp(Number(event.target.value)),
-                      )}
-                    />
-                  </div>
-                </div>
-              </div>
+                );
+              })}
+            </div>
+            <MapStyleRangeControl
+              label="Temp K"
+              minValue={minTempK}
+              maxValue={maxTempK}
+              minLimit={SPECTRAL_TEMP_MIN_K}
+              maxLimit={SPECTRAL_TEMP_MAX_K}
+              step={100}
+              integer
+              format={(value) => formatNumber(value, 0)}
+              onChangeMin={(value) => applyTemperatureRange(value, maxTempK)}
+              onChangeMax={(value) => applyTemperatureRange(minTempK, value)}
+            />
+          </form>
+
+          <div className="results-toolbar panel">
+            <div className="results-toolbar-head">
+              <h3>Star Search</h3>
             </div>
 
             <div className="results-bottom-row">

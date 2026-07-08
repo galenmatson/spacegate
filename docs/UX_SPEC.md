@@ -70,6 +70,9 @@ Coolstars.
   key.
 - Query text is passed raw to the API; the API normalizes and ranks matches.
 - `sort=match` is the default for named queries.
+- Star Search v2 uses the same compact search strip visual language as the
+  map-native search overlay so users do not have to relearn the controls when
+  moving between catalog search and free-flight exploration.
 
 ### Filters
 
@@ -86,6 +89,8 @@ Preserve or expose filters where data supports them:
 
 Filters should be discoverable without making the page feel like an expert
 catalog front-end.
+The standalone Star Search page should keep these filters in a tight sidebar
+that visually matches the map search sidebar where practical.
 
 ### Sorting
 

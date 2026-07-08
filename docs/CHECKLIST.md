@@ -569,6 +569,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   station-label strips, and focused map browser coverage
 - [x] Generalize Star Map right-click target menu to Select/Explore/Measure
   with outside-right-click dismissal for menus and Peek
+- [x] Add Star Map right-click `Neighbors` tool for ephemeral 10 ly measurement
+  spokes from the selected system to loaded nearby systems
+- [x] Reuse the map-native search strip/sidebar visual language on standalone
+  Star Search v2 while preserving catalog search behavior
 - [ ] Add installer/runtime configuration prompt for public site branding so
   third-party Spacegate installs can set their own site name cleanly
 - [x] Surface simulator orientation basis labels for source orientation,

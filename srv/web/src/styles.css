@@ -5534,6 +5534,65 @@ main {
   align-items: start;
 }
 
+.catalog-search-shell {
+  grid-template-columns: minmax(190px, 214px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.catalog-search-shell .map-search-sidebar,
+.catalog-search-shell .map-search-topbar {
+  position: static;
+  width: auto;
+  max-height: none;
+  pointer-events: auto;
+}
+
+.catalog-search-shell .map-search-sidebar {
+  padding: 10px;
+}
+
+.catalog-search-shell .filters-body {
+  display: grid;
+  gap: 10px;
+}
+
+.catalog-search-shell .filters-body.is-collapsed {
+  display: none;
+}
+
+.catalog-search-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.catalog-search-presets .map-command-button,
+.catalog-search-sidebar .filter-collapse-btn {
+  min-height: 30px;
+  padding: 6px 8px;
+  font-size: 0.66rem;
+}
+
+.catalog-search-topbar {
+  min-height: 48px;
+  grid-template-columns: minmax(220px, 1fr) auto auto minmax(280px, 0.7fr) minmax(230px, 0.55fr);
+  margin-bottom: 14px;
+}
+
+.catalog-search-topbar .map-search-range {
+  font-size: 0.66rem;
+}
+
+.catalog-search-shell .filters-spectrum-card {
+  padding: 10px;
+  color: var(--map-hud-strong);
+  background: color-mix(in srgb, var(--map-hud-bg) 82%, transparent);
+  border: 1px solid var(--map-hud-border);
+  border-radius: 8px;
+  box-shadow: 0 0 18px var(--map-hud-glow);
+  backdrop-filter: blur(6px);
+}
+
 .filters-stack {
   display: flex;
   flex-direction: column;
@@ -6407,20 +6466,19 @@ main {
     radial-gradient(circle at 35% 27%, #ffffff 0 9%, color-mix(in srgb, white 72%, var(--stellar-chip-color)) 10% 21%, transparent 43%),
     radial-gradient(circle at center, color-mix(in srgb, var(--stellar-chip-color) 58%, white 14%) 0 28%, color-mix(in srgb, var(--stellar-chip-color) 28%, #050a12 72%) 70%),
     color-mix(in srgb, var(--stellar-chip-color) 34%, #050a12 66%);
-  color: #ffffff;
+  color: #05070b;
   box-shadow:
     0 0 9px color-mix(in srgb, var(--stellar-chip-color) 56%, transparent),
     0 0 20px color-mix(in srgb, var(--stellar-chip-color) 34%, transparent),
     inset 0 0 8px color-mix(in srgb, white 22%, transparent);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   font-weight: 950;
   letter-spacing: 0.035em;
   line-height: 1;
   text-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.95),
-    0 0 5px rgba(0, 0, 0, 0.7),
-    0 0 7px color-mix(in srgb, var(--stellar-chip-color) 58%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.52),
+    0 0 5px rgba(255, 255, 255, 0.34);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -6429,7 +6487,7 @@ main {
   min-width: 22px;
   min-height: 22px;
   padding: 2px 6px;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
 }
 
 .result-stellar-tags,
@@ -8834,6 +8892,21 @@ main {
   .map-search-card-fallback {
     height: 220px;
     min-height: 220px;
+  }
+
+  .catalog-search-shell .map-search-topbar,
+  .catalog-search-shell .map-search-sidebar {
+    position: static;
+    width: auto;
+    max-height: none;
+  }
+
+  .catalog-search-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .catalog-search-topbar > .map-command-button:nth-of-type(2) {
+    display: inline-flex;
   }
 }
 

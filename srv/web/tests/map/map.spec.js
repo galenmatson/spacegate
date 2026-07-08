@@ -202,6 +202,8 @@ test.describe("public 3D map beta", () => {
   test("standalone Star Search v2 uses bounded simulation previews", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop catalog search preview check");
     await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".catalog-search-topbar")).toBeVisible();
+    await expect(page.locator(".catalog-search-sidebar")).toBeVisible();
     await expect(page.locator(".results-toolbar")).toBeVisible();
     await expect(page.locator(".results-toolbar-head")).toContainText("Star Search");
     const sortSelect = page.locator(".results-search-options select").first();
@@ -622,6 +624,7 @@ test.describe("public 3D map beta", () => {
     await expect(contextMenu.getByRole("button", { name: /^Select$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Explore$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Measure$/i })).toBeVisible();
+    await expect(contextMenu.getByRole("button", { name: /^Neighbors$/i })).toBeVisible();
     await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
 
     await expect(page.locator(".map-route-summary")).toContainText(/1 legs/i);

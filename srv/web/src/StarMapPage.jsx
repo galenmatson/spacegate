@@ -994,7 +994,8 @@ function RouteOverlays({ segments, onRemoveSegment }) {
   if (!segments.length) {
     return null;
   }
-  const total = segments.reduce((sum, segment) => sum + segment.distance_ly, 0);
+  const routeSegments = segments.filter((segment) => segment.kind !== "neighbor");
+  const total = routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0);
   const last = segments[segments.length - 1];
   const totalPosition = [
     last.to.scene_position[0],
@@ -1015,11 +1016,11 @@ function RouteOverlays({ segments, onRemoveSegment }) {
             <RouteSegmentLine segment={segment} />
             <RouteSegmentHitTarget segment={segment} onClick={() => onRemoveSegment?.(index)} />
             <LabelSprite
-              label={`${formatNumber(segment.distance_ly, 2)} ly`}
+              label={segment.label || `${formatNumber(segment.distance_ly, 2)} ly`}
               position={midpoint}
               tone="route"
             />
-            {index === segments.length - 1 && (
+            {routeSegments.length > 1 && segment.kind !== "neighbor" && index === segments.length - 1 && (
               <LabelSprite
                 label={`Route ${formatNumber(total, 2)} ly`}
                 position={totalPosition}
@@ -2972,6 +2973,34 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     setRouteMenu(null);
   };
 
+  const addNeighborSegments = () => {
+    const origin = selectedSystem;
+    if (!origin?.system_id) {
+      setRouteMenu(null);
+      return;
+    }
+    const neighbors = systems
+      .filter((system) => system?.system_id && system.system_id !== origin.system_id)
+      .map((system) => ({
+        system,
+        distance_ly: distanceBetweenSystems(origin, system),
+      }))
+      .filter((entry) => Number.isFinite(entry.distance_ly) && entry.distance_ly <= 10)
+      .sort((left, right) => left.distance_ly - right.distance_ly);
+    setRouteSegments((segments) => [
+      ...segments.filter((segment) => segment.kind !== "neighbor"),
+      ...neighbors.map(({ system, distance_ly }) => ({
+        id: `neighbor-${origin.system_id}-${system.system_id}`,
+        kind: "neighbor",
+        from: origin,
+        to: system,
+        distance_ly,
+        label: `${shortDisplayName(system.display_name)} · ${formatNumber(distance_ly, 2)} ly`,
+      })),
+    ]);
+    setRouteMenu(null);
+  };
+
   const undoRouteSegment = () => {
     setRouteSegments((segments) => segments.slice(0, -1));
     setRouteMenu(null);
@@ -3284,6 +3313,15 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           )}
         </div>
         <nav className="map-actions" aria-label="Map actions">
+          <button
+            type="button"
+            className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
+            aria-pressed={mapSearchOpen}
+            data-testid="map-search-toggle"
+            onClick={toggleMapSearch}
+          >
+            Search
+          </button>
           {MAP_UTILITY_LINKS.map((item) => (
             item.external ? (
               <a
@@ -3302,15 +3340,6 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               </Link>
             )
           ))}
-          <button
-            type="button"
-            className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
-            aria-pressed={mapSearchOpen}
-            data-testid="map-search-toggle"
-            onClick={toggleMapSearch}
-          >
-            Search
-          </button>
           <button
             type="button"
             className="map-hud-button"
@@ -3618,6 +3647,15 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
             onClick={addRouteSegment}
           >
             Measure
+          </button>
+          <button
+            type="button"
+            className="map-context-command ghost"
+            disabled={!selectedSystem}
+            onClick={addNeighborSegments}
+            title={selectedSystem ? `Draw 10 ly neighbor spokes from ${shortDisplayName(selectedSystem.display_name)}` : "Select a system first"}
+          >
+            Neighbors
           </button>
           {routeSegments.length > 0 && (
             <button type="button" className="map-context-command ghost" onClick={clearRoute}>
