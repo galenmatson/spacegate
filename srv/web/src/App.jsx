@@ -3865,7 +3865,14 @@ function SystemDetailPage({ buildId = "" }) {
           <div className="system-detail-hero-copy">
             <div className="system-detail-title-row">
               <span className="system-story-kicker">Star Search</span>
-              <h1>{formatText(currentSystemDisplayName)}</h1>
+              <div className="system-detail-name-line">
+                <h1>{formatText(currentSystemDisplayName)}</h1>
+                <div className="id-line id-line-inline system-detail-ids">
+                  <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} hideWhenMissing />
+                  <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} hideWhenMissing />
+                  <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} hideWhenMissing />
+                </div>
+              </div>
               {systemAliasSummary ? (
                 <p className="system-alias-line">Also cataloged as {systemAliasSummary}</p>
               ) : null}
@@ -3877,25 +3884,22 @@ function SystemDetailPage({ buildId = "" }) {
               <SystemFactPill label="Spectral" value={bestSpectralSummary(system, stars)} />
               <SystemFactPill label="Coolness" value={formatNumber(system.coolness_score, 1)} />
             </div>
-            <StellarClassChips tokens={stellarClassTokensFromSystem({
-              ...system,
-              spectral_classes: Array.from(new Set((stars || [])
-                .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().toUpperCase())
-                .filter(Boolean))),
-            })} className="system-detail-stellar-tags" />
-            {systemTags.length > 0 ? (
-              <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
-                {systemTags.map((tag) => (
-                  <span className="result-tag" key={`${system.system_id}-${tag.label}`} title={tag.title || undefined}>
-                    {tag.label}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <div className="id-line id-line-inline system-detail-ids">
-              <CatalogIdChip label="HIP" value={system.hip_id_text ?? system.hip_id} />
-              <CatalogIdChip label="HD" value={system.hd_id_text ?? system.hd_id} />
-              <CatalogIdChip label="Gaia" value={resolvedSystemGaiaId(system)} />
+            <div className="system-detail-class-tags">
+              <StellarClassChips tokens={stellarClassTokensFromSystem({
+                ...system,
+                spectral_classes: Array.from(new Set((stars || [])
+                  .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().toUpperCase())
+                  .filter(Boolean))),
+              })} className="system-detail-stellar-tags" />
+              {systemTags.length > 0 ? (
+                <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
+                  {systemTags.map((tag) => (
+                    <span className="result-tag" key={`${system.system_id}-${tag.label}`} title={tag.title || undefined}>
+                      {tag.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>

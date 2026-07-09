@@ -347,6 +347,11 @@ test.describe("public 3D map beta", () => {
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/tau Cet|Tau Ceti/i);
+    await expect(page.locator(".system-detail-name-line .id-chip").first()).toBeVisible();
+    await expect(page.locator(".system-detail-name-line .id-chip", { hasText: "Unknown" })).toHaveCount(0);
+    await expect(page.locator(".system-detail-hero-copy > .system-detail-ids")).toHaveCount(0);
+    await expect(page.locator(".system-detail-class-tags .stellar-class-chip").first()).toBeVisible();
+    await expect(page.locator(".system-detail-class-tags .result-tag").first()).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);

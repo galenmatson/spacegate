@@ -6843,7 +6843,7 @@ main {
 }
 
 .system-detail-tags {
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .stellar-class-chips {
@@ -6893,7 +6893,7 @@ main {
 
 .result-stellar-tags,
 .system-detail-stellar-tags {
-  margin-top: 7px;
+  margin-top: 0;
 }
 
 .result-actions {
@@ -7357,6 +7357,14 @@ main {
   gap: 6px 12px;
 }
 
+.system-detail-name-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
 .system-detail-hero h1 {
   margin: 0;
   color: var(--ink);
@@ -7396,6 +7404,13 @@ main {
   gap: 6px;
 }
 
+.system-detail-class-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .system-fact-pill {
   display: inline-flex;
   align-items: baseline;
@@ -7411,6 +7426,10 @@ main {
   .system-detail-title-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
+  }
+
+  .system-detail-name-line {
+    align-items: flex-start;
   }
 }
 
