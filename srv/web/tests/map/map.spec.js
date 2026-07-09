@@ -229,7 +229,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".spectral-chip", { hasText: "Y" })).toBeVisible();
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator(".result-card").first().locator(".result-tags")).toContainText(/Nearby|Exoplanet|Multi-planet|High coolness|NASA|Gaia/i);
-    await expect(page.locator(".result-card").first().locator(".stellar-class-chip")).toHaveCount(1);
+    await expect(page.locator(".result-card").first().locator(".result-stellar-tags .stellar-class-chip")).toHaveCount(1);
     await expect(page.locator(".result-card").first().getByRole("link", { name: "Detail" })).toBeVisible();
     await expect(page.locator(".result-card").first().getByRole("button", { name: "Map" })).toBeVisible();
     const firstPreview = page.locator("[data-testid='star-search-simulation-preview']").first();
@@ -1144,6 +1144,7 @@ test.describe("public 3D map beta", () => {
     await menu.locator("summary").click();
     await menu.locator(".map-theme-select select").selectOption("mission_control");
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("mission_control");
+    await expect(page.locator("[data-testid='map-system-drill'] .system-preview-canvas")).toBeVisible();
 
     const themeStyles = await page.evaluate(() => {
       const header = document.querySelector(".map-hud-top");

@@ -1828,18 +1828,10 @@ function systemMatchesMapFilters(system, filters, origin) {
   return true;
 }
 
-function buildSearchParamsFromFilters(filters, origin, query = "", sort = "distance", limit = 24) {
+function buildSearchParamsFromFilters(filters, origin, filterExtents, query = "", sort = "distance", limit = 24) {
   const params = {
     sort: sort || (query.trim() ? "match" : "distance"),
     limit: String(limit),
-    min_dist_ly: String(Math.max(0, filters.distanceRange[0])),
-    max_dist_ly: String(Math.max(filters.distanceRange[0], filters.distanceRange[1])),
-    min_star_count: String(filters.starRange[0]),
-    max_star_count: String(filters.starRange[1]),
-    min_planet_count: String(filters.planetRange[0]),
-    max_planet_count: String(filters.planetRange[1]),
-    min_coolness_score: String(filters.coolnessRange[0]),
-    max_coolness_score: String(filters.coolnessRange[1]),
     origin_x_ly: String(origin.x),
     origin_y_ly: String(origin.y),
     origin_z_ly: String(origin.z),
@@ -1850,6 +1842,22 @@ function buildSearchParamsFromFilters(filters, origin, query = "", sort = "dista
   if (filters.habitableOnly) params.has_habitable = "true";
   const spectral = spectralTokens(filters.spectralClass);
   if (spectral.length) params.spectral_class = spectral.join(",");
+  const distLow = Math.min(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? MAP_RADIUS_LY));
+  const distHigh = Math.max(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? MAP_RADIUS_LY));
+  const starLow = Math.min(Number(filters.starRange?.[0] ?? 0), Number(filters.starRange?.[1] ?? filterExtents.maxStars));
+  const starHigh = Math.max(Number(filters.starRange?.[0] ?? 0), Number(filters.starRange?.[1] ?? filterExtents.maxStars));
+  const planetLow = Math.min(Number(filters.planetRange?.[0] ?? 0), Number(filters.planetRange?.[1] ?? filterExtents.maxPlanets));
+  const planetHigh = Math.max(Number(filters.planetRange?.[0] ?? 0), Number(filters.planetRange?.[1] ?? filterExtents.maxPlanets));
+  const coolnessLow = Math.min(Number(filters.coolnessRange?.[0] ?? 0), Number(filters.coolnessRange?.[1] ?? filterExtents.maxCoolness));
+  const coolnessHigh = Math.max(Number(filters.coolnessRange?.[0] ?? 0), Number(filters.coolnessRange?.[1] ?? filterExtents.maxCoolness));
+  if (distLow > 0) params.min_dist_ly = String(Math.max(0, distLow));
+  if (distHigh < MAP_RADIUS_LY) params.max_dist_ly = String(distHigh);
+  if (starLow > 0) params.min_star_count = String(starLow);
+  if (starHigh < filterExtents.maxStars) params.max_star_count = String(starHigh);
+  if (planetLow > 0) params.min_planet_count = String(planetLow);
+  if (planetHigh < filterExtents.maxPlanets) params.max_planet_count = String(planetHigh);
+  if (coolnessLow > 0) params.min_coolness_score = String(coolnessLow);
+  if (coolnessHigh < filterExtents.maxCoolness) params.max_coolness_score = String(coolnessHigh);
   if (filters.temperatureRange[0] > STAR_SEARCH_DEFAULT_TEMP_RANGE[0]) params.min_temp_k = String(filters.temperatureRange[0]);
   if (filters.temperatureRange[1] < STAR_SEARCH_DEFAULT_TEMP_RANGE[1]) params.max_temp_k = String(filters.temperatureRange[1]);
   return params;
@@ -3148,7 +3156,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     mapSearchTokenRef.current = token;
     const requestedSort = sortOverride || mapSearchSort;
     const effectiveSort = !mapSearchQuery.trim() && requestedSort === "match" ? "distance" : requestedSort;
-    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, mapSearchQuery, effectiveSort, 24);
+    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, filterExtents, mapSearchQuery, effectiveSort, 24);
     const requestParams = cursorValue ? { ...params, cursor: cursorValue } : params;
     setMapSearchLoading(true);
     setMapSearchError("");
@@ -3189,7 +3197,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         setMapSearchLoading(false);
       }
     }
-  }, [mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, setSearchParams]);
+  }, [filterExtents, mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, setSearchParams]);
 
   const closeMapSearchResults = useCallback(() => {
     setMapSearchResultsOpen(false);
