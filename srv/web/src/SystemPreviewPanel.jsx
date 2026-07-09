@@ -727,6 +727,7 @@ function simulationObjectList(scene) {
         depth,
         payload,
         record,
+        recordKind: node.node_type === "body" ? (node.body_kind === "planet" ? "planet" : "star") : "subsystem",
       });
     }
     const childDepth = node.node_type === "root" ? depth : depth + 1;
@@ -736,6 +737,49 @@ function simulationObjectList(scene) {
   if (rootNodeKey && treeNodes[rootNodeKey]) {
     const items = [];
     addTreeNode(items, rootNodeKey, 0, new Set());
+    const representedPlanetKeys = new Set(
+      items
+        .filter((item) => item.recordKind === "planet")
+        .flatMap((item) => [
+          item.record?.render_key,
+          item.record?.stable_object_key,
+          item.record?.key,
+          item.record?.source?.stable_object_key,
+          item.payload?.id,
+        ])
+        .filter(Boolean)
+        .map(String),
+    );
+    planets
+      .slice()
+      .sort((a, b) => {
+        const aAxis = Number(fieldRecord(a.fields, "semi_major_axis_au")?.value);
+        const bAxis = Number(fieldRecord(b.fields, "semi_major_axis_au")?.value);
+        if (Number.isFinite(aAxis) && Number.isFinite(bAxis)) {
+          return aAxis - bAxis;
+        }
+        return String(a.display_name || a.name || "").localeCompare(String(b.display_name || b.name || ""));
+      })
+      .forEach((planet) => {
+        const keys = [
+          planet.render_key,
+          planet.stable_object_key,
+          planet.key,
+          planet.source?.stable_object_key,
+        ].filter(Boolean).map(String);
+        if (keys.some((key) => representedPlanetKeys.has(key))) {
+          return;
+        }
+        items.push({
+          key: `planet:${planet.render_key || planet.stable_object_key || planet.key || planet.display_name}`,
+          name: planet.display_name || planet.name || "Planet",
+          label: "Planet",
+          depth: 1,
+          payload: objectHoverPayload("planet", planet),
+          record: planet,
+          recordKind: "planet",
+        });
+      });
     return items.slice(0, 32);
   }
 
@@ -750,6 +794,7 @@ function simulationObjectList(scene) {
         label: "Subsystem",
         depth: 0,
         payload: objectHoverPayload("subsystem", subsystem),
+        recordKind: "subsystem",
       });
     });
   stars
@@ -763,6 +808,7 @@ function simulationObjectList(scene) {
         depth: subsystems.length ? 1 : 0,
         payload: objectHoverPayload("star", star),
         record: star,
+        recordKind: "star",
       });
     });
   planets
@@ -782,6 +828,8 @@ function simulationObjectList(scene) {
         label: "Planet",
         depth: stars.length || subsystems.length ? 2 : 0,
         payload: objectHoverPayload("planet", planet),
+        record: planet,
+        recordKind: "planet",
       });
     });
   return items.slice(0, 32);
@@ -4345,7 +4393,9 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                   onMouseLeave={() => setHoveredObject(null)}
                   title={`Inspect ${item.name}`}
                 >
-                  {item.record ? <StellarClassChips tokens={stellarClassTokensFromRecord(item.record)} size="compact" /> : <span className="system-preview-object-spacer" />}
+                  {item.recordKind === "star" && item.record
+                    ? <StellarClassChips tokens={stellarClassTokensFromRecord(item.record)} size="compact" />
+                    : <span className="system-preview-object-spacer" />}
                   <span className="system-preview-object-name">{item.name}</span>
                   <span className="system-preview-object-kind">{item.label}</span>
                   {compactObjectVitals(item).map((vital) => (

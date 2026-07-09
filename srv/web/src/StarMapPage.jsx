@@ -3339,12 +3339,12 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
 
       <header className="map-hud map-hud-top">
         <div className="map-title-block">
-          <a className="map-eyebrow map-eyebrow-link" href="https://spacegates.org/">
+          <Link className="map-eyebrow map-eyebrow-link" to="/search">
             Spacegate Stellar Database
-          </a>
+          </Link>
           <div className="map-title-row">
             <img className="map-brand-mark" src="/favicon.svg" alt="" aria-hidden="true" />
-            <h1>{mapTitle}</h1>
+            <h1><a className="map-title-link" href="/map">{mapTitle}</a></h1>
           </div>
           <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
         </div>
