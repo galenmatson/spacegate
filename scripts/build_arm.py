@@ -3200,7 +3200,7 @@ def main() -> int:
           select
             nullif(wds_id, '') as wds_id,
             lower(regexp_replace(coalesce(component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_label,
-            nullif(preferred_name, '') as preferred_name,
+            cast(null as varchar) as preferred_name,
             nullif(sep_arcsec, '')::double as sep_arcsec,
             nullif(spectral_type_raw, '') as spectral_type_raw,
             nullif(parallax_mas, '')::double as parallax_mas,
