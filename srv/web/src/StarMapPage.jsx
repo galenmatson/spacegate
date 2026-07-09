@@ -31,6 +31,7 @@ const RUNTIME_QUALITY_PROFILES = {
 };
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const SOL_SYSTEM_ID = 17788193;
 const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
 const MAP_UTILITY_LINKS = [
   { label: "HELP", href: "/help", title: "How to use Coolstars", external: false },
@@ -3119,6 +3120,29 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
     }
   }, [mapFrame, selectSystem, systems]);
 
+  const jumpHomeToSol = useCallback(() => {
+    const sol = systems.find((item) => (
+      String(item.system_id) === String(SOL_SYSTEM_ID)
+      || String(item.display_name || item.system_name || "").trim().toLowerCase() === "sol"
+    )) || {
+      system_id: SOL_SYSTEM_ID,
+      system_name: "Sol",
+      display_name: "Sol",
+      dist_ly: 0,
+      x_helio_ly: 0,
+      y_helio_ly: 0,
+      z_helio_ly: 0,
+      scene_position: [0, 0, 0],
+      star_count: 1,
+      planet_count: 13,
+      coolness_score: null,
+      coolness_rank: null,
+      dominant_spectral_class: "G",
+      spectral_classes: ["G"],
+    };
+    selectSystem(sol, { openPeek: true, focus: true });
+  }, [selectSystem, systems]);
+
   const runMapSearch = useCallback(async ({ cursorValue = null, append = false, sortOverride = null } = {}) => {
     const token = mapSearchTokenRef.current + 1;
     mapSearchTokenRef.current = token;
@@ -3329,119 +3353,131 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
           )}
         </div>
         <nav className="map-actions" aria-label="Map actions">
-          <button
-            type="button"
-            className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
-            aria-pressed={mapSearchOpen}
-            data-testid="map-search-toggle"
-            onClick={toggleMapSearch}
-          >
-            Search
-          </button>
-          {MAP_UTILITY_LINKS.map((item) => (
-            item.external ? (
-              <a
-                key={item.label}
-                href={item.href}
-                className="map-hud-button map-utility-link"
-                title={item.title}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {item.label}
-              </a>
-            ) : (
-              <Link key={item.label} to={item.href} className="map-hud-button map-utility-link" title={item.title}>
-                {item.label}
-              </Link>
-            )
-          ))}
-          <button
-            type="button"
-            className="map-hud-button"
-            onClick={enterMinimalMode}
-            title="Minimal map interface (M)"
-          >
-            MIN
-          </button>
-          {selectedSystem?.system_id && (
+          <div className="map-link-row" aria-label="Site links">
+            {MAP_UTILITY_LINKS.map((item) => (
+              item.external ? (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="map-text-link"
+                  title={item.title}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link key={item.label} to={item.href} className="map-text-link" title={item.title}>
+                  {item.label}
+                </Link>
+              )
+            ))}
+          </div>
+          <div className="map-command-row">
             <button
               type="button"
-              className="map-hud-button primary"
-              onClick={() => {
-                setDrillMode("explore");
-                setFocusToken((value) => value + 1);
-              }}
+              className={`map-hud-button map-search-toggle ${mapSearchOpen ? "active" : ""}`}
+              aria-pressed={mapSearchOpen}
+              data-testid="map-search-toggle"
+              onClick={toggleMapSearch}
             >
-              Explore
+              Search
             </button>
-          )}
-          {fullscreenAvailable && (
-            <button type="button" className="map-hud-button map-fullscreen-command" onClick={toggleFullscreen}>
-              {isFullscreen ? "Exit" : "Full"}
+            <button
+              type="button"
+              className="map-hud-button"
+              onClick={jumpHomeToSol}
+              title="Return to Sol"
+            >
+              Home
             </button>
-          )}
-          <details className="map-header-menu" ref={headerMenuRef}>
-            <summary className="map-hud-button map-menu-button" aria-label="Map menu" title="Map menu">
-              <span className="map-menu-bars" aria-hidden="true" />
-            </summary>
-            <div className="map-header-menu-panel">
-              <label className="map-menu-field map-theme-select">
-                <span>Theme</span>
-                <select value={theme} onChange={(event) => setTheme(event.target.value)}>
-                  {themeOptions.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="map-menu-field map-keybind-select">
-                <span>Controls</span>
-                <select
-                  value={keybindScheme}
-                  onChange={(event) => setKeybindScheme(
-                    MAP_KEYBIND_SCHEMES[event.target.value] ? event.target.value : "wasd",
-                  )}
-                >
-                  {MAP_KEYBIND_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="map-menu-field map-frame-select">
-                <span>Frame</span>
-                <select
-                  value={mapFrame}
-                  onChange={(event) => setMapFrame(
-                    MAP_FRAME_OPTIONS[event.target.value] ? event.target.value : "icrs",
-                  )}
-                  data-testid="map-frame-select"
-                >
-                  {Object.values(MAP_FRAME_OPTIONS).map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="map-menu-toggle">
-                <input
-                  type="checkbox"
-                  checked={showDirectionLabels}
-                  onChange={(event) => setShowDirectionLabels(event.target.checked)}
-                  data-testid="map-direction-labels-toggle"
-                />
-                <span>Direction labels</span>
-              </label>
-              <label className="map-menu-toggle">
-                <input
-                  type="checkbox"
-                  checked={showFpsOverlay}
-                  onChange={(event) => setShowFpsOverlay(event.target.checked)}
-                  data-testid="map-fps-toggle"
-                />
-                <span>Runtime diagnostics</span>
-              </label>
-              <span className="map-menu-note">Arrow keys always fly.</span>
-            </div>
-          </details>
+            <button
+              type="button"
+              className="map-hud-button"
+              onClick={enterMinimalMode}
+              title="Minimal map interface (M)"
+            >
+              MIN
+            </button>
+            {selectedSystem?.system_id && (
+              <button
+                type="button"
+                className="map-hud-button primary"
+                onClick={() => {
+                  setDrillMode("explore");
+                  setFocusToken((value) => value + 1);
+                }}
+              >
+                Explore
+              </button>
+            )}
+            {fullscreenAvailable && (
+              <button type="button" className="map-hud-button map-fullscreen-command" onClick={toggleFullscreen}>
+                {isFullscreen ? "Exit" : "Full"}
+              </button>
+            )}
+            <details className="map-header-menu" ref={headerMenuRef}>
+              <summary className="map-hud-button map-menu-button" aria-label="Map menu" title="Map menu">
+                <span className="map-menu-bars" aria-hidden="true" />
+              </summary>
+              <div className="map-header-menu-panel">
+                <label className="map-menu-field map-theme-select">
+                  <span>Theme</span>
+                  <select value={theme} onChange={(event) => setTheme(event.target.value)}>
+                    {themeOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="map-menu-field map-keybind-select">
+                  <span>Controls</span>
+                  <select
+                    value={keybindScheme}
+                    onChange={(event) => setKeybindScheme(
+                      MAP_KEYBIND_SCHEMES[event.target.value] ? event.target.value : "wasd",
+                    )}
+                  >
+                    {MAP_KEYBIND_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="map-menu-field map-frame-select">
+                  <span>Frame</span>
+                  <select
+                    value={mapFrame}
+                    onChange={(event) => setMapFrame(
+                      MAP_FRAME_OPTIONS[event.target.value] ? event.target.value : "icrs",
+                    )}
+                    data-testid="map-frame-select"
+                  >
+                    {Object.values(MAP_FRAME_OPTIONS).map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="map-menu-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showDirectionLabels}
+                    onChange={(event) => setShowDirectionLabels(event.target.checked)}
+                    data-testid="map-direction-labels-toggle"
+                  />
+                  <span>Direction labels</span>
+                </label>
+                <label className="map-menu-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showFpsOverlay}
+                    onChange={(event) => setShowFpsOverlay(event.target.checked)}
+                    data-testid="map-fps-toggle"
+                  />
+                  <span>Runtime diagnostics</span>
+                </label>
+                <span className="map-menu-note">Arrow keys always fly.</span>
+              </div>
+            </details>
+          </div>
         </nav>
       </header>
 

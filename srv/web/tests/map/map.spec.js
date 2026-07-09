@@ -560,6 +560,11 @@ test.describe("public 3D map beta", () => {
     const canvas = page.locator(".map-canvas canvas");
     await expect(menu).toBeVisible();
     await expect(page.locator(".map-fullscreen-command")).toBeVisible();
+    const homeButton = page.getByRole("button", { name: "Home" });
+    await expect(homeButton).toBeVisible();
+    await homeButton.click();
+    await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
+    await expect(page.locator(".map-system-drill-title")).toContainText("Sol");
     await expect(page.getByRole("button", { name: /capture mouse/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /stabilize/i })).toHaveCount(0);
     await expect(page.locator(".map-actions > .map-theme-select")).toHaveCount(0);
@@ -1023,8 +1028,8 @@ test.describe("public 3D map beta", () => {
       const title = document.querySelector(".map-title-block h1");
       const headerStats = Array.from(document.querySelectorAll(".map-header-readout span"));
       const actionItems = [
-        ...Array.from(document.querySelectorAll(".map-actions > .map-hud-button")).filter((item) => window.getComputedStyle(item).display !== "none"),
-        document.querySelector(".map-actions > .map-header-menu > .map-menu-button"),
+        ...Array.from(document.querySelectorAll(".map-command-row > .map-hud-button")).filter((item) => window.getComputedStyle(item).display !== "none"),
+        document.querySelector(".map-command-row > .map-header-menu > .map-menu-button"),
       ].filter(Boolean);
       const button = document.querySelector(".map-hud-button");
       const drill = document.querySelector("[data-testid='map-system-drill']");
@@ -1138,7 +1143,7 @@ test.describe("public 3D map beta", () => {
       const headerStrip = window.getComputedStyle(header, "::before");
       const title = document.querySelector(".map-title-block h1");
       const primaryButton = document.querySelector(".map-hud-button.primary");
-      const utilityLinks = Array.from(document.querySelectorAll(".map-utility-link")).map((link) => {
+      const utilityLinks = Array.from(document.querySelectorAll(".map-text-link")).map((link) => {
         const rect = link.getBoundingClientRect();
         return {
           text: link.textContent.trim(),

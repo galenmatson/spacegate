@@ -30,7 +30,7 @@ The top navigation appears in the Star Search, system pages, and the 3D map.
 | `SRC` | Source code on GitHub. |
 | `DATA` | Source-data and provenance overview. |
 
-On the 3D map, `Search` is a toggle. It opens and closes the map-native Star Search controls.
+On the 3D map, `Search` is a toggle. It opens and closes the map-native Star Search controls. `Home` recenters the map on Sol without reloading the page.
 
 ## The 3D Map
 
@@ -81,6 +81,7 @@ Mobile controls:
 - On-screen arrows: fly forward, back, left, right, up, and down.
 - Tap a system label or point: select/open it.
 - Use `Search` to hide the search interface for clearer free flight.
+- Use `Home` if you get lost and want to jump back to Sol.
 
 ## Map Star Search
 

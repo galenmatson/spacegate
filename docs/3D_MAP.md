@@ -201,6 +201,7 @@ Initial layers:
 - compact beta HUD:
   - dense header instrument strip with system/planet-host/multiple counts
   - header `Search` toggle controls the search/filter/recents sidebar
+  - header `Home` action recenters and selects Sol without reloading the page
   - header `MIN` action, plus keyboard `M`, enters minimal mode by hiding all
     passive HUD/text overlays except the restore button; requested Peek/Explore
     panels and right-click context menus remain available so minimal mode still
