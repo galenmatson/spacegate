@@ -1461,10 +1461,12 @@ added for schema/ARM-side rebuilds that should not trigger a full Gaia
 download/cook run. It clones the served core/parquet/disc/snapshot surface,
 updates cloned build metadata, regenerates `arm.duckdb` from cooked catalogs
 with the current builder, writes an ARM report and side-rebuild report, and
-leaves promotion explicit. Local served build
-`20260709T_v1054_classification_v1_side` materializes this milestone and passes
-relaxed build verification, multiplicity goldens, known-system API benchmarks,
-and the V1054 System Simulation OBJECTS browser regression.
+leaves promotion explicit. Full local side build
+`20260709T_v1054_classification_v1_side` materializes the new ARM table; public
+slice `20260709T_v1054_classification_v1_public_side` carries it into the
+antiproton-sized `core.public@v3` profile and passes relaxed build
+verification, multiplicity goldens, known-system API benchmarks, and the V1054
+System Simulation OBJECTS browser regression.
 
 ## Governance Rule
 

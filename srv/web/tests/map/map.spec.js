@@ -1020,6 +1020,13 @@ test.describe("public 3D map beta", () => {
     await menu.locator("summary").click();
     await menu.locator(".map-theme-select select").selectOption("lcars");
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("lcars");
+    const drill = page.locator("[data-testid='map-system-drill']");
+    const previewSurface = drill.locator(".system-preview-canvas");
+    await expect(previewSurface).toBeVisible();
+    await expect.poll(
+      () => previewSurface.evaluate((node) => node.getBoundingClientRect().height),
+      { timeout: 12000 }
+    ).toBeGreaterThan(120);
 
     const themeStyles = await page.evaluate(() => {
       const header = document.querySelector(".map-hud-top");
