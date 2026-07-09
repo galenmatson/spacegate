@@ -202,6 +202,7 @@ export function sortStellarClassTokens(tokens) {
 export function stellarClassTokensFromRecord(record, { includeUnknown = true } = {}) {
   const tokens = new Set();
   const fields = record?.fields || {};
+  const quickFacts = record?.quick_facts || {};
   [
     record?.spectral_class,
     record?.spectral_type_raw,
@@ -217,6 +218,12 @@ export function stellarClassTokensFromRecord(record, { includeUnknown = true } =
     fieldValue(fields, "object_type"),
     fieldValue(fields, "body_class"),
     fieldValue(fields, "compact_type"),
+    quickFacts.spectral_class,
+    quickFacts.spectral_type_raw,
+    quickFacts.visual_stellar_class,
+    quickFacts.object_type,
+    quickFacts.body_class,
+    quickFacts.compact_type,
   ].forEach((value) => {
     stellarClassTokensFromText(value).forEach((token) => tokens.add(token));
   });

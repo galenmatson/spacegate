@@ -356,6 +356,8 @@ test.describe("public 3D map beta", () => {
       .toBeGreaterThanOrEqual(4);
     await expect(page.locator("[data-testid='system-preview-object-list']")).toContainText(/Planet/i);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(1);
+    await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toBeVisible();
+    await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toContainText("K");
     await page.locator(".system-preview-line-menu summary").click();
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
     await page.locator(".system-detail-v2 h1").click();
