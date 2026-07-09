@@ -24,6 +24,7 @@ const SCALE_MODE_OPTIONS = [
   { value: "log", label: "Log", detail: "Best for very wide systems. It compresses bodies and orbits logarithmically, sacrificing physical scale to keep inner and outer structures visible together." },
 ];
 const SYSTEM_SIMULATION_TITLE = "Source-aware system renderer from the simulation-scene contract. Live WebGL is preferred; static snapshots are last-resort fallback artifacts.";
+const HABITABLE_ZONE_TOOLTIP = "The habitable zone, often dubbed the Goldilocks Zone, is the precise orbital region around a star where conditions are just right for liquid water to pool on a rocky planet's surface. The boundaries of this precious cosmic real estate are entirely dictated by the host star's temperature and luminosity, sitting incredibly close to dim red dwarfs and stretching far outward for blazing blue giants. However, residing in this zone is not a guarantee of paradise; a planet must also possess a stable atmosphere and magnetic field to prevent its oceans from boiling away or freezing solid. Because stars slowly brighten as they age, this zone is not static but gradually creeps outward over billions of years, occasionally leaving once-temperate worlds to fry in a runaway greenhouse effect. For Spacegate explorers and astrobiologists alike, this narrow orbital band remains the ultimate hunting ground in the search for extraterrestrial life.";
 const DEFAULT_VISUAL_SCALE = {
   schema_version: "visual_scale_beta_v1",
   scale_mode: "clarity_scaled_not_physical",
@@ -3704,7 +3705,7 @@ function CanvasFrameCapture({ enabled = false, onCapture = null }) {
   return null;
 }
 
-function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onHover, onSelect, onClockSample, onContextLost }) {
+function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onHover, onSelect, onPointerMissed, onClockSample, onContextLost }) {
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3780,6 +3781,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       dpr={previewDprForQuality(qualityTier)}
       frameloop={frameLoop}
       gl={{ antialias: true, alpha: transparentBackground, preserveDrawingBuffer, powerPreference: "high-performance" }}
+      onPointerMissed={onPointerMissed}
     >
       {!transparentBackground && <color attach="background" args={["#050b12"]} />}
       <WebGLContextGuard onContextLost={onContextLost} />
@@ -4029,7 +4031,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, defaultScaleMode = "structure" }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4044,7 +4046,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [showHabitableZones, setShowHabitableZones] = useState(true);
   const [showFormationLines, setShowFormationLines] = useState(defaultFormationLineVisibility);
   const [showLabels, setShowLabels] = useState(true);
-  const [scaleMode, setScaleMode] = useState("structure");
+  const [scaleMode, setScaleMode] = useState(() => normalizeScaleMode(defaultScaleMode));
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
@@ -4079,6 +4081,10 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     window.clearTimeout(contextRecoveryTimerRef.current);
     window.clearTimeout(hoverDelayRef.current);
   }, []);
+
+  useEffect(() => {
+    setScaleMode(normalizeScaleMode(defaultScaleMode));
+  }, [defaultScaleMode, systemId]);
 
   useEffect(() => {
     const closeLineMenu = (event) => {
@@ -4256,7 +4262,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
             onClick={() => setShowHabitableZones((value) => !value)}
             aria-pressed={showHabitableZones}
             disabled={status !== "ready" || webglReady === false}
-            title="Show or hide the broad stellar habitable zone. This is a presentation guide from stellar luminosity and broad flux bounds, not a climate model."
+            title={HABITABLE_ZONE_TOOLTIP}
           >
             {showHabitableZones ? "HZ On" : "HZ Off"}
           </button>
@@ -4345,6 +4351,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 onFrameCapture={onFrameCapture}
                 onHover={interactiveReadouts ? handleHoverObject : null}
                 onSelect={interactiveReadouts ? setPinnedObject : null}
+                onPointerMissed={interactiveReadouts ? () => setPinnedObject(null) : null}
                 onClockSample={handleClockSample}
                 onContextLost={handleContextLost}
               />

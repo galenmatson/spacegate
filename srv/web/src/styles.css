@@ -1077,7 +1077,8 @@
 
 .map-theme-select select,
 .map-keybind-select select,
-.map-frame-select select {
+.map-frame-select select,
+.map-scale-select select {
   min-height: 34px;
   width: 100%;
   border: 1px solid var(--map-hud-border);
@@ -1086,6 +1087,29 @@
   background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+
+.map-menu-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+  border-top: 1px solid color-mix(in srgb, var(--map-hud-border) 72%, transparent);
+}
+
+.map-menu-link {
+  color: var(--map-hud-strong);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+}
+
+.map-menu-link:hover,
+.map-menu-link:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
 }
 
 .map-menu-toggle {
@@ -3869,6 +3893,14 @@ body {
   text-align: center;
 }
 
+.header-kicker-line {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
 .header-side {
   flex: 1 1 720px;
   min-width: min(100%, 520px);
@@ -3987,6 +4019,10 @@ body {
   line-height: 1.35;
 }
 
+.header-kicker-line .header-subtitle {
+  font-size: 0.78rem;
+}
+
 .eyebrow {
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -4022,6 +4058,57 @@ body {
 .theme-picker {
   display: inline-flex;
   align-items: center;
+}
+
+.header-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.header-menu > summary {
+  list-style: none;
+}
+
+.header-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.header-menu-button {
+  width: 38px;
+  justify-content: center;
+  padding-inline: 10px;
+}
+
+.header-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.header-menu-field {
+  display: grid;
+  gap: 5px;
+}
+
+.header-menu-field > span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header-menu-field select {
+  width: 100%;
 }
 
 .header-lower {

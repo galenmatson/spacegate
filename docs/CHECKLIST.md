@@ -171,6 +171,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Add educational concept pages for public discovery tags with plain-language explanations, deeper science sections, representative systems, related concepts, Star Search "Find more" links, and interactive visualizations where useful
 - [x] Create `docs/CONCEPTS.md` with the public concept-page route, page contract,
   first-page priorities, and science-education backlog
+- [ ] Audit all public pills, chips, compact metrics, and badges for missing
+  tooltips/popovers; add helpful exposition, assumption detail popups, and
+  concept-page hooks where useful
+- [ ] Define tag priority tiers for compact, normal, and expanded UI surfaces
+  so the tagging system can be comprehensive without cluttering tight layouts
 - [x] Implement `spacegate_hab_score` + confidence/reasons metadata
 - [x] Implement element-richness proxy tags from stellar spectroscopy/metallicity inputs
 - [ ] Add API filters/toggles for controversial lifecycle state and habitability range

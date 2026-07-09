@@ -40,6 +40,15 @@ const MAP_UTILITY_LINKS = [
   { label: "SRC", href: "https://github.com/galenmatson/spacegate", title: "Source code", external: true },
   { label: "DATA", href: "/data", title: "Source data", external: false },
 ];
+const MAP_VISIBLE_UTILITY_LABELS = new Set(["HELP", "DATA"]);
+const MAP_MENU_UTILITY_LABELS = new Set(["ABT", "SPT", "SRC"]);
+const SYSTEM_SCALE_MODE_OPTIONS = [
+  { value: "structure", label: "Structured" },
+  { value: "true_orbits", label: "Orbit" },
+  { value: "true_bodies", label: "Body" },
+  { value: "log", label: "Log" },
+];
+const SYSTEM_SCALE_MODE_IDS = new Set(SYSTEM_SCALE_MODE_OPTIONS.map((option) => option.value));
 const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
@@ -142,6 +151,14 @@ const ICRS_TO_GALACTIC = [
   [0.4941094279, -0.4448296300, 0.7469822445],
   [-0.8676661490, -0.1980763734, 0.4559837762],
 ];
+
+function normalizeSystemScaleMode(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "clarity" || raw === "structured") {
+    return "structure";
+  }
+  return SYSTEM_SCALE_MODE_IDS.has(raw) ? raw : "structure";
+}
 
 function formatNumber(value, digits = 1) {
   const numeric = Number(value);
@@ -1871,6 +1888,7 @@ function LazyStarSearchPreview({
   poolSlot = null,
   previewDisabledReason = "",
   runtimeQualityTier = "high",
+  defaultScaleMode = "structure",
   onActivate,
   onDeactivate,
   onCapture,
@@ -1966,6 +1984,7 @@ function LazyStarSearchPreview({
             captureFrame={!cachedPreviewImage}
             onFrameCapture={handleFrameCapture}
             onRuntimeEvent={onRuntimeEvent}
+            defaultScaleMode={defaultScaleMode}
           />
         </React.Suspense>
       ) : showCachedPreview ? (
@@ -2009,6 +2028,7 @@ function MapStarSearchShell({
   previewPoolAllocations,
   previewPoolBudget,
   previewRuntimeQualityTier,
+  defaultScaleMode = "structure",
   previewPaused,
   previewCooldownActive,
   onRequestPreview,
@@ -2195,6 +2215,7 @@ function MapStarSearchShell({
                           : (previewPoolBudget <= 0 ? "Preview budget full" : "")
                     }
                     runtimeQualityTier={previewRuntimeQualityTier}
+                    defaultScaleMode={defaultScaleMode}
                     onActivate={onRequestPreview}
                     onDeactivate={onReleasePreview}
                     onCapture={onCapturePreview}
@@ -2231,7 +2252,15 @@ function MapStarSearchShell({
   );
 }
 
-export default function StarMapPage({ buildId = "", theme, setTheme, themeOptions = [], defaultSearchOpen = false }) {
+export default function StarMapPage({
+  buildId = "",
+  theme,
+  setTheme,
+  themeOptions = [],
+  defaultSearchOpen = false,
+  defaultScaleMode = "structure",
+  setDefaultScaleMode = () => {},
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -3364,7 +3393,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         </div>
         <nav className="map-actions" aria-label="Map actions">
           <div className="map-link-row" aria-label="Site links">
-            {MAP_UTILITY_LINKS.map((item) => (
+            {MAP_UTILITY_LINKS.filter((item) => MAP_VISIBLE_UTILITY_LABELS.has(item.label)).map((item) => (
               item.external ? (
                 <a
                   key={item.label}
@@ -3399,7 +3428,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
               onClick={jumpHomeToSol}
               title="Return to Sol"
             >
-              Home
+              SOL
             </button>
             <button
               type="button"
@@ -3466,6 +3495,38 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                     ))}
                   </select>
                 </label>
+                <label className="map-menu-field map-scale-select">
+                  <span>Default Scale</span>
+                  <select
+                    value={normalizeSystemScaleMode(defaultScaleMode)}
+                    onChange={(event) => setDefaultScaleMode(normalizeSystemScaleMode(event.target.value))}
+                    data-testid="map-default-scale-select"
+                  >
+                    {SYSTEM_SCALE_MODE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="map-menu-links" aria-label="Map menu links">
+                  {MAP_UTILITY_LINKS.filter((item) => MAP_MENU_UTILITY_LABELS.has(item.label)).map((item) => (
+                    item.external ? (
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        className="map-menu-link"
+                        title={item.title}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {item.label}
+                      </a>
+                    ) : (
+                      <Link key={item.label} to={item.href} className="map-menu-link" title={item.title}>
+                        {item.label}
+                      </Link>
+                    )
+                  ))}
+                </div>
                 <label className="map-menu-toggle">
                   <input
                     type="checkbox"
@@ -3555,6 +3616,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         previewPoolAllocations={previewPoolAllocations}
         previewPoolBudget={previewPoolBudget}
         previewRuntimeQualityTier={runtimeQuality.tier}
+        defaultScaleMode={defaultScaleMode}
         previewPaused={previewPaused}
         previewCooldownActive={previewCooldownActive}
         onRequestPreview={requestSearchPreview}
@@ -3825,6 +3887,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
                 qualityTier={runtimeQuality.tier}
                 onRuntimeEvent={handleRuntimeEvent}
                 onStellarClassEntries={setDrillStellarClassEntries}
+                defaultScaleMode={defaultScaleMode}
               />
             </React.Suspense>
           </div>

@@ -206,6 +206,13 @@ test.describe("public 3D map beta", () => {
     });
     await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("lcars");
+    await expect(page.locator(".header-kicker-line")).toContainText("Interstellar Explorer");
+    await expect(page.locator(".header-kicker-line")).toContainText("Discover and explore nearby systems, stars, and exoplanets.");
+    await expect(page.locator(".title-link")).toHaveAttribute("href", "/search");
+    const headerMenu = page.locator(".header-menu");
+    await expect(headerMenu).toBeVisible();
+    await headerMenu.locator("summary").click();
+    await expect(headerMenu.locator("[data-testid='global-default-scale-select']")).toBeVisible();
     await expect(page.locator(".catalog-search-topbar")).toBeVisible();
     await expect(page.locator(".catalog-search-sidebar")).toBeVisible();
     await expect.poll(() => page.locator(".catalog-search-sidebar").evaluate((node) => (
@@ -577,7 +584,7 @@ test.describe("public 3D map beta", () => {
     const canvas = page.locator(".map-canvas canvas");
     await expect(menu).toBeVisible();
     await expect(page.locator(".map-fullscreen-command")).toBeVisible();
-    const homeButton = page.getByRole("button", { name: "Home" });
+    const homeButton = page.getByRole("button", { name: "SOL" });
     await expect(homeButton).toBeVisible();
     await homeButton.click();
     await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
@@ -589,10 +596,12 @@ test.describe("public 3D map beta", () => {
     await expect(menu.locator(".map-header-menu-panel")).toBeVisible();
     const themeSelect = menu.locator(".map-theme-select select");
     const keybindSelect = menu.locator(".map-keybind-select select");
+    const scaleSelect = menu.locator("[data-testid='map-default-scale-select']");
     const frameSelect = menu.locator("[data-testid='map-frame-select']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
+    await expect(scaleSelect).toBeVisible();
     await expect(frameSelect).toBeVisible();
     await expect(directionToggle).toBeVisible();
 

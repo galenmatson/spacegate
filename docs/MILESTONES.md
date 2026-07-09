@@ -711,6 +711,16 @@ Future work:
   black-hole thresholds with clear caveats.
 - add optional future RIM/pop-culture hooks as clearly separated overlays, not
   mixed into canonical science
+- complete a tooltip and explanatory-popover audit across Star Search, the 3D
+  map, System Simulation, and Admin-facing diagnostics. Every visible pill,
+  chip, badge, and compact metric should either be self-evident or expose
+  helpful context. Examples: assumption-count pills should list the assumptions
+  and provenance; spectral-class pills should explain the class in one readable
+  paragraph; compact orbital and habitability tags should teach the underlying
+  concept and link toward future concept pages.
+- formalize tag priority tiers so tight spaces show only the highest-value
+  public tags while richer pages can expose fuller taxonomy and evidence
+  breakdowns
 - finish high-fidelity static System Snapshot v2 for no-WebGL clients,
   crawlers, share cards, and intentional low-intensity catalog contexts
 - deprecate the old prototype deterministic snapshot generator and Admin

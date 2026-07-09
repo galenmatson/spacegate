@@ -95,6 +95,8 @@ const ThemeContext = React.createContext({
   theme: "simple_light",
   setTheme: () => {},
   options: THEME_OPTIONS,
+  defaultScaleMode: "structure",
+  setDefaultScaleMode: () => {},
 });
 const LCARS_FALLBACK_CHIPS = ["Sol", "Sirius", "Alpha Centauri", "Vega"];
 const LCARS_FALLBACK_GAIA = [
@@ -130,6 +132,14 @@ const LCARS_RIGHT_CHIP_COUNT = 4;
 const LCARS_TEXT_SLOTS_PER_LINE = 5;
 const SEARCH_RESULT_PREVIEW_POOL_SIZE = 4;
 const SEARCH_RESULT_PREVIEW_CACHE_LIMIT = 160;
+const SIM_SCALE_STORAGE_KEY = "spacegate.systemSimulation.defaultScale";
+const SIM_SCALE_MODE_OPTIONS = [
+  { value: "structure", label: "Structured" },
+  { value: "true_orbits", label: "Orbit" },
+  { value: "true_bodies", label: "Body" },
+  { value: "log", label: "Log" },
+];
+const SIM_SCALE_MODE_IDS = new Set(SIM_SCALE_MODE_OPTIONS.map((option) => option.value));
 const LCARS_TEXT_ROW_COUNT = 5;
 const LCARS_TEXT_MAX_SLOTS = LCARS_TEXT_SLOTS_PER_LINE * LCARS_TEXT_ROW_COUNT;
 const GLOBAL_SEARCH_INPUT_SELECTOR = "input[data-global-search-input='true']";
@@ -199,6 +209,14 @@ function normalizeThemeId(raw) {
   return THEME_IDS.has(mapped) ? mapped : "";
 }
 
+function normalizeSimulationScaleMode(raw) {
+  const value = String(raw || "").trim().toLowerCase();
+  if (value === "clarity" || value === "structured") {
+    return "structure";
+  }
+  return SIM_SCALE_MODE_IDS.has(value) ? value : "structure";
+}
+
 function detectSystemTheme() {
   if (typeof window === "undefined") {
     return "simple_light";
@@ -223,6 +241,17 @@ function resolveInitialTheme() {
     // Ignore storage access failures and use system fallback.
   }
   return detectSystemTheme();
+}
+
+function resolveInitialSimulationScaleMode() {
+  if (typeof window === "undefined") {
+    return "structure";
+  }
+  try {
+    return normalizeSimulationScaleMode(window.localStorage.getItem(SIM_SCALE_STORAGE_KEY));
+  } catch (_) {
+    return "structure";
+  }
 }
 
 function useThemeControls() {
@@ -1628,6 +1657,7 @@ function StarSearchSimulationPreview({
   cachedPreviewImage = "",
   liveActive = false,
   poolSlot = null,
+  defaultScaleMode = "structure",
   onActivate,
   onDeactivate,
   onCapture,
@@ -1727,6 +1757,7 @@ function StarSearchSimulationPreview({
             qualityTier="balanced"
             captureFrame={!cachedPreviewImage}
             onFrameCapture={handleFrameCapture}
+            defaultScaleMode={defaultScaleMode}
           />
         </React.Suspense>
       ) : showCachedPreview ? (
@@ -2270,10 +2301,11 @@ function SystemHierarchyPanel({ hierarchy }) {
 }
 
 function Layout({ children, headerExtra = null, showSearchLink = true, buildId = "" }) {
-  const { theme, setTheme, options } = useThemeControls();
+  const { theme, setTheme, options, defaultScaleMode, setDefaultScaleMode } = useThemeControls();
   const location = useLocation();
   const navigate = useNavigate();
   const isLcars = theme === "lcars";
+  const searchHeaderMenuRef = useRef(null);
   const [lcarsChipSystems, setLcarsChipSystems] = useState(() => LCARS_FALLBACK_CHIPS.map((name) => ({ system_id: null, system_name: name })));
   const [lcarsGaiaPool, setLcarsGaiaPool] = useState(() => LCARS_FALLBACK_GAIA.map((gaia) => ({ gaia, system_id: null, system_name: "" })));
   const [lcarsHistory, setLcarsHistory] = useState(() => loadLcarsHistory());
@@ -2419,6 +2451,25 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [location.pathname, navigate]);
 
+  useEffect(() => {
+    const closeMenu = (event) => {
+      const node = searchHeaderMenuRef.current;
+      if (!node?.open) {
+        return;
+      }
+      if (event.target instanceof Node && node.contains(event.target)) {
+        return;
+      }
+      node.open = false;
+    };
+    window.addEventListener("pointerdown", closeMenu, true);
+    return () => window.removeEventListener("pointerdown", closeMenu, true);
+  }, []);
+
+  const titleTarget = location.pathname === "/search" || location.pathname === "/classic-search"
+    ? "/search"
+    : "/";
+
   return (
     <div className={`app ${isLcars ? "lcars-app" : ""}`}>
       {isLcars && (
@@ -2486,31 +2537,51 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
         )}
         <div className="header-main">
           <div className="header-brand">
-            <div className="eyebrow">Interstellar Explorer</div>
+            <div className="header-kicker-line">
+              <div className="eyebrow">Interstellar Explorer</div>
+              <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
+            </div>
             <div className="title-row">
-              <h1><a href="/" className="title-link">{APP_DISPLAY_NAME}</a></h1>
+              <h1><Link to={titleTarget} className="title-link">{APP_DISPLAY_NAME}</Link></h1>
             </div>
           </div>
           <div className="header-side">
             <div className="header-meta-row">
-              <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
               <div className="header-actions">
-                <div className="theme-picker">
-                  <label htmlFor="theme-select" className="sr-only">Theme</label>
-                  <select
-                    id="theme-select"
-                    className="theme-select"
-                    value={theme}
-                    onChange={(event) => setTheme(event.target.value)}
-                  >
-                    {options.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
+                <details className="header-menu" ref={searchHeaderMenuRef}>
+                  <summary className="button ghost header-menu-button" aria-label="Header menu" title="Header menu">
+                    <span className="map-menu-bars" aria-hidden="true" />
+                  </summary>
+                  <div className="header-menu-panel">
+                    <label className="header-menu-field theme-picker">
+                      <span>Theme</span>
+                      <select
+                        className="theme-select"
+                        value={theme}
+                        onChange={(event) => setTheme(event.target.value)}
+                      >
+                        {options.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="header-menu-field">
+                      <span>Default Scale</span>
+                      <select
+                        value={defaultScaleMode}
+                        onChange={(event) => setDefaultScaleMode(normalizeSimulationScaleMode(event.target.value))}
+                        data-testid="global-default-scale-select"
+                      >
+                        {SIM_SCALE_MODE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </details>
               </div>
             </div>
             {headerExtra && <div className="header-lower">{headerExtra}</div>}
@@ -2641,7 +2712,7 @@ function DataPage({ buildId = "" }) {
 }
 
 function SearchPage({ buildId = "" }) {
-  const { theme } = useThemeControls();
+  const { theme, defaultScaleMode } = useThemeControls();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSpectralClassTokens = parseSpectralTokens(searchParams.get("spectral_class") || "");
@@ -3550,6 +3621,7 @@ function SearchPage({ buildId = "" }) {
                         cachedPreviewImage={previewSnapshotCache.get(String(item.system_id))?.url || ""}
                         liveActive={previewAllocationsBySystemId.has(String(item.system_id))}
                         poolSlot={previewAllocationsBySystemId.get(String(item.system_id))?.slot ?? null}
+                        defaultScaleMode={defaultScaleMode}
                         onActivate={requestSearchPreview}
                         onDeactivate={releaseSearchPreview}
                         onCapture={captureSearchPreview}
@@ -3778,6 +3850,7 @@ function ProvenanceBlock({ provenance, grouping = null }) {
 }
 
 function SystemDetailPage({ buildId = "" }) {
+  const { defaultScaleMode } = useThemeControls();
   const { systemId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -3905,7 +3978,12 @@ function SystemDetailPage({ buildId = "" }) {
         </section>
 
         <React.Suspense fallback={<section className="panel system-preview-panel">Loading System Simulation...</section>}>
-          <SystemPreviewPanel systemId={system.system_id} systemName={currentSystemDisplayName} snapshot={system.snapshot} />
+          <SystemPreviewPanel
+            systemId={system.system_id}
+            systemName={currentSystemDisplayName}
+            snapshot={system.snapshot}
+            defaultScaleMode={defaultScaleMode}
+          />
         </React.Suspense>
 
         <SystemNarrativeScaffold system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
@@ -4154,6 +4232,7 @@ function SystemDetailPage({ buildId = "" }) {
 
 export default function App() {
   const [theme, setTheme] = useState(() => resolveInitialTheme());
+  const [defaultScaleMode, setDefaultScaleMode] = useState(() => resolveInitialSimulationScaleMode());
   const [buildId, setBuildId] = useState("");
 
   useEffect(() => {
@@ -4167,6 +4246,19 @@ export default function App() {
       // Ignore persistence failures in restricted browser contexts.
     }
   }, [theme]);
+
+  useEffect(() => {
+    const normalized = normalizeSimulationScaleMode(defaultScaleMode);
+    if (normalized !== defaultScaleMode) {
+      setDefaultScaleMode(normalized);
+      return;
+    }
+    try {
+      window.localStorage.setItem(SIM_SCALE_STORAGE_KEY, normalized);
+    } catch (_) {
+      // Ignore persistence failures in restricted browser contexts.
+    }
+  }, [defaultScaleMode]);
 
   useEffect(() => {
     let active = true;
@@ -4193,8 +4285,10 @@ export default function App() {
       theme,
       setTheme,
       options: THEME_OPTIONS,
+      defaultScaleMode,
+      setDefaultScaleMode,
     }),
-    [theme],
+    [defaultScaleMode, theme],
   );
 
   return (
@@ -4209,6 +4303,8 @@ export default function App() {
                 theme={theme}
                 setTheme={setTheme}
                 themeOptions={THEME_OPTIONS}
+                defaultScaleMode={defaultScaleMode}
+                setDefaultScaleMode={setDefaultScaleMode}
                 defaultSearchOpen
               />
             </React.Suspense>
@@ -4228,6 +4324,8 @@ export default function App() {
                 theme={theme}
                 setTheme={setTheme}
                 themeOptions={THEME_OPTIONS}
+                defaultScaleMode={defaultScaleMode}
+                setDefaultScaleMode={setDefaultScaleMode}
               />
             </React.Suspense>
           )}

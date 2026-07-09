@@ -1,3 +1,38 @@
+Vaporization Line
+This is the absolute inner edge of a star system where planets can begin to form. Closer to the star, the intense heat vaporizes even heavy rocks and metals directly into gas. Moving past this ~1,500 K (~2,240°F) boundary allows rocky dust to finally stay solid and stick together. Because worlds like Mercury, Earth, and Mars formed safely outside this line, they were able to successfully build and keep their solid, rocky crusts.
+
+Soot Line
+This boundary marks the spot where complex, carbon-based molecules can survive without being destroyed by the star's heat. Outside this ~300 K (~80°F) line, carbon chains safely condense into a solid, sooty dust that mixes with growing planets and asteroids. Many of the dark, carbon-rich asteroids in our own main asteroid belt formed just past this line. Scientists believe these drifting space rocks eventually crashed into a young Earth, delivering the crucial carbon needed to build the chemistry of life.
+
+Water Freeze Line
+Often just called the "Snowline," this is the crucial border where water turns from a gas directly into solid ice. Crossing into this ~150 K (~-190°F) deep freeze creates a massive abundance of solid ice crystals for planet-building. This extra material allows baby planets to quickly grow massive cores with enough gravity to sweep up surrounding gas. Jupiter and Saturn formed just past this line, allowing them to become massive gas giants circled by profoundly icy moons like Europa and Enceladus.
+
+Carbon Dioxide Freeze Line
+Further out in the dark, the temperature drops until carbon dioxide gas finally freezes solid. At roughly 70 K (~-334°F), what we know on Earth as "dry ice" becomes a permanent, natural part of the landscape. Planets and moons forming in this region can build up incredibly thick, heavy layers of trapped carbon dioxide. The moons of Uranus, such as Ariel and Umbriel, formed safely past this line, which is why their cratered surfaces still contain hidden deposits of frozen dry ice.
+
+Methane & Carbon Monoxide Freeze Line
+In the extreme outer reaches of a star system, it is finally cold enough for methane and carbon monoxide to freeze solid. Worlds that form past this ~20 K (~-424°F) boundary sweep up massive amounts of these deep-freeze chemicals. Because these compounds are so common in space, they end up making up a huge percentage of these distant worlds' overall volume. Sweeping up all this frozen methane is exactly what gives ice giants like Uranus and Neptune their beautiful, deep blue colors.
+
+Nitrogen Freeze Line
+This ultimate boundary marks the very edge of the planetary system, where almost nothing can exist as a gas except hydrogen and helium. Temperatures of ~12 K (~-438°F) are so close to absolute zero that even nitrogen gas freezes solid. Worlds born past this line are quiet, frozen time capsules made of the most fragile ices in the universe. We see this exact phenomenon on dwarf planets like Pluto, where the extreme cold creates massive, slowly flowing glaciers made entirely of solid nitrogen.
+
+Habitable Zone
+The habitable zone, often dubbed the "Goldilocks Zone," is the precise orbital region around a star where conditions are just right for liquid water to pool on a rocky planet's surface. The boundaries of this precious cosmic real estate are entirely dictated by the host star's temperature and luminosity, sitting incredibly close to dim red dwarfs and stretching far outward for blazing blue giants. However, residing in this zone is not a guarantee of paradise; a planet must also possess a stable atmosphere and magnetic field to prevent its oceans from boiling away or freezing solid. Because stars slowly brighten as they age, this zone is not static but gradually creeps outward over billions of years, occasionally leaving once-temperate worlds to fry in a runaway greenhouse effect. For Spacegate explorers and astrobiologists alike, this narrow orbital band remains the ultimate hunting ground in the search for extraterrestrial life.
+
+## Orbital Parameters
+
+ORBITAL PERIOD
+The orbital period is the exact amount of time it takes for a celestial body to complete one full revolution around its host star or barycenter. Dictated by the fundamental laws of planetary motion, this parameter determines the length of a "year" on that specific world. Planets hugging their stars in tightly packed orbits might whip around in mere hours, enduring blistering heat and intense tidal forces. Conversely, distant ice giants or wide binary companions may take tens of thousands of Earth years to complete a single, slow lap through the frozen dark. Understanding the period is crucial for predicting planetary transits and mapping the rhythmic gravitational dance of complex multi-star systems.
+
+SEMIMAJOR AXIS
+The semimajor axis is the average distance between an orbiting body and its host, defining the overall physical size of the orbit. Representing half of the longest diameter of an elliptical path, it is typically measured in Astronomical Units (AU) for planetary systems. This single metric is arguably the most critical factor in determining a planet's climate, as it dictates the baseline amount of stellar radiation the world receives. A extremely small semimajor axis plunges a world into the scorching inferno of its star, while a massive one casts it out into the desolate void. It is the defining coordinate when searching for the elusive "habitable zone" where liquid water can survive.
+
+ECCENTRICITY
+Eccentricity defines how drastically an orbit deviates from a perfect, circular path. A value of exactly zero represents a flawless circle, while values approaching one describe highly elongated, stretched-out ellipses. Planets with high eccentricity endure brutal seasonal extremes, flash-frying as they dive close to their star at periastron before freezing in the deep cold of apastron. In chaotic or young systems, high eccentricity often points to past gravitational violence, where planets were violently scattered or slingshotted by massive gas giants. It is a vital parameter for Spacegate explorers, as extremely eccentric worlds rarely offer the stability needed to incubate complex life.
+
+INCLINATION
+Inclination measures the steep "tilt" of a body's orbit relative to the system's foundational reference plane. In most calm, mature solar systems, planets orbit relatively flat along the same equatorial disk where they originally formed from a protoplanetary cloud. However, extreme inclinations reveal a turbulent history, indicating an object was either captured from deep space or violently knocked off its original axis by a catastrophic collision. High-inclination orbits carry worlds high above and far below the system's main orbital plane, subjecting them to complex, undulating gravitational forces. Identifying these tilted rogues is crucial for building accurate, fully realized 3D maps of a stellar neighborhood.
+
 ## Star types
 
 O (O-Type Star)
