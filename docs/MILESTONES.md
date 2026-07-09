@@ -1423,6 +1423,28 @@ selector for these high-value full-preview targets. This is a prerequisite for
 larger streamed 250/500/1000 ly map radii, where most displayed systems should
 not trigger dynamic scene assembly.
 
+### Stellar Physical Classification v1
+
+The July 2026 V1054 Oph review exposed two related needs. First, complex MSC
+systems can disagree between source hierarchy leaves and renderer endpoint
+materialization if MSC detail rows, WDS component labels, and ORB6 orbit pairs
+are not reconciled through the same source-native membership graph. V1054 Oph
+should join the complex-nearby-multiple golden set with checks for five source
+stellar leaves, Gliese 643/VB 8 alias coverage, no unmatched rendered
+endpoints, and explicit incomplete-orbit layout diagnostics.
+
+Second, Spacegate needs a reusable physical-class derivation policy that is
+stronger than renderer-only color priors but still does not contaminate
+canonical source facts. The policy should preserve source spectral type/class
+first, derive display/physical class from source or derived effective
+temperature and color evidence when safe, use radius/luminosity/log-g and
+compact-object catalog evidence as remnant/evolved-star guards, and fall back
+to mass-based main-sequence priors only as clearly labeled assumptions. Derived
+or assumed classes may support filters, labels, and render materials, but must
+remain separate from core spectral fields and carry provenance such as
+`teff_visual_class_prior_v1`, `mass_radius_physical_class_prior_v1`, or
+`mass_main_sequence_prior_v1`.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

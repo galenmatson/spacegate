@@ -8317,7 +8317,8 @@ main {
   justify-content: stretch;
   gap: 6px;
   max-height: 520px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 9px;
 }
 
@@ -8330,7 +8331,8 @@ main {
 }
 
 .system-preview-object-chip {
-  width: 100%;
+  width: calc(100% - (var(--object-depth, 0) * 12px));
+  max-width: 100%;
   min-width: 0;
   margin-left: calc(var(--object-depth, 0) * 12px);
   padding: 7px 8px;
