@@ -83,26 +83,52 @@ def update_build_metadata(db_path: Path, *, build_id: str, source_build_id: str,
     try:
         if not table_exists(con, "build_metadata"):
             con.execute("create table build_metadata(key varchar, value varchar)")
-        con.execute(
-            """
-            delete from build_metadata
-            where key in (
-              'build_id',
-              'side_artifact_rebuild_source_build_id',
-              'side_artifact_rebuild_kind',
-              'side_artifact_rebuild_generated_at'
+        columns = {
+            row[1]
+            for row in con.execute("pragma table_info('build_metadata')").fetchall()
+        }
+        if {"key", "value"}.issubset(columns):
+            con.execute(
+                """
+                delete from build_metadata
+                where key in (
+                  'build_id',
+                  'side_artifact_rebuild_source_build_id',
+                  'side_artifact_rebuild_kind',
+                  'side_artifact_rebuild_generated_at'
+                )
+                """
             )
-            """
-        )
-        con.executemany(
-            "insert into build_metadata values (?, ?)",
-            [
-                ("build_id", build_id),
-                ("side_artifact_rebuild_source_build_id", source_build_id),
-                ("side_artifact_rebuild_kind", artifact_kind),
-                ("side_artifact_rebuild_generated_at", utc_now()),
-            ],
-        )
+            con.executemany(
+                "insert into build_metadata values (?, ?)",
+                [
+                    ("build_id", build_id),
+                    ("side_artifact_rebuild_source_build_id", source_build_id),
+                    ("side_artifact_rebuild_kind", artifact_kind),
+                    ("side_artifact_rebuild_generated_at", utc_now()),
+                ],
+            )
+        elif {"build_id", "generated_at", "source_kind", "source_path"}.issubset(columns):
+            generated_at = utc_now()
+            con.execute("update build_metadata set build_id = ?", [build_id])
+            con.execute(
+                "delete from build_metadata where source_kind = ?",
+                [f"side_artifact_rebuild:{artifact_kind}"],
+            )
+            con.execute(
+                """
+                insert into build_metadata(build_id, generated_at, source_kind, source_path)
+                values (?, ?, ?, ?)
+                """,
+                [
+                    build_id,
+                    generated_at,
+                    f"side_artifact_rebuild:{artifact_kind}",
+                    source_build_id,
+                ],
+            )
+        else:
+            return
         con.execute("checkpoint")
     finally:
         con.close()
