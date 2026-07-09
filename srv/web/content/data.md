@@ -4,7 +4,7 @@ Last updated: July 7, 2026 (UTC)
 
 Spacegate is a Gaia-first astronomy database. It preserves source-native records and retrieval metadata, then builds deterministic public layers for search, analysis, simulation, and presentation.
 
-The public Coolstars site is served from a specific materialized build. The build identifier shown in the header connects the visible site to the database, manifests, cooked artifacts, and verification reports used to produce it.
+The public Coolstars site is served from a specific materialized build. The current served database identifier on this page connects the visible site to the database, manifests, cooked artifacts, and verification reports used to produce it.
 
 ## Layer Model
 
@@ -81,7 +81,7 @@ The site exposes source context in several places:
 - The `DATA` page documents active source families.
 - System pages show hierarchy, object vitals, simulation data, and diagnostics.
 - System Simulation readouts distinguish source, derived, assumed, and missing values where the interface has room for that detail.
-- Build identifiers in the header show which database build is being served.
+- This page shows which database build is currently being served.
 - The open source repository contains the ingest, build, verification, and API code.
 
 Repository:

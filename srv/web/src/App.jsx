@@ -174,8 +174,8 @@ const HELP_MARKDOWN = typeof MARKDOWN_CONTENT["../content/help.md"] === "string"
 
 Help content is not available in this checkout.
 `;
-const DATA_MARKDOWN = typeof MARKDOWN_CONTENT["../content/sources.md"] === "string"
-  ? MARKDOWN_CONTENT["../content/sources.md"]
+const DATA_MARKDOWN = typeof MARKDOWN_CONTENT["../content/data.md"] === "string"
+  ? MARKDOWN_CONTENT["../content/data.md"]
   : `# Spacegate Source Data Overview
 
 Source data content is not available in this checkout.
@@ -295,14 +295,6 @@ function MarkdownContent({ markdown }) {
   );
 }
 
-function formatBuildVersionLabel(buildId) {
-  const raw = String(buildId || "").trim();
-  if (!raw) {
-    return "";
-  }
-  return `DB ${raw}`;
-}
-
 function systemDisplayName(system) {
   const display = String(system?.display_name || "").trim();
   if (display) {
@@ -321,8 +313,7 @@ function starDisplayName(star) {
   return fallback || "";
 }
 
-function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels = null }) {
-  const buildLabel = formatBuildVersionLabel(buildId);
+function HeaderNavLinks({ className, linkClassName, includeLabels = null }) {
   const allowed = Array.isArray(includeLabels) ? new Set(includeLabels) : null;
   const items = allowed ? HEADER_LINKS.filter((item) => allowed.has(item.label)) : HEADER_LINKS;
   return (
@@ -340,43 +331,26 @@ function HeaderNavLinks({ className, linkClassName, buildId = "", includeLabels 
             {item.label}
           </a>
         ) : (
-          item.label === "DATA" ? (
-            <span key={item.label} className="header-data-link-group" title={buildLabel || item.title}>
-              <Link
-                to={item.href}
-                className={linkClassName}
-                title={item.title}
-              >
-                {item.label}
-              </Link>
-              {buildLabel ? <span className="header-build-badge">{buildLabel}</span> : null}
-            </span>
-          ) : (
-            <Link
-              key={item.label}
-              to={item.href}
-              className={linkClassName}
-              title={item.title}
-            >
-              {item.label}
-            </Link>
-          )
+          <Link
+            key={item.label}
+            to={item.href}
+            className={linkClassName}
+            title={item.title}
+          >
+            {item.label}
+          </Link>
         )
       ))}
     </span>
   );
 }
 
-function LcarsDataRail({ buildId = "" }) {
-  const buildLabel = formatBuildVersionLabel(buildId);
+function LcarsDataRail() {
   return (
     <div className="lcars-data-rail" aria-label="Data links">
-      <span className="lcars-data-link-group">
-        <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
-          DATA
-        </Link>
-        {buildLabel ? <span className="lcars-data-build">{buildLabel}</span> : null}
-      </span>
+      <Link to={HEADER_DATA_LINK} className="lcars-data-link" title="Source data">
+        DATA
+      </Link>
     </div>
   );
 }
@@ -2564,13 +2538,13 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
       )}
       {isLcars && (
         <div className="lcars-header-bridge">
-          <LcarsDataRail buildId={buildId} />
+          <LcarsDataRail />
         </div>
       )}
       <header className="site-header">
         {!isLcars && (
           <div className="header-topline">
-            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" buildId={buildId} />
+            <HeaderNavLinks className="header-top-links" linkClassName="header-top-link" />
           </div>
         )}
         <div className="header-main">
@@ -2710,6 +2684,10 @@ function DataPage({ buildId = "" }) {
     <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
       <section className="detail-layout">
         <section className="panel markdown-panel">
+          <div className="data-build-callout" aria-label="Current served database">
+            <span>Current Served Database</span>
+            <strong>{buildId ? buildId : "unknown"}</strong>
+          </div>
           <MarkdownContent markdown={DATA_MARKDOWN} />
         </section>
       </section>

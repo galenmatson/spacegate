@@ -3922,7 +3922,7 @@ body {
 .header-topline {
   position: absolute;
   top: var(--header-utility-top);
-  right: 24px;
+  right: 82px;
   left: 24px;
   display: flex;
   justify-content: flex-end;
@@ -3955,20 +3955,6 @@ body {
   color: var(--accent-dark);
   text-decoration: underline;
   text-underline-offset: 0.18em;
-}
-
-.header-data-link-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-build-badge {
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  opacity: 0.78;
 }
 
 .filters-footer {
@@ -4114,6 +4100,31 @@ body {
 
 .header-menu-field select {
   width: 100%;
+}
+
+.data-build-callout {
+  display: inline-grid;
+  gap: 4px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+
+.data-build-callout span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.data-build-callout strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .header-lower {
@@ -4410,6 +4421,7 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-topbar {
   position: relative;
+  z-index: 220;
   display: grid;
   grid-template-columns: var(--lcars-rail-width) 1fr minmax(260px, 360px);
   gap: 12px;
@@ -4447,7 +4459,7 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-utility-rail {
   position: absolute;
-  right: 18px;
+  right: 82px;
   bottom: 2px;
   z-index: 5;
   display: inline-flex;
@@ -4563,7 +4575,7 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-top-right {
   position: relative;
-  z-index: 2;
+  z-index: 240;
   display: grid;
   gap: 8px;
 }
@@ -4648,7 +4660,7 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-data-rail {
   position: absolute;
-  right: 18px;
+  right: 82px;
   top: 0;
   z-index: 5;
   display: inline-flex;
@@ -4672,22 +4684,6 @@ select:focus-visible {
 
 :root[data-theme="lcars"] .lcars-data-link:hover {
   text-decoration: underline;
-}
-
-:root[data-theme="lcars"] .lcars-data-link-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-:root[data-theme="lcars"] .lcars-data-build {
-  color: var(--lcars-text-dark);
-  font-family: var(--font-mono);
-  font-size: 0.56rem;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  opacity: 0.92;
 }
 
 :root[data-theme="lcars"] .lcars-header-bridge::before {
@@ -5306,7 +5302,7 @@ select:focus-visible {
 }
 
 :root[data-theme="retro_90s"] .header-topline {
-  right: 18px;
+  right: 82px;
 }
 
 :root[data-theme="retro_90s"] .header-top-link {
@@ -5773,7 +5769,7 @@ select:focus-visible {
 }
 
 :root[data-theme="aurora"] .header-topline {
-  right: 22px;
+  right: 82px;
 }
 
 :root[data-theme="aurora"] .header-top-link {
@@ -5933,7 +5929,7 @@ select:focus-visible {
 }
 
 :root[data-theme="deep_space_minimal"] .header-topline {
-  right: 20px;
+  right: 82px;
 }
 
 :root[data-theme="deep_space_minimal"] .header-top-link {
