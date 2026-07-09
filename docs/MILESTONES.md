@@ -1445,6 +1445,17 @@ remain separate from core spectral fields and carry provenance such as
 `teff_visual_class_prior_v1`, `mass_radius_physical_class_prior_v1`, or
 `mass_main_sequence_prior_v1`.
 
+Implementation note, July 9, 2026: `render_scene_v0.2` now gates rendered
+stellar bodies to source hierarchy leaves when those leaves exist, and reports
+unmatched MSC detail/orbit endpoints in
+`render_scene.diagnostics.membership_reconciliation`. The API bypasses stale
+prebuilt scene artifacts that lack this diagnostic. ARM now emits
+`derived_stellar_classifications` for core stars and reachable MSC component
+endpoints; source spectral facts remain in core/source fields, while derived
+display classes stay in ARM and render-scene visual fields remain
+presentation-facing. Member-name alias/search enrichment for Gliese 643/VB 8
+remains a follow-up.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

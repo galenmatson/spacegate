@@ -290,6 +290,11 @@ assembly. The JSON contract is unchanged. Responses expose
 `X-Spacegate-Simulation-Scene-Cache` with `prebuilt`, `hit`, or `miss` for
 diagnostics.
 
+Prebuilt artifacts are compatible only with the current renderer contract. If
+an artifact lacks required current diagnostics, such as
+`render_scene.diagnostics.membership_reconciliation`, the API may skip it and
+serve a dynamic `miss` response until artifacts are regenerated.
+
 Response:
 ```json
 {
@@ -561,7 +566,11 @@ Contract notes:
 - `render_scene.diagnostics` summarizes the final renderer-ready payload:
   body counts, orbit counts by endpoint/relation kind, field status counts, and
   assumption persistence counts, plus subsystem handle source/fallback counts
-  and a copy of the simulation-tree diagnostics.
+  and a copy of the simulation-tree diagnostics. It also includes
+  `membership_reconciliation`, which reports source hierarchy leaf count,
+  rendered stellar body count, active membership gate, and unmatched
+  detail/orbit endpoint keys when source hierarchy membership constrains
+  rendered stars.
   It is an audit aid derived from the emitted scene objects, not a replacement
   for the objects or their field provenance.
 - `rim` remains excluded from this science endpoint.

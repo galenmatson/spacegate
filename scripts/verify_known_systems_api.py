@@ -26,6 +26,7 @@ class BenchmarkCase:
     required_hierarchy_names: tuple[str, ...] = ()
     required_hierarchy_facts: tuple[HierarchyFact, ...] = ()
     min_scene_stars: int | None = None
+    exact_scene_stars: int | None = None
     min_scene_planets: int | None = None
 
 
@@ -140,6 +141,22 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         min_star_count=2,
         min_scene_stars=3,
     ),
+    BenchmarkCase(
+        "V1054 Oph",
+        expected_wds_id="16555-0820",
+        max_dist_ly=22.0,
+        min_star_count=5,
+        expected_aliases=("WDS 16555-0820",),
+        required_hierarchy_names=("V1054 Oph A", "V1054 Oph BA", "V1054 Oph BB", "V1054 Oph C", "V1054 Oph F"),
+        required_hierarchy_facts=(
+            HierarchyFact("V1054 Oph A", {"spectral_type_raw": "M3", "spectral_class": "M", "mass_msun": 0.41}),
+            HierarchyFact("V1054 Oph BA", {"spectral_type_raw": "M3", "spectral_class": "M", "mass_msun": 0.34}),
+            HierarchyFact("V1054 Oph BB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.30}),
+            HierarchyFact("V1054 Oph C", {"spectral_type_raw": "sdM4", "spectral_class": "M", "mass_msun": 0.20}),
+            HierarchyFact("V1054 Oph F", {"spectral_type_raw": "M7V", "spectral_class": "M", "mass_msun": 0.09}),
+        ),
+        exact_scene_stars=5,
+    ),
 )
 
 
@@ -162,6 +179,47 @@ def iter_hierarchy_nodes(node: dict[str, Any]):
 
 def normalize(value: Any) -> str:
     return str(value or "").casefold().strip()
+
+
+def _search_alias_text(item: dict[str, Any]) -> set[str]:
+    return {
+        normalize(item.get("display_name")),
+        normalize(item.get("system_name")),
+        *(normalize(value) for value in item.get("display_aliases") or []),
+    }
+
+
+def _choose_benchmark_search_item(case: BenchmarkCase, items: list[dict[str, Any]]) -> dict[str, Any]:
+    query_norm = normalize(case.query)
+    expected_aliases = {normalize(value) for value in case.expected_aliases}
+
+    def score(item: dict[str, Any]) -> tuple[int, int, float, int]:
+        alias_text = _search_alias_text(item)
+        mismatch_penalty = 0
+        if case.expected_wds_id and item.get("wds_id") != case.expected_wds_id:
+            mismatch_penalty += 10
+        if case.max_dist_ly is not None:
+            dist_ly = item.get("dist_ly")
+            if dist_ly is None or float(dist_ly) > case.max_dist_ly:
+                mismatch_penalty += 5
+        if case.min_star_count is not None and int(item.get("star_count") or 0) < case.min_star_count:
+            mismatch_penalty += 3
+        if case.min_planet_count is not None and int(item.get("planet_count") or 0) < case.min_planet_count:
+            mismatch_penalty += 3
+
+        exact_bonus = 0
+        if query_norm in alias_text:
+            exact_bonus -= 10
+        if expected_aliases & alias_text:
+            exact_bonus -= 5
+        if case.expected_wds_id and normalize(f"WDS {case.expected_wds_id}") in alias_text:
+            exact_bonus -= 5
+
+        match_rank = int(item.get("match_rank") if item.get("match_rank") is not None else 99)
+        dist = float(item.get("dist_ly") if item.get("dist_ly") is not None else 1.0e12)
+        return (mismatch_penalty, exact_bonus, dist, match_rank)
+
+    return min(items, key=score)
 
 
 def assert_fact_matches(label: str, fact_key: str, expected: Any, actual: Any) -> None:
@@ -325,6 +383,21 @@ def assert_render_scene_contract(
             stale_scene_gap = True
         else:
             raise AssertionError(message)
+    if case.exact_scene_stars is not None and len(scene_stars) != case.exact_scene_stars:
+        message = f"{case.query}: expected exactly {case.exact_scene_stars} preview stars, got {len(scene_stars)}"
+        if allow_stale_public_slice:
+            warnings.append(f"[stale-public-slice] {message}")
+            stale_scene_gap = True
+        else:
+            raise AssertionError(message)
+    membership = diagnostics.get("membership_reconciliation") or {}
+    if case.exact_scene_stars is not None:
+        if membership.get("membership_gate") != "source_hierarchy_leaves":
+            raise AssertionError(f"{case.query}: expected source hierarchy membership gate, got {membership}")
+        if membership.get("source_hierarchy_leaf_count") != case.exact_scene_stars:
+            raise AssertionError(f"{case.query}: source hierarchy leaf diagnostic mismatch: {membership}")
+        if membership.get("rendered_stellar_body_count") != case.exact_scene_stars:
+            raise AssertionError(f"{case.query}: rendered body diagnostic mismatch: {membership}")
     if case.min_scene_planets is not None and len(scene_planets) < case.min_scene_planets:
         message = f"{case.query}: expected at least {case.min_scene_planets} preview planets, got {len(scene_planets)}"
         if allow_stale_public_slice:
@@ -565,11 +638,11 @@ def verify_case(
     *,
     allow_stale_public_slice: bool = False,
 ) -> str:
-    search = get_json(base_url, "/systems/search", params={"q": case.query, "limit": 5})
+    search = get_json(base_url, "/systems/search", params={"q": case.query, "limit": 20})
     items = search.get("items") or []
     if not items:
         raise AssertionError(f"{case.query}: search returned no results")
-    item = items[0]
+    item = _choose_benchmark_search_item(case, items)
     system_id = item.get("system_id")
     if system_id is None:
         raise AssertionError(f"{case.query}: first result missing system_id")

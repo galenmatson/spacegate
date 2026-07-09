@@ -643,14 +643,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   goldens, and high-coolness systems keep full System Simulation previews
 - [x] Add `search-preview` simulation-scene materialization profile for
   priority full-preview systems
-- [ ] Add V1054 Oph as a complex-nearby-multiple golden: verify source leaf
-  count, MSC/WDS/ORB6 component-label reconciliation, alias coverage for
-  Gliese 643/VB 8, no extra rendered endpoints, and no misleading shared-orbit
-  layout when orbital coverage is incomplete
-- [ ] Define Stellar Physical Classification v1: source spectral class first,
+- [x] Add V1054 Oph as a complex-nearby-multiple golden: verify source leaf
+  count, MSC/WDS/ORB6 component-label reconciliation, no extra rendered
+  endpoints, and no misleading shared-orbit layout when orbital coverage is
+  incomplete
+- [x] Define Stellar Physical Classification v1: source spectral class first,
   source/derived Teff and color constraints second, radius/luminosity/remnant
   guards before mass priors, with derived display classes never written into
   core spectral fields
+- [ ] Enrich member-star alias/search-term coverage for complex systems such as
+  V1054 Oph so names like Gliese 643 and VB 8 resolve to the containing system
+  without promoting member names to false system-level canonical names
 - [ ] Expand the Live-WebGL runtime manager with richer admin/dev telemetry,
   observed browser context limits, and real-device automatic quality tuning
 - [ ] 3D map tiled 250 ly / 500 ly / 1000 ly runtime integration over

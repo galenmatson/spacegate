@@ -69,6 +69,9 @@ Current fixture scope:
 - required presence/regression checks (core): 55 Cnc, GJ 667 C, TRAPPIST-1, 16 Cyg B
 - required quantitative regression check (arm): Nu Scorpii source-native MSC stellar leaf count
 - required quantitative regression check (arm): Castor source-native MSC stellar leaf count remains six
+- required quantitative regression check (arm): V1054 Oph hierarchy-reachable
+  source-native MSC stellar leaf count remains five, excluding orphaned/conflict
+  endpoint rows such as the current MSC `D` branch from render membership
 - required quantitative neighborhood check (core): minimum nearby-system count within 10 ly
 - optional presence checks (galaxy/halo scope): PSR B1620-26, TYC 7037-89-1
 

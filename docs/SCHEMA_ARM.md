@@ -270,6 +270,61 @@ Rules:
 - rows with `confidence_tier='illustrative'` may support diagnostics but must
   not be used as canonical science assertions.
 
+## `derived_stellar_classifications`
+
+Deterministic, provenance-bound categorical classification candidates for
+display, search, filters, and renderer policy when source spectral class is
+missing. These rows do not replace `core.stars.spectral_class` or source
+spectral type fields.
+
+Implementation status: emitted by `scripts/build_arm.py` as
+`derived_stellar_classification_v1` for core stars and source-native MSC
+stellar component endpoints.
+
+Columns:
+- `derived_classification_id BIGINT`
+- `build_id TEXT`
+- object binding:
+  - `object_type TEXT` (`star|component`)
+  - `system_id BIGINT` (nullable)
+  - `star_id BIGINT` (nullable)
+  - `stable_object_key TEXT` (nullable)
+  - `stable_component_key TEXT` (nullable)
+- classification:
+  - `classification_key TEXT` (`stellar_display_class` in v1)
+  - `classification_value TEXT` (`O|B|A|F|G|K|M|L|T|Y|WR|WD|NS|PULSAR|MAGNETAR|BLACK HOLE`)
+  - `classification_status TEXT` (`derived|assumed|missing`)
+- derivation:
+  - `derivation_method TEXT` (`remnant_guard_v1`,
+    `teff_visual_class_prior_v1`, `mass_radius_physical_class_prior_v1`,
+    `spectral_type_visual_class_prior_v1`,
+    `mass_main_sequence_prior_v1`)
+  - `derivation_version TEXT`
+  - `input_parameters_json TEXT`
+  - `assumptions_json TEXT`
+  - `lossy_transform BOOLEAN`
+  - `superseded_by_source BOOLEAN`
+- quality:
+  - `confidence_score DOUBLE`
+  - `confidence_tier TEXT` (`medium|low|illustrative|missing`)
+  - `review_status TEXT` (`candidate|accepted|superseded|rejected`)
+- provenance fields (`source_*`, `retrieval_*`, `ingested_at`,
+  `transform_version`)
+
+Rules:
+- Source spectral type/class remains authoritative for catalog facts and must
+  supersede derived display classifications.
+- Compact/remnant evidence overrides temperature buckets. A hot white dwarf,
+  neutron star, pulsar, magnetar, or black hole must never be displayed as an
+  ordinary O/B/A/F/G/K/M star merely because of temperature.
+- Mass-only main-sequence rows are `classification_status='assumed'` and
+  `confidence_tier='illustrative'`; they are useful for visual/search
+  ergonomics, not science claims.
+- MSC component classifications are emitted only for component keys that exist
+  as source-supported `component_entities` star rows. Unmatched MSC detail
+  endpoints remain diagnostics/evidence and must not become rendered or
+  classified stars.
+
 ## `msc_component_details`
 
 MSC component/context rows for subsystem narration and photometry support.

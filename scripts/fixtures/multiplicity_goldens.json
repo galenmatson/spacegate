@@ -97,6 +97,16 @@
       "max_value": 6
     },
     {
+      "id": "v1054_oph_source_stellar_leaf_count",
+      "mode": "query",
+      "scope": "arm",
+      "required": true,
+      "label": "V1054 Oph source-native MSC stellar leaf count",
+      "sql_count": "with recursive reach(key) as (select 'comp:msc_system:wds:16555-0820' union all select e.child_component_key from system_hierarchy_edges e join reach r on e.parent_component_key = r.key) select count(distinct key)::bigint from reach where key like 'comp:msc:wds:16555-0820:%'",
+      "min_value": 5,
+      "max_value": 5
+    },
+    {
       "id": "sol_neighborhood",
       "mode": "query",
       "scope": "core",

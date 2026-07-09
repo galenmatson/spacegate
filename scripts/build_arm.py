@@ -36,6 +36,7 @@ NASA_PSCOMPPARS_URL_FALLBACK = "https://exoplanetarchive.ipac.caltech.edu"
 NASA_PS_VERSION_FALLBACK = "ps"
 NASA_PS_URL_FALLBACK = "https://exoplanetarchive.ipac.caltech.edu"
 DERIVED_PHYSICAL_PARAMETERS_VERSION = "derived_physical_parameters_v1"
+DERIVED_STELLAR_CLASSIFICATION_VERSION = "derived_stellar_classification_v1"
 
 
 def log(message: str) -> None:
@@ -1778,6 +1779,209 @@ def main() -> int:
     log(f"Arm stage complete: derived_physical_parameters ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
+    log("Arm stage: creating derived_stellar_classifications")
+    con.execute(
+        f"""
+        create table derived_stellar_classifications as
+        with best_params as (
+          select *
+          from stellar_parameters
+          qualify row_number() over (
+            partition by star_id
+            order by
+              case parameter_source
+                when 'nasa_pscomppars_host' then 0
+                when 'gaia_dr3_backbone' then 1
+                else 9
+              end,
+              stellar_parameter_id
+          ) = 1
+        ), source_rows as (
+          select
+            st.star_id,
+            st.system_id,
+            st.stable_object_key,
+            st.spectral_class,
+            st.spectral_type_raw,
+            st.object_type as source_object_type,
+            st.classprob_dsc_combmod_whitedwarf,
+            st.classprob_dsc_specmod_whitedwarf,
+            st.wd_catalog_name,
+            st.wd_catalog_teff_k,
+            st.wd_catalog_logg_cgs,
+            st.wd_catalog_mass_msun,
+            bp.stellar_parameter_id,
+            bp.parameter_source,
+            bp.teff_k,
+            bp.teff_lo_k,
+            bp.teff_hi_k,
+            bp.logg_cgs,
+            bp.radius_rsun,
+            bp.mass_msun,
+            bp.luminosity_log10_lsun,
+            bp.bp_rp,
+            bp.phot_bp_mag,
+            bp.phot_rp_mag,
+            bp.source_catalog,
+            bp.source_version,
+            bp.source_pk,
+            bp.source_row_hash,
+            bp.retrieval_checksum,
+            bp.retrieved_at,
+            bp.ingested_at,
+            bp.transform_version,
+            (
+              lower(coalesce(st.object_type, '')) in ('white_dwarf', 'neutron_star', 'black_hole', 'pulsar', 'magnetar')
+              or upper(coalesce(st.spectral_class, '')) = 'D'
+              or regexp_matches(upper(coalesce(st.spectral_type_raw, '')), '^D')
+              or st.wd_catalog_name is not null
+              or greatest(
+                coalesce(st.classprob_dsc_combmod_whitedwarf, 0.0),
+                coalesce(st.classprob_dsc_specmod_whitedwarf, 0.0)
+              ) >= 0.50
+              or (
+                bp.radius_rsun is not null
+                and bp.radius_rsun > 0.0
+                and bp.radius_rsun < 0.08
+                and coalesce(bp.mass_msun, st.wd_catalog_mass_msun) between 0.15 and 1.45
+              )
+            ) as remnant_guard
+          from core.stars st
+          left join best_params bp on bp.star_id = st.star_id
+        ), candidates as (
+          select
+            'star'::varchar as object_type,
+            system_id,
+            star_id,
+            stable_object_key,
+            cast(null as varchar) as stable_component_key,
+            case
+              when lower(coalesce(source_object_type, '')) = 'pulsar' then 'PULSAR'
+              when lower(coalesce(source_object_type, '')) = 'magnetar' then 'MAGNETAR'
+              when lower(coalesce(source_object_type, '')) = 'neutron_star' then 'NS'
+              when lower(coalesce(source_object_type, '')) = 'black_hole' then 'BLACK HOLE'
+              when lower(coalesce(source_object_type, '')) = 'white_dwarf' or remnant_guard then 'WD'
+              when teff_k >= 30000 then 'O'
+              when teff_k >= 10000 then 'B'
+              when teff_k >= 7500 then 'A'
+              when teff_k >= 6000 then 'F'
+              when teff_k >= 5200 then 'G'
+              when teff_k >= 3700 then 'K'
+              when teff_k >= 2400 then 'M'
+              when teff_k is not null then 'L'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 0.08 then 'L'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 0.65 then 'M'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 0.85 then 'K'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 1.04 then 'G'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 1.40 then 'F'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 2.10 then 'A'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 16.0 then 'B'
+              when mass_msun is not null and mass_msun > 0 then 'O'
+              else null
+            end::varchar as class_token,
+            case
+              when remnant_guard then 'derived'
+              when teff_k is not null then 'derived'
+              when mass_msun is not null and mass_msun > 0 then 'assumed'
+              else 'missing'
+            end::varchar as classification_status,
+            case
+              when remnant_guard then 'remnant_guard_v1'
+              when teff_k is not null and radius_rsun is not null then 'mass_radius_physical_class_prior_v1'
+              when teff_k is not null then 'teff_visual_class_prior_v1'
+              when mass_msun is not null and mass_msun > 0 then 'mass_main_sequence_prior_v1'
+              else 'no_supported_classification_inputs'
+            end::varchar as derivation_method,
+            {sql_literal(DERIVED_STELLAR_CLASSIFICATION_VERSION)}::varchar as derivation_version,
+            json_object(
+              'star_id', star_id,
+              'stellar_parameter_id', stellar_parameter_id,
+              'parameter_source', parameter_source,
+              'source_spectral_class', spectral_class,
+              'source_spectral_type_raw', spectral_type_raw,
+              'object_type', source_object_type,
+              'teff_k', teff_k,
+              'teff_lo_k', teff_lo_k,
+              'teff_hi_k', teff_hi_k,
+              'radius_rsun', radius_rsun,
+              'mass_msun', mass_msun,
+              'logg_cgs', logg_cgs,
+              'bp_rp', bp_rp,
+              'classprob_whitedwarf_combmod', classprob_dsc_combmod_whitedwarf,
+              'classprob_whitedwarf_specmod', classprob_dsc_specmod_whitedwarf,
+              'wd_catalog_name', wd_catalog_name,
+              'wd_catalog_teff_k', wd_catalog_teff_k,
+              'wd_catalog_logg_cgs', wd_catalog_logg_cgs,
+              'wd_catalog_mass_msun', wd_catalog_mass_msun
+            )::varchar as input_parameters_json,
+            json_object(
+              'source_spectral_class_supersedes', true,
+              'remnant_guard_overrides_teff_bucket', true,
+              'mass_only_main_sequence_prior_excludes_remnant_evolved_unresolved_alternatives', false
+            )::varchar as assumptions_json,
+            case when mass_msun is not null and mass_msun > 0 and teff_k is null and not remnant_guard then true else false end as lossy_transform,
+            case when nullif(trim(coalesce(spectral_class, '')), '') is not null then true else false end as superseded_by_source,
+            case
+              when remnant_guard then 0.78
+              when teff_k is not null and radius_rsun is not null then 0.70
+              when teff_k is not null then 0.62
+              when mass_msun is not null and mass_msun > 0 then 0.35
+              else 0.0
+            end::double as confidence_score,
+            case
+              when remnant_guard then 'medium'
+              when teff_k is not null and radius_rsun is not null then 'medium'
+              when teff_k is not null then 'low'
+              when mass_msun is not null and mass_msun > 0 then 'illustrative'
+              else 'missing'
+            end::varchar as confidence_tier,
+            'candidate'::varchar as review_status,
+            coalesce(source_catalog, 'spacegate_derived')::varchar as source_catalog,
+            coalesce(source_version, {sql_literal(DERIVED_STELLAR_CLASSIFICATION_VERSION)})::varchar as source_version,
+            coalesce(source_pk, concat('star:', star_id::varchar, ':derived_stellar_class'))::varchar as source_pk,
+            source_row_hash,
+            retrieval_checksum,
+            retrieved_at,
+            coalesce(ingested_at, {sql_literal(args.ingested_at)})::varchar as ingested_at,
+            coalesce(transform_version, {sql_literal(args.transform_version)})::varchar as transform_version
+          from source_rows
+          where nullif(trim(coalesce(spectral_class, '')), '') is null
+        )
+        select
+          row_number() over (order by object_type, coalesce(system_id, -1), coalesce(star_id, -1), coalesce(stable_component_key, ''), derivation_method)::bigint as derived_classification_id,
+          {sql_literal(args.build_id)}::varchar as build_id,
+          object_type,
+          system_id,
+          star_id,
+          stable_object_key,
+          stable_component_key,
+          'stellar_display_class'::varchar as classification_key,
+          class_token as classification_value,
+          classification_status,
+          derivation_method,
+          derivation_version,
+          input_parameters_json,
+          assumptions_json,
+          lossy_transform,
+          superseded_by_source,
+          confidence_score,
+          confidence_tier,
+          review_status,
+          source_catalog,
+          source_version,
+          concat(source_pk, ':stellar_display_class:', derivation_method)::varchar as source_pk,
+          sha256(concat_ws('|', stable_object_key, coalesce(star_id::varchar, ''), class_token, derivation_method, input_parameters_json, assumptions_json)) as source_row_hash,
+          retrieval_checksum,
+          retrieved_at,
+          ingested_at,
+          transform_version
+        from candidates
+        where class_token is not null
+        """
+    )
+    log(f"Arm stage complete: derived_stellar_classifications ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating gaia_nss_best")
     con.execute(
         """
@@ -2738,6 +2942,168 @@ def main() -> int:
     log(f"Arm stage complete: msc_system_details ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
+    log("Arm stage: adding MSC component derived_stellar_classifications")
+    con.execute(
+        f"""
+        insert into derived_stellar_classifications
+        with existing_max as (
+          select coalesce(max(derived_classification_id), 0)::bigint as max_id
+          from derived_stellar_classifications
+        ), endpoint_rows as (
+          select
+            cast(null as bigint) as system_id,
+            primary_component_key as stable_component_key,
+            spectral_type_primary as spectral_type_raw,
+            mass_primary_msun as mass_msun,
+            mass_code_primary as mass_code,
+            vmag_primary as vmag,
+            source_catalog,
+            source_version,
+            source_pk,
+            source_row_hash,
+            retrieval_checksum,
+            retrieved_at,
+            ingested_at,
+            transform_version
+          from msc_system_details
+          where primary_component_key is not null
+          union all
+          select
+            cast(null as bigint) as system_id,
+            secondary_component_key as stable_component_key,
+            spectral_type_secondary as spectral_type_raw,
+            mass_secondary_msun as mass_msun,
+            mass_code_secondary as mass_code,
+            vmag_secondary as vmag,
+            source_catalog,
+            source_version,
+            source_pk,
+            source_row_hash,
+            retrieval_checksum,
+            retrieved_at,
+            ingested_at,
+            transform_version
+          from msc_system_details
+          where secondary_component_key is not null
+        ), ranked as (
+          select
+            e.*,
+            ce.display_name,
+            ce.catalog_component_label,
+            row_number() over (
+              partition by e.stable_component_key
+              order by
+                case when nullif(trim(coalesce(e.spectral_type_raw, '')), '') is not null then 0 else 1 end,
+                case when e.mass_msun is not null and e.mass_msun > 0 then 0 else 1 end,
+                e.source_pk
+            ) as rn
+          from endpoint_rows e
+          join component_entities ce
+            on ce.stable_component_key = e.stable_component_key
+           and ce.component_type = 'star'
+          where e.stable_component_key like 'comp:msc:wds:%'
+        ), candidates as (
+          select
+            'component'::varchar as object_type,
+            system_id,
+            cast(null as bigint) as star_id,
+            cast(null as varchar) as stable_object_key,
+            stable_component_key,
+            case
+              when regexp_matches(upper(coalesce(spectral_type_raw, '')), '^D') then 'WD'
+              when regexp_matches(upper(coalesce(spectral_type_raw, '')), '^W[CNOR]') then 'WR'
+              when regexp_matches(upper(coalesce(spectral_type_raw, '')), '^[OBAFGKMLTY]') then regexp_extract(upper(spectral_type_raw), '^([OBAFGKMLTY])', 1)
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 0.08 then 'L'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 0.65 then 'M'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 0.85 then 'K'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 1.04 then 'G'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 1.40 then 'F'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 2.10 then 'A'
+              when mass_msun is not null and mass_msun > 0 and mass_msun < 16.0 then 'B'
+              when mass_msun is not null and mass_msun > 0 then 'O'
+              else null
+            end::varchar as class_token,
+            case
+              when nullif(trim(coalesce(spectral_type_raw, '')), '') is not null then 'derived'
+              when mass_msun is not null and mass_msun > 0 then 'assumed'
+              else 'missing'
+            end::varchar as classification_status,
+            case
+              when nullif(trim(coalesce(spectral_type_raw, '')), '') is not null then 'spectral_type_visual_class_prior_v1'
+              when mass_msun is not null and mass_msun > 0 then 'mass_main_sequence_prior_v1'
+              else 'no_supported_classification_inputs'
+            end::varchar as derivation_method,
+            json_object(
+              'stable_component_key', stable_component_key,
+              'component_label', catalog_component_label,
+              'display_name', display_name,
+              'spectral_type_raw', spectral_type_raw,
+              'mass_msun', mass_msun,
+              'mass_code', mass_code,
+              'vmag', vmag,
+              'source_pk', source_pk
+            )::varchar as input_parameters_json,
+            json_object(
+              'source_spectral_type_supersedes_mass_prior', true,
+              'mass_only_main_sequence_prior_excludes_remnant_evolved_unresolved_alternatives', false,
+              'component_must_exist_in_component_entities', true
+            )::varchar as assumptions_json,
+            source_catalog,
+            source_version,
+            source_pk,
+            source_row_hash,
+            retrieval_checksum,
+            retrieved_at,
+            ingested_at,
+            transform_version
+          from ranked
+          where rn = 1
+        )
+        select
+          existing_max.max_id + row_number() over (
+            order by candidates.object_type, coalesce(candidates.system_id, -1), coalesce(candidates.stable_component_key, ''), candidates.derivation_method
+          )::bigint as derived_classification_id,
+          {sql_literal(args.build_id)}::varchar as build_id,
+          candidates.object_type,
+          candidates.system_id,
+          candidates.star_id,
+          candidates.stable_object_key,
+          candidates.stable_component_key,
+          'stellar_display_class'::varchar as classification_key,
+          candidates.class_token as classification_value,
+          candidates.classification_status,
+          candidates.derivation_method,
+          {sql_literal(DERIVED_STELLAR_CLASSIFICATION_VERSION)}::varchar as derivation_version,
+          candidates.input_parameters_json,
+          candidates.assumptions_json,
+          case when candidates.classification_status = 'assumed' then true else false end as lossy_transform,
+          false as superseded_by_source,
+          case
+            when candidates.derivation_method = 'spectral_type_visual_class_prior_v1' then 0.62
+            when candidates.derivation_method = 'mass_main_sequence_prior_v1' then 0.35
+            else 0.0
+          end::double as confidence_score,
+          case
+            when candidates.derivation_method = 'spectral_type_visual_class_prior_v1' then 'low'
+            when candidates.derivation_method = 'mass_main_sequence_prior_v1' then 'illustrative'
+            else 'missing'
+          end::varchar as confidence_tier,
+          'candidate'::varchar as review_status,
+          candidates.source_catalog,
+          candidates.source_version,
+          concat(candidates.source_pk, ':', candidates.stable_component_key, ':stellar_display_class:', candidates.derivation_method)::varchar as source_pk,
+          sha256(concat_ws('|', candidates.stable_component_key, candidates.class_token, candidates.derivation_method, candidates.input_parameters_json, candidates.assumptions_json)) as source_row_hash,
+          candidates.retrieval_checksum,
+          candidates.retrieved_at,
+          candidates.ingested_at,
+          candidates.transform_version
+        from candidates, existing_max
+        where candidates.class_token is not null
+        """
+    )
+    log(f"Arm stage complete: MSC component derived_stellar_classifications ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
     log("Arm stage: creating msc_orbit_details")
     con.execute(
         f"""
@@ -3211,6 +3577,29 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: system_hierarchy_edges ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: pruning unreachable MSC component derived_stellar_classifications")
+    con.execute(
+        """
+        delete from derived_stellar_classifications
+        where object_type = 'component'
+          and stable_component_key like 'comp:msc:wds:%'
+          and stable_component_key not in (
+            with recursive reachable(key) as (
+              select distinct parent_component_key
+              from system_hierarchy_edges
+              where parent_component_key like 'comp:msc_system:wds:%'
+              union
+              select e.child_component_key
+              from system_hierarchy_edges e
+              join reachable r on e.parent_component_key = r.key
+            )
+            select key from reachable
+          )
+        """
+    )
+    log(f"Arm stage complete: prune derived_stellar_classifications ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
     log("Arm stage: creating orbit_edges")
@@ -4937,6 +5326,21 @@ def main() -> int:
     derived_parameter_count = int(
         con.execute("select count(*) from derived_physical_parameters").fetchone()[0] or 0
     )
+    derived_stellar_classification_count = int(
+        con.execute("select count(*) from derived_stellar_classifications").fetchone()[0] or 0
+    )
+    derived_stellar_classification_by_method_rows = con.execute(
+        """
+        select derivation_method, count(*)::bigint
+        from derived_stellar_classifications
+        group by derivation_method
+        order by derivation_method
+        """
+    ).fetchall()
+    derived_stellar_classification_counts_by_method = {
+        str(method): int(count or 0)
+        for method, count in derived_stellar_classification_by_method_rows
+    }
     derived_parameter_by_key_rows = con.execute(
         """
         select parameter_key, count(*)::bigint
@@ -5279,6 +5683,8 @@ def main() -> int:
             "stellar_parameters_rows": stellar_parameter_count,
             "derived_physical_parameters_rows": derived_parameter_count,
             "derived_physical_parameters_by_key": derived_parameter_counts_by_key,
+            "derived_stellar_classifications_rows": derived_stellar_classification_count,
+            "derived_stellar_classifications_by_method": derived_stellar_classification_counts_by_method,
             "stellar_parameters_gaia_rows": gaia_stellar_parameter_count,
             "stellar_parameters_nasa_rows": nasa_stellar_parameter_count,
             "vsx_variability_rows": vsx_variability_count,
@@ -5354,6 +5760,7 @@ def main() -> int:
         f"msc_details={msc_component_detail_count:,}, msc_systems={msc_system_detail_count:,}, "
         f"msc_orbit_rows={msc_orbit_detail_count:,}, wds_obs={wds_component_observation_count:,}, "
         f"stellar_parameters={stellar_parameter_count:,}, derived_parameters={derived_parameter_count:,}, "
+        f"derived_stellar_classes={derived_stellar_classification_count:,}, "
         f"planet_orbits={planet_orbital_solution_count:,}, "
         f"gaia_nss_orbits={gaia_nss_solution_count:,}, msc_orbits={msc_solution_count:,}, "
         f"orb6_orbits={orb6_solution_count:,}, "

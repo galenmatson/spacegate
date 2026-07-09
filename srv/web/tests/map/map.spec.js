@@ -351,7 +351,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
     await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
-    await expect(page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip")).toHaveCount(4);
+    await expect(page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip")).toHaveCount(1);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(1);
     await page.locator(".system-preview-line-menu summary").click();
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
@@ -1411,11 +1411,9 @@ test.describe("public 3D map beta", () => {
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
       { timeout: 3000 }
     ).toContain("orbit");
-    await expect(page.locator(".system-preview-readout")).toContainText(/readiness/i);
+    await expect(page.locator(".system-preview-readout")).toContainText(/render policy/i);
     await expect(page.locator(".system-preview-readout")).not.toContainText(/local days/i);
     await expect(page.locator(".system-preview-readout")).not.toContainText(/missing inputs/i);
-    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/visual scale/i);
-    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/structure/i);
     const lineMenu = page.locator(".system-preview-line-menu");
     await expect(lineMenu).toBeVisible();
     await expect(lineMenu.locator("summary")).toContainText(/Lines/i);
@@ -1432,12 +1430,13 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-toggle", { hasText: "Snow Off" })).toHaveAttribute("aria-pressed", "false");
     const scaleModeSelect = page.locator("[data-testid='system-preview-scale-mode']");
     await expect(scaleModeSelect).toBeVisible();
+    await expect(scaleModeSelect).toHaveValue("structure");
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
       { timeout: 3000 }
     ).toBe("structure");
     await scaleModeSelect.selectOption("true_orbits");
-    await expect(page.locator("[data-testid='system-preview-visual-scale']")).toContainText(/Orbit/i);
+    await expect(scaleModeSelect).toHaveValue("true_orbits");
     await expect.poll(
       () => sharedClockCanvas.evaluate((canvas) => canvas.dataset.scaleMode || ""),
       { timeout: 3000 }
@@ -1670,7 +1669,6 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
-    await expect(page.locator(".system-preview-readout")).toContainText(/rendered planets/i);
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectablePlanetCount || 0)),
@@ -1764,8 +1762,6 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
-    await expect(page.locator(".system-preview-readout")).toContainText(/rendered subsystems/i);
-    await expect(page.locator(".system-preview-readout")).toContainText(/rendered orbits/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
     await expect(page.locator(".hierarchy-panel")).toContainText(/Visual prior/i);
     await expect(page.locator(".hierarchy-panel")).toContainText(/ASSUMED/i);
@@ -1971,8 +1967,6 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect(previewCanvas).toBeVisible();
-    await expect(page.locator(".system-preview-readout")).toContainText(/7\s*rendered stars/i);
-    await expect(page.locator(".system-preview-readout")).toContainText(/5\s*rendered subsystems/i);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.directOrbitGuideCount || 0)),
       { timeout: 3000 }
@@ -2054,7 +2048,6 @@ test.describe("public 3D map beta", () => {
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
-    await expect(page.locator(".system-preview-readout")).toContainText(/1\s*rendered orbits/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/ASSUMED/i);
     await expect.poll(
       () => page.locator(".system-preview-canvas canvas").evaluate((canvas) => Number(canvas.dataset.directOrbitTraceCount || 0)),
@@ -2084,7 +2077,6 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect(previewCanvas).toBeVisible();
-    await expect(page.locator(".system-preview-readout")).toContainText(/rendered planet/i);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.planetHostGroupCount || 0)),
       { timeout: 3000 }

@@ -78,6 +78,14 @@ Already in place:
   `source.basis="simulation_tree_fallback_subsystem"`; they do not create
   source-native hierarchy facts and must not replace better ARM subsystem
   evidence when present.
+- When source-native hierarchy leaves are available, `render_scene_v0.2` uses
+  those leaves as the stellar-body membership authority. MSC/WDS/ORB6 detail
+  or orbit endpoints that do not reconcile to source hierarchy leaves are
+  preserved as diagnostics/evidence and must not become rendered stars. The
+  payload exposes this in
+  `render_scene.diagnostics.membership_reconciliation`, including source leaf
+  count, rendered stellar body count, active membership gate, and unmatched
+  endpoint keys.
 - Rendered stellar bodies expose `fields.visual_stellar_class` as the material
   and label class used by the simulator. Source spectral evidence wins, then
   defensible temperature/color constraints, compact-object evidence overrides
@@ -553,6 +561,10 @@ Success criteria:
   spikes for materialized systems without changing the simulation-scene
   contract. Photon default hot-cache command:
   `SPACEGATE_STATE_DIR=/data/spacegate/state .venv/bin/python scripts/materialize_simulation_scenes.py --limit 1000 --sort distance --max-dist-ly 100`.
+- Prebuilt scene artifacts are renderer-contract artifacts, not canonical
+  source data. The API may bypass stale artifacts when they lack current
+  required diagnostics such as `membership_reconciliation`, falling back to
+  live assembly until scenes are regenerated for the served build.
 - Star Search and map search now use explicit preview tiers:
   - Tier 0: summary fields only.
   - Tier 1: `lightweight_singleton`, a client-rendered singleton preview for

@@ -44,7 +44,9 @@ Reason:
    - additional typed relation edges for cross-links and dynamic relationships
    - no requirement that all node/edge vocabulary lives in `core`
 9. Classification discipline:
-   - scientific classifications in `core` and `arm` must remain source-faithful
+   - source classifications in `core` must remain source-faithful
+   - deterministic derived display/physical classifications may live in `arm`
+     only with provenance, source-supersession, confidence, and remnant guards
    - UX supergroups (for example `subplanet`) are allowed but may not overwrite canonical science fields
 
 Operational runbook:
@@ -533,6 +535,8 @@ Required behavior:
 1. classify by evidence-first precedence, not temperature-first fallback
 2. preserve raw evidence and confidence for auditability
 3. separate `object_family` from user-facing color/temperature rendering
+4. keep source spectral class, ARM-derived display/physical class, and
+   render-scene visual priors as distinct fields with distinct provenance
 
 Hard QC gate:
 

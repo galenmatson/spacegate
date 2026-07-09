@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import datetime
 import errno
+import gzip
 import grp
 import hashlib
 import json
@@ -1450,6 +1451,12 @@ def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Di
     is_star = component_type in {"star", "stellar_component"} or node_kind in {"star", "inferred_star_leaf"}
     if not is_star:
         return child_stars
+    try:
+        self_star_count = int(node.get("self_star_count") or 0)
+    except Exception:
+        self_star_count = 0
+    if self_star_count > 0:
+        return [node, *child_stars]
     # If a hierarchy node has explicit stellar descendants, render those leaves
     # rather than also rendering the unresolved parent as a physical sphere.
     return child_stars if child_stars else [node]
@@ -1829,6 +1836,21 @@ def _render_scene_contract(
     render_stars: Dict[str, Dict[str, Any]] = {}
     rendered_core_star_ids: set[int] = set()
     rendered_display_names: set[str] = set()
+    hierarchy_star_nodes = _iter_hierarchy_render_star_nodes((hierarchy or {}).get("root"))
+    hierarchy_star_count = int(((hierarchy or {}).get("counts") or {}).get("stars") or 0)
+    hierarchy_render_star_keys = {
+        _component_key_for_hierarchy_star_node(node)
+        for node in hierarchy_star_nodes
+        if _component_key_for_hierarchy_star_node(node)
+    }
+    hierarchy_membership_gate_active = bool(hierarchy_render_star_keys)
+    unmatched_detail_endpoint_keys: set[str] = set()
+    unmatched_orbit_endpoint_keys: set[str] = set()
+
+    def render_star_membership_allowed(component_key: str) -> bool:
+        if not hierarchy_membership_gate_active:
+            return True
+        return str(component_key or "") in hierarchy_render_star_keys
 
     def single_star_display_name() -> tuple[Optional[str], Optional[str]]:
         if len(stars) != 1:
@@ -1906,6 +1928,9 @@ def _render_scene_contract(
     def add_component_star(component: Dict[str, Any]) -> str:
         component_key = str(component.get("stable_component_key") or "")
         if not component_key:
+            return ""
+        if not render_star_membership_allowed(component_key):
+            unmatched_detail_endpoint_keys.add(component_key)
             return ""
         if component_key in render_stars:
             return component_key
@@ -2301,6 +2326,9 @@ def _render_scene_contract(
             continue
         for key_name in ("primary_component_key", "secondary_component_key"):
             component_key = str(edge.get(key_name) or "")
+            if component_key and not render_star_membership_allowed(component_key):
+                unmatched_orbit_endpoint_keys.add(component_key)
+                continue
             component = components_by_key.get(component_key)
             if component and str(component.get("component_type") or "") == "star":
                 add_component_star(component)
@@ -2313,8 +2341,6 @@ def _render_scene_contract(
             if len(render_stars) < max(2, len(stars)) and not orbit_component_keys:
                 add_core_star(star)
 
-    hierarchy_star_nodes = _iter_hierarchy_render_star_nodes((hierarchy or {}).get("root"))
-    hierarchy_star_count = int(((hierarchy or {}).get("counts") or {}).get("stars") or 0)
     if hierarchy_star_nodes and len(render_stars) < max(hierarchy_star_count, len(stars)):
         for node in hierarchy_star_nodes:
             if len(render_stars) >= max(hierarchy_star_count, len(stars)):
@@ -3356,6 +3382,15 @@ def _render_scene_contract(
             "field_status_counts": field_status_counts,
             "assumption_persistence_counts": assumption_persistence_counts,
             "simulation_tree": simulation_tree.get("diagnostics"),
+            "membership_reconciliation": {
+                "source_hierarchy_leaf_count": len(hierarchy_render_star_keys),
+                "rendered_stellar_body_count": len(render_stars),
+                "membership_gate": "source_hierarchy_leaves" if hierarchy_membership_gate_active else "renderable_endpoints",
+                "unmatched_detail_endpoint_count": len(unmatched_detail_endpoint_keys),
+                "unmatched_detail_endpoint_keys": sorted(unmatched_detail_endpoint_keys)[:24],
+                "unmatched_orbit_endpoint_count": len(unmatched_orbit_endpoint_keys),
+                "unmatched_orbit_endpoint_keys": sorted(unmatched_orbit_endpoint_keys)[:24],
+            },
         },
         "provenance_legend": {
             "source": "Catalog/source value from core or arm.",
@@ -3664,6 +3699,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         "msc_system_details": {"count": 0, "items": []},
         "stellar_parameters": {"count": 0, "items": []},
         "derived_physical_parameters": {"count": 0, "items": []},
+        "derived_stellar_classifications": {"count": 0, "items": []},
         "errors": [],
     }
     if not arm_path_raw:
@@ -3931,6 +3967,28 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 )
             )
             output["derived_physical_parameters"] = {"count": len(rows), "items": rows[:120]}
+        if star_ids and _duckdb_has_table(con, "derived_stellar_classifications"):
+            placeholders = ",".join(["?"] * len(star_ids))
+            rows = _rows_to_dicts(
+                con.execute(
+                    f"""
+                    SELECT derived_classification_id, build_id, object_type, system_id,
+                           star_id, stable_object_key, stable_component_key,
+                           classification_key, classification_value, classification_status,
+                           derivation_method, derivation_version, input_parameters_json,
+                           assumptions_json, lossy_transform, superseded_by_source,
+                           confidence_score, confidence_tier, review_status,
+                           source_catalog, source_version, source_pk, source_row_hash
+                    FROM derived_stellar_classifications
+                    WHERE object_type = 'star'
+                      AND star_id IN ({placeholders})
+                    ORDER BY stable_object_key ASC, derivation_method ASC
+                    LIMIT 200
+                    """,
+                    star_ids,
+                )
+            )
+            output["derived_stellar_classifications"] = {"count": len(rows), "items": rows[:120]}
     except Exception as exc:
         output["errors"].append(str(exc))
     finally:
@@ -4145,6 +4203,18 @@ def _simulation_scene_artifact_path(build_id: str, system_id: int) -> Optional[P
         if resolved.is_file():
             return resolved
     return None
+
+
+def _simulation_scene_artifact_compatible(path: Path) -> bool:
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        return False
+    render_scene = payload.get("render_scene") if isinstance(payload, dict) else {}
+    diagnostics = render_scene.get("diagnostics") if isinstance(render_scene, dict) else {}
+    membership = diagnostics.get("membership_reconciliation") if isinstance(diagnostics, dict) else None
+    return isinstance(membership, dict) and membership.get("membership_gate") is not None
 
 
 def _system_simulation_scene_payload(system_id: int, *, build_id: Optional[str] = None) -> Dict[str, Any]:
@@ -5195,7 +5265,7 @@ def system_simulation_scene(system_id: int, response: Response):
         with db.connection_scope() as con:
             build_id = fetch_build_id(con)
         artifact_path = _simulation_scene_artifact_path(build_id, system_id)
-        if artifact_path is not None:
+        if artifact_path is not None and _simulation_scene_artifact_compatible(artifact_path):
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "prebuilt"
             response.headers["Content-Encoding"] = "gzip"
             response.headers["Cache-Control"] = "public, max-age=3600"
