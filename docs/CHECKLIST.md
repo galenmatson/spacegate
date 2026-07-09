@@ -593,6 +593,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectral filter buttons
 - [x] Add reusable stellar-class chips for Star Search cards, map-native
   search cards, System Hierarchy star leaves, and System Simulation readouts
+- [x] Rework System Hierarchy rows into layperson-readable object chips with
+  star class pills, planet/orbit tags, compact vitals, and plain-language
+  object summaries
 - [x] Add Star Map WebGL context-loss recovery and stricter live-card preview
   activation to mitigate fast-scroll browser context eviction
 - [x] Add a persisted client-side Star Map runtime diagnostics toggle in the

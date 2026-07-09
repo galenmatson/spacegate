@@ -251,7 +251,10 @@ Implementation note:
   artifacts. Public system pages are now simulation-first: the top of the page
   stages a visual simulation, quick system facts, plain-language overview,
   "why it matters", habitability context, and future AAA narration slots before
-  exposing hierarchy, catalog rows, evidence, and technical provenance.
+  exposing hierarchy, catalog rows, evidence, and technical provenance. The
+  hierarchy section is an object tree for readers first: rows show stellar
+  class pills, object kind, orbit tags, compact vitals, and a short
+  plain-language description before technical identifiers and catalog rows.
   Stellar-class chips are reusable educational affordances across Star Search,
   the 3D map, System Hierarchy, and System Simulation object readouts; unknown
   classes are labeled explicitly rather than guessed. This is presentation

@@ -675,6 +675,9 @@ Implemented foundation:
 - public system pages now lead with System Simulation, quick facts,
   plain-language overview, why-it-matters notes, habitability context, concept
   explanations, and reserved AAA narration slots
+- the System Hierarchy section now presents a reader-facing object tree with
+  stellar class pills, planet/orbit tags, compact vitals, and short explanatory
+  summaries before lower-level catalog/evidence tables
 - raw catalog rows, eclipsing evidence, snapshot metadata, and provenance are
   still available in secondary/collapsible sections
 - `sort=match`/Relevance is available for named Star Search queries while

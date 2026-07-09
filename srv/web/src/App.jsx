@@ -1856,6 +1856,68 @@ function hierarchyCountSummary(node) {
   return bits.join(" · ");
 }
 
+function hierarchyObjectTags(node, displayType) {
+  const tags = [];
+  const add = (label, className = "", title = "") => {
+    const clean = String(label || "").trim();
+    if (!clean || tags.some((tag) => tag.label === clean)) {
+      return;
+    }
+    tags.push({ label: clean, className, title });
+  };
+  const orbit = node?.orbit || {};
+  if (orbit?.period_days !== null && orbit?.period_days !== undefined) {
+    add("Orbit", "orbit", "This object has orbital parameters attached to its hierarchy edge.");
+  }
+  return tags;
+}
+
+function hierarchyPlainLanguageSummary(node, displayType, children) {
+  const countSummary = hierarchyCountSummary(node);
+  const childCount = Array.isArray(children) ? children.length : 0;
+  const name = formatText(node?.display_name);
+  if (displayType === "system") {
+    return countSummary
+      ? `Top-level system containing ${countSummary}.`
+      : "Top-level system record for this page.";
+  }
+  if (displayType === "subsystem") {
+    return childCount > 0
+      ? `Nested subsystem grouping ${formatNumber(childCount, 0)} direct child node${childCount === 1 ? "" : "s"}.`
+      : "Nested subsystem with no direct child nodes in this public payload.";
+  }
+  if (displayType === "star") {
+    const facts = node?.quick_facts || {};
+    const spectral = facts.spectral_type_raw || facts.spectral_class || facts.visual_stellar_class;
+    return spectral
+      ? `${name} is represented as a ${spectral} stellar object in the hierarchy.`
+      : `${name} is a stellar object; detailed class evidence is limited in this payload.`;
+  }
+  if (displayType === "planet") {
+    return node?.orbit
+      ? `${name} is a planet with an orbit attached to its parent object.`
+      : `${name} is a planet linked to this hierarchy; orbit details are limited here.`;
+  }
+  if (displayType === "moon") {
+    return `${name} is a moon or natural satellite in this hierarchy.`;
+  }
+  if (displayType === "minor_body") {
+    return `${name} is a small body such as an asteroid, dwarf planet, or comet.`;
+  }
+  return countSummary || `${name} is a ${hierarchyTypeLabel(displayType).toLowerCase()} node.`;
+}
+
+function hierarchyMetaSummary(node, children) {
+  const bits = [];
+  if (node?.catalog_component_label) {
+    bits.push(`Label ${node.catalog_component_label}`);
+  }
+  if (children.length) {
+    bits.push(`${formatNumber(children.length, 0)} child node${children.length === 1 ? "" : "s"}`);
+  }
+  return bits.length ? bits.join(" · ") : "Leaf object";
+}
+
 function formatMsun(value) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "";
@@ -1948,6 +2010,14 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   const displayName = formatText(node?.display_name);
   const countSummary = hierarchyCountSummary(node);
   const displayType = hierarchyDisplayType(node, children);
+  const objectTags = hierarchyObjectTags(node, displayType);
+  const plainSummary = hierarchyPlainLanguageSummary(node, displayType, children);
+  const orbitSummary = node?.orbit ? formatOrbitSummary({
+    periodDays: node.orbit.period_days,
+    semiMajorAxisAu: node.orbit.semi_major_axis_au,
+    eccentricity: node.orbit.eccentricity,
+    inclinationDeg: node.orbit.inclination_deg,
+  }) : "";
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -1965,28 +2035,33 @@ function HierarchyNodeCard({ node, depth = 0 }) {
         >
           <div className="hierarchy-node-title-wrap">
             <div className="hierarchy-node-title-row">
-              <strong>{displayName}</strong>
               {displayType === "star" ? (
                 <StellarClassChips tokens={stellarClassTokensFromRecord(node)} size="compact" />
               ) : null}
+              <strong>{displayName}</strong>
               <span className="hierarchy-node-kind">{hierarchyTypeLabel(displayType)}</span>
+              {objectTags.map((tag) => (
+                <span
+                  key={tag.label}
+                  className={`hierarchy-object-pill ${tag.className ? `is-${tag.className}` : ""}`}
+                  title={tag.title || undefined}
+                >
+                  {tag.label}
+                </span>
+              ))}
             </div>
-            <div className="muted hierarchy-node-meta">
-              {countSummary || "No descendants recorded"}
-              {node?.catalog_component_label ? ` · Label ${node.catalog_component_label}` : ""}
-              {children.length ? ` · ${formatNumber(children.length, 0)} child node${children.length === 1 ? "" : "s"}` : ""}
+            <div className="hierarchy-node-summary">
+              {plainSummary}
             </div>
-            {node?.orbit ? (
+            <div className="muted hierarchy-node-meta" aria-label="Hierarchy source labels and child count">
+              {hierarchyMetaSummary(node, children)}
+            </div>
+            {orbitSummary ? (
               <div className="muted hierarchy-node-orbit">
-                {formatOrbitSummary({
-                  periodDays: node.orbit.period_days,
-                  semiMajorAxisAu: node.orbit.semi_major_axis_au,
-                  eccentricity: node.orbit.eccentricity,
-                  inclinationDeg: node.orbit.inclination_deg,
-                })}
+                {orbitSummary}
               </div>
             ) : null}
-            {displayType === "star" ? (
+            {displayType !== "system" && displayType !== "subsystem" ? (
               <HierarchyFactChips node={node} />
             ) : null}
           </div>
@@ -2016,14 +2091,14 @@ function SystemHierarchyPanel({ hierarchy }) {
   }
   return (
     <section className="panel hierarchy-panel">
-      <h3>System Hierarchy</h3>
+      <h3>Objects in This System</h3>
       <p className="muted">
-        This view reconstructs the nested structure from the arm graph so multi-level systems, orbiting bodies, and synthetic subsystems appear in one consistent layout.
+        This tree shows how stars, planets, and nested subsystems belong together. Expand a row to follow the structure from the whole system down to individual objects and orbits.
       </p>
       <div className="hierarchy-kpis">
         <div><strong>Total Stars</strong><span>{formatNumber(counts.stars, 0)}</span></div>
-        <div><strong>Total Nodes</strong><span>{formatNumber(counts.nodes, 0)}</span></div>
-        <div><strong>Direct Children</strong><span>{formatNumber(counts.direct_children, 0)}</span></div>
+        <div><strong>Objects</strong><span>{formatNumber(counts.nodes, 0)}</span></div>
+        <div><strong>Top Level</strong><span>{formatNumber(counts.direct_children, 0)}</span></div>
       </div>
       <div className="hierarchy-tree">
         <HierarchyNodeCard node={root} depth={0} />
@@ -3631,6 +3706,7 @@ function SystemDetailPage({ buildId = "" }) {
             {systemAliasSummary ? (
               <p className="system-alias-line">Also cataloged as {systemAliasSummary}</p>
             ) : null}
+            <p className="system-hero-summary">{systemOverviewSentence(system, stars, planets)}</p>
             <div className="system-detail-facts">
               <SystemFactPill label="Distance" value={`${formatNumber(system.dist_ly, 2)} ly`} />
               <SystemFactPill label="Stars" value={formatNumber(system.star_count, 0)} />

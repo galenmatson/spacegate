@@ -7373,6 +7373,14 @@ main {
   line-height: 1.45;
 }
 
+.system-hero-summary {
+  max-width: 76ch;
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
 .system-detail-facts {
   display: flex;
   flex-wrap: wrap;
@@ -7606,8 +7614,10 @@ main {
 
 .hierarchy-node-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-muted);
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 54%),
+    var(--surface-muted);
   overflow: hidden;
 }
 
@@ -7634,7 +7644,7 @@ main {
 
 .hierarchy-node-title-wrap {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -7659,6 +7669,44 @@ main {
   font-size: 0.74rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.hierarchy-object-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft));
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hierarchy-object-pill.is-planet {
+  border-color: color-mix(in srgb, #7fd7ff 54%, var(--border));
+  background: color-mix(in srgb, #7fd7ff 13%, var(--surface-soft));
+}
+
+.hierarchy-object-pill.is-subsystem {
+  border-color: color-mix(in srgb, #d7b7ff 50%, var(--border));
+  background: color-mix(in srgb, #d7b7ff 12%, var(--surface-soft));
+}
+
+.hierarchy-object-pill.is-orbit {
+  border-color: color-mix(in srgb, #ffd36a 52%, var(--border));
+  background: color-mix(in srgb, #ffd36a 12%, var(--surface-soft));
+}
+
+.hierarchy-node-summary {
+  max-width: 78ch;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .hierarchy-node-meta,
