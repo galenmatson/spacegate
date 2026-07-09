@@ -8335,10 +8335,12 @@ main {
   max-width: 100%;
   min-width: 0;
   margin-left: calc(var(--object-depth, 0) * 12px);
-  padding: 7px 8px;
+  padding: 5px 7px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  gap: 4px 7px;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  gap: 6px;
   align-items: center;
   border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
   border-radius: 8px;
@@ -8346,6 +8348,7 @@ main {
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .system-preview-object-chip:hover,
@@ -8366,20 +8369,31 @@ main {
 }
 
 .system-preview-readout .system-preview-object-kind,
-.system-preview-readout .system-preview-object-empty {
+.system-preview-readout .system-preview-object-empty,
+.system-preview-readout .system-preview-object-vital {
+  min-width: 0;
+  overflow: hidden;
   color: var(--subtle-ink);
   font-family: var(--font-mono);
   font-size: 0.62rem;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .system-preview-readout .system-preview-object-chip .stellar-class-chips {
-  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .system-preview-readout .system-preview-object-chip .stellar-class-chip {
   color: color-mix(in srgb, white 88%, var(--stellar-chip-color));
   font-size: 0.58rem;
+}
+
+.system-preview-object-spacer {
+  display: inline-block;
+  width: 16px;
 }
 
 .system-preview-diagnostics summary {

@@ -648,6 +648,97 @@ function simulationObjectList(scene) {
   const stars = Array.isArray(renderBodies.stars) ? renderBodies.stars : [];
   const planets = Array.isArray(renderBodies.planets) ? renderBodies.planets : [];
   const subsystems = Array.isArray(renderBodies.subsystems) ? renderBodies.subsystems : [];
+  const simulationTree = renderScene.simulation_tree || {};
+  const treeNodes = simulationTree.nodes || {};
+  const rootNodeKey = simulationTree.root_node_key;
+  const bodyByKey = new Map();
+  [...stars, ...planets].forEach((body) => {
+    [
+      body.render_key,
+      body.source_component_key,
+      body.stable_object_key,
+      body.key,
+      body.source?.stable_component_key,
+      body.source?.stable_object_key,
+    ].filter(Boolean).forEach((key) => bodyByKey.set(String(key), body));
+  });
+  const subsystemByKey = new Map();
+  subsystems.forEach((subsystem) => {
+    [
+      subsystem.render_key,
+      subsystem.source_component_key,
+      subsystem.stable_component_key,
+      subsystem.key,
+      subsystem.source?.stable_component_key,
+    ].filter(Boolean).forEach((key) => subsystemByKey.set(String(key), subsystem));
+  });
+
+  function treeNodePayload(node) {
+    const leafCount = Array.isArray(node.leaf_body_keys) ? node.leaf_body_keys.length : null;
+    const mass = Number(node.mass_msun);
+    return {
+      kind: node.node_type === "barycenter" ? "Orbit group" : "Subsystem",
+      name: node.display_name || node.node_key || "System group",
+      id: node.node_key || "",
+      sourceLayer: "render_scene",
+      rows: [
+        staticReadoutRow("Kind", String(node.relation_kind || node.endpoint_kind || node.node_type || "group"), "derived"),
+        staticReadoutRow("Bodies", leafCount !== null ? formatNumber(leafCount, 0) : "Unknown", "derived"),
+        staticReadoutRow("Mass", Number.isFinite(mass) ? `${formatNumber(mass, 2)} Msun` : "Unknown", "derived"),
+      ],
+    };
+  }
+
+  function addTreeNode(items, nodeKey, depth, seen) {
+    if (!nodeKey || seen.has(nodeKey)) {
+      return;
+    }
+    seen.add(nodeKey);
+    const node = treeNodes[nodeKey];
+    if (!node) {
+      return;
+    }
+    if (node.node_type !== "root") {
+      let record = null;
+      let label = "Group";
+      let payload = treeNodePayload(node);
+      if (node.node_type === "body") {
+        record = bodyByKey.get(String(node.body_key || ""));
+        if (record) {
+          const bodyKind = node.body_kind === "planet" ? "planet" : "star";
+          label = bodyKind === "planet" ? "Planet" : bodyClassLabel(stellarBodyClass(record));
+          payload = objectHoverPayload(bodyKind, record);
+        } else {
+          label = bodyClassLabel(node.body_kind || "body");
+        }
+      } else {
+        const subsystem = subsystemByKey.get(String(node.body_key || node.source_component_key || node.node_key || ""));
+        if (subsystem) {
+          record = subsystem;
+          payload = objectHoverPayload("subsystem", subsystem);
+        }
+        label = node.relation_kind === "binary" ? "Binary" : "Group";
+      }
+      const key = `${node.node_type}:${node.body_key || node.node_key || node.display_name}`;
+      items.push({
+        key,
+        name: node.display_name || record?.display_name || record?.name || "Object",
+        label,
+        depth,
+        payload,
+        record,
+      });
+    }
+    const childDepth = node.node_type === "root" ? depth : depth + 1;
+    (Array.isArray(node.children) ? node.children : []).forEach((childKey) => addTreeNode(items, childKey, childDepth, seen));
+  }
+
+  if (rootNodeKey && treeNodes[rootNodeKey]) {
+    const items = [];
+    addTreeNode(items, rootNodeKey, 0, new Set());
+    return items.slice(0, 32);
+  }
+
   const items = [];
   subsystems
     .slice()
@@ -694,6 +785,33 @@ function simulationObjectList(scene) {
       });
     });
   return items.slice(0, 32);
+}
+
+function compactObjectVitals(item) {
+  const record = item?.record || {};
+  const fields = record.fields || {};
+  const values = [];
+  const mass = fieldRecord(fields, "mass_msun");
+  if (mass?.value !== null && mass?.value !== undefined && mass?.value !== "") {
+    values.push(`${formatNumber(mass.value, 2)} Msun`);
+  }
+  const teff = fieldRecord(fields, "teff_k");
+  if (teff?.value !== null && teff?.value !== undefined && teff?.value !== "") {
+    values.push(`${formatNumber(teff.value, 0)} K`);
+  }
+  const radiusSun = fieldRecord(fields, "radius_rsun");
+  if (radiusSun?.value !== null && radiusSun?.value !== undefined && radiusSun?.value !== "") {
+    values.push(`${formatNumber(radiusSun.value, 2)} Rsun`);
+  }
+  const period = fieldRecord(fields, "orbital_period_days");
+  if (period?.value !== null && period?.value !== undefined && period?.value !== "") {
+    values.push(`${formatNumber(period.value, 2)} d`);
+  }
+  const orbit = fieldRecord(fields, "semi_major_axis_au");
+  if (orbit?.value !== null && orbit?.value !== undefined && orbit?.value !== "") {
+    values.push(`${formatNumber(orbit.value, 3)} AU`);
+  }
+  return values.slice(0, 3);
 }
 
 function orbitGuideProvenanceField(orbit) {
@@ -4227,9 +4345,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                   onMouseLeave={() => setHoveredObject(null)}
                   title={`Inspect ${item.name}`}
                 >
+                  {item.record ? <StellarClassChips tokens={stellarClassTokensFromRecord(item.record)} size="compact" /> : <span className="system-preview-object-spacer" />}
                   <span className="system-preview-object-name">{item.name}</span>
                   <span className="system-preview-object-kind">{item.label}</span>
-                  {item.record ? <StellarClassChips tokens={stellarClassTokensFromRecord(item.record)} size="compact" /> : null}
+                  {compactObjectVitals(item).map((vital) => (
+                    <span key={vital} className="system-preview-object-vital">{vital}</span>
+                  ))}
                 </button>
               )) : (
                 <span className="system-preview-object-empty">No rendered objects</span>
