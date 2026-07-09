@@ -5608,18 +5608,16 @@ select:focus-visible {
 :root[data-theme="aurora"] .system-identifiers-row::after {
   content: "";
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  inset: 0;
   background:
     radial-gradient(circle at 24% 50%, rgba(93, 255, 215, 0.22) 0%, rgba(93, 255, 215, 0) 28%),
     radial-gradient(circle at 76% 40%, rgba(141, 125, 255, 0.23) 0%, rgba(141, 125, 255, 0) 30%),
     radial-gradient(circle at 55% 72%, rgba(255, 136, 231, 0.2) 0%, rgba(255, 136, 231, 0) 29%);
+  background-position: 0% 48%, 100% 42%, 50% 72%;
+  background-size: 140% 140%, 150% 150%, 130% 130%;
   opacity: 0.58;
   pointer-events: none;
   z-index: 0;
-  transform: translate3d(-4%, 0, 0) scale(1);
   filter: blur(3px) saturate(112%);
   animation: aurora-card-drift 5.6s ease-in-out infinite alternate;
   transition: opacity 0.24s ease, filter 0.24s ease;
@@ -5727,15 +5725,15 @@ select:focus-visible {
 
 @keyframes aurora-card-drift {
   0% {
-    transform: translate3d(-8%, -2%, 0) scale(1.02) rotate(-1.2deg);
+    background-position: 0% 48%, 100% 42%, 50% 72%;
     filter: blur(2px) saturate(104%);
   }
   50% {
-    transform: translate3d(3%, 2%, 0) scale(1.06) rotate(0.8deg);
+    background-position: 18% 54%, 82% 34%, 58% 80%;
     filter: blur(6px) saturate(114%);
   }
   100% {
-    transform: translate3d(9%, -1%, 0) scale(1.03) rotate(-0.6deg);
+    background-position: 30% 44%, 70% 50%, 42% 66%;
     filter: blur(3px) saturate(108%);
   }
 }
