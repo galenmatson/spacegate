@@ -2469,6 +2469,41 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
   const titleTarget = location.pathname === "/search" || location.pathname === "/classic-search"
     ? "/search"
     : "/";
+  const headerMenu = (
+    <details className="header-menu" ref={searchHeaderMenuRef}>
+      <summary className="button ghost header-menu-button" aria-label="Header menu" title="Header menu">
+        <span className="map-menu-bars" aria-hidden="true" />
+      </summary>
+      <div className="header-menu-panel">
+        <label className="header-menu-field theme-picker">
+          <span>Theme</span>
+          <select
+            className="theme-select"
+            value={theme}
+            onChange={(event) => setTheme(event.target.value)}
+          >
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="header-menu-field">
+          <span>Default Scale</span>
+          <select
+            value={defaultScaleMode}
+            onChange={(event) => setDefaultScaleMode(normalizeSimulationScaleMode(event.target.value))}
+            data-testid="global-default-scale-select"
+          >
+            {SIM_SCALE_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </details>
+  );
 
   return (
     <div className={`app ${isLcars ? "lcars-app" : ""}`}>
@@ -2507,7 +2542,10 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
             ))}
           </div>
           <div className="lcars-top-right">
-            <strong>STARS ACCESSED</strong>
+            <div className="lcars-top-right-head">
+              <strong>STARS ACCESSED</strong>
+              {headerMenu}
+            </div>
             <div className="lcars-chip-row">
               {lcarsRightChips.map((entry, idx) => {
                 const name = String(entry?.system_name || "").trim() || `System ${idx + 1}`;
@@ -2549,39 +2587,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
             <div className="header-meta-row">
               <div className="header-actions">
                 {showSearchLink && <Link to="/" className="button ghost">Search</Link>}
-                <details className="header-menu" ref={searchHeaderMenuRef}>
-                  <summary className="button ghost header-menu-button" aria-label="Header menu" title="Header menu">
-                    <span className="map-menu-bars" aria-hidden="true" />
-                  </summary>
-                  <div className="header-menu-panel">
-                    <label className="header-menu-field theme-picker">
-                      <span>Theme</span>
-                      <select
-                        className="theme-select"
-                        value={theme}
-                        onChange={(event) => setTheme(event.target.value)}
-                      >
-                        {options.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="header-menu-field">
-                      <span>Default Scale</span>
-                      <select
-                        value={defaultScaleMode}
-                        onChange={(event) => setDefaultScaleMode(normalizeSimulationScaleMode(event.target.value))}
-                        data-testid="global-default-scale-select"
-                      >
-                        {SIM_SCALE_MODE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                </details>
+                {!isLcars && headerMenu}
               </div>
             </div>
             {headerExtra && <div className="header-lower">{headerExtra}</div>}

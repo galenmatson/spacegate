@@ -3869,6 +3869,7 @@ body {
   --header-utility-top: 10px;
   --header-utility-height: 18px;
   position: relative;
+  z-index: 120;
   display: block;
   background: var(--header-bg);
   border: 1px solid var(--border);
@@ -4037,6 +4038,7 @@ body {
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  padding-right: 50px;
 }
 
 .header-search-tools {
@@ -4061,7 +4063,10 @@ body {
 }
 
 .header-menu {
-  position: relative;
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  z-index: 320;
   display: inline-flex;
 }
 
@@ -4083,7 +4088,7 @@ body {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 50;
+  z-index: 330;
   display: grid;
   gap: 10px;
   min-width: 220px;
@@ -4562,6 +4567,15 @@ select:focus-visible {
   display: grid;
   gap: 8px;
 }
+
+:root[data-theme="lcars"] .lcars-top-right-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
 :root[data-theme="lcars"] .lcars-top-right strong {
   color: var(--lcars-orange);
   font-family: var(--font-display);
@@ -4569,6 +4583,32 @@ select:focus-visible {
   text-transform: uppercase;
   line-height: 1;
   letter-spacing: 0.03em;
+}
+
+:root[data-theme="lcars"] .lcars-top-right .header-menu {
+  position: relative;
+  top: auto;
+  right: auto;
+  z-index: 340;
+  justify-self: end;
+}
+
+:root[data-theme="lcars"] .lcars-top-right .header-menu-button {
+  width: 42px;
+  min-height: 34px;
+  border-radius: 0 999px 999px 0;
+  background: var(--lcars-yellow);
+  color: var(--lcars-text-dark);
+}
+
+:root[data-theme="lcars"] .lcars-top-right .header-menu-panel {
+  z-index: 350;
+  min-width: 240px;
+  border: 3px solid var(--lcars-yellow);
+  border-radius: 0 0 0 24px;
+  background: #000;
+  color: var(--lcars-yellow);
+  box-shadow: none;
 }
 
 :root[data-theme="lcars"] .lcars-chip-row {
@@ -4732,6 +4772,7 @@ select:focus-visible {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   align-content: start;
+  padding-right: 0;
 }
 
 :root[data-theme="lcars"] .theme-picker {
