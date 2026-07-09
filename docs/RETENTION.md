@@ -69,6 +69,13 @@ scripts/prune_state_retention.sh --keep-builds 12 --keep-reports 24 --apply
 Run retention only after successful promotion and verification. Do not run it
 during ingest or while diagnosing a failed build.
 
+Side-artifact rebuilds created by `scripts/rebuild_side_artifacts.py` are normal
+immutable `out/<build_id>/` artifacts once the `.tmp` directory is renamed into
+place. Interrupted runs leave `out/<build_id>.tmp`, which is covered by the
+default stale temporary ingest cleanup. The script intentionally copies only
+known served artifacts and does not copy orphaned internal DuckDB temp
+directories such as `core.duckdb.tmp`.
+
 ## Bulk Research Storage
 
 Large research/document material should not live under repo paths or inside

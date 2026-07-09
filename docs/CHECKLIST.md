@@ -651,6 +651,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   source/derived Teff and color constraints second, radius/luminosity/remnant
   guards before mass priors, with derived display classes never written into
   core spectral fields
+- [x] Add and verify a side-artifact rebuild path for ARM-only/schema-adjacent
+  changes: clone served core/parquet/disc artifacts, regenerate `arm.duckdb`
+  from cooked catalogs, promote locally only after relaxed build verification
+  and known-system/API checks pass
 - [ ] Enrich member-star alias/search-term coverage for complex systems such as
   V1054 Oph so names like Gliese 643 and VB 8 resolve to the containing system
   without promoting member names to false system-level canonical names

@@ -1456,6 +1456,16 @@ display classes stay in ARM and render-scene visual fields remain
 presentation-facing. Member-name alias/search enrichment for Gliese 643/VB 8
 remains a follow-up.
 
+Local artifact note, July 9, 2026: `scripts/rebuild_side_artifacts.py` was
+added for schema/ARM-side rebuilds that should not trigger a full Gaia
+download/cook run. It clones the served core/parquet/disc/snapshot surface,
+updates cloned build metadata, regenerates `arm.duckdb` from cooked catalogs
+with the current builder, writes an ARM report and side-rebuild report, and
+leaves promotion explicit. Local served build
+`20260709T_v1054_classification_v1_side` materializes this milestone and passes
+relaxed build verification, multiplicity goldens, known-system API benchmarks,
+and the V1054 System Simulation OBJECTS browser regression.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

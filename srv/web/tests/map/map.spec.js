@@ -2017,6 +2017,53 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
+  test("V1054 Oph preview reconciles source leaves without orphan endpoints", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "complex hierarchy renderer smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "V1054 Oph", limit: "20" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const item = (payload.items || []).find((candidate) => candidate.wds_id === "16555-0820");
+    const systemId = item?.system_id;
+    expect(systemId, "V1054 Oph system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    const stars = scenePayload.render_scene?.bodies?.stars || [];
+    const membership = scenePayload.render_scene?.diagnostics?.membership_reconciliation || {};
+    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining([
+      "V1054 Oph A",
+      "V1054 Oph BA",
+      "V1054 Oph BB",
+      "V1054 Oph C",
+      "V1054 Oph F",
+    ]));
+    expect(stars).toHaveLength(5);
+    expect(stars.map((star) => star.display_name)).not.toContain("V1054 Oph D");
+    expect(membership.membership_gate).toBe("source_hierarchy_leaves");
+    expect(membership.source_hierarchy_leaf_count).toBe(5);
+    expect(membership.rendered_stellar_body_count).toBe(5);
+    expect(membership.unmatched_orbit_endpoint_keys || []).toContain("comp:msc:wds:16555-0820:d");
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect(previewCanvas).toBeVisible();
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableStarCount || 0)),
+      { timeout: 3000 }
+    ).toBe(5);
+    const objectList = page.locator("[data-testid='system-preview-object-list']");
+    await expect(objectList).toBeVisible();
+    await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(8);
+    for (const name of ["V1054 Oph A", "V1054 Oph BA", "V1054 Oph BB", "V1054 Oph C", "V1054 Oph F"]) {
+      await expect(objectList.getByText(name, { exact: true })).toBeVisible();
+    }
+    await expect(objectList.getByText("V1054 Oph D", { exact: true })).toHaveCount(0);
+  });
+
   test("compact companion preview uses assumed visual binary fallback", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "compact companion renderer smoke uses desktop detail layout");
     const response = await page.request.get("/api/v1/systems/search", {

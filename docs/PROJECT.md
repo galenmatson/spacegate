@@ -938,3 +938,17 @@ Current operational pattern:
 2. rebuild `arm`, `disc`, and canonical hierarchy artifacts against that served
    core
 3. publish/deploy the verified build artifact set
+
+Side-artifact rebuild pattern:
+
+- For ARM/schema-adjacent changes that do not require recooking source catalogs
+  or changing core object inventory, use `scripts/rebuild_side_artifacts.py`.
+- The script clones the currently served build's `core.duckdb`, parquet,
+  `disc.duckdb`, `disc/`, and snapshots, updates cloned build metadata, and
+  regenerates `arm.duckdb` from cooked catalogs with the current code.
+- This is appropriate for deterministic ARM derivations such as
+  `derived_stellar_classifications`; it is not a substitute for full ingest
+  when source catalog rows, canonical identity, search terms, or core inventory
+  must change.
+- Promotion remains explicit and should be followed by `verify_build.sh`,
+  known-system API checks, and focused browser checks before deployment.
