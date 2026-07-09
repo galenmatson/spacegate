@@ -869,10 +869,10 @@ function formatOrbitSummary({ periodDays, semiMajorAxisAu, eccentricity, inclina
 
 const ORBIT_PARAMETER_TOOLTIPS = {
   trajectory: "This orbit is marked as unbound or physically unsuitable for a closed ellipse. The object may be on a flyby-style path or the source values may not define a normal orbit.",
-  period: "Orbital period is the time needed to complete one orbit around the parent body or shared barycenter.",
-  semiMajorAxis: "Semi-major axis is the scale of an elliptical orbit: half the longest width of the ellipse. One AU is roughly the Earth-Sun distance.",
-  eccentricity: "Eccentricity describes orbit shape. Zero is circular; values closer to one are more stretched; values of one or more are not closed elliptical orbits.",
-  inclination: "Inclination is the tilt of the orbital plane relative to the reference plane used by the source data or render contract.",
+  period: "The orbital period is the exact amount of time it takes for a celestial body to complete one full revolution around its host star or barycenter. Dictated by the fundamental laws of planetary motion, this parameter determines the length of a year on that specific world. Planets hugging their stars in tightly packed orbits might whip around in mere hours, enduring blistering heat and intense tidal forces. Conversely, distant ice giants or wide binary companions may take tens of thousands of Earth years to complete a single, slow lap through the frozen dark. Understanding the period is crucial for predicting planetary transits and mapping the rhythmic gravitational dance of complex multi-star systems.",
+  semiMajorAxis: "The semimajor axis is the average distance between an orbiting body and its host, defining the overall physical size of the orbit. Representing half of the longest diameter of an elliptical path, it is typically measured in Astronomical Units (AU) for planetary systems. This single metric is arguably the most critical factor in determining a planet's climate, as it dictates the baseline amount of stellar radiation the world receives. An extremely small semimajor axis plunges a world into the scorching inferno of its star, while a massive one casts it out into the desolate void. It is the defining coordinate when searching for the elusive habitable zone where liquid water can survive.",
+  eccentricity: "Eccentricity defines how drastically an orbit deviates from a perfect, circular path. A value of exactly zero represents a flawless circle, while values approaching one describe highly elongated, stretched-out ellipses. Planets with high eccentricity endure brutal seasonal extremes, flash-frying as they dive close to their star at periastron before freezing in the deep cold of apastron. In chaotic or young systems, high eccentricity often points to past gravitational violence, where planets were violently scattered or slingshotted by massive gas giants. It is a vital parameter for Spacegate explorers, as extremely eccentric worlds rarely offer the stability needed to incubate complex life.",
+  inclination: "Inclination measures the steep tilt of a body's orbit relative to the system's foundational reference plane. In most calm, mature solar systems, planets orbit relatively flat along the same equatorial disk where they originally formed from a protoplanetary cloud. However, extreme inclinations reveal a turbulent history, indicating an object was either captured from deep space or violently knocked off its original axis by a catastrophic collision. High-inclination orbits carry worlds high above and far below the system's main orbital plane, subjecting them to complex, undulating gravitational forces. Identifying these tilted rogues is crucial for building accurate, fully realized 3D maps of a stellar neighborhood.",
 };
 
 function orbitParameterRows({ periodDays, semiMajorAxisAu, eccentricity, inclinationDeg }) {
@@ -3863,12 +3863,13 @@ function SystemDetailPage({ buildId = "" }) {
 
         <section className="system-detail-hero panel">
           <div className="system-detail-hero-copy">
-            <span className="system-story-kicker">Star Search system page</span>
-            <h1>{formatText(currentSystemDisplayName)}</h1>
-            {systemAliasSummary ? (
-              <p className="system-alias-line">Also cataloged as {systemAliasSummary}</p>
-            ) : null}
-            <p className="system-hero-summary">{systemOverviewSentence(system, stars, planets)}</p>
+            <div className="system-detail-title-row">
+              <span className="system-story-kicker">Star Search</span>
+              <h1>{formatText(currentSystemDisplayName)}</h1>
+              {systemAliasSummary ? (
+                <p className="system-alias-line">Also cataloged as {systemAliasSummary}</p>
+              ) : null}
+            </div>
             <div className="system-detail-facts">
               <SystemFactPill label="Distance" value={`${formatNumber(system.dist_ly, 2)} ly`} />
               <SystemFactPill label="Stars" value={formatNumber(system.star_count, 0)} />

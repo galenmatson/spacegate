@@ -350,6 +350,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
+    await expect(page.locator(".system-preview-header .system-preview-actions")).not.toContainText(/LOCAL CLARITY|render_scene/i);
     await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
     await expect
       .poll(() => page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").count())

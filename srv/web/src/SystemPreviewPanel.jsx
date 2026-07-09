@@ -4167,7 +4167,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     : (counts.assumed || 0) + assumedOrbitCount;
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const policyItems = renderPolicyItems(scene, simulationDays, speedMultiplier, activeScaleMode);
-  const orientation = orientationSummary(scene);
   const objectItems = useMemo(() => simulationObjectList(scene), [scene]);
   const stellarClassEntries = useMemo(() => {
     const stars = Array.isArray(renderBodies.stars) ? renderBodies.stars : [];
@@ -4303,8 +4302,6 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
       >
         Reset
       </button>
-      {status === "ready" && scene && <span className="status-chip" title={orientation.detail}>{orientation.label}</span>}
-      {renderScene?.schema_version ? <span className="status-chip">{renderScene.schema_version}</span> : (scene?.schema_version && <span className="status-chip">{scene.schema_version}</span>)}
     </div>
   );
 
