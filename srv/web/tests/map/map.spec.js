@@ -351,7 +351,10 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-header h3")).toHaveText("System Simulation");
     await expect(page.locator(".system-preview-header h3")).toHaveAttribute("title", /Source-aware system renderer/);
     await expect(page.locator("[data-testid='system-preview-object-list']")).toBeVisible();
-    await expect(page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip")).toHaveCount(1);
+    await expect
+      .poll(() => page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").count())
+      .toBeGreaterThanOrEqual(4);
+    await expect(page.locator("[data-testid='system-preview-object-list']")).toContainText(/Planet/i);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(1);
     await page.locator(".system-preview-line-menu summary").click();
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
@@ -455,10 +458,11 @@ test.describe("public 3D map beta", () => {
     const config = await configResponse.json();
     await openMap(page);
     await expect(page.locator(".map-eyebrow-link")).toHaveText("Spacegate Stellar Database");
-    await expect(page.locator(".map-eyebrow-link")).toHaveAttribute("href", "https://spacegates.org/");
+    await expect(page.locator(".map-eyebrow-link")).toHaveAttribute("href", "/search");
     await expect(page.locator(".map-brand-mark")).toBeVisible();
     await expect(page.locator(".map-brand-mark")).toHaveAttribute("src", "/favicon.svg");
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");
+    await expect(page.locator(".map-title-link")).toHaveAttribute("href", "/map");
   });
 
   test("fast search-result scrolling keeps live preview pool bounded", async ({ page }, testInfo) => {
@@ -1705,10 +1709,14 @@ test.describe("public 3D map beta", () => {
     expect(metrics.canvasHeight).toBeGreaterThan(220);
     expect(metrics.readoutTop).toBeGreaterThanOrEqual(metrics.canvasBottom - 1);
 
-    await previewCanvas.scrollIntoViewIfNeeded();
-    const previewBox = await previewCanvas.boundingBox();
+    const previewFrame = page.locator(".system-preview-canvas");
+    await previewFrame.scrollIntoViewIfNeeded();
+    const previewBox = await previewFrame.boundingBox();
     expect(previewBox, "mobile system preview canvas box").toBeTruthy();
-    await page.touchscreen.tap(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
+    const objectChip = page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").first();
+    await objectChip.scrollIntoViewIfNeeded();
+    await expect(objectChip).toBeVisible();
+    await objectChip.tap();
     const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
     await expect(pinnedReadout).toBeVisible();
     await expect(pinnedReadout).toContainText(/star|planet|orbit/i);
