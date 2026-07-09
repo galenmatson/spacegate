@@ -79,12 +79,15 @@ Source:
 - `SPACEGATE_SITE_NAME` (default `Coolstars`)
 - optional `SPACEGATE_MAP_TITLE`; when unset the API returns
   `<SPACEGATE_SITE_NAME> Map`
+- optional `SPACEGATE_STELLAR_DATABASE_URL`; when unset the API returns the
+  current request origin plus `/search`
 
 Response:
 ```json
 {
   "site_name": "Coolstars",
   "map_title": "Coolstars Map",
+  "spacegate_url": "https://coolstars.org/search",
   "branding_source": "environment"
 }
 ```

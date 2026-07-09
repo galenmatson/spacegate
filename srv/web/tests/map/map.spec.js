@@ -458,7 +458,7 @@ test.describe("public 3D map beta", () => {
     const config = await configResponse.json();
     await openMap(page);
     await expect(page.locator(".map-eyebrow-link")).toHaveText("Spacegate Stellar Database");
-    await expect(page.locator(".map-eyebrow-link")).toHaveAttribute("href", "/search");
+    await expect(page.locator(".map-eyebrow-link")).toHaveAttribute("href", config.spacegate_url || "/search");
     await expect(page.locator(".map-brand-mark")).toBeVisible();
     await expect(page.locator(".map-brand-mark")).toHaveAttribute("src", "/favicon.svg");
     await expect(page.locator(".map-title-block h1")).toHaveText(config.map_title || "Coolstars Map");

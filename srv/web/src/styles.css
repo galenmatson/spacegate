@@ -2449,7 +2449,6 @@
 :root[data-theme="aurora"] .map-star-search,
 :root[data-theme="aurora"] .map-search-sidebar,
 :root[data-theme="aurora"] .map-search-results {
-  position: relative;
   border-color: rgba(130, 238, 255, 0.58);
   background:
     linear-gradient(145deg, rgba(65, 255, 210, 0.12) 0%, transparent 34%, rgba(130, 118, 255, 0.13) 58%, rgba(255, 99, 220, 0.1) 100%),
@@ -2482,7 +2481,6 @@
 }
 
 :root[data-theme="aurora"] .map-hud > *,
-:root[data-theme="aurora"] .map-system-drill > *,
 :root[data-theme="aurora"] .map-header-menu-panel > *,
 :root[data-theme="aurora"] .map-star-search > *,
 :root[data-theme="aurora"] .map-search-sidebar > *,
@@ -7917,6 +7915,43 @@ main {
 }
 
 .system-preview-peek .system-preview-readout > div:nth-child(n + 5) {
+  display: none;
+}
+
+.map-system-drill-explore .system-preview-readout {
+  top: 72px;
+  right: 12px;
+  bottom: 58px;
+  left: auto;
+  width: min(330px, 30vw);
+  display: block;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.map-system-drill-explore .system-preview-readout > .system-preview-object-list {
+  height: 100%;
+  max-height: none;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 8%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+.map-system-drill-explore .system-preview-object-list-title {
+  opacity: 0.72;
+}
+
+.map-system-drill-explore .system-preview-object-chip {
+  border-color: color-mix(in srgb, var(--map-hud-border) 16%, transparent);
+  background: color-mix(in srgb, var(--bg) 7%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.map-system-drill-explore .system-preview-object-vital:nth-of-type(n + 3) {
   display: none;
 }
 

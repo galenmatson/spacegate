@@ -32,7 +32,7 @@ const RUNTIME_QUALITY_PROFILES = {
 const LY_TO_SCENE = 0.55;
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const SOL_SYSTEM_ID = 17788193;
-const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map" };
+const PUBLIC_CONFIG_FALLBACK = { site_name: "Coolstars", map_title: "Coolstars Map", spacegate_url: "/search" };
 const MAP_UTILITY_LINKS = [
   { label: "HELP", href: "/help", title: "How to use Coolstars", external: false },
   { label: "ABT", href: "/about", title: "About this site", external: false },
@@ -2116,7 +2116,7 @@ function MapStarSearchShell({
         <details className="map-search-recents" open>
           <summary><span className="map-panel-label">Recents</span></summary>
           <div>
-            {(selectionHistory || []).slice(0, 8).map((system) => (
+            {(selectionHistory || []).slice(0, 6).map((system) => (
               <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
                 <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} />
                 <span>{formatNumber(system.dist_ly, 1)} ly</span>
@@ -2128,7 +2128,7 @@ function MapStarSearchShell({
           <details className="map-search-recents" open>
             <summary><span className="map-panel-label">Cool Stars Nearby</span></summary>
             <div>
-              {suggestedNeighbors.slice(0, 8).map(({ system, routeDistance }) => (
+              {suggestedNeighbors.slice(0, 6).map(({ system, routeDistance }) => (
                 <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
                   <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} />
                   <span>{formatNumber(routeDistance, 1)} ly</span>
@@ -2318,6 +2318,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
+  const spacegateUrl = publicConfig?.spacegate_url || PUBLIC_CONFIG_FALLBACK.spacegate_url;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
   const mapSearchOpen = defaultSearchOpen || location.pathname === "/" || location.pathname === "/search";
   const mapSurfaceActive = systems.length > 0;
@@ -2457,6 +2458,7 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
         setPublicConfig({
           site_name: payload?.site_name || PUBLIC_CONFIG_FALLBACK.site_name,
           map_title: payload?.map_title || PUBLIC_CONFIG_FALLBACK.map_title,
+          spacegate_url: payload?.spacegate_url || PUBLIC_CONFIG_FALLBACK.spacegate_url,
         });
       })
       .catch(() => {
@@ -3339,9 +3341,9 @@ export default function StarMapPage({ buildId = "", theme, setTheme, themeOption
 
       <header className="map-hud map-hud-top">
         <div className="map-title-block">
-          <Link className="map-eyebrow map-eyebrow-link" to="/search">
+          <a className="map-eyebrow map-eyebrow-link" href={spacegateUrl}>
             Spacegate Stellar Database
-          </Link>
+          </a>
           <div className="map-title-row">
             <img className="map-brand-mark" src="/favicon.svg" alt="" aria-hidden="true" />
             <h1><a className="map-title-link" href="/map">{mapTitle}</a></h1>

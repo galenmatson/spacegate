@@ -69,6 +69,10 @@ Public branding:
   `map_title`
 - default install behavior is `Coolstars Map`, derived from
   `SPACEGATE_SITE_NAME=Coolstars`
+- the `Spacegate Stellar Database` header link reads `spacegate_url` from the
+  same endpoint; if `SPACEGATE_STELLAR_DATABASE_URL` is unset the API returns
+  the current host plus `/search`, so photon, local development, and production
+  keep users on the active installation
 - the map header shows the current Coolstars/Spacegate mark next to the
   configured title; the title remains installation-configurable
 - future installer work should prompt for the public site name and write the
@@ -198,6 +202,9 @@ Initial layers:
   Nearby tray has been removed from the free-flight map surface; Recents and
   Cool Stars Nearby now live inside the Search sidebar so they can be shown or
   hidden together.
+- Explorer reuses the System Simulation OBJECTS hierarchy as a translucent
+  right-side overlay, giving map users inspectable stars and planets without
+  leaving the simulation canvas.
 - compact beta HUD:
   - dense header instrument strip with system/planet-host/multiple counts
   - header `Search` toggle controls the search/filter/recents sidebar

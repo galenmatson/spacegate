@@ -102,6 +102,17 @@ def _public_map_title(site_name: str) -> str:
     return explicit or f"{site_name} Map"
 
 
+def _public_spacegate_url(request: Request) -> str:
+    configured = " ".join(str(os.getenv("SPACEGATE_STELLAR_DATABASE_URL") or "").split()).strip()
+    if configured and re.match(r"^https?://", configured):
+        return configured[:500]
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",", 1)[0].strip()
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "https").split(",", 1)[0].strip()
+    if host:
+        return f"{proto}://{host}/search"
+    return "/search"
+
+
 SIM_VISUAL_SCALE_POLICY = {
     "schema_version": SIM_VISUAL_SCALE_POLICY_VERSION,
     "scale_mode": "clarity_scaled_not_physical",
@@ -4807,11 +4818,12 @@ def health():
 
 
 @app.get("/api/v1/public-config")
-def public_config():
+def public_config(request: Request):
     site_name = _public_site_name()
     return {
         "site_name": site_name,
         "map_title": _public_map_title(site_name),
+        "spacegate_url": _public_spacegate_url(request),
         "branding_source": "environment",
     }
 

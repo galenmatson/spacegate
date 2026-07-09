@@ -4200,7 +4200,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const embeddedPresentation = normalizedPresentationMode !== "detail";
   const cardPresentation = normalizedPresentationMode === "card";
   const interactiveReadouts = !cardPresentation;
-  const showDiagnostics = !compactPresentation && (evidenceFields.length > 0 || (status === "ready" && scene));
+  const showObjectList = normalizedPresentationMode === "detail" || normalizedPresentationMode === "explore";
+  const showDiagnostics = normalizedPresentationMode === "detail" && (evidenceFields.length > 0 || (status === "ready" && scene));
 
   const renderPreviewActions = () => (
     <div className="system-preview-actions">
@@ -4379,7 +4380,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
           ) : null}
         </div>
         {normalizedPresentationMode !== "card" && <div className="system-preview-readout">
-          {normalizedPresentationMode === "detail" ? (
+          {showObjectList ? (
             <div className="system-preview-object-list" data-testid="system-preview-object-list">
               <span className="system-preview-object-list-title">Objects</span>
               {objectItems.length > 0 ? objectItems.map((item) => (
