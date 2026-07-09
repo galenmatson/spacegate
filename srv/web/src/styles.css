@@ -3871,6 +3871,7 @@ body {
   position: relative;
   z-index: 120;
   display: block;
+  overflow: visible;
   background: var(--header-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -3880,7 +3881,7 @@ body {
 
 .header-main {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px 32px;
 }
@@ -3889,9 +3890,12 @@ body {
   flex: 0 1 auto;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  text-align: left;
 }
 
 .header-kicker-line {
@@ -3971,7 +3975,7 @@ body {
 }
 
 .site-header h1 {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: clamp(1.9rem, 2.8vw, 2.4rem);
   line-height: 1.07;
   font-family: var(--font-display);
@@ -4228,6 +4232,10 @@ select:focus-visible {
     0 0 18px rgba(112, 247, 255, 0.12);
   overflow: hidden;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+:root[data-theme="cyberpunk"] .site-header {
+  overflow: visible;
 }
 
 :root[data-theme="cyberpunk"] .chip,
@@ -5298,7 +5306,7 @@ select:focus-visible {
   --header-utility-height: 28px;
   position: relative;
   padding-top: 40px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 :root[data-theme="retro_90s"] .header-topline {
@@ -5481,7 +5489,7 @@ select:focus-visible {
 :root[data-theme="mission_control"] .site-header {
   --header-utility-top: 0;
   --header-utility-height: 30px;
-  overflow: hidden;
+  overflow: visible;
   padding-top: 42px;
   border-top: 5px solid #1a211c;
   border-bottom: 5px solid #1a211c;
@@ -5764,7 +5772,7 @@ select:focus-visible {
 :root[data-theme="aurora"] .site-header {
   --header-utility-top: 0;
   --header-utility-height: 22px;
-  overflow: hidden;
+  overflow: visible;
   padding-top: 34px;
 }
 
@@ -5924,7 +5932,7 @@ select:focus-visible {
 :root[data-theme="deep_space_minimal"] .site-header {
   --header-utility-top: 0;
   --header-utility-height: 22px;
-  overflow: hidden;
+  overflow: visible;
   padding-top: 34px;
 }
 

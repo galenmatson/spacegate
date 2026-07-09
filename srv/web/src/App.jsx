@@ -1678,6 +1678,14 @@ function StarSearchSimulationPreview({
     setHoverIntent(nextValue);
   }, []);
 
+  const requestLiveInteraction = React.useCallback(() => {
+    setHovering(true);
+    if (!lightweightPreview && visible && !requestedLiveRef.current) {
+      requestedLiveRef.current = true;
+      onActivate?.(system.system_id);
+    }
+  }, [lightweightPreview, onActivate, setHovering, system.system_id, visible]);
+
   const handleFrameCapture = React.useCallback((dataUrl) => {
     onCapture?.(system.system_id, dataUrl);
     if (!hoverIntentRef.current) {
@@ -1713,7 +1721,13 @@ function StarSearchSimulationPreview({
       data-preview-tier={system?.preview_tier || "dynamic_simulation_scene"}
       data-preview-pool-slot={poolSlot ?? ""}
       onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
+      onMouseLeave={(event) => {
+        if (event.buttons) {
+          return;
+        }
+        setHovering(false);
+      }}
+      onPointerDown={requestLiveInteraction}
       onFocus={() => setHovering(true)}
       onBlur={() => setHovering(false)}
       tabIndex={0}
