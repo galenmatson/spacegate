@@ -886,6 +886,7 @@
   justify-content: flex-end;
   gap: 10px;
   min-width: 0;
+  margin-right: 74px;
 }
 
 .map-text-link {
@@ -2145,6 +2146,7 @@
 
 :root[data-theme="lcars"] .map-link-row {
   gap: 12px;
+  margin-right: 88px;
 }
 
 :root[data-theme="lcars"] .map-text-link {
