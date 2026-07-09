@@ -108,7 +108,9 @@ scripts/push_published_db.sh \
 The DB archive is already compressed. `scripts/push_published_db.sh` disables
 rsync compression by default and prints the active compression mode before
 transfer. Use `--compress` only for unusual raw-file transfers where the network
-link, not CPU, is the bottleneck.
+link, not CPU, is the bottleneck. The script keeps interrupted archive uploads
+resumable, so a multi-gigabyte upload can continue from the retained partial
+file instead of restarting from zero.
 
 After upload, confirm the remote download pointer:
 

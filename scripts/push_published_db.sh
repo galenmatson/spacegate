@@ -284,12 +284,15 @@ PY
     fi
   done
 
-  local -a rsync_args=( -ah --omit-dir-times --no-implied-dirs --info=progress2,stats2 )
+  # Published DB archives are large, pre-compressed files. Keep interrupted
+  # uploads resumable; restarting a multi-gigabyte archive from zero is worse
+  # than the small verification cost of append-verify.
+  local -a rsync_args=( -ah --omit-dir-times --no-implied-dirs --partial --append-verify --info=progress2,stats2 )
   if [[ "$RSYNC_COMPRESS" == "1" ]]; then
     rsync_args+=( -z )
   fi
   if [[ "$DRY_RUN" == "1" ]]; then
-    rsync_args=( -ahn --omit-dir-times --no-implied-dirs )
+    rsync_args=( -ahn --omit-dir-times --no-implied-dirs --partial --append-verify )
     if [[ "$RSYNC_COMPRESS" == "1" ]]; then
       rsync_args+=( -z )
     fi
@@ -325,6 +328,11 @@ PY
     echo "SSH key:         (ssh default auth)"
   fi
   echo "SSH cooldown:    ${SSH_COOLDOWN_SECONDS}s"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "Dry run:         yes"
+  else
+    echo "Dry run:         no"
+  fi
   if [[ "$RSYNC_COMPRESS" == "1" ]]; then
     echo "Rsync compress:  enabled"
   else
@@ -332,7 +340,11 @@ PY
   fi
 
   log_step "Ensuring remote DB/report directories exist..."
-  run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "Dry run: would create '$REMOTE_DL_ROOT/db' and '$REMOTE_DL_ROOT/reports/$build_id' on $REMOTE"
+  else
+    run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
+  fi
 
   log_step "Syncing published DB metadata, archive, and reports..."
   (
@@ -344,7 +356,11 @@ PY
 
   if [[ "$catalogs_enabled" == "1" ]]; then
     log_step "Ensuring remote catalog mirror directories exist..."
-    run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
+    if [[ "$DRY_RUN" == "1" ]]; then
+      echo "Dry run: would create '$REMOTE_DL_ROOT/catalogs/snapshots' on $REMOTE"
+    else
+      run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/catalogs/snapshots'"
+    fi
     log_step "Syncing active catalog mirror snapshot $catalogs_snapshot_id..."
     (
       cd "$DL_ROOT"
@@ -362,8 +378,12 @@ PY
 
   if [[ "$SET_CURRENT_LINK" == "1" ]]; then
     log_step "Updating remote current symlink..."
-    run_ssh "${ssh_opts[@]}" "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
-    echo "Updated remote symlink: $REMOTE_DL_ROOT/current -> $artifact"
+    if [[ "$DRY_RUN" == "1" ]]; then
+      echo "Dry run: would update remote symlink: $REMOTE_DL_ROOT/current -> $artifact"
+    else
+      run_ssh "${ssh_opts[@]}" "$REMOTE" "ln -sfn '$artifact' '$REMOTE_DL_ROOT/current'"
+      echo "Updated remote symlink: $REMOTE_DL_ROOT/current -> $artifact"
+    fi
   else
     echo "Skipped remote current symlink update (use --set-current-link to enable)."
   fi
