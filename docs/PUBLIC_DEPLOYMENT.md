@@ -105,6 +105,11 @@ scripts/push_published_db.sh \
   --set-current-link
 ```
 
+The DB archive is already compressed. `scripts/push_published_db.sh` disables
+rsync compression by default and prints the active compression mode before
+transfer. Use `--compress` only for unusual raw-file transfers where the network
+link, not CPU, is the bottleneck.
+
 After upload, confirm the remote download pointer:
 
 ```bash

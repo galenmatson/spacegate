@@ -17,6 +17,7 @@ REMOTE_DL_ROOT="${SPACEGATE_PUSH_REMOTE_DL_ROOT:-/srv/spacegate/dl}"
 PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-python3}"
 SSH_KEY_PATH="${SPACEGATE_PUSH_SSH_KEY:-}"
 SSH_COOLDOWN_SECONDS="${SPACEGATE_PUSH_SSH_COOLDOWN_SECONDS:-3}"
+RSYNC_COMPRESS="${SPACEGATE_PUSH_RSYNC_COMPRESS:-0}"
 SET_CURRENT_LINK=0
 INCLUDE_CATALOGS=1
 DRY_RUN=0
@@ -41,6 +42,9 @@ Options:
   --ssh-key PATH        SSH private key path (default: ssh agent / ssh config)
   --ssh-cooldown SEC    Delay between successive SSH connections (default: 3,
                         env SPACEGATE_PUSH_SSH_COOLDOWN_SECONDS)
+  --compress            Enable rsync compression (default: disabled; env
+                        SPACEGATE_PUSH_RSYNC_COMPRESS=1). Leave disabled for
+                        already-compressed DB archives such as .7z.
   --skip-catalogs       Skip pushing the active catalog mirror snapshot
   --set-current-link    Also set remote current symlink to metadata artifact path
   --dry-run             Show what would be transferred without writing remote files
@@ -113,6 +117,10 @@ main() {
         SSH_COOLDOWN_SECONDS="$2"
         shift 2
         ;;
+      --compress)
+        RSYNC_COMPRESS=1
+        shift 1
+        ;;
       --skip-catalogs)
         INCLUDE_CATALOGS=0
         shift 1
@@ -141,6 +149,10 @@ main() {
   require_cmd rsync
   require_cmd ssh
   assert_nonnegative_decimal "$SSH_COOLDOWN_SECONDS" "SSH cooldown"
+  if [[ "$RSYNC_COMPRESS" != "0" && "$RSYNC_COMPRESS" != "1" ]]; then
+    echo "Error: SPACEGATE_PUSH_RSYNC_COMPRESS must be 0 or 1, got: $RSYNC_COMPRESS" >&2
+    exit 1
+  fi
 
   if [[ ! -f "$META_PATH" ]]; then
     echo "Error: metadata not found: $META_PATH" >&2
@@ -273,8 +285,14 @@ PY
   done
 
   local -a rsync_args=( -ah --omit-dir-times --no-implied-dirs --info=progress2,stats2 )
+  if [[ "$RSYNC_COMPRESS" == "1" ]]; then
+    rsync_args+=( -z )
+  fi
   if [[ "$DRY_RUN" == "1" ]]; then
     rsync_args=( -ahn --omit-dir-times --no-implied-dirs )
+    if [[ "$RSYNC_COMPRESS" == "1" ]]; then
+      rsync_args+=( -z )
+    fi
   fi
 
   local -a ssh_opts=()
@@ -307,6 +325,11 @@ PY
     echo "SSH key:         (ssh default auth)"
   fi
   echo "SSH cooldown:    ${SSH_COOLDOWN_SECONDS}s"
+  if [[ "$RSYNC_COMPRESS" == "1" ]]; then
+    echo "Rsync compress:  enabled"
+  else
+    echo "Rsync compress:  disabled"
+  fi
 
   log_step "Ensuring remote DB/report directories exist..."
   run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
