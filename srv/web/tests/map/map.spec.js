@@ -364,6 +364,11 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
     await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "What We Know" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "What Is Uncertain" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Explore More" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Future AAA Narrative Slot" })).toHaveCount(0);
+    await expect(page.locator(".hierarchy-orbit-chip", { hasText: /Orbital period|Semi-major axis/ }).first()).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
     await expect(page.locator("details.detail-disclosure", { hasText: "Planets and Orbits" })).not.toHaveAttribute("open", "");

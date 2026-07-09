@@ -673,8 +673,9 @@ Implemented foundation:
 - deterministic snapshot rows remain fallback/reference metadata rather than
   the preferred capable-browser visual
 - public system pages now lead with System Simulation, quick facts,
-  plain-language overview, why-it-matters notes, habitability context, concept
-  explanations, and reserved AAA narration slots
+  plain-language overview, why-it-matters notes, habitability context,
+  what-we-know notes, uncertainty notes, explore-more prompts, and concept
+  explanations that AAA can enrich later
 - the System Hierarchy section now presents a reader-facing object tree with
   stellar class pills, planet/orbit tags, compact vitals, and short explanatory
   summaries before lower-level catalog/evidence tables
@@ -700,7 +701,8 @@ Future work:
   exoplanets, and planet taxonomy classes. Each concept page should start with
   a plain-language explanation, progressively deepen into the science, link to
   representative systems and related concepts, and offer a "Find more" Star
-  Search path with the relevant filter active.
+  Search path with the relevant filter active. The initial backlog, route, and
+  page contract are tracked in `docs/CONCEPTS.md`.
 - concept pages should include interactive visualizations where they materially
   teach the concept. Candidate examples include a SuperPuff planet model whose
   diffuse envelope expands and escapes as stellar irradiation rises, a
@@ -711,6 +713,9 @@ Future work:
   mixed into canonical science
 - finish high-fidelity static System Snapshot v2 for no-WebGL clients,
   crawlers, share cards, and intentional low-intensity catalog contexts
+- deprecate the old prototype deterministic snapshot generator and Admin
+  snapshot controls once live simulation previews, cached first-frame captures,
+  and the future high-fidelity static generator fully cover fallback needs
 
 Success criteria:
 
@@ -820,6 +825,13 @@ Success criteria:
   live previews are disabled, unavailable, or intentionally not mounted
 - snapshot generation is much lighter than browser-rendered WebGL captures and
   can be run routinely for hot/coolness-selected systems
+
+Deprecation note:
+
+- the original concentric-ring deterministic snapshot generator is now legacy
+  fallback/reference infrastructure. Do not expand its Admin control surface.
+  Remove or hide those controls after System Snapshot v2 or an equivalent
+  no-WebGL/share-card path is available.
 
 ### M8.4. Admin Map Overlay and AAA Research Promotion
 

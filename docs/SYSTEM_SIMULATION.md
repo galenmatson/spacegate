@@ -547,6 +547,12 @@ Success criteria:
   preferred context-loss response. Bulk browser-rendered PNG snapshot generation
   was tested and removed because headless WebGL rendering was too slow and
   CPU-heavy for routine presentation updates.
+- The original deterministic concentric-ring snapshot generator is now legacy
+  fallback/reference infrastructure. It should not be expanded as a public
+  visual target; the next static path should be a high-fidelity generator that
+  consumes the same simulation-scene contract as the live renderer. Admin
+  controls for the old generator can be hidden or removed after that fallback
+  path covers no-WebGL, crawler, share-card, and reference needs.
 - Formation/freeze-line hover readouts use the same explanatory text as the
   Lines disclosure controls, so the snowline and other chemistry boundaries
   read as teaching overlays rather than generic radius guides.

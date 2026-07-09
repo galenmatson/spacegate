@@ -149,11 +149,12 @@ host context, lifecycle/confidence, stellar element-richness proxy, variability,
 compact-object subtype, debris-disk/context, and other deterministic tags
 derived from source/ARM/DISC presentation evidence.
 
-Future concept pages should make these tags clickable teaching paths. A tag
-such as `White dwarf` should open a readable concept page with a simple
-explanation first, then deeper science, representative systems, images or
-animations where useful, links to adjacent concepts, and a "Find more" link
-back into Star Search with the relevant filter active.
+Future concept pages should make these tags clickable teaching paths at
+`/concepts/:slug`. A tag such as `White dwarf` should open a readable concept
+page with a simple explanation first, then deeper science, representative
+systems, images or animations where useful, links to adjacent concepts, and a
+"Find more" link back into Star Search with the relevant filter active. The
+concept backlog and page contract live in `docs/CONCEPTS.md`.
 
 Visual policy:
 

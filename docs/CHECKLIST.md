@@ -169,6 +169,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 - [ ] Implement deterministic taxonomy tags from observational data (size/mass, insolation, orbit, composition proxy, detection/host context)
 - [ ] Add educational concept pages for public discovery tags with plain-language explanations, deeper science sections, representative systems, related concepts, Star Search "Find more" links, and interactive visualizations where useful
+- [x] Create `docs/CONCEPTS.md` with the public concept-page route, page contract,
+  first-page priorities, and science-education backlog
 - [x] Implement `spacegate_hab_score` + confidence/reasons metadata
 - [x] Implement element-richness proxy tags from stellar spectroscopy/metallicity inputs
 - [ ] Add API filters/toggles for controversial lifecycle state and habitability range
@@ -596,6 +598,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Rework System Hierarchy rows into layperson-readable object chips with
   star class pills, planet/orbit tags, compact vitals, and plain-language
   object summaries
+- [x] Spell out System Hierarchy orbit parameters with tooltips for orbital
+  period, semi-major axis, eccentricity, inclination, and unbound trajectories
+- [x] Replace the visible system-page AAA placeholder card with staged
+  what-we-know, uncertainty, and explore-more sections
 - [x] Add Star Map WebGL context-loss recovery and stricter live-card preview
   activation to mitigate fast-scroll browser context eviction
 - [x] Add a persisted client-side Star Map runtime diagnostics toggle in the
@@ -627,6 +633,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Restore deterministic snapshot manifest coverage on the current public
   side-sliced deployment so System Simulation fallback checks exercise real
   fallback assets on antiproton
+- [ ] Deprecate and remove the old prototype snapshot generator/Admin controls
+  after live simulation previews and the future high-fidelity static snapshot
+  path fully cover no-WebGL, share-card, crawler, and reference needs
 - [x] Materialize MSC `sys.tsv` and `orb.tsv` rows into cooked/arm artifacts so
   nested subsystems, outer pairs, and source periods/separations are preserved
   instead of flattened from subsystem counts

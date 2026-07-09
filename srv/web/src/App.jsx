@@ -867,6 +867,73 @@ function formatOrbitSummary({ periodDays, semiMajorAxisAu, eccentricity, inclina
   return bits.join(" · ");
 }
 
+const ORBIT_PARAMETER_TOOLTIPS = {
+  trajectory: "This orbit is marked as unbound or physically unsuitable for a closed ellipse. The object may be on a flyby-style path or the source values may not define a normal orbit.",
+  period: "Orbital period is the time needed to complete one orbit around the parent body or shared barycenter.",
+  semiMajorAxis: "Semi-major axis is the scale of an elliptical orbit: half the longest width of the ellipse. One AU is roughly the Earth-Sun distance.",
+  eccentricity: "Eccentricity describes orbit shape. Zero is circular; values closer to one are more stretched; values of one or more are not closed elliptical orbits.",
+  inclination: "Inclination is the tilt of the orbital plane relative to the reference plane used by the source data or render contract.",
+};
+
+function orbitParameterRows({ periodDays, semiMajorAxisAu, eccentricity, inclinationDeg }) {
+  const numericPeriod = Number(periodDays);
+  const numericSemiMajorAxis = Number(semiMajorAxisAu);
+  const numericEccentricity = Number(eccentricity);
+  const numericInclination = Number(inclinationDeg);
+  const hasPeriod = Number.isFinite(numericPeriod);
+  const hasSemiMajorAxis = Number.isFinite(numericSemiMajorAxis);
+  const hasEccentricity = Number.isFinite(numericEccentricity);
+  const hasInclination = Number.isFinite(numericInclination);
+  const unboundTrajectory =
+    (hasEccentricity && numericEccentricity >= 1.0) || (hasSemiMajorAxis && numericSemiMajorAxis <= 0.0);
+
+  const rows = [];
+  if (unboundTrajectory) {
+    rows.push({
+      key: "trajectory",
+      label: "Trajectory",
+      value: "Unbound",
+      tooltip: ORBIT_PARAMETER_TOOLTIPS.trajectory,
+    });
+  }
+  if (!unboundTrajectory && hasPeriod) {
+    const periodLabel = formatPeriodDaysWithYears(numericPeriod);
+    if (periodLabel !== "Unknown") {
+      rows.push({
+        key: "period",
+        label: "Orbital period",
+        value: periodLabel,
+        tooltip: ORBIT_PARAMETER_TOOLTIPS.period,
+      });
+    }
+  }
+  if (!unboundTrajectory && hasSemiMajorAxis) {
+    rows.push({
+      key: "semi-major-axis",
+      label: "Semi-major axis",
+      value: `${formatNumber(numericSemiMajorAxis, 4)} AU`,
+      tooltip: ORBIT_PARAMETER_TOOLTIPS.semiMajorAxis,
+    });
+  }
+  if (hasEccentricity) {
+    rows.push({
+      key: "eccentricity",
+      label: "Eccentricity",
+      value: formatNumber(numericEccentricity, 4),
+      tooltip: ORBIT_PARAMETER_TOOLTIPS.eccentricity,
+    });
+  }
+  if (hasInclination) {
+    rows.push({
+      key: "inclination",
+      label: "Inclination",
+      value: `${formatNumber(numericInclination, 3)} deg`,
+      tooltip: ORBIT_PARAMETER_TOOLTIPS.inclination,
+    });
+  }
+  return rows;
+}
+
 function formatConfidence(value) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "Unknown";
@@ -1766,9 +1833,74 @@ function habitabilityContext(system, planets = []) {
   return "Confirmed planets are present, but none currently pass the broad habitable-zone candidate screen used by the public coolness profile.";
 }
 
+function whatWeKnowNotes(system, stars = [], planets = []) {
+  const notes = [];
+  const starCount = Number(system?.star_count ?? stars.length ?? 0);
+  const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
+  const distanceLy = Number(system?.distance_ly);
+  if (Number.isFinite(distanceLy)) {
+    notes.push(`It is about ${formatNumber(distanceLy, 2)} light-years from Sol in the current Spacegate build.`);
+  }
+  if (starCount > 1) {
+    notes.push(`The system is modeled as ${formatNumber(starCount, 0)} stellar objects or stellar endpoints, so the hierarchy matters more than a simple one-star summary.`);
+  } else if (starCount === 1) {
+    notes.push("The current public structure is a single-star system unless hidden or unresolved companions are added by later evidence.");
+  }
+  if (planetCount > 0) {
+    notes.push(`${planetCount === 1 ? "One confirmed planet is" : `${formatNumber(planetCount, 0)} confirmed planets are`} linked to the system in the public inventory.`);
+  } else {
+    notes.push("No confirmed planets are currently linked in the public inventory.");
+  }
+  return notes.slice(0, 4);
+}
+
+function uncertaintyNotes(system, stars = [], planets = [], hierarchy = null) {
+  const notes = [];
+  const missingClassCount = stars.filter((star) => {
+    const tokens = stellarClassTokensFromRecord(star);
+    return tokens.length === 0 || tokens.some((token) => String(token).toUpperCase() === "U");
+  }).length;
+  const assumptionCount = Number(system?.simulation_assumption_count ?? system?.assumption_count ?? 0);
+  const orbitEdgeCount = Number(hierarchy?.counts?.orbit_edges || 0);
+  const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
+  if (missingClassCount > 0) {
+    notes.push(`${formatNumber(missingClassCount, 0)} stellar ${missingClassCount === 1 ? "object has" : "objects have"} incomplete public classification and may rely on display priors until better evidence is materialized.`);
+  }
+  if (orbitEdgeCount === 0 && (Number(system?.star_count || 0) > 1 || planetCount > 0)) {
+    notes.push("Some orbital relationships may be structural rather than fully solved orbits. The simulator labels fallbacks instead of treating them as catalog facts.");
+  }
+  if (assumptionCount > 0) {
+    notes.push("The simulation may use bounded presentation assumptions where source or derived fields are missing.");
+  }
+  if (notes.length === 0) {
+    notes.push("The main public caveat is normal catalog incompleteness: absence of a value does not prove absence of the physical property.");
+  }
+  return notes.slice(0, 4);
+}
+
+function exploreMoreNotes(system, stars = [], planets = []) {
+  const notes = [];
+  const starTokens = new Set();
+  stars.forEach((star) => stellarClassTokensFromRecord(star).forEach((token) => starTokens.add(String(token).toUpperCase())));
+  if (starTokens.size > 0) {
+    notes.push(`Follow the stellar-class pills to learn why ${Array.from(starTokens).slice(0, 4).join(", ")} objects look and behave differently.`);
+  }
+  if (Number(system?.planet_count ?? planets.length ?? 0) > 0) {
+    notes.push("Use the simulation scale modes and temperature lines to compare orbital structure, habitable-zone screening, and planet-building regions.");
+  }
+  if (Number(system?.star_count ?? stars.length ?? 0) > 1) {
+    notes.push("Open the hierarchy and orbit rows to see how nested stars, barycenters, and incomplete solutions affect the system view.");
+  }
+  notes.push("Concept pages will turn these tags and terms into guided science paths with representative systems and Star Search links.");
+  return notes.slice(0, 4);
+}
+
 function SystemNarrativeScaffold({ system, stars, planets, hierarchy }) {
   const name = systemDisplayName(system);
   const matterNotes = whySystemMatters(system, stars, planets, hierarchy);
+  const knownNotes = whatWeKnowNotes(system, stars, planets);
+  const uncertainNotes = uncertaintyNotes(system, stars, planets, hierarchy);
+  const exploreNotes = exploreMoreNotes(system, stars, planets);
   return (
     <section className="system-story-grid">
       <article className="panel system-story-card system-story-card-primary">
@@ -1787,11 +1919,22 @@ function SystemNarrativeScaffold({ system, stars, planets, hierarchy }) {
         <p>{habitabilityContext(system, planets)}</p>
       </article>
       <article className="panel system-story-card">
-        <span className="system-story-kicker">Future AAA Narrative Slot</span>
-        <p>
-          The AI Astronomy Agency will eventually fill this space with reviewed public narration: what we know,
-          what remains uncertain, why the system is interesting, and where the evidence comes from.
-        </p>
+        <span className="system-story-kicker">What We Know</span>
+        <ul>
+          {knownNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      </article>
+      <article className="panel system-story-card">
+        <span className="system-story-kicker">What Is Uncertain</span>
+        <ul>
+          {uncertainNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      </article>
+      <article className="panel system-story-card">
+        <span className="system-story-kicker">Explore More</span>
+        <ul>
+          {exploreNotes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
       </article>
     </section>
   );
@@ -2000,6 +2143,35 @@ function HierarchyFactChips({ node }) {
   );
 }
 
+function HierarchyOrbitDetails({ orbit }) {
+  const rows = orbitParameterRows({
+    periodDays: orbit?.period_days,
+    semiMajorAxisAu: orbit?.semi_major_axis_au,
+    eccentricity: orbit?.eccentricity,
+    inclinationDeg: orbit?.inclination_deg,
+  });
+  if (rows.length === 0) {
+    return (
+      <div className="hierarchy-node-orbit hierarchy-orbit-list" aria-label="Orbital parameters">
+        <span className="hierarchy-orbit-chip" title="This hierarchy relationship has an orbit record, but the public payload does not include enough numeric parameters to summarize it here.">
+          <span className="hierarchy-orbit-label">Orbit parameters</span>
+          <strong className="hierarchy-orbit-value">Unavailable</strong>
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="hierarchy-node-orbit hierarchy-orbit-list" aria-label="Orbital parameters">
+      {rows.map((row) => (
+        <span key={row.key} className="hierarchy-orbit-chip" title={row.tooltip}>
+          <span className="hierarchy-orbit-label">{row.label}</span>
+          <strong className="hierarchy-orbit-value">{row.value}</strong>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function HierarchyNodeCard({ node, depth = 0 }) {
   const children = Array.isArray(node?.children) ? node.children : [];
   const compactStellarBranch = children.length > 0
@@ -2012,12 +2184,6 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   const displayType = hierarchyDisplayType(node, children);
   const objectTags = hierarchyObjectTags(node, displayType);
   const plainSummary = hierarchyPlainLanguageSummary(node, displayType, children);
-  const orbitSummary = node?.orbit ? formatOrbitSummary({
-    periodDays: node.orbit.period_days,
-    semiMajorAxisAu: node.orbit.semi_major_axis_au,
-    eccentricity: node.orbit.eccentricity,
-    inclinationDeg: node.orbit.inclination_deg,
-  }) : "";
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -2056,11 +2222,7 @@ function HierarchyNodeCard({ node, depth = 0 }) {
             <div className="muted hierarchy-node-meta" aria-label="Hierarchy source labels and child count">
               {hierarchyMetaSummary(node, children)}
             </div>
-            {orbitSummary ? (
-              <div className="muted hierarchy-node-orbit">
-                {orbitSummary}
-              </div>
-            ) : null}
+            {node?.orbit ? <HierarchyOrbitDetails orbit={node.orbit} /> : null}
             {displayType !== "system" && displayType !== "subsystem" ? (
               <HierarchyFactChips node={node} />
             ) : null}

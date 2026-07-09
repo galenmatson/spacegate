@@ -7714,6 +7714,40 @@ main {
   line-height: 1.45;
 }
 
+.hierarchy-orbit-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.hierarchy-orbit-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, #ffd36a 44%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffd36a 10%, var(--surface-soft));
+  color: var(--muted);
+  font-size: 0.76rem;
+  white-space: normal;
+}
+
+.hierarchy-orbit-label {
+  color: var(--subtle-ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hierarchy-orbit-value {
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
 .hierarchy-fact-chips {
   display: flex;
   flex-wrap: wrap;

@@ -250,8 +250,11 @@ Implementation note:
   first-frame reuse, and deterministic snapshots only as fallback/reference
   artifacts. Public system pages are now simulation-first: the top of the page
   stages a visual simulation, quick system facts, plain-language overview,
-  "why it matters", habitability context, and future AAA narration slots before
-  exposing hierarchy, catalog rows, evidence, and technical provenance. The
+  "why it matters", habitability context, what-we-know notes, uncertainty
+  notes, and explore-more prompts before exposing hierarchy, catalog rows,
+  evidence, and technical provenance. These sections are the public scaffold
+  that future AAA-reviewed narration can enrich without replacing source
+  evidence. The
   hierarchy section is an object tree for readers first: rows show stellar
   class pills, object kind, orbit tags, compact vitals, and a short
   plain-language description before technical identifiers and catalog rows.
