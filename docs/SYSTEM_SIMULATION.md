@@ -479,6 +479,10 @@ Success criteria:
   ephemeris or full N-body solution
 - single-star scenes can render a human system alias as the body display name
   while preserving the canonical star key and exposing the display-name basis
+- search/member-focus context may request a matched member alias inside an
+  accepted root system; render-scene labels should use the preferred display
+  name for the root/member while preserving the source object key and not
+  treating matched catalog IDs as physical membership evidence
 - direct binary stars follow the same rendered body-path traces that are shown
   in the preview, rather than a full relative-separation guide; mass-weighted
   traces are a derived presentation transform and equal-mass traces are labeled

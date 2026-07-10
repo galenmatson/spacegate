@@ -42,7 +42,17 @@ ALIAS_KIND_RANK = {
     "member_flamsteed_name": 5,
     "member_star_name": 6,
     "gl_id": 6,
+    "gl_root_id": 6,
+    "gliese_id": 6,
+    "gliese_root_id": 6,
+    "gj_id": 6,
+    "gj_root_id": 6,
     "member_gl_id": 7,
+    "member_gl_root_id": 7,
+    "member_gliese_id": 7,
+    "member_gliese_root_id": 7,
+    "member_gj_id": 7,
+    "member_gj_root_id": 7,
     "hd_id": 8,
     "member_hd_id": 9,
     "hip_id": 10,
@@ -284,6 +294,41 @@ def _is_abbreviated_bayer_name(value: Any) -> bool:
     return False
 
 
+def _is_catalog_identifier_display(value: Any) -> bool:
+    norm = _name_norm(value)
+    if not norm:
+        return False
+    if any(norm.startswith(prefix) for prefix in CATALOG_NAME_PREFIXES):
+        return True
+    return bool(re.match(r"^(gl|gj)\s*\d+[a-z]?$", norm))
+
+
+def _is_public_display_match_candidate(value: Any, alias_kind: Optional[str] = None) -> bool:
+    kind = str(alias_kind or "").strip().lower()
+    if kind.endswith("_id") or kind in {"wds_id", "gaia_id_short", "member_star_name"}:
+        return False
+    if _is_catalog_identifier_display(value):
+        return False
+    if _is_abbreviated_bayer_name(value):
+        return False
+    return True
+
+
+def _strict_exact_search_query(value: Any) -> bool:
+    norm = _name_norm(value)
+    if not norm:
+        return False
+    if _is_catalog_identifier_display(norm):
+        return True
+    # Variable-star and compact catalog-like names are dense enough that fuzzy
+    # matching creates bad public results such as V1513 Cyg -> V1581 Cyg.
+    if re.match(r"^[a-z]{1,3}\s*\d{2,6}\s+[a-z]{3}$", norm):
+        return True
+    if re.match(r"^[a-z]{1,4}\s+\d{1,6}[a-z]?$", norm):
+        return True
+    return False
+
+
 def _is_full_expanded_bayer_alias(row: Dict[str, Any], candidate: str) -> bool:
     kind = str(row.get("alias_kind") or "").strip()
     if "bayer_expanded_name" not in kind:
@@ -402,11 +447,13 @@ def choose_display_name(
         candidate_match = _query_name_match_rank(candidate, preferred_query_norm)
         if candidate_match is None:
             continue
+        if not _is_public_display_match_candidate(candidate, row.get("alias_kind")):
+            continue
         candidate_key = candidate_match + (_alias_rank(row)[0],)
         if best_match_key is None or candidate_key < best_match_key:
             best_match_name = candidate
             best_match_key = candidate_key
-    if best_match_name:
+    if best_match_name and _is_public_display_match_candidate(best_match_name):
         display_name = best_match_name
     else:
         full_expanded_alias: Optional[str] = None
@@ -947,6 +994,109 @@ def fetch_aliases_for_stars(
         sid = int(sid_raw)
         grouped.setdefault(sid, []).append(item)
     return grouped
+
+
+def _fetch_matched_search_terms(
+    con: duckdb.DuckDBPyConnection,
+    system_ids: List[int],
+    *,
+    q_norm: Optional[str],
+) -> Dict[int, Dict[str, Any]]:
+    if not system_ids or not q_norm or not _has_local_table(con, "system_search_terms"):
+        return {}
+    if not _has_local_column(con, "system_search_terms", "target_type"):
+        return {}
+    placeholders = ",".join(["?"] * len(system_ids))
+    prefix = f"{q_norm}%"
+    rows = con.execute(
+        f"""
+        WITH candidates AS (
+          SELECT
+            st.system_id,
+            st.term_raw,
+            st.term_norm,
+            st.term_kind,
+            st.term_priority,
+            st.is_primary,
+            st.target_type,
+            st.target_id,
+            st.star_id,
+            CASE
+              WHEN st.term_norm = ? THEN 0
+              WHEN st.term_norm LIKE ? THEN 1
+              ELSE 9
+            END AS match_rank
+          FROM system_search_terms st
+          WHERE st.system_id IN ({placeholders})
+            AND (
+              st.term_norm = ?
+              OR (
+                length(?) >= 2
+                AND st.term_norm LIKE ?
+              )
+            )
+        ), ranked AS (
+          SELECT
+            c.*,
+            s.stable_object_key AS focus_object_key,
+            row_number() OVER (
+              PARTITION BY c.system_id
+              ORDER BY c.match_rank ASC, c.term_priority ASC, length(c.term_raw) ASC, c.term_raw ASC
+            ) AS rn
+          FROM candidates c
+          LEFT JOIN stars s
+            ON c.target_type = 'star'
+           AND c.target_id = s.star_id
+        )
+        SELECT
+          system_id,
+          term_raw,
+          term_norm,
+          term_kind,
+          term_priority,
+          is_primary,
+          target_type,
+          target_id,
+          star_id,
+          focus_object_key,
+          match_rank
+        FROM ranked
+        WHERE rn = 1
+        """,
+        [q_norm, prefix, *system_ids, q_norm, q_norm, prefix],
+    ).fetchall()
+    matched: Dict[int, Dict[str, Any]] = {}
+    for row in rows:
+        (
+            system_id,
+            term_raw,
+            term_norm,
+            term_kind,
+            term_priority,
+            is_primary,
+            target_type,
+            target_id,
+            star_id,
+            focus_object_key,
+            match_rank,
+        ) = row
+        sid = int(system_id)
+        matched[sid] = {
+            "matched_alias": term_raw,
+            "matched_term_norm": term_norm,
+            "matched_term_kind": term_kind,
+            "matched_term_priority": int(term_priority or 999),
+            "matched_is_primary": bool(is_primary),
+            "matched_target_type": target_type,
+            "matched_target_id": int(target_id) if target_id is not None else None,
+            "matched_star_id": int(star_id) if star_id is not None else None,
+            "resolved_system_id": sid,
+            "focus_object_key": focus_object_key,
+            "display_name_source": term_kind,
+            "display_name_priority": int(term_priority or 999),
+            "match_resolution": "exact" if int(match_rank or 0) == 0 else "prefix",
+        }
+    return matched
 
 
 def fetch_arm_evidence_for_stars(
@@ -2588,11 +2738,15 @@ def search_systems(
             not has_system_search_terms and has_aliases and not short_query_mode and not identifier_mode
         )
         fuzzy_alias_distance = 1 if len(q_norm) <= 5 else 2 if len(q_norm) <= 10 else 3
-        enable_fuzzy_match = len(q_norm) >= 4 and not _has_fast_search_hit(
+        enable_fuzzy_match = (
+            len(q_norm) >= 4
+            and not _strict_exact_search_query(q_norm)
+            and not _has_fast_search_hit(
             con,
             q_norm=q_norm,
             has_system_search_terms=enable_search_terms,
             has_aliases=enable_alias_match,
+            )
         )
 
         exact_parts = ["s.stable_object_key = ?"]
@@ -3288,6 +3442,7 @@ def search_systems(
 
     system_ids: List[int] = [int(item["system_id"]) for item in results if item.get("system_id") is not None]
     if system_ids:
+        matched_search_terms = _fetch_matched_search_terms(con, system_ids, q_norm=q_norm)
         arm_star_overlay_counts = (
             {}
             if sort == "star_count"
@@ -3366,6 +3521,13 @@ def search_systems(
                 display_name = _clean_name(item.get("system_name"))
                 item["display_name"] = display_name
                 item["display_aliases"] = []
+
+        for item in results:
+            sid = int(item.get("system_id") or 0)
+            matched_term = matched_search_terms.get(sid)
+            if not matched_term:
+                continue
+            item.update(matched_term)
 
         star_map: Dict[int, Tuple[int, int, Optional[float], Optional[float], List[str]]] = {}
         if needs_star_rollup:

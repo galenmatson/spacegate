@@ -16,7 +16,7 @@ export const PUBLIC_EXPERIENCE_GOLDENS = [
   {
     id: "alpha_centauri",
     query: "Alpha Centauri",
-    expectedNamePattern: /Alpha Centauri/i,
+    expectedNamePattern: /Alpha Centauri|Toliman/i,
     minStars: 3,
     reason: "Nearest famous multi-star system and map-to-system benchmark.",
   },

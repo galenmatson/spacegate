@@ -108,6 +108,11 @@ Source-object boundary:
 - Unmatched or quarantined source-object reconciliation candidates must not be
   promoted into ARM hierarchy membership unless later accepted by a reviewed
   source/override path.
+- Alias authority may resolve a public search term to an accepted system/member
+  focus, but aliases are not relationship evidence. ARM membership and orbit
+  edges must continue to come from source-native hierarchy/orbit evidence,
+  accepted reconciliation outputs, or reviewed overrides, never name similarity
+  alone.
 
 ## `orbit_edges`
 

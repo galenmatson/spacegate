@@ -104,9 +104,17 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Use generic `arm` hierarchy payloads in detail/search paths and descendant-aware star counts for multiplicity-heavy systems
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Add benchmarked common-name fuzzy matching for bright/common objects (for example Aldebaran-class lookups) with alias-aware ranking
-- [ ] Add alias-scope and preferred-display-name authority v2 so Gliese/GJ
+- [x] Add alias-scope and preferred-display-name authority v2 so Gliese/GJ
   names, expanded Bayer names, common names, member aliases, and system aliases
   resolve consistently across Star Search, 3D Map labels, and system pages
+  - [x] Verify Gliese 412 / GJ 412, Gliese 643, Alpha Librae /
+    Zubenelgenubi, V1513 Cyg false-positive guard, and Alpha/Proxima
+    member-context searches with `scripts/verify_alias_authority.py`
+  - [x] Preserve matched alias/member context in Star Search API responses
+    without forcing catalog IDs or abbreviated Bayer labels into public titles
+- [ ] Optimize alias-table materialization for future full rebuilds; Alias
+  Authority v2 correctness build showed the alias stage taking about 34 minutes,
+  likely from repeated Gl/GJ variant expansion and large dedupe/sort work
 - [ ] Add curated catalog-ID linkout registry with full-ID copy controls,
   destination-specific resolver/search links, and build/admin validation so
   only useful external reference pills appear in public UI

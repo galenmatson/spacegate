@@ -389,20 +389,27 @@ Contract notes:
 
 ## `aliases`
 
-Deterministic name and identifier lookup table spanning both system-level and star-level targets.
+Deterministic name and identifier lookup table spanning object-level targets.
+The current hot-path public search implementation materializes system and
+star/member aliases first; the target contract reserves the same shape for
+planet, compact-object, Sol small-body, and artificial-object aliases as those
+routes mature.
 
 Required columns:
 
 - identity:
   - `alias_id`
-  - `target_type` (`system` or `star`)
+- `target_type` (`system`, `star`; future/reserved: `planet`,
+  `compact_object`, `sol_small_body`, `artificial_object`)
   - `target_id` (target row ID in its table)
   - `system_id` (nullable for non-system targets)
   - `star_id` (nullable for non-star targets)
 - alias payload:
   - `alias_raw` (display form)
   - `alias_norm` (normalized lookup key)
-  - `alias_kind` (for example: `proper_name`, `bayer_name`, `flamsteed_name`, `hip_id`, `hd_id`, `hr_id`, `wds_id`, `member_proper_name`)
+- `alias_kind` (for example: `proper_name`, `bayer_name`,
+  `bayer_expanded_name`, `flamsteed_name`, `hip_id`, `hd_id`, `hr_id`,
+  `wds_id`, `gl_id`, `gliese_id`, `gj_id`, `member_proper_name`)
   - `alias_priority` (lower = stronger)
   - `is_primary` (boolean)
 - source traceability:
@@ -439,6 +446,11 @@ Contract notes:
   - survey/mission-style host labels (for example `TRAPPIST`, `Kepler`, `TOI`, `WASP`, ...)
   - legacy catalog-style labels
   - Gaia IDs last
+- Gliese/GJ identifiers present in source catalog ID payloads may emit display
+  variants such as `Gl 412A`, `Gl 412 A`, `Gl 412`, `Gliese 412 A`,
+  `Gliese 412`, `GJ 412 A`, and `GJ 412`. These are alias/search evidence,
+  not companion-rollup evidence; they must not merge `A`/`B` components by
+  name alone.
 
 ## `system_search_terms`
 
@@ -451,6 +463,10 @@ Required columns:
 - identity:
   - `search_term_id`
   - `system_id`
+  - `target_type`
+  - `target_id`
+  - `star_id`
+  - `alias_id`
 - search payload:
   - `term_raw`
   - `term_norm`
@@ -468,7 +484,37 @@ Contract notes:
 - rows must be deterministically deduplicated per `(system_id, term_norm)`.
 - canonical `systems.system_name_norm` must always be represented.
 - any alias with a resolved `system_id` may be included, even when the source alias row targets a `star`.
+- target fields preserve member context for search responses. A member alias
+  can resolve to the accepted root system while still pointing at the source
+  member row for focus/highlight behavior.
 - search may use this table for exact/prefix/token/fuzzy candidate generation, while detail UX still reads authoritative aliases from `aliases`.
+- Exact-like dense identifiers and variable-star names should disable fuzzy
+  alias substitution unless a real exact/prefix search-term hit exists. For
+  example, `V1513 Cyg` must not silently resolve to `V1581 Cyg`.
+
+## `alias_authority_diagnostics`
+
+Derived build-report table for auditing alias authority behavior.
+
+Required columns:
+
+- `diagnostic_id`
+- `diagnostic_kind`
+- `term_norm`
+- `row_count`
+- `system_count`
+- `target_type_count`
+- `details_json`
+
+Current diagnostic families:
+
+- `shared_alias_across_systems`: normalized alias/search term appears under
+  multiple root systems.
+- `alias_attached_to_multiple_target_levels`: the same normalized term appears
+  at more than one target level.
+- `catalog_display_name_fallback`: public display names still fall back to
+  Gaia/WDS-style catalog labels, useful for prioritizing future name-authority
+  enrichment.
 
 ## `object_identifiers`
 

@@ -1281,6 +1281,18 @@ Implementation notes:
   owning accepted physical system. For example, `Proxima Centauri` should open
   the accepted Alpha Centauri system while preserving Proxima as the focused
   member/source planet host for Proxima b/d.
+- alias authority v2 search terms preserve the matched target context where
+  present: a result may include `matched_alias`, `matched_target_type`,
+  `matched_target_id`, `matched_star_id`, `resolved_system_id`,
+  `focus_object_key`, `display_name_source`, `display_name_priority`, and
+  `match_resolution`. These fields explain why a result matched; they do not
+  require the public `display_name` to become the raw matched identifier.
+- dense exact-like identifiers and variable-star names suppress fuzzy alias
+  substitution when there is no exact/prefix hit. This prevents public
+  surprises such as `V1513 Cyg` resolving to nearby-but-wrong `V1581 Cyg`.
+- Gliese/GJ source identifiers are expanded into common display/search variants
+  when present in source catalog IDs, including root aliases such as
+  `Gliese 412`/`GJ 412` for component IDs such as `Gl 412A`.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
 - Star Search `star_count` filters and `sort=star_count` use the materialized search facet for fast, stable public browsing. Detail, hierarchy, and simulation payloads may expose richer descendant-aware multiplicity counts from `arm`; a later build-normalization pass should promote the best audited hierarchy count into the search facet.
 - `sort=hottest` and `sort=coolest` use system-level stellar-temperature facets (`max_star_teff_k` and `min_star_teff_k`) when available, falling back to per-star aggregation on legacy builds. Systems without temperature evidence sort last.
@@ -1319,6 +1331,15 @@ Response 200:
       "system_name_norm": "268 g cet",
       "display_name": "268 G. Cet",
       "display_aliases": ["HIP 12114", "HD 16160"],
+      "matched_alias": "HD 16160",
+      "matched_target_type": "system",
+      "matched_target_id": 1,
+      "matched_star_id": null,
+      "resolved_system_id": 1,
+      "focus_object_key": null,
+      "display_name_source": "hd_id",
+      "display_name_priority": 40,
+      "match_resolution": "exact",
       "match_rank": 1,
       "dist_ly": 23.5765,
       "ra_deg": 2.601357,

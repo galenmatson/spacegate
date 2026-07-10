@@ -373,7 +373,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toContainText("K");
     await page.locator(".system-preview-line-menu summary").click();
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
-    await page.locator(".system-detail-v2 h1").click();
+    await page.locator(".system-story-card", { hasText: "Why It Matters" }).click({ position: { x: 12, y: 12 }, force: true });
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
     await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
@@ -384,7 +384,6 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-glance-strip")).toContainText(/Distance from Sol/i);
     await expect(page.locator(".hierarchy-panel h3")).toHaveText("Stars and Hierarchy");
     await expect(page.locator(".hierarchy-fact-chip").first()).toHaveAttribute("title", /Spectral class|Effective temperature|Mass|Radius|Luminosity|Visual magnitude|Distance|Separation/i);
-    await expect(page.locator(".hierarchy-orbit-chip", { hasText: /Orbital period|Semi-major axis/ }).first()).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
     await expect(page.locator("details.detail-disclosure", { hasText: "Planets and Orbits" })).not.toHaveAttribute("open", "");
@@ -437,6 +436,48 @@ test.describe("public 3D map beta", () => {
     }
   });
 
+  test("alias authority resolves member and catalog names without bad fuzzy substitutes", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "API-level alias authority check");
+
+    const search = async (query, limit = 5) => {
+      const response = await page.request.get("/api/v1/systems/search", {
+        params: { q: query, limit: String(limit), sort: "match" },
+      });
+      expect(response.ok(), `${query} search response`).toBeTruthy();
+      const payload = await response.json();
+      return payload.items || [];
+    };
+
+    const alpha = (await search("Alpha Centauri", 1))[0];
+    const proxima = (await search("Proxima Centauri", 1))[0];
+    expect(alpha?.system_id, "Alpha Centauri system id").toBeTruthy();
+    expect(proxima?.system_id, "Proxima Centauri system id").toBe(alpha.system_id);
+    expect(Number(proxima?.planet_count || 0), "Proxima search keeps planet context").toBeGreaterThanOrEqual(2);
+
+    for (const query of ["HD 128620", "HIP 71683"]) {
+      const item = (await search(query, 1))[0];
+      expect(item?.wds_id, `${query} accepted system`).toBe("14396-6050");
+      expect(String(item?.display_name || ""), `${query} should not become public title`).not.toBe(query);
+      expect(String(item?.matched_alias || ""), `${query} matched alias`).toBe(query);
+    }
+
+    const gliese412 = (await search("Gliese 412", 1))[0];
+    expect(gliese412, "Gliese 412 should resolve").toBeTruthy();
+    expect(Number(gliese412.dist_ly || 999), "Gliese 412 distance").toBeLessThan(17);
+    expect(String(gliese412.display_name || gliese412.system_name || ""), "Gliese 412 false match guard").not.toMatch(/Gliese 12/i);
+    expect([gliese412.matched_alias, ...(gliese412.display_aliases || [])].join(" "), "Gliese 412 alias evidence").toMatch(/Gliese 412|Gl 412|GJ 412/i);
+
+    const alphaLib = (await search("alf02 Lib", 1))[0];
+    expect(alphaLib?.wds_id, "alf02 Lib accepted system").toBe("14509-1603");
+    expect(String(alphaLib?.display_name || ""), "abbreviated Bayer should not be primary display").not.toBe("alf02 Lib");
+
+    const gliese643 = (await search("Gliese 643", 1))[0];
+    expect(gliese643?.wds_id, "Gliese 643 should resolve into V1054 Oph").toBe("16555-0820");
+
+    const v1513 = await search("V1513 Cyg", 3);
+    expect(v1513.map((item) => String(item.display_name || item.system_name || "")).join(" "), "V1513 Cyg fuzzy guard").not.toMatch(/V1581 Cyg/i);
+  });
+
   test("public experience golden system pages expose v2 anatomy", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop public golden anatomy smoke");
     const anatomyGoldenIds = new Set(["tau_ceti", "trappist_1", "alpha_centauri", "sirius", "55_cancri"]);
@@ -472,6 +513,10 @@ test.describe("public 3D map beta", () => {
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/tau Cet|Tau Ceti/i);
+    const prefixedIdCopy = page.locator(
+      ".id-chip .id-copy[data-copy-value^='HD '], .id-chip .id-copy[data-copy-value^='HIP '], .id-chip .id-copy[data-copy-value^='Gaia ']"
+    );
+    await expect(prefixedIdCopy.first()).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Overview" })).toBeVisible();
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");

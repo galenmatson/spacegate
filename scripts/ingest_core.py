@@ -8448,6 +8448,146 @@ def main() -> int:
         )
         con.execute(
             """
+            create or replace temp view star_catalog_id_alias_seed as
+            with gl_ids as (
+              select
+                'star' as target_type,
+                s.star_id as target_id,
+                s.system_id,
+                s.star_id,
+                trim(json_extract_string(s.catalog_ids_json, '$.gl')) as gl_raw,
+                regexp_extract(trim(json_extract_string(s.catalog_ids_json, '$.gl')), '^(Gl|GJ)\\s*([0-9]+)\\s*([A-Za-z]?)$', 1) as gl_prefix,
+                regexp_extract(trim(json_extract_string(s.catalog_ids_json, '$.gl')), '^(Gl|GJ)\\s*([0-9]+)\\s*([A-Za-z]?)$', 2) as gl_number,
+                upper(regexp_extract(trim(json_extract_string(s.catalog_ids_json, '$.gl')), '^(Gl|GJ)\\s*([0-9]+)\\s*([A-Za-z]?)$', 3)) as gl_component,
+                s.source_catalog,
+                s.source_version,
+                s.source_pk
+              from stars s
+              where nullif(trim(json_extract_string(s.catalog_ids_json, '$.gl')), '') is not null
+            ), expanded as (
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                gl_raw as alias_raw,
+                'gl_id' as alias_kind,
+                11 as alias_priority,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                gl_prefix || ' ' || gl_number ||
+                  case when nullif(gl_component, '') is not null then ' ' || gl_component else '' end as alias_raw,
+                'gl_id',
+                11,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+              where nullif(gl_number, '') is not null
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                gl_prefix || ' ' || gl_number as alias_raw,
+                'gl_root_id',
+                10,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+              where nullif(gl_number, '') is not null
+                and nullif(gl_component, '') is not null
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                'Gliese ' || gl_number ||
+                  case when nullif(gl_component, '') is not null then ' ' || gl_component else '' end as alias_raw,
+                'gliese_id',
+                9,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+              where nullif(gl_number, '') is not null
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                'Gliese ' || gl_number as alias_raw,
+                'gliese_root_id',
+                8,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+              where nullif(gl_number, '') is not null
+                and nullif(gl_component, '') is not null
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                'GJ ' || gl_number ||
+                  case when nullif(gl_component, '') is not null then ' ' || gl_component else '' end as alias_raw,
+                'gj_id',
+                9,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+              where nullif(gl_number, '') is not null
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                'GJ ' || gl_number as alias_raw,
+                'gj_root_id',
+                8,
+                source_catalog,
+                source_version,
+                source_pk
+              from gl_ids
+              where nullif(gl_number, '') is not null
+                and nullif(gl_component, '') is not null
+            )
+            select *
+            from expanded
+            where alias_raw is not null
+              and trim(alias_raw) <> ''
+            """
+        )
+        con.execute(
+            """
             create or replace temp view system_alias_seed as
             select
               'system' as target_type,
@@ -8602,7 +8742,13 @@ def main() -> int:
                 'bayer_name',
                 'bayer_root_name',
                 'bayer_expanded_name',
-                'flamsteed_name'
+                'flamsteed_name',
+                'gl_id',
+                'gl_root_id',
+                'gliese_id',
+                'gliese_root_id',
+                'gj_id',
+                'gj_root_id'
               )
               and sa.system_id is not null
               and sa.alias_raw is not null
@@ -8646,6 +8792,7 @@ def main() -> int:
             with seed as (
               select * from star_alias_seed
               union all select * from star_alias_crosswalk_seed
+              union all select * from star_catalog_id_alias_seed
             ), normalized as (
               select
                 target_type,
@@ -10125,6 +10272,10 @@ def main() -> int:
         with canonical as (
           select
             system_id,
+            'system'::varchar as target_type,
+            system_id as target_id,
+            null::bigint as star_id,
+            null::bigint as alias_id,
             system_name as term_raw,
             system_name_norm as term_norm,
             'canonical_name'::varchar as term_kind,
@@ -10139,6 +10290,10 @@ def main() -> int:
         ), alias_terms as (
           select
             system_id,
+            target_type,
+            target_id,
+            star_id,
+            alias_id,
             alias_raw as term_raw,
             alias_norm as term_norm,
             alias_kind as term_kind,
@@ -10177,6 +10332,10 @@ def main() -> int:
             order by system_id asc, term_priority asc, term_kind asc, term_norm asc, term_raw asc
           )::bigint as search_term_id,
           system_id,
+          target_type,
+          target_id,
+          star_id,
+          alias_id,
           term_raw,
           term_norm,
           term_kind,
@@ -10193,6 +10352,114 @@ def main() -> int:
         "select count(*) from system_search_terms"
     ).fetchone()[0]
     stage_totals["system_search_terms"] = system_search_term_count
+    con.execute(
+        """
+        create table alias_authority_diagnostics as
+        with shared_terms as (
+          select
+            term_norm,
+            count(*)::bigint as row_count,
+            count(distinct system_id)::bigint as system_count,
+            list(distinct term_raw order by term_raw) as sample_terms
+          from system_search_terms
+          where term_norm is not null
+            and trim(term_norm) <> ''
+          group by term_norm
+          having count(distinct system_id) > 1
+        ), multi_level_terms as (
+          select
+            term_norm,
+            count(distinct target_type)::bigint as target_type_count,
+            list(distinct target_type order by target_type) as target_types
+          from system_search_terms
+          where term_norm is not null
+            and trim(term_norm) <> ''
+          group by term_norm
+          having count(distinct target_type) > 1
+        ), display_fallbacks as (
+          select
+            lower(coalesce(system_name_norm, '')) as term_norm,
+            system_name as sample_term,
+            count(*)::bigint as fallback_count
+          from systems
+          where lower(coalesce(system_name_norm, '')) like 'gaia dr3 %'
+             or lower(coalesce(system_name_norm, '')) like 'gaia %'
+             or lower(coalesce(system_name_norm, '')) like 'wds %'
+          group by 1, 2
+        )
+        select
+          row_number() over ()::bigint as diagnostic_id,
+          'shared_alias_across_systems'::varchar as diagnostic_kind,
+          term_norm,
+          row_count,
+          system_count,
+          cast(null as bigint) as target_type_count,
+          cast(sample_terms as varchar) as details_json
+        from shared_terms
+
+        union all
+
+        select
+          row_number() over ()::bigint + 1000000000 as diagnostic_id,
+          'alias_attached_to_multiple_target_levels'::varchar as diagnostic_kind,
+          term_norm,
+          cast(null as bigint) as row_count,
+          cast(null as bigint) as system_count,
+          target_type_count,
+          cast(target_types as varchar) as details_json
+        from multi_level_terms
+
+        union all
+
+        select
+          row_number() over ()::bigint + 2000000000 as diagnostic_id,
+          'catalog_display_name_fallback'::varchar as diagnostic_kind,
+          term_norm,
+          fallback_count as row_count,
+          cast(null as bigint) as system_count,
+          cast(null as bigint) as target_type_count,
+          sample_term as details_json
+        from display_fallbacks
+        """
+    )
+    alias_authority_diagnostic_count = con.execute(
+        "select count(*) from alias_authority_diagnostics"
+    ).fetchone()[0]
+    stage_totals["alias_authority_diagnostics"] = alias_authority_diagnostic_count
+    write_json(
+        reports_dir / "alias_authority_report.json",
+        {
+            "schema_version": "alias_authority_report_v1",
+            "policy": "alias_display_authority_v2",
+            "aliases": int(alias_total_count),
+            "system_aliases": int(alias_system_count),
+            "star_aliases": int(alias_star_count),
+            "system_search_terms": int(system_search_term_count),
+            "diagnostics": {
+                "total": int(alias_authority_diagnostic_count),
+                "shared_alias_across_systems": int(
+                    con.execute(
+                        "select count(*) from alias_authority_diagnostics where diagnostic_kind = 'shared_alias_across_systems'"
+                    ).fetchone()[0]
+                ),
+                "alias_attached_to_multiple_target_levels": int(
+                    con.execute(
+                        "select count(*) from alias_authority_diagnostics where diagnostic_kind = 'alias_attached_to_multiple_target_levels'"
+                    ).fetchone()[0]
+                ),
+                "catalog_display_name_fallback": int(
+                    con.execute(
+                        "select count(*) from alias_authority_diagnostics where diagnostic_kind = 'catalog_display_name_fallback'"
+                    ).fetchone()[0]
+                ),
+            },
+            "notes": [
+                "system_search_terms carries target_type/target_id/star_id to preserve member-focus search context.",
+                "Gl/GJ/Gliese aliases are materialized from structured catalog_ids_json where present.",
+                "Diagnostics are review queues; they do not change source identity or root membership.",
+            ],
+        },
+    )
     log_stage_complete(
         "System search term stage",
         search_terms_stage_started,
@@ -10442,7 +10709,8 @@ def main() -> int:
           (select count(*) from object_identifiers) as object_identifiers,
           (select count(*) from identifier_quarantine) as identifier_quarantine,
           (select count(*) from source_object_reconciliation) as source_object_reconciliation,
-          (select count(*) from source_object_reconciliation_quarantine) as source_object_reconciliation_quarantine
+          (select count(*) from source_object_reconciliation_quarantine) as source_object_reconciliation_quarantine,
+          (select count(*) from alias_authority_diagnostics) as alias_authority_diagnostics
         """
     ).fetchone()
 
@@ -10969,6 +11237,7 @@ def main() -> int:
             "object_identifiers": counts[8],
             "identifier_quarantine": counts[9],
             "source_object_reconciliation": counts[10],
+            "alias_authority_diagnostics": counts[12],
             "aliases": alias_total_count,
             "system_aliases": alias_system_count,
             "star_aliases": alias_star_count,
@@ -12417,6 +12686,9 @@ def main() -> int:
     )
     con.execute(
         f"COPY (SELECT * FROM system_search_terms) TO '{parquet_dir / 'system_search_terms.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM alias_authority_diagnostics) TO '{parquet_dir / 'alias_authority_diagnostics.parquet'}' (FORMAT 'parquet')"
     )
     con.execute(
         f"COPY (SELECT * FROM object_identifiers) TO '{parquet_dir / 'object_identifiers.parquet'}' (FORMAT 'parquet')"

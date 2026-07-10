@@ -195,6 +195,36 @@ Representative commits:
 Representative commits:
 - pending (system identity / companion-rollup working set)
 
+### 14) Alias and Preferred Display Name Authority v2
+
+- Extended `system_search_terms` with target context so source/member aliases can
+  resolve to the owning accepted system while preserving the matched object for
+  UI focus and explanation.
+- Added Gl/GJ/Gliese alias expansion from source catalog ID payloads. Component
+  IDs such as `Gl 412A` now also seed searchable public variants such as
+  `Gliese 412` and `GJ 412` without using names as companion-rollup evidence.
+- Tightened public display-name policy so catalog IDs and abbreviated Bayer
+  labels can explain a match but do not automatically become the public title
+  when a better display name exists.
+- Added strict exact-query guardrails for dense catalog-like and variable-star
+  names to prevent misleading fuzzy substitutions, with `V1513 Cyg` ->
+  `V1581 Cyg` as the benchmark failure.
+- Added `alias_authority_diagnostics` build output for shared aliases,
+  multi-level alias attachment, and catalog-label display fallbacks.
+- Added `scripts/verify_alias_authority.py` for API-level goldens covering
+  Gliese 412/GJ 412, Gliese 643, Alpha/Proxima, Alpha Librae/Zubenelgenubi,
+  V1054 Oph/VB 8, and common public systems.
+- Verified canonical build `20260710T181500Z_alias_v2` after patching the
+  canonical emitter to preserve target-aware `system_search_terms` columns.
+  Build verification, multiplicity goldens, known-system API checks, alias
+  authority checks, and focused Playwright desktop/mobile checks passed.
+- Performance note: the core alias-table stage in this pass took about
+  34 minutes. A future ingest-performance pass should pre-materialize parsed
+  Gl/GJ identifiers before variant expansion and dedupe.
+
+Representative commits:
+- pending (alias/display authority v2 working set)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

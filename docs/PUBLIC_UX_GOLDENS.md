@@ -25,6 +25,23 @@ simulation quality, and data clarity checks:
 | Vega | Bright public-recognition benchmark | Known current gap: `Vega`, `Alpha Lyrae`, `HD 172167`, and `HIP 91262` are absent from the current served core/source alias coverage |
 | Fomalhaut | Bright debris-disk/public-recognition benchmark | Resolves |
 
+## Alias Authority Goldens
+
+These checks focus on names, identifiers, and public display-name policy rather
+than page layout:
+
+| Query | Expected behavior |
+| --- | --- |
+| `Gliese 412` / `GJ 412` | Resolve to the nearby Gl/GJ 412 source object, not `Gliese 12` or `GJ 4122` |
+| `Gliese 643` | Resolve into the V1054 Oph accepted system / WDS 16555-0820 context |
+| `VB 8` | Resolve into V1054 Oph member context |
+| `Alpha Librae` / `Zubenelgenubi` / `alf02 Lib` | Resolve to WDS 14509-1603, preferring a human-readable display name over the abbreviated Bayer token |
+| `HD 128620` / `HIP 71683` | Resolve exactly to Alpha Centauri while keeping the catalog ID secondary |
+| `V1513 Cyg` | Must not fuzzy-resolve to `V1581 Cyg`; unresolved is acceptable until a real source alias is present |
+
+`scripts/verify_alias_authority.py` owns the API-level version of these
+goldens. The Playwright map suite includes a lighter public smoke check.
+
 ## Technical Stress Goldens
 
 These remain useful for simulator and hierarchy stress checks, but they should

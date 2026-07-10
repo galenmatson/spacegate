@@ -931,7 +931,7 @@ Readiness gaps:
   planet orbits around their render body/group. Playwright now covers hosted
   planet preview paths without requiring Alpha Centauri and Proxima to be
   folded into one rendered system.
-- July 10, 2026 source-object reconciliation pass fixes the Alpha/Proxima
+  - July 10, 2026 source-object reconciliation pass fixes the Alpha/Proxima
   host/root gap in local canonical build `20260710T144149Z_7989433`: Proxima
   remains the direct Gaia/source planet host for Proxima Cen b/d, while the
   enriched Gaia row inherits MSC/WDS component-C evidence and rolls into the
@@ -939,12 +939,16 @@ Readiness gaps:
   surrogate merges in `core.source_object_reconciliation` and ambiguous
   candidates in `core.source_object_reconciliation_quarantine`; local build,
   multiplicity goldens, and known-system API checks pass.
-- Follow-up: canonical display-name authority still needs a dedicated pass.
-  The rollup verifier exposed systems whose accepted structure is correct but
-  API hierarchy labels can degrade to Gaia/WDS labels under canonical builds
-  (for example Nu Sco/Sirius/V1054 Oph), and `V1513 Cyg` currently resolves to
-  a confusing V1581 Cyg search hit. Track these under Alias and Preferred
-  Display Name Authority v2 rather than the companion-rollup goal.
+- July 10, 2026 Alias and Preferred Display Name Authority v2 implementation
+  starts from the post-rollup dataset and adds target-aware
+  `system_search_terms`, Gl/GJ/Gliese variant expansion from source catalog IDs,
+  and strict exact-query guardrails for dense catalog/variable names. Benchmarks
+  include Gliese 412/GJ 412, Gliese 643, Alpha Librae/Zubenelgenubi,
+  Alpha/Proxima member context, and the `V1513 Cyg` false-positive guard.
+  Canonical build `20260710T181500Z_alias_v2` verifies locally after patching
+  the canonical emitter to preserve search-term target context.
+  External linkout resolution and full SIMBAD/CDS alias enrichment remain
+  separate future milestones.
 - June 30, 2026 subsystem inspection pass adds renderer-ready subsystem bodies
   and subtle hierarchy-center markers for nodes with multiple rendered stellar
   descendants. Castor now verifies inspectable subsystem bodies such as Castor

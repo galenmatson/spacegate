@@ -663,6 +663,10 @@ def emit_canonical_build(
                 with canonical as (
                   select
                     system_id,
+                    'system'::varchar as target_type,
+                    system_id as target_id,
+                    null::bigint as star_id,
+                    null::bigint as alias_id,
                     system_name as term_raw,
                     system_name_norm as term_norm,
                     'canonical_name'::varchar as term_kind,
@@ -677,6 +681,10 @@ def emit_canonical_build(
                 ), alias_terms as (
                   select
                     system_id,
+                    target_type,
+                    target_id,
+                    star_id,
+                    alias_id,
                     alias_raw as term_raw,
                     alias_norm as term_norm,
                     alias_kind as term_kind,
@@ -692,6 +700,10 @@ def emit_canonical_build(
                 ), member_star_terms as (
                   select
                     system_id,
+                    'star'::varchar as target_type,
+                    star_id as target_id,
+                    star_id,
+                    null::bigint as alias_id,
                     star_name as term_raw,
                     star_name_norm as term_norm,
                     'member_star_name'::varchar as term_kind,
@@ -733,6 +745,10 @@ def emit_canonical_build(
                     order by system_id asc, term_priority asc, term_kind asc, term_norm asc, term_raw asc
                   )::bigint as search_term_id,
                   system_id,
+                  target_type,
+                  target_id,
+                  star_id,
+                  alias_id,
                   term_raw,
                   term_norm,
                   term_kind,

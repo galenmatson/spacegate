@@ -229,7 +229,10 @@ source names and catalog identifiers as aliases.
 
 Rules:
 
-- Exact user query matches can drive display name in search results.
+- Exact user query matches can drive display name in search results only when
+  the matched term is public-facing. Catalog IDs, Gaia/WDS/HIP/HD labels,
+  raw Gl/GJ identifiers, and abbreviated Bayer forms should remain matched
+  aliases/context, not necessarily public titles.
 - Detail pages have no query context, so they use stable display policy.
 - Proper names can outrank abbreviated catalog/system names.
 - Abbreviated Bayer names such as `alp1 Cen` may promote to full expanded names
@@ -241,6 +244,12 @@ Rules:
   preserving member context. Example: `Proxima Centauri` should resolve into
   the accepted Alpha Centauri system, with Proxima still visible as the member
   planet host for Proxima b/d.
+- Search result payloads may expose `matched_alias`, `matched_target_type`,
+  `matched_target_id`, and `focus_object_key` so UI can explain context such as
+  “Proxima Centauri in Alpha Centauri” without flattening source identity.
+- Dense exact-like queries should be conservative. If `V1513 Cyg` has no exact
+  authority hit, it is better to show no result than a fuzzy result for
+  `V1581 Cyg`.
 
 Known current public source/alias coverage gap:
 

@@ -874,6 +874,17 @@ Notes:
   - `system_search_terms` denormalizes canonical system names plus every alias already resolved to a `system_id`
   - `systems` carries hot-path browse/search facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`)
   - public/API search should prefer these system-side artifacts before falling back to row-level scans
+- Alias authority v2 extends search-term materialization with target context:
+  - member/star aliases can resolve to the accepted owning system while carrying
+    `matched_target_type`, `matched_target_id`, `matched_star_id`, and
+    `focus_object_key`
+  - source Gl/GJ identifiers emit common variants such as `Gliese 412` and
+    `GJ 412` from component IDs such as `Gl 412A`
+  - exact-like catalog and variable-star queries suppress fuzzy substitution
+    when no real authority hit exists, preventing confusing public matches such
+    as `V1513 Cyg` -> `V1581 Cyg`
+  - catalog IDs remain matched/copyable secondary metadata and should not become
+    public display titles when better names exist
 - Public/detail hierarchy semantics now prefer the generic `arm` graph:
   - system detail consumes a generic nested `hierarchy` payload assembled from `component_entities`, `system_hierarchy_edges`, and `orbit_edges`
   - Sol and non-Sol systems should use the same recursive hierarchy UI instead of special-case structural views
