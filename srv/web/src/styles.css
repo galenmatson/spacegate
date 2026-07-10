@@ -4121,7 +4121,7 @@ body {
 .data-build-callout {
   display: inline-grid;
   gap: 4px;
-  margin: 0 0 18px;
+  margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -4141,6 +4141,34 @@ body {
   font-family: var(--font-mono);
   font-size: 0.82rem;
   overflow-wrap: anywhere;
+}
+
+.data-page-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.data-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 300px);
+  gap: 16px;
+  align-items: stretch;
+  max-width: 920px;
+}
+
+.data-overview-grid .data-build-callout {
+  align-content: center;
+}
+
+.data-overview-grid .filters-spectrum-card {
+  margin: 0;
+  padding: 12px;
+}
+
+@media (max-width: 720px) {
+  .data-overview-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .header-lower {

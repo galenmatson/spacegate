@@ -2697,14 +2697,52 @@ function HelpPage({ buildId = "" }) {
 }
 
 function DataPage({ buildId = "" }) {
+  const [spectralMix, setSpectralMix] = useState(null);
+  const [spectralMixLoading, setSpectralMixLoading] = useState(true);
+  const [spectralMixError, setSpectralMixError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setSpectralMixLoading(true);
+    setSpectralMixError("");
+    fetchSpectralMix()
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setSpectralMix(data || null);
+      })
+      .catch((err) => {
+        if (!active) {
+          return;
+        }
+        setSpectralMixError(err?.message || "Unable to load spectral mix.");
+      })
+      .finally(() => {
+        if (active) {
+          setSpectralMixLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
-      <section className="detail-layout">
-        <section className="panel markdown-panel">
+      <section className="detail-layout data-page-layout">
+        <section className="data-overview-grid" aria-label="Database overview">
           <div className="data-build-callout" aria-label="Current served database">
             <span>Current Served Database</span>
             <strong>{buildId ? buildId : "unknown"}</strong>
           </div>
+          <SidebarSpectralMixCard
+            mix={spectralMix}
+            loading={spectralMixLoading}
+            error={spectralMixError}
+          />
+        </section>
+        <section className="panel markdown-panel">
           <MarkdownContent markdown={DATA_MARKDOWN} />
         </section>
       </section>
@@ -2841,9 +2879,6 @@ function SearchPage({ buildId = "" }) {
   const [totalCount, setTotalCount] = useState(null);
   const [lastQueryStats, setLastQueryStats] = useState(null);
   const [filtersCollapsedY, setFiltersCollapsedY] = useState(false);
-  const [spectralMix, setSpectralMix] = useState(null);
-  const [spectralMixLoading, setSpectralMixLoading] = useState(true);
-  const [spectralMixError, setSpectralMixError] = useState("");
   const [previewPoolAllocations, setPreviewPoolAllocations] = useState([]);
   const [previewSnapshotCache, setPreviewSnapshotCache] = useState(() => new Map());
   const latestSearchTokenRef = useRef(0);
@@ -2851,19 +2886,6 @@ function SearchPage({ buildId = "" }) {
   const previewPoolIdsRef = useRef(new Set());
   const previewRequestQueueRef = useRef([]);
 
-  const spectralMixCountByClass = useMemo(() => {
-    const map = new Map();
-    const rows = Array.isArray(spectralMix?.rows) ? spectralMix.rows : [];
-    rows.forEach((row) => {
-      const key = String(row?.spectral_class || "").trim().toUpperCase();
-      if (!key) {
-        return;
-      }
-      map.set(key, Number(row?.star_count || 0));
-    });
-    return map;
-  }, [spectralMix]);
-  const spectralMixTotalStars = Number(spectralMix?.total_stars || 0);
   const eligibleSpectralClasses = useMemo(
     () => spectralClassesForTemperatureRange(minTempK, maxTempK),
     [minTempK, maxTempK],
@@ -2888,11 +2910,6 @@ function SearchPage({ buildId = "" }) {
     ));
   }, [eligibleSpectralSet, spectralExcludeSet, explicitIncludeOutsideRangeSet]);
   const effectiveSpectralSet = useMemo(() => new Set(effectiveSpectralClasses), [effectiveSpectralClasses]);
-  const effectiveSpectralCount = useMemo(
-    () => effectiveSpectralClasses.reduce((sum, token) => sum + (Number(spectralMixCountByClass.get(token) || 0)), 0),
-    [effectiveSpectralClasses, spectralMixCountByClass],
-  );
-  const effectiveSpectralPct = spectralMixTotalStars > 0 ? (effectiveSpectralCount / spectralMixTotalStars) * 100 : 0;
   const minTempSliderPos = spectralTempToSliderPosition(minTempK);
   const maxTempSliderPos = spectralTempToSliderPosition(maxTempK);
   const defaultFilterState = () => ({
@@ -3216,33 +3233,6 @@ function SearchPage({ buildId = "" }) {
     return out;
   }, [previewPoolAllocations]);
 
-  useEffect(() => {
-    let active = true;
-    setSpectralMixLoading(true);
-    setSpectralMixError("");
-    fetchSpectralMix()
-      .then((data) => {
-        if (!active) {
-          return;
-        }
-        setSpectralMix(data || null);
-      })
-      .catch((err) => {
-        if (!active) {
-          return;
-        }
-        setSpectralMixError(err?.message || "Unable to load spectral mix.");
-      })
-      .finally(() => {
-        if (active) {
-          setSpectralMixLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const applyTemperatureRange = (rawMin, rawMax) => {
     const safeMin = clampNumber(Math.round(Number(rawMin)), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
     const safeMax = clampNumber(Math.round(Number(rawMax)), SPECTRAL_TEMP_MIN_K, SPECTRAL_TEMP_MAX_K);
@@ -3457,13 +3447,6 @@ function SearchPage({ buildId = "" }) {
               {filtersCollapsedY ? "Expand" : "Collapse"}
             </button>
           </form>
-
-          <SidebarSpectralMixCard
-            mix={spectralMix}
-            loading={spectralMixLoading}
-            error={spectralMixError}
-            collapsed={filtersBodyCollapsed}
-          />
         </div>
 
         <section className="results">
