@@ -104,6 +104,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Use generic `arm` hierarchy payloads in detail/search paths and descendant-aware star counts for multiplicity-heavy systems
 - [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
 - [ ] Add benchmarked common-name fuzzy matching for bright/common objects (for example Aldebaran-class lookups) with alias-aware ranking
+- [ ] Add alias-scope and preferred-display-name authority v2 so Gliese/GJ
+  names, expanded Bayer names, common names, member aliases, and system aliases
+  resolve consistently across Star Search, 3D Map labels, and system pages
+- [ ] Add curated catalog-ID linkout registry with full-ID copy controls,
+  destination-specific resolver/search links, and build/admin validation so
+  only useful external reference pills appear in public UI
 - [ ] Add bright-star/compact-companion reconciliation gates so systems such as
   Sirius cannot bind primary-star aliases and HIP/HD identifiers only to the
   Gaia white-dwarf companion while the bright primary is absent
@@ -600,6 +606,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   spectral filter buttons
 - [x] Add reusable stellar-class chips for Star Search cards, map-native
   search cards, System Hierarchy star leaves, and System Simulation readouts
+- [x] Standardize stellar-class chips and filter buttons on one shared
+  star-style visual treatment with long TAGS-derived tooltips
 - [x] Rework System Hierarchy rows into layperson-readable object chips with
   star class pills, planet/orbit tags, compact vitals, and plain-language
   object summaries

@@ -125,6 +125,27 @@ export const STELLAR_CLASS_TAGS = {
   },
 };
 
+export function normalizeStellarClassToken(rawToken) {
+  const token = String(rawToken || "").trim().toUpperCase();
+  if (!token) {
+    return "U";
+  }
+  if (token === "D") {
+    return "WD";
+  }
+  if (token === "BH" || token === "BLACKHOLE") {
+    return "BLACK HOLE";
+  }
+  return STELLAR_CLASS_TAGS[token] ? token : "U";
+}
+
+export function stellarClassTooltip(rawToken, suffix = "") {
+  const token = normalizeStellarClassToken(rawToken);
+  const tag = STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
+  const trailing = suffix ? ` ${suffix}` : "";
+  return `${tag.name}: ${tag.text}${trailing}`;
+}
+
 function fieldValue(fields, key) {
   if (!fields) {
     return "";
@@ -137,19 +158,12 @@ function fieldValue(fields, key) {
 }
 
 function addToken(tokens, rawToken) {
-  const token = String(rawToken || "").trim().toUpperCase();
-  if (!token) {
+  const raw = String(rawToken || "").trim().toUpperCase();
+  if (!raw) {
     return;
   }
-  if (token === "D") {
-    tokens.add("WD");
-    return;
-  }
-  if (token === "BH" || token === "BLACKHOLE") {
-    tokens.add("BLACK HOLE");
-    return;
-  }
-  if (STELLAR_CLASS_TAGS[token]) {
+  const token = normalizeStellarClassToken(raw);
+  if (token !== "U") {
     tokens.add(token);
   }
 }
@@ -263,13 +277,14 @@ export function StellarClassChips({
   return (
     <span className={`stellar-class-chips stellar-class-chips-${size} ${className}`.trim()} aria-label="Stellar class tags">
       {displayTokens.map((token) => {
-        const tag = STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
+        const normalizedToken = normalizeStellarClassToken(token);
+        const tag = STELLAR_CLASS_TAGS[normalizedToken] || STELLAR_CLASS_TAGS.U;
         return (
           <span
             key={token}
             className="stellar-class-chip"
-            data-stellar-token={token.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
-            title={`${tag.name}: ${tag.text}`}
+            data-stellar-token={normalizedToken.toLowerCase().replace(/[^a-z0-9]+/g, "-")}
+            title={stellarClassTooltip(normalizedToken)}
             style={{ "--stellar-chip-color": tag.color }}
           >
             {tag.label}

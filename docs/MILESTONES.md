@@ -222,6 +222,17 @@ Deliverables:
   - bright-star/common-name authority source with explicit provenance
   - deterministic precedence, dedupe, and conflict handling across proper/common names, Bayer/Flamsteed, and catalog IDs
   - fuzzy/common-name lookup acceptance set for benchmark objects (for example Aldebaran-class misses)
+  - alias scope handling so member aliases, subsystem aliases, planet-host
+    aliases, and whole-system aliases can all be searched without promoting a
+    member-only name into a false system display name
+  - preferred display-name policy shared by Star Search, the 3D map, system
+    pages, and API summaries; recognizable common/proper names and expanded
+    Bayer/Flamsteed forms should outrank terse catalog labels when evidence
+    supports them
+  - golden lookups for Gliese/GJ nearby-star names, Bayer/common-name pairs,
+    variable-star names, WDS identifiers, and public UX names such as Gliese
+    412, Alpha Librae/Zubenelgenubi, Alpha Centauri/Toliman, Barnard's Star,
+    Wolf 359, Vega, Fomalhaut, Gliese 643, and VB 8
   - guardrails for bright primary plus compact companion systems where Gaia may
     include the companion but not the naked-eye primary; Sirius currently
     exposes this failure mode because the served build binds Sirius/Alpha CMa
@@ -274,6 +285,19 @@ Deliverables:
     and `scripts/verify_known_systems_api.py` for Castor, Nu Sco, Alpha
     Centauri, Sirius, Proxima Centauri, TRAPPIST-1, 55 Cnc, Sol, and 16 Cyg.
 - authoritative Sol-system bootstrap ingestion (Sun + 8 planets + key dwarf planets with source-faithful scientific classes + UI supergroup compatibility) with fixed high-confidence provenance
+- catalog-ID linkout registry:
+  - collapsed catalog-ID section on system pages with full-ID copy controls and
+    curated outbound links
+  - deterministic URL templates for reliable destinations such as CDS/SIMBAD
+    object resolution, VizieR/catalog searches, Gaia Archive source pages or
+    queries, NASA Exoplanet Archive host/planet lookups, and other catalog
+    authorities where the identifier is valid for that target
+  - optional build/admin validation job with cached status and TTL so UI link
+    pills are only shown when the destination is expected to produce useful
+    results
+  - linkout artifacts belong in `disc` or presentation build outputs, not
+    canonical `core`; they are research/navigation affordances rather than
+    source facts
 - host-match quality verification (planets)
 - search/display naming quality parity or improvement
 

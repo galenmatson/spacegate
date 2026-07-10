@@ -5,7 +5,12 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
-import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromSystem } from "./stellarClassTags.jsx";
+import {
+  StellarClassChips,
+  stellarClassTokensFromRecord,
+  stellarClassTokensFromSystem,
+  stellarClassTooltip,
+} from "./stellarClassTags.jsx";
 
 const StarMapPage = React.lazy(() => import("./StarMapPage.jsx"));
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
@@ -1137,10 +1142,30 @@ function CopyButton({
       disabled={!canCopy}
       aria-label={titleBase}
       title={title}
+      data-copy-value={normalized}
     >
       {status === "copied" ? <span className="copy-status">✓</span> : <CopyGlyph />}
     </button>
   );
+}
+
+function catalogCopyValue(label, value) {
+  const normalized = value === null || value === undefined ? "" : String(value).trim();
+  const prefix = String(label || "").trim();
+  if (!normalized || !prefix) {
+    return normalized;
+  }
+  const normalizedUpper = normalized.toUpperCase();
+  const prefixUpper = prefix.toUpperCase();
+  if (
+    normalizedUpper === prefixUpper
+    || normalizedUpper.startsWith(`${prefixUpper} `)
+    || normalizedUpper.startsWith(`${prefixUpper}-`)
+    || (prefixUpper === "GAIA" && normalizedUpper.startsWith("GAIA "))
+  ) {
+    return normalized;
+  }
+  return `${prefix} ${normalized}`;
 }
 
 function CatalogIdChip({ label, value, hideWhenMissing = false }) {
@@ -1149,12 +1174,13 @@ function CatalogIdChip({ label, value, hideWhenMissing = false }) {
     return null;
   }
   const display = normalized || "Unknown";
+  const copyValue = catalogCopyValue(label, normalized);
 
   return (
     <span className="id-chip">
       <span className="id-chip-label">{label}</span>
       <code className="id-chip-value">{display}</code>
-      <CopyButton value={normalized} label={`${label} ID`} className="id-copy" />
+      <CopyButton value={copyValue} label={`${label} ID`} className="id-copy" />
     </span>
   );
 }
@@ -1189,7 +1215,11 @@ function buildSystemCatalogIds(system) {
       ...entry,
       value: entry.value === null || entry.value === undefined ? "" : String(entry.value).trim(),
     }))
-    .filter((entry) => entry.value !== "");
+    .filter((entry) => entry.value !== "")
+    .map((entry) => ({
+      ...entry,
+      copyValue: catalogCopyValue(entry.label, entry.value),
+    }));
 }
 
 function MetricChip({ label, value, tooltipLines = [] }) {
@@ -1593,9 +1623,9 @@ function SnapshotMetadata({ system, snapshot }) {
   const rows = [
     { label: "System", value: formatText(systemDisplayName(system)), copyValue: systemDisplayName(system), copyLabel: "system name" },
     { label: "Stable key", value: formatText(system?.stable_object_key), copyValue: system?.stable_object_key, copyLabel: "stable key" },
-    { label: "Gaia ID", value: formatText(resolvedSystemGaiaId(system)), copyValue: resolvedSystemGaiaId(system), copyLabel: "Gaia ID" },
-    { label: "HIP ID", value: formatText(system?.hip_id_text ?? system?.hip_id), copyValue: system?.hip_id_text ?? system?.hip_id, copyLabel: "HIP ID" },
-    { label: "HD ID", value: formatText(system?.hd_id_text ?? system?.hd_id), copyValue: system?.hd_id_text ?? system?.hd_id, copyLabel: "HD ID" },
+    { label: "Gaia ID", value: formatText(resolvedSystemGaiaId(system)), copyValue: catalogCopyValue("Gaia", resolvedSystemGaiaId(system)), copyLabel: "Gaia ID" },
+    { label: "HIP ID", value: formatText(system?.hip_id_text ?? system?.hip_id), copyValue: catalogCopyValue("HIP", system?.hip_id_text ?? system?.hip_id), copyLabel: "HIP ID" },
+    { label: "HD ID", value: formatText(system?.hd_id_text ?? system?.hd_id), copyValue: catalogCopyValue("HD", system?.hd_id_text ?? system?.hd_id), copyLabel: "HD ID" },
     { label: "Distance", value: `${formatNumber(system?.dist_ly, 2)} ly` },
     { label: "Stars", value: formatNumber(system?.star_count, 0) },
     { label: "Planets", value: formatNumber(system?.planet_count, 0) },
@@ -2293,11 +2323,7 @@ function HierarchyOrbitDetails({ orbit }) {
 
 function HierarchyNodeCard({ node, depth = 0 }) {
   const children = Array.isArray(node?.children) ? node.children : [];
-  const compactStellarBranch = children.length > 0
-    && Number(node?.total_star_count || 0) > 0
-    && Number(node?.descendant_count || 0) <= 6;
-  const initialExpanded = !node?.collapsed_by_default && (depth < 2 || compactStellarBranch);
-  const [expanded, setExpanded] = useState(initialExpanded || depth === 0);
+  const [expanded, setExpanded] = useState(true);
   const displayName = formatText(node?.display_name);
   const countSummary = hierarchyCountSummary(node);
   const displayType = hierarchyDisplayType(node, children);
@@ -3601,7 +3627,7 @@ function SearchPage({ buildId = "" }) {
                       !inRange && !explicitlyIncluded ? "out-of-range" : "",
                     ].filter(Boolean).join(" ")}
                     onClick={() => toggleSpectral(option)}
-                    title={`${option}: ${SPECTRAL_CLASS_INFO[option]?.sentence || "Spectral class filter"} · ${overrideHint}`}
+                    title={`${stellarClassTooltip(option)} Filter status: ${overrideHint}.`}
                     aria-pressed={active}
                     aria-label={`${option} spectral class filter`}
                   >
@@ -3815,7 +3841,7 @@ function SearchPage({ buildId = "" }) {
                                 <span className="id-chip-label">{entry.label}</span>
                                 <code className="result-source-id-value">{entry.value}</code>
                                 <CopyButton
-                                  value={entry.value}
+                                  value={entry.copyValue}
                                   label={`${entry.label} ID`}
                                   className="id-copy copy-btn-inline"
                                 />

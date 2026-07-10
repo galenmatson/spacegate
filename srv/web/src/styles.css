@@ -360,16 +360,12 @@
   --star-core: #e59a72;
   --star-mid: #a94d32;
   --star-glow: rgba(201, 93, 55, 0.72);
-  --star-ink: #fff4ee;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
 }
 
 .map-search-spectral.spectral-t {
   --star-core: #d7c9ff;
   --star-mid: #835bd6;
   --star-glow: rgba(133, 91, 214, 0.72);
-  --star-ink: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
 }
 
 .map-search-spectral.spectral-y {
@@ -7028,33 +7024,60 @@ main {
 }
 
 .stellar-class-chip {
+  --star-core: color-mix(in srgb, var(--stellar-chip-color) 76%, white 24%);
+  --star-mid: var(--stellar-chip-color);
+  --star-glow: color-mix(in srgb, var(--stellar-chip-color) 70%, transparent);
+  --star-ink: #05070b;
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 26px;
   min-height: 26px;
   padding: 3px 8px;
-  border: 1px solid color-mix(in srgb, var(--stellar-chip-color) 88%, white 14%);
+  border: 1px solid color-mix(in srgb, var(--star-mid) 72%, var(--border));
   border-radius: 999px;
   background:
-    radial-gradient(circle at 35% 27%, #ffffff 0 9%, color-mix(in srgb, white 72%, var(--stellar-chip-color)) 10% 21%, transparent 43%),
-    radial-gradient(circle at center, color-mix(in srgb, var(--stellar-chip-color) 58%, white 14%) 0 28%, color-mix(in srgb, var(--stellar-chip-color) 28%, #050a12 72%) 70%),
-    color-mix(in srgb, var(--stellar-chip-color) 34%, #050a12 66%);
-  color: #05070b;
+    radial-gradient(circle, color-mix(in srgb, var(--star-glow) 38%, transparent) 0 48%, transparent 76%),
+    color-mix(in srgb, var(--surface-soft) 22%, transparent);
+  color: var(--star-ink);
   box-shadow:
-    0 0 9px color-mix(in srgb, var(--stellar-chip-color) 56%, transparent),
-    0 0 20px color-mix(in srgb, var(--stellar-chip-color) 34%, transparent),
-    inset 0 0 8px color-mix(in srgb, white 22%, transparent);
+    0 0 8px color-mix(in srgb, var(--star-glow) 38%, transparent),
+    inset 0 0 8px color-mix(in srgb, var(--star-mid) 34%, transparent);
   font-family: var(--font-mono);
   font-size: 0.76rem;
   font-weight: 950;
-  letter-spacing: 0.035em;
+  letter-spacing: 0;
   line-height: 1;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.52),
-    0 0 5px rgba(255, 255, 255, 0.34);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.72);
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.stellar-class-chip::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.95) 0 8%, transparent 18%),
+    radial-gradient(circle at 48% 44%, var(--star-core) 0 22%, var(--star-mid) 45%, color-mix(in srgb, var(--star-mid) 42%, #1b1622) 74%, color-mix(in srgb, var(--star-mid) 12%, #05070b) 100%);
+  box-shadow:
+    0 0 5px var(--star-core),
+    0 0 12px var(--star-glow),
+    0 0 22px color-mix(in srgb, var(--star-glow) 58%, transparent);
+}
+
+.stellar-class-chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: -2;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--star-glow) 42%, transparent) 0 18%, transparent 68%);
+  opacity: 0.86;
 }
 
 .stellar-class-chips-compact .stellar-class-chip {
@@ -7062,6 +7085,103 @@ main {
   min-height: 22px;
   padding: 2px 6px;
   font-size: 0.7rem;
+}
+
+.stellar-class-chip[data-stellar-token="o"] {
+  --star-core: #f7fbff;
+  --star-mid: #9fc4ff;
+  --star-glow: rgba(140, 181, 255, 0.86);
+}
+
+.stellar-class-chip[data-stellar-token="b"] {
+  --star-core: #ffffff;
+  --star-mid: #b8d2ff;
+  --star-glow: rgba(160, 195, 255, 0.78);
+}
+
+.stellar-class-chip[data-stellar-token="a"] {
+  --star-core: #ffffff;
+  --star-mid: #e8f1ff;
+  --star-glow: rgba(225, 238, 255, 0.7);
+}
+
+.stellar-class-chip[data-stellar-token="f"] {
+  --star-core: #fff8d8;
+  --star-mid: #ffe89a;
+  --star-glow: rgba(255, 232, 150, 0.72);
+}
+
+.stellar-class-chip[data-stellar-token="g"] {
+  --star-core: #fff2ac;
+  --star-mid: #ffd35f;
+  --star-glow: rgba(255, 207, 95, 0.76);
+}
+
+.stellar-class-chip[data-stellar-token="k"] {
+  --star-core: #ffd39a;
+  --star-mid: #ff934e;
+  --star-glow: rgba(255, 139, 72, 0.78);
+}
+
+.stellar-class-chip[data-stellar-token="m"] {
+  --star-core: #ffb19a;
+  --star-mid: #ff5e48;
+  --star-glow: rgba(255, 84, 62, 0.82);
+}
+
+.stellar-class-chip[data-stellar-token="l"] {
+  --star-core: #e59a72;
+  --star-mid: #a94d32;
+  --star-glow: rgba(201, 93, 55, 0.72);
+}
+
+.stellar-class-chip[data-stellar-token="t"] {
+  --star-core: #d7c9ff;
+  --star-mid: #835bd6;
+  --star-glow: rgba(133, 91, 214, 0.72);
+}
+
+.stellar-class-chip[data-stellar-token="y"] {
+  --star-core: #c7edff;
+  --star-mid: #5f9bb8;
+  --star-glow: rgba(95, 155, 184, 0.66);
+}
+
+.stellar-class-chip[data-stellar-token="wd"] {
+  --star-core: #f2f5f8;
+  --star-mid: #b2bfcb;
+  --star-glow: rgba(178, 191, 203, 0.66);
+}
+
+.stellar-class-chip[data-stellar-token="wr"] {
+  --star-core: #e8ffff;
+  --star-mid: #71f6ff;
+  --star-glow: rgba(113, 246, 255, 0.76);
+}
+
+.stellar-class-chip[data-stellar-token="ns"],
+.stellar-class-chip[data-stellar-token="pulsar"],
+.stellar-class-chip[data-stellar-token="magnetar"] {
+  --star-core: #fff;
+  --star-mid: #b9a7ff;
+  --star-glow: rgba(185, 167, 255, 0.76);
+}
+
+.stellar-class-chip[data-stellar-token="magnetar"] {
+  --star-mid: #ff6df0;
+  --star-glow: rgba(255, 109, 240, 0.72);
+}
+
+.stellar-class-chip[data-stellar-token="black-hole"] {
+  --star-core: #ffe28d;
+  --star-mid: #ffcf4a;
+  --star-glow: rgba(255, 207, 74, 0.72);
+}
+
+.stellar-class-chip[data-stellar-token="u"] {
+  --star-core: #d4dbea;
+  --star-mid: #8794a8;
+  --star-glow: rgba(135, 148, 168, 0.6);
 }
 
 .result-stellar-tags,
