@@ -649,11 +649,13 @@ test.describe("public 3D map beta", () => {
     const themeSelect = menu.locator(".map-theme-select select");
     const keybindSelect = menu.locator(".map-keybind-select select");
     const scaleSelect = menu.locator("[data-testid='map-default-scale-select']");
+    const nameStyleSelect = menu.locator("[data-testid='map-name-style-select']");
     const frameSelect = menu.locator("[data-testid='map-frame-select']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
     await expect(scaleSelect).toBeVisible();
+    await expect(nameStyleSelect).toBeVisible();
     await expect(frameSelect).toBeVisible();
     await expect(directionToggle).toBeVisible();
 
@@ -673,6 +675,15 @@ test.describe("public 3D map beta", () => {
     await expect
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeEsdfMove);
+
+    await Promise.all([
+      page.waitForResponse((response) => {
+        const url = response.url();
+        return url.includes("/api/v1/map/systems") && url.includes("name_style=astronomer_abbrev");
+      }),
+      nameStyleSelect.selectOption("astronomer_abbrev"),
+    ]);
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.nameStyle") || "")).toBe("astronomer_abbrev");
 
     await keybindSelect.selectOption("num8456");
     await expect.poll(

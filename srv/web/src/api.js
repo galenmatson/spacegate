@@ -19,8 +19,10 @@ export async function fetchSystems(params) {
   return res.json();
 }
 
-export async function fetchSystemDetail(systemId) {
-  const url = apiUrl(`/api/v1/systems/${systemId}`);
+export async function fetchSystemDetail(systemId, params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const url = apiUrl(`/api/v1/systems/${systemId}${suffix}`);
   const res = await fetch(url);
   if (!res.ok) {
     const detail = await res.text();
@@ -29,15 +31,17 @@ export async function fetchSystemDetail(systemId) {
   return res.json();
 }
 
-export async function fetchSystemSimulationScene(systemId) {
-  const cacheKey = String(systemId || "");
+export async function fetchSystemSimulationScene(systemId, params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const cacheKey = `${String(systemId || "")}:${String(params?.name_style || "public_full")}`;
   if (simulationSceneCache.has(cacheKey)) {
     const cached = simulationSceneCache.get(cacheKey);
     simulationSceneCache.delete(cacheKey);
     simulationSceneCache.set(cacheKey, cached);
     return cached;
   }
-  const url = apiUrl(`/api/v1/systems/${systemId}/simulation-scene`);
+  const url = apiUrl(`/api/v1/systems/${systemId}/simulation-scene${suffix}`);
   const request = fetch(url)
     .then(async (res) => {
       if (!res.ok) {

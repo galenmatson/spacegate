@@ -225,6 +225,30 @@ Representative commits:
 Representative commits:
 - pending (alias/display authority v2 working set)
 
+### 15) Name Style Preference and Public Display-Name Policy v2
+
+- Added an API/frontend display-name policy layer over the Alias Authority v2
+  dataset. This pass does not rebuild or mutate `core` rows; it classifies
+  aliases at read time into presentation styles such as `bayer_full`,
+  `bayer_abbrev`, `human_catalog`, `technical_catalog`,
+  `source_placeholder`, and `member_public_name`.
+- Added `name_style` to public search, map, system detail, and
+  simulation-scene endpoints. The default `public_full` keeps layperson-facing
+  names such as `Alpha Centauri`, `Epsilon Indi`, `Mu Herculis`, and `Sirius`,
+  while `astronomer_abbrev`, `catalog_compact`, and `source_technical` expose
+  alternate naming preferences.
+- Preserved matched aliases separately from display names: an `eps ind` query
+  can report `matched_alias = Eps Ind` while displaying `Epsilon Indi` by
+  default.
+- Old prebuilt simulation-scene artifacts are bypassed until regenerated if
+  they lack current name-style metadata, keeping `/simulation-scene` responses
+  contract-complete.
+- Added `scripts/verify_name_style_policy.py` for API goldens and a map
+  hamburger Playwright check for persisted Name Style selection.
+
+Representative commits:
+- pending (name-style policy working set)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

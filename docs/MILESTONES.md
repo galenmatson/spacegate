@@ -949,6 +949,13 @@ Readiness gaps:
   the canonical emitter to preserve search-term target context.
   External linkout resolution and full SIMBAD/CDS alias enrichment remain
   separate future milestones.
+- July 10, 2026 Name Style Preference and Public Display-Name Policy v2 adds
+  `public_full`, `astronomer_abbrev`, `catalog_compact`, and
+  `source_technical` display styles to search, map, system detail, and
+  simulation-scene APIs. Public Full is the default for lay audiences
+  (`Alpha Centauri`, `Epsilon Indi`, `Mu Herculis`), while matched aliases
+  remain separate explanation fields. This is a presentation/search policy and
+  does not merge/split systems or alter canonical source identity.
 - June 30, 2026 subsystem inspection pass adds renderer-ready subsystem bodies
   and subtle hierarchy-center markers for nodes with multiple rendered stellar
   descendants. Castor now verifies inspectable subsystem bodies such as Castor

@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
+import { NAME_STYLE_OPTIONS, normalizeNameStyle } from "./nameStyle.js";
 import { StellarClassChips, stellarClassTokensFromSystem, stellarClassTooltip } from "./stellarClassTags.jsx";
 
 const MAP_RADIUS_LY = 100;
@@ -1876,6 +1877,7 @@ function LazyStarSearchPreview({
   previewDisabledReason = "",
   runtimeQualityTier = "high",
   defaultScaleMode = "structure",
+  nameStyle = "public_full",
   onActivate,
   onDeactivate,
   onCapture,
@@ -1961,7 +1963,7 @@ function LazyStarSearchPreview({
       {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading preview</div>}>
           <SystemPreviewPanel
-            key={`search-preview:${poolSlot ?? system.system_id}:${system.system_id}`}
+            key={`search-preview:${poolSlot ?? system.system_id}:${system.system_id}:${normalizeNameStyle(nameStyle)}`}
             systemId={system.system_id}
             systemName={displayName}
             snapshot={system.snapshot}
@@ -1972,6 +1974,7 @@ function LazyStarSearchPreview({
             onFrameCapture={handleFrameCapture}
             onRuntimeEvent={onRuntimeEvent}
             defaultScaleMode={defaultScaleMode}
+            nameStyle={normalizeNameStyle(nameStyle)}
           />
         </React.Suspense>
       ) : showCachedPreview ? (
@@ -2016,6 +2019,7 @@ function MapStarSearchShell({
   previewPoolBudget,
   previewRuntimeQualityTier,
   defaultScaleMode = "structure",
+  nameStyle = "public_full",
   previewPaused,
   previewCooldownActive,
   onRequestPreview,
@@ -2191,7 +2195,7 @@ function MapStarSearchShell({
                   <LazyStarSearchPreview
                     system={system}
                     displayName={displayName}
-                    cachedPreviewImage={previewSnapshotCache?.get(String(system.system_id))?.url || ""}
+                    cachedPreviewImage={previewSnapshotCache?.get(`${String(system.system_id)}:${normalizeNameStyle(nameStyle)}`)?.url || ""}
                     liveActive={previewAllocationsBySystemId.has(String(system.system_id))}
                     poolSlot={previewAllocationsBySystemId.get(String(system.system_id))?.slot ?? null}
                     previewDisabledReason={
@@ -2203,6 +2207,7 @@ function MapStarSearchShell({
                     }
                     runtimeQualityTier={previewRuntimeQualityTier}
                     defaultScaleMode={defaultScaleMode}
+                    nameStyle={nameStyle}
                     onActivate={onRequestPreview}
                     onDeactivate={onReleasePreview}
                     onCapture={onCapturePreview}
@@ -2247,6 +2252,8 @@ export default function StarMapPage({
   defaultSearchOpen = false,
   defaultScaleMode = "structure",
   setDefaultScaleMode = () => {},
+  nameStyle = "public_full",
+  setNameStyle = () => {},
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -2325,6 +2332,7 @@ export default function StarMapPage({
   const [mapSearchHasMore, setMapSearchHasMore] = useState(false);
   const [mapSearchStats, setMapSearchStats] = useState("");
   const mapSearchTokenRef = useRef(0);
+  const mapNameStyleInitializedRef = useRef(false);
   const mapCameraStateRef = useRef(restoredMapState?.camera || DEFAULT_MAP_CAMERA_STATE);
   const previewPoolIdsRef = useRef(new Set());
   const previewRequestQueueRef = useRef([]);
@@ -2613,7 +2621,7 @@ export default function StarMapPage({
   }, []);
 
   const captureSearchPreview = useCallback((systemId, dataUrl) => {
-    const key = String(systemId || "");
+    const key = `${String(systemId || "")}:${normalizeNameStyle(nameStyle)}`;
     if (!key || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
       return;
     }
@@ -2632,7 +2640,7 @@ export default function StarMapPage({
       }
       return next;
     });
-  }, []);
+  }, [nameStyle]);
 
   useEffect(() => {
     if (!showFpsOverlay) {
@@ -2861,7 +2869,12 @@ export default function StarMapPage({
     let active = true;
     setLoading(true);
     setError("");
-    fetchMapSystems({ max_dist_ly: String(MAP_RADIUS_LY), limit: "20000", compact: "true" })
+    fetchMapSystems({
+      max_dist_ly: String(MAP_RADIUS_LY),
+      limit: "20000",
+      compact: "true",
+      name_style: normalizeNameStyle(nameStyle),
+    })
       .then((payload) => {
         if (!active) {
           return;
@@ -2904,7 +2917,7 @@ export default function StarMapPage({
     return () => {
       active = false;
     };
-  }, []);
+  }, [mapFrame, nameStyle, restoredMapState]);
 
   const routeTotalLy = useMemo(
     () => routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
@@ -3175,6 +3188,7 @@ export default function StarMapPage({
     const requestedSort = sortOverride || mapSearchSort;
     const effectiveSort = !mapSearchQuery.trim() && requestedSort === "match" ? "distance" : requestedSort;
     const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, filterExtents, mapSearchQuery, effectiveSort, 24);
+    params.name_style = normalizeNameStyle(nameStyle);
     const requestParams = cursorValue ? { ...params, cursor: cursorValue } : params;
     setMapSearchLoading(true);
     setMapSearchError("");
@@ -3215,7 +3229,7 @@ export default function StarMapPage({
         setMapSearchLoading(false);
       }
     }
-  }, [filterExtents, mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, setSearchParams]);
+  }, [filterExtents, mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, nameStyle, setSearchParams]);
 
   const closeMapSearchResults = useCallback(() => {
     setMapSearchResultsOpen(false);
@@ -3224,6 +3238,16 @@ export default function StarMapPage({
     setMapSearchHasMore(false);
     setMapSearchError("");
   }, []);
+
+  useEffect(() => {
+    if (!mapNameStyleInitializedRef.current) {
+      mapNameStyleInitializedRef.current = true;
+      return;
+    }
+    if (mapSearchResultsOpen || mapSearchResults.length > 0) {
+      runMapSearch({ append: false });
+    }
+  }, [nameStyle]);
 
   const closeMapSearch = useCallback(() => {
     closeMapSearchResults();
@@ -3494,6 +3518,18 @@ export default function StarMapPage({
                     ))}
                   </select>
                 </label>
+                <label className="map-menu-field map-name-style-select">
+                  <span>Name Style</span>
+                  <select
+                    value={normalizeNameStyle(nameStyle)}
+                    onChange={(event) => setNameStyle(normalizeNameStyle(event.target.value))}
+                    data-testid="map-name-style-select"
+                  >
+                    {NAME_STYLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
                 <div className="map-menu-links" aria-label="Map menu links">
                   {MAP_UTILITY_LINKS.filter((item) => MAP_MENU_UTILITY_LABELS.has(item.label)).map((item) => (
                     item.external ? (
@@ -3604,6 +3640,7 @@ export default function StarMapPage({
         previewPoolBudget={previewPoolBudget}
         previewRuntimeQualityTier={runtimeQuality.tier}
         defaultScaleMode={defaultScaleMode}
+        nameStyle={nameStyle}
         previewPaused={previewPaused}
         previewCooldownActive={previewCooldownActive}
         onRequestPreview={requestSearchPreview}
@@ -3875,6 +3912,7 @@ export default function StarMapPage({
                 onRuntimeEvent={handleRuntimeEvent}
                 onStellarClassEntries={setDrillStellarClassEntries}
                 defaultScaleMode={defaultScaleMode}
+                nameStyle={normalizeNameStyle(nameStyle)}
               />
             </React.Suspense>
           </div>

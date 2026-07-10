@@ -173,7 +173,7 @@
 }
 
 .map-hud-top {
-  z-index: 32;
+  z-index: 180;
   top: 18px;
   left: 18px;
   right: 18px;

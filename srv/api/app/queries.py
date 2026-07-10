@@ -367,6 +367,288 @@ def _alias_rank(row: Dict[str, Any]) -> Tuple[int, int, int, str]:
     return (kind_rank, priority, len(raw), raw.lower())
 
 
+NAME_STYLE_PUBLIC_FULL = "public_full"
+NAME_STYLE_ASTRONOMER_ABBREV = "astronomer_abbrev"
+NAME_STYLE_CATALOG_COMPACT = "catalog_compact"
+NAME_STYLE_SOURCE_TECHNICAL = "source_technical"
+NAME_STYLES = {
+    NAME_STYLE_PUBLIC_FULL,
+    NAME_STYLE_ASTRONOMER_ABBREV,
+    NAME_STYLE_CATALOG_COMPACT,
+    NAME_STYLE_SOURCE_TECHNICAL,
+}
+
+CONSTELLATION_ABBREVIATIONS = {
+    "and", "ant", "aps", "aqr", "aql", "ara", "ari", "aur", "boo", "cae", "cam",
+    "cnc", "cvn", "cma", "cmi", "cap", "car", "cas", "cen", "cep", "cet", "cha",
+    "cir", "col", "com", "cra", "crb", "crv", "crt", "cru", "cyg", "del", "dor",
+    "dra", "equ", "eri", "for", "gem", "gru", "her", "hor", "hya", "hyi", "ind",
+    "lac", "leo", "lmi", "lep", "lib", "lup", "lyn", "lyr", "men", "mic", "mon",
+    "mus", "nor", "oct", "oph", "ori", "pav", "peg", "per", "phe", "pic", "psc",
+    "psa", "pup", "pyx", "ret", "sge", "sgr", "sco", "scl", "sct", "ser", "sex",
+    "tau", "tel", "tri", "tra", "tuc", "uma", "umi", "vel", "vir", "vol", "vul",
+}
+CONSTELLATION_GENITIVE_NAMES = {
+    "andromedae", "antliae", "apodis", "aquarii", "aquilae", "arae", "arietis",
+    "aurigae", "bootis", "caeli", "camelopardalis", "cancri", "venaticorum",
+    "majoris", "minoris", "capricorni", "carinae", "cassiopeiae", "centauri",
+    "cephei", "ceti", "chamaeleontis", "circini", "columbae", "comae", "australis",
+    "borealis", "corvi", "crateris", "crucis", "cygni", "delphini", "doradus",
+    "draconis", "equulei", "eridani", "fornacis", "geminorum", "gruis", "herculis",
+    "horologii", "hydrae", "hydri", "indi", "lacertae", "leonis", "leporis",
+    "librae", "lupi", "lyncis", "lyrae", "mensae", "microscopii", "monocerotis",
+    "muscae", "normae", "octantis", "ophiuchi", "orionis", "pavonis", "pegasi",
+    "persei", "phoenicis", "pictoris", "piscium", "austrini", "puppis", "pyxidis",
+    "reticuli", "sagittae", "sagittarii", "scorpii", "sculptoris", "scuti",
+    "serpentis", "sextantis", "tauri", "telescopii", "trianguli", "australis",
+    "tucanae", "majoris", "minoris", "velorum", "virginis", "volantis", "vulpeculae",
+}
+GREEK_ABBREVIATION_TOKENS = {
+    "alp", "bet", "gam", "del", "eps", "zet", "eta", "the", "iot", "kap",
+    "lam", "mu", "nu", "xi", "omi", "pi", "rho", "sig", "tau", "ups",
+    "phi", "chi", "psi", "ome",
+}
+
+
+def normalize_name_style(value: Any) -> str:
+    style = str(value or "").strip().lower().replace("-", "_")
+    return style if style in NAME_STYLES else NAME_STYLE_PUBLIC_FULL
+
+
+def _alias_constellation_style(candidate: str) -> str:
+    parts = _clean_name(candidate).split()
+    if len(parts) < 2:
+        return "none"
+    last = re.sub(r"[^A-Za-z]", "", parts[-1]).lower()
+    if last in CONSTELLATION_ABBREVIATIONS:
+        return "abbreviated"
+    if last in CONSTELLATION_GENITIVE_NAMES or len(last) > 3:
+        return "full"
+    return "none"
+
+
+def alias_display_style(row: Dict[str, Any], candidate: Optional[str] = None) -> str:
+    raw = _clean_name(candidate if candidate is not None else row.get("alias_raw"))
+    kind = str(row.get("alias_kind") or "").strip().lower()
+    norm = _name_norm(raw)
+    if not raw:
+        return "missing"
+    if kind == "proper_name":
+        return "proper_common"
+    if kind == "member_proper_name":
+        return "member_proper"
+    if kind in {"member_star_name", "planet_host_name"}:
+        return "member_public_name"
+    if "bayer" in kind:
+        const_style = _alias_constellation_style(raw)
+        return "bayer_full" if const_style == "full" else "bayer_abbrev"
+    if "flamsteed" in kind:
+        const_style = _alias_constellation_style(raw)
+        return "flamsteed_full" if const_style == "full" else "flamsteed_abbrev"
+    if norm.startswith(("gliese ", "gj ", "gl ", "lhs ", "wolf ", "ross ", "barnard")):
+        return "human_catalog"
+    if norm.startswith(("wds ", "gaia ")):
+        return "source_placeholder"
+    if norm.startswith(("hd ", "hip ", "hr ", "tyc ", "2mass ", "wise ", "tic ")):
+        return "technical_catalog"
+    if _is_gaia_placeholder_name(raw) or _is_catalog_identifier_display(norm):
+        return "source_placeholder"
+    if kind in {"star_name", "member_star_name", "canonical_name"}:
+        parts = norm.split()
+        if len(parts) >= 2:
+            compact_greek = re.sub(r"[^a-z]", "", parts[0])
+            if compact_greek in GREEK_ABBREVIATION_TOKENS and parts[-1] in CONSTELLATION_ABBREVIATIONS:
+                return "bayer_abbrev"
+        if _is_catalog_style_name(raw):
+            return "technical_catalog"
+        if _is_abbreviated_bayer_name(raw):
+            return "bayer_abbrev"
+        if _alias_constellation_style(raw) == "full":
+            return "bayer_full"
+    return "public_name"
+
+
+def _candidate_display_style(candidate: str, row: Optional[Dict[str, Any]] = None) -> str:
+    if row is not None:
+        return alias_display_style(row, candidate)
+    return alias_display_style({"alias_raw": candidate, "alias_kind": "canonical_name"}, candidate)
+
+
+def _style_bucket_score(style: str, name_style: str, *, root_system: bool, member_proper_count: int) -> int:
+    if name_style == NAME_STYLE_ASTRONOMER_ABBREV:
+        order = {
+            "bayer_abbrev": 0,
+            "flamsteed_abbrev": 1,
+            "proper_common": 2,
+            "member_proper": 3,
+            "bayer_full": 4,
+            "flamsteed_full": 5,
+            "human_catalog": 6,
+            "public_name": 7,
+            "member_public_name": 8,
+            "technical_catalog": 8,
+            "source_placeholder": 9,
+        }
+    elif name_style == NAME_STYLE_CATALOG_COMPACT:
+        human_catalog_rank = 3 if root_system and member_proper_count > 1 else 0
+        order = {
+            "human_catalog": human_catalog_rank,
+            "technical_catalog": 1,
+            "source_placeholder": 2,
+            "proper_common": 2,
+            "bayer_abbrev": 3,
+            "flamsteed_abbrev": 4,
+            "bayer_full": 5,
+            "flamsteed_full": 6,
+            "member_proper": 7,
+            "public_name": 8,
+            "member_public_name": 8,
+        }
+    elif name_style == NAME_STYLE_SOURCE_TECHNICAL:
+        order = {
+            "source_placeholder": 0,
+            "technical_catalog": 1,
+            "human_catalog": 2,
+            "bayer_abbrev": 3,
+            "flamsteed_abbrev": 4,
+            "proper_common": 5,
+            "member_proper": 6,
+            "bayer_full": 7,
+            "flamsteed_full": 8,
+            "public_name": 9,
+            "member_public_name": 9,
+        }
+    else:
+        member_proper_rank = 4 if root_system and member_proper_count > 1 else 1
+        order = {
+            "proper_common": 0,
+            "member_proper": member_proper_rank,
+            "public_name": 0,
+            "bayer_full": 1,
+            "flamsteed_full": 2,
+            "human_catalog": 3,
+            "member_public_name": 4,
+            "bayer_abbrev": 5,
+            "flamsteed_abbrev": 6,
+            "technical_catalog": 8,
+            "source_placeholder": 9,
+        }
+    return order.get(style, 7)
+
+
+def _style_candidate_key(
+    candidate: str,
+    row: Optional[Dict[str, Any]],
+    *,
+    name_style: str,
+    root_system: bool,
+    member_proper_count: int,
+    preferred_query_norm: Optional[str],
+) -> Tuple[int, int, int, int, int, str]:
+    style = _candidate_display_style(candidate, row)
+    bucket = _style_bucket_score(
+        style,
+        name_style,
+        root_system=root_system,
+        member_proper_count=member_proper_count,
+    )
+    match_rank = 20
+    candidate_match = _query_name_match_rank(candidate, preferred_query_norm)
+    if candidate_match is not None and bucket <= 4:
+        match_rank = candidate_match[0]
+    source_rank = _alias_rank(row)[0] if row is not None else _canonical_name_rank(candidate)
+    try:
+        priority = int(row.get("alias_priority")) if row is not None else 500
+    except Exception:
+        priority = 999
+    if name_style == NAME_STYLE_SOURCE_TECHNICAL:
+        return (bucket, match_rank, priority, source_rank, len(candidate), candidate.lower())
+    return (bucket, match_rank, source_rank, priority, len(candidate), candidate.lower())
+
+
+def choose_display_name_info(
+    canonical_name: Any,
+    aliases: List[Dict[str, Any]],
+    *,
+    alt_limit: int = 8,
+    preferred_query_norm: Optional[str] = None,
+    root_system: bool = False,
+    name_style: str = NAME_STYLE_PUBLIC_FULL,
+) -> Dict[str, Any]:
+    normalized_style = normalize_name_style(name_style)
+    canonical = _clean_name(canonical_name)
+    alias_rows = [row for row in aliases if _clean_name(row.get("alias_raw"))]
+    alias_rows.sort(key=_alias_rank)
+
+    candidate_rows: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    seen_norm: set[str] = set()
+    if canonical:
+        candidate_rows.append((canonical, None))
+        seen_norm.add(_name_norm(canonical))
+    ordered_names: List[str] = []
+    for row in alias_rows:
+        raw = _clean_name(row.get("alias_raw"))
+        norm = _name_norm(raw)
+        if not norm or norm in seen_norm:
+            continue
+        seen_norm.add(norm)
+        candidate_rows.append((raw, row))
+        ordered_names.append(raw)
+
+    member_proper_count = len({
+        _name_norm(row.get("alias_raw"))
+        for row in alias_rows
+        if str(row.get("alias_kind") or "").strip() in {"proper_name", "member_proper_name"}
+        and _name_norm(row.get("alias_raw"))
+    })
+    display_name = canonical or (ordered_names[0] if ordered_names else "Unnamed system")
+    display_row: Optional[Dict[str, Any]] = None
+    best_key: Optional[Tuple[int, int, int, int, int, str]] = None
+    for candidate, row in candidate_rows:
+        if not candidate:
+            continue
+        if normalized_style != NAME_STYLE_SOURCE_TECHNICAL and _is_gaia_placeholder_name(candidate):
+            continue
+        key = _style_candidate_key(
+            candidate,
+            row,
+            name_style=normalized_style,
+            root_system=root_system,
+            member_proper_count=member_proper_count,
+            preferred_query_norm=preferred_query_norm,
+        )
+        if best_key is None or key < best_key:
+            display_name = candidate
+            display_row = row
+            best_key = key
+
+    secondary: List[str] = []
+    secondary_seen: set[str] = set()
+    display_norm = _name_norm(display_name)
+    for candidate, row in candidate_rows:
+        norm = _name_norm(candidate)
+        if not norm or norm == display_norm or norm in secondary_seen:
+            continue
+        if normalized_style != NAME_STYLE_SOURCE_TECHNICAL and _is_gaia_placeholder_name(candidate):
+            continue
+        secondary.append(candidate)
+        secondary_seen.add(norm)
+        if len(secondary) >= max(1, alt_limit):
+            break
+
+    return {
+        "display_name": display_name,
+        "display_aliases": secondary,
+        "display_name_style": _candidate_display_style(display_name, display_row),
+        "display_name_source": (
+            str(display_row.get("alias_kind") or "").strip()
+            if display_row is not None
+            else "canonical_name"
+        ),
+        "requested_name_style": normalized_style,
+    }
+
+
 def _spectral_filter_mask(tokens: List[str]) -> int:
     mask = 0
     for token in tokens:
@@ -419,103 +701,17 @@ def choose_display_name(
     alt_limit: int = 8,
     preferred_query_norm: Optional[str] = None,
     root_system: bool = False,
+    name_style: str = NAME_STYLE_PUBLIC_FULL,
 ) -> Tuple[str, List[str]]:
-    canonical = _clean_name(canonical_name)
-    alias_rows = [row for row in aliases if _clean_name(row.get("alias_raw"))]
-    alias_rows.sort(key=_alias_rank)
-
-    ordered_names: List[str] = []
-    ordered_name_rows: List[Dict[str, Any]] = []
-    seen_norm: set[str] = set()
-    for row in alias_rows:
-        raw = _clean_name(row.get("alias_raw"))
-        norm = raw.lower()
-        if norm in seen_norm:
-            continue
-        seen_norm.add(norm)
-        ordered_names.append(raw)
-        ordered_name_rows.append(row)
-
-    display_name = canonical
-    best_match_name: Optional[str] = None
-    best_match_key: Optional[Tuple[int, int, str, int]] = None
-    canonical_match = _query_name_match_rank(canonical, preferred_query_norm)
-    if canonical_match is not None:
-        best_match_name = canonical
-        best_match_key = canonical_match + (_canonical_name_rank(canonical),)
-    for row in alias_rows:
-        candidate = _clean_name(row.get("alias_raw"))
-        candidate_match = _query_name_match_rank(candidate, preferred_query_norm)
-        if candidate_match is None:
-            continue
-        if not _is_public_display_match_candidate(candidate, row.get("alias_kind")):
-            continue
-        candidate_key = candidate_match + (_alias_rank(row)[0],)
-        if best_match_key is None or candidate_key < best_match_key:
-            best_match_name = candidate
-            best_match_key = candidate_key
-    if best_match_name and _is_public_display_match_candidate(best_match_name):
-        display_name = best_match_name
-    else:
-        full_expanded_alias: Optional[str] = None
-        full_expanded_rank: Optional[Tuple[int, int, int, str]] = None
-        member_proper_names = {
-            _name_norm(row.get("alias_raw"))
-            for row in alias_rows
-            if str(row.get("alias_kind") or "").strip() in {"proper_name", "member_proper_name"}
-            and _name_norm(row.get("alias_raw"))
-        }
-        prefer_group_bayer_name = (
-            root_system
-            and _is_catalog_style_name(canonical)
-            and len(member_proper_names) > 1
-        )
-        if _is_abbreviated_bayer_name(canonical) or prefer_group_bayer_name:
-            for row, candidate in zip(ordered_name_rows, ordered_names):
-                if not _is_full_expanded_bayer_alias(row, candidate):
-                    continue
-                candidate_rank = _alias_rank(row)
-                if full_expanded_rank is None or candidate_rank < full_expanded_rank:
-                    full_expanded_alias = candidate
-                    full_expanded_rank = candidate_rank
-        if full_expanded_alias:
-            display_name = full_expanded_alias
-        else:
-            best_alias_name: Optional[str] = None
-            best_alias_rank = 99
-            for row, candidate in zip(ordered_name_rows, ordered_names):
-                if _is_gaia_placeholder_name(candidate):
-                    continue
-                best_alias_name = candidate
-                best_alias_rank = _alias_rank(row)[0]
-                break
-            canonical_rank = _canonical_name_rank(canonical)
-            if best_alias_name and (
-                not display_name
-                or _is_gaia_placeholder_name(display_name)
-                or best_alias_rank < canonical_rank
-            ):
-                display_name = best_alias_name
-            elif (not display_name) and ordered_names:
-                display_name = ordered_names[0]
-
-    secondary: List[str] = []
-    secondary_seen: set[str] = set()
-    display_norm = _name_norm(display_name)
-    if canonical and canonical.lower() != display_norm and not _is_gaia_placeholder_name(canonical):
-        secondary.append(canonical)
-        secondary_seen.add(canonical.lower())
-    for candidate in ordered_names:
-        norm = candidate.lower()
-        if norm == display_norm or norm in secondary_seen:
-            continue
-        if _is_gaia_placeholder_name(candidate):
-            continue
-        secondary.append(candidate)
-        secondary_seen.add(norm)
-        if len(secondary) >= max(1, alt_limit):
-            break
-    return display_name, secondary
+    info = choose_display_name_info(
+        canonical_name,
+        aliases,
+        alt_limit=alt_limit,
+        preferred_query_norm=preferred_query_norm,
+        root_system=root_system,
+        name_style=name_style,
+    )
+    return str(info.get("display_name") or ""), list(info.get("display_aliases") or [])
 
 
 def fetch_build_id(con: duckdb.DuckDBPyConnection) -> Optional[str]:
@@ -770,6 +966,7 @@ def fetch_map_systems(
     limit: int = 20000,
     disc_db_path: Optional[str] = None,
     compact: bool = False,
+    name_style: str = NAME_STYLE_PUBLIC_FULL,
 ) -> Dict[str, Any]:
     radius = max(0.0, min(float(max_dist_ly), 100.0))
     row_limit = max(1, min(int(limit), 50000))
@@ -925,18 +1122,25 @@ def fetch_map_systems(
                 }
             )
         for item in items:
-            display_name, display_aliases = choose_display_name(
+            display_info = choose_display_name_info(
                 item.get("system_name"),
                 aliases_by_system.get(int(item.get("system_id") or 0), []),
                 alt_limit=4,
                 root_system=True,
+                name_style=name_style,
             )
-            item["display_name"] = display_name
+            item["display_name"] = display_info["display_name"]
+            item["display_name_style"] = display_info["display_name_style"]
+            item["display_name_source"] = display_info["display_name_source"]
+            item["requested_name_style"] = display_info["requested_name_style"]
             if not compact:
-                item["display_aliases"] = display_aliases
+                item["display_aliases"] = display_info["display_aliases"]
     else:
         for item in items:
             item["display_name"] = _clean_name(item.get("system_name"))
+            item["display_name_style"] = _candidate_display_style(item["display_name"])
+            item["display_name_source"] = "canonical_name"
+            item["requested_name_style"] = normalize_name_style(name_style)
 
     total_available = int(
         con.execute(
@@ -2682,6 +2886,7 @@ def search_systems(
     cursor_values: Optional[Dict[str, Any]],
     disc_db_path: Optional[str] = None,
     arm_db_path: Optional[str] = None,
+    name_style: str = NAME_STYLE_PUBLIC_FULL,
 ) -> Tuple[List[Dict[str, Any]], Optional[int]]:
     conditions: List[str] = []
     params: List[Any] = []
@@ -3561,19 +3766,26 @@ def search_systems(
                 )
             for item in results:
                 sid = int(item.get("system_id") or 0)
-                display_name, display_aliases = choose_display_name(
+                display_info = choose_display_name_info(
                     item.get("system_name"),
                     system_aliases.get(sid, []),
                     preferred_query_norm=q_norm if match_mode else None,
                     root_system=True,
+                    name_style=name_style,
                 )
-                item["display_name"] = display_name
-                item["display_aliases"] = display_aliases
+                item["display_name"] = display_info["display_name"]
+                item["display_aliases"] = display_info["display_aliases"]
+                item["display_name_style"] = display_info["display_name_style"]
+                item["display_name_source"] = display_info["display_name_source"]
+                item["requested_name_style"] = display_info["requested_name_style"]
         else:
             for item in results:
                 display_name = _clean_name(item.get("system_name"))
                 item["display_name"] = display_name
                 item["display_aliases"] = []
+                item["display_name_style"] = _candidate_display_style(display_name)
+                item["display_name_source"] = "canonical_name"
+                item["requested_name_style"] = normalize_name_style(name_style)
 
         for item in results:
             sid = int(item.get("system_id") or 0)

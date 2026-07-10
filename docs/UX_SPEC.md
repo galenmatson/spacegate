@@ -32,6 +32,13 @@ fallback/reference artifacts, not the preferred capable-browser experience.
 - Theme labels currently exposed in UI:
   `Simple Light`, `Simple Dark`, `Cyberpunk`, `Enterprise`, `Mission Control`,
   `Aurora`, `Geocities`, and `Deep Space Minimal`.
+- Name Style is a user preference, not a source-identity choice. The default
+  is `Public Full`, which favors layperson-readable full names such as
+  `Alpha Centauri`, `Epsilon Indi`, and `Mu Herculis`. Optional styles are
+  `Astronomer Abbrev` (`Eps Ind`, `Mu Her`), `Catalog Compact`, and
+  `Source/Technical` for WDS/Gaia/HIP/HD-style inspection.
+- Matched aliases should remain visible when useful, but a matched abbreviation
+  or catalog ID must not force the public title to become that raw alias.
 - `/` focuses route-level search where available, unless the user is already
   typing in an editable field.
 - Catalog IDs should be copyable, but not visually dominant.

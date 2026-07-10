@@ -189,6 +189,10 @@ Implementation note:
   `/api/v1/systems/{system_id}/simulation-scene`; it assembles current core
   detail, hierarchy, arm graph/orbit rows, and readiness diagnostics without
   persisting visualization assumptions
+- public name display is centralized behind a `name_style` API/UI preference:
+  `public_full` is the layperson-readable default, while abbreviated,
+  catalog-compact, and source-technical styles remain available without
+  changing source identity or accepted system membership
 - System Simulation is lazy-loaded on system detail pages and from the 3D
   map's Peek/Explore drill-in layer, and uses the scene-readiness endpoint;
   `render_scene_v0.2` adds renderer-ready

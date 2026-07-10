@@ -244,6 +244,9 @@ Query params:
 - `limit` (int, default `20000`, max `50000`): safety cap for returned rows.
 - `compact` (bool, default `false`): when true, returns the browser render
   profile with rounded coordinates and without diagnostic-only fields.
+- `name_style` (optional, default `public_full`): presentation-only display
+  preference. Supported values are `public_full`, `astronomer_abbrev`,
+  `catalog_compact`, and `source_technical`.
 
 Response:
 ```json
@@ -271,6 +274,10 @@ Response:
       "planet_count": 0,
       "spectral_classes": ["M"],
       "dominant_spectral_class": "M",
+      "display_name": "Example",
+      "display_name_style": "public_name",
+      "display_name_source": "canonical_name",
+      "requested_name_style": "public_full",
       "coolness_rank": 42,
       "coolness_score": 18.5,
       "has_snapshot": true
@@ -295,8 +302,14 @@ diagnostics.
 
 Prebuilt artifacts are compatible only with the current renderer contract. If
 an artifact lacks required current diagnostics, such as
-`render_scene.diagnostics.membership_reconciliation`, the API may skip it and
-serve a dynamic `miss` response until artifacts are regenerated.
+`render_scene.diagnostics.membership_reconciliation`, or lacks the current
+name-style metadata on `system`, the API may skip it and serve a dynamic
+`miss` response until artifacts are regenerated.
+
+Query params:
+- `name_style` (optional, default `public_full`): presentation-only display
+  preference. Non-default styles bypass prebuilt scene artifacts unless those
+  artifacts were generated for the same style.
 
 Response:
 ```json
@@ -305,7 +318,12 @@ Response:
   "scope": "system_simulation_scene",
   "generated_at_utc": "2026-06-28T00:00:00Z",
   "frame": "heliocentric_icrs_j2016",
-  "system": {},
+  "system": {
+    "display_name": "Alpha Centauri",
+    "display_name_style": "bayer_full",
+    "display_name_source": "bayer_expanded_name",
+    "requested_name_style": "public_full"
+  },
   "bodies": {
     "stars": [],
     "planets": []
@@ -1254,6 +1272,16 @@ Query params:
 - `limit` (int, default 50, max 200)
 - `include_total` (`true|false`, optional, default `false`)
 - `cursor` (string, optional)
+- `name_style` (optional, default `public_full`): presentation-only display
+  preference. Supported values:
+  - `public_full`: layperson-readable default; prefers full common/proper and
+    full constellation names such as `Alpha Centauri`, `Epsilon Indi`, and
+    `Mu Herculis`.
+  - `astronomer_abbrev`: prefers compact traditional forms such as `Eps Ind`
+    and `Mu Her`.
+  - `catalog_compact`: prefers concise catalog-style names when useful.
+  - `source_technical`: exposes source-native technical names such as WDS or
+    Gaia labels where available.
 
 Matching rules (when `q` is provided):
 1. Exact match on canonical system name / stable key and materialized search terms (`system_search_terms.term_norm` when present; fallback to canonical name + `aliases.alias_norm`)
@@ -1287,6 +1315,12 @@ Implementation notes:
   `focus_object_key`, `display_name_source`, `display_name_priority`, and
   `match_resolution`. These fields explain why a result matched; they do not
   require the public `display_name` to become the raw matched identifier.
+- name-style policy is separate from alias matching: for example `q=eps ind`
+  may return `matched_alias: "Eps Ind"` while `display_name` remains
+  `Epsilon Indi` under `public_full`.
+- search result items include `display_name`, `display_name_style`,
+  `display_name_source`, `display_aliases`, and `requested_name_style`.
+  `display_name_style` is derived display/search metadata, not source identity.
 - dense exact-like identifiers and variable-star names suppress fuzzy alias
   substitution when there is no exact/prefix hit. This prevents public
   surprises such as `V1513 Cyg` resolving to nearby-but-wrong `V1581 Cyg`.
@@ -1415,12 +1449,20 @@ copyable identifiers, table rows, hierarchy, and evidence/provenance sections.
 Path params:
 - `system_id` (int)
 
+Query params:
+- `name_style` (optional, default `public_full`): same presentation-only
+  display preference accepted by Star Search, map systems, and
+  `simulation-scene`.
+
 Response 200:
 ```json
 {
   "system": {
     /* same fields as search result + full provenance */
     "display_name": "Sirius",
+    "display_name_style": "public_name",
+    "display_name_source": "canonical_name",
+    "requested_name_style": "public_full",
     "display_aliases": ["Alp CMa", "HIP 32349", "HD 48915"],
     "arm_evidence_summary": {
       "stars_with_arm_evidence": 1,

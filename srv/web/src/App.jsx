@@ -5,6 +5,7 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
+import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
 import {
   StellarClassChips,
   stellarClassTokensFromRecord,
@@ -102,6 +103,8 @@ const ThemeContext = React.createContext({
   options: THEME_OPTIONS,
   defaultScaleMode: "structure",
   setDefaultScaleMode: () => {},
+  nameStyle: "public_full",
+  setNameStyle: () => {},
 });
 const LCARS_FALLBACK_CHIPS = ["Sol", "Sirius", "Alpha Centauri", "Vega"];
 const LCARS_FALLBACK_GAIA = [
@@ -1662,6 +1665,7 @@ function StarSearchSimulationPreview({
   liveActive = false,
   poolSlot = null,
   defaultScaleMode = "structure",
+  nameStyle = "public_full",
   onActivate,
   onDeactivate,
   onCapture,
@@ -1766,7 +1770,7 @@ function StarSearchSimulationPreview({
       {showLivePreview ? (
         <React.Suspense fallback={<div className="map-search-card-fallback">Loading simulation</div>}>
           <SystemPreviewPanel
-            key={`catalog-preview:${poolSlot ?? system.system_id}:${system.system_id}`}
+            key={`catalog-preview:${poolSlot ?? system.system_id}:${system.system_id}:${normalizeNameStyle(nameStyle)}`}
             systemId={system.system_id}
             systemName={displayName}
             snapshot={system.snapshot}
@@ -1776,6 +1780,7 @@ function StarSearchSimulationPreview({
             captureFrame={!cachedPreviewImage}
             onFrameCapture={handleFrameCapture}
             defaultScaleMode={defaultScaleMode}
+            nameStyle={normalizeNameStyle(nameStyle)}
           />
         </React.Suspense>
       ) : showCachedPreview ? (
@@ -2422,7 +2427,15 @@ function SystemHierarchyPanel({ hierarchy }) {
 }
 
 function Layout({ children, headerExtra = null, showSearchLink = true, buildId = "" }) {
-  const { theme, setTheme, options, defaultScaleMode, setDefaultScaleMode } = useThemeControls();
+  const {
+    theme,
+    setTheme,
+    options,
+    defaultScaleMode,
+    setDefaultScaleMode,
+    nameStyle,
+    setNameStyle,
+  } = useThemeControls();
   const location = useLocation();
   const navigate = useNavigate();
   const isLcars = theme === "lcars";
@@ -2516,6 +2529,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
           limit: "120",
           sort: "coolness",
           has_planets: "true",
+          name_style: normalizeNameStyle(nameStyle),
         });
         const items = Array.isArray(data?.items) ? data.items : [];
         if (!cancelled) {
@@ -2537,7 +2551,7 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
     return () => {
       cancelled = true;
     };
-  }, [isLcars]);
+  }, [isLcars, nameStyle]);
 
   useEffect(() => {
     if (!isLcars) {
@@ -2618,6 +2632,18 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
             data-testid="global-default-scale-select"
           >
             {SIM_SCALE_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="header-menu-field">
+          <span>Name Style</span>
+          <select
+            value={normalizeNameStyle(nameStyle)}
+            onChange={(event) => setNameStyle(normalizeNameStyle(event.target.value))}
+            data-testid="global-name-style-select"
+          >
+            {NAME_STYLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
@@ -2884,7 +2910,7 @@ function DataPage({ buildId = "" }) {
 }
 
 function SearchPage({ buildId = "" }) {
-  const { theme, defaultScaleMode } = useThemeControls();
+  const { theme, defaultScaleMode, nameStyle } = useThemeControls();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSpectralClassTokens = parseSpectralTokens(searchParams.get("spectral_class") || "");
@@ -3018,6 +3044,7 @@ function SearchPage({ buildId = "" }) {
   const latestTotalTokenRef = useRef(0);
   const previewPoolIdsRef = useRef(new Set());
   const previewRequestQueueRef = useRef([]);
+  const nameStyleInitializedRef = useRef(false);
 
   const eligibleSpectralClasses = useMemo(
     () => spectralClassesForTemperatureRange(minTempK, maxTempK),
@@ -3191,6 +3218,7 @@ function SearchPage({ buildId = "" }) {
         ...baseParams,
         include_total: "true",
         limit: "1",
+        name_style: normalizeNameStyle(nameStyle),
       });
       if (latestSearchTokenRef.current !== searchToken || latestTotalTokenRef.current !== totalToken) {
         return;
@@ -3214,6 +3242,7 @@ function SearchPage({ buildId = "" }) {
         ? activeParams
         : (overrideBaseParams || buildBaseParams());
     const requestParams = { ...resolvedBase };
+    requestParams.name_style = normalizeNameStyle(nameStyle);
     if (cursorValue) {
       requestParams.cursor = cursorValue;
     }
@@ -3280,6 +3309,16 @@ function SearchPage({ buildId = "" }) {
   }, []);
 
   useEffect(() => {
+    if (!nameStyleInitializedRef.current) {
+      nameStyleInitializedRef.current = true;
+      return;
+    }
+    if (searchStarted) {
+      runSearch(null, true);
+    }
+  }, [nameStyle]);
+
+  useEffect(() => {
     previewPoolIdsRef.current = new Set(previewPoolAllocations.map((allocation) => String(allocation.systemId)));
   }, [previewPoolAllocations]);
 
@@ -3342,7 +3381,7 @@ function SearchPage({ buildId = "" }) {
   }, [activateNextPreviewFromQueue]);
 
   const captureSearchPreview = React.useCallback((systemId, dataUrl) => {
-    const key = String(systemId || "");
+    const key = `${String(systemId || "")}:${normalizeNameStyle(nameStyle)}`;
     if (!key || !dataUrl) {
       return;
     }
@@ -3356,7 +3395,7 @@ function SearchPage({ buildId = "" }) {
       }
       return next;
     });
-  }, []);
+  }, [nameStyle]);
 
   const previewAllocationsBySystemId = useMemo(() => {
     const out = new Map();
@@ -3735,10 +3774,11 @@ function SearchPage({ buildId = "" }) {
                       <StarSearchSimulationPreview
                         system={item}
                         displayName={displayName}
-                        cachedPreviewImage={previewSnapshotCache.get(String(item.system_id))?.url || ""}
+                        cachedPreviewImage={previewSnapshotCache.get(`${String(item.system_id)}:${normalizeNameStyle(nameStyle)}`)?.url || ""}
                         liveActive={previewAllocationsBySystemId.has(String(item.system_id))}
                         poolSlot={previewAllocationsBySystemId.get(String(item.system_id))?.slot ?? null}
                         defaultScaleMode={defaultScaleMode}
+                        nameStyle={nameStyle}
                         onActivate={requestSearchPreview}
                         onDeactivate={releaseSearchPreview}
                         onCapture={captureSearchPreview}
@@ -3967,7 +4007,7 @@ function ProvenanceBlock({ provenance, grouping = null }) {
 }
 
 function SystemDetailPage({ buildId = "" }) {
-  const { defaultScaleMode } = useThemeControls();
+  const { defaultScaleMode, nameStyle } = useThemeControls();
   const { systemId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -3982,7 +4022,7 @@ function SystemDetailPage({ buildId = "" }) {
     let isActive = true;
     setLoading(true);
     setError("");
-    fetchSystemDetail(systemId)
+    fetchSystemDetail(systemId, { name_style: normalizeNameStyle(nameStyle) })
       .then((payload) => {
         if (isActive) {
           setData(payload);
@@ -4002,7 +4042,7 @@ function SystemDetailPage({ buildId = "" }) {
     return () => {
       isActive = false;
     };
-  }, [systemId]);
+  }, [nameStyle, systemId]);
 
   if (loading) {
     return (
@@ -4100,6 +4140,7 @@ function SystemDetailPage({ buildId = "" }) {
             systemName={currentSystemDisplayName}
             snapshot={system.snapshot}
             defaultScaleMode={defaultScaleMode}
+            nameStyle={nameStyle}
           />
         </React.Suspense>
 
@@ -4327,6 +4368,7 @@ function SystemDetailPage({ buildId = "" }) {
 export default function App() {
   const [theme, setTheme] = useState(() => resolveInitialTheme());
   const [defaultScaleMode, setDefaultScaleMode] = useState(() => resolveInitialSimulationScaleMode());
+  const [nameStyle, setNameStyle] = useState(() => readStoredNameStyle());
   const [buildId, setBuildId] = useState("");
 
   useEffect(() => {
@@ -4355,6 +4397,15 @@ export default function App() {
   }, [defaultScaleMode]);
 
   useEffect(() => {
+    const normalized = normalizeNameStyle(nameStyle);
+    if (normalized !== nameStyle) {
+      setNameStyle(normalized);
+      return;
+    }
+    writeStoredNameStyle(normalized);
+  }, [nameStyle]);
+
+  useEffect(() => {
     let active = true;
     fetchHealth()
       .then((payload) => {
@@ -4381,8 +4432,10 @@ export default function App() {
       options: THEME_OPTIONS,
       defaultScaleMode,
       setDefaultScaleMode,
+      nameStyle,
+      setNameStyle,
     }),
-    [defaultScaleMode, theme],
+    [defaultScaleMode, nameStyle, theme],
   );
 
   return (
@@ -4399,6 +4452,8 @@ export default function App() {
                 themeOptions={THEME_OPTIONS}
                 defaultScaleMode={defaultScaleMode}
                 setDefaultScaleMode={setDefaultScaleMode}
+                nameStyle={nameStyle}
+                setNameStyle={setNameStyle}
                 defaultSearchOpen
               />
             </React.Suspense>
@@ -4420,6 +4475,8 @@ export default function App() {
                 themeOptions={THEME_OPTIONS}
                 defaultScaleMode={defaultScaleMode}
                 setDefaultScaleMode={setDefaultScaleMode}
+                nameStyle={nameStyle}
+                setNameStyle={setNameStyle}
               />
             </React.Suspense>
           )}

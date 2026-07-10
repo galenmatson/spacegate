@@ -112,6 +112,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
     member-context searches with `scripts/verify_alias_authority.py`
   - [x] Preserve matched alias/member context in Star Search API responses
     without forcing catalog IDs or abbreviated Bayer labels into public titles
+- [x] Add configurable public display-name styles (`Public Full`,
+  `Astronomer Abbrev`, `Catalog Compact`, `Source/Technical`) across Star
+  Search, 3D Map, System Peek/Explorer, system detail, and simulation-scene API
+  payloads
+  - [x] Add `scripts/verify_name_style_policy.py` for Alpha Centauri,
+    Epsilon Indi, Mu Herculis, Sirius, Gliese 412, and 55 Cnc name-style
+    goldens
 - [ ] Optimize alias-table materialization for future full rebuilds; Alias
   Authority v2 correctness build showed the alias stage taking about 34 minutes,
   likely from repeated Gl/GJ variant expansion and large dedupe/sort work

@@ -40,6 +40,7 @@ from . import inference_registry
 from .db import DatabaseUnavailable
 from .queries import (
     choose_display_name,
+    choose_display_name_info,
     fetch_arm_evidence_for_stars,
     fetch_eclipsing_for_system,
     fetch_aliases_for_stars,
@@ -54,6 +55,7 @@ from .queries import (
     fetch_stars_for_system,
     fetch_system_by_id,
     fetch_system_by_key,
+    normalize_name_style,
     search_systems,
     summarize_star_temperatures,
 )
@@ -390,7 +392,7 @@ def _rows_to_dicts(cursor: duckdb.DuckDBPyConnection) -> List[Dict[str, Any]]:
     return [dict(zip(columns, row)) for row in rows]
 
 
-def _object_public_system_payload(system_id: int) -> Dict[str, Any]:
+def _object_public_system_payload(system_id: int, *, name_style: str = "public_full") -> Dict[str, Any]:
     disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
@@ -437,9 +439,17 @@ def _object_public_system_payload(system_id: int) -> Dict[str, Any]:
     system["snapshot"] = snapshot
     system["aliases"] = aliases
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
-    system_display_name, system_display_aliases = choose_display_name(system.get("system_name"), aliases, root_system=True)
-    system["display_name"] = system_display_name
-    system["display_aliases"] = system_display_aliases
+    system_display_info = choose_display_name_info(
+        system.get("system_name"),
+        aliases,
+        root_system=True,
+        name_style=name_style,
+    )
+    system["display_name"] = system_display_info["display_name"]
+    system["display_aliases"] = system_display_info["display_aliases"]
+    system["display_name_style"] = system_display_info["display_name_style"]
+    system["display_name_source"] = system_display_info["display_name_source"]
+    system["requested_name_style"] = system_display_info["requested_name_style"]
     for star in stars:
         sid = star.get("star_id")
         if sid is None:
@@ -449,7 +459,11 @@ def _object_public_system_payload(system_id: int) -> Dict[str, Any]:
             continue
         aliases_for_star = star_aliases.get(int(sid), [])
         star["aliases"] = aliases_for_star
-        star_display_name, star_display_aliases = choose_display_name(star.get("star_name"), aliases_for_star)
+        star_display_name, star_display_aliases = choose_display_name(
+            star.get("star_name"),
+            aliases_for_star,
+            name_style=name_style,
+        )
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases
         star_arm_evidence = arm_star_evidence.get(int(sid), {})
@@ -4225,14 +4239,25 @@ def _simulation_scene_artifact_compatible(path: Path) -> bool:
     render_scene = payload.get("render_scene") if isinstance(payload, dict) else {}
     diagnostics = render_scene.get("diagnostics") if isinstance(render_scene, dict) else {}
     membership = diagnostics.get("membership_reconciliation") if isinstance(diagnostics, dict) else None
-    return isinstance(membership, dict) and membership.get("membership_gate") is not None
+    system = payload.get("system") if isinstance(payload, dict) else {}
+    return (
+        isinstance(membership, dict)
+        and membership.get("membership_gate") is not None
+        and isinstance(system, dict)
+        and system.get("requested_name_style") == "public_full"
+    )
 
 
-def _system_simulation_scene_payload(system_id: int, *, build_id: Optional[str] = None) -> Dict[str, Any]:
+def _system_simulation_scene_payload(
+    system_id: int,
+    *,
+    build_id: Optional[str] = None,
+    name_style: str = "public_full",
+) -> Dict[str, Any]:
     if build_id is None:
         with db.connection_scope() as con:
             build_id = fetch_build_id(con)
-    public = _object_public_system_payload(system_id)
+    public = _object_public_system_payload(system_id, name_style=name_style)
     system = public["system"]
     stars = public["stars"]
     planets = public["planets"]
@@ -4846,6 +4871,7 @@ def spectral_mix():
 def systems_search(
     request: Request,
     q: Optional[str] = Query(default=None),
+    name_style: str = Query(default="public_full"),
     max_dist_ly: Optional[float] = Query(default=None, ge=0),
     min_dist_ly: Optional[float] = Query(default=None, ge=0),
     origin_x_ly: Optional[float] = Query(default=None),
@@ -4933,6 +4959,7 @@ def systems_search(
 
     q_norm = normalize_query_text(q or "")
     id_query = parse_identifier_query(q_norm)
+    normalized_name_style = normalize_name_style(name_style)
     system_id_exact: Optional[int] = None
     system_id_match = re.match(r"^(?:system|sys)\s+(\d+)$", q_norm or "")
     if system_id_match:
@@ -5063,6 +5090,7 @@ def systems_search(
                 cursor_values=cursor_values,
                 disc_db_path=disc_db_path,
                 arm_db_path=arm_db_path,
+                name_style=normalized_name_style,
             )
             build_id = fetch_build_id(con)
     except ValueError as exc:
@@ -5241,6 +5269,7 @@ def systems_search(
             "z_ly": origin_z_ly,
             "label": origin_label,
         } if has_origin else None,
+        "name_style": normalized_name_style,
     }
 
 
@@ -5249,6 +5278,7 @@ def map_systems(
     max_dist_ly: float = Query(default=100.0, ge=0, le=100),
     limit: int = Query(default=20000, ge=1, le=50000),
     compact: bool = Query(default=False),
+    name_style: str = Query(default="public_full"),
 ):
     disc_db_path = _resolve_disc_db_path()
     try:
@@ -5259,6 +5289,7 @@ def map_systems(
                 limit=limit,
                 disc_db_path=disc_db_path,
                 compact=compact,
+                name_style=normalize_name_style(name_style),
             )
     except DatabaseUnavailable:
         raise HTTPException(
@@ -5272,12 +5303,21 @@ def map_systems(
 
 
 @app.get("/api/v1/systems/{system_id}/simulation-scene")
-def system_simulation_scene(system_id: int, response: Response):
+def system_simulation_scene(
+    system_id: int,
+    response: Response,
+    name_style: str = Query(default="public_full"),
+):
     try:
+        normalized_name_style = normalize_name_style(name_style)
         with db.connection_scope() as con:
             build_id = fetch_build_id(con)
         artifact_path = _simulation_scene_artifact_path(build_id, system_id)
-        if artifact_path is not None and _simulation_scene_artifact_compatible(artifact_path):
+        if (
+            normalized_name_style == "public_full"
+            and artifact_path is not None
+            and _simulation_scene_artifact_compatible(artifact_path)
+        ):
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "prebuilt"
             response.headers["Content-Encoding"] = "gzip"
             response.headers["Cache-Control"] = "public, max-age=3600"
@@ -5286,12 +5326,17 @@ def system_simulation_scene(system_id: int, response: Response):
                 media_type="application/json",
                 headers=dict(response.headers),
             )
-        cached = _simulation_scene_cache_get(build_id, system_id)
+        cache_build_id = f"{build_id or 'unknown'}:{normalized_name_style}"
+        cached = _simulation_scene_cache_get(cache_build_id, system_id)
         if cached is not None:
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "hit"
             return cached
-        payload = _system_simulation_scene_payload(system_id, build_id=build_id)
-        _simulation_scene_cache_set(build_id, system_id, payload)
+        payload = _system_simulation_scene_payload(
+            system_id,
+            build_id=build_id,
+            name_style=normalized_name_style,
+        )
+        _simulation_scene_cache_set(cache_build_id, system_id, payload)
         response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
         return payload
     except KeyError:
@@ -5306,7 +5351,7 @@ def system_simulation_scene(system_id: int, response: Response):
 
 
 @app.get("/api/v1/systems/{system_id}")
-def system_detail(system_id: int):
+def system_detail(system_id: int, name_style: str = Query(default="public_full")):
     disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
@@ -5360,13 +5405,18 @@ def system_detail(system_id: int):
     system["snapshot"] = snapshot
     system["aliases"] = aliases
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
-    system_display_name, system_display_aliases = choose_display_name(
+    normalized_name_style = normalize_name_style(name_style)
+    system_display_info = choose_display_name_info(
         system.get("system_name"),
         aliases,
         root_system=True,
+        name_style=normalized_name_style,
     )
-    system["display_name"] = system_display_name
-    system["display_aliases"] = system_display_aliases
+    system["display_name"] = system_display_info["display_name"]
+    system["display_aliases"] = system_display_info["display_aliases"]
+    system["display_name_style"] = system_display_info["display_name_style"]
+    system["display_name_source"] = system_display_info["display_name_source"]
+    system["requested_name_style"] = system_display_info["requested_name_style"]
     for star in stars:
         sid = star.get("star_id")
         if sid is None:
@@ -5379,6 +5429,7 @@ def system_detail(system_id: int):
         star_display_name, star_display_aliases = choose_display_name(
             star.get("star_name"),
             aliases_for_star,
+            name_style=normalized_name_style,
         )
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases
@@ -5396,7 +5447,7 @@ def system_detail(system_id: int):
 
 
 @app.get("/api/v1/systems/by-key/{stable_object_key}")
-def system_detail_by_key(stable_object_key: str):
+def system_detail_by_key(stable_object_key: str, name_style: str = Query(default="public_full")):
     disc_db_path = _resolve_disc_db_path()
     arm_db_path = _resolve_arm_db_path()
     canonical_hierarchy_db_path = _resolve_canonical_hierarchy_db_path()
@@ -5451,13 +5502,18 @@ def system_detail_by_key(stable_object_key: str):
     system["snapshot"] = snapshot
     system["aliases"] = aliases
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
-    system_display_name, system_display_aliases = choose_display_name(
+    normalized_name_style = normalize_name_style(name_style)
+    system_display_info = choose_display_name_info(
         system.get("system_name"),
         aliases,
         root_system=True,
+        name_style=normalized_name_style,
     )
-    system["display_name"] = system_display_name
-    system["display_aliases"] = system_display_aliases
+    system["display_name"] = system_display_info["display_name"]
+    system["display_aliases"] = system_display_info["display_aliases"]
+    system["display_name_style"] = system_display_info["display_name_style"]
+    system["display_name_source"] = system_display_info["display_name_source"]
+    system["requested_name_style"] = system_display_info["requested_name_style"]
     for star in stars:
         sid = star.get("star_id")
         if sid is None:
@@ -5470,6 +5526,7 @@ def system_detail_by_key(stable_object_key: str):
         star_display_name, star_display_aliases = choose_display_name(
             star.get("star_name"),
             aliases_for_star,
+            name_style=normalized_name_style,
         )
         star["display_name"] = star_display_name
         star["display_aliases"] = star_display_aliases

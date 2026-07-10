@@ -451,6 +451,15 @@ Contract notes:
   `Gliese 412`, `GJ 412 A`, and `GJ 412`. These are alias/search evidence,
   not companion-rollup evidence; they must not merge `A`/`B` components by
   name alone.
+- Public display-name style is derived presentation/search metadata layered on
+  top of aliases. The active UI/API policy distinguishes full layperson names
+  (`public_full`), traditional abbreviated forms (`astronomer_abbrev`), compact
+  catalog labels (`catalog_compact`), and source-native technical labels
+  (`source_technical`). This policy never changes source object identity,
+  accepted system membership, or canonical science fields.
+- Matched aliases remain separate from display names. For example a query for
+  `eps ind` may carry `matched_alias = Eps Ind` while the default public
+  display name remains `Epsilon Indi`.
 
 ## `system_search_terms`
 
