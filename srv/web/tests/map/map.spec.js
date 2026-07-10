@@ -381,11 +381,18 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-story-card", { hasText: "What Is Uncertain" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Explore More" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Future AAA Narrative Slot" })).toHaveCount(0);
+    await expect(page.locator(".system-glance-strip")).toContainText(/Distance from Sol/i);
+    await expect(page.locator(".hierarchy-panel h3")).toHaveText("Stars and Hierarchy");
+    await expect(page.locator(".hierarchy-fact-chip").first()).toHaveAttribute("title", /Spectral class|Effective temperature|Mass|Radius|Luminosity|Visual magnitude|Distance|Separation/i);
     await expect(page.locator(".hierarchy-orbit-chip", { hasText: /Orbital period|Semi-major axis/ }).first()).toBeVisible();
     await expect(page.locator(".concept-panel")).toContainText(/Habitable zone/i);
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
     await expect(page.locator("details.detail-disclosure", { hasText: "Planets and Orbits" })).not.toHaveAttribute("open", "");
-    await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
+    const technicalDisclosure = page.locator(".detail-disclosure", { hasText: "Evidence and Technical Data" });
+    await expect(technicalDisclosure).toBeVisible();
+    await expect(technicalDisclosure).not.toHaveAttribute("open", "");
+    await technicalDisclosure.locator("summary").click();
+    await expect(technicalDisclosure.locator(".system-technical-strip")).toContainText(/Sky Position/i);
     await page.locator("[data-global-search-input='true']").fill("Sirius");
     await page.locator(".header-search-row").getByRole("button", { name: "Search" }).click();
     await expect(page).toHaveURL(/\/search\?q=Sirius&sort=match/);
@@ -443,7 +450,7 @@ test.describe("public 3D map beta", () => {
       await expect(page.locator(".system-story-card", { hasText: "Overview" })).toBeVisible();
       await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
       await expect(page.locator(".concept-panel")).toContainText(/Spectral class/i);
-      await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Provenance" })).toBeVisible();
+      await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Data" })).toBeVisible();
     }
   });
 

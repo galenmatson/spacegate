@@ -172,7 +172,8 @@ dump.
 
 ### Anatomy
 
-1. Hero: public display name, aliases, quick facts, copyable IDs.
+1. Hero: public display name, best aliases, copyable IDs, stellar-class pills,
+   and priority discovery tags in a compact first card.
 2. System Simulation: primary visual anchor.
 3. Overview: short layperson-facing summary from current facts.
 4. Why It Matters: discovery hooks such as planets, multiplicity, proximity,
@@ -180,11 +181,17 @@ dump.
 5. Habitability Context: careful explanation without overstating habitability.
 6. Reading This System: concept explainer for spectral class, habitable zone,
    orbital period, eccentricity, hierarchy, and uncertainty.
-7. System Hierarchy: nested structure from ARM hierarchy/orbit relationships.
+7. Stars and Hierarchy: nested structure from ARM hierarchy/orbit
+   relationships with stellar-class pills, compact vitals, readable orbital
+   facts, and hover explanations.
 8. Stars and Catalog Rows: collapsed or secondary raw star facts.
 9. Planets and Orbits: collapsed or secondary raw planet facts.
-10. Evidence and Technical Provenance: source chain, grouping, snapshots, and
-    diagnostic metadata.
+10. Evidence and Technical Data: source chain, grouping, coordinates,
+    snapshots, and diagnostic metadata.
+
+Technical coordinates, raw catalog rows, and low-level provenance should not
+compete with the first-screen simulation and overview. Keep those details
+available, but staged behind disclosures or secondary panels.
 
 ### Simulation Controls
 

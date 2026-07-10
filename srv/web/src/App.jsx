@@ -1856,7 +1856,7 @@ function whatWeKnowNotes(system, stars = [], planets = []) {
   const notes = [];
   const starCount = Number(system?.star_count ?? stars.length ?? 0);
   const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
-  const distanceLy = Number(system?.distance_ly);
+  const distanceLy = Number(system?.dist_ly ?? system?.distance_ly);
   if (Number.isFinite(distanceLy)) {
     notes.push(`It is about ${formatNumber(distanceLy, 2)} light-years from Sol in the current Spacegate build.`);
   }
@@ -1959,6 +1959,63 @@ function SystemNarrativeScaffold({ system, stars, planets, hierarchy }) {
   );
 }
 
+function SystemAtAGlanceStrip({ system, stars = [], planets = [], hierarchy = null }) {
+  const starCount = Number(system?.star_count ?? stars.length ?? 0);
+  const planetCount = Number(system?.planet_count ?? planets.length ?? 0);
+  const subsystemCount = Number(hierarchy?.counts?.subsystems || 0);
+  const evidenceCatalogs = collectSystemEvidenceCatalogs(system);
+  const distancePc = distanceLyToPc(system?.dist_ly);
+  return (
+    <section className="quick-facts system-glance-strip" aria-label="System at a glance">
+      <div>
+        <strong>Distance from Sol</strong>
+        <span>{formatNumber(system?.dist_ly, 2)} ly{distancePc ? ` · ${formatNumber(distancePc, 2)} pc` : ""}</span>
+      </div>
+      <div>
+        <strong>System structure</strong>
+        <span>
+          {formatNumber(starCount, 0)} star{starCount === 1 ? "" : "s"}
+          {subsystemCount > 0 ? ` · ${formatNumber(subsystemCount, 0)} subsystem${subsystemCount === 1 ? "" : "s"}` : ""}
+        </span>
+      </div>
+      <div>
+        <strong>Confirmed planets</strong>
+        <span>{formatNumber(planetCount, 0)} linked in this public build</span>
+      </div>
+      <div>
+        <strong>Primary evidence</strong>
+        <span>{formatEvidenceSummary(evidenceCatalogs.slice(0, 4))}</span>
+      </div>
+    </section>
+  );
+}
+
+function SystemTechnicalFacts({ system, armSummary = {} }) {
+  return (
+    <section className="quick-facts system-technical-strip" aria-label="Technical system facts">
+      <div>
+        <strong>Sky Position</strong>
+        <span>RA {formatCoordinate(system.ra_deg)} / Dec {formatCoordinate(system.dec_deg)} deg</span>
+      </div>
+      <div>
+        <strong>Galactic Map XYZ</strong>
+        <span>{formatCoordinate(system.x_helio_ly)}, {formatCoordinate(system.y_helio_ly)}, {formatCoordinate(system.z_helio_ly)} ly</span>
+      </div>
+      <div>
+        <strong>Database Evidence</strong>
+        <span>{formatEvidenceSummary(collectSystemEvidenceCatalogs(system))}</span>
+      </div>
+      <div>
+        <strong>ARM Evidence</strong>
+        <span>
+          {formatNumber(armSummary.stars_with_arm_evidence ?? 0, 0)} stars
+          {armSummary.high_variability_stars ? ` · ${formatNumber(armSummary.high_variability_stars, 0)} high variability` : ""}
+        </span>
+      </div>
+    </section>
+  );
+}
+
 function ConceptExplainerGrid() {
   const items = [
     ["Spectral class", "A star's color and temperature family. O and B stars are hot and blue; K and M stars are cooler and longer-lived; D marks white-dwarf remnants."],
@@ -2028,6 +2085,15 @@ function hierarchyObjectTags(node, displayType) {
     tags.push({ label: clean, className, title });
   };
   const orbit = node?.orbit || {};
+  if (displayType === "planet") {
+    add("Planet", "planet", "A planet linked to this system hierarchy.");
+  } else if (displayType === "moon") {
+    add("Moon", "planet", "A natural satellite linked to this system hierarchy.");
+  } else if (displayType === "minor_body") {
+    add("Small body", "planet", "A small Solar System body such as an asteroid, comet, dwarf planet, or trans-Neptunian object.");
+  } else if (displayType === "subsystem") {
+    add("Group", "subsystem", "A nested hierarchy group such as a binary pair, barycenter, or unresolved subsystem.");
+  }
   if (orbit?.period_days !== null && orbit?.period_days !== undefined) {
     add("Orbit", "orbit", "This object has orbital parameters attached to its hierarchy edge.");
   }
@@ -2077,7 +2143,7 @@ function hierarchyMetaSummary(node, children) {
   if (children.length) {
     bits.push(`${formatNumber(children.length, 0)} child node${children.length === 1 ? "" : "s"}`);
   }
-  return bits.length ? bits.join(" · ") : "Leaf object";
+  return bits.join(" · ");
 }
 
 function formatMsun(value) {
@@ -2094,6 +2160,18 @@ function formatRsun(value) {
   return `${formatNumber(value, 2)} Rsun`;
 }
 
+function formatLsunFromLog10(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "";
+  }
+  const luminosity = 10 ** Number(value);
+  if (!Number.isFinite(luminosity) || luminosity <= 0) {
+    return "";
+  }
+  const digits = luminosity >= 10 ? 1 : luminosity >= 1 ? 2 : 3;
+  return `${formatNumber(luminosity, digits)} Lsun`;
+}
+
 function formatVmag(value) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "";
@@ -2106,6 +2184,25 @@ function formatArcsec(value) {
     return "";
   }
   return `${formatNumber(value, 2)} arcsec`;
+}
+
+const HIERARCHY_FACT_TOOLTIPS = {
+  Spectral: "Spectral class is the source-reported stellar classification where available. It summarizes temperature, color, and sometimes luminosity class, but catalog coverage is uneven.",
+  Class: "Stellar class is the compact spectral family used for searching and display. It is usually derived from the source spectral type.",
+  "Visual prior": "A visual prior is a renderer/display classification used when source spectral class is missing. It is not a source catalog fact.",
+  "Effective temperature": "Effective temperature is the blackbody-style surface temperature that would emit the same total energy. It drives star color, habitable-zone distance, and temperature filters.",
+  Mass: "Mass is the object's estimated mass relative to the Sun. Stellar mass is the main driver of luminosity, lifetime, fusion mode, and final fate.",
+  Radius: "Radius is the object's estimated radius relative to the Sun. It helps distinguish dwarfs, giants, compact remnants, and renderer body scale.",
+  Luminosity: "Luminosity is the total energy output relative to the Sun. It sets the scale of the habitable zone and many temperature-line overlays.",
+  "Visual magnitude": "Visual magnitude is apparent brightness in visible light. Lower numbers are brighter as seen from Earth.",
+  Distance: "Distance is the current heliocentric distance in light-years in the served Spacegate build.",
+  Separation: "Angular separation is the apparent sky separation between components, measured in arcseconds. It is not the same thing as true physical separation unless distance and orbit are known.",
+};
+
+function hierarchyFactTooltip(label, chip = {}) {
+  const base = HIERARCHY_FACT_TOOLTIPS[label] || "";
+  const basis = chip.basis ? ` Basis: ${chip.basis}.` : "";
+  return `${base}${basis}`.trim() || undefined;
 }
 
 function HierarchyFactChips({ node }) {
@@ -2124,7 +2221,7 @@ function HierarchyFactChips({ node }) {
     });
   }
   if (facts.teff_k !== null && facts.teff_k !== undefined) {
-    chips.push({ label: "Temp", value: formatKelvin(facts.teff_k, 0) });
+    chips.push({ label: "Effective temperature", value: formatKelvin(facts.teff_k, 0) });
   }
   if (facts.mass_msun !== null && facts.mass_msun !== undefined) {
     chips.push({ label: "Mass", value: formatMsun(facts.mass_msun) });
@@ -2132,14 +2229,17 @@ function HierarchyFactChips({ node }) {
   if (facts.radius_rsun !== null && facts.radius_rsun !== undefined) {
     chips.push({ label: "Radius", value: formatRsun(facts.radius_rsun) });
   }
+  if (facts.luminosity_log10_lsun !== null && facts.luminosity_log10_lsun !== undefined) {
+    chips.push({ label: "Luminosity", value: formatLsunFromLog10(facts.luminosity_log10_lsun) });
+  }
   if (facts.vmag !== null && facts.vmag !== undefined) {
-    chips.push({ label: "Vmag", value: formatVmag(facts.vmag) });
+    chips.push({ label: "Visual magnitude", value: formatVmag(facts.vmag) });
   }
   if (facts.dist_ly !== null && facts.dist_ly !== undefined) {
-    chips.push({ label: "Dist", value: `${formatNumber(facts.dist_ly, 2)} ly` });
+    chips.push({ label: "Distance", value: `${formatNumber(facts.dist_ly, 2)} ly` });
   }
   if (facts.sep_arcsec !== null && facts.sep_arcsec !== undefined) {
-    chips.push({ label: "Sep", value: formatArcsec(facts.sep_arcsec) });
+    chips.push({ label: "Separation", value: formatArcsec(facts.sep_arcsec) });
   }
   if (chips.length === 0) {
     return null;
@@ -2151,7 +2251,7 @@ function HierarchyFactChips({ node }) {
           key={`${chip.label}-${chip.value}`}
           className={`chip hierarchy-fact-chip ${chip.status ? `status-${String(chip.status).toLowerCase()}` : ""}`}
           role="listitem"
-          title={chip.basis ? `${chip.label}: ${chip.basis}` : undefined}
+          title={hierarchyFactTooltip(chip.label, chip)}
         >
           <span className="hierarchy-fact-label">{chip.label}</span>
           <strong>{chip.value}</strong>
@@ -2203,6 +2303,9 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   const displayType = hierarchyDisplayType(node, children);
   const objectTags = hierarchyObjectTags(node, displayType);
   const plainSummary = hierarchyPlainLanguageSummary(node, displayType, children);
+  const metaSummary = hierarchyMetaSummary(node, children);
+  const showPlainSummary = displayType === "system" || displayType === "subsystem" || (!node?.orbit && displayType !== "star" && displayType !== "planet");
+  const showFactChips = displayType !== "system" && displayType !== "subsystem";
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -2235,14 +2338,18 @@ function HierarchyNodeCard({ node, depth = 0 }) {
                 </span>
               ))}
             </div>
-            <div className="hierarchy-node-summary">
-              {plainSummary}
-            </div>
-            <div className="muted hierarchy-node-meta" aria-label="Hierarchy source labels and child count">
-              {hierarchyMetaSummary(node, children)}
-            </div>
+            {showPlainSummary ? (
+              <div className="hierarchy-node-summary">
+                {plainSummary}
+              </div>
+            ) : null}
+            {metaSummary ? (
+              <div className="muted hierarchy-node-meta" aria-label="Hierarchy source labels and child count">
+                {metaSummary}
+              </div>
+            ) : null}
             {node?.orbit ? <HierarchyOrbitDetails orbit={node.orbit} /> : null}
-            {displayType !== "system" && displayType !== "subsystem" ? (
+            {showFactChips ? (
               <HierarchyFactChips node={node} />
             ) : null}
           </div>
@@ -2272,7 +2379,7 @@ function SystemHierarchyPanel({ hierarchy }) {
   }
   return (
     <section className="panel hierarchy-panel">
-      <h3>Objects in This System</h3>
+      <h3>Stars and Hierarchy</h3>
       <p className="muted">
         This tree shows how stars, planets, and nested subsystems belong together. Expand a row to follow the structure from the whole system down to individual objects and orbits.
       </p>
@@ -3895,7 +4002,7 @@ function SystemDetailPage({ buildId = "" }) {
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
     exclude: [currentSystemDisplayName, system?.system_name],
-    limit: 10,
+    limit: 5,
   });
   const armSummary = system?.arm_evidence_summary || {};
   const systemTags = buildSearchResultTags({
@@ -3903,7 +4010,7 @@ function SystemDetailPage({ buildId = "" }) {
     spectral_classes: Array.from(new Set((stars || [])
       .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().slice(0, 1).toUpperCase())
       .filter(Boolean))),
-  }, { limit: 24 });
+  }, { limit: 12 });
 
   return (
     <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar mapSystem={system} />}>
@@ -3921,7 +4028,7 @@ function SystemDetailPage({ buildId = "" }) {
         <section className="system-detail-hero panel">
           <div className="system-detail-hero-copy">
             <div className="system-detail-title-row">
-              <span className="system-story-kicker">Star Search</span>
+              <span className="system-story-kicker">System Page</span>
               <div className="system-detail-name-line">
                 <h1>{formatText(currentSystemDisplayName)}</h1>
                 <div className="id-line id-line-inline system-detail-ids">
@@ -3972,31 +4079,7 @@ function SystemDetailPage({ buildId = "" }) {
 
         <SystemNarrativeScaffold system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
 
-        <section className="quick-facts system-knowledge-strip">
-          <div>
-            <strong>Distance</strong>
-            <span>{formatNumber(system.dist_ly, 2)} ly ({formatNumber(distanceLyToPc(system.dist_ly), 2)} pc)</span>
-          </div>
-          <div>
-            <strong>Sky Position</strong>
-            <span>RA {formatCoordinate(system.ra_deg)} / Dec {formatCoordinate(system.dec_deg)} deg</span>
-          </div>
-          <div>
-            <strong>Galactic Map XYZ</strong>
-            <span>{formatCoordinate(system.x_helio_ly)}, {formatCoordinate(system.y_helio_ly)}, {formatCoordinate(system.z_helio_ly)} ly</span>
-          </div>
-          <div>
-            <strong>Database Evidence</strong>
-            <span>{formatEvidenceSummary(collectSystemEvidenceCatalogs(system))}</span>
-          </div>
-          <div>
-            <strong>ARM Evidence</strong>
-            <span>
-              {formatNumber(armSummary.stars_with_arm_evidence ?? 0, 0)} stars
-              {armSummary.high_variability_stars ? ` · ${formatNumber(armSummary.high_variability_stars, 0)} high variability` : ""}
-            </span>
-          </div>
-        </section>
+        <SystemAtAGlanceStrip system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
 
         <ConceptExplainerGrid />
 
@@ -4199,9 +4282,10 @@ function SystemDetailPage({ buildId = "" }) {
 
         <details className="panel detail-disclosure">
           <summary>
-            <span>Evidence and Technical Provenance</span>
+            <span>Evidence and Technical Data</span>
             <strong>Source chain</strong>
           </summary>
+          <SystemTechnicalFacts system={system} armSummary={armSummary} />
           <ProvenanceBlock provenance={system.provenance} grouping={system} />
           {system.snapshot ? (
             <div className="snapshot-technical-note">

@@ -685,9 +685,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Define public-experience golden-system review checklist for Tau Ceti,
   TRAPPIST-1, Alpha/Proxima Centauri, Sirius, 55 Cnc, Epsilon Eridani,
   Barnard's Star, Wolf 359, Vega, and Fomalhaut
+- [x] Ship Star Search v2 System Page Beta layout: compact hero, early System
+  Simulation, staged narrative cards, At-a-Glance facts, compact Stars and
+  Hierarchy rows, physical/orbital tooltips, and secondary Evidence and
+  Technical Data
 - [ ] Fix current public-search source/alias coverage gap for Vega /
   Alpha Lyrae / HD 172167 / HIP 91262 so the public UX golden resolves
   correctly
+- [ ] Build Concept Tag Foundation: tag priority tiers, clickable concept-page
+  hooks, complete tooltip/popover audit, and first `/concepts/:slug` pages
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science

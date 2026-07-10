@@ -687,6 +687,12 @@ Implemented foundation:
   search cards, system hierarchy leaves, and System Simulation readouts. The
   first pass covers O/B/A/F/G/K/M/L/T/Y, Wolf-Rayet, white dwarfs, neutron
   stars, pulsars, magnetars, black holes, and an explicit unknown class.
+- July 10, 2026 System Page Beta pass tightens `/systems/{system_id}` around a
+  compact hero, early System Simulation, reader-facing overview cards,
+  At-a-Glance facts, denser Stars and Hierarchy rows, full-name orbital
+  parameter chips, physical-fact tooltips, and secondary Evidence and
+  Technical Data disclosures. Raw catalog rows and coordinates remain
+  available without dominating the first viewport.
 
 Future work:
 

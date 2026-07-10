@@ -7509,13 +7509,13 @@ main {
 }
 
 .system-detail-v2 {
-  gap: 18px;
+  gap: 14px;
 }
 
 .system-detail-hero {
   display: grid;
-  gap: 10px;
-  padding: 14px 18px;
+  gap: 8px;
+  padding: 10px 14px;
 }
 
 .system-detail-hero-copy {
@@ -7542,8 +7542,8 @@ main {
   margin: 0;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 3.2vw, 3.35rem);
-  line-height: 0.98;
+  font-size: clamp(1.5rem, 2.55vw, 2.7rem);
+  line-height: 1;
 }
 
 .system-story-kicker {
@@ -7560,7 +7560,7 @@ main {
   margin: 0;
   color: var(--muted);
   line-height: 1.32;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .system-hero-summary {
@@ -7574,7 +7574,7 @@ main {
 .system-detail-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .system-detail-class-tags {
@@ -7587,8 +7587,8 @@ main {
 .system-fact-pill {
   display: inline-flex;
   align-items: baseline;
-  gap: 7px;
-  padding: 5px 9px;
+  gap: 6px;
+  padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-soft) 74%, transparent);
@@ -7609,14 +7609,14 @@ main {
 .system-fact-pill span {
   color: var(--subtle-ink);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .system-fact-pill strong {
   color: var(--ink);
-  font-size: 0.86rem;
+  font-size: 0.8rem;
 }
 
 .system-detail-ids {
@@ -7663,7 +7663,8 @@ main {
   padding-left: 1.1rem;
 }
 
-.system-knowledge-strip {
+.system-glance-strip,
+.system-technical-strip {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
@@ -7805,19 +7806,19 @@ main {
 
 .hierarchy-tree {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .hierarchy-node {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .hierarchy-node.depth-1,
 .hierarchy-node.depth-2,
 .hierarchy-node.depth-3,
 .hierarchy-node.depth-4 {
-  margin-left: 18px;
+  margin-left: 14px;
 }
 
 .hierarchy-node-card {
@@ -7834,7 +7835,7 @@ main {
   border: none;
   background: transparent;
   color: inherit;
-  padding: 14px 16px;
+  padding: 9px 11px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -7852,7 +7853,7 @@ main {
 
 .hierarchy-node-title-wrap {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -7860,12 +7861,12 @@ main {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 5px;
 }
 
 .hierarchy-node-title-row strong {
   color: var(--ink);
-  font-size: 1rem;
+  font-size: 0.92rem;
 }
 
 .hierarchy-node-kind {
@@ -7873,8 +7874,8 @@ main {
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft));
   color: var(--subtle-ink);
-  padding: 2px 8px;
-  font-size: 0.74rem;
+  padding: 1px 6px;
+  font-size: 0.62rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -7882,14 +7883,14 @@ main {
 .hierarchy-object-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 2px 8px;
+  min-height: 18px;
+  padding: 1px 6px;
   border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--border));
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 10%, var(--surface-soft));
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -7913,8 +7914,8 @@ main {
 .hierarchy-node-summary {
   max-width: 78ch;
   color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.45;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .hierarchy-node-meta,
@@ -7925,21 +7926,21 @@ main {
 .hierarchy-orbit-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 1px;
 }
 
 .hierarchy-orbit-chip {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   max-width: 100%;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border: 1px solid color-mix(in srgb, #ffd36a 44%, var(--border));
   border-radius: 999px;
   background: color-mix(in srgb, #ffd36a 10%, var(--surface-soft));
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.66rem;
   white-space: normal;
 }
 
@@ -7953,26 +7954,26 @@ main {
 
 .hierarchy-orbit-value {
   color: var(--ink);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .hierarchy-fact-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 4px;
+  margin-top: 1px;
 }
 
 .hierarchy-fact-chip {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 5px;
+  padding: 2px 6px;
 }
 
 .hierarchy-fact-chip strong {
   color: var(--ink);
-  font-size: 0.82rem;
+  font-size: 0.68rem;
 }
 
 .hierarchy-fact-chip.status-assumed {
@@ -7980,7 +7981,7 @@ main {
 }
 
 .hierarchy-fact-label {
-  font-size: 0.68rem;
+  font-size: 0.56rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--subtle-ink);
@@ -7988,7 +7989,7 @@ main {
 
 .hierarchy-fact-status {
   color: var(--accent);
-  font-size: 0.62rem;
+  font-size: 0.54rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -7996,7 +7997,7 @@ main {
 
 .hierarchy-toggle {
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -8004,8 +8005,8 @@ main {
 
 .hierarchy-children {
   display: grid;
-  gap: 10px;
-  padding: 0 12px 12px;
+  gap: 8px;
+  padding: 0 10px 10px;
 }
 
 .system-identifiers-row {

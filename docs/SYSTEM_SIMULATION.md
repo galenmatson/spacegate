@@ -593,6 +593,11 @@ Success criteria:
 - Habitable-zone and condensation/freezing-line toggles are grouped in a
   compact Lines disclosure to keep the simulator controls readable while
   retaining tooltips for each line.
+- On Star Search v2 system pages, System Simulation is the primary visual
+  anchor immediately after the compact hero. Reader-facing At-a-Glance facts
+  and narrative cards surround it, while raw coordinates, low-level source
+  provenance, and snapshot metadata live in secondary Evidence and Technical
+  Data disclosures.
 - `scripts/verify_snapshot_fallback.py` verifies that a served build advertises
   map snapshot coverage and that sampled detail snapshot URLs resolve to SVG
   fallback assets
