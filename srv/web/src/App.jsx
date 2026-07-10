@@ -2563,11 +2563,9 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
         )}
         <div className="header-main">
           <div className="header-brand">
-            <div className="header-kicker-line">
+            <div className="header-brand-line">
               <div className="eyebrow">Interstellar Explorer</div>
               <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
-            </div>
-            <div className="title-row">
               <h1><Link to={titleTarget} className="title-link">{APP_DISPLAY_NAME}</Link></h1>
             </div>
           </div>

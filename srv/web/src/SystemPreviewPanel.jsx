@@ -2772,7 +2772,7 @@ function WebGLContextGuard({ onContextLost }) {
 }
 
 function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
-  const { camera, gl } = useThree();
+  const { camera, gl, invalidate } = useThree();
   const controlsRef = React.useRef(null);
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const writeCameraState = useCallback(() => {
@@ -2793,13 +2793,19 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
     controls.panSpeed = 0.55;
     controls.target.set(0, 0, 0);
     controls.saveState();
+    const handleChange = () => {
+      writeCameraState();
+      invalidate();
+    };
+    controls.addEventListener("change", handleChange);
     controlsRef.current = controls;
     writeCameraState();
     return () => {
+      controls.removeEventListener("change", handleChange);
       controls.dispose();
       controlsRef.current = null;
     };
-  }, [camera, gl, writeCameraState]);
+  }, [camera, gl, invalidate, writeCameraState]);
 
   useEffect(() => {
     if (!controlsRef.current) {
@@ -2810,7 +2816,8 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
     controlsRef.current.maxDistance = activeScaleMode === "true_orbits" ? 240 : 70;
     controlsRef.current.zoomSpeed = activeScaleMode === "true_orbits" ? 0.9 : 0.72;
     controlsRef.current.update();
-  }, [activeScaleMode]);
+    invalidate();
+  }, [activeScaleMode, invalidate]);
 
   useEffect(() => {
     if (!controlsRef.current) {
@@ -2822,12 +2829,16 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
     controlsRef.current.reset();
     controlsRef.current.update();
     writeCameraState();
-  }, [camera, resetToken, writeCameraState]);
+    invalidate();
+  }, [camera, invalidate, resetToken, writeCameraState]);
 
   useFrame(() => {
     if (controlsRef.current) {
-      controlsRef.current.update();
+      const changed = controlsRef.current.update();
       writeCameraState();
+      if (changed) {
+        invalidate();
+      }
     }
   });
 

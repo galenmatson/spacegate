@@ -206,8 +206,8 @@ test.describe("public 3D map beta", () => {
     });
     await page.goto("/search?q=Tau%20Ceti&sort=match", { waitUntil: "domcontentloaded" });
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("lcars");
-    await expect(page.locator(".header-kicker-line")).toContainText("Interstellar Explorer");
-    await expect(page.locator(".header-kicker-line")).toContainText("Discover and explore nearby systems, stars, and exoplanets.");
+    await expect(page.locator(".header-brand-line")).toContainText("Interstellar Explorer");
+    await expect(page.locator(".header-brand-line")).toContainText("Discover and explore nearby systems, stars, and exoplanets.");
     await expect(page.locator(".title-link")).toHaveAttribute("href", "/search");
     const headerMenu = page.locator(".header-menu");
     await expect(headerMenu).toBeVisible();
