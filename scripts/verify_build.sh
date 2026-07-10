@@ -551,26 +551,35 @@ sentinel_ranges = {
 sentinel_rows = {}
 for row in con.execute(
     """
-    select e.secondary_component_key, os.semi_major_axis_au, os.period_days
-    from orbit_edges e
+    with sentinel_components as (
+      select
+        lower(trim(ce.display_name)) as body_name,
+        ce.stable_component_key as component_key
+      from component_entities ce
+      where ce.source_catalog = 'sol_authority'
+        and ce.core_object_type = 'planet'
+        and lower(trim(ce.display_name)) in ('ceres', 'mercury')
+
+      union all
+
+      select
+        s.body_name_norm as body_name,
+        s.secondary_component_key as component_key
+      from sol_small_body_objects s
+      where s.body_name_norm in ('vesta', 'pallas', 'juno', 'hebe', 'iris', 'interamnia', 'hector')
+    )
+    select c.body_name, e.secondary_component_key, os.semi_major_axis_au, os.period_days
+    from sentinel_components c
+    join orbit_edges e on e.secondary_component_key = c.component_key
     join orbital_solutions os on os.orbit_edge_id = e.orbit_edge_id
     where os.source_catalog = 'sol_authority'
-      and e.secondary_component_key in (
-        'comp:planet:planet:sol:ceres',
-        'comp:minor_body:sol:vesta',
-        'comp:minor_body:sol:pallas',
-        'comp:minor_body:sol:juno',
-        'comp:minor_body:sol:hebe',
-        'comp:minor_body:sol:iris',
-        'comp:minor_body:sol:interamnia',
-        'comp:minor_body:sol:hector'
-      )
+      and c.body_name in ('ceres', 'vesta', 'pallas', 'juno', 'hebe', 'iris', 'interamnia', 'hector')
     """
 ).fetchall():
-    body_name = str(row[0]).rsplit(":", 1)[-1]
+    body_name = str(row[0])
     sentinel_rows[body_name] = {
-        "semi_major_axis_au": row[1],
-        "orbital_period_days": row[2],
+        "semi_major_axis_au": row[2],
+        "orbital_period_days": row[3],
     }
 for body_name, ranges in sentinel_ranges.items():
     row = sentinel_rows.get(body_name)
@@ -585,11 +594,19 @@ for body_name, ranges in sentinel_ranges.items():
 
 mercury_sma = con.execute(
     """
+    with mercury_component as (
+      select ce.stable_component_key as component_key
+      from component_entities ce
+      where ce.source_catalog = 'sol_authority'
+        and ce.core_object_type = 'planet'
+        and lower(trim(ce.display_name)) = 'mercury'
+      limit 1
+    )
     select os.semi_major_axis_au
-    from orbital_solutions os
-    join orbit_edges e on e.orbit_edge_id = os.orbit_edge_id
-    where e.secondary_component_key = 'comp:planet:planet:sol:mercury'
-      and os.source_catalog = 'sol_authority'
+    from mercury_component m
+    join orbit_edges e on e.secondary_component_key = m.component_key
+    join orbital_solutions os on os.orbit_edge_id = e.orbit_edge_id
+    where os.source_catalog = 'sol_authority'
     limit 1
     """
 ).fetchone()

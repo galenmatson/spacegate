@@ -422,7 +422,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   hosted planet in a multi-star scene
 - [x] Reconcile simple source-native MSC A/B/C render leaves with matching core
   star vitals and bridge catalog-equivalent planet hosts to those render bodies
-- [ ] Reconcile planet-host leaf systems with multiplicity root systems so
+- [x] Reconcile planet-host leaf systems with multiplicity root systems so
   Alpha Centauri can aggregate Proxima Centauri's planets while preserving
   Proxima as a direct searchable/explorable planet-host system
 - [x] Strengthen known-system simulator benchmarks for Castor orbit coverage,

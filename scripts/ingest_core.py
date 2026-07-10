@@ -5430,6 +5430,324 @@ def main() -> int:
         slice_policy_report["counts"]["athyg_supplement_inserted_rows"] = 0
     write_json(reports_dir / "slice_policy_report.json", slice_policy_report)
 
+    # Source-object reconciliation must run after Gaia/alias enrichment but before
+    # root system grouping. MSC can insert a component surrogate early, then a
+    # Gaia backbone row can later receive the same HIP/HD via crosswalks. If we
+    # leave both rows alive, companions such as Proxima can split into a second
+    # root system while the WDS/MSC system retains a duplicate component.
+    log("Source object reconciliation: MSC component surrogates")
+    source_object_reconciliation_started = time.monotonic()
+    con.execute(
+        f"""
+        create temp table msc_source_reconciliation_candidates as
+        with raw_key_matches as (
+          select
+            dup.star_id as duplicate_star_id,
+            target.star_id as surviving_star_id,
+            'hip' as key_namespace
+          from (
+            select *
+            from stars
+            where source_catalog = 'msc'
+              and gaia_id is null
+              and wds_id is not null
+              and hip_id is not null
+          ) dup
+          join (
+            select *
+            from stars
+            where hip_id is not null
+              and source_catalog <> 'msc'
+              and (
+                gaia_id is not null
+                or source_catalog in ('athyg', 'athyg_accepted_supplement', 'sol_authority')
+              )
+          ) target using (hip_id)
+
+          union all
+
+          select
+            dup.star_id as duplicate_star_id,
+            target.star_id as surviving_star_id,
+            'hd' as key_namespace
+          from (
+            select *
+            from stars
+            where source_catalog = 'msc'
+              and gaia_id is null
+              and wds_id is not null
+              and hd_id is not null
+          ) dup
+          join (
+            select *
+            from stars
+            where hd_id is not null
+              and source_catalog <> 'msc'
+              and (
+                gaia_id is not null
+                or source_catalog in ('athyg', 'athyg_accepted_supplement', 'sol_authority')
+              )
+          ) target using (hd_id)
+        ), keyed as (
+          select distinct duplicate_star_id, surviving_star_id
+          from raw_key_matches
+          where duplicate_star_id <> surviving_star_id
+        )
+        select
+          dup.star_id as duplicate_star_id,
+          target.star_id as surviving_star_id,
+          dup.stable_object_key as duplicate_stable_object_key,
+          target.stable_object_key as surviving_stable_object_key,
+          dup.star_name as duplicate_name,
+          target.star_name as surviving_name,
+          dup.hip_id,
+          dup.hd_id,
+          dup.wds_id,
+          dup.component,
+          dup.multiplicity_match_method as duplicate_multiplicity_match_method,
+          target.multiplicity_match_method as surviving_multiplicity_match_method,
+          case
+            when dup.hip_id is not null and target.hip_id = dup.hip_id
+             and dup.hd_id is not null and target.hd_id = dup.hd_id then 4
+            when dup.hip_id is not null and target.hip_id = dup.hip_id then 3
+            when dup.hd_id is not null and target.hd_id = dup.hd_id then 2
+            else 0
+          end as match_score,
+          case
+            when dup.hip_id is not null and target.hip_id = dup.hip_id
+             and dup.hd_id is not null and target.hd_id = dup.hd_id then 'msc_component_reconciled_hip_hd'
+            when dup.hip_id is not null and target.hip_id = dup.hip_id then 'msc_component_reconciled_hip'
+            when dup.hd_id is not null and target.hd_id = dup.hd_id then 'msc_component_reconciled_hd'
+            else 'msc_component_reconciled_unknown'
+          end as match_method,
+          abs(target.dist_ly - dup.dist_ly) as dist_delta_ly,
+          degrees(acos(
+            least(
+              1.0,
+              greatest(
+                -1.0,
+                sin(radians(target.dec_deg)) * sin(radians(dup.dec_deg)) +
+                cos(radians(target.dec_deg)) * cos(radians(dup.dec_deg)) *
+                  cos(radians(least(abs(target.ra_deg - dup.ra_deg), 360.0 - abs(target.ra_deg - dup.ra_deg))))
+              )
+            )
+          )) * 3600.0 as ang_sep_arcsec,
+          json_object(
+            'duplicate_source_catalog', dup.source_catalog,
+            'duplicate_source_pk', dup.source_pk,
+            'surviving_source_catalog', target.source_catalog,
+            'surviving_source_pk', target.source_pk,
+            'wds_id', dup.wds_id,
+            'component', dup.component,
+            'match_guard', 'strong_identifier_with_physical_sanity_v1'
+          ) as evidence_json
+        from keyed k
+        join stars dup on dup.star_id = k.duplicate_star_id
+        join stars target on target.star_id = k.surviving_star_id
+        where (
+            dup.dist_ly is null
+            or target.dist_ly is null
+            or abs(target.dist_ly - dup.dist_ly) <= 2.0
+          )
+          and (
+            dup.ra_deg is null
+            or dup.dec_deg is null
+            or target.ra_deg is null
+            or target.dec_deg is null
+            or degrees(acos(
+              least(
+                1.0,
+                greatest(
+                  -1.0,
+                  sin(radians(target.dec_deg)) * sin(radians(dup.dec_deg)) +
+                  cos(radians(target.dec_deg)) * cos(radians(dup.dec_deg)) *
+                    cos(radians(least(abs(target.ra_deg - dup.ra_deg), 360.0 - abs(target.ra_deg - dup.ra_deg))))
+                )
+              )
+            )) * 3600.0 <= 3600.0
+          )
+          and not (
+            coalesce(target.object_family, '') in ('white_dwarf', 'neutron_star', 'black_hole')
+            and coalesce(dup.object_family, '') not in ('', target.object_family)
+          )
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_source_reconciliation_ranked as
+        select
+          *,
+          row_number() over (
+            partition by duplicate_star_id
+            order by match_score desc, coalesce(dist_delta_ly, 1e18) asc,
+                     coalesce(ang_sep_arcsec, 1e18) asc, surviving_star_id asc
+          ) as duplicate_rank,
+          row_number() over (
+            partition by surviving_star_id
+            order by match_score desc, coalesce(dist_delta_ly, 1e18) asc,
+                     coalesce(ang_sep_arcsec, 1e18) asc, duplicate_star_id asc
+          ) as survivor_rank,
+          count(*) over (partition by duplicate_star_id, match_score) as duplicate_best_score_count,
+          count(*) over (partition by surviving_star_id, match_score) as survivor_best_score_count
+        from msc_source_reconciliation_candidates
+        where match_score >= 2
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_source_reconciliation_matches as
+        select *
+        from msc_source_reconciliation_ranked
+        where duplicate_rank = 1
+          and survivor_rank = 1
+          and duplicate_best_score_count = 1
+          and survivor_best_score_count = 1
+        """
+    )
+    con.execute(
+        """
+        create temp table msc_source_reconciliation_quarantine as
+        select *
+        from msc_source_reconciliation_ranked
+        where duplicate_star_id not in (
+          select duplicate_star_id from msc_source_reconciliation_matches
+        )
+        """
+    )
+    con.execute(
+        f"""
+        create table source_object_reconciliation_quarantine as
+        select
+          row_number() over (
+            order by match_score desc, surviving_star_id, duplicate_star_id
+          )::bigint as quarantine_id,
+          surviving_star_id,
+          duplicate_star_id,
+          surviving_stable_object_key,
+          duplicate_stable_object_key,
+          surviving_name,
+          duplicate_name,
+          'star' as target_type,
+          'msc_component_surrogate' as duplicate_role,
+          match_method,
+          match_score,
+          hip_id,
+          hd_id,
+          wds_id,
+          component,
+          dist_delta_ly,
+          ang_sep_arcsec,
+          duplicate_rank,
+          survivor_rank,
+          duplicate_best_score_count,
+          survivor_best_score_count,
+          evidence_json,
+          {sql_literal(ingested_at)} as created_at
+        from msc_source_reconciliation_quarantine
+        """
+    )
+    con.execute(
+        f"""
+        create table source_object_reconciliation as
+        select
+          row_number() over (
+            order by match_score desc, surviving_star_id, duplicate_star_id
+          )::bigint as reconciliation_id,
+          surviving_star_id,
+          duplicate_star_id,
+          surviving_stable_object_key,
+          duplicate_stable_object_key,
+          surviving_name,
+          duplicate_name,
+          'star' as target_type,
+          'msc_component_surrogate' as duplicate_role,
+          match_method,
+          case
+            when match_score >= 4 then 1.0
+            when match_score = 3 then 0.99
+            else 0.97
+          end::double as match_confidence,
+          hip_id,
+          hd_id,
+          wds_id,
+          component,
+          dist_delta_ly,
+          ang_sep_arcsec,
+          evidence_json,
+          {sql_literal(ingested_at)} as created_at
+        from msc_source_reconciliation_matches
+        """
+    )
+    source_object_reconciliation_count = con.execute(
+        "select count(*) from source_object_reconciliation"
+    ).fetchone()[0]
+    source_object_reconciliation_quarantine_count = con.execute(
+        "select count(distinct duplicate_star_id) from source_object_reconciliation_quarantine"
+    ).fetchone()[0]
+    con.execute(
+        """
+        update stars as target
+        set
+          wds_id = coalesce(target.wds_id, m.wds_id),
+          component = coalesce(nullif(target.component, ''), m.component),
+          multiplicity_match_method = case
+            when coalesce(target.multiplicity_match_method, '') in ('', 'gaia_backbone')
+              then m.match_method
+            when target.multiplicity_match_method like '%' || m.match_method || '%'
+              then target.multiplicity_match_method
+            else target.multiplicity_match_method || '+' || m.match_method
+          end,
+          multiplicity_match_confidence = greatest(
+            coalesce(target.multiplicity_match_confidence, 0.0),
+            cast(m.match_confidence as decimal(3,2))
+          ),
+          multiplicity_source_catalogs_json = case
+            when coalesce(target.multiplicity_source_catalogs_json, '') like '%"msc"%'
+              then target.multiplicity_source_catalogs_json
+            when target.multiplicity_source_catalogs_json is null
+              or target.multiplicity_source_catalogs_json = ''
+              or target.multiplicity_source_catalogs_json = '[]'
+              then '["msc"]'
+            else replace(target.multiplicity_source_catalogs_json, ']', ',"msc"]')
+          end,
+          has_msc_evidence = true,
+          has_wds_evidence = coalesce(target.has_wds_evidence, false) or m.wds_id is not null,
+          catalog_ids_json = json_object(
+            'gaia', target.gaia_id,
+            'hip', target.hip_id,
+            'hd', target.hd_id,
+            'hr', cast(json_extract_string(target.catalog_ids_json, '$.hr') as bigint),
+            'gl', json_extract_string(target.catalog_ids_json, '$.gl'),
+            'tyc', json_extract_string(target.catalog_ids_json, '$.tyc'),
+            'hyg', cast(json_extract_string(target.catalog_ids_json, '$.hyg') as bigint),
+            'wds', coalesce(target.wds_id, m.wds_id),
+            'wds_component', coalesce(nullif(target.component, ''), m.component),
+            'sbx_sn', target.sbx_sn
+          )
+        from source_object_reconciliation m
+        where target.star_id = m.surviving_star_id
+        """
+    )
+    con.execute(
+        """
+        delete from stars
+        where star_id in (
+          select duplicate_star_id from source_object_reconciliation
+        )
+        """
+    )
+    if source_object_reconciliation_count or source_object_reconciliation_quarantine_count:
+        log(
+            "Source object reconciliation: "
+            f"merged={format_count(source_object_reconciliation_count)} "
+            f"quarantined={format_count(source_object_reconciliation_quarantine_count)}"
+        )
+    log_stage_complete(
+        "Source object reconciliation",
+        source_object_reconciliation_started,
+        totals={"source_object_reconciliation": source_object_reconciliation_count},
+    )
+
     alias_total_count = 0
     alias_system_count = 0
     alias_star_count = 0
@@ -6300,6 +6618,9 @@ def main() -> int:
         "wds_gaia_gate_rejected_group_count": wds_gaia_gate_rejected_group_count,
         "wds_gaia_gate_dist_reject_group_count": wds_gaia_gate_dist_reject_group_count,
         "wds_gaia_gate_pm_reject_group_count": wds_gaia_gate_pm_reject_group_count,
+        "source_object_reconciliation_count": source_object_reconciliation_count,
+        "source_object_reconciliation_quarantine_count": source_object_reconciliation_quarantine_count,
+        "source_object_reconciliation_policy": "strong_identifier_with_physical_sanity_v1",
         "proximity_pairs_processed": pair_count,
         "notes": [
             "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
@@ -6318,7 +6639,7 @@ def main() -> int:
                 if enable_sbx
                 else "SBX spectroscopic-binary evidence is disabled (SPACEGATE_ENABLE_SBX=0)."
             ),
-            "MSC matching is conservative in this pass: exact HIP/HD matches only; unmatched MSC components are inserted as new stars.",
+            "MSC matching is conservative: exact HIP/HD matches are reconciled post-enrichment; unresolved MSC components remain inserted as source-native evidence.",
         ],
     }
     write_json(reports_dir / "system_grouping_report.json", system_grouping_report)
@@ -10119,7 +10440,9 @@ def main() -> int:
           (select count(*) from superstellar_objects) as superstellar_objects,
           (select count(*) from eclipsing_binaries) as eclipsing_binaries,
           (select count(*) from object_identifiers) as object_identifiers,
-          (select count(*) from identifier_quarantine) as identifier_quarantine
+          (select count(*) from identifier_quarantine) as identifier_quarantine,
+          (select count(*) from source_object_reconciliation) as source_object_reconciliation,
+          (select count(*) from source_object_reconciliation_quarantine) as source_object_reconciliation_quarantine
         """
     ).fetchone()
 
@@ -10275,6 +10598,11 @@ def main() -> int:
             "gaia_collision_count": identifier_gaia_collision_count,
             "hip_collision_count": identifier_hip_collision_count,
             "hd_collision_count": identifier_hd_collision_count,
+        },
+        "source_object_reconciliation": {
+            "msc_component_surrogate_reconciled_rows": source_object_reconciliation_count,
+            "msc_component_surrogate_quarantined_rows": source_object_reconciliation_quarantine_count,
+            "policy": "strong_identifier_with_physical_sanity_v1",
         },
         "gates": {
             "ambiguous_limit": athyg_merge_ambiguous_limit,
@@ -10640,9 +10968,11 @@ def main() -> int:
             "eclipsing_binaries": counts[7],
             "object_identifiers": counts[8],
             "identifier_quarantine": counts[9],
+            "source_object_reconciliation": counts[10],
             "aliases": alias_total_count,
             "system_aliases": alias_system_count,
             "star_aliases": alias_star_count,
+            "source_object_reconciliation_quarantine": counts[11],
         },
         "object_family_counts": [
             {"object_family": row[0], "count": row[1]} for row in object_family_counts
@@ -10740,6 +11070,8 @@ def main() -> int:
         "athyg_merge_positional_ambiguous_rows": athyg_merge_positional_ambiguous_count,
         "object_identifier_count": object_identifier_count,
         "identifier_quarantine_count": identifier_quarantine_count,
+        "source_object_reconciliation_count": source_object_reconciliation_count,
+        "source_object_reconciliation_quarantine_count": source_object_reconciliation_quarantine_count,
         "identifier_gaia_collision_count": identifier_gaia_collision_count,
         "identifier_hip_collision_count": identifier_hip_collision_count,
         "identifier_hd_collision_count": identifier_hd_collision_count,
@@ -12091,6 +12423,12 @@ def main() -> int:
     )
     con.execute(
         f"COPY (SELECT * FROM identifier_quarantine) TO '{parquet_dir / 'identifier_quarantine.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM source_object_reconciliation) TO '{parquet_dir / 'source_object_reconciliation.parquet'}' (FORMAT 'parquet')"
+    )
+    con.execute(
+        f"COPY (SELECT * FROM source_object_reconciliation_quarantine) TO '{parquet_dir / 'source_object_reconciliation_quarantine.parquet'}' (FORMAT 'parquet')"
     )
     log_stage_complete("Parquet export stage", parquet_stage_started, stage_totals)
 

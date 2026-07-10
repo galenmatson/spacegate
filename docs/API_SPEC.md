@@ -576,6 +576,12 @@ Contract notes:
   rendered stars.
   It is an audit aid derived from the emitted scene objects, not a replacement
   for the objects or their field provenance.
+- Builds may also include core reconciliation audit tables
+  `source_object_reconciliation` and
+  `source_object_reconciliation_quarantine`. These explain source surrogate
+  merges that happened before root-system grouping; they are not returned by
+  default in public scene payloads, but scene membership must reflect their
+  accepted result.
 - `rim` remains excluded from this science endpoint.
 - Missing orbital elements are exposed as missing/assumed readiness fields
   rather than silently filled as canonical data.
@@ -1271,6 +1277,10 @@ Implementation notes:
   proper/Bayer/Flamsteed aliases through HIP/HD/source-row resolution; Sirius A
   is the first reviewed exception and restores `Alpha Canis Majoris` without
   assigning that alias only to Sirius B.
+- source-object reconciliation can cause a member alias to resolve to the
+  owning accepted physical system. For example, `Proxima Centauri` should open
+  the accepted Alpha Centauri system while preserving Proxima as the focused
+  member/source planet host for Proxima b/d.
 - temperature filters use system-level bounds as a pruning step and may still confirm against per-star rows for exact interval semantics.
 - Star Search `star_count` filters and `sort=star_count` use the materialized search facet for fast, stable public browsing. Detail, hierarchy, and simulation payloads may expose richer descendant-aware multiplicity counts from `arm`; a later build-normalization pass should promote the best audited hierarchy count into the search facet.
 - `sort=hottest` and `sort=coolest` use system-level stellar-temperature facets (`max_star_teff_k` and `min_star_teff_k`) when available, falling back to per-star aggregation on legacy builds. Systems without temperature evidence sort last.

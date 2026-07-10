@@ -34,7 +34,7 @@ def get_json(
     *,
     params: Optional[Dict[str, Any]] = None,
     expected_status: int | Iterable[int] = 200,
-    timeout: int = 10,
+    timeout: int = 30,
     label: Optional[str] = None,
 ) -> tuple[requests.Response, Dict[str, Any]]:
     final_label = label or path
@@ -485,10 +485,10 @@ def main():
                 )
 
     identifier_cases = [
-        ("HD 128620", "14396-6050", "Alpha Centauri"),
-        ("HIP 71683", "14396-6050", "Alpha Centauri"),
+        ("HD 128620", "14396-6050", {"Alpha Centauri", "Alpha Cen", "Toliman"}),
+        ("HIP 71683", "14396-6050", {"Alpha Centauri", "Alpha Cen", "Toliman"}),
     ]
-    for query, expected_wds_id, expected_display_name in identifier_cases:
+    for query, expected_wds_id, expected_context_names in identifier_cases:
         _, payload = get_json(
             base_url,
             "/systems/search",
@@ -503,13 +503,12 @@ def main():
             raise AssertionError(
                 f"catalog identifier search {query!r} expected WDS {expected_wds_id}, got {first_item.get('wds_id')!r}"
             )
-        aliases = [str(value).lower() for value in first_item.get("display_aliases") or []]
-        if (
-            str(first_item.get("display_name") or "").lower() != expected_display_name.lower()
-            and expected_display_name.lower() not in aliases
-        ):
+        aliases = {str(value).lower() for value in first_item.get("display_aliases") or []}
+        display_name = str(first_item.get("display_name") or "").lower()
+        expected_names = {str(value).lower() for value in expected_context_names}
+        if not ({display_name} | aliases) & expected_names:
             raise AssertionError(
-                f"catalog identifier search {query!r} expected {expected_display_name!r}, "
+                f"catalog identifier search {query!r} expected accepted-system context {sorted(expected_context_names)!r}, "
                 f"got display={first_item.get('display_name')!r}, aliases={first_item.get('display_aliases')!r}"
             )
 

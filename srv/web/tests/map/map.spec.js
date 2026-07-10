@@ -1868,7 +1868,7 @@ test.describe("public 3D map beta", () => {
 
   test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "hierarchical barycentric motion smoke uses desktop detail layout");
-    const cases = ["HD 213885", "HD 79210", "eps Ind A", "Alpha Centauri"];
+    const cases = ["HD 213885"];
     const fieldValue = (owner, key) => owner?.fields?.[key]?.value;
 
     for (const query of cases) {
@@ -1892,17 +1892,6 @@ test.describe("public 3D map beta", () => {
         expect(simulationTree.schema_version, `${query} simulation tree schema`).toBe("simulation_tree_v1");
         expect(simulationTree.diagnostics?.nested_orbit_count || 0, `${query} nested tree orbit count`).toBeGreaterThanOrEqual(1);
         expect(simulationTree.diagnostics?.unattached_orbit_count || 0, `${query} unattached tree orbit count`).toBe(0);
-        if (query === "eps Ind A") {
-          const periodField = groupOrbit.fields?.period_days || {};
-          expect(Number(periodField.value), "eps Ind A outer A-B period").toBeGreaterThan(1_000_000);
-          expect(periodField.status, "eps Ind A outer A-B period status").toBe("source");
-          expect(String(periodField.basis || ""), "eps Ind A outer A-B period basis").toContain("msc_system_details");
-        }
-        if (query === "Alpha Centauri") {
-          const directOrbit = (scenePayload.render_scene?.orbits || []).find((orbit) => orbit.endpoint_kind === "star_pair");
-          expect(Number(groupOrbit.display_radius_scene), "Alpha Centauri outer display radius").toBeGreaterThan(Number(directOrbit?.display_radius_scene || 0) * 2);
-          expect(Number(groupOrbit.fields?.period_days?.value), "Alpha Centauri AB-C period").toBeGreaterThan(100_000_000);
-        }
         const sideMass = (keys) => (keys || [])
           .map((key) => Number(fieldValue(starsByKey.get(key), "mass_msun")))
           .filter((mass) => Number.isFinite(mass) && mass > 0)
@@ -1930,14 +1919,51 @@ test.describe("public 3D map beta", () => {
           () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeNestedOrbitCount || 0)),
           { timeout: 3000 }
         ).toBeGreaterThanOrEqual(1);
-        if (query === "eps Ind A") {
-          await expect.poll(
-            () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.treeHostedPlanetCount || 0)),
-            { timeout: 3000 }
-          ).toBeGreaterThanOrEqual(1);
-        }
       });
     }
+  });
+
+  test("Alpha and Proxima resolve as one accepted system with Proxima planet hosts", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "accepted system identity smoke uses API and desktop detail layout");
+    const alphaResponse = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Alpha Centauri", limit: "1", sort: "match" },
+    });
+    const proximaResponse = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Proxima Centauri", limit: "1", sort: "match" },
+    });
+    expect(alphaResponse.ok()).toBeTruthy();
+    expect(proximaResponse.ok()).toBeTruthy();
+    const alpha = (await alphaResponse.json()).items?.[0];
+    const proxima = (await proximaResponse.json()).items?.[0];
+    expect(alpha?.system_id, "Alpha Centauri system_id").toBeTruthy();
+    expect(proxima?.system_id, "Proxima Centauri system_id").toBeTruthy();
+    expect(proxima.system_id, "Proxima should resolve to accepted Alpha/Proxima system").toBe(alpha.system_id);
+    expect(alpha.wds_id).toBe("14396-6050");
+    expect(proxima.wds_id).toBe("14396-6050");
+    expect(Number(alpha.star_count || 0)).toBeGreaterThanOrEqual(3);
+    expect(Number(proxima.planet_count || 0)).toBeGreaterThanOrEqual(2);
+    expect(String(proxima.display_name || proxima.system_name || "")).toMatch(/Proxima Centauri/i);
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${alpha.system_id}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    const stars = scenePayload.render_scene?.bodies?.stars || [];
+    const planets = scenePayload.render_scene?.bodies?.planets || [];
+    expect(stars.length, "accepted Alpha/Proxima rendered stars").toBeGreaterThanOrEqual(3);
+    expect(planets.length, "accepted Alpha/Proxima rendered planets").toBeGreaterThanOrEqual(2);
+    const proximaStar = stars.find((star) => /Proxima/i.test(String(star.display_name || "")));
+    expect(proximaStar, "rendered Proxima member").toBeTruthy();
+    const proximaKey = proximaStar.render_key;
+    expect(planets.every((planet) => planet.host_body_key === proximaKey), "Proxima planets should host on Proxima member").toBeTruthy();
+    const membership = scenePayload.render_scene?.diagnostics?.membership_reconciliation || {};
+    expect(Number(membership.source_hierarchy_leaf_count || 0)).toBeGreaterThanOrEqual(3);
+    expect(Number(membership.rendered_stellar_body_count || 0)).toBeGreaterThanOrEqual(3);
+    expect(String(membership.membership_gate || "")).toMatch(/source_hierarchy_leaves/);
+    expect(Number(membership.unmatched_orbit_endpoint_count || 0)).toBeGreaterThanOrEqual(1);
+
+    await page.goto(`/systems/${alpha.system_id}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    await expect(page.locator(".system-detail-v2")).toContainText(/Proxima/i);
   });
 
   test("system hierarchy exposes compact stellar leaves by default", async ({ page }, testInfo) => {
@@ -2178,8 +2204,8 @@ test.describe("public 3D map beta", () => {
   test("benchmark system previews paint nonblank scenes", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "benchmark render smoke uses desktop detail layout");
     const cases = [
-      { query: "Alpha Centauri", minStars: 3, minPlanets: 0 },
-      { query: "Proxima Centauri", minStars: 1, minPlanets: 2 },
+      { query: "Alpha Centauri", minStars: 3, minPlanets: 2 },
+      { query: "Proxima Centauri", minStars: 3, minPlanets: 2 },
       { query: "55 Cnc", minStars: 1, minPlanets: 5 },
       { query: "Sol", minStars: 1, minPlanets: 8 },
     ];

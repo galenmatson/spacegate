@@ -3288,10 +3288,14 @@ def search_systems(
 
     system_ids: List[int] = [int(item["system_id"]) for item in results if item.get("system_id") is not None]
     if system_ids:
-        arm_star_overlay_counts = _fetch_arm_star_overlay_counts_for_systems(
-            con,
-            results,
-            arm_db_path=arm_db_path,
+        arm_star_overlay_counts = (
+            {}
+            if sort == "star_count"
+            else _fetch_arm_star_overlay_counts_for_systems(
+                con,
+                results,
+                arm_db_path=arm_db_path,
+            )
         )
         placeholders = ",".join(["?"] * len(system_ids))
         needs_star_rollup = not (

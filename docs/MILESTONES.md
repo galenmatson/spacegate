@@ -931,13 +931,20 @@ Readiness gaps:
   planet orbits around their render body/group. Playwright now covers hosted
   planet preview paths without requiring Alpha Centauri and Proxima to be
   folded into one rendered system.
-- July 1, 2026 Alpha/Proxima planet-host audit identified a remaining
-  host/root reconciliation gap: Proxima Centauri is correctly preserved as a
-  direct Gaia/name-root planet host with Proxima b/d, while Alpha Centauri's
-  WDS/MSC root includes Proxima as component C but does not yet aggregate those
-  descendant planets. Fix through a provenance-preserving host/component
-  crosswalk and descendant planet rollups, not by flattening the systems or
-  duplicating planet facts.
+- July 10, 2026 source-object reconciliation pass fixes the Alpha/Proxima
+  host/root gap in local canonical build `20260710T144149Z_7989433`: Proxima
+  remains the direct Gaia/source planet host for Proxima Cen b/d, while the
+  enriched Gaia row inherits MSC/WDS component-C evidence and rolls into the
+  accepted Alpha Centauri physical system. The cooker persists accepted
+  surrogate merges in `core.source_object_reconciliation` and ambiguous
+  candidates in `core.source_object_reconciliation_quarantine`; local build,
+  multiplicity goldens, and known-system API checks pass.
+- Follow-up: canonical display-name authority still needs a dedicated pass.
+  The rollup verifier exposed systems whose accepted structure is correct but
+  API hierarchy labels can degrade to Gaia/WDS labels under canonical builds
+  (for example Nu Sco/Sirius/V1054 Oph), and `V1513 Cyg` currently resolves to
+  a confusing V1581 Cyg search hit. Track these under Alias and Preferred
+  Display Name Authority v2 rather than the companion-rollup goal.
 - June 30, 2026 subsystem inspection pass adds renderer-ready subsystem bodies
   and subtle hierarchy-center markers for nodes with multiple rendered stellar
   descendants. Castor now verifies inspectable subsystem bodies such as Castor

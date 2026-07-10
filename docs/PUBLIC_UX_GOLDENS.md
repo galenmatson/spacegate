@@ -15,8 +15,8 @@ simulation quality, and data clarity checks:
 | --- | --- | --- |
 | Tau Ceti | Nearby exoplanet system; layperson narrative benchmark | Resolves |
 | TRAPPIST-1 | Compact seven-planet system; orbital and HZ teaching benchmark | Resolves |
-| Alpha Centauri | Nearest famous multi-star system; map-to-system benchmark | Resolves; Alpha/Proxima planet-host rollup remains future data work |
-| Proxima Centauri | Nearest known exoplanet host; Alpha/Proxima relationship watch item | Resolves separately from Alpha Centauri |
+| Alpha Centauri | Nearest famous multi-star system; map-to-system benchmark | Resolves as the accepted Alpha/Proxima physical system with Proxima planets attached to Proxima |
+| Proxima Centauri | Nearest known exoplanet host; Alpha/Proxima relationship watch item | Resolves into the accepted Alpha Centauri system with Proxima member context |
 | Sirius | Bright public-recognition benchmark with compact companion | Resolves |
 | 55 Cancri | Multi-planet benchmark for search, cards, and simulation ordering | Resolves |
 | Epsilon Eridani | Nearby K-star exoplanet system | Resolves |

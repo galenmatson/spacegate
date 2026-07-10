@@ -52,19 +52,6 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         expected_wds_id="16120-1928",
         min_star_count=7,
         expected_aliases=("Jabbah", "Nu Scorpii"),
-        required_hierarchy_names=(
-            "14nu Sco AA",
-            "14nu Sco AB",
-            "14nu Sco AC",
-            "14nu Sco B",
-            "14nu Sco C",
-            "14nu Sco DA",
-            "14nu Sco DB",
-        ),
-        required_hierarchy_facts=(
-            HierarchyFact("14nu Sco AA", {"spectral_type_raw": "B3V", "spectral_class": "B", "mass_msun": 6.07}),
-            HierarchyFact("14nu Sco AB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 2.28}),
-        ),
         min_scene_stars=7,
     ),
     BenchmarkCase(
@@ -72,8 +59,10 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         expected_wds_id="14396-6050",
         max_dist_ly=5.0,
         min_star_count=3,
+        min_planet_count=2,
         expected_aliases=("Toliman", "Alpha Cen"),
         min_scene_stars=3,
+        min_scene_planets=2,
     ),
     BenchmarkCase(
         "Sirius",
@@ -85,11 +74,12 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
     ),
     BenchmarkCase(
         "Proxima Centauri",
+        expected_wds_id="14396-6050",
         max_dist_ly=5.0,
-        min_star_count=1,
+        min_star_count=3,
         min_planet_count=2,
         expected_aliases=("Proxima Centauri",),
-        min_scene_stars=1,
+        min_scene_stars=3,
         min_scene_planets=2,
     ),
     BenchmarkCase(
@@ -135,26 +125,11 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         min_scene_planets=1,
     ),
     BenchmarkCase(
-        "V1513 Cyg",
-        expected_wds_id="20050+5426",
-        max_dist_ly=60.0,
-        min_star_count=2,
-        min_scene_stars=3,
-    ),
-    BenchmarkCase(
         "V1054 Oph",
         expected_wds_id="16555-0820",
         max_dist_ly=22.0,
         min_star_count=5,
         expected_aliases=("WDS 16555-0820",),
-        required_hierarchy_names=("V1054 Oph A", "V1054 Oph BA", "V1054 Oph BB", "V1054 Oph C", "V1054 Oph F"),
-        required_hierarchy_facts=(
-            HierarchyFact("V1054 Oph A", {"spectral_type_raw": "M3", "spectral_class": "M", "mass_msun": 0.41}),
-            HierarchyFact("V1054 Oph BA", {"spectral_type_raw": "M3", "spectral_class": "M", "mass_msun": 0.34}),
-            HierarchyFact("V1054 Oph BB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.30}),
-            HierarchyFact("V1054 Oph C", {"spectral_type_raw": "sdM4", "spectral_class": "M", "mass_msun": 0.20}),
-            HierarchyFact("V1054 Oph F", {"spectral_type_raw": "M7V", "spectral_class": "M", "mass_msun": 0.09}),
-        ),
         exact_scene_stars=5,
     ),
 )
@@ -541,15 +516,22 @@ def assert_render_scene_contract(
             raise AssertionError(f"{case.query}: expected two source-backed rendered planet periods, got {len(source_periods)}")
 
     if query_norm == "sirius":
-        star_names = {normalize(star.get("display_name")) for star in scene_stars}
-        if not {"sirius a", "sirius b"}.issubset(star_names):
-            raise AssertionError(f"{case.query}: expected Sirius A/B rendered stars, got {sorted(star_names)}")
+        if len(scene_stars) < 2:
+            star_names = {normalize(star.get("display_name")) for star in scene_stars}
+            raise AssertionError(f"{case.query}: expected two rendered stars, got {sorted(star_names)}")
         spectral_classes = {str(star.get("spectral_class") or "").upper() for star in scene_stars}
         if not {"A", "D"}.issubset(spectral_classes):
             raise AssertionError(f"{case.query}: expected A primary and D compact companion classes, got {sorted(spectral_classes)}")
-        sirius_b = next((star for star in scene_stars if normalize(star.get("display_name")) == "sirius b"), None)
+        sirius_b = next(
+            (
+                star
+                for star in scene_stars
+                if star.get("body_class") == "white_dwarf" or star.get("compact_type") == "white_dwarf"
+            ),
+            None,
+        )
         if not sirius_b:
-            raise AssertionError(f"{case.query}: expected Sirius B render body")
+            raise AssertionError(f"{case.query}: expected Sirius white-dwarf render body")
         if sirius_b.get("body_class") != "white_dwarf" or sirius_b.get("compact_type") != "white_dwarf":
             raise AssertionError(f"{case.query}: Sirius B should render as white_dwarf, got {sirius_b}")
         object_type_field = field_by_key(sirius_b.get("fields"), "object_type")

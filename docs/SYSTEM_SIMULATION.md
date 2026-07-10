@@ -56,13 +56,12 @@ Already in place:
 - simple source-native component leaves such as MSC A/B/C labels can reuse
   matching core star vitals for rendering, and catalog-equivalent core star
   IDs may bridge planet hosts onto those rendered source-native components
-- current builds still keep some planet-host leaf systems separate from their
-  wider multiplicity roots. Alpha Centauri / Proxima Centauri is the benchmark:
-  Proxima is both a directly searchable planet-host system and Alpha Centauri C
-  in the WDS/MSC hierarchy, but Alpha's root-level planet rollup does not yet
-  aggregate Proxima b/d. The intended fix is a provenance-preserving
-  host/component crosswalk plus descendant planet rollups, not blind planet
-  duplication or loss of the direct Proxima host view.
+- source object identity and accepted root-system membership are separate.
+  Alpha Centauri / Proxima Centauri is the benchmark: Proxima remains the
+  direct Gaia/source object and planet host for Proxima b/d while MSC/WDS
+  component-C evidence rolls it into the accepted Alpha Centauri physical
+  system. Search aliases may focus Proxima while opening the owning accepted
+  system.
 - stellar render bodies preserve compact-object classification through
   `body_class`, nullable `compact_type`, and a source-backed `object_type`
   provenance field while keeping `object_type="star"` as the render role
@@ -86,6 +85,12 @@ Already in place:
   `render_scene.diagnostics.membership_reconciliation`, including source leaf
   count, rendered stellar body count, active membership gate, and unmatched
   endpoint keys.
+- Source-object reconciliation runs before root-system grouping. Reconciled MSC
+  component surrogates are audited in `core.source_object_reconciliation`, while
+  ambiguous candidates are retained in
+  `core.source_object_reconciliation_quarantine`. The simulator consumes the
+  resulting accepted membership graph; it must not recreate duplicate rendered
+  bodies from quarantined or unmatched source rows.
 - Rendered stellar bodies expose `fields.visual_stellar_class` as the material
   and label class used by the simulator. Source spectral evidence wins, then
   defensible temperature/color constraints, compact-object evidence overrides

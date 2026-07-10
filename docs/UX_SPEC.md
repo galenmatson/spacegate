@@ -237,6 +237,10 @@ Rules:
 - Canonical Flamsteed names such as `55 Cnc` should not be displaced by a Bayer
   expansion unless another stronger public name exists.
 - Gaia/WDS/HIP/HD identifiers should remain copyable but secondary.
+- A query for a member alias may open the owning accepted physical system while
+  preserving member context. Example: `Proxima Centauri` should resolve into
+  the accepted Alpha Centauri system, with Proxima still visible as the member
+  planet host for Proxima b/d.
 
 Known current public source/alias coverage gap:
 

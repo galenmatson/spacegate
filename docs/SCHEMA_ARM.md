@@ -100,6 +100,15 @@ Constraints:
   - `edge_kind='contains'` must remain acyclic
   - each child may have one canonical containment parent for navigation; additional links must use non-containment edge types
 
+Source-object boundary:
+- `core.source_object_reconciliation` may remove duplicate source surrogates
+  before root-system grouping, but ARM remains responsible for relationship
+  evidence, hierarchy edges, orbital edges, alternate solutions, and diagnostics
+  over the surviving accepted source objects.
+- Unmatched or quarantined source-object reconciliation candidates must not be
+  promoted into ARM hierarchy membership unless later accepted by a reviewed
+  source/override path.
+
 ## `orbit_edges`
 
 Dynamic relationships used for orbital reconstruction.

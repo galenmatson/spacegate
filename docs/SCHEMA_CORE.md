@@ -521,6 +521,68 @@ Contract notes:
 - quarantined rows are excluded from automatic upsert/insert passes.
 - quarantine volume is bounded by QC gate thresholds and must fail build promotion when exceeded.
 
+## `source_object_reconciliation`
+
+Audit table for source rows that were proven to be duplicate physical-object
+surrogates after late identifier enrichment. The first materialized policy is
+`strong_identifier_with_physical_sanity_v1`, used to reconcile MSC component
+surrogates onto enriched Gaia/accepted source rows before root-system grouping.
+
+Required columns:
+
+- `reconciliation_id`
+- `surviving_star_id`
+- `duplicate_star_id`
+- `surviving_stable_object_key`
+- `duplicate_stable_object_key`
+- `surviving_name`
+- `duplicate_name`
+- `target_type`
+- `duplicate_role`
+- `match_method` (`msc_component_reconciled_hip_hd`, `msc_component_reconciled_hip`, ...)
+- `match_confidence`
+- `hip_id` / `hd_id` / `wds_id` / `component`
+- `dist_delta_ly`
+- `ang_sep_arcsec`
+- `evidence_json`
+- `created_at`
+
+Contract notes:
+
+- reconciliation preserves the surviving source object identity and removes
+  only the duplicate surrogate row before system grouping.
+- reconciled MSC/WDS component evidence is copied onto the surviving star as
+  multiplicity evidence; it does not overwrite Gaia/source object identity.
+- ambiguous candidates are excluded from automatic merge and materialized in
+  `source_object_reconciliation_quarantine`.
+- Alpha Centauri / Proxima Centauri is the benchmark: the Gaia Proxima row
+  remains the planet host while inheriting the MSC/WDS component-C evidence
+  needed to roll into the accepted Alpha Centauri physical system.
+
+## `source_object_reconciliation_quarantine`
+
+Rows considered for source-object reconciliation but withheld because the
+candidate was ambiguous or failed one-to-one ranking.
+
+Required columns:
+
+- `quarantine_id`
+- all source/survivor identity fields from `source_object_reconciliation`
+- `match_score`
+- `duplicate_rank`
+- `survivor_rank`
+- `duplicate_best_score_count`
+- `survivor_best_score_count`
+- `evidence_json`
+- `created_at`
+
+Contract notes:
+
+- quarantined candidates are diagnostics only; they must not affect root
+  system membership.
+- quarantine counts are reported in `identifier_report.json`,
+  `system_grouping_report.json`, and build QC counts.
+
 ## `planets`
 
 Exoplanet records matched to canonical hosts, including lifecycle states that are not default-visible.

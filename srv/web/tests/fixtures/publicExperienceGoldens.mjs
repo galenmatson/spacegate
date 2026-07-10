@@ -23,9 +23,10 @@ export const PUBLIC_EXPERIENCE_GOLDENS = [
   {
     id: "proxima_centauri",
     query: "Proxima Centauri",
-    expectedNamePattern: /Proxima Centauri/i,
+    expectedNamePattern: /Alpha Centauri|Proxima Centauri|alp1 Cen/i,
+    minStars: 3,
     minPlanets: 2,
-    reason: "Nearest known exoplanet host and Alpha/Proxima host-rollup watch item.",
+    reason: "Nearest known exoplanet host; should resolve into the accepted Alpha/Proxima physical system.",
   },
   {
     id: "sirius",

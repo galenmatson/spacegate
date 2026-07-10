@@ -362,6 +362,17 @@ Current rules:
   - distance spread threshold
   - proper-motion spread threshold
   - match angular-distance threshold
+- post-enrichment source-object reconciliation runs before system grouping:
+  - duplicate MSC component surrogates may be reconciled onto enriched
+    Gaia/accepted source stars only through strong HIP/HD evidence plus
+    physical sanity checks
+  - accepted reconciliations are persisted in
+    `core.source_object_reconciliation`
+  - ambiguous candidates are persisted in
+    `core.source_object_reconciliation_quarantine`, not merged
+  - Alpha Centauri / Proxima Centauri is the benchmark: Proxima remains the
+    direct Gaia/source planet host while rolling into the accepted Alpha
+    Centauri physical system through MSC/WDS component-C evidence
 
 ### Systems of systems
 Architecture target:
@@ -906,6 +917,10 @@ Notes:
   - constrained positional fallback (single-candidate only)
 - Ambiguous or conflicting rows are materialized in `identifier_quarantine` (not auto-merged).
 - Identifier edges are persisted in `object_identifiers` with method/confidence/source provenance.
+- Duplicate source-object surrogates that become provable only after late
+  identifier enrichment are reconciled in `source_object_reconciliation` before
+  root-system grouping; rejected candidates are retained in
+  `source_object_reconciliation_quarantine`.
 - QC gates now fail the build when identifier ambiguity or namespace-collision thresholds are exceeded.
 - Duplicate stewardship now includes a dedicated duplicate-trap pass:
   - exact-key duplicate checks (`gaia_id`, `hip_id`, `hd_id`, `wds_id+component`, `source_catalog+source_pk`, `stable_object_key`)

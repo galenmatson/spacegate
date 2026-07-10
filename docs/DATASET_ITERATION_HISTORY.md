@@ -8,7 +8,7 @@ Use this as the historical ledger for:
 - how duplicate, omission, and naming defects were corrected
 - which safety/QC gates were introduced after each incident class
 
-## Current End State (as of 2026-03)
+## Current End State (as of 2026-07)
 
 - Gaia-first canonical backbone for stars
 - NASA canonical baseline for planets
@@ -20,6 +20,7 @@ Use this as the historical ledger for:
 - default catalog transport hardened to HTTPS for default-on sources
 - Sol authority S1+S4: canonical Sol/subplanet bootstrap in core plus moon/minor-body/artificial hierarchy+orbit overlays in arm
 - Sol volatile-feed refresh runbook and staleness monitoring report
+- Post-enrichment source-object reconciliation for duplicate MSC component surrogates, preserving Gaia/source identity while rolling accepted companions such as Alpha Centauri/Proxima into one physical system.
 
 ## Catalog Attempt Ledger (v1.2 Closeout)
 
@@ -182,10 +183,22 @@ Representative commits:
 Representative commits:
 - pending (feature/v1-2-packs-foundation working set)
 
+### 13) Source-Object Companion Rollup
+
+- Added a post-enrichment reconciliation stage for duplicate MSC component surrogate rows that already have stronger Gaia/accepted source rows in the same build.
+- Reconciliation is keyed through deterministic identifier evidence such as HIP/HD, then guarded by distance, angular separation, compact/remnant consistency, and one-to-one ambiguity checks.
+- Preserves the surviving Gaia/source star identity and deletes the duplicate MSC surrogate before root-system grouping, while carrying forward WDS/component evidence and source-catalog provenance.
+- Emits `source_object_reconciliation` and `source_object_reconciliation_quarantine` artifacts plus build/report counts for auditability.
+- Alpha Centauri / Proxima Centauri benchmark: Proxima now resolves into the accepted WDS 14396-6050 system with Alpha Cen A/B, while Proxima b/d remain explicitly hosted by the Proxima member star.
+- Remaining orbit endpoint conflicts, display-name gaps, and ambiguous candidate merges are preserved as diagnostics/follow-up work rather than silently promoted.
+
+Representative commits:
+- pending (system identity / companion-rollup working set)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
-- Mitigated with deterministic identifier merge, quarantine tables, and duplicate-trap QC gates.
+- Mitigated with deterministic identifier merge, source-object reconciliation, quarantine tables, and duplicate-trap QC gates.
 
 2. False/weak multiplicity grouping:
 - Mitigated with nondefault proximity grouping and physical consistency gating on bridge evidence.
