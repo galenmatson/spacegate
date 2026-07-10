@@ -954,6 +954,7 @@
 
 .map-header-menu {
   position: relative;
+  z-index: 150;
   flex: 0 0 auto;
 }
 
@@ -1005,7 +1006,7 @@
 
 .map-header-menu-panel {
   position: absolute;
-  z-index: 80;
+  z-index: 160;
   top: calc(100% + 8px);
   right: 0;
   display: grid;
@@ -1980,11 +1981,11 @@
 }
 
 :root[data-theme="lcars"] .map-header-menu {
-  z-index: 40;
+  z-index: 150;
 }
 
 :root[data-theme="lcars"] .map-header-menu-panel {
-  z-index: 90;
+  z-index: 160;
   top: calc(100% + 30px);
   overflow: visible;
   border-radius: 24px 0 0 24px;
@@ -3990,6 +3991,19 @@ body {
   text-decoration: none;
 }
 
+.title-link-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.title-brand-mark {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+}
+
 .title-link:hover {
   text-decoration: underline;
   text-underline-offset: 0.12em;
@@ -4133,6 +4147,7 @@ body {
   display: flex;
   justify-content: center;
   width: 100%;
+  margin-top: 12px;
 }
 
 .header-search-row {
@@ -8168,21 +8183,21 @@ main {
   right: 12px;
   bottom: 58px;
   left: auto;
-  width: min(330px, 30vw);
+  width: min(292px, 26vw);
   display: block;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
-.map-system-drill-explore .system-preview-readout > .system-preview-object-list {
+.map-system-drill.map-system-drill-explore .system-preview-readout > .system-preview-object-list {
   height: 100%;
   max-height: none;
-  padding: 6px;
+  padding: 0;
   border: 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg) 8%, transparent);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
-  backdrop-filter: blur(2px);
+  backdrop-filter: none;
   pointer-events: auto;
 }
 
@@ -8190,10 +8205,46 @@ main {
   opacity: 0.72;
 }
 
-.map-system-drill-explore .system-preview-object-chip {
+.map-system-drill.map-system-drill-explore .system-preview-object-chip {
+  width: calc(100% - (var(--object-depth, 0) * 7px));
+  margin-left: calc(var(--object-depth, 0) * 7px);
+  min-height: 16px;
+  padding: 1px 4px;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 3px;
   border-color: color-mix(in srgb, var(--map-hud-border) 16%, transparent);
   background: color-mix(in srgb, var(--bg) 7%, transparent);
   backdrop-filter: blur(2px);
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-object-list {
+  gap: 2px;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-object-list-title {
+  margin-bottom: 1px;
+  font-size: 0.58rem;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-object-name {
+  font-size: 0.62rem;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-object-kind,
+.map-system-drill.map-system-drill-explore .system-preview-object-vital {
+  font-size: 0.5rem;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-object-chip .stellar-class-chip {
+  min-width: 14px;
+  min-height: 14px;
+  padding: 0 3px;
+  font-size: 0.48rem;
+  line-height: 1;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-object-spacer {
+  width: 14px;
 }
 
 .map-system-drill-explore .system-preview-object-vital:nth-of-type(n + 3) {
@@ -8893,6 +8944,30 @@ main {
 .system-preview-object-spacer {
   display: inline-block;
   width: 16px;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-readout > div.system-preview-object-list:not(.system-preview-evidence):not(.system-preview-policy) {
+  display: grid;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  align-content: start;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  pointer-events: auto;
+}
+
+.map-system-drill.map-system-drill-explore .system-preview-readout > div.system-preview-object-list:not(.system-preview-evidence):not(.system-preview-policy) .system-preview-object-chip {
+  min-height: 16px;
+  padding: 1px 4px;
+  gap: 3px;
 }
 
 .system-preview-diagnostics summary {

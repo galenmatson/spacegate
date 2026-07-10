@@ -2564,9 +2564,14 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
         <div className="header-main">
           <div className="header-brand">
             <div className="header-brand-line">
+              <h1>
+                <Link to={titleTarget} className="title-link title-link-brand">
+                  <img src="/favicon.svg" alt="" className="title-brand-mark" aria-hidden="true" />
+                  <span>{APP_DISPLAY_NAME}</span>
+                </Link>
+              </h1>
               <div className="eyebrow">Interstellar Explorer</div>
               <p className="header-subtitle">Discover and explore nearby systems, stars, and exoplanets.</p>
-              <h1><Link to={titleTarget} className="title-link">{APP_DISPLAY_NAME}</Link></h1>
             </div>
           </div>
           <div className="header-side">
@@ -2576,9 +2581,9 @@ function Layout({ children, headerExtra = null, showSearchLink = true, buildId =
                 {!isLcars && headerMenu}
               </div>
             </div>
-            {headerExtra && <div className="header-lower">{headerExtra}</div>}
           </div>
         </div>
+        {headerExtra && <div className="header-lower">{headerExtra}</div>}
       </header>
       <main>{children}</main>
     </div>
