@@ -437,7 +437,7 @@ def _object_public_system_payload(system_id: int) -> Dict[str, Any]:
     system["snapshot"] = snapshot
     system["aliases"] = aliases
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
-    system_display_name, system_display_aliases = choose_display_name(system.get("system_name"), aliases)
+    system_display_name, system_display_aliases = choose_display_name(system.get("system_name"), aliases, root_system=True)
     system["display_name"] = system_display_name
     system["display_aliases"] = system_display_aliases
     for star in stars:
@@ -5363,6 +5363,7 @@ def system_detail(system_id: int):
     system_display_name, system_display_aliases = choose_display_name(
         system.get("system_name"),
         aliases,
+        root_system=True,
     )
     system["display_name"] = system_display_name
     system["display_aliases"] = system_display_aliases
@@ -5453,6 +5454,7 @@ def system_detail_by_key(stable_object_key: str):
     system_display_name, system_display_aliases = choose_display_name(
         system.get("system_name"),
         aliases,
+        root_system=True,
     )
     system["display_name"] = system_display_name
     system["display_aliases"] = system_display_aliases

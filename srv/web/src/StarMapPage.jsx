@@ -502,7 +502,7 @@ function prepareMapItems(rawItems, frame = "icrs") {
       const dominant = String(item.dominant_spectral_class || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
       return {
         ...item,
-        display_name: formatName(item.system_name),
+        display_name: systemDisplayName(item),
         dominant_spectral_class: SPECTRAL_COLORS[dominant] ? dominant : "UNKNOWN",
         scene_position: mapToScenePosition(item, frame),
         map_priority: priorityForSystem(item),

@@ -17,6 +17,7 @@ class AliasCase:
     min_star_count: int | None = None
     min_planet_count: int | None = None
     expected_names: tuple[str, ...] = ()
+    expected_display_name: str | None = None
     forbidden_display_names: tuple[str, ...] = ()
     expected_matched_aliases: tuple[str, ...] = ()
     allow_unresolved: bool = False
@@ -32,6 +33,7 @@ ALIAS_CASES: tuple[AliasCase, ...] = (
         min_star_count=3,
         min_planet_count=2,
         expected_names=("Alpha Centauri", "Toliman", "Alpha Cen"),
+        expected_display_name="Alpha Centauri",
     ),
     AliasCase(
         "Proxima Centauri",
@@ -167,6 +169,10 @@ def verify_case(base_url: str, case: AliasCase) -> None:
         raise AssertionError(f"{case.query!r} resolved to forbidden names {sorted(names & forbidden)}: {first!r}")
 
     display_name = normalize(first.get("display_name"))
+    if case.expected_display_name and display_name != normalize(case.expected_display_name):
+        raise AssertionError(
+            f"{case.query!r} expected display_name {case.expected_display_name!r}, got {first.get('display_name')!r}"
+        )
     forbidden_display = {normalize(value) for value in case.forbidden_display_names}
     if display_name in forbidden_display:
         raise AssertionError(f"{case.query!r} displayed forbidden primary name {first.get('display_name')!r}")
@@ -202,6 +208,45 @@ def verify_case(base_url: str, case: AliasCase) -> None:
             )
 
 
+def verify_alpha_centauri_surfaces(base_url: str) -> None:
+    search_payload = get_json(
+        base_url,
+        "/systems/search",
+        params={"q": "Alpha Centauri", "limit": 1, "sort": "match"},
+    )
+    search_item = (search_payload.get("items") or [None])[0]
+    if not isinstance(search_item, dict):
+        raise AssertionError("Alpha Centauri search returned no item")
+    system_id = search_item.get("system_id")
+    if not system_id:
+        raise AssertionError(f"Alpha Centauri search returned no system_id: {search_item!r}")
+    if search_item.get("display_name") != "Alpha Centauri":
+        raise AssertionError(f"Alpha Centauri search display mismatch: {search_item.get('display_name')!r}")
+
+    detail_payload = get_json(base_url, f"/systems/{system_id}")
+    detail_system = detail_payload.get("system") or {}
+    if detail_system.get("display_name") != "Alpha Centauri":
+        raise AssertionError(f"Alpha Centauri detail display mismatch: {detail_system.get('display_name')!r}")
+
+    scene_payload = get_json(base_url, f"/systems/{system_id}/simulation-scene", timeout=40)
+    scene_system = scene_payload.get("system") or {}
+    if scene_system.get("display_name") != "Alpha Centauri":
+        raise AssertionError(f"Alpha Centauri simulation-scene display mismatch: {scene_system.get('display_name')!r}")
+
+    map_payload = get_json(
+        base_url,
+        "/map/systems",
+        params={"max_dist_ly": 5, "limit": 2000, "compact": "true"},
+        timeout=40,
+    )
+    map_items = map_payload.get("items") or []
+    map_item = next((item for item in map_items if item.get("system_id") == system_id), None)
+    if not map_item:
+        raise AssertionError("Alpha Centauri not found in 5 ly map payload")
+    if map_item.get("display_name") != "Alpha Centauri":
+        raise AssertionError(f"Alpha Centauri map display mismatch: {map_item.get('display_name')!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify Spacegate alias authority and preferred display-name behavior.")
     parser.add_argument("base_url", nargs="?", default="http://127.0.0.1:8000/api/v1")
@@ -215,6 +260,13 @@ def main() -> int:
         except Exception as exc:
             failures.append(f"{case.query}: {exc}")
             print(f"FAIL alias {case.query}: {exc}", file=sys.stderr)
+
+    try:
+        verify_alpha_centauri_surfaces(args.base_url.rstrip("/"))
+        print("ok alias Alpha Centauri surface consistency")
+    except Exception as exc:
+        failures.append(f"Alpha Centauri surface consistency: {exc}")
+        print(f"FAIL alias Alpha Centauri surface consistency: {exc}", file=sys.stderr)
 
     if failures:
         print("\nAlias authority verification failures:", file=sys.stderr)

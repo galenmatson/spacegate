@@ -418,6 +418,7 @@ def choose_display_name(
     *,
     alt_limit: int = 8,
     preferred_query_norm: Optional[str] = None,
+    root_system: bool = False,
 ) -> Tuple[str, List[str]]:
     canonical = _clean_name(canonical_name)
     alias_rows = [row for row in aliases if _clean_name(row.get("alias_raw"))]
@@ -458,7 +459,18 @@ def choose_display_name(
     else:
         full_expanded_alias: Optional[str] = None
         full_expanded_rank: Optional[Tuple[int, int, int, str]] = None
-        if _is_abbreviated_bayer_name(canonical):
+        member_proper_names = {
+            _name_norm(row.get("alias_raw"))
+            for row in alias_rows
+            if str(row.get("alias_kind") or "").strip() in {"proper_name", "member_proper_name"}
+            and _name_norm(row.get("alias_raw"))
+        }
+        prefer_group_bayer_name = (
+            root_system
+            and _is_catalog_style_name(canonical)
+            and len(member_proper_names) > 1
+        )
+        if _is_abbreviated_bayer_name(canonical) or prefer_group_bayer_name:
             for row, candidate in zip(ordered_name_rows, ordered_names):
                 if not _is_full_expanded_bayer_alias(row, candidate):
                     continue
@@ -885,6 +897,46 @@ def fetch_map_systems(
         if item["star_count"] > 1:
             multi_star_systems += 1
         items.append(item)
+
+    system_ids = [int(item["system_id"]) for item in items if item.get("system_id") is not None]
+    if system_ids and _has_local_table(con, "aliases"):
+        placeholders = ",".join(["?"] * len(system_ids))
+        alias_rows = con.execute(
+            f"""
+            SELECT
+              system_id,
+              alias_raw,
+              alias_kind,
+              alias_priority
+            FROM aliases
+            WHERE target_type = 'system'
+              AND system_id IN ({placeholders})
+            ORDER BY system_id ASC, alias_priority ASC, alias_kind ASC, alias_raw ASC
+            """,
+            system_ids,
+        ).fetchall()
+        aliases_by_system: Dict[int, List[Dict[str, Any]]] = {}
+        for system_id, alias_raw, alias_kind, alias_priority in alias_rows:
+            aliases_by_system.setdefault(int(system_id), []).append(
+                {
+                    "alias_raw": alias_raw,
+                    "alias_kind": alias_kind,
+                    "alias_priority": alias_priority,
+                }
+            )
+        for item in items:
+            display_name, display_aliases = choose_display_name(
+                item.get("system_name"),
+                aliases_by_system.get(int(item.get("system_id") or 0), []),
+                alt_limit=4,
+                root_system=True,
+            )
+            item["display_name"] = display_name
+            if not compact:
+                item["display_aliases"] = display_aliases
+    else:
+        for item in items:
+            item["display_name"] = _clean_name(item.get("system_name"))
 
     total_available = int(
         con.execute(
@@ -3513,6 +3565,7 @@ def search_systems(
                     item.get("system_name"),
                     system_aliases.get(sid, []),
                     preferred_query_norm=q_norm if match_mode else None,
+                    root_system=True,
                 )
                 item["display_name"] = display_name
                 item["display_aliases"] = display_aliases
