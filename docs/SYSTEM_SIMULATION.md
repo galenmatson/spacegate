@@ -37,6 +37,10 @@ Already in place:
   win first, MSC system-row periods win second, projected MSC separation plus
   endpoint masses may produce a low-confidence Kepler estimate third, and only
   then does the renderer use a bounded DISC visual period fallback.
+- orbit rows expose policy diagnostics so tests and UI can distinguish
+  source-backed direct orbits, source-backed group/barycenter orbits,
+  DERIVED Kepler presentation estimates, ASSUMED visual orbit fields, and
+  two-star visual-binary fallbacks.
 - `render_scene_v0.2` reconciles body lists against canonical hierarchy when
   hierarchy exposes richer physical membership than direct core rows or ARM
   orbit endpoints alone
@@ -217,6 +221,13 @@ Already in place:
   make that mapping deterministic. This lets source-backed wide hierarchical
   orbits animate through `simulation_tree_v1` instead of degrading to static
   sibling layout.
+- source hierarchy descendants are preferred when resolving source group
+  endpoints to rendered leaves. Label-based bridges are secondary and are used
+  only when they resolve inside the accepted system without ambiguity.
+- orbit rows may include a DERIVED `projected_separation_au` field computed
+  from source angular separation and system distance. The simulator can use it
+  for broad visual scale and rough Kepler presentation periods, but it is not
+  a fitted semi-major axis and must not be displayed as a source orbit.
 - when a simulation-tree node has multiple children but no source-backed orbit
   solution, the browser gives those child groups a small static, mass-weighted
   presentation separation instead of stacking them at the barycenter. This is
@@ -227,6 +238,11 @@ Already in place:
   source orbit edge. This is a DISC presentation assumption for legibility
   only, useful for compact-companion scenes such as Sirius until a reviewed
   orbit edge/solution is available.
+- deterministic visual wide-orbit assumptions are allowed only as
+  render-scene/DISC presentation fields with explicit ASSUMED provenance.
+  They may provide phase, eccentricity, inclination, period, and visual
+  separation for motion/readability, but never create core facts or ARM source
+  orbit solutions.
 - ARM `planetary_orbit` edges and `source_native_planet_orbit` solutions for
   currently host-linked NASA Exoplanet Archive and Sol authority planet rows
 - Sol hierarchy/orbit arm rows for planets, moons, selected small bodies, and

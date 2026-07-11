@@ -140,6 +140,10 @@ Notes:
   than physical leaf stars. Renderers must preserve that distinction, for
   example by drawing cluster orbit guides instead of reclassifying a group edge
   as a direct binary star orbit.
+- Source-native wide/group endpoints may be reconciled to rendered barycenter
+  leaf sets when `system_hierarchy_edges` makes the descendant set
+  deterministic. This reconciliation is a render/API bridge over ARM
+  hierarchy evidence, not a source-object merge or a suffix-only inference.
 - MSC `sys.tsv` and `orb.tsv` rows may both create deterministic `binary` or
   `hierarchical_pair` edges when the host and both endpoint component keys
   resolve. `orb.tsv` rows that do not resolve remain diagnostics; they must not
@@ -203,6 +207,11 @@ Rule:
 - ORB6 solutions may be attached only when the source row can be mapped safely to a unique binary edge for a WDS-linked system; otherwise keep the source-native row outside generic orbital reconstruction flows.
 - illustrative orbit defaults for rendering belong in `disc` assumptions until
   they are backed by reviewed source or derived `arm` rows.
+- Projected-separation support values computed from angular separation and
+  distance are derived presentation support fields. They may help
+  `/simulation-scene` choose visual scale or low-confidence Kepler
+  presentation periods, but they are not fitted `semi_major_axis_au`
+  measurements and must not replace source orbital solutions.
 
 ## `stellar_parameters`
 

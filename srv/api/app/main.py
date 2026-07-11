@@ -2022,6 +2022,28 @@ def _render_scene_contract(
         stable_key = str(star.get("stable_object_key") or "").strip()
         if system_wds_id and label and stable_key:
             render_key_by_wds_label.setdefault((system_wds_id, label), f"comp:star:{stable_key}")
+    hierarchy_leaf_component_keys_by_key: Dict[str, List[str]] = {}
+
+    def collect_hierarchy_leaf_component_keys(node: Optional[Dict[str, Any]]) -> List[str]:
+        if not isinstance(node, dict):
+            return []
+        node_key = str(node.get("stable_component_key") or "").strip()
+        children = [child for child in (node.get("children") or []) if isinstance(child, dict)]
+        if not children:
+            leaf_key = _component_key_for_hierarchy_star_node(node) or node_key
+            leaves = [leaf_key] if leaf_key else []
+        else:
+            leaves = sorted({
+                leaf_key
+                for child in children
+                for leaf_key in collect_hierarchy_leaf_component_keys(child)
+                if leaf_key
+            })
+        if node_key:
+            hierarchy_leaf_component_keys_by_key[node_key] = leaves
+        return leaves
+
+    collect_hierarchy_leaf_component_keys((hierarchy or {}).get("root"))
     hierarchy_membership_gate_active = bool(hierarchy_render_star_keys)
     unmatched_detail_endpoint_keys: set[str] = set()
     unmatched_orbit_endpoint_keys: set[str] = set()
@@ -2717,6 +2739,15 @@ def _render_scene_contract(
         resolved_key = equivalent_render_component_key(component_key)
         if resolved_key in render_stars:
             return [resolved_key]
+        hierarchy_leaf_keys = hierarchy_leaf_component_keys_by_key.get(str(component_key or "").strip()) or []
+        if hierarchy_leaf_keys:
+            resolved_from_hierarchy = sorted({
+                equivalent_render_component_key(leaf_key)
+                for leaf_key in hierarchy_leaf_keys
+                if equivalent_render_component_key(leaf_key) in render_stars
+            })
+            if resolved_from_hierarchy:
+                return resolved_from_hierarchy
         prefix = "comp:msc_group:wds:"
         if not component_key.startswith(prefix):
             return []
@@ -2998,6 +3029,34 @@ def _render_scene_contract(
                             seed=seed,
                             confidence=0.0,
                             replacement_target="source binary semi-major axis",
+                        )
+                    ),
+                    "projected_separation_au": (
+                        _simulation_field(
+                            key="projected_separation_au",
+                            label="Projected separation",
+                            value=projected_sep_au,
+                            unit="au",
+                            status="derived",
+                            basis="arm.msc_system_details:angular_separation_distance_projection",
+                            layer="arm",
+                            confidence_tier="low",
+                            replacement_target="source fitted binary semi-major axis",
+                            source_catalog=msc_system_detail.get("source_catalog"),
+                            confidence=0.35,
+                            notes="Projected sky separation converted from angular separation and distance. Useful for visual scale and rough Kepler estimates, but it is not a fitted semi-major axis.",
+                        )
+                        if projected_sep_au is not None
+                        else _simulation_field(
+                            key="projected_separation_au",
+                            label="Projected separation",
+                            value=None,
+                            unit="au",
+                            status="missing",
+                            basis="no source angular separation and distance projection",
+                            layer="none",
+                            confidence_tier="missing",
+                            replacement_target="source angular separation or fitted semi-major axis",
                         )
                     ),
                     "eccentricity": (
@@ -3443,11 +3502,46 @@ def _render_scene_contract(
             field_status_counts[status] = int(field_status_counts.get(status, 0)) + 1
     orbit_endpoint_counts: Dict[str, int] = {}
     orbit_relation_counts: Dict[str, int] = {}
+    orbit_policy_counts: Dict[str, int] = {
+        "source_orbit": 0,
+        "source_group_orbit": 0,
+        "derived_kepler_presentation_orbit": 0,
+        "assumed_visual_orbit": 0,
+        "visual_binary_fallback": 0,
+    }
     for orbit in render_orbits:
         endpoint_kind = str(orbit.get("endpoint_kind") or "unknown")
         relation_kind = str(orbit.get("relation_kind") or "unknown")
         orbit_endpoint_counts[endpoint_kind] = int(orbit_endpoint_counts.get(endpoint_kind, 0)) + 1
         orbit_relation_counts[relation_kind] = int(orbit_relation_counts.get(relation_kind, 0)) + 1
+        fields = orbit.get("fields") if isinstance(orbit.get("fields"), dict) else {}
+        statuses = {
+            str(field.get("status") or "").lower()
+            for field in fields.values()
+            if isinstance(field, dict)
+        }
+        visual_orbit_statuses = {
+            str(field.get("status") or "").lower()
+            for key, field in fields.items()
+            if key in {"period_days", "semi_major_axis_au", "eccentricity", "inclination_deg"}
+            and isinstance(field, dict)
+            and field.get("value") is not None
+        }
+        bases = {
+            str(field.get("basis") or "").lower()
+            for field in fields.values()
+            if isinstance(field, dict)
+        }
+        if "source" in statuses:
+            orbit_policy_counts["source_orbit"] += 1
+            if endpoint_kind == "group_pair":
+                orbit_policy_counts["source_group_orbit"] += 1
+        if "derived" in statuses and any("kepler" in basis or "projected_separation" in basis for basis in bases):
+            orbit_policy_counts["derived_kepler_presentation_orbit"] += 1
+        if "assumed" in visual_orbit_statuses:
+            orbit_policy_counts["assumed_visual_orbit"] += 1
+        if relation_kind == "visual_binary_fallback":
+            orbit_policy_counts["visual_binary_fallback"] += 1
     assumption_persistence_counts = {
         "persisted": persisted_assumption_count,
         "transient": max(0, len(assumption_records) - persisted_assumption_count),
@@ -3732,6 +3826,7 @@ def _render_scene_contract(
                 "total": len(render_orbits),
                 "by_endpoint_kind": orbit_endpoint_counts,
                 "by_relation_kind": orbit_relation_counts,
+                "by_policy": orbit_policy_counts,
             },
             "field_status_counts": field_status_counts,
             "assumption_persistence_counts": assumption_persistence_counts,

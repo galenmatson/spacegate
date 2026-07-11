@@ -425,7 +425,14 @@ Response:
       "orbit_counts": {
         "total": 0,
         "by_endpoint_kind": {},
-        "by_relation_kind": {}
+        "by_relation_kind": {},
+        "by_policy": {
+          "source_orbit": 0,
+          "source_group_orbit": 0,
+          "derived_kepler_presentation_orbit": 0,
+          "assumed_visual_orbit": 0,
+          "visual_binary_fallback": 0
+        }
       },
       "field_status_counts": {"source": 0, "derived": 0, "assumed": 0, "missing": 0},
       "assumption_persistence_counts": {"persisted": 0, "transient": 0},
@@ -545,10 +552,15 @@ Contract notes:
   estimates when distance and endpoint masses are available, then explicit
   `disc_assumption` visual fallback periods. The estimate/fallback path must
   remain labeled and must not be promoted into ARM as a fitted orbit solution.
-  Source-native MSC orbit endpoints may be bridged to canonical rendered stars
-  by exact WDS component label within the same accepted system. This bridge is
-  a render-key reconciliation step only; it does not merge or rename source
-  objects.
+  Source-native MSC orbit endpoints may be bridged to canonical rendered
+  stars or barycenter groups by accepted hierarchy descendants when that
+  mapping is deterministic. Exact WDS component-label bridges inside the same
+  accepted system remain a secondary render-key reconciliation step only; they
+  do not merge or rename source objects.
+  Orbit rows may include `projected_separation_au`, a DERIVED field computed
+  from angular separation and system distance. This value supports visual
+  scale and rough Kepler presentation estimates, but it is not a fitted
+  semi-major axis.
   `display_radius_scene` for stellar orbit rows is presentation scale, but it
   should preserve broad separation order using source semi-major axis,
   source/projected angular separation plus distance, or a period+mass Kepler
@@ -568,6 +580,12 @@ Contract notes:
   companion scenes such as Sirius are structurally legible. Those orbit fields
   are `status="assumed"`, `layer="disc_assumption"` presentation defaults and
   must not be interpreted as ARM orbital solutions.
+  `diagnostics.orbit_counts.by_policy` summarizes which emitted orbit rows
+  came from source orbit evidence, source-backed group orbit evidence,
+  derived Kepler presentation estimates, explicit assumed visual orbit fields,
+  or two-star visual-binary fallbacks. Clients may use this for badges and
+  tests, but it is an audit/readiness signal rather than a scientific quality
+  score.
 - `render_scene.visual_scale` documents the beta renderer's selectable
   presentation transforms for star radii, planet radii, planet orbit spacing,
   and binary orbit display radii. Scene units are arbitrary presentation units,

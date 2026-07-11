@@ -2293,6 +2293,63 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
+  test("wide-orbit presentation benchmarks expose source, derived, and assumed motion policy", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "wide-orbit benchmark smoke uses desktop API and one visual render");
+    const cases = [
+      { query: "Alpha Centauri", minStars: 3, minSourceGroup: 1, minNested: 1, maxUnattached: 0 },
+      { query: "Tegmine", minStars: 5, minSourceGroup: 1, minNested: 1, maxUnattached: 2 },
+      { query: "Fomalhaut", minStars: 3, minAssumed: 1 },
+      { query: "Xi Scorpii", minStars: 5, minSourceGroup: 1, minNested: 1, maxUnattached: 2 },
+      { query: "eps Ind", minStars: 3, minSourceGroup: 1 },
+      { query: "Sirius", minStars: 2, minAssumed: 1 },
+      { query: "Castor", minStars: 6, minSourceGroup: 2, minNested: 1, maxUnattached: 0 },
+      { query: "Nu Sco", minStars: 7, minSourceGroup: 2, minNested: 1, maxUnattached: 4 },
+      { query: "16 Cyg", minStars: 3, minSourceGroup: 1, minNested: 1, maxUnattached: 0 },
+    ];
+    let alphaSystemId = null;
+
+    for (const benchmark of cases) {
+      await test.step(`wide orbit policy ${benchmark.query}`, async () => {
+        const response = await page.request.get("/api/v1/systems/search", {
+          params: { q: benchmark.query, limit: "1", sort: "match" },
+        });
+        expect(response.ok()).toBeTruthy();
+        const payload = await response.json();
+        const systemId = payload.items?.[0]?.system_id;
+        expect(systemId, `${benchmark.query} system_id`).toBeTruthy();
+        if (benchmark.query === "Alpha Centauri") {
+          alphaSystemId = systemId;
+        }
+
+        const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+        expect(sceneResponse.ok()).toBeTruthy();
+        const scenePayload = await sceneResponse.json();
+        const renderScene = scenePayload.render_scene || {};
+        const stars = renderScene.bodies?.stars || [];
+        const orbits = renderScene.orbits || [];
+        const orbitPolicy = renderScene.diagnostics?.orbit_counts?.by_policy || {};
+        const treeDiagnostics = renderScene.simulation_tree?.diagnostics || {};
+        expect(stars.length, `${benchmark.query} rendered stars`).toBeGreaterThanOrEqual(benchmark.minStars);
+        expect(orbits.length, `${benchmark.query} should not be static-only`).toBeGreaterThan(0);
+        expect(Number(orbitPolicy.source_group_orbit || 0)).toBeGreaterThanOrEqual(benchmark.minSourceGroup || 0);
+        expect(Number(orbitPolicy.assumed_visual_orbit || 0)).toBeGreaterThanOrEqual(benchmark.minAssumed || 0);
+        expect(Number(treeDiagnostics.nested_orbit_count || 0)).toBeGreaterThanOrEqual(benchmark.minNested || 0);
+        if (benchmark.maxUnattached !== undefined) {
+          expect(Number(treeDiagnostics.unattached_orbit_count || 0)).toBeLessThanOrEqual(benchmark.maxUnattached);
+        }
+      });
+    }
+
+    await page.goto(`/systems/${alphaSystemId}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect(previewCanvas).toBeVisible();
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeNestedOrbitCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
+  });
+
   test("benchmark system previews paint nonblank scenes", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "benchmark render smoke uses desktop detail layout");
     const cases = [

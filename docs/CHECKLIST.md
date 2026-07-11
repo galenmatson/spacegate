@@ -376,6 +376,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Resolve deterministic MSC group endpoints such as Alpha Centauri AB-C to
   rendered barycenter leaf sets so source-backed wide hierarchical orbits
   animate through `simulation_tree_v1`
+- [x] Add wide-orbit presentation diagnostics distinguishing source direct
+  orbits, source group orbits, derived Kepler presentation estimates, assumed
+  visual orbit fields, and visual-binary fallbacks
+- [x] Verify wide-orbit presentation benchmarks for Alpha Centauri, Tegmine,
+  Fomalhaut, Xi Scorpii, eps Ind, Sirius, Castor, Nu Sco, and 16 Cyg, with
+  known unresolved alternate-source rows reported as warnings
 - [x] Normalize habitable-zone display scaling against rendered HZ bounds as
   well as planets, and make True Bodies planet radii use Earth-to-Sun scale
   relative to star meshes

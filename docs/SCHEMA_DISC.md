@@ -304,6 +304,12 @@ Rules:
   phase, and visual separation are `disc_assumption` fields. This is a
   legibility device for scenes such as Sirius and must be superseded by
   reviewed ARM orbit evidence when available.
+- Wide companions or hierarchy child groups with bound-companion evidence but
+  no usable source orbit may receive deterministic seeded visual orbit fields
+  in `render_scene`/DISC scope. These fields can make distant companions move
+  with mass-weighted barycenters and plausible near-circular presentation
+  geometry, but they are ASSUMED visualization aids, not ARM orbit evidence or
+  canonical science.
 - The beta renderer may use deterministic procedural star/planet
   surface materials and bounded visual-scale radius transforms. Persisting
   those choices requires `simulation_assumptions` rows with generator version,

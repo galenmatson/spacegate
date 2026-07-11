@@ -845,6 +845,13 @@ Deliverables:
 - visible provenance pills for preview fields, including deterministic
   `ASSUMED` visual priors
 - persisted `disc` assumption rows for visualization-only defaults
+- defensible wide-orbit presentation policy: source-backed direct/group
+  orbits first, DERIVED projected-separation/Kepler presentation estimates
+  second, and ASSUMED DISC/render-scene visual orbit fields only as labeled
+  fallbacks
+- orbit diagnostics that count source direct orbits, source group orbits,
+  derived Kepler presentation estimates, assumed visual orbit fields, and
+  visual-binary fallbacks for API/browser verification
 - fallback rules for browsers or devices that cannot support 3D previews
 
 ### M8.3a. High-Fidelity Static System Snapshot Generator
@@ -921,6 +928,9 @@ Remaining:
 
 - inspect the six remaining MSC `orb.tsv` rows that do not resolve to ARM
   orbit edges.
+- inspect known wide-orbit warning cases where source rows are preserved but
+  not yet attached to the simulation tree: Tegmine `orbit:3074`, Xi Scorpii
+  `orbit:13178`, and Nu Sco `orbit:5630`, `orbit:5632`, `orbit:13216`.
 - design WDS pair-observation utilization separately. The expanded audit shows
   WDS observation rows are preserved, but Spacegate has not yet decided which
   rows should become ARM pair support entities, projection evidence, orbit-edge
