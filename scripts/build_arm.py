@@ -100,6 +100,11 @@ def main() -> int:
     cooked_orb6 = state_dir / "cooked" / "orb6" / "orb6_orbits.csv"
     cooked_vsx = state_dir / "cooked" / "vsx" / "vsx_variability.csv"
     cooked_ultracoolsheet = state_dir / "cooked" / "ultracoolsheet" / "ultracoolsheet_objects.csv"
+    cooked_wise_sources = state_dir / "cooked" / "wise" / "wise_sources.csv"
+    cooked_infrared_source_matches = state_dir / "cooked" / "wise" / "infrared_source_matches.csv"
+    cooked_infrared_photometry = state_dir / "cooked" / "wise" / "infrared_photometry.csv"
+    cooked_infrared_motion = state_dir / "cooked" / "wise" / "infrared_motion_evidence.csv"
+    cooked_infrared_candidates = state_dir / "cooked" / "wise" / "infrared_candidate_queue.csv"
     cooked_sol_authority = state_dir / "cooked" / "sol_authority" / "sol_system_objects.csv"
     cooked_sol_artificial = state_dir / "cooked" / "sol_artificial" / "sol_artificial_objects.csv"
     cooked_gaia_backbone = state_dir / "cooked" / "gaia_backbone" / "gaia_dr3_backbone.csv"
@@ -5323,6 +5328,346 @@ def main() -> int:
     )
     log(f"Arm stage complete: ultracoolsheet_objects ({time.monotonic() - stage_started:.1f}s)")
 
+    stage_started = time.monotonic()
+    log("Arm stage: creating infrared WISE evidence tables")
+    if cooked_wise_sources.exists():
+        con.execute(
+            f"""
+            create table wise_sources as
+            select
+              source_catalog::varchar as source_catalog,
+              source_version::varchar as source_version,
+              source_key::varchar as source_key,
+              source_designation::varchar as source_designation,
+              source_id::varchar as source_id,
+              cast(nullif(ra_deg, '') as double) as ra_deg,
+              cast(nullif(dec_deg, '') as double) as dec_deg,
+              retrieved_at::varchar as retrieved_at,
+              provenance_json::json as provenance_json,
+              source_row_hash::varchar as source_row_hash,
+              {sql_literal(args.ingested_at)} as ingested_at,
+              {sql_literal(args.transform_version)} as transform_version
+            from read_csv_auto(
+              {sql_literal(str(cooked_wise_sources))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create table wise_sources as
+            select
+              cast(null as varchar) as source_catalog,
+              cast(null as varchar) as source_version,
+              cast(null as varchar) as source_key,
+              cast(null as varchar) as source_designation,
+              cast(null as varchar) as source_id,
+              cast(null as double) as ra_deg,
+              cast(null as double) as dec_deg,
+              cast(null as varchar) as retrieved_at,
+              cast(null as json) as provenance_json,
+              cast(null as varchar) as source_row_hash,
+              cast(null as varchar) as ingested_at,
+              cast(null as varchar) as transform_version
+            where false
+            """
+        )
+    con.execute("create table catwise_sources as select * from wise_sources where source_catalog = 'catwise'")
+    con.execute("create table allwise_sources as select * from wise_sources where source_catalog = 'allwise'")
+
+    if cooked_infrared_source_matches.exists():
+        con.execute(
+            f"""
+            create table infrared_source_matches as
+            select
+              row_number() over (order by system_id, target_id, source_catalog, source_key, match_rank)::bigint as infrared_match_id,
+              target_type::varchar as target_type,
+              cast(nullif(target_id, '') as bigint) as target_id,
+              cast(nullif(system_id, '') as bigint) as system_id,
+              stable_object_key::varchar as stable_object_key,
+              source_catalog::varchar as source_catalog,
+              source_version::varchar as source_version,
+              source_key::varchar as source_key,
+              source_designation::varchar as source_designation,
+              cast(nullif(angular_sep_arcsec, '') as double) as angular_sep_arcsec,
+              cast(nullif(match_rank, '') as integer) as match_rank,
+              cast(nullif(match_score, '') as double) as match_score,
+              confidence_tier::varchar as confidence_tier,
+              match_method::varchar as match_method,
+              conflict_status::varchar as conflict_status,
+              provenance_json::json as provenance_json,
+              {sql_literal(args.ingested_at)} as ingested_at,
+              {sql_literal(args.transform_version)} as transform_version
+            from read_csv_auto(
+              {sql_literal(str(cooked_infrared_source_matches))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create table infrared_source_matches as
+            select
+              cast(null as bigint) as infrared_match_id,
+              cast(null as varchar) as target_type,
+              cast(null as bigint) as target_id,
+              cast(null as bigint) as system_id,
+              cast(null as varchar) as stable_object_key,
+              cast(null as varchar) as source_catalog,
+              cast(null as varchar) as source_version,
+              cast(null as varchar) as source_key,
+              cast(null as varchar) as source_designation,
+              cast(null as double) as angular_sep_arcsec,
+              cast(null as integer) as match_rank,
+              cast(null as double) as match_score,
+              cast(null as varchar) as confidence_tier,
+              cast(null as varchar) as match_method,
+              cast(null as varchar) as conflict_status,
+              cast(null as json) as provenance_json,
+              cast(null as varchar) as ingested_at,
+              cast(null as varchar) as transform_version
+            where false
+            """
+        )
+
+    if cooked_infrared_photometry.exists():
+        con.execute(
+            f"""
+            create table infrared_photometry as
+            select
+              row_number() over (order by system_id, target_id, source_catalog, source_key)::bigint as infrared_photometry_id,
+              source_catalog::varchar as source_catalog,
+              source_version::varchar as source_version,
+              source_key::varchar as source_key,
+              target_type::varchar as target_type,
+              cast(nullif(target_id, '') as bigint) as target_id,
+              cast(nullif(system_id, '') as bigint) as system_id,
+              cast(nullif(w1_mag, '') as double) as w1_mag,
+              cast(nullif(w2_mag, '') as double) as w2_mag,
+              cast(nullif(w3_mag, '') as double) as w3_mag,
+              cast(nullif(w4_mag, '') as double) as w4_mag,
+              cast(nullif(w1_snr, '') as double) as w1_snr,
+              cast(nullif(w2_snr, '') as double) as w2_snr,
+              cast(nullif(w3_snr, '') as double) as w3_snr,
+              cast(nullif(w4_snr, '') as double) as w4_snr,
+              quality_flags::varchar as quality_flags,
+              artifact_flags::varchar as artifact_flags,
+              blend_flags::json as blend_flags,
+              provenance_json::json as provenance_json,
+              {sql_literal(args.ingested_at)} as ingested_at,
+              {sql_literal(args.transform_version)} as transform_version
+            from read_csv_auto(
+              {sql_literal(str(cooked_infrared_photometry))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create table infrared_photometry as
+            select
+              cast(null as bigint) as infrared_photometry_id,
+              cast(null as varchar) as source_catalog,
+              cast(null as varchar) as source_version,
+              cast(null as varchar) as source_key,
+              cast(null as varchar) as target_type,
+              cast(null as bigint) as target_id,
+              cast(null as bigint) as system_id,
+              cast(null as double) as w1_mag,
+              cast(null as double) as w2_mag,
+              cast(null as double) as w3_mag,
+              cast(null as double) as w4_mag,
+              cast(null as double) as w1_snr,
+              cast(null as double) as w2_snr,
+              cast(null as double) as w3_snr,
+              cast(null as double) as w4_snr,
+              cast(null as varchar) as quality_flags,
+              cast(null as varchar) as artifact_flags,
+              cast(null as json) as blend_flags,
+              cast(null as json) as provenance_json,
+              cast(null as varchar) as ingested_at,
+              cast(null as varchar) as transform_version
+            where false
+            """
+        )
+
+    if cooked_infrared_motion.exists():
+        con.execute(
+            f"""
+            create table infrared_motion_evidence as
+            select
+              row_number() over (order by system_id, target_id, source_catalog, source_key)::bigint as infrared_motion_id,
+              source_catalog::varchar as source_catalog,
+              source_version::varchar as source_version,
+              source_key::varchar as source_key,
+              target_type::varchar as target_type,
+              cast(nullif(target_id, '') as bigint) as target_id,
+              cast(nullif(system_id, '') as bigint) as system_id,
+              cast(nullif(pm_ra, '') as double) as pm_ra,
+              cast(nullif(pm_dec, '') as double) as pm_dec,
+              pm_unit::varchar as pm_unit,
+              cast(nullif(pm_ra_error, '') as double) as pm_ra_error,
+              cast(nullif(pm_dec_error, '') as double) as pm_dec_error,
+              cast(nullif(parallax_like_arcsec, '') as double) as parallax_like_arcsec,
+              cast(nullif(parallax_like_error_arcsec, '') as double) as parallax_like_error_arcsec,
+              parallax_like_note::varchar as parallax_like_note,
+              provenance_json::json as provenance_json,
+              {sql_literal(args.ingested_at)} as ingested_at,
+              {sql_literal(args.transform_version)} as transform_version
+            from read_csv_auto(
+              {sql_literal(str(cooked_infrared_motion))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create table infrared_motion_evidence as
+            select
+              cast(null as bigint) as infrared_motion_id,
+              cast(null as varchar) as source_catalog,
+              cast(null as varchar) as source_version,
+              cast(null as varchar) as source_key,
+              cast(null as varchar) as target_type,
+              cast(null as bigint) as target_id,
+              cast(null as bigint) as system_id,
+              cast(null as double) as pm_ra,
+              cast(null as double) as pm_dec,
+              cast(null as varchar) as pm_unit,
+              cast(null as double) as pm_ra_error,
+              cast(null as double) as pm_dec_error,
+              cast(null as double) as parallax_like_arcsec,
+              cast(null as double) as parallax_like_error_arcsec,
+              cast(null as varchar) as parallax_like_note,
+              cast(null as json) as provenance_json,
+              cast(null as varchar) as ingested_at,
+              cast(null as varchar) as transform_version
+            where false
+            """
+        )
+
+    if cooked_infrared_candidates.exists():
+        con.execute(
+            f"""
+            create table infrared_candidate_queue as
+            select
+              row_number() over (order by nearest_system_id, source_catalog, source_key)::bigint as infrared_candidate_id,
+              candidate_status::varchar as candidate_status,
+              candidate_kind::varchar as candidate_kind,
+              nearest_target_type::varchar as nearest_target_type,
+              cast(nullif(nearest_target_id, '') as bigint) as nearest_target_id,
+              cast(nullif(nearest_system_id, '') as bigint) as nearest_system_id,
+              nearest_stable_object_key::varchar as nearest_stable_object_key,
+              source_catalog::varchar as source_catalog,
+              source_version::varchar as source_version,
+              source_key::varchar as source_key,
+              source_designation::varchar as source_designation,
+              cast(nullif(ra_deg, '') as double) as ra_deg,
+              cast(nullif(dec_deg, '') as double) as dec_deg,
+              cast(nullif(angular_sep_arcsec, '') as double) as angular_sep_arcsec,
+              cast(nullif(w1_minus_w2, '') as double) as w1_minus_w2,
+              cast(nullif(pm_total_arcsec_yr, '') as double) as pm_total_arcsec_yr,
+              cast(nullif(w2_snr, '') as double) as w2_snr,
+              cast(nullif(candidate_score, '') as double) as candidate_score,
+              review_reason::varchar as review_reason,
+              provenance_json::json as provenance_json,
+              {sql_literal(args.ingested_at)} as ingested_at,
+              {sql_literal(args.transform_version)} as transform_version
+            from read_csv_auto(
+              {sql_literal(str(cooked_infrared_candidates))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create table infrared_candidate_queue as
+            select
+              cast(null as bigint) as infrared_candidate_id,
+              cast(null as varchar) as candidate_status,
+              cast(null as varchar) as candidate_kind,
+              cast(null as varchar) as nearest_target_type,
+              cast(null as bigint) as nearest_target_id,
+              cast(null as bigint) as nearest_system_id,
+              cast(null as varchar) as nearest_stable_object_key,
+              cast(null as varchar) as source_catalog,
+              cast(null as varchar) as source_version,
+              cast(null as varchar) as source_key,
+              cast(null as varchar) as source_designation,
+              cast(null as double) as ra_deg,
+              cast(null as double) as dec_deg,
+              cast(null as double) as angular_sep_arcsec,
+              cast(null as double) as w1_minus_w2,
+              cast(null as double) as pm_total_arcsec_yr,
+              cast(null as double) as w2_snr,
+              cast(null as double) as candidate_score,
+              cast(null as varchar) as review_reason,
+              cast(null as json) as provenance_json,
+              cast(null as varchar) as ingested_at,
+              cast(null as varchar) as transform_version
+            where false
+            """
+        )
+
+    con.execute(
+        """
+        create table infrared_image_products as
+        select
+          cast(null as bigint) as infrared_image_product_id,
+          cast(null as bigint) as system_id,
+          cast(null as varchar) as stable_object_key,
+          cast(null as varchar) as source_catalog,
+          cast(null as varchar) as source_version,
+          cast(null as varchar) as collection,
+          cast(null as json) as bands_json,
+          cast(null as double) as center_ra_deg,
+          cast(null as double) as center_dec_deg,
+          cast(null as double) as cutout_size_arcmin,
+          cast(null as varchar) as derivative_path,
+          cast(null as varchar) as source_url,
+          cast(null as varchar) as attribution,
+          cast(null as varchar) as retrieved_at,
+          cast(null as json) as provenance_json
+        where false
+        """
+    )
+    log(f"Arm stage complete: infrared WISE evidence tables ({time.monotonic() - stage_started:.1f}s)")
+
     component_count = int(con.execute("select count(*) from component_entities").fetchone()[0] or 0)
     hierarchy_count = int(con.execute("select count(*) from system_hierarchy_edges").fetchone()[0] or 0)
     orbit_count = int(con.execute("select count(*) from orbit_edges").fetchone()[0] or 0)
@@ -5427,6 +5772,13 @@ def main() -> int:
         ).fetchone()[0]
         or 0
     )
+    wise_source_count = int(con.execute("select count(*) from wise_sources").fetchone()[0] or 0)
+    catwise_source_count = int(con.execute("select count(*) from catwise_sources").fetchone()[0] or 0)
+    allwise_source_count = int(con.execute("select count(*) from allwise_sources").fetchone()[0] or 0)
+    infrared_match_count = int(con.execute("select count(*) from infrared_source_matches").fetchone()[0] or 0)
+    infrared_photometry_count = int(con.execute("select count(*) from infrared_photometry").fetchone()[0] or 0)
+    infrared_motion_count = int(con.execute("select count(*) from infrared_motion_evidence").fetchone()[0] or 0)
+    infrared_candidate_count = int(con.execute("select count(*) from infrared_candidate_queue").fetchone()[0] or 0)
     lifecycle_observation_count = int(
         con.execute("select count(*) from planet_catalog_observations").fetchone()[0] or 0
     )
@@ -5798,6 +6150,13 @@ def main() -> int:
             "variability_summary_high_variability_rows": vsx_high_variability_count,
             "ultracoolsheet_rows": ultracoolsheet_count,
             "ultracoolsheet_matched_rows": ultracoolsheet_matched_count,
+            "wise_sources_rows": wise_source_count,
+            "catwise_sources_rows": catwise_source_count,
+            "allwise_sources_rows": allwise_source_count,
+            "infrared_source_matches_rows": infrared_match_count,
+            "infrared_photometry_rows": infrared_photometry_count,
+            "infrared_motion_evidence_rows": infrared_motion_count,
+            "infrared_candidate_queue_rows": infrared_candidate_count,
             "planet_catalog_observations_rows": lifecycle_observation_count,
             "planet_status_history_rows": lifecycle_status_history_count,
             "planet_reclassification_audit_rows": lifecycle_reclass_count,
@@ -5874,6 +6233,8 @@ def main() -> int:
         f"gaia_nss_orbits={gaia_nss_solution_count:,}, msc_orbits={msc_solution_count:,}, "
         f"orb6_orbits={orb6_solution_count:,}, "
         f"vsx_rows={vsx_variability_count:,}, ultracoolsheet_rows={ultracoolsheet_count:,}, "
+        f"wise_sources={wise_source_count:,}, infrared_matches={infrared_match_count:,}, "
+        f"infrared_candidates={infrared_candidate_count:,}, "
         f"lifecycle_obs={lifecycle_observation_count:,}, lifecycle_reclass={lifecycle_reclass_count:,}, "
         f"msc_source_leaves={source_leaf_count:,}, msc_inferred_leaves={inferred_leaf_count:,}, "
         f"sol_moons={sol_moon_component_count:,}, "

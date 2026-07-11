@@ -122,7 +122,8 @@ Core must remain free of generated prose/images/rim overlays.
 - deterministic science derivatives and normalized graph/orbit structures used
   for adjudication, diagnostics, simulation, and narration
 - examples: MSC/WDS/ORB6/SBX/Gaia NSS support rows, variability families, dense
-  diagnostics, source-native orbital solutions, and non-hot-path science tables
+  diagnostics, source-native orbital solutions, WISE/CatWISE/AllWISE infrared
+  cross-reference evidence, and non-hot-path science tables
 
 Arm rows follow the same immutability and provenance rules as core, but are
 separated because they are support/evidence, may contain alternate or

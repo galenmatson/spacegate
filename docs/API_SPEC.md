@@ -1642,9 +1642,70 @@ Display-name behavior:
   expanded Greek-letter/constellation forms, Flamsteed, then major catalog IDs
   (Gl/HIP/HD/HR/TYC/HYG/WDS), with Gaia identifiers last.
 - `arm_catalogs` and `arm_evidence` are star-level overlays from `arm.duckdb` and do not mutate core provenance rows.
+- `infrared_evidence` contains targeted WISE/CatWISE/AllWISE ARM support
+  matches when present. These rows are cross-reference/photometry/motion
+  evidence only; they do not create core objects and do not make WISE names
+  preferred public names.
 - `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
 - `system.star_count` in detail payloads is descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list. Star Search browse filters use the materialized search facet for public-performance reasons.
 - the flat `stars` array remains the canonical direct core membership list; it is not guaranteed to enumerate every nested scientific leaf shown in `hierarchy`.
+
+### GET /systems/{system_id}/infrared
+Returns lazy IRSA WISE image-product metadata for the system center.
+
+Query params:
+- `size_arcmin` (float, default `8.0`, min `1.0`, max `30.0`)
+
+Response 200:
+```json
+{
+  "schema_version": "wise_image_product_v1",
+  "system_id": 11026104,
+  "center_ra_deg": 53.22829,
+  "center_dec_deg": -9.45817,
+  "cutout_size_arcmin": 8.0,
+  "collection": "wise_allwise",
+  "source_catalog": "irsa_wise_allwise",
+  "source_version": "AllWISE Atlas Images",
+  "available_bands": ["W1", "W2", "W3"],
+  "bands": {
+    "W1": {"source_url": "https://irsa.ipac.caltech.edu/ibe/data/...fits"}
+  },
+  "attribution": "NASA/IPAC Infrared Science Archive (IRSA), WISE/AllWISE",
+  "retrieved_at": "2026-07-11T21:00:00Z",
+  "cache_key": "f55b9dcafdc6e116f81e93b8",
+  "preview_available": true,
+  "preview_url": "/api/v1/systems/11026104/infrared/preview.png?size_arcmin=8.000",
+  "policy": "IRSA WISE imagery is observational survey imagery, not an artist impression.",
+  "cache": {
+    "limit_bytes": 4294967296,
+    "total_bytes": 1048576,
+    "removed_files": 0,
+    "removed_bytes": 0
+  }
+}
+```
+
+Notes:
+- Metadata and preview products are cached outside the repo under the configured
+  WISE image cache.
+- The response intentionally exposes cache keys/status, not host filesystem
+  paths.
+- `502 wise_image_metadata_unavailable` means IRSA could not be queried or no
+  parseable image products were available.
+
+### GET /systems/{system_id}/infrared/preview.png
+Returns a generated false-color PNG preview using AllWISE W3 as red, W2 as
+green, and W1 as blue where available.
+
+Query params:
+- `size_arcmin` (float, default `8.0`, min `1.0`, max `30.0`)
+
+Response:
+- `200 image/png` with cache headers when the preview exists or can be generated.
+- `409 missing_coordinates` if the system lacks RA/Dec.
+- `502 wise_image_preview_unavailable` if no usable image products are available
+  or preview generation fails.
 
 ### GET /systems/by-key/{stable_object_key}
 Fetch a system by stable key, with stars and planets.

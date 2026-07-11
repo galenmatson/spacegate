@@ -31,6 +31,18 @@ export async function fetchSystemDetail(systemId, params = {}) {
   return res.json();
 }
 
+export async function fetchSystemInfrared(systemId, params = {}) {
+  const query = new URLSearchParams(params);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const url = apiUrl(`/api/v1/systems/${systemId}/infrared${suffix}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Infrared imagery failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
+
 export async function fetchSystemSimulationScene(systemId, params = {}) {
   const query = new URLSearchParams(params);
   const suffix = query.toString() ? `?${query.toString()}` : "";

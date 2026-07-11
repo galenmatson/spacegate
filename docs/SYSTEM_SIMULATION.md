@@ -131,6 +131,9 @@ Already in place:
   and touch-safe canvas gesture handling
 - planet bodies include short animated trail lines in the live preview so
   small bodies remain findable in stricter body-scale views
+- system pages may show an adjacent IRSA/WISE infrared sky panel. That panel is
+  observational survey imagery and evidence context, not part of the
+  `simulation-scene` render contract and not an artist impression.
 - habitable-zone bands are visible by default and can be toggled in the live
   preview. They are derived render-scene guides from stellar `luminosity_lsun`
   and broad 0.35-1.70 Earth flux bounds, not climate models or canonical

@@ -37,6 +37,7 @@ from . import admin_db
 from . import auth
 from . import db
 from . import inference_registry
+from . import wise_images
 from .db import DatabaseUnavailable
 from .queries import (
     choose_display_name,
@@ -47,6 +48,7 @@ from .queries import (
     fetch_aliases_for_system,
     fetch_build_id,
     fetch_counts_for_system,
+    fetch_infrared_evidence_for_system,
     fetch_map_systems,
     fetch_planets_for_system,
     fetch_spectral_mix,
@@ -341,6 +343,31 @@ def _summarize_arm_star_evidence(star_evidence: Dict[int, Dict[str, Any]]) -> Di
     }
 
 
+def _merge_infrared_into_star_evidence(
+    star_evidence: Dict[int, Dict[str, Any]],
+    infrared_evidence: Dict[str, Any],
+) -> None:
+    stars = infrared_evidence.get("stars") if isinstance(infrared_evidence, dict) else {}
+    if not isinstance(stars, dict):
+        return
+    for sid_raw, payload in stars.items():
+        try:
+            sid = int(sid_raw)
+        except Exception:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        target = star_evidence.setdefault(sid, {"catalogs": []})
+        catalogs = target.setdefault("catalogs", [])
+        if not isinstance(catalogs, list):
+            catalogs = []
+            target["catalogs"] = catalogs
+        for catalog in payload.get("catalogs") or []:
+            if catalog not in catalogs:
+                catalogs.append(catalog)
+        target["infrared"] = payload
+
+
 def _snapshot_asset_url(build_id: str, artifact_path: str) -> str:
     build_token = quote(str(build_id), safe="")
     rel = str(artifact_path or "").lstrip("/")
@@ -415,6 +442,12 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
             [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
             arm_db_path=arm_db_path,
         )
+        infrared_evidence = fetch_infrared_evidence_for_system(
+            con,
+            system_id=system_id,
+            star_ids=[int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=system_id,
@@ -439,7 +472,9 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    _merge_infrared_into_star_evidence(arm_star_evidence, infrared_evidence)
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
+    system["infrared_evidence_summary"] = infrared_evidence.get("summary", {})
     system_display_info = choose_display_name_info(
         system.get("system_name"),
         aliases,
@@ -476,6 +511,7 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
+        "infrared_evidence": infrared_evidence,
         "hierarchy": hierarchy,
     }
 
@@ -5804,6 +5840,12 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
             [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
             arm_db_path=arm_db_path,
         )
+        infrared_evidence = fetch_infrared_evidence_for_system(
+            con,
+            system_id=system_id,
+            star_ids=[int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=system_id,
@@ -5828,7 +5870,9 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    _merge_infrared_into_star_evidence(arm_star_evidence, infrared_evidence)
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
+    system["infrared_evidence_summary"] = infrared_evidence.get("summary", {})
     normalized_name_style = normalize_name_style(name_style)
     system_display_info = choose_display_name_info(
         system.get("system_name"),
@@ -5866,8 +5910,104 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
+        "infrared_evidence": infrared_evidence,
         "hierarchy": hierarchy,
     }
+
+
+@app.get("/api/v1/systems/{system_id}/infrared")
+def system_infrared_metadata(
+    system_id: int,
+    size_arcmin: float = Query(default=wise_images.DEFAULT_CUTOUT_ARCMIN, ge=1.0, le=30.0),
+):
+    with db.connection_scope() as con:
+        system = fetch_system_by_id(con, system_id)
+    if not system:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "System not found",
+                "details": {"system_id": system_id},
+            },
+        )
+    if system.get("ra_deg") is None or system.get("dec_deg") is None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "missing_coordinates",
+                "message": "WISE imagery requires RA/Dec coordinates.",
+                "details": {"system_id": system_id},
+            },
+        )
+    try:
+        metadata = wise_images.ensure_wise_metadata(
+            state_dir=_state_dir(),
+            system=system,
+            size_arcmin=float(size_arcmin),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "wise_image_metadata_unavailable",
+                "message": "IRSA WISE image metadata could not be retrieved.",
+                "details": {"system_id": system_id, "error": str(exc)[:500]},
+            },
+        ) from exc
+    metadata["preview_url"] = (
+        f"/api/v1/systems/{system_id}/infrared/preview.png?size_arcmin={float(size_arcmin):.3f}"
+    )
+    metadata["cache"] = wise_images.enforce_cache_limit(wise_images.cache_root(_state_dir()))
+    return metadata
+
+
+@app.get("/api/v1/systems/{system_id}/infrared/preview.png")
+def system_infrared_preview(
+    system_id: int,
+    size_arcmin: float = Query(default=wise_images.DEFAULT_CUTOUT_ARCMIN, ge=1.0, le=30.0),
+):
+    with db.connection_scope() as con:
+        system = fetch_system_by_id(con, system_id)
+    if not system:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "not_found",
+                "message": "System not found",
+                "details": {"system_id": system_id},
+            },
+        )
+    if system.get("ra_deg") is None or system.get("dec_deg") is None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "missing_coordinates",
+                "message": "WISE imagery requires RA/Dec coordinates.",
+                "details": {"system_id": system_id},
+            },
+        )
+    try:
+        preview_path, metadata = wise_images.ensure_wise_preview(
+            state_dir=_state_dir(),
+            system=system,
+            size_arcmin=float(size_arcmin),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "wise_image_preview_unavailable",
+                "message": "IRSA WISE image preview could not be generated.",
+                "details": {"system_id": system_id, "error": str(exc)[:500]},
+            },
+        ) from exc
+    headers = {
+        "Cache-Control": "public, max-age=86400",
+        "X-Spacegate-WISE-Cache": str(metadata.get("cache_status") or "unknown"),
+        "X-Spacegate-WISE-Attribution": wise_images.WISE_ATTRIBUTION,
+    }
+    return FileResponse(str(preview_path), media_type="image/png", headers=headers)
 
 
 @app.get("/api/v1/systems/by-key/{stable_object_key}")
@@ -5901,6 +6041,12 @@ def system_detail_by_key(stable_object_key: str, name_style: str = Query(default
             [int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
             arm_db_path=arm_db_path,
         )
+        infrared_evidence = fetch_infrared_evidence_for_system(
+            con,
+            system_id=int(system_id),
+            star_ids=[int(row.get("star_id")) for row in stars if row.get("star_id") is not None],
+            arm_db_path=arm_db_path,
+        )
         snapshot = fetch_snapshot_for_system(
             con,
             system_id=int(system_id),
@@ -5925,7 +6071,9 @@ def system_detail_by_key(stable_object_key: str, name_style: str = Query(default
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
+    _merge_infrared_into_star_evidence(arm_star_evidence, infrared_evidence)
     system["arm_evidence_summary"] = _summarize_arm_star_evidence(arm_star_evidence)
+    system["infrared_evidence_summary"] = infrared_evidence.get("summary", {})
     normalized_name_style = normalize_name_style(name_style)
     system_display_info = choose_display_name_info(
         system.get("system_name"),
@@ -5963,6 +6111,7 @@ def system_detail_by_key(stable_object_key: str, name_style: str = Query(default
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
+        "infrared_evidence": infrared_evidence,
         "hierarchy": hierarchy,
     }
 

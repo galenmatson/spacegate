@@ -12,6 +12,8 @@ Out of scope (never pruned by retention script):
 - `raw/` catalog downloads
 - `cooked/` normalized catalog exports
 - `reports/manifests/` source manifests
+- bounded runtime caches such as WISE image previews; these have their own cache
+  enforcement because they are mutable runtime artifacts, not immutable builds
 
 ## Default Policy
 
@@ -166,3 +168,42 @@ sudo scripts/normalize_state_permissions.sh --apply
 - Failed builds may be kept temporarily for diagnosis, but once the root cause is
   captured in a report or issue, remove them through the retention script rather
   than manual edits inside immutable build directories.
+
+## WISE Image Cache
+
+WISE/IRSA image previews are runtime cache products, not build artifacts and
+not repo files.
+
+Default location:
+
+```bash
+$SPACEGATE_STATE_DIR/cache/wise_images
+```
+
+Default cap:
+
+```bash
+SPACEGATE_WISE_IMAGE_CACHE_LIMIT_BYTES=4294967296
+```
+
+Optional bulk-storage mode:
+
+```bash
+SPACEGATE_WISE_IMAGE_CACHE_PREFER_BULK=1
+```
+
+When bulk mode is enabled and `/mnt/space/spacegate` is mounted in the API
+container, the default cache root becomes:
+
+```text
+/mnt/space/spacegate/cache/wise_images
+```
+
+Operators may set `SPACEGATE_WISE_IMAGE_CACHE_DIR` to an explicit path. A larger
+cap, such as 20-50 GB, is reasonable on `/mnt/space/spacegate` if the mount is
+healthy and the cache is treated as re-fetchable.
+
+The API enforces the cap opportunistically when WISE metadata/previews are
+requested. It removes oldest cached files first. Cache metadata must retain IRSA
+source URLs, retrieval timestamp, bands, cutout size, and attribution so lost
+previews can be regenerated or marked stale.

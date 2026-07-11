@@ -1538,6 +1538,161 @@ def fetch_arm_evidence_for_stars(
     return grouped
 
 
+def fetch_infrared_evidence_for_system(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    system_id: int,
+    star_ids: List[int],
+    arm_db_path: Optional[str],
+) -> Dict[str, Any]:
+    if not arm_db_path:
+        return {"summary": {"match_count": 0, "catalog_counts": {}}, "stars": {}}
+    if not _attach_side_db(con, arm_db_path, alias="arm_db"):
+        return {"summary": {"match_count": 0, "catalog_counts": {}}, "stars": {}}
+    required_tables = [
+        "infrared_source_matches",
+        "infrared_photometry",
+        "infrared_motion_evidence",
+    ]
+    if not all(_has_table(con, alias="arm_db", table_name=table) for table in required_tables):
+        return {"summary": {"match_count": 0, "catalog_counts": {}}, "stars": {}}
+
+    target_ids = sorted({int(value) for value in star_ids if value is not None})
+    params: List[Any] = [int(system_id)]
+    target_clause = ""
+    if target_ids:
+        placeholders = ",".join(["?"] * len(target_ids))
+        target_clause = f" OR target_id IN ({placeholders})"
+        params.extend(target_ids)
+    rows = con.execute(
+        f"""
+        WITH ranked AS (
+          SELECT
+            *,
+            row_number() OVER (
+              PARTITION BY target_type, target_id, source_catalog
+              ORDER BY
+                CASE coalesce(confidence_tier, '')
+                  WHEN 'high' THEN 0
+                  WHEN 'medium' THEN 1
+                  WHEN 'low' THEN 2
+                  ELSE 3
+                END,
+                coalesce(match_rank, 999),
+                coalesce(angular_sep_arcsec, 1e99)
+            ) AS rn
+          FROM arm_db.infrared_source_matches
+          WHERE system_id = ?{target_clause}
+        )
+        SELECT
+          r.infrared_match_id,
+          r.target_type,
+          r.target_id,
+          r.system_id,
+          r.source_catalog,
+          r.source_version,
+          r.source_key,
+          r.source_designation,
+          r.angular_sep_arcsec,
+          r.match_rank,
+          r.match_score,
+          r.confidence_tier,
+          r.match_method,
+          r.conflict_status,
+          p.w1_mag,
+          p.w2_mag,
+          p.w3_mag,
+          p.w4_mag,
+          p.w1_snr,
+          p.w2_snr,
+          p.w3_snr,
+          p.w4_snr,
+          p.quality_flags,
+          p.artifact_flags,
+          m.pm_ra,
+          m.pm_dec,
+          m.pm_unit,
+          m.parallax_like_arcsec,
+          m.parallax_like_error_arcsec,
+          m.parallax_like_note
+        FROM ranked r
+        LEFT JOIN arm_db.infrared_photometry p
+          ON p.source_catalog = r.source_catalog
+         AND p.source_key = r.source_key
+         AND p.target_type = r.target_type
+         AND p.target_id = r.target_id
+        LEFT JOIN arm_db.infrared_motion_evidence m
+          ON m.source_catalog = r.source_catalog
+         AND m.source_key = r.source_key
+         AND m.target_type = r.target_type
+         AND m.target_id = r.target_id
+        WHERE r.rn <= 2
+        ORDER BY r.target_type, r.target_id, r.source_catalog, r.match_rank
+        """,
+        params,
+    ).fetchall()
+    columns = [desc[0] for desc in con.description]
+    by_star: Dict[int, Dict[str, Any]] = {}
+    catalog_counts: Dict[str, int] = {}
+    matches: List[Dict[str, Any]] = []
+    for raw in rows:
+        row = row_to_dict(columns, raw)
+        catalog = str(row.get("source_catalog") or "").strip().lower()
+        if catalog:
+            catalog_counts[catalog] = int(catalog_counts.get(catalog, 0)) + 1
+        item = {
+            "infrared_match_id": row.get("infrared_match_id"),
+            "source_catalog": row.get("source_catalog"),
+            "source_version": row.get("source_version"),
+            "source_key": row.get("source_key"),
+            "source_designation": row.get("source_designation"),
+            "angular_sep_arcsec": row.get("angular_sep_arcsec"),
+            "match_rank": row.get("match_rank"),
+            "match_score": row.get("match_score"),
+            "confidence_tier": row.get("confidence_tier"),
+            "match_method": row.get("match_method"),
+            "conflict_status": row.get("conflict_status"),
+            "photometry": {
+                "w1_mag": row.get("w1_mag"),
+                "w2_mag": row.get("w2_mag"),
+                "w3_mag": row.get("w3_mag"),
+                "w4_mag": row.get("w4_mag"),
+                "w1_snr": row.get("w1_snr"),
+                "w2_snr": row.get("w2_snr"),
+                "w3_snr": row.get("w3_snr"),
+                "w4_snr": row.get("w4_snr"),
+                "quality_flags": row.get("quality_flags"),
+                "artifact_flags": row.get("artifact_flags"),
+            },
+            "motion": {
+                "pm_ra": row.get("pm_ra"),
+                "pm_dec": row.get("pm_dec"),
+                "pm_unit": row.get("pm_unit"),
+                "parallax_like_arcsec": row.get("parallax_like_arcsec"),
+                "parallax_like_error_arcsec": row.get("parallax_like_error_arcsec"),
+                "parallax_like_note": row.get("parallax_like_note"),
+            },
+        }
+        matches.append(item)
+        if row.get("target_type") == "star" and row.get("target_id") is not None:
+            sid = int(row["target_id"])
+            star_payload = by_star.setdefault(sid, {"matches": [], "catalogs": []})
+            star_payload["matches"].append(item)
+            if catalog and catalog not in star_payload["catalogs"]:
+                star_payload["catalogs"].append(catalog)
+    for payload in by_star.values():
+        payload["catalogs"] = sorted(payload.get("catalogs") or [])
+    return {
+        "summary": {
+            "match_count": len(matches),
+            "catalog_counts": catalog_counts,
+            "policy": "WISE/CatWISE/AllWISE evidence is ARM support data, not core identity.",
+        },
+        "stars": by_star,
+        "matches": matches,
+    }
+
+
 def fetch_sol_hierarchy_for_system(
     con: duckdb.DuckDBPyConnection,
     *,

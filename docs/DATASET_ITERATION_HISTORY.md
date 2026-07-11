@@ -343,6 +343,37 @@ Representative commits:
 - pending (nearby ultracool inventory bridge working set)
 - pending (hierarchy luminosity derivation and browser verification refresh)
 
+### 19) WISE/CatWISE/AllWISE Evidence and IRSA Imagery v1
+
+- Added a targeted WISE evidence path instead of making CatWISE2020 or AllWISE
+  a normal core-inventory backbone.
+- `scripts/collect_wise_evidence.py` queries CatWISE2020 and AllWISE around
+  priority existing Spacegate objects, propagating high-proper-motion targets
+  from the source coordinate epoch toward the WISE catalog epoch where possible.
+- Cooked WISE artifacts are written under `state/cooked/wise/`:
+  `wise_sources.csv`, `infrared_source_matches.csv`,
+  `infrared_photometry.csv`, and `infrared_motion_evidence.csv`.
+- `scripts/build_arm.py` materializes these artifacts into ARM support tables:
+  `wise_sources`, `catwise_sources`, `allwise_sources`,
+  `infrared_source_matches`, `infrared_photometry`, and
+  `infrared_motion_evidence`.
+- The collector also emits a narrow `infrared_candidate_queue.csv` for
+  red/high-motion WISE candidates found during targeted cones; ARM materializes
+  it as `infrared_candidate_queue` with review statuses, not inventory rows.
+- Added `scripts/verify_wise_evidence.py` to confirm WISE evidence tables exist,
+  match rows are sane, and WISE-like source catalogs have not leaked into
+  `core.systems`, `core.stars`, or `core.planets`.
+- Added lazy IRSA/AllWISE image-product support for system pages. The API
+  queries IRSA SIA/IBE, generates W1/W2/W3 false-color PNG previews, preserves
+  source-product links and attribution, and stores previews in a bounded runtime
+  cache outside the repo.
+- Policy retained: WISE/CatWISE/AllWISE rows are evidence and imagery support,
+  not core object promotion. Missing nearby infrared-only candidates still need
+  a reviewed candidate queue before core acceptance.
+
+Representative commits:
+- pending (WISE cross-reference and infrared imagery v1)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

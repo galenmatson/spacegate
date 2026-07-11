@@ -75,8 +75,11 @@ Implementation note: storage still uses `claim_bundle_id` and `claim_bundles` fo
 - link those sources in disc
 - build up a good context from which it can:
   - enrich the disc database with narratives and factsheets
-  - fill in missing fields in arm
-  - resolve omissions, errors, and ambiguities
+- fill in missing fields in arm
+- resolve omissions, errors, and ambiguities
+- use WISE/CatWISE/AllWISE infrared evidence packets where available:
+  identifiers, W1/W2/W3/W4 photometry, motion evidence, quality flags, and IRSA
+  cutout links
 
 - maintain an explicit evidence dossier per object, not just a final answer
 - rank and cache sources by quality, recency, and relevance
@@ -88,6 +91,8 @@ Implementation note: storage still uses `claim_bundle_id` and `claim_bundles` fo
 - support review states: proposed, accepted, rejected, superseded
 - monitor stale dossiers and re-check important systems when new catalogs or papers appear
 - produce eval artifacts so we can compare agent output to goldens instead of trusting vibes
+- never promote WISE-only candidates into core without the reviewed inventory
+  policy; missing ultracool companions belong in a candidate/review queue first
 
 ## Evaluation and Anomaly Inbox
 

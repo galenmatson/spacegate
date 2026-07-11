@@ -372,9 +372,61 @@ Core bridge diagnostics:
 - `reports/<build_id>/nearby_ultracool_inventory_report.json`
 - `scripts/verify_nearby_ultracool_inventory.py --build-dir <out/build_id>`
 
+## 12) WISE / CatWISE2020 / AllWISE
+
+Classification: `auxiliary`
+
+Role:
+
+- infrared identity, photometry, color, and motion support for existing
+  Spacegate objects
+- targeted cross-reference source for public goldens, high-coolness systems,
+  planet hosts, multistars, ultracool dwarfs, compact objects, and
+  AAA-promoted research targets
+- IRSA-backed WISE image cutouts for system pages and future evidence
+  portfolios
+- conservative candidate review queue for missing nearby ultracool/brown-dwarf
+  objects
+
+Source endpoints:
+
+- IRSA Gator CatWISE2020 catalog (`catwise_2020`)
+- IRSA Gator AllWISE Source Catalog (`allwise_p3as_psd`)
+- IRSA SIA / IBE AllWISE image products for W1/W2/W3 cutouts
+
+Policy:
+
+- CatWISE2020 and AllWISE are evidence sources, not primary core-inventory
+  backbones.
+- WISE-only rows must not be bulk-promoted into `core`.
+- CatWISE parallax-like fields are candidate evidence only and must not be
+  treated as Gaia-grade distances.
+- WISE/CatWISE/AllWISE identifiers are secondary metadata unless no better
+  public name exists.
+- Generated image previews are lazy, bounded cache products outside the repo.
+
+Artifacts:
+
+- `state/cooked/wise/wise_sources.csv`
+- `state/cooked/wise/infrared_source_matches.csv`
+- `state/cooked/wise/infrared_photometry.csv`
+- `state/cooked/wise/infrared_motion_evidence.csv`
+- `state/cooked/wise/infrared_candidate_queue.csv`
+- `arm.wise_sources`, `arm.catwise_sources`, `arm.allwise_sources`
+- `arm.infrared_source_matches`
+- `arm.infrared_photometry`
+- `arm.infrared_motion_evidence`
+- `arm.infrared_candidate_queue`
+- runtime cache: `$SPACEGATE_STATE_DIR/cache/wise_images`
+
+Scripts:
+
+- `scripts/collect_wise_evidence.py`
+- `scripts/verify_wise_evidence.py`
+
 ## Transitional Sources
 
-## 12) AT-HYG
+## 13) AT-HYG
 
 Classification: `transitional`
 

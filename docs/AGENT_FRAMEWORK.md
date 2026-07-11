@@ -49,6 +49,10 @@ Near-term agent work should focus on:
 2. deterministic object dossiers for high-value systems, stars, and planets
 3. intake from `arm.adjudication_candidates`, `arm.multiplicity_adjudication_candidates`, and `arm.host_resolution_candidates`
 4. local-LLM backed extraction experiments before spending cloud-model budget
+5. WISE/CatWISE/AllWISE evidence packets for ultracool dwarfs, dusty systems,
+   and ambiguous infrared counterparts. These packets may include matched WISE
+   identifiers, photometry, motion evidence, quality flags, and IRSA image
+   cutouts, but they remain evidence until reviewed.
 
 ## Claim Normalization
 

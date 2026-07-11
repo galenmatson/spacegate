@@ -749,17 +749,18 @@ Future work:
   `core.stars` when the Gaia backbone misses them, with source provenance and
   diagnostics. This addresses the immediate Luhman 16 / WISE 0855-0714 blind
   spot class without making CatWISE a default dependency.
-- Next data milestone: CatWISE/AllWISE infrared survey integration planning and
-  implementation. Decide retrieval footprint, IRSA/AWS source strategy,
-  crossmatch policy, storage/retention posture, and whether the products serve
-  only ARM evidence or also drive a reviewed nearby brown-dwarf core promotion
-  queue. Initial plan: `docs/CATWISE_ALLWISE_PLAN.md`.
-- WISE imagery milestone: add an IRSA-backed infrared image panel to system
-  pages, with pre-cached cutouts/composites for public UX goldens and
-  high-coolness systems, lazy bounded cache for other systems, source links
-  back to IRSA, and retained retrieval metadata. This should start with
-  AllWISE W1/W2/W3 cutouts and web-friendly generated previews while preserving
-  FITS/source metadata for evidence/debug views.
+- WISE/CatWISE/AllWISE v1 targeted evidence integration is implemented:
+  `scripts/collect_wise_evidence.py` performs priority known-object
+  cross-reference queries with epoch/proper-motion handling,
+  `scripts/build_arm.py` materializes infrared evidence tables in ARM,
+  `scripts/verify_wise_evidence.py` enforces the no-WISE-core-promotion policy,
+  and system pages can lazy-load IRSA-backed W1/W2/W3 image previews through a
+  bounded cache. It also includes a narrow red/high-motion targeted-query
+  candidate queue with accepted/rejected/quarantined/needs_review status
+  vocabulary. Plan and follow-ups: `docs/CATWISE_ALLWISE_PLAN.md`.
+- Next WISE milestone: expand candidate discovery beyond targeted known-object
+  cones into a reviewed nearby ultracool/brown-dwarf search workflow with AAA
+  evidence packet hooks.
 - Multi-wavelength sky-context milestone: design selectable 3D-map sky
   backgrounds, starting with a basic Milky Way visible-light sky and later
   adding infrared, X-ray, and other survey layers. Keep these as presentation

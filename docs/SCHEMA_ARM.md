@@ -703,6 +703,148 @@ Columns:
 - `ref_discovery TEXT`
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
 
+## `wise_sources`, `catwise_sources`, `allwise_sources`
+
+Targeted WISE/CatWISE/AllWISE source rows matched around existing Spacegate
+objects. These are infrared evidence rows, not a primary inventory backbone.
+
+Columns:
+- `wise_source_id BIGINT`
+- `source_catalog TEXT` (`catwise|allwise`)
+- `source_version TEXT`
+- `source_key TEXT`
+- `source_designation TEXT`
+- `source_id TEXT`
+- `ra_deg DOUBLE`
+- `dec_deg DOUBLE`
+- `retrieved_at TIMESTAMP`
+- `provenance_json JSON`
+- `source_row_hash TEXT`
+
+Rules:
+- Do not bulk-promote WISE-only rows into `core`.
+- CatWISE/AllWISE identifiers are secondary/copyable metadata unless no better
+  public name exists.
+- Source positions and motion fields are evidence for matching and AAA
+  investigation, not Gaia-grade identity or distance authority.
+- `catwise_sources` and `allwise_sources` are filtered convenience tables over
+  `wise_sources`.
+
+## `infrared_source_matches`
+
+Deterministic cross-reference decisions between existing Spacegate targets and
+WISE/CatWISE/AllWISE source rows.
+
+Columns:
+- `infrared_match_id BIGINT`
+- target binding: `target_type TEXT`, `target_id BIGINT`, `system_id BIGINT`,
+  `stable_object_key TEXT`
+- source binding: `source_catalog TEXT`, `source_version TEXT`,
+  `source_key TEXT`, `source_designation TEXT`
+- matching: `angular_sep_arcsec DOUBLE`, `match_rank INTEGER`,
+  `match_score DOUBLE`, `confidence_tier TEXT`, `match_method TEXT`,
+  `conflict_status TEXT`
+- `provenance_json JSON`
+
+Rules:
+- Match scoring may use angular separation, epoch/proper-motion propagation,
+  source designation, W1/W2 color, SNR, and quality/artifact/blend flags.
+- Low-confidence or ambiguous rows must remain candidates or diagnostics; they
+  must not create new core objects.
+- Accepted matches attach to the correct object level when deterministic:
+  system, member star, brown dwarf, compact object, or unresolved evidence row.
+
+## `infrared_photometry`
+
+WISE-band photometry and quality context associated with an infrared match.
+
+Columns:
+- `infrared_photometry_id BIGINT`
+- source and target binding fields
+- `w1_mag`, `w2_mag`, `w3_mag`, `w4_mag`
+- `w1_snr`, `w2_snr`, `w3_snr`, `w4_snr`
+- `quality_flags TEXT`
+- `artifact_flags TEXT`
+- `blend_flags JSON`
+- `provenance_json JSON`
+
+## `infrared_motion_evidence`
+
+WISE/CatWISE apparent motion and parallax-like support fields.
+
+Columns:
+- `infrared_motion_id BIGINT`
+- source and target binding fields
+- `pm_ra DOUBLE`
+- `pm_dec DOUBLE`
+- `pm_unit TEXT`
+- `pm_ra_error DOUBLE`
+- `pm_dec_error DOUBLE`
+- `parallax_like_arcsec DOUBLE`
+- `parallax_like_error_arcsec DOUBLE`
+- `parallax_like_note TEXT`
+- `provenance_json JSON`
+
+Rules:
+- CatWISE `par_pm`-style values are candidate evidence only. They must not be
+  treated as Gaia-grade parallaxes or as accepted distances without review.
+
+## `infrared_candidate_queue`
+
+Conservative review queue for WISE/CatWISE/AllWISE sources that may indicate
+missing nearby ultracool or brown-dwarf objects. In v1 the queue is narrow and
+is generated only from targeted WISE queries around priority Spacegate objects.
+
+Columns:
+- `infrared_candidate_id BIGINT`
+- `candidate_status TEXT` (`needs_review|accepted|rejected|quarantined`)
+- `candidate_kind TEXT`
+- nearest Spacegate context: `nearest_target_type TEXT`,
+  `nearest_target_id BIGINT`, `nearest_system_id BIGINT`,
+  `nearest_stable_object_key TEXT`
+- source binding: `source_catalog TEXT`, `source_version TEXT`,
+  `source_key TEXT`, `source_designation TEXT`
+- position and ranking: `ra_deg DOUBLE`, `dec_deg DOUBLE`,
+  `angular_sep_arcsec DOUBLE`, `candidate_score DOUBLE`
+- infrared/motion basis: `w1_minus_w2 DOUBLE`, `pm_total_arcsec_yr DOUBLE`,
+  `w2_snr DOUBLE`, `review_reason TEXT`
+- `provenance_json JSON`
+
+Rules:
+- Queue rows are review prompts, not inventory rows.
+- `accepted` means accepted for further curation or a reviewed bridge process;
+  it still does not directly create `core` rows without an explicit inventory
+  promotion path.
+- `rejected` and `quarantined` statuses must be preserved for auditability.
+
+## `infrared_image_products`
+
+Metadata for WISE/IRSA image products associated with Spacegate objects. In v1
+the API writes lazy cache metadata outside the immutable build artifact; this
+ARM table is reserved for build-time or reviewed image-product materialization.
+
+Columns:
+- `infrared_image_product_id BIGINT`
+- object binding fields
+- `source_catalog TEXT`
+- `source_version TEXT`
+- `collection TEXT`
+- `bands_json JSON`
+- `center_ra_deg DOUBLE`
+- `center_dec_deg DOUBLE`
+- `cutout_size_arcmin DOUBLE`
+- `source_url TEXT`
+- `derivative_path TEXT`
+- `retrieved_at TIMESTAMP`
+- `attribution TEXT`
+- `provenance_json JSON`
+
+Rules:
+- Generated image derivatives must live outside the repo and outside immutable
+  science semantics.
+- Image panels must link back to IRSA/source products and clearly state that the
+  imagery is observational survey imagery, not an artist impression.
+
 ## Lifecycle Audit Mirrors
 
 Arm mirrors lifecycle lineage tables from core so lifecycle diffs/audits remain available even when hot-path core tables are optimized for serving.

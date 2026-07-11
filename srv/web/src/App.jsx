@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystems } from "./api.js";
+import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystemInfrared, fetchSystems, apiUrl } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
@@ -754,6 +754,21 @@ function formatNumber(value, digits = 2) {
     return value.toLocaleString(undefined, { maximumFractionDigits: digits });
   }
   return String(value);
+}
+
+function formatBytes(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return "Unknown";
+  }
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let amount = numeric;
+  let unitIndex = 0;
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024;
+    unitIndex += 1;
+  }
+  return `${amount.toLocaleString(undefined, { maximumFractionDigits: unitIndex === 0 ? 0 : 1 })} ${units[unitIndex]}`;
 }
 
 function formatHumanLargeCount(value) {
@@ -4007,6 +4022,150 @@ function ProvenanceBlock({ provenance, grouping = null }) {
   );
 }
 
+function InfraredSkyView({ system }) {
+  const [payload, setPayload] = React.useState(null);
+  const [status, setStatus] = React.useState("idle");
+  const [error, setError] = React.useState("");
+  const [shouldLoad, setShouldLoad] = React.useState(false);
+  const panelRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const node = panelRef.current;
+    if (!node) {
+      return undefined;
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "420px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [system?.system_id]);
+
+  React.useEffect(() => {
+    setPayload(null);
+    setStatus("idle");
+    setError("");
+    setShouldLoad(false);
+  }, [system?.system_id]);
+
+  React.useEffect(() => {
+    if (!system?.system_id || !shouldLoad) {
+      return undefined;
+    }
+    let active = true;
+    setStatus("loading");
+    setError("");
+    fetchSystemInfrared(system.system_id, { size_arcmin: "8" })
+      .then((nextPayload) => {
+        if (!active) {
+          return;
+        }
+        setPayload(nextPayload);
+        setStatus("ready");
+      })
+      .catch((exc) => {
+        if (!active) {
+          return;
+        }
+        setStatus("error");
+        setError(exc instanceof Error ? exc.message : "WISE imagery unavailable.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [shouldLoad, system?.system_id]);
+
+  const bands = payload?.available_bands || [];
+  const previewUrl = payload?.preview_url ? apiUrl(payload.preview_url) : "";
+  const bandLinks = Object.entries(payload?.bands || {})
+    .filter(([, info]) => info?.source_url)
+    .map(([band, info]) => ({ band, url: info.source_url }));
+
+  return (
+    <section className="panel infrared-sky-panel" ref={panelRef}>
+      <div className="section-heading-row">
+        <div>
+          <h2>Infrared Sky View</h2>
+          <p className="muted">
+            WISE/AllWISE observational infrared cutout from IRSA. This is survey imagery, not an artist impression.
+          </p>
+        </div>
+        <span className="source-pill">IRSA WISE</span>
+      </div>
+      {status === "idle" && (
+        <div className="infrared-sky-placeholder">Infrared image products load when this panel enters view.</div>
+      )}
+      {status === "loading" && (
+        <div className="infrared-sky-placeholder">Looking up WISE image products...</div>
+      )}
+      {status === "error" && (
+        <div className="infrared-sky-placeholder">
+          <strong>WISE imagery unavailable</strong>
+          <span>{error}</span>
+        </div>
+      )}
+      {status === "ready" && payload && (
+        <div className="infrared-sky-layout">
+          <figure className="infrared-sky-frame">
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt={`WISE infrared sky cutout for ${systemDisplayName(system)}`}
+                loading="lazy"
+              />
+            ) : (
+              <div className="infrared-sky-placeholder">No preview available.</div>
+            )}
+            <figcaption>
+              False-color WISE preview: W3 red, W2 green, W1 blue. Cutout {formatNumber(payload.cutout_size_arcmin, 1)} arcmin.
+            </figcaption>
+          </figure>
+          <div className="infrared-sky-meta">
+            <div>
+              <strong>Bands</strong>
+              <span>{bands.length ? bands.join(", ") : "Unavailable"}</span>
+            </div>
+            <div>
+              <strong>Center</strong>
+              <span>{formatNumber(payload.center_ra_deg, 5)} deg, {formatNumber(payload.center_dec_deg, 5)} deg</span>
+            </div>
+            <div>
+              <strong>Cache</strong>
+              <span>{formatText(payload.cache_status)} · {formatBytes(payload.cache?.total_bytes)} / {formatBytes(payload.cache?.limit_bytes)}</span>
+            </div>
+            <div>
+              <strong>Attribution</strong>
+              <span>{formatText(payload.attribution)}</span>
+            </div>
+            {bandLinks.length > 0 && (
+              <div className="infrared-sky-links">
+                <strong>IRSA source products</strong>
+                <span>
+                  {bandLinks.map((entry) => (
+                    <a key={entry.band} href={entry.url} target="_blank" rel="noreferrer">
+                      {entry.band}
+                    </a>
+                  ))}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SystemDetailPage({ buildId = "" }) {
   const { defaultScaleMode, nameStyle } = useThemeControls();
   const { systemId } = useParams();
@@ -4148,6 +4307,8 @@ function SystemDetailPage({ buildId = "" }) {
         <SystemNarrativeScaffold system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
 
         <SystemAtAGlanceStrip system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
+
+        <InfraredSkyView system={system} />
 
         <ConceptExplainerGrid />
 

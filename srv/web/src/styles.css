@@ -1241,6 +1241,152 @@
   background: var(--map-select-checked-bg);
 }
 
+.infrared-sky-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.infrared-sky-panel .section-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.infrared-sky-panel h2 {
+  margin: 0 0 4px;
+}
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.infrared-sky-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.15fr) minmax(240px, 0.85fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.infrared-sky-frame {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.infrared-sky-frame img,
+.infrared-sky-placeholder {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 40% 42%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    color-mix(in srgb, var(--surface-soft) 62%, transparent);
+}
+
+.infrared-sky-frame img {
+  display: block;
+  height: min(48vh, 460px);
+  object-fit: contain;
+}
+
+.infrared-sky-frame figcaption {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.infrared-sky-placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.infrared-sky-placeholder strong {
+  color: var(--text);
+}
+
+.infrared-sky-meta {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.infrared-sky-meta > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
+}
+
+.infrared-sky-meta strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.infrared-sky-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.infrared-sky-links span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.infrared-sky-links a {
+  display: inline-flex;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--border));
+  border-radius: 999px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .infrared-sky-panel .section-heading-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .infrared-sky-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .infrared-sky-frame img,
+  .infrared-sky-placeholder {
+    min-height: 220px;
+  }
+}
+
 .map-status-panel,
 .map-selection-panel,
 .map-controls-panel,

@@ -251,12 +251,22 @@ Tier 1: Known-object cross-reference.
   epoch/proper-motion handling.
 - Store high-confidence WISE IDs and infrared photometry as ARM evidence.
 - Highest value, lowest risk first implementation.
+- v1 implementation: `scripts/collect_wise_evidence.py` writes targeted cooked
+  WISE source, match, photometry, and motion CSV artifacts; `scripts/build_arm.py`
+  materializes them into `arm.wise_sources`,
+  `arm.infrared_source_matches`, `arm.infrared_photometry`, and
+  `arm.infrared_motion_evidence`; `scripts/verify_wise_evidence.py` checks that
+  WISE rows remain ARM evidence and do not leak into core source catalogs.
 
 Tier 2: Priority imagery.
 
 - Pre-cache WISE cutouts for top-coolness systems and public UX goldens.
 - Lazy-cache additional system-page requests with a bounded local cache.
 - Directly improves the public product without requiring a huge catalog ingest.
+- v1 implementation: `/api/v1/systems/{system_id}/infrared` and
+  `/api/v1/systems/{system_id}/infrared/preview.png` lazily query IRSA SIA/IBE,
+  generate W1/W2/W3 false-color PNG previews, preserve source-product links,
+  and enforce the bounded WISE image cache.
 
 Tier 3: Candidate queue.
 
@@ -264,6 +274,11 @@ Tier 3: Candidate queue.
 - Emit review queues with candidate ranking, quality flags, and crossmatch
   diagnostics.
 - Do not auto-promote candidates without stronger corroborating evidence.
+- v1 implementation: targeted known-object cone queries emit a narrow
+  `infrared_candidate_queue.csv` and `arm.infrared_candidate_queue` row when
+  red W1-W2 color, high apparent motion, sufficient W2 SNR, and clean artifact
+  flags suggest an ultracool/brown-dwarf candidate. This is a scaffold for
+  review, not a full all-sky candidate search.
 
 Tier 4: Heavy survey mode.
 
