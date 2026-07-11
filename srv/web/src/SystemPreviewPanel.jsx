@@ -1468,7 +1468,26 @@ function SelectionHalo({ radius, color = "#ffffff", pulse = false }) {
   );
 }
 
-function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function useSceneTargetRegistration(targetId, objectRef, targetRegistryRef) {
+  const worldPositionRef = React.useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    if (!targetId || !objectRef?.current || !targetRegistryRef?.current) {
+      return;
+    }
+    objectRef.current.getWorldPosition(worldPositionRef.current);
+    targetRegistryRef.current.set(targetId, worldPositionRef.current.clone());
+  });
+
+  useEffect(() => () => {
+    if (targetId && targetRegistryRef?.current) {
+      targetRegistryRef.current.delete(targetId);
+    }
+  }, [targetId, targetRegistryRef]);
+}
+
+function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
+  const groupRef = React.useRef(null);
   const bodyClass = stellarBodyClass(star);
   const compactRadiusFallback = bodyClass === "white_dwarf" ? 0.018 : (bodyClass === "neutron_star" || bodyClass === "pulsar" || bodyClass === "magnetar" ? 0.00003 : 0.55);
   const radiusRsun = numericField(star.fields, "radius_rsun") || Number(star.radiusRsun || compactRadiusFallback);
@@ -1492,6 +1511,8 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
   const texture = useMemo(() => createStarTexture(star.render_key || star.key || star.display_name || star.name, color), [star, color]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("star", star), [star]);
+  const hoverPayloadId = payloadId(hoverPayload);
+  useSceneTargetRegistration(hoverPayloadId, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
   const hoverHandlers = {
     onPointerOver: (event) => {
@@ -1512,7 +1533,7 @@ function StarSphere({ star, position = [0, 0, 0], showLabels = true, selectedObj
     },
   };
   return (
-    <group position={position}>
+    <group ref={groupRef} position={position}>
       <mesh {...hoverHandlers} userData={{ hoverPayload }}>
         <sphereGeometry args={[radius, 32, 24]} />
         <meshStandardMaterial color={color} map={texture || null} emissive={color} emissiveIntensity={bodyClass === "white_dwarf" ? 1.45 : 0.9} roughness={0.52} />
@@ -2102,7 +2123,7 @@ function groupKeysForStarKeys(starKeys, layout) {
   return [...common];
 }
 
-function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
 
   useFrame(() => {
@@ -2115,12 +2136,12 @@ function AnimatedStarSphere({ star, position = [0, 0, 0], groupKeys = [], groupM
 
   return (
     <group ref={groupRef} position={position}>
-      <StarSphere star={star} showLabels={showLabels} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
+      <StarSphere star={star} showLabels={showLabels} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} onHover={onHover} onSelect={onSelect} />
     </group>
   );
 }
 
-function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", center = [0, 0, 0], simClockRef, running = true, speedMultiplier = 1, showOrbits = true, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", center = [0, 0, 0], simClockRef, running = true, speedMultiplier = 1, showOrbits = true, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const primaryRef = React.useRef(null);
   const secondaryRef = React.useRef(null);
@@ -2211,10 +2232,10 @@ function BinaryOrbit({ orbit, starsByKey, layout, groupMotionSpecs, visualScale 
         </>
       )}
       <group ref={primaryRef}>
-        <StarSphere star={primary} showLabels={showLabels} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
+        <StarSphere star={primary} showLabels={showLabels} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} onHover={onHover} onSelect={onSelect} />
       </group>
       <group ref={secondaryRef}>
-        <StarSphere star={secondary} showLabels={showLabels} selectedObjectId={selectedObjectId} onHover={onHover} onSelect={onSelect} />
+        <StarSphere star={secondary} showLabels={showLabels} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} onHover={onHover} onSelect={onSelect} />
       </group>
     </group>
   );
@@ -2560,7 +2581,7 @@ function TreeOrbitGuide({ spec, groupRefSetter, showOrbits = true, selectedObjec
   );
 }
 
-function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderOrbits = [], starsByKey, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", simClockRef, showOrbits = true, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderOrbits = [], starsByKey, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", simClockRef, showOrbits = true, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const nodesByKey = useMemo(() => simulationTreeNodes(simulationTree), [simulationTree]);
   const orbitsByKey = useMemo(() => new Map((renderOrbits || []).map((orbit) => [orbit.orbit_key, orbit])), [renderOrbits]);
   const bodyRefs = React.useRef(new Map());
@@ -2637,6 +2658,7 @@ function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderO
               star={star}
               showLabels={showLabels}
               selectedObjectId={selectedObjectId}
+              targetRegistryRef={targetRegistryRef}
               onHover={onHover}
               onSelect={onSelect}
             />
@@ -2656,6 +2678,7 @@ function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderO
               simClockRef={simClockRef}
               showLabels={showLabels}
               selectedObjectId={selectedObjectId}
+              targetRegistryRef={targetRegistryRef}
               onHover={onHover}
               onSelect={onSelect}
             />
@@ -2666,9 +2689,11 @@ function SimulationTreeObjects({ simulationTree, stars, subsystems = [], renderO
   );
 }
 
-function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupMotionSpecs, layout, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const payload = useMemo(() => objectHoverPayload("subsystem", subsystem), [subsystem]);
+  const payloadKey = payloadId(payload);
+  useSceneTargetRegistration(payloadKey, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(payload) === selectedObjectId);
 
   useFrame(() => {
@@ -2723,7 +2748,7 @@ function SubsystemMarker({ subsystem, center = [0, 0, 0], groupKeys = [], groupM
   );
 }
 
-function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", onHover, onSelect }) {
+function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGroupKeys = [], groupMotionSpecs, layout, treeContext = null, treeHostBodyKey = null, simClockRef, running = true, speedMultiplier = 1, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect }) {
   const groupRef = React.useRef(null);
   const periodDays = Math.max(0.05, numericField(planet.fields, "orbital_period_days") || Number(planet.periodDays) || 8 + orbitRadius * 2.2);
   const eccentricity = displayPlanetEccentricity(planet);
@@ -2735,6 +2760,8 @@ function PlanetObject({ planet, orbitRadius, color, center = [0, 0, 0], motionGr
   const texture = useMemo(() => createPlanetTexture(planet.render_key || planet.key || planet.display_name || planet.name, visualKind), [planet, visualKind]);
   useEffect(() => () => texture?.dispose?.(), [texture]);
   const hoverPayload = useMemo(() => objectHoverPayload("planet", planet), [planet]);
+  const hoverPayloadId = payloadId(hoverPayload);
+  useSceneTargetRegistration(hoverPayloadId, groupRef, targetRegistryRef);
   const selected = Boolean(selectedObjectId && payloadId(hoverPayload) === selectedObjectId);
   const hoverHandlers = {
     onPointerOver: (event) => {
@@ -2862,9 +2889,11 @@ function WebGLContextGuard({ onContextLost }) {
   return null;
 }
 
-function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
+function CameraControls({ resetToken = 0, scaleMode = "structure", selectedObjectId = "", targetRegistryRef = null }) {
   const { camera, gl, invalidate } = useThree();
   const controlsRef = React.useRef(null);
+  const lastTargetObjectIdRef = React.useRef("");
+  const lastTargetPositionRef = React.useRef(new THREE.Vector3(0, 0, 0));
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const writeCameraState = useCallback(() => {
     gl.domElement.dataset.cameraPosition = [
@@ -2872,6 +2901,13 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
       camera.position.y.toFixed(3),
       camera.position.z.toFixed(3),
     ].join(",");
+    const target = controlsRef.current?.target || new THREE.Vector3(0, 0, 0);
+    gl.domElement.dataset.cameraTargetPosition = [
+      target.x.toFixed(3),
+      target.y.toFixed(3),
+      target.z.toFixed(3),
+    ].join(",");
+    gl.domElement.dataset.cameraTargetObjectId = lastTargetObjectIdRef.current || "";
   }, [camera, gl]);
 
   useEffect(() => {
@@ -2884,6 +2920,7 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
     controls.panSpeed = 0.55;
     controls.target.set(0, 0, 0);
     controls.saveState();
+    lastTargetPositionRef.current.set(0, 0, 0);
     const handleChange = () => {
       writeCameraState();
       invalidate();
@@ -2916,6 +2953,8 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
     }
     camera.position.set(0, 6.2, 10.8);
     controlsRef.current.target.set(0, 0, 0);
+    lastTargetObjectIdRef.current = "";
+    lastTargetPositionRef.current.set(0, 0, 0);
     controlsRef.current.saveState();
     controlsRef.current.reset();
     controlsRef.current.update();
@@ -2925,6 +2964,29 @@ function CameraControls({ resetToken = 0, scaleMode = "structure" }) {
 
   useFrame(() => {
     if (controlsRef.current) {
+      const desiredTarget = selectedObjectId && targetRegistryRef?.current
+        ? targetRegistryRef.current.get(selectedObjectId)
+        : null;
+      const activeTargetId = desiredTarget ? selectedObjectId : "";
+      if (activeTargetId !== lastTargetObjectIdRef.current) {
+        const nextTarget = desiredTarget || new THREE.Vector3(0, 0, 0);
+        controlsRef.current.target.copy(nextTarget);
+        lastTargetPositionRef.current.copy(nextTarget);
+        lastTargetObjectIdRef.current = activeTargetId;
+        controlsRef.current.update();
+        writeCameraState();
+        invalidate();
+      } else if (desiredTarget) {
+        const delta = desiredTarget.clone().sub(lastTargetPositionRef.current);
+        if (delta.lengthSq() > 0.000001) {
+          camera.position.add(delta);
+          controlsRef.current.target.copy(desiredTarget);
+          lastTargetPositionRef.current.copy(desiredTarget);
+          controlsRef.current.update();
+          writeCameraState();
+          invalidate();
+        }
+      }
       const changed = controlsRef.current.update();
       writeCameraState();
       if (changed) {
@@ -3351,7 +3413,7 @@ function FormationLineRing({ star, lineKey, line, center = [0, 0, 0], maxOrbit =
   );
 }
 
-function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], simulationTree = null, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", onHover, onSelect, onClockSample }) {
+function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], simulationTree = null, hierarchy, visualScale = DEFAULT_VISUAL_SCALE, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = false, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", targetRegistryRef = null, onHover, onSelect, onClockSample }) {
   const activeScaleMode = normalizeScaleMode(scaleMode);
   const binaryOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind !== "group_pair");
   const groupOrbits = renderOrbits.filter((orbit) => orbit.endpoint_kind === "group_pair");
@@ -3632,6 +3694,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
           showOrbits={showOrbits}
           showLabels={showLabels}
           selectedObjectId={selectedObjectId}
+          targetRegistryRef={targetRegistryRef}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -3652,6 +3715,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
           showOrbits={showOrbits}
           showLabels={showLabels}
           selectedObjectId={selectedObjectId}
+          targetRegistryRef={targetRegistryRef}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -3669,6 +3733,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
           speedMultiplier={speedMultiplier}
           showLabels={showLabels}
           selectedObjectId={selectedObjectId}
+          targetRegistryRef={targetRegistryRef}
           onHover={onHover}
           onSelect={onSelect}
         />
@@ -3711,6 +3776,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
             speedMultiplier={speedMultiplier}
             showLabels={showLabels}
             selectedObjectId={selectedObjectId}
+            targetRegistryRef={targetRegistryRef}
             onHover={onHover}
             onSelect={onSelect}
           />
@@ -3767,6 +3833,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
               running={running}
               speedMultiplier={speedMultiplier}
               selectedObjectId={selectedObjectId}
+              targetRegistryRef={targetRegistryRef}
               onHover={onHover}
               onSelect={onSelect}
             />
@@ -3833,6 +3900,7 @@ function CanvasFrameCapture({ enabled = false, onCapture = null }) {
 }
 
 function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMultiplier = 1, resetToken = 0, showOrbits = true, showHabitableZones = true, showFormationLines = DEFAULT_FORMATION_LINE_VISIBILITY, showLabels = true, selectedObjectId = "", transparentBackground = false, frameLoop = "always", preserveDrawingBuffer = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onHover, onSelect, onPointerMissed, onClockSample, onContextLost }) {
+  const targetRegistryRef = React.useRef(new Map());
   const visualScale = useMemo(() => mergeVisualScale(scene?.render_scene?.visual_scale), [scene]);
   const activeScaleMode = normalizeScaleMode(scaleMode || visualScale.default_scale_mode || visualScale.scale_mode);
   const renderOrbits = useMemo(() => scene?.render_scene?.orbits || [], [scene]);
@@ -3913,7 +3981,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
       {!transparentBackground && <color attach="background" args={["#050b12"]} />}
       <WebGLContextGuard onContextLost={onContextLost} />
       <CanvasFrameCapture enabled={captureFrame} onCapture={onFrameCapture} />
-      <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} />
+      <CameraControls resetToken={resetToken} scaleMode={activeScaleMode} selectedObjectId={selectedObjectId} targetRegistryRef={targetRegistryRef} />
       <CanvasHoverRaycaster onHover={onHover} />
       <PreviewObjects
         stars={stars}
@@ -3932,6 +4000,7 @@ function SceneCanvas({ scene, scaleMode = "structure", running = true, speedMult
         showFormationLines={showFormationLines}
         showLabels={showLabels}
         selectedObjectId={selectedObjectId}
+        targetRegistryRef={targetRegistryRef}
         onHover={onHover}
         onSelect={onSelect}
         onClockSample={onClockSample}

@@ -212,6 +212,11 @@ Already in place:
   one Keplerian presentation transform and child nodes inherit that transform
   recursively, so inner binaries inherit outer subsystem motion without adding
   broad hierarchy-group offsets multiple times.
+- MSC source-native group endpoints such as Alpha Centauri `AB,C` are resolved
+  to rendered barycenter leaf sets when the accepted hierarchy/member labels
+  make that mapping deterministic. This lets source-backed wide hierarchical
+  orbits animate through `simulation_tree_v1` instead of degrading to static
+  sibling layout.
 - when a simulation-tree node has multiple children but no source-backed orbit
   solution, the browser gives those child groups a small static, mass-weighted
   presentation separation instead of stacking them at the barycenter. This is

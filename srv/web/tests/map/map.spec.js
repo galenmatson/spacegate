@@ -2024,7 +2024,10 @@ test.describe("public 3D map beta", () => {
     expect(Number(membership.source_hierarchy_leaf_count || 0)).toBeGreaterThanOrEqual(3);
     expect(Number(membership.rendered_stellar_body_count || 0)).toBeGreaterThanOrEqual(3);
     expect(String(membership.membership_gate || "")).toMatch(/source_hierarchy_leaves/);
-    expect(Number(membership.unmatched_orbit_endpoint_count || 0)).toBeGreaterThanOrEqual(1);
+    expect(Number(membership.unmatched_orbit_endpoint_count || 0)).toBe(0);
+    const alphaOrbits = scenePayload.render_scene?.orbits || [];
+    expect(alphaOrbits.some((orbit) => orbit.endpoint_kind === "group_pair" && orbit.relation_kind === "hierarchical_pair")).toBeTruthy();
+    expect(Number(scenePayload.render_scene?.simulation_tree?.diagnostics?.nested_orbit_count || 0)).toBeGreaterThanOrEqual(1);
 
     await page.goto(`/systems/${alpha.system_id}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
@@ -2037,6 +2040,10 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeStaticSiblingLayoutCount || 0)),
       { timeout: 3000 }
+    ).toBe(0);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeNestedOrbitCount || 0)),
+      { timeout: 3000 }
     ).toBeGreaterThanOrEqual(1);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
@@ -2046,6 +2053,20 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneBinaryPlaneCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(2);
+    await page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i }).first().click();
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),
+      { timeout: 3000 }
+    ).toBe(proximaKey);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => {
+        const values = String(canvas.dataset.cameraTargetPosition || "")
+          .split(",")
+          .map((value) => Number(value));
+        return values.some((value) => Number.isFinite(value) && Math.abs(value) > 0.05);
+      }),
+      { timeout: 3000 }
+    ).toBeTruthy();
     await expect(page.locator(".system-detail-v2")).toContainText(/Proxima/i);
   });
 

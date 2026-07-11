@@ -368,6 +368,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   available, and statically separate wide simulation-tree siblings without
   source orbit solutions so Alpha Centauri AB/Proxima no longer stack at the
   barycenter
+- [x] Resolve deterministic MSC group endpoints such as Alpha Centauri AB-C to
+  rendered barycenter leaf sets so source-backed wide hierarchical orbits
+  animate through `simulation_tree_v1`
 - [x] Normalize habitable-zone display scaling against rendered HZ bounds as
   well as planets, and make True Bodies planet radii use Earth-to-Sun scale
   relative to star meshes

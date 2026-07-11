@@ -2653,6 +2653,8 @@ def _render_scene_contract(
             continue
         for key_name in ("primary_component_key", "secondary_component_key"):
             component_key = str(edge.get(key_name) or "")
+            if component_key.startswith("comp:msc_group:wds:"):
+                continue
             if component_key and not render_star_membership_allowed(component_key):
                 unmatched_orbit_endpoint_keys.add(component_key)
                 continue
@@ -2722,9 +2724,17 @@ def _render_scene_contract(
         if ":" not in group_ref:
             return []
         wds_id, group_label = group_ref.rsplit(":", 1)
-        labels = {group_label.lower()}
-        if group_label.lower() == "ab":
-            labels = {"a", "b"}
+        normalized_group_label = group_label.lower()
+        labels = {normalized_group_label}
+        if re.fullmatch(r"[a-z]{2,4}", normalized_group_label):
+            labels.update(normalized_group_label)
+        mapped = sorted({
+            render_key_by_wds_label.get((wds_id, label))
+            for label in labels
+            if render_key_by_wds_label.get((wds_id, label)) in render_stars
+        })
+        if mapped:
+            return mapped
         star_prefix = f"comp:msc:wds:{wds_id}:"
         resolved = []
         for render_key in sorted(render_stars):
@@ -2843,6 +2853,11 @@ def _render_scene_contract(
             and secondary_child_keys
         )
         if not is_direct_star_orbit and not is_group_orbit:
+            if str(edge.get("relation_kind") or "") != "planetary_orbit":
+                if primary_key and not primary_child_keys and primary_render_key not in render_stars:
+                    unmatched_orbit_endpoint_keys.add(primary_key)
+                if secondary_key and not secondary_child_keys and secondary_render_key not in render_stars:
+                    unmatched_orbit_endpoint_keys.add(secondary_key)
             continue
         try:
             orbit_edge_id = int(edge.get("orbit_edge_id"))
