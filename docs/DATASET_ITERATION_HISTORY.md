@@ -370,9 +370,13 @@ Representative commits:
 - Policy retained: WISE/CatWISE/AllWISE rows are evidence and imagery support,
   not core object promotion. Missing nearby infrared-only candidates still need
   a reviewed candidate queue before core acceptance.
+- First local priority seed run: 500 targets, 2,051 unique WISE sources, 2,105
+  match/photometry/motion rows, 139 review candidates, 0 query errors. This was
+  materialized locally as side build `20260711T_wise_v1_seed_side` and promoted
+  on photon for inspection.
 
 Representative commits:
-- pending (WISE cross-reference and infrared imagery v1)
+- `fe1b7fb` (WISE cross-reference and infrared imagery v1)
 
 ## Recurrent Defect Classes and Mitigations
 
