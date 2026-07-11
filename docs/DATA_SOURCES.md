@@ -361,6 +361,7 @@ Role:
   ultracool rows into invented component hierarchies.
 - limitation: this is not a full WISE/CatWISE/AllWISE survey ingest. Large
   infrared survey integration remains a separate performance-planned milestone.
+  See `docs/CATWISE_ALLWISE_PLAN.md`.
 
 Source endpoint:
 

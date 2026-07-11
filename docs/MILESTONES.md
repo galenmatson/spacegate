@@ -753,7 +753,7 @@ Future work:
   implementation. Decide retrieval footprint, IRSA/AWS source strategy,
   crossmatch policy, storage/retention posture, and whether the products serve
   only ARM evidence or also drive a reviewed nearby brown-dwarf core promotion
-  queue.
+  queue. Initial plan: `docs/CATWISE_ALLWISE_PLAN.md`.
 - concept pages should include interactive visualizations where they materially
   teach the concept. Candidate examples include a SuperPuff planet model whose
   diffuse envelope expands and escapes as stellar irradiation rises, a

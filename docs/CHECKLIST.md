@@ -743,7 +743,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Plan and implement CatWISE/AllWISE infrared survey integration: decide
   retrieval footprint, row-volume limits, crossmatch policy, artifact storage,
   and whether survey rows remain ARM evidence, promote selected nearby brown
-  dwarfs into core, or both
+  dwarfs into core, or both. Initial plan: `docs/CATWISE_ALLWISE_PLAN.md`
 - [ ] Build Concept Tag Foundation: tag priority tiers, clickable concept-page
   hooks, complete tooltip/popover audit, and first `/concepts/:slug` pages
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
