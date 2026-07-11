@@ -907,6 +907,10 @@ Remaining:
 
 - inspect the six remaining MSC `orb.tsv` rows that do not resolve to ARM
   orbit edges.
+- design WDS pair-observation utilization separately. The expanded audit shows
+  WDS observation rows are preserved, but Spacegate has not yet decided which
+  rows should become ARM pair support entities, projection evidence, orbit-edge
+  candidates, or diagnostics only.
 - decide whether a capped/materialized ARM policy for stellar subclass priors
   is worth the storage cost, or whether runtime provenance remains sufficient.
 - refresh browser Playwright expectations that now lag the current naming,

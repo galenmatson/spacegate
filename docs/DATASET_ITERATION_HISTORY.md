@@ -294,6 +294,13 @@ Representative commits:
   they are guarded against giants, subgiants, white dwarfs, neutron stars,
   black holes, pulsars, magnetars, and other evolved/remnant markers. The
   priors remain ARM/render support evidence, not core source facts.
+- Extended the source-evidence utilization audit beyond MSC. The current local
+  audit now also summarizes WDS observation utilization, orbital solution
+  coverage by catalog, source stellar-parameter field coverage, normalized
+  solution integrity, and nearby examples where spectral-class stars still lack
+  source mass evidence. A major remaining finding is that WDS pair-observation
+  rows are preserved but not yet normalized into ARM pair entities/orbit edges;
+  this should become a separate WDS pair-observation utilization milestone.
 
 Representative commits:
 - pending (source evidence utilization / stellar parameter normalization v1)

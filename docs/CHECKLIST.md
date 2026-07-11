@@ -736,6 +736,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   deterministic, with 70 Oph as a visible benchmark
 - [ ] Review the remaining MSC `orb.tsv` diagnostics that still do not resolve
   to ARM orbit edges after source-native endpoint normalization
+- [ ] Define WDS pair-observation utilization policy: preserve observation
+  history, but decide when WDS component-pair rows should create ARM support
+  pair entities, orbit/projection evidence, or diagnostics only
 - [x] Add spectral-subclass-aware main-sequence stellar parameter priors for
   simulation support, guarded against giants, subgiants, remnants, and compact
   objects, without writing those priors into core

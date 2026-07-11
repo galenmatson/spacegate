@@ -144,6 +144,11 @@ Notes:
   `hierarchical_pair` edges when the host and both endpoint component keys
   resolve. `orb.tsv` rows that do not resolve remain diagnostics; they must not
   create fake simulator endpoints.
+- WDS pair observations are preserved separately in
+  `wds_component_observations`. They are long-baseline observational evidence,
+  but they are not automatically equivalent to fitted orbital solutions. A
+  later WDS-utilization pass should decide which pair rows become support pair
+  entities, projection evidence, orbit-edge candidates, or diagnostics.
 - Runtime render contracts may expose subsystem nodes as inspectable UI bodies
   with descendant render keys and derived child counts. Those presentation
   handles must remain backed by `component_entities`/`system_hierarchy_edges`
