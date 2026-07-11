@@ -736,6 +736,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Fix current public-search source/alias coverage gap for Vega /
   Alpha Lyrae / HD 172167 / HIP 91262 so the public UX golden resolves
   correctly
+- [ ] Build Nearby Ultracool Completeness v1: promote vetted nearby
+  UltracoolSheet/WISE brown dwarfs such as Luhman 16 and WISE 0855-0714 into
+  accepted inventory when Gaia backbone coverage is missing, with provenance
+  and no full CatWISE ingest dependency
 - [ ] Build Concept Tag Foundation: tag priority tiers, clickable concept-page
   hooks, complete tooltip/popover audit, and first `/concepts/:slug` pages
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into

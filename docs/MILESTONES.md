@@ -744,6 +744,15 @@ Future work:
   representative systems and related concepts, and offer a "Find more" Star
   Search path with the relevant filter active. The initial backlog, route, and
   page contract are tracked in `docs/CONCEPTS.md`.
+- build a Nearby Ultracool Completeness v1 data milestone before making strong
+  nearby-census claims. The current build preserves Luhman 16 and WISE
+  0855-0714 in cooked UltracoolSheet/ARM support data, but they are not
+  accepted root systems because the Gaia-first backbone does not include those
+  rows and the ultracool overlay is not yet an inventory-promoting source.
+  The first pass should promote vetted nearby L/T/Y dwarfs from
+  UltracoolSheet/Simple-BD style records with source provenance and aliases,
+  then evaluate CatWISE/AllWISE as a larger, performance-planned survey
+  integration.
 - concept pages should include interactive visualizations where they materially
   teach the concept. Candidate examples include a SuperPuff planet model whose
   diffuse envelope expands and escapes as stellar irradiation rises, a

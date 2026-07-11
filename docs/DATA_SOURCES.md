@@ -351,6 +351,11 @@ Role:
 - ultracool object metadata and youth indicators
 - Gaia DR3/DR2-linked arm overlay for detailed UCD context
 - supports later disc enrichment without widening core hot-path tables
+- known limitation: ARM overlay rows are not currently accepted inventory
+  roots when the Gaia backbone misses them. Nearby non-Gaia or unlinked
+  brown dwarfs such as WISE 0855-0714, and Gaia-ID-bearing rows absent from
+  the current Gaia backbone such as Luhman 16, require a dedicated vetted
+  ultracool-inventory promotion pass.
 
 Source endpoint:
 

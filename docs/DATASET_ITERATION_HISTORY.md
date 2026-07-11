@@ -50,6 +50,12 @@ Use this as the historical ledger for:
 
 - Additional deterministic TESS-era eclipsing/variability bulk feeds beyond current TESS EB export.
 - Large survey overlays requiring separate performance/retention planning (for example CatWISE full integration).
+- Nearby ultracool completeness pass: the current Gaia-first backbone plus
+  ARM-only UltracoolSheet overlay preserves objects such as Luhman 16 and
+  WISE 0855-0714 in cooked/ARM support data, but does not promote unlinked
+  ultracool objects into the accepted core inventory. This is a real nearby
+  space blind spot and should be fixed before relying on the 10 pc census for
+  public completeness claims.
 
 ## Iteration Timeline
 

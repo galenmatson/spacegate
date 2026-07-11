@@ -2271,6 +2271,9 @@ function MapStarSearchShell({
         <button type="submit" className="map-command-button primary" disabled={loading}>
           {loading ? "Searching" : "Search"}
         </button>
+        <button type="button" className="map-command-button ghost map-search-reset" onClick={resetFilters}>
+          Clear
+        </button>
         {resultsOpen && (
           <button type="button" className="map-command-button ghost" onClick={onCloseResults}>
             Close Results
@@ -2319,9 +2322,6 @@ function MapStarSearchShell({
           title="Filters to systems with a planet candidate in the broad habitable-zone temperature and mass range."
         >
           Habitable-zone planets
-        </button>
-        <button type="button" className="map-command-button ghost map-search-reset" onClick={resetFilters}>
-          Reset filters
         </button>
         <details className="map-search-recents" open>
           <summary><span className="map-panel-label">Recents</span></summary>
