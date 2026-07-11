@@ -1628,6 +1628,21 @@ antiproton-sized `core.public@v3` profile and passes relaxed build
 verification, multiplicity goldens, known-system API benchmarks, and the V1054
 System Simulation OBJECTS browser regression.
 
+### System Narration Foundation v1
+
+System pages now have a reusable narration block contract instead of one-off
+page copy. `/api/v1/systems/{system_id}` emits DISC-scoped
+`narrative_blocks` for What You're Looking At, Why This System Matters,
+Infrared View, What We Know, What Remains Uncertain, and Further Exploration.
+The current blocks are deterministic fallback prose generated from served
+core/ARM/DISC evidence; reviewed AAA narration can supersede them later only
+through explicit publication/review state and evidence inputs.
+
+The first pass also connects WISE/AllWISE infrared imagery to layperson-facing
+explanation and throttles System Simulation when scrolled out of view, reducing
+GPU/CPU use while readers move through narrative, hierarchy, and evidence
+sections.
+
 ## Governance Rule
 
 No milestone in M6+ should compromise M1-M5 scientific integrity gates.

@@ -37,6 +37,7 @@ from . import admin_db
 from . import auth
 from . import db
 from . import inference_registry
+from .narration import system_narrative_blocks
 from . import wise_images
 from .db import DatabaseUnavailable
 from .queries import (
@@ -506,12 +507,21 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
         star["arm_evidence"] = star_arm_evidence
         star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
+    narrative_blocks = system_narrative_blocks(
+        disc_db_path=disc_db_path,
+        system=system,
+        stars=stars,
+        planets=planets,
+        hierarchy=hierarchy,
+        infrared_evidence=infrared_evidence,
+    )
     return {
         "system": system,
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
         "infrared_evidence": infrared_evidence,
+        "narrative_blocks": narrative_blocks,
         "hierarchy": hierarchy,
     }
 
@@ -5905,12 +5915,21 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
         star["arm_evidence"] = star_arm_evidence
         star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
+    narrative_blocks = system_narrative_blocks(
+        disc_db_path=disc_db_path,
+        system=system,
+        stars=stars,
+        planets=planets,
+        hierarchy=hierarchy,
+        infrared_evidence=infrared_evidence,
+    )
     return {
         "system": system,
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
         "infrared_evidence": infrared_evidence,
+        "narrative_blocks": narrative_blocks,
         "hierarchy": hierarchy,
     }
 
@@ -6106,12 +6125,21 @@ def system_detail_by_key(stable_object_key: str, name_style: str = Query(default
         star["arm_evidence"] = star_arm_evidence
         star["arm_catalogs"] = star_arm_evidence.get("catalogs", [])
     _attach_snapshot_url(system)
+    narrative_blocks = system_narrative_blocks(
+        disc_db_path=disc_db_path,
+        system=system,
+        stars=stars,
+        planets=planets,
+        hierarchy=hierarchy,
+        infrared_evidence=infrared_evidence,
+    )
     return {
         "system": system,
         "stars": stars,
         "planets": planets,
         "eclipsing_binaries": eclipsing_binaries,
         "infrared_evidence": infrared_evidence,
+        "narrative_blocks": narrative_blocks,
         "hierarchy": hierarchy,
     }
 

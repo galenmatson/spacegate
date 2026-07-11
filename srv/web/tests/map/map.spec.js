@@ -375,10 +375,12 @@ test.describe("public 3D map beta", () => {
     await page.locator(".system-detail-v2 h1").click({ force: true });
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
     await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
-    await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Why This System Matters" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Infrared View" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "What We Know" })).toBeVisible();
-    await expect(page.locator(".system-story-card", { hasText: "What Is Uncertain" })).toBeVisible();
-    await expect(page.locator(".system-story-card", { hasText: "Explore More" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "What Remains Uncertain" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "Further Exploration" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Future AAA Narrative Slot" })).toHaveCount(0);
     await expect(page.locator(".system-glance-strip")).toContainText(/Distance from Sol/i);
     await expect(page.locator(".hierarchy-panel h3")).toHaveText("Stars and Hierarchy");
@@ -389,6 +391,11 @@ test.describe("public 3D map beta", () => {
     const technicalDisclosure = page.locator(".detail-disclosure", { hasText: "Evidence and Technical Data" });
     await expect(technicalDisclosure).toBeVisible();
     await expect(technicalDisclosure).not.toHaveAttribute("open", "");
+    await technicalDisclosure.scrollIntoViewIfNeeded();
+    await expect.poll(
+      () => page.locator("[data-testid='system-preview-panel']").evaluate((node) => node.dataset.simulationRunning || ""),
+      { timeout: 5000 }
+    ).toBe("false");
     await technicalDisclosure.locator("summary").click();
     await expect(technicalDisclosure.locator(".system-technical-strip")).toContainText(/Sky Position/i);
     await page.locator("[data-global-search-input='true']").fill("Sirius");
@@ -487,8 +494,8 @@ test.describe("public 3D map beta", () => {
       await page.goto(`/systems/${item.system_id}`, { waitUntil: "domcontentloaded" });
       await expect(page.locator(".system-detail-v2 h1")).toContainText(golden.expectedNamePattern);
       await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
-      await expect(page.locator(".system-story-card", { hasText: "Overview" })).toBeVisible();
-      await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
+      await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
+      await expect(page.locator(".system-story-card", { hasText: "Why This System Matters" })).toBeVisible();
       await expect(page.locator(".concept-panel")).toContainText(/Spectral class/i);
       await expect(page.locator(".detail-disclosure", { hasText: "Evidence and Technical Data" })).toBeVisible();
     }
@@ -517,7 +524,7 @@ test.describe("public 3D map beta", () => {
     );
     await expect(prefixedIdCopy.first()).toBeVisible();
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
-    await expect(page.locator(".system-story-card", { hasText: "Overview" })).toBeVisible();
+    await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
     await expect(page.locator("details.detail-disclosure", { hasText: "Stars and Catalog Rows" })).not.toHaveAttribute("open", "");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 4)).toBeTruthy();
   });

@@ -189,18 +189,23 @@ dump.
 1. Hero: public display name, best aliases, copyable IDs, stellar-class pills,
    and priority discovery tags in a compact first card.
 2. System Simulation: primary visual anchor.
-3. Overview: short layperson-facing summary from current facts.
-4. Why It Matters: discovery hooks such as planets, multiplicity, proximity,
+3. What You’re Looking At: short layperson-facing summary from current facts.
+4. Why This System Matters: discovery hooks such as planets, multiplicity, proximity,
    coolness, or evidence diversity.
-5. Habitability Context: careful explanation without overstating habitability.
-6. Reading This System: concept explainer for spectral class, habitable zone,
+5. Infrared View: WISE/AllWISE observational imagery explanation when image
+   products or infrared evidence are available.
+6. What We Know: inventory and source-backed summary without raw table noise.
+7. What Remains Uncertain: missing fields, derived support, and simulation
+   assumptions explained plainly.
+8. Further Exploration: concept hooks and guided next steps.
+9. Reading This System: concept explainer for spectral class, habitable zone,
    orbital period, eccentricity, hierarchy, and uncertainty.
-7. Stars and Hierarchy: nested structure from ARM hierarchy/orbit
+10. Stars and Hierarchy: nested structure from ARM hierarchy/orbit
    relationships with stellar-class pills, compact vitals, readable orbital
    facts, and hover explanations.
-8. Stars and Catalog Rows: collapsed or secondary raw star facts.
-9. Planets and Orbits: collapsed or secondary raw planet facts.
-10. Evidence and Technical Data: source chain, grouping, coordinates,
+11. Stars and Catalog Rows: collapsed or secondary raw star facts.
+12. Planets and Orbits: collapsed or secondary raw planet facts.
+13. Evidence and Technical Data: source chain, grouping, coordinates,
     snapshots, and diagnostic metadata.
 
 Technical coordinates, raw catalog rows, and low-level provenance should not
@@ -217,6 +222,19 @@ Expose useful controls without overwhelming the page:
 - habitable zone
 - temperature/freeze lines through a disclosure
 - pause/reset
+
+The simulator should stop advancing time and throttle rendering when its panel
+is clearly scrolled out of view, then resume the user's chosen running/paused
+state when it returns. This keeps the simulation-first page efficient while a
+reader explores narrative, hierarchy, and evidence sections.
+
+### Narrative Blocks
+
+The public page consumes `narrative_blocks` from the system-detail API. These
+blocks are DISC-scoped presentation artifacts. Today the API provides
+deterministic fallback prose from existing facts when reviewed DISC rows are
+absent. Future AAA-written blocks may replace them only after review/publication
+state is explicit.
 
 The simulation must distinguish source values, derived values, assumptions, and
 presentation-only render choices.

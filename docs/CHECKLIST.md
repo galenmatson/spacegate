@@ -761,6 +761,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
   Star Search v2 system pages without mixing unreviewed generated prose into
   canonical science
+- [x] Add System Narration Foundation v1 API/UI scaffold: deterministic
+  `narrative_blocks` fallback prose, WISE infrared explanation, DISC contract,
+  AAA review policy, and offscreen System Simulation pause/throttle
 - [ ] Authenticated admin map overlay for per-system/object review controls,
   evidence portfolio access, and AAA research promotion
 - [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,

@@ -67,6 +67,8 @@ Current status snapshot:
 - `simulation_scenes`: implemented as compressed presentation artifacts under
   `disc/simulation_scenes/` (`scripts/materialize_simulation_scenes.py`), not
   as canonical science rows
+- `system_narrative_blocks`: contract implemented in API with deterministic
+  fallback generation; persisted/reviewed DISC materialization planned
 - `external_reference_links`: planned
 - `source_evidence_links`: planned
 - Evidence Portfolio operational store: implemented in the Admin DB as mutable
@@ -315,6 +317,60 @@ Rules:
   those choices requires `simulation_assumptions` rows with generator version,
   seed/input context, replacement target, and visible `ASSUMED`/illustrative
   labeling.
+
+## system_narrative_blocks
+
+Presentation prose blocks for public system pages.
+
+Status:
+- API contract: implemented. `/api/v1/systems/{system_id}` returns
+  deterministic fallback blocks when no reviewed rows exist.
+- Persisted DISC materialization: planned. Reviewed or deterministic batch
+  rows should be stored in `disc.duckdb` once the narration build job is added.
+
+Required columns:
+- identity:
+  - `system_id BIGINT`
+  - `stable_object_key TEXT`
+- block:
+  - `block_kind TEXT`
+  - `block_rank BIGINT`
+  - `title TEXT`
+  - `body_markdown TEXT`
+  - `body_text TEXT`
+  - `concept_slugs_json TEXT`
+- generation/provenance:
+  - `generation_method TEXT`
+  - `generator_version TEXT`
+  - `evidence_inputs_json TEXT`
+  - `provenance_status TEXT`
+  - `status TEXT` (`deterministic|reviewed|published|draft|rejected`)
+  - `review_state TEXT`
+  - `reviewed_by TEXT`
+  - `reviewed_at TIMESTAMP`
+- build/version:
+  - `build_id TEXT`
+  - `created_at TIMESTAMP`
+
+Current deterministic block kinds:
+- `what_you_are_looking_at`
+- `why_this_system_matters`
+- `infrared_view`
+- `what_we_know`
+- `what_remains_uncertain`
+- `further_exploration`
+
+Rules:
+- Narrative blocks are presentation artifacts. They never alter `core` or
+  `arm` science values.
+- Deterministic prose must cite its evidence inputs through
+  `evidence_inputs_json` and carry a generator version.
+- Reviewed AAA narration may replace deterministic fallback blocks only when
+  the publication state is explicit and the underlying claims are traceable to
+  reviewed evidence.
+- Unreviewed model output must not be served as ordinary public narration.
+- Blocks may include concept hooks, but concept pages are separate UI/content
+  artifacts.
 
 ## snapshot_manifest
 

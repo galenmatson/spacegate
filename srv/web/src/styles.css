@@ -7976,11 +7976,28 @@ main {
 }
 
 .system-story-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   color: var(--accent-dark);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.system-story-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--muted);
+  font-size: 0.58rem;
+  letter-spacing: 0;
 }
 
 .system-alias-line {
@@ -8090,6 +8107,25 @@ main {
   gap: 8px;
   margin: 0;
   padding-left: 1.1rem;
+}
+
+.system-story-concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.system-story-concepts span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: capitalize;
 }
 
 .system-glance-strip,

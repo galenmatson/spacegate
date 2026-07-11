@@ -1632,6 +1632,31 @@ Response 200:
         }
       ]
     }
+  },
+  "narrative_blocks": [
+    {
+      "system_id": 1,
+      "stable_object_key": "system:...",
+      "block_kind": "what_you_are_looking_at",
+      "title": "What You’re Looking At",
+      "body_text": "Plain-language deterministic public prose...",
+      "body_markdown": "Plain-language deterministic public prose...",
+      "generation_method": "deterministic_template",
+      "generator_version": "system_narration_deterministic_v1",
+      "schema_version": "system_narrative_blocks_v1",
+      "layer": "disc",
+      "status": "deterministic_fallback",
+      "provenance_status": "derived_presentation",
+      "evidence_inputs_json": {"star_count": 2, "planet_count": 0},
+      "concept_slugs": ["spectral-class", "multistar-systems"]
+    }
+  ],
+  "infrared_evidence": {
+    "summary": {
+      "match_count": 2,
+      "catalog_counts": {"allwise": 1, "catwise2020": 1},
+      "policy": "WISE/CatWISE/AllWISE evidence is ARM support data, not core identity."
+    }
   }
 }
 ```
@@ -1646,6 +1671,10 @@ Display-name behavior:
   matches when present. These rows are cross-reference/photometry/motion
   evidence only; they do not create core objects and do not make WISE names
   preferred public names.
+- `narrative_blocks` contains DISC-scoped public prose blocks. When persisted
+  reviewed DISC rows are absent, the API emits deterministic fallback blocks
+  generated from the same system, hierarchy, planet, and infrared evidence in
+  the response. These blocks are presentation text, not new science facts.
 - `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
 - `system.star_count` in detail payloads is descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list. Star Search browse filters use the materialized search facet for public-performance reasons.
 - the flat `stars` array remains the canonical direct core membership list; it is not guaranteed to enumerate every nested scientific leaf shown in `hierarchy`.

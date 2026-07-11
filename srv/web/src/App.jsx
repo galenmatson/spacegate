@@ -1965,7 +1965,38 @@ function exploreMoreNotes(system, stars = [], planets = []) {
   return notes.slice(0, 4);
 }
 
-function SystemNarrativeScaffold({ system, stars, planets, hierarchy }) {
+function narrativeBlockByKind(blocks = [], kind) {
+  return (Array.isArray(blocks) ? blocks : []).find((block) => String(block?.block_kind || "") === kind) || null;
+}
+
+function SystemNarrativeScaffold({ system, stars, planets, hierarchy, narrativeBlocks = [] }) {
+  const apiBlocks = Array.isArray(narrativeBlocks) ? narrativeBlocks.filter((block) => block?.title && (block?.body_text || block?.body_markdown)) : [];
+  if (apiBlocks.length > 0) {
+    return (
+      <section className="system-story-grid" aria-label="System narrative">
+        {apiBlocks.map((block, index) => (
+          <article
+            className={`panel system-story-card ${index === 0 ? "system-story-card-primary" : ""}`}
+            key={`${block.block_kind || block.title}-${index}`}
+          >
+            <span className="system-story-kicker">
+              {formatText(block.title)}
+              {block.status ? <span className="system-story-status">{formatText(block.status)}</span> : null}
+            </span>
+            {index === 0 ? <h2>{formatText(systemDisplayName(system))}</h2> : null}
+            <p>{formatText(block.body_text || block.body_markdown)}</p>
+            {Array.isArray(block.concept_slugs) && block.concept_slugs.length > 0 ? (
+              <div className="system-story-concepts" aria-label={`${block.title} concept hooks`}>
+                {block.concept_slugs.slice(0, 5).map((slug) => (
+                  <span key={`${block.block_kind}-${slug}`}>{String(slug).replaceAll("-", " ")}</span>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        ))}
+      </section>
+    );
+  }
   const name = systemDisplayName(system);
   const matterNotes = whySystemMatters(system, stars, planets, hierarchy);
   const knownNotes = whatWeKnowNotes(system, stars, planets);
@@ -4022,7 +4053,7 @@ function ProvenanceBlock({ provenance, grouping = null }) {
   );
 }
 
-function InfraredSkyView({ system }) {
+function InfraredSkyView({ system, narrativeBlocks = [] }) {
   const [payload, setPayload] = React.useState(null);
   const [status, setStatus] = React.useState("idle");
   const [error, setError] = React.useState("");
@@ -4090,6 +4121,7 @@ function InfraredSkyView({ system }) {
   const bandLinks = Object.entries(payload?.bands || {})
     .filter(([, info]) => info?.source_url)
     .map(([band, info]) => ({ band, url: info.source_url }));
+  const infraredNarrative = narrativeBlockByKind(narrativeBlocks, "infrared_view");
 
   return (
     <section className="panel infrared-sky-panel" ref={panelRef}>
@@ -4097,7 +4129,7 @@ function InfraredSkyView({ system }) {
         <div>
           <h2>Infrared Sky View</h2>
           <p className="muted">
-            WISE/AllWISE observational infrared cutout from IRSA. This is survey imagery, not an artist impression.
+            {infraredNarrative?.body_text || infraredNarrative?.body_markdown || "WISE/AllWISE observational infrared cutout from IRSA. This is survey imagery, not an artist impression."}
           </p>
         </div>
         <span className="source-pill">IRSA WISE</span>
@@ -4224,7 +4256,7 @@ function SystemDetailPage({ buildId = "" }) {
     );
   }
 
-  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], hierarchy = null } = data;
+  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], hierarchy = null, narrative_blocks: narrativeBlocks = [] } = data;
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
     exclude: [currentSystemDisplayName, system?.system_name],
@@ -4304,11 +4336,11 @@ function SystemDetailPage({ buildId = "" }) {
           />
         </React.Suspense>
 
-        <SystemNarrativeScaffold system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
+        <SystemNarrativeScaffold system={system} stars={stars} planets={planets} hierarchy={hierarchy} narrativeBlocks={narrativeBlocks} />
 
         <SystemAtAGlanceStrip system={system} stars={stars} planets={planets} hierarchy={hierarchy} />
 
-        <InfraredSkyView system={system} />
+        <InfraredSkyView system={system} narrativeBlocks={narrativeBlocks} />
 
         <ConceptExplainerGrid />
 

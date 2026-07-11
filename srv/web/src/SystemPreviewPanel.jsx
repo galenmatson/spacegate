@@ -4246,6 +4246,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
+  const [panelVisible, setPanelVisible] = useState(true);
+  const panelRef = React.useRef(null);
   const hoverDelayRef = React.useRef(null);
   const contextRecoveryTimerRef = React.useRef(null);
   const contextLossCountRef = React.useRef(0);
@@ -4277,6 +4279,23 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     window.clearTimeout(contextRecoveryTimerRef.current);
     window.clearTimeout(hoverDelayRef.current);
   }, []);
+
+  useEffect(() => {
+    const node = panelRef.current;
+    if (!node || typeof IntersectionObserver === "undefined" || captureFrame) {
+      setPanelVisible(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setPanelVisible(Boolean(entry?.isIntersecting));
+      },
+      { root: null, rootMargin: "160px 0px", threshold: 0.01 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [captureFrame, systemId]);
 
   useEffect(() => {
     setScaleMode(normalizeScaleMode(defaultScaleMode));
@@ -4403,6 +4422,8 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const interactiveReadouts = !cardPresentation;
   const showObjectList = normalizedPresentationMode === "detail" || normalizedPresentationMode === "explore";
   const showDiagnostics = normalizedPresentationMode === "detail" && (evidenceFields.length > 0 || (status === "ready" && scene));
+  const effectiveRunning = running && (panelVisible || captureFrame);
+  const effectiveFrameLoop = cardPresentation ? "demand" : (panelVisible || captureFrame ? "always" : "demand");
 
   const renderPreviewActions = () => (
     <div className="system-preview-actions">
@@ -4509,9 +4530,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
 
   return (
     <section
+      ref={panelRef}
       className={`panel system-preview-panel system-preview-${normalizedPresentationMode}`}
       data-testid="system-preview-panel"
       data-presentation-mode={normalizedPresentationMode}
+      data-panel-visible={panelVisible ? "true" : "false"}
+      data-simulation-running={effectiveRunning ? "true" : "false"}
     >
       {!embeddedPresentation && (
         <div className="system-preview-header">
@@ -4531,7 +4555,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 key={`${systemId || "system"}:${contextRecoveryEpoch}`}
                 scene={scene}
                 scaleMode={activeScaleMode}
-                running={running}
+                running={effectiveRunning}
                 speedMultiplier={speedMultiplier}
                 resetToken={resetToken}
                 showOrbits={showOrbits}
@@ -4540,7 +4564,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 showLabels={showLabels}
                 selectedObjectId={payloadId(pinnedObject)}
                 transparentBackground={normalizedPresentationMode !== "detail"}
-                frameLoop={cardPresentation ? "demand" : "always"}
+                frameLoop={effectiveFrameLoop}
                 preserveDrawingBuffer={captureFrame || !cardPresentation}
                 qualityTier={qualityTier}
                 captureFrame={captureFrame}

@@ -378,6 +378,29 @@ Representative commits:
 Representative commits:
 - `fe1b7fb` (WISE cross-reference and infrared imagery v1)
 
+### 20) System Narration Foundation v1
+
+- Added a DISC-scoped `system_narrative_blocks` contract for public system-page
+  explanatory prose.
+- The served API now emits deterministic fallback narrative blocks when no
+  reviewed/persisted DISC rows exist. Blocks are generated from existing
+  system, hierarchy, planet, and WISE/infrared evidence and include generator
+  version, evidence inputs, status, and concept hooks.
+- The first block set covers: What You're Looking At, Why This System Matters,
+  Infrared View, What We Know, What Remains Uncertain, and Further Exploration.
+- The WISE/AllWISE infrared panel now has layperson-facing narration explaining
+  false-color W1/W2/W3 survey imagery and making clear it is not an artist
+  impression.
+- Public narration remains presentation-layer content. It does not mutate
+  `core` or `arm`, and future AAA-written replacements require reviewed
+  evidence and explicit publication state.
+- System Simulation now pauses/throttles when scrolled out of view so the
+  simulation-first page stays efficient while readers inspect narrative and
+  evidence sections.
+
+Representative commits:
+- pending (system narration foundation v1)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

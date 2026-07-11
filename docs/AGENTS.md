@@ -94,6 +94,22 @@ Implementation note: storage still uses `claim_bundle_id` and `claim_bundles` fo
 - never promote WISE-only candidates into core without the reviewed inventory
   policy; missing ultracool companions belong in a candidate/review queue first
 
+## Public Narration Policy
+
+System pages may show deterministic `system_narrative_blocks` generated from
+served core/ARM/DISC evidence. Those blocks are explanatory presentation text,
+not agent-written science claims.
+
+AAA narrator output may replace deterministic blocks only when:
+- the Evidence Portfolio contains reviewed supporting claims or citations
+- the output records model, prompt, generator version, and evidence inputs
+- the publication/review state is explicit
+- uncertain or speculative statements remain labeled
+
+Unreviewed model prose must not silently publish as ordinary public narration.
+When in doubt, keep deterministic fallback text and send the object back through
+review.
+
 ## Evaluation and Anomaly Inbox
 
 Use `scripts/agent_eval.py` and the tracked cases under

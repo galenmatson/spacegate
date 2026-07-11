@@ -23,6 +23,8 @@ Primary functions:
 - write reproducible factsheets and exposition into `disc`
 - propose higher-confidence science values, ambiguity resolutions, and missing-field fills into `arm`
 - abstain cleanly when evidence is weak, contradictory, or underspecified
+- replace deterministic public narration blocks only through reviewed,
+  provenance-bearing publication artifacts
 
 ## Layer Contract
 
@@ -34,6 +36,12 @@ Agents must respect the layer model:
 - `rim`: user/worldbuilding content only; not part of the scientific enrichment path
 
 Serve-time precedence may later prefer accepted `arm` or `disc` overlays over `core` for selected hot-path facts, but that precedence must remain explicit, auditable, and reversible.
+
+Current system pages expose deterministic `disc`-scoped narrative blocks through
+the system-detail API. They are generated from served facts when reviewed DISC
+rows are absent. AAA narration is the future richer replacement path, but it
+must be published as reviewed `disc` presentation content with evidence inputs,
+review status, and generator provenance rather than as raw model output.
 
 Operational mutability:
 
