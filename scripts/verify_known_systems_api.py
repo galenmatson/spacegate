@@ -132,6 +132,12 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         expected_aliases=("WDS 16555-0820",),
         exact_scene_stars=5,
     ),
+    BenchmarkCase(
+        "Gaia DR3 3186021141200137472",
+        max_dist_ly=31.0,
+        min_star_count=1,
+        exact_scene_stars=1,
+    ),
 )
 
 

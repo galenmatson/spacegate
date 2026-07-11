@@ -189,6 +189,7 @@ test.describe("public 3D map beta", () => {
     ).toMatch(/high|balanced|low/);
     await page.locator(".map-search-card-actions .map-command-button.primary").first().click();
     await expect(page.locator("[data-testid='map-system-drill']")).toBeVisible();
+    await expect(page.locator("[data-testid='map-star-search-results']")).toHaveCount(0);
     await expect.poll(
       () => page.locator(".map-search-card-preview .system-preview-canvas canvas").count(),
       { timeout: 5000 }

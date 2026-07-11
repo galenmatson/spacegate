@@ -2385,14 +2385,15 @@ def _render_scene_contract(
     if not render_stars:
         for star in stars:
             add_core_star(star)
-    else:
+    elif not hierarchy_membership_gate_active:
         for star in stars:
             if len(render_stars) < max(2, len(stars)) and not orbit_component_keys:
                 add_core_star(star)
 
-    if hierarchy_star_nodes and len(render_stars) < max(hierarchy_star_count, len(stars)):
+    target_hierarchy_star_count = hierarchy_star_count if hierarchy_membership_gate_active else max(hierarchy_star_count, len(stars))
+    if hierarchy_star_nodes and len(render_stars) < target_hierarchy_star_count:
         for node in hierarchy_star_nodes:
-            if len(render_stars) >= max(hierarchy_star_count, len(stars)):
+            if len(render_stars) >= target_hierarchy_star_count:
                 break
             add_hierarchy_star(node)
 

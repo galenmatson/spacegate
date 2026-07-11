@@ -3851,8 +3851,14 @@ export default function StarMapPage({
         setFilters={setMapSearchFilters}
         onSubmitSearch={submitMapSearch}
         onCloseResults={closeMapSearchResults}
-        onSelectSystem={(system) => selectSearchSystem(system)}
-        onExploreSystem={(system) => selectSearchSystem(system, { explore: true, focus: true })}
+        onSelectSystem={(system) => {
+          selectSearchSystem(system);
+          closeMapSearchResults();
+        }}
+        onExploreSystem={(system) => {
+          selectSearchSystem(system, { explore: true, focus: true });
+          closeMapSearchResults();
+        }}
         results={mapSearchResults}
         resultsOpen={mapSearchResultsOpen}
         loading={mapSearchLoading}
