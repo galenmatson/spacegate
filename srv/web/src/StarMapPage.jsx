@@ -2486,6 +2486,11 @@ export default function StarMapPage({
   const [mapRecoveryCameraState, setMapRecoveryCameraState] = useState(restoredMapState?.camera || DEFAULT_MAP_CAMERA_STATE);
   const [routeSegments, setRouteSegments] = useState([]);
   const [routeMenu, setRouteMenu] = useState(null);
+  const [neighborTool, setNeighborTool] = useState({
+    open: false,
+    origin: null,
+    radiusLy: 10,
+  });
   const [selectionHistory, setSelectionHistory] = useState([]);
   const [drillMode, setDrillMode] = useState(() => (
     ["peek", "explore"].includes(restoredMapState?.drillMode) ? restoredMapState.drillMode : "flight"
@@ -3065,6 +3070,9 @@ export default function StarMapPage({
     setSystems(prepared);
     setSelectedSystem((system) => refreshSystem(system));
     setSelectionHistory((history) => history.map(refreshSystem).filter(Boolean).slice(0, 8));
+    setNeighborTool((tool) => (tool?.origin
+      ? { ...tool, origin: refreshSystem(tool.origin) }
+      : tool));
     setRouteSegments((segments) => segments.map((segment) => ({
       ...segment,
       from: refreshSystem(segment.from),
@@ -3127,9 +3135,14 @@ export default function StarMapPage({
     };
   }, [mapFrame, nameStyle, restoredMapState]);
 
-  const routeTotalLy = useMemo(
-    () => routeSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
+  const routeMeasurementSegments = useMemo(
+    () => routeSegments.filter((segment) => segment.kind !== "neighbor"),
     [routeSegments],
+  );
+
+  const routeTotalLy = useMemo(
+    () => routeMeasurementSegments.reduce((sum, segment) => sum + segment.distance_ly, 0),
+    [routeMeasurementSegments],
   );
 
   const filterExtents = useMemo(() => {
@@ -3218,6 +3231,60 @@ export default function StarMapPage({
       .slice(0, 8);
   }, [selectedSystem, systems]);
 
+  const neighborToolEntries = useMemo(() => {
+    const origin = neighborTool?.origin;
+    if (!neighborTool?.open || !origin?.system_id) {
+      return [];
+    }
+    return systems
+      .filter((system) => system?.system_id && system.system_id !== origin.system_id)
+      .map((system) => ({
+        system,
+        distance_ly: distanceBetweenSystems(origin, system),
+        classes: stellarClassTokensFromSystem(system, { includeUnknown: true }),
+      }))
+      .filter((entry) => Number.isFinite(entry.distance_ly) && entry.distance_ly <= neighborTool.radiusLy)
+      .sort((left, right) => left.distance_ly - right.distance_ly);
+  }, [neighborTool, systems]);
+
+  useEffect(() => {
+    if (!neighborTool?.open || !neighborTool?.origin?.system_id) {
+      setRouteSegments((segments) => segments.filter((segment) => segment.kind !== "neighbor"));
+      return;
+    }
+    const origin = neighborTool.origin;
+    setRouteSegments((segments) => [
+      ...segments.filter((segment) => segment.kind !== "neighbor"),
+      ...neighborToolEntries.map(({ system, distance_ly }) => ({
+        id: `neighbor-${origin.system_id}-${system.system_id}`,
+        kind: "neighbor",
+        from: origin,
+        to: system,
+        distance_ly,
+        label: `${shortDisplayName(system.display_name)} · ${formatNumber(distance_ly, 2)} ly`,
+      })),
+    ]);
+  }, [neighborTool?.open, neighborTool?.origin, neighborToolEntries]);
+
+  const neighborListText = useMemo(() => {
+    if (!neighborToolEntries.length) {
+      return "";
+    }
+    const originName = formatName(systemDisplayName(neighborTool.origin));
+    const lines = neighborToolEntries.map(({ system, distance_ly, classes }) => {
+      const classText = classes.length ? classes.join("/") : "U";
+      return `${formatName(systemDisplayName(system))}\t${classText}\t${formatNumber(distance_ly, 2)} ly`;
+    });
+    return [`Neighbors of ${originName} within ${formatNumber(neighborTool.radiusLy, 1)} ly`, ...lines].join("\n");
+  }, [neighborTool.origin, neighborTool.radiusLy, neighborToolEntries]);
+
+  const copyMapText = useCallback((text) => {
+    if (!text) {
+      return;
+    }
+    navigator.clipboard?.writeText(text).catch(() => {});
+  }, []);
+
   const addRouteSegment = () => {
     const target = routeMenu?.target;
     if (!selectedSystem || !target || selectedSystem.system_id === target.system_id) {
@@ -3243,40 +3310,40 @@ export default function StarMapPage({
       setRouteMenu(null);
       return;
     }
-    const neighbors = systems
-      .filter((system) => system?.system_id && system.system_id !== origin.system_id)
-      .map((system) => ({
-        system,
-        distance_ly: distanceBetweenSystems(origin, system),
-      }))
-      .filter((entry) => Number.isFinite(entry.distance_ly) && entry.distance_ly <= 10)
-      .sort((left, right) => left.distance_ly - right.distance_ly);
-    setRouteSegments((segments) => [
-      ...segments.filter((segment) => segment.kind !== "neighbor"),
-      ...neighbors.map(({ system, distance_ly }) => ({
-        id: `neighbor-${origin.system_id}-${system.system_id}`,
-        kind: "neighbor",
-        from: origin,
-        to: system,
-        distance_ly,
-        label: `${shortDisplayName(system.display_name)} · ${formatNumber(distance_ly, 2)} ly`,
-      })),
-    ]);
+    setNeighborTool((tool) => ({
+      open: true,
+      origin,
+      radiusLy: Number.isFinite(Number(tool?.radiusLy)) ? tool.radiusLy : 10,
+    }));
     setRouteMenu(null);
   };
 
   const undoRouteSegment = () => {
-    setRouteSegments((segments) => segments.slice(0, -1));
+    setRouteSegments((segments) => {
+      const measurementSegments = segments.filter((segment) => segment.kind !== "neighbor");
+      const neighborSegments = segments.filter((segment) => segment.kind === "neighbor");
+      return measurementSegments.slice(0, -1).concat(neighborSegments);
+    });
     setRouteMenu(null);
   };
 
   const clearRoute = () => {
     setRouteSegments([]);
+    setNeighborTool((tool) => ({ ...tool, open: false }));
     setRouteMenu(null);
   };
 
   const truncateRouteAtSegment = useCallback((index) => {
-    setRouteSegments((segments) => segments.slice(0, Math.max(0, index)));
+    setRouteSegments((segments) => {
+      const target = segments[index];
+      if (target?.kind === "neighbor") {
+        return segments.filter((segment) => segment.id !== target.id);
+      }
+      const measurementSegments = segments.filter((segment) => segment.kind !== "neighbor");
+      const neighborSegments = segments.filter((segment) => segment.kind === "neighbor");
+      const measurementIndex = measurementSegments.findIndex((segment) => segment.id === target?.id);
+      return measurementSegments.slice(0, Math.max(0, measurementIndex)).concat(neighborSegments);
+    });
     setRouteMenu(null);
   }, []);
 
@@ -3949,12 +4016,12 @@ export default function StarMapPage({
         </div>
         <p className="map-desktop-hint">Desktop: drag look · wheel fly · L+R drag orbit · tilt wheel/RMB drag truck · MMB drag pedestal · {activeKeybind.hint}</p>
         <p className="map-touch-hint">Touch: drag look · hold arrows to fly · tap/select reticle · pinch fly · two-finger pan</p>
-        {routeSegments.length > 0 && (
+        {routeMeasurementSegments.length > 0 && (
           <div className="map-route-summary">
-            <span>{routeSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>
+            <span>{routeMeasurementSegments.length} legs · {formatNumber(routeTotalLy, 2)} ly total</span>
             <ol className="map-route-leg-list">
-              {routeSegments.slice(-4).map((segment, visibleIndex) => {
-                const segmentIndex = Math.max(0, routeSegments.length - 4) + visibleIndex;
+              {routeMeasurementSegments.slice(-4).map((segment, visibleIndex) => {
+                const segmentIndex = routeSegments.findIndex((item) => item.id === segment.id);
                 return (
                 <li key={segment.id}>
                   <button
@@ -3979,6 +4046,81 @@ export default function StarMapPage({
                 Clear
               </button>
             </div>
+          </div>
+        )}
+        {neighborTool.open && neighborTool.origin?.system_id && (
+          <div className="map-neighbor-tool-panel" data-testid="map-neighbor-tool-panel">
+            <div className="map-neighbor-tool-head">
+              <div>
+                <span>Neighbors</span>
+                <strong><SystemNameDisplay system={neighborTool.origin} /></strong>
+              </div>
+              <button
+                type="button"
+                className="map-mini-command"
+                onClick={() => {
+                  setNeighborTool((tool) => ({ ...tool, open: false }));
+                  setRouteSegments((segments) => segments.filter((segment) => segment.kind !== "neighbor"));
+                }}
+              >
+                Close
+              </button>
+            </div>
+            <label className="map-neighbor-radius">
+              <span>
+                Radius
+                <strong>{formatNumber(neighborTool.radiusLy, 1)} ly</strong>
+              </span>
+              <input
+                type="range"
+                min="1"
+                max="30"
+                step="1"
+                value={neighborTool.radiusLy}
+                onChange={(event) => {
+                  const radiusLy = Math.max(1, Math.min(30, Number(event.target.value) || 10));
+                  setNeighborTool((tool) => ({ ...tool, radiusLy }));
+                }}
+              />
+            </label>
+            <div className="map-neighbor-tool-actions">
+              <span>{neighborToolEntries.length} systems</span>
+              <button
+                type="button"
+                className="map-mini-command"
+                disabled={!neighborToolEntries.length}
+                onClick={() => copyMapText(neighborListText)}
+              >
+                Copy list
+              </button>
+            </div>
+            <ol className="map-neighbor-tool-list">
+              {neighborToolEntries.map(({ system, distance_ly, classes }) => {
+                const rowText = `${formatName(systemDisplayName(system))}\t${classes.length ? classes.join("/") : "U"}\t${formatNumber(distance_ly, 2)} ly`;
+                return (
+                  <li key={system.system_id}>
+                    <button
+                      type="button"
+                      className="map-neighbor-tool-system"
+                      onClick={() => selectSystem(system, { openPeek: true })}
+                      title="Select this neighbor"
+                    >
+                      <StellarClassChips tokens={classes} size="compact" className="map-neighbor-tool-classes" />
+                      <span>{formatName(systemDisplayName(system))}</span>
+                      <strong>{formatNumber(distance_ly, 2)} ly</strong>
+                    </button>
+                    <button
+                      type="button"
+                      className="map-neighbor-copy"
+                      aria-label={`Copy ${formatName(systemDisplayName(system))} neighbor row`}
+                      onClick={() => copyMapText(rowText)}
+                    >
+                      Copy
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         )}
       </aside>

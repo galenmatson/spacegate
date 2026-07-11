@@ -820,6 +820,17 @@ test.describe("public 3D map beta", () => {
     await expect(contextMenu.getByRole("button", { name: /^Explore$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Measure$/i })).toBeVisible();
     await expect(contextMenu.getByRole("button", { name: /^Neighbors$/i })).toBeVisible();
+    await contextMenu.getByRole("button", { name: /^Neighbors$/i }).click();
+    const neighborPanel = page.locator("[data-testid='map-neighbor-tool-panel']");
+    await expect(neighborPanel).toBeVisible();
+    await expect(neighborPanel.getByText(/neighbors/i).first()).toBeVisible();
+    await expect(neighborPanel.locator("input[type='range']")).toBeVisible();
+    await expect(neighborPanel.getByRole("button", { name: /copy list/i })).toBeVisible();
+    await neighborPanel.getByRole("button", { name: /close/i }).click();
+    await expect(neighborPanel).toHaveCount(0);
+
+    await page.mouse.click(box.x + box.width / 2 + 170, box.y + box.height / 2 + 40, { button: "right" });
+    await expect(contextMenu).toBeVisible();
     await contextMenu.getByRole("button", { name: /^Measure$/i }).click();
 
     await expect(page.locator(".map-route-summary")).toContainText(/1 legs/i);
