@@ -2422,6 +2422,7 @@ def _render_scene_contract(
             teff = _teff_from_spectral_type(spectral_type)
         mass = _float_or_none(facts.get("mass_msun"))
         radius = _float_or_none(facts.get("radius_rsun"))
+        luminosity = _float_or_none(facts.get("luminosity_lsun"))
         seed = _stable_seed(system.get("stable_object_key"), render_key, "hierarchy_star_visual")
         body_class = _stellar_body_class(
             {
@@ -2451,6 +2452,9 @@ def _render_scene_contract(
             teff = _float_or_none(hierarchy_prior.get("teff_k"))
         if radius is None:
             radius = _float_or_none(hierarchy_prior.get("radius_rsun")) if hierarchy_prior.get("radius_rsun") is not None and mass is None else _radius_from_mass_visual_proxy(mass)
+        derived_luminosity = None
+        if luminosity is None and radius is not None and teff is not None and teff > 0:
+            derived_luminosity = radius * radius * math.pow(teff / 5772.0, 4.0)
         fields = {
             "object_type": _stellar_body_class_field(
                 value=body_class,
@@ -2570,6 +2574,40 @@ def _render_scene_contract(
                     basis="hierarchy_unknown_component_cool_visual_default",
                     confidence=0.1,
                     replacement_target="component-specific radius",
+                )
+            ),
+            "luminosity_lsun": (
+                _simulation_field(
+                    key="luminosity_lsun",
+                    label="Luminosity",
+                    value=luminosity if luminosity is not None else derived_luminosity,
+                    unit="Lsun",
+                    status="source" if luminosity is not None else "derived",
+                    basis=(
+                        "canonical_hierarchy:quick_fact"
+                        if luminosity is not None
+                        else "stellar_luminosity_from_radius_teff_v1"
+                    ),
+                    layer="core" if luminosity is not None and not node.get("synthetic") else "arm",
+                    confidence_tier="high" if luminosity is not None and not node.get("synthetic") else "medium",
+                    replacement_target="source stellar luminosity or reviewed radius+teff derivation",
+                    source_catalog=node.get("source_catalog"),
+                    confidence=0.8 if luminosity is not None else 0.55,
+                    generator_version=None if luminosity is not None else "stellar_luminosity_from_radius_teff_v1",
+                    notes=None if luminosity is not None else "Deterministic luminosity derived from available radius and effective temperature for simulation overlays; not a core catalog fact.",
+                )
+                if luminosity is not None or derived_luminosity is not None
+                else _simulation_field(
+                    key="luminosity_lsun",
+                    label="Luminosity",
+                    value=None,
+                    unit="Lsun",
+                    status="missing",
+                    basis="no source luminosity, radius+teff, or supported prior",
+                    layer="none",
+                    confidence_tier="missing",
+                    replacement_target="source stellar luminosity or reviewed radius+teff derivation",
+                    source_catalog=node.get("source_catalog"),
                 )
             ),
         }

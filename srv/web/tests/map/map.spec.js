@@ -321,11 +321,6 @@ test.describe("public 3D map beta", () => {
 
   test("standalone Star Search keeps full previews for planet hosts", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop catalog preview policy check");
-    const sceneRequests = [];
-    await page.route("**/api/v1/systems/*/simulation-scene", async (route) => {
-      sceneRequests.push(route.request().url());
-      await route.continue();
-    });
     const response = await page.request.get("/api/v1/systems/search", {
       params: {
         min_planet_count: "1",
@@ -339,8 +334,11 @@ test.describe("public 3D map beta", () => {
     expect(payload.items.some((item) => item.preview_tier === "dynamic_simulation_scene" || item.preview_tier === "prebuilt_simulation_scene")).toBeTruthy();
     await page.goto("/search?min_planet_count=1&sort=distance&limit=5", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".result-card").first()).toBeVisible({ timeout: 10000 });
-    await expect.poll(() => sceneRequests.length, { timeout: 12000 }).toBeGreaterThan(0);
-    await expect.poll(() => page.locator("[data-testid='star-search-simulation-preview'] .system-preview-canvas canvas").count(), { timeout: 12000 }).toBeGreaterThan(0);
+    await expect(page.locator("[data-testid='star-search-simulation-preview'][data-preview-tier='lightweight_singleton']")).toHaveCount(0);
+    await expect.poll(
+      () => page.locator("[data-testid='star-search-simulation-preview'][data-preview-state='live'], [data-testid='star-search-simulation-preview'][data-preview-state='cached']").count(),
+      { timeout: 12000 }
+    ).toBeGreaterThan(0);
   });
 
   test("system page v2 stages simulation, overview, and technical evidence", async ({ page }, testInfo) => {
@@ -374,7 +372,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toContainText("K");
     await page.locator(".system-preview-line-menu summary").click();
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
-    await page.locator(".system-story-card", { hasText: "Why It Matters" }).click({ position: { x: 12, y: 12 }, force: true });
+    await page.locator(".system-detail-v2 h1").click({ force: true });
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
     await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why It Matters" })).toBeVisible();
@@ -942,24 +940,17 @@ test.describe("public 3D map beta", () => {
     await expect(drill).toHaveAttribute("data-drill-mode", "explore");
     await expect(drill).toContainText(/System:/i);
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
-    await expect.poll(
-      () => drill.evaluate((node) => node.querySelectorAll(
-        ".system-preview-readout > div:not(.system-preview-evidence):not(.system-preview-policy)"
-      ).length),
-      { timeout: 3000 }
-    ).toBeGreaterThan(0);
+    const exploreObjectList = drill.locator("[data-testid='system-preview-object-list']");
+    await expect(exploreObjectList).toBeVisible();
     await expect.poll(
       () => drill.evaluate((node) => {
         const heights = Array.from(
-          node.querySelectorAll(".system-preview-readout > div:not(.system-preview-evidence):not(.system-preview-policy)")
+          node.querySelectorAll("[data-testid='system-preview-object-list'] .system-preview-object-chip")
         ).map((pill) => pill.getBoundingClientRect().height);
         return heights.length ? Math.max(...heights) : 0;
       }),
       { timeout: 3000 }
-    ).toBeLessThanOrEqual(36);
-    const diagnostics = drill.locator("[data-testid='system-preview-diagnostics']");
-    await expect(diagnostics).toBeVisible();
-    await expect(diagnostics).not.toHaveAttribute("open", "");
+    ).toBeLessThanOrEqual(44);
     await expect.poll(
       () => page.locator(".map-page").evaluate((node) => node.getAttribute("data-map-drill-mode") || ""),
       { timeout: 3000 }
@@ -1299,7 +1290,7 @@ test.describe("public 3D map beta", () => {
     expect(themeStyles.headerRadius).toBe("3px");
     expect(themeStyles.titleTransform).toBe("uppercase");
     expect(themeStyles.titleLetterSpacing).not.toBe("normal");
-    expect(themeStyles.utilityLinks.map((link) => link.text)).toEqual(["HELP", "ABT", "SPT", "SRC", "DATA"]);
+    expect(themeStyles.utilityLinks.map((link) => link.text)).toEqual(["HELP", "DATA"]);
     expect(themeStyles.utilityLinks.every((link) => link.visible && link.pointerEvents === "auto")).toBeTruthy();
     expect(themeStyles.buttonColor).toBe("rgb(24, 26, 18)");
     expect(themeStyles.buttonBackground).toContain("rgb(255, 225, 147)");
@@ -1745,6 +1736,9 @@ test.describe("public 3D map beta", () => {
 
   test("system preview falls back when the live scene request fails", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "fallback smoke only needs one browser project");
+    await page.addInitScript(() => {
+      window.__SPACEGATE_DISABLE_SIM_SCENE_CACHE = true;
+    });
     const response = await page.request.get("/api/v1/systems/search", {
       params: { q: "TRAPPIST-1", limit: "1" },
     });
@@ -1753,7 +1747,7 @@ test.describe("public 3D map beta", () => {
     const systemId = payload.items?.[0]?.system_id;
     expect(systemId, "TRAPPIST-1 system_id").toBeTruthy();
 
-    await page.route("**/api/v1/systems/*/simulation-scene", (route) => route.fulfill({
+    await page.route("**/api/v1/systems/*/simulation-scene**", (route) => route.fulfill({
       status: 503,
       contentType: "application/json",
       body: JSON.stringify({ detail: "forced simulation-scene failure" }),
@@ -2012,7 +2006,8 @@ test.describe("public 3D map beta", () => {
     expect(proxima.wds_id).toBe("14396-6050");
     expect(Number(alpha.star_count || 0)).toBeGreaterThanOrEqual(3);
     expect(Number(proxima.planet_count || 0)).toBeGreaterThanOrEqual(2);
-    expect(String(proxima.display_name || proxima.system_name || "")).toMatch(/Proxima Centauri/i);
+    expect(String(proxima.display_name || proxima.system_name || "")).toMatch(/Alpha Centauri/i);
+    expect(String(proxima.matched_alias || "")).toMatch(/Proxima Centauri/i);
 
     const sceneResponse = await page.request.get(`/api/v1/systems/${alpha.system_id}/simulation-scene`);
     expect(sceneResponse.ok()).toBeTruthy();
@@ -2076,25 +2071,18 @@ test.describe("public 3D map beta", () => {
     const stars = renderBodies.stars || [];
     const subsystems = renderBodies.subsystems || [];
     const orbits = scenePayload.render_scene?.orbits || [];
-    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining([
-      "14nu Sco AA",
-      "14nu Sco AB",
-      "14nu Sco AC",
-      "14nu Sco B",
-      "14nu Sco C",
-      "14nu Sco DA",
-      "14nu Sco DB",
-    ]));
+    const nuScoComponents = stars.map((star) => String(star.component || "").toUpperCase()).sort();
+    expect(nuScoComponents).toEqual(expect.arrayContaining(["AA", "AB", "AC", "B", "C", "DA", "DB"]));
     expect(stars).toHaveLength(7);
-    const unresolvedAB = stars.find((star) => star.display_name === "14nu Sco AB");
+    const unresolvedAB = stars.find((star) => String(star.component || "").toUpperCase() === "AB");
     expect(unresolvedAB?.spectral_class || null).toBeNull();
     expect(unresolvedAB?.fields?.spectral_type_raw?.status).toBe("missing");
-    expect(subsystems.map((subsystem) => subsystem.display_name)).toEqual(expect.arrayContaining([
-      "14nu Sco AB",
-      "14nu Sco A",
-      "14nu Sco AAB",
-      "14nu Sco CD",
-      "14nu Sco D",
+    expect(subsystems.map((subsystem) => String(subsystem.component || "").toUpperCase())).toEqual(expect.arrayContaining([
+      "AB",
+      "A",
+      "AAB",
+      "CD",
+      "D",
     ]));
     for (const subsystem of subsystems) {
       expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
@@ -2174,13 +2162,8 @@ test.describe("public 3D map beta", () => {
     const scenePayload = await sceneResponse.json();
     const stars = scenePayload.render_scene?.bodies?.stars || [];
     const membership = scenePayload.render_scene?.diagnostics?.membership_reconciliation || {};
-    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining([
-      "V1054 Oph A",
-      "V1054 Oph BA",
-      "V1054 Oph BB",
-      "V1054 Oph C",
-      "V1054 Oph F",
-    ]));
+    const v1054Components = stars.map((star) => String(star.component || "").toUpperCase()).sort();
+    expect(v1054Components).toEqual(expect.arrayContaining(["A", "BA", "BB", "C", "F"]));
     expect(stars).toHaveLength(5);
     expect(stars.map((star) => star.display_name)).not.toContain("V1054 Oph D");
     expect(membership.membership_gate).toBe("source_hierarchy_leaves");
@@ -2199,7 +2182,7 @@ test.describe("public 3D map beta", () => {
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList).toBeVisible();
     await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(8);
-    for (const name of ["V1054 Oph A", "V1054 Oph BA", "V1054 Oph BB", "V1054 Oph C", "V1054 Oph F"]) {
+    for (const name of ["V1054 Oph", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
       await expect(objectList.getByText(name, { exact: true })).toBeVisible();
     }
     await expect(objectList.getByText("V1054 Oph D", { exact: true })).toHaveCount(0);
@@ -2220,7 +2203,7 @@ test.describe("public 3D map beta", () => {
     const scenePayload = await sceneResponse.json();
     const stars = scenePayload.render_scene?.bodies?.stars || [];
     const orbits = scenePayload.render_scene?.orbits || [];
-    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining(["Sirius A", "Sirius B"]));
+    expect(stars.map((star) => star.display_name)).toEqual(expect.arrayContaining(["Sirius", "Sirius B"]));
     expect(stars.map((star) => star.spectral_class)).toEqual(expect.arrayContaining(["A", "D"]));
     const siriusB = stars.find((star) => star.display_name === "Sirius B");
     expect(siriusB?.body_class).toBe("white_dwarf");

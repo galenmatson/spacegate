@@ -473,6 +473,11 @@ Success criteria:
 - TRAPPIST-1 benchmark scenes source period, semi-major axis, eccentricity, and
   inclination from `arm.orbital_solutions` before falling back to promoted
   `core.planets` summary scalars
+- hierarchy-rendered stars expose `luminosity_lsun` from source quick facts
+  when present, otherwise from the ARM-scoped
+  `stellar_luminosity_from_radius_teff_v1` radius/Teff derivation. The browser
+  uses this field for HZ and temperature-line overlays, with provenance showing
+  it is derived support rather than a core catalog luminosity
 - multi-star previews render ARM hierarchy/orbit evidence as barycentric visual
   groups when connected binary edges are available
 - hierarchical subsystem orbit edges render as distinct group-pair guides so

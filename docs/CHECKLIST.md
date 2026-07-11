@@ -742,6 +742,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add spectral-subclass-aware main-sequence stellar parameter priors for
   simulation support, guarded against giants, subgiants, remnants, and compact
   objects, without writing those priors into core
+- [x] Add ARM-scoped runtime luminosity derivation for hierarchy-rendered stars
+  with radius and effective temperature so HZ/temperature-line overlays do not
+  lose systems such as TRAPPIST-1
+- [x] Refresh map/system Playwright expectations for current naming, preview,
+  Explorer, and fallback policies; full local map suite passes on photon
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
 - [x] Reconcile initial system-simulation orbital-source policy across NASA

@@ -35,7 +35,8 @@ export async function fetchSystemSimulationScene(systemId, params = {}) {
   const query = new URLSearchParams(params);
   const suffix = query.toString() ? `?${query.toString()}` : "";
   const cacheKey = `${String(systemId || "")}:${String(params?.name_style || "public_full")}`;
-  if (simulationSceneCache.has(cacheKey)) {
+  const cacheDisabled = Boolean(globalThis?.window?.__SPACEGATE_DISABLE_SIM_SCENE_CACHE);
+  if (!cacheDisabled && simulationSceneCache.has(cacheKey)) {
     const cached = simulationSceneCache.get(cacheKey);
     simulationSceneCache.delete(cacheKey);
     simulationSceneCache.set(cacheKey, cached);
@@ -54,10 +55,12 @@ export async function fetchSystemSimulationScene(systemId, params = {}) {
       simulationSceneCache.delete(cacheKey);
       throw error;
     });
-  simulationSceneCache.set(cacheKey, request);
-  if (simulationSceneCache.size > SIMULATION_SCENE_CACHE_LIMIT) {
-    const oldestKey = simulationSceneCache.keys().next().value;
-    simulationSceneCache.delete(oldestKey);
+  if (!cacheDisabled) {
+    simulationSceneCache.set(cacheKey, request);
+    if (simulationSceneCache.size > SIMULATION_SCENE_CACHE_LIMIT) {
+      const oldestKey = simulationSceneCache.keys().next().value;
+      simulationSceneCache.delete(oldestKey);
+    }
   }
   return request;
 }

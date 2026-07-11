@@ -900,8 +900,16 @@ Completed:
 - Spectral-subclass main-sequence priors now distinguish safe types such as
   K0V and K4V for simulation support while avoiding giants, subgiants,
   remnants, and compact objects.
+- Hierarchy-rendered stars now expose `luminosity_lsun` when it is available
+  as a source quick fact, or as an ARM-scoped derived
+  `stellar_luminosity_from_radius_teff_v1` value when radius and effective
+  temperature are present. This restores HZ/temperature-line overlays for
+  systems such as TRAPPIST-1 without promoting derived luminosity into core.
 - `scripts/audit_source_evidence_utilization.py` now reports broader source
   coverage metrics in addition to MSC gaps.
+- Browser Playwright expectations were refreshed for public-full naming,
+  cached/full preview policy, embedded Explorer object lists, and failed
+  simulation-scene fallback behavior; the full map suite passes locally.
 
 Remaining:
 
@@ -913,8 +921,6 @@ Remaining:
   candidates, or diagnostics only.
 - decide whether a capped/materialized ARM policy for stellar subclass priors
   is worth the storage cost, or whether runtime provenance remains sufficient.
-- refresh browser Playwright expectations that now lag the current naming,
-  preview, and fallback policies.
 
 ### M8.4. Admin Map Overlay and AAA Research Promotion
 

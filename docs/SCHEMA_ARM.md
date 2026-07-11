@@ -283,6 +283,16 @@ Columns:
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`,
   `transform_version`)
 
+Runtime note:
+
+- `/simulation-scene` may expose ARM-scoped derived support fields even before
+  they are bulk-materialized in this table. For example,
+  `stellar_luminosity_from_radius_teff_v1` derives `luminosity_lsun` from
+  available radius and effective temperature for hierarchy-rendered stars so
+  HZ and temperature-line overlays have auditable inputs. These values are
+  render/API support facts, not core source facts, and remain supersedable by a
+  reviewed source luminosity row.
+
 Rules:
 - source-native measurements always win over derived values for science claims.
 - spectral-type proxy rows are allowed only when the source spectral evidence is

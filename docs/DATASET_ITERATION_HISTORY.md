@@ -301,9 +301,20 @@ Representative commits:
   source mass evidence. A major remaining finding is that WDS pair-observation
   rows are preserved but not yet normalized into ARM pair entities/orbit edges;
   this should become a separate WDS pair-observation utilization milestone.
+- The simulation-scene hierarchy leaf path now emits `luminosity_lsun` as either
+  a source quick fact or an ARM-scoped
+  `stellar_luminosity_from_radius_teff_v1` derivation from available radius and
+  effective temperature. This fixed TRAPPIST-1/HZ overlay inputs without
+  treating derived luminosity as a core catalog fact.
+- Browser verification was refreshed for the current public-full naming policy,
+  cached/full search preview behavior, embedded Explorer object-list layout,
+  and forced simulation-scene failure fallback behavior. The local map
+  Playwright suite passes on photon.
 
 Representative commits:
-- pending (source evidence utilization / stellar parameter normalization v1)
+- `9d3bb82` (use preserved source evidence for stellar simulations)
+- `504772a` (expand source evidence utilization audit)
+- pending (hierarchy luminosity derivation and browser verification refresh)
 
 ## Recurrent Defect Classes and Mitigations
 

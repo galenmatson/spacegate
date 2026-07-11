@@ -81,6 +81,6 @@ export const TECHNICAL_SYSTEM_GOLDENS = [
   { id: "castor", query: "Castor", expectedNamePattern: /Castor/i, minStars: 6 },
   { id: "nu_sco", query: "Nu Sco", expectedNamePattern: /Nu Sco/i, minStars: 6 },
   { id: "hd_213885", query: "HD 213885", expectedNamePattern: /HD 213885/i, minStars: 3, minPlanets: 2 },
-  { id: "eps_ind", query: "eps Ind", expectedNamePattern: /Eps Ind|eps Ind/i, minStars: 3 },
+  { id: "eps_ind", query: "eps Ind", expectedNamePattern: /Epsilon Indi|Eps Ind|eps Ind/i, minStars: 3 },
   { id: "16_cyg", query: "16 Cyg", expectedNamePattern: /16 Cyg/i, minStars: 2 },
 ];
