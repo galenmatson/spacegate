@@ -1411,7 +1411,7 @@ function SceneLabel({ text, position = [0, -0.4, 0], color = "#e6f6ff", scale = 
     const fovRad = THREE.MathUtils.degToRad(camera.fov || 43);
     const worldUnitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / Math.max(1, size.height);
     const targetPixels = clampNumber(15 * scale, 11, 21);
-    const fontSize = clampNumber(worldUnitsPerPixel * targetPixels, 0.045, 0.34);
+    const fontSize = clampNumber(worldUnitsPerPixel * targetPixels, 0.0015, 0.34);
     const fade = clampNumber((34 - distance) / 12, 0.42, 0.96);
     textRef.current.fontSize = fontSize;
     textRef.current.fillOpacity = fade;

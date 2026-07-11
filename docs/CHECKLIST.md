@@ -226,6 +226,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Public antiproton deployment runbook documents sliced DB publish, activation, SSH cooldown, verification, and rollback (`docs/PUBLIC_DEPLOYMENT.md`)
 - [x] API Docker runtime runs non-root with generated-state permission normalization
 - [x] API Docker runtime drops capabilities, blocks privilege escalation, and uses a read-only root filesystem with explicit tmpfs scratch mounts
+- [x] Create host-local private security audit log outside the public repo at `/srv/spacegate/private/security/SECURITY_AUDIT.md`
 - [ ] Dedicated `spacegate-run` service user and shared group model for Admin/API runtime
 - [ ] Antiproton runtime identity cleanup: migrate `/srv/spacegate/data` from legacy `ubuntu:ubuntu` ownership to a dedicated non-login `spacegate` runtime user with shared `spacegate` group access; keep `sgdeploy` as deploy/restart account only
 - [ ] Reassess antiproton `sgdeploy` Docker-group membership and replace with a narrower deploy control path if feasible
@@ -233,6 +234,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   `/api/v2/admin/*` with VPN/Tailscale, IP allowlist, or basic auth; optional
   obscure Admin path only as bot-noise reduction
 - [ ] Secret handling hardening beyond Compose-expanded environment variables
+- [ ] Redacted Compose/runtime diagnostics command so operators can inspect
+  configuration without printing secret-bearing environment values
+- [ ] Pre-hardening/pass-close git security scan routine with OpenAI's git
+  security inspector or an equivalent local secret scanner
 - [ ] AI Astronomy Agency prompt-injection hardening fixture set
 - [ ] Agent source-text isolation and tool-boundary enforcement tests
 - [ ] Agent publication gate requiring reviewed citations, explicit claim subjects,

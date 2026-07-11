@@ -92,6 +92,9 @@ Delivered:
 
 Remaining hardening backlog:
 
+- maintain host-local private security findings outside the public repo at
+  `/srv/spacegate/private/security/SECURITY_AUDIT.md`; tracked docs should
+  reference this audit log but not duplicate sensitive host details or secrets
 - move from operator UID to a dedicated `spacegate-run` service user with shared
   `spacegate` group access
 - evaluate Docker `userns-remap` or rootless Docker on Photon, accounting for
@@ -100,6 +103,9 @@ Remaining hardening backlog:
   and into mounted secret files or a secrets manager pattern
 - add a redacted Compose/runtime diagnostics command so operators do not
   accidentally print secret-bearing `docker compose config` output
+- add a pre-hardening/pass-close security scan routine using OpenAI's git
+  security inspector or another local secret scanner, followed by manual staged
+  diff review
 - decide whether public-edge `antiproton` needs a stricter Compose profile than
   Photon development
 - gate public-edge Admin routes at the reverse proxy layer: protect `/admin`
