@@ -4036,11 +4036,51 @@ function HoverReadout({ object, compact = false }) {
   );
 }
 
-function PinnedReadout({ object, onClose }) {
+function PinnedReadout({ object, onClose, position = null, onPositionChange = null }) {
   const [copied, setCopied] = useState(false);
+  const panelRef = React.useRef(null);
+  const dragRef = React.useRef(null);
   if (!object) {
     return null;
   }
+  const handleDragStart = (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+    const panel = panelRef.current;
+    const parent = panel?.parentElement;
+    if (!panel || !parent) {
+      return;
+    }
+    const parentRect = parent.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    dragRef.current = {
+      pointerId: event.pointerId,
+      parentRect,
+      panelWidth: panelRect.width,
+      panelHeight: panelRect.height,
+      offsetX: event.clientX - panelRect.left,
+      offsetY: event.clientY - panelRect.top,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  };
+  const handleDragMove = (event) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+    const maxX = Math.max(0, drag.parentRect.width - drag.panelWidth - 8);
+    const maxY = Math.max(0, drag.parentRect.height - drag.panelHeight - 8);
+    const nextX = clampNumber(event.clientX - drag.parentRect.left - drag.offsetX, 8, maxX);
+    const nextY = clampNumber(event.clientY - drag.parentRect.top - drag.offsetY, 8, maxY);
+    onPositionChange?.({ x: Math.round(nextX), y: Math.round(nextY) });
+  };
+  const handleDragEnd = (event) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null;
+    }
+  };
   const copyId = () => {
     if (!object.id) {
       return;
@@ -4053,14 +4093,36 @@ function PinnedReadout({ object, onClose }) {
       window.setTimeout(() => setCopied(false), 1400);
     }).catch(() => {});
   };
+  const pinnedStyle = position && Number.isFinite(Number(position.x)) && Number.isFinite(Number(position.y))
+    ? {
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        right: "auto",
+        bottom: "auto",
+      }
+    : undefined;
   return (
-    <div className="system-preview-pinned" data-testid="system-preview-pinned">
-      <div className="system-preview-pinned-title">
+    <div ref={panelRef} className="system-preview-pinned" data-testid="system-preview-pinned" style={pinnedStyle}>
+      <div
+        className="system-preview-pinned-title"
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
+        title="Drag to move readout"
+      >
         <div>
           <strong>{object.name}</strong>
           <span>{object.kind} - {String(object.sourceLayer || "unknown").toUpperCase()}</span>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close pinned simulator readout">x</button>
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={onClose}
+          aria-label="Close pinned simulator readout"
+        >
+          x
+        </button>
       </div>
       {object.stellarTokens?.length ? <StellarClassChips tokens={object.stellarTokens} size="compact" className="system-preview-readout-tags" /> : null}
       {object.id ? (
@@ -4245,6 +4307,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
   const [scaleMode, setScaleMode] = useState(() => normalizeScaleMode(defaultScaleMode));
   const [hoveredObject, setHoveredObject] = useState(null);
   const [pinnedObject, setPinnedObject] = useState(null);
+  const [pinnedReadoutPosition, setPinnedReadoutPosition] = useState(null);
   const [simulationDays, setSimulationDays] = useState(0);
   const [panelVisible, setPanelVisible] = useState(true);
   const panelRef = React.useRef(null);
@@ -4591,7 +4654,12 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
                 object={hoveredObject && !pinnedObject ? hoveredObject : null}
                 compact={normalizedPresentationMode === "peek"}
               />
-              <PinnedReadout object={pinnedObject} onClose={() => setPinnedObject(null)} />
+              <PinnedReadout
+                object={pinnedObject}
+                onClose={() => setPinnedObject(null)}
+                position={pinnedReadoutPosition}
+                onPositionChange={setPinnedReadoutPosition}
+              />
             </>
           )}
           {normalizedPresentationMode === "detail" && status === "ready" && scene ? (

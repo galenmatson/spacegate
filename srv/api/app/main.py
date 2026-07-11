@@ -3596,7 +3596,9 @@ def _render_scene_contract(
     def build_simulation_tree() -> Dict[str, Any]:
         body_nodes: Dict[str, Dict[str, Any]] = {}
         node_by_leaf_set: Dict[frozenset[str], str] = {}
+        current_leaf_owner: Dict[str, frozenset[str]] = {}
         warnings: List[str] = []
+        skipped_orbits: List[Dict[str, Any]] = []
         for body_key, body in sorted(render_stars.items()):
             mass = render_body_mass_msun(body_key)
             node_key = f"body:{body_key}"
@@ -3611,15 +3613,110 @@ def _render_scene_contract(
                 "mass_msun": mass,
                 "mass_status": "source_or_derived" if mass is not None else "missing",
             }
-            node_by_leaf_set[frozenset([body_key])] = node_key
+            leaf_set = frozenset([body_key])
+            node_by_leaf_set[leaf_set] = node_key
+            current_leaf_owner[body_key] = leaf_set
+
+        def orbit_source_score(orbit: Dict[str, Any]) -> float:
+            fields = orbit.get("fields") if isinstance(orbit.get("fields"), dict) else {}
+            score = 0.0
+            for key, weight in (
+                ("period_days", 1.2),
+                ("semi_major_axis_au", 1.4),
+                ("projected_separation_au", 0.35),
+                ("eccentricity", 1.0),
+                ("inclination_deg", 1.0),
+            ):
+                field = fields.get(key) if isinstance(fields, dict) else None
+                if not isinstance(field, dict) or field.get("value") is None:
+                    continue
+                status = str(field.get("status") or "").lower()
+                if status == "source":
+                    score += weight
+                elif status == "derived":
+                    score += weight * 0.45
+            try:
+                score += float((orbit.get("source") or {}).get("confidence_score") or 0.0)
+            except Exception:
+                pass
+            if str(orbit.get("relation_kind") or "") == "hierarchical_pair":
+                score += 0.2
+            if str(orbit.get("endpoint_kind") or "") == "group_pair":
+                score += 0.15
+                if len(orbit.get("primary_child_body_keys") or []) <= 1 and len(orbit.get("secondary_child_body_keys") or []) <= 1:
+                    score -= 0.6
+            return score
+
+        def orbit_specificity(orbit: Dict[str, Any]) -> int:
+            keys = {
+                str(key)
+                for key in [
+                    *(orbit.get("primary_child_body_keys") or [orbit.get("primary_body_key")]),
+                    *(orbit.get("secondary_child_body_keys") or [orbit.get("secondary_body_key")]),
+                ]
+                if key
+            }
+            return len(keys)
+
+        def sorted_candidate_orbits(orbits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            return sorted(
+                orbits,
+                key=lambda orbit: (
+                    -orbit_source_score(orbit),
+                    -orbit_specificity(orbit),
+                    str(orbit.get("display_name") or orbit.get("orbit_key") or ""),
+                ),
+            )
+
+        def endpoint_node_key(leaf_set: frozenset[str]) -> Optional[str]:
+            node_key = node_by_leaf_set.get(leaf_set)
+            if not node_key:
+                return None
+            for leaf_key in leaf_set:
+                owner = current_leaf_owner.get(leaf_key)
+                if owner != leaf_set:
+                    return None
+            return node_key
+
+        def endpoint_conflict_reason(leaf_set: frozenset[str]) -> Optional[str]:
+            if not leaf_set:
+                return "missing endpoint leaves"
+            if leaf_set not in node_by_leaf_set:
+                return None
+            owners = {current_leaf_owner.get(leaf_key) for leaf_key in leaf_set}
+            if any(owner is None for owner in owners):
+                return "endpoint contains unrendered leaves"
+            if len(owners) == 1 and next(iter(owners)) == leaf_set:
+                return None
+            return "endpoint partially overlaps an already selected orbit group"
+
+        def record_skipped_orbit(orbit: Dict[str, Any], reason: str) -> None:
+            skipped_orbits.append(
+                {
+                    "orbit_key": orbit.get("orbit_key"),
+                    "orbit_edge_id": orbit.get("orbit_edge_id"),
+                    "display_name": orbit.get("display_name"),
+                    "relation_kind": orbit.get("relation_kind"),
+                    "endpoint_kind": orbit.get("endpoint_kind"),
+                    "reason": reason,
+                    "leaf_keys": sorted({
+                        str(key)
+                        for key in [
+                            *(orbit.get("primary_child_body_keys") or [orbit.get("primary_body_key")]),
+                            *(orbit.get("secondary_child_body_keys") or [orbit.get("secondary_body_key")]),
+                        ]
+                        if key
+                    }),
+                }
+            )
 
         orbit_nodes: Dict[str, Dict[str, Any]] = {}
-        remaining_orbits = list(render_orbits)
+        remaining_orbits = sorted_candidate_orbits(list(render_orbits))
         progress = True
         while remaining_orbits and progress:
             progress = False
             next_remaining: List[Dict[str, Any]] = []
-            for orbit in remaining_orbits:
+            for orbit in sorted_candidate_orbits(remaining_orbits):
                 primary_keys = [
                     str(key)
                     for key in orbit.get("primary_child_body_keys") or [orbit.get("primary_body_key")]
@@ -3632,11 +3729,28 @@ def _render_scene_contract(
                 ]
                 primary_set = frozenset(primary_keys)
                 secondary_set = frozenset(secondary_keys)
+                if primary_set and secondary_set and primary_set != secondary_set:
+                    overlap = primary_set & secondary_set
+                    if overlap and str(orbit.get("endpoint_kind") or "") == "group_pair":
+                        if secondary_set < primary_set:
+                            primary_set = frozenset(primary_set - secondary_set)
+                            primary_keys = sorted(primary_set)
+                        elif primary_set < secondary_set:
+                            secondary_set = frozenset(secondary_set - primary_set)
+                            secondary_keys = sorted(secondary_set)
                 if not primary_set or not secondary_set:
                     warnings.append(f"{orbit.get('orbit_key') or 'orbit'} missing renderable orbit side")
+                    record_skipped_orbit(orbit, "missing renderable orbit side")
                     continue
-                primary_node_key = node_by_leaf_set.get(primary_set)
-                secondary_node_key = node_by_leaf_set.get(secondary_set)
+                primary_conflict = endpoint_conflict_reason(primary_set)
+                secondary_conflict = endpoint_conflict_reason(secondary_set)
+                if primary_conflict or secondary_conflict:
+                    reason = primary_conflict or secondary_conflict or "orbit endpoint conflict"
+                    warnings.append(f"{orbit.get('orbit_key') or 'orbit'} skipped: {reason}")
+                    record_skipped_orbit(orbit, reason)
+                    continue
+                primary_node_key = endpoint_node_key(primary_set)
+                secondary_node_key = endpoint_node_key(secondary_set)
                 if not primary_node_key or not secondary_node_key:
                     next_remaining.append(orbit)
                     continue
@@ -3663,11 +3777,14 @@ def _render_scene_contract(
                 existing_node_key = node_by_leaf_set.get(leaf_set)
                 if not existing_node_key or len(leaf_set) > 1:
                     node_by_leaf_set[leaf_set] = node_key
+                for leaf_key in leaf_set:
+                    current_leaf_owner[leaf_key] = leaf_set
                 progress = True
             remaining_orbits = next_remaining
 
         for orbit in remaining_orbits:
             warnings.append(f"{orbit.get('orbit_key') or 'orbit'} could not be attached to simulation tree")
+            record_skipped_orbit(orbit, "could not be attached to simulation tree")
 
         all_nodes = {**body_nodes, **orbit_nodes}
         child_node_keys = {
@@ -3716,6 +3833,9 @@ def _render_scene_contract(
                 "root_child_count": len(top_node_keys),
                 "nested_orbit_count": nested_orbit_count,
                 "unattached_orbit_count": len(remaining_orbits),
+                "active_orbit_count": len(orbit_nodes),
+                "skipped_orbit_count": len(skipped_orbits),
+                "skipped_orbits": skipped_orbits[:20],
                 "warnings": warnings[:12],
             },
         }

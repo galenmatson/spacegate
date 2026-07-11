@@ -22,6 +22,8 @@ class WideOrbitCase:
     require_source_group_orbit: bool = False
     require_nested_orbit: bool = False
     require_assumed_orbit: bool = False
+    require_skipped_overlap: bool = False
+    require_active_orbit_label: str | None = None
     allow_unattached_source_orbits: bool = False
 
 
@@ -34,7 +36,7 @@ CASES = [
     WideOrbitCase("Sirius", min_stars=2, require_assumed_orbit=True),
     WideOrbitCase("Castor", min_stars=6, require_source_group_orbit=True, require_nested_orbit=True),
     WideOrbitCase("Nu Sco", min_stars=7, require_source_group_orbit=True, require_nested_orbit=True, allow_unattached_source_orbits=True),
-    WideOrbitCase("16 Cyg", min_stars=3, require_source_group_orbit=True, require_nested_orbit=True),
+    WideOrbitCase("16 Cyg", min_stars=3, require_skipped_overlap=True, require_active_orbit_label="16 Cyg B A - 16 Cyg B B"),
 ]
 
 
@@ -80,6 +82,26 @@ def visual_orbit_field_statuses(orbit: dict[str, Any]) -> set[str]:
     }
 
 
+def assert_no_partial_active_barycenter_overlap(query: str, simulation_tree: dict[str, Any]) -> None:
+    nodes = simulation_tree.get("nodes") if isinstance(simulation_tree, dict) else {}
+    barycenters = [
+        (key, set(str(item) for item in (node.get("leaf_body_keys") or [])))
+        for key, node in (nodes or {}).items()
+        if isinstance(node, dict) and node.get("node_type") == "barycenter"
+    ]
+    for idx, (left_key, left_leaves) in enumerate(barycenters):
+        for right_key, right_leaves in barycenters[idx + 1:]:
+            overlap = left_leaves & right_leaves
+            if not overlap:
+                continue
+            if left_leaves <= right_leaves or right_leaves <= left_leaves:
+                continue
+            raise AssertionError(
+                f"{query}: active simulation-tree barycenters partially overlap: "
+                f"{left_key}={sorted(left_leaves)} and {right_key}={sorted(right_leaves)}"
+            )
+
+
 def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
     item = search_system(base_url, case.query)
     system_id = item.get("system_id")
@@ -93,7 +115,8 @@ def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
     diagnostics = render_scene.get("diagnostics") or {}
     orbit_counts = diagnostics.get("orbit_counts") or {}
     policy_counts = orbit_counts.get("by_policy") or {}
-    tree_diagnostics = (render_scene.get("simulation_tree") or {}).get("diagnostics") or {}
+    simulation_tree = render_scene.get("simulation_tree") or {}
+    tree_diagnostics = simulation_tree.get("diagnostics") or {}
     membership = diagnostics.get("membership_reconciliation") or {}
 
     if len(stars) < case.min_stars:
@@ -104,6 +127,7 @@ def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
         raise AssertionError(f"{case.query}: orbit diagnostics total mismatch")
     if not isinstance(policy_counts, dict):
         raise AssertionError(f"{case.query}: missing orbit policy diagnostics")
+    assert_no_partial_active_barycenter_overlap(case.query, simulation_tree)
 
     source_group_orbits = [
         orbit
@@ -127,6 +151,19 @@ def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
         raise AssertionError(f"{case.query}: expected nested simulation-tree orbit")
     if case.require_assumed_orbit and not assumed_orbits:
         raise AssertionError(f"{case.query}: expected an explicitly assumed visual orbit/fallback")
+    if case.require_skipped_overlap:
+        skipped = tree_diagnostics.get("skipped_orbits") or []
+        if not any("overlap" in str(item.get("reason") or "") for item in skipped if isinstance(item, dict)):
+            raise AssertionError(f"{case.query}: expected skipped overlapping orbit diagnostics")
+    if case.require_active_orbit_label:
+        nodes = simulation_tree.get("nodes") or {}
+        active_labels = [
+            str(node.get("display_name") or "")
+            for node in nodes.values()
+            if isinstance(node, dict) and node.get("node_type") == "barycenter"
+        ]
+        if not any(case.require_active_orbit_label in label for label in active_labels):
+            raise AssertionError(f"{case.query}: expected active orbit label containing {case.require_active_orbit_label!r}; got {active_labels}")
     if not case.allow_unattached_source_orbits and int(tree_diagnostics.get("unattached_orbit_count") or 0) > 0:
         raise AssertionError(f"{case.query}: unexpected unattached rendered orbit: {tree_diagnostics.get('warnings')}")
 

@@ -33,6 +33,14 @@ Already in place:
   rather than the individual stars. This lets Castor/HD 213885-style systems
   animate as nested barycentric hierarchies instead of static clusters with
   ad hoc offsets.
+- `simulation_tree_v1` selects a compatible active motion forest from the
+  renderable orbit rows. Multiple source/evidence orbit edges may overlap or
+  conflict; the renderer must not animate partially overlapping barycenters as
+  if they were simultaneous hierarchy facts. Active barycenter leaf sets may be
+  disjoint or properly nested, but not partially overlapping. Skipped alternate
+  or conflicting orbit edges remain in `render_scene.orbits` and are reported
+  in `render_scene.simulation_tree.diagnostics.skipped_orbits` with a reason
+  instead of becoming moving bodies.
 - hierarchy-pair period fallback is evidence-aware: source orbital solutions
   win first, MSC system-row periods win second, projected MSC separation plus
   endpoint masses may produce a low-confidence Kepler estimate third, and only

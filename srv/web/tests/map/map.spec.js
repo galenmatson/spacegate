@@ -367,6 +367,25 @@ test.describe("public 3D map beta", () => {
       .poll(() => page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").count())
       .toBeGreaterThanOrEqual(4);
     await expect(page.locator("[data-testid='system-preview-object-list']")).toContainText(/Planet/i);
+    await page.locator("[data-testid='system-preview-object-list'] .system-preview-object-chip").first().click();
+    const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
+    await expect(pinnedReadout).toBeVisible();
+    const readoutTitle = pinnedReadout.locator(".system-preview-pinned-title");
+    const beforeDragBox = await pinnedReadout.boundingBox();
+    const titleBox = await readoutTitle.boundingBox();
+    expect(beforeDragBox, "pinned readout before drag box").toBeTruthy();
+    expect(titleBox, "pinned readout title box").toBeTruthy();
+    await page.mouse.move(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(titleBox.x + titleBox.width / 2 - 90, titleBox.y + titleBox.height / 2 - 70, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(async () => {
+      const afterDragBox = await pinnedReadout.boundingBox();
+      if (!afterDragBox || !beforeDragBox) {
+        return 0;
+      }
+      return Math.hypot(afterDragBox.x - beforeDragBox.x, afterDragBox.y - beforeDragBox.y);
+    }).toBeGreaterThan(20);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(1);
     await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toBeVisible();
     await expect(page.locator(".hierarchy-panel .hierarchy-node-title-row .stellar-class-chip").first()).toContainText("K");
@@ -2322,7 +2341,7 @@ test.describe("public 3D map beta", () => {
       { query: "Sirius", minStars: 2, minAssumed: 1 },
       { query: "Castor", minStars: 6, minSourceGroup: 2, minNested: 1, maxUnattached: 0 },
       { query: "Nu Sco", minStars: 7, minSourceGroup: 2, minNested: 1, maxUnattached: 4 },
-      { query: "16 Cyg", minStars: 3, minSourceGroup: 1, minNested: 1, maxUnattached: 0 },
+      { query: "16 Cyg", minStars: 3, minSkippedOverlap: 1, activeOrbitPattern: /16 Cyg B A - 16 Cyg B B/, maxUnattached: 0 },
     ];
     let alphaSystemId = null;
 
@@ -2347,11 +2366,41 @@ test.describe("public 3D map beta", () => {
         const orbits = renderScene.orbits || [];
         const orbitPolicy = renderScene.diagnostics?.orbit_counts?.by_policy || {};
         const treeDiagnostics = renderScene.simulation_tree?.diagnostics || {};
+        const treeNodes = renderScene.simulation_tree?.nodes || {};
         expect(stars.length, `${benchmark.query} rendered stars`).toBeGreaterThanOrEqual(benchmark.minStars);
         expect(orbits.length, `${benchmark.query} should not be static-only`).toBeGreaterThan(0);
         expect(Number(orbitPolicy.source_group_orbit || 0)).toBeGreaterThanOrEqual(benchmark.minSourceGroup || 0);
         expect(Number(orbitPolicy.assumed_visual_orbit || 0)).toBeGreaterThanOrEqual(benchmark.minAssumed || 0);
         expect(Number(treeDiagnostics.nested_orbit_count || 0)).toBeGreaterThanOrEqual(benchmark.minNested || 0);
+        if (benchmark.minSkippedOverlap) {
+          const skipped = Array.isArray(treeDiagnostics.skipped_orbits) ? treeDiagnostics.skipped_orbits : [];
+          expect(
+            skipped.filter((item) => String(item.reason || "").includes("overlap")).length,
+            `${benchmark.query} skipped overlap diagnostics`
+          ).toBeGreaterThanOrEqual(benchmark.minSkippedOverlap);
+        }
+        if (benchmark.activeOrbitPattern) {
+          const activeLabels = Object.values(treeNodes)
+            .filter((node) => node?.node_type === "barycenter")
+            .map((node) => String(node.display_name || ""));
+          expect(activeLabels.join(" | ")).toMatch(benchmark.activeOrbitPattern);
+        }
+        const activeBarycenters = Object.entries(treeNodes)
+          .filter(([, node]) => node?.node_type === "barycenter")
+          .map(([key, node]) => [key, new Set((node.leaf_body_keys || []).map(String))]);
+        for (let i = 0; i < activeBarycenters.length; i += 1) {
+          for (let j = i + 1; j < activeBarycenters.length; j += 1) {
+            const [leftKey, leftSet] = activeBarycenters[i];
+            const [rightKey, rightSet] = activeBarycenters[j];
+            const overlap = [...leftSet].filter((item) => rightSet.has(item));
+            const leftSubset = [...leftSet].every((item) => rightSet.has(item));
+            const rightSubset = [...rightSet].every((item) => leftSet.has(item));
+            expect(
+              overlap.length === 0 || leftSubset || rightSubset,
+              `${benchmark.query} active barycenters should not partially overlap: ${leftKey} vs ${rightKey}`
+            ).toBeTruthy();
+          }
+        }
         if (benchmark.maxUnattached !== undefined) {
           expect(Number(treeDiagnostics.unattached_orbit_count || 0)).toBeLessThanOrEqual(benchmark.maxUnattached);
         }
