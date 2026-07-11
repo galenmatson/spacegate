@@ -496,6 +496,12 @@ Contract notes:
   `status="assumed"`, and `layer="render_scene"`. Clients must label those
   mass priors as visual/render assumptions and must not display them as source
   spectral classes.
+  When source mass/radius/Teff are missing but a safe main-sequence spectral
+  type is available, the simulator may expose
+  `basis="spectral_subclass_main_sequence_mass_prior_v1"` fields for mass,
+  radius, Teff, or luminosity. These are derived support priors with low or
+  illustrative confidence, not core catalog facts, and are suppressed for
+  giants, subgiants, remnants, compact objects, and other evolved markers.
   Planet render bodies include `host_star_id` from the canonical planet row
   where available and `host_body_key` when that host resolves to a rendered
   star body. `source.host_resolution` records whether the linkage came from a
@@ -539,6 +545,10 @@ Contract notes:
   estimates when distance and endpoint masses are available, then explicit
   `disc_assumption` visual fallback periods. The estimate/fallback path must
   remain labeled and must not be promoted into ARM as a fitted orbit solution.
+  Source-native MSC orbit endpoints may be bridged to canonical rendered stars
+  by exact WDS component label within the same accepted system. This bridge is
+  a render-key reconciliation step only; it does not merge or rename source
+  objects.
   `display_radius_scene` for stellar orbit rows is presentation scale, but it
   should preserve broad separation order using source semi-major axis,
   source/projected angular separation plus distance, or a period+mass Kepler

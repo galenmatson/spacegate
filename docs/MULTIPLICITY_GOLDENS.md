@@ -72,6 +72,8 @@ Current fixture scope:
 - required quantitative regression check (arm): V1054 Oph hierarchy-reachable
   source-native MSC stellar leaf count remains five, excluding orphaned/conflict
   endpoint rows such as the current MSC `D` branch from render membership
+- required quantitative regression check (arm): 70 Oph has an MSC source A/B
+  orbital solution normalized into `arm.orbital_solutions`
 - required quantitative neighborhood check (core): minimum nearby-system count within 10 ly
 - optional presence checks (galaxy/halo scope): PSR B1620-26, TYC 7037-89-1
 

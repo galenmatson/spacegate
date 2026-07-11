@@ -356,7 +356,10 @@ Current rules:
   by MSC `sys.tsv`/`orb.tsv` materialize as ARM support leaves before any
   count-expanded fallback leaves are used, unless the label is an exact source
   subsystem parent; these support leaves do not become flat `core.stars` rows
-  without separate canonical inventory evidence
+  without separate canonical inventory evidence. MSC root components are
+  materialized even for simple binaries so source-backed systems such as 70 Oph
+  can attach `sys.tsv` masses and `orb.tsv` orbital solutions to normalized ARM
+  edges without inventing new core stars
   (`newmsc-20260619.tar.gz`); CTIO TLS failures require explicit
   SHA-256-pinned fallback handling; local canonical build
   `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed required
@@ -676,6 +679,9 @@ Panel purpose:
 - expose star-level `arm` evidence overlays in system detail (currently VSX + UltracoolSheet, with stellar-parameter/orbital overlays as the next narration-facing payload)
 - expose persisted `arm.derived_physical_parameters` rows and clearly label
   source, derived, and assumed simulation inputs for review
+- expose runtime spectral-subclass main-sequence priors as low-authority
+  simulation support only, with guards for evolved/remnant/compact objects and
+  no writes into `core` source fields
 
 Minimum metrics exposed:
 

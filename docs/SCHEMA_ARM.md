@@ -140,6 +140,10 @@ Notes:
   than physical leaf stars. Renderers must preserve that distinction, for
   example by drawing cluster orbit guides instead of reclassifying a group edge
   as a direct binary star orbit.
+- MSC `sys.tsv` and `orb.tsv` rows may both create deterministic `binary` or
+  `hierarchical_pair` edges when the host and both endpoint component keys
+  resolve. `orb.tsv` rows that do not resolve remain diagnostics; they must not
+  create fake simulator endpoints.
 - Runtime render contracts may expose subsystem nodes as inspectable UI bodies
   with descendant render keys and derived child counts. Those presentation
   handles must remain backed by `component_entities`/`system_hierarchy_edges`
@@ -178,6 +182,10 @@ Columns:
 Rule:
 - never overwrite source-native measurements; normalized columns are additive transforms with lineage.
 - planet, moon, binary, and artificial-object orbital solutions all follow the
+  same evidence-preserving table contract. MSC `orb.tsv` rows are normalized as
+  `solution_source_catalog='msc'` with period, angular semi-major axis,
+  eccentricity, inclination, node, periastron longitude, velocity amplitudes,
+  notes/reference strings, and ranking where available.
   same policy: a promoted scalar may appear in `core` for hot-path display, but
   source-native solution rows, alternates, epochs, fit-quality fields, and
   simulation-ready element sets belong here.
@@ -232,6 +240,11 @@ replaced or superseded when a stronger source measurement is found.
 
 Implementation status: emitted by `scripts/build_arm.py` as
 `derived_physical_parameters_v1` for deterministic source-input candidates.
+Global stellar spectral-subclass mass priors are intentionally not bulk
+materialized here yet because applying them to every spectral-class star would
+add many millions of low-authority support rows. The simulator/API may expose
+bounded runtime priors with provenance when useful, while the audit report keeps
+the source-mass coverage gap visible for a later capped/materialized policy.
 
 Columns:
 - `derived_parameter_id BIGINT`

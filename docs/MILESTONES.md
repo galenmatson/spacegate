@@ -878,6 +878,40 @@ Deprecation note:
   Remove or hide those controls after System Snapshot v2 or an equivalent
   no-WebGL/share-card path is available.
 
+### M8.3b. Source Evidence Utilization and Stellar Parameter Normalization v1
+
+Status: locally implemented on photon build
+`20260711T_source_evidence_v1_side`.
+
+Goal:
+
+- use source evidence Spacegate already preserves before falling back to
+  presentation assumptions in simulation and system-readout paths.
+
+Completed:
+
+- MSC roots now materialize for simple binaries as well as higher-order
+  multiples.
+- Deterministic MSC `orb.tsv` endpoint pairs materialize into
+  `arm.orbit_edges`/`arm.orbital_solutions`; unresolved rows remain audit
+  diagnostics.
+- 70 Oph is the visible benchmark: endpoint masses and MSC orbital period,
+  eccentricity, and inclination now reach `/simulation-scene`.
+- Spectral-subclass main-sequence priors now distinguish safe types such as
+  K0V and K4V for simulation support while avoiding giants, subgiants,
+  remnants, and compact objects.
+- `scripts/audit_source_evidence_utilization.py` now reports broader source
+  coverage metrics in addition to MSC gaps.
+
+Remaining:
+
+- inspect the six remaining MSC `orb.tsv` rows that do not resolve to ARM
+  orbit edges.
+- decide whether a capped/materialized ARM policy for stellar subclass priors
+  is worth the storage cost, or whether runtime provenance remains sufficient.
+- refresh browser Playwright expectations that now lag the current naming,
+  preview, and fallback policies.
+
 ### M8.4. Admin Map Overlay and AAA Research Promotion
 
 Goal:

@@ -731,9 +731,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   and rerun hierarchy/orbit goldens
 - [x] Add source-evidence utilization audit for preserved MSC `sys.tsv`/`orb.tsv`
   rows that are not yet normalized into ARM orbit edges or simulator contracts
-- [ ] Materialize remaining preserved MSC orbit-detail rows into ARM
+- [x] Materialize deterministic preserved MSC orbit-detail rows into ARM
   `orbit_edges`/`orbital_solutions` where endpoint reconciliation is
   deterministic, with 70 Oph as a visible benchmark
+- [ ] Review the remaining MSC `orb.tsv` diagnostics that still do not resolve
+  to ARM orbit edges after source-native endpoint normalization
+- [x] Add spectral-subclass-aware main-sequence stellar parameter priors for
+  simulation support, guarded against giants, subgiants, remnants, and compact
+  objects, without writing those priors into core
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
 - [x] Reconcile initial system-simulation orbital-source policy across NASA

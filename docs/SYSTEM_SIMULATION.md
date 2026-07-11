@@ -419,6 +419,16 @@ Near-term source priorities:
   systems such as Nu Sco retain effective star counts even when some source
   leaves are represented as ARM support components rather than direct core
   star rows.
+- Source-native MSC orbit endpoints can be reconciled to rendered canonical
+  bodies by exact WDS component label within the same accepted system. 70 Oph
+  is the visible benchmark: its rendered A/B bodies use source endpoint masses
+  and the stellar orbit uses MSC `orb.tsv` period/eccentricity/inclination
+  instead of the generic visual-binary fallback.
+- Stellar simulation fields prefer source mass/radius/Teff/luminosity, then
+  persisted ARM derivations, then source endpoint values from MSC where
+  applicable, then `spectral_subclass_main_sequence_mass_prior_v1` for safe
+  main-sequence spectral types. Coarse class-only priors and procedural visual
+  defaults remain last-resort fallbacks and must stay visibly labeled.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
   checks pass.

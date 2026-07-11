@@ -269,6 +269,35 @@ Representative commits:
 Representative commits:
 - pending (source evidence utilization / identifier safety working set)
 
+### 17) Source Evidence Utilization + Stellar Parameter Normalization v1
+
+- Rebuilt local side artifacts as `20260711T_source_evidence_v1_side` and
+  promoted them on photon after verification. The build preserves the same
+  core inventory while regenerating ARM with broader source-evidence
+  utilization.
+- MSC root components are now materialized for every represented WDS system,
+  including simple binaries, not only systems with `subsystem_count >= 2`.
+  This lets ordinary source-backed binaries such as 70 Oph attach preserved
+  `sys.tsv`/`orb.tsv` evidence to normalized ARM graph edges.
+- Added an `orb.tsv`-sourced deterministic edge path for MSC orbit rows whose
+  host, primary endpoint, and secondary endpoint all resolve to component
+  entities. Ambiguous/unmatched rows remain diagnostics rather than simulated
+  facts.
+- Source-evidence audit delta on the promoted local build:
+  `msc_orbit_detail_rows_without_arm_orbit_edge` dropped from 143 to 6, and
+  `msc_system_detail_orbitlike_rows_without_arm_orbit_edge` dropped from 131
+  to 0. 70 Oph now exposes MSC source masses and an MSC source orbital period,
+  eccentricity, and inclination in the system simulation payload.
+- Added spectral-subclass-aware main-sequence priors for simulation support
+  (`spectral_subclass_main_sequence_mass_prior_v1`). These distinguish, for
+  example, K0V from K4V when source mass/radius/temperature are absent, but
+  they are guarded against giants, subgiants, white dwarfs, neutron stars,
+  black holes, pulsars, magnetars, and other evolved/remnant markers. The
+  priors remain ARM/render support evidence, not core source facts.
+
+Representative commits:
+- pending (source evidence utilization / stellar parameter normalization v1)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

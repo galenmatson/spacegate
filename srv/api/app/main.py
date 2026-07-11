@@ -85,6 +85,7 @@ SUPPORTED_SEARCH_SORTS = {
 SUPPORTED_SPECTRAL_FILTERS = {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"}
 SIM_PROCEDURAL_ASSUMPTION_VERSION = "procedural_prior_v1"
 SIM_VISUAL_STELLAR_CLASS_VERSION = "mass_main_sequence_prior_v1"
+SIM_STELLAR_SUBCLASS_PRIOR_VERSION = "spectral_subclass_main_sequence_mass_prior_v1"
 SIM_VISUAL_SCALE_POLICY_VERSION = "visual_scale_beta_v1"
 
 
@@ -555,17 +556,123 @@ def _stellar_luminosity_proxy_lsun(star: Dict[str, Any]) -> Optional[float]:
     }.get(spectral_class)
 
 
-def _stellar_main_sequence_proxy(star: Dict[str, Any]) -> Dict[str, Optional[float]]:
+_MAIN_SEQUENCE_SUBCLASS_ANCHORS: Dict[str, List[tuple[float, float, float, float, float]]] = {
+    # subclass, Teff K, mass Msun, radius Rsun, luminosity Lsun.
+    # Rounded empirical teaching/simulation priors, not catalog measurements.
+    "O": [(0.0, 45000.0, 60.0, 15.0, 800000.0), (5.0, 41000.0, 40.0, 11.0, 300000.0), (9.0, 33000.0, 18.0, 7.0, 55000.0)],
+    "B": [(0.0, 30000.0, 17.5, 7.0, 20000.0), (5.0, 15400.0, 5.9, 3.9, 800.0), (9.0, 10500.0, 2.5, 2.4, 70.0)],
+    "A": [(0.0, 9600.0, 2.2, 2.1, 40.0), (5.0, 8200.0, 1.8, 1.7, 15.0), (9.0, 7400.0, 1.6, 1.5, 6.5)],
+    "F": [(0.0, 7200.0, 1.55, 1.45, 5.0), (5.0, 6500.0, 1.35, 1.25, 2.5), (9.0, 6100.0, 1.15, 1.12, 1.35)],
+    "G": [(0.0, 5950.0, 1.05, 1.05, 1.25), (2.0, 5772.0, 1.0, 1.0, 1.0), (5.0, 5600.0, 0.92, 0.92, 0.75), (9.0, 5300.0, 0.84, 0.84, 0.45)],
+    "K": [(0.0, 5150.0, 0.79, 0.82, 0.40), (4.0, 4550.0, 0.70, 0.70, 0.18), (7.0, 4050.0, 0.60, 0.62, 0.09)],
+    "M": [(0.0, 3850.0, 0.57, 0.60, 0.08), (3.0, 3400.0, 0.35, 0.38, 0.018), (5.0, 3050.0, 0.20, 0.22, 0.005), (8.0, 2600.0, 0.09, 0.11, 0.0008)],
+}
+
+
+def _has_evolved_or_remnant_spectral_markers(star: Dict[str, Any]) -> bool:
+    text = " ".join(
+        str(star.get(key) or "")
+        for key in ("object_type", "spectral_type_raw", "spectral_class", "luminosity_class")
+    ).strip()
+    upper = text.upper()
+    lower = text.lower()
+    if re.search(r"(^|[^A-Z])(III|II|IV|IAB|IB|IA|I)([^A-Z]|$)", upper):
+        return True
+    if re.search(r"giant|supergiant|subgiant|subdwarf|white dwarf|neutron|black hole|pulsar|magnetar", lower):
+        return True
+    if re.search(r"(^|[^A-Z])D[A-Z0-9]?", upper):
+        return True
+    if any(token in upper for token in (" WD", " NS", " WR", "CV", "CATACLYSMIC")):
+        return True
+    return False
+
+
+def _parse_main_sequence_spectral_subclass(star: Dict[str, Any]) -> tuple[Optional[str], Optional[float], str]:
+    spectral_type_raw = str(star.get("spectral_type_raw") or "").strip()
+    spectral_class = str(star.get("spectral_class") or "").strip().upper()
+    luminosity_class = str(star.get("luminosity_class") or "").strip().upper()
+    combined = " ".join(part for part in (spectral_type_raw, luminosity_class) if part).upper()
+    if luminosity_class and luminosity_class != "V":
+        return None, None, "non_main_sequence_luminosity_class"
+    if _has_evolved_or_remnant_spectral_markers(star):
+        return None, None, "evolved_or_remnant_marker"
+    match = re.search(r"\b([OBAFGKM])\s*([0-9](?:\.[0-9])?)?", combined)
+    if not match and spectral_class in _MAIN_SEQUENCE_SUBCLASS_ANCHORS:
+        return spectral_class, None, "class_only"
+    if not match:
+        return None, None, "unsupported_spectral_type"
+    class_token = match.group(1)
+    subclass = float(match.group(2)) if match.group(2) is not None else None
+    if class_token not in _MAIN_SEQUENCE_SUBCLASS_ANCHORS:
+        return None, None, "unsupported_spectral_class"
+    # If a luminosity class is present in the raw type, only accept V. Blank raw
+    # luminosity remains a low-confidence main-sequence display prior.
+    raw_after = combined[match.end():]
+    if re.search(r"\b(III|II|IV|IAB|IB|IA|I)\b", raw_after):
+        return None, None, "raw_non_main_sequence_luminosity_class"
+    return class_token, subclass, "ok" if subclass is not None else "class_only"
+
+
+def _interpolate_anchor_value(anchors: List[tuple[float, float, float, float, float]], subclass: Optional[float], index: int) -> float:
+    if subclass is None:
+        mid = anchors[len(anchors) // 2]
+        return float(mid[index])
+    x = max(0.0, min(9.9, float(subclass)))
+    previous = anchors[0]
+    for current in anchors[1:]:
+        if x <= current[0]:
+            span = max(current[0] - previous[0], 1.0e-9)
+            t = (x - previous[0]) / span
+            return float(previous[index] + (current[index] - previous[index]) * t)
+        previous = current
+    return float(anchors[-1][index])
+
+
+def _stellar_subclass_main_sequence_prior(star: Dict[str, Any]) -> Dict[str, Any]:
+    class_token, subclass, reason = _parse_main_sequence_spectral_subclass(star)
+    if not class_token:
+        return {"basis": None, "rejection_reason": reason}
+    anchors = _MAIN_SEQUENCE_SUBCLASS_ANCHORS[class_token]
+    values = {
+        "teff_k": round(_interpolate_anchor_value(anchors, subclass, 1), 3),
+        "mass_msun": round(_interpolate_anchor_value(anchors, subclass, 2), 6),
+        "radius_rsun": round(_interpolate_anchor_value(anchors, subclass, 3), 6),
+        "luminosity_lsun": round(_interpolate_anchor_value(anchors, subclass, 4), 8),
+    }
+    confidence_tier = "low" if subclass is not None else "illustrative"
+    confidence = 0.44 if subclass is not None else 0.30
+    return {
+        **values,
+        "basis": SIM_STELLAR_SUBCLASS_PRIOR_VERSION,
+        "generator_version": SIM_STELLAR_SUBCLASS_PRIOR_VERSION,
+        "confidence_tier": confidence_tier,
+        "confidence": confidence,
+        "notes": (
+            "Deterministic main-sequence prior interpolated from spectral class/subclass; "
+            "used for simulation/readout support when source physical parameters are absent, not a catalog fact."
+        ),
+        "spectral_class": class_token,
+        "spectral_subclass": subclass,
+        "parse_status": reason,
+    }
+
+
+def _stellar_main_sequence_proxy(star: Dict[str, Any]) -> Dict[str, Any]:
+    subclass_prior = _stellar_subclass_main_sequence_prior(star)
+    if subclass_prior.get("basis"):
+        return subclass_prior
     spectral_class = str(star.get("spectral_class") or "").strip().upper()
     luminosity_class = str(star.get("luminosity_class") or "").strip().upper()
     spectral_type_raw = str(star.get("spectral_type_raw") or "").lower()
+    if _has_evolved_or_remnant_spectral_markers(star):
+        return {}
     if spectral_class not in {"O", "B", "A", "F", "G", "K", "M"}:
         return {}
     if luminosity_class not in {"", "V"}:
         return {}
     if re.search(r"giant|supergiant|\biii\b|\bii\b|\biv\b", spectral_type_raw):
         return {}
-    return {
+    values = {
         "teff_k": {
             "O": 30000.0,
             "B": 12000.0,
@@ -594,6 +701,17 @@ def _stellar_main_sequence_proxy(star: Dict[str, Any]) -> Dict[str, Optional[flo
             "M": 0.4,
         }.get(spectral_class),
         "luminosity_lsun": _stellar_luminosity_proxy_lsun(star),
+    }
+    return {
+        **values,
+        "basis": "coarse_spectral_class_main_sequence_prior_v1",
+        "generator_version": "coarse_spectral_class_main_sequence_prior_v1",
+        "confidence_tier": "illustrative",
+        "confidence": 0.22,
+        "notes": (
+            "Coarse main-sequence class prior used only when source values and spectral subclass support are absent; "
+            "not a catalog fact."
+        ),
     }
 
 
@@ -857,6 +975,11 @@ def _star_simulation_fields(
     derived_lookup: Dict[tuple[str, int, str], Dict[str, Any]],
 ) -> Dict[str, Any]:
     proxy = _stellar_main_sequence_proxy(star)
+    proxy_basis = str(proxy.get("basis") or "main-sequence spectral-class proxy")
+    proxy_version = str(proxy.get("generator_version") or proxy_basis)
+    proxy_confidence_tier = str(proxy.get("confidence_tier") or "low")
+    proxy_confidence = _float_or_none(proxy.get("confidence"))
+    proxy_notes = str(proxy.get("notes") or "") or None
     star_id = int(star["star_id"]) if star.get("star_id") is not None else -1
     source_teff = _float_or_none(star.get("teff_k")) or _float_or_none((params or {}).get("teff_k"))
     source_mass = _float_or_none(star.get("mass_msun")) or _float_or_none((params or {}).get("mass_msun"))
@@ -882,10 +1005,13 @@ def _star_simulation_fields(
             value=source_teff if source_teff is not None else proxy.get("teff_k"),
             unit="K",
             status="source" if source_teff is not None else ("derived" if proxy.get("teff_k") is not None else "missing"),
-            basis="core/arm source teff_k" if source_teff is not None else ("main-sequence spectral-class proxy" if proxy.get("teff_k") is not None else "no source temperature or supported spectral-class proxy"),
+            basis="core/arm source teff_k" if source_teff is not None else (proxy_basis if proxy.get("teff_k") is not None else "no source temperature or supported spectral-class proxy"),
             layer="core/arm" if source_teff is not None else ("arm_candidate" if proxy.get("teff_k") is not None else "none"),
-            confidence_tier="high" if source_teff is not None else ("low" if proxy.get("teff_k") is not None else "missing"),
+            confidence_tier="high" if source_teff is not None else (proxy_confidence_tier if proxy.get("teff_k") is not None else "missing"),
             replacement_target="source stellar effective temperature with uncertainty",
+            generator_version=None if source_teff is not None or proxy.get("teff_k") is None else proxy_version,
+            confidence=None if source_teff is not None or proxy.get("teff_k") is None else proxy_confidence,
+            notes=None if source_teff is not None or proxy.get("teff_k") is None else proxy_notes,
         ),
         _simulation_field(
             key="luminosity_lsun",
@@ -896,11 +1022,14 @@ def _star_simulation_fields(
             basis=(
                 "arm source luminosity_log10_lsun"
                 if source_lum is not None
-                else ((arm_lum_field or {}).get("basis") if arm_lum_field else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else ("main-sequence spectral-class proxy" if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy")))
+                else ((arm_lum_field or {}).get("basis") if arm_lum_field else ("Stefan-Boltzmann from source radius and teff" if derived_lum is not None else (proxy_basis if proxy.get("luminosity_lsun") is not None else "no source luminosity, radius+teff, or supported spectral-class proxy")))
             ),
             layer="arm" if source_lum is not None or arm_lum_field is not None or derived_lum is not None else ("arm_candidate" if proxy.get("luminosity_lsun") is not None else "none"),
-            confidence_tier="high" if source_lum is not None else ((arm_lum_field or {}).get("confidence_tier") if arm_lum_field else ("medium" if derived_lum is not None else ("low" if proxy.get("luminosity_lsun") is not None else "missing"))),
+            confidence_tier="high" if source_lum is not None else ((arm_lum_field or {}).get("confidence_tier") if arm_lum_field else ("medium" if derived_lum is not None else (proxy_confidence_tier if proxy.get("luminosity_lsun") is not None else "missing"))),
             replacement_target="source stellar luminosity or source radius+teff with uncertainty",
+            generator_version=None if source_lum is not None or arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is None else proxy_version,
+            confidence=None if source_lum is not None or arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is None else proxy_confidence,
+            notes=None if source_lum is not None or arm_lum_field is not None or derived_lum is not None or proxy.get("luminosity_lsun") is None else proxy_notes,
         ),
         _simulation_field(
             key="mass_msun",
@@ -908,10 +1037,13 @@ def _star_simulation_fields(
             value=source_mass if source_mass is not None else proxy.get("mass_msun"),
             unit="Msun",
             status="source" if source_mass is not None else ("derived" if proxy.get("mass_msun") is not None else "missing"),
-            basis="arm source mass_msun" if source_mass is not None else ("main-sequence spectral-class proxy" if proxy.get("mass_msun") is not None else "no source mass or supported spectral-class proxy"),
+            basis="arm source mass_msun" if source_mass is not None else (proxy_basis if proxy.get("mass_msun") is not None else "no source mass or supported spectral-class proxy"),
             layer="arm" if source_mass is not None else ("arm_candidate" if proxy.get("mass_msun") is not None else "none"),
-            confidence_tier="high" if source_mass is not None else ("low" if proxy.get("mass_msun") is not None else "missing"),
+            confidence_tier="high" if source_mass is not None else (proxy_confidence_tier if proxy.get("mass_msun") is not None else "missing"),
             replacement_target="source stellar mass with uncertainty",
+            generator_version=None if source_mass is not None or proxy.get("mass_msun") is None else proxy_version,
+            confidence=None if source_mass is not None or proxy.get("mass_msun") is None else proxy_confidence,
+            notes=None if source_mass is not None or proxy.get("mass_msun") is None else proxy_notes,
         ),
         _simulation_field(
             key="radius_rsun",
@@ -919,10 +1051,13 @@ def _star_simulation_fields(
             value=source_radius if source_radius is not None else proxy.get("radius_rsun"),
             unit="Rsun",
             status="source" if source_radius is not None else ("derived" if proxy.get("radius_rsun") is not None else "missing"),
-            basis="arm source radius_rsun" if source_radius is not None else ("main-sequence spectral-class proxy" if proxy.get("radius_rsun") is not None else "no source radius or supported spectral-class proxy"),
+            basis="arm source radius_rsun" if source_radius is not None else (proxy_basis if proxy.get("radius_rsun") is not None else "no source radius or supported spectral-class proxy"),
             layer="arm" if source_radius is not None else ("arm_candidate" if proxy.get("radius_rsun") is not None else "none"),
-            confidence_tier="high" if source_radius is not None else ("low" if proxy.get("radius_rsun") is not None else "missing"),
+            confidence_tier="high" if source_radius is not None else (proxy_confidence_tier if proxy.get("radius_rsun") is not None else "missing"),
             replacement_target="source stellar radius with uncertainty",
+            generator_version=None if source_radius is not None or proxy.get("radius_rsun") is None else proxy_version,
+            confidence=None if source_radius is not None or proxy.get("radius_rsun") is None else proxy_confidence,
+            notes=None if source_radius is not None or proxy.get("radius_rsun") is None else proxy_notes,
         ),
     ]
     return {
@@ -1875,14 +2010,37 @@ def _render_scene_contract(
         for node in hierarchy_star_nodes
         if _component_key_for_hierarchy_star_node(node)
     }
+    system_wds_id = str(system.get("wds_id") or "").strip()
+    render_key_by_wds_label: Dict[tuple[str, str], str] = {}
+    for node in hierarchy_star_nodes:
+        node_key = _component_key_for_hierarchy_star_node(node)
+        label = str(node.get("catalog_component_label") or node.get("member_role") or "").strip().lower()
+        if system_wds_id and node_key and label:
+            render_key_by_wds_label[(system_wds_id, label)] = node_key
+    for star in stars:
+        label = str(star.get("component") or "").strip().lower()
+        stable_key = str(star.get("stable_object_key") or "").strip()
+        if system_wds_id and label and stable_key:
+            render_key_by_wds_label.setdefault((system_wds_id, label), f"comp:star:{stable_key}")
     hierarchy_membership_gate_active = bool(hierarchy_render_star_keys)
     unmatched_detail_endpoint_keys: set[str] = set()
     unmatched_orbit_endpoint_keys: set[str] = set()
 
+    def equivalent_render_component_key(component_key: str) -> str:
+        key = str(component_key or "").strip()
+        prefix = "comp:msc:wds:"
+        if not key.startswith(prefix):
+            return key
+        remainder = key[len(prefix):]
+        if ":" not in remainder:
+            return key
+        wds_id, label = remainder.rsplit(":", 1)
+        return render_key_by_wds_label.get((wds_id, label.lower()), key)
+
     def render_star_membership_allowed(component_key: str) -> bool:
         if not hierarchy_membership_gate_active:
             return True
-        return str(component_key or "") in hierarchy_render_star_keys
+        return equivalent_render_component_key(str(component_key or "")) in hierarchy_render_star_keys
 
     def single_star_display_name() -> tuple[Optional[str], Optional[str]]:
         if len(stars) != 1:
@@ -2017,14 +2175,35 @@ def _render_scene_contract(
         spectral_class = _visual_star_color_class({}, fallback=spectral_type_raw) if spectral_type_raw else None
         body_class = _stellar_body_class({"spectral_class": spectral_class, "spectral_type_raw": spectral_type_raw})
         source_teff = _teff_from_spectral_type(spectral_type_raw)
+        subclass_prior = (
+            {}
+            if body_class in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar"}
+            else _stellar_main_sequence_proxy(
+                {
+                    "spectral_type_raw": spectral_type_raw,
+                    "spectral_class": spectral_class,
+                    "luminosity_class": "",
+                    "object_type": body_class,
+                }
+            )
+        )
+        subclass_prior_basis = str(subclass_prior.get("basis") or "")
+        subclass_prior_version = str(subclass_prior.get("generator_version") or subclass_prior_basis)
+        subclass_prior_confidence = _float_or_none(subclass_prior.get("confidence")) or 0.30
+        subclass_prior_tier = str(subclass_prior.get("confidence_tier") or "illustrative")
+        subclass_prior_notes = str(subclass_prior.get("notes") or "") or None
         mass_proxy_teff = None if body_class in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar"} else _teff_from_mass_visual_proxy(source_mass)
-        radius_proxy = 0.012 if body_class == "white_dwarf" else _radius_from_mass_visual_proxy(source_mass)
+        radius_proxy = (
+            0.012
+            if body_class == "white_dwarf"
+            else (_float_or_none(subclass_prior.get("radius_rsun")) if subclass_prior.get("radius_rsun") is not None and source_mass is None else _radius_from_mass_visual_proxy(source_mass))
+        )
         radius_proxy_basis = (
             "arm.msc_system_details:compact_object_radius_visual_proxy"
             if body_class == "white_dwarf"
-            else "arm.msc_system_details:mass_radius_visual_proxy"
+            else (subclass_prior_basis if subclass_prior.get("radius_rsun") is not None and source_mass is None else "arm.msc_system_details:mass_radius_visual_proxy")
         )
-        radius_proxy_confidence = 0.2 if body_class == "white_dwarf" else 0.25
+        radius_proxy_confidence = 0.2 if body_class == "white_dwarf" else (subclass_prior_confidence if subclass_prior.get("radius_rsun") is not None and source_mass is None else 0.25)
         component_fields = {
             "object_type": _stellar_body_class_field(
                 value=body_class,
@@ -2080,18 +2259,20 @@ def _render_scene_contract(
                     _simulation_field(
                         key="teff_k",
                         label="Effective temperature",
-                        value=mass_proxy_teff,
+                        value=_float_or_none(subclass_prior.get("teff_k")) if subclass_prior.get("teff_k") is not None else mass_proxy_teff,
                         unit="K",
                         status="derived",
-                        basis="arm.msc_system_details:mass_visual_proxy",
+                        basis=subclass_prior_basis if subclass_prior.get("teff_k") is not None else "arm.msc_system_details:mass_visual_proxy",
                         layer="arm",
-                        confidence_tier="illustrative",
+                        confidence_tier=subclass_prior_tier if subclass_prior.get("teff_k") is not None else "illustrative",
                         replacement_target="source effective temperature for this component",
                         source_catalog=evidence.get("source_catalog") or "msc",
                         source_reference=evidence.get("source_reference"),
-                        confidence=0.25,
+                        confidence=subclass_prior_confidence if subclass_prior.get("teff_k") is not None else 0.25,
+                        generator_version=subclass_prior_version if subclass_prior.get("teff_k") is not None else None,
+                        notes=subclass_prior_notes if subclass_prior.get("teff_k") is not None else None,
                     )
-                    if mass_proxy_teff is not None
+                    if mass_proxy_teff is not None or subclass_prior.get("teff_k") is not None
                     else _procedural_field(
                         key="teff_k",
                         label="Effective temperature",
@@ -2121,15 +2302,34 @@ def _render_scene_contract(
                     notes=f"MSC mass code: {evidence.get('mass_code')}" if evidence.get("mass_code") else None,
                 )
                 if source_mass is not None
-                else _procedural_field(
-                    key="mass_msun",
-                    label="Mass",
-                    value=0.35,
-                    unit="Msun",
-                    seed=seed,
-                    basis="unknown_component_cool_visual_default",
-                    confidence=0.1,
-                    replacement_target="component-specific mass",
+                else (
+                    _simulation_field(
+                        key="mass_msun",
+                        label="Mass",
+                        value=_float_or_none(subclass_prior.get("mass_msun")),
+                        unit="Msun",
+                        status="derived",
+                        basis=subclass_prior_basis,
+                        layer="arm",
+                        confidence_tier=subclass_prior_tier,
+                        replacement_target="component-specific mass",
+                        source_catalog=evidence.get("source_catalog") or "msc",
+                        source_reference=evidence.get("source_reference"),
+                        generator_version=subclass_prior_version,
+                        confidence=subclass_prior_confidence,
+                        notes=subclass_prior_notes,
+                    )
+                    if subclass_prior.get("mass_msun") is not None
+                    else _procedural_field(
+                        key="mass_msun",
+                        label="Mass",
+                        value=0.35,
+                        unit="Msun",
+                        seed=seed,
+                        basis="unknown_component_cool_visual_default",
+                        confidence=0.1,
+                        replacement_target="component-specific mass",
+                    )
                 )
             ),
             "radius_rsun": (
@@ -2146,6 +2346,8 @@ def _render_scene_contract(
                     source_catalog=evidence.get("source_catalog") or "msc",
                     source_reference=evidence.get("source_reference"),
                     confidence=radius_proxy_confidence,
+                    generator_version=subclass_prior_version if radius_proxy_basis == subclass_prior_basis else None,
+                    notes=subclass_prior_notes if radius_proxy_basis == subclass_prior_basis else None,
                 )
                 if radius_proxy is not None
                 else _procedural_field(
@@ -2220,8 +2422,6 @@ def _render_scene_contract(
             teff = _teff_from_spectral_type(spectral_type)
         mass = _float_or_none(facts.get("mass_msun"))
         radius = _float_or_none(facts.get("radius_rsun"))
-        if radius is None:
-            radius = _radius_from_mass_visual_proxy(mass)
         seed = _stable_seed(system.get("stable_object_key"), render_key, "hierarchy_star_visual")
         body_class = _stellar_body_class(
             {
@@ -2230,6 +2430,27 @@ def _render_scene_contract(
                 "spectral_type_raw": spectral_type,
             }
         )
+        hierarchy_prior = (
+            {}
+            if body_class in {"white_dwarf", "neutron_star", "black_hole", "pulsar", "magnetar"}
+            else _stellar_main_sequence_proxy(
+                {
+                    "spectral_type_raw": spectral_type,
+                    "spectral_class": facts.get("spectral_class"),
+                    "luminosity_class": facts.get("luminosity_class"),
+                    "object_type": node.get("object_type") or node.get("component_type"),
+                }
+            )
+        )
+        hierarchy_prior_basis = str(hierarchy_prior.get("basis") or "")
+        hierarchy_prior_version = str(hierarchy_prior.get("generator_version") or hierarchy_prior_basis)
+        hierarchy_prior_confidence = _float_or_none(hierarchy_prior.get("confidence")) or 0.30
+        hierarchy_prior_tier = str(hierarchy_prior.get("confidence_tier") or "illustrative")
+        hierarchy_prior_notes = str(hierarchy_prior.get("notes") or "") or None
+        if teff is None and hierarchy_prior.get("teff_k") is not None:
+            teff = _float_or_none(hierarchy_prior.get("teff_k"))
+        if radius is None:
+            radius = _float_or_none(hierarchy_prior.get("radius_rsun")) if hierarchy_prior.get("radius_rsun") is not None and mass is None else _radius_from_mass_visual_proxy(mass)
         fields = {
             "object_type": _stellar_body_class_field(
                 value=body_class,
@@ -2253,15 +2474,20 @@ def _render_scene_contract(
                     unit="K",
                     status="derived" if node.get("synthetic") else "source",
                     basis=(
+                        hierarchy_prior_basis
+                        if facts.get("teff_k") in (None, "") and hierarchy_prior.get("teff_k") is not None
+                        else
                         "canonical_hierarchy:spectral_type_visual_proxy"
                         if facts.get("teff_k") in (None, "") and spectral_type
                         else "canonical_hierarchy:quick_fact"
                     ),
                     layer="arm" if node.get("synthetic") else "core",
-                    confidence_tier="illustrative" if node.get("synthetic") else "high",
+                    confidence_tier=hierarchy_prior_tier if facts.get("teff_k") in (None, "") and hierarchy_prior.get("teff_k") is not None else ("illustrative" if node.get("synthetic") else "high"),
                     replacement_target="source effective temperature for this component",
                     source_catalog=node.get("source_catalog"),
-                    confidence=0.35 if node.get("synthetic") else 0.8,
+                    confidence=hierarchy_prior_confidence if facts.get("teff_k") in (None, "") and hierarchy_prior.get("teff_k") is not None else (0.35 if node.get("synthetic") else 0.8),
+                    generator_version=hierarchy_prior_version if facts.get("teff_k") in (None, "") and hierarchy_prior.get("teff_k") is not None else None,
+                    notes=hierarchy_prior_notes if facts.get("teff_k") in (None, "") and hierarchy_prior.get("teff_k") is not None else None,
                 )
                 if teff is not None
                 else _procedural_field(
@@ -2285,15 +2511,33 @@ def _render_scene_contract(
                     replacement_target="component-specific mass",
                 )
                 if mass is not None
-                else _procedural_field(
-                    key="mass_msun",
-                    label="Mass",
-                    value=0.35,
-                    unit="Msun",
-                    seed=seed,
-                    basis="hierarchy_unknown_component_cool_visual_default",
-                    confidence=0.1,
-                    replacement_target="component-specific mass",
+                else (
+                    _simulation_field(
+                        key="mass_msun",
+                        label="Mass",
+                        value=_float_or_none(hierarchy_prior.get("mass_msun")),
+                        unit="Msun",
+                        status="derived",
+                        basis=hierarchy_prior_basis,
+                        layer="arm",
+                        confidence_tier=hierarchy_prior_tier,
+                        replacement_target="component-specific mass",
+                        source_catalog=node.get("source_catalog"),
+                        generator_version=hierarchy_prior_version,
+                        confidence=hierarchy_prior_confidence,
+                        notes=hierarchy_prior_notes,
+                    )
+                    if hierarchy_prior.get("mass_msun") is not None
+                    else _procedural_field(
+                        key="mass_msun",
+                        label="Mass",
+                        value=0.35,
+                        unit="Msun",
+                        seed=seed,
+                        basis="hierarchy_unknown_component_cool_visual_default",
+                        confidence=0.1,
+                        replacement_target="component-specific mass",
+                    )
                 )
             ),
             "radius_rsun": (
@@ -2306,13 +2550,15 @@ def _render_scene_contract(
                     basis=(
                         "canonical_hierarchy:quick_fact"
                         if facts.get("radius_rsun") not in (None, "")
-                        else "canonical_hierarchy:mass_radius_visual_proxy"
+                        else (hierarchy_prior_basis if hierarchy_prior.get("radius_rsun") is not None and facts.get("mass_msun") in (None, "") else "canonical_hierarchy:mass_radius_visual_proxy")
                     ),
                     layer="core" if facts.get("radius_rsun") not in (None, "") and not node.get("synthetic") else "arm",
-                    confidence_tier="high" if facts.get("radius_rsun") not in (None, "") and not node.get("synthetic") else "illustrative",
+                    confidence_tier="high" if facts.get("radius_rsun") not in (None, "") and not node.get("synthetic") else (hierarchy_prior_tier if hierarchy_prior.get("radius_rsun") is not None and facts.get("mass_msun") in (None, "") else "illustrative"),
                     replacement_target="source radius for this component",
                     source_catalog=node.get("source_catalog"),
-                    confidence=0.25 if facts.get("radius_rsun") in (None, "") else 0.75,
+                    confidence=hierarchy_prior_confidence if hierarchy_prior.get("radius_rsun") is not None and facts.get("mass_msun") in (None, "") else (0.25 if facts.get("radius_rsun") in (None, "") else 0.75),
+                    generator_version=hierarchy_prior_version if hierarchy_prior.get("radius_rsun") is not None and facts.get("mass_msun") in (None, "") else None,
+                    notes=hierarchy_prior_notes if hierarchy_prior.get("radius_rsun") is not None and facts.get("mass_msun") in (None, "") else None,
                 )
                 if radius is not None
                 else _procedural_field(
@@ -2372,6 +2618,8 @@ def _render_scene_contract(
             if component_key and not render_star_membership_allowed(component_key):
                 unmatched_orbit_endpoint_keys.add(component_key)
                 continue
+            if equivalent_render_component_key(component_key) != component_key:
+                continue
             component = components_by_key.get(component_key)
             if component and str(component.get("component_type") or "") == "star":
                 add_component_star(component)
@@ -2426,8 +2674,9 @@ def _render_scene_contract(
         return None, "missing_or_ambiguous_host"
 
     def resolve_render_child_keys(component_key: str) -> List[str]:
-        if component_key in render_stars:
-            return [component_key]
+        resolved_key = equivalent_render_component_key(component_key)
+        if resolved_key in render_stars:
+            return [resolved_key]
         prefix = "comp:msc_group:wds:"
         if not component_key.startswith(prefix):
             return []
@@ -2544,9 +2793,11 @@ def _render_scene_contract(
     for idx, edge in enumerate(orbit_rows):
         primary_key = str(edge.get("primary_component_key") or "")
         secondary_key = str(edge.get("secondary_component_key") or "")
+        primary_render_key = equivalent_render_component_key(primary_key)
+        secondary_render_key = equivalent_render_component_key(secondary_key)
         primary_child_keys = resolve_render_child_keys(primary_key)
         secondary_child_keys = resolve_render_child_keys(secondary_key)
-        is_direct_star_orbit = primary_key in render_stars and secondary_key in render_stars
+        is_direct_star_orbit = primary_render_key in render_stars and secondary_render_key in render_stars
         is_group_orbit = (
             not is_direct_star_orbit
             and str(edge.get("relation_kind") or "") == "hierarchical_pair"
@@ -2577,8 +2828,8 @@ def _render_scene_contract(
         source_sma_arcsec_au = None
         if source_sma_arcsec is not None and source_sma_arcsec > 0 and dist_pc is not None and dist_pc > 0:
             source_sma_arcsec_au = source_sma_arcsec * dist_pc
-        primary_mass_for_period = render_body_mass_msun(primary_key) if primary_key in render_stars else None
-        secondary_mass_for_period = render_body_mass_msun(secondary_key) if secondary_key in render_stars else None
+        primary_mass_for_period = render_body_mass_msun(primary_render_key) if primary_render_key in render_stars else None
+        secondary_mass_for_period = render_body_mass_msun(secondary_render_key) if secondary_render_key in render_stars else None
         if primary_mass_for_period is None:
             primary_mass_for_period = _float_or_none(msc_system_detail.get("mass_primary_msun"))
         if secondary_mass_for_period is None:
@@ -2611,8 +2862,8 @@ def _render_scene_contract(
                 "orbit_edge_id": edge.get("orbit_edge_id"),
                 "display_name": edge.get("edge_label") or f"{primary_key} - {secondary_key}",
                 "relation_kind": edge.get("relation_kind") or "binary",
-                "primary_body_key": primary_key,
-                "secondary_body_key": secondary_key,
+                "primary_body_key": primary_render_key if is_direct_star_orbit else primary_key,
+                "secondary_body_key": secondary_render_key if is_direct_star_orbit else secondary_key,
                 "endpoint_kind": "star_pair" if is_direct_star_orbit else "group_pair",
                 "primary_child_body_keys": primary_child_keys,
                 "secondary_child_body_keys": secondary_child_keys,

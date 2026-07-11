@@ -107,6 +107,15 @@
       "max_value": 5
     },
     {
+      "id": "70_oph_msc_orbital_solution",
+      "mode": "query",
+      "scope": "arm",
+      "required": true,
+      "label": "70 Oph MSC A/B orbit solution reaches ARM",
+      "sql_count": "select count(*)::bigint from orbital_solutions s join orbit_edges e on e.orbit_edge_id = s.orbit_edge_id where s.source_catalog = 'msc' and e.primary_component_key = 'comp:msc:wds:18055+0230:a' and e.secondary_component_key = 'comp:msc:wds:18055+0230:b' and s.period_days between 32270 and 32290",
+      "min_value": 1
+    },
+    {
       "id": "sol_neighborhood",
       "mode": "query",
       "scope": "core",

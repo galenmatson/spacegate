@@ -264,6 +264,66 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
             limit=sample_limit,
         )
 
+        source_coverage: dict[str, int] = {
+            "wds_component_observation_rows": scalar(con, "select count(*)::bigint from wds_component_observations"),
+            "stellar_parameters_rows": scalar(con, "select count(*)::bigint from stellar_parameters"),
+            "stellar_parameters_with_mass_rows": scalar(con, "select count(*)::bigint from stellar_parameters where mass_msun is not null"),
+            "derived_physical_parameters_rows": scalar(con, "select count(*)::bigint from derived_physical_parameters"),
+            "derived_physical_stellar_mass_priors": scalar(
+                con,
+                """
+                select count(*)::bigint
+                from derived_physical_parameters
+                where object_type = 'star'
+                  and parameter_key = 'mass_msun'
+                """,
+            ),
+            "orb6_orbital_solutions": scalar(con, "select count(*)::bigint from orbital_solutions where source_catalog = 'orb6'"),
+            "gaia_nss_orbital_solutions": scalar(con, "select count(*)::bigint from orbital_solutions where source_catalog = 'gaia_nss'"),
+            "msc_orbital_solutions": scalar(con, "select count(*)::bigint from orbital_solutions where source_catalog = 'msc'"),
+            "nasa_pscomppars_primary_orbital_solutions": scalar(
+                con,
+                """
+                select count(*)::bigint
+                from orbital_solutions
+                where source_catalog = 'nasa_exoplanet_archive'
+                  and fit_quality_json like '%nasa_pscomppars%'
+                """,
+            ),
+            "nasa_ps_alternate_orbital_solutions": scalar(
+                con,
+                """
+                select count(*)::bigint
+                from orbital_solutions
+                where source_catalog = 'nasa_exoplanet_archive'
+                  and fit_quality_json like '%nasa_ps%'
+                  and source_pk like 'ps:%'
+                """,
+            ),
+            "sol_authority_orbital_solutions": scalar(con, "select count(*)::bigint from orbital_solutions where source_catalog = 'sol_authority'"),
+            "sol_artificial_orbital_solutions": scalar(con, "select count(*)::bigint from orbital_solutions where source_catalog = 'sol_artificial'"),
+            "core_white_dwarf_catalog_mass_rows": scalar(con, "select count(*)::bigint from core_db.stars where wd_catalog_mass_msun is not null"),
+        }
+        source_coverage["spectral_class_without_source_mass_evidence_rows"] = scalar(
+            con,
+            """
+            with source_mass_stars as (
+              select distinct star_id
+              from stellar_parameters
+              where mass_msun is not null
+              union
+              select star_id
+              from core_db.stars
+              where wd_catalog_mass_msun is not null
+            )
+            select count(*)::bigint
+            from core_db.stars st
+            left join source_mass_stars sm on sm.star_id = st.star_id
+            where nullif(trim(coalesce(st.spectral_class, '')), '') is not null
+              and sm.star_id is null
+            """,
+        )
+
         system_count_mismatches = None
         system_count_mismatch_samples: list[dict[str, Any]] = []
         if include_hierarchy_mismatch:
@@ -361,6 +421,7 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
                 "msc_source_endpoint_keys_missing_component_entity": source_endpoint_keys_missing_component,
                 "msc_source_endpoint_keys_with_label_bridge_to_canonical_component": source_endpoint_keys_label_bridged,
                 "core_system_star_count_vs_hierarchy_star_count_mismatches": system_count_mismatches,
+                "source_coverage": source_coverage,
             },
             "samples": {
                 "msc_orbit_detail_rows_without_arm_orbit_edge": msc_orbit_unmatched_samples,
@@ -372,6 +433,7 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
                 "Rows without ARM orbit edges are not available to the simulation as normalized orbital solutions.",
                 "MSC source endpoint keys that bridge by WDS label to canonical components indicate evidence we can use, but need deterministic endpoint reconciliation.",
                 "Core star_count versus hierarchy mismatch samples are opt-in because they require a recursive graph scan.",
+                "Source coverage counts summarize preserved/normalized evidence streams without scanning every UI consumer.",
             ],
         }
     finally:

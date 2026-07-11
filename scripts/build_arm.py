@@ -2081,7 +2081,10 @@ def main() -> int:
           least(greatest(g.subsystem_count, 0), 52) as subsystem_count
         from grouped g
         left join core_wds_names c on c.wds_id = g.wds_id
-        where g.subsystem_count >= 2
+        -- Preserve an MSC root component for every WDS system represented by MSC,
+        -- including simple binaries. Earlier builds only materialized roots for
+        -- subsystem_count >= 2, which preserved endpoint evidence but prevented
+        -- ordinary binaries such as 70 Oph from receiving normalized orbit edges.
         """
     )
     log(f"Arm stage complete: msc_system_roots ({time.monotonic() - stage_started:.1f}s)")
@@ -3688,6 +3691,40 @@ def main() -> int:
           join component_entities s on s.stable_component_key = d.secondary_component_key
           where d.primary_component_key is not null
             and d.secondary_component_key is not null
+        ), msc_orbit_pairs as (
+          select
+            o.host_component_key,
+            o.primary_component_key,
+            o.secondary_component_key,
+            case
+              when p.component_type = 'subsystem' or s.component_type = 'subsystem' then 'hierarchical_pair'
+              else 'binary'
+            end::varchar as relation_kind,
+            'bary:center:msc:orb:' || o.wds_id || ':' || o.primary_label || '-' || o.secondary_label as barycenter_key,
+            cast(null as bigint) as preferred_solution_id,
+            0.88::double as confidence_score,
+            'medium'::varchar as confidence_tier,
+            '["msc"]'::varchar as evidence_catalogs_json,
+            json_object(
+              'wds_id', o.wds_id,
+              'system_label', o.system_label,
+              'primary_label', o.primary_label,
+              'secondary_label', o.secondary_label,
+              'source_line_number', o.source_line_number,
+              'edge_source', 'msc_orb_tsv'
+            ) as evidence_ids_json,
+            'msc'::varchar as source_catalog,
+            {sql_literal(msc_version)} as source_version,
+            o.source_pk as source_pk,
+            o.source_row_hash as source_row_hash,
+            {sql_literal(msc_checksum)} as retrieval_checksum,
+            {sql_literal(msc_retrieved)} as retrieved_at
+          from msc_orbit_details o
+          join component_entities host on host.stable_component_key = o.host_component_key
+          join component_entities p on p.stable_component_key = o.primary_component_key
+          join component_entities s on s.stable_component_key = o.secondary_component_key
+          where o.primary_component_key is not null
+            and o.secondary_component_key is not null
         ), gaia_nss_pairs as (
           select
             'comp:system:' || sys.stable_object_key as host_component_key,
@@ -3843,6 +3880,8 @@ def main() -> int:
           select * from core_pairs
           union all
           select * from msc_pairs
+          union all
+          select * from msc_orbit_pairs
           union all
           select * from gaia_nss_pairs
           union all
@@ -5570,6 +5609,73 @@ def main() -> int:
         ).fetchone()[0]
         or 0
     )
+    msc_orbit_edge_count = int(
+        con.execute(
+            """
+            select count(*)
+            from orbit_edges
+            where source_catalog = 'msc'
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    msc_orbit_detail_without_edge_count = int(
+        con.execute(
+            """
+            with matched as (
+              select distinct m.source_pk
+              from msc_orbit_details m
+              join orbit_edges e on e.source_pk = m.source_pk
+              union
+              select distinct m.source_pk
+              from msc_orbit_details m
+              join orbit_edges e
+                on e.primary_component_key = m.primary_component_key
+               and e.secondary_component_key = m.secondary_component_key
+              union
+              select distinct m.source_pk
+              from msc_orbit_details m
+              join orbit_edges e
+                on e.primary_component_key = m.secondary_component_key
+               and e.secondary_component_key = m.primary_component_key
+            )
+            select count(*)::bigint
+            from msc_orbit_details m
+            left join matched using (source_pk)
+            where matched.source_pk is null
+            """
+        ).fetchone()[0]
+        or 0
+    )
+    msc_system_detail_orbitlike_without_edge_count = int(
+        con.execute(
+            """
+            with matched as (
+              select distinct m.source_pk
+              from msc_system_details m
+              join orbit_edges e on e.source_pk = m.source_pk
+              union
+              select distinct m.source_pk
+              from msc_system_details m
+              join orbit_edges e
+                on e.primary_component_key = m.primary_component_key
+               and e.secondary_component_key = m.secondary_component_key
+              union
+              select distinct m.source_pk
+              from msc_system_details m
+              join orbit_edges e
+                on e.primary_component_key = m.secondary_component_key
+               and e.secondary_component_key = m.primary_component_key
+            )
+            select count(*)::bigint
+            from msc_system_details m
+            left join matched using (source_pk)
+            where (m.period_days is not null or m.separation_arcsec is not null or m.separation_mas is not null)
+              and matched.source_pk is null
+            """
+        ).fetchone()[0]
+        or 0
+    )
     sol_small_body_table_count = int(
         con.execute("select count(*) from sol_small_body_objects").fetchone()[0] or 0
     )
@@ -5718,7 +5824,10 @@ def main() -> int:
             "gaia_nss_companion_components": gaia_nss_companion_count,
             "gaia_nss_orbit_edges": gaia_nss_orbit_edge_count,
             "gaia_nss_orbital_solutions": gaia_nss_solution_count,
+            "msc_orbit_edges": msc_orbit_edge_count,
             "msc_orbital_solutions": msc_solution_count,
+            "msc_orbit_detail_rows_without_arm_orbit_edge": msc_orbit_detail_without_edge_count,
+            "msc_system_detail_orbitlike_rows_without_arm_orbit_edge": msc_system_detail_orbitlike_without_edge_count,
             "orb6_orbital_solutions": orb6_solution_count,
             "sol_artificial_components": sol_artificial_component_count,
             "sol_artificial_hierarchy_edges": sol_artificial_hierarchy_edge_count,
