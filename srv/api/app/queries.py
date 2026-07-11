@@ -135,6 +135,17 @@ def split_provenance(row: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any
     return data, provenance
 
 
+def _attach_identifier_text_fields(payload: Dict[str, Any]) -> None:
+    """Expose large catalog identifiers as strings so browsers do not round them."""
+    for key in ("gaia_id", "hip_id", "hd_id"):
+        value = payload.get(key)
+        text_key = f"{key}_text"
+        if value is None:
+            payload[text_key] = None
+        elif text_key not in payload or payload.get(text_key) in (None, ""):
+            payload[text_key] = str(value)
+
+
 def _parse_catalog_ids(raw: Optional[str]) -> Optional[Dict[str, Any]]:
     if raw is None:
         return None
@@ -783,6 +794,7 @@ def fetch_system_by_id(con: duckdb.DuckDBPyConnection, system_id: int) -> Option
     columns = [desc[0] for desc in cursor.description]
     data = row_to_dict(columns, row)
     payload, provenance = split_provenance(data)
+    _attach_identifier_text_fields(payload)
     payload["provenance"] = provenance
     return payload
 
@@ -799,6 +811,7 @@ def fetch_system_by_key(
     columns = [desc[0] for desc in cursor.description]
     data = row_to_dict(columns, row)
     payload, provenance = split_provenance(data)
+    _attach_identifier_text_fields(payload)
     payload["provenance"] = provenance
     return payload
 
@@ -822,6 +835,7 @@ def fetch_stars_for_system(
         data = row_to_dict(columns, row)
         catalog_ids = _parse_catalog_ids(data.pop("catalog_ids_json", None))
         payload, provenance = split_provenance(data)
+        _attach_identifier_text_fields(payload)
         payload["catalog_ids"] = catalog_ids
         payload["provenance"] = provenance
         results.append(payload)

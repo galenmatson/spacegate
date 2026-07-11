@@ -1293,6 +1293,10 @@ Matching rules (when `q` is provided):
 Implementation notes:
 - rebuilt Gaia-first production builds may ship `system_search_terms` as a search accelerator so public search does not need to rescan the full alias corpus at request time.
 - rebuilt Gaia-first production builds may ship precomputed `systems` facets (`star_count`, `planet_count`, `star_teff_count`, `min_star_teff_k`, `max_star_teff_k`, `spectral_classes_json`, `spectral_class_mask`) so result cards and common filters avoid runtime `stars` aggregation.
+- responses that expose large numeric catalog identifiers should include string
+  companions such as `gaia_id_text`, `hip_id_text`, and `hd_id_text` when those
+  identifiers are available. Clients should display and copy the string field
+  so Gaia-scale identifiers do not lose precision in JavaScript number parsing.
 - search responses include presentation-scoped preview policy fields so clients
   can avoid expensive `/simulation-scene` requests for ordinary singleton
   systems. These fields are runtime/display policy, not canonical science.
@@ -1463,6 +1467,7 @@ Response 200:
     "display_name_style": "public_name",
     "display_name_source": "canonical_name",
     "requested_name_style": "public_full",
+    "gaia_id_text": "2947050466531873024",
     "display_aliases": ["Alp CMa", "HIP 32349", "HD 48915"],
     "arm_evidence_summary": {
       "stars_with_arm_evidence": 1,

@@ -346,6 +346,32 @@ def main():
         gaia_text = first_gaia.get("gaia_id_text")
         if gaia_text is not None and not str(gaia_text).isdigit():
             raise AssertionError(f"gaia_id_text should be digit string, got {gaia_text!r}")
+        if gaia_text:
+            gaia_system_id = first_gaia.get("system_id")
+            _, gaia_detail = get_json(
+                base_url,
+                f"/systems/{gaia_system_id}",
+                label="detail raw gaia text",
+            )
+            detail_gaia_text = (gaia_detail.get("system") or {}).get("gaia_id_text")
+            if detail_gaia_text != str(gaia_text):
+                raise AssertionError(
+                    f"system detail gaia_id_text should preserve exact identifier {gaia_text!r}, got {detail_gaia_text!r}"
+                )
+            for star in gaia_detail.get("stars") or []:
+                star_gaia_text = star.get("gaia_id_text")
+                if star_gaia_text is not None and not str(star_gaia_text).isdigit():
+                    raise AssertionError(f"detail star gaia_id_text should be digit string, got {star_gaia_text!r}")
+            _, gaia_scene = get_json(
+                base_url,
+                f"/systems/{gaia_system_id}/simulation-scene",
+                label="simulation-scene raw gaia text",
+            )
+            scene_gaia_text = (gaia_scene.get("system") or {}).get("gaia_id_text")
+            if scene_gaia_text != str(gaia_text):
+                raise AssertionError(
+                    f"simulation-scene gaia_id_text should preserve exact identifier {gaia_text!r}, got {scene_gaia_text!r}"
+                )
 
     _, total_page = get_json(
         base_url,

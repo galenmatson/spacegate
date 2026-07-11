@@ -249,6 +249,26 @@ Representative commits:
 Representative commits:
 - pending (name-style policy working set)
 
+### 16) Source Evidence Utilization Audit + Identifier JSON Safety
+
+- Added `scripts/audit_source_evidence_utilization.py` to compare preserved ARM
+  source evidence against normalized graph/simulation contracts. The default
+  audit reports MSC `orb.tsv` rows with source orbital fields that are not
+  materialized into `arm.orbit_edges`, MSC `sys.tsv` orbitlike rows without
+  matching graph edges, and MSC endpoint-key bridge work needed for deterministic
+  evidence utilization.
+- Current served build audit found preserved MSC orbit evidence that is not yet
+  available to the simulator as normalized ARM orbital solutions; 70 Oph is one
+  visible example where MSC masses are surfaced but MSC visual/spectroscopic
+  orbit rows still fall back to presentation-only visual binary layout.
+- Added `gaia_id_text`/`hip_id_text`/`hd_id_text` to system and star detail
+  payloads. Public clients should display/copy these string fields instead of
+  JavaScript-parsed numeric identifiers so long Gaia DR3 IDs do not lose their
+  final digits.
+
+Representative commits:
+- pending (source evidence utilization / identifier safety working set)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

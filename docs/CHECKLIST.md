@@ -729,6 +729,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   clusters, and background-sky context
 - [x] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive
   and rerun hierarchy/orbit goldens
+- [x] Add source-evidence utilization audit for preserved MSC `sys.tsv`/`orb.tsv`
+  rows that are not yet normalized into ARM orbit edges or simulator contracts
+- [ ] Materialize remaining preserved MSC orbit-detail rows into ARM
+  `orbit_edges`/`orbital_solutions` where endpoint reconciliation is
+  deterministic, with 70 Oph as a visible benchmark
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
 - [x] Reconcile initial system-simulation orbital-source policy across NASA

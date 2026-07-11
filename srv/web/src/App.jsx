@@ -1318,10 +1318,11 @@ function buildSpectralTooltipLines(system) {
 function starCatalogRecordLink(star) {
   const sourceCatalog = String(star?.provenance?.source_catalog || "").toLowerCase();
   if (sourceCatalog === "athyg") {
-    if (star?.gaia_id) {
+    const gaiaId = resolvedEntityGaiaId(star);
+    if (gaiaId) {
       return {
         label: "Gaia DR3 record",
-        url: `https://vizier.cds.unistra.fr/viz-bin/VizieR-5?-source=I/355/gaiadr3&Source=${encodeURIComponent(String(star.gaia_id))}`,
+        url: `https://vizier.cds.unistra.fr/viz-bin/VizieR-5?-source=I/355/gaiadr3&Source=${encodeURIComponent(gaiaId)}`,
         note: "ATHYG aggregate source resolved via Gaia ID",
       };
     }
