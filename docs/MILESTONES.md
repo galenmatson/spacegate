@@ -754,6 +754,17 @@ Future work:
   crossmatch policy, storage/retention posture, and whether the products serve
   only ARM evidence or also drive a reviewed nearby brown-dwarf core promotion
   queue. Initial plan: `docs/CATWISE_ALLWISE_PLAN.md`.
+- WISE imagery milestone: add an IRSA-backed infrared image panel to system
+  pages, with pre-cached cutouts/composites for public UX goldens and
+  high-coolness systems, lazy bounded cache for other systems, source links
+  back to IRSA, and retained retrieval metadata. This should start with
+  AllWISE W1/W2/W3 cutouts and web-friendly generated previews while preserving
+  FITS/source metadata for evidence/debug views.
+- Multi-wavelength sky-context milestone: design selectable 3D-map sky
+  backgrounds, starting with a basic Milky Way visible-light sky and later
+  adding infrared, X-ray, and other survey layers. Keep these as presentation
+  overlays with source attribution and avoid mixing skybox imagery with the
+  canonical object inventory.
 - concept pages should include interactive visualizations where they materially
   teach the concept. Candidate examples include a SuperPuff planet model whose
   diffuse envelope expands and escapes as stellar irradiation rises, a

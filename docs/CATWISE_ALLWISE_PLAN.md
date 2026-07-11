@@ -26,6 +26,32 @@ Scale:
 - too large for default core ingest
 - must be tiled, filtered, or staged as an evidence artifact
 
+Initial data-shape probe, 2026-07-11:
+
+- A small cone around Luhman 16 returns a CatWISE source with source name,
+  source ID, W1/W2 magnitudes, SNRs, proper motion, parallax-like `par_pm`,
+  artifact flags, AllWISE crossmatch count, and AllWISE match distance.
+- A 10 arcsec cone around WISE 0855 returns multiple nearby CatWISE candidates,
+  including the expected very red W1-W2 source. Matching must rank candidates
+  using position, expected proper motion, color, SNR, artifact flags, and
+  source identity, not blindly select the nearest row.
+- Four 5 arcmin cone probes returned hundreds to thousands of rows per field:
+  - high-latitude sample: 1574 rows; 1158 clean W1/W2 SNR>5 rows; 21 red
+    W1-W2>0.8 rows; 9 red+motion rows
+  - mid-latitude sample: 656 rows; 387 clean rows; 76 red rows; 35 red+motion
+    rows
+  - galactic-plane sample: 1755 rows; 1111 clean rows; 17 red rows; 9
+    red+motion rows
+  - Luhman 16 field: 1699 rows; 1246 clean rows; 24 red rows; 16 red+motion
+    rows
+- These samples rule out naive broad-cone querying around every Spacegate
+  object as a default build path. Even basic red-color plus motion cuts produce
+  far too many candidates for automatic core promotion.
+- CatWISE parallax-like fields (`par_pm`, `par_stat`) are useful candidate
+  evidence but are not Gaia-grade distance authority. Treat them as ARM
+  evidence/diagnostics until corroborated by vetted literature or stronger
+  astrometry.
+
 ### AllWISE
 
 Primary role:
@@ -39,6 +65,55 @@ Scale:
 
 - approximately 747 million source rows
 - too large for direct default core ingest
+
+Initial data-shape probe, 2026-07-11:
+
+- A 30 arcsec cone around Luhman 16 returns AllWISE designations, W1/W2/W3/W4
+  photometry, per-band SNRs, apparent motion, photometric quality flags,
+  contamination flags, extension flags, and blend/deblend fields.
+- AllWISE should therefore be used first as four-band infrared photometry,
+  source identity, and image-era cross-reference evidence. CatWISE2020 remains
+  the better first source for motion-based ultracool candidate discovery.
+
+### WISE Images
+
+Primary role:
+
+- system-page sky context and science-source affordance
+- infrared discovery/explanation visuals for ultracool dwarfs, dusty systems,
+  debris disks, and crowded fields
+- future multi-wavelength sky context for the 3D map and concept pages
+
+Source surfaces:
+
+- IRSA SIA v2 image search endpoint
+- IRSA Image Server cutouts
+- AllWISE Atlas images and, where useful, NEOWISE-R products
+- AWS-hosted public WISE products where appropriate
+
+Initial policy:
+
+- pre-cache WISE cutouts/composites for public UX goldens and top-coolness
+  systems
+- lazy-load and cache on first view for other systems
+- keep the cache capped and retention-managed; default target should be a few
+  GiB, not an unbounded image mirror
+- store generated web images outside the repo, preferably under
+  `/mnt/space/spacegate` for larger caches or `/data/spacegate/state` for
+  smaller presentation artifacts
+- preserve source URL, collection, band, center, cutout size, retrieval time,
+  and required attribution metadata
+- link visible image panels back to IRSA
+
+Cutout feasibility:
+
+- IRSA SIA v2 returns AllWISE image metadata with direct `access_url` fields.
+- IRSA cutouts can be requested by appending `center=<ra>,<dec>deg` and
+  `size=<angle>` query parameters to FITS URLs served by `/ibe/data/`.
+- Spacegate can convert FITS cutouts into web-friendly PNG/JPEG/WebP previews
+  while retaining original FITS metadata for evidence/debug views.
+- A first implementation should cache small W1/W2/W3 false-color products
+  rather than full Atlas frames.
 
 ## Layer Policy
 
@@ -91,6 +166,9 @@ to Spacegate's nearby-star mission:
 - color-selected W1/W2 brown-dwarf candidates
 - objects within current Spacegate spatial volume when parallax/distance is
   available from a vetted source
+- WISE/CatWISE/AllWISE cross-references for existing Spacegate objects,
+  especially public UX goldens, planet hosts, multistar systems, ultracool
+  objects, compact objects, and high-coolness systems
 
 Output:
 
@@ -113,6 +191,8 @@ Required fields:
 
 - source catalog/version
 - source row key
+- source designation/source name, including WISE, WISEA, CWISE, CatWISE source
+  IDs, and AllWISE designations
 - RA/Dec and epoch
 - proper motion if available
 - WISE magnitudes/uncertainties/quality flags
@@ -157,10 +237,40 @@ Recommended defaults:
   the USB SSD is mounted and healthy
 - keep only filtered/cooked candidate artifacts under `/data/spacegate/state`
 - make full CatWISE/AllWISE downloads opt-in
+- keep WISE image/cutout caches capped and retention-managed
 
 Do not make a full 1.89B-row CatWISE scan part of the normal public build.
 Spacegate needs a repeatable targeted path first, then an optional heavyweight
 survey mode.
+
+## Practical Retrieval Tiers
+
+Tier 1: Known-object cross-reference.
+
+- Query CatWISE/AllWISE around existing Spacegate objects with appropriate
+  epoch/proper-motion handling.
+- Store high-confidence WISE IDs and infrared photometry as ARM evidence.
+- Highest value, lowest risk first implementation.
+
+Tier 2: Priority imagery.
+
+- Pre-cache WISE cutouts for top-coolness systems and public UX goldens.
+- Lazy-cache additional system-page requests with a bounded local cache.
+- Directly improves the public product without requiring a huge catalog ingest.
+
+Tier 3: Candidate queue.
+
+- Run selective CatWISE color/motion searches for nearby ultracool candidates.
+- Emit review queues with candidate ranking, quality flags, and crossmatch
+  diagnostics.
+- Do not auto-promote candidates without stronger corroborating evidence.
+
+Tier 4: Heavy survey mode.
+
+- Optional tile-level CatWISE/AllWISE mirror or cloud query workflow for deep
+  research builds.
+- Disabled in normal public builds and documented as hardware/storage
+  intensive.
 
 ## Verification
 
@@ -178,8 +288,11 @@ Checks:
 - no duplicate Gaia-backed rows
 - no false core promotion from infrared-only low-confidence candidates
 - exact alias resolution for common WISE forms
+- WISE/CatWISE/AllWISE identifiers copy with prefixes and are attached to the
+  correct target level
 - source photometry is ARM evidence, not core fact
 - promoted rows keep source catalog and retrieval metadata
+- WISE image panels link back to IRSA and retain retrieval metadata
 
 ## Open Questions
 
@@ -191,3 +304,5 @@ Checks:
   internal volume?
 - What minimum evidence allows a non-Gaia infrared source into accepted core
   inventory?
+- Should WISE PNG/WebP image derivatives be generated during builds, or lazily
+  generated on first request and retained with a cache cap?

@@ -744,6 +744,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   retrieval footprint, row-volume limits, crossmatch policy, artifact storage,
   and whether survey rows remain ARM evidence, promote selected nearby brown
   dwarfs into core, or both. Initial plan: `docs/CATWISE_ALLWISE_PLAN.md`
+- [ ] Add IRSA/WISE image integration for system pages: W1/W2/W3 cutouts,
+  generated web previews, source links back to IRSA, retrieval metadata, and a
+  bounded cache for top-coolness systems plus lazy-loaded requests
+- [ ] Plan selectable multi-wavelength sky backgrounds for the 3D map: visible
+  Milky Way baseline, infrared sky, X-ray sky, and later survey layers as
+  attributed presentation overlays
 - [ ] Build Concept Tag Foundation: tag priority tiers, clickable concept-page
   hooks, complete tooltip/popover audit, and first `/concepts/:slug` pages
 - [ ] Integrate reviewed AI Astronomy Agency public narration slots into
