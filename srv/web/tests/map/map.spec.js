@@ -651,16 +651,29 @@ test.describe("public 3D map beta", () => {
     const scaleSelect = menu.locator("[data-testid='map-default-scale-select']");
     const nameStyleSelect = menu.locator("[data-testid='map-name-style-select']");
     const frameSelect = menu.locator("[data-testid='map-frame-select']");
+    const starRenderSelect = menu.locator("[data-testid='map-star-render-mode-select']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
     await expect(scaleSelect).toBeVisible();
     await expect(nameStyleSelect).toBeVisible();
     await expect(frameSelect).toBeVisible();
+    await expect(starRenderSelect).toBeVisible();
     await expect(directionToggle).toBeVisible();
 
     await themeSelect.selectOption("aurora");
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("aurora");
+
+    await starRenderSelect.selectOption("realistic");
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.starRenderMode") || "")).toBe("realistic");
+    await expect.poll(
+      () => canvas.evaluate((node) => node.dataset.mapStarRenderMode || ""),
+      { timeout: 3000 }
+    ).toBe("realistic");
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.mapStarLayerCount || 0)),
+      { timeout: 3000 }
+    ).toBe(2);
 
     await keybindSelect.selectOption("esdf");
     await expect.poll(

@@ -312,6 +312,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   without returning to a fixed Sol-neighborhood label set
 - [x] 3D map label-density adaptation that admits more labels in sparse camera
   fields and fades lower-priority labels harder when the field is crowded
+- [x] Add two-layer 3D map stellar point rendering with bright cores,
+  spectral halos, and persisted `Discovery`/`Realistic` Star Style modes
+  documented as presentation-only visual policy
 - [ ] Design configurable Star Search-on-map controls: tight sidebar filters,
   top search, recent systems, dual-handle ranges for viewpoint distance, star
   count, planet count, and coolness, habitable-zone toggle with explanatory

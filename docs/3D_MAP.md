@@ -22,6 +22,7 @@ Controls:
   - Theme selector
   - keybind selector for `WASD`, `ESDF`, and `8456`
   - frame selector for current ICRS presentation or Galactic presentation
+  - Star Style selector for `Discovery` and `Realistic` point-cloud rendering
   - Galactic direction-label toggle for Coreward, Rimward, Spinward, and
     Antispinward arrows/labels in either active presentation frame
 - `WASD`: forward/back/left/right, `Q` up, `Z` down
@@ -161,6 +162,19 @@ Browser QA covers:
 Initial layers:
 
 - science point cloud
+  - rendered as two GPU point layers: compact bright cores plus broader
+    spectral halos, using circular sprite textures to avoid square point
+    artifacts
+  - `Discovery` star style is the default public presentation. It subtly
+    raises the size/alpha of high-coolness, planet-hosting, multistar, and
+    nearby systems so they invite exploration without hiding ordinary stars.
+  - `Realistic` star style keeps the same science payload but reduces
+    discovery emphasis and uses mostly white, lightly spectral-tinted colors.
+  - both styles are presentation-only browser transforms. They do not alter
+    core, ARM, DISC, Rim, distance, coolness, luminosity, or classification
+    data.
+  - the map canvas publishes lightweight diagnostics for active star style,
+    point-layer count, and rendered star/system count for browser QA.
 - Sol marker
 - distance rings
 - adaptive priority labels:

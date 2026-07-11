@@ -59,11 +59,18 @@ Primary behavior:
 
 Map overlays:
 
-- Selection History and Cool Stars Nearby are compact discovery aids.
-- Search/filter UI can be hidden to free the viewport.
+- Recents and Cool Stars Nearby live in the Search sidebar as compact
+  discovery aids.
+- Search/filter UI can be hidden to free the viewport, and minimal mode can
+  hide passive chrome while keeping requested Peek/Explore and context menus
+  available.
 - Labels should adapt to camera position and active filters.
 - Orientation markers and galactic-direction labels are presentation overlays;
   they do not change science-layer coordinates.
+- Star Style is a presentation preference. `Discovery` subtly emphasizes
+  high-coolness, planet-hosting, multistar, and nearby systems to encourage
+  exploration. `Realistic` reduces that guidance and uses physically motivated,
+  lightly tinted stellar colors. Neither mode changes science-layer facts.
 
 ## Page: Star Search v2
 

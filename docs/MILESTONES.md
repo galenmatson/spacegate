@@ -614,6 +614,11 @@ Delivered baseline:
   records without the compact flag
 - orientation contract documented: scene up is canonical `z_helio_ly` mapped
   onto Three.js Y and is not a galactic-north claim
+- two-layer GPU point rendering for the stellar cloud, with circular bright
+  core sprites, spectral halo sprites, and persisted `Discovery`/`Realistic`
+  Star Style modes. Discovery emphasis is browser presentation only and must
+  never be interpreted as physical luminosity or written back into science
+  layers.
 
 Remaining pilot polish:
 

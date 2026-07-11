@@ -55,6 +55,7 @@ const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
+const MAP_STAR_RENDER_MODE_STORAGE_KEY = "spacegate.map.starRenderMode";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const DEFAULT_MAP_CAMERA_STATE = {
   position: [0, 3.5, 17],
@@ -130,6 +131,34 @@ const SPECTRAL_COLORS = {
   D: "#d7e0ea",
   UNKNOWN: "#8b99b0",
 };
+const REALISTIC_SPECTRAL_COLORS = {
+  O: "#dbe8ff",
+  B: "#e4eeff",
+  A: "#f7fbff",
+  F: "#fff9e7",
+  G: "#fff4d4",
+  K: "#ffe2c1",
+  M: "#ffc0a8",
+  L: "#ffad91",
+  T: "#d8c7ff",
+  Y: "#bddde8",
+  D: "#eef4ff",
+  UNKNOWN: "#cbd3df",
+};
+const STAR_RENDER_MODES = {
+  discovery: {
+    id: "discovery",
+    label: "Discovery",
+    title: "Subtly emphasizes systems likely to be interesting to explore.",
+  },
+  realistic: {
+    id: "realistic",
+    label: "Realistic",
+    title: "Prioritizes physically motivated star color and brightness.",
+  },
+};
+const STAR_RENDER_MODE_OPTIONS = Object.values(STAR_RENDER_MODES);
+const STAR_RENDER_DEFAULT_MODE = "discovery";
 const MAP_FRAME_OPTIONS = {
   icrs: { id: "icrs", label: "ICRS", detail: "Scene up = ICRS Z" },
   galactic: { id: "galactic", label: "Galactic", detail: "Scene up = Galactic North" },
@@ -232,6 +261,22 @@ function readStoredFpsOverlayEnabled() {
     return window.localStorage.getItem(MAP_FPS_OVERLAY_STORAGE_KEY) === "true";
   } catch {
     return false;
+  }
+}
+
+function normalizeStarRenderMode(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return STAR_RENDER_MODES[raw] ? raw : STAR_RENDER_DEFAULT_MODE;
+}
+
+function readStoredStarRenderMode() {
+  if (typeof window === "undefined") {
+    return STAR_RENDER_DEFAULT_MODE;
+  }
+  try {
+    return normalizeStarRenderMode(window.localStorage.getItem(MAP_STAR_RENDER_MODE_STORAGE_KEY));
+  } catch {
+    return STAR_RENDER_DEFAULT_MODE;
   }
 }
 
@@ -520,17 +565,24 @@ function mapItemFromSearchResult(item, frame = "icrs") {
   return prepareMapItems([{ ...item, system_name: systemDisplayName(item) }], frame)[0] || null;
 }
 
-function createPointTexture() {
-  const size = 64;
+function createPointTexture(kind = "core") {
+  const size = kind === "halo" ? 128 : 64;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   canvas.width = size;
   canvas.height = size;
   const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.48, "rgba(255,255,255,0.92)");
-  gradient.addColorStop(0.72, "rgba(255,255,255,0.28)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  if (kind === "halo") {
+    gradient.addColorStop(0, "rgba(255,255,255,0.82)");
+    gradient.addColorStop(0.18, "rgba(255,255,255,0.42)");
+    gradient.addColorStop(0.54, "rgba(255,255,255,0.13)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+  } else {
+    gradient.addColorStop(0, "rgba(255,255,255,1)");
+    gradient.addColorStop(0.28, "rgba(255,255,255,0.96)");
+    gradient.addColorStop(0.62, "rgba(255,255,255,0.34)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+  }
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
   const texture = new THREE.CanvasTexture(canvas);
@@ -539,55 +591,196 @@ function createPointTexture() {
   return texture;
 }
 
-function StarField({ systems, filterMatchIds = null, filterActive = false }) {
-  const geometry = useMemo(() => {
+const STAR_POINT_VERTEX_SHADER = `
+  attribute float aSize;
+  attribute float aAlpha;
+  varying vec3 vColor;
+  varying float vAlpha;
+  uniform float uPixelRatio;
+  uniform float uSizeScale;
+
+  void main() {
+    vColor = color;
+    vAlpha = aAlpha;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    float attenuation = clamp(42.0 / max(1.0, -mvPosition.z), 0.42, 2.05);
+    gl_PointSize = aSize * uSizeScale * uPixelRatio * attenuation;
+  }
+`;
+
+const STAR_POINT_FRAGMENT_SHADER = `
+  uniform sampler2D uTexture;
+  uniform float uOpacity;
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    vec4 texel = texture2D(uTexture, gl_PointCoord);
+    float alpha = texel.a * vAlpha * uOpacity;
+    if (alpha < 0.012) {
+      discard;
+    }
+    gl_FragColor = vec4(vColor * texel.rgb, alpha);
+  }
+`;
+
+function starClassSizeFactor(spectralClass) {
+  return {
+    O: 1.22,
+    B: 1.18,
+    A: 1.1,
+    F: 1.05,
+    G: 1,
+    K: 0.94,
+    M: 0.84,
+    L: 0.76,
+    T: 0.72,
+    Y: 0.68,
+    D: 0.8,
+    UNKNOWN: 0.74,
+  }[spectralClass] || 0.74;
+}
+
+function discoveryWeightForSystem(system) {
+  const coolness = Number(system?.coolness_score);
+  const coolnessScore = Number.isFinite(coolness) ? THREE.MathUtils.clamp(coolness / 28, 0, 1) : 0;
+  const planets = Number(system?.planet_count || 0) > 0 ? 0.22 : 0;
+  const multistar = Number(system?.star_count || 0) > 1 ? 0.13 : 0;
+  const distance = Number(system?.dist_ly ?? system?.distance_ly);
+  const nearby = Number.isFinite(distance) ? THREE.MathUtils.clamp((24 - distance) / 24, 0, 1) * 0.12 : 0;
+  return THREE.MathUtils.clamp(coolnessScore * 0.48 + planets + multistar + nearby, 0, 1);
+}
+
+function createStarLayerMaterial({ texture, opacity = 1, blending = THREE.NormalBlending }) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTexture: { value: texture },
+      uOpacity: { value: opacity },
+      uPixelRatio: { value: 1 },
+      uSizeScale: { value: 1 },
+    },
+    vertexShader: STAR_POINT_VERTEX_SHADER,
+    fragmentShader: STAR_POINT_FRAGMENT_SHADER,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending,
+  });
+}
+
+function StarField({ systems, filterMatchIds = null, filterActive = false, starRenderMode = STAR_RENDER_DEFAULT_MODE }) {
+  const normalizedMode = normalizeStarRenderMode(starRenderMode);
+  const layers = useMemo(() => {
     const positions = new Float32Array(systems.length * 3);
-    const colors = new Float32Array(systems.length * 3);
+    const coreColors = new Float32Array(systems.length * 3);
+    const haloColors = new Float32Array(systems.length * 3);
+    const coreSizes = new Float32Array(systems.length);
+    const haloSizes = new Float32Array(systems.length);
+    const coreAlphas = new Float32Array(systems.length);
+    const haloAlphas = new Float32Array(systems.length);
     const matches = filterMatchIds instanceof Set ? filterMatchIds : new Set();
     systems.forEach((system, idx) => {
       const base = idx * 3;
       positions[base] = system.scene_position[0];
       positions[base + 1] = system.scene_position[1];
       positions[base + 2] = system.scene_position[2];
-      const color = new THREE.Color(SPECTRAL_COLORS[system.dominant_spectral_class] || SPECTRAL_COLORS.UNKNOWN);
-      if (Number(system.planet_count || 0) > 0) {
-        color.lerp(new THREE.Color("#95ffcf"), 0.24);
-      }
+      const spectralClass = system.dominant_spectral_class || "UNKNOWN";
+      const realisticColor = new THREE.Color(REALISTIC_SPECTRAL_COLORS[spectralClass] || REALISTIC_SPECTRAL_COLORS.UNKNOWN);
+      const displayColor = new THREE.Color(SPECTRAL_COLORS[spectralClass] || SPECTRAL_COLORS.UNKNOWN);
+      const haloColor = normalizedMode === "realistic"
+        ? realisticColor.clone()
+        : realisticColor.clone().lerp(displayColor, 0.36);
+      const coreColor = realisticColor.clone().lerp(new THREE.Color("#ffffff"), normalizedMode === "realistic" ? 0.52 : 0.36);
+      const classFactor = starClassSizeFactor(spectralClass);
+      const discoveryWeight = normalizedMode === "discovery" ? discoveryWeightForSystem(system) : 0;
+      const discoverySizeBoost = 1 + discoveryWeight * 0.8;
+      const discoveryHaloBoost = 1 + discoveryWeight * 1.25;
+      let coreAlpha = normalizedMode === "realistic" ? 0.78 : 0.84 + discoveryWeight * 0.14;
+      let haloAlpha = normalizedMode === "realistic" ? 0.34 : 0.4 + discoveryWeight * 0.26;
       if (filterActive) {
         if (matches.has(String(system.system_id))) {
-          color.lerp(new THREE.Color("#ffffff"), 0.32);
+          coreColor.lerp(new THREE.Color("#ffffff"), 0.22);
+          haloColor.lerp(new THREE.Color("#ffffff"), 0.12);
+          coreAlpha = Math.min(1, coreAlpha + 0.12);
+          haloAlpha = Math.min(1, haloAlpha + 0.18);
         } else {
-          color.multiplyScalar(0.28);
+          coreAlpha *= 0.24;
+          haloAlpha *= 0.18;
         }
       }
-      colors[base] = color.r;
-      colors[base + 1] = color.g;
-      colors[base + 2] = color.b;
+      coreColors[base] = coreColor.r;
+      coreColors[base + 1] = coreColor.g;
+      coreColors[base + 2] = coreColor.b;
+      haloColors[base] = haloColor.r;
+      haloColors[base + 1] = haloColor.g;
+      haloColors[base + 2] = haloColor.b;
+      coreSizes[idx] = 3.2 * classFactor * discoverySizeBoost;
+      haloSizes[idx] = 9.8 * classFactor * discoveryHaloBoost;
+      coreAlphas[idx] = coreAlpha;
+      haloAlphas[idx] = haloAlpha;
     });
-    const next = new THREE.BufferGeometry();
-    next.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    next.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    next.computeBoundingSphere();
-    return next;
-  }, [filterActive, filterMatchIds, systems]);
-  const pointTexture = useMemo(() => createPointTexture(), []);
+    const createLayer = (colors, sizes, alphas) => {
+      const next = new THREE.BufferGeometry();
+      next.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      next.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      next.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+      next.setAttribute("aAlpha", new THREE.BufferAttribute(alphas, 1));
+      next.computeBoundingSphere();
+      return next;
+    };
+    return {
+      core: createLayer(coreColors, coreSizes, coreAlphas),
+      halo: createLayer(haloColors, haloSizes, haloAlphas),
+    };
+  }, [filterActive, filterMatchIds, normalizedMode, systems]);
+  const coreTexture = useMemo(() => createPointTexture("core"), []);
+  const haloTexture = useMemo(() => createPointTexture("halo"), []);
+  const coreMaterial = useMemo(
+    () => createStarLayerMaterial({ texture: coreTexture, opacity: 0.96, blending: THREE.NormalBlending }),
+    [coreTexture],
+  );
+  const haloMaterial = useMemo(
+    () => createStarLayerMaterial({ texture: haloTexture, opacity: normalizedMode === "realistic" ? 0.56 : 0.68, blending: THREE.AdditiveBlending }),
+    [haloTexture, normalizedMode],
+  );
+  const { gl } = useThree();
 
-  useEffect(() => () => geometry.dispose(), [geometry]);
-  useEffect(() => () => pointTexture.dispose(), [pointTexture]);
+  useEffect(() => () => {
+    layers.core.dispose();
+    layers.halo.dispose();
+  }, [layers]);
+  useEffect(() => () => {
+    coreTexture.dispose();
+    haloTexture.dispose();
+  }, [coreTexture, haloTexture]);
+  useEffect(() => () => {
+    coreMaterial.dispose();
+    haloMaterial.dispose();
+  }, [coreMaterial, haloMaterial]);
+  useEffect(() => {
+    const pixelRatio = Math.min(2, gl.getPixelRatio?.() || window.devicePixelRatio || 1);
+    coreMaterial.uniforms.uPixelRatio.value = pixelRatio;
+    haloMaterial.uniforms.uPixelRatio.value = pixelRatio;
+    haloMaterial.uniforms.uOpacity.value = normalizedMode === "realistic" ? 0.56 : 0.68;
+  }, [coreMaterial, gl, haloMaterial, normalizedMode]);
+  useEffect(() => {
+    const canvas = gl.domElement;
+    canvas.dataset.mapStarRenderMode = normalizedMode;
+    canvas.dataset.mapStarLayerCount = "2";
+    canvas.dataset.mapStarCount = String(systems.length);
+  }, [gl.domElement, normalizedMode, systems.length]);
 
   return (
-    <points geometry={geometry}>
-      <pointsMaterial
-        map={pointTexture}
-        size={0.16}
-        sizeAttenuation
-        vertexColors
-        transparent
-        opacity={filterActive ? 0.74 : 0.86}
-        alphaTest={0.04}
-        depthWrite={false}
-      />
-    </points>
+    <group>
+      <points geometry={layers.halo} renderOrder={1}>
+        <primitive object={haloMaterial} attach="material" />
+      </points>
+      <points geometry={layers.core} renderOrder={2}>
+        <primitive object={coreMaterial} attach="material" />
+      </points>
+    </group>
   );
 }
 
@@ -1690,6 +1883,7 @@ function StarMapScene({
   filterMatchIds,
   filterActive,
   filterLabelSystems,
+  starRenderMode,
   onSelect,
   onRouteContext,
   keybindScheme,
@@ -1726,7 +1920,12 @@ function StarMapScene({
       <MapRuntimeBridge runtimeDiagnostics={runtimeDiagnostics} runtimeQuality={runtimeQuality} />
       <DistanceRings />
       <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} />
-      <StarField systems={systems} filterMatchIds={filterMatchIds} filterActive={filterActive} />
+      <StarField
+        systems={systems}
+        filterMatchIds={filterMatchIds}
+        filterActive={filterActive}
+        starRenderMode={starRenderMode}
+      />
       <PriorityLabels
         systems={systems}
         selectedSystem={selectedSystem}
@@ -2301,6 +2500,7 @@ export default function StarMapPage({
   const [mapFrame, setMapFrame] = useState(() => (
     MAP_FRAME_OPTIONS[restoredMapState?.mapFrame] ? restoredMapState.mapFrame : readStoredMapFrame()
   ));
+  const [starRenderMode, setStarRenderMode] = useState(readStoredStarRenderMode);
   const [showDirectionLabels, setShowDirectionLabels] = useState(() => (
     typeof restoredMapState?.showDirectionLabels === "boolean"
       ? restoredMapState.showDirectionLabels
@@ -2518,6 +2718,14 @@ export default function StarMapPage({
       // Map frame persistence is optional.
     }
   }, [mapFrame]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_STAR_RENDER_MODE_STORAGE_KEY, normalizeStarRenderMode(starRenderMode));
+    } catch {
+      // Star rendering preference persistence is optional.
+    }
+  }, [starRenderMode]);
 
   useEffect(() => {
     try {
@@ -3332,6 +3540,7 @@ export default function StarMapPage({
           filterMatchIds={filteredMapIds}
           filterActive={activeMapFilter}
           filterLabelSystems={filteredMapSystems}
+          starRenderMode={starRenderMode}
           onSelect={(system) => selectSystem(system, { openPeek: true })}
           onRouteContext={setRouteMenu}
           keybindScheme={keybindScheme}
@@ -3365,7 +3574,6 @@ export default function StarMapPage({
       <button
         type="button"
         className="map-minimal-toggle"
-        data-testid="map-minimal-toggle"
         aria-pressed={minimalMode}
         onClick={toggleMinimalMode}
         title={minimalMode ? "Restore map interface (M or Esc)" : "Minimal map interface (M)"}
@@ -3444,6 +3652,8 @@ export default function StarMapPage({
             <button
               type="button"
               className="map-hud-button"
+              data-testid="map-minimal-toggle"
+              aria-pressed={minimalMode}
               onClick={enterMinimalMode}
               title="Minimal map interface (M)"
             >
@@ -3503,6 +3713,21 @@ export default function StarMapPage({
                   >
                     {Object.values(MAP_FRAME_OPTIONS).map((option) => (
                       <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="map-menu-field map-star-render-select"
+                  title={STAR_RENDER_MODES[normalizeStarRenderMode(starRenderMode)]?.title || ""}
+                >
+                  <span>Star Style</span>
+                  <select
+                    value={normalizeStarRenderMode(starRenderMode)}
+                    onChange={(event) => setStarRenderMode(normalizeStarRenderMode(event.target.value))}
+                    data-testid="map-star-render-mode-select"
+                  >
+                    {STAR_RENDER_MODE_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id} title={option.title}>{option.label}</option>
                     ))}
                   </select>
                 </label>

@@ -1193,6 +1193,10 @@
   outline: none;
 }
 
+.map-page:not(.map-minimal-mode) > .map-minimal-toggle {
+  display: none;
+}
+
 .map-minimal-notice {
   position: absolute;
   z-index: 94;
