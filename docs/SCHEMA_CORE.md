@@ -38,6 +38,21 @@ Gaia-first contract:
 2. Crosswalk catalogs may enrich identifiers/aliases but do not define canonical star existence.
 3. Multiplicity catalogs define evidence/edges and grouping confidence, not hidden row mutation.
 
+Narrow completeness bridge:
+
+- Nearby vetted ultracool-dwarf records may be promoted into `core.stars`
+  when the Gaia backbone does not contain the object and the source row carries
+  usable astrometry. The first bridge is `UltracoolSheet` within the configured
+  nearby distance cap, intended to cover blind spots such as WISE 0855-0714 and
+  Luhman 16 without waiting for a full WISE/CatWISE survey ingest.
+- These rows keep `source_catalog = 'ultracoolsheet'` and full row-level
+  provenance. They are accepted inventory rows, not Gaia facts, and their
+  source-specific multiplicity flags are preserved as evidence rather than
+  expanded into invented component hierarchies.
+- Full CatWISE/AllWISE integration remains a separate survey-scale ingest
+  milestone because it changes volume, matching, retention, and performance
+  characteristics.
+
 Core/arm promotion contract:
 
 - `core` owns accepted canonical inventory rows and promoted hot-path scalar

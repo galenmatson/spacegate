@@ -59,7 +59,7 @@ Interpretation note:
 | Gaia class probabilities | default-on | on | `SPACEGATE_ENABLE_GAIA_CLASSPROB` | remnant-safe classification guardrails |
 | Gaia UCD memberships (`J/A+A/669/A139 table4`) | default-on | on | `SPACEGATE_ENABLE_GAIA_UCD` | ultracool dwarf cluster/membership tags (HMAC/BANYAN) for star enrichment |
 | VSX variability index | default-on | on | `SPACEGATE_ENABLE_VSX` | variable-star evidence overlay in `arm` (exact Gaia joins only) |
-| UltracoolSheet | default-on | on | `SPACEGATE_ENABLE_ULTRACOOLSHEET` | ultracool/youth/kinematics overlay in `arm` (Gaia DR3/DR2 linked) |
+| UltracoolSheet | default-on | on | `SPACEGATE_ENABLE_ULTRACOOLSHEET`, `SPACEGATE_ENABLE_NEARBY_ULTRACOOL_INVENTORY` | ultracool/youth/kinematics overlay in `arm`; narrow nearby core-inventory bridge when Gaia misses vetted UCDs |
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
 | SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
 | DEBCat | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
@@ -351,15 +351,25 @@ Role:
 - ultracool object metadata and youth indicators
 - Gaia DR3/DR2-linked arm overlay for detailed UCD context
 - supports later disc enrichment without widening core hot-path tables
-- known limitation: ARM overlay rows are not currently accepted inventory
-  roots when the Gaia backbone misses them. Nearby non-Gaia or unlinked
-  brown dwarfs such as WISE 0855-0714, and Gaia-ID-bearing rows absent from
-  the current Gaia backbone such as Luhman 16, require a dedicated vetted
-  ultracool-inventory promotion pass.
+- narrow accepted-inventory completeness bridge for nearby rows missing from
+  the Gaia backbone. Controlled by
+  `SPACEGATE_ENABLE_NEARBY_ULTRACOOL_INVENTORY` and
+  `SPACEGATE_NEARBY_ULTRACOOL_INVENTORY_MAX_DIST_PC` (default 10 pc).
+- examples of intended coverage: WISE 0855-0714 and Luhman 16. This bridge
+  admits vetted nearby ultracool objects as `core.stars` with
+  `source_catalog = 'ultracoolsheet'`; it does not expand composite or binary
+  ultracool rows into invented component hierarchies.
+- limitation: this is not a full WISE/CatWISE/AllWISE survey ingest. Large
+  infrared survey integration remains a separate performance-planned milestone.
 
 Source endpoint:
 
 - Google Sheets published CSV endpoint (pinned URL in `scripts/catalogs.sh`)
+
+Core bridge diagnostics:
+
+- `reports/<build_id>/nearby_ultracool_inventory_report.json`
+- `scripts/verify_nearby_ultracool_inventory.py --build-dir <out/build_id>`
 
 ## Transitional Sources
 

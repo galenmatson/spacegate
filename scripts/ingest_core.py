@@ -56,6 +56,11 @@ TESS_EB_URL = "https://tessebs.villanova.edu/search_results"
 TESS_EB_VERSION = "search_results_in_catalog_v1"
 ATHYG_ALIAS_URL = "https://codeberg.org/astronexus/athyg"
 ATHYG_ALIAS_VERSION = "v3.3"
+ULTRACOOLSHEET_URL = (
+    "https://docs.google.com/spreadsheets/d/1i98ft8g5mzPp2DNno0kcz4B9nzMxdpyz5UquAVhz-U8/"
+    "gviz/tq?tqx=out:csv&sheet=Main"
+)
+ULTRACOOLSHEET_VERSION = "UltracoolSheet_Main"
 EXOPLANET_EU_URL = "https://www.exoplanet.eu/catalog/"
 EXOPLANET_EU_VERSION = "catalog_csv"
 OPEN_EXOPLANET_CATALOGUE_URL = "https://github.com/OpenExoplanetCatalogue/open_exoplanet_catalogue"
@@ -824,6 +829,14 @@ def main() -> int:
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
     enable_accepted_supplements = parse_bool_env("SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS", True)
+    enable_nearby_ultracool_inventory = parse_bool_env(
+        "SPACEGATE_ENABLE_NEARBY_ULTRACOOL_INVENTORY",
+        True,
+    )
+    nearby_ultracool_inventory_max_dist_pc = parse_positive_float_env(
+        "SPACEGATE_NEARBY_ULTRACOOL_INVENTORY_MAX_DIST_PC",
+        10.0,
+    )
     gaia_backbone_min_parallax_mas = parse_positive_float_env(
         "SPACEGATE_GAIA_BACKBONE_MIN_PARALLAX_MAS",
         GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT,
@@ -973,6 +986,10 @@ def main() -> int:
     cooked_kepler_eb = state_dir / "cooked" / "kepler_eb" / "kepler_eb_catalog.csv"
     cooked_tess_eb = state_dir / "cooked" / "tess_eb" / "tess_eb_catalog.csv"
     cooked_sol_authority = state_dir / "cooked" / "sol_authority" / "sol_system_objects.csv"
+    cooked_ultracoolsheet = state_dir / "cooked" / "ultracoolsheet" / "ultracoolsheet_objects.csv"
+    nearby_ultracool_inventory_active = (
+        enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists()
+    )
     cooked_exoplanet_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
     cooked_exoplanet_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
     cooked_exoplanet_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
@@ -1000,6 +1017,7 @@ def main() -> int:
     kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
     tess_eb_manifest_path = manifest_dir / "tess_eb_manifest.json"
     sol_authority_manifest_path = manifest_dir / "sol_authority_manifest.json"
+    ultracoolsheet_manifest_path = manifest_dir / "ultracoolsheet_manifest.json"
     exoplanet_eu_manifest_path = manifest_dir / "exoplanet_eu_manifest.json"
     open_exoplanet_catalogue_manifest_path = (
         manifest_dir / "open_exoplanet_catalogue_manifest.json"
@@ -1124,6 +1142,8 @@ def main() -> int:
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
         f"athyg_supplement_merge={'1' if enable_athyg_merge_path else '0'} "
         f"accepted_supplements={'1' if (enable_accepted_supplements and (accepted_athyg_supplements or accepted_component_links)) else '0'} "
+        f"nearby_ultracool_inventory={'1' if (enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists()) else '0'} "
+        f"nearby_ultracool_inventory_max_dist_pc={nearby_ultracool_inventory_max_dist_pc} "
         f"open_cluster_member_min_probability={open_cluster_member_min_probability} "
         f"white_dwarf_catalog_pwd_threshold={white_dwarf_catalog_pwd_threshold}"
     )
@@ -1174,6 +1194,8 @@ def main() -> int:
             manifest_paths.append(tess_eb_manifest_path)
     if enable_sol_authority:
         manifest_paths.append(sol_authority_manifest_path)
+    if enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists():
+        manifest_paths.append(ultracoolsheet_manifest_path)
     if enable_exoplanet_lifecycle_catalogs:
         manifest_paths.extend(
             [
@@ -1315,6 +1337,10 @@ def main() -> int:
           ('accepted_supplement_version', {sql_literal(accepted_supplement_version)}),
           ('accepted_athyg_supplement_count', {sql_literal(str(len(accepted_athyg_supplements)))}),
           ('accepted_component_link_count', {sql_literal(str(len(accepted_component_links)))}),
+          ('nearby_ultracool_inventory_enabled', {sql_literal("1" if enable_nearby_ultracool_inventory else "0")}),
+          ('nearby_ultracool_inventory_active', {sql_literal("1" if nearby_ultracool_inventory_active else "0")}),
+          ('nearby_ultracool_inventory_max_dist_pc', {sql_literal(str(nearby_ultracool_inventory_max_dist_pc))}),
+          ('nearby_ultracool_inventory_source', {sql_literal(str(cooked_ultracoolsheet) if cooked_ultracoolsheet.exists() else "")}),
           ('identifier_ambiguous_limit', {sql_literal(str(athyg_merge_ambiguous_limit))}),
           ('identifier_gaia_collision_max', {sql_literal(str(athyg_merge_gaia_collision_max))}),
           ('identifier_hip_collision_max', {sql_literal(str(athyg_merge_hip_collision_max))}),
@@ -1504,6 +1530,18 @@ def main() -> int:
     )
     gaia_backbone_has_retrieval = has_retrieval(gaia_backbone_manifest or {})
 
+    ultracoolsheet_manifest = manifest.get("UltracoolSheet_Main") or {}
+    ultracoolsheet_sha = ultracoolsheet_manifest.get("sha256")
+    ultracoolsheet_retrieved = ultracoolsheet_manifest.get("retrieved_at")
+    ultracoolsheet_url = ultracoolsheet_manifest.get("url") or ULTRACOOLSHEET_URL
+    ultracoolsheet_version = ultracoolsheet_manifest.get("source_version") or ULTRACOOLSHEET_VERSION
+    ultracoolsheet_has_retrieval = has_retrieval(ultracoolsheet_manifest)
+    if enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists() and not ultracoolsheet_sha:
+        ultracoolsheet_sha = sha256_file(cooked_ultracoolsheet)
+        ultracoolsheet_retrieved = file_mtime_utc(cooked_ultracoolsheet)
+        ultracoolsheet_has_retrieval = True
+        log("UltracoolSheet retrieval metadata synthesized from local cooked artifact checksum")
+
     if enable_gaia_backbone:
         base_source_catalog = "gaia_dr3"
         base_source_version = (
@@ -1649,6 +1687,15 @@ def main() -> int:
     tess_eb_sha = tess_eb_manifest.get("sha256") if tess_eb_manifest else None
     tess_eb_retrieved = tess_eb_manifest.get("retrieved_at") if tess_eb_manifest else None
 
+    nearby_ultracool_inventory_active = (
+        enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists()
+    )
+    if enable_nearby_ultracool_inventory and not cooked_ultracoolsheet.exists():
+        log(
+            "Nearby ultracool inventory bridge disabled: "
+            f"missing cooked UltracoolSheet at {cooked_ultracoolsheet}"
+        )
+
     if enable_gaia_backbone:
         gaia_backbone_path = str(cooked_gaia_backbone).replace("'", "''")
         log("Loading cooked Gaia backbone")
@@ -1790,6 +1837,51 @@ def main() -> int:
                 null_padding=true,
                 all_varchar=true
             )
+            """
+        )
+
+    if nearby_ultracool_inventory_active:
+        log("Loading cooked UltracoolSheet for nearby inventory bridge")
+        con.execute(
+            f"""
+            create or replace temp view ultracoolsheet_inventory_raw as
+            select *
+            from read_csv_auto(
+              {sql_literal(str(cooked_ultracoolsheet))},
+              delim=',',
+              quote='\"',
+              escape='\"',
+              header=true,
+              strict_mode=false,
+              null_padding=true,
+              all_varchar=true
+            )
+            """
+        )
+    else:
+        con.execute(
+            """
+            create or replace temp view ultracoolsheet_inventory_raw as
+            select *
+            from (
+              values
+                (
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar),
+                  cast(null as varchar), cast(null as varchar), cast(null as varchar), cast(null as varchar)
+                )
+            ) as t(
+              source_row_num, object_name, name_simbadable, gaia_dr3_source_id, gaia_dr2_source_id, ra_j2000_deg,
+              dec_j2000_deg, plx_mas, pmra_mas_yr, pmdec_mas_yr, rv_kms, dist_pc, dist_source, spectral_type_opt,
+              spectral_type_ir, spectral_numeric, gravity_opt, gravity_ir, age_category, youth_evidence,
+              banyan_hypothesis_young, banyan_prob_young, is_exoplanet_host_flag, multiple_unresolved_flag,
+              multiple_resolved_flag, has_higher_mass_companion_flag, ref_discovery, source_url
+            )
+            where false
             """
         )
         con.execute(
@@ -2711,6 +2803,159 @@ def main() -> int:
         from athyg_stage_base
         """
     )
+    log("Building nearby ultracool inventory bridge")
+    ultracool_bridge_started = time.monotonic()
+    con.execute(
+        f"""
+        create temp table nearby_ultracool_inventory_candidates as
+        with typed as (
+          select
+            nullif(source_row_num, '')::bigint as source_row_num,
+            nullif(trim(object_name), '') as object_name,
+            nullif(trim(name_simbadable), '') as name_simbadable,
+            nullif(gaia_dr3_source_id, '')::bigint as gaia_dr3_source_id,
+            nullif(gaia_dr2_source_id, '')::bigint as gaia_dr2_source_id,
+            nullif(ra_j2000_deg, '')::double as ra_deg,
+            nullif(dec_j2000_deg, '')::double as dec_deg,
+            nullif(plx_mas, '')::double as plx_mas,
+            nullif(pmra_mas_yr, '')::double as pm_ra_mas_yr,
+            nullif(pmdec_mas_yr, '')::double as pm_dec_mas_yr,
+            nullif(rv_kms, '')::double as radial_velocity_kms,
+            nullif(dist_pc, '')::double as dist_pc_source,
+            nullif(trim(dist_source), '') as dist_source,
+            nullif(trim(spectral_type_opt), '') as spectral_type_opt,
+            nullif(trim(spectral_type_ir), '') as spectral_type_ir,
+            nullif(trim(gravity_opt), '') as gravity_opt,
+            nullif(trim(gravity_ir), '') as gravity_ir,
+            nullif(trim(age_category), '') as age_category,
+            nullif(trim(youth_evidence), '') as youth_evidence,
+            nullif(trim(multiple_unresolved_flag), '') as multiple_unresolved_flag,
+            nullif(trim(multiple_resolved_flag), '') as multiple_resolved_flag,
+            nullif(trim(has_higher_mass_companion_flag), '') as has_higher_mass_companion_flag,
+            nullif(trim(ref_discovery), '') as ref_discovery,
+            nullif(trim(source_url), '') as source_url
+          from ultracoolsheet_inventory_raw
+        ), measured as (
+          select
+            *,
+            case
+              when dist_pc_source is not null and dist_pc_source > 0 then dist_pc_source
+              when plx_mas is not null and plx_mas > 0 then 1000.0 / plx_mas
+              else null
+            end as dist_pc
+          from typed
+        ), candidate as (
+          select
+            *,
+            dist_pc * {PC_TO_LY} as dist_ly,
+            dist_pc * cos(dec_deg * pi() / 180.0) * cos(ra_deg * pi() / 180.0) as x_pc,
+            dist_pc * cos(dec_deg * pi() / 180.0) * sin(ra_deg * pi() / 180.0) as y_pc,
+            dist_pc * sin(dec_deg * pi() / 180.0) as z_pc,
+            coalesce(spectral_type_opt, spectral_type_ir) as spectral_type_raw
+          from measured
+          where source_row_num is not null
+            and object_name is not null
+            and ra_deg is not null
+            and dec_deg is not null
+            and dist_pc is not null
+            and dist_pc > 0
+            and dist_pc <= {nearby_ultracool_inventory_max_dist_pc}
+        ), dedup as (
+          select
+            c.*,
+            exists (
+              select 1
+              from athyg_stage_base a
+              where c.gaia_dr3_source_id is not null
+                and a.gaia_id = c.gaia_dr3_source_id
+            ) as has_gaia_backbone_duplicate,
+            exists (
+              select 1
+              from athyg_stage_base a
+              where c.gaia_dr3_source_id is null
+                and a.ra_deg is not null
+                and a.dec_deg is not null
+                and a.dist_ly is not null
+                and abs(a.dist_ly - c.dist_ly) <= 0.10
+                and 3600.0 * degrees(
+                  acos(
+                    least(
+                      1.0,
+                      greatest(
+                        -1.0,
+                        sin(radians(a.dec_deg)) * sin(radians(c.dec_deg)) +
+                        cos(radians(a.dec_deg)) * cos(radians(c.dec_deg)) *
+                        cos(radians(a.ra_deg - c.ra_deg))
+                      )
+                    )
+                  )
+                ) <= 2.0
+            ) as has_positional_duplicate
+          from candidate c
+        )
+        select
+          *,
+          regexp_extract(spectral_type_raw, '([OBAFGKMLTY])', 1) as spectral_class,
+          regexp_extract(spectral_type_raw, '[OBAFGKMLTY]([0-9](?:\\.[0-9])?)', 1) as spectral_subtype,
+          regexp_extract(spectral_type_raw, '(I{{1,3}}|IV|V|VI|VII)', 1) as luminosity_class,
+          lower(
+            trim(
+              regexp_replace(
+                regexp_replace(object_name, '[^0-9A-Za-z]+', ' ', 'g'),
+                '\\s+',
+                ' ',
+                'g'
+              )
+            )
+          ) as star_name_norm
+        from dedup
+        where not has_gaia_backbone_duplicate
+          and not has_positional_duplicate
+        """
+    )
+    ultracool_bridge_counts = con.execute(
+        """
+        select
+          (select count(*)::bigint from ultracoolsheet_inventory_raw
+           where nullif(dist_pc, '')::double <= ?) as source_nearby_rows,
+          (select count(*)::bigint from nearby_ultracool_inventory_candidates) as promoted_rows,
+          (select count(*)::bigint from nearby_ultracool_inventory_candidates
+           where lower(coalesce(object_name, '')) like '%luhman%') as promoted_luhman_rows,
+          (select count(*)::bigint from nearby_ultracool_inventory_candidates
+           where lower(coalesce(object_name, '')) like 'wise j0855%'
+              or lower(coalesce(name_simbadable, '')) like 'wisea j085510%') as promoted_wise0855_rows
+        """,
+        [nearby_ultracool_inventory_max_dist_pc],
+    ).fetchone()
+    nearby_ultracool_inventory_report = {
+        "build_id": build_id,
+        "enabled": bool(enable_nearby_ultracool_inventory),
+        "active": bool(nearby_ultracool_inventory_active),
+        "source": str(cooked_ultracoolsheet) if cooked_ultracoolsheet.exists() else "",
+        "max_distance_pc": nearby_ultracool_inventory_max_dist_pc,
+        "counts": {
+            "source_nearby_rows": int(ultracool_bridge_counts[0] or 0),
+            "promoted_rows": int(ultracool_bridge_counts[1] or 0),
+            "promoted_luhman_rows": int(ultracool_bridge_counts[2] or 0),
+            "promoted_wise0855_rows": int(ultracool_bridge_counts[3] or 0),
+        },
+        "policy": [
+            "Promotes only nearby UltracoolSheet rows with usable coordinates and distance/parallax.",
+            "Rejects rows whose Gaia DR3 source already appears in the backbone stage.",
+            "Rejects non-Gaia rows with a tight positional/distance duplicate in the backbone stage.",
+            "This is an accepted-inventory completeness bridge, not a full WISE/CatWISE survey ingest.",
+        ],
+    }
+    write_json(reports_dir / "nearby_ultracool_inventory_report.json", nearby_ultracool_inventory_report)
+    log_stage_complete(
+        "Nearby ultracool inventory bridge",
+        ultracool_bridge_started,
+        extra=(
+            f"promoted={format_count(ultracool_bridge_counts[1] or 0)} "
+            f"luhman={format_count(ultracool_bridge_counts[2] or 0)} "
+            f"wise0855={format_count(ultracool_bridge_counts[3] or 0)}"
+        ),
+    )
     con.execute(
         f"""
         create or replace temp view msc_components_pre_dedupe as
@@ -3441,10 +3686,112 @@ def main() -> int:
           left join orb6_support os on os.wds_id = m.wds_id
           left join sbx_msc_matches sbx on sbx.msc_row_num = m.msc_row_num
           where x.msc_row_num is null
+        ), ultracool_inventory_only as (
+          select
+            cast(morton3d(u.x_pc * {PC_TO_LY}, u.y_pc * {PC_TO_LY}, u.z_pc * {PC_TO_LY}) as bigint) as spatial_index,
+            null::bigint as system_id,
+            case
+              when u.gaia_dr3_source_id is not null then 'star:gaia:' || u.gaia_dr3_source_id::varchar
+              else 'star:ultracoolsheet:' || u.source_row_num::varchar
+            end as stable_object_key,
+            u.object_name as star_name,
+            u.star_name_norm,
+            null::varchar as component,
+            u.object_name as system_name_root,
+            u.star_name_norm as system_name_root_norm,
+            u.ra_deg,
+            u.dec_deg,
+            u.dist_ly,
+            u.plx_mas as parallax_mas,
+            null::double as parallax_error_mas,
+            null::double as parallax_over_error,
+            null::double as ruwe,
+            null::integer as gaia_ucd_hmac_cluster_id,
+            null::varchar as gaia_ucd_banyan_cluster,
+            null::double as gaia_ucd_banyan_probability,
+            u.x_pc * {PC_TO_LY} as x_helio_ly,
+            u.y_pc * {PC_TO_LY} as y_helio_ly,
+            u.z_pc * {PC_TO_LY} as z_helio_ly,
+            null::double as x_gal_ly,
+            null::double as y_gal_ly,
+            null::double as z_gal_ly,
+            u.pm_ra_mas_yr,
+            u.pm_dec_mas_yr,
+            u.radial_velocity_kms,
+            u.spectral_type_raw,
+            u.spectral_class,
+            u.spectral_subtype,
+            u.luminosity_class,
+            null::varchar as spectral_peculiar,
+            null::double as vmag,
+            null::double as absmag,
+            null::double as color_index,
+            null::double as teff_k,
+            u.gaia_dr3_source_id as gaia_id,
+            null::bigint as hip_id,
+            null::bigint as hd_id,
+            null::varchar as wds_id,
+            case
+              when lower(coalesce(u.multiple_resolved_flag, '')) in ('true', 't', '1', 'yes', 'y')
+                then 'ultracoolsheet_inventory_resolved_multiple'
+              when lower(coalesce(u.multiple_unresolved_flag, '')) in ('true', 't', '1', 'yes', 'y')
+                then 'ultracoolsheet_inventory_unresolved_multiple'
+              else 'ultracoolsheet_inventory'
+            end as multiplicity_match_method,
+            0.82 as multiplicity_match_confidence,
+            '["ultracoolsheet"]' as multiplicity_source_catalogs_json,
+            false as gaia_non_single_star,
+            0::bigint as gaia_nss_solution_count,
+            '[]' as gaia_nss_solution_types_json,
+            null::double as gaia_nss_significance_max,
+            false as has_gaia_nss_evidence,
+            false as has_msc_evidence,
+            false as has_wds_evidence,
+            false as has_orb6_evidence,
+            null::varchar as sbx_sn,
+            null::bigint as sbx_orbit_count,
+            null::varchar as sbx_family,
+            null::double as sbx_position_epoch,
+            null::varchar as sbx_position_source,
+            json_object(
+              'gaia', u.gaia_dr3_source_id,
+              'gaia_dr2', u.gaia_dr2_source_id,
+              'ultracoolsheet_source_row_num', u.source_row_num,
+              'ultracoolsheet_name_simbadable', u.name_simbadable,
+              'ultracoolsheet_dist_source', u.dist_source,
+              'ultracoolsheet_ref_discovery', u.ref_discovery,
+              'ultracoolsheet_multiple_resolved', u.multiple_resolved_flag,
+              'ultracoolsheet_multiple_unresolved', u.multiple_unresolved_flag,
+              'ultracoolsheet_higher_mass_companion', u.has_higher_mass_companion_flag
+            ) as catalog_ids_json,
+            'ultracoolsheet' as source_catalog,
+            {sql_literal(ultracoolsheet_version)} as source_version,
+            coalesce(u.source_url, {sql_literal(ultracoolsheet_url)}) as source_url,
+            {sql_literal(ultracoolsheet_url)} as source_download_url,
+            null::varchar as source_doi,
+            950000000000 + u.source_row_num as source_pk,
+            950000000000 + u.source_row_num as source_row_id,
+            sha256(
+              coalesce(u.object_name, '') || '|' ||
+              coalesce(u.name_simbadable, '') || '|' ||
+              coalesce(round(u.ra_deg, 6)::varchar, '') || '|' ||
+              coalesce(round(u.dec_deg, 6)::varchar, '')
+            ) as source_row_hash,
+            'See UltracoolSheet source terms' as license,
+            true as redistribution_ok,
+            'UltracoolSheet public spreadsheet used as vetted nearby ultracool inventory support.' as license_note,
+            null::varchar as retrieval_etag,
+            {sql_literal(ultracoolsheet_sha)} as retrieval_checksum,
+            {sql_literal(ultracoolsheet_retrieved)} as retrieved_at,
+            {sql_literal(ingested_at)} as ingested_at,
+            {sql_literal(transform_version)} as transform_version
+          from nearby_ultracool_inventory_candidates u
         )
         select * from athyg_final
         union all
         select * from msc_only
+        union all
+        select * from ultracool_inventory_only
         """
     )
 
@@ -8464,6 +8811,59 @@ def main() -> int:
                 s.source_pk
               from stars s
               where nullif(trim(json_extract_string(s.catalog_ids_json, '$.gl')), '') is not null
+            ), ultracool_alias_bases as (
+              select
+                'star' as target_type,
+                s.star_id as target_id,
+                s.system_id,
+                s.star_id,
+                trim(json_extract_string(s.catalog_ids_json, '$.ultracoolsheet_name_simbadable')) as alias_raw,
+                s.source_catalog,
+                s.source_version,
+                s.source_pk
+              from stars s
+              where s.source_catalog = 'ultracoolsheet'
+                and nullif(trim(json_extract_string(s.catalog_ids_json, '$.ultracoolsheet_name_simbadable')), '') is not null
+              union all
+              select
+                'star' as target_type,
+                s.star_id as target_id,
+                s.system_id,
+                s.star_id,
+                trim(s.star_name) as alias_raw,
+                s.source_catalog,
+                s.source_version,
+                s.source_pk
+              from stars s
+              where s.source_catalog = 'ultracoolsheet'
+                and nullif(trim(s.star_name), '') is not null
+            ), ultracool_ids as (
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                alias_raw,
+                'ultracoolsheet_name' as alias_kind,
+                9 as alias_priority,
+                source_catalog,
+                source_version,
+                source_pk
+              from ultracool_alias_bases
+              union all
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                'WISE ' || regexp_extract(alias_raw, '(?i)^WISEA?\\s*J?([0-9]{4})', 1) as alias_raw,
+                'wise_short_id' as alias_kind,
+                8 as alias_priority,
+                source_catalog,
+                source_version,
+                source_pk
+              from ultracool_alias_bases
+              where regexp_extract(alias_raw, '(?i)^WISEA?\\s*J?([0-9]{4})', 1) <> ''
             ), expanded as (
               select
                 target_type,
@@ -8579,6 +8979,21 @@ def main() -> int:
               from gl_ids
               where nullif(gl_number, '') is not null
                 and nullif(gl_component, '') is not null
+
+              union all
+
+              select
+                target_type,
+                target_id,
+                system_id,
+                star_id,
+                alias_raw,
+                alias_kind,
+                alias_priority,
+                source_catalog,
+                source_version,
+                source_pk
+              from ultracool_ids
             )
             select *
             from expanded

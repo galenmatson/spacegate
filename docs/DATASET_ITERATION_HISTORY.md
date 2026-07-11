@@ -21,6 +21,9 @@ Use this as the historical ledger for:
 - Sol authority S1+S4: canonical Sol/subplanet bootstrap in core plus moon/minor-body/artificial hierarchy+orbit overlays in arm
 - Sol volatile-feed refresh runbook and staleness monitoring report
 - Post-enrichment source-object reconciliation for duplicate MSC component surrogates, preserving Gaia/source identity while rolling accepted companions such as Alpha Centauri/Proxima into one physical system.
+- Nearby UltracoolSheet inventory bridge: vetted ultracool objects within the
+  configured nearby cap can be promoted into core when the Gaia backbone misses
+  them, with `source_catalog = 'ultracoolsheet'` and report/verifier coverage.
 
 ## Catalog Attempt Ledger (v1.2 Closeout)
 
@@ -50,12 +53,10 @@ Use this as the historical ledger for:
 
 - Additional deterministic TESS-era eclipsing/variability bulk feeds beyond current TESS EB export.
 - Large survey overlays requiring separate performance/retention planning (for example CatWISE full integration).
-- Nearby ultracool completeness pass: the current Gaia-first backbone plus
-  ARM-only UltracoolSheet overlay preserves objects such as Luhman 16 and
-  WISE 0855-0714 in cooked/ARM support data, but does not promote unlinked
-  ultracool objects into the accepted core inventory. This is a real nearby
-  space blind spot and should be fixed before relying on the 10 pc census for
-  public completeness claims.
+- CatWISE/AllWISE infrared survey integration: still pending. The narrow
+  UltracoolSheet bridge closes the immediate nearby accepted-inventory blind
+  spot class, but it is not a replacement for a planned, volume-aware WISE
+  survey ingest/crossmatch pipeline.
 
 ## Iteration Timeline
 
@@ -320,6 +321,26 @@ Representative commits:
 Representative commits:
 - `9d3bb82` (use preserved source evidence for stellar simulations)
 - `504772a` (expand source evidence utilization audit)
+
+### 18) Nearby Ultracool Completeness Starter Bridge
+
+- Added a controlled core inventory bridge for nearby UltracoolSheet rows that
+  are absent from the Gaia backbone.
+- Default policy is limited to rows within 10 pc with usable coordinates and
+  distance/parallax. Existing Gaia backbone rows are not duplicated, and tight
+  non-Gaia positional/distance duplicates are rejected.
+- Promoted rows retain UltracoolSheet provenance, source URL/checksum metadata,
+  spectral hints, SIMBAD-friendly aliases, and multiplicity flags. The bridge
+  does not expand composite/resolved ultracool rows into invented component
+  hierarchies.
+- Added `nearby_ultracool_inventory_report.json` and
+  `scripts/verify_nearby_ultracool_inventory.py`.
+- This is intentionally a starter bridge for known nearby brown-dwarf omissions
+  such as Luhman 16 and WISE 0855-0714. CatWISE/AllWISE remains a separate
+  survey-scale integration.
+
+Representative commits:
+- pending (nearby ultracool inventory bridge working set)
 - pending (hierarchy luminosity derivation and browser verification refresh)
 
 ## Recurrent Defect Classes and Mitigations
