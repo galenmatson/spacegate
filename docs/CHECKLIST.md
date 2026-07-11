@@ -364,6 +364,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Attach planet orbit guides, planet trails, planet bodies, and host-star
   habitable zones to active `simulation_tree_v1` body positions when the host
   resolves to a tree node
+- [x] Align planetless host-star HZ guides to direct binary orbit planes when
+  available, and statically separate wide simulation-tree siblings without
+  source orbit solutions so Alpha Centauri AB/Proxima no longer stack at the
+  barycenter
 - [x] Normalize habitable-zone display scaling against rendered HZ bounds as
   well as planets, and make True Bodies planet radii use Earth-to-Sun scale
   relative to star meshes

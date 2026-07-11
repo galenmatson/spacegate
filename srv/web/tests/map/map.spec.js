@@ -2028,6 +2028,24 @@ test.describe("public 3D map beta", () => {
 
     await page.goto(`/systems/${alpha.system_id}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
+    const previewCanvas = page.locator(".system-preview-canvas canvas");
+    await expect(previewCanvas).toBeVisible();
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => canvas.dataset.simulationTreeActive || ""),
+      { timeout: 3000 }
+    ).toBe("true");
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.simulationTreeStaticSiblingLayoutCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(1);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(3);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneBinaryPlaneCount || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThanOrEqual(2);
     await expect(page.locator(".system-detail-v2")).toContainText(/Proxima/i);
   });
 

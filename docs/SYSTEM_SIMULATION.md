@@ -133,9 +133,12 @@ Already in place:
   habitability claims. When a host star has rendered planets, the band is
   aligned to the median rendered host-planet orbital inclination so compact
   transiting systems such as TRAPPIST-1 do not show the HZ at right angles to
-  the planet orbits. HZ display scaling is normalized against both planet
-  orbit radii and all rendered HZ outer bounds in the scene so planetless
-  multi-star systems do not inflate every HZ band to planet-orbit scale.
+  the planet orbits. When no hosted planet plane is available but the star has
+  a direct binary orbit inclination, the HZ guide uses that binary plane
+  instead; Alpha Centauri A/B is the benchmark. HZ display scaling is
+  normalized against both planet orbit radii and all rendered HZ outer bounds
+  in the scene so planetless multi-star systems do not inflate every HZ band
+  to planet-orbit scale.
 - optional formation/freeze-line rings can be toggled in the simulator for
   vaporization, soot, water snowline, carbon dioxide, methane/carbon monoxide,
   and nitrogen boundaries. These are renderer-only luminosity/temperature
@@ -209,6 +212,11 @@ Already in place:
   one Keplerian presentation transform and child nodes inherit that transform
   recursively, so inner binaries inherit outer subsystem motion without adding
   broad hierarchy-group offsets multiple times.
+- when a simulation-tree node has multiple children but no source-backed orbit
+  solution, the browser gives those child groups a small static, mass-weighted
+  presentation separation instead of stacking them at the barycenter. This is
+  a layout aid for wide companions such as Proxima in Alpha Centauri, not an
+  invented orbit or ARM orbital solution.
 - `render_scene_v0.2` may emit a single
   `relation_kind='visual_binary_fallback'` orbit for two rendered stars with no
   source orbit edge. This is a DISC presentation assumption for legibility

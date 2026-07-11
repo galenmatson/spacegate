@@ -1178,17 +1178,44 @@ function planetMatchesHostStar(planet, star, layout) {
   return Number.isFinite(hostStarId) && Number.isFinite(sourceStarId) && hostStarId === sourceStarId;
 }
 
-function applyHabitableZonePlaneAlignment(stars, planetPlacements, layout) {
+function directBinaryInclinationForStar(star, layout, binaryOrbits = []) {
+  const starKey = star?.render_key || star?.key;
+  if (!starKey) {
+    return null;
+  }
+  for (const orbit of binaryOrbits || []) {
+    if (orbit?.endpoint_kind === "group_pair") {
+      continue;
+    }
+    const primaryKey = layout.canonicalKeyByAlias.get(orbit.primary_body_key) || orbit.primary_body_key;
+    const secondaryKey = layout.canonicalKeyByAlias.get(orbit.secondary_body_key) || orbit.secondary_body_key;
+    if (primaryKey !== starKey && secondaryKey !== starKey) {
+      continue;
+    }
+    const inclination = numericField(orbit.fields, "inclination_deg");
+    if (Number.isFinite(inclination)) {
+      return inclination;
+    }
+  }
+  return null;
+}
+
+function applyHabitableZonePlaneAlignment(stars, planetPlacements, layout, binaryOrbits = []) {
   return stars.map((star) => {
     const hostPlanets = planetPlacements
       .map(({ planet }) => planet)
       .filter((planet) => planetMatchesHostStar(planet, star, layout));
     const medianInclinationDeg = medianNumber(hostPlanets.map((planet) => numericField(planet.fields, "inclination_deg")));
-    const planeInclinationDeg = Number.isFinite(Number(medianInclinationDeg)) ? Number(medianInclinationDeg) : 0;
+    const binaryInclinationDeg = directBinaryInclinationForStar(star, layout, binaryOrbits);
+    const planeInclinationDeg = Number.isFinite(Number(medianInclinationDeg))
+      ? Number(medianInclinationDeg)
+      : (Number.isFinite(Number(binaryInclinationDeg)) ? Number(binaryInclinationDeg) : 0);
     return {
       ...star,
       habitable_zone_plane_inclination_deg: planeInclinationDeg,
-      habitable_zone_plane_basis: hostPlanets.length ? "median_host_planet_render_inclination" : "default_scene_plane",
+      habitable_zone_plane_basis: hostPlanets.length
+        ? "median_host_planet_render_inclination"
+        : (Number.isFinite(Number(binaryInclinationDeg)) ? "direct_binary_orbit_inclination" : "default_scene_plane"),
     };
   });
 }
@@ -1558,6 +1585,10 @@ function keyAliasesForBody(body) {
 
 function addVector(a, b) {
   return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function subtractVector(a, b) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 }
 
 function scaledVector(a, scale) {
@@ -2347,6 +2378,65 @@ function treeOrbitSpec(node, nodesByKey, orbitsByKey, starsByKey, visualScale, s
   };
 }
 
+function staticTreeSiblingSeparation(visualScale, scaleMode, childCount) {
+  const normalizedMode = normalizeScaleMode(scaleMode);
+  const base = normalizedMode === "log"
+    ? 7.2
+    : normalizedMode === "true_orbits"
+    ? 8.4
+    : normalizedMode === "true_bodies"
+    ? 6.4
+    : 5.8;
+  return Math.max(3.2, base + Math.max(0, childCount - 2) * 0.65 + Number(visualScale?.hierarchy_spacing || 0) * 0.05);
+}
+
+function staticTreeChildOffsets(children, nodesByKey, starsByKey, visualScale, scaleMode) {
+  const offsets = new Map();
+  if (!children?.length) {
+    return offsets;
+  }
+  if (children.length === 1) {
+    offsets.set(children[0], [0, 0, 0]);
+    return offsets;
+  }
+  const childNodes = children.map((childKey) => nodesByKey.get(childKey)).filter(Boolean);
+  const masses = childNodes.map((node) => treeNodeMassRecord(node, nodesByKey, starsByKey));
+  const radius = staticTreeSiblingSeparation(visualScale, scaleMode, children.length);
+  if (children.length === 2) {
+    const fractions = barycentricMassFractions(masses[0], masses[1]);
+    const relative = [radius, 0, 0];
+    offsets.set(children[0], scaledVector(relative, -fractions.primary));
+    offsets.set(children[1], scaledVector(relative, fractions.secondary));
+    return offsets;
+  }
+  const massValues = masses.map((record) => Number(record?.mass)).filter((value) => Number.isFinite(value) && value > 0);
+  const totalMass = massValues.reduce((sum, value) => sum + value, 0);
+  let weightedCenter = [0, 0, 0];
+  children.forEach((childKey, index) => {
+    const angle = (index / children.length) * Math.PI * 2 + Math.PI / 8;
+    const childMass = Number(masses[index]?.mass);
+    const massWeight = Number.isFinite(childMass) && childMass > 0 && totalMass > 0 ? childMass / totalMass : 1 / children.length;
+    const distance = radius * (1.08 - Math.min(0.42, massWeight));
+    const offset = [Math.cos(angle) * distance, 0, Math.sin(angle) * distance];
+    offsets.set(childKey, offset);
+    weightedCenter = addVector(weightedCenter, scaledVector(offset, massWeight));
+  });
+  offsets.forEach((offset, childKey) => {
+    offsets.set(childKey, subtractVector(offset, weightedCenter));
+  });
+  return offsets;
+}
+
+function countStaticTreeSiblingLayouts(tree, nodesByKey, orbitsByKey) {
+  if (!tree?.nodes) {
+    return 0;
+  }
+  return [...nodesByKey.values()].filter((node) => {
+    const children = node?.children || [];
+    return children.length > 1 && !treeOrbitSpec(node, nodesByKey, orbitsByKey, new Map(), DEFAULT_VISUAL_SCALE, "structure");
+  }).length;
+}
+
 function computeSimulationTreeTransforms(tree, nodesByKey, orbitsByKey, starsByKey, visualScale, scaleMode, simDays) {
   const nodePositions = new Map();
   const bodyPositions = new Map();
@@ -2377,7 +2467,8 @@ function computeSimulationTreeTransforms(tree, nodesByKey, orbitsByKey, starsByK
       children.slice(2).forEach((childKey) => visit(childKey, position));
       return;
     }
-    children.forEach((childKey) => visit(childKey, position));
+    const staticOffsets = staticTreeChildOffsets(children, nodesByKey, starsByKey, visualScale, scaleMode);
+    children.forEach((childKey) => visit(childKey, addVector(position, staticOffsets.get(childKey) || [0, 0, 0])));
   };
 
   visit(rootKey, [0, 0, 0]);
@@ -2861,6 +2952,8 @@ function SceneMotionMetrics({
   trueOrbitMaxBodyToMinOrbitRatio = null,
   habitableZoneCount = 0,
   habitableZoneMaxPlaneInclinationDeg = 0,
+  habitableZoneBinaryPlaneCount = 0,
+  habitableZonePlanetPlaneCount = 0,
   starClassStatusCounts = {},
   scaleMode = "structure",
   collisionAdjustedStarCount = 0,
@@ -2869,6 +2962,7 @@ function SceneMotionMetrics({
   groupMotionSpecs = [],
   simulationTree = null,
   useSimulationTree = false,
+  simulationTreeStaticSiblingLayoutCount = 0,
   planetHostGroupCount = 0,
   treeHostedPlanetCount = 0,
   labelCount = 0,
@@ -2909,6 +3003,7 @@ function SceneMotionMetrics({
     gl.domElement.dataset.simulationTreeOrbitCount = String(simulationTreeDiagnostics.orbit_node_count || 0);
     gl.domElement.dataset.simulationTreeNestedOrbitCount = String(simulationTreeDiagnostics.nested_orbit_count || 0);
     gl.domElement.dataset.simulationTreeUnattachedOrbitCount = String(simulationTreeDiagnostics.unattached_orbit_count || 0);
+    gl.domElement.dataset.simulationTreeStaticSiblingLayoutCount = String(simulationTreeStaticSiblingLayoutCount || 0);
     gl.domElement.dataset.planetHostGroupCount = String(planetHostGroupCount || 0);
     gl.domElement.dataset.treeHostedPlanetCount = String(treeHostedPlanetCount || 0);
     gl.domElement.dataset.sceneLabelCount = String(labelCount || 0);
@@ -2937,6 +3032,8 @@ function SceneMotionMetrics({
       : "";
     gl.domElement.dataset.habitableZoneCount = String(habitableZoneCount || 0);
     gl.domElement.dataset.habitableZoneMaxPlaneInclinationDeg = Number.isFinite(Number(habitableZoneMaxPlaneInclinationDeg)) ? Number(habitableZoneMaxPlaneInclinationDeg).toFixed(3) : "";
+    gl.domElement.dataset.habitableZoneBinaryPlaneCount = String(habitableZoneBinaryPlaneCount || 0);
+    gl.domElement.dataset.habitableZonePlanetPlaneCount = String(habitableZonePlanetPlaneCount || 0);
     gl.domElement.dataset.inspectableSubsystemCount = String(subsystemMarkerCount || 0);
     gl.domElement.dataset.inspectableOrbitCount = String(inspectableOrbitCount);
     gl.domElement.dataset.inspectableTargetKinds = inspectableTargetKinds;
@@ -2961,6 +3058,8 @@ function SceneMotionMetrics({
     groupMotionSpecs,
     habitableZoneCount,
     habitableZoneMaxPlaneInclinationDeg,
+    habitableZoneBinaryPlaneCount,
+    habitableZonePlanetPlaneCount,
     labelCount,
     spectralLabelCount,
     massWeightedGroupMotionCount,
@@ -2989,6 +3088,7 @@ function SceneMotionMetrics({
     subsystemMarkerCount,
     simulationTree,
     simulationTreeDiagnostics,
+    simulationTreeStaticSiblingLayoutCount,
     useSimulationTree,
   ]);
 
@@ -3302,6 +3402,16 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
       }
       : null
   ), [useSimulationTree, simulationTree, renderOrbits, starsByKey, visualScale, activeScaleMode]);
+  const simulationTreeStaticSiblingLayoutCount = useMemo(() => {
+    if (!useSimulationTree || !simulationTreeContext) {
+      return 0;
+    }
+    return countStaticTreeSiblingLayouts(
+      simulationTree,
+      simulationTreeContext.nodesByKey,
+      simulationTreeContext.orbitsByKey,
+    );
+  }, [simulationTree, simulationTreeContext, useSimulationTree]);
   const looseStars = displayStars.filter((star) => !layout.orbitStarKeys.has(star.render_key || star.key));
   const starCenterByCoreId = new Map();
   const starKeyByCoreId = new Map();
@@ -3393,7 +3503,10 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
     displayStars.filter((star) => habitableZoneBoundsAu(star)),
     planetPlacements,
     layout,
+    binaryOrbits,
   );
+  const habitableZoneBinaryPlaneCount = habitableZoneStars.filter((star) => star.habitable_zone_plane_basis === "direct_binary_orbit_inclination").length;
+  const habitableZonePlanetPlaneCount = habitableZoneStars.filter((star) => star.habitable_zone_plane_basis === "median_host_planet_render_inclination").length;
   const habitableZoneMaxPlaneInclinationDeg = Math.max(
     0,
     ...habitableZoneStars.map((star) => Number(star.habitable_zone_plane_inclination_deg) || 0),
@@ -3436,6 +3549,8 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         trueOrbitMaxBodyToMinOrbitRatio={trueOrbitBodyDiagnostics.maxBodyToMinOrbitRatio}
         habitableZoneCount={showHabitableZones ? habitableZoneStars.length : 0}
         habitableZoneMaxPlaneInclinationDeg={showHabitableZones ? habitableZoneMaxPlaneInclinationDeg : 0}
+        habitableZoneBinaryPlaneCount={showHabitableZones ? habitableZoneBinaryPlaneCount : 0}
+        habitableZonePlanetPlaneCount={showHabitableZones ? habitableZonePlanetPlaneCount : 0}
         starClassStatusCounts={starClassStatusCounts}
         scaleMode={activeScaleMode}
         collisionAdjustedStarCount={collisionScale.adjustedCount}
@@ -3444,6 +3559,7 @@ function PreviewObjects({ stars, planets, subsystems = [], renderOrbits = [], si
         groupMotionSpecs={groupMotionSpecs}
         simulationTree={simulationTree}
         useSimulationTree={useSimulationTree}
+        simulationTreeStaticSiblingLayoutCount={simulationTreeStaticSiblingLayoutCount}
         planetHostGroupCount={planetHostGroupCount}
         treeHostedPlanetCount={treeHostedPlanetCount}
         labelCount={sceneLabelCount + spectralLabelCount}
