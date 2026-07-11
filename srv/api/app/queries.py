@@ -2120,34 +2120,52 @@ def _enrich_hierarchy_star_nodes(
                     continue
                 star_facts.setdefault(node_key, {}).update(params_by_star_id[star_id])
 
-    msc_lookup_by_node_key = {
-        key: key
-        for key in star_nodes
-        if key.startswith("comp:msc:")
-    }
+    msc_lookup_by_node_key: Dict[str, set[str]] = defaultdict(set)
+    for key, node in star_nodes.items():
+        if key.startswith("comp:msc:"):
+            msc_lookup_by_node_key[key].add(key)
+        canonical_key = _clean_name(node.get("canonical_key")) or key
+        for candidate_key in (key, canonical_key):
+            if candidate_key.startswith("canon:star:"):
+                msc_lookup_by_node_key[key].add(f"comp:star:{candidate_key}")
     for key in star_nodes:
         if key.startswith("canon:leaf:msc:"):
-            msc_lookup_by_node_key[key] = key.replace("canon:leaf:msc:", "comp:msc:wds:", 1)
-    msc_keys = sorted(set(msc_lookup_by_node_key.values()))
+            msc_lookup_by_node_key[key].add(key.replace("canon:leaf:msc:", "comp:msc:wds:", 1))
+    msc_keys = sorted({component_key for keys in msc_lookup_by_node_key.values() for component_key in keys})
     if msc_keys and arm_attached and _has_table(con, alias="arm_db", table_name="msc_component_details"):
-        placeholders = ",".join(["?"] * len(msc_keys))
+        detail_lookup_keys = sorted(
+            {
+                component_key
+                for component_key in msc_keys
+                if component_key.startswith("comp:star:")
+            }
+        )
+        placeholders = ",".join(["?"] * len(detail_lookup_keys))
         msc_rows = con.execute(
             f"""
             SELECT
               stable_component_key,
+              wds_id,
+              component_label,
               spectral_type_raw,
               vmag,
               sep_arcsec
             FROM arm_db.msc_component_details
             WHERE stable_component_key IN ({placeholders})
             """,
-            msc_keys,
-        ).fetchall()
+            detail_lookup_keys,
+        ).fetchall() if detail_lookup_keys else []
         node_keys_by_component_key: Dict[str, List[str]] = defaultdict(list)
-        for node_key, component_key in msc_lookup_by_node_key.items():
-            node_keys_by_component_key[component_key].append(node_key)
-        for stable_component_key, spectral_type_raw, vmag, sep_arcsec in msc_rows:
+        for node_key, component_keys in msc_lookup_by_node_key.items():
+            for component_key in component_keys:
+                node_keys_by_component_key[component_key].append(node_key)
+        for stable_component_key, wds_id, component_label, spectral_type_raw, vmag, sep_arcsec in msc_rows:
             component_key = str(stable_component_key)
+            source_component_key = None
+            clean_wds = _clean_name(wds_id)
+            clean_label = _clean_name(component_label).lower()
+            if clean_wds and clean_label:
+                source_component_key = f"comp:msc:wds:{clean_wds}:{clean_label}"
             for node_key in node_keys_by_component_key.get(component_key, []):
                 facts = star_facts.setdefault(node_key, {})
                 if not facts.get("spectral_type_raw"):
@@ -2158,6 +2176,9 @@ def _enrich_hierarchy_star_nodes(
                     facts["vmag"] = float(vmag)
                 if sep_arcsec is not None:
                     facts["sep_arcsec"] = float(sep_arcsec)
+                if source_component_key:
+                    msc_lookup_by_node_key[node_key].add(source_component_key)
+        msc_keys = sorted({component_key for keys in msc_lookup_by_node_key.values() for component_key in keys})
 
     if msc_keys and arm_attached and _has_table(con, alias="arm_db", table_name="msc_system_details"):
         placeholders = ",".join(["?"] * len(msc_keys))
@@ -2179,8 +2200,9 @@ def _enrich_hierarchy_star_nodes(
             msc_keys + msc_keys,
         ).fetchall()
         node_keys_by_component_key: Dict[str, List[str]] = defaultdict(list)
-        for node_key, component_key in msc_lookup_by_node_key.items():
-            node_keys_by_component_key[component_key].append(node_key)
+        for node_key, component_keys in msc_lookup_by_node_key.items():
+            for component_key in component_keys:
+                node_keys_by_component_key[component_key].append(node_key)
 
         for (
             primary_component_key,

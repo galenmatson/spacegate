@@ -1464,6 +1464,13 @@ def _component_key_for_hierarchy_star_node(node: Dict[str, Any]) -> str:
     return key
 
 
+def _is_technical_member_display_name(value: Any) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return True
+    return bool(re.match(r"^(Gaia DR\d+|Gaia|WDS|HIP|HD|TYC|HYG)\b", text, flags=re.I))
+
+
 def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not isinstance(node, dict):
         return []
@@ -2185,13 +2192,23 @@ def _render_scene_contract(
     def add_hierarchy_star(node: Dict[str, Any]) -> str:
         facts = node.get("quick_facts") if isinstance(node.get("quick_facts"), dict) else {}
         display_name = str(node.get("display_name") or node.get("stable_component_key") or "").strip()
-        display_key = display_name.lower()
-        if display_key and display_key in rendered_display_names:
-            return ""
         try:
             core_id = int(node.get("core_object_id"))
         except Exception:
             core_id = -1
+        if core_id >= 0:
+            core_star = core_star_by_id.get(core_id) or {}
+            preferred_display_name = str(core_star.get("display_name") or "").strip()
+            if preferred_display_name:
+                display_name = preferred_display_name
+        if _is_technical_member_display_name(display_name):
+            system_display_name = str(system.get("display_name") or system.get("system_name") or "").strip()
+            component_label = str(node.get("catalog_component_label") or node.get("member_role") or "").strip().upper()
+            if system_display_name and not _is_technical_member_display_name(system_display_name) and component_label:
+                display_name = f"{system_display_name} {component_label}"
+        display_key = display_name.lower()
+        if display_key and display_key in rendered_display_names:
+            return ""
         if core_id >= 0 and core_id in rendered_core_star_ids:
             return ""
         render_key = _component_key_for_hierarchy_star_node(node)
@@ -2334,6 +2351,7 @@ def _render_scene_contract(
                 "stable_component_key": node.get("stable_component_key"),
                 "canonical_key": node.get("canonical_key"),
                 "node_kind": node.get("node_kind"),
+                "star_id": core_id if core_id >= 0 else None,
             },
         }
         if core_id >= 0:
@@ -2357,6 +2375,12 @@ def _render_scene_contract(
             component = components_by_key.get(component_key)
             if component and str(component.get("component_type") or "") == "star":
                 add_component_star(component)
+
+    if not render_stars and hierarchy_star_nodes:
+        for node in hierarchy_star_nodes:
+            if len(render_stars) >= max(hierarchy_star_count, len(stars)):
+                break
+            add_hierarchy_star(node)
 
     if not render_stars:
         for star in stars:
@@ -2750,7 +2774,7 @@ def _render_scene_contract(
             {
                 "orbit_key": f"visual-fallback:binary:{seed[:12]}",
                 "orbit_edge_id": None,
-                "display_name": f"{primary_name} - {secondary_name} visual binary fallback",
+                "display_name": f"{primary_name} - {secondary_name}",
                 "relation_kind": "visual_binary_fallback",
                 "primary_body_key": primary_key,
                 "secondary_body_key": secondary_key,

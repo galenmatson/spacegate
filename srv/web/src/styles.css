@@ -188,7 +188,7 @@
 
 .map-star-search {
   position: absolute;
-  z-index: 24;
+  z-index: 54;
   top: var(--map-search-offset-top);
   left: 18px;
   right: 18px;
