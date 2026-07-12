@@ -2235,15 +2235,18 @@ function MapStarSearchShell({
       return { ...current, spectralClass: STAR_SEARCH_SPECTRAL_OPTIONS.filter((item) => active.has(item)).join(",") };
     });
   };
-  const resetFilters = () => setFilters({
-    distanceRange: [0, MAP_RADIUS_LY],
-    starRange: [0, filterExtents.maxStars],
-    planetRange: [0, filterExtents.maxPlanets],
-    coolnessRange: [0, filterExtents.maxCoolness],
-    temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
-    spectralClass: "",
-    habitableOnly: false,
-  });
+  const resetFilters = () => {
+    setQuery("");
+    setFilters({
+      distanceRange: [0, MAP_RADIUS_LY],
+      starRange: [0, filterExtents.maxStars],
+      planetRange: [0, filterExtents.maxPlanets],
+      coolnessRange: [0, filterExtents.maxCoolness],
+      temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
+      spectralClass: "",
+      habitableOnly: false,
+    });
+  };
   const activeSpectral = new Set(spectralTokens(filters.spectralClass));
   const hasQuery = Boolean(query.trim());
   const selectedSort = !hasQuery && sort === "match" ? "distance" : sort;
