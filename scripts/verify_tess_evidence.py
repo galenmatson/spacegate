@@ -137,7 +137,11 @@ def main() -> int:
         where oi.namespace='tic' and coalesce(sy.star_count,0) > 1
         """
     ).fetchone()[0])
-    if representative_counts["tess_eb_seeded"] == 0 or representative_counts["multiple_system"] == 0:
+    if (
+        representative_counts["tess_eb_seeded"] == 0
+        or representative_counts["high_proper_motion"] == 0
+        or representative_counts["multiple_system"] == 0
+    ):
         raise SystemExit(f"Representative TESS identity families missing: {representative_counts}")
 
     if args.source_delta_report:
@@ -171,12 +175,53 @@ def main() -> int:
             order by source_key limit 1
             """
         ).fetchone()
-        if not confirmed or not candidate:
-            raise SystemExit("Unable to select confirmed/candidate TOI API goldens")
+        negative = arm.execute(
+            """
+            select source_key, tic_id, star_id
+            from toi_current_evidence
+            where disposition in ('FP','FA') and star_id is not null
+              and host_resolution_status='accepted'
+            order by source_key limit 1
+            """
+        ).fetchone()
+        tess_eb = arm.execute(
+            """
+            select tic_id, star_id
+            from tess_target_identity
+            where resolution_status='accepted' and source_families like '%tess_eb%'
+            order by tic_id limit 1
+            """
+        ).fetchone()
+        high_pm_tic = core.execute(
+            """
+            select oi.id_value_raw, s.star_id
+            from object_identifiers oi
+            join stars s on s.star_id=oi.target_id
+            where oi.namespace='tic'
+              and sqrt(coalesce(s.pm_ra_mas_yr,0)^2 + coalesce(s.pm_dec_mas_yr,0)^2) >= 500
+            order by try_cast(oi.id_value_raw as bigint) limit 1
+            """
+        ).fetchone()
+        multiple_tic = core.execute(
+            """
+            select oi.id_value_raw, st.star_id
+            from object_identifiers oi
+            join stars st on st.star_id=oi.target_id
+            join systems sy on sy.system_id=st.system_id
+            where oi.namespace='tic' and coalesce(sy.star_count,0) > 1
+            order by try_cast(oi.id_value_raw as bigint) limit 1
+            """
+        ).fetchone()
+        if not all((confirmed, candidate, negative, tess_eb, high_pm_tic, multiple_tic)):
+            raise SystemExit("Unable to select the complete representative TESS API golden set")
         cases.extend([
             (f"TIC {confirmed[1]}", "star", None),
             (confirmed[0], "planet", int(confirmed[2])),
             (candidate[0], "star", None),
+            (negative[0], "star", None),
+            (f"TIC {tess_eb[0]}", "star", None),
+            (f"TIC {high_pm_tic[0]}", "star", None),
+            (f"TIC {multiple_tic[0]}", "star", None),
         ])
         endpoint = args.api_base_url.rstrip("/") + "/api/v1/systems/search"
         for query, expected_type, expected_planet_id in cases:
