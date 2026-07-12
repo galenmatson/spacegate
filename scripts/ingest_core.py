@@ -450,6 +450,35 @@ def load_accepted_supplements(config_path: Path) -> tuple[str | None, list[dict]
         if source_pk in seen_athyg:
             raise SystemExit(f"Duplicate accepted AT-HYG supplement source_pk={source_pk}")
         seen_athyg.add(source_pk)
+        identifiers: list[dict] = []
+        seen_identifiers: set[tuple[str, str]] = set()
+        for identifier_idx, identifier in enumerate(row.get("identifiers") or []):
+            if not isinstance(identifier, dict):
+                raise SystemExit(
+                    f"Invalid identifier #{identifier_idx + 1} for accepted AT-HYG supplement source_pk={source_pk}"
+                )
+            namespace = str(identifier.get("namespace") or "").strip().lower()
+            id_value = str(identifier.get("id_value") or "").strip()
+            reason = str(identifier.get("reason") or "").strip()
+            if not namespace or not namespace.replace("_", "").isalnum() or not id_value or not reason:
+                raise SystemExit(
+                    f"Accepted supplement identifier #{identifier_idx + 1} for source_pk={source_pk} "
+                    "requires a typed namespace, id_value, and reason"
+                )
+            key = (namespace, id_value.lower())
+            if key in seen_identifiers:
+                raise SystemExit(
+                    f"Duplicate accepted supplement identifier {namespace}:{id_value} for source_pk={source_pk}"
+                )
+            seen_identifiers.add(key)
+            identifiers.append(
+                {
+                    "namespace": namespace,
+                    "id_value": id_value,
+                    "reason": reason,
+                    "evidence": identifier.get("evidence") or {},
+                }
+            )
         athyg_rows.append(
             {
                 "source_pk": source_pk,
@@ -458,6 +487,7 @@ def load_accepted_supplements(config_path: Path) -> tuple[str | None, list[dict]
                 "component": str(row.get("component") or "").strip() or None,
                 "wds_id": str(row.get("wds_id") or "").strip() or None,
                 "reason": str(row.get("reason") or "").strip() or None,
+                "identifiers": identifiers,
             }
         )
 
@@ -4146,6 +4176,17 @@ def main() -> int:
         )
         """
     )
+    con.execute(
+        """
+        create or replace temp table accepted_supplement_identifiers(
+          source_pk bigint,
+          namespace varchar,
+          id_value varchar,
+          reason varchar,
+          evidence_json json
+        )
+        """
+    )
     if accepted_athyg_supplements:
         con.executemany(
             """
@@ -4164,6 +4205,22 @@ def main() -> int:
                 for row in accepted_athyg_supplements
             ],
         )
+        accepted_identifier_rows = [
+            (
+                row["source_pk"],
+                identifier["namespace"],
+                identifier["id_value"],
+                identifier["reason"],
+                json.dumps(identifier["evidence"], sort_keys=True, separators=(",", ":")),
+            )
+            for row in accepted_athyg_supplements
+            for identifier in row["identifiers"]
+        ]
+        if accepted_identifier_rows:
+            con.executemany(
+                "insert into accepted_supplement_identifiers values (?, ?, ?, ?, ?::json)",
+                accepted_identifier_rows,
+            )
     con.execute(
         """
         create or replace temp table accepted_component_links(
@@ -5571,6 +5628,22 @@ def main() -> int:
                 json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
               from stars s
               where s.wds_id is not null
+              union all
+              select
+                'star', s.star_id, i.namespace, i.id_value, false,
+                'reviewed_supplement_identifier', 0.99,
+                'accepted_supplement', {sql_literal(accepted_supplement_version)}, s.source_pk,
+                json_object(
+                  'accepted_supplement_reason', a.reason,
+                  'identifier_reason', i.reason,
+                  'identifier_evidence', i.evidence_json,
+                  'config_version', {sql_literal(accepted_supplement_version)}
+                )
+              from accepted_supplement_identifiers i
+              join accepted_athyg_supplements a using (source_pk)
+              join stars s
+                on s.source_catalog = 'athyg_accepted_supplement'
+               and s.source_pk = i.source_pk
             ), remap_seed as (
               select
                 'star' as target_type,

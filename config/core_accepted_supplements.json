@@ -4,7 +4,7 @@
     "Rows here must preserve source provenance and should be replaced by stronger catalog authority ingestion when available.",
     "Do not use this file for presentation assumptions or lore."
   ],
-  "version": "core_accepted_supplements_v2",
+  "version": "core_accepted_supplements_v3",
   "athyg_supplement_rows": [
     {
       "component": "A",
@@ -18,6 +18,20 @@
     {
       "component": null,
       "display_name": "L 134-80",
+      "identifiers": [
+        {
+          "evidence": {
+            "catalog_identifier_authority": "SIMBAD identifiers (accessed 2026-07-12)",
+            "catalog_identifier_url": "https://simbad.cds.unistra.fr/simbad/sim-id?Ident=L%20134-80",
+            "position_reference_bibcode": "2007A&A...474..653V",
+            "position_separation_arcsec": 0.5,
+            "proper_motion_max_component_delta_mas_yr": 0.9
+          },
+          "id_value": "150320610",
+          "namespace": "tic",
+          "reason": "reviewed_exact_public_identifier_with_consistent_position_and_proper_motion"
+        }
+      ],
       "reason": "nearby_toi_host_missing_from_gaia_parallax_backbone_with_published_ground_parallax",
       "source_catalog": "athyg",
       "source_pk": 527735,

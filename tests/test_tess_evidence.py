@@ -23,6 +23,7 @@ from fetch_tess_evidence import (  # noqa: E402
     update_disposition_history,
 )
 from ingest.emit_canonical_build import remap_object_identifiers  # noqa: E402
+from ingest_core import load_accepted_supplements  # noqa: E402
 from tess_evidence_materialization import materialize_arm, materialize_core  # noqa: E402
 
 
@@ -39,6 +40,47 @@ class TessEvidenceTest(unittest.TestCase):
         self.assertEqual(parse_tic_id("TIC 001234"), "1234")
         self.assertEqual(parse_tic_id(1234), "1234")
         self.assertIsNone(parse_tic_id(""))
+
+    def test_reviewed_supplement_identifiers_are_typed_and_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "supplements.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "version": "fixture_v1",
+                        "athyg_supplement_rows": [
+                            {
+                                "source_catalog": "athyg",
+                                "source_pk": 1,
+                                "reason": "fixture",
+                                "identifiers": [
+                                    {
+                                        "namespace": "tic",
+                                        "id_value": "42",
+                                        "reason": "reviewed_fixture",
+                                        "evidence": {"citation": "fixture"},
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            version, supplements, links = load_accepted_supplements(path)
+            self.assertEqual(version, "fixture_v1")
+            self.assertEqual(links, [])
+            self.assertEqual(
+                supplements[0]["identifiers"],
+                [
+                    {
+                        "namespace": "tic",
+                        "id_value": "42",
+                        "reason": "reviewed_fixture",
+                        "evidence": {"citation": "fixture"},
+                    }
+                ],
+            )
 
     def test_disposition_history_is_append_only_by_event(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -131,7 +173,7 @@ class TessEvidenceTest(unittest.TestCase):
                 con, cooked_dir=cooked, manifest_path=manifest_path,
                 report_path=root / "coverage.json", append_search_terms=True,
             )
-            self.assertEqual(report["counts"]["accepted"], 2)
+            self.assertEqual(report["counts"]["accepted"], 3)
             self.assertEqual(report["counts"]["ambiguous"], 1)
             self.assertEqual(report["counts"]["excluded"], 1)
             self.assertEqual(report["counts"]["missing"], 1)
@@ -139,6 +181,10 @@ class TessEvidenceTest(unittest.TestCase):
             self.assertEqual(con.execute("select count(*) from planets").fetchone()[0], before_planets)
             self.assertEqual(
                 con.execute("select count(*) from aliases where alias_norm='tic 1001'").fetchone()[0], 1
+            )
+            self.assertEqual(
+                con.execute("select count(*) from object_identifiers where namespace='tic' and id_value_norm='1006'").fetchone()[0],
+                1,
             )
             self.assertEqual(
                 con.execute("select count(*) from system_search_terms where term_norm='toi 1 01'").fetchone()[0], 1
@@ -176,6 +222,7 @@ class TessEvidenceTest(unittest.TestCase):
             {"tic_id": 1003, "source_families": "tess_eb"},
             {"tic_id": 1004, "source_families": "nasa_planet_host"},
             {"tic_id": 1005, "source_families": "operator_seed"},
+            {"tic_id": 1006, "source_families": "operator_seed"},
         ])
         tic_rows = []
         for tic_id, gaia_id, hip_id, disposition, distance in (
@@ -184,6 +231,7 @@ class TessEvidenceTest(unittest.TestCase):
             (1003, 2003, "", "SPLIT", 30),
             (1004, 2004, "", "", 400),
             (1005, "", 15, "", 40),
+            (1006, "", "", "", 60),
         ):
             row = {field: "" for field in TIC_COOKED_FIELDS}
             row.update(tic_id=tic_id, tic_version="fixture", gaia_dr2_id=gaia_id,
@@ -245,7 +293,8 @@ class TessEvidenceTest(unittest.TestCase):
               (1, 10, 3001, null, '{}', 11.001, 20, 1, 1),
               (2, 20, 3002, null, '{}', 11.002, 20, 1, 1),
               (3, 20, 3003, null, '{}', 11.0021, 20, 1, 1),
-              (5, 50, null, 15, '{}', 11.005, 20, 1, 1);
+              (5, 50, null, 15, '{}', 11.005, 20, 1, 1),
+              (6, 60, null, null, '{}', 99, 50, 1, 1);
             create table planets (planet_id bigint, system_id bigint, star_id bigint, orbital_period_days double);
             insert into planets values (100, 10, 1, 10.0001);
             create table object_identifiers (
@@ -254,6 +303,10 @@ class TessEvidenceTest(unittest.TestCase):
               resolution_method varchar, resolution_confidence double, source_catalog varchar,
               source_version varchar, source_pk bigint, evidence_json varchar
             );
+            insert into object_identifiers values
+              (1, 'star', 6, 'tic', '1006', '1006', false,
+               'reviewed_supplement_identifier', 0.99, 'accepted_supplement',
+               'fixture_v1', 6, '{}');
             create table identifier_quarantine (
               quarantine_id bigint, source_catalog varchar, source_version varchar,
               source_pk bigint, gaia_id bigint, hip_id bigint, hd_id bigint,
