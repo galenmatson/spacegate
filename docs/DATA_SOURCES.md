@@ -400,6 +400,9 @@ Artifacts:
 Policy:
 
 - never bulk ingest TIC, CTL, TCE, or TESS observation products
+- the targeted-universe manifest records the versioned operator seed plus the
+  NASA confirmed-host and TESS EB dependency paths/checksums and per-family
+  target counts, including zero-count families
 - never assume Gaia DR2 and DR3 source IDs are interchangeable
 - TIC artifact/split/duplicate rows remain excluded or quarantined
 - TOI candidates and negative dispositions remain ARM evidence

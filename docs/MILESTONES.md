@@ -466,16 +466,23 @@ Success criteria:
 
 Current status (July 12, 2026):
 
-- implementation checkpoint `ecc217f` is pushed on
-  `feature/tess-evidence-v1`; full acceptance build is in progress
+- T0-T3 implementation checkpoint `ae52e0f` is pushed on
+  `feature/tess-evidence-v1`; canonical build
+  `20260712T_tess_evidence_v3` passes full build and live API verification
 - pinned acquisition currently targets 27,930 TIC IDs and 8,064 TOIs without
   bulk TIC ingestion; an identical rerun produced zero TOI/TIC row deltas
 - deterministic TIC identity, quarantine, aliases/search terms, missing-object
   audit, TOI evidence/history, and leakage gates are implemented
+- final coverage is 10,418 accepted, 242 ambiguous/quarantined, 531 excluded,
+  16,739 missing, and zero source-missing TICs; 836 confirmed/known TOIs link
+  to canonical planets and the canonical planet count remains 6,311
 - the missing-real-object tail approved L 134-80 / TIC 150320610 / TOI-6725
   through the reviewed AT-HYG supplement path using published parallax support;
-  TOI-798 remains quarantined because its TIC/Gaia rows lack sufficient
+  TOI-798 remains unresolved because its TIC/Gaia rows lack sufficient
   parallax or distance provenance
+- canonical emission now remaps object identifiers, enforces unique entity IDs,
+  and retains valid IDs for unhosted planets; no targeted identifier points to
+  a missing canonical entity
 - T4 presentation and T5 observation-product indexing remain subsequent work
   and do not block the T0-T3 checkpoint
 

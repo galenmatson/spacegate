@@ -658,7 +658,7 @@ def main() -> int:
     target_ids = sorted(target_sources, key=int)
     target_family_counts = {
         family: sum(family in families for families in target_sources.values())
-        for family in sorted({family for families in target_sources.values() for family in families})
+        for family in ("nasa_toi", "nasa_planet_host", "tess_eb", "operator_seed")
     }
     target_path = raw_dir / "target_tic_ids.csv"
     write_csv(target_path, ["tic_id", "source_families"], [

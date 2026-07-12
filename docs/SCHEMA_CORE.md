@@ -456,6 +456,15 @@ Contract notes:
   exceptions, not presentation assumptions: they must be listed in
   `config/core_accepted_supplements.json`, carry source provenance, and remain
   visibly distinct from a broad AT-HYG supplement merge.
+- A reviewed supplement may declare typed `identifiers` containing
+  `namespace`, `id_value`, `reason`, and structured `evidence`. Ingest emits
+  these as non-canonical `object_identifiers` with
+  `resolution_method=reviewed_supplement_identifier`; canonical emission must
+  remap them with their target entity, deduplicate them deterministically, and
+  retain the evidence payload. Normal namespace collision gates still apply.
+- Reviewed supplemental identifiers are an explicit adjudication mechanism,
+  not permission to widen global positional matching tolerances or invent
+  aliases from candidate evidence.
 - Gaia-fallback display names may be promoted from matched exoplanet host labels when canonical/common stellar labels are absent.
 - host-label precedence in Gaia-fallback promotion should prefer:
   - human/common labels

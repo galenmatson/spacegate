@@ -232,26 +232,26 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### C5.6 Phase D.7 - TESS Identity and Evidence
 
-- [ ] Snapshot and cook the NASA Exoplanet Archive TOI table with manifest,
+- [x] Snapshot and cook the NASA Exoplanet Archive TOI table with manifest,
   dispositions, transit fields, and source-delta reporting
-- [ ] Build the targeted TIC-ID universe from TOI, NASA planet hosts, TESS EB,
+- [x] Build the targeted TIC-ID universe from TOI, NASA planet hosts, TESS EB,
   and reviewed operator/AAA requests without bulk-ingesting TIC
-- [ ] Reconcile TIC Gaia DR2 identifiers through Gaia DR3 `dr2_neighbourhood`,
+- [x] Reconcile TIC Gaia DR2 identifiers through Gaia DR3 `dr2_neighbourhood`,
   then alternate exact identifiers and conservative astrometric matching
-- [ ] Materialize accepted TIC/TOI identifiers into object identifiers,
+- [x] Materialize accepted TIC/TOI identifiers into object identifiers,
   aliases, and focus-aware system search terms
-- [ ] Emit the TESS missing-real-object audit and recover only reviewed,
+- [x] Emit the TESS missing-real-object audit and recover only reviewed,
   in-scope objects that pass duplicate, provenance, astrometry, and hierarchy
   gates
-- [ ] Materialize TOI candidates, dispositions, transit evidence, and history
+- [x] Materialize TOI candidates, dispositions, transit evidence, and history
   in ARM without creating unreviewed canonical planets
-- [ ] Add exact TIC/TOI API/search goldens and candidate/false-positive leakage
+- [x] Add exact TIC/TOI API/search goldens and candidate/false-positive leakage
   gates
 - [ ] Index targeted MAST observation products and external links without bulk
   light-curve, TCE, target-pixel, or FFI downloads
 - [ ] Add the minimal public/admin TESS evidence surface; defer full light-curve
   storytelling to its reviewed presentation contract
-- [ ] Keep the TESS side quest bounded according to `docs/TESS_INTEGRATION.md`
+- [x] Keep the TESS side quest bounded according to `docs/TESS_INTEGRATION.md`
   exit rules so it does not hold the Tiled Deep Map milestone
 
 ### C6. Phase E - AT-HYG Retirement

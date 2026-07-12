@@ -965,10 +965,11 @@ Notes:
 
 1. Complete the July 12 stable integration checkpoint on `master` after build,
    API, naming, multiplicity, and browser verification.
-2. Complete bounded TESS identity/evidence goals T0-T3 from
-   `docs/TESS_INTEGRATION.md`, with exact TIC/TOI lookup and a missing-object
-   audit; implementation checkpoint `ecc217f` is in full acceptance build and
-   still defers bulk mission products and full presentation.
+2. Review and reconcile the completed TESS identity/evidence T0-T3 branch
+   `feature/tess-evidence-v1`; canonical build
+   `20260712T_tess_evidence_v3` passes build, identity, leakage, determinism,
+   and live TIC/TOI search gates. Keep T4 presentation and T5 observation
+   indexing separate from this foundation checkpoint.
 3. Define the versioned tile manifest/API/cache contract and deliver a measured
    250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly.
 4. Build the Concept Tag Foundation so compact/normal/expanded tag priority and

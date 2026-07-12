@@ -52,7 +52,7 @@ NASA Exoplanet Archive TOI snapshot observed July 12, 2026:
 Counts are evaluation snapshots, not hard-coded acceptance expectations. Build
 reports must record current counts and deltas.
 
-Implementation checkpoint `ecc217f` (July 12, 2026):
+T0-T3 acceptance checkpoint `ae52e0f` (July 12, 2026):
 
 - default-on targeted acquisition from NASA, MAST, and Gaia with no bulk TIC
 - `27,930` unique target TIC IDs from TOI, NASA hosts, TESS EB, and reviewed
@@ -62,8 +62,16 @@ Implementation checkpoint `ecc217f` (July 12, 2026):
 - zero-change acquisition rerun verified for TOI and targeted TIC rows
 - deterministic core identifier/alias/search materialization and ARM identity,
   missing-object, current-TOI, and disposition-history tables implemented
-- full bootstrap/canonical acceptance build in progress; final accepted,
-  quarantine, missing, and planet-link counts belong in its build reports
+- canonical build `20260712T_tess_evidence_v3` passes repository build
+  verification and live TIC/TOI API goldens
+- final identity partition: 10,418 accepted, 242 ambiguous/quarantined, 531
+  excluded, 16,739 missing, and zero source-missing of 27,930 targets
+- 8,064 TOIs are retained in ARM; 836 confirmed/known rows link to existing
+  canonical planets, while 5,383 candidate and 1,346 negative-evidence rows do
+  not alter the 6,311 canonical planets
+- the T2 reviewed recovery yield is one object: L 134-80 / TIC 150320610 /
+  TOI-6725; its candidate remains ARM evidence and does not become a planet
+- T4 public presentation and T5 product indexing remain deferred
 
 ## Source Policy
 
