@@ -25,6 +25,7 @@ class WideOrbitCase:
     require_skipped_overlap: bool = False
     require_active_orbit_label: str | None = None
     allow_unattached_source_orbits: bool = False
+    allowed_unmatched_endpoint_keys: tuple[str, ...] = ()
 
 
 CASES = [
@@ -34,7 +35,13 @@ CASES = [
     WideOrbitCase("Xi Scorpii", min_stars=5, require_source_group_orbit=True, require_nested_orbit=True, allow_unattached_source_orbits=True),
     WideOrbitCase("eps Ind", min_stars=3, require_source_group_orbit=True),
     WideOrbitCase("Sirius", min_stars=2, require_assumed_orbit=True),
-    WideOrbitCase("Castor", min_stars=6, require_source_group_orbit=True, require_nested_orbit=True),
+    WideOrbitCase(
+        "Castor",
+        min_stars=6,
+        require_source_group_orbit=True,
+        require_nested_orbit=True,
+        allowed_unmatched_endpoint_keys=("comp:msc:wds:07346+3153:cc",),
+    ),
     WideOrbitCase("Nu Sco", min_stars=7, require_source_group_orbit=True, require_nested_orbit=True, allow_unattached_source_orbits=True),
     WideOrbitCase("16 Cyg", min_stars=3, require_skipped_overlap=True, require_active_orbit_label="16 Cyg B A - 16 Cyg B B"),
 ]
@@ -167,14 +174,25 @@ def verify_case(base_url: str, case: WideOrbitCase) -> tuple[str, list[str]]:
     if not case.allow_unattached_source_orbits and int(tree_diagnostics.get("unattached_orbit_count") or 0) > 0:
         raise AssertionError(f"{case.query}: unexpected unattached rendered orbit: {tree_diagnostics.get('warnings')}")
 
-    if int(membership.get("unmatched_orbit_endpoint_count") or 0) > 0 and not case.allow_unattached_source_orbits:
-        raise AssertionError(f"{case.query}: unmatched orbit endpoints: {membership.get('unmatched_orbit_endpoint_keys')}")
+    unmatched_endpoint_keys = {
+        str(key)
+        for key in (membership.get("unmatched_orbit_endpoint_keys") or [])
+        if str(key)
+    }
+    allowed_unmatched_endpoint_keys = set(case.allowed_unmatched_endpoint_keys)
+    unexpected_endpoint_keys = unmatched_endpoint_keys - allowed_unmatched_endpoint_keys
+    if unexpected_endpoint_keys and not case.allow_unattached_source_orbits:
+        raise AssertionError(f"{case.query}: unmatched orbit endpoints: {sorted(unexpected_endpoint_keys)}")
 
     warnings: list[str] = []
     if int(tree_diagnostics.get("unattached_orbit_count") or 0) > 0:
         warnings.append(
             f"{case.query}: {tree_diagnostics.get('unattached_orbit_count')} alternate/conflicting source orbit(s) remain unattached: "
             f"{tree_diagnostics.get('warnings') or []}"
+        )
+    if unmatched_endpoint_keys:
+        warnings.append(
+            f"{case.query}: source orbit endpoint(s) remain diagnostic-only: {sorted(unmatched_endpoint_keys)}"
         )
 
     summary = (

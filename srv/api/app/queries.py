@@ -485,6 +485,19 @@ def _candidate_display_style(candidate: str, row: Optional[Dict[str, Any]] = Non
     return alias_display_style({"alias_raw": candidate, "alias_kind": "canonical_name"}, candidate)
 
 
+def _looks_component_specific_root_name(candidate: str) -> bool:
+    parts = _clean_name(candidate).split()
+    if len(parts) < 2:
+        return False
+    first = re.sub(r"[^A-Za-z0-9]", "", parts[0]).lower()
+    greek = r"(?:alp|bet|gam|del|eps|zet|eta|the|iot|kap|lam|mu|nu|xi|omi|pi|rho|sig|tau|ups|phi|chi|psi|ome)"
+    if re.fullmatch(rf"{greek}\d+", first):
+        return True
+    if len(parts) >= 3 and re.fullmatch(greek, first) and re.fullmatch(r"[A-Za-z]{1,3}", parts[-1]):
+        return True
+    return False
+
+
 def _style_bucket_score(style: str, name_style: str, *, root_system: bool, member_proper_count: int) -> int:
     if name_style == NAME_STYLE_ASTRONOMER_ABBREV:
         order = {
@@ -563,6 +576,8 @@ def _style_candidate_key(
         root_system=root_system,
         member_proper_count=member_proper_count,
     )
+    if root_system and row is None and _looks_component_specific_root_name(candidate):
+        bucket += 5
     match_rank = 20
     candidate_match = _query_name_match_rank(candidate, preferred_query_norm)
     if candidate_match is not None and bucket <= 4:
@@ -1366,6 +1381,61 @@ def _fetch_matched_search_terms(
             "display_name_priority": int(term_priority or 999),
             "match_resolution": "exact" if int(match_rank or 0) == 0 else "prefix",
         }
+
+    missing_system_ids = [system_id for system_id in system_ids if system_id not in matched]
+    if missing_system_ids:
+        missing_placeholders = ",".join(["?"] * len(missing_system_ids))
+        star_rows = con.execute(
+            f"""
+            WITH candidates AS (
+              SELECT
+                system_id,
+                star_id,
+                stable_object_key,
+                star_name,
+                star_name_norm,
+                CASE WHEN star_name_norm = ? THEN 0 ELSE 1 END AS match_rank
+              FROM stars
+              WHERE system_id IN ({missing_placeholders})
+                AND (star_name_norm = ? OR star_name_norm LIKE ?)
+            ), ranked AS (
+              SELECT
+                *,
+                row_number() OVER (
+                  PARTITION BY system_id
+                  ORDER BY match_rank ASC, length(star_name) ASC, star_name ASC, star_id ASC
+                ) AS rn
+              FROM candidates
+            )
+            SELECT
+              system_id,
+              star_id,
+              stable_object_key,
+              star_name,
+              star_name_norm,
+              match_rank
+            FROM ranked
+            WHERE rn = 1
+            """,
+            [q_norm, *missing_system_ids, q_norm, f"{q_norm}%"],
+        ).fetchall()
+        for system_id, star_id, stable_object_key, star_name, star_name_norm, match_rank in star_rows:
+            sid = int(system_id)
+            matched[sid] = {
+                "matched_alias": star_name,
+                "matched_term_norm": star_name_norm,
+                "matched_term_kind": "member_star_name",
+                "matched_term_priority": 500,
+                "matched_is_primary": False,
+                "matched_target_type": "star",
+                "matched_target_id": int(star_id),
+                "matched_star_id": int(star_id),
+                "resolved_system_id": sid,
+                "focus_object_key": stable_object_key,
+                "display_name_source": "member_star_name",
+                "display_name_priority": 500,
+                "match_resolution": "exact" if int(match_rank or 0) == 0 else "prefix",
+            }
     return matched
 
 
@@ -3186,15 +3256,16 @@ def search_systems(
             not has_system_search_terms and has_aliases and not short_query_mode and not identifier_mode
         )
         fuzzy_alias_distance = 1 if len(q_norm) <= 5 else 2 if len(q_norm) <= 10 else 3
-        enable_fuzzy_match = (
-            len(q_norm) >= 4
-            and not _strict_exact_search_query(q_norm)
-            and not _has_fast_search_hit(
+        has_fast_search_hit = _has_fast_search_hit(
             con,
             q_norm=q_norm,
             has_system_search_terms=enable_search_terms,
             has_aliases=enable_alias_match,
-            )
+        )
+        enable_fuzzy_match = (
+            len(q_norm) >= 4
+            and not _strict_exact_search_query(q_norm)
+            and not has_fast_search_hit
         )
 
         exact_parts = ["s.stable_object_key = ?"]
@@ -3211,6 +3282,19 @@ def search_systems(
             )
             alias_cte_params.append(q_norm)
             exact_parts.append("s.system_id IN (SELECT system_id FROM search_term_match_exact)")
+            if not has_fast_search_hit:
+                alias_cte_parts.append(
+                    """
+                    member_star_match_exact AS (
+                        SELECT DISTINCT system_id
+                        FROM stars
+                        WHERE system_id IS NOT NULL
+                          AND star_name_norm = ?
+                    )
+                    """
+                )
+                alias_cte_params.append(q_norm)
+                exact_parts.append("s.system_id IN (SELECT system_id FROM member_star_match_exact)")
         else:
             exact_parts.insert(0, "s.system_name_norm = ?")
             exact_params.insert(0, q_norm)

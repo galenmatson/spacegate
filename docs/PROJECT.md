@@ -15,13 +15,16 @@ Primary product goals:
 3. Support advanced worldbuilding without contaminating canonical astronomy.
 
 ## Current Direction
-Spacegate is moving from an AT-HYG-centric bootstrap architecture to a Gaia-first core architecture.
+Spacegate now operates on a Gaia-first canonical core with deterministic
+canonical reduction, explicit ARM evidence/hierarchy/orbit support, a public
+100 ly 3D map, simulation-first system pages, and Star Search v2. AT-HYG is no
+longer a canonical inventory source; its remaining role is transitional alias
+and compatibility enrichment.
 
-Reason:
-
-- Gaia DR3 has substantially better astrometry and coverage.
-- AT-HYG was useful for early velocity and UX bootstrap, but should not remain the canonical inventory substrate if better crosswalks are available.
-- Continuing to treat AT-HYG as canonical risks long-term schema and ingest debt.
+The current main quest is to scale exploration beyond the 100 ly monolithic
+map through versioned spatial tiles and LOD loading. In parallel, the AI
+Astronomy Agency must advance through a secure, citation-backed, reviewed
+vertical slice before any broad autonomous ingestion or public narration.
 
 ## Core Principles
 
@@ -958,10 +961,18 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Enforce SLO gating in promotion for active core profile.
-2. Add Admin controls to verify, promote, and roll back available immutable
-   build directories with explicit safeguards.
-3. Re-run multiplicity comparison modes against Gaia-backed core IDs.
+1. Complete the July 12 stable integration checkpoint on `master` after build,
+   API, naming, multiplicity, and browser verification.
+2. Define the versioned tile manifest/API/cache contract and deliver a measured
+   250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly.
+3. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
+   concept slugs are stable before reviewed Agency narration is published.
+4. Implement one secure AAA evidence-portfolio vertical slice with source-text
+   isolation, typed claims, citations, human review, and explicit publication
+   state.
+5. Restore deterministic snapshot-manifest coverage in the next public sliced
+   build; the current local side build has live/no-WebGL behavior but no map
+   snapshot rows.
 
 ## Layered Restabilization Status (March 6, 2026)
 

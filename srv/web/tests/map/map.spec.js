@@ -2166,7 +2166,13 @@ test.describe("public 3D map beta", () => {
       expect(subsystem.fields?.hierarchy_basis?.layer).toBe("arm");
     }
     expect(orbits.filter((orbit) => orbit.endpoint_kind === "star_pair")).toHaveLength(2);
-    expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(2);
+    expect(orbits.filter((orbit) => orbit.endpoint_kind === "group_pair")).toHaveLength(4);
+    expect(scenePayload.render_scene?.simulation_tree?.diagnostics?.active_orbit_count).toBe(5);
+    expect(scenePayload.render_scene?.simulation_tree?.diagnostics?.skipped_orbits || []).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ orbit_key: "orbit:13216", reason: expect.stringContaining("overlap") }),
+      ])
+    );
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
@@ -2179,7 +2185,7 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.groupOrbitGuideCount || 0)),
       { timeout: 3000 }
-    ).toBe(2);
+    ).toBe(4);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.subsystemMarkerCount || 0)),
       { timeout: 3000 }
@@ -2195,11 +2201,11 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.inspectableOrbitCount || 0)),
       { timeout: 3000 }
-    ).toBe(4);
+    ).toBe(6);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.orbitTraceProvenanceCount || 0)),
       { timeout: 3000 }
-    ).toBe(4);
+    ).toBe(6);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.inspectableTargetKinds || ""),
       { timeout: 3000 }
@@ -2258,7 +2264,7 @@ test.describe("public 3D map beta", () => {
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList).toBeVisible();
     await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(8);
-    for (const name of ["V1054 Oph", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
+    for (const name of ["V1054 Oph A", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
       await expect(objectList.getByText(name, { exact: true })).toBeVisible();
     }
     await expect(objectList.getByText("V1054 Oph D", { exact: true })).toHaveCount(0);

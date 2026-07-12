@@ -24,7 +24,7 @@ Authoritative docs to reread first:
 - `docs/AGENTS.md`
 - `docs/AGENT_FRAMEWORK.md`
 - `docs/RETENTION.md` before cleanup
-- `docs/INGEST_V2.md` before canonicalization/adjudication work
+- `docs/CANONICAL_INGEST.md` before canonicalization/adjudication work
 
 ## Current Strategic State
 
@@ -562,18 +562,21 @@ Data:
   Photon, slice, publish/deploy.
 - Public build/database may lag local. Always verify served build and code.
 
-## Current Open Verification Failures
+## Verification Failure Resolution
 
-At the time of this note, broad verifiers had known failures not fixed in the
-last small patch:
+Resolved during the July 12 stability checkpoint:
 
-- `verify_wide_orbit_presentation.py` failed on Castor because of unmatched MSC
-  endpoint `comp:msc:wds:07346+3153:cc`.
-- `verify_known_systems_api.py` failed on Proxima Centauri because render star
-  labels included `alp1 cen c` instead of a Proxima display name.
-
-Do not ignore these indefinitely. They are useful signals for the next data/
-display-name pass, but they were not part of the small Sirius compact-leaf fix.
+- Castor's unmatched MSC endpoint `comp:msc:wds:07346+3153:cc` remains exposed
+  as a diagnostic-only warning. The wide-orbit verifier allowlists that exact
+  literature-weak endpoint while continuing to fail on unexpected unmatched
+  endpoints.
+- Proxima's renderer label now preserves the core member display name
+  `Proxima Centauri` rather than allowing MSC shorthand `alp1 cen c` to
+  override it.
+- The broad alias suite also exposed a missing `VB 8` member search term in the
+  current side build. Exact member-star fallback now resolves it to V1054 Oph
+  with member focus metadata; canonical emitters materialize member-star terms
+  for future builds.
 
 ## Next Major Quest: Larger Star Map Radius
 

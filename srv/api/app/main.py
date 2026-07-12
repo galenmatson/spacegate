@@ -1652,6 +1652,21 @@ def _is_technical_member_display_name(value: Any) -> bool:
     return bool(re.match(r"^(Gaia DR\d+|Gaia|WDS|HIP|HD|TYC|HYG)\b", text, flags=re.I))
 
 
+def _component_or_core_member_display_name(component_name: Any, core_name: Any) -> Any:
+    component_text = str(component_name or "").strip()
+    core_text = str(core_name or "").strip()
+    if not core_text or _is_technical_member_display_name(core_text):
+        return component_name or core_name
+    if not component_text:
+        return core_text
+
+    component_norm = re.sub(r"[^a-z0-9]+", " ", component_text.lower()).strip()
+    core_norm = re.sub(r"[^a-z0-9]+", " ", core_text.lower()).strip()
+    if component_norm == core_norm or component_norm.startswith(f"{core_norm} "):
+        return component_text
+    return core_text
+
+
 def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not isinstance(node, dict):
         return []
@@ -2219,7 +2234,10 @@ def _render_scene_contract(
                 render_stars[component_key]["render_key"] = component_key
                 render_stars[component_key]["source_component_key"] = component_key
                 if len(stars) != 1:
-                    render_stars[component_key]["display_name"] = component.get("display_name") or render_stars[core_key]["display_name"]
+                    render_stars[component_key]["display_name"] = _component_or_core_member_display_name(
+                        component.get("display_name"),
+                        render_stars[core_key]["display_name"],
+                    )
                 if core_key != component_key:
                     render_stars.pop(core_key, None)
                 if component.get("display_name"):
@@ -2234,8 +2252,9 @@ def _render_scene_contract(
                 render_stars[component_key] = dict(render_stars[core_key])
                 render_stars[component_key]["render_key"] = component_key
                 render_stars[component_key]["source_component_key"] = component_key
-                render_stars[component_key]["display_name"] = (
-                    component.get("display_name") or render_stars[core_key]["display_name"]
+                render_stars[component_key]["display_name"] = _component_or_core_member_display_name(
+                    component.get("display_name"),
+                    render_stars[core_key]["display_name"],
                 )
                 render_stars[component_key]["component"] = (
                     component.get("catalog_component_label") or render_stars[component_key].get("component")

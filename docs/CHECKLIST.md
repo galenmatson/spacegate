@@ -716,7 +716,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   changes: clone served core/parquet/disc artifacts, regenerate `arm.duckdb`
   from cooked catalogs, promote locally only after relaxed build verification
   and known-system/API checks pass
-- [ ] Enrich member-star alias/search-term coverage for complex systems such as
+- [x] Enrich member-star alias/search-term coverage for complex systems such as
   V1054 Oph so names like Gliese 643 and VB 8 resolve to the containing system
   without promoting member names to false system-level canonical names
 - [ ] Expand the Live-WebGL runtime manager with richer admin/dev telemetry,
@@ -777,6 +777,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   deterministic, with 70 Oph as a visible benchmark
 - [ ] Review the remaining MSC `orb.tsv` diagnostics that still do not resolve
   to ARM orbit edges after source-native endpoint normalization
+- [x] Classify Castor MSC endpoint `CC` as a visible, specifically allowlisted
+  non-blocking diagnostic while retaining strict failures for unexpected
+  unmatched wide-orbit endpoints
+- [x] Preserve `Proxima Centauri` as the rendered member display name instead of
+  allowing source component shorthand `alp1 Cen C` to override the core name
+- [x] Add exact member-star search fallback for served side builds missing
+  materialized member terms, with `VB 8` focus metadata and alias-authority
+  verification
 - [ ] Define WDS pair-observation utilization policy: preserve observation
   history, but decide when WDS component-pair rows should create ARM support
   pair entities, orbit/projection evidence, or diagnostics only
@@ -790,6 +798,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Explorer, and fallback policies; full local map suite passes on photon
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror
 - [ ] Sync refreshed MSC catalog mirror to `spacegates.org`
+- [ ] Restore deterministic snapshot-manifest coverage in the current public
+  side-sliced build; the July 12 local side build returns zero map snapshots
 - [x] Reconcile initial system-simulation orbital-source policy across NASA
   `ps`/`pscomppars`, Gaia NSS, WDS/ORB6, SBX, MSC, and JPL Horizons/SBDB
 - [x] Ingest alternate planet orbital solutions from NASA `ps` and preserve

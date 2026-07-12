@@ -122,7 +122,7 @@ Remaining hardening backlog:
   effectively root-equivalent and should eventually become a narrower deploy
   control path if practical
 
-### M1. Gaia Core Backbone Pilot (Current Critical Path)
+### M1. Gaia Core Backbone Pilot (Completed)
 
 Goal:
 
@@ -945,6 +945,14 @@ Completed:
 - Browser Playwright expectations were refreshed for public-full naming,
   cached/full preview policy, embedded Explorer object lists, and failed
   simulation-scene fallback behavior; the full map suite passes locally.
+- Castor's literature-weak MSC `CC` endpoint remains visible in membership
+  diagnostics but is an allowlisted non-blocking warning; unexpected unmatched
+  endpoints still fail the wide-orbit verifier.
+- Renderer member-name precedence preserves the core `Proxima Centauri` name
+  over source component shorthand such as `alp1 Cen C`.
+- Exact member-star runtime fallback preserves targets such as `VB 8` on older
+  side builds whose materialized `system_search_terms` omitted member rows;
+  canonical emitters continue to materialize those rows for new builds.
 
 Remaining:
 
@@ -1399,7 +1407,7 @@ Readiness gaps:
 - Agency-suggested orbital/physical parameters must remain proposals until
   reviewed and materialized through `arm`/`disc` gates
 
-### M8.4. Time and Rim-Ready Rendering
+### M8.5. Time and Rim-Ready Rendering
 
 Goal:
 
