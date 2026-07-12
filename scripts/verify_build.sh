@@ -304,6 +304,21 @@ if planet_duplicate_rows:
     examples = ", ".join(f"{key}({count})" for key, count in planet_duplicate_rows)
     raise SystemExit(f"Duplicate planet stable_object_key rows: {examples}")
 print("OK: planet stable keys unique")
+
+for table_name, id_column in (
+    ("systems", "system_id"),
+    ("stars", "star_id"),
+    ("planets", "planet_id"),
+):
+    row_count, distinct_count, null_count = con.execute(
+        f"select count(*), count(distinct {id_column}), count(*) filter (where {id_column} is null) from {table_name}"
+    ).fetchone()
+    if null_count or row_count != distinct_count:
+        raise SystemExit(
+            f"Canonical entity ID uniqueness failed: {table_name}.{id_column} "
+            f"rows={row_count} distinct={distinct_count} nulls={null_count}"
+        )
+print("OK: canonical entity IDs unique")
 PY
 
   "$PYTHON_BIN" - <<'PY' "$core_db"

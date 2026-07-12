@@ -291,31 +291,82 @@ def emit_canonical_build(
         con.execute(
             """
             create or replace temp table preview_system_map as
+            with ranked as (
+              select
+                rs.*,
+                row_number() over (
+                  partition by original_system_id order by canonical_system_key
+                ) as id_rank
+              from rep_systems rs
+              where rs.original_system_id is not null
+            ), numbered as (
+              select
+                *,
+                sum(case when id_rank > 1 then 1 else 0 end) over (
+                  order by canonical_system_key rows unbounded preceding
+                ) as overflow_id
+              from ranked
+            ), base as (
+              select coalesce(max(system_id), 0)::bigint as max_id from src_core.systems
+            )
             select
-              rs.canonical_system_key,
-              rs.original_system_id as system_id
-            from rep_systems rs
-            where rs.original_system_id is not null
+              canonical_system_key,
+              case when id_rank = 1 then original_system_id else base.max_id + overflow_id end as system_id
+            from numbered cross join base
             """
         )
         con.execute(
             """
             create or replace temp table preview_star_map as
+            with ranked as (
+              select
+                rs.*,
+                row_number() over (
+                  partition by original_star_id order by canonical_star_key
+                ) as id_rank
+              from rep_stars rs
+              where rs.original_star_id is not null
+            ), numbered as (
+              select
+                *,
+                sum(case when id_rank > 1 then 1 else 0 end) over (
+                  order by canonical_star_key rows unbounded preceding
+                ) as overflow_id
+              from ranked
+            ), base as (
+              select coalesce(max(star_id), 0)::bigint as max_id from src_core.stars
+            )
             select
-              rs.canonical_star_key,
-              rs.original_star_id as star_id
-            from rep_stars rs
-            where rs.original_star_id is not null
+              canonical_star_key,
+              case when id_rank = 1 then original_star_id else base.max_id + overflow_id end as star_id
+            from numbered cross join base
             """
         )
         con.execute(
             """
             create or replace temp table preview_planet_map as
+            with ranked as (
+              select
+                rp.*,
+                row_number() over (
+                  partition by original_planet_id order by canonical_planet_key
+                ) as id_rank
+              from rep_planets rp
+              where rp.original_planet_id is not null
+            ), numbered as (
+              select
+                *,
+                sum(case when id_rank > 1 then 1 else 0 end) over (
+                  order by canonical_planet_key rows unbounded preceding
+                ) as overflow_id
+              from ranked
+            ), base as (
+              select coalesce(max(planet_id), 0)::bigint as max_id from src_core.planets
+            )
             select
-              rp.canonical_planet_key,
-              rp.original_planet_id as planet_id
-            from rep_planets rp
-            where rp.original_planet_id is not null
+              canonical_planet_key,
+              case when id_rank = 1 then original_planet_id else base.max_id + overflow_id end as planet_id
+            from numbered cross join base
             """
         )
         con.execute(
@@ -357,6 +408,10 @@ def emit_canonical_build(
             join preview_system_map psm on psm.canonical_system_key = h.parent_node_key
             join preview_star_map pstm on pstm.canonical_star_key = h.child_node_key
             where h.edge_kind = 'contains'
+            qualify row_number() over (
+              partition by pstm.star_id
+              order by psm.system_id, h.parent_node_key
+            ) = 1
             """
         )
         con.execute(
