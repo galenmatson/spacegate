@@ -1659,9 +1659,24 @@ def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Di
     child_stars: List[Dict[str, Any]] = []
     for child in children:
         child_stars.extend(_iter_hierarchy_render_star_nodes(child))
-    component_type = str(node.get("component_type") or node.get("component_family") or "")
+    component_type = str(node.get("component_type") or "")
+    component_family = str(node.get("component_family") or "")
     node_kind = str(node.get("node_kind") or "")
-    is_star = component_type in {"star", "stellar_component"} or node_kind in {"star", "inferred_star_leaf"}
+    stellar_leaf_kinds = {
+        "star",
+        "stellar_component",
+        "brown_dwarf",
+        "white_dwarf",
+        "neutron_star",
+        "pulsar",
+        "magnetar",
+        "black_hole",
+    }
+    is_star = (
+        component_family == "star"
+        or component_type in stellar_leaf_kinds
+        or node_kind in {*stellar_leaf_kinds, "inferred_star_leaf"}
+    )
     if not is_star:
         return child_stars
     try:
