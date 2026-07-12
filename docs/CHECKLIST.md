@@ -37,6 +37,23 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Physical consistency gating on WDS bridge grouping
 - [x] Proximity grouping remains nondefault for conservative production builds
 
+### B1. Current Data and Identity Regression Inbox
+
+- [ ] Investigate and repair AR Cassiopeiae / AR Cas / HD 221253 as one
+  consistently searchable system with seven accepted stellar members; explain
+  every additional current member, keep the documented background component E
+  excluded, and add core, ARM hierarchy, API, browser-search, and simulation
+  count goldens so multiplicity cannot silently return to ten
+- [ ] Repair W Ursae Majoris / W UMa / HD 83950 identity and public naming so
+  all three names resolve to the same contact-binary system, with the variable-
+  star designation eligible for preferred public display and the matched
+  component/focus context preserved
+- [ ] Replace one-off common-name repairs with a reproducible alias-authority
+  pipeline: evaluate SIMBAD as the broad identifier graph, GCVS/VSX for
+  variable-star designations, and IAU WGSN for approved proper names; record
+  provenance, alias type and scope, deterministic display precedence,
+  collisions/quarantine, coverage deltas, and golden lookups before promotion
+
 ## C) Gaia-First Migration Program
 
 ### C1. Architecture and Contract
@@ -102,7 +119,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Materialize deterministic source-input physical derivations in `arm.derived_physical_parameters`
 - [x] Materialize `system_search_terms` and system-level browse/search facet columns for public-host performance
 - [x] Use generic `arm` hierarchy payloads in detail/search paths and descendant-aware star counts for multiplicity-heavy systems
-- [ ] Add common-name authority merge policy (precedence, dedupe, provenance, conflict handling)
+- [ ] Add common-name authority merge policy (SIMBAD identifier graph,
+  GCVS/VSX variable designations, IAU WGSN proper names; precedence, scope,
+  dedupe, provenance, and conflict handling)
 - [ ] Add benchmarked common-name fuzzy matching for bright/common objects (for example Aldebaran-class lookups) with alias-aware ranking
 - [x] Add alias-scope and preferred-display-name authority v2 so Gliese/GJ
   names, expanded Bayer names, common names, member aliases, and system aliases

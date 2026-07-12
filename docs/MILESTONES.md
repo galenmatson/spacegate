@@ -225,7 +225,10 @@ Deliverables:
 - deterministic Bayer expansion for search/display ergonomics, including
   Greek-letter plus constellation-genitive forms such as `Alpha Centauri`
 - common-name authority ingestion and merge policy:
-  - bright-star/common-name authority source with explicit provenance
+  - federated authority sources with explicit provenance: SIMBAD for the broad
+    identifier graph, GCVS/VSX for variable-star designations, and IAU WGSN for
+    approved proper names; no source is treated as a universal public-display
+    authority
   - deterministic precedence, dedupe, and conflict handling across proper/common names, Bayer/Flamsteed, and catalog IDs
   - fuzzy/common-name lookup acceptance set for benchmark objects (for example Aldebaran-class misses)
   - alias scope handling so member aliases, subsystem aliases, planet-host
@@ -325,6 +328,11 @@ Current status:
 - Full common-name authority ingestion and conflict policy remain future work;
   restored AT-HYG aliases are a transitional compatibility layer, not the final
   naming authority.
+- Current regression inbox includes AR Cassiopeiae / AR Cas / HD 221253
+  (reported as ten members instead of the canonical seven, plus failed name
+  resolution) and W Ursae Majoris / W UMa / HD 83950 (HD lookup succeeds while
+  the public variable-star name does not). These are acceptance cases for the
+  general multiplicity and alias-authority fixes, not one-off data patches.
 
 ### M5. AT-HYG Retirement
 
