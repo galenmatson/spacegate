@@ -73,6 +73,7 @@ Interpretation note:
 | BDB/ILB-like non-mirrored sources | deferred/disregarded for default ingest | off | n/a | high-risk dependency until mirrored + integrity-pinned |
 | SB9 | disregarded for default ingest/eval | off | n/a | superseded by SBX policy |
 | TESS EB catalog (Villanova) | default-on | on | `SPACEGATE_ENABLE_TESS_EB` | eclipsing/variability expansion beyond Kepler with deterministic paginated export capture |
+| NASA TESS Objects of Interest + targeted TIC/MAST metadata | planned (`arm` evidence + identity authority) | off | planned | exact TIC/TOI lookup, missing-object audit, candidate/transit evidence, and targeted observation-product discovery without bulk TIC ingestion; see `docs/TESS_INTEGRATION.md` |
 
 ### Exoplanet Lifecycle Notes
 
@@ -456,9 +457,11 @@ Policy:
 
 These are credible orbital-parameter repositories not yet wired into default ingest:
 
-1. Additional TESS follow-on mission catalogs (beyond current TESS EB search export)
-   - role candidate: post-Kepler variability and cadence expansion
-   - status: evaluate once deterministic bulk export + licensing path is pinned
+1. TESS rotation/time-series high-level products beyond TOI and current TESS EB
+   - role candidate: rotation, activity, flare, variability, and narration
+     evidence
+   - status: deferred until the bounded identity/candidate/product-index goals
+     in `docs/TESS_INTEGRATION.md` are complete
 
 SB9 policy:
 

@@ -419,6 +419,43 @@ Success criteria:
 - default product views match policy (`candidate` on, `controversial` off, `retracted` hidden)
 - habitability ranking query latency remains within core slice SLO targets
 
+### M5.6 TESS Identity, Candidate, and Observation Evidence v1
+
+Goal:
+
+- make TIC/TOI identity first-class and searchable, recover real in-scope TESS
+  targets missing from canonical inventory, and preserve TOI/transit evidence
+  without bulk-ingesting TIC or promoting unreviewed candidates.
+
+Plan:
+
+- `docs/TESS_INTEGRATION.md`
+
+Dependencies:
+
+- M4 identity and naming authority
+- M5.3 planet lifecycle contract
+- canonical quarantine and accepted-supplement paths
+
+Deliverables:
+
+- reproducible NASA TOI snapshot and targeted TIC retrieval
+- TIC -> Gaia DR2 -> Gaia DR3 and alternate-ID reconciliation with quarantine
+- exact `TIC`/`TOI` aliases and focus-aware search terms
+- missing-real-object audit and narrow reviewed inventory recovery
+- ARM TOI evidence/disposition history and candidate/negative-evidence policy
+- targeted MAST observation-product index and external links
+
+Success criteria:
+
+- every targeted TIC ID is accepted, missing, excluded, or quarantined with an
+  explicit reason
+- paper lookups containing only TIC/TOI identifiers reach accepted objects
+- confirmed TOIs do not duplicate planets; candidates and false positives do
+  not contaminate canonical/default planet counts
+- full TIC, CTL, TCE, and light-curve corpora remain outside default ingest
+- unresolved tails do not block the subsequent Tiled Deep Map milestone
+
 ### M5.7 Local Inference Adjudication Bench
 
 Goal:

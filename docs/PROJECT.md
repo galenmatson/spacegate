@@ -844,6 +844,8 @@ Operational status:
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
 - `docs/PUBLIC_DEPLOYMENT.md`: Photon-to-antiproton public deployment runbook
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
+- `docs/TESS_INTEGRATION.md`: bounded TIC/TOI identity, inventory recovery,
+  candidate evidence, and observation-product plan
 - `docs/SOL_AUTHORITY.md`: Sol-system authoritative ingest contract and release gates
 - `docs/SYSTEM_GRAPH_ARCHITECTURE.md`: cross-layer node/edge model, containment-vs-relation rules, and generator compatibility
 - `docs/DATASET_ITERATION_HISTORY.md`: dataset iteration timeline (changes, fixes, and mitigation history)
@@ -963,14 +965,17 @@ Notes:
 
 1. Complete the July 12 stable integration checkpoint on `master` after build,
    API, naming, multiplicity, and browser verification.
-2. Define the versioned tile manifest/API/cache contract and deliver a measured
+2. Complete bounded TESS identity/evidence goals T0-T3 from
+   `docs/TESS_INTEGRATION.md`, with exact TIC/TOI lookup and a missing-object
+   audit; defer bulk mission products and full presentation.
+3. Define the versioned tile manifest/API/cache contract and deliver a measured
    250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly.
-3. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
+4. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
    concept slugs are stable before reviewed Agency narration is published.
-4. Implement one secure AAA evidence-portfolio vertical slice with source-text
+5. Implement one secure AAA evidence-portfolio vertical slice with source-text
    isolation, typed claims, citations, human review, and explicit publication
    state.
-5. Restore deterministic snapshot-manifest coverage in the next public sliced
+6. Restore deterministic snapshot-manifest coverage in the next public sliced
    build; the current local side build has live/no-WebGL behavior but no map
    snapshot rows.
 
