@@ -105,6 +105,79 @@ def count_table(con: duckdb.DuckDBPyConnection, table_name: str) -> int:
     return int(con.execute(f"select count(*) from {table_name}").fetchone()[0])
 
 
+def remap_object_identifiers(con: duckdb.DuckDBPyConnection) -> None:
+    """Retarget source object identifiers after canonical entity reduction."""
+    for target_type, mapping_table, old_column, new_column in (
+        ("system", "original_system_to_preview", "original_system_id", "system_id"),
+        ("star", "original_star_to_preview", "original_star_id", "star_id"),
+        ("planet", "original_planet_to_preview", "original_planet_id", "planet_id"),
+    ):
+        con.execute(
+            f"""
+            update object_identifiers oi
+            set target_id = mapping.{new_column}
+            from {mapping_table} mapping
+            where oi.target_type = {sql_literal(target_type)}
+              and oi.target_id = mapping.{old_column}
+            """
+        )
+
+    con.execute(
+        """
+        delete from object_identifiers
+        where
+          (target_type = 'system' and target_id not in (select system_id from systems))
+          or (target_type = 'star' and target_id not in (select star_id from stars))
+          or (target_type = 'planet' and target_id not in (select planet_id from planets))
+          or target_type not in ('system', 'star', 'planet')
+        """
+    )
+    con.execute(
+        """
+        create or replace temp table object_identifier_dedup as
+        select
+          identifier_id,
+          row_number() over (
+            partition by target_type, target_id, namespace, id_value_norm
+            order by
+              coalesce(is_canonical, false) desc,
+              resolution_confidence desc nulls last,
+              coalesce(source_catalog, '') asc,
+              coalesce(source_pk, 0) asc,
+              identifier_id asc
+          ) as rn
+        from object_identifiers
+        """
+    )
+    con.execute(
+        """
+        delete from object_identifiers
+        where identifier_id in (
+          select identifier_id from object_identifier_dedup where rn > 1
+        )
+        """
+    )
+    con.execute(
+        """
+        create or replace temp table object_identifier_reseed as
+        select
+          row_number() over (
+            order by target_type, target_id, namespace, id_value_norm, identifier_id
+          )::bigint as new_identifier_id,
+          identifier_id
+        from object_identifiers
+        """
+    )
+    con.execute(
+        """
+        update object_identifiers oi
+        set identifier_id = reseed.new_identifier_id
+        from object_identifier_reseed reseed
+        where oi.identifier_id = reseed.identifier_id
+        """
+    )
+
+
 def table_fingerprint(con: duckdb.DuckDBPyConnection, table_name: str, key_column: str) -> dict[str, object]:
     row = con.execute(
         f"""
@@ -761,6 +834,8 @@ def emit_canonical_build(
                 where rn = 1
                 """
             )
+
+            remap_object_identifiers(con)
 
             con.execute(
                 """

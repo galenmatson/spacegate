@@ -22,6 +22,7 @@ from fetch_tess_evidence import (  # noqa: E402
     parse_tic_id,
     update_disposition_history,
 )
+from ingest.emit_canonical_build import remap_object_identifiers  # noqa: E402
 from tess_evidence_materialization import materialize_arm, materialize_core  # noqa: E402
 
 
@@ -55,6 +56,58 @@ class TessEvidenceTest(unittest.TestCase):
             self.assertEqual([row["disposition"] for row in rows], ["PC", "CP"])
             self.assertEqual(rows[0]["first_observed_at"], "2026-01-02T00:00:00Z")
             self.assertEqual(rows[0]["last_observed_at"], "2026-01-03T00:00:00Z")
+
+    def test_canonical_emission_remaps_and_deduplicates_object_identifiers(self) -> None:
+        con = duckdb.connect(":memory:")
+        con.execute(
+            """
+            create table systems (system_id bigint);
+            create table stars (star_id bigint);
+            create table planets (planet_id bigint);
+            insert into systems values (10);
+            insert into stars values (100);
+            insert into planets values (1000);
+            create temp table original_system_to_preview (original_system_id bigint, system_id bigint);
+            create temp table original_star_to_preview (original_star_id bigint, star_id bigint);
+            create temp table original_planet_to_preview (original_planet_id bigint, planet_id bigint);
+            insert into original_system_to_preview values (1, 10);
+            insert into original_star_to_preview values (2, 100), (3, 100);
+            insert into original_planet_to_preview values (4, 1000);
+            create table object_identifiers (
+              identifier_id bigint, target_type varchar, target_id bigint, namespace varchar,
+              id_value_raw varchar, id_value_norm varchar, is_canonical boolean,
+              resolution_method varchar, resolution_confidence double, source_catalog varchar,
+              source_version varchar, source_pk bigint, evidence_json varchar
+            );
+            insert into object_identifiers values
+              (1, 'system', 1, 'hip', '1', '1', true, 'fixture', 1.0, 'fixture', 'v1', 1, '{}'),
+              (2, 'star', 2, 'tic', '42', '42', false, 'weak', 0.8, 'z_source', 'v1', 2, '{}'),
+              (3, 'star', 3, 'tic', '42', '42', false, 'strong', 0.98, 'a_source', 'v1', 3, '{}'),
+              (4, 'planet', 4, 'toi', '1.01', '1.01', false, 'fixture', 1.0, 'fixture', 'v1', 4, '{}'),
+              (5, 'star', 999, 'tic', '99', '99', false, 'orphan', 1.0, 'fixture', 'v1', 5, '{}');
+            """
+        )
+        remap_object_identifiers(con)
+        self.assertEqual(
+            con.execute(
+                "select target_type, target_id, namespace, id_value_norm "
+                "from object_identifiers order by target_type"
+            ).fetchall(),
+            [
+                ("planet", 1000, "toi", "1.01"),
+                ("star", 100, "tic", "42"),
+                ("system", 10, "hip", "1"),
+            ],
+        )
+        self.assertEqual(
+            con.execute("select resolution_method from object_identifiers where namespace='tic'").fetchone()[0],
+            "strong",
+        )
+        self.assertEqual(
+            con.execute("select list(identifier_id order by identifier_id) from object_identifiers").fetchone()[0],
+            [1, 2, 3],
+        )
+        con.close()
 
     def test_core_and_arm_materialization_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
