@@ -580,7 +580,7 @@ def emit_canonical_build(
                 create table planets as
                 select
                   p.* replace (
-                    pps.planet_id as planet_id,
+                    ppm.planet_id as planet_id,
                     pps.system_id as system_id,
                     pps.star_id as star_id,
                     cpg.canonical_planet_key as stable_object_key,
