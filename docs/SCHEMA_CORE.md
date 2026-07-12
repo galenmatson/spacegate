@@ -424,7 +424,8 @@ Required columns:
   - `alias_norm` (normalized lookup key)
 - `alias_kind` (for example: `proper_name`, `bayer_name`,
   `bayer_expanded_name`, `flamsteed_name`, `hip_id`, `hd_id`, `hr_id`,
-  `wds_id`, `gl_id`, `gliese_id`, `gj_id`, `member_proper_name`)
+  `wds_id`, `gl_id`, `gliese_id`, `gj_id`, `tic_id`, `toi_id`,
+  `member_proper_name`)
   - `alias_priority` (lower = stronger)
   - `is_primary` (boolean)
 - source traceability:
@@ -551,7 +552,7 @@ Required columns:
   - `target_type` (currently `star`)
   - `target_id` (row id in target table)
 - identifier payload:
-  - `namespace` (`gaia_dr3`, `gaia_legacy`, `hip`, `hd`, `hr`, `gl`, `tyc`, `hyg`, `wds`, ...)
+  - `namespace` (`gaia_dr3`, `gaia_legacy`, `hip`, `hd`, `hr`, `gl`, `tyc`, `hyg`, `wds`, `tic`, ...)
   - `id_value_raw`
   - `id_value_norm`
   - `is_canonical`
@@ -567,6 +568,11 @@ Contract notes:
 
 - canonical IDs in this table must reflect `stars` canonical columns.
 - non-canonical IDs (for example legacy Gaia remaps) must preserve the original incoming identifier and resolution evidence.
+- accepted `tic` identifiers are non-canonical identity edges. They retain
+  targeted TIC provenance and the Gaia DR2-to-DR3 or alternate-catalog evidence
+  used to resolve the host star.
+- TIC split, duplicate, and artifact rows must never become accepted identifier
+  edges merely because they have positional or external-catalog candidates.
 - collisions are evaluated by namespace against distinct targets and enforced through QC gates.
 
 ## `identifier_quarantine`
@@ -590,6 +596,10 @@ Contract notes:
 
 - quarantined rows are excluded from automatic upsert/insert passes.
 - quarantine volume is bounded by QC gate thresholds and must fail build promotion when exceeded.
+- targeted TIC quarantine reasons include `tic_split`, `tic_duplicate`,
+  `tic_artifact`, `tic_duplicate_id`, and
+  `best_precedence_multiple_stars`; full competing-candidate evidence remains
+  in `details_json`.
 
 ## `source_object_reconciliation`
 

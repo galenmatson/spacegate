@@ -967,7 +967,8 @@ Notes:
    API, naming, multiplicity, and browser verification.
 2. Complete bounded TESS identity/evidence goals T0-T3 from
    `docs/TESS_INTEGRATION.md`, with exact TIC/TOI lookup and a missing-object
-   audit; defer bulk mission products and full presentation.
+   audit; implementation checkpoint `ecc217f` is in full acceptance build and
+   still defers bulk mission products and full presentation.
 3. Define the versioned tile manifest/API/cache contract and deliver a measured
    250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly.
 4. Build the Concept Tag Foundation so compact/normal/expanded tag priority and

@@ -873,6 +873,41 @@ Columns:
 - mirrored 1:1 from `core.planet_reclassification_audit`
 - includes transition type, impacted flags, and classifier version lineage
 
+## TESS Identity and Transit Evidence
+
+These tables are immutable per build and materialized only from the pinned,
+targeted TESS evidence snapshot. They do not expand canonical planet inventory.
+
+## `tess_target_identity`
+
+One row for every targeted TIC ID. It partitions every target into `accepted`,
+`missing`, `excluded`, `ambiguous`, or `source_missing`; preserves target-source
+families, TIC artifact flags, identifiers, Gaia candidates, match evidence, and
+provenance; and points accepted rows to the resolved core star and system.
+
+## `tess_missing_object_audit`
+
+The non-accepted identity subset, classified as TIC artifact/split/duplicate,
+ambiguous identity, source missing, outside distance scope, valid Gaia DR3
+excluded or absent, Gaia DR2-only/unmapped, or insufficient evidence. This is a
+review queue and cannot create core rows by itself.
+
+## `toi_current_evidence`
+
+Current NASA TOI evidence with TIC/TOI identifiers, disposition, resolved host,
+transit measurements and uncertainties, stellar context, source timestamps,
+and explicit match methods. `CP`/`KP` rows link to canonical planets only when
+host and orbital-period agreement are unique. `PC`/`APC` remain candidate
+evidence; `FP`/`FA` remain negative evidence. Neither class may affect default
+planet counts.
+
+## `toi_disposition_history`
+
+Append-only disposition events keyed by TOI, disposition, and effective source
+timestamp. Each event records first/last observation timestamps, source row
+hash, retrieval checksum, and transform lineage. A disposition change adds an
+event rather than rewriting prior history.
+
 ## Planned Agent-Assisted Adjudication Tables
 
 Agent-derived scientific proposals belong in `arm`, never directly in `core`.

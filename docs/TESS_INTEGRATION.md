@@ -52,6 +52,19 @@ NASA Exoplanet Archive TOI snapshot observed July 12, 2026:
 Counts are evaluation snapshots, not hard-coded acceptance expectations. Build
 reports must record current counts and deltas.
 
+Implementation checkpoint `ecc217f` (July 12, 2026):
+
+- default-on targeted acquisition from NASA, MAST, and Gaia with no bulk TIC
+- `27,930` unique target TIC IDs from TOI, NASA hosts, TESS EB, and reviewed
+  seed inputs
+- content-addressed raw snapshots plus request-hash sidecars and deterministic
+  cooked artifacts
+- zero-change acquisition rerun verified for TOI and targeted TIC rows
+- deterministic core identifier/alias/search materialization and ARM identity,
+  missing-object, current-TOI, and disposition-history tables implemented
+- full bootstrap/canonical acceptance build in progress; final accepted,
+  quarantine, missing, and planet-link counts belong in its build reports
+
 ## Source Policy
 
 Authoritative inputs:
@@ -61,7 +74,8 @@ Authoritative inputs:
   and follow-up context
 - MAST targeted TIC queries and TESS observation/product metadata
 - Gaia DR3 `dr2_neighbourhood` for TIC Gaia DR2 to Spacegate Gaia DR3 identity
-  reconciliation
+  reconciliation, targeted `gaia_source` rows for distance/scope evidence, and
+  targeted Hipparcos/Tycho-2/2MASS best-neighbor tables for the no-Gaia-DR2 tail
 - existing Villanova TESS EB snapshot for eclipsing-binary evidence
 
 Rules:
@@ -71,6 +85,8 @@ Rules:
 - preserve TIC `disposition` and `duplicate_id`; artifact/split/join rows cannot
   create canonical inventory without explicit reconciliation
 - exact identifiers outrank positional matching
+- multipart resume requires the exact saved query hash; filenames alone never
+  authorize cache reuse
 - ambiguous identity remains quarantined
 - TOI candidates and false positives do not become canonical planets
 - raw observation files remain external or in bounded/bulk caches; durable

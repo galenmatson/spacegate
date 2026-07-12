@@ -93,6 +93,9 @@ class TessEvidenceTest(unittest.TestCase):
             self.assertEqual(
                 con.execute("select count(*) from identifier_quarantine where reason='tic_split'").fetchone()[0], 1
             )
+            self.assertIsNone(
+                con.execute("select gaia_id from identifier_quarantine where reason='tic_split'").fetchone()[0]
+            )
             con.close()
 
             arm = duckdb.connect(str(arm_path))

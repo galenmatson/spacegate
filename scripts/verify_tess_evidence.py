@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 import duckdb
@@ -20,6 +22,7 @@ def main() -> int:
     parser.add_argument("--core-db", required=True)
     parser.add_argument("--arm-db", required=True)
     parser.add_argument("--source-delta-report", default=None)
+    parser.add_argument("--api-base-url", default=None)
     args = parser.parse_args()
 
     core = duckdb.connect(args.core_db, read_only=True)
@@ -147,6 +150,51 @@ def main() -> int:
             for key in ("added", "removed", "changed"):
                 if key not in family_delta:
                     raise SystemExit(f"TESS source delta missing delta.{family}.{key}")
+
+    if args.api_base_url:
+        cases = []
+        confirmed = arm.execute(
+            """
+            select source_key, tic_id, planet_id
+            from toi_current_evidence
+            where disposition in ('CP','KP') and planet_id is not null
+              and host_resolution_status='accepted'
+            order by source_key limit 1
+            """
+        ).fetchone()
+        candidate = arm.execute(
+            """
+            select source_key, tic_id, star_id
+            from toi_current_evidence
+            where disposition in ('PC','APC') and star_id is not null
+              and host_resolution_status='accepted'
+            order by source_key limit 1
+            """
+        ).fetchone()
+        if not confirmed or not candidate:
+            raise SystemExit("Unable to select confirmed/candidate TOI API goldens")
+        cases.extend([
+            (f"TIC {confirmed[1]}", "star", None),
+            (confirmed[0], "planet", int(confirmed[2])),
+            (candidate[0], "star", None),
+        ])
+        endpoint = args.api_base_url.rstrip("/") + "/api/v1/systems/search"
+        for query, expected_type, expected_planet_id in cases:
+            url = endpoint + "?" + urllib.parse.urlencode({"q": query, "sort": "match", "limit": 1})
+            with urllib.request.urlopen(url, timeout=30) as response:
+                payload = json.load(response)
+            items = payload.get("items") or []
+            if not items:
+                raise SystemExit(f"TESS API golden failed: {query!r} returned no rows")
+            hit = items[0]
+            if hit.get("matched_target_type") != expected_type:
+                raise SystemExit(
+                    f"TESS API golden failed: {query!r} expected {expected_type}, got {hit.get('matched_target_type')!r}"
+                )
+            if expected_planet_id is not None and int(hit.get("matched_planet_id") or 0) != expected_planet_id:
+                raise SystemExit(
+                    f"TESS API golden failed: {query!r} expected planet {expected_planet_id}, got {hit.get('matched_planet_id')!r}"
+                )
 
     print(
         "OK: TESS evidence gates "

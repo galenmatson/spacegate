@@ -1343,13 +1343,17 @@ Implementation notes:
   member/source planet host for Proxima b/d.
 - alias authority v2 search terms preserve the matched target context where
   present: a result may include `matched_alias`, `matched_target_type`,
-  `matched_target_id`, `matched_star_id`, `resolved_system_id`,
+  `matched_target_id`, `matched_star_id`, `matched_planet_id`, `resolved_system_id`,
   `focus_object_key`, `display_name_source`, `display_name_priority`, and
   `match_resolution`. These fields explain why a result matched; they do not
   require the public `display_name` to become the raw matched identifier.
 - name-style policy is separate from alias matching: for example `q=eps ind`
   may return `matched_alias: "Eps Ind"` while `display_name` remains
   `Epsilon Indi` under `public_full`.
+- Exact `TIC <id>` terms resolve the containing system with star focus. Exact
+  TOI terms use planet focus only when a confirmed/known TOI is uniquely linked
+  to a canonical planet; candidate TOIs focus the resolved host star and do not
+  create planet rows.
 - search result items include `display_name`, `display_name_style`,
   `display_name_source`, `display_aliases`, and `requested_name_style`.
   `display_name_style` is derived display/search metadata, not source identity.

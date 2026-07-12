@@ -434,10 +434,11 @@ def materialize_core(
         )
         select
           base.base_id + pending.rn, 'mast_tic', {sql_literal(tic_version)}, pending.tic_id,
-          pending.gaia_dr2_id, pending.hip_id, null::bigint,
+          null::bigint, pending.hip_id, null::bigint,
           pending.resolution_reason,
           json_object(
-            'tic_id', pending.tic_id, 'status', pending.resolution_status,
+            'tic_id', pending.tic_id, 'gaia_dr2_id', pending.gaia_dr2_id,
+            'status', pending.resolution_status,
             'tic_disposition', pending.tic_disposition, 'duplicate_id', pending.duplicate_id,
             'candidate_star_count', pending.candidate_star_count,
             'candidates', pending.candidates_json, 'source_row_hash', pending.source_row_hash

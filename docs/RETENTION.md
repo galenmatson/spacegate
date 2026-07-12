@@ -132,6 +132,23 @@ Spacegate state or generated databases:
 If `/mnt/space` content is lost, Spacegate should be able to identify missing
 attachments and re-fetch or mark dossiers stale from metadata.
 
+### TESS source snapshots
+
+Targeted TESS acquisition preserves raw inputs under
+`$SPACEGATE_STATE_DIR/raw/tess_evidence/snapshots/<snapshot_id>/`. Snapshot IDs
+are content-addressed across TOI, target-set, TIC, Gaia-neighborhood,
+external-crossmatch, and targeted Gaia DR3 payloads. Multipart requests include
+query-hash sidecars so interrupted-run resume cannot reuse a chunk for a
+different target set.
+
+- raw TESS snapshots are protected source evidence, not ordinary build
+  retention candidates
+- identical content reuses the same snapshot ID
+- do not prune a snapshot referenced by a retained build manifest or source-
+  delta history
+- any future cleanup begins with a reference-counted dry run; directory age is
+  not sufficient evidence for deletion
+
 ## Docker and Model Storage
 
 Docker data and model caches are intentionally outside the Spacegate build

@@ -464,6 +464,21 @@ Success criteria:
 - full TIC, CTL, TCE, and light-curve corpora remain outside default ingest
 - unresolved tails do not block the subsequent Tiled Deep Map milestone
 
+Current status (July 12, 2026):
+
+- implementation checkpoint `ecc217f` is pushed on
+  `feature/tess-evidence-v1`; full acceptance build is in progress
+- pinned acquisition currently targets 27,930 TIC IDs and 8,064 TOIs without
+  bulk TIC ingestion; an identical rerun produced zero TOI/TIC row deltas
+- deterministic TIC identity, quarantine, aliases/search terms, missing-object
+  audit, TOI evidence/history, and leakage gates are implemented
+- the missing-real-object tail approved L 134-80 / TIC 150320610 / TOI-6725
+  through the reviewed AT-HYG supplement path using published parallax support;
+  TOI-798 remains quarantined because its TIC/Gaia rows lack sufficient
+  parallax or distance provenance
+- T4 presentation and T5 observation-product indexing remain subsequent work
+  and do not block the T0-T3 checkpoint
+
 ### M5.7 Local Inference Adjudication Bench
 
 Goal:

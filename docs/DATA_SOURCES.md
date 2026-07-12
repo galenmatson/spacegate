@@ -73,7 +73,7 @@ Interpretation note:
 | BDB/ILB-like non-mirrored sources | deferred/disregarded for default ingest | off | n/a | high-risk dependency until mirrored + integrity-pinned |
 | SB9 | disregarded for default ingest/eval | off | n/a | superseded by SBX policy |
 | TESS EB catalog (Villanova) | default-on | on | `SPACEGATE_ENABLE_TESS_EB` | eclipsing/variability expansion beyond Kepler with deterministic paginated export capture |
-| NASA TESS Objects of Interest + targeted TIC/MAST metadata | planned (`arm` evidence + identity authority) | off | planned | exact TIC/TOI lookup, missing-object audit, candidate/transit evidence, and targeted observation-product discovery without bulk TIC ingestion; see `docs/TESS_INTEGRATION.md` |
+| NASA TESS Objects of Interest + targeted TIC/MAST/Gaia metadata | default-on identity + `arm` evidence | on | `SPACEGATE_ENABLE_TESS_EVIDENCE` | exact TIC/TOI lookup, missing-object audit, candidate/transit evidence, and targeted Gaia reconciliation without bulk TIC ingestion; see `docs/TESS_INTEGRATION.md` |
 
 ### Exoplanet Lifecycle Notes
 
@@ -373,7 +373,40 @@ Core bridge diagnostics:
 - `reports/<build_id>/nearby_ultracool_inventory_report.json`
 - `scripts/verify_nearby_ultracool_inventory.py --build-dir <out/build_id>`
 
-## 12) WISE / CatWISE2020 / AllWISE
+## 12) TESS Identity and TOI Evidence
+
+Classification: `core identity authority` plus `arm evidence`
+
+Default toggle: `SPACEGATE_ENABLE_TESS_EVIDENCE=1`
+
+Authoritative inputs:
+
+- NASA Exoplanet Archive `toi` TAP table
+- targeted MAST TIC rows for TOI hosts, NASA planet hosts, TESS EB targets, and
+  reviewed operator/AAA seeds
+- Gaia DR3 `dr2_neighbourhood`, targeted `gaia_source` rows, and targeted
+  Hipparcos/Tycho-2/2MASS best-neighbor crossmatches
+
+Artifacts:
+
+- content-addressed raw snapshots under
+  `$SPACEGATE_STATE_DIR/raw/tess_evidence/snapshots/<snapshot_id>/`
+- normalized inputs and append-only disposition history under
+  `$SPACEGATE_STATE_DIR/cooked/tess_evidence/`
+- `reports/manifests/tess_evidence_manifest.json`
+- `reports/tess_source_delta_report.json`
+- per-build identity coverage, resolution, and missing-object reports
+
+Policy:
+
+- never bulk ingest TIC, CTL, TCE, or TESS observation products
+- never assume Gaia DR2 and DR3 source IDs are interchangeable
+- TIC artifact/split/duplicate rows remain excluded or quarantined
+- TOI candidates and negative dispositions remain ARM evidence
+- only reviewed, independently supported missing real objects may enter the
+  accepted supplement path
+
+## 13) WISE / CatWISE2020 / AllWISE
 
 Classification: `auxiliary`
 
@@ -427,7 +460,7 @@ Scripts:
 
 ## Transitional Sources
 
-## 13) AT-HYG
+## 14) AT-HYG
 
 Classification: `transitional`
 
@@ -482,6 +515,7 @@ Typical manifest files:
 - `reports/manifests/debcat_manifest.json`
 - `reports/manifests/kepler_eb_manifest.json`
 - `reports/manifests/tess_eb_manifest.json`
+- `reports/manifests/tess_evidence_manifest.json`
 - `reports/manifests/msc_manifest.json` (required)
 - `reports/manifests/wds_gaia_xmatch_manifest.json` (when enabled)
 - `reports/manifests/atnf_manifest.json`
