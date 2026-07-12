@@ -656,6 +656,10 @@ def main() -> int:
         tess_eb_path=tess_eb_path, seed_path=seed_path,
     )
     target_ids = sorted(target_sources, key=int)
+    target_family_counts = {
+        family: sum(family in families for families in target_sources.values())
+        for family in sorted({family for families in target_sources.values() for family in families})
+    }
     target_path = raw_dir / "target_tic_ids.csv"
     write_csv(target_path, ["tic_id", "source_families"], [
         {"tic_id": tic_id, "source_families": "|".join(sorted(target_sources[tic_id]))}
@@ -738,7 +742,16 @@ def main() -> int:
                               "snapshot_id": snapshot_id}),
         manifest_entry("tess_target_set", seed_version, str(seed_path), snapshot_dir / "target_tic_ids.csv",
                        retrieved_at=retrieved_at, row_count=len(target_ids),
-                       extra={"seed_config_sha256": sha256_file(seed_path), "snapshot_id": snapshot_id}),
+                       extra={
+                           "seed_config_path": str(seed_path),
+                           "seed_config_sha256": sha256_file(seed_path),
+                           "nasa_confirmed_planets_path": str(nasa_planets_path),
+                           "nasa_confirmed_planets_sha256": sha256_file(nasa_planets_path),
+                           "tess_eb_path": str(tess_eb_path),
+                           "tess_eb_sha256": sha256_file(tess_eb_path),
+                           "target_family_counts": target_family_counts,
+                           "snapshot_id": snapshot_id,
+                       }),
         manifest_entry("mast_tic_targeted", "tic_v8_targeted", MAST_INVOKE_URL, snapshot_dir / "tic_chunks",
                        retrieved_at=retrieved_at, row_count=len(tic_rows), bytes_written=tic_bytes, sha256=tic_hash,
                        extra={"target_id_count": len(target_ids), "chunk_count": len(tic_paths),
