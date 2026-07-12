@@ -10748,6 +10748,20 @@ def main() -> int:
             report_path=reports_dir / "tess_identity_coverage_report.json",
             append_search_terms=False,
         )
+        object_identifier_count = int(
+            con.execute("select count(*) from object_identifiers").fetchone()[0]
+        )
+        identifier_quarantine_count = int(
+            con.execute("select count(*) from identifier_quarantine").fetchone()[0]
+        )
+        alias_total_count = int(con.execute("select count(*) from aliases").fetchone()[0])
+        alias_system_count = int(
+            con.execute("select count(*) from aliases where target_type = 'system'").fetchone()[0]
+        )
+        alias_star_count = int(
+            con.execute("select count(*) from aliases where target_type = 'star'").fetchone()[0]
+        )
+        stage_totals["aliases"] = alias_total_count
         stage_totals["tess_identifiers"] = int(
             tess_identity_report.get("counts", {}).get("accepted", 0)
         )
@@ -13156,10 +13170,10 @@ def main() -> int:
             "QC failed: white dwarf classification invariant violations detected. "
             f"See {reports_dir / 'classification_safety_report.json'}"
         )
-    if identifier_quarantine_count > athyg_merge_ambiguous_limit:
+    if athyg_merge_quarantine_count > athyg_merge_ambiguous_limit:
         raise SystemExit(
-            "QC failed: identifier ambiguity gate exceeded. "
-            f"quarantined={identifier_quarantine_count} limit={athyg_merge_ambiguous_limit}. "
+            "QC failed: AT-HYG identifier ambiguity gate exceeded. "
+            f"quarantined={athyg_merge_quarantine_count} limit={athyg_merge_ambiguous_limit}. "
             f"See {reports_dir / 'identifier_report.json'}"
         )
     if identifier_gaia_collision_count > athyg_merge_gaia_collision_max:
