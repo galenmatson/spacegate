@@ -11,6 +11,8 @@ from typing import Any
 
 import duckdb
 
+from tess_evidence_materialization import materialize_arm as materialize_tess_arm
+
 MSC_VERSION_FALLBACK = "2026-06-19"
 WDS_VERSION_FALLBACK = "wdsweb_summ2"
 ORB6_VERSION_FALLBACK = "orb6orbits"
@@ -116,6 +118,7 @@ def main() -> int:
         state_dir / "cooked" / "nasa_exoplanet_archive" / "pscomppars_clean.csv"
     )
     cooked_nasa_ps = state_dir / "cooked" / "nasa_exoplanet_archive" / "ps_clean.csv"
+    cooked_tess_evidence = state_dir / "cooked" / "tess_evidence"
     manifest_dir = state_dir / "reports" / "manifests"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -128,10 +131,12 @@ def main() -> int:
     gaia_classprob_manifest_path = manifest_dir / "gaia_classprob_manifest.json"
     gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
     core_manifest_path = manifest_dir / "core_manifest.json"
+    tess_evidence_manifest_path = manifest_dir / "tess_evidence_manifest.json"
     enable_vsx = parse_bool_env("SPACEGATE_ENABLE_VSX", True)
     enable_ultracoolsheet = parse_bool_env("SPACEGATE_ENABLE_ULTRACOOLSHEET", True)
     enable_sol_authority = parse_bool_env("SPACEGATE_ENABLE_SOL_AUTHORITY", True)
     enable_sol_artificial = parse_bool_env("SPACEGATE_ENABLE_SOL_ARTIFICIAL", True)
+    enable_tess_evidence = parse_bool_env("SPACEGATE_ENABLE_TESS_EVIDENCE", True)
 
     if not core_db.exists():
         raise SystemExit(f"Core DB not found: {core_db}")
@@ -905,6 +910,18 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: lifecycle audit copy ({time.monotonic() - stage_started:.1f}s)")
+
+    tess_counts: dict[str, int] = {}
+    if enable_tess_evidence:
+        stage_started = time.monotonic()
+        log("Arm stage: materializing targeted TIC identity and TOI evidence")
+        tess_counts = materialize_tess_arm(
+            con,
+            cooked_dir=cooked_tess_evidence,
+            manifest_path=tess_evidence_manifest_path,
+            ingested_at=args.ingested_at,
+        )
+        log(f"Arm stage complete: TESS evidence ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
     log("Arm stage: creating stellar_parameters")
@@ -6160,6 +6177,7 @@ def main() -> int:
             "planet_catalog_observations_rows": lifecycle_observation_count,
             "planet_status_history_rows": lifecycle_status_history_count,
             "planet_reclassification_audit_rows": lifecycle_reclass_count,
+            **tess_counts,
             "msc_inferred_system_roots": inferred_root_count,
             "msc_inferred_leaf_components": inferred_leaf_count,
             "msc_source_leaf_components": source_leaf_count,

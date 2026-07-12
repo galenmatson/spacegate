@@ -14,6 +14,8 @@ from pathlib import Path
 
 import duckdb
 
+from tess_evidence_materialization import materialize_core as materialize_tess_core
+
 PC_TO_LY = 3.26156
 GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT = 3.26156
 BITS_PER_AXIS = 21
@@ -821,6 +823,7 @@ def main() -> int:
     enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
     enable_kepler_eb = parse_bool_env("SPACEGATE_ENABLE_KEPLER_EB", False)
     enable_tess_eb = parse_bool_env("SPACEGATE_ENABLE_TESS_EB", True)
+    enable_tess_evidence = parse_bool_env("SPACEGATE_ENABLE_TESS_EVIDENCE", True)
     enable_exoplanet_lifecycle_catalogs = parse_bool_env(
         "SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS", False
     )
@@ -985,6 +988,7 @@ def main() -> int:
     cooked_debcat = state_dir / "cooked" / "debcat" / "debcat_binaries.csv"
     cooked_kepler_eb = state_dir / "cooked" / "kepler_eb" / "kepler_eb_catalog.csv"
     cooked_tess_eb = state_dir / "cooked" / "tess_eb" / "tess_eb_catalog.csv"
+    cooked_tess_evidence = state_dir / "cooked" / "tess_evidence"
     cooked_sol_authority = state_dir / "cooked" / "sol_authority" / "sol_system_objects.csv"
     cooked_ultracoolsheet = state_dir / "cooked" / "ultracoolsheet" / "ultracoolsheet_objects.csv"
     nearby_ultracool_inventory_active = (
@@ -1016,6 +1020,7 @@ def main() -> int:
     debcat_manifest_path = manifest_dir / "debcat_manifest.json"
     kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
     tess_eb_manifest_path = manifest_dir / "tess_eb_manifest.json"
+    tess_evidence_manifest_path = manifest_dir / "tess_evidence_manifest.json"
     sol_authority_manifest_path = manifest_dir / "sol_authority_manifest.json"
     ultracoolsheet_manifest_path = manifest_dir / "ultracoolsheet_manifest.json"
     exoplanet_eu_manifest_path = manifest_dir / "exoplanet_eu_manifest.json"
@@ -1088,6 +1093,18 @@ def main() -> int:
         raise SystemExit(f"Missing cooked Kepler EB catalog: {cooked_kepler_eb}")
     if enable_eclipsing_catalogs and enable_tess_eb and not cooked_tess_eb.exists():
         raise SystemExit(f"Missing cooked TESS EB catalog: {cooked_tess_eb}")
+    if enable_tess_evidence:
+        for tess_path in (
+            cooked_tess_evidence / "toi.csv",
+            cooked_tess_evidence / "targeted_tic.csv",
+            cooked_tess_evidence / "target_tic_ids.csv",
+            cooked_tess_evidence / "gaia_dr2_neighbourhood.csv",
+            cooked_tess_evidence / "gaia_external_crossmatches.csv",
+            cooked_tess_evidence / "gaia_dr3_targets.csv",
+            cooked_tess_evidence / "toi_disposition_history.csv",
+        ):
+            if not tess_path.exists():
+                raise SystemExit(f"Missing cooked TESS evidence artifact: {tess_path}")
     if enable_sol_authority and not cooked_sol_authority.exists():
         raise SystemExit(f"Missing cooked Sol authority catalog: {cooked_sol_authority}")
     if enable_exoplanet_lifecycle_catalogs and not cooked_exoplanet_lifecycle_status.exists():
@@ -1135,6 +1152,7 @@ def main() -> int:
         f"eclipsing_catalogs={'1' if enable_eclipsing_catalogs else '0'} "
         f"kepler_eb={'1' if (enable_eclipsing_catalogs and enable_kepler_eb) else '0'} "
         f"tess_eb={'1' if (enable_eclipsing_catalogs and enable_tess_eb) else '0'} "
+        f"tess_evidence={'1' if enable_tess_evidence else '0'} "
         f"exoplanet_lifecycle_catalogs={'1' if enable_exoplanet_lifecycle_catalogs else '0'} "
         f"sol_authority={'1' if enable_sol_authority else '0'} "
         f"sbx={'1' if enable_sbx else '0'} "
@@ -1192,6 +1210,8 @@ def main() -> int:
             manifest_paths.append(kepler_eb_manifest_path)
         if enable_tess_eb:
             manifest_paths.append(tess_eb_manifest_path)
+    if enable_tess_evidence:
+        manifest_paths.append(tess_evidence_manifest_path)
     if enable_sol_authority:
         manifest_paths.append(sol_authority_manifest_path)
     if enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists():
@@ -1471,6 +1491,44 @@ def main() -> int:
     tess_eb_manifest = (
         require_manifest_entry(manifest, "tess_eb_catalog", "TESS Eclipsing Binary Catalog")
         if enable_eclipsing_catalogs and enable_tess_eb
+        else None
+    )
+    tess_toi_manifest = (
+        require_manifest_entry(manifest, "nasa_toi", "NASA Exoplanet Archive TOI snapshot")
+        if enable_tess_evidence
+        else None
+    )
+    tess_tic_manifest = (
+        require_manifest_entry(manifest, "mast_tic_targeted", "targeted MAST TIC rows")
+        if enable_tess_evidence
+        else None
+    )
+    tess_target_set_manifest = (
+        require_manifest_entry(manifest, "tess_target_set", "targeted TIC input universe")
+        if enable_tess_evidence
+        else None
+    )
+    tess_gaia_neighbourhood_manifest = (
+        require_manifest_entry(
+            manifest,
+            "gaia_dr2_neighbourhood_targeted",
+            "targeted Gaia DR2-to-DR3 neighbourhood",
+        )
+        if enable_tess_evidence
+        else None
+    )
+    tess_gaia_external_manifest = (
+        require_manifest_entry(
+            manifest,
+            "gaia_external_crossmatches",
+            "targeted Gaia external-catalog best-neighbor crossmatches",
+        )
+        if enable_tess_evidence
+        else None
+    )
+    tess_gaia_dr3_manifest = (
+        require_manifest_entry(manifest, "gaia_dr3_targets", "targeted Gaia DR3 source rows")
+        if enable_tess_evidence
         else None
     )
     sol_authority_manifest = (
@@ -10679,6 +10737,31 @@ def main() -> int:
         """
     )
 
+    tess_identity_report: dict = {}
+    if enable_tess_evidence:
+        tess_stage_started = time.monotonic()
+        log("Materializing targeted TIC/TOI identity authority")
+        tess_identity_report = materialize_tess_core(
+            con,
+            cooked_dir=cooked_tess_evidence,
+            manifest_path=tess_evidence_manifest_path,
+            report_path=reports_dir / "tess_identity_coverage_report.json",
+            append_search_terms=False,
+        )
+        stage_totals["tess_identifiers"] = int(
+            tess_identity_report.get("counts", {}).get("accepted", 0)
+        )
+        log_stage_complete(
+            "TESS identity stage",
+            tess_stage_started,
+            stage_totals,
+            extra=(
+                f"accepted={format_count(tess_identity_report.get('counts', {}).get('accepted', 0))}, "
+                f"ambiguous={format_count(tess_identity_report.get('counts', {}).get('ambiguous', 0))}, "
+                f"missing={format_count(tess_identity_report.get('counts', {}).get('missing', 0))}"
+            ),
+        )
+
     search_terms_stage_started = time.monotonic()
     log("Materializing system search terms")
     con.execute(
@@ -11081,6 +11164,18 @@ def main() -> int:
         provenance_report["kepler_eb"] = kepler_eb_manifest
     if tess_eb_manifest:
         provenance_report["tess_eb"] = tess_eb_manifest
+    if tess_toi_manifest:
+        provenance_report["nasa_toi"] = tess_toi_manifest
+    if tess_tic_manifest:
+        provenance_report["mast_tic_targeted"] = tess_tic_manifest
+    if tess_target_set_manifest:
+        provenance_report["tess_target_set"] = tess_target_set_manifest
+    if tess_gaia_neighbourhood_manifest:
+        provenance_report["gaia_dr2_neighbourhood_targeted"] = tess_gaia_neighbourhood_manifest
+    if tess_gaia_external_manifest:
+        provenance_report["gaia_external_crossmatches"] = tess_gaia_external_manifest
+    if tess_gaia_dr3_manifest:
+        provenance_report["gaia_dr3_targets"] = tess_gaia_dr3_manifest
     if exoplanet_eu_manifest:
         provenance_report["exoplanet_eu"] = exoplanet_eu_manifest
     if open_exoplanet_catalogue_manifest:
@@ -11672,6 +11767,8 @@ def main() -> int:
         "eclipsing_catalogs_enabled": enable_eclipsing_catalogs,
         "kepler_eb_enabled": enable_eclipsing_catalogs and enable_kepler_eb,
         "tess_eb_enabled": enable_eclipsing_catalogs and enable_tess_eb,
+        "tess_evidence_enabled": enable_tess_evidence,
+        "tess_identity": tess_identity_report.get("counts", {}),
         "exoplanet_lifecycle_catalogs_enabled": enable_exoplanet_lifecycle_catalogs,
         "sol_authority_enabled": enable_sol_authority,
         "sol_authority_system_rows": sol_system_rows,

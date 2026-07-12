@@ -126,6 +126,15 @@ if [[ "${SPACEGATE_ENABLE_ECLIPSING_CATALOGS:-1}" != "0" ]]; then
 else
   echo "Skip eclipsing support catalogs (SPACEGATE_ENABLE_ECLIPSING_CATALOGS=0)."
 fi
+if [[ "${SPACEGATE_ENABLE_TESS_EVIDENCE:-1}" != "0" ]]; then
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_tess_evidence.py" \
+    --timeout-s "${SPACEGATE_TESS_EVIDENCE_TIMEOUT_S:-240}" \
+    --retries "${SPACEGATE_TESS_EVIDENCE_RETRIES:-5}" \
+    --tic-chunk-size "${SPACEGATE_TESS_TIC_CHUNK_SIZE:-500}" \
+    --gaia-chunk-size "${SPACEGATE_TESS_GAIA_CHUNK_SIZE:-500}"
+else
+  echo "Skip targeted TESS identity/evidence fetch (SPACEGATE_ENABLE_TESS_EVIDENCE=0)."
+fi
 if [[ "${SPACEGATE_ENABLE_GAIA_NSS:-1}" != "0" ]]; then
   "$PYTHON_BIN" "$ROOT_DIR/scripts/fetch_gaia_nss_core.py" \
     --buckets "${SPACEGATE_GAIA_NSS_BUCKETS:-53}" \

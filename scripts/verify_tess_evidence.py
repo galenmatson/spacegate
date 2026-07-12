@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import duckdb
+
+
+def table_exists(con: duckdb.DuckDBPyConnection, name: str) -> bool:
+    return bool(con.execute(
+        "select 1 from information_schema.tables where table_schema='main' and table_name=?",
+        [name],
+    ).fetchone())
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Verify TESS identity and TOI ARM evidence gates.")
+    parser.add_argument("--core-db", required=True)
+    parser.add_argument("--arm-db", required=True)
+    parser.add_argument("--source-delta-report", default=None)
+    args = parser.parse_args()
+
+    core = duckdb.connect(args.core_db, read_only=True)
+    arm = duckdb.connect(args.arm_db, read_only=True)
+    required_core = {"object_identifiers", "identifier_quarantine", "aliases", "system_search_terms", "planets", "systems", "stars"}
+    required_arm = {"tess_target_identity", "tess_missing_object_audit", "toi_current_evidence", "toi_disposition_history"}
+    missing_core = sorted(name for name in required_core if not table_exists(core, name))
+    missing_arm = sorted(name for name in required_arm if not table_exists(arm, name))
+    if missing_core or missing_arm:
+        raise SystemExit(f"Missing TESS verification tables: core={missing_core}, arm={missing_arm}")
+
+    target_count = int(arm.execute("select count(*) from tess_target_identity").fetchone()[0])
+    partition_count = int(arm.execute(
+        "select count(*) from tess_target_identity where resolution_status in ('accepted','missing','excluded','ambiguous','source_missing')"
+    ).fetchone()[0])
+    if target_count == 0 or partition_count != target_count:
+        raise SystemExit(f"TIC coverage partition failed: targets={target_count}, partitioned={partition_count}")
+
+    collisions = int(core.execute(
+        """
+        select count(*) from (
+          select id_value_norm from object_identifiers where namespace='tic'
+          group by id_value_norm having count(distinct target_id) > 1
+        )
+        """
+    ).fetchone()[0])
+    if collisions:
+        raise SystemExit(f"TIC collision gate failed: {collisions}")
+
+    accepted_count = int(arm.execute(
+        "select count(*) from tess_target_identity where resolution_status='accepted'"
+    ).fetchone()[0])
+    unsearchable_tic_count = int(core.execute(
+        """
+        select count(*) from object_identifiers oi
+        where oi.namespace='tic' and not exists (
+          select 1 from system_search_terms t where t.term_norm='tic ' || oi.id_value_raw
+        )
+        """
+    ).fetchone()[0])
+    exact_search_count = accepted_count - unsearchable_tic_count
+    if unsearchable_tic_count:
+        raise SystemExit(
+            f"TIC exact-search coverage failed: accepted={accepted_count}, searchable={exact_search_count}"
+        )
+
+    artifact_leaks = int(arm.execute(
+        "select count(*) from tess_target_identity where resolution_status='accepted' and (tic_disposition in ('SPLIT','DUPLICATE','ARTIFACT') or duplicate_id is not null)"
+    ).fetchone()[0])
+    if artifact_leaks:
+        raise SystemExit(f"TIC artifact quarantine gate failed: accepted_artifacts={artifact_leaks}")
+
+    toi_count = int(arm.execute("select count(*) from toi_current_evidence").fetchone()[0])
+    disposition_count = int(arm.execute(
+        "select count(*) from toi_current_evidence where disposition in ('CP','KP','PC','APC','FP','FA')"
+    ).fetchone()[0])
+    if toi_count == 0 or disposition_count < toi_count - 10:
+        raise SystemExit(f"TOI disposition coverage failed: rows={toi_count}, classified={disposition_count}")
+
+    candidate_planet_leaks = int(arm.execute(
+        "select count(*) from toi_current_evidence where disposition in ('PC','APC','FP','FA') and planet_id is not null"
+    ).fetchone()[0])
+    if candidate_planet_leaks:
+        raise SystemExit(f"TOI candidate/negative planet-link leak: {candidate_planet_leaks}")
+
+    duplicate_confirmed_links = int(arm.execute(
+        """
+        select count(*) from (
+          select source_key from toi_current_evidence
+          where disposition in ('CP','KP') and planet_id is not null
+          group by source_key having count(distinct planet_id) > 1
+        )
+        """
+    ).fetchone()[0])
+    if duplicate_confirmed_links:
+        raise SystemExit(f"Confirmed TOI duplicate planet links: {duplicate_confirmed_links}")
+
+    host_searchable_tois = int(arm.execute(
+        "select count(*) from toi_current_evidence where host_resolution_status='accepted'"
+    ).fetchone()[0])
+    searchable_tois = int(core.execute(
+        "select count(*) from aliases a where a.alias_kind='toi_id' and exists (select 1 from system_search_terms t where t.system_id=a.system_id and t.term_norm=a.alias_norm)"
+    ).fetchone()[0])
+    if searchable_tois < host_searchable_tois:
+        raise SystemExit(
+            f"TOI exact-search coverage failed: accepted_hosts={host_searchable_tois}, searchable={searchable_tois}"
+        )
+
+    representative_counts = {
+        "tess_eb_seeded": int(arm.execute(
+            "select count(*) from tess_target_identity where source_families like '%tess_eb%'"
+        ).fetchone()[0]),
+    }
+    # High-proper-motion and multiple-system focus checks run against core directly.
+    high_pm = int(core.execute(
+        """
+        select count(*) from object_identifiers oi
+        join stars s on s.star_id=oi.target_id
+        join aliases a on a.target_type='star' and a.target_id=s.star_id
+          and a.alias_kind='tic_id' and try_cast(replace(a.alias_raw,'TIC ','') as bigint)=try_cast(oi.id_value_raw as bigint)
+        where oi.namespace='tic'
+          and sqrt(coalesce(s.pm_ra_mas_yr,0)^2 + coalesce(s.pm_dec_mas_yr,0)^2) >= 500
+        """
+    ).fetchone()[0])
+    representative_counts["high_proper_motion"] = high_pm
+    representative_counts["multiple_system"] = int(core.execute(
+        """
+        select count(*) from object_identifiers oi
+        join stars st on st.star_id=oi.target_id
+        join systems sy on sy.system_id=st.system_id
+        join aliases a on a.target_type='star' and a.target_id=st.star_id and a.alias_kind='tic_id'
+        where oi.namespace='tic' and coalesce(sy.star_count,0) > 1
+        """
+    ).fetchone()[0])
+    if representative_counts["tess_eb_seeded"] == 0 or representative_counts["multiple_system"] == 0:
+        raise SystemExit(f"Representative TESS identity families missing: {representative_counts}")
+
+    if args.source_delta_report:
+        delta_path = Path(args.source_delta_report)
+        if not delta_path.exists():
+            raise SystemExit(f"Missing TESS source delta report: {delta_path}")
+        delta = json.loads(delta_path.read_text(encoding="utf-8"))
+        for family in ("toi", "tic"):
+            family_delta = (delta.get("delta") or {}).get(family) or {}
+            for key in ("added", "removed", "changed"):
+                if key not in family_delta:
+                    raise SystemExit(f"TESS source delta missing delta.{family}.{key}")
+
+    print(
+        "OK: TESS evidence gates "
+        f"(targets={target_count:,}, accepted={accepted_count:,}, TOIs={toi_count:,}, "
+        f"searchable_TOIs={searchable_tois:,}, high_pm={high_pm:,})"
+    )
+    core.close()
+    arm.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

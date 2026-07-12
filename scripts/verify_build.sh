@@ -17,6 +17,7 @@ REQUIRE_REPORTS="${SPACEGATE_VERIFY_REQUIRE_REPORTS:-0}"
 VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
 VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
 VERIFY_COMPACT_ALIAS_SAFETY="${SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY:-0}"
+VERIFY_TESS_EVIDENCE="${SPACEGATE_VERIFY_TESS_EVIDENCE:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -389,6 +390,16 @@ PY
   fi
 
   local arm_db="$build_dir/arm.duckdb"
+  if [[ "$VERIFY_TESS_EVIDENCE" == "1" ]]; then
+    if [[ ! -f "$arm_db" ]]; then
+      echo "Error: TESS evidence verification requires $arm_db" >&2
+      exit 1
+    fi
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_tess_evidence.py" \
+      --core-db "$core_db" \
+      --arm-db "$arm_db" \
+      --source-delta-report "$STATE_DIR/reports/tess_source_delta_report.json"
+  fi
   if [[ -f "$arm_db" ]]; then
     "$PYTHON_BIN" - <<'PY' "$arm_db" "${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"
 import sys

@@ -53,6 +53,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   variable-star designations, and IAU WGSN for approved proper names; record
   provenance, alias type and scope, deterministic display precedence,
   collisions/quarantine, coverage deltas, and golden lookups before promotion
+- [ ] Repair the local cooked Gaia backbone CSV row-boundary corruption found
+  near line 193,309 during the TESS T2 audit; re-fetch affected partitions,
+  run strict CSV parsing plus TAP row-count/hash completeness gates, and verify
+  the next full build does not rely on ignored malformed rows
 
 ## C) Gaia-First Migration Program
 

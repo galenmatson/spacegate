@@ -1323,7 +1323,7 @@ def _fetch_matched_search_terms(
         ), ranked AS (
           SELECT
             c.*,
-            s.stable_object_key AS focus_object_key,
+            coalesce(s.stable_object_key, p.stable_object_key) AS focus_object_key,
             row_number() OVER (
               PARTITION BY c.system_id
               ORDER BY c.match_rank ASC, c.term_priority ASC, length(c.term_raw) ASC, c.term_raw ASC
@@ -1332,6 +1332,9 @@ def _fetch_matched_search_terms(
           LEFT JOIN stars s
             ON c.target_type = 'star'
            AND c.target_id = s.star_id
+          LEFT JOIN planets p
+            ON c.target_type = 'planet'
+           AND c.target_id = p.planet_id
         )
         SELECT
           system_id,
@@ -1375,6 +1378,9 @@ def _fetch_matched_search_terms(
             "matched_target_type": target_type,
             "matched_target_id": int(target_id) if target_id is not None else None,
             "matched_star_id": int(star_id) if star_id is not None else None,
+            "matched_planet_id": (
+                int(target_id) if target_type == "planet" and target_id is not None else None
+            ),
             "resolved_system_id": sid,
             "focus_object_key": focus_object_key,
             "display_name_source": term_kind,
@@ -1430,6 +1436,7 @@ def _fetch_matched_search_terms(
                 "matched_target_type": "star",
                 "matched_target_id": int(star_id),
                 "matched_star_id": int(star_id),
+                "matched_planet_id": None,
                 "resolved_system_id": sid,
                 "focus_object_key": stable_object_key,
                 "display_name_source": "member_star_name",

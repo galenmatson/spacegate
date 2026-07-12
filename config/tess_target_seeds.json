@@ -1,0 +1,5 @@
+{
+  "version": "tess_target_seeds_v1",
+  "description": "Reviewed operator and AAA TIC targets not already supplied by TOI, NASA planet-host, or TESS EB inputs.",
+  "tic_ids": []
+}
