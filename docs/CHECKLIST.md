@@ -57,6 +57,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   near line 193,309 during the TESS T2 audit; re-fetch affected partitions,
   run strict CSV parsing plus TAP row-count/hash completeness gates, and verify
   the next full build does not rely on ignored malformed rows
+- [ ] Reconcile the Castor known-system API expectation with the canonical
+  hierarchy: the July 13 public checkpoint preserves six source stellar leaves
+  and three pairs, but the verifier receives rendered subsystem labels
+  `Castor A/B/C` rather than the expected `Castor AB`; keep this non-blocking
+  unless the underlying hierarchy or simulation is incorrect
 
 ## C) Gaia-First Migration Program
 

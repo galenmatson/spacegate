@@ -464,11 +464,13 @@ Success criteria:
 - full TIC, CTL, TCE, and light-curve corpora remain outside default ingest
 - unresolved tails do not block the subsequent Tiled Deep Map milestone
 
-Current status (July 12, 2026):
+Current status (July 13, 2026):
 
-- T0-T3 implementation checkpoint `ae52e0f` is pushed on
-  `feature/tess-evidence-v1`; canonical build
+- T0-T3 is merged to `master` at checkpoint `ac3511d`; canonical build
   `20260712T_tess_evidence_v3` passes full build and live API verification
+- public `core.public@v3` build
+  `20260713T_tess_evidence_v1_public_side` is deployed to antiproton and
+  verified through public API plus desktop/mobile Playwright TIC searches
 - pinned acquisition currently targets 27,930 TIC IDs and 8,064 TOIs without
   bulk TIC ingestion; an identical rerun produced zero TOI/TIC row deltas
 - deterministic TIC identity, quarantine, aliases/search terms, missing-object
