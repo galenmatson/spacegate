@@ -909,8 +909,8 @@ Deliverables:
 
 #### M8.2a. Extended-Object Science Foundation v1
 
-Status: implemented on `feature/extended-objects-v1`; local immutable-artifact
-verification complete, pending branch review and reconciliation.
+Status: complete July 13, 2026. Local immutable-artifact verification, full ARM
+integration, public-slice propagation, and deterministic rerun checks pass.
 
 - pinned OpenNGC and CDS/VizieR acquisition with checksums and manifests
 - deterministic ICRS normalization and explicit identifier reconciliation

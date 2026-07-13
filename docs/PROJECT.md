@@ -970,8 +970,8 @@ Notes:
 2. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint; naming and multiplicity follow-up
    remains tracked in `docs/CHECKLIST.md`.
-3. Reconcile the M8.2a extended-object science foundation into `master`, keeping
-   its identity/evidence tables separate from systems and deferring rendering.
+3. Treat the completed M8.2a extended-object science foundation as the typed
+   data boundary for later non-stellar map layers; keep rendering deferred.
 4. Define the versioned tile manifest/API/cache contract and deliver a measured
    250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly; make the
    contract capable of carrying the new typed extended-object layer later.
