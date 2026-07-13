@@ -55,6 +55,9 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
   if [[ "${SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS:-1}" != "0" ]]; then
     catalog_args+=(--catalog clusters --catalog snr)
   fi
+  if [[ "${SPACEGATE_ENABLE_EXTENDED_OBJECTS:-1}" != "0" ]]; then
+    catalog_args+=(--catalog extended_objects)
+  fi
   if [[ "${SPACEGATE_ENABLE_GAIA_UCD:-1}" != "0" ]]; then
     catalog_args+=(--catalog gaia_ucd)
   fi
