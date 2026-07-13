@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
+import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystemDetail, fetchSystems } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle } from "./nameStyle.js";
 import { StellarClassChips, stellarClassTokensFromSystem, stellarClassTooltip } from "./stellarClassTags.jsx";
 
 const MAP_RADIUS_LY = 100;
+const LIGHT_YEAR_KM = 9_460_730_472_580.8;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const STAR_SEARCH_SPECTRAL_OPTIONS = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
 const STAR_SEARCH_DEFAULT_TEMP_RANGE = [0, 50000];
@@ -188,6 +189,141 @@ function formatNumber(value, digits = 1) {
 function formatName(value) {
   const text = String(value || "").trim();
   return text || "Unnamed system";
+}
+
+function parseJsonArray(raw) {
+  if (!raw) {
+    return [];
+  }
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  try {
+    const parsed = JSON.parse(String(raw));
+    return Array.isArray(parsed)
+      ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function catalogLabel(raw) {
+  const token = String(raw || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const labels = {
+    gaia_dr3: "Gaia DR3",
+    gaia_nss: "Gaia NSS",
+    msc: "MSC",
+    wds: "WDS",
+    orb6: "ORB6",
+    sbx: "SBX",
+    nasa_exoplanet_archive: "NASA Exoplanet Archive",
+    tess_eb: "TESS EB",
+    debcat: "DEBCat",
+    kepler_eb: "Kepler EB Catalog",
+    ultracoolsheet: "UltracoolSheet",
+  };
+  if (labels[token]) {
+    return labels[token];
+  }
+  return token
+    .split("_")
+    .filter(Boolean)
+    .map((part) => (part.length <= 4 ? part.toUpperCase() : `${part.charAt(0).toUpperCase()}${part.slice(1)}`))
+    .join(" ");
+}
+
+function uniqueCatalogLabels(values) {
+  return Array.from(new Set(values.map(catalogLabel).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function planetMethodExplanation(method) {
+  const normalized = String(method || "").trim().toLowerCase();
+  const explanations = {
+    transit: "periodic dimming as a planet crosses its star",
+    "radial velocity": "Doppler shifts from the star's back-and-forth motion",
+    imaging: "the planet's own or reflected light separated from its star",
+    microlensing: "temporary magnification caused by the system's gravity",
+    astrometry: "the star's repeating motion across the sky",
+    "transit timing variations": "changes in transit timing caused by other planets",
+    "pulsar timing": "changes in the arrival time of a pulsar's pulses",
+    "eclipse timing variations": "changes in the timing of stellar eclipses",
+  };
+  return explanations[normalized] || "a cataloged observational detection method";
+}
+
+function buildPlanetTooltipLines(detail, expectedCount) {
+  const planets = Array.isArray(detail?.planets) ? detail.planets : [];
+  if (!planets.length) {
+    return Number(expectedCount || 0) > 0
+      ? ["Detection details are loading from the system record."]
+      : ["No canonical planets are currently attached to this system."];
+  }
+  const methodCounts = new Map();
+  const catalogs = [];
+  planets.forEach((planet) => {
+    const method = String(planet?.discovery_method || "Unknown method").trim() || "Unknown method";
+    methodCounts.set(method, (methodCounts.get(method) || 0) + 1);
+    catalogs.push(planet?.provenance?.source_catalog, planet?.status_source_catalog);
+  });
+  const lines = Array.from(methodCounts.entries()).map(([method, count]) => (
+    `${method}${count > 1 ? ` (${count})` : ""}: ${planetMethodExplanation(method)}.`
+  ));
+  const labels = uniqueCatalogLabels(catalogs.filter(Boolean));
+  if (labels.length) {
+    lines.push(`Planet catalogs: ${labels.join(", ")}.`);
+  }
+  return lines;
+}
+
+function buildStarTooltipLines(system, detail) {
+  const catalogs = [
+    ...parseJsonArray(system?.grouping_source_catalogs_json),
+    detail?.system?.provenance?.source_catalog,
+    ...(Array.isArray(detail?.stars) ? detail.stars.map((star) => star?.provenance?.source_catalog) : []),
+  ];
+  const labels = uniqueCatalogLabels(catalogs.filter(Boolean));
+  return [
+    "Stars are grouped when cataloged multiplicity, orbital or astrometric evidence, or a reviewed hierarchy supports a bound system. Sky proximity alone is not enough.",
+    labels.length ? `Source catalogs: ${labels.join(", ")}.` : "Source catalog details are loading.",
+  ];
+}
+
+function buildCoolnessTooltipLines(system) {
+  const components = [
+    ["Luminosity", system?.coolness_score_luminosity],
+    ["Proper motion", system?.coolness_score_proper_motion],
+    ["Multiplicity", system?.coolness_score_multiplicity],
+    ["Nice planets", system?.coolness_score_nice_planets],
+    ["Weird planets", system?.coolness_score_weird_planets],
+    ["Proximity", system?.coolness_score_proximity],
+    ["System complexity", system?.coolness_score_system_complexity],
+    ["Exotic stars", system?.coolness_score_exotic_star],
+  ];
+  const contributions = components.flatMap(([label, raw]) => {
+    const numeric = Number(raw);
+    return raw !== null && raw !== undefined && Number.isFinite(numeric)
+      ? [`${label}: ${(numeric * 100).toFixed(2)} pts`]
+      : [];
+  });
+  return [
+    "Coolness is a versioned discovery score that helps order interesting systems. It is presentation metadata, not a scientific measurement.",
+    `Total: ${formatNumber(system?.coolness_score, 2)} pts.`,
+    ...(contributions.length ? contributions : ["Score component details are loading."]),
+  ];
+}
+
+function MapVitalPill({ value, heading, lines }) {
+  const tooltipId = React.useId();
+  return (
+    <span className="map-system-vital-pill" tabIndex={0} aria-describedby={tooltipId}>
+      {value}
+      <span id={tooltipId} className="map-system-vital-tooltip" role="tooltip">
+        <strong>{heading}</strong>
+        {lines.map((line) => <span key={line}>{line}</span>)}
+      </span>
+    </span>
+  );
 }
 
 function clampMapPeekSize(size) {
@@ -2467,6 +2603,8 @@ export default function StarMapPage({
   const [systems, setSystems] = useState([]);
   const [summary, setSummary] = useState(null);
   const [selectedSystem, setSelectedSystem] = useState(null);
+  const [selectedSystemDetail, setSelectedSystemDetail] = useState(null);
+  const [selectedSystemMetrics, setSelectedSystemMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const controlsEnabled = true;
@@ -2971,6 +3109,41 @@ export default function StarMapPage({
     window.history.pushState({ ...currentState, spacegateMapDrill: "explore" }, "", window.location.href);
     drillHistoryPushedRef.current = true;
   }, [drillMode]);
+
+  useEffect(() => {
+    let active = true;
+    if (!selectedSystem?.system_id || drillMode === "flight") {
+      setSelectedSystemDetail(null);
+      setSelectedSystemMetrics(null);
+      return () => {
+        active = false;
+      };
+    }
+    setSelectedSystemDetail(null);
+    setSelectedSystemMetrics(null);
+    const params = { name_style: normalizeNameStyle(nameStyle) };
+    Promise.allSettled([
+      fetchSystemDetail(selectedSystem.system_id, params),
+      fetchSystems({
+        q: selectedSystem.display_name || selectedSystem.system_name || String(selectedSystem.system_id),
+        limit: "20",
+        sort: "match",
+        ...params,
+      }),
+    ]).then(([detailResult, searchResult]) => {
+      if (!active) {
+        return;
+      }
+      setSelectedSystemDetail(detailResult.status === "fulfilled" ? detailResult.value : null);
+      const exactSearchRow = searchResult.status === "fulfilled"
+        ? (searchResult.value?.items || []).find((item) => String(item.system_id) === String(selectedSystem.system_id))
+        : null;
+      setSelectedSystemMetrics(exactSearchRow || null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [drillMode, nameStyle, selectedSystem?.system_id]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -4272,11 +4445,39 @@ export default function StarMapPage({
           </div>
           <div className="map-system-drill-body">
             <div className="map-system-vital-strip" aria-label={`${formatName(selectedSystem.display_name)} map vitals`}>
-              <span>{formatNumber(selectedSystem.dist_ly, 2)} ly</span>
-              <span>{formatNumber(selectedSystem.star_count, 0)} stars</span>
-              <span>{formatNumber(selectedSystem.planet_count, 0)} planets</span>
-              <span>cool {formatNumber(selectedSystem.coolness_score, 1)}</span>
-              <span>rank {formatNumber(selectedSystem.coolness_rank, 0)}</span>
+              <MapVitalPill
+                value={`${formatNumber(selectedSystem.dist_ly, 2)} ly`}
+                heading="Distance from the Sun"
+                lines={[
+                  "Stellar parallax measures a star's tiny apparent shift against distant background stars as Earth moves around the Sun.",
+                  `${formatNumber(selectedSystem.dist_ly, 4)} light-years`,
+                  `${formatNumber(Number(selectedSystem.dist_ly) / 3.26156, 4)} parsecs`,
+                  `${formatNumber(Number(selectedSystem.dist_ly) * LIGHT_YEAR_KM, 0)} kilometers`,
+                ]}
+              />
+              <MapVitalPill
+                value={`${formatNumber(selectedSystem.star_count, 0)} stars`}
+                heading="Bound stars"
+                lines={buildStarTooltipLines(selectedSystem, selectedSystemDetail)}
+              />
+              <MapVitalPill
+                value={`${formatNumber(selectedSystem.planet_count, 0)} planets`}
+                heading="Known planets"
+                lines={buildPlanetTooltipLines(selectedSystemDetail, selectedSystem.planet_count)}
+              />
+              <MapVitalPill
+                value={`cool ${formatNumber(selectedSystem.coolness_score, 1)}`}
+                heading="Coolness score"
+                lines={buildCoolnessTooltipLines(selectedSystemMetrics || selectedSystem)}
+              />
+              <MapVitalPill
+                value={`rank ${formatNumber(selectedSystem.coolness_rank, 0)}`}
+                heading="Coolness rank"
+                lines={[
+                  "Rank orders systems by coolness in this served build; rank 1 is highest.",
+                  "It can change when source data or the versioned scoring weights change.",
+                ]}
+              />
             </div>
             <React.Suspense fallback={<section className="panel system-preview-panel system-preview-loading">Loading System Simulation...</section>}>
               <SystemPreviewPanel

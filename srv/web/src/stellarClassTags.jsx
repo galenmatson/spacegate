@@ -157,6 +157,16 @@ function fieldValue(fields, key) {
   return fields[key]?.value ?? fields[key] ?? "";
 }
 
+function fieldStatus(fields, key) {
+  if (!fields) {
+    return "";
+  }
+  if (Array.isArray(fields)) {
+    return String(fields.find((item) => item?.key === key)?.status || "").trim().toLowerCase();
+  }
+  return String(fields[key]?.status || "").trim().toLowerCase();
+}
+
 function addToken(tokens, rawToken) {
   const raw = String(rawToken || "").trim().toUpperCase();
   if (!raw) {
@@ -217,10 +227,12 @@ export function stellarClassTokensFromRecord(record, { includeUnknown = true } =
   const tokens = new Set();
   const fields = record?.fields || {};
   const quickFacts = record?.quick_facts || {};
+  const visualClassIsAssumed = fieldStatus(fields, "visual_stellar_class") === "assumed"
+    || String(record?.visual_stellar_class_status || "").trim().toLowerCase() === "assumed";
   [
     record?.spectral_class,
     record?.spectral_type_raw,
-    record?.visual_stellar_class,
+    visualClassIsAssumed ? "" : record?.visual_stellar_class,
     record?.body_class,
     record?.compact_type,
     record?.object_type,
@@ -228,7 +240,7 @@ export function stellarClassTokensFromRecord(record, { includeUnknown = true } =
     record?.type,
     fieldValue(fields, "spectral_class"),
     fieldValue(fields, "spectral_type_raw"),
-    fieldValue(fields, "visual_stellar_class"),
+    visualClassIsAssumed ? "" : fieldValue(fields, "visual_stellar_class"),
     fieldValue(fields, "object_type"),
     fieldValue(fields, "body_class"),
     fieldValue(fields, "compact_type"),

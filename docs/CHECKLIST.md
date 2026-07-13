@@ -39,6 +39,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### B1. Current Data and Identity Regression Inbox
 
+- [x] Move the Explorer selected-object readout to the lower-right by default
+  and add plain-English, source-aware hover/focus explanations for distance,
+  bound-star counts, planet detection, coolness contributions, and rank
+- [x] Correct Nu Scorpii's simulation class presentation: hierarchy/header
+  chips now show three source-backed B classifications and four unknowns;
+  `mass_main_sequence_prior_v1` still colors three simulated bodies but is
+  disclosed only as an assumed visual prior in their object readouts, with a
+  provenance-aware browser golden
 - [x] Normalize the System Page site header and search row with Star Search,
   and align System Simulation habitable-zone disks from reliable host-planet
   ecliptic evidence or the star's most local rendered parent orbit; assumed

@@ -981,6 +981,48 @@ test.describe("public 3D map beta", () => {
     await expect(drill.locator(".map-snapshot-chip")).toHaveCount(0);
     const exploreObjectList = drill.locator("[data-testid='system-preview-object-list']");
     await expect(exploreObjectList).toBeVisible();
+    const vitalPills = drill.locator(".map-system-vital-pill");
+    await expect(vitalPills).toHaveCount(5);
+    const expectedVitalCopy = [
+      /stellar parallax.*light-years.*parsecs.*kilometers/is,
+      /bound system.*source catalogs/is,
+      /known planets.*(dimming|Doppler|detection details|no canonical planets|cataloged observational)/is,
+      /presentation metadata.*Luminosity.*Exotic stars/is,
+      /rank 1 is highest.*versioned scoring weights/is,
+    ];
+    for (let index = 0; index < expectedVitalCopy.length; index += 1) {
+      await vitalPills.nth(index).hover();
+      await expect(vitalPills.nth(index).locator("[role='tooltip']")).toBeVisible();
+      await expect(vitalPills.nth(index).locator("[role='tooltip']")).toContainText(expectedVitalCopy[index]);
+    }
+    await expect(vitalPills.nth(3).locator("[role='tooltip']")).toContainText(
+      /(?:Luminosity|Proper motion|Multiplicity|Nice planets|Weird planets|Proximity|System complexity|Exotic stars): (?!0\.00)\d+\.\d{2} pts/
+    );
+    await vitalPills.first().focus();
+    await expect(vitalPills.first().locator("[role='tooltip']")).toBeVisible();
+
+    const firstExploreObject = exploreObjectList.locator(".system-preview-object-chip").first();
+    await firstExploreObject.click();
+    const explorePinnedReadout = drill.locator("[data-testid='system-preview-pinned']");
+    await expect(explorePinnedReadout).toBeVisible();
+    const pinnedPlacement = await drill.evaluate((node) => {
+      const drillRect = node.getBoundingClientRect();
+      const pinned = node.querySelector("[data-testid='system-preview-pinned']");
+      const hierarchy = node.querySelector(".system-preview-readout");
+      const pinnedRect = pinned?.getBoundingClientRect();
+      return {
+        rightGap: pinnedRect ? drillRect.right - pinnedRect.right : -1,
+        bottomGap: pinnedRect ? drillRect.bottom - pinnedRect.bottom : -1,
+        pinnedZ: Number(pinned ? window.getComputedStyle(pinned).zIndex : 0),
+        hierarchyZ: Number(hierarchy ? window.getComputedStyle(hierarchy).zIndex : 0),
+      };
+    });
+    expect(pinnedPlacement.rightGap).toBeGreaterThanOrEqual(8);
+    expect(pinnedPlacement.rightGap).toBeLessThanOrEqual(20);
+    expect(pinnedPlacement.bottomGap).toBeGreaterThanOrEqual(52);
+    expect(pinnedPlacement.bottomGap).toBeLessThanOrEqual(68);
+    expect(pinnedPlacement.pinnedZ).toBeGreaterThan(pinnedPlacement.hierarchyZ);
+    await explorePinnedReadout.getByRole("button", { name: /close pinned simulator readout/i }).click();
     await expect.poll(
       () => drill.evaluate((node) => {
         const heights = Array.from(
@@ -1967,6 +2009,9 @@ test.describe("public 3D map beta", () => {
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
+    const objectList = page.locator("[data-testid='system-preview-object-list']");
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='b']")).toHaveCount(3);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(4);
   });
 
   test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {

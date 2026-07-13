@@ -4451,6 +4451,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
     setScene(null);
     setHoveredObject(null);
     setPinnedObject(null);
+    setPinnedReadoutPosition(null);
     setSimulationDays(0);
     window.clearTimeout(hoverDelayRef.current);
     hoverDelayRef.current = null;

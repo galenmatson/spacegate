@@ -469,6 +469,11 @@ Near-term source priorities:
   applicable, then `spectral_subclass_main_sequence_mass_prior_v1` for safe
   main-sequence spectral types. Coarse class-only priors and procedural visual
   defaults remain last-resort fallbacks and must stay visibly labeled.
+- Stellar-class chips represent non-assumed class evidence. A presentation-only
+  `mass_main_sequence_prior_v1` may still color a simulated body, but its chip
+  remains `U`; selecting the body exposes the assumed visual class, basis, and
+  confidence in the provenance-bearing readout. Nu Scorpii is the browser
+  regression benchmark for this separation.
 - SBX: current spectroscopic-binary support source. Keep SB9 as historical
   context only; default ingestion should prefer SBX where licensing and format
   checks pass.
