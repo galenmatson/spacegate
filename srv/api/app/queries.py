@@ -4294,3 +4294,174 @@ def search_systems(
         total_count = int(count_row[0] if count_row else 0)
 
     return results, total_count
+
+
+def _dict_rows(cursor: duckdb.DuckDBPyConnection) -> List[Dict[str, Any]]:
+    columns = [column[0] for column in cursor.description]
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def search_extended_objects(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    q_norm: Optional[str],
+    object_family: Optional[str],
+    object_type: Optional[str],
+    map_domain: Optional[str],
+    max_dist_ly: Optional[float],
+    limit: int,
+) -> List[Dict[str, Any]]:
+    if not _has_local_table(con, "extended_objects"):
+        return []
+    conditions: List[str] = []
+    params: List[Any] = []
+    if q_norm:
+        conditions.append("t.term_norm like ?")
+        params.append(f"%{q_norm}%")
+    if object_family:
+        conditions.append("e.object_family = ?")
+        params.append(object_family)
+    if object_type:
+        conditions.append("e.object_type = ?")
+        params.append(object_type)
+    if map_domain:
+        conditions.append("e.map_domain = ?")
+        params.append(map_domain)
+    if max_dist_ly is not None:
+        conditions.append("e.dist_ly <= ?")
+        params.append(max_dist_ly)
+    where_sql = " and ".join(conditions) if conditions else "true"
+    cursor = con.execute(
+        f"""
+        select e.*, min(
+          case when ? is null then 0
+               when t.term_norm = ? then 0
+               when t.term_norm like ? then 1
+               else 2 end
+        )::integer as match_rank
+        from extended_objects e
+        left join extended_object_search_terms t using (extended_object_id)
+        where {where_sql}
+        group by all
+        order by match_rank, e.display_name, e.extended_object_id
+        limit ?
+        """,
+        [q_norm, q_norm, f"{q_norm or ''}%", *params, limit],
+    )
+    return _dict_rows(cursor)
+
+
+def fetch_extended_object(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    extended_object_id: Optional[int] = None,
+    stable_object_key: Optional[str] = None,
+    arm_db_path: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    if not _has_local_table(con, "extended_objects"):
+        return None
+    if extended_object_id is not None:
+        cursor = con.execute(
+            "select * from extended_objects where extended_object_id = ? limit 1",
+            [extended_object_id],
+        )
+    elif stable_object_key:
+        cursor = con.execute(
+            "select * from extended_objects where stable_object_key = ? limit 1",
+            [stable_object_key],
+        )
+    else:
+        return None
+    rows = _dict_rows(cursor)
+    if not rows:
+        return None
+    result = rows[0]
+    object_id = int(result["extended_object_id"])
+    result["aliases"] = _dict_rows(
+        con.execute(
+            """
+            select alias_raw, alias_norm, alias_kind, alias_priority, source_catalog
+            from extended_object_aliases
+            where extended_object_id = ?
+            order by alias_priority, alias_norm
+            """,
+            [object_id],
+        )
+    )
+    result["identifiers"] = _dict_rows(
+        con.execute(
+            """
+            select namespace, id_value_raw, id_value_norm, source_catalog
+            from extended_object_identifiers
+            where extended_object_id = ?
+            order by namespace, id_value_norm
+            """,
+            [object_id],
+        )
+    )
+    result["evidence"] = {"geometry": [], "distance": [], "relations": []}
+    if arm_db_path and _attach_side_db(con, arm_db_path, alias="arm_db"):
+        evidence_tables = {
+            "geometry": "extended_object_geometry_evidence",
+            "distance": "extended_object_distance_evidence",
+            "relations": "extended_object_relations",
+        }
+        for key, table_name in evidence_tables.items():
+            if _has_table(con, alias="arm_db", table_name=table_name):
+                result["evidence"][key] = _dict_rows(
+                    con.execute(
+                        f"select * from arm_db.{table_name} where extended_object_id = ? order by 1",
+                        [object_id],
+                    )
+                )
+    return result
+
+
+def search_objects(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    q_norm: str,
+    limit: int,
+) -> List[Dict[str, Any]]:
+    system_rows = _dict_rows(
+        con.execute(
+            """
+            select s.system_id as object_id, s.stable_object_key, s.system_name as display_name,
+                   'system'::varchar as object_domain, 'stellar_system'::varchar as object_type,
+                   s.ra_deg, s.dec_deg, s.dist_ly, min(t.term_priority)::integer as match_rank
+            from systems s join system_search_terms t using(system_id)
+            where t.term_norm like ?
+            group by all
+            order by match_rank, display_name
+            limit ?
+            """,
+            [f"%{q_norm}%", limit],
+        )
+    )
+    extended_rows = search_extended_objects(
+        con,
+        q_norm=q_norm,
+        object_family=None,
+        object_type=None,
+        map_domain=None,
+        max_dist_ly=None,
+        limit=limit,
+    )
+    combined = system_rows + [
+        {
+            "object_id": row["extended_object_id"],
+            "stable_object_key": row["stable_object_key"],
+            "display_name": row["display_name"],
+            "object_domain": "extended_object",
+            "object_type": row["object_type"],
+            "ra_deg": row["ra_deg"],
+            "dec_deg": row["dec_deg"],
+            "dist_ly": row["dist_ly"],
+            "match_rank": row["match_rank"],
+        }
+        for row in extended_rows
+    ]
+    return sorted(
+        combined,
+        key=lambda row: (int(row.get("match_rank") or 0), str(row.get("display_name") or ""), str(row["stable_object_key"])),
+    )[:limit]

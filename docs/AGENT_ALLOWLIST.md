@@ -36,6 +36,13 @@ These can directly support core-adjacent facts (still routed via arm → adjudic
   trust_score: 1.00
   allowed_uses: [catalog data, tables, measurements]
 
+- domain: cdsarc.cds.unistra.fr
+  org: CDS Catalog Archive
+  type: catalog_archive_files
+  trust_score: 1.00
+  allowed_uses: [catalog data, source documentation, tables, measurements]
+  notes: Direct immutable-style catalog and ReadMe retrieval; preserve catalog citations and checksums
+
 - domain: archives.esac.esa.int
   org: ESA
   type: mission_archive (Gaia)
@@ -166,6 +173,20 @@ Trust 0.85–0.95
 ## TIER 3 - CURATED AGGREGATORS
 Discovery, cross checking, candidate leads
 Trust 0.70–0.85
+
+- domain: github.com
+  org: GitHub
+  type: source_repository_host
+  trust_score: 0.80
+  allowed_uses: [pinned OpenNGC identity data, source history, license inspection]
+  notes: Only allow reviewed repositories pinned by commit; repository content is not canonical measurement authority
+
+- domain: raw.githubusercontent.com
+  org: GitHub
+  type: source_repository_files
+  trust_score: 0.80
+  allowed_uses: [pinned OpenNGC identity data]
+  notes: Only fetch commit-pinned Spacegate-approved source files
 
 - domain: wikipedia.org
   org: Wikimedia

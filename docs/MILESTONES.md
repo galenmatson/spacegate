@@ -907,6 +907,24 @@ Deliverables:
   confidence, provenance, and presentation assets
 - license-reviewed sky/background layer beyond the 1000 ly local sphere
 
+#### M8.2a. Extended-Object Science Foundation v1
+
+Status: complete July 13, 2026. Local immutable-artifact verification, full ARM
+integration, public-slice propagation, and deterministic rerun checks pass.
+
+- pinned OpenNGC and CDS/VizieR acquisition with checksums and manifests
+- deterministic ICRS normalization and explicit identifier reconciliation
+- separate CORE identity/search tables and ARM geometry/distance/relation evidence
+- conservative associated-star distance policy and explicit placement domains
+- typed extended-object and unified object-search API contracts
+- deterministic rerun and IC 4592/M45/Barnard 33/M31 goldens
+
+#### M8.2b. Extended-Object Presentation
+
+Deferred until M8.1 establishes the tile/LOD contract. This phase owns map
+rendering, object extent/selection behavior, imagery, and attributed background
+survey layers; it must consume M8.2a without redefining canonical science.
+
 ### M8.3. System Simulation Scenes
 
 Goal:

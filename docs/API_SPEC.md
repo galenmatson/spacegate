@@ -1745,6 +1745,27 @@ Fetch a system by stable key, with stars and planets.
 
 Response 200: same as `/systems/{system_id}`.
 
+### GET /extended-objects/search
+
+Searches aliases and identifiers without mixing extended objects into system
+results. Optional filters: `q`, `object_family`, `object_type`, `map_domain`,
+`max_dist_ly`, and `limit`.
+
+### GET /extended-objects/{extended_object_id}
+
+Returns the CORE serving object, aliases, typed identifiers, and available ARM
+geometry, distance, and relation evidence.
+
+### GET /extended-objects/by-key/{stable_object_key}
+
+Stable-key form of the extended-object detail endpoint.
+
+### GET /objects/search
+
+Requires `q` and returns compact results tagged with `object_domain` (`system`
+or `extended_object`). This is a lookup aggregator, not a shared canonical
+schema; callers fetch the domain-specific detail endpoint after selection.
+
 ## Error Codes
 - `bad_request` (400)
 - `invalid_cursor` (400)

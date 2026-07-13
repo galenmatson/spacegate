@@ -960,6 +960,20 @@ Rules:
 - proposals remain in `arm` until separately accepted by deterministic policy
 - no agent-filled value may silently overwrite source-native `core` fields
 
+## Extended-Object Evidence
+
+- `extended_object_source_records`: source-shaped normalized rows joined to the
+  CORE reconciliation outcome
+- `extended_object_geometry_evidence`: all usable source positions and extent
+  observations, not only the selected CORE geometry
+- `extended_object_distance_evidence`: source-native/historical distance fields
+  plus the explicitly preferred CORE distance decision
+- `extended_object_relations`: illuminating/central-star links with resolved
+  star/system targets where exact catalog identity permits
+
+These tables preserve disagreement and lineage. They do not create canonical
+stars, systems, planets, or planet counts.
+
 ## Quality Gates (Arm)
 
 Build fails when:

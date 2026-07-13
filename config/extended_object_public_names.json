@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "names": [
+    {
+      "identity_namespace": "ic",
+      "identity_value": "4592",
+      "public_name": "Blue Horsehead Nebula",
+      "source_url": "https://apod.nasa.gov/apod/ap210705.html",
+      "source_org": "NASA Astronomy Picture of the Day",
+      "reason": "Institutional public name used consistently for IC 4592",
+      "review_status": "accepted"
+    }
+  ]
+}

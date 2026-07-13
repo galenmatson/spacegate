@@ -11,6 +11,8 @@ import struct
 import tarfile
 from pathlib import Path
 
+from cook_extended_objects import cook_bundle as cook_extended_object_bundle
+
 FITS_CARD_BYTES = 80
 FITS_BLOCK_BYTES = 2880
 
@@ -1326,6 +1328,14 @@ def main() -> int:
             continue
         count = handler(raw_path, cooked_path)
         print(f"cooked {label}: {count} rows -> {cooked_path}")
+    extended_raw_dir = raw_dir / "extended_objects"
+    if extended_raw_dir.exists():
+        counts = cook_extended_object_bundle(
+            extended_raw_dir,
+            cooked_dir / "extended_objects",
+            state_dir / "reports" / "extended_object_snapshot_delta_report.json",
+        )
+        print(f"cooked extended_objects: {counts}")
     return 0
 
 

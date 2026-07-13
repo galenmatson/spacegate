@@ -18,6 +18,7 @@ VERIFY_MULTIPLICITY_GOLDENS="${SPACEGATE_VERIFY_MULTIPLICITY_GOLDENS:-1}"
 VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
 VERIFY_COMPACT_ALIAS_SAFETY="${SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY:-0}"
 VERIFY_TESS_EVIDENCE="${SPACEGATE_VERIFY_TESS_EVIDENCE:-1}"
+VERIFY_EXTENDED_OBJECTS="${SPACEGATE_VERIFY_EXTENDED_OBJECTS:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -735,6 +736,26 @@ PY
     fi
   elif [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" ]]; then
     echo "Warning: skipping deterministic rerun check (reports missing)." >&2
+  fi
+
+  if [[ "$VERIFY_EXTENDED_OBJECTS" == "1" ]] && "$PYTHON_BIN" - "$core_db" <<'PY'
+import duckdb
+import sys
+con = duckdb.connect(sys.argv[1], read_only=True)
+present = bool(con.execute("select 1 from information_schema.tables where table_name='extended_objects' limit 1").fetchone())
+con.close()
+raise SystemExit(0 if present else 1)
+PY
+  then
+    local extended_args=(--core "$core_db")
+    if [[ -f "$arm_db" ]]; then
+      extended_args+=(--arm "$arm_db")
+    fi
+    if [[ $have_reports -eq 1 ]]; then
+      extended_args+=(--report "$reports_dir/extended_object_verification_report.json")
+    fi
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_extended_objects.py" "${extended_args[@]}"
+    echo "OK: extended-object science foundation"
   fi
 
   echo "Verified build $build_id"

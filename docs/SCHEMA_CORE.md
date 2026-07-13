@@ -880,6 +880,28 @@ Expected columns:
   - metallicity with uncertainty
 - provenance contract fields
 
+## Extended-Object Tables
+
+`extended_objects` is the canonical serving projection for non-stellar catalog
+objects. Its identity is separate from `systems`, `stars`, and `planets`.
+
+Key columns:
+
+- identity: `extended_object_id`, `stable_object_key`, `canonical_name`,
+  `display_name`, `entity_kind`, `object_family`, `object_type`
+- geometry: ICRS `ra_deg`, `dec_deg`, shape/axis/position-angle fields, selected
+  source record, and geometry status
+- distance/placement: nullable `dist_pc`, `dist_ly`, interval, method,
+  confidence, evidence JSON, `map_domain`, and nullable radius tier
+- nullable heliocentric XYZ only for admitted `local_3d` rows
+- full provenance contract and policy/transform versions
+
+Supporting tables are `extended_object_aliases`,
+`extended_object_identifiers`, `extended_object_search_terms`,
+`extended_object_source_reconciliation`, and
+`extended_object_identity_quarantine`. Every targeted source record must have an
+explicit reconciliation outcome and reason. See `docs/EXTENDED_OBJECTS.md`.
+
 ## QC Requirements
 
 Build must fail on:

@@ -836,8 +836,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   AAA review policy, and offscreen System Simulation pause/throttle
 - [ ] Authenticated admin map overlay for per-system/object review controls,
   evidence portfolio access, and AAA research promotion
-- [ ] Extended-object map layer for Messier/NGC/IC-style landmarks, nebulae,
-  clusters, and background-sky context
+- [x] Extended-object science foundation for Messier/NGC/IC landmarks,
+  nebulae, clusters, and galaxies: pinned sources, identity, geometry, distance,
+  ARM evidence, search/API, coverage, quarantine, and deterministic goldens
+- [ ] Extended-object map presentation layer: tile/LOD integration, extents,
+  imagery, selection behavior, and attributed background-sky context
 - [x] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive
   and rerun hierarchy/orbit goldens
 - [x] Add source-evidence utilization audit for preserved MSC `sys.tsv`/`orb.tsv`

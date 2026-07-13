@@ -970,14 +970,17 @@ Notes:
 2. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint; naming and multiplicity follow-up
    remains tracked in `docs/CHECKLIST.md`.
-3. Define the versioned tile manifest/API/cache contract and deliver a measured
-   250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly.
-4. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
+3. Treat the completed M8.2a extended-object science foundation as the typed
+   data boundary for later non-stellar map layers; keep rendering deferred.
+4. Define the versioned tile manifest/API/cache contract and deliver a measured
+   250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly; make the
+   contract capable of carrying the new typed extended-object layer later.
+5. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
    concept slugs are stable before reviewed Agency narration is published.
-5. Implement one secure AAA evidence-portfolio vertical slice with source-text
+6. Implement one secure AAA evidence-portfolio vertical slice with source-text
    isolation, typed claims, citations, human review, and explicit publication
    state.
-6. Restore deterministic snapshot-manifest coverage in the next public sliced
+7. Restore deterministic snapshot-manifest coverage in the next public sliced
    build; the current local side build has live/no-WebGL behavior but no map
    snapshot rows.
 

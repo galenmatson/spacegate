@@ -45,6 +45,7 @@ from .queries import (
     choose_display_name_info,
     fetch_arm_evidence_for_stars,
     fetch_eclipsing_for_system,
+    fetch_extended_object,
     fetch_aliases_for_stars,
     fetch_aliases_for_system,
     fetch_build_id,
@@ -60,6 +61,8 @@ from .queries import (
     fetch_system_by_key,
     normalize_name_style,
     search_systems,
+    search_extended_objects,
+    search_objects,
     summarize_star_temperatures,
 )
 from .utils import (
@@ -5489,6 +5492,71 @@ def spectral_mix():
         "rows": mix.get("rows", []),
         "time_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
     }
+
+
+@app.get("/api/v1/objects/search")
+def objects_search(
+    q: str = Query(min_length=1),
+    limit: int = Query(default=25, ge=1, le=100),
+):
+    q_norm = normalize_query_text(q)
+    if not q_norm:
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "Search query is required", "details": {}})
+    with db.connection_scope() as con:
+        rows = search_objects(con, q_norm=q_norm, limit=limit)
+        build_id = fetch_build_id(con)
+    return {"status": "ok", "build_id": build_id, "query": q, "rows": rows}
+
+
+@app.get("/api/v1/extended-objects/search")
+def extended_objects_search(
+    q: Optional[str] = Query(default=None),
+    object_family: Optional[str] = Query(default=None),
+    object_type: Optional[str] = Query(default=None),
+    map_domain: Optional[str] = Query(default=None),
+    max_dist_ly: Optional[float] = Query(default=None, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    with db.connection_scope() as con:
+        rows = search_extended_objects(
+            con,
+            q_norm=normalize_query_text(q or "") or None,
+            object_family=object_family,
+            object_type=object_type,
+            map_domain=map_domain,
+            max_dist_ly=max_dist_ly,
+            limit=limit,
+        )
+        build_id = fetch_build_id(con)
+    return {"status": "ok", "build_id": build_id, "query": q, "rows": rows}
+
+
+@app.get("/api/v1/extended-objects/by-key/{stable_object_key:path}")
+def extended_object_by_key(stable_object_key: str):
+    with db.connection_scope() as con:
+        row = fetch_extended_object(
+            con,
+            stable_object_key=stable_object_key,
+            arm_db_path=_resolve_arm_db_path(),
+        )
+        build_id = fetch_build_id(con)
+    if row is None:
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Extended object not found", "details": {}})
+    return {"status": "ok", "build_id": build_id, "object": row}
+
+
+@app.get("/api/v1/extended-objects/{extended_object_id}")
+def extended_object_detail(extended_object_id: int):
+    with db.connection_scope() as con:
+        row = fetch_extended_object(
+            con,
+            extended_object_id=extended_object_id,
+            arm_db_path=_resolve_arm_db_path(),
+        )
+        build_id = fetch_build_id(con)
+    if row is None:
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Extended object not found", "details": {}})
+    return {"status": "ok", "build_id": build_id, "object": row}
 
 
 @app.get("/api/v1/systems/search")
