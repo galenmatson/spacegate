@@ -353,6 +353,8 @@ test.describe("public 3D map beta", () => {
 
     await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/tau Cet|Tau Ceti/i);
+    await expect(page.locator(".site-header .header-lower")).toHaveCount(0);
+    await expect(page.locator(".system-search-topbar .map-search-main")).toBeVisible();
     await expect(page.locator(".system-detail-name-line .id-chip").first()).toBeVisible();
     await expect(page.locator(".system-detail-name-line .id-chip", { hasText: "Unknown" })).toHaveCount(0);
     await expect(page.locator(".system-detail-hero-copy > .system-detail-ids")).toHaveCount(0);
@@ -393,7 +395,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".system-preview-line-menu")).toHaveAttribute("open", "");
     await page.locator(".system-detail-v2 h1").click({ force: true });
     await expect(page.locator(".system-preview-line-menu")).not.toHaveAttribute("open", "");
-    await expect(page.locator(".header-search-row").getByRole("button", { name: "Map" })).toBeVisible();
+    await expect(page.locator(".system-search-topbar").getByRole("button", { name: "Map" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "What You’re Looking At" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Why This System Matters" })).toBeVisible();
     await expect(page.locator(".system-story-card", { hasText: "Infrared View" })).toBeVisible();
@@ -418,7 +420,7 @@ test.describe("public 3D map beta", () => {
     await technicalDisclosure.locator("summary").click();
     await expect(technicalDisclosure.locator(".system-technical-strip")).toContainText(/Sky Position/i);
     await page.locator("[data-global-search-input='true']").fill("Sirius");
-    await page.locator(".header-search-row").getByRole("button", { name: "Search" }).click();
+    await page.locator(".system-search-topbar").getByRole("button", { name: "Search" }).click();
     await expect(page).toHaveURL(/\/search\?q=Sirius&sort=match/);
     await expect(page.locator(".results-toolbar")).toBeVisible();
   });
@@ -2087,9 +2089,17 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
     await expect.poll(
-      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneBinaryPlaneCount || 0)),
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneParentPlaneCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(2);
+    ).toBeGreaterThanOrEqual(3);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZonePlanetPlaneCount || 0)),
+      { timeout: 3000 }
+    ).toBe(0);
+    await expect.poll(
+      () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.habitableZoneMaxPlaneInclinationDeg || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(100);
     await page.locator(".system-preview-object-chip", { hasText: /Proxima Centauri/i }).first().click();
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => canvas.dataset.cameraTargetObjectId || ""),

@@ -6458,6 +6458,21 @@ main {
   margin-bottom: 14px;
 }
 
+.system-search-topbar {
+  position: static;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto;
+  margin-bottom: 14px;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.system-detail-error {
+  margin-top: 14px;
+}
+
 .catalog-search-topbar .map-search-range {
   font-size: 0.66rem;
 }
@@ -10178,6 +10193,10 @@ main {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .system-search-topbar {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+  }
+
   .catalog-search-topbar > .map-command-button:nth-of-type(2) {
     display: inline-flex;
   }
@@ -10227,6 +10246,14 @@ main {
   .map-search-topbar {
     padding: 7px;
     gap: 6px;
+  }
+
+  .system-search-topbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .system-search-topbar .map-search-main {
+    grid-column: 1 / -1;
   }
 
   .map-search-spectral-bar {

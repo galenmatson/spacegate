@@ -2804,7 +2804,36 @@ function HeaderSearchBar({
   onMap,
   loading = false,
   autoFocus = false,
+  catalogLayout = false,
 }) {
+  if (catalogLayout) {
+    return (
+      <form className="map-search-topbar catalog-search-topbar system-search-topbar" onSubmit={onSubmit}>
+        <label className="map-search-main">
+          <span className="sr-only">Search systems</span>
+          <input
+            type="text"
+            data-global-search-input="true"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search stars, systems, or catalog IDs..."
+            autoFocus={autoFocus}
+          />
+        </label>
+        <button className="map-command-button primary" type="submit" disabled={loading}>
+          {loading ? "Searching" : "Search"}
+        </button>
+        <button type="button" className="map-command-button ghost" onClick={onClear} disabled={loading}>
+          Clear
+        </button>
+        {onMap ? (
+          <button className="map-command-button ghost" type="button" onClick={onMap} disabled={loading}>
+            Map
+          </button>
+        ) : null}
+      </form>
+    );
+  }
   return (
     <form className="results-search-row header-search-row" onSubmit={onSubmit}>
       <button className="button compact search-submit-button" type="submit" disabled={loading}>
@@ -2834,7 +2863,7 @@ function HeaderSearchBar({
   );
 }
 
-function RouteHeaderSearchBar({ mapSystem = null }) {
+function RouteHeaderSearchBar({ mapSystem = null, catalogLayout = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
@@ -2874,6 +2903,7 @@ function RouteHeaderSearchBar({ mapSystem = null }) {
       onSubmit={onSubmit}
       onClear={onClear}
       onMap={onMap ? handleMap : null}
+      catalogLayout={catalogLayout}
     />
   );
 }
@@ -4238,7 +4268,7 @@ function SystemDetailPage({ buildId = "" }) {
 
   if (loading) {
     return (
-      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
+      <Layout buildId={buildId} showSearchLink={false}>
         <div className="panel">Loading system details...</div>
       </Layout>
     );
@@ -4246,8 +4276,9 @@ function SystemDetailPage({ buildId = "" }) {
 
   if (error || !data) {
     return (
-      <Layout buildId={buildId} showSearchLink={false} headerExtra={<RouteHeaderSearchBar />}>
-        <div className="panel">
+      <Layout buildId={buildId} showSearchLink={false}>
+        <RouteHeaderSearchBar catalogLayout />
+        <div className="panel system-detail-error">
           <h2>System not found</h2>
           <p>{error || "No data returned."}</p>
           <button className="button ghost" onClick={() => navigate("/search")}>Back to search</button>
@@ -4271,7 +4302,8 @@ function SystemDetailPage({ buildId = "" }) {
   }, { limit: 12 });
 
   return (
-    <Layout showSearchLink={false} buildId={buildId} headerExtra={<RouteHeaderSearchBar mapSystem={system} />}>
+    <Layout showSearchLink={false} buildId={buildId}>
+      <RouteHeaderSearchBar mapSystem={system} catalogLayout />
       <section className="detail system-detail-v2">
         {fromMap && (
           <div className="map-return-banner">

@@ -39,6 +39,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 
 ### B1. Current Data and Identity Regression Inbox
 
+- [x] Normalize the System Page site header and search row with Star Search,
+  and align System Simulation habitable-zone disks from reliable host-planet
+  ecliptic evidence or the star's most local rendered parent orbit; assumed
+  planet visualization priors no longer override multistar parent planes
+
 - [ ] Investigate and repair AR Cassiopeiae / AR Cas / HD 221253 as one
   consistently searchable system with seven accepted stellar members; explain
   every additional current member, keep the documented background component E
@@ -324,6 +329,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] Object-scoped coolness ranking for systems, stars, and planets to drive enrichment/adjudication queues
 - [ ] Fold stellar gigantism into coolness/search ranking so giants and supergiants are not buried with ordinary stars
 - [ ] Retool CoolStars coolness scoring for the larger public database with explainable weighted signals, operator-visible contribution breakdowns, and reviewed profile presets
+- [ ] Add correlated-signal controls and ranking goldens to the Coolness Retool:
+  WISE J085510.83-071442.5 is currently rank 7 because Y-dwarf rarity,
+  7.43 ly proximity, and extreme proper motion stack 27.14 of its 30.36
+  points; decide explicitly whether that scientific interest merits the public
+  browse rank or needs a redundancy cap/profile adjustment
 - [x] Canonical ingest design doc + deterministic adjudication queue baseline for sloppy-system triage
 - [x] Canonical ingest artifacts for normalized sources, identity graph, and canonical reduction
 - [x] Canonical hierarchy artifact from canonical objects + arm role evidence
