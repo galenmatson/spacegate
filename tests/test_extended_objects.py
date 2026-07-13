@@ -6,7 +6,9 @@ import duckdb
 
 from scripts.cook_extended_objects import normalize_designation
 from scripts.extended_object_materialization import identity_token, load_relation_stars
+from srv.api.app.main import _json_safe_extended_object_ids
 from srv.api.app.queries import search_extended_objects
+from srv.api.app.utils import normalize_extended_object_query
 
 
 class ExtendedObjectIdentityTests(unittest.TestCase):
@@ -18,6 +20,11 @@ class ExtendedObjectIdentityTests(unittest.TestCase):
         self.assertEqual(normalize_designation("NGC0045"), "NGC 45")
         self.assertEqual(normalize_designation("Sh 2 001"), "Sh 2-1")
         self.assertEqual(identity_token("Barnard 33"), ("barnard", "33"))
+
+    def test_compact_catalog_search_query_normalizes(self) -> None:
+        self.assertEqual(normalize_extended_object_query("M45"), "m 45")
+        self.assertEqual(normalize_extended_object_query("IC4592"), "ic 4592")
+        self.assertEqual(normalize_extended_object_query("LBN1113"), "lbn 1113")
 
 
 class ExtendedObjectSearchTests(unittest.TestCase):
@@ -63,6 +70,15 @@ class ExtendedObjectSearchTests(unittest.TestCase):
             limit=10,
         )
         self.assertEqual([row["extended_object_id"] for row in rows], [33, 330])
+
+    def test_api_serializes_64_bit_object_ids_without_javascript_rounding(self) -> None:
+        object_id = 458477943266456492
+        payload = _json_safe_extended_object_ids({
+            "extended_object_id": object_id,
+            "evidence": {"geometry": [{"extended_object_id": object_id}]},
+        })
+        self.assertEqual(payload["extended_object_id"], str(object_id))
+        self.assertEqual(payload["evidence"]["geometry"][0]["extended_object_id"], str(object_id))
 
 
 class ExtendedObjectRelationTests(unittest.TestCase):

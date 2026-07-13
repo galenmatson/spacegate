@@ -18,6 +18,22 @@ def normalize_query_text(text: str) -> str:
     return cleaned
 
 
+def normalize_extended_object_query(text: str) -> str:
+    normalized = normalize_query_text(text)
+    match = re.fullmatch(
+        r"(ngc|ic|m|mel|melotte|lbn|ldn|vdb|barnard|b)\s*0*(\d+)([a-z]?)",
+        normalized,
+    )
+    if not match:
+        return normalized
+    prefix = {
+        "mel": "melotte",
+        "b": "barnard",
+    }.get(match.group(1), match.group(1))
+    suffix = match.group(3) or ""
+    return f"{prefix} {int(match.group(2))}{suffix}"
+
+
 def parse_identifier_query(text: str) -> Optional[Dict[str, Any]]:
     if not text:
         return None

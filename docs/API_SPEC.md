@@ -1751,10 +1751,16 @@ Searches aliases and identifiers without mixing extended objects into system
 results. Optional filters: `q`, `object_family`, `object_type`, `map_domain`,
 `max_dist_ly`, and `limit`.
 
+`extended_object_id` is serialized as a decimal string because stable IDs can
+exceed JavaScript's exact integer range. Browser clients must treat it as an
+opaque identifier. Star Search presents these rows in a typed catalog-object
+section rather than applying stellar-system filters or simulation actions.
+
 ### GET /extended-objects/{extended_object_id}
 
 Returns the CORE serving object, aliases, typed identifiers, and available ARM
-geometry, distance, and relation evidence.
+geometry, distance, and relation evidence. All `extended_object_id` values,
+including those repeated in evidence rows, are decimal strings.
 
 ### GET /extended-objects/by-key/{stable_object_key}
 

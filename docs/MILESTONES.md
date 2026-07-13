@@ -923,6 +923,9 @@ Promoted local checkpoint:
 - separate CORE identity/search tables and ARM geometry/distance/relation evidence
 - conservative associated-star distance policy and explicit placement domains
 - typed extended-object and unified object-search API contracts
+- Star Search typed catalog-object results and evidence detail pages make
+  names and aliases such as M45, IC 4592, and LBN 1113 directly inspectable;
+  64-bit object IDs remain exact across browser JSON consumers
 - deterministic rerun and IC 4592/M45/Barnard 33/M31 goldens
 - batched associated-star resolution performs one typed HD lookup scan rather
   than repeated full-table probes; identical canonical table hashes verified

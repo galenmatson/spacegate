@@ -842,6 +842,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Build, verify, and locally promote canonical
   `20260713T1627Z_dd7446e` and public slice
   `20260713T1627Z_dd7446e_public` with extended-object evidence intact
+- [x] Expose typed extended-object matches in Star Search with dedicated
+  evidence pages, alias lookup goldens for M45/IC 4592/LBN 1113, and
+  JavaScript-safe string serialization for 64-bit extended-object IDs
 - [ ] Extended-object map presentation layer: tile/LOD integration, extents,
   imagery, selection behavior, and attributed background-sky context
 - [x] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive

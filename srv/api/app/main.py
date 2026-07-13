@@ -68,6 +68,7 @@ from .queries import (
 from .utils import (
     decode_cursor,
     encode_cursor,
+    normalize_extended_object_query,
     normalize_query_text,
     parse_bool,
     parse_identifier_query,
@@ -5499,13 +5500,27 @@ def objects_search(
     q: str = Query(min_length=1),
     limit: int = Query(default=25, ge=1, le=100),
 ):
-    q_norm = normalize_query_text(q)
+    q_norm = normalize_extended_object_query(q)
     if not q_norm:
         raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "Search query is required", "details": {}})
     with db.connection_scope() as con:
         rows = search_objects(con, q_norm=q_norm, limit=limit)
         build_id = fetch_build_id(con)
     return {"status": "ok", "build_id": build_id, "query": q, "rows": rows}
+
+
+def _json_safe_extended_object_ids(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep 64-bit stable IDs exact across JavaScript JSON consumers."""
+    result = dict(row)
+    if result.get("extended_object_id") is not None:
+        result["extended_object_id"] = str(int(result["extended_object_id"]))
+    evidence = result.get("evidence")
+    if isinstance(evidence, dict):
+        result["evidence"] = {
+            key: [_json_safe_extended_object_ids(item) for item in (items or [])]
+            for key, items in evidence.items()
+        }
+    return result
 
 
 @app.get("/api/v1/extended-objects/search")
@@ -5520,7 +5535,7 @@ def extended_objects_search(
     with db.connection_scope() as con:
         rows = search_extended_objects(
             con,
-            q_norm=normalize_query_text(q or "") or None,
+            q_norm=normalize_extended_object_query(q or "") or None,
             object_family=object_family,
             object_type=object_type,
             map_domain=map_domain,
@@ -5528,7 +5543,12 @@ def extended_objects_search(
             limit=limit,
         )
         build_id = fetch_build_id(con)
-    return {"status": "ok", "build_id": build_id, "query": q, "rows": rows}
+    return {
+        "status": "ok",
+        "build_id": build_id,
+        "query": q,
+        "rows": [_json_safe_extended_object_ids(row) for row in rows],
+    }
 
 
 @app.get("/api/v1/extended-objects/by-key/{stable_object_key:path}")
@@ -5542,7 +5562,7 @@ def extended_object_by_key(stable_object_key: str):
         build_id = fetch_build_id(con)
     if row is None:
         raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Extended object not found", "details": {}})
-    return {"status": "ok", "build_id": build_id, "object": row}
+    return {"status": "ok", "build_id": build_id, "object": _json_safe_extended_object_ids(row)}
 
 
 @app.get("/api/v1/extended-objects/{extended_object_id}")
@@ -5556,7 +5576,7 @@ def extended_object_detail(extended_object_id: int):
         build_id = fetch_build_id(con)
     if row is None:
         raise HTTPException(status_code=404, detail={"code": "not_found", "message": "Extended object not found", "details": {}})
-    return {"status": "ok", "build_id": build_id, "object": row}
+    return {"status": "ok", "build_id": build_id, "object": _json_safe_extended_object_ids(row)}
 
 
 @app.get("/api/v1/systems/search")

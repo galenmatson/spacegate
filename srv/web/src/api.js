@@ -19,6 +19,27 @@ export async function fetchSystems(params) {
   return res.json();
 }
 
+export async function fetchExtendedObjects(params) {
+  const query = new URLSearchParams(params);
+  const url = apiUrl(`/api/v1/extended-objects/search?${query.toString()}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Catalog object search failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
+
+export async function fetchExtendedObjectDetail(extendedObjectId) {
+  const url = apiUrl(`/api/v1/extended-objects/${extendedObjectId}`);
+  const res = await fetch(url);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Catalog object detail failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
+
 export async function fetchSystemDetail(systemId, params = {}) {
   const query = new URLSearchParams(params);
   const suffix = query.toString() ? `?${query.toString()}` : "";

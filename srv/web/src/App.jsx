@@ -2,7 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { fetchHealth, fetchSpectralMix, fetchSystemDetail, fetchSystemInfrared, fetchSystems, apiUrl } from "./api.js";
+import {
+  apiUrl,
+  fetchExtendedObjectDetail,
+  fetchExtendedObjects,
+  fetchHealth,
+  fetchSpectralMix,
+  fetchSystemDetail,
+  fetchSystemInfrared,
+  fetchSystems,
+} from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
@@ -797,6 +806,11 @@ function formatText(value) {
     return "Unknown";
   }
   return String(value);
+}
+
+function formatCatalogObjectType(value) {
+  const text = String(value || "catalog object").replaceAll("_", " ").trim();
+  return text ? text.replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Catalog Object";
 }
 
 function formatAliasSummary(aliases, { exclude = [], limit = 8 } = {}) {
@@ -2816,7 +2830,7 @@ function HeaderSearchBar({
             data-global-search-input="true"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search stars, systems, or catalog IDs..."
+            placeholder="Search stars, systems, or catalog objects..."
             autoFocus={autoFocus}
           />
         </label>
@@ -3106,6 +3120,8 @@ function SearchPage({ buildId = "" }) {
     return "50";
   });
   const [results, setResults] = useState([]);
+  const [catalogResults, setCatalogResults] = useState([]);
+  const [catalogSearchUnavailable, setCatalogSearchUnavailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cursor, setCursor] = useState(null);
@@ -3330,9 +3346,19 @@ function SearchPage({ buildId = "" }) {
     if (reset) {
       setTotalCount(null);
       latestTotalTokenRef.current += 1;
+      setCatalogSearchUnavailable(false);
     }
     try {
-      const data = await fetchSystems(requestParams);
+      const catalogQuery = reset ? String(resolvedBase?.q || "").trim() : "";
+      const catalogRequest = catalogQuery
+        ? fetchExtendedObjects({ q: catalogQuery, limit: "8" })
+          .then((payload) => ({ payload, unavailable: false }))
+          .catch(() => ({ payload: null, unavailable: true }))
+        : Promise.resolve({ payload: null, unavailable: false });
+      const [data, catalogResponse] = await Promise.all([
+        fetchSystems(requestParams),
+        catalogRequest,
+      ]);
       if (latestSearchTokenRef.current !== searchToken) {
         return;
       }
@@ -3341,6 +3367,10 @@ function SearchPage({ buildId = "" }) {
       setHasMore(Boolean(data.has_more));
       setCursor(data.next_cursor || null);
       setResults((prev) => (reset ? data.items : [...prev, ...data.items]));
+      if (reset) {
+        setCatalogResults(Array.isArray(catalogResponse.payload?.rows) ? catalogResponse.payload.rows : []);
+        setCatalogSearchUnavailable(catalogResponse.unavailable);
+      }
       if (reset && shouldFetchDeferredTotal(resolvedBase)) {
         void fetchDeferredTotalCount(resolvedBase, searchToken);
       } else if (typeof data.total_count === "number") {
@@ -3362,6 +3392,7 @@ function SearchPage({ buildId = "" }) {
         setError(err?.message || "Data temporarily unavailable.");
         if (reset) {
           setTotalCount(null);
+          setCatalogResults([]);
         }
       }
     } finally {
@@ -3705,7 +3736,7 @@ function SearchPage({ buildId = "" }) {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search stars, systems, or catalog IDs..."
+                placeholder="Search stars, systems, nebulae, clusters, or catalog IDs..."
                 data-global-search-input="true"
                 autoFocus
               />
@@ -3812,6 +3843,49 @@ function SearchPage({ buildId = "" }) {
             </div>
           </div>
 
+          {catalogResults.length > 0 && (
+            <section className="catalog-object-results" aria-labelledby="catalog-object-results-title">
+              <div className="catalog-object-results-heading">
+                <div>
+                  <p className="eyebrow">Catalog objects</p>
+                  <h3 id="catalog-object-results-title">Nebulae, clusters, and extended objects</h3>
+                </div>
+                <span className="muted">{catalogResults.length} matched</span>
+              </div>
+              <div className="catalog-object-results-list">
+                {catalogResults.map((item) => {
+                  const displayName = String(item.display_name || item.canonical_name || "Catalog object");
+                  const canonicalName = String(item.canonical_name || "");
+                  return (
+                    <article className="catalog-object-card" key={item.extended_object_id}>
+                      <div className="catalog-object-card-main">
+                        <div>
+                          <div className="catalog-object-type">{formatCatalogObjectType(item.object_type)}</div>
+                          <h3>
+                            <Link to={`/objects/${item.extended_object_id}`}>{displayName}</Link>
+                          </h3>
+                          {canonicalName && canonicalName !== displayName && (
+                            <div className="muted">Catalog: {canonicalName}</div>
+                          )}
+                        </div>
+                        <Link className="button compact ghost" to={`/objects/${item.extended_object_id}`}>Evidence</Link>
+                      </div>
+                      <div className="catalog-object-metrics">
+                        <span>{item.dist_ly != null ? `${formatNumber(item.dist_ly, 1)} ly` : "Sky position only"}</span>
+                        <span>{formatCoordinate(item.ra_deg)} / {formatCoordinate(item.dec_deg)} deg</span>
+                        <span>{formatCatalogObjectType(item.map_domain)}</span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {catalogSearchUnavailable && query.trim() && (
+            <p className="catalog-object-search-note muted">Catalog-object search is temporarily unavailable; stellar results are unaffected.</p>
+          )}
+
           {loading && results.length === 0 && (
             <div className="empty-state">
               <h2>Loading cool systems...</h2>
@@ -3826,7 +3900,7 @@ function SearchPage({ buildId = "" }) {
             </div>
           )}
 
-          {searchStarted && !loading && results.length === 0 && (
+          {searchStarted && !loading && results.length === 0 && catalogResults.length === 0 && (
             <div className="empty-state">
               <h2>No matches found</h2>
               <p>Try relaxing filters or changing the search terms.</p>
@@ -4225,6 +4299,154 @@ function InfraredSkyView({ system, narrativeBlocks = [] }) {
         </div>
       )}
     </section>
+  );
+}
+
+function ExtendedObjectDetailPage({ buildId = "" }) {
+  const { extendedObjectId } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    fetchExtendedObjectDetail(extendedObjectId)
+      .then((payload) => {
+        if (active) setData(payload);
+      })
+      .catch(() => {
+        if (active) setError("Catalog object not found.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [extendedObjectId]);
+
+  if (loading) {
+    return <Layout buildId={buildId}><div className="panel">Loading catalog evidence...</div></Layout>;
+  }
+  if (error || !data?.object) {
+    return (
+      <Layout buildId={buildId} showSearchLink={false}>
+        <RouteHeaderSearchBar catalogLayout />
+        <div className="panel system-detail-error">
+          <h2>Catalog object not found</h2>
+          <p>{error || "No data returned."}</p>
+          <button className="button ghost" onClick={() => navigate("/search")}>Back to search</button>
+        </div>
+      </Layout>
+    );
+  }
+
+  const object = data.object;
+  const aliases = Array.isArray(object.aliases) ? object.aliases : [];
+  const identifiers = Array.isArray(object.identifiers) ? object.identifiers : [];
+  const geometry = Array.isArray(object.evidence?.geometry) ? object.evidence.geometry : [];
+  const distances = Array.isArray(object.evidence?.distance) ? object.evidence.distance : [];
+  const relations = Array.isArray(object.evidence?.relations) ? object.evidence.relations : [];
+  const sourceHref = String(object.source_url || object.source_download_url || "").trim();
+
+  return (
+    <Layout buildId={buildId} showSearchLink={false}>
+      <RouteHeaderSearchBar catalogLayout />
+      <main className="detail extended-object-detail">
+        <header className="extended-object-hero">
+          <div>
+            <p className="eyebrow">{formatCatalogObjectType(object.object_family)} catalog object</p>
+            <h1>{formatText(object.display_name || object.canonical_name)}</h1>
+            {object.canonical_name && object.canonical_name !== object.display_name && (
+              <p className="extended-object-canonical">{object.canonical_name}</p>
+            )}
+          </div>
+          <div className="extended-object-classification">
+            <strong>{formatCatalogObjectType(object.object_type)}</strong>
+            <span>{formatCatalogObjectType(object.map_domain)}</span>
+          </div>
+        </header>
+
+        <section className="extended-object-facts" aria-label="Catalog object facts">
+          <div><span>Distance</span><strong>{object.dist_ly != null ? `${formatNumber(object.dist_ly, 1)} ly` : "Not established"}</strong></div>
+          <div><span>Coordinates</span><strong>{formatCoordinate(object.ra_deg)} / {formatCoordinate(object.dec_deg)} deg</strong></div>
+          <div><span>Angular extent</span><strong>{object.major_axis_arcmin != null ? `${formatNumber(object.major_axis_arcmin, 1)} × ${formatNumber(object.minor_axis_arcmin, 1)} arcmin` : formatText(object.shape_kind)}</strong></div>
+          <div><span>Distance basis</span><strong>{formatCatalogObjectType(object.distance_method || "unknown")}</strong></div>
+        </section>
+
+        {(aliases.length > 0 || identifiers.length > 0) && (
+          <section className="extended-object-section">
+            <h2>Names and identifiers</h2>
+            {aliases.length > 0 && <p className="extended-object-aliases">{aliases.map((alias) => alias.alias_raw).join(" · ")}</p>}
+            {identifiers.length > 0 && (
+              <div className="extended-object-id-list">
+                {identifiers.map((identifier) => (
+                  <span key={`${identifier.namespace}-${identifier.id_value_norm}`}>
+                    <strong>{String(identifier.namespace).toUpperCase()}</strong> {identifier.id_value_raw}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="extended-object-section">
+          <div className="extended-object-section-heading">
+            <h2>Observation evidence</h2>
+            <span className="muted">{geometry.length} geometry · {distances.length} distance · {relations.length} relation records</span>
+          </div>
+          <div className="extended-object-evidence-grid">
+            <div>
+              <h3>Geometry</h3>
+              {geometry.map((entry) => (
+                <div className="extended-object-evidence-row" key={`geometry-${entry.geometry_evidence_id}`}>
+                  <strong>{formatText(entry.source_catalog)}</strong>
+                  <span>{formatCoordinate(entry.ra_deg)} / {formatCoordinate(entry.dec_deg)} deg</span>
+                  <span>{entry.major_axis_arcmin != null ? `${formatNumber(entry.major_axis_arcmin, 1)} × ${formatNumber(entry.minor_axis_arcmin, 1)} arcmin` : formatCatalogObjectType(entry.shape_kind)}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <h3>Distance</h3>
+              {distances.map((entry) => (
+                <div className="extended-object-evidence-row" key={`distance-${entry.distance_evidence_id}`}>
+                  <strong>{formatText(entry.source_catalog)}{entry.is_preferred ? " · preferred" : ""}</strong>
+                  <span>{formatNumber(entry.distance_pc, 2)} pc · {formatNumber(Number(entry.distance_pc) * 3.26156, 1)} ly</span>
+                  <span>{formatCatalogObjectType(entry.distance_method)} · {formatCatalogObjectType(entry.confidence_tier)}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <h3>Relations</h3>
+              {relations.map((entry) => (
+                <div className="extended-object-evidence-row" key={`relation-${entry.relation_id}`}>
+                  <strong>{formatCatalogObjectType(entry.relation_kind)}</strong>
+                  <span>{String(entry.target_namespace || "").toUpperCase()} {formatText(entry.target_value)}</span>
+                  <span>
+                    {entry.target_system_id != null ? <Link to={`/systems/${entry.target_system_id}`}>Linked stellar system</Link> : formatCatalogObjectType(entry.resolution_status)}
+                    {` · ${formatText(entry.source_catalog)}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="extended-object-section extended-object-source">
+          <h2>Source and lineage</h2>
+          <div className="extended-object-source-grid">
+            <span><strong>Catalog</strong> {formatText(object.source_catalog)} · {formatText(object.source_version)}</span>
+            <span><strong>License</strong> {formatText(object.license)}</span>
+            <span><strong>Retrieved</strong> {formatText(object.retrieved_at)}</span>
+            <span><strong>Transform</strong> {formatText(object.transform_version)}</span>
+          </div>
+          {sourceHref && <a href={sourceHref} target="_blank" rel="noreferrer">Inspect source catalog</a>}
+        </section>
+      </main>
+    </Layout>
   );
 }
 
@@ -4708,6 +4930,7 @@ export default function App() {
           )}
         />
         <Route path="/systems/:systemId" element={<SystemDetailPage buildId={buildId} />} />
+        <Route path="/objects/:extendedObjectId" element={<ExtendedObjectDetailPage buildId={buildId} />} />
       </Routes>
     </ThemeContext.Provider>
   );
