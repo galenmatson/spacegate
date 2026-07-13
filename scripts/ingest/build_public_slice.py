@@ -803,6 +803,16 @@ def build_slice(
             "create table planet_status_history as select * from src.planet_status_history"
         )
         con.execute("create table superstellar_objects as select * from src.superstellar_objects")
+        for table_name in (
+            "extended_objects",
+            "extended_object_aliases",
+            "extended_object_identifiers",
+            "extended_object_search_terms",
+            "extended_object_source_reconciliation",
+            "extended_object_identity_quarantine",
+        ):
+            if table_exists(con, "src", table_name):
+                con.execute(f"create table {table_name} as select * from src.{table_name}")
 
         con.executemany(
             "insert into build_metadata values (?, ?)",
@@ -844,6 +854,18 @@ def build_slice(
         con.execute(
             f"copy (select * from identifier_quarantine) to {sql_literal(str(parquet_dir / 'identifier_quarantine.parquet'))} (format parquet)"
         )
+        for table_name in (
+            "extended_objects",
+            "extended_object_aliases",
+            "extended_object_identifiers",
+            "extended_object_search_terms",
+            "extended_object_source_reconciliation",
+            "extended_object_identity_quarantine",
+        ):
+            if table_exists(con, "main", table_name):
+                con.execute(
+                    f"copy (select * from {table_name}) to {sql_literal(str(parquet_dir / f'{table_name}.parquet'))} (format parquet)"
+                )
 
         counts_after = con.execute(
             """

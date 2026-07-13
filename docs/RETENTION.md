@@ -186,6 +186,14 @@ sudo scripts/normalize_state_permissions.sh --apply
   captured in a report or issue, remove them through the retention script rather
   than manual edits inside immutable build directories.
 
+## Extended-Object Catalog Artifacts
+
+Extended-object raw snapshots under `raw/extended_objects`, cooked CSVs under
+`cooked/extended_objects`, and `reports/manifests/extended_objects_manifest.json`
+are reproducibility inputs, not disposable build output. Normal build-retention
+pruning must not remove them. Failed `out/<build_id>` and per-build reports use
+the standard retention policy after diagnostic evidence has been captured.
+
 ## WISE Image Cache
 
 WISE/IRSA image previews are runtime cache products, not build artifacts and

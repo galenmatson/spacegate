@@ -250,3 +250,12 @@ Required early goldens:
 - `core` duplicates fall sharply under hard invariants
 - hierarchy reflects canonical objects instead of parallel source duplicates
 - agent work is cleanly optional and additive
+
+## Extended-Object Boundary
+
+Non-stellar catalog regions and physical objects use the separate
+`extended_objects` identity domain documented in `docs/EXTENDED_OBJECTS.md`.
+Their identifiers never become star/system aliases, and their source records do
+not create canonical stellar components or planets. Exact relations to existing
+stars/systems remain ARM evidence unless a separately reviewed canonical policy
+requires promotion.

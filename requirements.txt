@@ -39,3 +39,4 @@ seaborn>=0.13.2
 
 # Geospatial / indexing helpers (if needed later)
 scipy>=1.13.0
+astropy>=8.0.0

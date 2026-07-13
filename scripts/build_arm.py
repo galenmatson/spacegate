@@ -12,6 +12,7 @@ from typing import Any
 import duckdb
 
 from tess_evidence_materialization import materialize_arm as materialize_tess_arm
+from extended_object_materialization import materialize_arm as materialize_extended_object_arm
 
 MSC_VERSION_FALLBACK = "2026-06-19"
 WDS_VERSION_FALLBACK = "wdsweb_summ2"
@@ -5685,6 +5686,18 @@ def main() -> int:
     )
     log(f"Arm stage complete: infrared WISE evidence tables ({time.monotonic() - stage_started:.1f}s)")
 
+    extended_object_counts: dict[str, int] = {}
+    core_tables = {row[0] for row in con.execute("select table_name from information_schema.tables where table_catalog='core'").fetchall()}
+    if "extended_objects" in core_tables:
+        stage_started = time.monotonic()
+        extended_object_counts = materialize_extended_object_arm(
+            con,
+            state_dir,
+            args.build_id,
+            args.ingested_at,
+        )
+        log(f"Arm stage complete: extended-object evidence tables ({time.monotonic() - stage_started:.1f}s)")
+
     component_count = int(con.execute("select count(*) from component_entities").fetchone()[0] or 0)
     hierarchy_count = int(con.execute("select count(*) from system_hierarchy_edges").fetchone()[0] or 0)
     orbit_count = int(con.execute("select count(*) from orbit_edges").fetchone()[0] or 0)
@@ -6178,6 +6191,7 @@ def main() -> int:
             "planet_status_history_rows": lifecycle_status_history_count,
             "planet_reclassification_audit_rows": lifecycle_reclass_count,
             **tess_counts,
+            **extended_object_counts,
             "msc_inferred_system_roots": inferred_root_count,
             "msc_inferred_leaf_components": inferred_leaf_count,
             "msc_source_leaf_components": source_leaf_count,

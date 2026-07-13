@@ -15,6 +15,7 @@ from pathlib import Path
 import duckdb
 
 from tess_evidence_materialization import materialize_core as materialize_tess_core
+from extended_object_materialization import materialize_core as materialize_extended_object_core
 
 PC_TO_LY = 3.26156
 GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT = 3.26156
@@ -850,6 +851,7 @@ def main() -> int:
     enable_gaia_ucd = parse_bool_env("SPACEGATE_ENABLE_GAIA_UCD", True)
     enable_compact_catalogs = parse_bool_env("SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS", True)
     enable_superstellar_catalogs = parse_bool_env("SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS", True)
+    enable_extended_objects = parse_bool_env("SPACEGATE_ENABLE_EXTENDED_OBJECTS", True)
     enable_eclipsing_catalogs = parse_bool_env("SPACEGATE_ENABLE_ECLIPSING_CATALOGS", True)
     enable_kepler_eb = parse_bool_env("SPACEGATE_ENABLE_KEPLER_EB", False)
     enable_tess_eb = parse_bool_env("SPACEGATE_ENABLE_TESS_EB", True)
@@ -1027,6 +1029,7 @@ def main() -> int:
     cooked_exoplanet_lifecycle_status = state_dir / "cooked" / "exoplanet_lifecycle" / "status_rows.csv"
     cooked_exoplanet_lifecycle_aliases = state_dir / "cooked" / "exoplanet_lifecycle" / "alias_rows.csv"
     cooked_exoplanet_lifecycle_features = state_dir / "cooked" / "exoplanet_lifecycle" / "features_rows.csv"
+    cooked_extended_object_records = state_dir / "cooked" / "extended_objects" / "source_records.csv"
     accepted_supplements_config = Path(
         os.getenv("SPACEGATE_ACCEPTED_SUPPLEMENTS_CONFIG")
         or root / "config" / "core_accepted_supplements.json"
@@ -1047,6 +1050,7 @@ def main() -> int:
     white_dwarf_manifest_path = manifest_dir / "white_dwarf_manifest.json"
     clusters_manifest_path = manifest_dir / "clusters_manifest.json"
     snr_manifest_path = manifest_dir / "snr_manifest.json"
+    extended_objects_manifest_path = manifest_dir / "extended_objects_manifest.json"
     debcat_manifest_path = manifest_dir / "debcat_manifest.json"
     kepler_eb_manifest_path = manifest_dir / "kepler_eb_manifest.json"
     tess_eb_manifest_path = manifest_dir / "tess_eb_manifest.json"
@@ -1117,6 +1121,11 @@ def main() -> int:
         raise SystemExit(f"Missing cooked open-cluster members: {cooked_open_cluster_members}")
     if enable_superstellar_catalogs and not cooked_snr.exists():
         raise SystemExit(f"Missing cooked SNR catalog: {cooked_snr}")
+    if enable_extended_objects and not cooked_extended_object_records.exists():
+        raise SystemExit(
+            f"Missing cooked extended-object catalog: {cooked_extended_object_records}. "
+            "Run scripts/catalogs.sh --catalog extended_objects and scripts/cook_science_catalogs.py."
+        )
     if enable_eclipsing_catalogs and not cooked_debcat.exists():
         raise SystemExit(f"Missing cooked DEBCat catalog: {cooked_debcat}")
     if enable_eclipsing_catalogs and enable_kepler_eb and not cooked_kepler_eb.exists():
@@ -1234,6 +1243,8 @@ def main() -> int:
         manifest_paths.extend([atnf_manifest_path, magnetar_manifest_path, white_dwarf_manifest_path])
     if enable_superstellar_catalogs:
         manifest_paths.extend([clusters_manifest_path, snr_manifest_path])
+    if enable_extended_objects:
+        manifest_paths.append(extended_objects_manifest_path)
     if enable_eclipsing_catalogs:
         manifest_paths.append(debcat_manifest_path)
         if enable_kepler_eb:
@@ -1402,6 +1413,19 @@ def main() -> int:
     )
 
     log("Loading manifest entries")
+    if enable_extended_objects:
+        for source_name, label in (
+            ("openngc_ngc", "OpenNGC main catalog"),
+            ("openngc_addendum", "OpenNGC addendum"),
+            ("lbn_vii_9", "Lynds bright nebula catalog"),
+            ("ldn_vii_7a", "Lynds dark nebula catalog"),
+            ("barnard_vii_220a", "Barnard dark nebula catalog"),
+            ("magakian_2003", "Magakian reflection nebula catalog"),
+            ("vdb_vii_21", "van den Bergh reflection nebula catalog"),
+            ("sharpless_vii_20", "Sharpless H II region catalog"),
+            ("cederblad_vii_231", "Cederblad diffuse nebula catalog"),
+        ):
+            require_manifest_entry(manifest, source_name, label)
     if not enable_gaia_backbone:
         athyg_p1 = require_manifest_entry(manifest, "athyg_v33-1", "AT-HYG part 1")
         athyg_p2 = require_manifest_entry(manifest, "athyg_v33-2", "AT-HYG part 2")
@@ -10256,6 +10280,18 @@ def main() -> int:
         ) u
         """
     )
+    if enable_extended_objects:
+        log("Materializing extended-object identity and placement tables")
+        extended_object_report = materialize_extended_object_core(
+            con,
+            state_dir,
+            root,
+            reports_dir / "extended_object_coverage_report.json",
+            ingested_at,
+        )
+        stage_totals["extended_objects"] = int(
+            extended_object_report["counts"]["accepted_objects"]
+        )
     con.execute(
         f"""
         create table eclipsing_binaries as
@@ -13301,6 +13337,18 @@ def main() -> int:
     con.execute(
         f"COPY (SELECT * FROM source_object_reconciliation_quarantine) TO '{parquet_dir / 'source_object_reconciliation_quarantine.parquet'}' (FORMAT 'parquet')"
     )
+    if enable_extended_objects:
+        for table_name in (
+            "extended_objects",
+            "extended_object_aliases",
+            "extended_object_identifiers",
+            "extended_object_search_terms",
+            "extended_object_source_reconciliation",
+            "extended_object_identity_quarantine",
+        ):
+            con.execute(
+                f"COPY (SELECT * FROM {table_name}) TO '{parquet_dir / f'{table_name}.parquet'}' (FORMAT 'parquet')"
+            )
     log_stage_complete("Parquet export stage", parquet_stage_started, stage_totals)
 
     con.close()

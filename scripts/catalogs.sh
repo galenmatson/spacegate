@@ -51,6 +51,9 @@ GAIA_UCD_URL="${GAIA_UCD_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/t
 WHITE_DWARF_URL="${WHITE_DWARF_URL:-https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz}"
 DWARFARCHIVES_URL="${DWARFARCHIVES_URL:-http://dwarfarchives.org/}"
 CATWISE_BASE_URL="${CATWISE_BASE_URL:-https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/catwise_2020.html}"
+OPENNGC_COMMIT="${OPENNGC_COMMIT:-36cb178a0f69dba8bfc03a99c10512831edf1c6b}"
+OPENNGC_BASE_URL="${OPENNGC_BASE_URL:-https://raw.githubusercontent.com/mattiaverga/OpenNGC/$OPENNGC_COMMIT}"
+CDS_FTP_BASE_URL="${CDS_FTP_BASE_URL:-https://cdsarc.cds.unistra.fr/ftp}"
 
 LOG_FILE="$LOG_DIR/catalogs.log"
 
@@ -181,6 +184,7 @@ gaia_ucd|Gaia DR3 ultracool dwarf sample
 white_dwarf|Gaia EDR3 white dwarf catalog
 dwarfarchives|DwarfArchives.org (conditional)
 catwise_full|CatWISE2020 full tiles (very large)
+extended_objects|Extended-object identity and Galactic nebula bundle
 LIST
 }
 
@@ -248,6 +252,17 @@ catalog_sources() {
       ;;
     snr)
       printf '%s\n' "snr|snrs_data_html|$SNR_URL|raw/snr/snrs.data.html"
+      ;;
+    extended_objects)
+      printf '%s\n' "extended_objects|openngc_ngc|$OPENNGC_BASE_URL/database_files/NGC.csv|raw/extended_objects/openngc/NGC.csv"
+      printf '%s\n' "extended_objects|openngc_addendum|$OPENNGC_BASE_URL/database_files/addendum.csv|raw/extended_objects/openngc/addendum.csv"
+      printf '%s\n' "extended_objects|lbn_vii_9|$CDS_FTP_BASE_URL/VII/9/catalog.dat|raw/extended_objects/vizier/VII_9_catalog.dat"
+      printf '%s\n' "extended_objects|ldn_vii_7a|$CDS_FTP_BASE_URL/VII/7A/ldn|raw/extended_objects/vizier/VII_7A_ldn"
+      printf '%s\n' "extended_objects|barnard_vii_220a|$CDS_FTP_BASE_URL/VII/220A/barnard.dat|raw/extended_objects/vizier/VII_220A_barnard.dat"
+      printf '%s\n' "extended_objects|magakian_2003|$CDS_FTP_BASE_URL/J/A+A/399/141/table1.dat|raw/extended_objects/vizier/J_A+A_399_141_table1.dat"
+      printf '%s\n' "extended_objects|vdb_vii_21|$CDS_FTP_BASE_URL/VII/21/catalog.dat|raw/extended_objects/vizier/VII_21_catalog.dat"
+      printf '%s\n' "extended_objects|sharpless_vii_20|$CDS_FTP_BASE_URL/VII/20/catalog.dat.gz|raw/extended_objects/vizier/VII_20_catalog.dat.gz"
+      printf '%s\n' "extended_objects|cederblad_vii_231|$CDS_FTP_BASE_URL/VII/231/catalog.dat|raw/extended_objects/vizier/VII_231_catalog.dat"
       ;;
     atnf)
       printf '%s\n' "atnf|psrcat_pkg|$ATNF_URL|raw/atnf/psrcat_pkg.tar.gz"
@@ -372,7 +387,7 @@ expand_catalogs() {
   for item in "${input[@]}"; do
     case "$item" in
       core)
-        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6" "debcat")
+        expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6" "debcat" "extended_objects")
         if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
           expanded+=("exoplanet_eu" "open_exoplanet_catalogue" "hwc")
         fi
