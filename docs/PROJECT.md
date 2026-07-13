@@ -963,10 +963,11 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Treat the merged and publicly deployed TESS T0-T3 checkpoint as the stable
-   foundation: canonical `20260712T_tess_evidence_v3`, public slice
-   `20260713T_tess_evidence_v1_public_side`, and `master` checkpoint
-   `ac3511d`. Keep T4 presentation and T5 observation indexing separate.
+1. Treat the locally promoted M8.2a checkpoint as the current Photon foundation:
+   canonical `20260713T1627Z_dd7446e` and `core.public` v3 slice
+   `20260713T1627Z_dd7446e_public`. It retains the verified TESS T0-T3 science
+   while adding the extended-object identity/evidence domain. Antiproton remains
+   on the prior public checkpoint until an explicit stable deployment decision.
 2. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint; naming and multiplicity follow-up
    remains tracked in `docs/CHECKLIST.md`.

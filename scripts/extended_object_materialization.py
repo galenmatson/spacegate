@@ -304,16 +304,44 @@ def preferred_geometry(group_records: list[dict]) -> dict:
     return {"ra_deg": None, "dec_deg": None, "shape_kind": "missing", "major_axis_arcmin": None, "minor_axis_arcmin": None, "position_angle_deg": None, "geometry_source_record_key": None, "geometry_status": "missing"}
 
 
-def star_distance_for_group(con: duckdb.DuckDBPyConnection, source_keys: set[str], relations: list[dict]) -> tuple[dict | None, list[dict]]:
+def load_relation_stars(
+    con: duckdb.DuckDBPyConnection,
+    relations: list[dict],
+) -> dict[int, list[tuple[Any, ...]]]:
+    hd_ids = sorted({
+        int(row["target_value"])
+        for row in relations
+        if row["target_namespace"] == "hd" and str(row["target_value"]).isdigit()
+    })
+    if not hd_ids:
+        return {}
+    placeholders = ",".join("?" for _ in hd_ids)
+    rows = con.execute(
+        f"""
+        select star_id,system_id,stable_object_key,hd_id,parallax_mas,
+               parallax_error_mas,parallax_over_error,ruwe,dist_ly
+        from stars
+        where hd_id in ({placeholders})
+        """,
+        hd_ids,
+    ).fetchall()
+    by_hd: dict[int, list[tuple[Any, ...]]] = defaultdict(list)
+    for row in rows:
+        by_hd[int(row[3])].append(row)
+    return by_hd
+
+
+def star_distance_for_group(
+    source_keys: set[str],
+    relations: list[dict],
+    relation_stars: dict[int, list[tuple[Any, ...]]],
+) -> tuple[dict | None, list[dict]]:
     relation_rows = [row for row in relations if row["source_record_key"] in source_keys and row["relation_kind"] in {"illuminated_by", "central_star"}]
     resolved: list[dict] = []
     for relation in relation_rows:
         if relation["target_namespace"] != "hd" or not str(relation["target_value"]).isdigit():
             continue
-        rows = con.execute(
-            "select star_id,system_id,stable_object_key,hd_id,parallax_mas,parallax_error_mas,parallax_over_error,ruwe,dist_ly from stars where hd_id=?",
-            [int(relation["target_value"])],
-        ).fetchall()
+        rows = relation_stars.get(int(relation["target_value"]), [])
         if len(rows) != 1:
             continue
         star_id, system_id, stable_key, hd_id, parallax, error, snr, ruwe, dist_ly = rows[0]
@@ -411,6 +439,7 @@ def materialize_core(
     accepted_aliases: list[dict] = []
     accepted_identifiers: list[dict] = []
     resolved_relation_cache: dict[int, list[dict]] = {}
+    relation_stars = load_relation_stars(con, relations)
     for group_records in groups.values():
         candidates = [row for row in group_records if row.get("outcome_hint") == "accepted_candidate"]
         if not candidates:
@@ -435,7 +464,11 @@ def materialize_core(
             dist_pc = float(specialist_distance["distance_pc_raw"])
             distance = {"dist_pc": dist_pc, "dist_ly": dist_pc * LY_PER_PC, "distance_low_pc": None, "distance_high_pc": None, "distance_method": specialist_distance.get("distance_method_raw") or "specialist_catalog", "distance_confidence": "high", "distance_evidence_json": json.dumps({"source_record_key": specialist_distance["source_record_key"]}, sort_keys=True)}
         else:
-            distance, resolved_relations = star_distance_for_group(con, source_keys, relations)
+            distance, resolved_relations = star_distance_for_group(
+                source_keys,
+                relations,
+                relation_stars,
+            )
         map_domain, tier = placement(object_family, object_type, distance)
         canonical_alias_candidates = sorted(group_aliases, key=canonical_name_rank)
         canonical_name = canonical_alias_candidates[0]["alias_raw"] if canonical_alias_candidates else master["primary_name"]

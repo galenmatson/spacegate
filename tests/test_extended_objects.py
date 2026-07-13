@@ -5,7 +5,7 @@ import unittest
 import duckdb
 
 from scripts.cook_extended_objects import normalize_designation
-from scripts.extended_object_materialization import identity_token
+from scripts.extended_object_materialization import identity_token, load_relation_stars
 from srv.api.app.queries import search_extended_objects
 
 
@@ -63,6 +63,35 @@ class ExtendedObjectSearchTests(unittest.TestCase):
             limit=10,
         )
         self.assertEqual([row["extended_object_id"] for row in rows], [33, 330])
+
+
+class ExtendedObjectRelationTests(unittest.TestCase):
+    def test_relation_stars_are_loaded_in_one_typed_index(self) -> None:
+        con = duckdb.connect()
+        try:
+            con.execute(
+                """
+                create table stars(
+                  star_id bigint, system_id bigint, stable_object_key varchar,
+                  hd_id bigint, parallax_mas double, parallax_error_mas double,
+                  parallax_over_error double, ruwe double, dist_ly double
+                )
+                """
+            )
+            con.execute(
+                "insert into stars values (1, 10, 'star:1', 145502, 7.2, 0.1, 72, 1.1, 453.0)"
+            )
+            rows = load_relation_stars(
+                con,
+                [
+                    {"target_namespace": "hd", "target_value": "145502"},
+                    {"target_namespace": "name", "target_value": "irrelevant"},
+                ],
+            )
+            self.assertEqual(sorted(rows), [145502])
+            self.assertEqual(rows[145502][0][0:4], (1, 10, "star:1", 145502))
+        finally:
+            con.close()
 
 
 if __name__ == "__main__":

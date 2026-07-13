@@ -839,6 +839,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Extended-object science foundation for Messier/NGC/IC landmarks,
   nebulae, clusters, and galaxies: pinned sources, identity, geometry, distance,
   ARM evidence, search/API, coverage, quarantine, and deterministic goldens
+- [x] Build, verify, and locally promote canonical
+  `20260713T1627Z_dd7446e` and public slice
+  `20260713T1627Z_dd7446e_public` with extended-object evidence intact
 - [ ] Extended-object map presentation layer: tile/LOD integration, extents,
   imagery, selection behavior, and attributed background-sky context
 - [x] Refresh MSC multiplicity ingest from the upstream June 19, 2026 archive

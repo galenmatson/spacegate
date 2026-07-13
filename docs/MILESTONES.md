@@ -912,12 +912,20 @@ Deliverables:
 Status: complete July 13, 2026. Local immutable-artifact verification, full ARM
 integration, public-slice propagation, and deterministic rerun checks pass.
 
+Promoted local checkpoint:
+
+- canonical: `20260713T1627Z_dd7446e`
+- public `core.public` v3 slice: `20260713T1627Z_dd7446e_public`
+- verified and locally served on Photon July 13, 2026; not deployed to antiproton
+
 - pinned OpenNGC and CDS/VizieR acquisition with checksums and manifests
 - deterministic ICRS normalization and explicit identifier reconciliation
 - separate CORE identity/search tables and ARM geometry/distance/relation evidence
 - conservative associated-star distance policy and explicit placement domains
 - typed extended-object and unified object-search API contracts
 - deterministic rerun and IC 4592/M45/Barnard 33/M31 goldens
+- batched associated-star resolution performs one typed HD lookup scan rather
+  than repeated full-table probes; identical canonical table hashes verified
 
 #### M8.2b. Extended-Object Presentation
 

@@ -77,3 +77,8 @@ identity goldens include:
 - Barnard 33 distinct from the larger IC 434 emission region
 - M31 as an extragalactic sky object without a fabricated local distance
 
+The first locally promoted build is canonical `20260713T1627Z_dd7446e` with
+public `core.public` v3 slice `20260713T1627Z_dd7446e_public`. Both passed the
+full build verifier on July 13, 2026. Associated-star HD rows are loaded in one
+batched star-table scan; a full canonical rematerialization completed in about
+four seconds with table hashes identical to the promoted canonical artifact.
