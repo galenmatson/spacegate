@@ -623,6 +623,72 @@ test.describe("public 3D map beta", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
+  test("duplicate context-loss events do not cause a recovery storm", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop context recovery regression");
+    await openMap(page);
+    const initialCanvas = page.locator(".map-canvas canvas");
+    await initialCanvas.evaluate((canvas) => {
+      canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+      canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+    });
+    await expect(page.locator(".map-context-recovery")).toBeVisible();
+    await page.waitForTimeout(1900);
+    await expect.poll(
+      () => page.locator(".map-canvas canvas").evaluate((node) => Number(node.dataset.runtimeContextRecoveries || 0)),
+      { timeout: 3000 }
+    ).toBe(1);
+  });
+
+  test("desktop resize preserves the active tile transport", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop resize transport regression");
+    let manifestRequests = 0;
+    page.on("request", (request) => {
+      if (/\/map-tiles\/(?:index|radius-100\/manifest)\.json$/.test(new URL(request.url()).pathname)) {
+        manifestRequests += 1;
+      }
+    });
+    await openMap(page);
+    const beforeResize = manifestRequests;
+    expect(beforeResize).toBeGreaterThanOrEqual(2);
+    await page.setViewportSize({ width: 1360, height: 840 });
+    await page.waitForTimeout(1800);
+    expect(manifestRequests).toBe(beforeResize);
+    await expect(page.locator(".map-canvas canvas")).toBeVisible();
+  });
+
+  test("parked map suppresses redundant telemetry and label rebuilds", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop idle runtime regression");
+    await openMap(page);
+    const canvas = page.locator(".map-canvas canvas");
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.mapTelemetryIdleSkips || 0)),
+      { timeout: 3000 }
+    ).toBeGreaterThan(0);
+    const before = await canvas.evaluate((node) => ({
+      telemetry: Number(node.dataset.mapTelemetryEmits || 0),
+      telemetrySkips: Number(node.dataset.mapTelemetryIdleSkips || 0),
+      labelRebuilds: Number(node.dataset.mapLabelRebuilds || 0),
+      labelSkips: Number(node.dataset.mapLabelIdleSkips || 0),
+      textures: Number(node.dataset.runtimeWebglTextures || 0),
+      geometries: Number(node.dataset.runtimeWebglGeometries || 0),
+    }));
+    await page.waitForTimeout(2200);
+    const after = await canvas.evaluate((node) => ({
+      telemetry: Number(node.dataset.mapTelemetryEmits || 0),
+      telemetrySkips: Number(node.dataset.mapTelemetryIdleSkips || 0),
+      labelRebuilds: Number(node.dataset.mapLabelRebuilds || 0),
+      labelSkips: Number(node.dataset.mapLabelIdleSkips || 0),
+      textures: Number(node.dataset.runtimeWebglTextures || 0),
+      geometries: Number(node.dataset.runtimeWebglGeometries || 0),
+    }));
+    expect(after.telemetry).toBe(before.telemetry);
+    expect(after.telemetrySkips).toBeGreaterThan(before.telemetrySkips);
+    expect(after.labelRebuilds).toBe(before.labelRebuilds);
+    expect(after.labelSkips).toBeGreaterThan(before.labelSkips);
+    expect(after.textures).toBe(before.textures);
+    expect(after.geometries).toBe(before.geometries);
+  });
+
   test("system detail return restores map camera and selection", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop detail return flow");
     await openMap(page);

@@ -42,6 +42,8 @@ const SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT = 96;
 const SEARCH_PREVIEW_ACTIVATION_INTERVAL_MS = 450;
 const SEARCH_PREVIEW_CONTEXT_COOLDOWN_MS = 3500;
 const SEARCH_PREVIEW_HIGH_RECOVERY_BUDGET = 1;
+const MAP_CONTEXT_RECOVERY_BACKOFF_MS = 1500;
+const MAP_LABEL_CAMERA_REBUILD_SCENE_DISTANCE = 0.18;
 const RUNTIME_QUALITY_PROFILES = {
   high: { tier: "high", label: "High", mapDpr: [1, 1.75], previewDpr: [1, 1.5], cardBudget: 4 },
   balanced: { tier: "balanced", label: "Balanced", mapDpr: [1, 1.35], previewDpr: [0.9, 1.25], cardBudget: 3 },
@@ -1249,6 +1251,9 @@ function LabelSprite({
 function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, showClassBadges = true }) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
+  const lastBuildPositionRef = useRef(null);
+  const rebuildCountRef = useRef(0);
+  const idleSkipCountRef = useRef(0);
   const labelIndex = useMemo(() => {
     const cellSceneSize = 10 * LY_TO_SCENE;
     const cells = new Map();
@@ -1348,7 +1353,13 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
 
   useEffect(() => {
     setLabelSystems(buildLabelSet());
-  }, [buildLabelSet]);
+    if (!lastBuildPositionRef.current) {
+      lastBuildPositionRef.current = new THREE.Vector3();
+    }
+    lastBuildPositionRef.current.copy(camera.position);
+    rebuildCountRef.current += 1;
+    gl.domElement.dataset.mapLabelRebuilds = String(rebuildCountRef.current);
+  }, [buildLabelSet, camera.position, gl.domElement]);
 
   useEffect(() => {
     gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
@@ -1364,7 +1375,22 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
       return;
     }
     updateClockRef.current = 0;
+    if (
+      lastBuildPositionRef.current
+      && lastBuildPositionRef.current.distanceToSquared(camera.position)
+        < MAP_LABEL_CAMERA_REBUILD_SCENE_DISTANCE ** 2
+    ) {
+      idleSkipCountRef.current += 1;
+      gl.domElement.dataset.mapLabelIdleSkips = String(idleSkipCountRef.current);
+      return;
+    }
     setLabelSystems(buildLabelSet());
+    if (!lastBuildPositionRef.current) {
+      lastBuildPositionRef.current = new THREE.Vector3();
+    }
+    lastBuildPositionRef.current.copy(camera.position);
+    rebuildCountRef.current += 1;
+    gl.domElement.dataset.mapLabelRebuilds = String(rebuildCountRef.current);
   });
 
   return (
@@ -1586,6 +1612,15 @@ function FlightControls({
   const yawRef = useRef(0);
   const pitchRef = useRef(-0.08);
   const telemetryClockRef = useRef(0);
+  const lastTelemetryRef = useRef(null);
+  const telemetryEmitCountRef = useRef(0);
+  const telemetryIdleSkipCountRef = useRef(0);
+  const motionVectorsRef = useRef({
+    direction: new THREE.Vector3(),
+    strafe: new THREE.Vector3(),
+    movement: new THREE.Vector3(),
+    focusDirection: new THREE.Vector3(),
+  });
   const suppressContextMenuRef = useRef(false);
   const touchGestureRef = useRef({
     pointers: new Map(),
@@ -2056,7 +2091,10 @@ function FlightControls({
       const progress = Math.min(1, focus.elapsed / 0.9);
       const eased = 1 - Math.pow(1 - progress, 3);
       camera.position.lerp(focus.destination, Math.min(0.18 + eased * 0.24, 0.42));
-      const direction = focus.target.clone().sub(camera.position).normalize();
+      const direction = motionVectorsRef.current.focusDirection
+        .copy(focus.target)
+        .sub(camera.position)
+        .normalize();
       yawRef.current = Math.atan2(-direction.x, -direction.z);
       pitchRef.current = Math.asin(THREE.MathUtils.clamp(direction.y, -0.98, 0.98));
       camera.rotation.set(pitchRef.current, yawRef.current, 0);
@@ -2071,9 +2109,8 @@ function FlightControls({
       camera.rotation.z = 0;
     }
     const keys = keysRef.current;
-    const direction = new THREE.Vector3();
-    const strafe = new THREE.Vector3();
-    const movement = new THREE.Vector3();
+    const { direction, strafe, movement } = motionVectorsRef.current;
+    movement.set(0, 0, 0);
     camera.getWorldDirection(direction).normalize();
     strafe.crossVectors(direction, WORLD_UP).normalize();
     const baseSpeed = keys.has("shift") ? KEYBOARD_BOOST_SPEED : KEYBOARD_BASE_SPEED;
@@ -2090,18 +2127,43 @@ function FlightControls({
     telemetryClockRef.current += delta;
     if (telemetryClockRef.current >= 0.18) {
       telemetryClockRef.current = 0;
+      const locked = document.pointerLockElement === gl.domElement;
+      const previous = lastTelemetryRef.current;
+      const telemetryChanged = !previous
+        || Math.abs(camera.position.x - previous.x) > 0.0001
+        || Math.abs(camera.position.y - previous.y) > 0.0001
+        || Math.abs(camera.position.z - previous.z) > 0.0001
+        || Math.abs(yawRef.current - previous.yaw) > 0.0001
+        || Math.abs(pitchRef.current - previous.pitch) > 0.0001
+        || locked !== previous.locked;
+      if (!telemetryChanged) {
+        telemetryIdleSkipCountRef.current += 1;
+        gl.domElement.dataset.mapTelemetryIdleSkips = String(telemetryIdleSkipCountRef.current);
+        return;
+      }
+      const cameraScenePosition = [camera.position.x, camera.position.y, camera.position.z];
+      lastTelemetryRef.current = {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+        yaw: yawRef.current,
+        pitch: pitchRef.current,
+        locked,
+      };
       onTelemetry({
         distLy: camera.position.length() / LY_TO_SCENE,
         speedLyS: baseSpeed / LY_TO_SCENE,
-        locked: document.pointerLockElement === gl.domElement,
-        cameraScenePosition: camera.position.toArray(),
+        locked,
+        cameraScenePosition,
         yaw: yawRef.current,
         pitch: pitchRef.current,
-        originLy: sceneToHelioCoordinates(camera.position.toArray(), mapFrame || "icrs"),
+        originLy: sceneToHelioCoordinates(cameraScenePosition, mapFrame || "icrs"),
       });
+      telemetryEmitCountRef.current += 1;
+      gl.domElement.dataset.mapTelemetryEmits = String(telemetryEmitCountRef.current);
       gl.domElement.dataset.mapKeybindScheme = activeKeybind.id;
       gl.domElement.dataset.mapMobileFlightActive = Object.values(mobileFlightIntent).some(Boolean) ? "true" : "false";
-      gl.domElement.dataset.mapCameraPosition = camera.position.toArray().map((value) => value.toFixed(3)).join(",");
+      gl.domElement.dataset.mapCameraPosition = cameraScenePosition.map((value) => value.toFixed(3)).join(",");
       gl.domElement.dataset.mapFrame = mapFrame || "icrs";
       gl.domElement.dataset.mapDirectionLabels = showDirectionLabels ? "true" : "false";
     }
@@ -2125,7 +2187,7 @@ function MapWebGLContextGuard({ onContextLost }) {
         yaw: camera.rotation.y,
         pitch: camera.rotation.x,
         datasetPosition: target.dataset.mapCameraPosition || "",
-      });
+      }, target);
     };
     target.addEventListener("webglcontextlost", handleContextLost, false);
     return () => {
@@ -2138,6 +2200,7 @@ function MapWebGLContextGuard({ onContextLost }) {
 
 function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
   const { gl } = useThree();
+  const sampleClockRef = useRef(0);
   useEffect(() => {
     const target = gl.domElement;
     target.dataset.runtimeQualityTier = runtimeQuality?.tier || "high";
@@ -2167,6 +2230,21 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
       ? Number(runtimeDiagnostics.radialSeamRatio).toFixed(4)
       : "";
   }, [gl.domElement, runtimeDiagnostics, runtimeQuality]);
+
+  useFrame((_, delta) => {
+    sampleClockRef.current += delta;
+    if (sampleClockRef.current < 1) {
+      return;
+    }
+    sampleClockRef.current = 0;
+    const info = gl.info;
+    gl.domElement.dataset.runtimeWebglGeometries = String(info.memory?.geometries ?? 0);
+    gl.domElement.dataset.runtimeWebglTextures = String(info.memory?.textures ?? 0);
+    gl.domElement.dataset.runtimeWebglPrograms = String(info.programs?.length ?? 0);
+    gl.domElement.dataset.runtimeRenderCalls = String(info.render?.calls ?? 0);
+    gl.domElement.dataset.runtimeRenderPoints = String(info.render?.points ?? 0);
+    gl.domElement.dataset.runtimeRenderTriangles = String(info.render?.triangles ?? 0);
+  });
 
   return null;
 }
@@ -2855,6 +2933,10 @@ export default function StarMapPage({
   const previewRequestQueueRef = useRef([]);
   const previewActivationTimerRef = useRef(null);
   const previewCooldownTimerRef = useRef(null);
+  const mapContextRecoveryTimerRef = useRef(null);
+  const mapContextRecoveryBlockedUntilRef = useRef(0);
+  const pendingMapContextRecoveryRef = useRef(null);
+  const lastLostMapCanvasRef = useRef(null);
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
@@ -2951,7 +3033,7 @@ export default function StarMapPage({
     });
   }, [handleMapCameraState, mapFrame]);
 
-  const handleMapContextLost = useCallback((cameraState = null) => {
+  const performMapContextRecovery = useCallback((cameraState = null) => {
     const storedState = mapCameraStateRef.current;
     const datasetPosition = parseMapCameraDatasetPosition(cameraState?.datasetPosition);
     const datasetState = datasetPosition
@@ -2974,8 +3056,40 @@ export default function StarMapPage({
     enterPreviewCooldown();
     setMapContextRecovering(true);
     setMapContextEpoch((value) => value + 1);
-    window.setTimeout(() => setMapContextRecovering(false), 1200);
   }, [enterPreviewCooldown, handleMapCameraState, mapFrame]);
+
+  const scheduleMapContextRecovery = useCallback((cameraState = null, lostCanvas = null) => {
+    const now = performance.now();
+    if (now < mapContextRecoveryBlockedUntilRef.current) {
+      pendingMapContextRecoveryRef.current = { cameraState, lostCanvas };
+      return;
+    }
+    performMapContextRecovery(cameraState);
+    mapContextRecoveryBlockedUntilRef.current = now + MAP_CONTEXT_RECOVERY_BACKOFF_MS;
+    if (mapContextRecoveryTimerRef.current) {
+      window.clearTimeout(mapContextRecoveryTimerRef.current);
+    }
+    mapContextRecoveryTimerRef.current = window.setTimeout(() => {
+      mapContextRecoveryTimerRef.current = null;
+      mapContextRecoveryBlockedUntilRef.current = 0;
+      const pending = pendingMapContextRecoveryRef.current;
+      pendingMapContextRecoveryRef.current = null;
+      if (pending) {
+        scheduleMapContextRecovery(pending.cameraState, pending.lostCanvas);
+        return;
+      }
+      lastLostMapCanvasRef.current = null;
+      setMapContextRecovering(false);
+    }, MAP_CONTEXT_RECOVERY_BACKOFF_MS);
+  }, [performMapContextRecovery]);
+
+  const handleMapContextLost = useCallback((cameraState = null, lostCanvas = null) => {
+    if (lostCanvas && lostCanvas === lastLostMapCanvasRef.current) {
+      return;
+    }
+    lastLostMapCanvasRef.current = lostCanvas;
+    scheduleMapContextRecovery(cameraState, lostCanvas);
+  }, [scheduleMapContextRecovery]);
   const handleRuntimeEvent = useCallback((event) => {
     if (event?.type === "webgl-context-lost") {
       setContextLossRecoveries((value) => value + 1);
@@ -3118,6 +3232,12 @@ export default function StarMapPage({
       window.clearTimeout(previewCooldownTimerRef.current);
       previewCooldownTimerRef.current = null;
     }
+    if (mapContextRecoveryTimerRef.current) {
+      window.clearTimeout(mapContextRecoveryTimerRef.current);
+      mapContextRecoveryTimerRef.current = null;
+    }
+    pendingMapContextRecoveryRef.current = null;
+    lastLostMapCanvasRef.current = null;
   }, [clearPreviewActivationTimer]);
 
   useEffect(() => {
@@ -3479,6 +3599,9 @@ export default function StarMapPage({
     return merged.size;
   }, []);
 
+  const constrainedTileDevice = Number(deviceRuntimeProfile?.width || 0) < 760
+    || Boolean(deviceRuntimeProfile?.touch);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -3521,10 +3644,9 @@ export default function StarMapPage({
         .catch((exc) => active && setError(exc instanceof Error ? exc.message : "Map data unavailable"))
         .finally(() => active && setLoading(false));
     } else {
-      const constrainedDevice = Number(deviceRuntimeProfile?.width || 0) < 760 || Boolean(deviceRuntimeProfile?.touch);
       const manager = new MapTileManager({
-        concurrency: constrainedDevice ? 4 : 6,
-        cacheLimit: constrainedDevice ? 12 : 24,
+        concurrency: constrainedTileDevice ? 4 : 6,
+        cacheLimit: constrainedTileDevice ? 12 : 24,
         nameStyle: normalizeNameStyle(nameStyle),
         onBatch: (rows, tile) => {
           if (!active) return;
@@ -3605,7 +3727,7 @@ export default function StarMapPage({
         tileFlushTimerRef.current = null;
       }
     };
-  }, [deviceRuntimeProfile, flushMapSystems, mapDensityMode, mapRadiusLy, monolithicDiagnosticMode, nameStyle]);
+  }, [constrainedTileDevice, flushMapSystems, mapDensityMode, mapRadiusLy, monolithicDiagnosticMode, nameStyle]);
 
   useEffect(() => {
     if (!systems.length || selectedSystem) return;

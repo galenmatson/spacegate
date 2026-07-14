@@ -211,3 +211,29 @@ v1 hard inclusion rule without changing exact tile membership or manifests.
 Reports live under
 `/data/spacegate/state/reports/map_benchmarks/20260714T_m811_no_replay_final/`
 and `map_performance_m811_acceptance.json` in the promoted build report folder.
+
+## M8.1.3 Idle and Context-Loss Stability
+
+A July 14 real-device capture from Brave 1.92.139 / Chromium 150 on Windows 11
+and an RTX 3090 exposed an application lifecycle regression. A preserved HAR
+contained 16 tile-index requests and 320 tile requests for only 72 unique tile
+URLs, including a 13-index-request reinitialization burst and 248 duplicate tile
+requests. Performance traces also showed redundant stationary state/label work
+and repeated WebGL context loss. The browser uses ANGLE D3D11 and reports the
+Chromium `exit_on_context_lost` driver workaround, so a loss can terminate the
+affected process rather than recover it in place.
+
+The map now keeps its tile manager across viewport changes that do not cross the
+constrained-device boundary, publishes telemetry only when camera/lock state
+changes, rebuilds priority labels only after meaningful camera movement, reuses
+per-frame flight vectors, deduplicates same-canvas context-loss events, and
+serializes recovery attempts. Canvas datasets expose telemetry/label activity
+and Three.js geometry, texture, program, call, point, and triangle counts.
+
+A 120-second Photon soak at 3840x2160, 250 ly, Exact density, and Bright style
+rendered all 230,181 systems (460,362 points). Forced-GC heap changed from
+167,913,898 to 168,253,742 bytes; textures remained 33, geometries 12, programs
+6, and telemetry/label rebuild counts remained unchanged. The parked interval
+made zero tile requests and recorded zero duplicate requests, context losses, or
+recoveries. The machine-readable record is
+`/data/spacegate/state/reports/map_benchmarks/20260714T224738Z_m813_idle_stability/report.json`.

@@ -903,6 +903,11 @@ Deliverables:
 - [x] M8.1.2 adds a high-visibility Bright star style and deterministic
   toggleable representative stellar-class badges to bounded 3D map labels;
   badge dominance uses a versioned mass-proxy then intrinsic-brightness policy
+- [x] M8.1.3 stabilizes 4K/250-ly idle operation after real-device Brave traces
+  exposed viewport-triggered transport reinitialization, redundant stationary
+  React/label work, and context-loss recovery storms; same-class resizes now
+  preserve the active tile manager, idle work is movement-gated, recoveries are
+  serialized, and WebGL resource counters are inspectable on the map canvas
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window

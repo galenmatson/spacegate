@@ -809,6 +809,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   refinement, incorrect device policy, or duplicate immutable tile requests
 - [x] Add persisted Bright star style and toggleable representative map-label
   class badges using a versioned mass-proxy/brightness component policy
+- [x] Analyze real-device Brave 4K/250-ly crash captures and harden idle map
+  lifecycle: prevent same-class resize transport reloads, gate stationary
+  telemetry/labels, serialize context recovery, expose WebGL resource counters,
+  and pass a forced-GC 4K/Exact idle soak with zero idle tile requests
 - [ ] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
   with the preserved science checkpoint (not an M8.1 tile-transport blocker)
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star
