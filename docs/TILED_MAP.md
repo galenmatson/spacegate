@@ -140,7 +140,7 @@ cold/warm/flight/search performance budgets. Reports belong under
 
 ## M8.1 Acceptance Record
 
-Photon build `20260714T135542Z_8254eaf_side_rebuild` passed:
+Photon build `20260714T145242Z_4c43799_side_rebuild` passed:
 
 - exact unique membership: 10,239 / 230,181 / 2,332,003 / 5,869,087 systems at
   100 / 250 / 500 / 1,000 ly
@@ -152,9 +152,11 @@ Photon build `20260714T135542Z_8254eaf_side_rebuild` passed:
 - cold/rapid headless 250-ly median frame time: 16.7-33.4 ms; p95: 50-66.7 ms
 - 141/141 performance budget checks, static path security checks, and
   desktop/mobile canvas pixel/screenshots pass
+- 100-ly tile labels match the authoritative public API naming policy for all
+  10,239 systems; literal and encoded tile-path traversal attempts return 404
 - bounded interest trace improves distant high-interest median request rank
   from 48 to 43 without changing nearby-tile p95 rank (34)
 
 Machine reports live under
-`/data/spacegate/state/reports/20260714T135542Z_8254eaf_side_rebuild/` and
+`/data/spacegate/state/reports/20260714T145242Z_4c43799_side_rebuild/` and
 `/data/spacegate/state/reports/map_benchmarks/20260714T_m81_after/`.

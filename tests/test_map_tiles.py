@@ -3,9 +3,12 @@ from __future__ import annotations
 import gzip
 import json
 import struct
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.build_map_tiles import MAGIC, RECORD_STRUCT, cell_bounds, cell_index, encode_tile, morton3, tile_id
+from scripts.verify_map_tiles import read_tile
 
 
 class MapTileContractTests(unittest.TestCase):
@@ -36,6 +39,22 @@ class MapTileContractTests(unittest.TestCase):
         self.assertEqual(record[1:4], (-64.0, -64.0, -64.0))
         self.assertEqual(metadata["interest"]["planet_systems"], 1)
         self.assertEqual(gzip.decompress(gzip.compress(raw, mtime=0)), raw)
+
+    def test_verifier_decodes_public_name_from_binary_string_table(self) -> None:
+        row = (
+            17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
+            30.0, "G", 1, 8, 1, 1, 5772.0,
+            "Sol", "Sol", "Sun",
+        )
+        raw, _ = encode_tile(
+            depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "tile.sgtile.gz"
+            path.write_bytes(gzip.compress(raw, mtime=0))
+            header, names = read_tile(path)
+        self.assertEqual(header["emitted_count"], 1)
+        self.assertEqual(names, {17788193: "Sol"})
 
 
 if __name__ == "__main__":

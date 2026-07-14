@@ -801,6 +801,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Pass tiled 100-ly behavioral parity and before/after performance budgets
 - [x] Pass the public 250-ly desktop/mobile pilot; retain 500/1,000 ly as
   verification-only manifests
+- [x] Gate tiled 100-ly labels against the authoritative root-system public-name
+  policy and reject literal/encoded static tile traversal paths
+- [ ] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
+  with the preserved science checkpoint (not an M8.1 tile-transport blocker)
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star
   Search, no-WebGL clients, crawlers/share cards, and fallback/reference
   surfaces
