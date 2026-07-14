@@ -103,6 +103,13 @@ Search can materialize and pin an omitted ordinary system by stable identity.
 The UI and canvas diagnostics report catalog, rendered, and camera-detail
 counts separately, so LOD is not presented as a complete local population.
 
+Tile schema v2 uses its compact class byte for a representative system class.
+Compact/exotic members take precedence (for example a neutron star over an
+ordinary companion); otherwise the class follows the intrinsically brightest
+component by absolute magnitude, with `star_id` as a deterministic tie-break.
+This feeds the lightweight map-label badge and does not alter canonical stellar
+classification or system membership.
+
 ## Delivery and Promotion
 
 - hashed tile files: `/map-tiles/radius-<n>/tiles/<sha256>.sgtile.gz`

@@ -2,7 +2,10 @@ import { apiUrl } from "./api.js";
 
 const MAGIC = "SGTILE1\0";
 const RECORD_SIZE = 72;
-const SPECTRAL_CLASSES = ["UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
+const SPECTRAL_CLASSES = [
+  "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
+  "WR", "WD", "NS", "PULSAR", "MAGNETAR", "BLACK HOLE",
+];
 const sharedTileCache = new Map();
 
 async function maybeDecompress(buffer) {
@@ -28,7 +31,7 @@ export async function decodeMapTile(input) {
   if (magic !== MAGIC) throw new Error(`Unsupported Spacegate tile magic: ${JSON.stringify(magic)}`);
   const headerLength = view.getUint32(8, true);
   const header = JSON.parse(decoder.decode(new Uint8Array(buffer, 12, headerLength)));
-  if (header.schema_version !== "spacegate_map_tile_v1" || header.record_size !== RECORD_SIZE) {
+  if (!["spacegate_map_tile_v1", "spacegate_map_tile_v2"].includes(header.schema_version) || header.record_size !== RECORD_SIZE) {
     throw new Error(`Unsupported Spacegate tile schema: ${header.schema_version}`);
   }
   const recordStart = 12 + headerLength;
@@ -51,6 +54,7 @@ export async function decodeMapTile(input) {
     const keyOffset = view.getUint32(offset + 56, true);
     const keyLength = view.getUint16(offset + 60, true);
     const flags = view.getUint8(offset + 67);
+    const spectralClass = SPECTRAL_CLASSES[view.getUint8(offset + 66)] || "UNKNOWN";
     systems.push({
       system_id: readUint64(view, offset),
       x_helio_ly: header.origin_ly[0] + view.getFloat32(offset + 8, true),
@@ -65,7 +69,9 @@ export async function decodeMapTile(input) {
       stable_object_key: decoder.decode(strings.subarray(keyOffset, keyOffset + keyLength)),
       star_count: view.getUint16(offset + 62, true),
       planet_count: view.getUint16(offset + 64, true),
-      dominant_spectral_class: SPECTRAL_CLASSES[view.getUint8(offset + 66)] || "UNKNOWN",
+      representative_stellar_class: spectralClass,
+      // Retained for v1 artifacts and presentation code during the tile-v2 rollout.
+      dominant_spectral_class: spectralClass,
       has_habitable_candidate: Boolean(flags & 1),
       sampled_lod: Boolean(flags & 4),
       max_star_teff_k: view.getUint32(offset + 68, true) || null,

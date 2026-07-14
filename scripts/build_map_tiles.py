@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
 from app.queries import choose_display_name_info
 
 
-SCHEMA_VERSION = "spacegate_map_tile_v1"
+SCHEMA_VERSION = "spacegate_map_tile_v2"
 MANIFEST_VERSION = "spacegate_map_manifest_v1"
 INDEX_VERSION = "spacegate_map_index_v1"
 FRAME = "heliocentric_icrs_j2016"
@@ -36,7 +36,10 @@ SAMPLE_DEPTHS = (2, 3)
 SAMPLE_LIMIT = 256
 RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBI")
 MAGIC = b"SGTILE1\0"
-SPECTRAL_CODES = {value: idx for idx, value in enumerate(("UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"))}
+SPECTRAL_CODES = {value: idx for idx, value in enumerate((
+    "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
+    "WR", "WD", "NS", "PULSAR", "MAGNETAR", "BLACK HOLE",
+))}
 
 
 def utc_now() -> str:
@@ -241,7 +244,39 @@ def tile_query(radius: int) -> str:
     width4 = ROOT_HALF_EXTENT_LY * 2.0 / (1 << BASE_EXACT_DEPTH)
     width5 = ROOT_HALF_EXTENT_LY * 2.0 / (1 << MAX_EXACT_DEPTH)
     return f"""
-      WITH positioned AS (
+      WITH stellar_class_candidates AS (
+        SELECT
+          system_id,
+          star_id,
+          CASE
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'black[ _-]?hole') THEN 'BLACK HOLE'
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'magnetar') THEN 'MAGNETAR'
+            WHEN lower(coalesce(object_type, '')) = 'pulsar' OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'pulsar|\\bpsr\\b') THEN 'PULSAR'
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'neutron[ _-]?star') THEN 'NS'
+            WHEN regexp_matches(upper(coalesce(spectral_type_raw, '')), '^W[CNOR]') OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'wolf[ _-]?rayet') THEN 'WR'
+            WHEN lower(coalesce(object_type, '')) = 'white_dwarf' OR upper(coalesce(spectral_class, '')) = 'D' THEN 'WD'
+            WHEN upper(coalesce(spectral_class, '')) IN ('O','B','A','F','G','K','M','L','T','Y') THEN upper(spectral_class)
+            ELSE 'UNKNOWN'
+          END AS stellar_class,
+          CASE
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'black[ _-]?hole') THEN 100
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'magnetar') THEN 95
+            WHEN lower(coalesce(object_type, '')) = 'pulsar' OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'pulsar|\\bpsr\\b') THEN 90
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'neutron[ _-]?star') THEN 85
+            WHEN regexp_matches(upper(coalesce(spectral_type_raw, '')), '^W[CNOR]') OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'wolf[ _-]?rayet') THEN 80
+            WHEN lower(coalesce(object_type, '')) = 'white_dwarf' OR upper(coalesce(spectral_class, '')) = 'D' THEN 70
+            ELSE coalesce(-absmag, -vmag, -1000)
+          END AS salience
+        FROM stars
+        WHERE system_id IS NOT NULL
+      ), representative_stellar_class AS (
+        SELECT system_id, stellar_class
+        FROM stellar_class_candidates
+        QUALIFY row_number() OVER (
+          PARTITION BY system_id
+          ORDER BY salience DESC, star_id ASC
+        ) = 1
+      ), positioned AS (
         SELECT s.*,
           greatest(0, least(15, floor((s.x_helio_ly + 1024.0) / {width4})::INTEGER)) AS x4,
           greatest(0, least(15, floor((s.y_helio_ly + 1024.0) / {width4})::INTEGER)) AS y4,
@@ -266,12 +301,13 @@ def tile_query(radius: int) -> str:
         r.system_id, r.stable_object_key, r.system_name,
         r.x_helio_ly, r.y_helio_ly, r.z_helio_ly, r.dist_ly,
         coalesce(c.score_total, 0.0) AS coolness_score,
-        coalesce(nullif(c.dominant_spectral_class, ''), 'UNKNOWN') AS dominant_spectral_class,
+        coalesce(nullif(rc.stellar_class, ''), nullif(c.dominant_spectral_class, ''), 'UNKNOWN') AS representative_stellar_class,
         coalesce(r.star_count, 0), coalesce(r.planet_count, 0), coalesce(c.rank, 0),
         coalesce(c.nice_planet_count, 0), coalesce(r.max_star_teff_k, 0),
         r.tile_depth, r.tile_x, r.tile_y, r.tile_z
       FROM rows_with_tile r
       LEFT JOIN disc_db.coolness_scores c USING (system_id)
+      LEFT JOIN representative_stellar_class rc USING (system_id)
       ORDER BY r.tile_depth, r.tile_x, r.tile_y, r.tile_z, r.system_id
     """
 
@@ -419,6 +455,11 @@ def build_radius(
         "identity_contract": {
             "system_id": "unsigned 64-bit little-endian; browser decoder emits exact safe integers or decimal strings",
             "stable_object_key": "UTF-8 string table",
+        },
+        "representative_class_contract": {
+            "version": "salient_compact_else_intrinsic_brightness_v1",
+            "field": "representative_stellar_class",
+            "policy": "compact/exotic class first; otherwise lowest available absolute magnitude; stable star_id tie-break",
         },
         "coolness_profile": profile,
         "sampling_policy": {

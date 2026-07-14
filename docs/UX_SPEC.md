@@ -70,7 +70,9 @@ Map overlays:
 - Star Style is a presentation preference. `Discovery` subtly emphasizes
   high-coolness, planet-hosting, multistar, and nearby systems to encourage
   exploration. `Realistic` reduces that guidance and uses physically motivated,
-  lightly tinted stellar colors. Neither mode changes science-layer facts.
+  lightly tinted stellar colors. `Bright` increases core and halo visibility
+  for large/high-resolution displays. None of these modes changes science-layer
+  facts.
 
 ## Page: Star Search v2
 

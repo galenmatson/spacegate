@@ -16,7 +16,13 @@ import {
   radialDensitySeamRatio,
 } from "./mapLod.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle } from "./nameStyle.js";
-import { StellarClassChips, stellarClassTokensFromSystem, stellarClassTooltip } from "./stellarClassTags.jsx";
+import {
+  STELLAR_CLASS_TAGS,
+  StellarClassChips,
+  normalizeStellarClassToken,
+  stellarClassTokensFromSystem,
+  stellarClassTooltip,
+} from "./stellarClassTags.jsx";
 
 const DEFAULT_MAP_RADIUS_LY = 100;
 const LIGHT_YEAR_KM = 9_460_730_472_580.8;
@@ -141,6 +147,12 @@ const SPECTRAL_COLORS = {
   T: "#9b78d8",
   Y: "#68c7d8",
   D: "#d7e0ea",
+  WR: "#71f6ff",
+  WD: "#d7e0ea",
+  NS: "#b9a7ff",
+  PULSAR: "#9bffef",
+  MAGNETAR: "#ff6df0",
+  "BLACK HOLE": "#ffcf4a",
   UNKNOWN: "#8b99b0",
 };
 const REALISTIC_SPECTRAL_COLORS = {
@@ -155,9 +167,20 @@ const REALISTIC_SPECTRAL_COLORS = {
   T: "#d8c7ff",
   Y: "#bddde8",
   D: "#eef4ff",
+  WR: "#e8ffff",
+  WD: "#eef4ff",
+  NS: "#e8e2ff",
+  PULSAR: "#e4fff9",
+  MAGNETAR: "#ffe4fb",
+  "BLACK HOLE": "#ffe9a8",
   UNKNOWN: "#cbd3df",
 };
 const STAR_RENDER_MODES = {
+  bright: {
+    id: "bright",
+    label: "Bright",
+    title: "Raises core size and halo intensity for large or high-resolution displays.",
+  },
   discovery: {
     id: "discovery",
     label: "Discovery",
@@ -705,10 +728,12 @@ function prepareMapItems(rawItems, frame = "icrs") {
   return (rawItems || [])
     .map((item) => {
       const dominant = String(item.dominant_spectral_class || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+      const representative = String(item.representative_stellar_class || dominant).trim().toUpperCase() || "UNKNOWN";
       return {
         ...item,
         display_name: systemDisplayName(item),
         dominant_spectral_class: SPECTRAL_COLORS[dominant] ? dominant : "UNKNOWN",
+        representative_stellar_class: SPECTRAL_COLORS[representative] ? representative : "UNKNOWN",
         scene_position: mapToScenePosition(item, frame),
         map_priority: priorityForSystem(item),
       };
@@ -817,6 +842,12 @@ function starClassSizeFactor(spectralClass) {
     T: 0.72,
     Y: 0.68,
     D: 0.8,
+    WR: 1.22,
+    WD: 0.86,
+    NS: 0.9,
+    PULSAR: 0.96,
+    MAGNETAR: 1,
+    "BLACK HOLE": 1.02,
     UNKNOWN: 0.74,
   }[spectralClass] || 0.74;
 }
@@ -865,19 +896,20 @@ function StarField({ systems, filterMatchIds = null, filterActive = false, starR
       positions[base] = system.scene_position[0];
       positions[base + 1] = system.scene_position[1];
       positions[base + 2] = system.scene_position[2];
-      const spectralClass = system.dominant_spectral_class || "UNKNOWN";
+      const spectralClass = system.representative_stellar_class || system.dominant_spectral_class || "UNKNOWN";
       const realisticColor = new THREE.Color(REALISTIC_SPECTRAL_COLORS[spectralClass] || REALISTIC_SPECTRAL_COLORS.UNKNOWN);
       const displayColor = new THREE.Color(SPECTRAL_COLORS[spectralClass] || SPECTRAL_COLORS.UNKNOWN);
       const haloColor = normalizedMode === "realistic"
         ? realisticColor.clone()
-        : realisticColor.clone().lerp(displayColor, 0.36);
+        : realisticColor.clone().lerp(displayColor, normalizedMode === "bright" ? 0.52 : 0.36);
       const coreColor = realisticColor.clone().lerp(new THREE.Color("#ffffff"), normalizedMode === "realistic" ? 0.52 : 0.36);
       const classFactor = starClassSizeFactor(spectralClass);
-      const discoveryWeight = normalizedMode === "discovery" ? discoveryWeightForSystem(system) : 0;
+      const discoveryWeight = normalizedMode === "realistic" ? 0 : discoveryWeightForSystem(system);
       const discoverySizeBoost = 1 + discoveryWeight * 0.8;
       const discoveryHaloBoost = 1 + discoveryWeight * 1.25;
-      let coreAlpha = normalizedMode === "realistic" ? 0.78 : 0.84 + discoveryWeight * 0.14;
-      let haloAlpha = normalizedMode === "realistic" ? 0.34 : 0.4 + discoveryWeight * 0.26;
+      const visibilityScale = normalizedMode === "bright" ? 1.38 : 1;
+      let coreAlpha = normalizedMode === "realistic" ? 0.78 : Math.min(1, 0.84 + discoveryWeight * 0.14 + (normalizedMode === "bright" ? 0.08 : 0));
+      let haloAlpha = normalizedMode === "realistic" ? 0.34 : Math.min(1, 0.4 + discoveryWeight * 0.26 + (normalizedMode === "bright" ? 0.16 : 0));
       if (filterActive) {
         if (matches.has(String(system.system_id))) {
           coreColor.lerp(new THREE.Color("#ffffff"), 0.22);
@@ -895,8 +927,8 @@ function StarField({ systems, filterMatchIds = null, filterActive = false, starR
       haloColors[base] = haloColor.r;
       haloColors[base + 1] = haloColor.g;
       haloColors[base + 2] = haloColor.b;
-      coreSizes[idx] = 3.2 * classFactor * discoverySizeBoost;
-      haloSizes[idx] = 9.8 * classFactor * discoveryHaloBoost;
+      coreSizes[idx] = 3.2 * classFactor * discoverySizeBoost * visibilityScale;
+      haloSizes[idx] = 9.8 * classFactor * discoveryHaloBoost * visibilityScale;
       coreAlphas[idx] = coreAlpha;
       haloAlphas[idx] = haloAlpha;
     });
@@ -921,7 +953,7 @@ function StarField({ systems, filterMatchIds = null, filterActive = false, starR
     [coreTexture],
   );
   const haloMaterial = useMemo(
-    () => createStarLayerMaterial({ texture: haloTexture, opacity: normalizedMode === "realistic" ? 0.56 : 0.68, blending: THREE.AdditiveBlending }),
+    () => createStarLayerMaterial({ texture: haloTexture, opacity: normalizedMode === "realistic" ? 0.56 : normalizedMode === "bright" ? 0.84 : 0.68, blending: THREE.AdditiveBlending }),
     [haloTexture, normalizedMode],
   );
   const { gl } = useThree();
@@ -942,7 +974,7 @@ function StarField({ systems, filterMatchIds = null, filterActive = false, starR
     const pixelRatio = Math.min(2, gl.getPixelRatio?.() || window.devicePixelRatio || 1);
     coreMaterial.uniforms.uPixelRatio.value = pixelRatio;
     haloMaterial.uniforms.uPixelRatio.value = pixelRatio;
-    haloMaterial.uniforms.uOpacity.value = normalizedMode === "realistic" ? 0.56 : 0.68;
+    haloMaterial.uniforms.uOpacity.value = normalizedMode === "realistic" ? 0.56 : normalizedMode === "bright" ? 0.84 : 0.68;
   }, [coreMaterial, gl, haloMaterial, normalizedMode]);
   useEffect(() => {
     const canvas = gl.domElement;
@@ -1082,18 +1114,23 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiu
   );
 }
 
-function createLabelTexture(label, { selected = false, tone = "default" } = {}) {
+function createLabelTexture(label, { selected = false, tone = "default", stellarClass = null } = {}) {
   const pixelRatio = 2;
   const fontSize = 24;
   const paddingX = 14;
   const paddingY = 8;
   const borderRadius = 7;
+  const badgeSize = 22;
+  const badgeGap = 8;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   const text = String(label || "System").slice(0, 32);
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   const metrics = ctx.measureText(text);
-  const width = Math.ceil(metrics.width + paddingX * 2);
+  const hasBadge = Boolean(stellarClass);
+  const token = normalizeStellarClassToken(stellarClass === "UNKNOWN" ? "U" : stellarClass);
+  const tag = STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
+  const width = Math.ceil(metrics.width + paddingX * 2 + (hasBadge ? badgeSize + badgeGap : 0));
   const height = Math.ceil(fontSize + paddingY * 2);
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
@@ -1119,7 +1156,25 @@ function createLabelTexture(label, { selected = false, tone = "default" } = {}) 
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = ink;
-  ctx.fillText(text, paddingX, height / 2 + 1);
+  if (hasBadge) {
+    const badgeX = paddingX + badgeSize / 2;
+    const badgeY = height / 2;
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = tag.color;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.82)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#05070b";
+    ctx.font = `900 13px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(tag.label.slice(0, 2), badgeX, badgeY + 1);
+    ctx.textAlign = "start";
+  }
+  ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  ctx.fillStyle = ink;
+  ctx.fillText(text, paddingX + (hasBadge ? badgeSize + badgeGap : 0), height / 2 + 1);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -1136,11 +1191,12 @@ function LabelSprite({
   labelRank = 0,
   labelCount = 1,
   onSelect = null,
+  stellarClass = null,
 }) {
   const spriteRef = useRef(null);
   const payload = useMemo(
-    () => createLabelTexture(label, { selected, tone }),
-    [label, selected, tone],
+    () => createLabelTexture(label, { selected, tone, stellarClass }),
+    [label, selected, stellarClass, tone],
   );
 
   useEffect(() => () => payload.texture.dispose(), [payload]);
@@ -1288,6 +1344,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
     gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
     gl.domElement.dataset.mapLocalLabelCount = String(labelSystems.filter((system) => Number(system.label_camera_distance_ly) <= 10).length);
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
+    gl.domElement.dataset.mapLabelClassStrategy = "salient_compact_else_intrinsic_brightness_v1";
   }, [forcedLabelActive, gl.domElement, labelSystems]);
 
   useFrame((_, delta) => {
@@ -1305,6 +1362,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
         <LabelSprite
           key={system.system_id}
           label={system.display_name}
+          stellarClass={system.representative_stellar_class || system.dominant_spectral_class}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
           priority={system.label_priority ?? system.map_priority}

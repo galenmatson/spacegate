@@ -807,6 +807,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   deterministic Balanced/Performance policies, and opt-in Exact density
 - [x] Fail map performance verification on radial density seams, missing detail
   refinement, incorrect device policy, or duplicate immutable tile requests
+- [x] Add persisted Bright star style and representative map-label class badges;
+  prefer compact/exotic members, otherwise intrinsic component brightness
 - [ ] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
   with the preserved science checkpoint (not an M8.1 tile-transport blocker)
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star

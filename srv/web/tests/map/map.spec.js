@@ -702,6 +702,11 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBe(2);
 
+    await starRenderSelect.selectOption("bright");
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.starRenderMode") || "")).toBe("bright");
+    await expect(canvas).toHaveAttribute("data-map-star-render-mode", "bright");
+    await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "salient_compact_else_intrinsic_brightness_v1");
+
     await keybindSelect.selectOption("esdf");
     await expect.poll(
       () => canvas.evaluate((node) => node.dataset.mapKeybindScheme || ""),

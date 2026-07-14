@@ -643,7 +643,7 @@ Notes:
   detailed temperature fields, and nice/weird planet counters because the v0.2
   map renderer does not consume them.
 
-### Static Tiled Map v1
+### Static Tiled Map v1/v2
 
 These paths are served by the static web tier, not under `/api/v1`:
 
@@ -661,6 +661,11 @@ are routable. Hash files receive immutable caching; index/manifests use short
 cache lifetimes. A missing or corrupt artifact is an explicit map error. The
 full coordinate, manifest, binary, selection, and cache contract is
 `docs/TILED_MAP.md`.
+
+Tile schema v2 retains the fixed 72-byte record and assigns the class byte to
+`representative_stellar_class`. Compact/exotic components have presentation
+salience; otherwise the class follows the intrinsically brightest component.
+Schema-v1 artifacts remain decodable during immutable-artifact transition.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics

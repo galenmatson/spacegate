@@ -69,7 +69,8 @@ The Playwright map suite imports
 - `tiledMap.spec.js` verifies exact 100/250-ly artifact accounting, bounded
   mixed LOD points, desktop/mobile nonblank canvas pixels and screenshots,
   camera-detail recentering, radial-seam limits, Exact density, and search
-  focus/Peek continuity through exact refinement
+  focus/Peek continuity through exact refinement; a desktop-only 4K check keeps
+  Bright mode nonblank and verifies the representative-class label contract
 - the map parity subset verifies WebGL recovery, routes, naming modes, system
   detail return, mobile controls, and simulation Peek/Explorer behavior on the
   tiled production path

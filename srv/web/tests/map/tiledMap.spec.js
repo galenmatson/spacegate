@@ -118,3 +118,18 @@ test("250-ly density control can render the exact catalog", async ({ page }, tes
   await expect(canvas).toHaveAttribute("data-map-tile-failures", "0");
   await expectPaintedMap(page);
 });
+
+test("Bright star style remains nonblank at 4K", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith("mobile"), "4K star-style validation is desktop-only.");
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 3840, height: 2160 });
+  await page.goto("/map?radius=100&pixel_probe=1", { waitUntil: "domcontentloaded" });
+  const canvas = page.locator(".map-canvas canvas");
+  await expect(canvas).toHaveAttribute("data-map-tile-complete", "true");
+  await page.locator(".map-header-menu > summary").click();
+  await page.locator("[data-testid='map-star-render-mode-select']").selectOption("bright");
+  await expect(canvas).toHaveAttribute("data-map-star-render-mode", "bright");
+  await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "salient_compact_else_intrinsic_brightness_v1");
+  await expectPaintedMap(page);
+  await page.screenshot({ path: testInfo.outputPath("map-bright-4k.png"), fullPage: true });
+});
