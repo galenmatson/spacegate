@@ -1,4 +1,4 @@
-const rawBase = import.meta.env.VITE_API_BASE || "";
+const rawBase = import.meta.env?.VITE_API_BASE || "";
 const API_BASE = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
 const SIMULATION_SCENE_CACHE_LIMIT = 128;
 const simulationSceneCache = new Map();

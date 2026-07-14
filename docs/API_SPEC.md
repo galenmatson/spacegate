@@ -634,13 +634,33 @@ Contract notes:
 
 Notes:
 - This endpoint is a map render/selection contract, not a general search API.
-- The pilot is intentionally capped to 100 ly until tile/LOD loading exists.
+- This endpoint is retained temporarily as a 100-ly diagnostic comparator. The
+  production map transport is the static Tiled Map v1 contract below.
 - Coordinates are core heliocentric positions at the canonical build epoch.
 - `compact=true` preserves `system_id`, display name, heliocentric render
   coordinates, counts, dominant spectral class, coolness rank/score, and
   snapshot availability. It omits `stable_object_key`, `spectral_classes`,
   detailed temperature fields, and nice/weird planet counters because the v0.2
   map renderer does not consume them.
+
+### Static Tiled Map v1
+
+These paths are served by the static web tier, not under `/api/v1`:
+
+- `GET /map-tiles/index.json`: short-lived pointer for the promoted build and
+  bounded public/verification radius inventory
+- `GET /map-tiles/radius-100/manifest.json`
+- `GET /map-tiles/radius-250/manifest.json`
+- verification-only manifests may exist for radius 500 and 1,000; the browser
+  does not expose them in M8.1
+- `GET /map-tiles/radius-<allowed>/tiles/<sha256>.sgtile.gz`: immutable binary
+  tile artifact
+
+Only radius values `100`, `250`, `500`, and `1000` and lowercase 64-hex hashes
+are routable. Hash files receive immutable caching; index/manifests use short
+cache lifetimes. A missing or corrupt artifact is an explicit map error. The
+full coordinate, manifest, binary, selection, and cache contract is
+`docs/TILED_MAP.md`.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics

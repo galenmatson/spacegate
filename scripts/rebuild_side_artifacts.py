@@ -172,6 +172,11 @@ def main() -> int:
     parser.add_argument("--build-id", default="", help="Output build id.")
     parser.add_argument("--promote", action="store_true", help="Promote the rebuilt build after generation.")
     parser.add_argument(
+        "--build-map-tiles",
+        action="store_true",
+        help="Build deterministic 100/250/500/1000-ly map tiles into the cloned artifact.",
+    )
+    parser.add_argument(
         "--skip-disc-copy",
         action="store_true",
         help="Do not copy disc.duckdb/disc side artifacts. Intended only for ARM-only smoke builds.",
@@ -213,6 +218,24 @@ def main() -> int:
             if copied["disc_db"]:
                 update_build_metadata(tmp_dir / "disc.duckdb", build_id=build_id, source_build_id=source_build_id, artifact_kind="disc")
             copied["disc_dir"] = copy_dir(source_build_dir / "disc", tmp_dir / "disc", required=False)
+        if args.build_map_tiles:
+            if not (tmp_dir / "disc.duckdb").exists():
+                raise SystemExit("--build-map-tiles requires disc.duckdb; omit --skip-disc-copy")
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "build_map_tiles.py"),
+                    "--state-dir",
+                    str(state),
+                    "--build-dir",
+                    str(tmp_dir),
+                    "--output-dir",
+                    str(tmp_dir / "map_tiles"),
+                    "--radii",
+                    "100,250,500,1000",
+                ],
+                cwd=str(root),
+            )
 
         arm_report = reports_dir / "arm_report.json"
         transform_version = f"side_artifact_rebuild:{git_sha(root)}"
@@ -258,6 +281,7 @@ def main() -> int:
                 "core.duckdb is cloned from the source build with build metadata updated.",
                 "arm.duckdb is regenerated from the cloned core using current build_arm.py.",
                 "disc and snapshot artifacts are copied unless --skip-disc-copy is used.",
+                "Versioned map tiles are generated when --build-map-tiles is requested.",
                 "This script does not download or cook source catalogs.",
             ],
         }

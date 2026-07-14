@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "benchmark:map": "node scripts/benchmark-map.mjs",
+    "test:tiles": "node tests/mapTiles.test.mjs",
     "test:map": "playwright test -c playwright.map.config.js",
     "test:map:headed": "playwright test -c playwright.map.config.js --headed",
     "test:map:install": "playwright install chromium"

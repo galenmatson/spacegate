@@ -4,7 +4,7 @@ This policy governs Spacegate build artifacts in `$SPACEGATE_STATE_DIR`.
 
 ## Scope
 
-- `out/<build_id>/` immutable build artifacts (`core.duckdb`, `arm.duckdb`, parquet, disc outputs)
+- `out/<build_id>/` immutable build artifacts (`core.duckdb`, `arm.duckdb`, parquet, disc outputs, `map_tiles/`)
 - `reports/<build_id>/` per-build reports
 
 Out of scope (never pruned by retention script):
@@ -77,6 +77,16 @@ place. Interrupted runs leave `out/<build_id>.tmp`, which is covered by the
 default stale temporary ingest cleanup. The script intentionally copies only
 known served artifacts and does not copy orphaned internal DuckDB temp
 directories such as `core.duckdb.tmp`.
+
+### Tiled map artifacts
+
+`map_tiles/` is part of the immutable served build. Content-addressed tile files
+must not be pruned independently, even when the same hash occurs in another
+build. The current index and radius manifests can reference any hash contained
+in their own build directory. Retire tiles only by retiring the complete,
+unserved `out/<build_id>/` through the normal retention dry run. Temporary tile
+builds belong under `$SPACEGATE_STATE_DIR/tmp` and may be removed only after a
+verified immutable build has been promoted and retained.
 
 ## Bulk Research Storage
 

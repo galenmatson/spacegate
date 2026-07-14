@@ -5,10 +5,11 @@ import * as THREE from "three";
 import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystemDetail, fetchSystems } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
+import { MapTileManager } from "./mapTiles.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle } from "./nameStyle.js";
 import { StellarClassChips, stellarClassTokensFromSystem, stellarClassTooltip } from "./stellarClassTags.jsx";
 
-const MAP_RADIUS_LY = 100;
+const DEFAULT_MAP_RADIUS_LY = 100;
 const LIGHT_YEAR_KM = 9_460_730_472_580.8;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const STAR_SEARCH_SPECTRAL_OPTIONS = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
@@ -19,7 +20,7 @@ const STAR_SEARCH_SORT_OPTIONS = [
   { value: "coolness", label: "Coolest" },
   { value: "name", label: "Name" },
 ];
-const MAP_RADIUS_OPTIONS_LY = [100, 250, 500, 1000];
+const MAP_RADIUS_OPTIONS_LY = [100, 250];
 const WEBGL_CONTEXT_BUDGET = 6;
 const SEARCH_PREVIEW_POOL_SIZE = 4;
 const SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT = 96;
@@ -920,8 +921,8 @@ function StarField({ systems, filterMatchIds = null, filterActive = false, starR
   );
 }
 
-function DistanceRings() {
-  const radii = [10, 25, 50, 100];
+function DistanceRings({ mapRadiusLy = DEFAULT_MAP_RADIUS_LY }) {
+  const radii = [10, 25, 50, 100, 250].filter((radius) => radius <= mapRadiusLy);
   return (
     <group>
       {radii.map((radius) => {
@@ -943,10 +944,10 @@ function DistanceRings() {
   );
 }
 
-function DirectionArrow({ direction = [1, 0, 0], color = "#ffe7a3" }) {
+function DirectionArrow({ direction = [1, 0, 0], color = "#ffe7a3", mapRadiusLy = DEFAULT_MAP_RADIUS_LY }) {
   const vector = useMemo(() => new THREE.Vector3().fromArray(direction).normalize(), [direction]);
-  const start = vector.clone().multiplyScalar(MAP_RADIUS_LY * LY_TO_SCENE * 0.58);
-  const end = vector.clone().multiplyScalar(MAP_RADIUS_LY * LY_TO_SCENE * 0.74);
+  const start = vector.clone().multiplyScalar(mapRadiusLy * LY_TO_SCENE * 0.58);
+  const end = vector.clone().multiplyScalar(mapRadiusLy * LY_TO_SCENE * 0.74);
   const side = new THREE.Vector3().crossVectors(vector, WORLD_UP);
   if (side.lengthSq() < 0.0001) {
     side.crossVectors(vector, new THREE.Vector3(1, 0, 0));
@@ -973,18 +974,18 @@ function DirectionArrow({ direction = [1, 0, 0], color = "#ffe7a3" }) {
   );
 }
 
-function DirectionLabels({ visible = false, vectors }) {
+function DirectionLabels({ visible = false, vectors, mapRadiusLy = DEFAULT_MAP_RADIUS_LY }) {
   if (!visible) {
     return null;
   }
-  const radius = MAP_RADIUS_LY * LY_TO_SCENE * 0.78;
+  const radius = mapRadiusLy * LY_TO_SCENE * 0.78;
   const positionFor = (vector) => new THREE.Vector3().fromArray(vector).normalize().multiplyScalar(radius).toArray();
   return (
     <group>
-      <DirectionArrow direction={vectors.coreward} />
-      <DirectionArrow direction={vectors.rimward} />
-      <DirectionArrow direction={vectors.spinward} />
-      <DirectionArrow direction={vectors.antispinward} />
+      <DirectionArrow direction={vectors.coreward} mapRadiusLy={mapRadiusLy} />
+      <DirectionArrow direction={vectors.rimward} mapRadiusLy={mapRadiusLy} />
+      <DirectionArrow direction={vectors.spinward} mapRadiusLy={mapRadiusLy} />
+      <DirectionArrow direction={vectors.antispinward} mapRadiusLy={mapRadiusLy} />
       <LabelSprite label="Coreward" position={positionFor(vectors.coreward)} tone="direction" />
       <LabelSprite label="Rimward" position={positionFor(vectors.rimward)} tone="direction" />
       <LabelSprite label="Spinward" position={positionFor(vectors.spinward)} tone="direction" />
@@ -993,7 +994,7 @@ function DirectionLabels({ visible = false, vectors }) {
   );
 }
 
-function OrientationAxes({ frame = "icrs", showDirectionLabels = false }) {
+function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiusLy = DEFAULT_MAP_RADIUS_LY }) {
   const directionVectors = useMemo(() => ({
     coreward: galacticDirectionToScene([1, 0, 0], frame),
     rimward: galacticDirectionToScene([-1, 0, 0], frame),
@@ -1034,7 +1035,7 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false }) {
         </bufferGeometry>
         <lineBasicMaterial color="#ff8fd8" transparent opacity={0.18} />
       </line>
-      <DirectionLabels visible={showDirectionLabels} vectors={directionVectors} />
+      <DirectionLabels visible={showDirectionLabels} vectors={directionVectors} mapRadiusLy={mapRadiusLy} />
     </group>
   );
 }
@@ -1140,6 +1141,21 @@ function LabelSprite({
 function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false }) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
+  const labelIndex = useMemo(() => {
+    const cellSceneSize = 10 * LY_TO_SCENE;
+    const cells = new Map();
+    const priority = [];
+    for (const system of systems) {
+      if (isCatalogFallbackName(system.display_name)) continue;
+      const position = system.scene_position || [0, 0, 0];
+      const key = position.map((value) => Math.floor(Number(value) / cellSceneSize)).join(":");
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push(system);
+      priority.push(system);
+    }
+    priority.sort((left, right) => Number(right.map_priority || 0) - Number(left.map_priority || 0));
+    return { cellSceneSize, cells, priority: priority.slice(0, 1600) };
+  }, [systems]);
   const buildLabelSet = useCallback(() => {
     const seen = new Set();
     const candidates = [];
@@ -1171,8 +1187,20 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
       const selectedDistanceLy = selectedPosition.distanceTo(camera.position) / LY_TO_SCENE;
       add(selectedSystem, Math.max(14, Number(selectedSystem.map_priority || 0)), selectedDistanceLy);
     }
-    const scored = systems
-      .filter((system) => !isCatalogFallbackName(system.display_name))
+    const cameraCell = [camera.position.x, camera.position.y, camera.position.z]
+      .map((value) => Math.floor(value / labelIndex.cellSceneSize));
+    const nearby = [];
+    for (let dx = -3; dx <= 3; dx += 1) {
+      for (let dy = -3; dy <= 3; dy += 1) {
+        for (let dz = -3; dz <= 3; dz += 1) {
+          nearby.push(...(labelIndex.cells.get(`${cameraCell[0] + dx}:${cameraCell[1] + dy}:${cameraCell[2] + dz}`) || []));
+        }
+      }
+    }
+    const labelCandidates = Array.from(new Map(
+      [...nearby, ...labelIndex.priority].map((system) => [String(system.system_id), system]),
+    ).values());
+    const scored = labelCandidates
       .map((system) => {
         const position = new THREE.Vector3().fromArray(system.scene_position);
         const cameraDistanceLy = position.distanceTo(camera.position) / LY_TO_SCENE;
@@ -1207,7 +1235,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
       .slice(0, Math.max(0, totalBudget - candidates.length))
       .forEach(({ system, priority, score, cameraDistanceLy }) => add(system, Math.max(priority, score / 4), cameraDistanceLy));
     return candidates;
-  }, [camera, forcedLabelActive, forcedLabelSystems, selectedSystem, systems]);
+  }, [camera, forcedLabelActive, forcedLabelSystems, labelIndex, selectedSystem]);
   const [labelSystems, setLabelSystems] = useState(buildLabelSet);
 
   useEffect(() => {
@@ -1222,7 +1250,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
-    if (updateClockRef.current < 0.42) {
+    if (updateClockRef.current < 0.65) {
       return;
     }
     updateClockRef.current = 0;
@@ -2008,6 +2036,12 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
     target.dataset.runtimePreviewCooldown = runtimeDiagnostics?.previewCooldown ? "true" : "false";
     target.dataset.runtimeContextRecoveries = String(runtimeDiagnostics?.contextLossRecoveries ?? "");
     target.dataset.runtimeRadiusOptionsLy = (runtimeDiagnostics?.supportedRadiusSteps || []).join(",");
+    target.dataset.mapRadiusLy = String(runtimeDiagnostics?.mapRadiusLy ?? "");
+    target.dataset.mapTransport = runtimeDiagnostics?.tileStats?.mode || "monolithic";
+    target.dataset.mapTilesLoaded = String(runtimeDiagnostics?.tileStats?.loaded_tiles ?? 0);
+    target.dataset.mapTilesQueued = String(runtimeDiagnostics?.tileStats?.queued_tiles ?? 0);
+    target.dataset.mapTileCacheHits = String(runtimeDiagnostics?.tileStats?.cache_hits ?? 0);
+    target.dataset.mapTileFailures = String(runtimeDiagnostics?.tileStats?.failed_tiles ?? 0);
   }, [gl.domElement, runtimeDiagnostics, runtimeQuality]);
 
   return null;
@@ -2015,6 +2049,7 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
 
 function StarMapScene({
   systems,
+  mapRadiusLy,
   selectedSystem,
   filterMatchIds,
   filterActive,
@@ -2054,8 +2089,8 @@ function StarMapScene({
       <fog attach="fog" args={["#01030a", 80, 190]} />
       <MapWebGLContextGuard onContextLost={onContextLost} />
       <MapRuntimeBridge runtimeDiagnostics={runtimeDiagnostics} runtimeQuality={runtimeQuality} />
-      <DistanceRings />
-      <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} />
+      <DistanceRings mapRadiusLy={mapRadiusLy} />
+      <OrientationAxes frame={mapFrame} showDirectionLabels={showDirectionLabels} mapRadiusLy={mapRadiusLy} />
       <StarField
         systems={systems}
         filterMatchIds={filterMatchIds}
@@ -2168,7 +2203,7 @@ function systemMatchesMapFilters(system, filters, origin) {
   return true;
 }
 
-function buildSearchParamsFromFilters(filters, origin, filterExtents, query = "", sort = "distance", limit = 24) {
+function buildSearchParamsFromFilters(filters, origin, filterExtents, query = "", sort = "distance", limit = 24, mapRadiusLy = DEFAULT_MAP_RADIUS_LY) {
   const params = {
     sort: sort || (query.trim() ? "match" : "distance"),
     limit: String(limit),
@@ -2182,8 +2217,8 @@ function buildSearchParamsFromFilters(filters, origin, filterExtents, query = ""
   if (filters.habitableOnly) params.has_habitable = "true";
   const spectral = spectralTokens(filters.spectralClass);
   if (spectral.length) params.spectral_class = spectral.join(",");
-  const distLow = Math.min(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? MAP_RADIUS_LY));
-  const distHigh = Math.max(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? MAP_RADIUS_LY));
+  const distLow = Math.min(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? mapRadiusLy));
+  const distHigh = Math.max(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? mapRadiusLy));
   const starLow = Math.min(Number(filters.starRange?.[0] ?? 0), Number(filters.starRange?.[1] ?? filterExtents.maxStars));
   const starHigh = Math.max(Number(filters.starRange?.[0] ?? 0), Number(filters.starRange?.[1] ?? filterExtents.maxStars));
   const planetLow = Math.min(Number(filters.planetRange?.[0] ?? 0), Number(filters.planetRange?.[1] ?? filterExtents.maxPlanets));
@@ -2191,7 +2226,7 @@ function buildSearchParamsFromFilters(filters, origin, filterExtents, query = ""
   const coolnessLow = Math.min(Number(filters.coolnessRange?.[0] ?? 0), Number(filters.coolnessRange?.[1] ?? filterExtents.maxCoolness));
   const coolnessHigh = Math.max(Number(filters.coolnessRange?.[0] ?? 0), Number(filters.coolnessRange?.[1] ?? filterExtents.maxCoolness));
   if (distLow > 0) params.min_dist_ly = String(Math.max(0, distLow));
-  if (distHigh < MAP_RADIUS_LY) params.max_dist_ly = String(distHigh);
+  if (distHigh < mapRadiusLy) params.max_dist_ly = String(distHigh);
   if (starLow > 0) params.min_star_count = String(starLow);
   if (starHigh < filterExtents.maxStars) params.max_star_count = String(starHigh);
   if (planetLow > 0) params.min_planet_count = String(planetLow);
@@ -2326,6 +2361,7 @@ function LazyStarSearchPreview({
 
 function MapStarSearchShell({
   open,
+  mapRadiusLy = DEFAULT_MAP_RADIUS_LY,
   systems,
   selectedSystem,
   selectionHistory,
@@ -2374,7 +2410,7 @@ function MapStarSearchShell({
   const resetFilters = () => {
     setQuery("");
     setFilters({
-      distanceRange: [0, MAP_RADIUS_LY],
+      distanceRange: [0, mapRadiusLy],
       starRange: [0, filterExtents.maxStars],
       planetRange: [0, filterExtents.maxPlanets],
       coolnessRange: [0, filterExtents.maxCoolness],
@@ -2449,7 +2485,7 @@ function MapStarSearchShell({
           <span className="map-panel-label">Filters</span>
           <strong>{formatNumber(matchedCount, 0)} labeled</strong>
         </div>
-        <DualRangeControl label="Distance" min={0} max={MAP_RADIUS_LY} step={1} value={filters.distanceRange} onChange={(value) => updateRange("distanceRange", value)} format={(value) => `${formatNumber(value, 0)} ly`} />
+        <DualRangeControl label="Distance" min={0} max={mapRadiusLy} step={1} value={filters.distanceRange} onChange={(value) => updateRange("distanceRange", value)} format={(value) => `${formatNumber(value, 0)} ly`} />
         <DualRangeControl label="Stars" min={0} max={filterExtents.maxStars} step={1} value={filters.starRange} onChange={(value) => updateRange("starRange", value)} format={(value) => formatNumber(value, 0)} />
         <DualRangeControl label="Planets" min={0} max={filterExtents.maxPlanets} step={1} value={filters.planetRange} onChange={(value) => updateRange("planetRange", value)} format={(value) => formatNumber(value, 0)} />
         <DualRangeControl label="Coolness" min={0} max={filterExtents.maxCoolness} step={1} value={filters.coolnessRange} onChange={(value) => updateRange("coolnessRange", value)} format={(value) => formatNumber(value, 0)} />
@@ -2598,10 +2634,15 @@ export default function StarMapPage({
   const [searchParams, setSearchParams] = useSearchParams();
   const restoreStateRef = useRef(readStoredMapReturnState(searchParams.get("restore")));
   const restoredMapState = restoreStateRef.current;
+  const [mapRadiusLy, setMapRadiusLy] = useState(() => (
+    Number(searchParams.get("radius")) === 250 ? 250 : DEFAULT_MAP_RADIUS_LY
+  ));
+  const monolithicDiagnosticMode = searchParams.get("map_transport") === "monolithic";
   const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
   const [rawSystems, setRawSystems] = useState([]);
   const [systems, setSystems] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [tileStats, setTileStats] = useState(null);
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [selectedSystemDetail, setSelectedSystemDetail] = useState(null);
   const [selectedSystemMetrics, setSelectedSystemMetrics] = useState(null);
@@ -2662,7 +2703,7 @@ export default function StarMapPage({
   const [mapSearchQuery, setMapSearchQuery] = useState(() => searchParams.get("q") || "");
   const [mapSearchSort, setMapSearchSort] = useState(() => searchParams.get("sort") || (searchParams.get("q") ? "match" : "distance"));
   const [mapSearchFilters, setMapSearchFilters] = useState({
-    distanceRange: [0, MAP_RADIUS_LY],
+    distanceRange: [0, mapRadiusLy],
     starRange: [0, 1],
     planetRange: [0, 1],
     coolnessRange: [0, 1],
@@ -2687,6 +2728,10 @@ export default function StarMapPage({
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
+  const tileManagerRef = useRef(null);
+  const tileSystemsRef = useRef(new Map());
+  const tileFlushTimerRef = useRef(null);
+  const tileMotionRef = useRef({ position: [0, 0, 0], sampledAt: 0 });
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
   const spacegateUrl = publicConfig?.spacegate_url || PUBLIC_CONFIG_FALLBACK.spacegate_url;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
@@ -2718,8 +2763,9 @@ export default function StarMapPage({
     previewCooldown: previewCooldownActive,
     contextLossRecoveries,
     qualityTier: runtimeQuality.tier,
-    mapRadiusLy: MAP_RADIUS_LY,
+    mapRadiusLy,
     supportedRadiusSteps: MAP_RADIUS_OPTIONS_LY,
+    tileStats,
   };
 
   const clearPreviewActivationTimer = useCallback(() => {
@@ -3261,55 +3307,120 @@ export default function StarMapPage({
     let active = true;
     setLoading(true);
     setError("");
-    fetchMapSystems({
-      max_dist_ly: String(MAP_RADIUS_LY),
-      limit: "20000",
-      compact: "true",
-      name_style: normalizeNameStyle(nameStyle),
-    })
-      .then((payload) => {
-        if (!active) {
-          return;
-        }
-        const rows = payload?.items || [];
-        const prepared = prepareMapItems(rows, mapFrame);
-        setRawSystems(rows);
-        setSummary(payload || null);
-        const restoredSystem = restoredMapState?.selectedSystemId
-          ? prepared.find((item) => String(item.system_id) === String(restoredMapState.selectedSystemId))
-            || mapItemFromSearchResult(restoredMapState.selectedSystem, mapFrame)
-          : null;
-        const initial = restoredSystem
-          || prepared.find((item) => Number(item.planet_count || 0) > 0 && !isCatalogFallbackName(item.display_name))
-          || prepared.find((item) => !isCatalogFallbackName(item.display_name))
-          || prepared[0]
-          || null;
-        setSelectedSystem(initial);
-        const historyIds = Array.isArray(restoredMapState?.selectionHistoryIds)
-          ? restoredMapState.selectionHistoryIds.map((item) => String(item))
-          : [];
-        const restoredHistory = historyIds
-          .map((id) => prepared.find((item) => String(item.system_id) === id))
-          .filter(Boolean);
-        setSelectionHistory((initial ? [initial] : [])
-          .concat(restoredHistory.filter((item) => item.system_id !== initial?.system_id))
-          .slice(0, 8));
+    setRawSystems([]);
+    setSummary(null);
+    setTileStats(monolithicDiagnosticMode ? { mode: "monolithic" } : { mode: "tiled", radius_ly: mapRadiusLy });
+    tileSystemsRef.current = new Map();
+    const flushTiles = () => {
+      if (!active) return;
+      if (tileFlushTimerRef.current) {
+        window.clearTimeout(tileFlushTimerRef.current);
+        tileFlushTimerRef.current = null;
+      }
+      setRawSystems(Array.from(tileSystemsRef.current.values()));
+    };
+    if (monolithicDiagnosticMode) {
+      fetchMapSystems({
+        max_dist_ly: String(DEFAULT_MAP_RADIUS_LY),
+        limit: "20000",
+        compact: "true",
+        name_style: normalizeNameStyle(nameStyle),
       })
-      .catch((exc) => {
-        if (!active) {
-          return;
-        }
-        setError(exc instanceof Error ? exc.message : "Map data unavailable");
-      })
-      .finally(() => {
-        if (active) {
+        .then((payload) => {
+          if (!active) return;
+          setRawSystems(payload?.items || []);
+          setSummary(payload || null);
+        })
+        .catch((exc) => active && setError(exc instanceof Error ? exc.message : "Map data unavailable"))
+        .finally(() => active && setLoading(false));
+    } else {
+      const manager = new MapTileManager({
+        concurrency: deviceRuntimeProfile === "mobile" ? 4 : 6,
+        cacheLimit: mapRadiusLy >= 250 ? 192 : 64,
+        nameStyle: normalizeNameStyle(nameStyle),
+        onBatch: (rows, tile) => {
+          if (!active) return;
+          for (const row of rows) {
+            const key = String(row.system_id);
+            const existing = tileSystemsRef.current.get(key);
+            if (!existing || tile.exact || existing.sampled_lod) {
+              tileSystemsRef.current.set(key, { ...row, sampled_lod: !tile.exact });
+            }
+          }
+          if (!tileFlushTimerRef.current) {
+            tileFlushTimerRef.current = window.setTimeout(flushTiles, tile.exact ? 180 : 40);
+          }
           setLoading(false);
-        }
+        },
+        onStatus: (stats) => {
+          if (!active) return;
+          setTileStats(stats);
+          setSummary({
+            scope: "systems",
+            frame: "heliocentric_icrs_j2016",
+            max_dist_ly: mapRadiusLy,
+            total_available: stats.exact_systems || stats.emitted_systems || 0,
+            returned: tileSystemsRef.current.size,
+            truncated: !stats.complete,
+            planet_systems: stats.planet_systems || 0,
+            multi_star_systems: stats.multi_star_systems || 0,
+            tile_stats: stats,
+          });
+          if (stats.complete) flushTiles();
+          if (stats.complete && stats.failed_tiles > 0) {
+            setError(`${stats.failed_tiles} map tiles failed to load.`);
+          }
+        },
       });
+      tileManagerRef.current = manager;
+      const origin = telemetry.originLy || { x: 0, y: 0, z: 0 };
+      manager.setFocus([origin.x, origin.y, origin.z]);
+      manager.loadRadius(mapRadiusLy)
+        .catch((exc) => {
+          if (active) setError(exc instanceof Error ? exc.message : "Map tile data unavailable");
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }
     return () => {
       active = false;
+      tileManagerRef.current?.cancel();
+      if (tileFlushTimerRef.current) {
+        window.clearTimeout(tileFlushTimerRef.current);
+        tileFlushTimerRef.current = null;
+      }
     };
-  }, [mapFrame, nameStyle, restoredMapState]);
+  }, [deviceRuntimeProfile, mapRadiusLy, monolithicDiagnosticMode, nameStyle]);
+
+  useEffect(() => {
+    if (!systems.length || selectedSystem) return;
+    const restoredSystem = restoredMapState?.selectedSystemId
+      ? systems.find((item) => String(item.system_id) === String(restoredMapState.selectedSystemId))
+        || mapItemFromSearchResult(restoredMapState.selectedSystem, mapFrame)
+      : null;
+    const initial = restoredSystem
+      || systems.find((item) => Number(item.planet_count || 0) > 0 && !isCatalogFallbackName(item.display_name))
+      || systems.find((item) => !isCatalogFallbackName(item.display_name))
+      || systems[0];
+    setSelectedSystem(initial || null);
+    if (initial) setSelectionHistory([initial]);
+  }, [mapFrame, restoredMapState, selectedSystem, systems]);
+
+  useEffect(() => {
+    const origin = telemetry.originLy || { x: 0, y: 0, z: 0 };
+    const position = [origin.x, origin.y, origin.z];
+    const now = performance.now();
+    const previous = tileMotionRef.current;
+    const elapsed = Math.max(0.001, (now - previous.sampledAt) / 1000);
+    const direction = position.map((value, axis) => (value - previous.position[axis]) / elapsed);
+    tileMotionRef.current = { position, sampledAt: now };
+    tileManagerRef.current?.setMotion(position, direction);
+  }, [telemetry.originLy]);
+
+  useEffect(() => {
+    setMapSearchFilters((current) => ({ ...current, distanceRange: [0, mapRadiusLy] }));
+  }, [mapRadiusLy]);
 
   const routeMeasurementSegments = useMemo(
     () => routeSegments.filter((segment) => segment.kind !== "neighbor"),
@@ -3322,13 +3433,16 @@ export default function StarMapPage({
   );
 
   const filterExtents = useMemo(() => {
-    const maxStars = Math.max(1, ...systems.map((system) => Number(system.star_count || 0)));
-    const maxPlanets = Math.max(1, ...systems.map((system) => Number(system.planet_count || 0)));
-    const maxCoolness = Math.max(1, Math.ceil(Math.max(...systems.map((system) => Number(system.coolness_score || 0)))));
-    const maxTemp = Math.max(
-      STAR_SEARCH_DEFAULT_TEMP_RANGE[1],
-      Math.ceil(Math.max(...systems.map((system) => Number(system.max_star_teff_k || 0))) / 100) * 100,
-    );
+    const maxima = systems.reduce((current, system) => ({
+      stars: Math.max(current.stars, Number(system.star_count || 0)),
+      planets: Math.max(current.planets, Number(system.planet_count || 0)),
+      coolness: Math.max(current.coolness, Number(system.coolness_score || 0)),
+      temperature: Math.max(current.temperature, Number(system.max_star_teff_k || 0)),
+    }), { stars: 1, planets: 1, coolness: 1, temperature: STAR_SEARCH_DEFAULT_TEMP_RANGE[1] });
+    const maxStars = maxima.stars;
+    const maxPlanets = maxima.planets;
+    const maxCoolness = Math.max(1, Math.ceil(maxima.coolness));
+    const maxTemp = Math.max(STAR_SEARCH_DEFAULT_TEMP_RANGE[1], Math.ceil(maxima.temperature / 100) * 100);
     return { maxStars, maxPlanets, maxCoolness, maxTemp };
   }, [systems]);
 
@@ -3351,7 +3465,7 @@ export default function StarMapPage({
     const filters = mapSearchFilters;
     return (
       filters.distanceRange[0] > 0
-      || filters.distanceRange[1] < MAP_RADIUS_LY
+      || filters.distanceRange[1] < mapRadiusLy
       || filters.starRange[0] > 0
       || filters.starRange[1] < filterExtents.maxStars
       || filters.planetRange[0] > 0
@@ -3363,7 +3477,7 @@ export default function StarMapPage({
       || Boolean(filters.spectralClass)
       || Boolean(filters.habitableOnly)
     );
-  }, [filterExtents, mapSearchFilters]);
+  }, [filterExtents, mapRadiusLy, mapSearchFilters]);
 
   const filteredMapSystems = useMemo(() => {
     if (!activeMapFilter) {
@@ -3387,7 +3501,18 @@ export default function StarMapPage({
     if (!selectedSystem) {
       return [];
     }
-    const scored = systems
+    const priorityPool = systems.length > 20000
+      ? [...systems]
+        .sort((left, right) => Number(right.map_priority || 0) - Number(left.map_priority || 0))
+        .slice(0, 5000)
+      : systems;
+    const nearbyPool = systems.length > 20000
+      ? systems.filter((system) => distanceBetweenSystems(selectedSystem, system) <= 25)
+      : [];
+    const candidates = Array.from(new Map(
+      [...priorityPool, ...nearbyPool].map((system) => [String(system.system_id), system]),
+    ).values());
+    const scored = candidates
       .filter((system) => system.system_id !== selectedSystem.system_id)
       .map((system) => ({
         system,
@@ -3603,6 +3728,11 @@ export default function StarMapPage({
     if (!mapItem) {
       return;
     }
+    tileManagerRef.current?.prioritizePosition([
+      Number(mapItem.x_helio_ly || 0),
+      Number(mapItem.y_helio_ly || 0),
+      Number(mapItem.z_helio_ly || 0),
+    ]);
     selectSystem(mapItem, { openPeek: true, focus: Boolean(options.focus) });
     if (options.explore) {
       setDrillMode("explore");
@@ -3638,7 +3768,7 @@ export default function StarMapPage({
     mapSearchTokenRef.current = token;
     const requestedSort = sortOverride || mapSearchSort;
     const effectiveSort = !mapSearchQuery.trim() && requestedSort === "match" ? "distance" : requestedSort;
-    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, filterExtents, mapSearchQuery, effectiveSort, 24);
+    const params = buildSearchParamsFromFilters(mapSearchFilters, mapSearchOrigin, filterExtents, mapSearchQuery, effectiveSort, 24, mapRadiusLy);
     params.name_style = normalizeNameStyle(nameStyle);
     const requestParams = cursorValue ? { ...params, cursor: cursorValue } : params;
     setMapSearchLoading(true);
@@ -3652,6 +3782,8 @@ export default function StarMapPage({
       if (effectiveSort && effectiveSort !== (mapSearchQuery.trim() ? "match" : "distance")) {
         nextParams.sort = effectiveSort;
       }
+      if (mapRadiusLy !== DEFAULT_MAP_RADIUS_LY) nextParams.radius = String(mapRadiusLy);
+      if (monolithicDiagnosticMode) nextParams.map_transport = "monolithic";
       setSearchParams(nextParams, { replace: false });
     }
     try {
@@ -3680,7 +3812,7 @@ export default function StarMapPage({
         setMapSearchLoading(false);
       }
     }
-  }, [filterExtents, mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, nameStyle, setSearchParams]);
+  }, [filterExtents, mapRadiusLy, mapSearchFilters, mapSearchOrigin, mapSearchQuery, mapSearchResults.length, mapSearchSort, monolithicDiagnosticMode, nameStyle, setSearchParams]);
 
   const closeMapSearchResults = useCallback(() => {
     setMapSearchResultsOpen(false);
@@ -3779,6 +3911,7 @@ export default function StarMapPage({
         <StarMapScene
           key={mapContextEpoch}
           systems={systems}
+          mapRadiusLy={mapRadiusLy}
           selectedSystem={selectedSystem}
           filterMatchIds={filteredMapIds}
           filterActive={activeMapFilter}
@@ -3842,13 +3975,16 @@ export default function StarMapPage({
           <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
         </div>
         <div className="map-header-readout" aria-live="polite">
-          {loading && <span>Loading 100 ly map</span>}
+          {loading && <span>Loading {mapRadiusLy} ly map</span>}
           {error && <span>Map data unavailable</span>}
           {!loading && !error && summary && (
             <>
               <span>{formatNumber(summary.returned, 0)} systems</span>
               <span>{formatNumber(summary.planet_systems, 0)} planet hosts</span>
               <span>{formatNumber(summary.multi_star_systems, 0)} multi-star</span>
+              {tileStats?.mode === "tiled" && (
+                <span>{formatNumber(tileStats.loaded_tiles, 0)}/{formatNumber(tileStats.queued_tiles, 0)} tiles</span>
+              )}
               <span>{mapFrame === "galactic" ? "Galactic frame" : "ICRS J2016"}</span>
             </>
           )}
@@ -3974,6 +4110,25 @@ export default function StarMapPage({
                     ))}
                   </select>
                 </label>
+                <label className="map-menu-field map-radius-select">
+                  <span>Map Radius</span>
+                  <select
+                    value={String(mapRadiusLy)}
+                    onChange={(event) => {
+                      const nextRadius = Number(event.target.value) === 250 ? 250 : DEFAULT_MAP_RADIUS_LY;
+                      setMapRadiusLy(nextRadius);
+                      const nextParams = new URLSearchParams(searchParams);
+                      if (nextRadius === DEFAULT_MAP_RADIUS_LY) nextParams.delete("radius");
+                      else nextParams.set("radius", String(nextRadius));
+                      setSearchParams(nextParams, { replace: true });
+                    }}
+                    data-testid="map-radius-select"
+                  >
+                    {MAP_RADIUS_OPTIONS_LY.map((radius) => (
+                      <option key={radius} value={radius}>{radius} ly</option>
+                    ))}
+                  </select>
+                </label>
                 <label className="map-menu-field map-scale-select">
                   <span>Default Scale</span>
                   <select
@@ -4075,11 +4230,16 @@ export default function StarMapPage({
             <strong>{runtimeDiagnostics.qualityTier}</strong>
             <span>Quality</span>
           </div>
+          <div>
+            <strong>{tileStats?.loaded_tiles ?? 0}/{tileStats?.queued_tiles ?? 0}</strong>
+            <span>Tiles</span>
+          </div>
         </div>
       )}
 
       <MapStarSearchShell
         open={mapSearchOpen}
+        mapRadiusLy={mapRadiusLy}
         systems={systems}
         selectedSystem={selectedSystem}
         selectionHistory={selectionHistory}

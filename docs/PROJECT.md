@@ -616,8 +616,10 @@ Design source:
 Current contract:
 
 - public route: `/map`
-- compact map endpoint: `GET /api/v1/map/systems`
-- first slice: Sol-centered systems within 100 ly
+- tiled artifact contract: `docs/TILED_MAP.md`
+- public slice: selectable Sol-centered 100 and 250-ly radii through immutable
+  octree tiles; `GET /api/v1/map/systems` remains a temporary 100-ly diagnostic
+  comparator
 - rendering stack: React 19 + Three.js through React Three Fiber
 - controls: selectable `WASD`, `ESDF`, or `8456` flight layouts plus permanent
   arrow-key flight, mouse look, Shift boost, and stabilized vertical by
@@ -629,9 +631,9 @@ Current contract:
 - ephemeral route measurement: desktop right-click can measure from the
   selected system to a target, draw client-side per-leg distance lines, and
   show total route length; this is a map tool, not persisted Rim route data
-- performance profile: the public map requests `compact=true`, reducing the
-  current 100 ly JSON payload from about 5.3 MB to about 3.0 MB in Photon local
-  checks while leaving full diagnostic records available
+- performance profile: deterministic binary tiles keep DuckDB out of continuous
+  camera flight, provide coarse contextual LOD, and refine to exact coverage;
+  machine-readable before/after Photon browser reports define acceptance
 - map overlay themes are handled in the Star Map layer: Enterprise/LCARS uses
   black nontransparent map cards with bright yellow borders and no glow, while
   Simple Light and Geocities use more opaque map overlays; embedded System
@@ -654,8 +656,8 @@ Layer rules:
   render layers
 - map selection must hand off by `system_id`/`stable_object_key`, never by
   point-array position
-- future 250 ly / 1000 ly map expansion must use explicit tile/LOD loading
-  instead of streaming the full Gaia-scale catalog to the browser
+- 500 and 1,000-ly verification manifests use the same contract but remain
+  nonpublic until the measured 250-ly pilot passes
 
 ## Operational Observability (Admin v2)
 

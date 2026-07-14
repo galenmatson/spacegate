@@ -882,15 +882,21 @@ Current golden framework:
 
 Goal:
 
-- expand the map to selectable 250 ly, 500 ly, and 1000 ly radii using explicit
-  tile/LOD loading rather than one large browser payload.
+- replace monolithic map transport with a deterministic, immutable octree
+  architecture and deliver a measured selectable 100/250-ly pilot. Generate
+  500/1,000-ly verification manifests without exposing those radii publicly.
 
 Deliverables:
 
-- tile manifest/artifact contract, likely aligned with Morton/spatial indexing
-- nearby detailed tiles plus far coarse/priority samples
-- selection handoff that remains stable across tile unload/reload
-- tile cache and loading telemetry
+- [x] versioned ICRS J2016 octree, Morton tile IDs, binary tile encoding, and
+  content-addressed manifest contract (`docs/TILED_MAP.md`)
+- [x] exact leaves plus clearly marked deterministic spatial/interest samples
+- [x] independently regenerable, profile-hashed DISC coolness interest summary
+- [x] renderer-independent browser scheduler with bounded coolness bonus,
+  flight/search priority, starvation aging, cancellation, cache, and telemetry
+- [ ] measured tiled 100-ly parity and 250-ly desktop/mobile pilot acceptance
+- [ ] remove the temporary monolithic diagnostic transport after the parity
+  observation window
 
 ### M8.2. Extended Objects and Background Sky
 
