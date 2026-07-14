@@ -110,6 +110,15 @@ component by absolute magnitude, with `star_id` as a deterministic tie-break.
 This feeds the lightweight map-label badge and does not alter canonical stellar
 classification or system membership.
 
+Photon build `20260714T185633Z_082a5bc_side_rebuild` verifies schema v2 with
+zero missing, extra, or public-name-mismatched systems at all four artifact
+radii. The 250-ly artifact contains 230,181 exact systems, including 7,683 whose
+representative class is white dwarf. The final Playwright run passes 8 desktop
+and mobile checks with 4 intentional device-specific skips, including a
+nonblank 3840x2160 Bright-mode canvas capture. Machine reports live under
+`/data/spacegate/state/reports/20260714T185633Z_082a5bc_side_rebuild/` and
+`/data/spacegate/state/reports/map_playwright/20260714T_m812_v2_final/`.
+
 ## Delivery and Promotion
 
 - hashed tile files: `/map-tiles/radius-<n>/tiles/<sha256>.sgtile.gz`
