@@ -37,7 +37,18 @@ for (const radius of [100, 250]) {
     ).toBeGreaterThan(radius === 250 ? 20_000 : expected - 1);
     if (radius === 250) {
       expect(await canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0))).toBeLessThan(80_000);
-      await expect(canvas).toHaveAttribute("data-map-tile-lod-mode", "mixed_exact_interest_spatial_v1");
+      await expect(canvas).toHaveAttribute("data-map-tile-lod-mode", "camera_blended_interest_spatial_v2");
+      await expect(canvas).toHaveAttribute(
+        "data-map-density-mode",
+        testInfo.project.name.startsWith("mobile") ? "performance" : "balanced",
+      );
+      expect(await canvas.evaluate((node) => Number(node.dataset.mapDetailSystems || 0))).toBeGreaterThan(0);
+      await expect.poll(() => canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0))).toBe(
+        await canvas.evaluate((node) => Number(node.dataset.mapTileRenderedSystems || 0)),
+      );
+      const seamRatio = await canvas.evaluate((node) => Number(node.dataset.mapRadialSeamRatio || 0));
+      expect(seamRatio).toBeGreaterThan(0.35);
+      expect(seamRatio).toBeLessThan(2);
     }
     await expect(canvas).toHaveAttribute("data-map-tile-failures", "0");
     await expectPaintedMap(page);
@@ -66,4 +77,44 @@ test("250-ly search focus survives exact refinement and system handoff", async (
   ).toBe(230_181);
   await expect(page.locator("[data-testid='map-system-drill']")).toContainText(/Tau Ceti/i);
   await page.screenshot({ path: testInfo.outputPath("tiled-250ly-tau-ceti.png"), fullPage: true });
+});
+
+test("250-ly detail bubble follows a sustained camera flight", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith("mobile"), "Keyboard flight trace is a desktop contract.");
+  await page.goto("/map?radius=250&pixel_probe=1");
+  const canvas = page.locator(".map-canvas canvas");
+  await expect(canvas).toHaveAttribute("data-map-tile-complete", "true");
+  await expect.poll(() => canvas.getAttribute("data-map-detail-center-ly")).not.toBe("");
+  const initialCenter = await canvas.getAttribute("data-map-detail-center-ly");
+  const initialCount = await canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0));
+  await page.keyboard.down("Shift");
+  await page.keyboard.down("w");
+  await page.waitForTimeout(900);
+  await page.keyboard.up("w");
+  await page.keyboard.up("Shift");
+  await expect.poll(() => canvas.getAttribute("data-map-detail-center-ly"), { timeout: 15_000 }).not.toBe(initialCenter);
+  await expect.poll(() => canvas.evaluate((node) => Number(node.dataset.mapDetailSystems || 0))).toBeGreaterThan(0);
+  const movedCount = await canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0));
+  expect(movedCount).toBeGreaterThan(initialCount * 0.8);
+  expect(movedCount).toBeLessThan(initialCount * 1.2);
+  await expect(page.locator(".map-header-readout")).toContainText(`${movedCount.toLocaleString()} points`);
+  await expect(canvas).toHaveAttribute("data-map-tile-failures", "0");
+});
+
+test("250-ly density control can render the exact catalog", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith("mobile"), "Exact-density stress trace is desktop-only.");
+  test.setTimeout(120_000);
+  await page.goto("/map?radius=250&pixel_probe=1", { waitUntil: "domcontentloaded" });
+  const canvas = page.locator(".map-canvas canvas");
+  await expect(canvas).toHaveAttribute("data-map-tile-complete", "true");
+  await page.locator(".map-header-menu > summary").click();
+  await page.locator("[data-testid='map-density-mode-select']").selectOption("exact");
+  await expect(canvas).toHaveAttribute("data-map-density-mode", "exact");
+  await expect.poll(
+    () => canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0)),
+    { timeout: 60_000 },
+  ).toBe(230_181);
+  expect(await canvas.evaluate((node) => Number(node.dataset.mapLabelCount || 0))).toBeLessThan(100);
+  await expect(canvas).toHaveAttribute("data-map-tile-failures", "0");
+  await expectPaintedMap(page);
 });

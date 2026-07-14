@@ -803,6 +803,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   verification-only manifests
 - [x] Gate tiled 100-ly labels against the authoritative root-system public-name
   policy and reject literal/encoded static tile traversal paths
+- [x] Replace the visible 110-ly density shell with camera-centered blended LOD,
+  deterministic Balanced/Performance policies, and opt-in Exact density
+- [x] Fail map performance verification on radial density seams, missing detail
+  refinement, incorrect device policy, or duplicate immutable tile requests
 - [ ] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
   with the preserved science checkpoint (not an M8.1 tile-transport blocker)
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star

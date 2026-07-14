@@ -632,8 +632,10 @@ Current contract:
   selected system to a target, draw client-side per-leg distance lines, and
   show total route length; this is a map tool, not persisted Rim route data
 - performance profile: deterministic binary tiles keep DuckDB out of continuous
-  camera flight, provide coarse contextual LOD, and refine to exact coverage;
-  machine-readable before/after Photon browser reports define acceptance
+  camera flight, provide coarse contextual LOD, and refine through a smooth
+  camera-centered detail bubble; Balanced, Performance, and Exact density modes
+  preserve stable identity and bounded labels while machine-readable Photon
+  browser reports define acceptance
 - map overlay themes are handled in the Star Map layer: Enterprise/LCARS uses
   black nontransparent map cards with bright yellow borders and no glow, while
   Simple Light and Geocities use more opaque map overlays; embedded System

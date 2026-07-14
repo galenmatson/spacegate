@@ -6,6 +6,15 @@ import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystemDetail, fetchSys
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
 import { MapTileManager } from "./mapTiles.js";
+import {
+  MAP_DENSITY_MODE_OPTIONS,
+  cameraMovedBeyond,
+  includeBackgroundMapPoint,
+  includeDetailedMapPoint,
+  mapDensityProfile,
+  normalizeMapDensityMode,
+  radialDensitySeamRatio,
+} from "./mapLod.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle } from "./nameStyle.js";
 import { StellarClassChips, stellarClassTokensFromSystem, stellarClassTooltip } from "./stellarClassTags.jsx";
 
@@ -21,25 +30,6 @@ const STAR_SEARCH_SORT_OPTIONS = [
   { value: "name", label: "Name" },
 ];
 const MAP_RADIUS_OPTIONS_LY = [100, 250];
-
-function stableMapSampleBucket(systemId, modulus) {
-  const text = String(systemId ?? "");
-  let hash = 2166136261;
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) % modulus;
-}
-
-function includeExactMapPoint(system, radiusLy, deviceProfile) {
-  if (radiusLy <= 100 || Number(system.dist_ly || 0) <= 110) return true;
-  if (Number(system.planet_count || 0) > 0 || Number(system.star_count || 0) > 1) return true;
-  if (Number(system.coolness_rank || Number.POSITIVE_INFINITY) <= 15000) return true;
-  const constrained = Number(deviceProfile?.width || 0) < 760 || Boolean(deviceProfile?.touch);
-  const modulus = constrained ? 13 : 9;
-  return stableMapSampleBucket(system.system_id, modulus) === 0;
-}
 const WEBGL_CONTEXT_BUDGET = 6;
 const SEARCH_PREVIEW_POOL_SIZE = 4;
 const SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT = 96;
@@ -77,6 +67,7 @@ const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
 const MAP_STAR_RENDER_MODE_STORAGE_KEY = "spacegate.map.starRenderMode";
+const MAP_DENSITY_MODE_STORAGE_KEY = "spacegate.map.densityMode";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const DEFAULT_MAP_CAMERA_STATE = {
   position: [0, 3.5, 17],
@@ -436,6 +427,18 @@ function readStoredStarRenderMode() {
   }
 }
 
+function readStoredMapDensityMode() {
+  if (typeof window === "undefined") return "balanced";
+  try {
+    const stored = window.localStorage.getItem(MAP_DENSITY_MODE_STORAGE_KEY);
+    if (stored) return normalizeMapDensityMode(stored);
+    const profile = readDeviceRuntimeProfile();
+    return profile.touch || profile.width < 760 ? "performance" : "balanced";
+  } catch {
+    return "balanced";
+  }
+}
+
 function readDeviceRuntimeProfile() {
   if (typeof window === "undefined") {
     return { width: 1440, height: 900, dpr: 1, touch: false };
@@ -715,6 +718,26 @@ function prepareMapItems(rawItems, frame = "icrs") {
 
 function systemDisplayName(system) {
   return formatName(system?.display_name || system?.system_name);
+}
+
+function mergedMapSystems(...maps) {
+  const merged = new Map();
+  maps.forEach((source) => source?.forEach((value, key) => merged.set(String(key), value)));
+  return merged;
+}
+
+function mergedMapSystemCount(...maps) {
+  const [base, ...extensions] = maps;
+  let count = base?.size || 0;
+  const extensionKeys = new Set();
+  extensions.forEach((source) => source?.forEach((_, key) => {
+    const normalized = String(key);
+    if (!base?.has(normalized) && !extensionKeys.has(normalized)) {
+      extensionKeys.add(normalized);
+      count += 1;
+    }
+  }));
+  return count;
 }
 
 function mapItemFromSearchResult(item, frame = "icrs") {
@@ -2066,6 +2089,13 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
     target.dataset.mapTileComplete = runtimeDiagnostics?.tileStats?.complete ? "true" : "false";
     target.dataset.mapTileRenderedSystems = String(runtimeDiagnostics?.tileStats?.rendered_systems ?? 0);
     target.dataset.mapTileLodMode = runtimeDiagnostics?.tileStats?.lod_mode || "exact";
+    target.dataset.mapDensityMode = runtimeDiagnostics?.densityMode || "balanced";
+    target.dataset.mapDetailCenterLy = (runtimeDiagnostics?.tileStats?.detail_center_ly || []).join(",");
+    target.dataset.mapDetailRadiusLy = String(runtimeDiagnostics?.tileStats?.detail_radius_ly ?? 0);
+    target.dataset.mapDetailSystems = String(runtimeDiagnostics?.tileStats?.detail_rendered_systems ?? 0);
+    target.dataset.mapRadialSeamRatio = Number.isFinite(runtimeDiagnostics?.radialSeamRatio)
+      ? Number(runtimeDiagnostics.radialSeamRatio).toFixed(4)
+      : "";
   }, [gl.domElement, runtimeDiagnostics, runtimeQuality]);
 
   return null;
@@ -2714,6 +2744,7 @@ export default function StarMapPage({
     MAP_FRAME_OPTIONS[restoredMapState?.mapFrame] ? restoredMapState.mapFrame : readStoredMapFrame()
   ));
   const [starRenderMode, setStarRenderMode] = useState(readStoredStarRenderMode);
+  const [mapDensityMode, setMapDensityMode] = useState(readStoredMapDensityMode);
   const [showDirectionLabels, setShowDirectionLabels] = useState(() => (
     typeof restoredMapState?.showDirectionLabels === "boolean"
       ? restoredMapState.showDirectionLabels
@@ -2756,8 +2787,12 @@ export default function StarMapPage({
   const drillHistoryPushedRef = useRef(false);
   const tileManagerRef = useRef(null);
   const tileSystemsRef = useRef(new Map());
+  const detailSystemsRef = useRef(new Map());
+  const pinnedSystemsRef = useRef(new Map());
   const tileFlushTimerRef = useRef(null);
   const tileMotionRef = useRef({ position: [0, 0, 0], sampledAt: 0 });
+  const detailCenterRef = useRef(null);
+  const detailRequestRef = useRef(0);
   const mapTitle = publicConfig?.map_title || PUBLIC_CONFIG_FALLBACK.map_title;
   const spacegateUrl = publicConfig?.spacegate_url || PUBLIC_CONFIG_FALLBACK.spacegate_url;
   const activeKeybind = MAP_KEYBIND_SCHEMES[keybindScheme] || MAP_KEYBIND_SCHEMES.wasd;
@@ -2780,6 +2815,10 @@ export default function StarMapPage({
     ? 0
     : Math.min(desiredPreviewBudget, previewRecoveryBudget, availablePreviewSlots);
   const previewPaused = drillSurfaceActive && previewPoolBudget <= 0;
+  const radialSeamRatio = useMemo(
+    () => (mapRadiusLy > 100 ? radialDensitySeamRatio(systems) : null),
+    [mapRadiusLy, systems],
+  );
   const runtimeDiagnostics = {
     fps: fpsSample,
     activeSurfaces: activeWebGLSurfaceCount,
@@ -2790,6 +2829,8 @@ export default function StarMapPage({
     contextLossRecoveries,
     qualityTier: runtimeQuality.tier,
     mapRadiusLy,
+    densityMode: mapDensityMode,
+    radialSeamRatio,
     supportedRadiusSteps: MAP_RADIUS_OPTIONS_LY,
     tileStats,
   };
@@ -2947,6 +2988,14 @@ export default function StarMapPage({
 
   useEffect(() => {
     try {
+      window.localStorage.setItem(MAP_DENSITY_MODE_STORAGE_KEY, normalizeMapDensityMode(mapDensityMode));
+    } catch {
+      // Density preference persistence is optional.
+    }
+  }, [mapDensityMode]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(MAP_DIRECTION_LABELS_STORAGE_KEY, showDirectionLabels ? "true" : "false");
     } catch {
       // Direction-label preference persistence is optional.
@@ -2954,7 +3003,17 @@ export default function StarMapPage({
   }, [showDirectionLabels]);
 
   useEffect(() => {
-    const updateProfile = () => setDeviceRuntimeProfile(readDeviceRuntimeProfile());
+    const updateProfile = () => {
+      const next = readDeviceRuntimeProfile();
+      setDeviceRuntimeProfile((current) => (
+        current.width === next.width
+        && current.height === next.height
+        && current.dpr === next.dpr
+        && current.touch === next.touch
+          ? current
+          : next
+      ));
+    };
     updateProfile();
     window.addEventListener("resize", updateProfile);
     return () => window.removeEventListener("resize", updateProfile);
@@ -3329,6 +3388,16 @@ export default function StarMapPage({
     setRouteMenu((menu) => (menu?.target ? { ...menu, target: refreshSystem(menu.target) } : menu));
   }, [mapFrame, rawSystems]);
 
+  const flushMapSystems = useCallback(() => {
+    const merged = mergedMapSystems(
+      tileSystemsRef.current,
+      detailSystemsRef.current,
+      pinnedSystemsRef.current,
+    );
+    setRawSystems(Array.from(merged.values()));
+    return merged.size;
+  }, []);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -3337,13 +3406,24 @@ export default function StarMapPage({
     setSummary(null);
     setTileStats(monolithicDiagnosticMode ? { mode: "monolithic" } : { mode: "tiled", radius_ly: mapRadiusLy });
     tileSystemsRef.current = new Map();
+    detailSystemsRef.current = new Map();
+    const densityProfile = mapDensityProfile(mapDensityMode);
+    const initialOrigin = telemetry.originLy || { x: 0, y: 0, z: 0 };
+    const initialDetailCenter = [
+      Number(initialOrigin.x || 0),
+      Number(initialOrigin.y || 0),
+      Number(initialOrigin.z || 0),
+    ];
+    detailCenterRef.current = mapRadiusLy > 100 && densityProfile.backgroundProbability < 1
+      ? initialDetailCenter
+      : null;
     const flushTiles = () => {
       if (!active) return;
       if (tileFlushTimerRef.current) {
         window.clearTimeout(tileFlushTimerRef.current);
         tileFlushTimerRef.current = null;
       }
-      setRawSystems(Array.from(tileSystemsRef.current.values()));
+      flushMapSystems();
     };
     if (monolithicDiagnosticMode) {
       fetchMapSystems({
@@ -3370,9 +3450,19 @@ export default function StarMapPage({
           for (const row of rows) {
             const key = String(row.system_id);
             const existing = tileSystemsRef.current.get(key);
-            const include = !tile.exact || includeExactMapPoint(row, mapRadiusLy, deviceRuntimeProfile);
+            const include = !tile.exact
+              || mapRadiusLy <= 100
+              || includeBackgroundMapPoint(row, mapDensityMode);
             if (include && (!existing || tile.exact || existing.sampled_lod)) {
               tileSystemsRef.current.set(key, { ...row, sampled_lod: !tile.exact });
+            }
+            if (
+              tile.exact
+              && mapRadiusLy > 100
+              && densityProfile.backgroundProbability < 1
+              && includeDetailedMapPoint(row, initialDetailCenter, mapDensityMode)
+            ) {
+              detailSystemsRef.current.set(key, { ...row, sampled_lod: false, camera_detail: true });
             }
           }
           if ((!tile.exact || mapRadiusLy <= 100) && !tileFlushTimerRef.current) {
@@ -3382,10 +3472,19 @@ export default function StarMapPage({
         },
         onStatus: (stats) => {
           if (!active) return;
+          const renderedSystems = mergedMapSystemCount(
+            tileSystemsRef.current,
+            detailSystemsRef.current,
+            pinnedSystemsRef.current,
+          );
           const runtimeStats = {
             ...stats,
-            rendered_systems: tileSystemsRef.current.size,
-            lod_mode: mapRadiusLy > 100 ? "mixed_exact_interest_spatial_v1" : "exact",
+            rendered_systems: renderedSystems,
+            detail_center_ly: stats.detail_center_ly || detailCenterRef.current || [],
+            detail_radius_ly: stats.detail_radius_ly || (mapRadiusLy > 100 ? densityProfile.detailOuterLy : 0),
+            detail_rendered_systems: detailSystemsRef.current.size,
+            density_mode: mapRadiusLy > 100 ? normalizeMapDensityMode(mapDensityMode) : "exact",
+            lod_mode: mapRadiusLy > 100 ? "camera_blended_interest_spatial_v2" : "exact",
           };
           setTileStats(runtimeStats);
           if (stats.last_error) setError(stats.last_error);
@@ -3394,7 +3493,7 @@ export default function StarMapPage({
             frame: "heliocentric_icrs_j2016",
             max_dist_ly: mapRadiusLy,
             total_available: stats.exact_systems || stats.emitted_systems || 0,
-            returned: tileSystemsRef.current.size,
+            returned: renderedSystems,
             truncated: !stats.complete,
             planet_systems: stats.planet_systems || 0,
             multi_star_systems: stats.multi_star_systems || 0,
@@ -3425,7 +3524,7 @@ export default function StarMapPage({
         tileFlushTimerRef.current = null;
       }
     };
-  }, [deviceRuntimeProfile, mapRadiusLy, monolithicDiagnosticMode, nameStyle]);
+  }, [deviceRuntimeProfile, flushMapSystems, mapDensityMode, mapRadiusLy, monolithicDiagnosticMode, nameStyle]);
 
   useEffect(() => {
     if (!systems.length || selectedSystem) return;
@@ -3451,6 +3550,70 @@ export default function StarMapPage({
     tileMotionRef.current = { position, sampledAt: now };
     tileManagerRef.current?.setMotion(position, direction);
   }, [telemetry.originLy]);
+
+  useEffect(() => {
+    const profile = mapDensityProfile(mapDensityMode);
+    if (!tileStats?.complete) return undefined;
+    if (
+      monolithicDiagnosticMode
+      || mapRadiusLy <= 100
+      || profile.backgroundProbability >= 1
+    ) {
+      detailRequestRef.current += 1;
+      if (detailSystemsRef.current.size) {
+        detailSystemsRef.current = new Map();
+        detailCenterRef.current = null;
+        flushMapSystems();
+      }
+      return undefined;
+    }
+    const origin = telemetry.originLy || { x: 0, y: 0, z: 0 };
+    const center = [Number(origin.x || 0), Number(origin.y || 0), Number(origin.z || 0)];
+    if (!cameraMovedBeyond(detailCenterRef.current, center, profile.recenterLy)) return undefined;
+    detailCenterRef.current = center;
+    const request = detailRequestRef.current + 1;
+    detailRequestRef.current = request;
+    tileManagerRef.current?.loadDetailBubble(center, profile.detailOuterLy)
+      .then((rows) => {
+        if (request !== detailRequestRef.current || !Array.isArray(rows)) return;
+        const detailed = new Map();
+        rows.forEach((row) => {
+          if (includeDetailedMapPoint(row, center, mapDensityMode)) {
+            detailed.set(String(row.system_id), { ...row, sampled_lod: false, camera_detail: true });
+          }
+        });
+        detailSystemsRef.current = detailed;
+        const renderedSystems = flushMapSystems();
+        setTileStats((current) => current ? {
+          ...current,
+          detail_center_ly: center,
+          detail_radius_ly: profile.detailOuterLy,
+          detail_rendered_systems: detailed.size,
+          rendered_systems: renderedSystems,
+          density_mode: normalizeMapDensityMode(mapDensityMode),
+          lod_mode: "camera_blended_interest_spatial_v2",
+        } : current);
+        setSummary((current) => current ? {
+          ...current,
+          returned: renderedSystems,
+          tile_stats: {
+            ...(current.tile_stats || {}),
+            detail_center_ly: center,
+            detail_radius_ly: profile.detailOuterLy,
+            detail_rendered_systems: detailed.size,
+            rendered_systems: renderedSystems,
+            density_mode: normalizeMapDensityMode(mapDensityMode),
+            lod_mode: "camera_blended_interest_spatial_v2",
+          },
+        } : current);
+      })
+      .catch((exc) => {
+        if (request !== detailRequestRef.current || exc?.name === "AbortError") return;
+        detailCenterRef.current = null;
+        setError(exc instanceof Error ? exc.message : "Map detail tiles unavailable");
+      });
+    return undefined;
+  }, [flushMapSystems, mapDensityMode, mapRadiusLy, monolithicDiagnosticMode, telemetry.originLy, tileStats?.complete]);
 
   useEffect(() => {
     setMapSearchFilters((current) => ({ ...current, distanceRange: [0, mapRadiusLy] }));
@@ -3763,10 +3926,8 @@ export default function StarMapPage({
       return;
     }
     if (!existing) {
-      setRawSystems((current) => [
-        ...current.filter((item) => String(item.system_id) !== String(mapItem.system_id)),
-        mapItem,
-      ]);
+      pinnedSystemsRef.current.set(String(mapItem.system_id), mapItem);
+      flushMapSystems();
     }
     tileManagerRef.current?.prioritizePosition([
       Number(mapItem.x_helio_ly || 0),
@@ -3778,7 +3939,7 @@ export default function StarMapPage({
       setDrillMode("explore");
       setFocusToken((value) => value + 1);
     }
-  }, [mapFrame, selectSystem, systems]);
+  }, [flushMapSystems, mapFrame, selectSystem, systems]);
 
   const jumpHomeToSol = useCallback(() => {
     const sol = systems.find((item) => (
@@ -4171,6 +4332,21 @@ export default function StarMapPage({
                   >
                     {MAP_RADIUS_OPTIONS_LY.map((radius) => (
                       <option key={radius} value={radius}>{radius} ly</option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="map-menu-field map-density-select"
+                  title={mapDensityProfile(mapDensityMode).title}
+                >
+                  <span>Star Density</span>
+                  <select
+                    value={normalizeMapDensityMode(mapDensityMode)}
+                    onChange={(event) => setMapDensityMode(normalizeMapDensityMode(event.target.value))}
+                    data-testid="map-density-mode-select"
+                  >
+                    {MAP_DENSITY_MODE_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id} title={option.title}>{option.label}</option>
                     ))}
                   </select>
                 </label>

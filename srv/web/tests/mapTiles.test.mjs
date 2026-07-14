@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { decodeMapTile, MapTileManager, mapTileRequestPriority } from "../src/mapTiles.js";
+import { decodeMapTile, MapTileManager, mapTileRequestPriority, tileIntersectsSphere } from "../src/mapTiles.js";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -40,6 +40,8 @@ assert(urgentPriority > directionalPriority);
 const nearby = { ...tile, origin_ly: [20, 0, 0], interest: { top_k_mean: 0 } };
 const distantCool = { ...tile, origin_ly: [200, 0, 0], interest: { top_k_mean: 1 } };
 assert(mapTileRequestPriority(nearby, { now: 1000 }) > mapTileRequestPriority(distantCool, { now: 1000 }));
+assert.equal(tileIntersectsSphere(tile, [0, 0, 0], 64), true);
+assert.equal(tileIntersectsSphere(tile, [-10, 0, 0], 64), false);
 let receiverWasUndefined = true;
 const batches = [];
 const mockFetch = function (url) {
@@ -50,7 +52,16 @@ const mockFetch = function (url) {
   if (url === "/map-tiles/radius-100/manifest.json") {
     return Promise.resolve(new Response(JSON.stringify({
       build_id: "test",
-      tiles: [{ exact: true, depth: 4, tile_id: "d4-e00", sha256: "test", url: "/map-tiles/test", compressed_bytes: encoded.length }],
+      tiles: [{
+        exact: true,
+        depth: 4,
+        tile_id: "d4-e00",
+        sha256: "test",
+        url: "/map-tiles/test",
+        compressed_bytes: encoded.length,
+        bounds_min_ly: [-64, -64, -64],
+        bounds_max_ly: [64, 64, 64],
+      }],
       counts: { eligible_systems: 1 },
       coolness_profile: {},
     })));
@@ -61,4 +72,7 @@ const manager = new MapTileManager({ fetchImpl: mockFetch, onBatch: (systems) =>
 await manager.loadRadius(100);
 assert.equal(receiverWasUndefined, true);
 assert.equal(batches.length, 1);
+const detail = await manager.loadDetailBubble([0, 0, 0], 10);
+assert.equal(detail.length, 1);
+assert.equal(detail[0].display_name, "Sol");
 process.stdout.write("map tile decoder ok\n");

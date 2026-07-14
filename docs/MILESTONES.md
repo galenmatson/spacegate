@@ -895,8 +895,11 @@ Deliverables:
 - [x] renderer-independent browser scheduler with bounded coolness bonus,
   flight/search priority, starvation aging, cancellation, cache, and telemetry
 - [x] measured tiled 100-ly parity and 250-ly desktop/mobile pilot acceptance;
-  141 machine performance checks plus desktop/mobile pixel and interaction
+  186 machine performance checks plus desktop/mobile pixel and interaction
   goldens pass on Photon
+- [x] M8.1.1 removes the fixed 110-ly density shell with deterministic
+  camera-blended Balanced/Performance LOD, opt-in Exact density, recenter
+  hysteresis, and duplicate-request/seam-ratio acceptance gates
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window

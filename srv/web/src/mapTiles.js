@@ -100,6 +100,19 @@ function containsPosition(tile, position) {
   ));
 }
 
+export function tileIntersectsSphere(tile, position, radiusLy) {
+  if (!Array.isArray(position) || position.length !== 3 || !(Number(radiusLy) >= 0)) return false;
+  let distanceSq = 0;
+  for (let axis = 0; axis < 3; axis += 1) {
+    const value = Number(position[axis] || 0);
+    const minimum = Number(tile.bounds_min_ly?.[axis] || 0);
+    const maximum = Number(tile.bounds_max_ly?.[axis] || 0);
+    const nearest = Math.max(minimum, Math.min(maximum, value));
+    distanceSq += (value - nearest) ** 2;
+  }
+  return distanceSq <= Number(radiusLy) ** 2;
+}
+
 export function mapTileRequestPriority(tile, { focus = [0, 0, 0], direction = [0, 0, 0], urgent = null, queuedAt = 0, now = performance.now() } = {}) {
   const center = tileCenter(tile);
   const distance = Math.hypot(center[0] - focus[0], center[1] - focus[1], center[2] - focus[2]);
@@ -130,17 +143,23 @@ export class MapTileManager {
     this.nameStyle = nameStyle;
     this.cache = sharedTileCache;
     this.controllers = new Set();
+    this.detailControllers = new Set();
     this.generation = 0;
+    this.detailGeneration = 0;
     this.focus = [0, 0, 0];
     this.direction = [0, 0, 0];
     this.urgent = null;
     this.stats = {};
+    this.manifest = null;
   }
 
   cancel() {
     this.generation += 1;
+    this.detailGeneration += 1;
     for (const controller of this.controllers) controller.abort();
+    for (const controller of this.detailControllers) controller.abort();
     this.controllers.clear();
+    this.detailControllers.clear();
   }
 
   setFocus(positionLy) {
@@ -175,6 +194,7 @@ export class MapTileManager {
     if (String(index.build_id) !== String(manifest.build_id)) {
       throw new Error("Map tile index and radius manifest belong to different builds.");
     }
+    this.manifest = manifest;
     const deepestSampleDepth = Math.max(...manifest.tiles.filter((tile) => !tile.exact).map((tile) => Number(tile.depth)), 0);
     const queue = manifest.tiles
       .filter((tile) => tile.exact || (!tile.exact && Number(tile.depth) === deepestSampleDepth))
@@ -257,7 +277,77 @@ export class MapTileManager {
     });
     await Promise.all(workers);
     if (generation !== this.generation) return null;
-    this.onStatus({ ...this.snapshot(), complete: true });
+    this.stats.complete = true;
+    this.onStatus(this.snapshot());
     return { index, manifest, stats: this.snapshot() };
+  }
+
+  async loadDetailBubble(positionLy, radiusLy) {
+    if (!this.manifest || !Array.isArray(positionLy) || positionLy.length !== 3 || !(Number(radiusLy) > 0)) {
+      return [];
+    }
+    this.detailGeneration += 1;
+    const detailGeneration = this.detailGeneration;
+    const generation = this.generation;
+    for (const controller of this.detailControllers) controller.abort();
+    this.detailControllers.clear();
+    const tiles = this.manifest.tiles.filter((tile) => (
+      tile.exact && tileIntersectsSphere(tile, positionLy, radiusLy)
+    ));
+    const queue = [...tiles];
+    const systems = [];
+    let cacheHits = 0;
+    let encodedBytes = 0;
+    let firstError = null;
+    const workers = Array.from({ length: Math.min(this.concurrency, queue.length) }, async () => {
+      while (queue.length && generation === this.generation && detailGeneration === this.detailGeneration) {
+        const tile = queue.shift();
+        try {
+          let decoded = this.cache.get(tile.sha256);
+          if (decoded) {
+            this.cache.delete(tile.sha256);
+            this.cache.set(tile.sha256, decoded);
+            cacheHits += 1;
+          } else {
+            const controller = new AbortController();
+            this.detailControllers.add(controller);
+            let response;
+            try {
+              response = await this.fetchImpl(apiUrl(tile.url), { signal: controller.signal });
+            } finally {
+              this.detailControllers.delete(controller);
+            }
+            if (!response.ok) throw new Error(`Detail tile ${tile.tile_id} failed: ${response.status}`);
+            decoded = await decodeMapTile(await response.arrayBuffer());
+            this.cache.set(tile.sha256, decoded);
+            while (this.cache.size > this.cacheLimit) this.cache.delete(this.cache.keys().next().value);
+            encodedBytes += Number(tile.compressed_bytes || 0);
+          }
+          if (generation !== this.generation || detailGeneration !== this.detailGeneration) return;
+          systems.push(...decoded.systems.map((system) => ({
+            ...system,
+            display_name: system.display_names?.[this.nameStyle] || system.display_name,
+            system_name: system.display_names?.[this.nameStyle] || system.system_name,
+          })));
+        } catch (error) {
+          if (error?.name !== "AbortError") firstError ||= error;
+        }
+      }
+    });
+    await Promise.all(workers);
+    if (generation !== this.generation || detailGeneration !== this.detailGeneration) return null;
+    this.stats.detail_center_ly = positionLy.map(Number);
+    this.stats.detail_radius_ly = Number(radiusLy);
+    this.stats.detail_tiles = tiles.length;
+    this.stats.detail_systems_considered = systems.length;
+    this.stats.detail_cache_hits = Number(this.stats.detail_cache_hits || 0) + cacheHits;
+    this.stats.detail_encoded_bytes = Number(this.stats.detail_encoded_bytes || 0) + encodedBytes;
+    if (firstError) {
+      this.stats.last_error = firstError.message || String(firstError);
+      this.onStatus(this.snapshot());
+      throw firstError;
+    }
+    this.onStatus(this.snapshot());
+    return systems;
   }
 }

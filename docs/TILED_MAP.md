@@ -83,14 +83,25 @@ Interest metadata is derived independently from the active, hashed DISC
 coolness profile. Future coolness tuning regenerates interest/sample artifacts
 without changing octree membership or tile identity rules.
 
-The 250-ly browser presentation uses `mixed_exact_interest_spatial_v1`: every
-system through 110 ly, every planet host and multiple, high-interest ranked
-systems, a stable ordinary-star sample, and all coarse context samples. Photon
-currently emits 40,238 desktop and 33,250 constrained/mobile points while the
-manager verifies all 230,181 exact identities. Search can materialize and focus
-an omitted ordinary system by stable identity. The UI and canvas diagnostics
-report catalog and rendered counts separately, so LOD is not presented as a
-complete local population.
+The 250-ly browser presentation uses `camera_blended_interest_spatial_v2`.
+There is no Sol-centered hard density boundary. Planet hosts, multiples, and
+high-interest systems remain persistent; ordinary background systems use a
+stable identity sample. An exact camera-centered detail bubble blends smoothly
+from full nearby density to that background sample and recenters only after a
+bounded hysteresis distance. Detail refreshes replay only intersecting exact
+tiles and replace the prior bubble atomically.
+
+The map menu exposes three deterministic density policies:
+
+- `Balanced`: 1/7 ordinary background, full detail through 45 ly from the
+  camera, smooth transition through 105 ly, and 18-ly recenter hysteresis
+- `Performance`: 1/11 ordinary background, 32/82-ly transition, and 16-ly
+  hysteresis; this is the default on constrained/touch clients
+- `Exact`: all 230,181 catalog systems at 250 ly with bounded labels
+
+Search can materialize and pin an omitted ordinary system by stable identity.
+The UI and canvas diagnostics report catalog, rendered, and camera-detail
+counts separately, so LOD is not presented as a complete local population.
 
 ## Delivery and Promotion
 
@@ -160,3 +171,24 @@ Photon build `20260714T145242Z_4c43799_side_rebuild` passed:
 Machine reports live under
 `/data/spacegate/state/reports/20260714T145242Z_4c43799_side_rebuild/` and
 `/data/spacegate/state/reports/map_benchmarks/20260714T_m81_after/`.
+
+## M8.1.1 Seamless Density Refinement
+
+The July 14 Photon refinement removes the visible 110-ly sphere created by the
+v1 hard inclusion rule without changing exact tile membership or manifests.
+
+- balanced desktop: 40,232 rendered systems, including 4,067 camera-detail
+  additions; 110-ly shell-density ratio 1.40
+- constrained/mobile: 26,136 rendered systems, including 1,764 camera-detail
+  additions; shell-density ratio 1.05
+- cold 250-ly usable: 1.18-1.46 s; settle: 2.43-3.07 s
+- cold heap: 81-139 MB; median frame time 16.7-33.3 ms; p95 33.3-66.7 ms
+- 72 unique tile requests with zero tile replays in cold, warm, and rapid
+  direction traces
+- Exact-mode Playwright stress check renders all 230,181 systems while keeping
+  labels below the bounded policy
+- 186/186 performance and seam checks pass
+
+Reports live under
+`/data/spacegate/state/reports/map_benchmarks/20260714T_m811_no_replay_final/`
+and `map_performance_m811_acceptance.json` in the promoted build report folder.

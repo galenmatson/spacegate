@@ -50,6 +50,19 @@ for (const [scenario, payload] of [
     check(scenario, row.profile, "rendered_points_max", Number(row.renderer.mapStarCount), mobile ? 40_000 : 50_000);
     check(scenario, row.profile, "tile_completion", Number(row.renderer.mapTilesLoaded), Number(row.renderer.mapTilesQueued), (value, limit) => value === limit);
     check(scenario, row.profile, "tile_failures", Number(row.renderer.mapTileFailures), 0, (value) => value === 0);
+    check(scenario, row.profile, "radial_seam_ratio_max", Number(row.renderer.mapRadialSeamRatio), 2);
+    check(scenario, row.profile, "radial_seam_ratio_min", Number(row.renderer.mapRadialSeamRatio), 0.35, (value, limit) => value >= limit);
+    check(scenario, row.profile, "camera_detail_systems", Number(row.renderer.mapDetailSystems), 1, (value, limit) => value >= limit);
+    check(
+      scenario,
+      row.profile,
+      "density_profile",
+      row.renderer.mapDensityMode,
+      mobile ? "performance" : "balanced",
+      (value, limit) => value === limit,
+    );
+    const tileUrls = row.network.urls.filter((url) => url.endsWith(".sgtile.gz"));
+    check(scenario, row.profile, "duplicate_tile_requests", tileUrls.length, new Set(tileUrls).size, (value, limit) => value === limit);
   }
 }
 

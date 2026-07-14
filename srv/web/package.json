@@ -10,7 +10,7 @@
     "benchmark:map": "node scripts/benchmark-map.mjs",
     "report:map-interest": "node scripts/report-map-interest.mjs",
     "verify:map-performance": "node scripts/verify-map-performance.mjs",
-    "test:tiles": "node tests/mapTiles.test.mjs",
+    "test:tiles": "node tests/mapTiles.test.mjs && node tests/mapLod.test.mjs",
     "test:map": "playwright test -c playwright.map.config.js",
     "test:map:headed": "playwright test -c playwright.map.config.js --headed",
     "test:map:install": "playwright install chromium"
