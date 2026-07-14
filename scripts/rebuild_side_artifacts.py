@@ -236,6 +236,21 @@ def main() -> int:
                 ],
                 cwd=str(root),
             )
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "verify_map_tiles.py"),
+                    "--state-dir",
+                    str(state),
+                    "--build-dir",
+                    str(tmp_dir),
+                    "--radii",
+                    "100,250,500,1000",
+                    "--report-path",
+                    str(reports_dir / "map_tile_verification_report.json"),
+                ],
+                cwd=str(root),
+            )
 
         arm_report = reports_dir / "arm_report.json"
         transform_version = f"side_artifact_rebuild:{git_sha(root)}"

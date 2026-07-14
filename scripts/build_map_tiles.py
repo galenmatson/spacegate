@@ -275,7 +275,21 @@ def tile_query(radius: int) -> str:
     """
 
 
-def build_radius(con: duckdb.DuckDBPyConnection, output_root: Path, radius: int, profile: dict[str, Any]) -> dict[str, Any]:
+def build_radius(
+    con: duckdb.DuckDBPyConnection,
+    label_con: duckdb.DuckDBPyConnection,
+    output_root: Path,
+    radius: int,
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    expected_count = int(con.execute(
+        """
+        select count(*) from systems
+        where dist_ly <= ? and x_helio_ly is not null
+          and y_helio_ly is not null and z_helio_ly is not null
+        """,
+        [radius],
+    ).fetchone()[0])
     cursor = con.execute(tile_query(radius))
     exact_tiles: list[dict[str, Any]] = []
     samples: dict[tuple[int, int, int, int], SampleAccumulator] = defaultdict(SampleAccumulator)
@@ -288,7 +302,7 @@ def build_radius(con: duckdb.DuckDBPyConnection, output_root: Path, radius: int,
         aliases: dict[int, list[dict[str, Any]]] = defaultdict(list)
         if not system_ids:
             return rows
-        for system_id, alias_raw, alias_kind, alias_priority in con.execute(
+        for system_id, alias_raw, alias_kind, alias_priority in label_con.execute(
             """
             select system_id, alias_raw, alias_kind, alias_priority
             from aliases
@@ -303,7 +317,7 @@ def build_radius(con: duckdb.DuckDBPyConnection, output_root: Path, radius: int,
                 "alias_kind": alias_kind,
                 "alias_priority": alias_priority,
             })
-        for system_id, star_name in con.execute(
+        for system_id, star_name in label_con.execute(
             """
             select system_id, star_name
             from stars
@@ -366,6 +380,10 @@ def build_radius(con: duckdb.DuckDBPyConnection, output_root: Path, radius: int,
             if key[0] > BASE_EXACT_DEPTH:
                 samples[(BASE_EXACT_DEPTH, key[1] // 2, key[2] // 2, key[3] // 2)].add(row)
     flush()
+    if exact_count != expected_count:
+        raise RuntimeError(
+            f"Radius {radius} exact membership truncated: expected {expected_count}, emitted {exact_count}"
+        )
 
     sample_tiles: list[dict[str, Any]] = []
     for (depth, x, y, z), accumulator in sorted(samples.items()):
@@ -479,11 +497,13 @@ def main() -> None:
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True)
     con = duckdb.connect(str(build_dir / "core.duckdb"), read_only=True)
+    label_con = duckdb.connect(str(build_dir / "core.duckdb"), read_only=True)
     con.execute(f"ATTACH '{str(build_dir / 'disc.duckdb').replace("'", "''")}' AS disc_db (READ_ONLY)")
     try:
         profile = read_profile(args.state_dir, con)
-        manifests = [build_radius(con, output_dir, radius, profile) for radius in radii]
+        manifests = [build_radius(con, label_con, output_dir, radius, profile) for radius in radii]
     finally:
+        label_con.close()
         con.close()
     index = {
         "index_version": INDEX_VERSION,
