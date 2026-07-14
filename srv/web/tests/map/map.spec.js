@@ -716,14 +716,12 @@ test.describe("public 3D map beta", () => {
       .poll(() => canvas.evaluate((node) => node.dataset.mapCameraPosition || ""), { timeout: 3000 })
       .not.toBe(beforeEsdfMove);
 
-    await Promise.all([
-      page.waitForResponse((response) => {
-        const url = response.url();
-        return url.includes("/api/v1/map/systems") && url.includes("name_style=astronomer_abbrev");
-      }),
-      nameStyleSelect.selectOption("astronomer_abbrev"),
-    ]);
+    await nameStyleSelect.selectOption("astronomer_abbrev");
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.nameStyle") || "")).toBe("astronomer_abbrev");
+    await expect.poll(
+      () => canvas.evaluate((node) => Number(node.dataset.mapTileCacheHits || 0)),
+      { timeout: 5000 },
+    ).toBeGreaterThan(0);
 
     await keybindSelect.selectOption("num8456");
     await expect.poll(
@@ -986,7 +984,7 @@ test.describe("public 3D map beta", () => {
     const expectedVitalCopy = [
       /stellar parallax.*light-years.*parsecs.*kilometers/is,
       /bound system.*source catalogs/is,
-      /known planets.*(dimming|Doppler|detection details|no canonical planets|cataloged observational)/is,
+      /known planets.*(dimming|Doppler|Imaging|reflected light|detection details|no canonical planets|cataloged observational)/is,
       /presentation metadata.*Luminosity.*Exotic stars/is,
       /rank 1 is highest.*versioned scoring weights/is,
     ];

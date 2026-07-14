@@ -66,6 +66,12 @@ The Playwright map suite imports
   System Simulation, overview, why-it-matters, concept explainer, and evidence
   disclosure
 - technical stress goldens remain reachable for simulator/system-page checks
+- `tiledMap.spec.js` verifies exact 100/250-ly artifact accounting, bounded
+  mixed LOD points, desktop/mobile nonblank canvas pixels and screenshots, and
+  search focus/Peek continuity through exact refinement
+- the map parity subset verifies WebGL recovery, routes, naming modes, system
+  detail return, mobile controls, and simulation Peek/Explorer behavior on the
+  tiled production path
 
 Vega is intentionally recorded as a current public-search gap. Fixing it should
 be part of the source/alias reconciliation milestone, not a one-off frontend

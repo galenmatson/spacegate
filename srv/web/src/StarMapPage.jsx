@@ -21,6 +21,25 @@ const STAR_SEARCH_SORT_OPTIONS = [
   { value: "name", label: "Name" },
 ];
 const MAP_RADIUS_OPTIONS_LY = [100, 250];
+
+function stableMapSampleBucket(systemId, modulus) {
+  const text = String(systemId ?? "");
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % modulus;
+}
+
+function includeExactMapPoint(system, radiusLy, deviceProfile) {
+  if (radiusLy <= 100 || Number(system.dist_ly || 0) <= 110) return true;
+  if (Number(system.planet_count || 0) > 0 || Number(system.star_count || 0) > 1) return true;
+  if (Number(system.coolness_rank || Number.POSITIVE_INFINITY) <= 15000) return true;
+  const constrained = Number(deviceProfile?.width || 0) < 760 || Boolean(deviceProfile?.touch);
+  const modulus = constrained ? 13 : 9;
+  return stableMapSampleBucket(system.system_id, modulus) === 0;
+}
 const WEBGL_CONTEXT_BUDGET = 6;
 const SEARCH_PREVIEW_POOL_SIZE = 4;
 const SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT = 96;
@@ -2042,6 +2061,11 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
     target.dataset.mapTilesQueued = String(runtimeDiagnostics?.tileStats?.queued_tiles ?? 0);
     target.dataset.mapTileCacheHits = String(runtimeDiagnostics?.tileStats?.cache_hits ?? 0);
     target.dataset.mapTileFailures = String(runtimeDiagnostics?.tileStats?.failed_tiles ?? 0);
+    target.dataset.mapTileExactSystems = String(runtimeDiagnostics?.tileStats?.exact_systems ?? 0);
+    target.dataset.mapTileEligibleSystems = String(runtimeDiagnostics?.tileStats?.eligible_systems ?? 0);
+    target.dataset.mapTileComplete = runtimeDiagnostics?.tileStats?.complete ? "true" : "false";
+    target.dataset.mapTileRenderedSystems = String(runtimeDiagnostics?.tileStats?.rendered_systems ?? 0);
+    target.dataset.mapTileLodMode = runtimeDiagnostics?.tileStats?.lod_mode || "exact";
   }, [gl.domElement, runtimeDiagnostics, runtimeQuality]);
 
   return null;
@@ -2050,6 +2074,7 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
 function StarMapScene({
   systems,
   mapRadiusLy,
+  pixelProbeEnabled = false,
   selectedSystem,
   filterMatchIds,
   filterActive,
@@ -2083,7 +2108,7 @@ function StarMapScene({
       className="map-canvas"
       camera={{ fov: 62, near: 0.01, far: 1200, position: initialPosition }}
       dpr={runtimeQuality?.mapDpr || RUNTIME_QUALITY_PROFILES.high.mapDpr}
-      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: "high-performance" }}
+      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: pixelProbeEnabled, powerPreference: "high-performance" }}
     >
       <color attach="background" args={["#01030a"]} />
       <fog attach="fog" args={["#01030a", 80, 190]} />
@@ -2638,6 +2663,7 @@ export default function StarMapPage({
     Number(searchParams.get("radius")) === 250 ? 250 : DEFAULT_MAP_RADIUS_LY
   ));
   const monolithicDiagnosticMode = searchParams.get("map_transport") === "monolithic";
+  const pixelProbeEnabled = searchParams.get("pixel_probe") === "1";
   const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
   const [rawSystems, setRawSystems] = useState([]);
   const [systems, setSystems] = useState([]);
@@ -3334,27 +3360,35 @@ export default function StarMapPage({
         .catch((exc) => active && setError(exc instanceof Error ? exc.message : "Map data unavailable"))
         .finally(() => active && setLoading(false));
     } else {
+      const constrainedDevice = Number(deviceRuntimeProfile?.width || 0) < 760 || Boolean(deviceRuntimeProfile?.touch);
       const manager = new MapTileManager({
-        concurrency: deviceRuntimeProfile === "mobile" ? 4 : 6,
-        cacheLimit: deviceRuntimeProfile === "mobile" ? 12 : (mapRadiusLy >= 250 ? 48 : 24),
+        concurrency: constrainedDevice ? 4 : 6,
+        cacheLimit: constrainedDevice ? 12 : 24,
         nameStyle: normalizeNameStyle(nameStyle),
         onBatch: (rows, tile) => {
           if (!active) return;
           for (const row of rows) {
             const key = String(row.system_id);
             const existing = tileSystemsRef.current.get(key);
-            if (!existing || tile.exact || existing.sampled_lod) {
+            const include = !tile.exact || includeExactMapPoint(row, mapRadiusLy, deviceRuntimeProfile);
+            if (include && (!existing || tile.exact || existing.sampled_lod)) {
               tileSystemsRef.current.set(key, { ...row, sampled_lod: !tile.exact });
             }
           }
-          if (!tileFlushTimerRef.current) {
+          if ((!tile.exact || mapRadiusLy <= 100) && !tileFlushTimerRef.current) {
             tileFlushTimerRef.current = window.setTimeout(flushTiles, tile.exact ? 180 : 40);
           }
           setLoading(false);
         },
         onStatus: (stats) => {
           if (!active) return;
-          setTileStats(stats);
+          const runtimeStats = {
+            ...stats,
+            rendered_systems: tileSystemsRef.current.size,
+            lod_mode: mapRadiusLy > 100 ? "mixed_exact_interest_spatial_v1" : "exact",
+          };
+          setTileStats(runtimeStats);
+          if (stats.last_error) setError(stats.last_error);
           setSummary({
             scope: "systems",
             frame: "heliocentric_icrs_j2016",
@@ -3364,11 +3398,11 @@ export default function StarMapPage({
             truncated: !stats.complete,
             planet_systems: stats.planet_systems || 0,
             multi_star_systems: stats.multi_star_systems || 0,
-            tile_stats: stats,
+            tile_stats: runtimeStats,
           });
           if (stats.complete) flushTiles();
           if (stats.complete && stats.failed_tiles > 0) {
-            setError(`${stats.failed_tiles} map tiles failed to load.`);
+            setError(`${stats.failed_tiles} map tiles failed to load.${stats.last_error ? ` ${stats.last_error}` : ""}`);
           }
         },
       });
@@ -3728,6 +3762,12 @@ export default function StarMapPage({
     if (!mapItem) {
       return;
     }
+    if (!existing) {
+      setRawSystems((current) => [
+        ...current.filter((item) => String(item.system_id) !== String(mapItem.system_id)),
+        mapItem,
+      ]);
+    }
     tileManagerRef.current?.prioritizePosition([
       Number(mapItem.x_helio_ly || 0),
       Number(mapItem.y_helio_ly || 0),
@@ -3912,6 +3952,7 @@ export default function StarMapPage({
           key={mapContextEpoch}
           systems={systems}
           mapRadiusLy={mapRadiusLy}
+          pixelProbeEnabled={pixelProbeEnabled}
           selectedSystem={selectedSystem}
           filterMatchIds={filteredMapIds}
           filterActive={activeMapFilter}
@@ -3972,14 +4013,18 @@ export default function StarMapPage({
             <img className="map-brand-mark" src="/favicon.svg" alt="" aria-hidden="true" />
             <h1><a className="map-title-link" href="/map">{mapTitle}</a></h1>
           </div>
-          <span className="map-build">100 ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
+          <span className="map-build">{mapRadiusLy} ly · {buildId ? `build ${buildId}` : "build unknown"}</span>
         </div>
         <div className="map-header-readout" aria-live="polite">
           {loading && <span>Loading {mapRadiusLy} ly map</span>}
-          {error && <span>Map data unavailable</span>}
+          {error && <span title={error}>Map data unavailable</span>}
           {!loading && !error && summary && (
             <>
-              <span>{formatNumber(summary.returned, 0)} systems</span>
+              <span>
+                {mapRadiusLy > 100
+                  ? `${formatNumber(summary.total_available, 0)} catalog · ${formatNumber(summary.returned, 0)} points`
+                  : `${formatNumber(summary.returned, 0)} systems`}
+              </span>
               <span>{formatNumber(summary.planet_systems, 0)} planet hosts</span>
               <span>{formatNumber(summary.multi_star_systems, 0)} multi-star</span>
               {tileStats?.mode === "tiled" && (

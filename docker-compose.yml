@@ -91,7 +91,7 @@ services:
       - "${SPACEGATE_WEB_TLS_BIND:-127.0.0.1}:${SPACEGATE_WEB_TLS_HOST_PORT:-8443}:443"
     volumes:
       - ${SPACEGATE_WEB_TLS_DIR:-/srv/spacegate/tls}:/etc/spacegate/tls:ro
-      - ${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-./data}}:/data:ro
+      - ${SPACEGATE_DATA_DIR:-${SPACEGATE_STATE_DIR:-./data}}/served/current/map_tiles:/usr/share/nginx/map-tiles:ro
     healthcheck:
       test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://127.0.0.1/ >/dev/null 2>&1 || wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
       interval: 15s

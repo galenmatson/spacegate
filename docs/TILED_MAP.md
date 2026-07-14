@@ -83,6 +83,15 @@ Interest metadata is derived independently from the active, hashed DISC
 coolness profile. Future coolness tuning regenerates interest/sample artifacts
 without changing octree membership or tile identity rules.
 
+The 250-ly browser presentation uses `mixed_exact_interest_spatial_v1`: every
+system through 110 ly, every planet host and multiple, high-interest ranked
+systems, a stable ordinary-star sample, and all coarse context samples. Photon
+currently emits 40,238 desktop and 33,250 constrained/mobile points while the
+manager verifies all 230,181 exact identities. Search can materialize and focus
+an omitted ordinary system by stable identity. The UI and canvas diagnostics
+report catalog and rendered counts separately, so LOD is not presented as a
+complete local population.
+
 ## Delivery and Promotion
 
 - hashed tile files: `/map-tiles/radius-<n>/tiles/<sha256>.sgtile.gz`
@@ -92,6 +101,8 @@ without changing octree membership or tile identity rules.
 - manifests are short-lived pointers into the atomically promoted served build
 - nginx accepts only the four bounded radius names and 64-character lowercase
   SHA-256 artifact names
+- the web container mounts only the promoted `map_tiles` subtree read-only; it
+  has no static-server mount of core, ARM, DISC, reports, raw data, or state
 - DuckDB is not queried during camera flight
 - missing/corrupt files are visible failures; the browser does not silently
   substitute incomplete monolithic science
@@ -115,8 +126,8 @@ stable identity, preserving selection, pinned labels, Peek, Explorer, routes,
 and system-page handoff across refinement.
 
 `?map_transport=monolithic` is a temporary diagnostic comparison for the
-100-ly endpoint. It is not a second renderer architecture and should be removed
-after the measured parity window.
+100-ly endpoint and is formally deprecated. It is not a second renderer
+architecture and should be removed after the measured observation window.
 
 ## Verification
 
@@ -126,3 +137,24 @@ confirm exact 100/250 membership against served core, deterministic rebuild
 hashes, nonblank desktop/mobile canvas pixels, stable labels/selections, and
 cold/warm/flight/search performance budgets. Reports belong under
 `reports/<build_id>/`; reproducible browser scripts remain in the repository.
+
+## M8.1 Acceptance Record
+
+Photon build `20260714T135542Z_8254eaf_side_rebuild` passed:
+
+- exact unique membership: 10,239 / 230,181 / 2,332,003 / 5,869,087 systems at
+  100 / 250 / 500 / 1,000 ly
+- independent deterministic 100/250 rebuild manifest-hash equality
+- tiled 100 exact payload: 0.63 MB compressed; tiled 250 exact payload: 13.09 MB
+- cold 100-ly usable: 0.78-1.12 s, versus 2.93-3.32 s monolithic baseline
+- cold 250-ly usable: 0.82-1.50 s; exact settle: 2.35-3.12 s
+- cold 250-ly heap: 60-86 MB; selection: 208-256 ms
+- cold/rapid headless 250-ly median frame time: 16.7-33.4 ms; p95: 50-66.7 ms
+- 141/141 performance budget checks, static path security checks, and
+  desktop/mobile canvas pixel/screenshots pass
+- bounded interest trace improves distant high-interest median request rank
+  from 48 to 43 without changing nearby-tile p95 rank (34)
+
+Machine reports live under
+`/data/spacegate/state/reports/20260714T135542Z_8254eaf_side_rebuild/` and
+`/data/spacegate/state/reports/map_benchmarks/20260714T_m81_after/`.

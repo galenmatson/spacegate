@@ -791,15 +791,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   without promoting member names to false system-level canonical names
 - [ ] Expand the Live-WebGL runtime manager with richer admin/dev telemetry,
   observed browser context limits, and real-device automatic quality tuning
-- [ ] Complete M8.1 measured Tiled Deep Map pilot (`docs/TILED_MAP.md`)
+- [x] Complete M8.1 measured Tiled Deep Map 100/250-ly pilot (`docs/TILED_MAP.md`)
 - [x] Define deterministic ICRS J2016 octree, Morton IDs, immutable manifests,
   compact binary tiles, and exact-membership verification
 - [x] Add profile-versioned coolness interest summaries and mixed
   spatial/high-interest coarse samples without changing spatial membership
 - [x] Add static content-addressed tile delivery and renderer-independent
   browser scheduling/cache lifecycle
-- [ ] Pass tiled 100-ly behavioral parity and before/after performance budgets
-- [ ] Pass the public 250-ly desktop/mobile pilot; retain 500/1,000 ly as
+- [x] Pass tiled 100-ly behavioral parity and before/after performance budgets
+- [x] Pass the public 250-ly desktop/mobile pilot; retain 500/1,000 ly as
   verification-only manifests
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star
   Search, no-WebGL clients, crawlers/share cards, and fallback/reference

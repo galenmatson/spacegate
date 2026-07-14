@@ -11,6 +11,10 @@ const phase = String(args.phase || "baseline");
 const baseURL = String(args.baseURL || process.env.SPACEGATE_MAP_BASE_URL || "https://10.0.0.12");
 const reportRoot = String(args.reportRoot || process.env.SPACEGATE_MAP_BENCHMARK_ROOT || "/data/spacegate/state/reports/map_benchmarks");
 const runId = String(args.runId || new Date().toISOString().replace(/[:.]/g, "").replace("Z", "Z"));
+const radiusLy = Number(args.radius || 100);
+const searchQuery = String(args.query || (radiusLy >= 250 ? "DMPP-1" : "Tau Ceti"));
+const scenario = String(args.scenario || "continuous-flight");
+const cacheMode = String(args.cache || "cold");
 const profiles = [
   { id: "desktop", viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
   { id: "mobile", viewport: { width: 412, height: 915 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
@@ -34,7 +38,7 @@ async function benchmarkProfile(browser, profile) {
   const cdp = await context.newCDPSession(await context.newPage());
   const pages = context.pages();
   const page = pages[0];
-  const network = { requests: 0, encodedBytes: 0, failed: 0, urls: [] };
+  const network = { requests: 0, encodedBytes: 0, failed: 0, cacheResponses: 0, urls: [] };
   const loadingRequests = new Map();
   await cdp.send("Network.enable");
   cdp.on("Network.requestWillBeSent", (event) => {
@@ -52,6 +56,12 @@ async function benchmarkProfile(browser, profile) {
     if (!loadingRequests.has(event.requestId)) return;
     network.failed += 1;
     loadingRequests.delete(event.requestId);
+  });
+  cdp.on("Network.responseReceived", (event) => {
+    if (!event.response.url.startsWith(baseURL)) return;
+    if (event.response.fromDiskCache || event.response.fromPrefetchCache || event.response.fromServiceWorker) {
+      network.cacheResponses += 1;
+    }
   });
   await page.addInitScript(() => {
     window.__spacegateBenchmark = { frames: [], longTasks: [] };
@@ -73,12 +83,37 @@ async function benchmarkProfile(browser, profile) {
     }
   });
 
+  if (cacheMode === "warm") {
+    await page.goto(`${baseURL}/map?radius=${radiusLy}`, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => {
+      const node = document.querySelector(".map-canvas canvas");
+      return node?.dataset.mapTileComplete === "true";
+    }, null, { timeout: radiusLy >= 250 ? 60_000 : 30_000 });
+    await page.goto("about:blank");
+    network.requests = 0;
+    network.encodedBytes = 0;
+    network.failed = 0;
+    network.cacheResponses = 0;
+    network.urls = [];
+    loadingRequests.clear();
+  }
+
   const startedAt = Date.now();
-  await page.goto(`${baseURL}/map`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseURL}/map?radius=${radiusLy}`, { waitUntil: "domcontentloaded" });
   const canvas = page.locator(".map-canvas canvas");
   await canvas.waitFor({ state: "visible", timeout: 30_000 });
   await page.waitForFunction(() => Number(document.querySelector(".map-canvas canvas")?.dataset.mapStarCount || 0) > 0, null, { timeout: 30_000 });
   const usableMs = Date.now() - startedAt;
+  const settleStarted = Date.now();
+  await page.waitForFunction(() => {
+    const node = document.querySelector(".map-canvas canvas");
+    const eligible = Number(node?.dataset.mapTileEligibleSystems || 0);
+    const exact = Number(node?.dataset.mapTileExactSystems || 0);
+    const rendered = Number(node?.dataset.mapStarCount || 0);
+    return node?.dataset.mapTransport === "monolithic"
+      || (eligible > 0 && exact >= eligible && rendered > 0 && node?.dataset.mapTileComplete === "true");
+  }, null, { timeout: radiusLy >= 250 ? 60_000 : 30_000 });
+  const visibleSettleMs = Date.now() - settleStarted + usableMs;
   await page.waitForTimeout(1500);
 
   const cameraBefore = await canvas.getAttribute("data-map-camera-position");
@@ -91,6 +126,13 @@ async function benchmarkProfile(browser, profile) {
     await page.keyboard.down("ArrowUp");
     await page.waitForTimeout(1200);
     await page.keyboard.up("ArrowUp");
+    if (scenario === "rapid-direction-change") {
+      for (const key of ["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp"]) {
+        await page.keyboard.down(key);
+        await page.waitForTimeout(300);
+        await page.keyboard.up(key);
+      }
+    }
   }
   await page.waitForTimeout(600);
   const cameraAfter = await canvas.getAttribute("data-map-camera-position");
@@ -98,7 +140,7 @@ async function benchmarkProfile(browser, profile) {
   const searchStarted = Date.now();
   const searchToggle = page.locator("[data-testid='map-search-toggle']");
   if (await searchToggle.getAttribute("aria-pressed") !== "true") await searchToggle.click();
-  await page.locator("[data-testid='map-star-search-input']").fill("Tau Ceti");
+  await page.locator("[data-testid='map-star-search-input']").fill(searchQuery);
   await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
   const firstCard = page.locator(".map-search-card").first();
   await firstCard.waitFor({ state: "visible", timeout: 20_000 });
@@ -130,6 +172,7 @@ async function benchmarkProfile(browser, profile) {
     profile: profile.id,
     viewport: profile.viewport,
     usable_ms: usableMs,
+    visible_region_settle_ms: visibleSettleMs,
     search_result_ms: searchResultMs,
     selection_ms: selectionMs,
     camera_before: cameraBefore,
@@ -162,6 +205,10 @@ try {
   const payload = {
     schema_version: "spacegate_map_benchmark_v1",
     phase,
+    radius_ly: radiusLy,
+    scenario,
+    search_query: searchQuery,
+    cache_mode: cacheMode,
     run_id: runId,
     base_url: baseURL,
     recorded_at: new Date().toISOString(),

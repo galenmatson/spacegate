@@ -50,6 +50,7 @@ def atomic_json(path: Path, payload: Any) -> None:
         stream.write("\n")
         temp_path = Path(stream.name)
     os.replace(temp_path, path)
+    path.chmod(0o664)
 
 
 def morton3(x: int, y: int, z: int, depth: int) -> int:
@@ -316,21 +317,6 @@ def build_radius(
                 "alias_raw": alias_raw,
                 "alias_kind": alias_kind,
                 "alias_priority": alias_priority,
-            })
-        for system_id, star_name in label_con.execute(
-            """
-            select system_id, star_name
-            from stars
-            where system_id in (select * from unnest(?))
-              and nullif(star_name, '') is not null
-            order by system_id, star_name
-            """,
-            [system_ids],
-        ).fetchall():
-            aliases[int(system_id)].append({
-                "alias_raw": star_name,
-                "alias_kind": "member_star_name",
-                "alias_priority": 500,
             })
         output: list[tuple[Any, ...]] = []
         styles = ("public_full", "astronomer_abbrev", "catalog_compact", "source_technical")

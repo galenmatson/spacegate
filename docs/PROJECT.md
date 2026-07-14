@@ -965,19 +965,19 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Treat the locally promoted M8.2a checkpoint as the current Photon foundation:
-   canonical `20260713T1627Z_dd7446e` and `core.public` v3 slice
-   `20260713T1627Z_dd7446e_public`. It retains the verified TESS T0-T3 science
-   while adding the extended-object identity/evidence domain. Antiproton remains
-   on the prior public checkpoint until an explicit stable deployment decision.
+1. Treat local build `20260714T135542Z_8254eaf_side_rebuild` as the current
+   Photon foundation. It preserves the verified TESS/extended-object science
+   sidecars from `20260713T1627Z_dd7446e_public` and adds the measured M8.1 map
+   artifacts. Antiproton remains on the prior public checkpoint until an
+   explicit stable deployment decision.
 2. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint; naming and multiplicity follow-up
    remains tracked in `docs/CHECKLIST.md`.
 3. Treat the completed M8.2a extended-object science foundation as the typed
    data boundary for later non-stellar map layers; keep rendering deferred.
-4. Define the versioned tile manifest/API/cache contract and deliver a measured
-   250 ly Tiled Deep Map pilot before expanding to 500 or 1000 ly; make the
-   contract capable of carrying the new typed extended-object layer later.
+4. Observe the completed 100/250-ly Tiled Deep Map locally and keep 500/1,000 ly
+   verification-only. Do not expose another radius until a separately measured
+   milestone establishes its LOD, memory, label, and interaction budgets.
 5. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
    concept slugs are stable before reviewed Agency narration is published.
 6. Implement one secure AAA evidence-portfolio vertical slice with source-text

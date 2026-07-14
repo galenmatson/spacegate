@@ -75,18 +75,18 @@ export async function decodeMapTile(input) {
   return { header, systems };
 }
 
-async function fetchJson(path, signal) {
-  const response = await fetch(apiUrl(path), { signal });
+async function fetchJson(path, signal, fetchImpl = fetch) {
+  const response = await fetchImpl(apiUrl(path), { signal });
   if (!response.ok) throw new Error(`Map tile metadata failed: ${response.status}`);
   return response.json();
 }
 
-export async function fetchMapTileIndex(signal) {
-  return fetchJson("/map-tiles/index.json", signal);
+export async function fetchMapTileIndex(signal, fetchImpl) {
+  return fetchJson("/map-tiles/index.json", signal, fetchImpl);
 }
 
-export async function fetchMapTileManifest(radiusLy, signal) {
-  return fetchJson(`/map-tiles/radius-${radiusLy}/manifest.json`, signal);
+export async function fetchMapTileManifest(radiusLy, signal, fetchImpl) {
+  return fetchJson(`/map-tiles/radius-${radiusLy}/manifest.json`, signal, fetchImpl);
 }
 
 function tileCenter(tile) {
@@ -126,7 +126,7 @@ export class MapTileManager {
     this.retryLimit = retryLimit;
     this.onBatch = onBatch || (() => {});
     this.onStatus = onStatus || (() => {});
-    this.fetchImpl = fetchImpl;
+    this.fetchImpl = (...fetchArgs) => fetchImpl(...fetchArgs);
     this.nameStyle = nameStyle;
     this.cache = sharedTileCache;
     this.controllers = new Set();
@@ -166,11 +166,11 @@ export class MapTileManager {
   async loadRadius(radiusLy) {
     this.cancel();
     const generation = this.generation;
-    const index = await fetchMapTileIndex();
+    const index = await fetchMapTileIndex(undefined, this.fetchImpl);
     if (!index.public_radii_ly?.map(Number).includes(Number(radiusLy))) {
       throw new Error(`Map radius ${radiusLy} ly is not enabled by the promoted tile index.`);
     }
-    const manifest = await fetchMapTileManifest(radiusLy);
+    const manifest = await fetchMapTileManifest(radiusLy, undefined, this.fetchImpl);
     if (generation !== this.generation) return null;
     if (String(index.build_id) !== String(manifest.build_id)) {
       throw new Error("Map tile index and radius manifest belong to different builds.");
