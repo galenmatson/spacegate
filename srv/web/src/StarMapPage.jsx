@@ -3336,7 +3336,7 @@ export default function StarMapPage({
     } else {
       const manager = new MapTileManager({
         concurrency: deviceRuntimeProfile === "mobile" ? 4 : 6,
-        cacheLimit: mapRadiusLy >= 250 ? 192 : 64,
+        cacheLimit: deviceRuntimeProfile === "mobile" ? 12 : (mapRadiusLy >= 250 ? 48 : 24),
         nameStyle: normalizeNameStyle(nameStyle),
         onBatch: (rows, tile) => {
           if (!active) return;

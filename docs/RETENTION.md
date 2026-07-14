@@ -77,6 +77,9 @@ place. Interrupted runs leave `out/<build_id>.tmp`, which is covered by the
 default stale temporary ingest cleanup. The script intentionally copies only
 known served artifacts and does not copy orphaned internal DuckDB temp
 directories such as `core.duckdb.tmp`.
+Presentation-only side builds should use `--preserve-arm` so adding immutable
+map artifacts cannot change ARM evidence or expose core/ARM search-contract
+drift. ARM regeneration remains the default for science-side changes.
 
 ### Tiled map artifacts
 

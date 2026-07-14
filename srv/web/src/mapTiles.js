@@ -166,8 +166,15 @@ export class MapTileManager {
   async loadRadius(radiusLy) {
     this.cancel();
     const generation = this.generation;
+    const index = await fetchMapTileIndex();
+    if (!index.public_radii_ly?.map(Number).includes(Number(radiusLy))) {
+      throw new Error(`Map radius ${radiusLy} ly is not enabled by the promoted tile index.`);
+    }
     const manifest = await fetchMapTileManifest(radiusLy);
     if (generation !== this.generation) return null;
+    if (String(index.build_id) !== String(manifest.build_id)) {
+      throw new Error("Map tile index and radius manifest belong to different builds.");
+    }
     const deepestSampleDepth = Math.max(...manifest.tiles.filter((tile) => !tile.exact).map((tile) => Number(tile.depth)), 0);
     const queue = manifest.tiles
       .filter((tile) => tile.exact || (!tile.exact && Number(tile.depth) === deepestSampleDepth))
@@ -186,6 +193,7 @@ export class MapTileManager {
       exact_systems: 0,
       sampled_systems: 0,
       manifest_sha256: manifest.manifest_sha256,
+      build_id: manifest.build_id,
       coolness_profile_hash: manifest.coolness_profile?.profile_hash || "",
       eligible_systems: Number(manifest.counts?.eligible_systems || 0),
       planet_systems: Number(manifest.counts?.planet_systems || 0),
@@ -250,6 +258,6 @@ export class MapTileManager {
     await Promise.all(workers);
     if (generation !== this.generation) return null;
     this.onStatus({ ...this.snapshot(), complete: true });
-    return { manifest, stats: this.snapshot() };
+    return { index, manifest, stats: this.snapshot() };
   }
 }

@@ -177,6 +177,11 @@ def main() -> int:
         help="Build deterministic 100/250/500/1000-ly map tiles into the cloned artifact.",
     )
     parser.add_argument(
+        "--preserve-arm",
+        action="store_true",
+        help="Copy the source ARM artifact instead of regenerating it; use for presentation-only side builds.",
+    )
+    parser.add_argument(
         "--skip-disc-copy",
         action="store_true",
         help="Do not copy disc.duckdb/disc side artifacts. Intended only for ARM-only smoke builds.",
@@ -252,29 +257,38 @@ def main() -> int:
                 cwd=str(root),
             )
 
-        arm_report = reports_dir / "arm_report.json"
         transform_version = f"side_artifact_rebuild:{git_sha(root)}"
-        subprocess.check_call(
-            [
-                sys.executable,
-                str(root / "scripts" / "build_arm.py"),
-                "--core-db",
-                str(tmp_dir / "core.duckdb"),
-                "--arm-db",
-                str(tmp_dir / "arm.duckdb"),
-                "--state-dir",
-                str(state),
-                "--build-id",
-                build_id,
-                "--ingested-at",
-                generated_at,
-                "--transform-version",
-                transform_version,
-                "--report-path",
-                str(arm_report),
-            ],
-            cwd=str(root),
-        )
+        arm_report = reports_dir / "arm_report.json"
+        if args.preserve_arm:
+            copied["arm"] = copy_file(source_build_dir / "arm.duckdb", tmp_dir / "arm.duckdb")
+            update_build_metadata(
+                tmp_dir / "arm.duckdb",
+                build_id=build_id,
+                source_build_id=source_build_id,
+                artifact_kind="arm",
+            )
+        else:
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "build_arm.py"),
+                    "--core-db",
+                    str(tmp_dir / "core.duckdb"),
+                    "--arm-db",
+                    str(tmp_dir / "arm.duckdb"),
+                    "--state-dir",
+                    str(state),
+                    "--build-id",
+                    build_id,
+                    "--ingested-at",
+                    generated_at,
+                    "--transform-version",
+                    transform_version,
+                    "--report-path",
+                    str(arm_report),
+                ],
+                cwd=str(root),
+            )
         if not (tmp_dir / "arm.duckdb").exists():
             raise SystemExit(f"ARM rebuild did not create {tmp_dir / 'arm.duckdb'}")
 
@@ -286,15 +300,19 @@ def main() -> int:
             "output_build_dir": str(final_dir),
             "transform_version": transform_version,
             "copied_artifacts": copied,
-            "rebuilt_artifacts": {
+            "rebuilt_artifacts": ({
                 "arm": {
                     "path": str(final_dir / "arm.duckdb"),
                     "report_path": str(arm_report),
                 }
-            },
+            } if not args.preserve_arm else {}),
             "notes": [
                 "core.duckdb is cloned from the source build with build metadata updated.",
-                "arm.duckdb is regenerated from the cloned core using current build_arm.py.",
+                (
+                    "arm.duckdb is copied without science regeneration for this presentation-only build."
+                    if args.preserve_arm
+                    else "arm.duckdb is regenerated from the cloned core using current build_arm.py."
+                ),
                 "disc and snapshot artifacts are copied unless --skip-disc-copy is used.",
                 "Versioned map tiles are generated when --build-map-tiles is requested.",
                 "This script does not download or cook source catalogs.",
