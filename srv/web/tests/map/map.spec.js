@@ -679,6 +679,7 @@ test.describe("public 3D map beta", () => {
     const nameStyleSelect = menu.locator("[data-testid='map-name-style-select']");
     const frameSelect = menu.locator("[data-testid='map-frame-select']");
     const starRenderSelect = menu.locator("[data-testid='map-star-render-mode-select']");
+    const classBadgesToggle = menu.locator("[data-testid='map-class-badges-toggle']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
@@ -686,6 +687,7 @@ test.describe("public 3D map beta", () => {
     await expect(nameStyleSelect).toBeVisible();
     await expect(frameSelect).toBeVisible();
     await expect(starRenderSelect).toBeVisible();
+    await expect(classBadgesToggle).toBeVisible();
     await expect(directionToggle).toBeVisible();
 
     await themeSelect.selectOption("aurora");
@@ -705,7 +707,11 @@ test.describe("public 3D map beta", () => {
     await starRenderSelect.selectOption("bright");
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.starRenderMode") || "")).toBe("bright");
     await expect(canvas).toHaveAttribute("data-map-star-render-mode", "bright");
-    await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "salient_compact_else_intrinsic_brightness_v1");
+    await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "mass_proxy_then_intrinsic_brightness_v2");
+    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "true");
+    await classBadgesToggle.uncheck();
+    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "false");
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.classBadges"))).toBe("false");
 
     await keybindSelect.selectOption("esdf");
     await expect.poll(
@@ -714,6 +720,7 @@ test.describe("public 3D map beta", () => {
     ).toBe("esdf");
     await expect(page.locator(".map-desktop-hint")).toContainText(/ESDF fly/i);
     const beforeEsdfMove = await canvas.evaluate((node) => node.dataset.mapCameraPosition || "");
+    await page.evaluate(() => document.activeElement?.blur());
     await page.keyboard.down("e");
     await page.waitForTimeout(350);
     await page.keyboard.up("e");

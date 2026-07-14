@@ -18,13 +18,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.build_map_tiles import (
     MAGIC,
     RECORD_STRUCT,
+    SPECTRAL_CODES,
     atomic_json,
     choose_display_name_info,
     utc_now,
 )
 
 
-def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str]]:
+SPECTRAL_CLASSES = tuple(SPECTRAL_CODES)
+
+
+def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str], dict[int, str]]:
     compressed = path.read_bytes()
     raw = gzip.decompress(compressed)
     if raw[:8] != MAGIC:
@@ -35,6 +39,7 @@ def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str]]:
     count = int(header["emitted_count"])
     string_start = start + count * RECORD_STRUCT.size
     names: dict[int, str] = {}
+    classes: dict[int, str] = {}
     for index in range(count):
         record = RECORD_STRUCT.unpack_from(raw, start + index * RECORD_STRUCT.size)
         system_id = int(record[0])
@@ -43,9 +48,10 @@ def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str]]:
         names[system_id] = raw[
             string_start + name_offset:string_start + name_offset + name_length
         ].decode("utf-8")
+        classes[system_id] = SPECTRAL_CLASSES[int(record[19])]
     if len(names) != count:
         raise ValueError(f"Duplicate system IDs within tile: {path}")
-    return header, names
+    return header, names, classes
 
 
 def expected_public_names(
@@ -105,6 +111,7 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
     ).fetchone()[0])
     observed: set[int] = set()
     observed_names: dict[int, str] = {}
+    observed_classes: dict[int, str] = {}
     compressed_bytes = 0
     exact_tiles = [tile for tile in manifest["tiles"] if tile.get("exact")]
     for tile in exact_tiles:
@@ -115,19 +122,21 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
         payload = path.read_bytes()
         if hashlib.sha256(payload).hexdigest() != digest:
             raise ValueError(f"Tile checksum mismatch: {path}")
-        header, names = read_tile(path)
+        header, names, classes = read_tile(path)
         ids = set(names)
         overlap = observed.intersection(ids)
         if overlap:
             raise ValueError(f"Cross-tile duplicate IDs in radius {radius}: {len(overlap)}")
         observed.update(ids)
         observed_names.update(names)
+        observed_classes.update(classes)
         compressed_bytes += len(payload)
         if header["tile_id"] != tile["tile_id"] or not header["exact"]:
             raise ValueError(f"Tile header/manifest mismatch: {path}")
     missing = expected - len(observed)
     extra = len(observed) - expected
     name_mismatches: list[dict[str, Any]] = []
+    class_mismatches: list[dict[str, Any]] = []
     if radius == 100:
         expected_names = expected_public_names(con, radius)
         name_mismatches = [
@@ -139,10 +148,24 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
             for system_id, expected_name in sorted(expected_names.items())
             if observed_names.get(system_id) != expected_name
         ]
+        class_goldens = {"Sirius": "A", "LAWD 25": "WD"}
+        for system_name, expected_class in class_goldens.items():
+            row = con.execute(
+                "select system_id from systems where system_name = ? and dist_ly <= ? order by system_id limit 1",
+                [system_name, radius],
+            ).fetchone()
+            observed_class = observed_classes.get(int(row[0])) if row else None
+            if observed_class != expected_class:
+                class_mismatches.append({
+                    "system_name": system_name,
+                    "expected": expected_class,
+                    "observed": observed_class,
+                })
     passed = (
         missing == 0
         and extra == 0
         and not name_mismatches
+        and not class_mismatches
         and int(manifest["counts"]["exact_emitted_systems"]) == expected
     )
     return {
@@ -154,6 +177,8 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
         "extra_count": max(0, extra),
         "public_name_mismatch_count": len(name_mismatches),
         "public_name_mismatch_examples": name_mismatches[:20],
+        "representative_class_mismatch_count": len(class_mismatches),
+        "representative_class_mismatches": class_mismatches,
         "exact_tiles": len(exact_tiles),
         "exact_compressed_bytes": compressed_bytes,
         "manifest_sha256": manifest["manifest_sha256"],

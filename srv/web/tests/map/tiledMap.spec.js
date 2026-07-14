@@ -129,7 +129,7 @@ test("Bright star style remains nonblank at 4K", async ({ page }, testInfo) => {
   await page.locator(".map-header-menu > summary").click();
   await page.locator("[data-testid='map-star-render-mode-select']").selectOption("bright");
   await expect(canvas).toHaveAttribute("data-map-star-render-mode", "bright");
-  await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "salient_compact_else_intrinsic_brightness_v1");
+  await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "mass_proxy_then_intrinsic_brightness_v2");
   await expectPaintedMap(page);
   await page.screenshot({ path: testInfo.outputPath("map-bright-4k.png"), fullPage: true });
 });

@@ -663,9 +663,10 @@ full coordinate, manifest, binary, selection, and cache contract is
 `docs/TILED_MAP.md`.
 
 Tile schema v2 retains the fixed 72-byte record and assigns the class byte to
-`representative_stellar_class`. Compact/exotic components have presentation
-salience; otherwise the class follows the intrinsically brightest component.
-Schema-v1 artifacts remain decodable during immutable-artifact transition.
+`representative_stellar_class`. Its versioned presentation policy uses an
+object/spectral/evolutionary mass proxy, intrinsic brightness, and a stable
+component tie-break. Schema-v1 artifacts remain decodable during immutable-
+artifact transition.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics

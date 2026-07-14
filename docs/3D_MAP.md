@@ -178,11 +178,12 @@ Initial layers:
     data.
   - the map canvas publishes lightweight diagnostics for active star style,
     point-layer count, and rendered star/system count for browser QA.
-- label textures include one representative stellar-class badge. Compact and
-  exotic components take precedence; otherwise the class comes from the
-  intrinsically brightest component by absolute magnitude with a stable
-  component identifier tie-break. This is a compact presentation summary, not
-  a substitute for the system hierarchy.
+- label textures can include one representative stellar-class badge. The
+  versioned heuristic compares a mass proxy derived from object type, spectral
+  class, and evolutionary class, then intrinsic brightness and a stable
+  component tie-break. Badges are enabled by default and can be disabled in the
+  map menu. They are a compact presentation summary, not a substitute for the
+  system hierarchy or a measured-mass claim.
 - Sol marker
 - distance rings
 - adaptive priority labels:

@@ -248,6 +248,8 @@ def tile_query(radius: int) -> str:
         SELECT
           system_id,
           star_id,
+          absmag,
+          vmag,
           CASE
             WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'black[ _-]?hole') THEN 'BLACK HOLE'
             WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'magnetar') THEN 'MAGNETAR'
@@ -259,14 +261,27 @@ def tile_query(radius: int) -> str:
             ELSE 'UNKNOWN'
           END AS stellar_class,
           CASE
-            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'black[ _-]?hole') THEN 100
-            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'magnetar') THEN 95
-            WHEN lower(coalesce(object_type, '')) = 'pulsar' OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'pulsar|\\bpsr\\b') THEN 90
-            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'neutron[ _-]?star') THEN 85
-            WHEN regexp_matches(upper(coalesce(spectral_type_raw, '')), '^W[CNOR]') OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'wolf[ _-]?rayet') THEN 80
-            WHEN lower(coalesce(object_type, '')) = 'white_dwarf' OR upper(coalesce(spectral_class, '')) = 'D' THEN 70
-            ELSE coalesce(-absmag, -vmag, -1000)
-          END AS salience
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'black[ _-]?hole') THEN 8.0
+            WHEN regexp_matches(upper(coalesce(spectral_type_raw, '')), '^W[CNOR]') OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'wolf[ _-]?rayet') THEN 20.0
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'magnetar') THEN 1.4
+            WHEN lower(coalesce(object_type, '')) = 'pulsar' OR regexp_matches(lower(coalesce(spectral_type_raw, '')), 'pulsar|\\bpsr\\b') THEN 1.4
+            WHEN regexp_matches(lower(coalesce(spectral_type_raw, '') || ' ' || coalesce(object_type, '')), 'neutron[ _-]?star') THEN 1.4
+            WHEN lower(coalesce(object_type, '')) = 'white_dwarf' OR upper(coalesce(spectral_class, '')) = 'D' THEN 0.6
+            WHEN regexp_matches(upper(coalesce(spectral_type_raw, '')), '(^|[^I])I([^I]|$)') THEN greatest(
+              8.0,
+              CASE upper(coalesce(spectral_class, '')) WHEN 'O' THEN 20.0 WHEN 'B' THEN 5.0 ELSE 0.0 END
+            )
+            WHEN regexp_matches(upper(coalesce(spectral_type_raw, '')), 'III') THEN 1.5
+            WHEN upper(coalesce(spectral_class, '')) = 'O' THEN 20.0
+            WHEN upper(coalesce(spectral_class, '')) = 'B' THEN 5.0
+            WHEN upper(coalesce(spectral_class, '')) = 'A' THEN 2.0
+            WHEN upper(coalesce(spectral_class, '')) = 'F' THEN 1.3
+            WHEN upper(coalesce(spectral_class, '')) = 'G' THEN 1.0
+            WHEN upper(coalesce(spectral_class, '')) = 'K' THEN 0.75
+            WHEN upper(coalesce(spectral_class, '')) = 'M' THEN 0.3
+            WHEN upper(coalesce(spectral_class, '')) IN ('L','T','Y') THEN 0.06
+            ELSE 0.0
+          END AS mass_proxy_msun
         FROM stars
         WHERE system_id IS NOT NULL
       ), representative_stellar_class AS (
@@ -274,7 +289,7 @@ def tile_query(radius: int) -> str:
         FROM stellar_class_candidates
         QUALIFY row_number() OVER (
           PARTITION BY system_id
-          ORDER BY salience DESC, star_id ASC
+          ORDER BY mass_proxy_msun DESC, absmag ASC NULLS LAST, vmag ASC NULLS LAST, star_id ASC
         ) = 1
       ), positioned AS (
         SELECT s.*,
@@ -457,9 +472,9 @@ def build_radius(
             "stable_object_key": "UTF-8 string table",
         },
         "representative_class_contract": {
-            "version": "salient_compact_else_intrinsic_brightness_v1",
+            "version": "mass_proxy_then_intrinsic_brightness_v2",
             "field": "representative_stellar_class",
-            "policy": "compact/exotic class first; otherwise lowest available absolute magnitude; stable star_id tie-break",
+            "policy": "object/spectral/evolutionary mass proxy; then lowest available absolute magnitude; stable star_id tie-break",
         },
         "coolness_profile": profile,
         "sampling_policy": {

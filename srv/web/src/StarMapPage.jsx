@@ -74,6 +74,7 @@ const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
 const MAP_STAR_RENDER_MODE_STORAGE_KEY = "spacegate.map.starRenderMode";
 const MAP_DENSITY_MODE_STORAGE_KEY = "spacegate.map.densityMode";
+const MAP_CLASS_BADGES_STORAGE_KEY = "spacegate.map.classBadges";
 const DEFAULT_MAP_PEEK_SIZE = { width: 675, height: 468 };
 const DEFAULT_MAP_CAMERA_STATE = {
   position: [0, 3.5, 17],
@@ -420,6 +421,15 @@ function readStoredDirectionLabelsEnabled() {
     return window.localStorage.getItem(MAP_DIRECTION_LABELS_STORAGE_KEY) === "true";
   } catch {
     return false;
+  }
+}
+
+function readStoredClassBadgesEnabled() {
+  if (typeof window === "undefined") return true;
+  try {
+    return window.localStorage.getItem(MAP_CLASS_BADGES_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
   }
 }
 
@@ -1236,7 +1246,7 @@ function LabelSprite({
   );
 }
 
-function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false }) {
+function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, showClassBadges = true }) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
   const labelIndex = useMemo(() => {
@@ -1344,8 +1354,9 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
     gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
     gl.domElement.dataset.mapLocalLabelCount = String(labelSystems.filter((system) => Number(system.label_camera_distance_ly) <= 10).length);
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
-    gl.domElement.dataset.mapLabelClassStrategy = "salient_compact_else_intrinsic_brightness_v1";
-  }, [forcedLabelActive, gl.domElement, labelSystems]);
+    gl.domElement.dataset.mapLabelClassStrategy = "mass_proxy_then_intrinsic_brightness_v2";
+    gl.domElement.dataset.mapLabelClassBadges = showClassBadges ? "true" : "false";
+  }, [forcedLabelActive, gl.domElement, labelSystems, showClassBadges]);
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
@@ -1362,7 +1373,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
         <LabelSprite
           key={system.system_id}
           label={system.display_name}
-          stellarClass={system.representative_stellar_class || system.dominant_spectral_class}
+          stellarClass={showClassBadges ? system.representative_stellar_class || system.dominant_spectral_class : null}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
           priority={system.label_priority ?? system.map_priority}
@@ -1559,6 +1570,7 @@ function FlightControls({
   keybindScheme,
   mapFrame,
   showDirectionLabels,
+  showClassBadges,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -2173,6 +2185,7 @@ function StarMapScene({
   keybindScheme,
   mapFrame,
   showDirectionLabels,
+  showClassBadges,
   routeSegments,
   onRemoveRouteSegment,
   controlsEnabled,
@@ -2216,6 +2229,7 @@ function StarMapScene({
         onSelect={onSelect}
         forcedLabelSystems={filterLabelSystems}
         forcedLabelActive={filterActive}
+        showClassBadges={showClassBadges}
       />
       <RouteOverlays segments={routeSegments} onRemoveSegment={onRemoveRouteSegment} />
       <SelectionMarker system={selectedSystem} />
@@ -2808,6 +2822,7 @@ export default function StarMapPage({
       ? restoredMapState.showDirectionLabels
       : readStoredDirectionLabelsEnabled()
   ));
+  const [showClassBadges, setShowClassBadges] = useState(readStoredClassBadgesEnabled);
   const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
   const [fpsSample, setFpsSample] = useState(0);
   const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readDeviceRuntimeProfile);
@@ -3059,6 +3074,14 @@ export default function StarMapPage({
       // Direction-label preference persistence is optional.
     }
   }, [showDirectionLabels]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_CLASS_BADGES_STORAGE_KEY, showClassBadges ? "true" : "false");
+    } catch {
+      // Label badge preference persistence is optional.
+    }
+  }, [showClassBadges]);
 
   useEffect(() => {
     const updateProfile = () => {
@@ -4182,6 +4205,7 @@ export default function StarMapPage({
           keybindScheme={keybindScheme}
           mapFrame={mapFrame}
           showDirectionLabels={showDirectionLabels}
+          showClassBadges={showClassBadges}
           routeSegments={routeSegments}
           onRemoveRouteSegment={truncateRouteAtSegment}
           controlsEnabled={controlsEnabled}
@@ -4452,6 +4476,15 @@ export default function StarMapPage({
                     )
                   ))}
                 </div>
+                <label className="map-menu-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showClassBadges}
+                    onChange={(event) => setShowClassBadges(event.target.checked)}
+                    data-testid="map-class-badges-toggle"
+                  />
+                  <span>Class badges</span>
+                </label>
                 <label className="map-menu-toggle">
                   <input
                     type="checkbox"

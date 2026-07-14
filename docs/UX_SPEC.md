@@ -73,6 +73,8 @@ Map overlays:
   lightly tinted stellar colors. `Bright` increases core and halo visibility
   for large/high-resolution displays. None of these modes changes science-layer
   facts.
+- Representative stellar-class badges are an independently persisted map-menu
+  preference. Disabling them retains the same bounded label set and star style.
 
 ## Page: Star Search v2
 

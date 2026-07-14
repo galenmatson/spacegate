@@ -104,11 +104,12 @@ The UI and canvas diagnostics report catalog, rendered, and camera-detail
 counts separately, so LOD is not presented as a complete local population.
 
 Tile schema v2 uses its compact class byte for a representative system class.
-Compact/exotic members take precedence (for example a neutron star over an
-ordinary companion); otherwise the class follows the intrinsically brightest
-component by absolute magnitude, with `star_id` as a deterministic tie-break.
-This feeds the lightweight map-label badge and does not alter canonical stellar
-classification or system membership.
+The deterministic presentation policy compares an object/spectral/evolutionary
+mass proxy, then intrinsic brightness, then `star_id`. This makes Sirius use its
+A star, allows a white dwarf to represent a typical WD+M-dwarf system, and
+gives giants an evolutionary floor rather than treating them as dwarfs of the
+same spectral class. It is explicitly a presentation heuristic, not measured
+mass. Users can disable the label badges without changing map data or labels.
 
 Photon build `20260714T185633Z_082a5bc_side_rebuild` verifies schema v2 with
 zero missing, extra, or public-name-mismatched systems at all four artifact
