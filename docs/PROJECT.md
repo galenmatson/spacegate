@@ -637,8 +637,8 @@ Current contract:
   preserve stable identity and bounded labels while machine-readable Photon
   browser reports define acceptance
 - presentation profile: Discovery remains the default; Bright increases star
-  visibility on large/high-resolution displays, and bounded labels carry one
-  deterministic representative system-class badge
+  visibility on large/high-resolution displays, and bounded labels can carry
+  one toggleable deterministic representative system-class badge
 - map overlay themes are handled in the Star Map layer: Enterprise/LCARS uses
   black nontransparent map cards with bright yellow borders and no glow, while
   Simple Light and Geocities use more opaque map overlays; embedded System

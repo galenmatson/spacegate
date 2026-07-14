@@ -111,14 +111,16 @@ gives giants an evolutionary floor rather than treating them as dwarfs of the
 same spectral class. It is explicitly a presentation heuristic, not measured
 mass. Users can disable the label badges without changing map data or labels.
 
-Photon build `20260714T185633Z_082a5bc_side_rebuild` verifies schema v2 with
+Photon build `20260714T191900Z_d873067_side_rebuild` verifies schema v2 with
 zero missing, extra, or public-name-mismatched systems at all four artifact
-radii. The 250-ly artifact contains 230,181 exact systems, including 7,683 whose
-representative class is white dwarf. The final Playwright run passes 8 desktop
-and mobile checks with 4 intentional device-specific skips, including a
-nonblank 3840x2160 Bright-mode canvas capture. Machine reports live under
-`/data/spacegate/state/reports/20260714T185633Z_082a5bc_side_rebuild/` and
-`/data/spacegate/state/reports/map_playwright/20260714T_m812_v2_final/`.
+radii. The 250-ly artifact contains 230,181 exact systems, including 7,662 whose
+representative class is white dwarf. Verification additionally requires Sirius
+to resolve to class A and the real WD+M-dwarf system LAWD 25 to resolve to WD.
+The final Playwright run passes 8 desktop and mobile checks with 4 intentional
+device-specific skips, including a nonblank 3840x2160 Bright-mode canvas
+capture. Machine reports live under
+`/data/spacegate/state/reports/20260714T191900Z_d873067_side_rebuild/` and
+`/data/spacegate/state/reports/map_playwright/20260714T_m812_dominance_final/`.
 
 ## Delivery and Promotion
 
