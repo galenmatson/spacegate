@@ -1748,6 +1748,14 @@ Castor's six stellar leaves resolve to two A and four M badges; reviewed ARM
 evidence replaces mass-only assumptions for Ab, Bb, Ca, and Cb while CC remains
 a nonstellar, literature-weak brown-dwarf support endpoint.
 
+Photon review artifact `20260715T145212Z_de3f3d5_side_rebuild` preserves 1,000
+priority scenes from its source checkpoint and passes tile-v3 verification at
+100/250/500/1,000 ly, including Castor and LAWD 25 class-sequence controls. The
+broad build verifier still exposes an inherited TESS search tail (3,081 of
+3,114 accepted TOI hosts exact-searchable); the source checkpoint fails the
+same gate, so it remains an explicit follow-up rather than being attributed to
+the simulation/tile change.
+
 ### Stellar Physical Classification v1
 
 The July 2026 V1054 Oph review exposed two related needs. First, complex MSC

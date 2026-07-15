@@ -928,6 +928,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   build-keyed compressed runtime artifacts
 - [x] Add side-build priority simulation-scene materialization before immutable
   promotion
+- [ ] Reconcile the inherited TOI exact-search coverage tail: current side
+  checkpoints contain 3,114 accepted TOI hosts but only 3,081 exact-searchable
+  TOI aliases; `scripts/verify_build.sh` must return to a clean pass
 - [x] Preserve `Proxima Centauri` as the rendered member display name instead of
   allowing source component shorthand `alp1 Cen C` to override the core name
 - [x] Add exact member-star search fallback for served side builds missing

@@ -2031,11 +2031,25 @@ test.describe("public 3D map beta", () => {
     const massPriorStars = (scenePayload.render_scene?.bodies?.stars || []).filter(
       (star) => star.fields?.visual_stellar_class?.basis === "mass_main_sequence_prior_v1"
     );
-    expect(massPriorStars.length).toBeGreaterThanOrEqual(2);
+    expect(massPriorStars).toHaveLength(1);
     for (const star of massPriorStars) {
       expect(star.spectral_class || null).toBeNull();
       expect(star.fields?.visual_stellar_class?.status).toBe("assumed");
       expect(star.fields?.visual_stellar_class?.layer).toBe("render_scene");
+    }
+    const castorSourceTypes = Object.fromEntries(
+      (scenePayload.render_scene?.bodies?.stars || []).map((star) => [
+        star.display_name,
+        star.fields?.spectral_type_raw,
+      ])
+    );
+    for (const [name, spectralType] of [
+      ["Castor AB", "M2-M3"],
+      ["Castor BB", "M2-M3"],
+      ["Castor CB", "early-M"],
+    ]) {
+      expect(castorSourceTypes[name]?.value).toBe(spectralType);
+      expect(castorSourceTypes[name]?.status).toBe("source");
     }
     for (const subsystem of scenePayload.render_scene?.bodies?.subsystems || []) {
       expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
@@ -2102,15 +2116,15 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassSourceCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(6);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(3);
+    ).toBe(1);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='a']")).toHaveCount(2);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(1);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(4);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(4);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(1);
   });
 
   test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {
