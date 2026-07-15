@@ -10,11 +10,98 @@ from pathlib import Path
 import duckdb
 
 
+def sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
 def table_exists(con: duckdb.DuckDBPyConnection, name: str) -> bool:
     return bool(con.execute(
         "select 1 from information_schema.tables where table_schema='main' and table_name=?",
         [name],
     ).fetchone())
+
+
+def build_metadata(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
+    if not table_exists(con, "build_metadata"):
+        return {}
+    columns = {
+        str(row[1]) for row in con.execute("pragma table_info('build_metadata')").fetchall()
+    }
+    if not {"key", "value"}.issubset(columns):
+        return {}
+    return {
+        str(key): "" if value is None else str(value)
+        for key, value in con.execute("select key, value from build_metadata").fetchall()
+    }
+
+
+def verify_canonical_projection(
+    arm: duckdb.DuckDBPyConnection,
+    *,
+    core_db: Path,
+    canonical_arm: Path,
+) -> None:
+    if not canonical_arm.is_file():
+        raise SystemExit(f"Canonical TESS projection source is missing: {canonical_arm}")
+
+    arm.execute(f"attach {sql_literal(str(core_db))} as verify_core (read_only)")
+    arm.execute(f"attach {sql_literal(str(canonical_arm))} as verify_canonical (read_only)")
+    try:
+        comparisons = {
+            "tess_target_identity": (
+                "select * exclude(tess_identity_id, ingested_at) from tess_target_identity",
+                """
+                select * exclude(tess_identity_id, ingested_at)
+                from verify_canonical.tess_target_identity t
+                where t.resolution_status <> 'accepted'
+                   or (
+                     t.star_id in (select star_id from verify_core.stars)
+                     and t.system_id in (select system_id from verify_core.systems)
+                   )
+                """,
+            ),
+            "tess_missing_object_audit": (
+                "select * exclude(audit_id) from tess_missing_object_audit",
+                "select * exclude(audit_id) from verify_canonical.tess_missing_object_audit",
+            ),
+            "toi_current_evidence": (
+                "select * exclude(toi_evidence_id, ingested_at) from toi_current_evidence",
+                """
+                select * exclude(toi_evidence_id, ingested_at)
+                from verify_canonical.toi_current_evidence t
+                where (t.system_id is null or t.system_id in (select system_id from verify_core.systems))
+                  and (t.star_id is null or t.star_id in (select star_id from verify_core.stars))
+                  and (t.planet_id is null or t.planet_id in (select planet_id from verify_core.planets))
+                """,
+            ),
+            "toi_disposition_history": (
+                "select * exclude(history_id, ingested_at) from toi_disposition_history",
+                "select * exclude(history_id, ingested_at) from verify_canonical.toi_disposition_history",
+            ),
+        }
+        failures: list[str] = []
+        for table_name, (actual_sql, expected_sql) in comparisons.items():
+            unexpected = int(
+                arm.execute(
+                    f"select count(*) from ({actual_sql} except {expected_sql})"
+                ).fetchone()[0]
+            )
+            missing = int(
+                arm.execute(
+                    f"select count(*) from ({expected_sql} except {actual_sql})"
+                ).fetchone()[0]
+            )
+            if unexpected or missing:
+                failures.append(
+                    f"{table_name}: unexpected={unexpected}, missing={missing}"
+                )
+        if failures:
+            raise SystemExit(
+                "Canonical TESS projection mismatch: " + "; ".join(failures)
+            )
+    finally:
+        arm.execute("detach verify_canonical")
+        arm.execute("detach verify_core")
 
 
 def main() -> int:
@@ -25,7 +112,8 @@ def main() -> int:
     parser.add_argument("--api-base-url", default=None)
     args = parser.parse_args()
 
-    core = duckdb.connect(args.core_db, read_only=True)
+    core_db = Path(args.core_db).resolve()
+    core = duckdb.connect(str(core_db), read_only=True)
     arm = duckdb.connect(args.arm_db, read_only=True)
     required_core = {"object_identifiers", "identifier_quarantine", "aliases", "system_search_terms", "planets", "systems", "stars"}
     required_arm = {"tess_target_identity", "tess_missing_object_audit", "toi_current_evidence", "toi_disposition_history"}
@@ -33,6 +121,17 @@ def main() -> int:
     missing_arm = sorted(name for name in required_arm if not table_exists(arm, name))
     if missing_core or missing_arm:
         raise SystemExit(f"Missing TESS verification tables: core={missing_core}, arm={missing_arm}")
+
+    arm_metadata = build_metadata(arm)
+    if arm_metadata.get("arm_tess_identity_mode") == "canonical_projection":
+        source_arm = arm_metadata.get("arm_tess_identity_source_arm", "").strip()
+        if not source_arm:
+            raise SystemExit("Canonical TESS projection metadata is missing its source ARM")
+        verify_canonical_projection(
+            arm,
+            core_db=core_db,
+            canonical_arm=Path(source_arm),
+        )
 
     target_count = int(arm.execute("select count(*) from tess_target_identity").fetchone()[0])
     partition_count = int(arm.execute(
