@@ -3633,9 +3633,11 @@ export default function StarMapPage({
       Number(initialOrigin.y || 0),
       Number(initialOrigin.z || 0),
     ];
-    detailCenterRef.current = mapRadiusLy > 100 && (deepProgressive || densityProfile.backgroundProbability < 1)
-      ? initialDetailCenter
-      : null;
+    detailCenterRef.current = deepProgressive
+      ? null
+      : mapRadiusLy > 100 && densityProfile.backgroundProbability < 1
+        ? initialDetailCenter
+        : null;
     const flushTiles = () => {
       if (!active) return;
       if (tileFlushTimerRef.current) {
@@ -3685,8 +3687,9 @@ export default function StarMapPage({
               detailSystemsRef.current.set(key, { ...row, sampled_lod: false, camera_detail: true });
             }
           }
-          if ((!tile.exact || mapRadiusLy <= 100) && !tileFlushTimerRef.current) {
-            tileFlushTimerRef.current = window.setTimeout(flushTiles, tile.exact ? 180 : 40);
+          if (!deepProgressive && (!tile.exact || mapRadiusLy <= 100) && !tileFlushTimerRef.current) {
+            const flushDelay = tile.exact ? 180 : 40;
+            tileFlushTimerRef.current = window.setTimeout(flushTiles, flushDelay);
           }
           setLoading(false);
         },
@@ -3696,8 +3699,8 @@ export default function StarMapPage({
           for (const [key, row] of tileSystemsRef.current.entries()) {
             if (removeSet.has(String(row.tile_id || ""))) tileSystemsRef.current.delete(key);
           }
-          flushTiles();
         },
+        onStage: () => flushTiles(),
         onStatus: (stats) => {
           if (!active) return;
           const renderedSystems = mergedMapSystemCount(
@@ -3722,7 +3725,7 @@ export default function StarMapPage({
             scope: "systems",
             frame: "heliocentric_icrs_j2016",
             max_dist_ly: mapRadiusLy,
-            total_available: stats.exact_systems || stats.emitted_systems || 0,
+            total_available: stats.eligible_systems || stats.exact_systems || stats.emitted_systems || 0,
             returned: renderedSystems,
             truncated: !stats.complete,
             planet_systems: stats.planet_systems || 0,

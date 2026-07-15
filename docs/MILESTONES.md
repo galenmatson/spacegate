@@ -908,11 +908,13 @@ Deliverables:
   React/label work, and context-loss recovery storms; same-class resizes now
   preserve the active tile manager, idle work is movement-gated, recoveries are
   serialized, and WebGL resource counters are inspectable on the map canvas
-- [ ] M8.1.4 exposes measured 500/1,000-ly deep-map modes through progressive
+- [x] M8.1.4 exposes measured 500/1,000-ly deep-map modes through progressive
   global sample frontiers and camera-local exact refinement. Depth-2 context
   must paint first, a complete depth-3 frontier must atomically replace it,
   dense depth-4 samples may refine additively, and no deep mode may eagerly
-  request all exact leaves
+  request all exact leaves. Photon acceptance passes 312 cold/warm/rapid
+  performance checks plus a 60-second 4K parked soak with zero retained heap,
+  request, label, telemetry, or WebGL-resource growth
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window

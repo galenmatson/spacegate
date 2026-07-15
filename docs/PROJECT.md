@@ -661,8 +661,9 @@ Layer rules:
   render layers
 - map selection must hand off by `system_id`/`stable_object_key`, never by
   point-array position
-- 500 and 1,000-ly verification manifests use the same contract but remain
-  nonpublic until the measured 250-ly pilot passes
+- 500 and 1,000-ly modes use progressive global sample frontiers plus
+  camera-local exact refinement; their measured budgets prohibit interpreting
+  the `Exact` control as eager materialization of the full deep catalog
 
 ## Operational Observability (Admin v2)
 
@@ -970,21 +971,19 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Treat local build `20260714T191900Z_d873067_side_rebuild` as the current
-   Photon foundation. It preserves the verified TESS/extended-object science
-   sidecars from `20260713T1627Z_dd7446e_public`, the measured M8.1 map
-   artifacts, and the verified class-badge correction. The M8.1.3 application
-   runtime and real-device stability checks are complete; deploy this stable
-   checkpoint before beginning the deeper-radius streaming phase.
-2. Return to the main quest after resolving only stability regressions that
+1. Complete the antiproton promotion of stable build
+   `20260714T191900Z_d873067_side_rebuild`, verify the public 100/250-ly tiled
+   checkpoint, then reconcile the separately accepted M8.1.4 deep-radius branch
+   rather than combining both production changes into one unobservable step.
+2. Promote M8.1.4 only after the stable production checkpoint is healthy. The
+   500/1,000-ly implementation passes Photon desktop/mobile cold, warm, rapid,
+   search, selection, pixel, and 4K idle gates without eager exact loading.
+3. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint. Castor, V1054 Oph, and Tegmine
    simulation goldens now match the preserved science checkpoint without
    changing canonical membership or manufacturing unresolved hierarchy edges.
-3. Treat the completed M8.2a extended-object science foundation as the typed
+4. Treat the completed M8.2a extended-object science foundation as the typed
    data boundary for later non-stellar map layers; keep rendering deferred.
-4. Observe the completed 100/250-ly Tiled Deep Map locally and keep 500/1,000 ly
-   verification-only. Do not expose another radius until a separately measured
-   milestone establishes its LOD, memory, label, and interaction budgets.
 5. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
    concept slugs are stable before reviewed Agency narration is published.
 6. Implement one secure AAA evidence-portfolio vertical slice with source-text

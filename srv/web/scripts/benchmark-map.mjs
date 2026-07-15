@@ -110,8 +110,12 @@ async function benchmarkProfile(browser, profile) {
     const eligible = Number(node?.dataset.mapTileEligibleSystems || 0);
     const exact = Number(node?.dataset.mapTileExactSystems || 0);
     const rendered = Number(node?.dataset.mapStarCount || 0);
+    const progressive = node?.dataset.mapTileProgressive === "true";
     return node?.dataset.mapTransport === "monolithic"
-      || (eligible > 0 && exact >= eligible && rendered > 0 && node?.dataset.mapTileComplete === "true");
+      || (eligible > 0
+        && rendered > 0
+        && node?.dataset.mapTileComplete === "true"
+        && (progressive || exact >= eligible));
   }, null, { timeout: radiusLy >= 250 ? 60_000 : 30_000 });
   const visibleSettleMs = Date.now() - settleStarted + usableMs;
   await page.waitForTimeout(1500);
@@ -150,6 +154,18 @@ async function benchmarkProfile(browser, profile) {
   await page.locator("[data-testid='map-system-drill']").waitFor({ state: "visible", timeout: 20_000 });
   const selectionMs = Date.now() - selectionStarted;
   await page.waitForTimeout(1200);
+
+  const heapBeforeGc = await page.evaluate(() => performance.memory ? {
+    usedJSHeapSize: performance.memory.usedJSHeapSize,
+    totalJSHeapSize: performance.memory.totalJSHeapSize,
+    jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+  } : null);
+  const forcedGcAvailable = await page.evaluate(() => {
+    if (typeof globalThis.gc !== "function") return false;
+    globalThis.gc();
+    return true;
+  });
+  if (forcedGcAvailable) await page.waitForTimeout(250);
 
   const runtime = await page.evaluate(() => {
     const canvasNode = document.querySelector(".map-canvas canvas");
@@ -190,6 +206,8 @@ async function benchmarkProfile(browser, profile) {
       total_ms: runtime.longTasks.reduce((sum, entry) => sum + entry.duration, 0),
       max_ms: runtime.longTasks.length ? Math.max(...runtime.longTasks.map((entry) => entry.duration)) : 0,
     },
+    heap_before_gc: heapBeforeGc,
+    forced_gc_available: forcedGcAvailable,
     heap: runtime.heap,
     renderer: runtime.canvasDataset,
     estimated_gpu_point_buffer_bytes: Number(runtime.canvasDataset.mapStarCount || 0) * 36,
@@ -198,7 +216,7 @@ async function benchmarkProfile(browser, profile) {
   return result;
 }
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, args: ["--js-flags=--expose-gc"] });
 try {
   const results = [];
   for (const profile of profiles) results.push(await benchmarkProfile(browser, profile));

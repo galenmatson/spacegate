@@ -1,13 +1,13 @@
 # Tiled Deep Map v1
 
-Status: M8.1.4 deep-radius streaming implementation (2026-07-15).
+Status: M8.1.4 deep-radius streaming Photon acceptance complete (2026-07-15).
 
 ## Scope
 
 Tiled Map v1 replaces the browser's monolithic 100-ly JSON transport with
-immutable, content-addressed map artifacts. The public selector exposes 100 and
-250 ly as complete exact catalogs. M8.1.4 adds 500 and 1,000 ly as progressive
-deep-map modes after their separate acceptance gates pass.
+immutable, content-addressed map artifacts. The selector exposes 100 and 250 ly
+as complete exact catalogs. M8.1.4 adds 500 and 1,000 ly as progressive
+deep-map modes with separate measured budgets.
 
 This is a presentation artifact. Authoritative coordinates and object identity
 remain in `core`; DISC coolness influences scheduling and sampled LODs but never
@@ -157,6 +157,11 @@ concurrency, aborts, deterministic priority, decoded-tile cache, retries/error
 reporting, and LRU eviction. Three.js consumes map-compatible point batches and
 does not construct Morton paths.
 
+Progressive global samples are decoded and materialized once, not retained in
+the decoded-tile LRU. This prevents one-use depth-frontier tiles from evicting
+reusable camera-detail leaves and removes redundant exact-tile requests on
+constrained clients.
+
 Priority order is selected/searched position, coarse context and nearby visible
 geometry, direction of travel, distance, bounded interest bonus, then bounded
 queue aging. Interest cannot displace an explicitly requested or nearby cell;
@@ -260,3 +265,32 @@ floor was approximately 15 FPS, with no crash or rendering failure during the
 test. A separate multi-hour RTX 3090 / 4K fullscreen run at maximum settings
 also remained stable while crossing the sphere on every axis and inspecting
 many systems.
+
+## M8.1.4 Deep-Radius Acceptance
+
+Photon build `20260715T015659Z_e392a11_side_rebuild` exposes the same verified
+tile contract at 500 and 1,000 ly. Exact leaf membership remains 2,332,003 and
+5,869,087 systems respectively, but the browser never eagerly materializes
+those full populations.
+
+- 500 ly renders 20,045-22,332 systems, transfers 14.1-17.1 MiB cold, becomes
+  usable in 1.2-1.6 s, and settles in 2.5-4.2 s
+- 1,000 ly renders 97,884-100,335 systems in normal profiles, transfers
+  22.7-25.7 MiB cold or 3.6 MiB warm, becomes usable in 1.4-1.8 s, and settles
+  in 8.9-16.7 s
+- 1,000-ly p95 frame time is 100-183 ms during staged loading and interaction;
+  measured retained heap is 242-561 MiB across cold, warm, and rapid-direction
+  traces
+- all sample frontiers reach depth 4, camera-local detail is nonempty, global
+  exact rows remain zero, and all recorded traces have zero failed or duplicate
+  tile requests
+- 312 machine performance checks pass across desktop, mobile, and Photon-high
+  profiles, including search and selection handoff
+- a 60-second 3840x2160 parked soak at 1,000 ly, Bright, and Exact local density
+  rendered 119,355 systems with zero forced-GC heap growth, idle tile requests,
+  telemetry/label rebuilds, WebGL resource growth, or context recoveries
+
+Machine reports live under
+`/data/spacegate/state/reports/map_benchmarks/20260715T_m814_deep_*` with the
+aggregate acceptance record at
+`/data/spacegate/state/reports/map_benchmarks/20260715T_m814_deep_acceptance.json`.

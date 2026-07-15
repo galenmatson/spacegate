@@ -152,12 +152,13 @@ export function progressiveSampleStages(manifest) {
 }
 
 export class MapTileManager {
-  constructor({ concurrency = 6, cacheLimit = 128, retryLimit = 2, nameStyle = "public_full", onBatch, onReplace, onStatus, fetchImpl = fetch } = {}) {
+  constructor({ concurrency = 6, cacheLimit = 128, retryLimit = 2, nameStyle = "public_full", onBatch, onReplace, onStage, onStatus, fetchImpl = fetch } = {}) {
     this.concurrency = concurrency;
     this.cacheLimit = cacheLimit;
     this.retryLimit = retryLimit;
     this.onBatch = onBatch || (() => {});
     this.onReplace = onReplace || (() => {});
+    this.onStage = onStage || (() => {});
     this.onStatus = onStatus || (() => {});
     this.fetchImpl = (...fetchArgs) => fetchImpl(...fetchArgs);
     this.nameStyle = nameStyle;
@@ -275,7 +276,11 @@ export class MapTileManager {
           const entry = queue.shift();
           const { tile } = entry;
           try {
-            let decoded = this.cache.get(tile.sha256);
+            // Progressive sample tiles are materialized once into the scene. Keeping
+            // them here would evict reusable camera-detail tiles without avoiding a
+            // future decode or request in the active radius.
+            const cacheable = Boolean(tile.exact);
+            let decoded = cacheable ? this.cache.get(tile.sha256) : null;
             if (decoded) {
               this.cache.delete(tile.sha256);
               this.cache.set(tile.sha256, decoded);
@@ -291,8 +296,10 @@ export class MapTileManager {
               }
               if (!response.ok) throw new Error(`Tile ${tile.tile_id} failed: ${response.status}`);
               decoded = await decodeMapTile(await response.arrayBuffer());
-              this.cache.set(tile.sha256, decoded);
-              while (this.cache.size > this.cacheLimit) this.cache.delete(this.cache.keys().next().value);
+              if (cacheable) {
+                this.cache.set(tile.sha256, decoded);
+                while (this.cache.size > this.cacheLimit) this.cache.delete(this.cache.keys().next().value);
+              }
               this.stats.encoded_bytes += Number(tile.compressed_bytes || 0);
             }
             if (generation !== this.generation) return;
@@ -305,7 +312,9 @@ export class MapTileManager {
               display_name: system.display_names?.[this.nameStyle] || system.display_name,
               system_name: system.display_names?.[this.nameStyle] || system.system_name,
             })), { ...tile, header: decoded.header, stage_depth: stage.depth });
-            this.onStatus(this.snapshot());
+            if (!progressive || this.stats.loaded_tiles % 24 === 0) {
+              this.onStatus(this.snapshot());
+            }
           } catch (error) {
             if (error?.name === "AbortError") this.stats.aborted_tiles += 1;
             else if (entry.attempt < this.retryLimit && generation === this.generation) {
@@ -336,6 +345,11 @@ export class MapTileManager {
         this.stats.replaced_sample_tiles = previousStage.tiles.length;
       }
       this.stats.completed_stage_depth = stage.depth;
+      this.onStage({
+        depth: stage.depth,
+        failed_tiles: this.stats.failed_tiles - failedBefore,
+        loaded_tiles: stage.tiles.length - (this.stats.failed_tiles - failedBefore),
+      });
       this.onStatus(this.snapshot());
       previousStage = stage;
     }

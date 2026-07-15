@@ -63,6 +63,10 @@ for (const radius of [500, 1000]) {
     const canvas = page.locator(".map-canvas canvas");
     await canvas.waitFor();
     await expect(canvas).toHaveAttribute("data-map-tile-progressive", "true");
+    await expect(canvas).toHaveAttribute(
+      "data-map-tile-eligible-systems",
+      radius === 1000 ? "5869087" : "2332003"
+    );
     await expect(canvas).toHaveAttribute("data-map-tile-manifest-ready", "true");
     await expect.poll(
       () => canvas.getAttribute("data-map-tile-coarse-complete"),
