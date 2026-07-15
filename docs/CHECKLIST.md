@@ -813,8 +813,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   lifecycle: prevent same-class resize transport reloads, gate stationary
   telemetry/labels, serialize context recovery, expose WebGL resource counters,
   and pass a forced-GC 4K/Exact idle soak with zero idle tile requests
-- [ ] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
-  with the preserved science checkpoint (not an M8.1 tile-transport blocker)
+- [x] Pass real-device 250-ly Exact/Bright stress acceptance on Pixel 9 XL
+  (whole-sphere view, rapid navigation/selection/view changes, approximately
+  15 FPS minimum) and a multi-hour RTX 3090 4K fullscreen maximum-settings soak
+- [x] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
+  with the preserved science checkpoint: Castor exposes physical A/B/C
+  subsystem groups while AB remains a stellar leaf, V1054 exposes five accepted
+  stellar leaves plus its system object, and Tegmine preserves its unresolved
+  source orbit as unattached rather than inventing a nested hierarchy
 - [ ] High-fidelity static System Snapshot v2 generator for traditional Star
   Search, no-WebGL clients, crawlers/share cards, and fallback/reference
   surfaces

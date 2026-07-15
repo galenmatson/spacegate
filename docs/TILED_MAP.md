@@ -237,3 +237,11 @@ rendered all 230,181 systems (460,362 points). Forced-GC heap changed from
 made zero tile requests and recorded zero duplicate requests, context losses, or
 recoveries. The machine-readable record is
 `/data/spacegate/state/reports/map_benchmarks/20260714T224738Z_m813_idle_stability/report.json`.
+
+Real-device acceptance additionally passed on a Pixel 9 XL: 250 ly, Exact
+density, Bright style, pan/flight, rapid view and selection switching, and a
+fully zoomed-out whole-sphere view remained functional. The observed frame-rate
+floor was approximately 15 FPS, with no crash or rendering failure during the
+test. A separate multi-hour RTX 3090 / 4K fullscreen run at maximum settings
+also remained stable while crossing the sphere on every axis and inspecting
+many systems.

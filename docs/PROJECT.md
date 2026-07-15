@@ -970,16 +970,16 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Treat local build `20260714T145242Z_4c43799_side_rebuild` as the current
+1. Treat local build `20260714T191900Z_d873067_side_rebuild` as the current
    Photon foundation. It preserves the verified TESS/extended-object science
-   sidecars from `20260713T1627Z_dd7446e_public` and adds the measured M8.1 map
-   artifacts. Antiproton remains on the prior public checkpoint until an
-   explicit stable deployment decision.
+   sidecars from `20260713T1627Z_dd7446e_public`, the measured M8.1 map
+   artifacts, and the verified class-badge correction. The M8.1.3 application
+   runtime and real-device stability checks are complete; deploy this stable
+   checkpoint before beginning the deeper-radius streaming phase.
 2. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint. Castor, V1054 Oph, and Tegmine
-   simulation goldens currently disagree with the preserved science checkpoint;
-   reconcile those data-sensitive expectations with the tracked naming and
-   multiplicity follow-up rather than changing canonical science in M8.1.
+   simulation goldens now match the preserved science checkpoint without
+   changing canonical membership or manufacturing unresolved hierarchy edges.
 3. Treat the completed M8.2a extended-object science foundation as the typed
    data boundary for later non-stellar map layers; keep rendering deferred.
 4. Observe the completed 100/250-ly Tiled Deep Map locally and keep 500/1,000 ly

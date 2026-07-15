@@ -597,7 +597,9 @@ def assert_render_scene_contract(
                 f"got star_pair={star_pair_count}, group_pair={group_pair_count}"
             )
         subsystem_names = {normalize(subsystem.get("display_name")) for subsystem in scene_subsystems}
-        for expected_name in ("castor ab", "castor a", "castor b", "castor c"):
+        # Castor AB is a source leaf inside the Castor A subsystem, not a
+        # fourth rendered subsystem alongside the physical A/B/C groups.
+        for expected_name in ("castor a", "castor b", "castor c"):
             if expected_name not in subsystem_names:
                 raise AssertionError(
                     f"{case.query}: expected rendered subsystem {expected_name!r}, got {sorted(subsystem_names)}"

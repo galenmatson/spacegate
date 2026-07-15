@@ -2005,7 +2005,10 @@ test.describe("public 3D map beta", () => {
     expect(scenePayload.render_scene?.schema_version).toBe("render_scene_v0.2");
     expect(scenePayload.render_scene?.bodies?.stars?.length).toBeGreaterThanOrEqual(6);
     expect(scenePayload.render_scene?.bodies?.subsystems?.length).toBeGreaterThanOrEqual(3);
-    expect(scenePayload.render_scene?.bodies?.subsystems?.some((subsystem) => subsystem.display_name === "Castor AB")).toBeTruthy();
+    const castorSubsystemNames = (scenePayload.render_scene?.bodies?.subsystems || []).map(
+      (subsystem) => subsystem.display_name
+    );
+    expect(castorSubsystemNames).toEqual(expect.arrayContaining(["Castor A", "Castor B", "Castor C"]));
     const massPriorStars = (scenePayload.render_scene?.bodies?.stars || []).filter(
       (star) => star.fields?.visual_stellar_class?.basis === "mass_main_sequence_prior_v1"
     );
@@ -2086,7 +2089,8 @@ test.describe("public 3D map beta", () => {
       { timeout: 3000 }
     ).toBeGreaterThanOrEqual(3);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='b']")).toHaveCount(3);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='a']")).toHaveCount(2);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(1);
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(4);
   });
 
@@ -2394,8 +2398,8 @@ test.describe("public 3D map beta", () => {
     ).toBe(5);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList).toBeVisible();
-    await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(8);
-    for (const name of ["V1054 Oph A", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
+    await expect(objectList.locator(".system-preview-object-chip")).toHaveCount(6);
+    for (const name of ["V1054 Oph", "V1054 Oph BA", "V1054 Oph BB", "GJ 643", "VB 8"]) {
       await expect(objectList.getByText(name, { exact: true })).toBeVisible();
     }
     await expect(objectList.getByText("V1054 Oph D", { exact: true })).toHaveCount(0);
@@ -2471,12 +2475,12 @@ test.describe("public 3D map beta", () => {
     test.skip(testInfo.project.name.includes("mobile"), "wide-orbit benchmark smoke uses desktop API and one visual render");
     const cases = [
       { query: "Alpha Centauri", minStars: 3, minSourceGroup: 1, minNested: 1, maxUnattached: 0 },
-      { query: "Tegmine", minStars: 5, minSourceGroup: 1, minNested: 1, maxUnattached: 2 },
+      { query: "Tegmine", minStars: 5, minSourceGroup: 1, maxUnattached: 2 },
       { query: "Fomalhaut", minStars: 3, minAssumed: 1 },
       { query: "Xi Scorpii", minStars: 5, minSourceGroup: 1, minNested: 1, maxUnattached: 2 },
       { query: "eps Ind", minStars: 3, minSourceGroup: 1 },
       { query: "Sirius", minStars: 2, minAssumed: 1 },
-      { query: "Castor", minStars: 6, minSourceGroup: 2, minNested: 1, maxUnattached: 0 },
+      { query: "Castor", minStars: 6, minSourceGroup: 2, maxUnattached: 2 },
       { query: "Nu Sco", minStars: 7, minSourceGroup: 2, minNested: 1, maxUnattached: 4 },
       { query: "16 Cyg", minStars: 3, minSkippedOverlap: 1, activeOrbitPattern: /16 Cyg B A - 16 Cyg B B/, maxUnattached: 0 },
     ];

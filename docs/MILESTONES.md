@@ -1171,8 +1171,9 @@ Readiness gaps:
   does not merge/split systems or alter canonical source identity.
 - June 30, 2026 subsystem inspection pass adds renderer-ready subsystem bodies
   and subtle hierarchy-center markers for nodes with multiple rendered stellar
-  descendants. Castor now verifies inspectable subsystem bodies such as Castor
-  AB/A/B/C without creating new science-layer stars or orbit solutions.
+  descendants. Castor now verifies inspectable A/B/C subsystem groups; `Castor
+  AB` remains a stellar leaf inside the A group rather than a parallel subsystem.
+  This creates no new science-layer stars or orbit solutions.
 - June 29, 2026 interaction pass adds a pauseable local preview clock, sampled
   eccentric/inclined orbit guide paths that match planet motion, and hover
   vitals for rendered stars and planets.
