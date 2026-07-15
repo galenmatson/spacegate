@@ -919,6 +919,172 @@ def cook_sbx(
     return line_count
 
 
+def _fixed_width(line: str, start: int, end: int) -> str:
+    """Return a stripped 1-indexed inclusive fixed-width field."""
+    return line[start - 1 : end].strip()
+
+
+def _sb9_position(line: str) -> tuple[float | None, float | None]:
+    try:
+        ra_h = int(_fixed_width(line, 17, 18))
+        ra_m = int(_fixed_width(line, 19, 20))
+        ra_s = float(_fixed_width(line, 21, 25))
+        dec_sign = -1.0 if _fixed_width(line, 26, 26) == "-" else 1.0
+        dec_d = int(_fixed_width(line, 27, 28))
+        dec_m = int(_fixed_width(line, 29, 30))
+        dec_s = float(_fixed_width(line, 31, 34))
+    except ValueError:
+        return None, None
+    return (
+        (ra_h + ra_m / 60.0 + ra_s / 3600.0) * 15.0,
+        dec_sign * (dec_d + dec_m / 60.0 + dec_s / 3600.0),
+    )
+
+
+def cook_sb9(
+    main_raw_path: Path,
+    alias_raw_path: Path,
+    orbits_raw_path: Path,
+    systems_cooked_path: Path,
+    aliases_cooked_path: Path,
+    orbits_cooked_path: Path,
+) -> tuple[int, int, int]:
+    systems_cooked_path.parent.mkdir(parents=True, exist_ok=True)
+
+    system_count = 0
+    with main_raw_path.open("r", encoding="ascii", errors="replace") as in_f, systems_cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        fields = [
+            "sb9_sequence", "b1900_name", "ra_deg", "dec_deg", "component_label",
+            "magnitude_primary", "magnitude_primary_band", "magnitude_secondary",
+            "magnitude_secondary_band", "spectral_type_primary", "spectral_type_secondary",
+            "source_name", "source_line_number", "raw_row",
+        ]
+        writer = csv.DictWriter(out_f, fieldnames=fields)
+        writer.writeheader()
+        for line_number, raw_line in enumerate(in_f, start=1):
+            line = raw_line.rstrip("\r\n")
+            sequence = parse_int(_fixed_width(line, 1, 4))
+            if sequence is None:
+                continue
+            ra_deg, dec_deg = _sb9_position(line)
+            writer.writerow(
+                {
+                    "sb9_sequence": sequence,
+                    "b1900_name": _fixed_width(line, 6, 15),
+                    "ra_deg": ra_deg,
+                    "dec_deg": dec_deg,
+                    "component_label": _fixed_width(line, 36, 42),
+                    "magnitude_primary": parse_float(_fixed_width(line, 44, 49)),
+                    "magnitude_primary_band": _fixed_width(line, 50, 50),
+                    "magnitude_secondary": parse_float(_fixed_width(line, 52, 57)),
+                    "magnitude_secondary_band": _fixed_width(line, 58, 58),
+                    "spectral_type_primary": _fixed_width(line, 60, 91),
+                    "spectral_type_secondary": _fixed_width(line, 93, 102),
+                    "source_name": _fixed_width(line, 104, 132),
+                    "source_line_number": line_number,
+                    "raw_row": line,
+                }
+            )
+            system_count += 1
+
+    alias_count = 0
+    with alias_raw_path.open("r", encoding="ascii", errors="replace") as in_f, aliases_cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        writer = csv.DictWriter(
+            out_f,
+            fieldnames=["sb9_sequence", "alias", "source_line_number", "raw_row"],
+        )
+        writer.writeheader()
+        for line_number, raw_line in enumerate(in_f, start=1):
+            line = raw_line.rstrip("\r\n")
+            sequence = parse_int(_fixed_width(line, 1, 4))
+            alias = _fixed_width(line, 6, 39)
+            if sequence is None or not alias:
+                continue
+            writer.writerow(
+                {
+                    "sb9_sequence": sequence,
+                    "alias": alias,
+                    "source_line_number": line_number,
+                    "raw_row": line,
+                }
+            )
+            alias_count += 1
+
+    orbit_count = 0
+    with orbits_raw_path.open("r", encoding="ascii", errors="replace") as in_f, orbits_cooked_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as out_f:
+        fields = [
+            "sb9_sequence", "orbit_number", "period_days", "period_fixed_flag", "period_error_days",
+            "periastron_jd", "periastron_fixed_flag", "periastron_error_days", "periastron_epoch_flag",
+            "eccentricity", "eccentricity_fixed_flag", "eccentricity_error", "omega_deg",
+            "omega_fixed_flag", "omega_error_deg", "semi_amplitude_primary_kms",
+            "semi_amplitude_primary_uncertain", "semi_amplitude_primary_fixed_flag",
+            "semi_amplitude_primary_error_kms", "semi_amplitude_secondary_kms",
+            "semi_amplitude_secondary_uncertain", "semi_amplitude_secondary_fixed_flag",
+            "semi_amplitude_secondary_error_kms", "systemic_velocity_kms", "systemic_velocity_uncertain",
+            "systemic_velocity_fixed_flag", "systemic_velocity_error_kms", "rms_primary_kms",
+            "rms_secondary_kms", "observation_count_primary", "observation_count_secondary", "orbit_grade",
+            "reference_bibcode", "contributor", "access_code", "source_line_number", "raw_row",
+        ]
+        writer = csv.DictWriter(out_f, fieldnames=fields)
+        writer.writeheader()
+        for line_number, raw_line in enumerate(in_f, start=1):
+            line = raw_line.rstrip("\r\n")
+            sequence = parse_int(_fixed_width(line, 1, 4))
+            orbit_number = parse_int(_fixed_width(line, 6, 6))
+            if sequence is None or orbit_number is None:
+                continue
+            writer.writerow(
+                {
+                    "sb9_sequence": sequence,
+                    "orbit_number": orbit_number,
+                    "period_days": parse_float(_fixed_width(line, 8, 23)),
+                    "period_fixed_flag": _fixed_width(line, 25, 25),
+                    "period_error_days": parse_float(_fixed_width(line, 26, 40)),
+                    "periastron_jd": parse_float(_fixed_width(line, 42, 57)),
+                    "periastron_fixed_flag": _fixed_width(line, 59, 59),
+                    "periastron_error_days": parse_float(_fixed_width(line, 60, 72)),
+                    "periastron_epoch_flag": _fixed_width(line, 74, 77),
+                    "eccentricity": parse_float(_fixed_width(line, 79, 89)),
+                    "eccentricity_fixed_flag": _fixed_width(line, 91, 91),
+                    "eccentricity_error": parse_float(_fixed_width(line, 92, 102)),
+                    "omega_deg": parse_float(_fixed_width(line, 104, 112)),
+                    "omega_fixed_flag": _fixed_width(line, 114, 114),
+                    "omega_error_deg": parse_float(_fixed_width(line, 115, 122)),
+                    "semi_amplitude_primary_kms": parse_float(_fixed_width(line, 124, 133)),
+                    "semi_amplitude_primary_uncertain": _fixed_width(line, 134, 134),
+                    "semi_amplitude_primary_fixed_flag": _fixed_width(line, 136, 136),
+                    "semi_amplitude_primary_error_kms": parse_float(_fixed_width(line, 137, 146)),
+                    "semi_amplitude_secondary_kms": parse_float(_fixed_width(line, 148, 157)),
+                    "semi_amplitude_secondary_uncertain": _fixed_width(line, 158, 158),
+                    "semi_amplitude_secondary_fixed_flag": _fixed_width(line, 160, 160),
+                    "semi_amplitude_secondary_error_kms": parse_float(_fixed_width(line, 161, 170)),
+                    "systemic_velocity_kms": parse_float(_fixed_width(line, 172, 181)),
+                    "systemic_velocity_uncertain": _fixed_width(line, 182, 182),
+                    "systemic_velocity_fixed_flag": _fixed_width(line, 184, 184),
+                    "systemic_velocity_error_kms": parse_float(_fixed_width(line, 185, 194)),
+                    "rms_primary_kms": parse_float(_fixed_width(line, 196, 204)),
+                    "rms_secondary_kms": parse_float(_fixed_width(line, 206, 214)),
+                    "observation_count_primary": parse_int(_fixed_width(line, 216, 219)),
+                    "observation_count_secondary": parse_int(_fixed_width(line, 221, 224)),
+                    "orbit_grade": parse_float(_fixed_width(line, 226, 228)),
+                    "reference_bibcode": _fixed_width(line, 230, 280),
+                    "contributor": _fixed_width(line, 282, 291),
+                    "access_code": _fixed_width(line, 293, 295),
+                    "source_line_number": line_number,
+                    "raw_row": line,
+                }
+            )
+            orbit_count += 1
+
+    return system_count, alias_count, orbit_count
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     state_dir = Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
@@ -980,6 +1146,34 @@ def main() -> int:
             if not path.exists()
         ]
         print(f"skip sbx: missing {', '.join(missing)}")
+
+    sb9_main_raw = raw_dir / "sb9" / "main.dat"
+    sb9_alias_raw = raw_dir / "sb9" / "alias.dat"
+    sb9_orbits_raw = raw_dir / "sb9" / "orbits.dat"
+    sb9_cooked_dir = cooked_dir / "sb9"
+    enable_sb9 = os.getenv("SPACEGATE_ENABLE_SB9", "1") != "0"
+    if enable_sb9 and all(path.exists() for path in (sb9_main_raw, sb9_alias_raw, sb9_orbits_raw)):
+        counts = cook_sb9(
+            sb9_main_raw,
+            sb9_alias_raw,
+            sb9_orbits_raw,
+            sb9_cooked_dir / "sb9_systems.csv",
+            sb9_cooked_dir / "sb9_aliases.csv",
+            sb9_cooked_dir / "sb9_orbits.csv",
+        )
+        print(
+            "cooked sb9: "
+            f"systems={counts[0]}, aliases={counts[1]}, orbits={counts[2]} -> {sb9_cooked_dir}"
+        )
+    elif enable_sb9:
+        missing = [
+            str(path)
+            for path in (sb9_main_raw, sb9_alias_raw, sb9_orbits_raw)
+            if not path.exists()
+        ]
+        print(f"skip sb9: missing {', '.join(missing)}")
+    else:
+        print("skip sb9: SPACEGATE_ENABLE_SB9=0")
 
     return 0
 

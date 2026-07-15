@@ -19,6 +19,7 @@ VERIFY_DETERMINISTIC_RERUN="${SPACEGATE_VERIFY_DETERMINISTIC_RERUN:-1}"
 VERIFY_COMPACT_ALIAS_SAFETY="${SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY:-0}"
 VERIFY_TESS_EVIDENCE="${SPACEGATE_VERIFY_TESS_EVIDENCE:-1}"
 VERIFY_EXTENDED_OBJECTS="${SPACEGATE_VERIFY_EXTENDED_OBJECTS:-1}"
+VERIFY_MULTIPLE_COMPONENT_EVIDENCE="${SPACEGATE_VERIFY_MULTIPLE_COMPONENT_EVIDENCE:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -79,6 +80,10 @@ PY
   fi
 
   echo "Verify target: $build_dir"
+
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/audit_science_transform_exceptions.py" \
+    --root "$ROOT_DIR" \
+    --report "$REPORTS_DIR/science_transform_exception_audit.json"
 
   if [[ ! -d "$build_dir" ]]; then
     echo "Error: build directory not found: $build_dir" >&2
@@ -417,6 +422,11 @@ PY
       --source-delta-report "$STATE_DIR/reports/tess_source_delta_report.json"
   fi
   if [[ -f "$arm_db" ]]; then
+    if [[ "$VERIFY_MULTIPLE_COMPONENT_EVIDENCE" == "1" ]]; then
+      "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_multiple_component_evidence.py" \
+        --arm-db "$arm_db" \
+        --report "$reports_dir/multiple_component_evidence_report.json"
+    fi
     "$PYTHON_BIN" - <<'PY' "$arm_db" "${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"
 import sys
 import duckdb

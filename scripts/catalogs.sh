@@ -39,6 +39,7 @@ MSC_MIRROR_URL="${SPACEGATE_MSC_MIRROR_URL:-${PUBLIC_BASE_URL}/dl/catalogs/curre
 MSC_URL="${MSC_URL:-${SPACEGATE_MSC_MIRROR_URL:-$MSC_UPSTREAM_URL}}"
 MSC_HTTP_URL="${MSC_HTTP_URL:-http://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz}"
 ORB6_URL="${ORB6_URL:-https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.sql}"
+SB9_BASE_URL="${SB9_BASE_URL:-https://cdsarc.cds.unistra.fr/ftp/B/sb9}"
 DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
 CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
 CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/nodup.dat.gz}"
@@ -173,6 +174,7 @@ hwc|Habitable Worlds Catalog (full CSV)
 wds|Washington Double Star Catalog (WDS)
 msc|Multiple Star Catalog (MSC)
 orb6|Sixth Catalog of Orbits of Visual Binary Stars (ORB6)
+sb9|Ninth Catalogue of Spectroscopic Binary Orbits (SB9)
 debcat|DEBCat detached eclipsing binaries
 clusters|Gaia DR2 clusters (Cantat-Gaudin 2020)
 vsx|AAVSO Variable Star Index (VSX)
@@ -239,6 +241,12 @@ catalog_sources() {
       ;;
     orb6)
       printf '%s\n' "orb6|orb6orbits|$ORB6_URL|raw/orb6/orb6orbits.sql"
+      ;;
+    sb9)
+      printf '%s\n' "sb9|sb9_readme|$SB9_BASE_URL/ReadMe|raw/sb9/ReadMe"
+      printf '%s\n' "sb9|sb9_main|$SB9_BASE_URL/main.dat|raw/sb9/main.dat"
+      printf '%s\n' "sb9|sb9_alias|$SB9_BASE_URL/alias.dat|raw/sb9/alias.dat"
+      printf '%s\n' "sb9|sb9_orbits|$SB9_BASE_URL/orbits.dat|raw/sb9/orbits.dat"
       ;;
     debcat)
       printf '%s\n' "debcat|debs_dat|$DEBCAT_URL|raw/debcat/debs.dat"
@@ -388,6 +396,9 @@ expand_catalogs() {
     case "$item" in
       core)
         expanded+=("athyg" "nasa_exoplanet_archive" "wds" "msc" "orb6" "debcat" "extended_objects")
+        if [[ "${SPACEGATE_ENABLE_SB9:-1}" != "0" ]]; then
+          expanded+=("sb9")
+        fi
         if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
           expanded+=("exoplanet_eu" "open_exoplanet_catalogue" "hwc")
         fi

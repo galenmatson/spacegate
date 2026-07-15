@@ -450,21 +450,12 @@ Contract notes:
   bright-primary AT-HYG aliases plus HD/WDS or non-proper primary aliases. The
   check is warn-only during the current served-artifact repair window and can
   be made strict with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`.
-- Gaia-first builds may include reviewed accepted supplements for objects that
-  are absent from the Gaia backbone but required for honest canonical inventory
-  of well-established nearby systems. These rows are data-source-backed core
-  exceptions, not presentation assumptions: they must be listed in
-  `config/core_accepted_supplements.json`, carry source provenance, and remain
-  visibly distinct from a broad AT-HYG supplement merge.
-- A reviewed supplement may declare typed `identifiers` containing
-  `namespace`, `id_value`, `reason`, and structured `evidence`. Ingest emits
-  these as non-canonical `object_identifiers` with
-  `resolution_method=reviewed_supplement_identifier`; canonical emission must
-  remap them with their target entity, deduplicate them deterministically, and
-  retain the evidence payload. Normal namespace collision gates still apply.
-- Reviewed supplemental identifiers are an explicit adjudication mechanism,
-  not permission to widen global positional matching tolerances or invent
-  aliases from candidate evidence.
+- Legacy accepted-supplement ingestion is retired and is not part of the
+  canonical production contract. Former cases are preserved as non-executable
+  deferred adjudication inputs in `config/deferred_core_adjudications.json`.
+  Canonical promotion requires a reusable source/reconciliation rule or a
+  reviewed, inspectable adjudication artifact; a local object-specific config
+  row is insufficient.
 - Gaia-fallback display names may be promoted from matched exoplanet host labels when canonical/common stellar labels are absent.
 - host-label precedence in Gaia-fallback promotion should prefer:
   - human/common labels

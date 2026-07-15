@@ -196,7 +196,8 @@ Dependencies:
 
 Deliverables:
 
-- NSS/MSC/WDS/ORB6 reintegration on Gaia IDs
+- NSS/MSC/WDS/ORB6/SBX reintegration on Gaia IDs, with SB9 and DEBCat
+  component evidence attached in ARM only through deterministic endpoint rules
 - confidence-tiered hierarchy materialization
 - parent/child subsystem navigation model
 
@@ -443,7 +444,7 @@ Dependencies:
 
 - M4 identity and naming authority
 - M5.3 planet lifecycle contract
-- canonical quarantine and accepted-supplement paths
+- canonical quarantine and inspectable adjudication paths
 
 Deliverables:
 
@@ -1083,6 +1084,19 @@ Completed:
 - Exact member-star runtime fallback preserves targets such as `VB 8` on older
   side builds whose materialized `system_search_terms` omitted member rows;
   canonical emitters continue to materialize those rows for new builds.
+- July 15, 2026 multiplicity-evidence integrity pass adds pinned CDS SB9
+  acquisition and source-native system/alias/orbit cooking. Exact unique MSC
+  `SB9_<sequence>` references attach primary/secondary spectral evidence to
+  existing ARM endpoints; ambiguous and unresolved matches are quarantined.
+- DEBCat component spectral types attach through a separate unique canonical
+  system + period + endpoint rule. The initial full ARM verification accepted
+  855 SB9 binary matches and 14 DEBCat binary matches, producing 1,104
+  component spectral observations. Castor resolves as A/M, A/M, M/M from SB9,
+  with YY Gem independently corroborated by DEBCat.
+- The default executable accepted-supplement list was retired. Former Sirius
+  A/B and L 134-80 cases are preserved in a non-executable adjudication inbox,
+  and a static production-transform audit rejects new object literals unless
+  they are explicitly classified as report-only diagnostics.
 
 Remaining:
 
@@ -1095,6 +1109,12 @@ Remaining:
   WDS observation rows are preserved, but Spacegate has not yet decided which
   rows should become ARM pair support entities, projection evidence, orbit-edge
   candidates, or diagnostics only.
+- run the former accepted-supplement cases through the inspectable AAA/human
+  adjudication contract or replace them with a general source reconciliation
+  rule before restoring them to canonical inventory.
+- evaluate Skiff spectral classifications and VSX composite spectral strings
+  as corroborating evidence only after a source-native component-scope rule is
+  defined. Do not split a composite type across graph endpoints by name alone.
 - decide whether a capped/materialized ARM policy for stellar subclass priors
   is worth the storage cost, or whether runtime provenance remains sufficient.
 

@@ -1,0 +1,41 @@
+{
+  "notes": [
+    "These cases were formerly promoted directly by config/core_accepted_supplements.json.",
+    "They are evidence-preserving adjudication inputs, not executable catalog-build overrides.",
+    "Each case must be resolved by a general source/reconciliation rule or a future inspectable AAA adjudication record before canonical promotion."
+  ],
+  "version": "deferred_core_adjudications_v1",
+  "cases": [
+    {
+      "case_id": "deferred:sirius-a-gaia-backbone-gap",
+      "status": "deferred_aaa_adjudication",
+      "assertion_kind": "canonical_inventory_recovery",
+      "display_name": "Sirius A",
+      "candidate_source_catalog": "athyg",
+      "candidate_source_pk": "584955",
+      "candidate_wds_id": "06451-1643",
+      "previous_reason": "bright_primary_missing_from_gaia_dr3_with_wds_compact_companion"
+    },
+    {
+      "case_id": "deferred:l-134-80-gaia-backbone-gap",
+      "status": "deferred_aaa_adjudication",
+      "assertion_kind": "canonical_inventory_recovery_and_identifier_binding",
+      "display_name": "L 134-80",
+      "candidate_source_catalog": "athyg",
+      "candidate_source_pk": "527735",
+      "candidate_identifier_namespace": "tic",
+      "candidate_identifier_value": "150320610",
+      "previous_reason": "nearby_toi_host_missing_from_gaia_parallax_backbone_with_published_ground_parallax"
+    },
+    {
+      "case_id": "deferred:sirius-b-wds-component-link",
+      "status": "deferred_aaa_adjudication",
+      "assertion_kind": "component_identity_binding",
+      "display_name": "Sirius B",
+      "candidate_target_namespace": "gaia_dr3",
+      "candidate_target_id": "2947050466531873024",
+      "candidate_wds_id": "06451-1643",
+      "previous_reason": "reviewed_wds_compact_companion_link"
+    }
+  ]
+}

@@ -346,7 +346,7 @@ Multiplicity evidence sources (current policy):
 
 1. Gaia NSS (exact Gaia-linked evidence)
 2. MSC (mandatory)
-3. WDS/ORB6/SBX (broad support evidence, confidence-gated)
+3. WDS/ORB6/SBX/SB9/DEBCat (broad support and component evidence, confidence-gated)
 
 Current rules:
 
@@ -369,6 +369,11 @@ Current rules:
   `20260628T1210Z_msc20260619` promoted on June 28, 2026 and passed required
   multiplicity golden checks
 - SBX is default-on support evidence (`SPACEGATE_ENABLE_SBX`) for spectroscopic-binary coverage
+- SB9 is default-on ARM evidence (`SPACEGATE_ENABLE_SB9`) because its
+  primary/secondary spectral types are not present in the current SBX export.
+  Exact MSC `SB9_<sequence>` references bind source evidence to existing graph
+  endpoints; ambiguous or unresolved bindings are quarantined. DEBCat may
+  corroborate endpoints only through a unique canonical-system + period match.
 - physical consistency gating is required for WDS-linked grouping via bridge:
   - distance spread threshold
   - proper-motion spread threshold
@@ -934,17 +939,13 @@ Notes:
   use small-body selector commands, and Ceres/Vesta-class sentinel checks stop
   ambiguous numeric Horizons commands from producing major-planet or
   satellite-like orbital solutions in core, ARM, or the simulator.
-- Reviewed accepted supplements are allowed as narrow Gaia-first inventory
-  exceptions when a well-established nearby object is absent from Gaia but
-  required for a truthful system graph. The default list lives in
-  `config/core_accepted_supplements.json`; rows remain source-provenanced and
-  visibly distinct from the disabled broad AT-HYG supplement merge. Sirius A is
-  the first accepted supplement, paired with a reviewed WDS component link for
-  the Gaia Sirius B row. Local build `20260630T_sim_beta_api_alias_v4` first
-  materialized this as a two-member Sirius system and restored reviewed no-Gaia
-  ATHYG aliases such as `Alpha Canis Majoris`; current served build
-  `20260630T_sim_beta_sol_smallbody_v1` retains that simulator benchmark while
-  adding Sol small-body source-refresh fixes.
+- Object-specific accepted-supplement configuration is disabled in default
+  science builds. Former Sirius A, Sirius B, and L 134-80 exceptions are
+  retained as non-executable cases in
+  `config/deferred_core_adjudications.json`; they require either a reusable
+  source reconciliation rule or an inspectable AAA/human adjudication record
+  before future canonical promotion. Goldens may name systems, but production
+  transforms may not branch on those names or identifiers to satisfy a gate.
 - Gaia-first builds now include an explicit AT-HYG supplement reconciliation pass with deterministic precedence:
   - exact Gaia ID
   - Gaia legacy remap via unique HIP/HD agreement

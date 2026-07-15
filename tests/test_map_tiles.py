@@ -28,7 +28,11 @@ class MapTileContractTests(unittest.TestCase):
         self.assertEqual(tile_id(4, 8, 8, 8), "d4-e00")
 
     def test_binary_tile_preserves_identity_and_cell_relative_position(self) -> None:
-        row = (17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0, 30.0, "G", 1, 8, 1, 1, 5772.0)
+        row = (
+            17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
+            30.0, "G", 1, 8, 1, 1, 5772.0, '["G"]',
+            "Sol", "Sol", "Sun",
+        )
         raw, metadata = encode_tile(depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1)
         self.assertEqual(raw[:8], MAGIC)
         header_length = struct.unpack_from("<I", raw, 8)[0]
@@ -44,7 +48,7 @@ class MapTileContractTests(unittest.TestCase):
         row = (
             17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
             30.0, "G", 1, 8, 1, 1, 5772.0,
-            "Sol", "Sol", "Sun",
+            '["G"]', "Sol", "Sol", "Sun",
         )
         raw, _ = encode_tile(
             depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1,
@@ -52,9 +56,10 @@ class MapTileContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "tile.sgtile.gz"
             path.write_bytes(gzip.compress(raw, mtime=0))
-            header, names, _ = read_tile(path)
+            header, names, _, badges = read_tile(path)
         self.assertEqual(header["emitted_count"], 1)
         self.assertEqual(names, {17788193: "Sol"})
+        self.assertEqual(badges, {17788193: ["G", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"]})
 
 
 if __name__ == "__main__":

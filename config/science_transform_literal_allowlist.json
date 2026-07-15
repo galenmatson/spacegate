@@ -1,0 +1,60 @@
+{
+  "version": "science_transform_literal_allowlist_v1",
+  "entries": [
+    {
+      "path": "scripts/ingest/build_canonical_hierarchy.py",
+      "literal": "07346+3153",
+      "reason": "report-only Castor hierarchy sample; does not participate in canonical reduction"
+    },
+    {
+      "path": "scripts/ingest/build_canonical_hierarchy.py",
+      "literal": "canon:system:wds:07346+3153",
+      "reason": "report-only Castor hierarchy sample; does not participate in canonical reduction"
+    },
+    {
+      "path": "scripts/ingest/build_canonical_hierarchy.py",
+      "literal": "Castor",
+      "reason": "report key for a diagnostic hierarchy sample; does not participate in canonical reduction"
+    },
+    {
+      "path": "scripts/ingest/build_canonical_hierarchy.py",
+      "literal": "19418+5032",
+      "reason": "report-only 16 Cyg hierarchy sample; does not participate in canonical reduction"
+    },
+    {
+      "path": "scripts/ingest/build_canonical_hierarchy.py",
+      "literal": "canon:system:wds:19418+5032",
+      "reason": "report-only 16 Cyg hierarchy sample; does not participate in canonical reduction"
+    },
+    {
+      "path": "scripts/ingest/emit_canonical_build.py",
+      "literal": "07346+3153",
+      "reason": "report-only Castor emission sample; does not participate in canonical emission"
+    },
+    {
+      "path": "scripts/ingest/emit_canonical_build.py",
+      "literal": "canon:system:wds:07346+3153",
+      "reason": "report-only Castor emission sample; does not participate in canonical emission"
+    },
+    {
+      "path": "scripts/ingest/emit_canonical_build.py",
+      "literal": "Castor",
+      "reason": "report key for a diagnostic emission sample; does not participate in canonical emission"
+    },
+    {
+      "path": "scripts/ingest/emit_canonical_build.py",
+      "literal": "19418+5032",
+      "reason": "report-only 16 Cyg emission sample; does not participate in canonical emission"
+    },
+    {
+      "path": "scripts/ingest/emit_canonical_build.py",
+      "literal": "canon:system:wds:19418+5032",
+      "reason": "report-only 16 Cyg emission sample; does not participate in canonical emission"
+    },
+    {
+      "path": "scripts/ingest/reduce_canonical_objects.py",
+      "literal": "16 Cyg",
+      "reason": "report-only interesting-sample key; does not participate in canonical reduction"
+    }
+  ]
+}

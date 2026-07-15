@@ -162,20 +162,21 @@ Deliverables:
 - classify each gap as:
   - existing Spacegate object missed by identity resolution
   - valid Gaia DR3 object excluded by the current slice/profile
-  - valid non-Gaia or Gaia-DR2-only target needing accepted-supplement review
+  - valid non-Gaia or Gaia-DR2-only target needing canonical adjudication
   - TIC split/join/artifact/duplicate
   - outside distance/quality scope
   - ambiguous or insufficient evidence
 - repair identity/slice policy before adding supplement rows
-- allow a narrow reviewed TESS target supplement only for real, in-scope
-  objects with sufficient astrometry and provenance
+- propose canonical recovery only for real, in-scope objects with sufficient
+  astrometry and provenance; promotion requires a reusable rule or inspectable
+  adjudication record
 
 Acceptance gates:
 
 - every in-scope TOI host is accounted for by a canonical object, an explicit
   exclusion reason, or quarantine
 - no TOI host is invented from a transit candidate alone
-- accepted supplements remain source-labeled and reversible
+- accepted adjudications remain source-labeled, inspectable, and reversible
 - inventory additions pass duplicate, provenance, astrometry, and hierarchy
   gates
 

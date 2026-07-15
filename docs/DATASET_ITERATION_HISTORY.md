@@ -401,6 +401,73 @@ Representative commits:
 Representative commits:
 - pending (system narration foundation v1)
 
+### 21) Multiplicity Evidence Integrity + SB9 v1
+
+- Audited production science transforms for object-specific logic introduced
+  to satisfy goldens. Named systems remain valid in verification fixtures,
+  benchmark reports, and operator diagnostics, but may not alter catalog
+  cooking or canonical reconciliation.
+- Removed the default executable `config/core_accepted_supplements.json` path.
+  Its Sirius A, Sirius B, and L 134-80 cases now live in
+  `config/deferred_core_adjudications.json` as non-executable review inputs.
+  `SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS=1` now fails ingestion; the legacy
+  code is retained temporarily only to make historical builds readable and is
+  not an executable production path.
+- The July 15 served CORE artifact predates this policy and still contains two
+  inherited `athyg_accepted_supplement` rows (Sirius A/HIP 32349 and L 134-80).
+  They are not silently deleted from immutable artifacts. The next full CORE
+  rebuild will omit them unless a general rule or adjudication has replaced
+  the retired path; this is an explicit expected delta, not a side-build
+  mutation.
+- Added `scripts/audit_science_transform_exceptions.py` and a narrow allowlist
+  for report-only Castor/16 Cyg sample literals. The July 15 audit scans CORE,
+  ARM, and canonical-ingest transforms with 11 classified report findings and
+  zero unexpected result-changing literals.
+- Corrected the prior assumption that SBX superseded all useful SB9 content.
+  The active SBX export supplies current system-level linkage but does not
+  preserve SB9's separate primary/secondary spectral-type columns. SB9 is now
+  complementary default-on ARM evidence.
+- Added deterministic acquisition of CDS `B/sb9` `ReadMe`, `main.dat`,
+  `alias.dat`, and `orbits.dat`; the observed snapshot cooked to 4,079 systems,
+  20,806 aliases, and 5,099 orbital solutions. Raw files and
+  `sb9_manifest.json` preserve retrieval timestamps, byte counts, and hashes.
+- Added `sb9_systems`, `sb9_aliases`, `sb9_orbits`,
+  `multiple_component_evidence_matches`, and
+  `multiple_component_stellar_evidence` to ARM. SB9 endpoint attachment
+  requires an exact unique MSC `SB9_<sequence>` reference and two existing
+  stellar graph endpoints. No name-only fallback exists.
+- Added a general DEBCat endpoint rule requiring the same canonical system, a
+  unique MSC period match within `max(0.01 day, 1%)`, and two existing stellar
+  endpoints.
+- Full ARM verification on `/tmp/spacegate-arm-sb9-v2.duckdb` accepted 855 SB9
+  and 14 DEBCat binary matches. It quarantined 87 unresolved/ambiguous matches,
+  excluded 43 SB9 matches with no component spectral type, and materialized
+  1,104 endpoint spectral observations. Castor's six source classes are
+  `A, M, A, M, M, M`; DEBCat independently supplies `M1_Ve` for both YY Gem
+  endpoints.
+- A second ARM build with identical build metadata reproduced all five v1
+  evidence tables byte-for-row. Canonical aggregate hashes were:
+  `sb9_systems=6cdf788375db`, `sb9_aliases=c02b5acd9274`,
+  `sb9_orbits=dde2deb19dfa`,
+  `multiple_component_evidence_matches=3ecc609a3691`, and
+  `multiple_component_stellar_evidence=4df2e70a26ef`. Re-cooking the raw SB9
+  snapshot also reproduced identical CSV SHA-256 values.
+- Added focused SB9 fixed-width cooking tests and
+  `scripts/verify_multiple_component_evidence.py`. The verifier checks source
+  counts, explicit outcome accounting, duplicate evidence, allowed acceptance
+  methods, and the Castor representative golden without adding Castor-specific
+  build behavior. Machine-readable audit, coverage, quarantine, and determinism
+  evidence is retained under
+  `/data/spacegate/state/reports/verification/20260715_multiplicity_evidence_v1/`.
+- Multiple-source reconciliation is intentionally a bounded monotonic pass, not
+  open-ended recursion: normalize source rows, build hierarchy endpoints,
+  attach exact/unique component evidence, then recompute affected derived
+  classifications. Ambiguous cases are quarantined rather than repeatedly
+  rematched.
+
+Representative commits:
+- pending (multiplicity evidence integrity and SB9 v1)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

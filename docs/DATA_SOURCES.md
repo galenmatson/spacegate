@@ -62,7 +62,8 @@ Interpretation note:
 | UltracoolSheet | default-on | on | `SPACEGATE_ENABLE_ULTRACOOLSHEET`, `SPACEGATE_ENABLE_NEARBY_ULTRACOOL_INVENTORY` | ultracool/youth/kinematics overlay in `arm`; narrow nearby core-inventory bridge when Gaia misses vetted UCDs |
 | Gaia NSS | default-on | on | `SPACEGATE_ENABLE_GAIA_NSS` | Gaia-linked multiplicity evidence |
 | SBX (ULB spectroscopic binaries) | default-on | on | `SPACEGATE_ENABLE_SBX` | spectroscopic-binary multiplicity evidence via exact Gaia/HIP/HD joins |
-| DEBCat | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation |
+| SB9 (CDS `B/sb9`) | default-on ARM evidence | on | `SPACEGATE_ENABLE_SB9` | component-specific spectral types, aliases, and spectroscopic orbits; exact MSC sequence references bind evidence to graph endpoints |
+| DEBCat | default-on | on | `SPACEGATE_ENABLE_ECLIPSING_CATALOGS` | eclipsing-binary enrichment/validation; unique canonical-system + period matches may bind component evidence in ARM |
 | Kepler EB catalog | deferred (optional) | off | `SPACEGATE_ENABLE_KEPLER_EB` (with `SPACEGATE_ENABLE_ECLIPSING_CATALOGS=1`) | Kepler-era eclipsing support with low in-slice linkage in Gaia-first core |
 | Compact-object bundle (`ATNF`, `magnetar`, `white_dwarf`) | default-on | on | `SPACEGATE_ENABLE_COMPACT_OBJECT_CATALOGS` | compact/remnant support evidence (includes cooked+ingested Gaia EDR3 white-dwarf catalog) |
 | Superstellar bundle (`clusters`, `snr`) | default-on | on | `SPACEGATE_ENABLE_SUPERSTELLAR_CATALOGS` | open-cluster and remnant-nebula context |
@@ -72,7 +73,6 @@ Interpretation note:
 | Proximity grouping | optional runtime behavior | off | `SPACEGATE_ENABLE_PROXIMITY` | nondefault to avoid weak/inexact grouping in production |
 | AT-HYG | transitional | alias crosswalk on by default; supplement merge opt-in | `SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK`, `SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE` | migration compatibility for names/legacy IDs; not canonical inventory authority |
 | BDB/ILB-like non-mirrored sources | deferred/disregarded for default ingest | off | n/a | high-risk dependency until mirrored + integrity-pinned |
-| SB9 | disregarded for default ingest/eval | off | n/a | superseded by SBX policy |
 | TESS EB catalog (Villanova) | default-on | on | `SPACEGATE_ENABLE_TESS_EB` | eclipsing/variability expansion beyond Kepler with deterministic paginated export capture |
 | NASA TESS Objects of Interest + targeted TIC/MAST/Gaia metadata | default-on identity + `arm` evidence | on | `SPACEGATE_ENABLE_TESS_EVIDENCE` | exact TIC/TOI lookup, missing-object audit, candidate/transit evidence, and targeted Gaia reconciliation without bulk TIC ingestion; see `docs/TESS_INTEGRATION.md` |
 
@@ -95,8 +95,10 @@ Interpretation note:
   snapshot `20260628T1210Z_msc20260619` now contains refreshed MSC raw and
   cooked artifacts; sync this mirror to `spacegates.org` during the next public
   deployment.
-- SBX is the active spectroscopic-binary support path; keep SB9 as historical
-  context only unless an explicit regression/comparison task needs it.
+- SBX and SB9 are complementary. SBX supplies current Gaia/HIP/HD-linked
+  spectroscopic-binary system evidence, while SB9 preserves primary and
+  secondary component spectral types that are absent from the current SBX
+  export. Neither catalog creates canonical component inventory by itself.
 - WDS and ORB6 remain default visual-binary support sources, but ORB6 rows must
   only attach to unique, confidence-gated binary edges.
 - JPL Horizons/SBDB remain the Sol-system orbital authority path for volatile
@@ -406,8 +408,9 @@ Policy:
 - never assume Gaia DR2 and DR3 source IDs are interchangeable
 - TIC artifact/split/duplicate rows remain excluded or quarantined
 - TOI candidates and negative dispositions remain ARM evidence
-- only reviewed, independently supported missing real objects may enter the
-  accepted supplement path
+- independently supported missing real objects remain deferred until a reusable
+  canonical reconciliation rule or an inspectable adjudication record accepts
+  them; a local object-specific supplement file is not sufficient
 
 ## 13) WISE / CatWISE2020 / AllWISE
 
@@ -501,8 +504,17 @@ These are credible orbital-parameter repositories not yet wired into default ing
 
 SB9 policy:
 
-- SB9 is superseded by SBX and is not targeted for default ingest/evaluation while SBX remains available.
-- SB9 may be referenced only for historical reproducibility checks.
+- acquire the CDS `B/sb9` `ReadMe`, `main.dat`, `alias.dat`, and `orbits.dat`
+  together and preserve hashes in `sb9_manifest.json`
+- cook source-native systems, aliases, component spectral types, and orbital
+  solutions without merging them into canonical inventory
+- accept component bindings only when MSC contains an exact `SB9_<sequence>`
+  reference, that sequence is unique in the MSC source rows, and both MSC
+  endpoints exist in the ARM component graph
+- quarantine missing, ambiguous, or unresolved endpoint matches; do not fall
+  back to name-only or coordinate-only component assignment
+- DEBCat component evidence uses a separate unique canonical-system + period
+  match and the same endpoint-existence gates
 
 ## Current Manifest Files
 
@@ -513,6 +525,7 @@ Typical manifest files:
 - `reports/manifests/gaia_classprob_manifest.json`
 - `reports/manifests/gaia_nss_manifest.json`
 - `reports/manifests/sbx_manifest.json`
+- `reports/manifests/sb9_manifest.json`
 - `reports/manifests/wds_manifest.json`
 - `reports/manifests/orb6_manifest.json`
 - `reports/manifests/debcat_manifest.json`

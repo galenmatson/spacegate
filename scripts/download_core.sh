@@ -43,6 +43,9 @@ if [[ "${SPACEGATE_ENABLE_GAIA_BACKBONE:-0}" == "1" ]]; then
     --catalog msc
     --catalog orb6
   )
+  if [[ "${SPACEGATE_ENABLE_SB9:-1}" != "0" ]]; then
+    catalog_args+=(--catalog sb9)
+  fi
   if [[ "${SPACEGATE_ENABLE_EXOPLANET_LIFECYCLE_CATALOGS:-0}" == "1" ]]; then
     catalog_args+=(--catalog exoplanet_eu --catalog open_exoplanet_catalogue --catalog hwc)
   fi
@@ -100,6 +103,9 @@ else
     "$ROOT_DIR/scripts/catalogs.sh" --core "$@"
   else
     catalog_args=(--catalog athyg --catalog nasa_exoplanet_archive --catalog wds --catalog msc --catalog orb6)
+    if [[ "${SPACEGATE_ENABLE_SB9:-1}" != "0" ]]; then
+      catalog_args+=(--catalog sb9)
+    fi
     if [[ "${SPACEGATE_ENABLE_VSX:-1}" != "0" ]]; then
       catalog_args+=(--catalog vsx)
     fi

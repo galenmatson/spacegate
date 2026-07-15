@@ -13,6 +13,7 @@ import duckdb
 
 from tess_evidence_materialization import materialize_arm as materialize_tess_arm
 from extended_object_materialization import materialize_arm as materialize_extended_object_arm
+from multiple_component_evidence import materialize_arm as materialize_multiple_component_evidence
 
 MSC_VERSION_FALLBACK = "2026-06-19"
 WDS_VERSION_FALLBACK = "wdsweb_summ2"
@@ -133,11 +134,13 @@ def main() -> int:
     gaia_nss_manifest_path = manifest_dir / "gaia_nss_manifest.json"
     core_manifest_path = manifest_dir / "core_manifest.json"
     tess_evidence_manifest_path = manifest_dir / "tess_evidence_manifest.json"
+    sb9_manifest_path = manifest_dir / "sb9_manifest.json"
     enable_vsx = parse_bool_env("SPACEGATE_ENABLE_VSX", True)
     enable_ultracoolsheet = parse_bool_env("SPACEGATE_ENABLE_ULTRACOOLSHEET", True)
     enable_sol_authority = parse_bool_env("SPACEGATE_ENABLE_SOL_AUTHORITY", True)
     enable_sol_artificial = parse_bool_env("SPACEGATE_ENABLE_SOL_ARTIFICIAL", True)
     enable_tess_evidence = parse_bool_env("SPACEGATE_ENABLE_TESS_EVIDENCE", True)
+    enable_sb9 = parse_bool_env("SPACEGATE_ENABLE_SB9", True)
 
     if not core_db.exists():
         raise SystemExit(f"Core DB not found: {core_db}")
@@ -168,6 +171,10 @@ def main() -> int:
     )
     nasa_pscomppars_manifest = load_manifest_entry(core_manifest_path, "pscomppars")
     nasa_ps_manifest = load_manifest_entry(core_manifest_path, "ps")
+    sb9_manifest_entries = {
+        source_name: load_manifest_entry(sb9_manifest_path, source_name)
+        for source_name in ("sb9_readme", "sb9_main", "sb9_alias", "sb9_orbits")
+    }
     msc_version = str(msc_manifest.get("source_version") or MSC_VERSION_FALLBACK)
     msc_checksum = str(msc_manifest.get("sha256") or "")
     msc_retrieved = str(msc_manifest.get("retrieved_at") or "")
@@ -2100,7 +2107,7 @@ def main() -> int:
         -- Preserve an MSC root component for every WDS system represented by MSC,
         -- including simple binaries. Earlier builds only materialized roots for
         -- subsystem_count >= 2, which preserved endpoint evidence but prevented
-        -- ordinary binaries such as 70 Oph from receiving normalized orbit edges.
+        -- ordinary binaries from receiving normalized orbit edges.
         """
     )
     log(f"Arm stage complete: msc_system_roots ({time.monotonic() - stage_started:.1f}s)")
@@ -3619,6 +3626,22 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: prune derived_stellar_classifications ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: materializing multiple-component source evidence")
+    multiple_component_evidence_counts = materialize_multiple_component_evidence(
+        con,
+        state_dir,
+        args.build_id,
+        args.ingested_at,
+        args.transform_version,
+        sb9_manifest_entries,
+        enabled=enable_sb9,
+    )
+    log(
+        "Arm stage complete: multiple-component source evidence "
+        f"({time.monotonic() - stage_started:.1f}s)"
+    )
 
     stage_started = time.monotonic()
     log("Arm stage: creating orbit_edges")
@@ -6136,6 +6159,7 @@ def main() -> int:
             "derived_physical_parameters_by_key": derived_parameter_counts_by_key,
             "derived_stellar_classifications_rows": derived_stellar_classification_count,
             "derived_stellar_classifications_by_method": derived_stellar_classification_counts_by_method,
+            "multiple_component_evidence": multiple_component_evidence_counts,
             "stellar_parameters_gaia_rows": gaia_stellar_parameter_count,
             "stellar_parameters_nasa_rows": nasa_stellar_parameter_count,
             "vsx_variability_rows": vsx_variability_count,

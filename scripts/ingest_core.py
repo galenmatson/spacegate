@@ -863,7 +863,14 @@ def main() -> int:
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
-    enable_accepted_supplements = parse_bool_env("SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS", True)
+    # Legacy reviewed supplements predate the AAA adjudication contract and are
+    # forbidden in current reproducible science builds.
+    enable_accepted_supplements = parse_bool_env("SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS", False)
+    if enable_accepted_supplements:
+        raise SystemExit(
+            "SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS is retired: use a general reconciliation "
+            "rule or an inspectable adjudication artifact"
+        )
     enable_nearby_ultracool_inventory = parse_bool_env(
         "SPACEGATE_ENABLE_NEARBY_ULTRACOOL_INVENTORY",
         True,

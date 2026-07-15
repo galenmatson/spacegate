@@ -31,6 +31,10 @@ SBX_SYSTEMS_RAW="$RAW_DIR/sbx/sbx_systems.csv"
 SBX_ALIAS_RAW="$RAW_DIR/sbx/sbx_alias.csv"
 SBX_CONFIG_RAW="$RAW_DIR/sbx/sbx_configurations.csv"
 SBX_ORBITS_RAW="$RAW_DIR/sbx/sbx_orbits.csv"
+SB9_README_RAW="$RAW_DIR/sb9/ReadMe"
+SB9_MAIN_RAW="$RAW_DIR/sb9/main.dat"
+SB9_ALIAS_RAW="$RAW_DIR/sb9/alias.dat"
+SB9_ORBITS_RAW="$RAW_DIR/sb9/orbits.dat"
 EXOPLANET_EU_RAW="$RAW_DIR/exoplanet_eu/catalog.csv"
 OEC_RAW="$RAW_DIR/open_exoplanet_catalogue/open_exoplanet_catalogue.tar.gz"
 HWC_RAW="$RAW_DIR/hwc/hwc.csv"
@@ -77,6 +81,7 @@ ensure_inputs() {
   local enable_msc="${SPACEGATE_ENABLE_MSC:-1}"
   local enable_gaia_nss="${SPACEGATE_ENABLE_GAIA_NSS:-1}"
   local enable_sbx="${SPACEGATE_ENABLE_SBX:-1}"
+  local enable_sb9="${SPACEGATE_ENABLE_SB9:-1}"
   local enable_wds_gaia_xmatch="${SPACEGATE_ENABLE_WDS_GAIA_XMATCH:-1}"
   local enable_sol_authority="${SPACEGATE_ENABLE_SOL_AUTHORITY:-1}"
   local enable_sol_artificial="${SPACEGATE_ENABLE_SOL_ARTIFICIAL:-1}"
@@ -144,6 +149,14 @@ ensure_inputs() {
       echo "Missing: $SBX_ORBITS_RAW" >&2
       missing=1
     fi
+  fi
+  if [[ "$enable_sb9" != "0" ]]; then
+    for path in "$SB9_README_RAW" "$SB9_MAIN_RAW" "$SB9_ALIAS_RAW" "$SB9_ORBITS_RAW"; do
+      if [[ ! -f "$path" ]]; then
+        echo "Missing: $path" >&2
+        missing=1
+      fi
+    done
   fi
   if [[ "$enable_wds_gaia_xmatch" == "1" ]]; then
     if [[ ! -f "$WDS_GAIA_XMATCH_RAW" ]]; then

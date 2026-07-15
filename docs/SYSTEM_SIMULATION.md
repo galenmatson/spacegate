@@ -708,7 +708,10 @@ Resolved local benchmark blockers:
   render-scene contract also verifies Sirius B as a `white_dwarf`
   `body_class`/`compact_type` render body with a source-backed compact
   object-type provenance field. Public antiproton still needs a safe sliced
-  deployment before the fix is public.
+  deployment before the fix is public. This paragraph records the historical
+  served build; default executable supplement promotion was retired on July
+  15, 2026, and those inventory cases now await general-rule or AAA/human
+  re-adjudication.
 - June 30, 2026 Sol authority source-refresh fix makes Horizons small-body
   commands explicit for asteroid/TNO/dwarf-small-body records and adds
   source/build/API gates for Ceres, Vesta, Pallas, Juno, Hebe, Iris,

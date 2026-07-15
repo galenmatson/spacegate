@@ -41,7 +41,7 @@ These can directly support core-adjacent facts (still routed via arm → adjudic
   type: catalog_archive_files
   trust_score: 1.00
   allowed_uses: [catalog data, source documentation, tables, measurements]
-  notes: Direct immutable-style catalog and ReadMe retrieval; preserve catalog citations and checksums
+  notes: Direct immutable-style catalog and ReadMe retrieval, including B/sb9; preserve catalog citations and checksums
 
 - domain: archives.esac.esa.int
   org: ESA

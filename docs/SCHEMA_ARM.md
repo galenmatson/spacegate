@@ -908,6 +908,41 @@ timestamp. Each event records first/last observation timestamps, source row
 hash, retrieval checksum, and transform lineage. A disposition change adds an
 event rather than rewriting prior history.
 
+## Multiple-Component Source Evidence
+
+### `sb9_systems`, `sb9_aliases`, `sb9_orbits`
+
+Source-native Ninth Catalogue of Spectroscopic Binary Orbits rows. Systems
+preserve primary and secondary spectral types separately; aliases and orbital
+solutions retain their SB9 sequence and source row lineage. These tables are
+evidence and do not create canonical stars or systems.
+
+### `multiple_component_evidence_matches`
+
+Deterministic reconciliation outcomes between a component-bearing source row
+and existing ARM component endpoints.
+
+Required fields include source catalog/record ID, WDS identity where
+applicable, primary/secondary endpoint keys, `match_status`, explicit `reason`,
+match/version metadata, structured evidence, and full source provenance.
+
+Accepted v1 methods are:
+
+- SB9: exact, unique MSC `SB9_<sequence>` reference plus two existing stellar
+  endpoints
+- DEBCat: exact canonical system plus a unique MSC period match within the
+  declared tolerance plus two existing stellar endpoints
+
+Missing, ambiguous, and graph-unresolved matches remain quarantined. Name-only
+component matching is forbidden.
+
+### `multiple_component_stellar_evidence`
+
+One source-native spectral-type observation per accepted component endpoint and
+role. Accepted evidence may add a high-confidence `source` row to
+`derived_stellar_classifications`; it does not overwrite the source row or
+delete lower-priority mass/temperature derivations.
+
 ## Planned Agent-Assisted Adjudication Tables
 
 Agent-derived scientific proposals belong in `arm`, never directly in `core`.

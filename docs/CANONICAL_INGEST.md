@@ -53,6 +53,8 @@ Each source gets its own normalization pass:
 - MSC
 - ORB6
 - SBX
+- SB9 (ARM component/orbit evidence; no independent inventory promotion)
+- DEBCat (ARM endpoint evidence only after unique system/period reconciliation)
 - Sol authority
 - support catalogs
 
@@ -63,6 +65,8 @@ Rules:
 - preserve source identifiers exactly
 - preserve source topology exactly
 - do not merge objects across sources here
+- never add object-specific transform branches to satisfy a golden; defer the
+  case to the adjudication queue when a general evidence rule cannot resolve it
 
 ### Stage 2: Identity Graph
 

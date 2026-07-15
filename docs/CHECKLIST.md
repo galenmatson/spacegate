@@ -139,6 +139,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Materialize WDS/MSC observational detail tables in `arm` for narration/context
 - [x] Materialize safely-mapped ORB6 rows in `arm.orbital_solutions`
 - [x] Reattach SBX spectroscopic-binary evidence against Gaia/HIP/HD IDs (default-on toggle: `SPACEGATE_ENABLE_SBX`)
+- [x] Ingest pinned CDS SB9 systems/aliases/orbits as default-on ARM evidence;
+  bind component spectral types only through exact unique MSC sequence
+  references and quarantine unresolved endpoints
+- [x] Reconcile DEBCat component spectral evidence through unique canonical
+  system + period + endpoint matches
+- [ ] Evaluate Skiff and VSX composite spectral classifications for
+  component-scoped corroboration; require exact identifiers/unique period and
+  role binding before endpoint propagation
+- [x] Add a production-transform literal audit and remove the default executable
+  accepted-supplement object list; preserve former cases for AAA adjudication
 - [ ] Implement/verify hierarchy confidence tiers
 - [x] Draft golden-system multiplicity exam harness (`docs/MULTIPLICITY_GOLDENS.md`, `scripts/verify_multiplicity_goldens.py`, Castor fixture)
 - [x] Verify path runs multiplicity goldens by default with required arm tables (`--require-arm`)
@@ -195,10 +205,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   with `SPACEGATE_VERIFY_COMPACT_ALIAS_SAFETY=1`
 - [x] Add reviewed accepted-supplement config/ingest path for Gaia-missing
   canonical inventory exceptions; seed Sirius A and a reviewed Sirius B WDS
-  component link
-- [x] Rebuild core/ARM with accepted supplements enabled; local build
+  component link (historical; default promotion retired July 15, 2026)
+- [x] Rebuild core/ARM with accepted supplements enabled; historical local build
   `20260630T_sim_beta_data_foundation` verifies Sirius as a WDS-backed A/B
   system and passes strict compact-alias safety
+- [ ] Re-adjudicate the retired Sirius A/B and L 134-80 supplement cases through
+  a general catalog rule or the inspectable AAA adjudication contract
 - [x] Materialize the direct AT-HYG Gaia alias guard; strict compact-alias
   safety passes on `20260630T_sim_beta_data_foundation`
 - [x] Materialize the MSC source-leaf fix; Nu Sco exposes seven source-native
