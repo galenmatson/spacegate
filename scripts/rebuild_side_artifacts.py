@@ -76,6 +76,57 @@ def table_exists(con: duckdb.DuckDBPyConnection, table_name: str) -> bool:
     )
 
 
+def read_key_value_metadata(db_path: Path) -> dict[str, str]:
+    if not db_path.exists():
+        return {}
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        if not table_exists(con, "build_metadata"):
+            return {}
+        columns = {
+            str(row[1]) for row in con.execute("pragma table_info('build_metadata')").fetchall()
+        }
+        if not {"key", "value"}.issubset(columns):
+            return {}
+        return {
+            str(key): "" if value is None else str(value)
+            for key, value in con.execute("select key, value from build_metadata").fetchall()
+        }
+    finally:
+        con.close()
+
+
+def resolve_canonical_evidence_arm(
+    *,
+    state: Path,
+    core_db: Path,
+    explicit_path: str = "",
+) -> Path | None:
+    if explicit_path:
+        path = Path(explicit_path).expanduser().resolve()
+        if not path.is_file():
+            raise SystemExit(f"Explicit canonical evidence ARM not found: {path}")
+        return path
+
+    metadata = read_key_value_metadata(core_db)
+    if not metadata.get("slice_profile_id", "").strip():
+        return None
+
+    canonical_build_id = metadata.get("bootstrap_source_build_id", "").strip()
+    if not canonical_build_id:
+        raise SystemExit(
+            "Sliced CORE is missing bootstrap_source_build_id; refusing to re-adjudicate "
+            "TESS identity against a pruned catalog."
+        )
+    canonical_arm = state / "out" / canonical_build_id / "arm.duckdb"
+    if not canonical_arm.is_file():
+        raise SystemExit(
+            "Full-canonical TESS evidence ARM is unavailable for sliced side rebuild: "
+            f"{canonical_arm}"
+        )
+    return canonical_arm.resolve()
+
+
 def update_build_metadata(db_path: Path, *, build_id: str, source_build_id: str, artifact_kind: str) -> None:
     if not db_path.exists():
         return
@@ -197,6 +248,14 @@ def main() -> int:
         action="store_true",
         help="Do not copy disc.duckdb/disc side artifacts. Intended only for ARM-only smoke builds.",
     )
+    parser.add_argument(
+        "--canonical-evidence-arm",
+        default="",
+        help=(
+            "Override the full-canonical ARM used to project adjudicated TESS evidence. "
+            "Sliced CORE builds otherwise resolve it from bootstrap_source_build_id."
+        ),
+    )
     args = parser.parse_args()
 
     source_build_id, source_build_dir = resolve_source_build(state, args.source_build_id or None)
@@ -245,27 +304,34 @@ def main() -> int:
                 artifact_kind="arm",
             )
         else:
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    str(root / "scripts" / "build_arm.py"),
-                    "--core-db",
-                    str(tmp_dir / "core.duckdb"),
-                    "--arm-db",
-                    str(tmp_dir / "arm.duckdb"),
-                    "--state-dir",
-                    str(state),
-                    "--build-id",
-                    build_id,
-                    "--ingested-at",
-                    generated_at,
-                    "--transform-version",
-                    transform_version,
-                    "--report-path",
-                    str(arm_report),
-                ],
-                cwd=str(root),
+            canonical_evidence_arm = resolve_canonical_evidence_arm(
+                state=state,
+                core_db=tmp_dir / "core.duckdb",
+                explicit_path=args.canonical_evidence_arm,
             )
+            build_arm_command = [
+                sys.executable,
+                str(root / "scripts" / "build_arm.py"),
+                "--core-db",
+                str(tmp_dir / "core.duckdb"),
+                "--arm-db",
+                str(tmp_dir / "arm.duckdb"),
+                "--state-dir",
+                str(state),
+                "--build-id",
+                build_id,
+                "--ingested-at",
+                generated_at,
+                "--transform-version",
+                transform_version,
+                "--report-path",
+                str(arm_report),
+            ]
+            if canonical_evidence_arm:
+                build_arm_command.extend(
+                    ["--canonical-evidence-arm", str(canonical_evidence_arm)]
+                )
+            subprocess.check_call(build_arm_command, cwd=str(root))
         if not (tmp_dir / "arm.duckdb").exists():
             raise SystemExit(f"ARM rebuild did not create {tmp_dir / 'arm.duckdb'}")
 
@@ -303,6 +369,11 @@ def main() -> int:
             "source_build_dir": str(source_build_dir),
             "output_build_dir": str(final_dir),
             "transform_version": transform_version,
+            "canonical_evidence_arm": (
+                str(canonical_evidence_arm)
+                if not args.preserve_arm and canonical_evidence_arm
+                else None
+            ),
             "copied_artifacts": copied,
             "rebuilt_artifacts": ({
                 "arm": {

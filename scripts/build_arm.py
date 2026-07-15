@@ -11,7 +11,11 @@ from typing import Any
 
 import duckdb
 
-from tess_evidence_materialization import materialize_arm as materialize_tess_arm
+from tess_evidence_materialization import (
+    TESS_CANONICAL_PROJECTION_VERSION,
+    materialize_arm as materialize_tess_arm,
+    project_arm_from_canonical as project_tess_arm_from_canonical,
+)
 from extended_object_materialization import materialize_arm as materialize_extended_object_arm
 from multiple_component_evidence import materialize_arm as materialize_multiple_component_evidence
 
@@ -92,11 +96,22 @@ def main() -> int:
     parser.add_argument("--ingested-at", required=True, help="Ingest timestamp (UTC)")
     parser.add_argument("--transform-version", required=True, help="Transform/version SHA")
     parser.add_argument("--report-path", default=None, help="Optional arm_report.json output path")
+    parser.add_argument(
+        "--canonical-evidence-arm",
+        default="",
+        help=(
+            "Full-canonical arm.duckdb whose adjudicated TESS tables must be projected "
+            "into this sliced build instead of re-adjudicating against the slice."
+        ),
+    )
     args = parser.parse_args()
 
     core_db = Path(args.core_db).resolve()
     arm_db = Path(args.arm_db).resolve()
     state_dir = Path(args.state_dir).resolve()
+    canonical_evidence_arm = (
+        Path(args.canonical_evidence_arm).resolve() if args.canonical_evidence_arm else None
+    )
     cooked_msc = state_dir / "cooked" / "msc" / "msc_components.csv"
     cooked_msc_systems = state_dir / "cooked" / "msc" / "msc_systems.csv"
     cooked_msc_orbits = state_dir / "cooked" / "msc" / "msc_orbits.csv"
@@ -893,7 +908,10 @@ def main() -> int:
           ('arm_source_nasa_pscomppars_csv', {sql_literal(str(cooked_nasa_pscomppars) if cooked_nasa_pscomppars.exists() else '')}),
           ('arm_source_nasa_pscomppars_version', {sql_literal(nasa_pscomppars_version)}),
           ('arm_source_nasa_ps_csv', {sql_literal(str(cooked_nasa_ps) if cooked_nasa_ps.exists() else '')}),
-          ('arm_source_nasa_ps_version', {sql_literal(nasa_ps_version)})
+          ('arm_source_nasa_ps_version', {sql_literal(nasa_ps_version)}),
+          ('arm_tess_identity_mode', {sql_literal('canonical_projection' if canonical_evidence_arm else 'canonical_adjudication')}),
+          ('arm_tess_identity_projection_version', {sql_literal(TESS_CANONICAL_PROJECTION_VERSION if canonical_evidence_arm else '')}),
+          ('arm_tess_identity_source_arm', {sql_literal(str(canonical_evidence_arm) if canonical_evidence_arm else '')})
         """
     )
 
@@ -922,13 +940,20 @@ def main() -> int:
     tess_counts: dict[str, int] = {}
     if enable_tess_evidence:
         stage_started = time.monotonic()
-        log("Arm stage: materializing targeted TIC identity and TOI evidence")
-        tess_counts = materialize_tess_arm(
-            con,
-            cooked_dir=cooked_tess_evidence,
-            manifest_path=tess_evidence_manifest_path,
-            ingested_at=args.ingested_at,
-        )
+        if canonical_evidence_arm:
+            log("Arm stage: projecting full-canonical TIC identity and TOI evidence")
+            tess_counts = project_tess_arm_from_canonical(
+                con,
+                canonical_arm_path=canonical_evidence_arm,
+            )
+        else:
+            log("Arm stage: adjudicating targeted TIC identity and TOI evidence")
+            tess_counts = materialize_tess_arm(
+                con,
+                cooked_dir=cooked_tess_evidence,
+                manifest_path=tess_evidence_manifest_path,
+                ingested_at=args.ingested_at,
+            )
         log(f"Arm stage complete: TESS evidence ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()

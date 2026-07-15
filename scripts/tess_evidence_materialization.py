@@ -9,6 +9,7 @@ import duckdb
 TIC_SOURCE_URL = "https://mast.stsci.edu/api/v0/invoke"
 TOI_SOURCE_URL = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 TESS_TRANSFORM_VERSION = "tess_identity_evidence_v1"
+TESS_CANONICAL_PROJECTION_VERSION = "tess_canonical_arm_projection_v1"
 TIC_ALIAS_PRIORITY = 24
 TOI_ALIAS_PRIORITY = 23
 
@@ -737,6 +738,89 @@ def materialize_arm(
         from tess_toi_history_input
         """
     )
+    return {
+        "tess_target_identity_rows": int(con.execute("select count(*) from tess_target_identity").fetchone()[0]),
+        "tess_missing_object_audit_rows": int(con.execute("select count(*) from tess_missing_object_audit").fetchone()[0]),
+        "toi_current_evidence_rows": int(con.execute("select count(*) from toi_current_evidence").fetchone()[0]),
+        "toi_confirmed_known_planet_links": int(con.execute("select count(*) from toi_current_evidence where disposition in ('CP','KP') and planet_id is not null").fetchone()[0]),
+        "toi_candidate_rows": int(con.execute("select count(*) from toi_current_evidence where disposition in ('PC','APC')").fetchone()[0]),
+        "toi_negative_evidence_rows": int(con.execute("select count(*) from toi_current_evidence where disposition in ('FP','FA')").fetchone()[0]),
+    }
+
+
+def project_arm_from_canonical(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    canonical_arm_path: Path,
+) -> dict[str, int]:
+    """Project full-canonical TESS decisions into an already attached sliced CORE."""
+    canonical_arm_path = canonical_arm_path.resolve()
+    if not canonical_arm_path.exists():
+        raise FileNotFoundError(f"Canonical TESS evidence ARM not found: {canonical_arm_path}")
+
+    alias = "tess_canonical"
+    con.execute(f"attach {sql_literal(str(canonical_arm_path))} as {alias} (read_only)")
+    try:
+        required_tables = (
+            "tess_target_identity",
+            "tess_missing_object_audit",
+            "toi_current_evidence",
+            "toi_disposition_history",
+        )
+        available = {
+            str(row[0])
+            for row in con.execute(
+                """
+                select table_name
+                from information_schema.tables
+                where table_catalog = ? and table_schema = 'main'
+                """,
+                [alias],
+            ).fetchall()
+        }
+        missing = [table_name for table_name in required_tables if table_name not in available]
+        if missing:
+            raise RuntimeError(
+                "Canonical TESS evidence ARM is incomplete: " + ", ".join(missing)
+            )
+
+        con.execute(
+            f"""
+            create table tess_target_identity as
+            select *
+            from {alias}.tess_target_identity t
+            where t.resolution_status <> 'accepted'
+               or (
+                 t.star_id in (select star_id from core.stars)
+                 and t.system_id in (select system_id from core.systems)
+               )
+            """
+        )
+        con.execute(
+            f"""
+            create table tess_missing_object_audit as
+            select * from {alias}.tess_missing_object_audit
+            """
+        )
+        con.execute(
+            f"""
+            create table toi_current_evidence as
+            select *
+            from {alias}.toi_current_evidence t
+            where (t.system_id is null or t.system_id in (select system_id from core.systems))
+              and (t.star_id is null or t.star_id in (select star_id from core.stars))
+              and (t.planet_id is null or t.planet_id in (select planet_id from core.planets))
+            """
+        )
+        con.execute(
+            f"""
+            create table toi_disposition_history as
+            select * from {alias}.toi_disposition_history
+            """
+        )
+    finally:
+        con.execute(f"detach {alias}")
+
     return {
         "tess_target_identity_rows": int(con.execute("select count(*) from tess_target_identity").fetchone()[0]),
         "tess_missing_object_audit_rows": int(con.execute("select count(*) from tess_missing_object_audit").fetchone()[0]),

@@ -24,7 +24,11 @@ from fetch_tess_evidence import (  # noqa: E402
 )
 from ingest.emit_canonical_build import remap_object_identifiers  # noqa: E402
 from ingest_core import load_accepted_supplements  # noqa: E402
-from tess_evidence_materialization import materialize_arm, materialize_core  # noqa: E402
+from tess_evidence_materialization import (  # noqa: E402
+    materialize_arm,
+    materialize_core,
+    project_arm_from_canonical,
+)
 
 
 def write_csv(path: Path, fields: list[str], rows: list[dict[str, object]]) -> None:
@@ -215,6 +219,88 @@ class TessEvidenceTest(unittest.TestCase):
             )
             arm.close()
 
+    def test_sliced_arm_projects_full_canonical_tess_decisions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cooked = root / "cooked"
+            manifest_path = root / "manifest.json"
+            core_path = root / "canonical-core.duckdb"
+            canonical_arm_path = root / "canonical-arm.duckdb"
+            sliced_core_path = root / "sliced-core.duckdb"
+            sliced_arm_path = root / "sliced-arm.duckdb"
+            self._write_fixture_inputs(cooked)
+            manifest_path.write_text(
+                json.dumps([
+                    {"source_name": "mast_tic_targeted", "source_version": "fixture_tic"},
+                    {"source_name": "nasa_toi", "source_version": "fixture_toi"},
+                ]),
+                encoding="utf-8",
+            )
+            self._create_core(core_path)
+
+            core = duckdb.connect(str(core_path))
+            materialize_core(
+                core,
+                cooked_dir=cooked,
+                manifest_path=manifest_path,
+                append_search_terms=True,
+            )
+            core.close()
+
+            canonical_arm = duckdb.connect(str(canonical_arm_path))
+            canonical_arm.execute(
+                f"attach '{str(core_path).replace(chr(39), chr(39) * 2)}' as core (read_only)"
+            )
+            materialize_arm(
+                canonical_arm,
+                cooked_dir=cooked,
+                manifest_path=manifest_path,
+                ingested_at="2026-01-02T00:00:00Z",
+            )
+            canonical_arm.close()
+
+            sliced_core = duckdb.connect(str(sliced_core_path))
+            sliced_core.execute(
+                """
+                create table systems(system_id bigint);
+                insert into systems values (10), (20);
+                create table stars(star_id bigint, system_id bigint);
+                insert into stars values (1, 10), (2, 20);
+                create table planets(planet_id bigint, system_id bigint, star_id bigint);
+                insert into planets values (100, 10, 1);
+                """
+            )
+            sliced_core.close()
+
+            sliced_arm = duckdb.connect(str(sliced_arm_path))
+            sliced_arm.execute(
+                f"attach '{str(sliced_core_path).replace(chr(39), chr(39) * 2)}' as core (read_only)"
+            )
+            counts = project_arm_from_canonical(
+                sliced_arm,
+                canonical_arm_path=canonical_arm_path,
+            )
+            self.assertEqual(counts["tess_target_identity_rows"], 4)
+            self.assertEqual(
+                sliced_arm.execute(
+                    "select resolution_status from tess_target_identity where tic_id=1002"
+                ).fetchone()[0],
+                "ambiguous",
+            )
+            self.assertEqual(
+                sliced_arm.execute(
+                    "select count(*) from tess_target_identity where tic_id in (1005, 1006)"
+                ).fetchone()[0],
+                0,
+            )
+            self.assertEqual(
+                sliced_arm.execute(
+                    "select count(*) from tess_target_identity where resolution_status='accepted'"
+                ).fetchone()[0],
+                1,
+            )
+            sliced_arm.close()
+
     def _write_fixture_inputs(self, cooked: Path) -> None:
         write_csv(cooked / "target_tic_ids.csv", ["tic_id", "source_families"], [
             {"tic_id": 1001, "source_families": "nasa_toi"},
@@ -284,6 +370,8 @@ class TessEvidenceTest(unittest.TestCase):
     def _create_core(self, path: Path) -> None:
         con = duckdb.connect(str(path))
         con.execute("""
+            create table systems (system_id bigint);
+            insert into systems values (10), (20), (50), (60);
             create table stars (
               star_id bigint, system_id bigint, gaia_id bigint, hip_id bigint,
               catalog_ids_json json, ra_deg double, dec_deg double,
