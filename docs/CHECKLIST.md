@@ -823,6 +823,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   leaf requests
 - [x] Record desktop/mobile 500/1,000-ly network, point-count, frame-time,
   memory, selection, and idle acceptance evidence before declaring M8.1.4 stable
+- [x] Make `publish_db.sh` reject unknown arguments and treat `--help` as a
+  read-only operation so CLI inspection cannot start a multi-gigabyte publish
 - [x] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
   with the preserved science checkpoint: Castor exposes physical A/B/C
   subsystem groups while AB remains a stellar leaf, V1054 exposes five accepted
