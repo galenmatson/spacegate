@@ -978,7 +978,9 @@ Notes:
    `20260714T191900Z_d873067_side_rebuild`, then atomically promoted the accepted
    500/1,000-ly build `20260715T015659Z_e392a11_side_rebuild` on July 15, 2026.
    This preserved an independently observable rollback checkpoint instead of
-   combining both production changes.
+   combining both production changes. A later code-only deployment added the
+   general build-keyed simulation-scene runtime cache and same-scene request
+   coalescing while retaining that exact served science build.
 2. Finish publication/retention bookkeeping for the deep build without removing
    the stable served fallback. Keep build archives and current metadata aligned
    with the runtime pointer, and treat antiproton's limited disk as a hard

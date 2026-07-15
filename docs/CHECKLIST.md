@@ -41,15 +41,21 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Remove redundant detail and search work from map Peek startup: reuse the
   simulation-scene payload for star/planet source tooltips and defer the
   coolness-component search until the COOL tooltip is actually inspected
+- [x] Add shared build-keyed compressed runtime simulation-scene caching and
+  same-scene cold-request coalescing, then deploy the code-only checkpoint to
+  antiproton while preserving served build
+  `20260715T015659Z_e392a11_side_rebuild`; public integration, known-system,
+  auth/health, and desktop map Peek checks pass
 - [x] Align public/admin Docker frontend build stages with Node 22 so current
   `camera-controls` engine requirements are satisfied
 - [ ] Restore build-bound priority simulation-scene materialization in the
   promoted deep-map artifact pipeline; the July 15 deep build contains zero
   prebuilt scenes, forcing all Peek requests through live ARM/readiness/scene
   assembly even though an earlier build carried 1,001 artifacts
-- [ ] Add a cheap map-selected singleton scene path plus shared/persistent
-  dynamic-scene caching, request coalescing, cache telemetry, and concurrency
-  budgets before planning for hundreds of concurrent exploratory users
+- [ ] Add a cheap map-selected singleton scene path plus cache telemetry and
+  explicit per-process/concurrent-assembly budgets before planning for hundreds
+  of concurrent exploratory users; the shared persistent cache and same-scene
+  request coalescing are complete
 - [ ] Reproduce and capture the remaining client-side 1,000-ly crash observed
   after rendering more than 100,000 points near the sphere edge; distinguish
   WebGL context/process failure from JavaScript heap or tile lifecycle growth

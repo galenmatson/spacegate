@@ -1767,6 +1767,16 @@ sequence for `Off`/`Primary`/`All` label badges without object-detail requests.
 Component badge values remain governed by the general ARM evidence precedence;
 no system-specific classification overrides belong in the build path.
 
+The general runtime correction was deployed to antiproton as a code-only
+checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
+science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or
+promote CORE, ARM, DISC, hierarchy, or map-tile artifacts. Public health/auth,
+API integration, known-system/search goldens, and the desktop map
+selection-to-Peek Playwright flow passed after container replacement. Priority
+scene materialization for future promoted builds, a cheaper singleton contract,
+cache telemetry, and explicit concurrency budgets remain follow-up work rather
+than blockers for the Concept Tag/AAA path.
+
 The initial Photon review artifact was withdrawn after audit found that it
 included four manually curated Castor component classifications. Spacegate does
 not accept system-specific build overrides as a substitute for the planned AAA
