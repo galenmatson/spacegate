@@ -6431,6 +6431,35 @@ def main() -> int:
                 or source_catalog in ('athyg', 'athyg_accepted_supplement', 'sol_authority')
               )
           ) target using (hd_id)
+
+          union all
+
+          select
+            dup.star_id as duplicate_star_id,
+            target.star_id as surviving_star_id,
+            'wds_component' as key_namespace
+          from (
+            select *
+            from stars
+            where source_catalog = 'msc'
+              and gaia_id is null
+              and wds_id is not null
+              and nullif(component, '') is not null
+          ) dup
+          join (
+            select *
+            from stars
+            where wds_id is not null
+              and nullif(component, '') is not null
+              and source_catalog <> 'msc'
+              and (
+                gaia_id is not null
+                or source_catalog in ('athyg', 'athyg_accepted_supplement', 'sol_authority')
+              )
+          ) target
+            on target.wds_id = dup.wds_id
+           and lower(regexp_replace(target.component, '[^0-9A-Za-z]+', '', 'g'))
+             = lower(regexp_replace(dup.component, '[^0-9A-Za-z]+', '', 'g'))
         ), keyed as (
           select distinct duplicate_star_id, surviving_star_id
           from raw_key_matches
@@ -6450,6 +6479,10 @@ def main() -> int:
           dup.multiplicity_match_method as duplicate_multiplicity_match_method,
           target.multiplicity_match_method as surviving_multiplicity_match_method,
           case
+            when target.wds_id = dup.wds_id
+             and lower(regexp_replace(coalesce(target.component, ''), '[^0-9A-Za-z]+', '', 'g'))
+               = lower(regexp_replace(coalesce(dup.component, ''), '[^0-9A-Za-z]+', '', 'g'))
+             and nullif(regexp_replace(coalesce(dup.component, ''), '[^0-9A-Za-z]+', '', 'g'), '') is not null then 5
             when dup.hip_id is not null and target.hip_id = dup.hip_id
              and dup.hd_id is not null and target.hd_id = dup.hd_id then 4
             when dup.hip_id is not null and target.hip_id = dup.hip_id then 3
@@ -6457,6 +6490,11 @@ def main() -> int:
             else 0
           end as match_score,
           case
+            when target.wds_id = dup.wds_id
+             and lower(regexp_replace(coalesce(target.component, ''), '[^0-9A-Za-z]+', '', 'g'))
+               = lower(regexp_replace(coalesce(dup.component, ''), '[^0-9A-Za-z]+', '', 'g'))
+             and nullif(regexp_replace(coalesce(dup.component, ''), '[^0-9A-Za-z]+', '', 'g'), '') is not null
+              then 'msc_component_reconciled_wds_component'
             when dup.hip_id is not null and target.hip_id = dup.hip_id
              and dup.hd_id is not null and target.hd_id = dup.hd_id then 'msc_component_reconciled_hip_hd'
             when dup.hip_id is not null and target.hip_id = dup.hip_id then 'msc_component_reconciled_hip'
@@ -6482,7 +6520,7 @@ def main() -> int:
             'surviving_source_pk', target.source_pk,
             'wds_id', dup.wds_id,
             'component', dup.component,
-            'match_guard', 'strong_identifier_with_physical_sanity_v1'
+            'match_guard', 'strong_identifier_with_physical_sanity_v2'
           ) as evidence_json
         from keyed k
         join stars dup on dup.star_id = k.duplicate_star_id
@@ -7563,7 +7601,7 @@ def main() -> int:
         "wds_gaia_gate_pm_reject_group_count": wds_gaia_gate_pm_reject_group_count,
         "source_object_reconciliation_count": source_object_reconciliation_count,
         "source_object_reconciliation_quarantine_count": source_object_reconciliation_quarantine_count,
-        "source_object_reconciliation_policy": "strong_identifier_with_physical_sanity_v1",
+        "source_object_reconciliation_policy": "strong_identifier_with_physical_sanity_v2",
         "proximity_pairs_processed": pair_count,
         "notes": [
             "Grouping precedence: WDS-linked multiplicity first, then name root, then optional proximity, then singleton.",
@@ -11960,7 +11998,7 @@ def main() -> int:
         "source_object_reconciliation": {
             "msc_component_surrogate_reconciled_rows": source_object_reconciliation_count,
             "msc_component_surrogate_quarantined_rows": source_object_reconciliation_quarantine_count,
-            "policy": "strong_identifier_with_physical_sanity_v1",
+            "policy": "strong_identifier_with_physical_sanity_v2",
         },
         "gates": {
             "ambiguous_limit": athyg_merge_ambiguous_limit,
