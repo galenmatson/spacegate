@@ -112,13 +112,21 @@ Search can materialize and pin an omitted ordinary system by stable identity.
 The UI and canvas diagnostics report catalog, rendered, and camera-detail
 counts separately, so LOD is not presented as a complete local population.
 
-Tile schema v2 uses its compact class byte for a representative system class.
-The deterministic presentation policy compares an object/spectral/evolutionary
-mass proxy, then intrinsic brightness, then `star_id`. This makes Sirius use its
+Tile schema v3 retains the compact representative-class byte and adds an
+eight-byte packed sequence of up to 16 repeated stellar-leaf classes. The
+sequence supports the label setting `Off`, `Primary`, or `All` without per-label
+API calls; `Primary` remains the default. Nonstellar hierarchy support endpoints
+are excluded. Accepted reviewed component classifications take precedence over
+derived and assumed classes, while unresolved stellar leaves remain explicitly
+`UNKNOWN`.
+
+The representative-class policy compares an object/spectral/evolutionary
+mass proxy, then intrinsic brightness, then `star_id`.
+This makes Sirius use its
 A star, allows a white dwarf to represent a typical WD+M-dwarf system, and
 gives giants an evolutionary floor rather than treating them as dwarfs of the
 same spectral class. It is explicitly a presentation heuristic, not measured
-mass. Users can disable the label badges without changing map data or labels.
+mass. Badge mode changes presentation only, not map membership or labels.
 
 Photon build `20260714T191900Z_d873067_side_rebuild` verifies schema v2 with
 zero missing, extra, or public-name-mismatched systems at all four artifact

@@ -745,7 +745,7 @@ test.describe("public 3D map beta", () => {
     const nameStyleSelect = menu.locator("[data-testid='map-name-style-select']");
     const frameSelect = menu.locator("[data-testid='map-frame-select']");
     const starRenderSelect = menu.locator("[data-testid='map-star-render-mode-select']");
-    const classBadgesToggle = menu.locator("[data-testid='map-class-badges-toggle']");
+    const classBadgesSelect = menu.locator("[data-testid='map-class-badges-select']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
     const gridToggle = menu.locator("[data-testid='map-grid-overlay-toggle']");
     await expect(themeSelect).toBeVisible();
@@ -754,7 +754,7 @@ test.describe("public 3D map beta", () => {
     await expect(nameStyleSelect).toBeVisible();
     await expect(frameSelect).toBeVisible();
     await expect(starRenderSelect).toBeVisible();
-    await expect(classBadgesToggle).toBeVisible();
+    await expect(classBadgesSelect).toBeVisible();
     await expect(directionToggle).toBeVisible();
     await expect(gridToggle).toBeVisible();
 
@@ -783,10 +783,12 @@ test.describe("public 3D map beta", () => {
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.starRenderMode") || "")).toBe("bright");
     await expect(canvas).toHaveAttribute("data-map-star-render-mode", "bright");
     await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "mass_proxy_then_intrinsic_brightness_v2");
-    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "true");
-    await classBadgesToggle.uncheck();
-    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "false");
-    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.classBadges"))).toBe("false");
+    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "primary");
+    await classBadgesSelect.selectOption("all");
+    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "all");
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.classBadges"))).toBe("all");
+    await classBadgesSelect.selectOption("off");
+    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "off");
 
     await keybindSelect.selectOption("esdf");
     await expect.poll(

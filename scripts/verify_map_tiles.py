@@ -16,6 +16,7 @@ import duckdb
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.build_map_tiles import (
+    BADGE_CODES,
     MAGIC,
     RECORD_STRUCT,
     SPECTRAL_CODES,
@@ -26,9 +27,10 @@ from scripts.build_map_tiles import (
 
 
 SPECTRAL_CLASSES = tuple(SPECTRAL_CODES)
+BADGE_CLASSES = {code: name for name, code in BADGE_CODES.items()}
 
 
-def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str], dict[int, str]]:
+def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str], dict[int, str], dict[int, list[str]]]:
     compressed = path.read_bytes()
     raw = gzip.decompress(compressed)
     if raw[:8] != MAGIC:
@@ -40,6 +42,7 @@ def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str], dict[int, str
     string_start = start + count * RECORD_STRUCT.size
     names: dict[int, str] = {}
     classes: dict[int, str] = {}
+    badges: dict[int, list[str]] = {}
     for index in range(count):
         record = RECORD_STRUCT.unpack_from(raw, start + index * RECORD_STRUCT.size)
         system_id = int(record[0])
@@ -49,9 +52,16 @@ def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str], dict[int, str
             string_start + name_offset:string_start + name_offset + name_length
         ].decode("utf-8")
         classes[system_id] = SPECTRAL_CLASSES[int(record[19])]
+        packed = int(record[-1])
+        badges[system_id] = []
+        for badge_index in range(16):
+            code = (packed >> (badge_index * 4)) & 0xF
+            if code == 0:
+                break
+            badges[system_id].append(BADGE_CLASSES.get(code, "UNKNOWN"))
     if len(names) != count:
         raise ValueError(f"Duplicate system IDs within tile: {path}")
-    return header, names, classes
+    return header, names, classes, badges
 
 
 def expected_public_names(
@@ -112,6 +122,7 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
     observed: set[int] = set()
     observed_names: dict[int, str] = {}
     observed_classes: dict[int, str] = {}
+    observed_badges: dict[int, list[str]] = {}
     compressed_bytes = 0
     exact_tiles = [tile for tile in manifest["tiles"] if tile.get("exact")]
     for tile in exact_tiles:
@@ -122,7 +133,7 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
         payload = path.read_bytes()
         if hashlib.sha256(payload).hexdigest() != digest:
             raise ValueError(f"Tile checksum mismatch: {path}")
-        header, names, classes = read_tile(path)
+        header, names, classes, badges = read_tile(path)
         ids = set(names)
         overlap = observed.intersection(ids)
         if overlap:
@@ -130,6 +141,7 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
         observed.update(ids)
         observed_names.update(names)
         observed_classes.update(classes)
+        observed_badges.update(badges)
         compressed_bytes += len(payload)
         if header["tile_id"] != tile["tile_id"] or not header["exact"]:
             raise ValueError(f"Tile header/manifest mismatch: {path}")
@@ -161,6 +173,17 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
                     "expected": expected_class,
                     "observed": observed_class,
                 })
+        castor = con.execute(
+            "select system_id from systems where wds_id = '07346+3153' and dist_ly <= ? order by system_id limit 1",
+            [radius],
+        ).fetchone()
+        castor_badges = observed_badges.get(int(castor[0])) if castor else None
+        if castor_badges != ["A", "A", "M", "M", "M", "M"]:
+            class_mismatches.append({
+                "system_name": "Castor",
+                "expected_badges": ["A", "A", "M", "M", "M", "M"],
+                "observed_badges": castor_badges,
+            })
     passed = (
         missing == 0
         and extra == 0

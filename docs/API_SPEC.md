@@ -297,8 +297,10 @@ not persist generated assumptions and does not promote Agency output.
 Runtime may serve a prebuilt compressed scene artifact from
 `disc/simulation_scenes/` before falling back to in-process cache or live
 assembly. The JSON contract is unchanged. Responses expose
-`X-Spacegate-Simulation-Scene-Cache` with `prebuilt`, `hit`, or `miss` for
-diagnostics.
+`X-Spacegate-Simulation-Scene-Cache` with `prebuilt`, `hit`, `coalesced`, or
+`miss` for diagnostics. `prebuilt` covers immutable build artifacts and
+compatible build-keyed runtime artifacts; `coalesced` means another request
+assembled the same cold scene and this request reused its result.
 
 Prebuilt artifacts are compatible only with the current renderer contract. If
 an artifact lacks required current diagnostics, such as

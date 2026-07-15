@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
 from app.queries import choose_display_name_info
 
 
-SCHEMA_VERSION = "spacegate_map_tile_v2"
+SCHEMA_VERSION = "spacegate_map_tile_v3"
 MANIFEST_VERSION = "spacegate_map_manifest_v1"
 INDEX_VERSION = "spacegate_map_index_v1"
 FRAME = "heliocentric_icrs_j2016"
@@ -34,12 +34,17 @@ MAX_EXACT_DEPTH = 5
 MAX_EXACT_RECORDS = 32768
 SAMPLE_DEPTHS = (2, 3)
 SAMPLE_LIMIT = 256
-RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBI")
+RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBIQ")
 MAGIC = b"SGTILE1\0"
 SPECTRAL_CODES = {value: idx for idx, value in enumerate((
     "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
     "WR", "WD", "NS", "PULSAR", "MAGNETAR", "BLACK HOLE",
 ))}
+BADGE_CODES = {
+    "O": 1, "B": 2, "A": 3, "F": 4, "G": 5, "K": 6, "M": 7,
+    "L": 8, "T": 9, "Y": 10, "WD": 11, "WR": 12, "NS": 13,
+    "PULSAR": 13, "MAGNETAR": 13, "BLACK HOLE": 14, "UNKNOWN": 15,
+}
 
 
 def utc_now() -> str:
@@ -105,6 +110,14 @@ def deterministic_uniform_key(system_id: int) -> int:
     return value ^ (value >> 31)
 
 
+def pack_stellar_class_badges(values: Any) -> int:
+    packed = 0
+    for index, value in enumerate(list(values or [])[:16]):
+        code = BADGE_CODES.get(str(value or "UNKNOWN").upper(), BADGE_CODES["UNKNOWN"])
+        packed |= code << (index * 4)
+    return packed
+
+
 @dataclass
 class SampleAccumulator:
     represented: int = 0
@@ -158,7 +171,7 @@ def encode_tile(
         system_id = int(row[0])
         stable_key = str(row[1] or "")
         fallback_name = str(row[2] or stable_key or f"System {system_id}")
-        names = [fallback_name, *[str(value or fallback_name) for value in row[14:17]]]
+        names = [fallback_name, *[str(value or fallback_name) for value in row[15:18]]]
         names = names[:4] + [fallback_name] * max(0, 4 - len(names))
         x_ly, y_ly, z_ly = (float(row[3]), float(row[4]), float(row[5]))
         distance = float(row[6] or math.sqrt(x_ly * x_ly + y_ly * y_ly + z_ly * z_ly))
@@ -169,6 +182,7 @@ def encode_tile(
         coolness_rank = max(0, min(0xFFFFFFFF, int(row[11] or 0)))
         nice_planets = int(row[12] or 0)
         max_teff = max(0, min(0xFFFFFFFF, int(round(float(row[13] or 0)))))
+        packed_badges = pack_stellar_class_badges(row[14])
         name_refs: list[int] = []
         for name in names:
             name_bytes = name.encode("utf-8")[:65535]
@@ -183,7 +197,7 @@ def encode_tile(
             x_ly - center[0], y_ly - center[1], z_ly - center[2],
             distance, coolness, coolness_rank,
             *name_refs, key_offset, len(key_bytes),
-            stars, planets, SPECTRAL_CODES.get(spectral, 0), flags, max_teff,
+            stars, planets, SPECTRAL_CODES.get(spectral, 0), flags, max_teff, packed_badges,
         ))
         score = interest_score(row)
         interests.append(score)
@@ -291,6 +305,58 @@ def tile_query(radius: int) -> str:
           PARTITION BY system_id
           ORDER BY mass_proxy_msun DESC, absmag ASC NULLS LAST, vmag ASC NULLS LAST, star_id ASC
         ) = 1
+      ), component_class_candidates AS (
+        SELECT
+          regexp_extract(ce.stable_component_key, '^comp:msc:wds:([^:]+):', 1) AS wds_id,
+          ce.stable_component_key,
+          ce.catalog_component_label,
+          coalesce(
+            arg_min(
+              d.classification_value,
+              CASE
+                WHEN d.review_status = 'accepted' AND d.classification_status = 'source' THEN 0
+                WHEN d.classification_status = 'derived' THEN 1
+                WHEN d.classification_status = 'assumed' THEN 2
+                ELSE 9
+              END
+            ),
+            'UNKNOWN'
+          ) AS stellar_class,
+          min(CASE
+            WHEN d.review_status = 'accepted' AND d.classification_status = 'source' THEN 0
+            WHEN d.classification_status = 'derived' THEN 1
+            WHEN d.classification_status = 'assumed' THEN 2
+            ELSE 9
+          END) AS evidence_rank
+        FROM arm_db.component_entities ce
+        LEFT JOIN arm_db.derived_stellar_classifications d
+          ON d.stable_component_key = ce.stable_component_key
+         AND d.classification_key = 'stellar_display_class'
+        WHERE ce.component_type = 'star'
+          AND ce.stable_component_key LIKE 'comp:msc:wds:%'
+        GROUP BY ce.stable_component_key, ce.catalog_component_label
+      ), msc_badges AS (
+        SELECT
+          wds_id,
+          list(stellar_class ORDER BY
+            CASE stellar_class
+              WHEN 'O' THEN 0 WHEN 'B' THEN 1 WHEN 'A' THEN 2 WHEN 'F' THEN 3
+              WHEN 'G' THEN 4 WHEN 'K' THEN 5 WHEN 'M' THEN 6 WHEN 'WD' THEN 7
+              WHEN 'WR' THEN 8 WHEN 'NS' THEN 9 WHEN 'L' THEN 10 WHEN 'T' THEN 11
+              WHEN 'Y' THEN 12 ELSE 99
+            END,
+            evidence_rank,
+            catalog_component_label,
+            stable_component_key
+          ) AS stellar_class_badges
+        FROM component_class_candidates
+        GROUP BY wds_id
+      ), core_badges AS (
+        SELECT
+          system_id,
+          list(stellar_class ORDER BY mass_proxy_msun DESC, absmag ASC NULLS LAST, vmag ASC NULLS LAST, star_id) AS stellar_class_badges
+        FROM stellar_class_candidates
+        GROUP BY system_id
       ), positioned AS (
         SELECT s.*,
           greatest(0, least(15, floor((s.x_helio_ly + 1024.0) / {width4})::INTEGER)) AS x4,
@@ -319,10 +385,13 @@ def tile_query(radius: int) -> str:
         coalesce(nullif(rc.stellar_class, ''), nullif(c.dominant_spectral_class, ''), 'UNKNOWN') AS representative_stellar_class,
         coalesce(r.star_count, 0), coalesce(r.planet_count, 0), coalesce(c.rank, 0),
         coalesce(c.nice_planet_count, 0), coalesce(r.max_star_teff_k, 0),
-        r.tile_depth, r.tile_x, r.tile_y, r.tile_z
+        r.tile_depth, r.tile_x, r.tile_y, r.tile_z,
+        coalesce(mb.stellar_class_badges, cb.stellar_class_badges, ['UNKNOWN']) AS stellar_class_badges
       FROM rows_with_tile r
       LEFT JOIN disc_db.coolness_scores c USING (system_id)
       LEFT JOIN representative_stellar_class rc USING (system_id)
+      LEFT JOIN core_badges cb USING (system_id)
+      LEFT JOIN msc_badges mb ON mb.wds_id = r.wds_id
       ORDER BY r.tile_depth, r.tile_x, r.tile_y, r.tile_z, r.system_id
     """
 
@@ -401,7 +470,7 @@ def build_radius(
         if not batch:
             break
         for full_row in batch:
-            row = tuple(full_row[:14])
+            row = (*full_row[:14], full_row[18])
             key = tuple(int(value) for value in full_row[14:18])
             if current_key is not None and key != current_key:
                 flush()
@@ -477,6 +546,12 @@ def build_radius(
             "field": "representative_stellar_class",
             "policy": "object/spectral/evolutionary mass proxy; then lowest available absolute magnitude; stable star_id tie-break",
         },
+        "stellar_class_badge_contract": {
+            "version": "packed_nibble_sequence_v1",
+            "field": "stellar_class_badges",
+            "policy": "Repeated stellar leaves ordered by representative-class priority; accepted source evidence precedes derived and assumed evidence; nonstellar support endpoints excluded.",
+            "maximum_badges": 16,
+        },
         "coolness_profile": profile,
         "sampling_policy": {
             "version": "spatial_interest_mix_v1",
@@ -546,6 +621,7 @@ def main() -> None:
     con = duckdb.connect(str(build_dir / "core.duckdb"), read_only=True)
     label_con = duckdb.connect(str(build_dir / "core.duckdb"), read_only=True)
     con.execute(f"ATTACH '{str(build_dir / 'disc.duckdb').replace("'", "''")}' AS disc_db (READ_ONLY)")
+    con.execute(f"ATTACH '{str(build_dir / 'arm.duckdb').replace("'", "''")}' AS arm_db (READ_ONLY)")
     try:
         profile = read_profile(args.state_dir, con)
         manifests = [

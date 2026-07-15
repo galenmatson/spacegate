@@ -218,6 +218,19 @@ SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
+_SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
+_SIMULATION_SCENE_INFLIGHT: Dict[tuple[str, int], threading.Event] = {}
+SIMULATION_SCENE_INFLIGHT_WAIT_S = 45.0
+try:
+    _simulation_scene_cache_limit = int(
+        os.getenv("SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES", str(2 * 1024 * 1024 * 1024))
+    )
+except ValueError:
+    _simulation_scene_cache_limit = 2 * 1024 * 1024 * 1024
+SIMULATION_SCENE_RUNTIME_CACHE_LIMIT_BYTES = max(64 * 1024 * 1024, _simulation_scene_cache_limit)
+SIMULATION_SCENE_RUNTIME_CACHE_PRUNE_INTERVAL_S = 60.0
+_SIMULATION_SCENE_RUNTIME_CACHE_PRUNE_LOCK = threading.Lock()
+_SIMULATION_SCENE_RUNTIME_CACHE_LAST_PRUNE_TS = 0.0
 
 
 def _state_dir() -> Path:
@@ -2023,6 +2036,31 @@ def _render_scene_contract(
                     "source_reference": row.get("source_pk") or row.get("comment"),
                     "confidence": 0.85,
                 }
+    for row in ((arm.get("derived_stellar_classifications") or {}).get("items") or []):
+        component_key = str(row.get("stable_component_key") or "")
+        if (
+            not component_key
+            or row.get("object_type") != "component"
+            or row.get("classification_status") != "source"
+            or row.get("review_status") != "accepted"
+        ):
+            continue
+        try:
+            inputs = json.loads(row.get("input_parameters_json") or "{}")
+        except (TypeError, ValueError):
+            inputs = {}
+        existing_evidence = msc_endpoint_evidence_by_key.get(component_key) or {}
+        if existing_evidence.get("spectral_type_raw"):
+            continue
+        msc_endpoint_evidence_by_key[component_key] = {
+            **existing_evidence,
+            "spectral_type_raw": inputs.get("spectral_type_raw") or row.get("classification_value"),
+            "stellar_class": row.get("classification_value"),
+            "source_catalog": row.get("source_catalog"),
+            "source_reference": row.get("source_pk"),
+            "confidence": row.get("confidence_score") or 0.95,
+            "review_status": row.get("review_status"),
+        }
 
     msc_system_detail_by_pair: Dict[tuple[str, str], Dict[str, Any]] = {}
     for row in ((arm.get("msc_system_details") or {}).get("items") or []):
@@ -4620,8 +4658,17 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                 )
             )
             output["derived_physical_parameters"] = {"count": len(rows), "items": rows[:120]}
-        if star_ids and _duckdb_has_table(con, "derived_stellar_classifications"):
-            placeholders = ",".join(["?"] * len(star_ids))
+        classification_filters: List[str] = []
+        classification_params: List[Any] = []
+        if star_ids:
+            classification_filters.append(f"(object_type = 'star' AND star_id IN ({','.join(['?'] * len(star_ids))}))")
+            classification_params.extend(star_ids)
+        if component_keys:
+            classification_filters.append(
+                f"(object_type = 'component' AND stable_component_key IN ({','.join(['?'] * len(component_keys))}))"
+            )
+            classification_params.extend(component_keys)
+        if classification_filters and _duckdb_has_table(con, "derived_stellar_classifications"):
             rows = _rows_to_dicts(
                 con.execute(
                     f"""
@@ -4633,12 +4680,13 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
                            confidence_score, confidence_tier, review_status,
                            source_catalog, source_version, source_pk, source_row_hash
                     FROM derived_stellar_classifications
-                    WHERE object_type = 'star'
-                      AND star_id IN ({placeholders})
-                    ORDER BY stable_object_key ASC, derivation_method ASC
+                    WHERE {' OR '.join(classification_filters)}
+                    ORDER BY coalesce(stable_object_key, stable_component_key) ASC,
+                             CASE WHEN review_status = 'accepted' THEN 0 ELSE 1 END,
+                             derivation_method ASC
                     LIMIT 200
                     """,
-                    star_ids,
+                    classification_params,
                 )
             )
             output["derived_stellar_classifications"] = {"count": len(rows), "items": rows[:120]}
@@ -4841,12 +4889,90 @@ def _simulation_scene_cache_set(build_id: str, system_id: int, payload: Dict[str
             _SIMULATION_SCENE_CACHE.popitem(last=False)
 
 
+def _simulation_scene_runtime_artifact_path(build_id: str, system_id: int) -> Path:
+    safe_build_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(build_id or "unknown"))[:160]
+    return _state_dir() / "cache" / "simulation_scenes" / safe_build_id / f"system_{int(system_id)}.json.gz"
+
+
+def _write_simulation_scene_runtime_artifact(build_id: str, system_id: int, payload: Dict[str, Any]) -> None:
+    target = _simulation_scene_runtime_artifact_path(build_id, system_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_bytes(gzip.compress(encoded, compresslevel=6, mtime=0))
+        temporary.chmod(0o664)
+        os.replace(temporary, target)
+        _prune_simulation_scene_runtime_cache(protected=target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _prune_simulation_scene_runtime_cache(*, protected: Optional[Path] = None) -> None:
+    global _SIMULATION_SCENE_RUNTIME_CACHE_LAST_PRUNE_TS
+    now = time.time()
+    if now - _SIMULATION_SCENE_RUNTIME_CACHE_LAST_PRUNE_TS < SIMULATION_SCENE_RUNTIME_CACHE_PRUNE_INTERVAL_S:
+        return
+    if not _SIMULATION_SCENE_RUNTIME_CACHE_PRUNE_LOCK.acquire(blocking=False):
+        return
+    try:
+        _SIMULATION_SCENE_RUNTIME_CACHE_LAST_PRUNE_TS = now
+        root = _state_dir() / "cache" / "simulation_scenes"
+        files: List[tuple[float, int, Path]] = []
+        total = 0
+        for path in root.glob("*/*.json.gz"):
+            try:
+                info = path.stat()
+            except FileNotFoundError:
+                continue
+            total += info.st_size
+            files.append((info.st_mtime, info.st_size, path))
+        for _, size, path in sorted(files):
+            if total <= SIMULATION_SCENE_RUNTIME_CACHE_LIMIT_BYTES:
+                break
+            if protected is not None and path == protected:
+                continue
+            try:
+                path.unlink()
+                total -= size
+            except FileNotFoundError:
+                pass
+        for directory in root.glob("*"):
+            if directory.is_dir():
+                try:
+                    directory.rmdir()
+                except OSError:
+                    pass
+    finally:
+        _SIMULATION_SCENE_RUNTIME_CACHE_PRUNE_LOCK.release()
+
+
+def _simulation_scene_build_role(build_id: str, system_id: int) -> tuple[bool, threading.Event]:
+    key = (str(build_id), int(system_id))
+    with _SIMULATION_SCENE_INFLIGHT_LOCK:
+        event = _SIMULATION_SCENE_INFLIGHT.get(key)
+        if event is not None:
+            return False, event
+        event = threading.Event()
+        _SIMULATION_SCENE_INFLIGHT[key] = event
+        return True, event
+
+
+def _simulation_scene_build_complete(build_id: str, system_id: int) -> None:
+    key = (str(build_id), int(system_id))
+    with _SIMULATION_SCENE_INFLIGHT_LOCK:
+        event = _SIMULATION_SCENE_INFLIGHT.pop(key, None)
+    if event is not None:
+        event.set()
+
+
 def _simulation_scene_artifact_path(build_id: str, system_id: int) -> Optional[Path]:
     scene_name = f"system_{int(system_id)}.json.gz"
     state_dir = _state_dir()
     candidates = [
         state_dir / "served" / "current" / "disc" / "simulation_scenes" / scene_name,
         state_dir / "out" / str(build_id) / "disc" / "simulation_scenes" / scene_name,
+        _simulation_scene_runtime_artifact_path(build_id, system_id),
     ]
     for candidate in candidates:
         try:
@@ -4914,6 +5040,7 @@ def _system_simulation_scene_payload(
         "msc_system_details": arm.get("msc_system_details") or {"count": 0, "items": []},
         "stellar_parameters": arm.get("stellar_parameters") or {"count": 0, "items": []},
         "derived_physical_parameters": arm.get("derived_physical_parameters") or {"count": 0, "items": []},
+        "derived_stellar_classifications": arm.get("derived_stellar_classifications") or {"count": 0, "items": []},
         "errors": arm.get("errors") or [],
     }
     return {
@@ -6043,14 +6170,48 @@ def system_simulation_scene(
         if cached is not None:
             response.headers["X-Spacegate-Simulation-Scene-Cache"] = "hit"
             return cached
-        payload = _system_simulation_scene_payload(
-            system_id,
-            build_id=build_id,
-            name_style=normalized_name_style,
-        )
-        _simulation_scene_cache_set(cache_build_id, system_id, payload)
-        response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
-        return payload
+        leader, event = _simulation_scene_build_role(cache_build_id, system_id)
+        if not leader:
+            completed = event.wait(timeout=SIMULATION_SCENE_INFLIGHT_WAIT_S)
+            if not completed:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "simulation_scene_busy",
+                        "message": "Simulation scene assembly is still in progress",
+                        "details": {"system_id": system_id},
+                    },
+                    headers={"Retry-After": "2"},
+                )
+            cached = _simulation_scene_cache_get(cache_build_id, system_id)
+            if cached is not None:
+                response.headers["X-Spacegate-Simulation-Scene-Cache"] = "coalesced"
+                return cached
+            leader, event = _simulation_scene_build_role(cache_build_id, system_id)
+            if not leader:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "simulation_scene_retry",
+                        "message": "Simulation scene assembly must be retried",
+                        "details": {"system_id": system_id},
+                    },
+                    headers={"Retry-After": "1"},
+                )
+        try:
+            payload = _system_simulation_scene_payload(
+                system_id,
+                build_id=build_id,
+                name_style=normalized_name_style,
+            )
+            _simulation_scene_cache_set(cache_build_id, system_id, payload)
+            if normalized_name_style == "public_full":
+                _write_simulation_scene_runtime_artifact(build_id, system_id, payload)
+            response.headers["X-Spacegate-Simulation-Scene-Cache"] = "miss"
+            return payload
+        finally:
+            if leader:
+                _simulation_scene_build_complete(cache_build_id, system_id)
     except KeyError:
         raise HTTPException(
             status_code=404,

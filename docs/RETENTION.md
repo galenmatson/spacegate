@@ -12,8 +12,17 @@ Out of scope (never pruned by retention script):
 - `raw/` catalog downloads
 - `cooked/` normalized catalog exports
 - `reports/manifests/` source manifests
-- bounded runtime caches such as WISE image previews; these have their own cache
+- bounded runtime caches such as WISE image previews and simulation scenes; these have their own cache
   enforcement because they are mutable runtime artifacts, not immutable builds
+
+Simulation-scene runtime artifacts live under
+`$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/`. They are fully
+regenerable presentation products and must never be treated as science inputs.
+The API opportunistically prunes oldest artifacts to a 2 GiB default cap;
+operators may set `SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES`.
+Keep the served build's directory during normal operation; directories for
+build IDs no longer retained in `out/` or referenced by `served/` may be pruned
+as a separate cache cleanup after promotion verification.
 
 ## Default Policy
 

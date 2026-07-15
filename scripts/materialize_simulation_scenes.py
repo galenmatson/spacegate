@@ -241,7 +241,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
     root = _root_dir()
     state_dir = _state_dir(root)
-    build_id, build_dir = _resolve_build_dir(state_dir, args.build_id)
+    if args.build_dir:
+        build_dir = Path(args.build_dir).resolve()
+        build_id = args.build_id or build_dir.name.removesuffix(".tmp")
+        if not (build_dir / "core.duckdb").exists():
+            raise SystemExit(f"Build directory does not contain core.duckdb: {build_dir}")
+    else:
+        build_id, build_dir = _resolve_build_dir(state_dir, args.build_id)
     build_dir = build_dir.resolve()
     scene_builder = _load_scene_builder(root, build_dir)
 
@@ -361,6 +367,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Prebuild compressed System Simulation scene JSON artifacts for a served build.")
     parser.add_argument("--build-id", default=None, help="Build ID to target (defaults to served/current).")
+    parser.add_argument("--build-dir", default=None, help="Explicit build directory, including an unpromoted .tmp build.")
     parser.add_argument("--system-id", action="append", type=int, default=[], help="Specific system_id to materialize; can be repeated.")
     parser.add_argument("--limit", type=int, default=1000, help="Maximum systems to select when --system-id is not provided.")
     parser.add_argument("--sort", choices=["distance", "coolness", "name"], default="distance")

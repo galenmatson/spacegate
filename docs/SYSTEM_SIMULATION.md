@@ -625,16 +625,17 @@ Success criteria:
 - Formation/freeze-line hover readouts use the same explanatory text as the
   Lines disclosure controls, so the snowline and other chemistry boundaries
   read as teaching overlays rather than generic radius guides.
-- `/api/v1/systems/{system_id}/simulation-scene` uses a small in-process LRU
-  cache keyed by served build and system id. This avoids recomputing ARM
-  diagnostics, readiness, assumptions, and render-scene contracts when users
-  scroll back through recently previewed systems.
+- `/api/v1/systems/{system_id}/simulation-scene` uses an in-process LRU plus a
+  build-keyed compressed runtime artifact cache. Concurrent cold requests for
+  the same build/system are coalesced into one assembly. Subsequent requests,
+  including requests after an API restart, reuse the generated artifact rather
+  than repeating ARM, hierarchy, readiness, and render-contract work.
 - Map Peek treats `simulation-scene` as the selected-system data request: its
   returned system/star/planet records also populate the compact source
   tooltips. Coolness-component enrichment is lazy on COOL tooltip intent, and
   a short selection debounce prevents rapid transient selections from starting
   scene assembly. This does not replace the need for prebuilt priority scenes,
-  shared cache/request coalescing, or a cheap singleton scene contract.
+  a future cheaper singleton scene contract.
 - `scripts/materialize_simulation_scenes.py` can prebuild compressed
   `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
   systems. The API serves those artifacts first, then falls back to the
@@ -661,6 +662,13 @@ Success criteria:
   The `search-preview` profile selects planet hosts, multistar systems,
   compact/white-dwarf style systems, public UX goldens, and top coolness-ranked
   systems when coolness data is available.
+- `scripts/rebuild_side_artifacts.py --build-simulation-scenes` runs that
+  priority materializer against the unpromoted temporary build, after ARM is
+  ready and before immutable promotion. The default limit is 1,000 and can be
+  changed with `--simulation-scene-limit`.
+- A July 15 Castor smoke measurement reduced a repeated full scene from about
+  1.19 seconds cold to 16 ms from the compressed runtime artifact. Two
+  simultaneous cold requests produced one assembly and one coalesced response.
 - True-orbit, true-body, and log scale modes allow much closer camera zoom
   than structure mode so users can inspect inner systems inside wide-orbit
   systems. This changes only camera control limits; it does not alter the

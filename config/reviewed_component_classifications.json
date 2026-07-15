@@ -1,0 +1,46 @@
+[
+  {
+    "stable_component_key": "comp:msc:wds:07346+3153:ab",
+    "classification_value": "M",
+    "spectral_type_raw": "M2-M3",
+    "source_catalog": "Torres_et_al_2022",
+    "source_version": "ApJ_941_8",
+    "source_pk": "doi:10.3847/1538-4357/ac9d8d:Castor_Ab",
+    "source_url": "https://doi.org/10.3847/1538-4357/ac9d8d",
+    "evidence_note": "Castor Ab and Bb are described as nearly identical M2 or M3 stars.",
+    "reviewed_at": "2026-07-15"
+  },
+  {
+    "stable_component_key": "comp:msc:wds:07346+3153:bb",
+    "classification_value": "M",
+    "spectral_type_raw": "M2-M3",
+    "source_catalog": "Torres_et_al_2022",
+    "source_version": "ApJ_941_8",
+    "source_pk": "doi:10.3847/1538-4357/ac9d8d:Castor_Bb",
+    "source_url": "https://doi.org/10.3847/1538-4357/ac9d8d",
+    "evidence_note": "Castor Ab and Bb are described as nearly identical M2 or M3 stars.",
+    "reviewed_at": "2026-07-15"
+  },
+  {
+    "stable_component_key": "comp:msc:wds:07346+3153:ca",
+    "classification_value": "M",
+    "spectral_type_raw": "early-M",
+    "source_catalog": "Kochukhov_and_Shulyak_2019",
+    "source_version": "ApJ_873_69",
+    "source_pk": "doi:10.3847/1538-4357/ab06c5:YY_Gem_Ca",
+    "source_url": "https://doi.org/10.3847/1538-4357/ab06c5",
+    "evidence_note": "YY Gem consists of two nearly identical active early-M dwarfs.",
+    "reviewed_at": "2026-07-15"
+  },
+  {
+    "stable_component_key": "comp:msc:wds:07346+3153:cb",
+    "classification_value": "M",
+    "spectral_type_raw": "early-M",
+    "source_catalog": "Kochukhov_and_Shulyak_2019",
+    "source_version": "ApJ_873_69",
+    "source_pk": "doi:10.3847/1538-4357/ab06c5:YY_Gem_Cb",
+    "source_url": "https://doi.org/10.3847/1538-4357/ab06c5",
+    "evidence_note": "YY Gem consists of two nearly identical active early-M dwarfs.",
+    "reviewed_at": "2026-07-15"
+  }
+]

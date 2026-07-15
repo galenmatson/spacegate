@@ -2478,12 +2478,51 @@ def _enrich_hierarchy_star_nodes(
                     if facts.get("vmag") is None and vmag is not None and float(vmag) > 0.0:
                         facts["vmag"] = float(vmag)
 
+    if msc_keys and arm_attached and _has_table(con, alias="arm_db", table_name="derived_stellar_classifications"):
+        placeholders = ",".join(["?"] * len(msc_keys))
+        reviewed_rows = con.execute(
+            f"""
+            SELECT stable_component_key, classification_value, classification_status,
+                   derivation_method, review_status,
+                   json_extract_string(input_parameters_json, '$.spectral_type_raw') AS spectral_type_raw
+            FROM arm_db.derived_stellar_classifications
+            WHERE stable_component_key IN ({placeholders})
+              AND classification_key = 'stellar_display_class'
+            QUALIFY row_number() OVER (
+              PARTITION BY stable_component_key
+              ORDER BY
+                CASE WHEN review_status = 'accepted' AND classification_status = 'source' THEN 0
+                     WHEN classification_status = 'derived' THEN 1
+                     WHEN classification_status = 'assumed' THEN 2 ELSE 9 END,
+                confidence_score DESC,
+                derived_classification_id ASC
+            ) = 1
+            """,
+            msc_keys,
+        ).fetchall()
+        node_keys_by_component_key: Dict[str, List[str]] = defaultdict(list)
+        for node_key, component_keys in msc_lookup_by_node_key.items():
+            for component_key in component_keys:
+                node_keys_by_component_key[component_key].append(node_key)
+        for component_key, class_value, status, method, review_status, spectral_type_raw in reviewed_rows:
+            for node_key in node_keys_by_component_key.get(str(component_key), []):
+                facts = star_facts.setdefault(node_key, {})
+                if status == "source" and review_status == "accepted":
+                    if not facts.get("spectral_type_raw"):
+                        facts["spectral_type_raw"] = _clean_name(spectral_type_raw) or class_value
+                    if not facts.get("spectral_class"):
+                        facts["spectral_class"] = _clean_name(class_value) or None
+                elif not facts.get("spectral_class"):
+                    facts["visual_stellar_class"] = _clean_name(class_value) or None
+                    facts["visual_stellar_class_status"] = status
+                    facts["visual_stellar_class_basis"] = method
+
     for node_key, facts in star_facts.items():
         if node_key not in node_map:
             continue
-        visual_stellar_class = None
-        visual_stellar_class_status = None
-        visual_stellar_class_basis = None
+        visual_stellar_class = facts.get("visual_stellar_class")
+        visual_stellar_class_status = facts.get("visual_stellar_class_status")
+        visual_stellar_class_basis = facts.get("visual_stellar_class_basis")
         if not facts.get("spectral_type_raw") and not facts.get("spectral_class"):
             visual_stellar_class = _visual_stellar_class_from_mass_prior(facts.get("mass_msun"))
             if visual_stellar_class:

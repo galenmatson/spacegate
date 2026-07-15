@@ -1737,6 +1737,17 @@ must make priority-scene materialization a promoted-build gate, add cheap client
 scenes for ordinary map-selected singletons, and measure shared/persistent cache
 behavior before treating VPS capacity as the primary bottleneck.
 
+July 15 follow-up implements the first server-side scale correction. Dynamic
+scenes now write compatible build-keyed compressed runtime artifacts, same-scene
+cold requests are coalesced, and side builds can run priority scene
+materialization before promotion. A Castor smoke test measured about 1.19 s
+cold versus 16 ms from the generated artifact, with one assembly across two
+simultaneous requests. Map tile schema v3 also carries a packed repeated-class
+sequence for `Off`/`Primary`/`All` label badges without object-detail requests.
+Castor's six stellar leaves resolve to two A and four M badges; reviewed ARM
+evidence replaces mass-only assumptions for Ab, Bb, Ca, and Cb while CC remains
+a nonstellar, literature-weak brown-dwarf support endpoint.
+
 ### Stellar Physical Classification v1
 
 The July 2026 V1054 Oph review exposed two related needs. First, complex MSC

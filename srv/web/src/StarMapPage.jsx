@@ -444,12 +444,19 @@ function readStoredGridOverlayEnabled() {
   }
 }
 
-function readStoredClassBadgesEnabled() {
-  if (typeof window === "undefined") return true;
+function normalizeClassBadgeMode(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "false" || normalized === "off") return "off";
+  if (normalized === "all") return "all";
+  return "primary";
+}
+
+function readStoredClassBadgeMode() {
+  if (typeof window === "undefined") return "primary";
   try {
-    return window.localStorage.getItem(MAP_CLASS_BADGES_STORAGE_KEY) !== "false";
+    return normalizeClassBadgeMode(window.localStorage.getItem(MAP_CLASS_BADGES_STORAGE_KEY));
   } catch {
-    return true;
+    return "primary";
   }
 }
 
@@ -1144,7 +1151,7 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiu
   );
 }
 
-function createLabelTexture(label, { selected = false, tone = "default", stellarClass = null } = {}) {
+function createLabelTexture(label, { selected = false, tone = "default", stellarClasses = [] } = {}) {
   const pixelRatio = 2;
   const fontSize = 24;
   const paddingX = 14;
@@ -1157,10 +1164,15 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
   const text = String(label || "System").slice(0, 32);
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   const metrics = ctx.measureText(text);
-  const hasBadge = Boolean(stellarClass);
-  const token = normalizeStellarClassToken(stellarClass === "UNKNOWN" ? "U" : stellarClass);
-  const tag = STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
-  const width = Math.ceil(metrics.width + paddingX * 2 + (hasBadge ? badgeSize + badgeGap : 0));
+  const badgeTags = (Array.isArray(stellarClasses) ? stellarClasses : [stellarClasses])
+    .filter(Boolean)
+    .slice(0, 16)
+    .map((stellarClass) => {
+      const token = normalizeStellarClassToken(stellarClass === "UNKNOWN" ? "U" : stellarClass);
+      return STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
+    });
+  const badgeWidth = badgeTags.length ? badgeTags.length * badgeSize + Math.max(0, badgeTags.length - 1) * 3 + badgeGap : 0;
+  const width = Math.ceil(metrics.width + paddingX * 2 + badgeWidth);
   const height = Math.ceil(fontSize + paddingY * 2);
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
@@ -1186,8 +1198,8 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = ink;
-  if (hasBadge) {
-    const badgeX = paddingX + badgeSize / 2;
+  badgeTags.forEach((tag, index) => {
+    const badgeX = paddingX + badgeSize / 2 + index * (badgeSize + 3);
     const badgeY = height / 2;
     ctx.beginPath();
     ctx.arc(badgeX, badgeY, badgeSize / 2, 0, Math.PI * 2);
@@ -1201,10 +1213,10 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     ctx.textAlign = "center";
     ctx.fillText(tag.label.slice(0, 2), badgeX, badgeY + 1);
     ctx.textAlign = "start";
-  }
+  });
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillStyle = ink;
-  ctx.fillText(text, paddingX + (hasBadge ? badgeSize + badgeGap : 0), height / 2 + 1);
+  ctx.fillText(text, paddingX + badgeWidth, height / 2 + 1);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -1221,12 +1233,12 @@ function LabelSprite({
   labelRank = 0,
   labelCount = 1,
   onSelect = null,
-  stellarClass = null,
+  stellarClasses = [],
 }) {
   const spriteRef = useRef(null);
   const payload = useMemo(
-    () => createLabelTexture(label, { selected, tone, stellarClass }),
-    [label, selected, stellarClass, tone],
+    () => createLabelTexture(label, { selected, tone, stellarClasses }),
+    [label, selected, stellarClasses, tone],
   );
 
   useEffect(() => () => payload.texture.dispose(), [payload]);
@@ -1266,7 +1278,7 @@ function LabelSprite({
   );
 }
 
-function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, showClassBadges = true }) {
+function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, classBadgeMode = "primary" }) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
   const lastBuildPositionRef = useRef(null);
@@ -1384,8 +1396,8 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
     gl.domElement.dataset.mapLocalLabelCount = String(labelSystems.filter((system) => Number(system.label_camera_distance_ly) <= 10).length);
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
     gl.domElement.dataset.mapLabelClassStrategy = "mass_proxy_then_intrinsic_brightness_v2";
-    gl.domElement.dataset.mapLabelClassBadges = showClassBadges ? "true" : "false";
-  }, [forcedLabelActive, gl.domElement, labelSystems, showClassBadges]);
+    gl.domElement.dataset.mapLabelClassBadges = classBadgeMode;
+  }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems]);
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
@@ -1417,7 +1429,11 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
         <LabelSprite
           key={system.system_id}
           label={system.display_name}
-          stellarClass={showClassBadges ? system.representative_stellar_class || system.dominant_spectral_class : null}
+          stellarClasses={classBadgeMode === "off"
+            ? []
+            : classBadgeMode === "all"
+              ? system.stellar_class_badges
+              : [system.representative_stellar_class || system.dominant_spectral_class]}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
           priority={system.label_priority ?? system.map_priority}
@@ -1614,7 +1630,7 @@ function FlightControls({
   keybindScheme,
   mapFrame,
   showDirectionLabels,
-  showClassBadges,
+  classBadgeMode,
   controlsEnabled,
   stabilizationEnabled,
   onTelemetry,
@@ -2290,7 +2306,7 @@ function StarMapScene({
   keybindScheme,
   mapFrame,
   showDirectionLabels,
-  showClassBadges,
+  classBadgeMode,
   routeSegments,
   onRemoveRouteSegment,
   controlsEnabled,
@@ -2334,7 +2350,7 @@ function StarMapScene({
         onSelect={onSelect}
         forcedLabelSystems={filterLabelSystems}
         forcedLabelActive={filterActive}
-        showClassBadges={showClassBadges}
+        classBadgeMode={classBadgeMode}
       />
       <RouteOverlays segments={routeSegments} onRemoveSegment={onRemoveRouteSegment} />
       <SelectionMarker system={selectedSystem} />
@@ -2929,7 +2945,7 @@ export default function StarMapPage({
       : readStoredDirectionLabelsEnabled()
   ));
   const [showGridOverlay, setShowGridOverlay] = useState(readStoredGridOverlayEnabled);
-  const [showClassBadges, setShowClassBadges] = useState(readStoredClassBadgesEnabled);
+  const [classBadgeMode, setClassBadgeMode] = useState(readStoredClassBadgeMode);
   const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
   const [fpsSample, setFpsSample] = useState(0);
   const [deviceRuntimeProfile, setDeviceRuntimeProfile] = useState(readDeviceRuntimeProfile);
@@ -3229,11 +3245,11 @@ export default function StarMapPage({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(MAP_CLASS_BADGES_STORAGE_KEY, showClassBadges ? "true" : "false");
+      window.localStorage.setItem(MAP_CLASS_BADGES_STORAGE_KEY, classBadgeMode);
     } catch {
       // Label badge preference persistence is optional.
     }
-  }, [showClassBadges]);
+  }, [classBadgeMode]);
 
   useEffect(() => {
     const updateProfile = () => {
@@ -4403,7 +4419,7 @@ export default function StarMapPage({
           keybindScheme={keybindScheme}
           mapFrame={mapFrame}
           showDirectionLabels={showDirectionLabels}
-          showClassBadges={showClassBadges}
+          classBadgeMode={classBadgeMode}
           routeSegments={routeSegments}
           onRemoveRouteSegment={truncateRouteAtSegment}
           controlsEnabled={controlsEnabled}
@@ -4679,14 +4695,17 @@ export default function StarMapPage({
                     )
                   ))}
                 </div>
-                <label className="map-menu-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showClassBadges}
-                    onChange={(event) => setShowClassBadges(event.target.checked)}
-                    data-testid="map-class-badges-toggle"
-                  />
-                  <span>Class badges</span>
+                <label className="map-menu-field">
+                  <span>Stellar Class Badges</span>
+                  <select
+                    value={classBadgeMode}
+                    onChange={(event) => setClassBadgeMode(normalizeClassBadgeMode(event.target.value))}
+                    data-testid="map-class-badges-select"
+                  >
+                    <option value="off">Off</option>
+                    <option value="primary">Primary</option>
+                    <option value="all">All</option>
+                  </select>
                 </label>
                 <label className="map-menu-toggle">
                   <input

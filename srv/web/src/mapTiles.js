@@ -1,10 +1,17 @@
 import { apiUrl } from "./api.js";
 
 const MAGIC = "SGTILE1\0";
-const RECORD_SIZE = 72;
+const RECORD_SIZES = {
+  spacegate_map_tile_v1: 72,
+  spacegate_map_tile_v2: 72,
+  spacegate_map_tile_v3: 80,
+};
 const SPECTRAL_CLASSES = [
   "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
   "WR", "WD", "NS", "PULSAR", "MAGNETAR", "BLACK HOLE",
+];
+const BADGE_CLASSES = [
+  null, "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WD", "WR", "NS", "BLACK HOLE", "UNKNOWN",
 ];
 const sharedTileCache = new Map();
 
@@ -31,7 +38,7 @@ export async function decodeMapTile(input) {
   if (magic !== MAGIC) throw new Error(`Unsupported Spacegate tile magic: ${JSON.stringify(magic)}`);
   const headerLength = view.getUint32(8, true);
   const header = JSON.parse(decoder.decode(new Uint8Array(buffer, 12, headerLength)));
-  if (!["spacegate_map_tile_v1", "spacegate_map_tile_v2"].includes(header.schema_version) || header.record_size !== RECORD_SIZE) {
+  if (RECORD_SIZES[header.schema_version] !== header.record_size) {
     throw new Error(`Unsupported Spacegate tile schema: ${header.schema_version}`);
   }
   const recordStart = 12 + headerLength;
@@ -55,6 +62,15 @@ export async function decodeMapTile(input) {
     const keyLength = view.getUint16(offset + 60, true);
     const flags = view.getUint8(offset + 67);
     const spectralClass = SPECTRAL_CLASSES[view.getUint8(offset + 66)] || "UNKNOWN";
+    const packedBadges = header.schema_version === "spacegate_map_tile_v3"
+      ? view.getBigUint64(offset + 72, true)
+      : 0n;
+    const stellarClassBadges = [];
+    for (let badgeIndex = 0; badgeIndex < 16; badgeIndex += 1) {
+      const code = Number((packedBadges >> BigInt(badgeIndex * 4)) & 0xfn);
+      if (code === 0) break;
+      stellarClassBadges.push(BADGE_CLASSES[code] || "UNKNOWN");
+    }
     systems.push({
       system_id: readUint64(view, offset),
       x_helio_ly: header.origin_ly[0] + view.getFloat32(offset + 8, true),
@@ -70,6 +86,7 @@ export async function decodeMapTile(input) {
       star_count: view.getUint16(offset + 62, true),
       planet_count: view.getUint16(offset + 64, true),
       representative_stellar_class: spectralClass,
+      stellar_class_badges: stellarClassBadges.length ? stellarClassBadges : [spectralClass],
       // Retained for v1 artifacts and presentation code during the tile-v2 rollout.
       dominant_spectral_class: spectralClass,
       has_habitable_candidate: Boolean(flags & 1),

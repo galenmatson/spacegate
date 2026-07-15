@@ -177,6 +177,17 @@ def main() -> int:
         help="Build deterministic 100/250/500/1000-ly map tiles into the cloned artifact.",
     )
     parser.add_argument(
+        "--build-simulation-scenes",
+        action="store_true",
+        help="Prebuild high-value simulation scenes into the immutable side artifact.",
+    )
+    parser.add_argument(
+        "--simulation-scene-limit",
+        type=int,
+        default=1000,
+        help="Maximum priority simulation scenes to prebuild (default: 1000).",
+    )
+    parser.add_argument(
         "--preserve-arm",
         action="store_true",
         help="Copy the source ARM artifact instead of regenerating it; use for presentation-only side builds.",
@@ -223,40 +234,6 @@ def main() -> int:
             if copied["disc_db"]:
                 update_build_metadata(tmp_dir / "disc.duckdb", build_id=build_id, source_build_id=source_build_id, artifact_kind="disc")
             copied["disc_dir"] = copy_dir(source_build_dir / "disc", tmp_dir / "disc", required=False)
-        if args.build_map_tiles:
-            if not (tmp_dir / "disc.duckdb").exists():
-                raise SystemExit("--build-map-tiles requires disc.duckdb; omit --skip-disc-copy")
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    str(root / "scripts" / "build_map_tiles.py"),
-                    "--state-dir",
-                    str(state),
-                    "--build-dir",
-                    str(tmp_dir),
-                    "--output-dir",
-                    str(tmp_dir / "map_tiles"),
-                    "--radii",
-                    "100,250,500,1000",
-                ],
-                cwd=str(root),
-            )
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    str(root / "scripts" / "verify_map_tiles.py"),
-                    "--state-dir",
-                    str(state),
-                    "--build-dir",
-                    str(tmp_dir),
-                    "--radii",
-                    "100,250,500,1000",
-                    "--report-path",
-                    str(reports_dir / "map_tile_verification_report.json"),
-                ],
-                cwd=str(root),
-            )
-
         transform_version = f"side_artifact_rebuild:{git_sha(root)}"
         arm_report = reports_dir / "arm_report.json"
         if args.preserve_arm:
@@ -292,6 +269,33 @@ def main() -> int:
         if not (tmp_dir / "arm.duckdb").exists():
             raise SystemExit(f"ARM rebuild did not create {tmp_dir / 'arm.duckdb'}")
 
+        if args.build_map_tiles:
+            if not (tmp_dir / "disc.duckdb").exists():
+                raise SystemExit("--build-map-tiles requires disc.duckdb; omit --skip-disc-copy")
+            subprocess.check_call(
+                [sys.executable, str(root / "scripts" / "build_map_tiles.py"),
+                 "--state-dir", str(state), "--build-dir", str(tmp_dir),
+                 "--output-dir", str(tmp_dir / "map_tiles"),
+                 "--radii", "100,250,500,1000"],
+                cwd=str(root),
+            )
+            subprocess.check_call(
+                [sys.executable, str(root / "scripts" / "verify_map_tiles.py"),
+                 "--state-dir", str(state), "--build-dir", str(tmp_dir),
+                 "--radii", "100,250,500,1000",
+                 "--report-path", str(reports_dir / "map_tile_verification_report.json")],
+                cwd=str(root),
+            )
+        if args.build_simulation_scenes:
+            subprocess.check_call(
+                [sys.executable, str(root / "scripts" / "materialize_simulation_scenes.py"),
+                 "--build-id", build_id, "--build-dir", str(tmp_dir),
+                 "--priority-profile", "search-preview", "--sort", "coolness",
+                 "--limit", str(max(1, args.simulation_scene_limit)),
+                 "--max-dist-ly", "1000"],
+                cwd=str(root),
+            )
+
         report = {
             "generated_at": generated_at,
             "build_id": build_id,
@@ -315,6 +319,7 @@ def main() -> int:
                 ),
                 "disc and snapshot artifacts are copied unless --skip-disc-copy is used.",
                 "Versioned map tiles are generated when --build-map-tiles is requested.",
+                "Priority simulation scenes are materialized when --build-simulation-scenes is requested.",
                 "This script does not download or cook source catalogs.",
             ],
         }

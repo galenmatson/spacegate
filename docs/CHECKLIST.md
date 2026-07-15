@@ -919,6 +919,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Classify Castor MSC endpoint `CC` as a visible, specifically allowlisted
   non-blocking diagnostic while retaining strict failures for unexpected
   unmatched wide-orbit endpoints
+- [x] Add reviewed, provenance-bearing ARM classifications for Castor Ab/Bb
+  (M2-M3) and YY Gem Ca/Cb (early-M), preserving CC as a brown-dwarf support
+  endpoint and six stellar hierarchy leaves
+- [x] Add scalable map label stellar-class badge modes (`Off`, `Primary`,
+  `All`) backed by packed tile-v3 repeated-class data
+- [x] Coalesce concurrent cold simulation-scene assembly and persist compatible
+  build-keyed compressed runtime artifacts
+- [x] Add side-build priority simulation-scene materialization before immutable
+  promotion
 - [x] Preserve `Proxima Centauri` as the rendered member display name instead of
   allowing source component shorthand `alp1 Cen C` to override the core name
 - [x] Add exact member-star search fallback for served side builds missing
