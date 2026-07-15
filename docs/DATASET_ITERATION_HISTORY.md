@@ -466,7 +466,7 @@ Representative commits:
   rematched.
 
 Representative commits:
-- pending (multiplicity evidence integrity and SB9 v1)
+- `b255d1d` (generic multiple-component evidence ingestion and one-off audit)
 
 ## Recurrent Defect Classes and Mitigations
 
