@@ -915,6 +915,11 @@ Deliverables:
   request all exact leaves. Photon acceptance passes 312 cold/warm/rapid
   performance checks plus a 60-second 4K parked soak with zero retained heap,
   request, label, telemetry, or WebGL-resource growth
+- [x] deploy M8.1.4 to antiproton through two observable checkpoints: verify
+  public 100/250-ly behavior on `20260714T191900Z_d873067_side_rebuild`, then
+  promote `20260715T015659Z_e392a11_side_rebuild`; public desktop/mobile
+  Playwright checks pass for progressive 500/1,000-ly completion with zero tile
+  failures
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window

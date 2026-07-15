@@ -971,13 +971,17 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Complete the antiproton promotion of stable build
-   `20260714T191900Z_d873067_side_rebuild`, verify the public 100/250-ly tiled
-   checkpoint, then reconcile the separately accepted M8.1.4 deep-radius branch
-   rather than combining both production changes into one unobservable step.
-2. Promote M8.1.4 only after the stable production checkpoint is healthy. The
-   500/1,000-ly implementation passes Photon desktop/mobile cold, warm, rapid,
-   search, selection, pixel, and 4K idle gates without eager exact loading.
+1. Observe the deployed M8.1.4 checkpoint and resolve only stability regressions
+   that materially affect it. Antiproton first served and passed public
+   100/250-ly verification on build
+   `20260714T191900Z_d873067_side_rebuild`, then atomically promoted the accepted
+   500/1,000-ly build `20260715T015659Z_e392a11_side_rebuild` on July 15, 2026.
+   This preserved an independently observable rollback checkpoint instead of
+   combining both production changes.
+2. Finish publication/retention bookkeeping for the deep build without removing
+   the stable served fallback. Keep build archives and current metadata aligned
+   with the runtime pointer, and treat antiproton's limited disk as a hard
+   operational budget.
 3. Return to the main quest after resolving only stability regressions that
    materially affect the deployed checkpoint. Castor, V1054 Oph, and Tegmine
    simulation goldens now match the preserved science checkpoint without

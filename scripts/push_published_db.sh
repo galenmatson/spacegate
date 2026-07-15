@@ -182,7 +182,6 @@ if not build_id:
 
 print(f"artifact={artifact}")
 print(f"build_id={build_id}")
-print("file=current.json")
 print(f"file={artifact}")
 
 reports = meta.get("reports", {})
@@ -287,16 +286,27 @@ PY
   # Published DB archives are large, pre-compressed files. Keep interrupted
   # uploads resumable; restarting a multi-gigabyte archive from zero is worse
   # than the small verification cost of append-verify.
-  local -a rsync_args=( -ah --omit-dir-times --no-implied-dirs --partial --append-verify --info=progress2,stats2 )
+  local -a archive_rsync_args=( -ah --omit-dir-times --no-implied-dirs --partial --append-verify --info=progress2,stats2 )
+  local -a metadata_rsync_args=( -ah --checksum --omit-dir-times --no-implied-dirs --info=stats2 )
   if [[ "$RSYNC_COMPRESS" == "1" ]]; then
-    rsync_args+=( -z )
+    archive_rsync_args+=( -z )
+    metadata_rsync_args+=( -z )
   fi
   if [[ "$DRY_RUN" == "1" ]]; then
-    rsync_args=( -ahn --omit-dir-times --no-implied-dirs --partial --append-verify )
+    archive_rsync_args=( -ahn --omit-dir-times --no-implied-dirs --partial --append-verify )
+    metadata_rsync_args=( -ahn --checksum --omit-dir-times --no-implied-dirs )
     if [[ "$RSYNC_COMPRESS" == "1" ]]; then
-      rsync_args+=( -z )
+      archive_rsync_args+=( -z )
+      metadata_rsync_args+=( -z )
     fi
   fi
+
+  local -a support_files=()
+  for rel in "${unique_files[@]}"; do
+    if [[ "$rel" != "$artifact" ]]; then
+      support_files+=("$rel")
+    fi
+  done
 
   local -a ssh_opts=()
   if [[ -n "${SSH_KEY_PATH:-}" ]]; then
@@ -316,7 +326,7 @@ PY
   echo "Remote target:   $REMOTE:$REMOTE_DL_ROOT"
   echo "Build ID:        $build_id"
   echo "Artifact:        $artifact"
-  echo "Files to push:   ${#unique_files[@]}"
+  echo "Files to push:   $((${#unique_files[@]} + 1))"
   if [[ "$catalogs_enabled" == "1" ]]; then
     echo "Catalog mirror:  snapshot $catalogs_snapshot_id"
   else
@@ -346,13 +356,31 @@ PY
     run_ssh "${ssh_opts[@]}" "$REMOTE" "mkdir -p '$REMOTE_DL_ROOT/db' '$REMOTE_DL_ROOT/reports/$build_id'"
   fi
 
-  log_step "Syncing published DB metadata, archive, and reports..."
+  log_step "Syncing published DB archive..."
   (
     cd "$DL_ROOT"
     cooldown_before_ssh_connect
-    rsync -e "$ssh_rsh" "${rsync_args[@]}" --relative "${unique_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
+    rsync -e "$ssh_rsh" "${archive_rsync_args[@]}" --relative "$artifact" "$REMOTE:$REMOTE_DL_ROOT/"
   )
-  log_step "DB/report sync finished."
+  log_step "DB archive sync finished."
+
+  if (( ${#support_files[@]} > 0 )); then
+    log_step "Syncing published DB reports and support files..."
+    (
+      cd "$DL_ROOT"
+      cooldown_before_ssh_connect
+      rsync -e "$ssh_rsh" "${metadata_rsync_args[@]}" --relative "${support_files[@]}" "$REMOTE:$REMOTE_DL_ROOT/"
+    )
+    log_step "DB report/support sync finished."
+  fi
+
+  # Publish the selected metadata file only after its archive and reports are
+  # complete. Checksum comparison is required because generated current.json
+  # files commonly have identical byte lengths and timestamps across builds.
+  log_step "Publishing current DB metadata..."
+  cooldown_before_ssh_connect
+  rsync -e "$ssh_rsh" "${metadata_rsync_args[@]}" "$META_PATH" "$REMOTE:$REMOTE_DL_ROOT/current.json"
+  log_step "Current DB metadata published."
 
   if [[ "$catalogs_enabled" == "1" ]]; then
     log_step "Ensuring remote catalog mirror directories exist..."
@@ -365,14 +393,16 @@ PY
     (
       cd "$DL_ROOT"
       cooldown_before_ssh_connect
-      rsync -e "$ssh_rsh" "${rsync_args[@]}" --links \
+      rsync -e "$ssh_rsh" "${archive_rsync_args[@]}" --links \
         --relative \
-        "catalogs/current.json" \
         "catalogs/current" \
         "catalogs/$catalogs_index" \
         "catalogs/snapshots/$catalogs_snapshot_id/" \
         "$REMOTE:$REMOTE_DL_ROOT/"
     )
+    cooldown_before_ssh_connect
+    rsync -e "$ssh_rsh" "${metadata_rsync_args[@]}" \
+      "$CATALOGS_META_PATH" "$REMOTE:$REMOTE_DL_ROOT/catalogs/current.json"
     log_step "Catalog mirror sync finished."
   fi
 

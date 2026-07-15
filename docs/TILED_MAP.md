@@ -1,6 +1,6 @@
 # Tiled Deep Map v1
 
-Status: M8.1.4 deep-radius streaming Photon acceptance complete (2026-07-15).
+Status: M8.1.4 deep-radius streaming deployed and publicly verified (2026-07-15).
 
 ## Scope
 
@@ -294,3 +294,18 @@ Machine reports live under
 `/data/spacegate/state/reports/map_benchmarks/20260715T_m814_deep_*` with the
 aggregate acceptance record at
 `/data/spacegate/state/reports/map_benchmarks/20260715T_m814_deep_acceptance.json`.
+
+## M8.1.4 Production Promotion
+
+Antiproton promotion deliberately used two observable checkpoints on July 15,
+2026. Build `20260714T191900Z_d873067_side_rebuild` first passed public health,
+immutable tile-cache, desktop 100/250 exact-rendering, search/refinement handoff,
+public-search golden, and mobile 100/250 exact-rendering checks. Only then was
+`main` advanced and build `20260715T015659Z_e392a11_side_rebuild` promoted.
+
+The deep public checkpoint reports the expected 2,332,003 and 5,869,087 eligible
+systems at 500 and 1,000 ly. Public Playwright checks passed progressive
+completion and nonblank rendering at both radii on desktop and mobile, with
+camera-local exact detail, bounded rendered populations, completed depth-4
+frontiers, and zero tile failures. The stable build remains the production
+rollback target under the retention policy.

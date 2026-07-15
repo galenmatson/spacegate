@@ -799,8 +799,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add static content-addressed tile delivery and renderer-independent
   browser scheduling/cache lifecycle
 - [x] Pass tiled 100-ly behavioral parity and before/after performance budgets
-- [x] Pass the public 250-ly desktop/mobile pilot; retain 500/1,000 ly as
-  verification-only manifests
+- [x] Pass the initial public 250-ly desktop/mobile pilot while retaining
+  500/1,000 ly as verification-only manifests until separate deep-radius gates
 - [x] Gate tiled 100-ly labels against the authoritative root-system public-name
   policy and reject literal/encoded static tile traversal paths
 - [x] Replace the visible 110-ly density shell with camera-centered blended LOD,
@@ -823,8 +823,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   leaf requests
 - [x] Record desktop/mobile 500/1,000-ly network, point-count, frame-time,
   memory, selection, and idle acceptance evidence before declaring M8.1.4 stable
+- [x] Deploy and publicly verify the stable 100/250-ly checkpoint before the
+  separate 500/1,000-ly promotion; public progressive desktop/mobile checks pass
+  for both deep radii on build `20260715T015659Z_e392a11_side_rebuild`
 - [x] Make `publish_db.sh` reject unknown arguments and treat `--help` as a
   read-only operation so CLI inspection cannot start a multi-gigabyte publish
+- [x] Make `push_published_db.sh` upload archives before metadata and publish
+  selected DB/catalog `current.json` files with checksum-based replacement so
+  same-sized metadata cannot remain stale after a successful push
 - [x] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
   with the preserved science checkpoint: Castor exposes physical A/B/C
   subsystem groups while AB remains a stellar leaf, V1054 exposes five accepted
