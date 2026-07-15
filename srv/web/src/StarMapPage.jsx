@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystemDetail, fetchSystems } from "./api.js";
+import { apiUrl, fetchMapSystems, fetchPublicConfig, fetchSystems } from "./api.js";
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { readStoredMapReturnState, writeStoredMapReturnState } from "./mapReturnState.js";
 import { MapTileManager } from "./mapTiles.js";
@@ -75,6 +75,7 @@ const MAP_PEEK_SIZE_STORAGE_KEY = "spacegate.map.peekSize";
 const MAP_KEYBIND_STORAGE_KEY = "spacegate.map.keybindScheme";
 const MAP_FRAME_STORAGE_KEY = "spacegate.map.frame";
 const MAP_DIRECTION_LABELS_STORAGE_KEY = "spacegate.map.directionLabels";
+const MAP_GRID_OVERLAY_STORAGE_KEY = "spacegate.map.gridOverlay";
 const MAP_FPS_OVERLAY_STORAGE_KEY = "spacegate.map.fpsOverlay";
 const MAP_STAR_RENDER_MODE_STORAGE_KEY = "spacegate.map.starRenderMode";
 const MAP_DENSITY_MODE_STORAGE_KEY = "spacegate.map.densityMode";
@@ -352,10 +353,16 @@ function buildCoolnessTooltipLines(system) {
   ];
 }
 
-function MapVitalPill({ value, heading, lines }) {
+function MapVitalPill({ value, heading, lines, onIntent = null }) {
   const tooltipId = React.useId();
   return (
-    <span className="map-system-vital-pill" tabIndex={0} aria-describedby={tooltipId}>
+    <span
+      className="map-system-vital-pill"
+      tabIndex={0}
+      aria-describedby={tooltipId}
+      onMouseEnter={onIntent || undefined}
+      onFocus={onIntent || undefined}
+    >
       {value}
       <span id={tooltipId} className="map-system-vital-tooltip" role="tooltip">
         <strong>{heading}</strong>
@@ -425,6 +432,15 @@ function readStoredDirectionLabelsEnabled() {
     return window.localStorage.getItem(MAP_DIRECTION_LABELS_STORAGE_KEY) === "true";
   } catch {
     return false;
+  }
+}
+
+function readStoredGridOverlayEnabled() {
+  if (typeof window === "undefined") return true;
+  try {
+    return window.localStorage.getItem(MAP_GRID_OVERLAY_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
   }
 }
 
@@ -2912,6 +2928,7 @@ export default function StarMapPage({
       ? restoredMapState.showDirectionLabels
       : readStoredDirectionLabelsEnabled()
   ));
+  const [showGridOverlay, setShowGridOverlay] = useState(readStoredGridOverlayEnabled);
   const [showClassBadges, setShowClassBadges] = useState(readStoredClassBadgesEnabled);
   const [showFpsOverlay, setShowFpsOverlay] = useState(readStoredFpsOverlayEnabled);
   const [fpsSample, setFpsSample] = useState(0);
@@ -2949,6 +2966,7 @@ export default function StarMapPage({
   const mapContextRecoveryBlockedUntilRef = useRef(0);
   const pendingMapContextRecoveryRef = useRef(null);
   const lastLostMapCanvasRef = useRef(null);
+  const selectedMetricsRequestRef = useRef(null);
   const pageRef = useRef(null);
   const headerMenuRef = useRef(null);
   const drillHistoryPushedRef = useRef(false);
@@ -3200,6 +3218,14 @@ export default function StarMapPage({
       // Direction-label preference persistence is optional.
     }
   }, [showDirectionLabels]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_GRID_OVERLAY_STORAGE_KEY, showGridOverlay ? "true" : "false");
+    } catch {
+      // Grid-overlay preference persistence is optional.
+    }
+  }, [showGridOverlay]);
 
   useEffect(() => {
     try {
@@ -3455,39 +3481,47 @@ export default function StarMapPage({
   }, [drillMode]);
 
   useEffect(() => {
-    let active = true;
     if (!selectedSystem?.system_id || drillMode === "flight") {
       setSelectedSystemDetail(null);
       setSelectedSystemMetrics(null);
-      return () => {
-        active = false;
-      };
+      selectedMetricsRequestRef.current = null;
+      return;
     }
     setSelectedSystemDetail(null);
     setSelectedSystemMetrics(null);
-    const params = { name_style: normalizeNameStyle(nameStyle) };
-    Promise.allSettled([
-      fetchSystemDetail(selectedSystem.system_id, params),
-      fetchSystems({
-        q: selectedSystem.display_name || selectedSystem.system_name || String(selectedSystem.system_id),
-        limit: "20",
-        sort: "match",
-        ...params,
-      }),
-    ]).then(([detailResult, searchResult]) => {
-      if (!active) {
-        return;
-      }
-      setSelectedSystemDetail(detailResult.status === "fulfilled" ? detailResult.value : null);
-      const exactSearchRow = searchResult.status === "fulfilled"
-        ? (searchResult.value?.items || []).find((item) => String(item.system_id) === String(selectedSystem.system_id))
-        : null;
-      setSelectedSystemMetrics(exactSearchRow || null);
+    selectedMetricsRequestRef.current = null;
+  }, [drillMode, selectedSystem?.system_id]);
+
+  const handleSimulationSceneLoaded = useCallback((payload) => {
+    setSelectedSystemDetail({
+      system: payload?.system || null,
+      stars: Array.isArray(payload?.bodies?.stars) ? payload.bodies.stars : [],
+      planets: Array.isArray(payload?.bodies?.planets) ? payload.bodies.planets : [],
     });
-    return () => {
-      active = false;
-    };
-  }, [drillMode, nameStyle, selectedSystem?.system_id]);
+  }, []);
+
+  const loadSelectedSystemMetrics = useCallback(() => {
+    const system = selectedSystem;
+    const systemId = system?.system_id;
+    if (!systemId || selectedSystemMetrics || selectedMetricsRequestRef.current === String(systemId)) {
+      return;
+    }
+    selectedMetricsRequestRef.current = String(systemId);
+    fetchSystems({
+      q: system.display_name || system.system_name || String(systemId),
+      limit: "20",
+      sort: "match",
+      name_style: normalizeNameStyle(nameStyle),
+    }).then((payload) => {
+      if (String(selectedMetricsRequestRef.current) !== String(systemId)) return;
+      const exact = (payload?.items || []).find((item) => String(item.system_id) === String(systemId));
+      setSelectedSystemMetrics(exact || system);
+    }).catch(() => {
+      if (String(selectedMetricsRequestRef.current) === String(systemId)) {
+        selectedMetricsRequestRef.current = null;
+      }
+    });
+  }, [nameStyle, selectedSystem, selectedSystemMetrics]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -4350,7 +4384,9 @@ export default function StarMapPage({
       data-map-drill-mode={drillMode}
       data-map-minimal-mode={minimalMode ? "true" : "false"}
     >
-      <div className="map-background-grid" aria-hidden="true" />
+      {showGridOverlay && (
+        <div className="map-background-grid" aria-hidden="true" data-testid="map-grid-overlay" />
+      )}
       {systems.length > 0 && (
         <StarMapScene
           key={mapContextEpoch}
@@ -4660,6 +4696,15 @@ export default function StarMapPage({
                     data-testid="map-direction-labels-toggle"
                   />
                   <span>Direction labels</span>
+                </label>
+                <label className="map-menu-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showGridOverlay}
+                    onChange={(event) => setShowGridOverlay(event.target.checked)}
+                    data-testid="map-grid-overlay-toggle"
+                  />
+                  <span>Grid overlay</span>
                 </label>
                 <label className="map-menu-toggle">
                   <input
@@ -5108,6 +5153,7 @@ export default function StarMapPage({
                 value={`cool ${formatNumber(selectedSystem.coolness_score, 1)}`}
                 heading="Coolness score"
                 lines={buildCoolnessTooltipLines(selectedSystemMetrics || selectedSystem)}
+                onIntent={loadSelectedSystemMetrics}
               />
               <MapVitalPill
                 value={`rank ${formatNumber(selectedSystem.coolness_rank, 0)}`}
@@ -5127,6 +5173,7 @@ export default function StarMapPage({
                 qualityTier={runtimeQuality.tier}
                 onRuntimeEvent={handleRuntimeEvent}
                 onStellarClassEntries={setDrillStellarClassEntries}
+                onSceneLoaded={handleSimulationSceneLoaded}
                 defaultScaleMode={defaultScaleMode}
                 nameStyle={normalizeNameStyle(nameStyle)}
               />

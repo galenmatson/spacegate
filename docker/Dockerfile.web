@@ -1,4 +1,4 @@
-FROM node:20-slim AS public-build
+FROM node:22-slim AS public-build
 
 WORKDIR /app
 COPY srv/web /app/srv/web
@@ -6,7 +6,7 @@ WORKDIR /app/srv/web
 RUN npm ci --include=optional && npm install --no-save lightningcss-linux-x64-gnu@1.32.0
 RUN npm run build
 
-FROM node:20-slim AS admin-build
+FROM node:22-slim AS admin-build
 
 WORKDIR /app
 COPY srv/admin-web /app/srv/admin-web

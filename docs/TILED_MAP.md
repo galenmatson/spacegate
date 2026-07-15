@@ -309,3 +309,11 @@ completion and nonblank rendering at both radii on desktop and mobile, with
 camera-local exact detail, bounded rendered populations, completed depth-4
 frontiers, and zero tile failures. The stable build remains the production
 rollback target under the retention policy.
+
+Post-promotion observation found one remaining client-side crash after a large
+window rendered more than 100,000 points near the 1,000-ly boundary. The same
+session otherwise remained responsive, and a later parked observation held
+approximately 100,000 points across 487 tiles. This remains an open browser
+runtime investigation rather than evidence of an API or tile-delivery failure.
+The screen-space theme grid is cosmetic, not octree geometry; it is controlled
+by the persistent `Grid overlay` map-menu toggle for every theme.

@@ -629,6 +629,12 @@ Success criteria:
   cache keyed by served build and system id. This avoids recomputing ARM
   diagnostics, readiness, assumptions, and render-scene contracts when users
   scroll back through recently previewed systems.
+- Map Peek treats `simulation-scene` as the selected-system data request: its
+  returned system/star/planet records also populate the compact source
+  tooltips. Coolness-component enrichment is lazy on COOL tooltip intent, and
+  a short selection debounce prevents rapid transient selections from starting
+  scene assembly. This does not replace the need for prebuilt priority scenes,
+  shared cache/request coalescing, or a cheap singleton scene contract.
 - `scripts/materialize_simulation_scenes.py` can prebuild compressed
   `disc/simulation_scenes/system_<system_id>.json.gz` artifacts for hot search
   systems. The API serves those artifacts first, then falls back to the

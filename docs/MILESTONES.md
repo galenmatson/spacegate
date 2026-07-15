@@ -1722,6 +1722,21 @@ selector for these high-value full-preview targets. This is a prerequisite for
 larger streamed 250/500/1000 ly map radii, where most displayed systems should
 not trigger dynamic scene assembly.
 
+July 15, 2026 public deep-map observation exposed a promotion gap: build
+`20260715T015659Z_e392a11_side_rebuild` contains no prebuilt simulation-scene
+artifacts, while an older local build contains 1,001. Cold, ordinary singleton
+scenes measured approximately 1.3-2.2 seconds each on Photon, and map Peek was
+also issuing duplicate detail and search enrichment requests. A cold profile
+executed about 70 DuckDB statements in 1.23 seconds; public-system assembly used
+1.06 seconds, including about 0.50 seconds in hierarchy assembly/reconciliation
+for a lone star. Peek now reuses
+the simulation-scene body/system payload for source tooltips, defers coolness
+enrichment until tooltip intent, and debounces scene loads by 150 ms so rapid
+selection does not launch every transient request. The next runtime checkpoint
+must make priority-scene materialization a promoted-build gate, add cheap client
+scenes for ordinary map-selected singletons, and measure shared/persistent cache
+behavior before treating VPS capacity as the primary bottleneck.
+
 ### Stellar Physical Classification v1
 
 The July 2026 V1054 Oph review exposed two related needs. First, complex MSC

@@ -36,6 +36,23 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Optional WDS-Gaia bridge wired and default-off
 - [x] Physical consistency gating on WDS bridge grouping
 - [x] Proximity grouping remains nondefault for conservative production builds
+- [x] Make the map's cosmetic grid overlay independently toggleable across all
+  themes and persist the preference locally
+- [x] Remove redundant detail and search work from map Peek startup: reuse the
+  simulation-scene payload for star/planet source tooltips and defer the
+  coolness-component search until the COOL tooltip is actually inspected
+- [x] Align public/admin Docker frontend build stages with Node 22 so current
+  `camera-controls` engine requirements are satisfied
+- [ ] Restore build-bound priority simulation-scene materialization in the
+  promoted deep-map artifact pipeline; the July 15 deep build contains zero
+  prebuilt scenes, forcing all Peek requests through live ARM/readiness/scene
+  assembly even though an earlier build carried 1,001 artifacts
+- [ ] Add a cheap map-selected singleton scene path plus shared/persistent
+  dynamic-scene caching, request coalescing, cache telemetry, and concurrency
+  budgets before planning for hundreds of concurrent exploratory users
+- [ ] Reproduce and capture the remaining client-side 1,000-ly crash observed
+  after rendering more than 100,000 points near the sphere edge; distinguish
+  WebGL context/process failure from JavaScript heap or tile lifecycle growth
 
 ### B1. Current Data and Identity Regression Inbox
 

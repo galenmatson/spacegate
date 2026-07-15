@@ -4330,7 +4330,7 @@ function SnapshotFallbackVisual({ snapshot, systemName, reason = "Preview unavai
   );
 }
 
-export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, defaultScaleMode = "structure", nameStyle = "public_full" }) {
+export default function SystemPreviewPanel({ systemId, systemName, snapshot = null, presentationMode = "detail", autoRun = true, qualityTier = "high", captureFrame = false, onFrameCapture = null, onRuntimeEvent = null, onStellarClassEntries = null, onSceneLoaded = null, defaultScaleMode = "structure", nameStyle = "public_full" }) {
   const [scene, setScene] = useState(null);
   const [status, setStatus] = useState("loading");
   const [webglReady, setWebglReady] = useState(null);
@@ -4440,6 +4440,7 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
 
   useEffect(() => {
     let active = true;
+    let requestTimer = null;
     const canRenderWebGL = hasUsableWebGL();
     setWebglReady(canRenderWebGL);
     setStatus("loading");
@@ -4461,22 +4462,26 @@ export default function SystemPreviewPanel({ systemId, systemName, snapshot = nu
         active = false;
       };
     }
-    fetchSystemSimulationScene(systemId, { name_style: nameStyle })
-      .then((payload) => {
-        if (active) {
-          setScene(payload);
-          setStatus("ready");
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setStatus("error");
-        }
-      });
+    requestTimer = window.setTimeout(() => {
+      fetchSystemSimulationScene(systemId, { name_style: nameStyle })
+        .then((payload) => {
+          if (active) {
+            setScene(payload);
+            setStatus("ready");
+            onSceneLoaded?.(payload);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setStatus("error");
+          }
+        });
+    }, 150);
     return () => {
       active = false;
+      window.clearTimeout(requestTimer);
     };
-  }, [nameStyle, systemId]);
+  }, [nameStyle, onSceneLoaded, systemId]);
 
   const readiness = scene?.simulation_readiness || {};
   const counts = readiness.counts || {};

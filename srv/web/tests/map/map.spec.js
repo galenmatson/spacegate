@@ -747,6 +747,7 @@ test.describe("public 3D map beta", () => {
     const starRenderSelect = menu.locator("[data-testid='map-star-render-mode-select']");
     const classBadgesToggle = menu.locator("[data-testid='map-class-badges-toggle']");
     const directionToggle = menu.locator("[data-testid='map-direction-labels-toggle']");
+    const gridToggle = menu.locator("[data-testid='map-grid-overlay-toggle']");
     await expect(themeSelect).toBeVisible();
     await expect(keybindSelect).toBeVisible();
     await expect(scaleSelect).toBeVisible();
@@ -755,6 +756,14 @@ test.describe("public 3D map beta", () => {
     await expect(starRenderSelect).toBeVisible();
     await expect(classBadgesToggle).toBeVisible();
     await expect(directionToggle).toBeVisible();
+    await expect(gridToggle).toBeVisible();
+
+    await expect(page.locator("[data-testid='map-grid-overlay']")).toBeVisible();
+    await gridToggle.uncheck();
+    await expect(page.locator("[data-testid='map-grid-overlay']")).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.gridOverlay"))).toBe("false");
+    await gridToggle.check();
+    await expect(page.locator("[data-testid='map-grid-overlay']")).toBeVisible();
 
     await themeSelect.selectOption("aurora");
     await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || "")).toBe("aurora");
@@ -981,6 +990,11 @@ test.describe("public 3D map beta", () => {
   test("map selection opens System Simulation peek and explore drill-in", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.includes("mobile"), "desktop drill-in smoke uses hover/canvas layout");
     await openMap(page);
+    const selectionRequests = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.pathname.startsWith("/api/v1/systems/")) selectionRequests.push(url.pathname);
+    });
     await expect(page.locator(".map-contacts-panel")).toHaveCount(0);
     await openMapPeekFromRecents(page);
 
@@ -994,6 +1008,9 @@ test.describe("public 3D map beta", () => {
     await expect(drill.getByRole("button", { name: /^Close$/i })).toBeVisible();
     await expect(drill.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(drill.locator(".system-preview-canvas canvas")).toBeVisible();
+    await expect.poll(() => selectionRequests.filter((path) => path.endsWith("/simulation-scene")).length).toBe(1);
+    expect(selectionRequests.filter((path) => /^\/api\/v1\/systems\/\d+$/.test(path))).toHaveLength(0);
+    expect(selectionRequests.filter((path) => path === "/api/v1/systems/search")).toHaveLength(0);
     await expect(drill.locator("[data-testid='system-preview-scale-mode']")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select")).toBeVisible();
     await expect(drill.locator(".system-preview-speed select option[value='1000']")).toHaveCount(1);
