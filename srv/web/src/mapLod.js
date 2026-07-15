@@ -39,6 +39,18 @@ export function mapDensityProfile(mode) {
   return MAP_DENSITY_MODES[normalizeMapDensityMode(mode)];
 }
 
+export function deepMapDensityProfile(mode) {
+  const normalized = normalizeMapDensityMode(mode);
+  if (normalized !== "exact") return mapDensityProfile(normalized);
+  return {
+    ...MAP_DENSITY_MODES.exact,
+    title: "Render the complete catalog near the camera, with a deterministic transition into the deep-map sample.",
+    detailInnerLy: 105,
+    detailOuterLy: 140,
+    recenterLy: 18,
+  };
+}
+
 export function stableMapSampleUnit(systemId) {
   const text = String(systemId ?? "");
   let hash = 2166136261;
@@ -85,6 +97,16 @@ export function mapPointInclusionProbability(system, centerLy, mode) {
 export function includeDetailedMapPoint(system, centerLy, mode) {
   if (includeBackgroundMapPoint(system, mode)) return false;
   return stableMapSampleUnit(system?.system_id) < mapPointInclusionProbability(system, centerLy, mode);
+}
+
+export function includeDeepExactMapPoint(system, centerLy, mode = "exact") {
+  const profile = deepMapDensityProfile(mode);
+  const distance = systemDistanceFrom(system, centerLy);
+  if (distance <= profile.detailInnerLy) return true;
+  if (distance >= profile.detailOuterLy) return false;
+  const linear = (profile.detailOuterLy - distance) / (profile.detailOuterLy - profile.detailInnerLy);
+  const smooth = linear * linear * (3 - 2 * linear);
+  return stableMapSampleUnit(system?.system_id) < smooth;
 }
 
 export function cameraMovedBeyond(previousCenter, nextCenter, thresholdLy) {

@@ -52,7 +52,7 @@ class MapTileContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "tile.sgtile.gz"
             path.write_bytes(gzip.compress(raw, mtime=0))
-            header, names = read_tile(path)
+            header, names, _ = read_tile(path)
         self.assertEqual(header["emitted_count"], 1)
         self.assertEqual(names, {17788193: "Sol"})
 

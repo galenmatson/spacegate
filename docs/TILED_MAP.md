@@ -1,13 +1,13 @@
 # Tiled Deep Map v1
 
-Status: M8.1 implementation contract, 250-ly pilot (2026-07-14).
+Status: M8.1.4 deep-radius streaming implementation (2026-07-15).
 
 ## Scope
 
 Tiled Map v1 replaces the browser's monolithic 100-ly JSON transport with
 immutable, content-addressed map artifacts. The public selector exposes 100 and
-250 ly. Builds also generate 500 and 1,000-ly verification manifests, but those
-radii are not public until later measured acceptance work.
+250 ly as complete exact catalogs. M8.1.4 adds 500 and 1,000 ly as progressive
+deep-map modes after their separate acceptance gates pass.
 
 This is a presentation artifact. Authoritative coordinates and object identity
 remain in `core`; DISC coolness influences scheduling and sampled LODs but never
@@ -99,6 +99,15 @@ The map menu exposes three deterministic density policies:
   hysteresis; this is the default on constrained/touch clients
 - `Exact`: all 230,181 catalog systems at 250 ly with bounded labels
 
+At 500 and 1,000 ly, the browser never interprets `Exact` as an instruction to
+materialize the whole 2.33-million or 5.87-million-system catalog. It paints a
+complete depth-2 sample first, refines to the complete depth-3 sample frontier,
+adds the few dense depth-4 sample cells, and requests exact leaves only around
+the camera or an explicit search target. `Exact` means a full 105-ly
+camera-local interior with a deterministic 105-140-ly transition into the
+global sample. This limit is part of the public runtime contract, not a silent
+mobile-only reduction.
+
 Search can materialize and pin an omitted ordinary system by stable identity.
 The UI and canvas diagnostics report catalog, rendered, and camera-detail
 counts separately, so LOD is not presented as a complete local population.
@@ -154,6 +163,12 @@ queue aging. Interest cannot displace an explicitly requested or nearby cell;
 aging prevents indefinite starvation. Exact rows replace sampled copies by
 stable identity, preserving selection, pinned labels, Peek, Explorer, routes,
 and system-page handoff across refinement.
+
+For deep radii, sample refinement is staged. All depth-2 requests finish before
+depth 3 begins. A successful complete depth-3 frontier replaces the depth-2
+rows by tile ownership; if any depth-3 tile fails, the coarser context remains.
+Depth-4 sample tiles cover only especially dense children and refine additively
+because their siblings may intentionally have no depth-4 sample artifact.
 
 `?map_transport=monolithic` is a temporary diagnostic comparison for the
 100-ly endpoint and is formally deprecated. It is not a second renderer

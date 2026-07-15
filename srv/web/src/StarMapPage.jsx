@@ -9,7 +9,9 @@ import { MapTileManager } from "./mapTiles.js";
 import {
   MAP_DENSITY_MODE_OPTIONS,
   cameraMovedBeyond,
+  deepMapDensityProfile,
   includeBackgroundMapPoint,
+  includeDeepExactMapPoint,
   includeDetailedMapPoint,
   mapDensityProfile,
   normalizeMapDensityMode,
@@ -35,7 +37,7 @@ const STAR_SEARCH_SORT_OPTIONS = [
   { value: "coolness", label: "Coolest" },
   { value: "name", label: "Name" },
 ];
-const MAP_RADIUS_OPTIONS_LY = [100, 250];
+const MAP_RADIUS_OPTIONS_LY = [100, 250, 500, 1000];
 const WEBGL_CONTEXT_BUDGET = 6;
 const SEARCH_PREVIEW_POOL_SIZE = 4;
 const SEARCH_PREVIEW_SNAPSHOT_CACHE_LIMIT = 96;
@@ -2218,14 +2220,23 @@ function MapRuntimeBridge({ runtimeDiagnostics, runtimeQuality }) {
     target.dataset.mapTileCacheHits = String(runtimeDiagnostics?.tileStats?.cache_hits ?? 0);
     target.dataset.mapTileFailures = String(runtimeDiagnostics?.tileStats?.failed_tiles ?? 0);
     target.dataset.mapTileExactSystems = String(runtimeDiagnostics?.tileStats?.exact_systems ?? 0);
+    target.dataset.mapTileSampledSystems = String(runtimeDiagnostics?.tileStats?.sampled_systems ?? 0);
     target.dataset.mapTileEligibleSystems = String(runtimeDiagnostics?.tileStats?.eligible_systems ?? 0);
     target.dataset.mapTileComplete = runtimeDiagnostics?.tileStats?.complete ? "true" : "false";
+    target.dataset.mapTileManifestReady = runtimeDiagnostics?.tileStats?.manifest_ready ? "true" : "false";
+    target.dataset.mapTileProgressive = runtimeDiagnostics?.tileStats?.progressive ? "true" : "false";
+    target.dataset.mapTileCoarseComplete = runtimeDiagnostics?.tileStats?.coarse_complete ? "true" : "false";
+    target.dataset.mapTileStageDepth = String(runtimeDiagnostics?.tileStats?.stage_depth ?? "");
+    target.dataset.mapTileCompletedStageDepth = String(runtimeDiagnostics?.tileStats?.completed_stage_depth ?? "");
+    target.dataset.mapTileReplacedSamples = String(runtimeDiagnostics?.tileStats?.replaced_sample_tiles ?? 0);
     target.dataset.mapTileRenderedSystems = String(runtimeDiagnostics?.tileStats?.rendered_systems ?? 0);
     target.dataset.mapTileLodMode = runtimeDiagnostics?.tileStats?.lod_mode || "exact";
     target.dataset.mapDensityMode = runtimeDiagnostics?.densityMode || "balanced";
     target.dataset.mapDetailCenterLy = (runtimeDiagnostics?.tileStats?.detail_center_ly || []).join(",");
     target.dataset.mapDetailRadiusLy = String(runtimeDiagnostics?.tileStats?.detail_radius_ly ?? 0);
     target.dataset.mapDetailSystems = String(runtimeDiagnostics?.tileStats?.detail_rendered_systems ?? 0);
+    target.dataset.mapDetailTiles = String(runtimeDiagnostics?.tileStats?.detail_tiles ?? 0);
+    target.dataset.mapDetailEncodedBytes = String(runtimeDiagnostics?.tileStats?.detail_encoded_bytes ?? 0);
     target.dataset.mapRadialSeamRatio = Number.isFinite(runtimeDiagnostics?.radialSeamRatio)
       ? Number(runtimeDiagnostics.radialSeamRatio).toFixed(4)
       : "";
@@ -2839,9 +2850,10 @@ export default function StarMapPage({
   const [searchParams, setSearchParams] = useSearchParams();
   const restoreStateRef = useRef(readStoredMapReturnState(searchParams.get("restore")));
   const restoredMapState = restoreStateRef.current;
-  const [mapRadiusLy, setMapRadiusLy] = useState(() => (
-    Number(searchParams.get("radius")) === 250 ? 250 : DEFAULT_MAP_RADIUS_LY
-  ));
+  const [mapRadiusLy, setMapRadiusLy] = useState(() => {
+    const requestedRadius = Number(searchParams.get("radius"));
+    return MAP_RADIUS_OPTIONS_LY.includes(requestedRadius) ? requestedRadius : DEFAULT_MAP_RADIUS_LY;
+  });
   const monolithicDiagnosticMode = searchParams.get("map_transport") === "monolithic";
   const pixelProbeEnabled = searchParams.get("pixel_probe") === "1";
   const [publicConfig, setPublicConfig] = useState(PUBLIC_CONFIG_FALLBACK);
@@ -3611,14 +3623,17 @@ export default function StarMapPage({
     setTileStats(monolithicDiagnosticMode ? { mode: "monolithic" } : { mode: "tiled", radius_ly: mapRadiusLy });
     tileSystemsRef.current = new Map();
     detailSystemsRef.current = new Map();
-    const densityProfile = mapDensityProfile(mapDensityMode);
+    const deepProgressive = mapRadiusLy > 250;
+    const densityProfile = deepProgressive
+      ? deepMapDensityProfile(mapDensityMode)
+      : mapDensityProfile(mapDensityMode);
     const initialOrigin = telemetry.originLy || { x: 0, y: 0, z: 0 };
     const initialDetailCenter = [
       Number(initialOrigin.x || 0),
       Number(initialOrigin.y || 0),
       Number(initialOrigin.z || 0),
     ];
-    detailCenterRef.current = mapRadiusLy > 100 && densityProfile.backgroundProbability < 1
+    detailCenterRef.current = mapRadiusLy > 100 && (deepProgressive || densityProfile.backgroundProbability < 1)
       ? initialDetailCenter
       : null;
     const flushTiles = () => {
@@ -3646,7 +3661,9 @@ export default function StarMapPage({
     } else {
       const manager = new MapTileManager({
         concurrency: constrainedTileDevice ? 4 : 6,
-        cacheLimit: constrainedTileDevice ? 12 : 24,
+        cacheLimit: deepProgressive
+          ? (constrainedTileDevice ? 48 : 96)
+          : (constrainedTileDevice ? 12 : 24),
         nameStyle: normalizeNameStyle(nameStyle),
         onBatch: (rows, tile) => {
           if (!active) return;
@@ -3673,6 +3690,14 @@ export default function StarMapPage({
           }
           setLoading(false);
         },
+        onReplace: ({ remove_tile_ids: removeTileIds = [] } = {}) => {
+          if (!active || !removeTileIds.length) return;
+          const removeSet = new Set(removeTileIds.map(String));
+          for (const [key, row] of tileSystemsRef.current.entries()) {
+            if (removeSet.has(String(row.tile_id || ""))) tileSystemsRef.current.delete(key);
+          }
+          flushTiles();
+        },
         onStatus: (stats) => {
           if (!active) return;
           const renderedSystems = mergedMapSystemCount(
@@ -3687,7 +3712,9 @@ export default function StarMapPage({
             detail_radius_ly: stats.detail_radius_ly || (mapRadiusLy > 100 ? densityProfile.detailOuterLy : 0),
             detail_rendered_systems: detailSystemsRef.current.size,
             density_mode: mapRadiusLy > 100 ? normalizeMapDensityMode(mapDensityMode) : "exact",
-            lod_mode: mapRadiusLy > 100 ? "camera_blended_interest_spatial_v2" : "exact",
+            lod_mode: deepProgressive
+              ? "progressive_global_sample_local_exact_v1"
+              : mapRadiusLy > 100 ? "camera_blended_interest_spatial_v2" : "exact",
           };
           setTileStats(runtimeStats);
           if (stats.last_error) setError(stats.last_error);
@@ -3755,12 +3782,15 @@ export default function StarMapPage({
   }, [telemetry.originLy]);
 
   useEffect(() => {
-    const profile = mapDensityProfile(mapDensityMode);
-    if (!tileStats?.complete) return undefined;
+    const deepProgressive = mapRadiusLy > 250;
+    const profile = deepProgressive
+      ? deepMapDensityProfile(mapDensityMode)
+      : mapDensityProfile(mapDensityMode);
+    if (!tileStats?.manifest_ready) return undefined;
     if (
       monolithicDiagnosticMode
       || mapRadiusLy <= 100
-      || profile.backgroundProbability >= 1
+      || (!deepProgressive && profile.backgroundProbability >= 1)
     ) {
       detailRequestRef.current += 1;
       if (detailSystemsRef.current.size) {
@@ -3781,7 +3811,10 @@ export default function StarMapPage({
         if (request !== detailRequestRef.current || !Array.isArray(rows)) return;
         const detailed = new Map();
         rows.forEach((row) => {
-          if (includeDetailedMapPoint(row, center, mapDensityMode)) {
+          const include = deepProgressive && normalizeMapDensityMode(mapDensityMode) === "exact"
+            ? includeDeepExactMapPoint(row, center, mapDensityMode)
+            : includeDetailedMapPoint(row, center, mapDensityMode);
+          if (include) {
             detailed.set(String(row.system_id), { ...row, sampled_lod: false, camera_detail: true });
           }
         });
@@ -3794,7 +3827,9 @@ export default function StarMapPage({
           detail_rendered_systems: detailed.size,
           rendered_systems: renderedSystems,
           density_mode: normalizeMapDensityMode(mapDensityMode),
-          lod_mode: "camera_blended_interest_spatial_v2",
+          lod_mode: deepProgressive
+            ? "progressive_global_sample_local_exact_v1"
+            : "camera_blended_interest_spatial_v2",
         } : current);
         setSummary((current) => current ? {
           ...current,
@@ -3806,7 +3841,9 @@ export default function StarMapPage({
             detail_rendered_systems: detailed.size,
             rendered_systems: renderedSystems,
             density_mode: normalizeMapDensityMode(mapDensityMode),
-            lod_mode: "camera_blended_interest_spatial_v2",
+            lod_mode: deepProgressive
+              ? "progressive_global_sample_local_exact_v1"
+              : "camera_blended_interest_spatial_v2",
           },
         } : current);
       })
@@ -3816,7 +3853,7 @@ export default function StarMapPage({
         setError(exc instanceof Error ? exc.message : "Map detail tiles unavailable");
       });
     return undefined;
-  }, [flushMapSystems, mapDensityMode, mapRadiusLy, monolithicDiagnosticMode, telemetry.originLy, tileStats?.complete]);
+  }, [flushMapSystems, mapDensityMode, mapRadiusLy, monolithicDiagnosticMode, telemetry.originLy, tileStats?.manifest_ready]);
 
   useEffect(() => {
     setMapSearchFilters((current) => ({ ...current, distanceRange: [0, mapRadiusLy] }));
@@ -4525,7 +4562,10 @@ export default function StarMapPage({
                   <select
                     value={String(mapRadiusLy)}
                     onChange={(event) => {
-                      const nextRadius = Number(event.target.value) === 250 ? 250 : DEFAULT_MAP_RADIUS_LY;
+                      const requestedRadius = Number(event.target.value);
+                      const nextRadius = MAP_RADIUS_OPTIONS_LY.includes(requestedRadius)
+                        ? requestedRadius
+                        : DEFAULT_MAP_RADIUS_LY;
                       setMapRadiusLy(nextRadius);
                       const nextParams = new URLSearchParams(searchParams);
                       if (nextRadius === DEFAULT_MAP_RADIUS_LY) nextParams.delete("radius");
@@ -4541,7 +4581,9 @@ export default function StarMapPage({
                 </label>
                 <label
                   className="map-menu-field map-density-select"
-                  title={mapDensityProfile(mapDensityMode).title}
+                  title={(mapRadiusLy > 250
+                    ? deepMapDensityProfile(mapDensityMode)
+                    : mapDensityProfile(mapDensityMode)).title}
                 >
                   <span>Star Density</span>
                   <select

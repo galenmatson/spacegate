@@ -651,8 +651,11 @@ These paths are served by the static web tier, not under `/api/v1`:
   bounded public/verification radius inventory
 - `GET /map-tiles/radius-100/manifest.json`
 - `GET /map-tiles/radius-250/manifest.json`
-- verification-only manifests may exist for radius 500 and 1,000; the browser
-  does not expose them in M8.1
+- `GET /map-tiles/radius-500/manifest.json`
+- `GET /map-tiles/radius-1000/manifest.json`
+- the browser must not expose a radius absent from `public_radii_ly`; 500 and
+  1,000 ly use progressive sampled context with camera-local exact leaves rather
+  than eager exact-catalog transfer
 - `GET /map-tiles/radius-<allowed>/tiles/<sha256>.sgtile.gz`: immutable binary
   tile artifact
 

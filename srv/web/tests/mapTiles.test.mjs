@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { decodeMapTile, MapTileManager, mapTileRequestPriority, tileIntersectsSphere } from "../src/mapTiles.js";
+import {
+  decodeMapTile,
+  MapTileManager,
+  mapTileRequestPriority,
+  progressiveSampleStages,
+  tileIntersectsSphere,
+} from "../src/mapTiles.js";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -76,4 +82,55 @@ assert.equal(batches.length, 1);
 const detail = await manager.loadDetailBubble([0, 0, 0], 10);
 assert.equal(detail.length, 1);
 assert.equal(detail[0].display_name, "Test Pulsar");
+
+const progressiveManifest = {
+  build_id: "test-deep",
+  tiles: [
+    {
+      exact: false,
+      depth: 3,
+      tile_id: "d3-fine",
+      sha256: "fine",
+      url: "/map-tiles/fine",
+      compressed_bytes: encoded.length,
+      bounds_min_ly: [-256, -256, -256],
+      bounds_max_ly: [256, 256, 256],
+    },
+    {
+      exact: false,
+      depth: 2,
+      tile_id: "d2-coarse",
+      sha256: "coarse",
+      url: "/map-tiles/coarse",
+      compressed_bytes: encoded.length,
+      bounds_min_ly: [-512, -512, -512],
+      bounds_max_ly: [512, 512, 512],
+    },
+  ],
+  counts: { eligible_systems: 1000 },
+  coolness_profile: {},
+};
+assert.deepEqual(progressiveSampleStages(progressiveManifest).map((stage) => stage.depth), [2, 3]);
+const progressiveBatches = [];
+const replacements = [];
+const progressiveFetch = (url) => {
+  if (url === "/map-tiles/index.json") {
+    return Promise.resolve(new Response(JSON.stringify({ build_id: "test-deep", public_radii_ly: [500] })));
+  }
+  if (url === "/map-tiles/radius-500/manifest.json") {
+    return Promise.resolve(new Response(JSON.stringify(progressiveManifest)));
+  }
+  return Promise.resolve(new Response(encoded));
+};
+const progressiveManager = new MapTileManager({
+  fetchImpl: progressiveFetch,
+  onBatch: (_systems, tileMetadata) => progressiveBatches.push(tileMetadata.stage_depth),
+  onReplace: (replacement) => replacements.push(replacement),
+});
+const progressiveResult = await progressiveManager.loadRadius(500);
+assert.deepEqual(progressiveBatches, [2, 3]);
+assert.deepEqual(replacements[0].remove_tile_ids, ["d2-coarse"]);
+assert.equal(progressiveResult.stats.progressive, true);
+assert.equal(progressiveResult.stats.exact_systems, 0);
+assert.equal(progressiveResult.stats.complete, true);
 process.stdout.write("map tile decoder ok\n");

@@ -56,6 +56,35 @@ for (const radius of [100, 250]) {
   });
 }
 
+for (const radius of [500, 1000]) {
+  test(`progressive ${radius}-ly map keeps exact leaves camera-local`, async ({ page }, testInfo) => {
+    test.setTimeout(radius === 1000 ? 120_000 : 90_000);
+    await page.goto(`/map?radius=${radius}&pixel_probe=1`, { waitUntil: "domcontentloaded" });
+    const canvas = page.locator(".map-canvas canvas");
+    await canvas.waitFor();
+    await expect(canvas).toHaveAttribute("data-map-tile-progressive", "true");
+    await expect(canvas).toHaveAttribute("data-map-tile-manifest-ready", "true");
+    await expect.poll(
+      () => canvas.getAttribute("data-map-tile-coarse-complete"),
+      { timeout: 30_000 },
+    ).toBe("true");
+    await expect(canvas).toHaveAttribute("data-map-tile-complete", "true", { timeout: 60_000 });
+    await expect(canvas).toHaveAttribute("data-map-tile-exact-systems", "0");
+    await expect(canvas).toHaveAttribute("data-map-tile-replaced-samples", radius === 1000 ? "64" : "8");
+    await expect(canvas).toHaveAttribute("data-map-tile-completed-stage-depth", "4");
+    await expect(canvas).toHaveAttribute("data-map-tile-failures", "0");
+    await expect.poll(() => canvas.evaluate((node) => Number(node.dataset.mapDetailSystems || 0))).toBeGreaterThan(0);
+    const renderedPoints = await canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0));
+    expect(renderedPoints).toBeGreaterThan(radius === 1000 ? 80_000 : 10_000);
+    expect(renderedPoints).toBeLessThan(radius === 1000 ? 180_000 : 100_000);
+    const detailTiles = await canvas.evaluate((node) => Number(node.dataset.mapDetailTiles || 0));
+    expect(detailTiles).toBeGreaterThan(0);
+    expect(detailTiles).toBeLessThan(radius === 1000 ? 300 : 200);
+    await expectPaintedMap(page);
+    await page.screenshot({ path: testInfo.outputPath(`progressive-${radius}ly.png`), fullPage: true });
+  });
+}
+
 test("250-ly search focus survives exact refinement and system handoff", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.includes("mobile"), "desktop interaction trace");
   test.setTimeout(120_000);

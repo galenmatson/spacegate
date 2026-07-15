@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
   cameraMovedBeyond,
+  deepMapDensityProfile,
   includeBackgroundMapPoint,
+  includeDeepExactMapPoint,
   includeDetailedMapPoint,
   mapPointInclusionProbability,
   radialDensitySeamRatio,
@@ -55,6 +57,9 @@ assert.equal(includeDetailedMapPoint(cameraRelativeCandidate, [0, 0, 0], "balanc
 assert.equal(includeDetailedMapPoint(cameraRelativeCandidate, [150, 0, 0], "balanced"), true);
 
 assert.equal(includeBackgroundMapPoint(ordinary(999, 200), "exact"), true);
+assert.equal(deepMapDensityProfile("exact").detailOuterLy, 140);
+assert.equal(includeDeepExactMapPoint(ordinary(999, 100), [0, 0, 0]), true);
+assert.equal(includeDeepExactMapPoint(ordinary(999, 141), [0, 0, 0]), false);
 const syntheticShell = [];
 for (let id = 1; id <= 10000; id += 1) syntheticShell.push({ ...ordinary(id, 100), dist_ly: 100 });
 for (let id = 10001; id <= 10000 + Math.round(10000 * ((130 ** 3 - 110 ** 3) / (110 ** 3 - 90 ** 3))); id += 1) {

@@ -138,12 +138,26 @@ export function mapTileRequestPriority(tile, { focus = [0, 0, 0], direction = [0
     + Math.min(20, ageSeconds * 0.5);
 }
 
+export function progressiveSampleStages(manifest) {
+  const byDepth = new Map();
+  for (const tile of manifest?.tiles || []) {
+    if (tile.exact) continue;
+    const depth = Number(tile.depth || 0);
+    if (!byDepth.has(depth)) byDepth.set(depth, []);
+    byDepth.get(depth).push(tile);
+  }
+  return Array.from(byDepth.entries())
+    .sort(([left], [right]) => left - right)
+    .map(([depth, tiles]) => ({ depth, tiles }));
+}
+
 export class MapTileManager {
-  constructor({ concurrency = 6, cacheLimit = 128, retryLimit = 2, nameStyle = "public_full", onBatch, onStatus, fetchImpl = fetch } = {}) {
+  constructor({ concurrency = 6, cacheLimit = 128, retryLimit = 2, nameStyle = "public_full", onBatch, onReplace, onStatus, fetchImpl = fetch } = {}) {
     this.concurrency = concurrency;
     this.cacheLimit = cacheLimit;
     this.retryLimit = retryLimit;
     this.onBatch = onBatch || (() => {});
+    this.onReplace = onReplace || (() => {});
     this.onStatus = onStatus || (() => {});
     this.fetchImpl = (...fetchArgs) => fetchImpl(...fetchArgs);
     this.nameStyle = nameStyle;
@@ -201,15 +215,21 @@ export class MapTileManager {
       throw new Error("Map tile index and radius manifest belong to different builds.");
     }
     this.manifest = manifest;
-    const deepestSampleDepth = Math.max(...manifest.tiles.filter((tile) => !tile.exact).map((tile) => Number(tile.depth)), 0);
-    const queue = manifest.tiles
-      .filter((tile) => tile.exact || (!tile.exact && Number(tile.depth) === deepestSampleDepth))
-      .map((tile) => ({ tile, queuedAt: performance.now(), attempt: 0 }));
+    const progressive = Number(radiusLy) > 250;
+    const sampleStages = progressiveSampleStages(manifest);
+    const deepestSampleDepth = Math.max(...sampleStages.map((stage) => stage.depth), 0);
+    const shallowTiles = manifest.tiles.filter((tile) => (
+      tile.exact || (!tile.exact && Number(tile.depth) === deepestSampleDepth)
+    ));
+    const stages = progressive
+      ? sampleStages
+      : [{ depth: null, tiles: shallowTiles }];
+    const queuedTiles = stages.reduce((sum, stage) => sum + stage.tiles.length, 0);
     this.stats = {
       mode: "tiled",
       radius_ly: radiusLy,
       manifest_tiles: manifest.tiles.length,
-      queued_tiles: queue.length,
+      queued_tiles: queuedTiles,
       loaded_tiles: 0,
       failed_tiles: 0,
       cache_hits: 0,
@@ -224,64 +244,101 @@ export class MapTileManager {
       eligible_systems: Number(manifest.counts?.eligible_systems || 0),
       planet_systems: Number(manifest.counts?.planet_systems || 0),
       multi_star_systems: Number(manifest.counts?.multi_star_systems || 0),
+      manifest_ready: true,
+      progressive,
+      transport_policy: progressive ? "progressive_samples_local_exact_v1" : "complete_exact_v1",
+      sample_depths: sampleStages.map((stage) => stage.depth),
     };
     this.onStatus(this.snapshot());
-    const workers = Array.from({ length: Math.min(this.concurrency, queue.length) }, async () => {
-      while (queue.length && generation === this.generation) {
-        queue.sort((left, right) => mapTileRequestPriority(right.tile, {
-          focus: this.focus,
-          direction: this.direction,
-          urgent: this.urgent,
-          queuedAt: right.queuedAt,
-        }) - mapTileRequestPriority(left.tile, {
-          focus: this.focus,
-          direction: this.direction,
-          urgent: this.urgent,
-          queuedAt: left.queuedAt,
-        }));
-        const entry = queue.shift();
-        const { tile } = entry;
-        try {
-          let decoded = this.cache.get(tile.sha256);
-          if (decoded) {
-            this.cache.delete(tile.sha256);
-            this.cache.set(tile.sha256, decoded);
-            this.stats.cache_hits += 1;
-          } else {
-            const controller = new AbortController();
-            this.controllers.add(controller);
-            const response = await this.fetchImpl(apiUrl(tile.url), { signal: controller.signal });
-            this.controllers.delete(controller);
-            if (!response.ok) throw new Error(`Tile ${tile.tile_id} failed: ${response.status}`);
-            decoded = await decodeMapTile(await response.arrayBuffer());
-            this.cache.set(tile.sha256, decoded);
-            while (this.cache.size > this.cacheLimit) this.cache.delete(this.cache.keys().next().value);
-            this.stats.encoded_bytes += Number(tile.compressed_bytes || 0);
+    let previousStage = null;
+    for (let stageIndex = 0; stageIndex < stages.length; stageIndex += 1) {
+      const stage = stages[stageIndex];
+      const queue = stage.tiles.map((tile) => ({ tile, queuedAt: performance.now(), attempt: 0 }));
+      const failedBefore = this.stats.failed_tiles;
+      this.stats.stage_depth = stage.depth;
+      this.stats.stage_index = stageIndex;
+      this.stats.stage_tiles = stage.tiles.length;
+      this.onStatus(this.snapshot());
+      const workers = Array.from({ length: Math.min(this.concurrency, queue.length) }, async () => {
+        while (queue.length && generation === this.generation) {
+          queue.sort((left, right) => mapTileRequestPriority(right.tile, {
+            focus: this.focus,
+            direction: this.direction,
+            urgent: this.urgent,
+            queuedAt: right.queuedAt,
+          }) - mapTileRequestPriority(left.tile, {
+            focus: this.focus,
+            direction: this.direction,
+            urgent: this.urgent,
+            queuedAt: left.queuedAt,
+          }));
+          const entry = queue.shift();
+          const { tile } = entry;
+          try {
+            let decoded = this.cache.get(tile.sha256);
+            if (decoded) {
+              this.cache.delete(tile.sha256);
+              this.cache.set(tile.sha256, decoded);
+              this.stats.cache_hits += 1;
+            } else {
+              const controller = new AbortController();
+              this.controllers.add(controller);
+              let response;
+              try {
+                response = await this.fetchImpl(apiUrl(tile.url), { signal: controller.signal });
+              } finally {
+                this.controllers.delete(controller);
+              }
+              if (!response.ok) throw new Error(`Tile ${tile.tile_id} failed: ${response.status}`);
+              decoded = await decodeMapTile(await response.arrayBuffer());
+              this.cache.set(tile.sha256, decoded);
+              while (this.cache.size > this.cacheLimit) this.cache.delete(this.cache.keys().next().value);
+              this.stats.encoded_bytes += Number(tile.compressed_bytes || 0);
+            }
+            if (generation !== this.generation) return;
+            this.stats.loaded_tiles += 1;
+            this.stats.emitted_systems += decoded.systems.length;
+            if (tile.exact) this.stats.exact_systems += decoded.systems.length;
+            else this.stats.sampled_systems += decoded.systems.length;
+            this.onBatch(decoded.systems.map((system) => ({
+              ...system,
+              display_name: system.display_names?.[this.nameStyle] || system.display_name,
+              system_name: system.display_names?.[this.nameStyle] || system.system_name,
+            })), { ...tile, header: decoded.header, stage_depth: stage.depth });
+            this.onStatus(this.snapshot());
+          } catch (error) {
+            if (error?.name === "AbortError") this.stats.aborted_tiles += 1;
+            else if (entry.attempt < this.retryLimit && generation === this.generation) {
+              entry.attempt += 1;
+              entry.queuedAt = performance.now();
+              queue.push(entry);
+              this.stats.retried_tiles = Number(this.stats.retried_tiles || 0) + 1;
+            } else this.stats.failed_tiles += 1;
+            this.onStatus({ ...this.snapshot(), last_error: error?.message || String(error) });
           }
-          if (generation !== this.generation) return;
-          this.stats.loaded_tiles += 1;
-          this.stats.emitted_systems += decoded.systems.length;
-          if (tile.exact) this.stats.exact_systems += decoded.systems.length;
-          else this.stats.sampled_systems += decoded.systems.length;
-          this.onBatch(decoded.systems.map((system) => ({
-            ...system,
-            display_name: system.display_names?.[this.nameStyle] || system.display_name,
-            system_name: system.display_names?.[this.nameStyle] || system.system_name,
-          })), { ...tile, header: decoded.header });
-          this.onStatus(this.snapshot());
-        } catch (error) {
-          if (error?.name === "AbortError") this.stats.aborted_tiles += 1;
-          else if (entry.attempt < this.retryLimit && generation === this.generation) {
-            entry.attempt += 1;
-            entry.queuedAt = performance.now();
-            queue.push(entry);
-            this.stats.retried_tiles = Number(this.stats.retried_tiles || 0) + 1;
-          } else this.stats.failed_tiles += 1;
-          this.onStatus({ ...this.snapshot(), last_error: error?.message || String(error) });
         }
+      });
+      await Promise.all(workers);
+      if (generation !== this.generation) return null;
+      const stageSucceeded = this.stats.failed_tiles === failedBefore;
+      if (progressive && stageIndex === 0) this.stats.coarse_complete = stageSucceeded;
+      if (
+        progressive
+        && stageSucceeded
+        && previousStage?.depth === 2
+        && stage.depth === 3
+      ) {
+        this.onReplace({
+          remove_tile_ids: previousStage.tiles.map((tile) => tile.tile_id),
+          replacement_depth: stage.depth,
+          reason: "complete_sample_frontier",
+        });
+        this.stats.replaced_sample_tiles = previousStage.tiles.length;
       }
-    });
-    await Promise.all(workers);
+      this.stats.completed_stage_depth = stage.depth;
+      this.onStatus(this.snapshot());
+      previousStage = stage;
+    }
     if (generation !== this.generation) return null;
     this.stats.complete = true;
     this.onStatus(this.snapshot());

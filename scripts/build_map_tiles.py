@@ -333,6 +333,7 @@ def build_radius(
     output_root: Path,
     radius: int,
     profile: dict[str, Any],
+    public_enabled: bool,
 ) -> dict[str, Any]:
     expected_count = int(con.execute(
         """
@@ -453,7 +454,7 @@ def build_radius(
         "build_id": profile["build_id"],
         "generated_at": utc_now(),
         "radius_ly": radius,
-        "public_enabled": radius in (100, 250),
+        "public_enabled": public_enabled,
         "scope": "systems",
         "coordinate_contract": {
             "frame": FRAME,
@@ -526,13 +527,17 @@ def main() -> None:
     parser.add_argument("--build-dir", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--radii", default="100,250,500,1000")
+    parser.add_argument("--public-radii", default="100,250,500,1000")
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args()
     build_dir = (args.build_dir or (args.state_dir / "served" / "current")).resolve()
     output_dir = (args.output_dir or (build_dir / "map_tiles")).resolve()
     radii = sorted({int(value) for value in args.radii.split(",") if value.strip()})
+    public_radii = sorted({int(value) for value in args.public_radii.split(",") if value.strip()})
     if any(radius not in {100, 250, 500, 1000} for radius in radii):
         raise SystemExit("Supported radii are 100,250,500,1000")
+    if any(radius not in radii for radius in public_radii):
+        raise SystemExit("Public radii must be included in --radii")
     if output_dir.exists():
         if not args.replace:
             raise SystemExit(f"Output already exists: {output_dir}; pass --replace")
@@ -543,7 +548,10 @@ def main() -> None:
     con.execute(f"ATTACH '{str(build_dir / 'disc.duckdb').replace("'", "''")}' AS disc_db (READ_ONLY)")
     try:
         profile = read_profile(args.state_dir, con)
-        manifests = [build_radius(con, label_con, output_dir, radius, profile) for radius in radii]
+        manifests = [
+            build_radius(con, label_con, output_dir, radius, profile, radius in public_radii)
+            for radius in radii
+        ]
     finally:
         label_con.close()
         con.close()
@@ -551,7 +559,7 @@ def main() -> None:
         "index_version": INDEX_VERSION,
         "build_id": profile["build_id"],
         "generated_at": utc_now(),
-        "public_radii_ly": [radius for radius in radii if radius in (100, 250)],
+        "public_radii_ly": public_radii,
         "verification_radii_ly": radii,
         "manifests": {
             str(manifest["radius_ly"]): f"/map-tiles/radius-{manifest['radius_ly']}/manifest.json"

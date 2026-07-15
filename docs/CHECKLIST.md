@@ -816,6 +816,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Pass real-device 250-ly Exact/Bright stress acceptance on Pixel 9 XL
   (whole-sphere view, rapid navigation/selection/view changes, approximately
   15 FPS minimum) and a multi-hour RTX 3090 4K fullscreen maximum-settings soak
+- [ ] Expose 500/1,000-ly selectors only through the M8.1.4 progressive sample
+  scheduler; retain exact identity through search pins and camera-local leaves
+- [ ] Verify deep-map coarse-first ordering, complete depth-3 parent replacement,
+  bounded request/cache behavior, camera-flight refinement, and zero eager exact
+  leaf requests
+- [ ] Record desktop/mobile 500/1,000-ly network, point-count, frame-time,
+  memory, selection, and idle acceptance evidence before declaring M8.1.4 stable
 - [x] Reconcile data-sensitive Castor, V1054 Oph, and Tegmine simulation goldens
   with the preserved science checkpoint: Castor exposes physical A/B/C
   subsystem groups while AB remains a stellar leaf, V1054 exposes five accepted
