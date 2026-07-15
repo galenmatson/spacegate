@@ -33,6 +33,11 @@ WDS_GAIA_XMATCH_URL = "https://cdsxmatch.u-strasbg.fr/xmatch/api/v1/sync"
 WDS_GAIA_XMATCH_VERSION = "vizier_B_wds_wds_to_I_355_gaiadr3_best"
 SBX_URL = "https://astro.ulb.ac.be/sbx/tap/sync"
 SBX_VERSION = "sbx_tap_parallax_gte_3.26156"
+SBX_ATHYG_RECOVERY_VERSION = "sbx_athyg_exact_hip_hd_v1"
+SBX_ATHYG_RECOVERY_MAX_SEP_ARCSEC = 120.0
+WDS_PROJECTED_AB_VERSION = "wds_sbx_epoch_projected_ab_v1"
+WDS_PROJECTED_AB_MAX_PM_DELTA_MAS_YR = 500.0
+WDS_PROJECTED_AB_MAX_DISTANCE_DELTA_PC = 2.0
 PUBLIC_BASE_URL = (os.getenv("SPACEGATE_PUBLIC_BASE_URL") or "https://spacegates.org").rstrip("/")
 MSC_SOURCE_URL = "https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz"
 MSC_URL = os.getenv("MSC_URL") or os.getenv("SPACEGATE_MSC_MIRROR_URL") or MSC_SOURCE_URL
@@ -863,6 +868,7 @@ def main() -> int:
     enable_aliases = parse_bool_env("SPACEGATE_ENABLE_ALIASES", True)
     enable_athyg_alias_crosswalk = parse_bool_env("SPACEGATE_ENABLE_ATHYG_ALIAS_CROSSWALK", True)
     enable_athyg_supplement_merge = parse_bool_env("SPACEGATE_ENABLE_ATHYG_SUPPLEMENT_MERGE", False)
+    enable_sbx_athyg_recovery = parse_bool_env("SPACEGATE_ENABLE_SBX_ATHYG_RECOVERY", True)
     # Legacy reviewed supplements predate the AAA adjudication contract and are
     # forbidden in current reproducible science builds.
     enable_accepted_supplements = parse_bool_env("SPACEGATE_ENABLE_ACCEPTED_SUPPLEMENTS", False)
@@ -1080,7 +1086,9 @@ def main() -> int:
     )
     enable_athyg_accepted_supplement_merge = bool(accepted_athyg_supplements)
     enable_athyg_merge_path = enable_gaia_backbone and (
-        enable_athyg_supplement_merge or enable_athyg_accepted_supplement_merge
+        enable_athyg_supplement_merge
+        or enable_athyg_accepted_supplement_merge
+        or (enable_sbx and enable_sbx_athyg_recovery)
     )
     accepted_supplement_source_version = (
         f"{ATHYG_ALIAS_VERSION}+{accepted_supplement_version or 'accepted_unversioned'}"
@@ -1204,7 +1212,9 @@ def main() -> int:
         f"sbx={'1' if enable_sbx else '0'} "
         f"aliases={'1' if enable_aliases else '0'} "
         f"athyg_alias_crosswalk={'1' if (enable_aliases and enable_athyg_alias_crosswalk) else '0'} "
-        f"athyg_supplement_merge={'1' if enable_athyg_merge_path else '0'} "
+        f"athyg_identifier_merge={'1' if enable_athyg_merge_path else '0'} "
+        f"athyg_supplement_inventory={'1' if enable_athyg_supplement_merge else '0'} "
+        f"sbx_athyg_recovery={'1' if (enable_sbx and enable_sbx_athyg_recovery) else '0'} "
         f"accepted_supplements={'1' if (enable_accepted_supplements and (accepted_athyg_supplements or accepted_component_links)) else '0'} "
         f"nearby_ultracool_inventory={'1' if (enable_nearby_ultracool_inventory and cooked_ultracoolsheet.exists()) else '0'} "
         f"nearby_ultracool_inventory_max_dist_pc={nearby_ultracool_inventory_max_dist_pc} "
@@ -1400,7 +1410,11 @@ def main() -> int:
           ('planet_classifier_version', {sql_literal(planet_classifier_version)}),
           ('aliases_enabled', {sql_literal("1" if enable_aliases else "0")}),
           ('athyg_alias_crosswalk_enabled', {sql_literal("1" if (enable_aliases and enable_athyg_alias_crosswalk) else "0")}),
-          ('athyg_supplement_merge_enabled', {sql_literal("1" if enable_athyg_merge_path else "0")}),
+          ('athyg_identifier_merge_enabled', {sql_literal("1" if enable_athyg_merge_path else "0")}),
+          ('athyg_supplement_merge_enabled', {sql_literal("1" if enable_athyg_supplement_merge else "0")}),
+          ('sbx_athyg_recovery_enabled', {sql_literal("1" if (enable_sbx and enable_sbx_athyg_recovery) else "0")}),
+          ('sbx_athyg_recovery_version', {sql_literal(SBX_ATHYG_RECOVERY_VERSION)}),
+          ('wds_projected_ab_recovery_version', {sql_literal(WDS_PROJECTED_AB_VERSION)}),
           ('accepted_supplements_enabled', {sql_literal("1" if enable_accepted_supplements else "0")}),
           ('accepted_supplement_version', {sql_literal(accepted_supplement_version)}),
           ('accepted_athyg_supplement_count', {sql_literal(str(len(accepted_athyg_supplements)))}),
@@ -4179,6 +4193,13 @@ def main() -> int:
     athyg_merge_direct_legacy_id_count = 0
     athyg_merge_positional_count = 0
     athyg_merge_positional_ambiguous_count = 0
+    sbx_athyg_recovery_candidate_count = 0
+    sbx_athyg_recovery_resolved_count = 0
+    sbx_athyg_recovery_insert_count = 0
+    sbx_athyg_recovery_quarantine_count = 0
+    wds_projected_ab_candidate_count = 0
+    wds_projected_ab_accepted_count = 0
+    wds_projected_ab_ambiguous_count = 0
     object_identifier_count = 0
     identifier_gaia_collision_count = 0
     con.execute(
@@ -4754,10 +4775,93 @@ def main() -> int:
 
     if enable_athyg_merge_path:
         log("Identifier merge: building AT-HYG merge source")
+        con.execute(
+            f"""
+            create temp table sbx_athyg_recovery as
+            with athyg_typed as (
+              select
+                cast(nullif(src.id, '') as bigint) as source_pk,
+                cast(nullif(src.gaia, '') as bigint) as gaia_id,
+                cast(nullif(nullif(src.hip, ''), '0') as bigint) as hip_id,
+                cast(nullif(nullif(src.hd, ''), '0') as bigint) as hd_id,
+                case
+                  when cast(nullif(src.ra, '') as double) between 0.0 and 24.0
+                    then cast(nullif(src.ra, '') as double) * 15.0
+                  else cast(nullif(src.ra, '') as double)
+                end as ra_deg,
+                cast(nullif(src.dec, '') as double) as dec_deg,
+                cast(nullif(src.dist, '') as double) as dist_pc
+              from athyg_alias_raw src
+              where cast(nullif(src.id, '') as bigint) is not null
+            ), candidates as (
+              select
+                a.source_pk,
+                s.sbx_sn,
+                s.hip_id,
+                s.hd_id,
+                s.wds_id,
+                s.ra_deg,
+                s.dec_deg,
+                s.parallax_mas,
+                s.pm_ra_mas_yr,
+                s.pm_dec_mas_yr,
+                s.mag_primary,
+                s.position_epoch,
+                s.position_source,
+                s.spectral_type_raw,
+                s.family,
+                s.orbit_count,
+                degrees(acos(
+                  least(
+                    1.0,
+                    greatest(
+                      -1.0,
+                      sin(radians(s.dec_deg)) * sin(radians(a.dec_deg)) +
+                      cos(radians(s.dec_deg)) * cos(radians(a.dec_deg)) *
+                        cos(radians(s.ra_deg - a.ra_deg))
+                    )
+                  )
+                )) * 3600.0 as separation_arcsec,
+                abs(s.parallax_mas - (1000.0 / a.dist_pc)) as parallax_delta_mas,
+                count(*) over (partition by a.source_pk) as athyg_candidate_count,
+                count(*) over (partition by s.sbx_sn) as sbx_candidate_count
+              from athyg_typed a
+              join sbx_catalog s
+                on s.hip_id = a.hip_id
+               and s.hd_id = a.hd_id
+              where {"true" if (enable_sbx and enable_sbx_athyg_recovery) else "false"}
+                and a.gaia_id is null
+                and a.hip_id is not null
+                and a.hd_id is not null
+                and a.ra_deg is not null
+                and a.dec_deg is not null
+                and a.dist_pc is not null
+                and a.dist_pc > 0
+                and s.gaia_id is null
+                and s.parallax_mas is not null
+                and s.parallax_mas >= {GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT}
+                and s.ra_deg is not null
+                and s.dec_deg is not null
+                and coalesce(s.orbit_count, 0) > 0
+            )
+            select *
+            from candidates
+            where athyg_candidate_count = 1
+              and sbx_candidate_count = 1
+              and separation_arcsec <= {SBX_ATHYG_RECOVERY_MAX_SEP_ARCSEC}
+            """
+        )
+        sbx_athyg_recovery_candidate_count = con.execute(
+            "select count(*) from sbx_athyg_recovery"
+        ).fetchone()[0]
+        log(
+            "SBX/AT-HYG recovery: "
+            f"candidates={format_count(sbx_athyg_recovery_candidate_count)}"
+        )
         athyg_merge_source_filter = (
             "true"
             if enable_athyg_supplement_merge
-            else "acc.source_pk is not null"
+            else "acc.source_pk is not null or exists (select 1 from sbx_athyg_recovery rec where rec.source_pk = cast(nullif(src.id, '') as bigint))"
         )
         con.execute(
             f"""
@@ -4776,35 +4880,62 @@ def main() -> int:
                 nullif(src.bayer, '') as bayer,
                 nullif(src.flam, '') as flam,
                 nullif(src.con, '') as constellation,
-                case
-                  when cast(nullif(src.ra, '') as double) between 0.0 and 24.0
-                    then cast(nullif(src.ra, '') as double) * 15.0
-                  else cast(nullif(src.ra, '') as double)
-                end as ra_deg,
-                cast(nullif(src.dec, '') as double) as dec_deg,
-                cast(nullif(src.dist, '') as double) as dist_pc,
-                null::double as parallax_mas,
+                coalesce(
+                  rec.ra_deg,
+                  case
+                    when cast(nullif(src.ra, '') as double) between 0.0 and 24.0
+                      then cast(nullif(src.ra, '') as double) * 15.0
+                    else cast(nullif(src.ra, '') as double)
+                  end
+                ) as ra_deg,
+                coalesce(rec.dec_deg, cast(nullif(src.dec, '') as double)) as dec_deg,
+                coalesce(
+                  case when rec.parallax_mas > 0 then 1000.0 / rec.parallax_mas else null end,
+                  cast(nullif(src.dist, '') as double)
+                ) as dist_pc,
+                rec.parallax_mas as parallax_mas,
                 null::double as parallax_error_mas,
                 null::double as parallax_over_error,
                 null::double as ruwe,
-                cast(nullif(src.pm_ra, '') as double) as pm_ra_mas_yr,
-                cast(nullif(src.pm_dec, '') as double) as pm_dec_mas_yr,
+                coalesce(rec.pm_ra_mas_yr, cast(nullif(src.pm_ra, '') as double)) as pm_ra_mas_yr,
+                coalesce(rec.pm_dec_mas_yr, cast(nullif(src.pm_dec, '') as double)) as pm_dec_mas_yr,
                 cast(nullif(src.rv, '') as double) as radial_velocity_kms,
                 cast(nullif(src.ci, '') as double) as color_index,
-                cast(nullif(src.mag, '') as double) as vmag,
-                cast(nullif(src.absmag, '') as double) as absmag,
-                cast(nullif(src.x0, '') as double) as x_pc,
-                cast(nullif(src.y0, '') as double) as y_pc,
-                cast(nullif(src.z0, '') as double) as z_pc,
-                nullif(src.spect, '') as spectral_type_raw,
+                coalesce(rec.mag_primary, cast(nullif(src.mag, '') as double)) as vmag,
+                case
+                  when rec.parallax_mas > 0 and rec.mag_primary is not null
+                    then rec.mag_primary - 5.0 * (log10(1000.0 / rec.parallax_mas) - 1.0)
+                  else cast(nullif(src.absmag, '') as double)
+                end as absmag,
+                case when rec.sbx_sn is not null then null else cast(nullif(src.x0, '') as double) end as x_pc,
+                case when rec.sbx_sn is not null then null else cast(nullif(src.y0, '') as double) end as y_pc,
+                case when rec.sbx_sn is not null then null else cast(nullif(src.z0, '') as double) end as z_pc,
+                coalesce(rec.spectral_type_raw, nullif(src.spect, '')) as spectral_type_raw,
                 acc.display_name as accepted_display_name,
                 acc.system_name_root as accepted_system_name_root,
                 acc.component as accepted_component,
                 acc.wds_id as accepted_wds_id,
-                acc.reason as accepted_reason
+                acc.reason as accepted_reason,
+                rec.sbx_sn as recovery_sbx_sn,
+                rec.wds_id as recovery_wds_id,
+                rec.ra_deg as recovery_ra_deg,
+                rec.dec_deg as recovery_dec_deg,
+                rec.parallax_mas as recovery_parallax_mas,
+                rec.pm_ra_mas_yr as recovery_pm_ra_mas_yr,
+                rec.pm_dec_mas_yr as recovery_pm_dec_mas_yr,
+                rec.mag_primary as recovery_mag_primary,
+                rec.position_epoch as recovery_position_epoch,
+                rec.position_source as recovery_position_source,
+                rec.spectral_type_raw as recovery_spectral_type_raw,
+                rec.family as recovery_family,
+                rec.orbit_count as recovery_orbit_count,
+                rec.separation_arcsec as recovery_separation_arcsec,
+                rec.parallax_delta_mas as recovery_parallax_delta_mas
               from athyg_alias_raw src
               left join accepted_athyg_supplements acc
                 on acc.source_pk = cast(nullif(src.id, '') as bigint)
+              left join sbx_athyg_recovery rec
+                on rec.source_pk = cast(nullif(src.id, '') as bigint)
               where cast(nullif(src.id, '') as bigint) is not null
                 and ({athyg_merge_source_filter})
             ), coords as (
@@ -5178,21 +5309,40 @@ def main() -> int:
             set
               hip_id = coalesce(stars.hip_id, a.hip_id),
               hd_id = coalesce(stars.hd_id, a.hd_id),
-              wds_id = coalesce(stars.wds_id, a.accepted_wds_id),
+              wds_id = coalesce(stars.wds_id, a.accepted_wds_id, a.recovery_wds_id),
               component = coalesce(nullif(stars.component, ''), a.accepted_component),
               multiplicity_match_method = case
                 when a.accepted_wds_id is not null then 'accepted_supplement_wds'
+                when a.recovery_sbx_sn is not null
+                  and coalesce(stars.multiplicity_match_method, '') in ('', 'gaia_backbone', 'athyg_only')
+                  then 'sbx_athyg_exact_hip_hd'
                 else stars.multiplicity_match_method
               end,
               multiplicity_match_confidence = case
                 when a.accepted_wds_id is not null then greatest(coalesce(stars.multiplicity_match_confidence, 0.0), 0.93)
+                when a.recovery_sbx_sn is not null then greatest(coalesce(stars.multiplicity_match_confidence, 0.0), 0.99)
                 else stars.multiplicity_match_confidence
               end,
               multiplicity_source_catalogs_json = case
                 when a.accepted_wds_id is not null then '["accepted_supplement","wds"]'
+                when a.recovery_sbx_sn is not null
+                  and coalesce(stars.multiplicity_source_catalogs_json, '[]') = '[]'
+                  then case
+                    when a.recovery_wds_id is not null then '["sbx","athyg","wds"]'
+                    else '["sbx","athyg"]'
+                  end
                 else stars.multiplicity_source_catalogs_json
               end,
-              has_wds_evidence = coalesce(stars.has_wds_evidence, false) or a.accepted_wds_id is not null,
+              has_wds_evidence = coalesce(stars.has_wds_evidence, false)
+                or a.accepted_wds_id is not null
+                or a.recovery_wds_id is not null,
+              has_orb6_evidence = coalesce(stars.has_orb6_evidence, false)
+                or exists (select 1 from orb6_support o where o.wds_id = a.recovery_wds_id),
+              sbx_sn = coalesce(stars.sbx_sn, a.recovery_sbx_sn),
+              sbx_orbit_count = greatest(coalesce(stars.sbx_orbit_count, 0), coalesce(a.recovery_orbit_count, 0)),
+              sbx_family = coalesce(stars.sbx_family, a.recovery_family),
+              sbx_position_epoch = coalesce(stars.sbx_position_epoch, a.recovery_position_epoch),
+              sbx_position_source = coalesce(stars.sbx_position_source, a.recovery_position_source),
               star_name = case
                 when (stars.star_name is null or stars.star_name_norm like 'gaia dr3 %')
                   and a.preferred_name is not null
@@ -5213,8 +5363,9 @@ def main() -> int:
                 'gl', coalesce(a.gl_id, json_extract_string(stars.catalog_ids_json, '$.gl')),
                 'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
                 'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
-                'wds', coalesce(stars.wds_id, a.accepted_wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
+                'wds', coalesce(stars.wds_id, a.accepted_wds_id, a.recovery_wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
                 'wds_component', coalesce(nullif(stars.component, ''), a.accepted_component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
+                ,'sbx_sn', coalesce(stars.sbx_sn, a.recovery_sbx_sn)
               )
             from athyg_merge_resolution r
             join athyg_merge_source a on a.source_pk = r.source_pk
@@ -5329,6 +5480,7 @@ def main() -> int:
               null::bigint as system_id,
               case
                 when ordered.accepted_reason is not null then 'star:accepted_supplement:athyg:' || ordered.source_pk::varchar
+                when ordered.recovery_sbx_sn is not null then 'star:sbx:' || ordered.recovery_sbx_sn::varchar
                 else 'star:athyg:' || ordered.source_pk::varchar
               end as stable_object_key,
               ordered.preferred_name as star_name,
@@ -5366,17 +5518,22 @@ def main() -> int:
               ordered.gaia_id,
               ordered.hip_id,
               ordered.hd_id,
-              ordered.accepted_wds_id as wds_id,
+              coalesce(ordered.accepted_wds_id, ordered.recovery_wds_id) as wds_id,
               case
                 when ordered.accepted_wds_id is not null then 'accepted_supplement_wds'
+                when ordered.recovery_sbx_sn is not null then 'sbx_athyg_exact_hip_hd'
                 else 'athyg_supplement_insert'
               end as multiplicity_match_method,
               case
                 when ordered.accepted_wds_id is not null then 0.93
+                when ordered.recovery_sbx_sn is not null then 0.99
                 else 0.75
               end as multiplicity_match_confidence,
               case
                 when ordered.accepted_wds_id is not null then '["accepted_supplement","wds"]'
+                when ordered.recovery_sbx_sn is not null and ordered.recovery_wds_id is not null
+                  then '["sbx","athyg","wds"]'
+                when ordered.recovery_sbx_sn is not null then '["sbx","athyg"]'
                 else '[]'
               end as multiplicity_source_catalogs_json,
               false as gaia_non_single_star,
@@ -5385,13 +5542,13 @@ def main() -> int:
               null::double as gaia_nss_significance_max,
               false as has_gaia_nss_evidence,
               false as has_msc_evidence,
-              ordered.accepted_wds_id is not null as has_wds_evidence,
-              false as has_orb6_evidence,
-              null::bigint as sbx_sn,
-              0::bigint as sbx_orbit_count,
-              null::varchar as sbx_family,
-              null::double as sbx_position_epoch,
-              null::varchar as sbx_position_source,
+              coalesce(ordered.accepted_wds_id, ordered.recovery_wds_id) is not null as has_wds_evidence,
+              exists (select 1 from orb6_support o where o.wds_id = ordered.recovery_wds_id) as has_orb6_evidence,
+              ordered.recovery_sbx_sn as sbx_sn,
+              coalesce(ordered.recovery_orbit_count, 0)::bigint as sbx_orbit_count,
+              ordered.recovery_family as sbx_family,
+              ordered.recovery_position_epoch as sbx_position_epoch,
+              ordered.recovery_position_source as sbx_position_source,
               json_object(
                 'gaia', ordered.gaia_id,
                 'hip', ordered.hip_id,
@@ -5400,30 +5557,55 @@ def main() -> int:
                 'gl', ordered.gl_id,
                 'tyc', ordered.tyc_id,
                 'hyg', ordered.hyg_id,
-                'wds', ordered.accepted_wds_id,
+                'wds', coalesce(ordered.accepted_wds_id, ordered.recovery_wds_id),
                 'wds_component', ordered.accepted_component,
-                'sbx_sn', null
+                'sbx_sn', ordered.recovery_sbx_sn,
+                'sbx_athyg_separation_arcsec', ordered.recovery_separation_arcsec,
+                'sbx_athyg_parallax_delta_mas', ordered.recovery_parallax_delta_mas,
+                'athyg_source_pk', ordered.source_pk
               ) as catalog_ids_json,
               case
                 when ordered.accepted_reason is not null then 'athyg_accepted_supplement'
+                when ordered.recovery_sbx_sn is not null then 'sbx_athyg_recovery'
                 else 'athyg'
               end as source_catalog,
               case
                 when ordered.accepted_reason is not null then {sql_literal(accepted_supplement_source_version)}
+                when ordered.recovery_sbx_sn is not null then {sql_literal(SBX_ATHYG_RECOVERY_VERSION)}
                 else {sql_literal(ATHYG_ALIAS_VERSION)}
               end as source_version,
-              {sql_literal(ATHYG_ALIAS_URL)} as source_url,
-              {sql_literal(athyg_download_url)} as source_download_url,
+              case
+                when ordered.recovery_sbx_sn is not null then {sql_literal(SBX_URL)}
+                else {sql_literal(ATHYG_ALIAS_URL)}
+              end as source_url,
+              case
+                when ordered.recovery_sbx_sn is not null then {sql_literal(SBX_URL)}
+                else {sql_literal(athyg_download_url)}
+              end as source_download_url,
               null::varchar as source_doi,
               ordered.source_pk as source_pk,
               ordered.source_pk as source_row_id,
               null::varchar as source_row_hash,
-              'CC BY-SA 4.0' as license,
+              case
+                when ordered.recovery_sbx_sn is not null then 'SBX public TAP + AT-HYG CC BY-SA 4.0'
+                else 'CC BY-SA 4.0'
+              end as license,
               true as redistribution_ok,
-              {sql_literal(ATHYG_ALIAS_URL)} as license_note,
+              case
+                when ordered.recovery_sbx_sn is not null
+                  then 'SBX establishes catalog membership; AT-HYG supplies exact HIP/HD cross-identification.'
+                else {sql_literal(ATHYG_ALIAS_URL)}
+              end as license_note,
               null::varchar as retrieval_etag,
-              {sql_literal(athyg_checksum)} as retrieval_checksum,
-              {sql_literal(athyg_retrieved)} as retrieved_at,
+              case
+                when ordered.recovery_sbx_sn is not null
+                  then {sql_literal(",".join(value for value in (sbx_sha, athyg_checksum) if value) or None)}
+                else {sql_literal(athyg_checksum)}
+              end as retrieval_checksum,
+              case
+                when ordered.recovery_sbx_sn is not null then {sql_literal(sbx_retrieved or athyg_retrieved)}
+                else {sql_literal(athyg_retrieved)}
+              end as retrieved_at,
               {sql_literal(ingested_at)} as ingested_at,
               {sql_literal(transform_version)} as transform_version
             from ordered
@@ -5448,12 +5630,15 @@ def main() -> int:
               classification_evidence_json = coalesce(
                 classification_evidence_json,
                 json_object(
-                  'method', 'athyg_supplement_spectral_fallback',
+                  'method', case
+                    when source_catalog = 'sbx_athyg_recovery' then 'sbx_spectral_type'
+                    else 'athyg_supplement_spectral_fallback'
+                  end,
                   'spectral_type_raw', spectral_type_raw,
                   'spectral_class', spectral_class
                 )
               )
-            where source_catalog in ('athyg', 'athyg_accepted_supplement')
+            where source_catalog in ('athyg', 'athyg_accepted_supplement', 'sbx_athyg_recovery')
               and ingested_at = ? and transform_version = ?
             """,
             [ingested_at, transform_version],
@@ -5466,7 +5651,7 @@ def main() -> int:
                   classprob_dsc_combmod_whitedwarf = g.classprob_dsc_combmod_whitedwarf,
                   classprob_dsc_specmod_whitedwarf = g.classprob_dsc_specmod_whitedwarf
                 from gaia_classprob g
-                where stars.source_catalog in ('athyg', 'athyg_accepted_supplement')
+                where stars.source_catalog in ('athyg', 'athyg_accepted_supplement', 'sbx_athyg_recovery')
                   and stars.ingested_at = ? and stars.transform_version = ?
                   and stars.gaia_id = g.gaia_id
                 """,
@@ -5483,7 +5668,7 @@ def main() -> int:
               wd_catalog_logg_cgs = w.logg_best_cgs,
               wd_catalog_mass_msun = w.mass_best_msun
             from white_dwarf_catalog w
-            where stars.source_catalog in ('athyg', 'athyg_accepted_supplement')
+            where stars.source_catalog in ('athyg', 'athyg_accepted_supplement', 'sbx_athyg_recovery')
               and stars.ingested_at = ? and stars.transform_version = ?
               and stars.gaia_id = w.gaia_id
             """,
@@ -5527,7 +5712,7 @@ def main() -> int:
                   'wd_catalog_name', wd_catalog_name
                 )
               end
-            where source_catalog in ('athyg', 'athyg_accepted_supplement')
+            where source_catalog in ('athyg', 'athyg_accepted_supplement', 'sbx_athyg_recovery')
               and ingested_at = ? and transform_version = ?
               and (
                 greatest(
@@ -5538,6 +5723,194 @@ def main() -> int:
               )
             """,
             [ingested_at, transform_version],
+        )
+
+        con.execute(
+            f"""
+            create temp table wds_projected_ab_candidates as
+            with wds_pairs as (
+              select
+                nullif(wds_id, '') as wds_id,
+                nullif(component, '') as component_pair,
+                try_cast(nullif(last_year, '') as integer) as last_year,
+                try_cast(nullif(theta_last_deg, '') as double) as theta_deg,
+                try_cast(nullif(rho_last_arcsec, '') as double) as rho_arcsec
+              from wds_raw
+              where nullif(component, '') = 'AB'
+                and try_cast(nullif(theta_last_deg, '') as double) is not null
+                and try_cast(nullif(rho_last_arcsec, '') as double) > 0
+            ), primaries as (
+              select
+                rec.source_pk,
+                rec.sbx_sn,
+                rec.hip_id,
+                rec.hd_id,
+                rec.wds_id,
+                rec.ra_deg,
+                rec.dec_deg,
+                rec.parallax_mas,
+                rec.pm_ra_mas_yr,
+                rec.pm_dec_mas_yr,
+                coalesce(rec.position_epoch, 2000.0) as position_epoch,
+                primary_star.star_id as primary_star_id,
+                pair.component_pair,
+                pair.last_year,
+                pair.theta_deg,
+                pair.rho_arcsec
+              from sbx_athyg_recovery rec
+              join stars primary_star
+                on try_cast(primary_star.sbx_sn as bigint) = rec.sbx_sn
+               and primary_star.hip_id = rec.hip_id
+               and primary_star.hd_id = rec.hd_id
+              join wds_pairs pair on pair.wds_id = rec.wds_id
+              where rec.wds_id is not null
+                and rec.parallax_mas > 0
+                and rec.pm_ra_mas_yr is not null
+                and rec.pm_dec_mas_yr is not null
+            ), projected as (
+              select
+                *,
+                ra_deg +
+                  (pm_ra_mas_yr * (2016.0 - position_epoch)) /
+                  (3600000.0 * cos(radians(dec_deg))) as primary_ra_j2016,
+                dec_deg +
+                  (pm_dec_mas_yr * (2016.0 - position_epoch)) /
+                  3600000.0 as primary_dec_j2016,
+                1000.0 / parallax_mas as primary_dist_pc,
+                greatest(2.0, least(15.0, rho_arcsec * 0.5)) as tolerance_arcsec
+              from primaries
+            ), predicted_secondary as (
+              select
+                *,
+                primary_ra_j2016 +
+                  (rho_arcsec * sin(radians(theta_deg))) /
+                  (3600.0 * cos(radians(primary_dec_j2016))) as predicted_ra_deg,
+                primary_dec_j2016 +
+                  (rho_arcsec * cos(radians(theta_deg))) /
+                  3600.0 as predicted_dec_deg
+              from projected
+            ), candidate_base as (
+              select
+                p.*,
+                candidate.star_id as candidate_star_id,
+                candidate.gaia_id as candidate_gaia_id,
+                candidate.dist_ly / {PC_TO_LY} as candidate_dist_pc,
+                sqrt(
+                  power(candidate.pm_ra_mas_yr - p.pm_ra_mas_yr, 2) +
+                  power(candidate.pm_dec_mas_yr - p.pm_dec_mas_yr, 2)
+                ) as pm_delta_mas_yr,
+                degrees(acos(
+                  least(
+                    1.0,
+                    greatest(
+                      -1.0,
+                      sin(radians(p.predicted_dec_deg)) * sin(radians(candidate.dec_deg)) +
+                      cos(radians(p.predicted_dec_deg)) * cos(radians(candidate.dec_deg)) *
+                        cos(radians(p.predicted_ra_deg - candidate.ra_deg))
+                    )
+                  )
+                )) * 3600.0 as projection_residual_arcsec
+              from predicted_secondary p
+              join stars candidate
+                on abs(candidate.dec_deg - p.predicted_dec_deg) < 0.02
+               and least(
+                 abs(candidate.ra_deg - p.predicted_ra_deg),
+                 360.0 - abs(candidate.ra_deg - p.predicted_ra_deg)
+               ) < 0.03
+              where candidate.star_id <> p.primary_star_id
+                and candidate.gaia_id is not null
+                and candidate.pm_ra_mas_yr is not null
+                and candidate.pm_dec_mas_yr is not null
+                and candidate.dist_ly is not null
+                and coalesce(candidate.hip_id, -1) <> p.hip_id
+                and coalesce(candidate.hd_id, -1) <> p.hd_id
+                and (candidate.wds_id is null or candidate.wds_id = p.wds_id)
+                and abs(candidate.dist_ly / {PC_TO_LY} - p.primary_dist_pc)
+                  <= {WDS_PROJECTED_AB_MAX_DISTANCE_DELTA_PC}
+            ), scored as (
+              select
+                *,
+                projection_residual_arcsec <= tolerance_arcsec
+                  and pm_delta_mas_yr <= {WDS_PROJECTED_AB_MAX_PM_DELTA_MAS_YR}
+                  as passes_gate
+              from candidate_base
+            )
+            select
+              *,
+              count(*) filter (where passes_gate) over (
+                partition by source_pk, wds_id, component_pair
+              ) as passing_candidate_count
+            from scored
+            """
+        )
+        con.execute(
+            """
+            create temp table wds_projected_ab_accepted as
+            select *
+            from wds_projected_ab_candidates
+            where passes_gate and passing_candidate_count = 1
+            """
+        )
+        wds_projected_ab_candidate_count = con.execute(
+            """
+            select count(distinct (source_pk, wds_id, component_pair))
+            from wds_projected_ab_candidates
+            where passes_gate
+            """
+        ).fetchone()[0]
+        wds_projected_ab_accepted_count = con.execute(
+            "select count(*) from wds_projected_ab_accepted"
+        ).fetchone()[0]
+        wds_projected_ab_ambiguous_count = con.execute(
+            """
+            select count(distinct (source_pk, wds_id, component_pair))
+            from wds_projected_ab_candidates
+            where passes_gate and passing_candidate_count > 1
+            """
+        ).fetchone()[0]
+        con.execute(
+            f"""
+            update stars
+            set
+              wds_id = accepted.wds_id,
+              component = 'B',
+              multiplicity_match_method = {sql_literal(WDS_PROJECTED_AB_VERSION)},
+              multiplicity_match_confidence = greatest(
+                coalesce(stars.multiplicity_match_confidence, 0.0),
+                0.92
+              ),
+              multiplicity_source_catalogs_json = case
+                when coalesce(stars.multiplicity_source_catalogs_json, '[]') = '[]'
+                  then '["wds","sbx","gaia"]'
+                else stars.multiplicity_source_catalogs_json
+              end,
+              has_wds_evidence = true,
+              has_orb6_evidence = coalesce(stars.has_orb6_evidence, false)
+                or exists (select 1 from orb6_support o where o.wds_id = accepted.wds_id),
+              catalog_ids_json = json_object(
+                'gaia', stars.gaia_id,
+                'hip', stars.hip_id,
+                'hd', stars.hd_id,
+                'hr', cast(json_extract_string(stars.catalog_ids_json, '$.hr') as bigint),
+                'gl', json_extract_string(stars.catalog_ids_json, '$.gl'),
+                'tyc', json_extract_string(stars.catalog_ids_json, '$.tyc'),
+                'hyg', cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint),
+                'wds', accepted.wds_id,
+                'wds_component', 'B',
+                'sbx_sn', json_extract_string(stars.catalog_ids_json, '$.sbx_sn'),
+                'wds_projection_residual_arcsec', accepted.projection_residual_arcsec,
+                'wds_projection_pm_delta_mas_yr', accepted.pm_delta_mas_yr,
+                'wds_projection_last_year', accepted.last_year
+              )
+            from wds_projected_ab_accepted accepted
+            where stars.star_id = accepted.candidate_star_id
+            """
+        )
+        log(
+            "WDS projected AB recovery: "
+            f"candidate_pairs={format_count(wds_projected_ab_candidate_count)} "
+            f"accepted={format_count(wds_projected_ab_accepted_count)} "
+            f"ambiguous={format_count(wds_projected_ab_ambiguous_count)}"
         )
 
         con.execute(
@@ -5761,6 +6134,39 @@ def main() -> int:
         athyg_merge_positional_ambiguous_count = con.execute(
             "select count(*) from athyg_merge_positional_quarantine"
         ).fetchone()[0]
+        sbx_athyg_recovery_resolved_count = con.execute(
+            """
+            select count(*)
+            from sbx_athyg_recovery rec
+            join athyg_merge_resolution r using (source_pk)
+            where r.matched_star_id is not null
+            """
+        ).fetchone()[0]
+        sbx_athyg_recovery_insert_count = con.execute(
+            """
+            select count(*)
+            from sbx_athyg_recovery rec
+            join athyg_merge_unmatched u using (source_pk)
+            """
+        ).fetchone()[0]
+        sbx_athyg_recovery_quarantine_count = con.execute(
+            """
+            select count(distinct rec.source_pk)
+            from sbx_athyg_recovery rec
+            join athyg_merge_quarantine q using (source_pk)
+            """
+        ).fetchone()[0]
+        sbx_athyg_recovery_accounted_count = (
+            sbx_athyg_recovery_resolved_count
+            + sbx_athyg_recovery_insert_count
+            + sbx_athyg_recovery_quarantine_count
+        )
+        if sbx_athyg_recovery_accounted_count != sbx_athyg_recovery_candidate_count:
+            raise SystemExit(
+                "SBX/AT-HYG recovery accounting failed: "
+                f"candidates={sbx_athyg_recovery_candidate_count} "
+                f"accounted={sbx_athyg_recovery_accounted_count}"
+            )
         object_identifier_count = con.execute("select count(*) from object_identifiers").fetchone()[0]
         identifier_quarantine_count = con.execute("select count(*) from identifier_quarantine").fetchone()[0]
         identifier_gaia_collision_count = con.execute(
@@ -5804,7 +6210,10 @@ def main() -> int:
             f"resolved={format_count(athyg_merge_existing_match_count)} "
             f"inserted={format_count(athyg_merge_insert_count)} "
             f"quarantined={format_count(athyg_merge_quarantine_count)} "
-            f"identifiers={format_count(object_identifier_count)}"
+            f"identifiers={format_count(object_identifier_count)} "
+            f"sbx_athyg_resolved={format_count(sbx_athyg_recovery_resolved_count)} "
+            f"sbx_athyg_inserted={format_count(sbx_athyg_recovery_insert_count)} "
+            f"sbx_athyg_quarantined={format_count(sbx_athyg_recovery_quarantine_count)}"
         )
     else:
         con.execute(
@@ -5852,6 +6261,31 @@ def main() -> int:
                 json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
               from stars s
               where s.hd_id is not null
+              union all
+              select 'star', s.star_id, 'hr', json_extract_string(s.catalog_ids_json, '$.hr'), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.hr') is not null
+              union all
+              select 'star', s.star_id, 'gl', json_extract_string(s.catalog_ids_json, '$.gl'), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.gl') is not null
+              union all
+              select 'star', s.star_id, 'tyc', json_extract_string(s.catalog_ids_json, '$.tyc'), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.tyc') is not null
+              union all
+              select 'star', s.star_id, 'hyg', json_extract_string(s.catalog_ids_json, '$.hyg'), false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where json_extract_string(s.catalog_ids_json, '$.hyg') is not null
+              union all
+              select 'star', s.star_id, 'wds', s.wds_id, false, 'catalog_json', 0.95, s.source_catalog, s.source_version, s.source_pk,
+                json_object('source_catalog', s.source_catalog, 'source_pk', s.source_pk)
+              from stars s
+              where s.wds_id is not null
             ), normalized as (
               select
                 *,
@@ -11478,7 +11912,8 @@ def main() -> int:
     write_json(reports_dir / "alias_report.json", alias_report)
     identifier_report = {
         "build_id": build_id,
-        "athyg_supplement_merge_enabled": enable_athyg_merge_path,
+        "athyg_identifier_merge_enabled": enable_athyg_merge_path,
+        "athyg_supplement_merge_enabled": enable_athyg_supplement_merge,
         "accepted_supplements_enabled": enable_accepted_supplements,
         "accepted_supplement_version": accepted_supplement_version,
         "accepted_athyg_supplement_count": len(accepted_athyg_supplements),
@@ -11500,6 +11935,21 @@ def main() -> int:
             "positional_match_count": athyg_merge_positional_count,
             "positional_ambiguous_count": athyg_merge_positional_ambiguous_count,
         },
+        "sbx_athyg_recovery": {
+            "enabled": enable_sbx and enable_sbx_athyg_recovery,
+            "version": SBX_ATHYG_RECOVERY_VERSION,
+            "max_separation_arcsec": SBX_ATHYG_RECOVERY_MAX_SEP_ARCSEC,
+            "candidate_rows": sbx_athyg_recovery_candidate_count,
+            "resolved_existing_rows": sbx_athyg_recovery_resolved_count,
+            "inserted_new_rows": sbx_athyg_recovery_insert_count,
+            "quarantined_rows": sbx_athyg_recovery_quarantine_count,
+        },
+        "wds_projected_ab_recovery": {
+            "version": WDS_PROJECTED_AB_VERSION,
+            "candidate_pairs": wds_projected_ab_candidate_count,
+            "accepted_rows": wds_projected_ab_accepted_count,
+            "ambiguous_pairs": wds_projected_ab_ambiguous_count,
+        },
         "identifier_edges": {
             "object_identifier_count": object_identifier_count,
             "identifier_quarantine_count": identifier_quarantine_count,
@@ -11520,6 +11970,130 @@ def main() -> int:
         },
     }
     write_json(reports_dir / "identifier_report.json", identifier_report)
+    sbx_athyg_recovery_rows = []
+    if enable_athyg_merge_path:
+        sbx_athyg_recovery_rows = [
+            {
+                "athyg_source_pk": int(row[0]),
+                "sbx_sn": int(row[1]),
+                "hip_id": int(row[2]),
+                "hd_id": int(row[3]),
+                "wds_id": row[4],
+                "separation_arcsec": float(row[5]),
+                "parallax_delta_mas": float(row[6]),
+                "outcome": row[7],
+            }
+            for row in con.execute(
+                """
+                select
+                  rec.source_pk,
+                  rec.sbx_sn,
+                  rec.hip_id,
+                  rec.hd_id,
+                  rec.wds_id,
+                  rec.separation_arcsec,
+                  rec.parallax_delta_mas,
+                  case
+                    when exists (
+                      select 1 from athyg_merge_resolution r
+                      where r.source_pk = rec.source_pk and r.matched_star_id is not null
+                    ) then 'resolved_existing'
+                    when exists (
+                      select 1 from athyg_merge_unmatched u where u.source_pk = rec.source_pk
+                    ) then 'inserted_new'
+                    when exists (
+                      select 1 from athyg_merge_quarantine q where q.source_pk = rec.source_pk
+                    ) then 'quarantined'
+                    else 'unaccounted'
+                  end as outcome
+                from sbx_athyg_recovery rec
+                order by rec.sbx_sn, rec.source_pk
+                """
+            ).fetchall()
+        ]
+    sbx_athyg_recovery_report = {
+        "build_id": build_id,
+        "version": SBX_ATHYG_RECOVERY_VERSION,
+        "enabled": enable_sbx and enable_sbx_athyg_recovery,
+        "policy": {
+            "identity": "unique exact HIP+HD agreement between SBX and AT-HYG",
+            "gaia_policy": "both source rows must lack a Gaia identifier",
+            "minimum_sbx_parallax_mas": GAIA_BOUNDARY_MIN_PARALLAX_MAS_DEFAULT,
+            "minimum_sbx_orbit_count": 1,
+            "maximum_position_separation_arcsec": SBX_ATHYG_RECOVERY_MAX_SEP_ARCSEC,
+            "parallax_delta_policy": "recorded for audit, not used as an identity veto for known binaries",
+        },
+        "counts": {
+            "candidates": sbx_athyg_recovery_candidate_count,
+            "resolved_existing": sbx_athyg_recovery_resolved_count,
+            "inserted_new": sbx_athyg_recovery_insert_count,
+            "quarantined": sbx_athyg_recovery_quarantine_count,
+        },
+        "status": (
+            "pass"
+            if sbx_athyg_recovery_candidate_count
+            == sbx_athyg_recovery_resolved_count
+            + sbx_athyg_recovery_insert_count
+            + sbx_athyg_recovery_quarantine_count
+            else "fail"
+        ),
+        "rows": sbx_athyg_recovery_rows,
+    }
+    write_json(
+        reports_dir / "sbx_athyg_recovery_report.json",
+        sbx_athyg_recovery_report,
+    )
+    wds_projected_ab_rows = []
+    if enable_athyg_merge_path:
+        wds_projected_ab_rows = [
+            {
+                "sbx_sn": int(row[0]),
+                "wds_id": row[1],
+                "component_pair": row[2],
+                "candidate_gaia_id": int(row[3]),
+                "projection_residual_arcsec": float(row[4]),
+                "tolerance_arcsec": float(row[5]),
+                "distance_delta_pc": float(row[6]),
+                "pm_delta_mas_yr": float(row[7]),
+            }
+            for row in con.execute(
+                """
+                select
+                  sbx_sn,
+                  wds_id,
+                  component_pair,
+                  candidate_gaia_id,
+                  projection_residual_arcsec,
+                  tolerance_arcsec,
+                  abs(candidate_dist_pc - primary_dist_pc) as distance_delta_pc,
+                  pm_delta_mas_yr
+                from wds_projected_ab_accepted
+                order by sbx_sn, wds_id, candidate_gaia_id
+                """
+            ).fetchall()
+        ]
+    wds_projected_ab_report = {
+        "build_id": build_id,
+        "version": WDS_PROJECTED_AB_VERSION,
+        "policy": {
+            "scope": "simple WDS AB pairs on uniquely recovered SBX/AT-HYG primaries",
+            "coordinate_epoch": "J2016.0",
+            "projection_tolerance_arcsec": "max(2.0, min(15.0, 0.5 * WDS rho))",
+            "maximum_distance_delta_pc": WDS_PROJECTED_AB_MAX_DISTANCE_DELTA_PC,
+            "maximum_proper_motion_delta_mas_yr": WDS_PROJECTED_AB_MAX_PM_DELTA_MAS_YR,
+            "candidate_policy": "unique Gaia candidate, excluding primary HIP/HD identity and conflicting WDS membership",
+        },
+        "counts": {
+            "candidate_pairs": wds_projected_ab_candidate_count,
+            "accepted": wds_projected_ab_accepted_count,
+            "ambiguous": wds_projected_ab_ambiguous_count,
+        },
+        "rows": wds_projected_ab_rows,
+    }
+    write_json(
+        reports_dir / "wds_projected_ab_recovery_report.json",
+        wds_projected_ab_report,
+    )
 
     def duplicate_exact_counts(key_expr_sql: str, where_sql: str) -> tuple[int, int]:
         groups, extra_rows = con.execute(
@@ -11965,7 +12539,16 @@ def main() -> int:
         "athyg_alias_candidate_count": alias_crosswalk_candidate_count,
         "athyg_alias_matched_star_count": alias_crosswalk_matched_star_count,
         "alias_name_override_count": alias_name_override_count,
-        "athyg_supplement_merge_enabled": enable_athyg_merge_path,
+        "athyg_identifier_merge_enabled": enable_athyg_merge_path,
+        "athyg_supplement_merge_enabled": enable_athyg_supplement_merge,
+        "sbx_athyg_recovery_enabled": enable_sbx and enable_sbx_athyg_recovery,
+        "sbx_athyg_recovery_candidate_rows": sbx_athyg_recovery_candidate_count,
+        "sbx_athyg_recovery_resolved_rows": sbx_athyg_recovery_resolved_count,
+        "sbx_athyg_recovery_inserted_rows": sbx_athyg_recovery_insert_count,
+        "sbx_athyg_recovery_quarantined_rows": sbx_athyg_recovery_quarantine_count,
+        "wds_projected_ab_candidate_pairs": wds_projected_ab_candidate_count,
+        "wds_projected_ab_accepted_rows": wds_projected_ab_accepted_count,
+        "wds_projected_ab_ambiguous_pairs": wds_projected_ab_ambiguous_count,
         "accepted_supplements_enabled": enable_accepted_supplements,
         "accepted_supplement_version": accepted_supplement_version,
         "accepted_athyg_supplement_count": len(accepted_athyg_supplements),
@@ -12034,9 +12617,14 @@ def main() -> int:
                 if enable_athyg_supplement_merge
                 else (
                     "Accepted AT-HYG supplement merge is enabled from reviewed config only."
-                    if enable_athyg_merge_path
+                    if enable_athyg_accepted_supplement_merge
                     else "AT-HYG supplement merge is disabled for this build."
                 )
+            ),
+            (
+                "SBX/AT-HYG recovery admits unique Gaia-missing exact HIP+HD pairs through a bounded coordinate gate."
+                if enable_sbx and enable_sbx_athyg_recovery
+                else "SBX/AT-HYG inventory recovery is disabled."
             ),
             (
                 f"MSC component dedupe enabled: dropped {msc_component_dedup_dropped_count} duplicate rows "
@@ -12550,22 +13138,44 @@ def main() -> int:
         linked_rows=0,
         notes=("canonical backbone inventory" if enable_gaia_backbone else "legacy canonical inventory"),
     )
-    if enable_athyg_merge_path:
+    if enable_athyg_supplement_merge:
         add_catalog_contribution(
             catalog_contributions,
-            catalog=("athyg" if enable_athyg_supplement_merge else "athyg_accepted_supplement"),
+            catalog="athyg",
             domain="stars",
             domain_total=total_stars,
             input_rows=int(athyg_merge_existing_match_count + athyg_merge_insert_count + athyg_merge_quarantine_count),
             input_bytes=manifest_bytes(athyg_p1) if athyg_p1 else None,
-            direct_rows=int(
-                star_source_counts.get("athyg", 0)
-                if enable_athyg_supplement_merge
-                else star_source_counts.get("athyg_accepted_supplement", 0)
-            ),
+            direct_rows=int(star_source_counts.get("athyg", 0)),
             evidence_rows=0,
             linked_rows=0,
-            notes=("supplement merge source" if enable_athyg_supplement_merge else "accepted supplement source"),
+            notes="supplement inventory merge source",
+        )
+    if enable_athyg_accepted_supplement_merge:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="athyg_accepted_supplement",
+            domain="stars",
+            domain_total=total_stars,
+            input_rows=len(accepted_athyg_supplements),
+            input_bytes=manifest_bytes(athyg_p1) if athyg_p1 else None,
+            direct_rows=int(star_source_counts.get("athyg_accepted_supplement", 0)),
+            evidence_rows=0,
+            linked_rows=0,
+            notes="reviewed accepted supplement source",
+        )
+    if enable_sbx and enable_sbx_athyg_recovery:
+        add_catalog_contribution(
+            catalog_contributions,
+            catalog="sbx_athyg_recovery",
+            domain="stars",
+            domain_total=total_stars,
+            input_rows=int(sbx_athyg_recovery_candidate_count),
+            input_bytes=sbx_input_bytes,
+            direct_rows=int(star_source_counts.get("sbx_athyg_recovery", 0)),
+            evidence_rows=int(sbx_athyg_recovery_resolved_count),
+            linked_rows=int(sbx_athyg_recovery_resolved_count),
+            notes="unique exact HIP+HD inventory recovery with bounded coordinate agreement",
         )
     add_catalog_contribution(
         catalog_contributions,
@@ -13146,7 +13756,9 @@ def main() -> int:
         "generated_at": ingested_at,
         "gaia_backbone_enabled": enable_gaia_backbone,
         "athyg_alias_crosswalk_enabled": enable_aliases and enable_athyg_alias_crosswalk,
-        "athyg_supplement_merge_enabled": enable_athyg_merge_path,
+        "athyg_identifier_merge_enabled": enable_athyg_merge_path,
+        "athyg_supplement_merge_enabled": enable_athyg_supplement_merge,
+        "sbx_athyg_recovery_enabled": enable_sbx and enable_sbx_athyg_recovery,
         "accepted_supplements_enabled": enable_accepted_supplements,
         "accepted_supplement_version": accepted_supplement_version,
         "source_inputs_fingerprint": source_inputs_fingerprint,
@@ -13164,6 +13776,7 @@ def main() -> int:
             "athyg_alias_candidates": int(alias_crosswalk_candidate_count),
             "athyg_alias_matched_stars": int(alias_crosswalk_matched_star_count),
             "athyg_accepted_supplement_rows": int(star_source_counts.get("athyg_accepted_supplement", 0)),
+            "sbx_athyg_recovery_rows": int(star_source_counts.get("sbx_athyg_recovery", 0)),
         },
         "retirement_readiness": {
             "default_path_has_no_athyg_dependency": not (
