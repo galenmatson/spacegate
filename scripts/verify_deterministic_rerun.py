@@ -51,6 +51,7 @@ def main() -> int:
     current = load_json(current_report_path)
     current_fp = str(current.get("source_inputs_fingerprint") or "")
     current_transform = str(current.get("transform_version") or "")
+    current_transform_fingerprint = str(current.get("transform_fingerprint") or "")
     current_layer = str(current.get("build_layer") or "")
     current_slice_id = str(current.get("slice_profile_id") or "")
     current_slice_version = str(current.get("slice_profile_version") or "")
@@ -72,6 +73,8 @@ def main() -> int:
         if str(payload.get("source_inputs_fingerprint") or "") != current_fp:
             continue
         if str(payload.get("transform_version") or "") != current_transform:
+            continue
+        if str(payload.get("transform_fingerprint") or "") != current_transform_fingerprint:
             continue
         if str(payload.get("build_layer") or "") != current_layer:
             continue
@@ -120,4 +123,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

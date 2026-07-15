@@ -1017,6 +1017,7 @@ def emit_canonical_build(
             "generated_at": utc_now(),
             "source_inputs_fingerprint": f"canonical:{source_build_id}",
             "transform_version": "ingest_canonical_build",
+            "transform_fingerprint": git_sha(root),
             "build_layer": "core",
             "slice_profile_id": "",
             "slice_profile_version": "",
