@@ -110,9 +110,23 @@ def deterministic_uniform_key(system_id: int) -> int:
     return value ^ (value >> 31)
 
 
-def pack_stellar_class_badges(values: Any) -> int:
+def normalized_stellar_class_badges(values: Any, representative: Any) -> list[str]:
+    badges = [str(value or "UNKNOWN").upper() for value in list(values or [])[:16]]
+    representative_class = str(representative or "UNKNOWN").upper()
+    if badges and representative_class != "UNKNOWN" and representative_class not in badges:
+        replace_at = next((index for index, value in enumerate(badges) if value == "UNKNOWN"), len(badges) - 1)
+        badges[replace_at] = representative_class
+    dominance_order = {
+        "BLACK HOLE": 0, "WR": 1, "O": 2, "B": 3, "A": 4, "NS": 5,
+        "PULSAR": 5, "MAGNETAR": 5, "F": 6, "G": 7, "K": 8, "WD": 9,
+        "M": 10, "L": 11, "T": 12, "Y": 13, "UNKNOWN": 99,
+    }
+    return sorted(badges or [representative_class], key=lambda value: dominance_order.get(value, 99))
+
+
+def pack_stellar_class_badges(values: Any, representative: Any) -> int:
     packed = 0
-    for index, value in enumerate(list(values or [])[:16]):
+    for index, value in enumerate(normalized_stellar_class_badges(values, representative)):
         code = BADGE_CODES.get(str(value or "UNKNOWN").upper(), BADGE_CODES["UNKNOWN"])
         packed |= code << (index * 4)
     return packed
@@ -182,7 +196,7 @@ def encode_tile(
         coolness_rank = max(0, min(0xFFFFFFFF, int(row[11] or 0)))
         nice_planets = int(row[12] or 0)
         max_teff = max(0, min(0xFFFFFFFF, int(round(float(row[13] or 0)))))
-        packed_badges = pack_stellar_class_badges(row[14])
+        packed_badges = pack_stellar_class_badges(row[14], spectral)
         name_refs: list[int] = []
         for name in names:
             name_bytes = name.encode("utf-8")[:65535]

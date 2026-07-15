@@ -118,7 +118,10 @@ sequence supports the label setting `Off`, `Primary`, or `All` without per-label
 API calls; `Primary` remains the default. Nonstellar hierarchy support endpoints
 are excluded. Accepted reviewed component classifications take precedence over
 derived and assumed classes, while unresolved stellar leaves remain explicitly
-`UNKNOWN`.
+`UNKNOWN`. If a source-backed core representative class is absent from a
+source-hierarchy sequence, it replaces the lowest-confidence unknown (or final
+leaf) without changing the system's badge count. This keeps compact-object
+identity visible in controls such as LAWD 25.
 
 The representative-class policy compares an object/spectral/evolutionary
 mass proxy, then intrinsic brightness, then `star_id`.

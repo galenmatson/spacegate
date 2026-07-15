@@ -184,6 +184,18 @@ def verify_radius(build_dir: Path, con: duckdb.DuckDBPyConnection, radius: int) 
                 "expected_badges": ["A", "A", "M", "M", "M", "M"],
                 "observed_badges": castor_badges,
             })
+        lawd = con.execute(
+            "select system_id, star_count from systems where system_name = 'LAWD 25' and dist_ly <= ? order by system_id limit 1",
+            [radius],
+        ).fetchone()
+        lawd_badges = observed_badges.get(int(lawd[0])) if lawd else None
+        if not lawd_badges or lawd_badges[0] != "WD" or len(lawd_badges) != int(lawd[1]):
+            class_mismatches.append({
+                "system_name": "LAWD 25",
+                "expected_badge_prefix": "WD",
+                "expected_badge_count": int(lawd[1]) if lawd else None,
+                "observed_badges": lawd_badges,
+            })
     passed = (
         missing == 0
         and extra == 0
