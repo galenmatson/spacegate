@@ -120,9 +120,6 @@ def main() -> int:
     )
     cooked_nasa_ps = state_dir / "cooked" / "nasa_exoplanet_archive" / "ps_clean.csv"
     cooked_tess_evidence = state_dir / "cooked" / "tess_evidence"
-    reviewed_component_classifications = (
-        Path(__file__).resolve().parents[1] / "config" / "reviewed_component_classifications.json"
-    )
     manifest_dir = state_dir / "reports" / "manifests"
     msc_manifest_path = manifest_dir / "msc_manifest.json"
     wds_manifest_path = manifest_dir / "wds_manifest.json"
@@ -2084,26 +2081,19 @@ def main() -> int:
         ), parsed as (
           select
             nullif(wds_id, '') as wds_id,
-            nullif(other_identifiers, '') as other_identifiers,
             cast(nullif(subsystem_count, '') as bigint) as subsystem_count
           from msc_raw
           where nullif(wds_id, '') is not null
         ), grouped as (
           select
             p.wds_id,
-            max(coalesce(p.subsystem_count, 0)) as subsystem_count,
-            max(
-              case
-                when p.other_identifiers is not null and lower(p.other_identifiers) like '%castor%' then 'Castor'
-                else null
-              end
-            ) as hardcoded_name
+            max(coalesce(p.subsystem_count, 0)) as subsystem_count
           from parsed p
           group by p.wds_id
         )
         select
           g.wds_id,
-          coalesce(g.hardcoded_name, c.system_name, 'WDS ' || g.wds_id) as system_display_name,
+          coalesce(c.system_name, 'WDS ' || g.wds_id) as system_display_name,
           least(greatest(g.subsystem_count, 0), 52) as subsystem_count
         from grouped g
         left join core_wds_names c on c.wds_id = g.wds_id
@@ -3131,55 +3121,6 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: MSC component derived_stellar_classifications ({time.monotonic() - stage_started:.1f}s)")
-
-    stage_started = time.monotonic()
-    log("Arm stage: adding reviewed component stellar classifications")
-    if reviewed_component_classifications.exists():
-        con.execute(
-            f"""
-            insert into derived_stellar_classifications
-            with existing_max as (
-              select coalesce(max(derived_classification_id), 0)::bigint as max_id
-              from derived_stellar_classifications
-            ), reviewed as (
-              select * from read_json_auto({sql_literal(str(reviewed_component_classifications))})
-            ), accepted as (
-              select r.*
-              from reviewed r
-              join component_entities ce using (stable_component_key)
-              where ce.component_type = 'star'
-                and upper(coalesce(r.classification_value, '')) in
-                  ('O','B','A','F','G','K','M','L','T','Y','WD','WR','NS','BLACK HOLE')
-            )
-            select
-              existing_max.max_id + row_number() over (order by accepted.stable_component_key)::bigint,
-              {sql_literal(args.build_id)}::varchar,
-              'component'::varchar,
-              cast(null as bigint), cast(null as bigint), cast(null as varchar),
-              accepted.stable_component_key::varchar,
-              'stellar_display_class'::varchar,
-              upper(accepted.classification_value)::varchar,
-              'source'::varchar,
-              'reviewed_literature_component_class_v1'::varchar,
-              {sql_literal(DERIVED_STELLAR_CLASSIFICATION_VERSION)}::varchar,
-              json_object(
-                'spectral_type_raw', accepted.spectral_type_raw,
-                'source_url', accepted.source_url,
-                'evidence_note', accepted.evidence_note,
-                'reviewed_at', accepted.reviewed_at
-              )::varchar,
-              json_object('operator_reviewed', true, 'component_identity_must_match', true)::varchar,
-              false, false, 0.95::double, 'high'::varchar, 'accepted'::varchar,
-              accepted.source_catalog::varchar, accepted.source_version::varchar,
-              accepted.source_pk::varchar,
-              sha256(concat_ws('|', accepted.stable_component_key, accepted.classification_value, accepted.source_pk)),
-              cast(null as varchar), accepted.reviewed_at::varchar,
-              {sql_literal(args.ingested_at)}::varchar,
-              {sql_literal(args.transform_version)}::varchar
-            from accepted, existing_max
-            """
-        )
-    log(f"Arm stage complete: reviewed component stellar classifications ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
     log("Arm stage: creating msc_orbit_details")
@@ -5873,36 +5814,6 @@ def main() -> int:
     inferred_leaf_count = int(con.execute("select count(*) from msc_inferred_leaves").fetchone()[0] or 0)
     source_leaf_count = int(con.execute("select count(*) from msc_source_leaf_labels").fetchone()[0] or 0)
     inferred_root_count = int(con.execute("select count(*) from msc_system_roots").fetchone()[0] or 0)
-    castor_leaf_count = int(
-        con.execute(
-            """
-            select count(*)
-            from component_entities
-            where lower(coalesce(display_name, '')) like 'castor %'
-              and lower(coalesce(catalog_component_label, '')) in ('aa','ab','ba','bb','ca','cb')
-            """
-        ).fetchone()[0]
-        or 0
-    )
-    castor_pair_count = int(
-        con.execute(
-            """
-            select count(*)
-            from orbit_edges
-            where (
-              lower(primary_component_key) = 'comp:msc:wds:07346+3153:aa'
-              and lower(secondary_component_key) = 'comp:msc:wds:07346+3153:ab'
-            ) or (
-              lower(primary_component_key) = 'comp:msc:wds:07346+3153:ba'
-              and lower(secondary_component_key) = 'comp:msc:wds:07346+3153:bb'
-            ) or (
-              lower(primary_component_key) = 'comp:msc:wds:07346+3153:ca'
-              and lower(secondary_component_key) = 'comp:msc:wds:07346+3153:cb'
-            )
-            """
-        ).fetchone()[0]
-        or 0
-    )
     sol_moon_component_count = int(
         con.execute(
             """
@@ -6247,8 +6158,6 @@ def main() -> int:
             "msc_inferred_system_roots": inferred_root_count,
             "msc_inferred_leaf_components": inferred_leaf_count,
             "msc_source_leaf_components": source_leaf_count,
-            "castor_expected_leaf_matches": castor_leaf_count,
-            "castor_expected_pair_matches": castor_pair_count,
             "sol_moon_components": sol_moon_component_count,
             "sol_moon_hierarchy_edges": sol_moon_hierarchy_edge_count,
             "sol_satellite_orbit_edges": sol_satellite_orbit_edge_count,

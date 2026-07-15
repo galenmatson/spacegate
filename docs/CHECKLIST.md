@@ -916,21 +916,22 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   deterministic, with 70 Oph as a visible benchmark
 - [ ] Review the remaining MSC `orb.tsv` diagnostics that still do not resolve
   to ARM orbit edges after source-native endpoint normalization
-- [x] Classify Castor MSC endpoint `CC` as a visible, specifically allowlisted
-  non-blocking diagnostic while retaining strict failures for unexpected
-  unmatched wide-orbit endpoints
-- [x] Add reviewed, provenance-bearing ARM classifications for Castor Ab/Bb
-  (M2-M3) and YY Gem Ca/Cb (early-M), preserving CC as a brown-dwarf support
-  endpoint and six stellar hierarchy leaves
+- [ ] Adjudicate Castor MSC endpoint `CC` through the standard component
+  resolution process; its former verifier-specific allowlist has been removed
+- [ ] Reconcile canonical-hierarchy endpoint typing with ARM component typing:
+  inferred leaves currently default to `star` before ARM can classify
+  substellar endpoints from source mass evidence
 - [x] Add scalable map label stellar-class badge modes (`Off`, `Primary`,
   `All`) backed by packed tile-v3 repeated-class data
 - [x] Coalesce concurrent cold simulation-scene assembly and persist compatible
   build-keyed compressed runtime artifacts
 - [x] Add side-build priority simulation-scene materialization before immutable
   promotion
-- [ ] Reconcile the inherited TOI exact-search coverage tail: current side
-  checkpoints contain 3,114 accepted TOI hosts but only 3,081 exact-searchable
-  TOI aliases; `scripts/verify_build.sh` must return to a clean pass
+- [x] Remove the temporary Castor-only reviewed-classification build injection
+  and confirm a clean ARM rebuild matches the pre-change catalog result
+- [ ] Stop post-slice TESS identity re-adjudication: project full-canonical
+  decisions into public builds so 32 ambiguous hosts and one removed-host case
+  cannot become accepted merely because competing objects were trimmed
 - [x] Preserve `Proxima Centauri` as the rendered member display name instead of
   allowing source component shorthand `alp1 Cen C` to override the core name
 - [x] Add exact member-star search fallback for served side builds missing

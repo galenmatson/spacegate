@@ -1744,17 +1744,32 @@ materialization before promotion. A Castor smoke test measured about 1.19 s
 cold versus 16 ms from the generated artifact, with one assembly across two
 simultaneous requests. Map tile schema v3 also carries a packed repeated-class
 sequence for `Off`/`Primary`/`All` label badges without object-detail requests.
-Castor's six stellar leaves resolve to two A and four M badges; reviewed ARM
-evidence replaces mass-only assumptions for Ab, Bb, Ca, and Cb while CC remains
-a nonstellar, literature-weak brown-dwarf support endpoint.
+Component badge values remain governed by the general ARM evidence precedence;
+no system-specific classification overrides belong in the build path.
 
-Photon review artifact `20260715T145212Z_de3f3d5_side_rebuild` preserves 1,000
-priority scenes from its source checkpoint and passes tile-v3 verification at
-100/250/500/1,000 ly, including Castor and LAWD 25 class-sequence controls. The
-broad build verifier still exposes an inherited TESS search tail (3,081 of
-3,114 accepted TOI hosts exact-searchable); the source checkpoint fails the
-same gate, so it remains an explicit follow-up rather than being attributed to
-the simulation/tile change.
+The initial Photon review artifact was withdrawn after audit found that it
+included four manually curated Castor component classifications. Spacegate does
+not accept system-specific build overrides as a substitute for the planned AAA
+adjudication path. The general simulation-cache and tile-v3 changes remain, but
+the review checkpoint must be regenerated without those rows before promotion.
+The rollback also removes an older literal Castor-name branch from ARM; ARM now
+uses the canonical CORE system name while public aliases remain the API naming
+layer. It also removes the verifier-specific `CC` endpoint exemption. A clean
+catalog-only ARM rebuild exactly matches the
+pre-change Castor classifications: AA/BA/CA derive from source spectral strings;
+AB/BB/CB remain illustrative mass priors; CC is a 0.05-solar-mass brown-dwarf
+candidate with no stellar classification. The audit also found that canonical
+hierarchy currently calls all seven endpoints inferred stars while ARM types CC
+as substellar; endpoint typing must be reconciled generically. Castor-specific
+build-report counters were removed, and the dedicated multiplicity verifier now
+scopes component-label checks by stable WDS identity instead of display-name
+matching.
+
+The audit also localized the TESS search mismatch: post-slice ARM rebuilds are
+re-adjudicating identities against the pruned public core, allowing 32 formerly
+ambiguous hosts and one removed-host rematch to become accepted. TESS identity
+must instead be adjudicated once in full canonical context and projected into
+the public slice.
 
 ### Stellar Physical Classification v1
 

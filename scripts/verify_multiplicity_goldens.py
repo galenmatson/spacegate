@@ -89,12 +89,16 @@ def find_component_rows(
     label_token: str,
     *,
     component_type: str | None = None,
+    stable_key_scope: str | None = None,
 ) -> list[tuple[str, str, str]]:
     token = normalize_label(label_token)
     type_filter = "and component_type = ?" if component_type else ""
+    scope_filter = "and stable_component_key like ?" if stable_key_scope else ""
     params = [token, f"% {token}%"]
     if component_type:
         params.append(component_type)
+    if stable_key_scope:
+        params.append(stable_key_scope)
     rows = arm.execute(
         f"""
         select
@@ -107,6 +111,7 @@ def find_component_rows(
           or lower(coalesce(display_name, '')) like ?
         )
         {type_filter}
+        {scope_filter}
         """,
         params,
     ).fetchall()
@@ -405,6 +410,8 @@ def check_system(
     expected_pairs = system_cfg.get("expected_inner_binary_pairs", [])
     name_aliases = [str(v) for v in (system_cfg.get("name_aliases") or [])]
     expected_count = int(system_cfg.get("expected_stellar_component_count", len(expected_components)))
+    wds_id = str(system_cfg.get("wds_id") or "").strip()
+    stable_key_scope = f"%wds:{wds_id}:%" if wds_id else None
     min_tier = normalize_label(system_cfg.get("minimum_confidence_tier", "medium"))
     min_rank = TIER_RANK.get(min_tier, 2)
 
@@ -412,7 +419,12 @@ def check_system(
     component_keys: dict[str, str] = {}
     missing_labels: list[str] = []
     for label in expected_components:
-        rows = find_component_rows(arm, label, component_type="star")
+        rows = find_component_rows(
+            arm,
+            label,
+            component_type="star",
+            stable_key_scope=stable_key_scope,
+        )
         label_matches[label] = rows
         if not rows:
             missing_labels.append(label)

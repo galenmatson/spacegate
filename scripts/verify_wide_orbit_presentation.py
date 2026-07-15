@@ -40,7 +40,6 @@ CASES = [
         min_stars=6,
         require_source_group_orbit=True,
         require_nested_orbit=True,
-        allowed_unmatched_endpoint_keys=("comp:msc:wds:07346+3153:cc",),
     ),
     WideOrbitCase("Nu Sco", min_stars=7, require_source_group_orbit=True, require_nested_orbit=True, allow_unattached_source_orbits=True),
     WideOrbitCase("16 Cyg", min_stars=3, require_skipped_overlap=True, require_active_orbit_label="16 Cyg B A - 16 Cyg B B"),

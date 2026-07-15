@@ -329,14 +329,6 @@ Security/transport note:
 - default code should support overriding MSC retrieval to that mirror without changing source provenance
 - preserve the CTIO/NOIRLab MSC export URL as authoritative source provenance
 - maintain mirrored/pinned retrieval strategy for production stability
-- reviewed component-level classifications that fill an explicit MSC endpoint
-  evidence gap live in `config/reviewed_component_classifications.json` and
-  materialize into ARM only. Each row requires an exact component key,
-  literature identifier/URL, evidence note, review date, and accepted source
-  status; it never rewrites core catalog fields. The initial Castor rows cite
-  Torres et al. (2022) for M2-M3 Ab/Bb and Kochukhov & Shulyak (2019) for the
-  two early-M YY Gem components.
-
 ## 10) VSX (AAVSO Variable Star Index)
 
 Classification: `auxiliary`
