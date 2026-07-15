@@ -22,7 +22,34 @@ DL_CURRENT_JSON="$DL_ROOT/current.json"    # metadata file (optional but recomme
 
 require_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1" >&2; exit 1; }; }
 
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/publish_db.sh
+
+Package the currently promoted build, publish its reports and metadata under
+SPACEGATE_DL_ROOT, and update the local download pointer.
+
+Options:
+  -h, --help  Show this help without publishing
+USAGE
+}
+
 main() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+  done
+
   require_cmd readlink
   require_cmd realpath
   require_cmd sha256sum
