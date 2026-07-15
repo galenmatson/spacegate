@@ -9,6 +9,31 @@ from pathlib import Path
 import duckdb
 
 
+NON_SCIENCE_FINGERPRINT_COLUMNS = {"build_id", "ingested_at"}
+
+
+def science_table_fingerprint(
+    con: duckdb.DuckDBPyConnection,
+    table: str,
+    order_by: str,
+) -> tuple[int, str, list[str]]:
+    columns = [
+        str(row[0])
+        for row in con.execute(f"describe {table}").fetchall()
+        if str(row[0]) not in NON_SCIENCE_FINGERPRINT_COLUMNS
+    ]
+    if not columns:
+        raise ValueError(f"No scientific fingerprint columns found for {table}")
+    projection = ", ".join('"' + column.replace('"', '""') + '"' for column in columns)
+    row = con.execute(
+        f"""
+        select count(*), sha256(string_agg(to_json(row({projection})), '' order by {order_by}))
+        from {table}
+        """
+    ).fetchone()
+    return int(row[0]), str(row[1]), columns
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -161,19 +186,23 @@ def main() -> int:
             fingerprints: dict[str, dict[str, object]] = {}
             mismatch_tables: list[str] = []
             for table, order_by in table_orders.items():
-                left = con.execute(
-                    f"select count(*), sha256(string_agg(to_json(t), '' order by {order_by})) from {table} t"
-                ).fetchone()
-                right = compare.execute(
-                    f"select count(*), sha256(string_agg(to_json(t), '' order by {order_by})) from {table} t"
-                ).fetchone()
+                left_count, left_hash, fingerprint_columns = science_table_fingerprint(
+                    con, table, order_by
+                )
+                right_count, right_hash, compare_columns = science_table_fingerprint(
+                    compare, table, order_by
+                )
+                left = (left_count, left_hash)
+                right = (right_count, right_hash)
                 fingerprints[table] = {
-                    "row_count": int(left[0]),
-                    "sha256": str(left[1]),
-                    "compare_row_count": int(right[0]),
-                    "compare_sha256": str(right[1]),
+                    "row_count": left_count,
+                    "sha256": left_hash,
+                    "compare_row_count": right_count,
+                    "compare_sha256": right_hash,
+                    "fingerprint_columns": fingerprint_columns,
+                    "excluded_columns": sorted(NON_SCIENCE_FINGERPRINT_COLUMNS),
                 }
-                if left != right:
+                if fingerprint_columns != compare_columns or left != right:
                     mismatch_tables.append(table)
             compare.close()
             determinism = {

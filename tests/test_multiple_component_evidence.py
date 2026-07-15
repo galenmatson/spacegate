@@ -4,11 +4,14 @@ import csv
 import sys
 from pathlib import Path
 
+import duckdb
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from cook_multiplicity import cook_sb9  # noqa: E402
+from verify_multiple_component_evidence import science_table_fingerprint  # noqa: E402
 
 
 def _put(line: list[str], start: int, end: int, value: str) -> None:
@@ -62,3 +65,25 @@ def test_cook_sb9_preserves_component_spectra_and_orbit(tmp_path: Path) -> None:
         orbit = next(csv.DictReader(handle))
     assert orbit["period_days"] == "9.212749"
     assert orbit["reference_bibcode"] == "2004A&A...424..727P"
+
+
+def test_science_fingerprint_excludes_build_metadata_but_not_evidence() -> None:
+    first = duckdb.connect(":memory:")
+    second = duckdb.connect(":memory:")
+    for con, build_id, ingested_at, value in (
+        (first, "build-a", "2026-07-15T00:00:00Z", "A1V"),
+        (second, "build-b", "2026-07-16T00:00:00Z", "A1V"),
+    ):
+        con.execute(
+            "create table evidence(id bigint, build_id varchar, ingested_at varchar, value varchar)"
+        )
+        con.execute("insert into evidence values (1, ?, ?, ?)", [build_id, ingested_at, value])
+
+    first_fp = science_table_fingerprint(first, "evidence", "id")
+    second_fp = science_table_fingerprint(second, "evidence", "id")
+    assert first_fp == second_fp
+
+    second.execute("update evidence set value='M1V'")
+    assert science_table_fingerprint(first, "evidence", "id") != science_table_fingerprint(
+        second, "evidence", "id"
+    )
