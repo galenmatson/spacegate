@@ -5338,7 +5338,7 @@ def main() -> int:
                 or a.recovery_wds_id is not null,
               has_orb6_evidence = coalesce(stars.has_orb6_evidence, false)
                 or exists (select 1 from orb6_support o where o.wds_id = a.recovery_wds_id),
-              sbx_sn = coalesce(stars.sbx_sn, a.recovery_sbx_sn),
+              sbx_sn = coalesce(stars.sbx_sn, a.recovery_sbx_sn::varchar),
               sbx_orbit_count = greatest(coalesce(stars.sbx_orbit_count, 0), coalesce(a.recovery_orbit_count, 0)),
               sbx_family = coalesce(stars.sbx_family, a.recovery_family),
               sbx_position_epoch = coalesce(stars.sbx_position_epoch, a.recovery_position_epoch),
@@ -5364,8 +5364,8 @@ def main() -> int:
                 'tyc', coalesce(a.tyc_id, json_extract_string(stars.catalog_ids_json, '$.tyc')),
                 'hyg', coalesce(a.hyg_id, cast(json_extract_string(stars.catalog_ids_json, '$.hyg') as bigint)),
                 'wds', coalesce(stars.wds_id, a.accepted_wds_id, a.recovery_wds_id, json_extract_string(stars.catalog_ids_json, '$.wds')),
-                'wds_component', coalesce(nullif(stars.component, ''), a.accepted_component, json_extract_string(stars.catalog_ids_json, '$.wds_component'))
-                ,'sbx_sn', coalesce(stars.sbx_sn, a.recovery_sbx_sn)
+                'wds_component', coalesce(nullif(stars.component, ''), a.accepted_component, json_extract_string(stars.catalog_ids_json, '$.wds_component')),
+                'sbx_sn', coalesce(stars.sbx_sn, a.recovery_sbx_sn::varchar)
               )
             from athyg_merge_resolution r
             join athyg_merge_source a on a.source_pk = r.source_pk
@@ -5544,7 +5544,7 @@ def main() -> int:
               false as has_msc_evidence,
               coalesce(ordered.accepted_wds_id, ordered.recovery_wds_id) is not null as has_wds_evidence,
               exists (select 1 from orb6_support o where o.wds_id = ordered.recovery_wds_id) as has_orb6_evidence,
-              ordered.recovery_sbx_sn as sbx_sn,
+              ordered.recovery_sbx_sn::varchar as sbx_sn,
               coalesce(ordered.recovery_orbit_count, 0)::bigint as sbx_orbit_count,
               ordered.recovery_family as sbx_family,
               ordered.recovery_position_epoch as sbx_position_epoch,
