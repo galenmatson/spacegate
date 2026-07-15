@@ -154,7 +154,10 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
               coalesce(l.gaia_id, hg.resolved_gaia_id, dg.resolved_gaia_id) as resolved_gaia_id,
               l.hip_id,
               l.hd_id,
-              l.wds_id
+              l.wds_id,
+              l.stable_object_key as legacy_stable_object_key,
+              l.upstream_source_catalog,
+              l.upstream_source_pk
             from norm.legacy_crosswalk_star_sources l
             left join hip_gaia hg on hg.hip_id = l.hip_id
             left join hd_gaia dg on dg.hd_id = l.hd_id
@@ -288,7 +291,8 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 display_name,
                 gaia_id,
                 cast(null as bigint) as hip_id,
-                cast(null as bigint) as hd_id
+                cast(null as bigint) as hd_id,
+                cast(null as varchar) as legacy_stable_object_key
               from norm.gaia_star_sources
               union all
               select
@@ -297,7 +301,8 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 display_name,
                 gaia_id,
                 nullif(hip_id, 0) as hip_id,
-                nullif(hd_id, 0) as hd_id
+                nullif(hd_id, 0) as hd_id,
+                cast(null as varchar) as legacy_stable_object_key
               from norm.nasa_host_sources
               union all
               select
@@ -306,7 +311,8 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 display_name,
                 cast(null as bigint) as gaia_id,
                 nullif(hip_id, 0) as hip_id,
-                nullif(hd_id, 0) as hd_id
+                nullif(hd_id, 0) as hd_id,
+                cast(null as varchar) as legacy_stable_object_key
               from norm.msc_component_sources
               union all
               select
@@ -315,7 +321,8 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 display_name,
                 gaia_id,
                 nullif(hip_id, 0) as hip_id,
-                nullif(hd_id, 0) as hd_id
+                nullif(hd_id, 0) as hd_id,
+                cast(null as varchar) as legacy_stable_object_key
               from norm.sbx_star_sources
               union all
               select
@@ -324,7 +331,8 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 l.display_name,
                 l.direct_gaia_id as gaia_id,
                 nullif(l.hip_id, 0) as hip_id,
-                nullif(l.hd_id, 0) as hd_id
+                nullif(l.hd_id, 0) as hd_id,
+                l.legacy_stable_object_key
               from legacy_resolved_star_identities l
             ),
             resolved as (
@@ -359,6 +367,7 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 when resolved_gaia_id is not null then 'canon:star:gaia:' || resolved_gaia_id::varchar
                 when hip_id is not null then 'canon:star:hip:' || hip_id::varchar
                 when hd_id is not null then 'canon:star:hd:' || hd_id::varchar
+                when legacy_stable_object_key is not null then 'canon:star:stable:' || legacy_stable_object_key
                 else 'canon:star:node:' || node_key
               end as canonical_star_key,
               case
@@ -367,12 +376,14 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 when coalesce(matched_legacy_resolved_gaia_count, 0) = 1 then 'via_legacy_gaia'
                 when hip_id is not null then 'direct_hip'
                 when hd_id is not null then 'direct_hd'
+                when legacy_stable_object_key is not null then 'legacy_source_stable_key'
                 else 'fallback_node'
               end as resolution_method,
               case
                 when resolved_gaia_id is not null then 1.00
                 when hip_id is not null then 0.96
                 when hd_id is not null then 0.93
+                when legacy_stable_object_key is not null then 0.90
                 else 0.50
               end as resolution_confidence
             from resolved
@@ -473,13 +484,16 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             """
             create table canonical_system_sources as
             with system_source_base as (
-              select node_key, source_catalog, display_name, wds_id, source_pk
+              select node_key, source_catalog, display_name, wds_id, source_pk,
+                     cast(null as varchar) as legacy_stable_object_key
               from norm.msc_system_sources
               union all
-              select node_key, source_catalog, display_name, wds_id, source_pk
+              select node_key, source_catalog, display_name, wds_id, source_pk,
+                     cast(null as varchar) as legacy_stable_object_key
               from norm.wds_system_sources
               union all
-              select node_key, source_catalog, display_name, wds_id, source_pk
+              select node_key, source_catalog, display_name, wds_id, source_pk,
+                     stable_object_key as legacy_stable_object_key
               from norm.legacy_crosswalk_system_sources
             )
             select
@@ -490,17 +504,17 @@ def build_reduction(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
               wds_id,
               case
                 when wds_id is not null then 'canon:system:wds:' || wds_id
-                when source_catalog = 'legacy_core_crosswalk' then 'canon:system:legacy:' || source_pk::varchar
+                when legacy_stable_object_key is not null then 'canon:system:stable:' || legacy_stable_object_key
                 else 'canon:system:node:' || node_key
               end as canonical_system_key,
               case
                 when wds_id is not null then 'exact_wds_id'
-                when source_catalog = 'legacy_core_crosswalk' then 'legacy_system_id'
+                when legacy_stable_object_key is not null then 'legacy_source_stable_key'
                 else 'fallback_node'
               end as resolution_method,
               case
                 when wds_id is not null then 1.00
-                when source_catalog = 'legacy_core_crosswalk' then 0.90
+                when legacy_stable_object_key is not null then 0.90
                 else 0.50
               end as resolution_confidence
             from system_source_base

@@ -196,6 +196,20 @@ def main() -> int:
             """
         ).fetchone()[0]
     )
+    candidate_sequential_legacy_system_keys = int(
+        con.execute(
+            "select count(*) from candidate.systems where stable_object_key like 'canon:system:legacy:%'"
+        ).fetchone()[0]
+    )
+    candidate_sequential_legacy_star_keys = int(
+        con.execute(
+            """
+            select count(*)
+            from candidate.stars
+            where stable_object_key like 'canon:star:node:src:legacy_core_star:%'
+            """
+        ).fetchone()[0]
+    )
 
     tess_baseline = grouped_counts(
         con,
@@ -263,6 +277,9 @@ def main() -> int:
         == "0",
         "candidate_identifier_orphans_zero": candidate_identifier_orphans == 0,
         "candidate_tic_collisions_zero": candidate_tic_collisions == 0,
+        "candidate_sequential_legacy_system_keys_zero": candidate_sequential_legacy_system_keys
+        == 0,
+        "candidate_sequential_legacy_star_keys_zero": candidate_sequential_legacy_star_keys == 0,
         "candidate_crosswalk_identifier_coverage_preserved": all(
             candidate_identifier_namespaces.get(namespace, 0)
             >= baseline_identifier_namespaces.get(namespace, 0)
@@ -311,6 +328,8 @@ def main() -> int:
             "candidate_accepted_supplement_stars": candidate_supplements,
             "candidate_identifier_orphans": candidate_identifier_orphans,
             "candidate_tic_collisions": candidate_tic_collisions,
+            "candidate_sequential_legacy_system_keys": candidate_sequential_legacy_system_keys,
+            "candidate_sequential_legacy_star_keys": candidate_sequential_legacy_star_keys,
             "candidate_tess_target_rows": candidate_tess_count,
             "candidate_tess_distinct_tic_ids": candidate_tess_distinct_tic_count,
         },

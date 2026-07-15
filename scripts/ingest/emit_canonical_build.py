@@ -900,7 +900,8 @@ def emit_canonical_build(
                   'bootstrap_source_build_id',
                   'canonical_mode',
                   'canonical_hierarchy_enabled',
-                  'canonical_build_generated_at'
+                  'canonical_build_generated_at',
+                  'canonical_transform_git_sha'
                 )
                 """
             )
@@ -911,9 +912,10 @@ def emit_canonical_build(
                   ('bootstrap_source_build_id', ?),
                   ('canonical_mode', 'ingest_canonical_build'),
                   ('canonical_hierarchy_enabled', '1'),
-                  ('canonical_build_generated_at', ?)
+                  ('canonical_build_generated_at', ?),
+                  ('canonical_transform_git_sha', ?)
                 """,
-                [canonical_build_id, source_build_id, utc_now()],
+                [canonical_build_id, source_build_id, utc_now(), git_sha(root)],
             )
 
             con.execute(
