@@ -430,42 +430,42 @@ def main():
     if not isinstance(castor_root, dict):
         raise AssertionError("Castor detail missing hierarchy root")
     castor_leaf_facts = {
-        str(node.get("display_name")): node.get("quick_facts")
+        str(node.get("stable_component_key")): node.get("quick_facts")
         for node in iter_hierarchy_nodes(castor_root)
         if str(node.get("node_kind") or "") in {"inferred_star_leaf", "source_star_leaf"}
     }
     required_castor_leaf_facts = {
-        "Castor AA": {"spectral_type_raw": "A1V", "mass_msun": 2.37, "vmag": 1.98},
-        "Castor BA": {"spectral_type_raw": "A2Vm", "mass_msun": 1.79, "vmag": 2.88},
-        "Castor CA": {"spectral_type_raw": "M0.5V", "mass_msun": 0.6, "vmag": 9.77},
-        "Castor AB": {"mass_msun": 0.39},
-        "Castor BB": {"mass_msun": 0.39},
-        "Castor CB": {"mass_msun": 0.6, "vmag": 9.77},
+        "canon:leaf:msc:07346+3153:aa": {"spectral_type_raw": "A1V", "mass_msun": 2.37, "vmag": 1.98},
+        "canon:leaf:msc:07346+3153:ba": {"spectral_type_raw": "A2Vm", "mass_msun": 1.79, "vmag": 2.88},
+        "canon:leaf:msc:07346+3153:ca": {"spectral_type_raw": "M0.5V", "mass_msun": 0.6, "vmag": 9.77},
+        "canon:leaf:msc:07346+3153:ab": {"spectral_type_raw": "dM1e", "mass_msun": 0.39},
+        "canon:leaf:msc:07346+3153:bb": {"spectral_type_raw": "dM1e", "mass_msun": 0.39},
+        "canon:leaf:msc:07346+3153:cb": {"spectral_type_raw": "M1_Ve", "mass_msun": 0.6, "vmag": 9.77},
     }
-    for leaf_name, expected_facts in required_castor_leaf_facts.items():
-        facts = castor_leaf_facts.get(leaf_name)
+    for leaf_key, expected_facts in required_castor_leaf_facts.items():
+        facts = castor_leaf_facts.get(leaf_key)
         if not isinstance(facts, dict):
-            raise AssertionError(f"Castor leaf {leaf_name} missing quick_facts")
+            raise AssertionError(f"Castor leaf {leaf_key} missing quick_facts")
         for fact_key, expected_value in expected_facts.items():
             value = facts.get(fact_key)
             if isinstance(expected_value, float):
                 if value is None or abs(float(value) - expected_value) > 1e-6:
                     raise AssertionError(
-                        f"Castor leaf {leaf_name} expected {fact_key}={expected_value}, got {value!r}"
+                        f"Castor leaf {leaf_key} expected {fact_key}={expected_value}, got {value!r}"
                     )
             elif value != expected_value:
                 raise AssertionError(
-                    f"Castor leaf {leaf_name} expected {fact_key}={expected_value!r}, got {value!r}"
+                    f"Castor leaf {leaf_key} expected {fact_key}={expected_value!r}, got {value!r}"
                 )
         if facts.get("vmag") == 0:
-            raise AssertionError(f"Castor leaf {leaf_name} has placeholder Vmag 0.0")
+            raise AssertionError(f"Castor leaf {leaf_key} has placeholder Vmag 0.0")
         if "spectral_type_raw" not in expected_facts and facts.get("mass_msun") is not None:
             if not facts.get("visual_stellar_class"):
-                raise AssertionError(f"Castor leaf {leaf_name} missing mass-based visual class prior")
+                raise AssertionError(f"Castor leaf {leaf_key} missing mass-based visual class prior")
             if facts.get("visual_stellar_class_status") != "assumed":
-                raise AssertionError(f"Castor leaf {leaf_name} visual class prior should be assumed: {facts}")
+                raise AssertionError(f"Castor leaf {leaf_key} visual class prior should be assumed: {facts}")
             if facts.get("visual_stellar_class_basis") != "mass_main_sequence_prior_v1":
-                raise AssertionError(f"Castor leaf {leaf_name} visual class prior basis mismatch: {facts}")
+                raise AssertionError(f"Castor leaf {leaf_key} visual class prior basis mismatch: {facts}")
 
     common_name_cases = [
         ("Castor", "07346+3153", None, None, "Castor"),

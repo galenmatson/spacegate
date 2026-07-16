@@ -11,7 +11,7 @@ import requests
 
 @dataclass(frozen=True)
 class HierarchyFact:
-    display_name: str
+    stable_component_key: str
     facts: dict[str, Any]
 
 
@@ -23,7 +23,7 @@ class BenchmarkCase:
     min_star_count: int | None = None
     min_planet_count: int | None = None
     expected_aliases: tuple[str, ...] = ()
-    required_hierarchy_names: tuple[str, ...] = ()
+    required_hierarchy_keys: tuple[str, ...] = ()
     required_hierarchy_facts: tuple[HierarchyFact, ...] = ()
     min_scene_stars: int | None = None
     exact_scene_stars: int | None = None
@@ -36,14 +36,21 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
         expected_wds_id="07346+3153",
         min_star_count=6,
         expected_aliases=("Alpha Geminorum",),
-        required_hierarchy_names=("Castor AA", "Castor AB", "Castor BA", "Castor BB", "Castor CA", "Castor CB"),
+        required_hierarchy_keys=(
+            "canon:leaf:msc:07346+3153:aa",
+            "canon:leaf:msc:07346+3153:ab",
+            "canon:leaf:msc:07346+3153:ba",
+            "canon:leaf:msc:07346+3153:bb",
+            "canon:leaf:msc:07346+3153:ca",
+            "canon:leaf:msc:07346+3153:cb",
+        ),
         required_hierarchy_facts=(
-            HierarchyFact("Castor AA", {"spectral_type_raw": "A1V", "spectral_class": "A", "mass_msun": 2.37}),
-            HierarchyFact("Castor BA", {"spectral_type_raw": "A2Vm", "spectral_class": "A", "mass_msun": 1.79}),
-            HierarchyFact("Castor CA", {"spectral_type_raw": "M0.5V", "spectral_class": "M", "mass_msun": 0.6}),
-            HierarchyFact("Castor AB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.39}),
-            HierarchyFact("Castor BB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.39}),
-            HierarchyFact("Castor CB", {"spectral_type_raw": None, "spectral_class": None, "mass_msun": 0.6}),
+            HierarchyFact("canon:leaf:msc:07346+3153:aa", {"spectral_type_raw": "A1V", "spectral_class": "A", "mass_msun": 2.37}),
+            HierarchyFact("canon:leaf:msc:07346+3153:ba", {"spectral_type_raw": "A2Vm", "spectral_class": "A", "mass_msun": 1.79}),
+            HierarchyFact("canon:leaf:msc:07346+3153:ca", {"spectral_type_raw": "M0.5V", "spectral_class": "M", "mass_msun": 0.6}),
+            HierarchyFact("canon:leaf:msc:07346+3153:ab", {"spectral_type_raw": "dM1e", "spectral_class": "M", "mass_msun": 0.39}),
+            HierarchyFact("canon:leaf:msc:07346+3153:bb", {"spectral_type_raw": "dM1e", "spectral_class": "M", "mass_msun": 0.39}),
+            HierarchyFact("canon:leaf:msc:07346+3153:cb", {"spectral_type_raw": "M1_Ve", "spectral_class": "M", "mass_msun": 0.6}),
         ),
         min_scene_stars=6,
     ),
@@ -688,35 +695,32 @@ def verify_case(
         else:
             raise AssertionError(message)
     hierarchy_nodes = list(iter_hierarchy_nodes(root))
-    nodes_by_name = {str(node.get("display_name") or ""): node for node in hierarchy_nodes}
-    missing_required_names: list[str] = []
-    for display_name in case.required_hierarchy_names:
-        if display_name not in nodes_by_name:
-            missing_required_names.append(display_name)
-    if missing_required_names:
-        message = f"{case.query}: hierarchy missing nodes {missing_required_names!r}"
+    nodes_by_key = {str(node.get("stable_component_key") or ""): node for node in hierarchy_nodes}
+    missing_required_keys = [key for key in case.required_hierarchy_keys if key not in nodes_by_key]
+    if missing_required_keys:
+        message = f"{case.query}: hierarchy missing stable component keys {missing_required_keys!r}"
         if allow_stale_public_slice:
             warnings.append(f"[stale-public-slice] {message}")
         else:
             raise AssertionError(message)
     for expected in case.required_hierarchy_facts:
-        node = nodes_by_name.get(expected.display_name)
+        node = nodes_by_key.get(expected.stable_component_key)
         if not node:
-            message = f"{case.query}: hierarchy missing fact node {expected.display_name!r}"
+            message = f"{case.query}: hierarchy missing fact node {expected.stable_component_key!r}"
             if allow_stale_public_slice:
                 warnings.append(f"[stale-public-slice] {message}")
                 continue
             raise AssertionError(message)
         facts = node.get("quick_facts")
         if not isinstance(facts, dict):
-            message = f"{case.query}: hierarchy node {expected.display_name!r} missing quick_facts"
+            message = f"{case.query}: hierarchy node {expected.stable_component_key!r} missing quick_facts"
             if allow_stale_public_slice:
                 warnings.append(f"[stale-public-slice] {message}")
                 continue
             raise AssertionError(message)
         for fact_key, expected_value in expected.facts.items():
             try:
-                assert_fact_matches(f"{case.query} {expected.display_name}", fact_key, expected_value, facts.get(fact_key))
+                assert_fact_matches(f"{case.query} {expected.stable_component_key}", fact_key, expected_value, facts.get(fact_key))
             except AssertionError as exc:
                 if allow_stale_public_slice:
                     warnings.append(f"[stale-public-slice] {exc}")
@@ -728,13 +732,13 @@ def verify_case(
             and expected.facts.get("spectral_class") is None
         ):
             if not facts.get("visual_stellar_class"):
-                message = f"{case.query}: hierarchy node {expected.display_name!r} should expose a mass-based visual class prior"
+                message = f"{case.query}: hierarchy node {expected.stable_component_key!r} should expose a mass-based visual class prior"
                 if allow_stale_public_slice:
                     warnings.append(f"[stale-public-slice] {message}")
                     continue
                 raise AssertionError(message)
             if facts.get("visual_stellar_class_status") != "assumed" or facts.get("visual_stellar_class_basis") != "mass_main_sequence_prior_v1":
-                message = f"{case.query}: hierarchy node {expected.display_name!r} has malformed visual class prior: {facts}"
+                message = f"{case.query}: hierarchy node {expected.stable_component_key!r} has malformed visual class prior: {facts}"
                 if allow_stale_public_slice:
                     warnings.append(f"[stale-public-slice] {message}")
                     continue

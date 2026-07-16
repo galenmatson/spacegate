@@ -520,6 +520,11 @@ Representative commits:
   scenes. Tile verification reports zero missing, extra, public-name, or
   representative-class mismatches at every radius; scene generation reports
   zero failures.
+- Live API hierarchy goldens now identify source leaves by stable WDS-scoped
+  component key rather than a mutable display-name prefix. This preserves
+  Castor as a benchmark without requiring source-native `66alp Gem` leaf names
+  to be rewritten by object-specific presentation logic; SB9-backed A/M, A/M,
+  M/M facts are verified on those stable keys.
 - Determinism comparison is now scoped to the canonical transform revision and
   hashes ARM science/lineage payloads while excluding only build-instance
   metadata. Paired full builds `20260715T2343Z_06ac777_a` and
