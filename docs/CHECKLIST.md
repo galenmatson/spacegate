@@ -895,6 +895,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   known-object cross-reference collector, ARM infrared evidence tables,
   verification script, no WISE-only core promotion, and documented source
   policy. Plan and follow-ups: `docs/CATWISE_ALLWISE_PLAN.md`
+- [x] Re-key targeted WISE match, photometry, motion, and candidate-context
+  bindings against the current canonical CORE; add verifier gates for target,
+  system, and stable-key agreement
 - [x] Add IRSA/WISE image integration for system pages: W1/W2/W3 cutouts,
   generated web previews, source links back to IRSA, retrieval metadata, and a
   bounded lazy cache
@@ -953,6 +956,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Stop post-slice TESS identity re-adjudication: project full-canonical
   decisions into public builds so 32 ambiguous hosts and one removed-host case
   cannot become accepted merely because competing objects were trimmed
+- [x] Preserve retained WDS observation and WISE match evidence in public ARM
+  slices without treating source-native component keys as canonical foreign
+  keys
 - [x] Preserve `Proxima Centauri` as the rendered member display name instead of
   allowing source component shorthand `alp1 Cen C` to override the core name
 - [x] Add exact member-star search fallback for served side builds missing

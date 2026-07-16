@@ -498,6 +498,16 @@ Representative commits:
   against the full canonical universe and projected into slices. Public builds
   can no longer convert ambiguity into acceptance merely because a competing
   object was trimmed.
+- Corrected ARM evidence bindings that survived canonical reduction with stale
+  collection-time identifiers. All 2,105 targeted WISE match, photometry, and
+  motion rows now resolve their target, containing system, and stable key from
+  the current CORE; 139 candidate-queue nearest-target contexts are normalized
+  the same way. Verification fails on any remaining mismatch.
+- Corrected public ARM retention predicates that dropped all 157,299 source WDS
+  observation rows and all 2,105 WISE match rows. Public slices now retain WDS
+  observations by retained WDS scope and WISE matches by canonical target scope;
+  source-native component keys remain evidence identifiers rather than foreign
+  keys into the canonical component graph.
 - Determinism comparison is now scoped to the canonical transform revision and
   hashes ARM science/lineage payloads while excluding only build-instance
   metadata. Paired full builds `20260715T2343Z_06ac777_a` and

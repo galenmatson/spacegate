@@ -749,6 +749,11 @@ Columns:
 Rules:
 - Match scoring may use angular separation, epoch/proper-motion propagation,
   source designation, W1/W2 color, SNR, and quality/artifact/blend flags.
+- Materialization must resolve `target_id`, `system_id`, and
+  `stable_object_key` against the current canonical CORE. Cooked collection-time
+  row IDs and pre-canonical stable keys are lineage inputs, not serving keys.
+- The WISE verifier fails when a bound target does not resolve, its system does
+  not match the canonical target's system, or its stable key differs from CORE.
 - Low-confidence or ambiguous rows must remain candidates or diagnostics; they
   must not create new core objects.
 - Accepted matches attach to the correct object level when deterministic:
@@ -812,6 +817,9 @@ Columns:
 
 Rules:
 - Queue rows are review prompts, not inventory rows.
+- Nearest-target context is re-resolved against current CORE when the target is
+  still present; stale collection-time system IDs and stable keys must not be
+  exposed as current bindings.
 - `accepted` means accepted for further curation or a reviewed bridge process;
   it still does not directly create `core` rows without an explicit inventory
   promotion path.

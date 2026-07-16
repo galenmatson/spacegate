@@ -5446,22 +5446,22 @@ def main() -> int:
             f"""
             create table infrared_source_matches as
             select
-              row_number() over (order by system_id, target_id, source_catalog, source_key, match_rank)::bigint as infrared_match_id,
-              target_type::varchar as target_type,
-              cast(nullif(target_id, '') as bigint) as target_id,
-              cast(nullif(system_id, '') as bigint) as system_id,
-              stable_object_key::varchar as stable_object_key,
-              source_catalog::varchar as source_catalog,
-              source_version::varchar as source_version,
-              source_key::varchar as source_key,
-              source_designation::varchar as source_designation,
-              cast(nullif(angular_sep_arcsec, '') as double) as angular_sep_arcsec,
-              cast(nullif(match_rank, '') as integer) as match_rank,
-              cast(nullif(match_score, '') as double) as match_score,
-              confidence_tier::varchar as confidence_tier,
-              match_method::varchar as match_method,
-              conflict_status::varchar as conflict_status,
-              provenance_json::json as provenance_json,
+              row_number() over (order by coalesce(st.system_id, sy.system_id), coalesce(st.star_id, sy.system_id), i.source_catalog, i.source_key, i.match_rank)::bigint as infrared_match_id,
+              i.target_type::varchar as target_type,
+              coalesce(st.star_id, sy.system_id)::bigint as target_id,
+              coalesce(st.system_id, sy.system_id)::bigint as system_id,
+              coalesce(st.stable_object_key, sy.stable_object_key)::varchar as stable_object_key,
+              i.source_catalog::varchar as source_catalog,
+              i.source_version::varchar as source_version,
+              i.source_key::varchar as source_key,
+              i.source_designation::varchar as source_designation,
+              cast(nullif(i.angular_sep_arcsec, '') as double) as angular_sep_arcsec,
+              cast(nullif(i.match_rank, '') as integer) as match_rank,
+              cast(nullif(i.match_score, '') as double) as match_score,
+              i.confidence_tier::varchar as confidence_tier,
+              i.match_method::varchar as match_method,
+              i.conflict_status::varchar as conflict_status,
+              i.provenance_json::json as provenance_json,
               {sql_literal(args.ingested_at)} as ingested_at,
               {sql_literal(args.transform_version)} as transform_version
             from read_csv_auto(
@@ -5473,7 +5473,14 @@ def main() -> int:
               strict_mode=false,
               null_padding=true,
               all_varchar=true
-            )
+            ) i
+            left join core.stars st
+              on lower(i.target_type) = 'star'
+             and st.star_id = try_cast(nullif(i.target_id, '') as bigint)
+            left join core.systems sy
+              on lower(i.target_type) = 'system'
+             and sy.system_id = try_cast(nullif(i.target_id, '') as bigint)
+            where st.star_id is not null or sy.system_id is not null
             """
         )
     else:
@@ -5508,25 +5515,25 @@ def main() -> int:
             f"""
             create table infrared_photometry as
             select
-              row_number() over (order by system_id, target_id, source_catalog, source_key)::bigint as infrared_photometry_id,
-              source_catalog::varchar as source_catalog,
-              source_version::varchar as source_version,
-              source_key::varchar as source_key,
-              target_type::varchar as target_type,
-              cast(nullif(target_id, '') as bigint) as target_id,
-              cast(nullif(system_id, '') as bigint) as system_id,
-              cast(nullif(w1_mag, '') as double) as w1_mag,
-              cast(nullif(w2_mag, '') as double) as w2_mag,
-              cast(nullif(w3_mag, '') as double) as w3_mag,
-              cast(nullif(w4_mag, '') as double) as w4_mag,
-              cast(nullif(w1_snr, '') as double) as w1_snr,
-              cast(nullif(w2_snr, '') as double) as w2_snr,
-              cast(nullif(w3_snr, '') as double) as w3_snr,
-              cast(nullif(w4_snr, '') as double) as w4_snr,
-              quality_flags::varchar as quality_flags,
-              artifact_flags::varchar as artifact_flags,
-              blend_flags::json as blend_flags,
-              provenance_json::json as provenance_json,
+              row_number() over (order by coalesce(st.system_id, sy.system_id), coalesce(st.star_id, sy.system_id), i.source_catalog, i.source_key)::bigint as infrared_photometry_id,
+              i.source_catalog::varchar as source_catalog,
+              i.source_version::varchar as source_version,
+              i.source_key::varchar as source_key,
+              i.target_type::varchar as target_type,
+              coalesce(st.star_id, sy.system_id)::bigint as target_id,
+              coalesce(st.system_id, sy.system_id)::bigint as system_id,
+              cast(nullif(i.w1_mag, '') as double) as w1_mag,
+              cast(nullif(i.w2_mag, '') as double) as w2_mag,
+              cast(nullif(i.w3_mag, '') as double) as w3_mag,
+              cast(nullif(i.w4_mag, '') as double) as w4_mag,
+              cast(nullif(i.w1_snr, '') as double) as w1_snr,
+              cast(nullif(i.w2_snr, '') as double) as w2_snr,
+              cast(nullif(i.w3_snr, '') as double) as w3_snr,
+              cast(nullif(i.w4_snr, '') as double) as w4_snr,
+              i.quality_flags::varchar as quality_flags,
+              i.artifact_flags::varchar as artifact_flags,
+              i.blend_flags::json as blend_flags,
+              i.provenance_json::json as provenance_json,
               {sql_literal(args.ingested_at)} as ingested_at,
               {sql_literal(args.transform_version)} as transform_version
             from read_csv_auto(
@@ -5538,7 +5545,14 @@ def main() -> int:
               strict_mode=false,
               null_padding=true,
               all_varchar=true
-            )
+            ) i
+            left join core.stars st
+              on lower(i.target_type) = 'star'
+             and st.star_id = try_cast(nullif(i.target_id, '') as bigint)
+            left join core.systems sy
+              on lower(i.target_type) = 'system'
+             and sy.system_id = try_cast(nullif(i.target_id, '') as bigint)
+            where st.star_id is not null or sy.system_id is not null
             """
         )
     else:
@@ -5576,22 +5590,22 @@ def main() -> int:
             f"""
             create table infrared_motion_evidence as
             select
-              row_number() over (order by system_id, target_id, source_catalog, source_key)::bigint as infrared_motion_id,
-              source_catalog::varchar as source_catalog,
-              source_version::varchar as source_version,
-              source_key::varchar as source_key,
-              target_type::varchar as target_type,
-              cast(nullif(target_id, '') as bigint) as target_id,
-              cast(nullif(system_id, '') as bigint) as system_id,
-              cast(nullif(pm_ra, '') as double) as pm_ra,
-              cast(nullif(pm_dec, '') as double) as pm_dec,
-              pm_unit::varchar as pm_unit,
-              cast(nullif(pm_ra_error, '') as double) as pm_ra_error,
-              cast(nullif(pm_dec_error, '') as double) as pm_dec_error,
-              cast(nullif(parallax_like_arcsec, '') as double) as parallax_like_arcsec,
-              cast(nullif(parallax_like_error_arcsec, '') as double) as parallax_like_error_arcsec,
-              parallax_like_note::varchar as parallax_like_note,
-              provenance_json::json as provenance_json,
+              row_number() over (order by coalesce(st.system_id, sy.system_id), coalesce(st.star_id, sy.system_id), i.source_catalog, i.source_key)::bigint as infrared_motion_id,
+              i.source_catalog::varchar as source_catalog,
+              i.source_version::varchar as source_version,
+              i.source_key::varchar as source_key,
+              i.target_type::varchar as target_type,
+              coalesce(st.star_id, sy.system_id)::bigint as target_id,
+              coalesce(st.system_id, sy.system_id)::bigint as system_id,
+              cast(nullif(i.pm_ra, '') as double) as pm_ra,
+              cast(nullif(i.pm_dec, '') as double) as pm_dec,
+              i.pm_unit::varchar as pm_unit,
+              cast(nullif(i.pm_ra_error, '') as double) as pm_ra_error,
+              cast(nullif(i.pm_dec_error, '') as double) as pm_dec_error,
+              cast(nullif(i.parallax_like_arcsec, '') as double) as parallax_like_arcsec,
+              cast(nullif(i.parallax_like_error_arcsec, '') as double) as parallax_like_error_arcsec,
+              i.parallax_like_note::varchar as parallax_like_note,
+              i.provenance_json::json as provenance_json,
               {sql_literal(args.ingested_at)} as ingested_at,
               {sql_literal(args.transform_version)} as transform_version
             from read_csv_auto(
@@ -5603,7 +5617,14 @@ def main() -> int:
               strict_mode=false,
               null_padding=true,
               all_varchar=true
-            )
+            ) i
+            left join core.stars st
+              on lower(i.target_type) = 'star'
+             and st.star_id = try_cast(nullif(i.target_id, '') as bigint)
+            left join core.systems sy
+              on lower(i.target_type) = 'system'
+             and sy.system_id = try_cast(nullif(i.target_id, '') as bigint)
+            where st.star_id is not null or sy.system_id is not null
             """
         )
     else:
@@ -5638,26 +5659,26 @@ def main() -> int:
             f"""
             create table infrared_candidate_queue as
             select
-              row_number() over (order by nearest_system_id, source_catalog, source_key)::bigint as infrared_candidate_id,
-              candidate_status::varchar as candidate_status,
-              candidate_kind::varchar as candidate_kind,
-              nearest_target_type::varchar as nearest_target_type,
-              cast(nullif(nearest_target_id, '') as bigint) as nearest_target_id,
-              cast(nullif(nearest_system_id, '') as bigint) as nearest_system_id,
-              nearest_stable_object_key::varchar as nearest_stable_object_key,
-              source_catalog::varchar as source_catalog,
-              source_version::varchar as source_version,
-              source_key::varchar as source_key,
-              source_designation::varchar as source_designation,
-              cast(nullif(ra_deg, '') as double) as ra_deg,
-              cast(nullif(dec_deg, '') as double) as dec_deg,
-              cast(nullif(angular_sep_arcsec, '') as double) as angular_sep_arcsec,
-              cast(nullif(w1_minus_w2, '') as double) as w1_minus_w2,
-              cast(nullif(pm_total_arcsec_yr, '') as double) as pm_total_arcsec_yr,
-              cast(nullif(w2_snr, '') as double) as w2_snr,
-              cast(nullif(candidate_score, '') as double) as candidate_score,
-              review_reason::varchar as review_reason,
-              provenance_json::json as provenance_json,
+              row_number() over (order by coalesce(st.system_id, sy.system_id, try_cast(nullif(i.nearest_system_id, '') as bigint)), i.source_catalog, i.source_key)::bigint as infrared_candidate_id,
+              i.candidate_status::varchar as candidate_status,
+              i.candidate_kind::varchar as candidate_kind,
+              i.nearest_target_type::varchar as nearest_target_type,
+              coalesce(st.star_id, sy.system_id, try_cast(nullif(i.nearest_target_id, '') as bigint))::bigint as nearest_target_id,
+              coalesce(st.system_id, sy.system_id, try_cast(nullif(i.nearest_system_id, '') as bigint))::bigint as nearest_system_id,
+              coalesce(st.stable_object_key, sy.stable_object_key, i.nearest_stable_object_key)::varchar as nearest_stable_object_key,
+              i.source_catalog::varchar as source_catalog,
+              i.source_version::varchar as source_version,
+              i.source_key::varchar as source_key,
+              i.source_designation::varchar as source_designation,
+              cast(nullif(i.ra_deg, '') as double) as ra_deg,
+              cast(nullif(i.dec_deg, '') as double) as dec_deg,
+              cast(nullif(i.angular_sep_arcsec, '') as double) as angular_sep_arcsec,
+              cast(nullif(i.w1_minus_w2, '') as double) as w1_minus_w2,
+              cast(nullif(i.pm_total_arcsec_yr, '') as double) as pm_total_arcsec_yr,
+              cast(nullif(i.w2_snr, '') as double) as w2_snr,
+              cast(nullif(i.candidate_score, '') as double) as candidate_score,
+              i.review_reason::varchar as review_reason,
+              i.provenance_json::json as provenance_json,
               {sql_literal(args.ingested_at)} as ingested_at,
               {sql_literal(args.transform_version)} as transform_version
             from read_csv_auto(
@@ -5669,7 +5690,13 @@ def main() -> int:
               strict_mode=false,
               null_padding=true,
               all_varchar=true
-            )
+            ) i
+            left join core.stars st
+              on lower(i.nearest_target_type) = 'star'
+             and st.star_id = try_cast(nullif(i.nearest_target_id, '') as bigint)
+            left join core.systems sy
+              on lower(i.nearest_target_type) = 'system'
+             and sy.system_id = try_cast(nullif(i.nearest_target_id, '') as bigint)
             """
         )
     else:

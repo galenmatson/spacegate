@@ -427,6 +427,13 @@ def build_sliced_arm(
                 "or coalesce(primary_component_key, '') in (select stable_component_key from retained_component_keys) "
                 "or coalesce(secondary_component_key, '') in (select stable_component_key from retained_component_keys)"
             ),
+            "wds_component_observations": "wds_id in (select wds_id from retained_wds_ids)",
+            "infrared_source_matches": (
+                "system_id in (select system_id from core.systems) and ("
+                "(lower(target_type) = 'star' and target_id in (select star_id from core.stars)) or "
+                "(lower(target_type) = 'system' and target_id in (select system_id from core.systems))"
+                ")"
+            ),
             "sol_small_body_objects": "true",
             "sol_artificial_objects": "true",
         }

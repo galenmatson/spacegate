@@ -1110,6 +1110,10 @@ Completed:
   projected into public slices. The winning full candidate preserves the
   10,418 accepted, 242 ambiguous, 531 excluded, and 16,739 missing partition
   and leaves the 6,311 canonical planet count unchanged.
+- ARM WISE bindings are now re-keyed from collection-time IDs onto current CORE
+  target, system, and stable keys. The public slicer preserves WDS observation
+  rows by retained WDS scope and WISE matches by canonical target scope instead
+  of applying an invalid source-component-key conjunction.
 
 Remaining:
 
