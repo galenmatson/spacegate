@@ -644,6 +644,21 @@ Representative commits:
   the next side-artifact checkpoint must regenerate its complete bounded
   priority set before deployment.
 
+### 24) Photon Retention Timestamp Compatibility
+
+- Found that `scripts/prune_state_retention.sh` accepted second-resolution
+  build IDs (`HHMMSSZ`) but not the minute-resolution IDs (`HHMMZ`) used by
+  most current builds. The mismatch left 927 GiB under `state/out` while a dry
+  run incorrectly reported no eligible builds.
+- Extended the general recognizer to both timestamp forms and added an isolated
+  regression test proving that active served builds and named non-build
+  workspaces remain protected.
+- Applied the documented Photon policy of retaining the newest 12 recognized
+  builds, 24 report sets, and the active served build. The reviewed plan removed
+  15 obsolete builds, reclaimed 352.52 GiB, and reduced `/data` utilization
+  from 93% to 68% without touching raw/cooked catalogs, published archives,
+  models, or named research workspaces.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

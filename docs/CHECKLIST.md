@@ -330,6 +330,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Source mirror strategy documented for fragile external dependencies
 - [x] Retention policy documented (builds, reports, backups, large catalogs)
 - [x] Automated stale build cleanup policy scripted and tested (`scripts/prune_state_retention.sh`)
+- [x] Accept both minute- and second-resolution build IDs in retention;
+  regression-test active-build protection and apply the corrected Photon
+  12-build/24-report policy
 - [x] Photon bootstrap/readiness audit scripted (`scripts/audit_photon_bootstrap.sh`)
 - [x] Logged database build wrapper preserves build exit status and host state-dir environment (`scripts/build_database_logged.sh`)
 - [x] Photon generous retention and bulk research storage policy documented (`/mnt/space/spacegate`)

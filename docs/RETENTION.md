@@ -51,7 +51,8 @@ as a separate cache cleanup after promotion verification.
   directories unless disk pressure requires tighter local overrides.
 - Remove stale temporary ingest paths (`out/*.tmp`).
 - Build/report directory detection accepts both dashed build IDs
-  (`YYYY-MM-DDT...`) and compact build IDs (`YYYYMMDDT...`).
+  (`YYYY-MM-DDT...`) and compact build IDs (`YYYYMMDDT...`), with either
+  minute-resolution (`HHMMZ`) or second-resolution (`HHMMSSZ`) timestamps.
 
 ## Scripted Cleanup
 
