@@ -1888,7 +1888,7 @@ def main() -> int:
             (
               lower(coalesce(st.object_type, '')) in ('white_dwarf', 'neutron_star', 'black_hole', 'pulsar', 'magnetar')
               or upper(coalesce(st.spectral_class, '')) = 'D'
-              or regexp_matches(upper(coalesce(st.spectral_type_raw, '')), '^D')
+              or regexp_matches(coalesce(st.spectral_type_raw, ''), '^(WD|D($|[ABCOQZX0-9]))', 'i')
               or st.wd_catalog_name is not null
               or greatest(
                 coalesce(st.classprob_dsc_combmod_whitedwarf, 0.0),
@@ -3061,7 +3061,10 @@ def main() -> int:
             cast(null as varchar) as stable_object_key,
             stable_component_key,
             case
-              when regexp_matches(upper(coalesce(spectral_type_raw, '')), '^D') then 'WD'
+              when regexp_matches(coalesce(spectral_type_raw, ''), '^d[OBAFGKMLTY]') then upper(substr(spectral_type_raw, 2, 1))
+              when regexp_matches(coalesce(spectral_type_raw, ''), '^sd[OBAFGKMLTY]') then upper(substr(spectral_type_raw, 3, 1))
+              when regexp_matches(coalesce(spectral_type_raw, ''), '^(esd|usd)[OBAFGKMLTY]') then upper(substr(spectral_type_raw, 4, 1))
+              when regexp_matches(coalesce(spectral_type_raw, ''), '^(WD|D($|[ABCOQZX0-9]))', 'i') then 'WD'
               when regexp_matches(upper(coalesce(spectral_type_raw, '')), '^W[CNOR]') then 'WR'
               when regexp_matches(upper(coalesce(spectral_type_raw, '')), '^[OBAFGKMLTY]') then regexp_extract(upper(spectral_type_raw), '^([OBAFGKMLTY])', 1)
               when mass_msun is not null and mass_msun > 0 and mass_msun < 0.08 then 'L'

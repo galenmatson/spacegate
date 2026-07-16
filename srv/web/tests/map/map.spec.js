@@ -1100,6 +1100,8 @@ test.describe("public 3D map beta", () => {
     await firstExploreObject.click();
     const explorePinnedReadout = drill.locator("[data-testid='system-preview-pinned']");
     await expect(explorePinnedReadout).toBeVisible();
+    await expect(explorePinnedReadout.locator("[data-testid='system-preview-id-copy']")).toHaveCount(0);
+    await expect(explorePinnedReadout).not.toContainText(/canon:(?:star|leaf|system):/i);
     const pinnedPlacement = await drill.evaluate((node) => {
       const drillRect = node.getBoundingClientRect();
       const pinned = node.querySelector("[data-testid='system-preview-pinned']");
@@ -2028,14 +2030,15 @@ test.describe("public 3D map beta", () => {
       (subsystem) => subsystem.display_name
     );
     expect(castorSubsystemNames).toEqual(expect.arrayContaining(["Castor A", "Castor B", "Castor C"]));
-    const massPriorStars = (scenePayload.render_scene?.bodies?.stars || []).filter(
-      (star) => star.fields?.visual_stellar_class?.basis === "mass_main_sequence_prior_v1"
-    );
-    expect(massPriorStars.length).toBeGreaterThanOrEqual(2);
-    for (const star of massPriorStars) {
-      expect(star.spectral_class || null).toBeNull();
-      expect(star.fields?.visual_stellar_class?.status).toBe("assumed");
-      expect(star.fields?.visual_stellar_class?.layer).toBe("render_scene");
+    const castorStars = scenePayload.render_scene?.bodies?.stars || [];
+    expect(castorStars).toHaveLength(6);
+    expect(castorStars.map((star) => star.spectral_class).sort()).toEqual(["A", "A", "M", "M", "M", "M"]);
+    const dwarfNotationStars = castorStars.filter((item) => item.fields?.spectral_type_raw?.value === "dM1e");
+    expect(dwarfNotationStars).toHaveLength(2);
+    for (const star of dwarfNotationStars) {
+      expect(star.spectral_class).toBe("M");
+      expect(star.body_class).toBe("star");
+      expect(star.compact_type || null).toBeNull();
     }
     for (const subsystem of scenePayload.render_scene?.bodies?.subsystems || []) {
       expect(subsystem.fields?.component_label?.status).toMatch(/source|derived/);
@@ -2051,8 +2054,6 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='system-preview-panel']")).toBeVisible();
     await expect(page.locator(".system-preview-canvas canvas")).toBeVisible();
     await expect(page.locator(".system-preview-evidence")).toContainText(/SOURCE/i);
-    await expect(page.locator(".hierarchy-panel")).toContainText(/Visual prior/i);
-    await expect(page.locator(".hierarchy-panel")).toContainText(/ASSUMED/i);
     await expect(page.locator(".system-preview-evidence")).toContainText(/DERIVED|ASSUMED/i);
     const previewCanvas = page.locator(".system-preview-canvas canvas");
     await expect.poll(
@@ -2102,15 +2103,44 @@ test.describe("public 3D map beta", () => {
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassSourceCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(6);
     await expect.poll(
       () => previewCanvas.evaluate((canvas) => Number(canvas.dataset.spectralClassAssumedCount || 0)),
       { timeout: 3000 }
-    ).toBeGreaterThanOrEqual(3);
+    ).toBe(0);
     const objectList = page.locator("[data-testid='system-preview-object-list']");
     await expect(objectList.locator(".stellar-class-chip[data-stellar-token='a']")).toHaveCount(2);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(1);
-    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(4);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='m']")).toHaveCount(4);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='wd']")).toHaveCount(0);
+    await expect(objectList.locator(".stellar-class-chip[data-stellar-token='u']")).toHaveCount(0);
+  });
+
+  test("source compact evidence outranks visual mass fallbacks", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "stellar evidence precedence smoke uses desktop detail layout");
+    const response = await page.request.get("/api/v1/systems/search", {
+      params: { q: "32alf Leo", limit: "1" },
+    });
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    const systemId = payload.items?.[0]?.system_id;
+    expect(systemId, "32alf Leo system_id").toBeTruthy();
+
+    const sceneResponse = await page.request.get(`/api/v1/systems/${systemId}/simulation-scene`);
+    expect(sceneResponse.ok()).toBeTruthy();
+    const scenePayload = await sceneResponse.json();
+    const stars = scenePayload.render_scene?.bodies?.stars || [];
+    const tentativeWhiteDwarf = stars.find((star) => star.fields?.spectral_type_raw?.value === "WD?");
+    expect(tentativeWhiteDwarf?.spectral_class).toBe("D");
+    expect(tentativeWhiteDwarf?.body_class).toBe("white_dwarf");
+    const inferredM = stars.find((star) => star.fields?.visual_stellar_class?.status === "assumed");
+    expect(inferredM?.fields?.visual_stellar_class?.value).toBe("M");
+
+    await page.goto(`/systems/${systemId}`, { waitUntil: "domcontentloaded" });
+    const objectList = page.locator("[data-testid='system-preview-object-list']");
+    await expect(objectList).toBeVisible();
+    await expect(objectList.locator("[data-stellar-token='wd']")).toHaveCount(1);
+    await expect(objectList.locator("[data-stellar-token='m']")).toHaveCount(1);
+    await expect(objectList.locator("[data-stellar-token='u']")).toHaveCount(0);
   });
 
   test("hierarchical multi-star previews use mass-weighted group motion", async ({ page }, testInfo) => {

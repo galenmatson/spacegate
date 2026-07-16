@@ -370,8 +370,10 @@ def materialize_arm(
             e.*,
             case
               when regexp_matches(e.spectral_type_raw, '^d[OBAFGKMLTY]') then upper(substr(e.spectral_type_raw, 2, 1))
+              when regexp_matches(e.spectral_type_raw, '^sd[OBAFGKMLTY]') then upper(substr(e.spectral_type_raw, 3, 1))
+              when regexp_matches(e.spectral_type_raw, '^(esd|usd)[OBAFGKMLTY]') then upper(substr(e.spectral_type_raw, 4, 1))
               when regexp_matches(upper(e.spectral_type_raw), '^W[CNOR]') then 'WR'
-              when regexp_matches(upper(e.spectral_type_raw), '^D') then 'WD'
+              when regexp_matches(e.spectral_type_raw, '^(WD|D($|[ABCOQZX0-9]))', 'i') then 'WD'
               when regexp_matches(upper(e.spectral_type_raw), '^[OBAFGKMLTY]')
                 then regexp_extract(upper(e.spectral_type_raw), '^([OBAFGKMLTY])', 1)
               else null

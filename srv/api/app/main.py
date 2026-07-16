@@ -29,6 +29,10 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from pydantic import BaseModel, Field
 
 from .runtime_perms import apply_configured_umask
+from .stellar_classification import (
+    spectral_class_from_type,
+    spectral_type_indicates_white_dwarf,
+)
 
 apply_configured_umask()
 
@@ -216,6 +220,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v2"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -643,7 +648,9 @@ def _has_evolved_or_remnant_spectral_markers(star: Dict[str, Any]) -> bool:
         return True
     if re.search(r"giant|supergiant|subgiant|subdwarf|white dwarf|neutron|black hole|pulsar|magnetar", lower):
         return True
-    if re.search(r"(^|[^A-Z])D[A-Z0-9]?", upper):
+    if spectral_type_indicates_white_dwarf(star.get("spectral_type_raw")):
+        return True
+    if str(star.get("spectral_class") or "").strip().upper() == "D":
         return True
     if any(token in upper for token in (" WD", " NS", " WR", "CV", "CATACLYSMIC")):
         return True
@@ -652,6 +659,8 @@ def _has_evolved_or_remnant_spectral_markers(star: Dict[str, Any]) -> bool:
 
 def _parse_main_sequence_spectral_subclass(star: Dict[str, Any]) -> tuple[Optional[str], Optional[float], str]:
     spectral_type_raw = str(star.get("spectral_type_raw") or "").strip()
+    if re.match(r"^d[OBAFGKM]", spectral_type_raw):
+        spectral_type_raw = spectral_type_raw[1:]
     spectral_class = str(star.get("spectral_class") or "").strip().upper()
     luminosity_class = str(star.get("luminosity_class") or "").strip().upper()
     combined = " ".join(part for part in (spectral_type_raw, luminosity_class) if part).upper()
@@ -1468,17 +1477,13 @@ def _field_map(fields: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
 
 
 def _spectral_type_indicates_white_dwarf(value: Any) -> bool:
-    text = str(value or "").strip().upper()
-    if not text:
-        return False
-    return text.startswith("WD") or text[:2] in {"DA", "DB", "DC", "DO", "DQ", "DZ", "DX"}
+    return spectral_type_indicates_white_dwarf(value)
 
 
 def _visual_star_color_class(star: Dict[str, Any], fallback: Optional[str] = None) -> str:
-    value = str(star.get("spectral_class") or fallback or "").strip().upper()
-    if _spectral_type_indicates_white_dwarf(value):
-        return "D"
-    return value[:1] if value[:1] in {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"} else "M"
+    value = star.get("spectral_class") or fallback
+    token = spectral_class_from_type(value)
+    return token if token in {"O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"} else "M"
 
 
 def _main_sequence_visual_class_from_mass(mass_msun: Optional[float]) -> Optional[str]:
@@ -1672,8 +1677,8 @@ def _is_technical_member_display_name(value: Any) -> bool:
 def _component_or_core_member_display_name(component_name: Any, core_name: Any) -> Any:
     component_text = str(component_name or "").strip()
     core_text = str(core_name or "").strip()
-    if not core_text or _is_technical_member_display_name(core_text):
-        return component_name or core_name
+    if not core_text:
+        return component_name
     if not component_text:
         return core_text
 
@@ -1784,7 +1789,7 @@ def _field_from_hierarchy_quick_fact(
 def _teff_from_spectral_type(spectral_type: Any) -> Optional[float]:
     if _spectral_type_indicates_white_dwarf(spectral_type):
         return 9000.0
-    token = str(spectral_type or "").strip().upper()[:1]
+    token = spectral_class_from_type(spectral_type)
     return {
         "O": 32000.0,
         "B": 18000.0,
@@ -2206,6 +2211,26 @@ def _render_scene_contract(
                 return value, f"system:{key}"
         return None, None
 
+    def preferred_inferred_component_display_name(component: Dict[str, Any]) -> str:
+        component_name = str(component.get("display_name") or "").strip()
+        label = str(component.get("catalog_component_label") or "").strip().upper()
+        system_name = str(system.get("system_name") or "").strip()
+        preferred_system_name = str(system.get("display_name") or "").strip()
+        suffix = ""
+        if system_name and component_name.lower().startswith(system_name.lower()):
+            suffix = component_name[len(system_name):].strip()
+
+        if len(label) > 1:
+            parent_star = core_star_by_role.get(label[:1]) or {}
+            parent_name = str(parent_star.get("display_name") or "").strip()
+            if parent_name and not _is_technical_member_display_name(parent_name):
+                formatted_label = label[:1] + label[1:].lower()
+                return f"{parent_name} {formatted_label}"
+        if preferred_system_name and preferred_system_name.lower() != system_name.lower():
+            formatted_suffix = suffix[:1].upper() + suffix[1:].lower() if suffix else label[:1] + label[1:].lower()
+            return f"{preferred_system_name} {formatted_suffix}".strip()
+        return component_name or label or str(component.get("stable_component_key") or "")
+
     def add_core_star(star: Dict[str, Any]) -> str:
         star_id = int(star.get("star_id") or -1)
         render_key = str(star.get("stable_object_key") or f"star:{star_id}")
@@ -2521,7 +2546,7 @@ def _render_scene_contract(
             "object_type": "star",
             "body_class": body_class,
             "compact_type": _compact_type_for_body_class(body_class),
-            "display_name": component.get("display_name") or component.get("catalog_component_label") or component_key,
+            "display_name": preferred_inferred_component_display_name(component),
             "component": component.get("catalog_component_label"),
             "spectral_class": spectral_class,
             "fields": component_fields,
@@ -2547,7 +2572,7 @@ def _render_scene_contract(
             preferred_display_name = str(core_star.get("display_name") or "").strip()
             if preferred_display_name:
                 display_name = preferred_display_name
-        if _is_technical_member_display_name(display_name):
+        if core_id < 0 and _is_technical_member_display_name(display_name):
             system_display_name = str(system.get("display_name") or system.get("system_name") or "").strip()
             component_label = str(node.get("catalog_component_label") or node.get("member_role") or "").strip().upper()
             if system_display_name and not _is_technical_member_display_name(system_display_name) and component_label:
@@ -4994,11 +5019,14 @@ def _simulation_scene_artifact_compatible(path: Path) -> bool:
     diagnostics = render_scene.get("diagnostics") if isinstance(render_scene, dict) else {}
     membership = diagnostics.get("membership_reconciliation") if isinstance(diagnostics, dict) else None
     system = payload.get("system") if isinstance(payload, dict) else {}
+    materialization = payload.get("materialization") if isinstance(payload, dict) else {}
     return (
         isinstance(membership, dict)
         and membership.get("membership_gate") is not None
         and isinstance(system, dict)
         and system.get("requested_name_style") == "public_full"
+        and isinstance(materialization, dict)
+        and materialization.get("materializer_version") == SIMULATION_SCENE_ARTIFACT_VERSION
     )
 
 

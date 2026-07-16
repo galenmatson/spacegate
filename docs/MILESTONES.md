@@ -1083,6 +1083,11 @@ Completed:
   endpoints still fail the wide-orbit verifier.
 - Renderer member-name precedence preserves the core `Proxima Centauri` name
   over source component shorthand such as `alp1 Cen C`.
+- July 16, 2026 stellar-display consistency fixes a general spectral parser
+  defect that interpreted lowercase luminosity notation such as `dM1e` as
+  white-dwarf class `D`. Source spectral and compact evidence now outrank
+  visual fallbacks in badges, inferred members inherit preferred public names
+  with explicit suffixes, and Explorer no longer exposes internal stable keys.
 - Exact member-star runtime fallback preserves targets such as `VB 8` on older
   side builds whose materialized `system_search_terms` omitted member rows;
   canonical emitters continue to materialize those rows for new builds.
@@ -1817,6 +1822,11 @@ sequence for `Off`/`Primary`/`All` label badges without object-detail requests.
 Component badge values remain governed by the general ARM evidence precedence;
 no system-specific classification overrides belong in the build path.
 
+July 16 follow-up versions this semantic boundary as
+`simulation_scene_artifact_v2`. The API rejects v1 prebuilt scenes rather than
+serving embedded stale classifications or names; the next side-artifact build
+must rematerialize its bounded priority scene set before deployment.
+
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
 science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or
@@ -1835,10 +1845,11 @@ the review checkpoint must be regenerated without those rows before promotion.
 The rollback also removes an older literal Castor-name branch from ARM; ARM now
 uses the canonical CORE system name while public aliases remain the API naming
 layer. It also removes the verifier-specific `CC` endpoint exemption. A clean
-catalog-only ARM rebuild exactly matches the
-pre-change Castor classifications: AA/BA/CA derive from source spectral strings;
-AB/BB/CB remain illustrative mass priors; CC is a 0.05-solar-mass brown-dwarf
-candidate with no stellar classification. The audit also found that canonical
+catalog-only ARM rebuild exactly matched the pre-change Castor classifications
+at that checkpoint. Subsequent pinned SB9 ingest supplies source `dM1e` spectra
+for AB/BB, which normalize to M after the general case-aware parser correction;
+CA/CB retain MSC M spectra. CC is a 0.05-solar-mass brown-dwarf candidate
+without an accepted stellar classification. The audit also found that canonical
 hierarchy currently calls all seven endpoints inferred stars while ARM types CC
 as substellar; endpoint typing must be reconciled generically. Castor-specific
 build-report counters were removed, and the dedicated multiplicity verifier now

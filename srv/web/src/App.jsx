@@ -1655,7 +1655,6 @@ function groupingSourceLabel(groupingBasis, groupingSources) {
 function SnapshotMetadata({ system, snapshot }) {
   const rows = [
     { label: "System", value: formatText(systemDisplayName(system)), copyValue: systemDisplayName(system), copyLabel: "system name" },
-    { label: "Stable key", value: formatText(system?.stable_object_key), copyValue: system?.stable_object_key, copyLabel: "stable key" },
     { label: "Gaia ID", value: formatText(resolvedSystemGaiaId(system)), copyValue: catalogCopyValue("Gaia", resolvedSystemGaiaId(system)), copyLabel: "Gaia ID" },
     { label: "HIP ID", value: formatText(system?.hip_id_text ?? system?.hip_id), copyValue: catalogCopyValue("HIP", system?.hip_id_text ?? system?.hip_id), copyLabel: "HIP ID" },
     { label: "HD ID", value: formatText(system?.hd_id_text ?? system?.hd_id), copyValue: catalogCopyValue("HD", system?.hd_id_text ?? system?.hd_id), copyLabel: "HD ID" },

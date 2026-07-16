@@ -960,6 +960,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   build-keyed compressed runtime artifacts
 - [x] Add side-build priority simulation-scene materialization before immutable
   promotion
+- [x] Fix general stellar-display precedence across map, Explorer, Peek, and
+  simulation scenes: preserve lowercase dwarf spectra such as `dM1e`, retain
+  tentative `WD?` source evidence over mass priors, use visual badges only as
+  fallback, and invalidate stale v1 scene caches
+- [x] Remove public stable-key copy/display controls from Explorer readouts and
+  snapshot metadata; use preferred member/catalog names with component suffixes
 - [x] Remove the temporary Castor-only reviewed-classification build injection
   and confirm a clean ARM rebuild matches the pre-change catalog result
 - [x] Stop post-slice TESS identity re-adjudication: project full-canonical

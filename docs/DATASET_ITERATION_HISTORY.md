@@ -620,6 +620,30 @@ Representative commits:
 - `43b7d24` (checksummed published-report installation)
 - `1797236` (slice-native derived-build verification)
 
+### 23) Stellar Display Evidence Consistency
+
+- Traced Castor AB/BB white-dwarf labels to a general case-destruction bug:
+  source SB9 spectra `dM1e` were uppercased before parsing, turning luminosity
+  prefix `d` into white-dwarf class `D`. A shared case-aware API parser now
+  preserves `d`/`sd`/`esd`/`usd` notation while retaining `WD?`, DA, DB, and
+  related white-dwarf notation.
+- Corrected ARM component-display SQL and multiple-component evidence
+  normalization with the same general rule. No Castor-specific data or build
+  branch was added.
+- Established public badge precedence: source spectral evidence first,
+  explicit compact/object evidence second, and visual class only as fallback.
+  This makes 32 Alf Leo's MSC `WD?` evidence outrank its 0.3-solar-mass
+  main-sequence prior while still allowing its otherwise unclassified
+  companion to display an assumed M badge.
+- Public selected-object readouts no longer expose or copy internal stable
+  keys. Inferred hierarchy members inherit preferred public member names and
+  retain explicit component suffixes; chosen HD/HIP/Gaia catalog names remain
+  valid last-resort public labels.
+- Bumped prebuilt scene compatibility to `simulation_scene_artifact_v2`.
+  Existing v1 scenes are rejected and rebuilt through the normal runtime path;
+  the next side-artifact checkpoint must regenerate its complete bounded
+  priority set before deployment.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

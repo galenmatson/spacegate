@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import duckdb
 
 from .utils import row_to_dict
+from .stellar_classification import spectral_class_from_type
 
 
 PROVENANCE_FIELDS = [
@@ -976,17 +977,8 @@ def _parse_spectral_classes(raw: Any) -> List[str]:
 
 
 def _spectral_class_from_type(raw: Any) -> Optional[str]:
-    value = str(raw or "").strip().upper()
-    if not value:
-        return None
-    for prefix in ("ESD", "USD", "SD"):
-        if value.startswith(prefix) and len(value) > len(prefix):
-            value = value[len(prefix):]
-            break
-    if value[:1] in SPECTRAL_CLASS_MASKS:
-        return value[:1]
-    match = re.search(r"[^A-Z]([OBAFGKMLTYD])", value)
-    return match.group(1) if match else None
+    token = spectral_class_from_type(raw)
+    return token if token in SPECTRAL_CLASS_MASKS else None
 
 
 def _visual_stellar_class_from_mass_prior(mass_msun: Any) -> Optional[str]:

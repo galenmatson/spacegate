@@ -157,16 +157,6 @@ function fieldValue(fields, key) {
   return fields[key]?.value ?? fields[key] ?? "";
 }
 
-function fieldStatus(fields, key) {
-  if (!fields) {
-    return "";
-  }
-  if (Array.isArray(fields)) {
-    return String(fields.find((item) => item?.key === key)?.status || "").trim().toLowerCase();
-  }
-  return String(fields[key]?.status || "").trim().toLowerCase();
-}
-
 function addToken(tokens, rawToken) {
   const raw = String(rawToken || "").trim().toUpperCase();
   if (!raw) {
@@ -199,13 +189,14 @@ export function stellarClassTokensFromText(value) {
   if (/\bNEUTRON[\s_-]*STAR\b|\bNS\b/.test(upper)) {
     tokens.add("NS");
   }
-  if (/\bWHITE[\s_-]*DWARF\b|\bWD\b/.test(upper) || /^D[A-Z0-9.+/-]*/.test(upper)) {
+  const luminosityPrefix = text.match(/^(?:d|sd|esd|usd)([OBAFGKMLTY])/);
+  if (/\bWHITE[\s_-]*DWARF\b|\bWD\b/.test(upper) || (!luminosityPrefix && /^D(?:$|[ABCOQZX0-9])/.test(upper))) {
     tokens.add("WD");
   }
   if (/^W[CNOR][A-Z0-9.+/-]*/.test(upper) || /\bWOLF[\s_-]*RAYET\b/.test(upper)) {
     tokens.add("WR");
   }
-  const spectral = upper.match(/^[\s(]*([OBAFGKMLTY])(?=[0-9IVXLCDM\s.+:/-]|$)/);
+  const spectral = luminosityPrefix || upper.match(/^[\s(]*([OBAFGKMLTY])(?=[0-9IVXLCDM\s.+:/-]|$)/);
   if (spectral) {
     addToken(tokens, spectral[1]);
   }
@@ -227,32 +218,42 @@ export function stellarClassTokensFromRecord(record, { includeUnknown = true } =
   const tokens = new Set();
   const fields = record?.fields || {};
   const quickFacts = record?.quick_facts || {};
-  const visualClassIsAssumed = fieldStatus(fields, "visual_stellar_class") === "assumed"
-    || String(record?.visual_stellar_class_status || "").trim().toLowerCase() === "assumed";
   [
     record?.spectral_class,
     record?.spectral_type_raw,
-    visualClassIsAssumed ? "" : record?.visual_stellar_class,
-    record?.body_class,
-    record?.compact_type,
-    record?.object_type,
-    record?.kind,
-    record?.type,
     fieldValue(fields, "spectral_class"),
     fieldValue(fields, "spectral_type_raw"),
-    visualClassIsAssumed ? "" : fieldValue(fields, "visual_stellar_class"),
-    fieldValue(fields, "object_type"),
-    fieldValue(fields, "body_class"),
-    fieldValue(fields, "compact_type"),
     quickFacts.spectral_class,
     quickFacts.spectral_type_raw,
-    quickFacts.visual_stellar_class,
-    quickFacts.object_type,
-    quickFacts.body_class,
-    quickFacts.compact_type,
   ].forEach((value) => {
     stellarClassTokensFromText(value).forEach((token) => tokens.add(token));
   });
+  if (!tokens.size) {
+    [
+      record?.body_class,
+      record?.compact_type,
+      record?.object_type,
+      record?.kind,
+      record?.type,
+      fieldValue(fields, "object_type"),
+      fieldValue(fields, "body_class"),
+      fieldValue(fields, "compact_type"),
+      quickFacts.object_type,
+      quickFacts.body_class,
+      quickFacts.compact_type,
+    ].forEach((value) => {
+      stellarClassTokensFromText(value).forEach((token) => tokens.add(token));
+    });
+  }
+  if (!tokens.size) {
+    [
+      record?.visual_stellar_class,
+      fieldValue(fields, "visual_stellar_class"),
+      quickFacts.visual_stellar_class,
+    ].forEach((value) => {
+      stellarClassTokensFromText(value).forEach((token) => tokens.add(token));
+    });
+  }
   const sorted = sortStellarClassTokens(tokens);
   return sorted.length || !includeUnknown ? sorted : ["U"];
 }

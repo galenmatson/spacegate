@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .stellar_classification import spectral_class_from_type
+
 import duckdb
 
 
@@ -38,7 +40,7 @@ def _spectral_tokens(stars: List[Dict[str, Any]]) -> List[str]:
         raw = _text(star.get("spectral_class") or star.get("spectral_type_raw"), "")
         if not raw:
             continue
-        letter = raw.strip().upper()[:1]
+        letter = spectral_class_from_type(raw)
         if letter and letter not in tokens:
             tokens.append(letter)
     return tokens[:6]

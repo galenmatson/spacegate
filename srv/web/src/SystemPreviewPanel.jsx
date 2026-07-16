@@ -4,7 +4,7 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { apiUrl, fetchSystemSimulationScene } from "./api.js";
-import { StellarClassChips, stellarClassTokensFromRecord } from "./stellarClassTags.jsx";
+import { StellarClassChips, stellarClassTokensFromRecord, stellarClassTokensFromText } from "./stellarClassTags.jsx";
 
 const PLANET_COLORS = ["#75b7ff", "#e6c56f", "#e78a6b", "#9dd9a5", "#c49bf2", "#82d6d8", "#d7dee8"];
 const SIM_DAYS_PER_SECOND = 0.7;
@@ -508,10 +508,11 @@ function starClassProvenanceField(body) {
   const teffField = fieldRecord(body?.fields, "teff_k");
   const objectTypeField = fieldRecord(body?.fields, "object_type");
   if (spectralTypeField?.value) {
+    const sourceTokens = stellarClassTokensFromText(spectralTypeField.value);
     return {
       key: "spectral_class",
       label: "Spectral class",
-      value: classValue || String(spectralTypeField.value).slice(0, 1).toUpperCase(),
+      value: sourceTokens[0] || classValue || "Unknown",
       unit: null,
       status: spectralTypeField.status || "source",
       layer: spectralTypeField.layer,
@@ -4078,7 +4079,6 @@ function HoverReadout({ object, compact = false }) {
 }
 
 function PinnedReadout({ object, onClose, position = null, onPositionChange = null }) {
-  const [copied, setCopied] = useState(false);
   const panelRef = React.useRef(null);
   const dragRef = React.useRef(null);
   if (!object) {
@@ -4122,18 +4122,6 @@ function PinnedReadout({ object, onClose, position = null, onPositionChange = nu
       dragRef.current = null;
     }
   };
-  const copyId = () => {
-    if (!object.id) {
-      return;
-    }
-    copyTextToClipboard(object.id).then((ok) => {
-      if (!ok) {
-        return;
-      }
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1400);
-    }).catch(() => {});
-  };
   const pinnedStyle = position && Number.isFinite(Number(position.x)) && Number.isFinite(Number(position.y))
     ? {
         left: `${position.x}px`,
@@ -4166,20 +4154,6 @@ function PinnedReadout({ object, onClose, position = null, onPositionChange = nu
         </button>
       </div>
       {object.stellarTokens?.length ? <StellarClassChips tokens={object.stellarTokens} size="compact" className="system-preview-readout-tags" /> : null}
-      {object.id ? (
-        <button
-          className="system-preview-id-copy"
-          type="button"
-          onClick={copyId}
-          title={String(object.id)}
-          data-testid="system-preview-id-copy"
-          data-full-id={String(object.id)}
-          aria-label={`Copy ${object.kind} identifier ${object.id}`}
-        >
-          <span>{compactIdentifier(object.id)}</span>
-          <em>{copied ? "Copied" : "Copy"}</em>
-        </button>
-      ) : null}
       <dl>
         {object.rows.map(([label, value, status, field]) => (
           <React.Fragment key={label}>
