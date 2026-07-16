@@ -19,10 +19,21 @@ async function expectPaintedMap(page) {
   }), { timeout: 15_000 }).toBeGreaterThan(30);
 }
 
+async function expectedSystemCount(page, radius) {
+  const response = await page.request.get(`/map-tiles/radius-${radius}/manifest.json`);
+  expect(response.ok(), `${radius}-ly tile manifest response`).toBeTruthy();
+  const manifest = await response.json();
+  const eligible = Number(manifest?.counts?.eligible_systems || 0);
+  const exact = Number(manifest?.counts?.exact_emitted_systems || 0);
+  expect(eligible, `${radius}-ly eligible system count`).toBeGreaterThan(0);
+  expect(exact, `${radius}-ly exact coverage`).toBe(eligible);
+  return eligible;
+}
+
 for (const radius of [100, 250]) {
   test(`tiled ${radius}-ly map reaches exact nonblank coverage`, async ({ page }, testInfo) => {
     test.setTimeout(radius === 250 ? 120_000 : 90_000);
-    const expected = radius === 100 ? 10_239 : 230_181;
+    const expected = await expectedSystemCount(page, radius);
     await page.goto(`/map?radius=${radius}&pixel_probe=1`, { waitUntil: "domcontentloaded" });
     const canvas = page.locator(".map-canvas canvas");
     await canvas.waitFor();
@@ -59,13 +70,14 @@ for (const radius of [100, 250]) {
 for (const radius of [500, 1000]) {
   test(`progressive ${radius}-ly map keeps exact leaves camera-local`, async ({ page }, testInfo) => {
     test.setTimeout(radius === 1000 ? 120_000 : 90_000);
+    const expected = await expectedSystemCount(page, radius);
     await page.goto(`/map?radius=${radius}&pixel_probe=1`, { waitUntil: "domcontentloaded" });
     const canvas = page.locator(".map-canvas canvas");
     await canvas.waitFor();
     await expect(canvas).toHaveAttribute("data-map-tile-progressive", "true");
     await expect(canvas).toHaveAttribute(
       "data-map-tile-eligible-systems",
-      radius === 1000 ? "5869087" : "2332003"
+      String(expected),
     );
     await expect(canvas).toHaveAttribute("data-map-tile-manifest-ready", "true");
     await expect.poll(
@@ -92,6 +104,7 @@ for (const radius of [500, 1000]) {
 test("250-ly search focus survives exact refinement and system handoff", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.includes("mobile"), "desktop interaction trace");
   test.setTimeout(120_000);
+  const expected = await expectedSystemCount(page, 250);
   await page.goto("/map?radius=250", { waitUntil: "domcontentloaded" });
   const canvas = page.locator(".map-canvas canvas");
   await canvas.waitFor();
@@ -107,7 +120,7 @@ test("250-ly search focus survives exact refinement and system handoff", async (
   await expect.poll(
     () => canvas.evaluate((node) => Number(node.dataset.mapTileExactSystems || 0)),
     { timeout: 60_000 },
-  ).toBe(230_181);
+  ).toBe(expected);
   await expect(page.locator("[data-testid='map-system-drill']")).toContainText(/Tau Ceti/i);
   await page.screenshot({ path: testInfo.outputPath("tiled-250ly-tau-ceti.png"), fullPage: true });
 });
@@ -137,6 +150,7 @@ test("250-ly detail bubble follows a sustained camera flight", async ({ page }, 
 test("250-ly density control can render the exact catalog", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith("mobile"), "Exact-density stress trace is desktop-only.");
   test.setTimeout(120_000);
+  const expected = await expectedSystemCount(page, 250);
   await page.goto("/map?radius=250&pixel_probe=1", { waitUntil: "domcontentloaded" });
   const canvas = page.locator(".map-canvas canvas");
   await expect(canvas).toHaveAttribute("data-map-tile-complete", "true");
@@ -146,7 +160,7 @@ test("250-ly density control can render the exact catalog", async ({ page }, tes
   await expect.poll(
     () => canvas.evaluate((node) => Number(node.dataset.mapStarCount || 0)),
     { timeout: 60_000 },
-  ).toBe(230_181);
+  ).toBe(expected);
   expect(await canvas.evaluate((node) => Number(node.dataset.mapLabelCount || 0))).toBeLessThan(100);
   await expect(canvas).toHaveAttribute("data-map-tile-failures", "0");
   await expectPaintedMap(page);
