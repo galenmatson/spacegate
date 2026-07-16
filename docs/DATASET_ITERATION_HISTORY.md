@@ -31,7 +31,8 @@ Use this as the historical ledger for:
 
 - Gaia DR3 backbone: canonical star inventory.
 - NASA Exoplanet Archive (`pscomppars`): canonical planet inventory.
-- Multiplicity core: MSC (mandatory), WDS, ORB6, Gaia NSS (default-on), SBX (default-on).
+- Multiplicity core: MSC (mandatory), WDS, ORB6, Gaia NSS (default-on), SBX
+  (default-on), with SB9 as complementary ARM component/orbit evidence.
 - Compact/superstellar support: ATNF, McGill magnetar, Gaia EDR3 white dwarf, open clusters, Galactic SNR.
 - Eclipsing support defaults: DEBCat + TESS EB (Kepler EB is no longer default).
 - Naming/crosswalk support: alias pipeline + controlled AT-HYG supplement/crosswalk path.
@@ -46,7 +47,6 @@ Use this as the historical ledger for:
 ### Evaluated and deferred/disregarded
 
 - BDB / non-mirrored binary metadatabases: deferred pending stable mirror + integrity-pinned bulk path (no default dependency on fragile/insecure routing).
-- SB9: disregarded for default ingest/evaluation after SBX adoption.
 - EMAC TT9 endpoint: removed from active ingest (resource/tooling page, no deterministic bulk row feed).
 
 ### Pending evaluation queue
@@ -467,6 +467,62 @@ Representative commits:
 
 Representative commits:
 - `b255d1d` (generic multiple-component evidence ingestion and one-off audit)
+
+### 22) Canonical Database Stability and General Recovery v1
+
+- Rebuilt the full canonical database after retiring executable accepted
+  supplements. The candidate contains zero `athyg_accepted_supplement` rows;
+  object-specific exceptions remain prohibited in science transforms.
+- Added a bounded Gaia-missing recovery rule for SBX systems represented by a
+  unique AT-HYG row with exact HIP+HD agreement, no Gaia identifier, usable
+  distance, source-position sanity, and SBX orbit evidence. Of 22 candidates,
+  10 resolved to existing canonical objects and 12 became source-provenanced
+  canonical stars; none were quarantined. Sirius A is recovered by this rule,
+  not by a named-system branch.
+- Added projected-J2016 WDS `AB` companion recovery using a unique Gaia
+  secondary within the configured angular, distance, and proper-motion gates.
+  Three companions, including Sirius B and 70 Ophiuchi B, passed; ambiguous
+  candidates remain excluded.
+- Generalized late source-object reconciliation to merge an identifier-less
+  MSC/WDS component surrogate into a uniquely identified physical target when
+  exact WDS/component scope and compact physical-consistency gates agree. This
+  removed the duplicate 70 Ophiuchi B surrogate without system-specific code.
+- Separated broad AT-HYG crosswalk identifiers from canonical inventory
+  authority. Identifier coverage is preserved, but a crosswalk row cannot
+  independently create an object.
+- Preserved source-native bootstrap stable keys during canonical emission.
+  Sequential `canon:system:legacy:<row>` keys and legacy-row star fallback keys
+  are no longer emitted. This is a deliberate one-time stable-key namespace
+  migration; representative numeric row IDs remain implementation details.
+- Fixed public slicing so targeted TESS identity decisions are adjudicated once
+  against the full canonical universe and projected into slices. Public builds
+  can no longer convert ambiguity into acceptance merely because a competing
+  object was trimmed.
+- Determinism comparison is now scoped to the canonical transform revision and
+  hashes ARM science/lineage payloads while excluding only build-instance
+  metadata. Paired full builds `20260715T2343Z_06ac777_a` and
+  `20260715T2349Z_06ac777_b` reproduced exact CORE and ARM science hashes.
+- The winning full build `20260715T2349Z_06ac777_b` contains 17,793,588 stars,
+  17,788,043 systems, 6,311 planets, and 1,039,123 aliases. Against
+  `20260713T1627Z_dd7446e`, planets and the full TESS partition are unchanged;
+  the candidate has 9 more stars, 7 more systems, 247 more aliases, no
+  identifier orphans, no TIC collisions, and no sequential legacy stable keys.
+- Sirius is now a two-star WDS system with its A primary recovered generically
+  and its Gaia white-dwarf companion retained. 70 Ophiuchi has two canonical
+  members after generic surrogate reconciliation. L 134-80 remains absent and
+  explicitly deferred to inspectable adjudication rather than restored by a
+  one-off supplement.
+- Retention was applied through `scripts/prune_state_retention.sh` only after a
+  dry run, removing seven unserved obsolete/failed build directories and
+  reclaiming about 164 GiB. Raw/cooked inputs, manifests, reports needed for
+  verification, and the served build were preserved.
+
+Representative commits:
+- `31197e5` (generic SBX/AT-HYG recovery)
+- `d9286c1` (source identifier storage correction)
+- `2e609cb` (generic WDS component-surrogate reconciliation)
+- `e6d74d5` (source-native canonical stable keys)
+- `06ac777`, `214cb36` (transform-scoped CORE and science-payload determinism)
 
 ## Recurrent Defect Classes and Mitigations
 

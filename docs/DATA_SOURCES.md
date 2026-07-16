@@ -99,6 +99,12 @@ Interpretation note:
   spectroscopic-binary system evidence, while SB9 preserves primary and
   secondary component spectral types that are absent from the current SBX
   export. Neither catalog creates canonical component inventory by itself.
+- A bounded canonical recovery path may use an exact unique HIP+HD agreement
+  between SBX and the transitional AT-HYG crosswalk for Gaia-missing systems,
+  but only with no Gaia identifier on the source rows, usable distance,
+  positional sanity, and SBX orbit evidence. This is a reusable catalog rule;
+  it does not make AT-HYG a canonical inventory authority and it cannot accept
+  named-system exceptions.
 - WDS and ORB6 remain default visual-binary support sources, but ORB6 rows must
   only attach to unique, confidence-gated binary edges.
 - JPL Horizons/SBDB remain the Sol-system orbital authority path for volatile

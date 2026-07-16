@@ -349,6 +349,15 @@ Required core columns:
   - SBX evidence fields: `sbx_sn`, `sbx_orbit_count`, `sbx_family`, `sbx_position_epoch`, `sbx_position_source`
 - provenance contract fields
 
+Stable-key contract:
+
+- source-native bootstrap keys are preserved under the canonical namespace
+  when no stronger canonical identifier key exists
+- sequential ingestion row numbers are forbidden as emitted stable identity;
+  numeric row IDs remain implementation details and may change across rebuilds
+- reconciliation may supersede a duplicate source surrogate, but the surviving
+  object's source-native identity must remain stable and auditable
+
 ## `systems`
 
 Derived system/grouping table for navigation and search.
@@ -386,6 +395,9 @@ Required columns:
 
 Contract notes:
 
+- System stable keys follow the same source-native rule. Singleton Gaia
+  systems, named source systems, Sol, and other accepted source inventories
+  must not fall back to `canon:system:legacy:<row_id>`.
 - `systems` is the hot-path serving table for browse/search/detail traffic.
 - Search/filter UX should prefer precomputed system-side summary fields over runtime scans of `stars` whenever exact system semantics can be preserved.
 - `spectral_class_mask` is a deterministic OR-mask over normalized system member spectral buckets using:

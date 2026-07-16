@@ -1097,6 +1097,19 @@ Completed:
   A/B and L 134-80 cases are preserved in a non-executable adjudication inbox,
   and a static production-transform audit rejects new object literals unless
   they are explicitly classified as report-only diagnostics.
+- The full canonical stability rebuild replaced the former Sirius supplement
+  with reusable source rules: exact unique HIP+HD SBX/AT-HYG recovery restores
+  the Gaia-missing primary, and projected-J2016 WDS/Gaia reconciliation retains
+  the compact companion. Generic exact WDS/component reconciliation also
+  removes the duplicate 70 Ophiuchi B MSC surrogate. L 134-80 remains deferred.
+- Canonical emission now preserves source-native bootstrap stable keys rather
+  than generating sequential legacy-row keys. Paired builds
+  `20260715T2343Z_06ac777_a` and `20260715T2349Z_06ac777_b` reproduce exact
+  CORE and ARM science payloads.
+- TESS identities are now adjudicated in the full canonical universe and
+  projected into public slices. The winning full candidate preserves the
+  10,418 accepted, 242 ambiguous, 531 excluded, and 16,739 missing partition
+  and leaves the 6,311 canonical planet count unchanged.
 
 Remaining:
 
@@ -1109,9 +1122,8 @@ Remaining:
   WDS observation rows are preserved, but Spacegate has not yet decided which
   rows should become ARM pair support entities, projection evidence, orbit-edge
   candidates, or diagnostics only.
-- run the former accepted-supplement cases through the inspectable AAA/human
-  adjudication contract or replace them with a general source reconciliation
-  rule before restoring them to canonical inventory.
+- run the remaining L 134-80 deferred case through the inspectable AAA/human
+  adjudication contract; Sirius has been resolved by general catalog rules.
 - evaluate Skiff spectral classifications and VSX composite spectral strings
   as corroborating evidence only after a source-native component-scope rule is
   defined. Do not split a composite type across graph endpoints by name alone.
@@ -1800,6 +1812,11 @@ re-adjudicating identities against the pruned public core, allowing 32 formerly
 ambiguous hosts and one removed-host rematch to become accepted. TESS identity
 must instead be adjudicated once in full canonical context and projected into
 the public slice.
+
+Resolved July 15, 2026: side/public builds now project the full-canonical TESS
+partition and fail verification if any projected identity or TOI host binding
+differs. The deterministic full candidate and its 1,000-light-year public slice
+retain canonical planet counts and do not re-adjudicate against trimmed rows.
 
 ### Stellar Physical Classification v1
 

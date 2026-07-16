@@ -215,8 +215,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Rebuild core/ARM with accepted supplements enabled; historical local build
   `20260630T_sim_beta_data_foundation` verifies Sirius as a WDS-backed A/B
   system and passes strict compact-alias safety
-- [ ] Re-adjudicate the retired Sirius A/B and L 134-80 supplement cases through
-  a general catalog rule or the inspectable AAA adjudication contract
+- [x] Replace the retired Sirius A/B supplement with general source rules:
+  exact unique HIP+HD SBX/AT-HYG recovery for the Gaia-missing primary plus
+  projected-J2016 WDS/Gaia companion reconciliation
+- [ ] Adjudicate the remaining L 134-80 case through the inspectable AAA/human
+  contract; do not restore it through an executable object-specific supplement
 - [x] Materialize the direct AT-HYG Gaia alias guard; strict compact-alias
   safety passes on `20260630T_sim_beta_data_foundation`
 - [x] Materialize the MSC source-leaf fix; Nu Sco exposes seven source-native
@@ -947,7 +950,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   promotion
 - [x] Remove the temporary Castor-only reviewed-classification build injection
   and confirm a clean ARM rebuild matches the pre-change catalog result
-- [ ] Stop post-slice TESS identity re-adjudication: project full-canonical
+- [x] Stop post-slice TESS identity re-adjudication: project full-canonical
   decisions into public builds so 32 ambiguous hosts and one removed-host case
   cannot become accepted merely because competing objects were trimmed
 - [x] Preserve `Proxima Centauri` as the rendered member display name instead of

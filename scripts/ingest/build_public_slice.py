@@ -10,6 +10,14 @@ from pathlib import Path
 
 import duckdb
 
+TESS_CANONICAL_PROJECTION_VERSION = "tess_canonical_arm_projection_v1"
+TESS_PROJECTION_TABLES = {
+    "tess_target_identity",
+    "tess_missing_object_audit",
+    "toi_current_evidence",
+    "toi_disposition_history",
+}
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -70,6 +78,97 @@ def table_columns(con: duckdb.DuckDBPyConnection, alias: str, table_name: str) -
 
 def count_table(con: duckdb.DuckDBPyConnection, table_name: str, alias: str = "main") -> int:
     return int(con.execute(f"select count(*)::bigint from {alias}.{table_name}").fetchone()[0] or 0)
+
+
+def verify_sliced_tess_projection(con: duckdb.DuckDBPyConnection) -> dict[str, dict[str, int]]:
+    comparisons = {
+        "tess_target_identity": (
+            "select * exclude(tess_identity_id, ingested_at) from tess_target_identity",
+            """
+            select * exclude(tess_identity_id, ingested_at)
+            from src.tess_target_identity t
+            where t.resolution_status <> 'accepted'
+               or (
+                 t.star_id in (select star_id from core.stars)
+                 and t.system_id in (select system_id from core.systems)
+               )
+            """,
+        ),
+        "tess_missing_object_audit": (
+            "select * exclude(audit_id) from tess_missing_object_audit",
+            "select * exclude(audit_id) from src.tess_missing_object_audit",
+        ),
+        "toi_current_evidence": (
+            "select * exclude(toi_evidence_id, ingested_at) from toi_current_evidence",
+            """
+            select * exclude(toi_evidence_id, ingested_at)
+            from src.toi_current_evidence t
+            where (t.system_id is null or t.system_id in (select system_id from core.systems))
+              and (t.star_id is null or t.star_id in (select star_id from core.stars))
+              and (t.planet_id is null or t.planet_id in (select planet_id from core.planets))
+            """,
+        ),
+        "toi_disposition_history": (
+            "select * exclude(history_id, ingested_at) from toi_disposition_history",
+            "select * exclude(history_id, ingested_at) from src.toi_disposition_history",
+        ),
+    }
+    report: dict[str, dict[str, int]] = {}
+    failures: list[str] = []
+    for table_name, (actual_sql, expected_sql) in comparisons.items():
+        unexpected = int(
+            con.execute(f"select count(*) from ({actual_sql} except {expected_sql})").fetchone()[0]
+        )
+        missing = int(
+            con.execute(f"select count(*) from ({expected_sql} except {actual_sql})").fetchone()[0]
+        )
+        report[table_name] = {"unexpected": unexpected, "missing": missing}
+        if unexpected or missing:
+            failures.append(f"{table_name}: unexpected={unexpected}, missing={missing}")
+    if failures:
+        raise RuntimeError("Canonical TESS slice projection mismatch: " + "; ".join(failures))
+    return report
+
+
+def mark_tess_projection_metadata(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_arm: Path,
+    source_build_id: str,
+) -> None:
+    source_metadata = {
+        str(key): "" if value is None else str(value)
+        for key, value in con.execute("select key, value from src.build_metadata").fetchall()
+    }
+    canonical_arm = source_arm.resolve()
+    if source_metadata.get("arm_tess_identity_mode") == "canonical_projection":
+        inherited_source = source_metadata.get("arm_tess_identity_source_arm", "").strip()
+        if not inherited_source:
+            raise RuntimeError("Source TESS projection metadata has no canonical ARM path")
+        canonical_arm = Path(inherited_source)
+    if not canonical_arm.is_file():
+        raise RuntimeError(f"Canonical TESS projection source is missing: {canonical_arm}")
+
+    con.execute(
+        """
+        delete from build_metadata
+        where key in (
+          'arm_tess_identity_mode',
+          'arm_tess_identity_projection_version',
+          'arm_tess_identity_source_arm',
+          'arm_tess_identity_source_build_id'
+        )
+        """
+    )
+    con.executemany(
+        "insert into build_metadata values (?, ?)",
+        [
+            ("arm_tess_identity_mode", "canonical_projection"),
+            ("arm_tess_identity_projection_version", TESS_CANONICAL_PROJECTION_VERSION),
+            ("arm_tess_identity_source_arm", str(canonical_arm)),
+            ("arm_tess_identity_source_build_id", source_build_id),
+        ],
+    )
 
 
 def emit_build_metadata(
@@ -345,6 +444,13 @@ def build_sliced_arm(
                 "before": count_table(con, table_name, alias="src"),
                 "after": count_table(con, table_name),
             }
+        if TESS_PROJECTION_TABLES.issubset(table_names):
+            table_report["tess_canonical_projection"] = verify_sliced_tess_projection(con)
+            mark_tess_projection_metadata(
+                con,
+                source_arm=source_arm,
+                source_build_id=source_build_id,
+            )
         con.execute("checkpoint")
         con.execute("vacuum")
     finally:

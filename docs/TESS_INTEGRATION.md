@@ -73,6 +73,22 @@ T0-T3 acceptance checkpoint `ae52e0f` (July 12, 2026):
   TOI-6725; its candidate remains ARM evidence and does not become a planet
 - T4 public presentation and T5 product indexing remain deferred
 
+Canonical projection checkpoint `20260715T2349Z_06ac777_b` (July 15, 2026):
+
+- TESS identity is adjudicated once against the full canonical object universe;
+  public and side builds project those decisions rather than re-running the
+  matcher against a pruned slice
+- verification compares projected identity outcomes and TOI host bindings to
+  the canonical evidence ARM and fails on any mismatch
+- the full partition remains exactly 10,418 accepted, 242 ambiguous, 531
+  excluded, and 16,739 missing; all 27,930 targeted TIC IDs are accounted for
+- canonical planet inventory remains 6,311; no candidate or negative TOI
+  evidence was promoted into canonical planet counts
+- L 134-80 is again classified as missing/deferred after retirement of the
+  executable accepted-supplement path; its earlier T2 review record remains
+  evidence for future inspectable adjudication, not authority for an automatic
+  inventory row
+
 ## Source Policy
 
 Authoritative inputs:

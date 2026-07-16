@@ -150,6 +150,15 @@ Canonical emission note:
 
 - production full-build wrappers run the bootstrap science projection, then run `scripts/ingest/build_canonical.sh`
 - emitted canonical builds keep representative bootstrap row ids where practical, but replace `stable_object_key` with canonical ingest keys
+- canonical system and fallback-star keys preserve a source-native bootstrap
+  key when one exists (for example Gaia, WDS, Sol, or UltracoolSheet identity);
+  sequential bootstrap row numbers must not be used in public stable keys
+- representative numeric `system_id`/`star_id` values remain storage and join
+  details; routes, selections, comparisons, and long-lived references use
+  `stable_object_key`
+- `canonical_transform_git_sha` records the transform revision separately from
+  the bootstrap source revision so deterministic comparisons never accept
+  materially different transform code as a rerun
 - emitted canonical builds ship a sibling `canonical_hierarchy.duckdb`; the API should prefer that hierarchy when present and fall back to `arm` hierarchy otherwise
 - emitted canonical builds materialize compact `system_search_terms` so validation exercises the fast search path instead of the alias/star fallback scans
 - the bootstrap build remains an immutable input artifact, but `scripts/build_database.sh` and full `scripts/refresh_core.sh` promotion target the canonical build id
