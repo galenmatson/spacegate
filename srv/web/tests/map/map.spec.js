@@ -150,6 +150,7 @@ test.describe("public 3D map beta", () => {
     await page.locator("[data-testid='map-star-search-input']").fill("Sol");
     await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
     await expect(page.locator("[data-testid='map-star-search-results']")).toBeVisible();
+    await expect(page.locator(".map-search-topbar").getByRole("button", { name: /^Close Results$/ })).toHaveCount(0);
     await expect(page.locator(".map-search-sort select")).toBeVisible();
     await page.locator(".map-search-sort select").selectOption("distance");
     await expect(page.locator(".map-search-sort select")).toHaveValue("distance");
@@ -1990,15 +1991,11 @@ test.describe("public 3D map beta", () => {
     await objectChip.tap();
     const pinnedReadout = page.locator("[data-testid='system-preview-pinned']");
     await expect(pinnedReadout).toBeVisible();
-    await expect(pinnedReadout).toContainText(/star|planet|orbit/i);
+    await expect(pinnedReadout).toContainText(/star|brown dwarf|planet|orbit/i);
     await expect(pinnedReadout).toContainText(/SOURCE|DERIVED|ASSUMED|MISSING/i);
     await expect(pinnedReadout.locator(".evidence-pill").first()).toBeVisible();
     const idCopy = pinnedReadout.locator("[data-testid='system-preview-id-copy']");
-    await expect(idCopy).toBeVisible();
-    const fullId = await idCopy.getAttribute("data-full-id");
-    const visibleId = (await idCopy.locator("span").innerText()).trim();
-    expect(fullId?.length || 0).toBeGreaterThan(visibleId.length);
-    expect(visibleId).toContain("...");
+    await expect(idCopy).toHaveCount(0);
     await expect(pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i })).toBeVisible();
     const pinnedBox = await pinnedReadout.boundingBox();
     expect(pinnedBox, "mobile pinned readout box").toBeTruthy();
@@ -2008,6 +2005,60 @@ test.describe("public 3D map beta", () => {
     expect(pinnedBox.height).toBeLessThanOrEqual(previewBox.height * 0.5);
     await pinnedReadout.getByRole("button", { name: /close pinned simulator readout/i }).click();
     await expect(pinnedReadout).toHaveCount(0);
+  });
+
+  test("shared stellar leaf classes agree across detail hierarchy and scenes", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "API contract plus desktop system-page smoke");
+    const searchResponse = await page.request.get("/api/v1/systems/search", {
+      params: { q: "Gl 161.1", limit: "5", sort: "match" },
+    });
+    expect(searchResponse.ok()).toBeTruthy();
+    const searchPayload = await searchResponse.json();
+    expect(searchPayload.items?.[0]?.system_id).toBe(17783679);
+    expect(searchPayload.items?.[0]?.hip_id).toBe(19335);
+    expect(searchPayload.items?.[0]?.hd_id).toBe(25998);
+    expect(String(searchPayload.items?.[0]?.gaia_id || searchPayload.items?.[0]?.gaia_source_id)).toBe("225668203191521280");
+
+    const cases = [
+      { label: "HD 110067", systemId: 17785520, expected: ["G", "K", "M", "M"] },
+      { label: "HD 79107", systemId: 17784826, expected: ["F", "K", "M", "M"] },
+      { label: "Gl 161.1", systemId: 17783679, expected: ["F", "K", "M", "M", "UNKNOWN"] },
+      { label: "HD 18134", systemId: 17783330, expected: ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"] },
+      { label: "Castor", systemId: 17784471, expected: ["A", "A", "M", "M", "M", "M"] },
+    ];
+    const sorted = (values) => [...values].sort();
+
+    for (const item of cases) {
+      await test.step(item.label, async () => {
+        const detailResponse = await page.request.get(`/api/v1/systems/${item.systemId}`);
+        const sceneResponse = await page.request.get(`/api/v1/systems/${item.systemId}/simulation-scene`);
+        expect(detailResponse.ok()).toBeTruthy();
+        expect(sceneResponse.ok()).toBeTruthy();
+        const detail = await detailResponse.json();
+        const scene = await sceneResponse.json();
+        const hierarchyClasses = [];
+        const visit = (node) => {
+          if (!node || typeof node !== "object") return;
+          if (node.stellar_leaf_classification?.classification_value) {
+            hierarchyClasses.push(node.stellar_leaf_classification.classification_value);
+          }
+          (node.children || []).forEach(visit);
+        };
+        visit(detail.hierarchy?.root);
+        const detailClasses = (detail.stellar_leaf_classifications || []).map((row) => row.classification_value);
+        const sceneClasses = (scene.render_scene?.bodies?.stars || []).map(
+          (star) => star.stellar_leaf_classification?.classification_value || "UNKNOWN",
+        );
+        expect(sorted(detailClasses)).toEqual(sorted(item.expected));
+        expect(sorted(hierarchyClasses)).toEqual(sorted(item.expected));
+        expect(sorted(sceneClasses)).toEqual(sorted(item.expected));
+        expect(sorted(detail.system?.stellar_class_badges || [])).toEqual(sorted(item.expected));
+      });
+    }
+
+    await page.goto("/systems/17783679", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".system-detail-v2 h1")).toContainText(/Gl 161\.1/i);
+    await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(5);
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

@@ -696,6 +696,17 @@ Representative commits:
   `Primary` selection, and adds a separate bounded planet-category bitmask.
   Neither presentation artifact changes CORE planet counts or canonical source
   classifications.
+- Local side build `20260716T1905Z_ad13e39_side` materialized the projection,
+  exact tile-v4 membership at 100/250/500/1,000 ly, and 1,000/1,000 priority
+  simulation-scene v3 artifacts. Strict verification passed. Live API and
+  Playwright checks confirm identical leaf-class multisets in map tiles,
+  system summaries, hierarchy leaves, detail heroes, OBJECTS/scene bodies, and
+  simulations for the five golden systems.
+- Tile-v4 planet masks are intentionally evidence-conservative. HD 110067 and
+  TRAPPIST-1 demonstrate decoded category bits, but Solar System rows currently
+  lack equilibrium-temperature/insolation values and remain unbadged. The next
+  refinement must use a general, provenance-bearing host-luminosity and orbital-
+  distance derivation rather than a literal Sol branch.
 
 ## Recurrent Defect Classes and Mitigations
 

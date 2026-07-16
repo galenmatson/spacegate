@@ -968,6 +968,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add tile-v4 confirmed-planet category badges for hot/temperate/cold gas
   giants and terrestrial planets, capped at one per category and omitted when
   composition or environment evidence is ambiguous
+- [ ] Extend tile-v4 planet environment derivation to confirmed planets with
+  orbital distance but no published equilibrium temperature/insolation,
+  including the authoritative Solar System rows, using a general auditable
+  host-luminosity policy rather than a Sol-specific exception
 - [x] Coalesce concurrent cold simulation-scene assembly and persist compatible
   build-keyed compressed runtime artifacts
 - [x] Add side-build priority simulation-scene materialization before immutable

@@ -1843,6 +1843,15 @@ general regression targets rather than system-specific ingestion branches.
 Tile v4 also adds a bounded six-bit confirmed-planet presentation mask, while
 ambiguous physical/environment cases remain unbadged.
 
+Verified local checkpoint `20260716T1905Z_ad13e39_side` passes strict build,
+exact tile membership, all-leaf projection, and 1,000/1,000 priority-scene v3
+gates. Live Photon API and browser checks agree on `GKMM`, `FKMM`, `FKMMU`,
+`MUUUU`, and `AAMMMM` across the reported systems. `Gl 161.1` is the first
+exact search result with HIP 19335, HD 25998, and Gaia
+225668203191521280. Planet masks are deployed only where composition and
+environment evidence are sufficient; a general orbital-distance/host-
+luminosity fallback for Solar System rows remains explicitly pending.
+
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
 science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or
