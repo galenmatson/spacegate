@@ -6412,12 +6412,19 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
             arm_db_path=arm_db_path,
         )
 
+    stellar_leaf_classifications = _stellar_leaf_display_classifications_for_system(system_id)
+    _overlay_stellar_leaf_classifications(hierarchy, stellar_leaf_classifications)
+
     effective_star_count = max(
         int(star_count or 0),
         int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
     )
     system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
+    system["stellar_class_badges"] = [
+        row.get("classification_value") or "UNKNOWN"
+        for row in stellar_leaf_classifications
+    ]
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
@@ -6472,6 +6479,7 @@ def system_detail(system_id: int, name_style: str = Query(default="public_full")
         "infrared_evidence": infrared_evidence,
         "narrative_blocks": narrative_blocks,
         "hierarchy": hierarchy,
+        "stellar_leaf_classifications": stellar_leaf_classifications,
     }
 
 
@@ -6622,12 +6630,19 @@ def system_detail_by_key(stable_object_key: str, name_style: str = Query(default
             arm_db_path=arm_db_path,
         )
 
+    stellar_leaf_classifications = _stellar_leaf_display_classifications_for_system(int(system_id))
+    _overlay_stellar_leaf_classifications(hierarchy, stellar_leaf_classifications)
+
     effective_star_count = max(
         int(star_count or 0),
         int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
     )
     system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
+    system["stellar_class_badges"] = [
+        row.get("classification_value") or "UNKNOWN"
+        for row in stellar_leaf_classifications
+    ]
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
@@ -6682,6 +6697,7 @@ def system_detail_by_key(stable_object_key: str, name_style: str = Query(default
         "infrared_evidence": infrared_evidence,
         "narrative_blocks": narrative_blocks,
         "hierarchy": hierarchy,
+        "stellar_leaf_classifications": stellar_leaf_classifications,
     }
 
 
