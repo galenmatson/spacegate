@@ -30,7 +30,7 @@ class MapTileContractTests(unittest.TestCase):
     def test_binary_tile_preserves_identity_and_cell_relative_position(self) -> None:
         row = (
             17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
-            30.0, "G", 1, 8, 1, 1, 5772.0, '["G"]',
+            30.0, "G", 1, 8, 1, 1, 5772.0, ["G"], 0,
             "Sol", "Sol", "Sun",
         )
         raw, metadata = encode_tile(depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1)
@@ -41,6 +41,7 @@ class MapTileContractTests(unittest.TestCase):
         record = RECORD_STRUCT.unpack_from(raw, 12 + header_length)
         self.assertEqual(record[0], 17788193)
         self.assertEqual(record[1:4], (-64.0, -64.0, -64.0))
+        self.assertEqual(record[-1], 0)
         self.assertEqual(metadata["interest"]["planet_systems"], 1)
         self.assertEqual(gzip.decompress(gzip.compress(raw, mtime=0)), raw)
 
@@ -48,7 +49,7 @@ class MapTileContractTests(unittest.TestCase):
         row = (
             17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
             30.0, "G", 1, 8, 1, 1, 5772.0,
-            '["G"]', "Sol", "Sol", "Sun",
+            ["G"], 0, "Sol", "Sol", "Sun",
         )
         raw, _ = encode_tile(
             depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1,
@@ -59,7 +60,20 @@ class MapTileContractTests(unittest.TestCase):
             header, names, _, badges = read_tile(path)
         self.assertEqual(header["emitted_count"], 1)
         self.assertEqual(names, {17788193: "Sol"})
-        self.assertEqual(badges, {17788193: ["G", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"]})
+        self.assertEqual(badges, {17788193: ["G"]})
+
+    def test_planet_badge_mask_is_capped_to_six_categories(self) -> None:
+        row = (
+            17788193, "canon:system:sol", "Sol", 0.0, 0.0, 0.0, 0.0,
+            30.0, "G", 1, 8, 1, 1, 5772.0,
+            ["G"], 255, "Sol", "Sol", "Sun",
+        )
+        raw, _ = encode_tile(
+            depth=4, x=8, y=8, z=8, rows=[row], exact=True, represented_count=1,
+        )
+        header_length = struct.unpack_from("<I", raw, 8)[0]
+        record = RECORD_STRUCT.unpack_from(raw, 12 + header_length)
+        self.assertEqual(record[-1], 63)
 
 
 if __name__ == "__main__":

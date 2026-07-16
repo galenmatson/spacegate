@@ -1831,6 +1831,18 @@ the materializer counted any existing filename as reusable. Reuse now requires
 both the current materializer version and the exact target build ID, preventing
 science-changing ARM rebuilds from inheriting stale scene payloads.
 
+July 16 stellar-leaf follow-up replaces the remaining surface-specific badge
+assembly with `stellar_leaf_display_classification_v1`, a deterministic ARM
+projection containing exactly one row per eligible canonical-hierarchy stellar
+leaf. Map tile v4, system detail, hierarchy, OBJECTS, Peek, and simulation-scene
+v3 consume that same projection. Aggregate nodes and inferred nonstellar
+endpoints are excluded; repeated and unknown leaf classes remain visible; and
+conflicting evidence stays auditable on the selected row. The verifier covers
+all projected leaves plus HD 110067, HD 79107, Gl 161.1, HD 18134, and Castor as
+general regression targets rather than system-specific ingestion branches.
+Tile v4 also adds a bounded six-bit confirmed-planet presentation mask, while
+ambiguous physical/environment cases remain unbadged.
+
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
 science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or

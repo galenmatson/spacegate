@@ -406,6 +406,7 @@ def build_sliced_arm(
         predicates = {
             "build_metadata": None,
             "component_entities": "stable_component_key in (select stable_component_key from retained_component_keys)",
+            "stellar_leaf_display_classifications": "system_id in (select system_id from core.systems)",
             "system_hierarchy_edges": (
                 "parent_component_key in (select stable_component_key from retained_component_keys) "
                 "and child_component_key in (select stable_component_key from retained_component_keys)"

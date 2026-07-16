@@ -468,6 +468,20 @@ PY
       "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_source_evidence_closeout.py" "${source_evidence_args[@]}"
       echo "OK: source evidence reconciliation"
     fi
+    if [[ -f "$build_dir/canonical_hierarchy.duckdb" ]] && "$PYTHON_BIN" - "$arm_db" <<'PY'
+import duckdb
+import sys
+con = duckdb.connect(sys.argv[1], read_only=True)
+present = bool(con.execute("select 1 from information_schema.tables where table_name='stellar_leaf_display_classifications' limit 1").fetchone())
+con.close()
+raise SystemExit(0 if present else 1)
+PY
+    then
+      "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_stellar_leaf_classifications.py" \
+        --build-dir "$build_dir" \
+        --report "$reports_dir/stellar_leaf_classification_verification_report.json"
+      echo "OK: shared stellar-leaf display classifications"
+    fi
     if [[ "$VERIFY_MULTIPLE_COMPONENT_EVIDENCE" == "1" ]]; then
       "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_multiple_component_evidence.py" \
         --arm-db "$arm_db" \

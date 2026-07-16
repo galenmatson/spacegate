@@ -13,7 +13,7 @@ from typing import Any, Sequence
 
 import duckdb
 
-MATERIALIZER_VERSION = "simulation_scene_artifact_v2"
+MATERIALIZER_VERSION = "simulation_scene_artifact_v3"
 
 
 def _root_dir() -> Path:

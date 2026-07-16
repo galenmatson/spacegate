@@ -447,16 +447,16 @@ function readStoredGridOverlayEnabled() {
 function normalizeClassBadgeMode(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "false" || normalized === "off") return "off";
-  if (normalized === "all") return "all";
-  return "primary";
+  if (normalized === "primary") return "primary";
+  return "all";
 }
 
 function readStoredClassBadgeMode() {
-  if (typeof window === "undefined") return "primary";
+  if (typeof window === "undefined") return "all";
   try {
     return normalizeClassBadgeMode(window.localStorage.getItem(MAP_CLASS_BADGES_STORAGE_KEY));
   } catch {
-    return "primary";
+    return "all";
   }
 }
 
@@ -1151,7 +1151,16 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiu
   );
 }
 
-function createLabelTexture(label, { selected = false, tone = "default", stellarClasses = [] } = {}) {
+const MAP_PLANET_BADGE_STYLES = {
+  hot_gas_giant: { label: "HG", color: "#ff8a5b", ring: "#ffd0ba" },
+  temperate_gas_giant: { label: "TG", color: "#d5b85f", ring: "#fff0ad" },
+  cold_gas_giant: { label: "CG", color: "#62a9db", ring: "#c9efff" },
+  hot_terrestrial: { label: "HT", color: "#e56a4d", ring: "#ffd1c5" },
+  temperate_terrestrial: { label: "TT", color: "#68a96b", ring: "#d9f6c7" },
+  cold_terrestrial: { label: "CT", color: "#86a9c7", ring: "#e0f3ff" },
+};
+
+function createLabelTexture(label, { selected = false, tone = "default", stellarClasses = [], planetBadges = [] } = {}) {
   const pixelRatio = 2;
   const fontSize = 24;
   const paddingX = 14;
@@ -1171,7 +1180,12 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
       const token = normalizeStellarClassToken(stellarClass === "UNKNOWN" ? "U" : stellarClass);
       return STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
     });
-  const badgeWidth = badgeTags.length ? badgeTags.length * badgeSize + Math.max(0, badgeTags.length - 1) * 3 + badgeGap : 0;
+  const planetTags = (Array.isArray(planetBadges) ? planetBadges : [])
+    .slice(0, 6)
+    .map((badge) => MAP_PLANET_BADGE_STYLES[badge?.key || badge])
+    .filter(Boolean);
+  const allBadgeCount = badgeTags.length + planetTags.length;
+  const badgeWidth = allBadgeCount ? allBadgeCount * badgeSize + Math.max(0, allBadgeCount - 1) * 3 + badgeGap : 0;
   const width = Math.ceil(metrics.width + paddingX * 2 + badgeWidth);
   const height = Math.ceil(fontSize + paddingY * 2);
   canvas.width = width * pixelRatio;
@@ -1214,6 +1228,28 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     ctx.fillText(tag.label.slice(0, 2), badgeX, badgeY + 1);
     ctx.textAlign = "start";
   });
+  planetTags.forEach((tag, planetIndex) => {
+    const index = badgeTags.length + planetIndex;
+    const badgeX = paddingX + badgeSize / 2 + index * (badgeSize + 3);
+    const badgeY = height / 2;
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeSize / 2 - 1, 0, Math.PI * 2);
+    ctx.fillStyle = tag.color;
+    ctx.fill();
+    ctx.strokeStyle = tag.ring;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(badgeX, badgeY, badgeSize * 0.62, badgeSize * 0.22, -0.32, 0, Math.PI * 2);
+    ctx.strokeStyle = tag.ring;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#05070b";
+    ctx.font = `900 10px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText(tag.label, badgeX, badgeY + 1);
+    ctx.textAlign = "start";
+  });
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillStyle = ink;
   ctx.fillText(text, paddingX + badgeWidth, height / 2 + 1);
@@ -1234,11 +1270,12 @@ function LabelSprite({
   labelCount = 1,
   onSelect = null,
   stellarClasses = [],
+  planetBadges = [],
 }) {
   const spriteRef = useRef(null);
   const payload = useMemo(
-    () => createLabelTexture(label, { selected, tone, stellarClasses }),
-    [label, selected, stellarClasses, tone],
+    () => createLabelTexture(label, { selected, tone, stellarClasses, planetBadges }),
+    [label, selected, stellarClasses, planetBadges, tone],
   );
 
   useEffect(() => () => payload.texture.dispose(), [payload]);
@@ -1278,7 +1315,7 @@ function LabelSprite({
   );
 }
 
-function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, classBadgeMode = "primary" }) {
+function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, classBadgeMode = "all" }) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
   const lastBuildPositionRef = useRef(null);
@@ -1395,7 +1432,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
     gl.domElement.dataset.mapLabelCount = String(labelSystems.length);
     gl.domElement.dataset.mapLocalLabelCount = String(labelSystems.filter((system) => Number(system.label_camera_distance_ly) <= 10).length);
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
-    gl.domElement.dataset.mapLabelClassStrategy = "mass_proxy_then_intrinsic_brightness_v2";
+    gl.domElement.dataset.mapLabelClassStrategy = "shared_leaf_mass_proxy_then_intrinsic_brightness_v3";
     gl.domElement.dataset.mapLabelClassBadges = classBadgeMode;
   }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems]);
 
@@ -1434,6 +1471,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
             : classBadgeMode === "all"
               ? system.stellar_class_badges
               : [system.representative_stellar_class || system.dominant_spectral_class]}
+          planetBadges={system.planet_badges}
           position={system.scene_position}
           selected={selectedSystem?.system_id === system.system_id}
           priority={system.label_priority ?? system.map_priority}
@@ -2697,11 +2735,6 @@ function MapStarSearchShell({
         <button type="button" className="map-command-button ghost map-search-reset" onClick={resetFilters}>
           Clear
         </button>
-        {resultsOpen && (
-          <button type="button" className="map-command-button ghost" onClick={onCloseResults}>
-            Close Results
-          </button>
-        )}
         <div className="map-search-spectral-bar" role="group" aria-label="Spectral class filter">
           {STAR_SEARCH_SPECTRAL_OPTIONS.map((token) => (
             <button

@@ -1057,6 +1057,19 @@ def emit_canonical_build(
         cwd=str(root),
     )
 
+    subprocess.check_call(
+        [
+            sys.executable,
+            str(root / "scripts" / "materialize_stellar_leaf_classifications.py"),
+            "--core-db", str(canonical_core),
+            "--arm-db", str(canonical_arm),
+            "--hierarchy-db", str(canonical_hierarchy),
+            "--build-id", canonical_build_id,
+            "--report-path", str(state / "reports" / canonical_build_id / "stellar_leaf_classification_report.json"),
+        ],
+        cwd=str(root),
+    )
+
     reports_dir = state / "reports" / canonical_build_id
     reports_dir.mkdir(parents=True, exist_ok=True)
     source_reports_dir = state / "reports" / source_build_id

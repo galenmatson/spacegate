@@ -335,6 +335,20 @@ def main() -> int:
         if not (tmp_dir / "arm.duckdb").exists():
             raise SystemExit(f"ARM rebuild did not create {tmp_dir / 'arm.duckdb'}")
 
+        if (tmp_dir / "canonical_hierarchy.duckdb").exists():
+            subprocess.check_call(
+                [
+                    sys.executable,
+                    str(root / "scripts" / "materialize_stellar_leaf_classifications.py"),
+                    "--core-db", str(tmp_dir / "core.duckdb"),
+                    "--arm-db", str(tmp_dir / "arm.duckdb"),
+                    "--hierarchy-db", str(tmp_dir / "canonical_hierarchy.duckdb"),
+                    "--build-id", build_id,
+                    "--report-path", str(reports_dir / "stellar_leaf_classification_report.json"),
+                ],
+                cwd=str(root),
+            )
+
         if args.build_map_tiles:
             if not (tmp_dir / "disc.duckdb").exists():
                 raise SystemExit("--build-map-tiles requires disc.duckdb; omit --skip-disc-copy")

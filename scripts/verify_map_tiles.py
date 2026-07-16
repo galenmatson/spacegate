@@ -52,7 +52,10 @@ def read_tile(path: Path) -> tuple[dict[str, Any], dict[int, str], dict[int, str
             string_start + name_offset:string_start + name_offset + name_length
         ].decode("utf-8")
         classes[system_id] = SPECTRAL_CLASSES[int(record[19])]
-        packed = int(record[-1])
+        packed = int(record[-2])
+        planet_badge_mask = int(record[-1])
+        if planet_badge_mask < 0 or planet_badge_mask > 63:
+            raise RuntimeError(f"Invalid planet badge mask {planet_badge_mask} for system {system_id}")
         badges[system_id] = []
         for badge_index in range(16):
             code = (packed >> (badge_index * 4)) & 0xF

@@ -5,6 +5,7 @@ const RECORD_SIZES = {
   spacegate_map_tile_v1: 72,
   spacegate_map_tile_v2: 72,
   spacegate_map_tile_v3: 80,
+  spacegate_map_tile_v4: 81,
 };
 const SPECTRAL_CLASSES = [
   "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
@@ -12,6 +13,14 @@ const SPECTRAL_CLASSES = [
 ];
 const BADGE_CLASSES = [
   null, "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WD", "WR", "NS", "BLACK HOLE", "UNKNOWN",
+];
+const PLANET_BADGE_CLASSES = [
+  { bit: 1, key: "hot_gas_giant", label: "HG" },
+  { bit: 2, key: "temperate_gas_giant", label: "TG" },
+  { bit: 4, key: "cold_gas_giant", label: "CG" },
+  { bit: 8, key: "hot_terrestrial", label: "HT" },
+  { bit: 16, key: "temperate_terrestrial", label: "TT" },
+  { bit: 32, key: "cold_terrestrial", label: "CT" },
 ];
 const sharedTileCache = new Map();
 
@@ -62,9 +71,12 @@ export async function decodeMapTile(input) {
     const keyLength = view.getUint16(offset + 60, true);
     const flags = view.getUint8(offset + 67);
     const spectralClass = SPECTRAL_CLASSES[view.getUint8(offset + 66)] || "UNKNOWN";
-    const packedBadges = header.schema_version === "spacegate_map_tile_v3"
+    const packedBadges = ["spacegate_map_tile_v3", "spacegate_map_tile_v4"].includes(header.schema_version)
       ? view.getBigUint64(offset + 72, true)
       : 0n;
+    const planetBadgeMask = header.schema_version === "spacegate_map_tile_v4"
+      ? view.getUint8(offset + 80)
+      : 0;
     const stellarClassBadges = [];
     for (let badgeIndex = 0; badgeIndex < 16; badgeIndex += 1) {
       const code = Number((packedBadges >> BigInt(badgeIndex * 4)) & 0xfn);
@@ -87,6 +99,8 @@ export async function decodeMapTile(input) {
       planet_count: view.getUint16(offset + 64, true),
       representative_stellar_class: spectralClass,
       stellar_class_badges: stellarClassBadges.length ? stellarClassBadges : [spectralClass],
+      planet_badges: PLANET_BADGE_CLASSES.filter((badge) => planetBadgeMask & badge.bit),
+      planet_badge_mask: planetBadgeMask,
       // Retained for v1 artifacts and presentation code during the tile-v2 rollout.
       dominant_spectral_class: spectralClass,
       has_habitable_candidate: Boolean(flags & 1),

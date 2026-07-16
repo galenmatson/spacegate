@@ -959,6 +959,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   leaves retain their ARM type
 - [x] Add scalable map label stellar-class badge modes (`Off`, `Primary`,
   `All`) backed by packed tile-v3 repeated-class data
+- [x] Replace surface-specific stellar badge assembly with one deterministic
+  ARM hierarchy-leaf projection; preserve repeated and unknown leaves, exclude
+  aggregates/nonstellar endpoints, and verify HD 110067, HD 79107, Gl 161.1,
+  HD 18134, and Castor without system-specific build rules
+- [x] Default map stellar-class badges to `All` and remove the redundant search
+  toolbar `Close Results` action while retaining the results-pane close action
+- [x] Add tile-v4 confirmed-planet category badges for hot/temperate/cold gas
+  giants and terrestrial planets, capped at one per category and omitted when
+  composition or environment evidence is ambiguous
 - [x] Coalesce concurrent cold simulation-scene assembly and persist compatible
   build-keyed compressed runtime artifacts
 - [x] Add side-build priority simulation-scene materialization before immutable

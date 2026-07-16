@@ -215,6 +215,13 @@ export function sortStellarClassTokens(tokens) {
 }
 
 export function stellarClassTokensFromRecord(record, { includeUnknown = true } = {}) {
+  const leafClass = record?.stellar_leaf_classification?.classification_value
+    || fieldValue(record?.fields, "stellar_leaf_display_class")
+    || record?.quick_facts?.stellar_leaf_display_class;
+  if (leafClass) {
+    const leafTokens = sortStellarClassTokens(stellarClassTokensFromText(leafClass));
+    return leafTokens.length || !includeUnknown ? leafTokens : ["U"];
+  }
   const tokens = new Set();
   const fields = record?.fields || {};
   const quickFacts = record?.quick_facts || {};

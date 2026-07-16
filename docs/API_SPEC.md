@@ -645,7 +645,7 @@ Notes:
   detailed temperature fields, and nice/weird planet counters because the v0.2
   map renderer does not consume them.
 
-### Static Tiled Map v1/v2
+### Static Tiled Map v1-v4
 
 These paths are served by the static web tier, not under `/api/v1`:
 
@@ -667,11 +667,22 @@ cache lifetimes. A missing or corrupt artifact is an explicit map error. The
 full coordinate, manifest, binary, selection, and cache contract is
 `docs/TILED_MAP.md`.
 
-Tile schema v2 retains the fixed 72-byte record and assigns the class byte to
-`representative_stellar_class`. Its versioned presentation policy uses an
-object/spectral/evolutionary mass proxy, intrinsic brightness, and a stable
-component tie-break. Schema-v1 artifacts remain decodable during immutable-
-artifact transition.
+Tile schema v4 uses an 81-byte record. It retains the mass/luminosity-ranked
+`representative_stellar_class`, carries up to 16 repeated leaf classes from
+ARM `stellar_leaf_display_classifications`, and adds a six-bit
+`planet_badge_mask`. The planet bits represent hot/temperate/cold gas giants
+and hot/temperate/cold terrestrial planets, at most once per category. Only
+confirmed CORE planets with sufficiently unambiguous radius/mass and
+equilibrium-temperature/insolation evidence receive a bit. Ambiguous-size or
+missing-environment planets remain unbadged. Schema v1-v3 artifacts remain
+decodable during immutable-artifact transition.
+
+The system-detail and simulation-scene payloads expose
+`stellar_leaf_classifications` and overlay the matching row on each hierarchy
+or render leaf as `stellar_leaf_classification`. `system.stellar_class_badges`
+is the same ordered leaf sequence. Clients must use this projection for public
+class badges instead of independently combining CORE stars, MSC aggregate
+components, renderer priors, or display names.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics

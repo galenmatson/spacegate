@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
 from app.queries import choose_display_name_info
 
 
-SCHEMA_VERSION = "spacegate_map_tile_v3"
+SCHEMA_VERSION = "spacegate_map_tile_v4"
 MANIFEST_VERSION = "spacegate_map_manifest_v1"
 INDEX_VERSION = "spacegate_map_index_v1"
 FRAME = "heliocentric_icrs_j2016"
@@ -34,7 +34,7 @@ MAX_EXACT_DEPTH = 5
 MAX_EXACT_RECORDS = 32768
 SAMPLE_DEPTHS = (2, 3)
 SAMPLE_LIMIT = 256
-RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBIQ")
+RECORD_STRUCT = struct.Struct("<QfffffIIHIHIHIHIHHHBBIQB")
 MAGIC = b"SGTILE1\0"
 SPECTRAL_CODES = {value: idx for idx, value in enumerate((
     "UNKNOWN", "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D",
@@ -113,9 +113,6 @@ def deterministic_uniform_key(system_id: int) -> int:
 def normalized_stellar_class_badges(values: Any, representative: Any) -> list[str]:
     badges = [str(value or "UNKNOWN").upper() for value in list(values or [])[:16]]
     representative_class = str(representative or "UNKNOWN").upper()
-    if badges and representative_class != "UNKNOWN" and representative_class not in badges:
-        replace_at = next((index for index, value in enumerate(badges) if value == "UNKNOWN"), len(badges) - 1)
-        badges[replace_at] = representative_class
     dominance_order = {
         "BLACK HOLE": 0, "WR": 1, "O": 2, "B": 3, "A": 4, "NS": 5,
         "PULSAR": 5, "MAGNETAR": 5, "F": 6, "G": 7, "K": 8, "WD": 9,
@@ -185,7 +182,7 @@ def encode_tile(
         system_id = int(row[0])
         stable_key = str(row[1] or "")
         fallback_name = str(row[2] or stable_key or f"System {system_id}")
-        names = [fallback_name, *[str(value or fallback_name) for value in row[15:18]]]
+        names = [fallback_name, *[str(value or fallback_name) for value in row[16:19]]]
         names = names[:4] + [fallback_name] * max(0, 4 - len(names))
         x_ly, y_ly, z_ly = (float(row[3]), float(row[4]), float(row[5]))
         distance = float(row[6] or math.sqrt(x_ly * x_ly + y_ly * y_ly + z_ly * z_ly))
@@ -197,6 +194,7 @@ def encode_tile(
         nice_planets = int(row[12] or 0)
         max_teff = max(0, min(0xFFFFFFFF, int(round(float(row[13] or 0)))))
         packed_badges = pack_stellar_class_badges(row[14], spectral)
+        planet_badge_mask = max(0, min(63, int(row[15] or 0)))
         name_refs: list[int] = []
         for name in names:
             name_bytes = name.encode("utf-8")[:65535]
@@ -211,7 +209,8 @@ def encode_tile(
             x_ly - center[0], y_ly - center[1], z_ly - center[2],
             distance, coolness, coolness_rank,
             *name_refs, key_offset, len(key_bytes),
-            stars, planets, SPECTRAL_CODES.get(spectral, 0), flags, max_teff, packed_badges,
+            stars, planets, SPECTRAL_CODES.get(spectral, 0), flags, max_teff,
+            packed_badges, planet_badge_mask,
         ))
         score = interest_score(row)
         interests.append(score)
@@ -312,64 +311,84 @@ def tile_query(radius: int) -> str:
           END AS mass_proxy_msun
         FROM stars
         WHERE system_id IS NOT NULL
-      ), representative_stellar_class AS (
-        SELECT system_id, stellar_class
-        FROM stellar_class_candidates
-        QUALIFY row_number() OVER (
-          PARTITION BY system_id
-          ORDER BY mass_proxy_msun DESC, absmag ASC NULLS LAST, vmag ASC NULLS LAST, star_id ASC
-        ) = 1
-      ), component_class_candidates AS (
+      ), leaf_badges AS (
         SELECT
-          regexp_extract(ce.stable_component_key, '^comp:msc:wds:([^:]+):', 1) AS wds_id,
-          ce.stable_component_key,
-          ce.catalog_component_label,
-          coalesce(
-            arg_min(
-              d.classification_value,
-              CASE
-                WHEN d.review_status = 'accepted' AND d.classification_status = 'source' THEN 0
-                WHEN d.classification_status = 'derived' THEN 1
-                WHEN d.classification_status = 'assumed' THEN 2
-                ELSE 9
-              END
-            ),
-            'UNKNOWN'
-          ) AS stellar_class,
-          min(CASE
-            WHEN d.review_status = 'accepted' AND d.classification_status = 'source' THEN 0
-            WHEN d.classification_status = 'derived' THEN 1
-            WHEN d.classification_status = 'assumed' THEN 2
-            ELSE 9
-          END) AS evidence_rank
-        FROM arm_db.component_entities ce
-        LEFT JOIN arm_db.derived_stellar_classifications d
-          ON d.stable_component_key = ce.stable_component_key
-         AND d.classification_key = 'stellar_display_class'
-        WHERE ce.component_type = 'star'
-          AND ce.stable_component_key LIKE 'comp:msc:wds:%'
-        GROUP BY ce.stable_component_key, ce.catalog_component_label
-      ), msc_badges AS (
-        SELECT
-          wds_id,
-          list(stellar_class ORDER BY
-            CASE stellar_class
-              WHEN 'O' THEN 0 WHEN 'B' THEN 1 WHEN 'A' THEN 2 WHEN 'F' THEN 3
-              WHEN 'G' THEN 4 WHEN 'K' THEN 5 WHEN 'M' THEN 6 WHEN 'WD' THEN 7
-              WHEN 'WR' THEN 8 WHEN 'NS' THEN 9 WHEN 'L' THEN 10 WHEN 'T' THEN 11
-              WHEN 'Y' THEN 12 ELSE 99
+          system_id,
+          list(classification_value ORDER BY
+            CASE classification_value
+              WHEN 'BLACK HOLE' THEN 0 WHEN 'WR' THEN 1 WHEN 'O' THEN 2
+              WHEN 'B' THEN 3 WHEN 'A' THEN 4 WHEN 'NS' THEN 5
+              WHEN 'PULSAR' THEN 5 WHEN 'MAGNETAR' THEN 5 WHEN 'F' THEN 6
+              WHEN 'G' THEN 7 WHEN 'K' THEN 8 WHEN 'WD' THEN 9 WHEN 'M' THEN 10
+              WHEN 'L' THEN 11 WHEN 'T' THEN 12 WHEN 'Y' THEN 13 ELSE 99
             END,
-            evidence_rank,
-            catalog_component_label,
-            stable_component_key
+            hierarchy_node_key
           ) AS stellar_class_badges
-        FROM component_class_candidates
-        GROUP BY wds_id
+        FROM arm_db.stellar_leaf_display_classifications
+        GROUP BY system_id
+      ), representative_stellar_class AS (
+        SELECT l.system_id, l.classification_value AS stellar_class
+        FROM arm_db.stellar_leaf_display_classifications l
+        LEFT JOIN stellar_class_candidates s ON s.star_id = l.star_id
+        QUALIFY row_number() OVER (
+          PARTITION BY l.system_id
+          ORDER BY
+            s.mass_proxy_msun DESC NULLS LAST,
+            s.absmag ASC NULLS LAST,
+            s.vmag ASC NULLS LAST,
+            CASE l.classification_value
+              WHEN 'BLACK HOLE' THEN 0 WHEN 'WR' THEN 1 WHEN 'O' THEN 2
+              WHEN 'B' THEN 3 WHEN 'A' THEN 4 WHEN 'NS' THEN 5
+              WHEN 'PULSAR' THEN 5 WHEN 'MAGNETAR' THEN 5 WHEN 'F' THEN 6
+              WHEN 'G' THEN 7 WHEN 'K' THEN 8 WHEN 'WD' THEN 9 WHEN 'M' THEN 10
+              WHEN 'L' THEN 11 WHEN 'T' THEN 12 WHEN 'Y' THEN 13 ELSE 99
+            END,
+            l.hierarchy_node_key
+        ) = 1
       ), core_badges AS (
         SELECT
           system_id,
           list(stellar_class ORDER BY mass_proxy_msun DESC, absmag ASC NULLS LAST, vmag ASC NULLS LAST, star_id) AS stellar_class_badges
         FROM stellar_class_candidates
+        GROUP BY system_id
+      ), classified_planets AS (
+        SELECT
+          system_id,
+          CASE
+            WHEN radius_earth IS NOT NULL AND radius_earth <= 2.0 THEN 'terrestrial'
+            WHEN radius_earth IS NOT NULL AND radius_earth >= 6.0 THEN 'gas_giant'
+            WHEN radius_earth IS NULL AND radius_jup IS NOT NULL AND radius_jup * 11.209 <= 2.0 THEN 'terrestrial'
+            WHEN radius_earth IS NULL AND radius_jup IS NOT NULL AND radius_jup * 11.209 >= 6.0 THEN 'gas_giant'
+            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NOT NULL AND mass_earth <= 10.0 THEN 'terrestrial'
+            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NOT NULL AND mass_earth >= 50.0 THEN 'gas_giant'
+            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NULL AND mass_jup IS NOT NULL AND mass_jup * 317.83 <= 10.0 THEN 'terrestrial'
+            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NULL AND mass_jup IS NOT NULL AND mass_jup * 317.83 >= 50.0 THEN 'gas_giant'
+            ELSE NULL
+          END AS composition_class,
+          coalesce(
+            eq_temp_k,
+            CASE WHEN insol_earth IS NOT NULL AND insol_earth > 0
+              THEN 278.5 * pow(insol_earth, 0.25) ELSE NULL END
+          ) AS temperature_k
+        FROM planets
+        WHERE system_id IS NOT NULL
+          AND coalesce(planet_size_mass_class, '') <> 'subplanet'
+      ), planet_badges AS (
+        SELECT
+          system_id,
+          bit_or(
+            CASE
+              WHEN composition_class = 'gas_giant' AND temperature_k > 320.0 THEN 1
+              WHEN composition_class = 'gas_giant' AND temperature_k >= 200.0 THEN 2
+              WHEN composition_class = 'gas_giant' AND temperature_k < 200.0 THEN 4
+              WHEN composition_class = 'terrestrial' AND temperature_k > 320.0 THEN 8
+              WHEN composition_class = 'terrestrial' AND temperature_k >= 200.0 THEN 16
+              WHEN composition_class = 'terrestrial' AND temperature_k < 200.0 THEN 32
+              ELSE 0
+            END
+          )::integer AS planet_badge_mask
+        FROM classified_planets
+        WHERE composition_class IS NOT NULL AND temperature_k IS NOT NULL
         GROUP BY system_id
       ), positioned AS (
         SELECT s.*,
@@ -400,12 +419,14 @@ def tile_query(radius: int) -> str:
         coalesce(r.star_count, 0), coalesce(r.planet_count, 0), coalesce(c.rank, 0),
         coalesce(c.nice_planet_count, 0), coalesce(r.max_star_teff_k, 0),
         r.tile_depth, r.tile_x, r.tile_y, r.tile_z,
-        coalesce(mb.stellar_class_badges, cb.stellar_class_badges, ['UNKNOWN']) AS stellar_class_badges
+        coalesce(lb.stellar_class_badges, cb.stellar_class_badges, ['UNKNOWN']) AS stellar_class_badges,
+        coalesce(pb.planet_badge_mask, 0) AS planet_badge_mask
       FROM rows_with_tile r
       LEFT JOIN disc_db.coolness_scores c USING (system_id)
       LEFT JOIN representative_stellar_class rc USING (system_id)
       LEFT JOIN core_badges cb USING (system_id)
-      LEFT JOIN msc_badges mb ON mb.wds_id = r.wds_id
+      LEFT JOIN leaf_badges lb USING (system_id)
+      LEFT JOIN planet_badges pb USING (system_id)
       ORDER BY r.tile_depth, r.tile_x, r.tile_y, r.tile_z, r.system_id
     """
 
@@ -484,7 +505,7 @@ def build_radius(
         if not batch:
             break
         for full_row in batch:
-            row = (*full_row[:14], full_row[18])
+            row = (*full_row[:14], full_row[18], full_row[19])
             key = tuple(int(value) for value in full_row[14:18])
             if current_key is not None and key != current_key:
                 flush()
@@ -556,15 +577,26 @@ def build_radius(
             "stable_object_key": "UTF-8 string table",
         },
         "representative_class_contract": {
-            "version": "mass_proxy_then_intrinsic_brightness_v2",
+            "version": "shared_leaf_mass_proxy_then_intrinsic_brightness_v3",
             "field": "representative_stellar_class",
             "policy": "object/spectral/evolutionary mass proxy; then lowest available absolute magnitude; stable star_id tie-break",
         },
         "stellar_class_badge_contract": {
-            "version": "packed_nibble_sequence_v1",
+            "version": "shared_hierarchy_leaf_sequence_v2",
             "field": "stellar_class_badges",
-            "policy": "Repeated stellar leaves ordered by representative-class priority; accepted source evidence precedes derived and assumed evidence; nonstellar support endpoints excluded.",
+            "policy": "Exactly one repeated value per eligible hierarchy stellar leaf; source precedes derived and assumed evidence; aggregate and nonstellar endpoints excluded.",
             "maximum_badges": 16,
+        },
+        "planet_badge_contract": {
+            "version": "planet_environment_badge_mask_v1",
+            "field": "planet_badge_mask",
+            "categories": [
+                "hot_gas_giant", "temperate_gas_giant", "cold_gas_giant",
+                "hot_terrestrial", "temperate_terrestrial", "cold_terrestrial",
+            ],
+            "maximum_per_category": 1,
+            "temperature_k": {"cold_lt": 200.0, "temperate_lte": 320.0, "hot_gt": 320.0},
+            "classification_policy": "source radius preferred over source mass; ambiguous 2-6 Rearth or 10-50 Mearth planets and missing environments remain unbadged",
         },
         "coolness_profile": profile,
         "sampling_policy": {

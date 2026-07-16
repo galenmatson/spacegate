@@ -112,19 +112,25 @@ Search can materialize and pin an omitted ordinary system by stable identity.
 The UI and canvas diagnostics report catalog, rendered, and camera-detail
 counts separately, so LOD is not presented as a complete local population.
 
-Tile schema v3 retains the compact representative-class byte and adds an
-eight-byte packed sequence of up to 16 repeated stellar-leaf classes. The
-sequence supports the label setting `Off`, `Primary`, or `All` without per-label
-API calls; `Primary` remains the default. Nonstellar hierarchy support endpoints
-are excluded. Accepted reviewed component classifications take precedence over
-derived and assumed classes, while unresolved stellar leaves remain explicitly
-`UNKNOWN`. If a source-backed core representative class is absent from a
-source-hierarchy sequence, it replaces the lowest-confidence unknown (or final
-leaf) without changing the system's badge count. This keeps compact-object
-identity visible in controls such as LAWD 25.
+Tile schema v4 retains the compact representative-class byte, carries an
+eight-byte packed sequence of up to 16 repeated classes from the shared ARM
+stellar-leaf projection, and adds a six-bit planet-category mask. The stellar
+sequence supports `Off`, `Primary`, or `All` without per-label API calls; `All`
+is the default. Aggregate and nonstellar hierarchy support endpoints are
+excluded, repeated leaf classes are retained, and unresolved leaves remain
+explicitly `UNKNOWN`. The builder never injects a representative class into or
+removes a class from the leaf sequence.
 
-The representative-class policy compares an object/spectral/evolutionary
-mass proxy, then intrinsic brightness, then `star_id`.
+Planet bits represent hot/temperate/cold gas giants and
+hot/temperate/cold terrestrial planets, with at most one visible badge for each
+category. The mask is a presentation derivation over confirmed CORE planets:
+source radius is preferred to source mass, equilibrium temperature is preferred
+to an insolation-derived estimate, ambiguous 2-6 Earth-radius or 10-50
+Earth-mass objects are unbadged, and missing environments produce no badge.
+
+The representative-class policy chooses only among the same shared leaves and
+compares an object/spectral/evolutionary mass proxy, then intrinsic brightness,
+then a stable hierarchy key.
 This makes Sirius use its
 A star, allows a white dwarf to represent a typical WD+M-dwarf system, and
 gives giants an evolutionary floor rather than treating them as dwarfs of the

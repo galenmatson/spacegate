@@ -673,6 +673,30 @@ Representative commits:
   from 93% to 68% without touching raw/cooked catalogs, published archives,
   models, or named research workspaces.
 
+### Shared Stellar-Leaf Display Projection (July 16, 2026)
+
+- Added `stellar_leaf_display_classifications` as a deterministic ARM
+  presentation projection over canonical hierarchy leaves. It keeps CORE source
+  class first, then exact accepted/source, derived, and explicitly assumed
+  component evidence; missing values remain `UNKNOWN` and conflicts retain
+  their candidate set and provenance.
+- The initial full projection accounts for 5,879,144 eligible leaves exactly
+  once: 5,530,708 source, 3,324 derived, 7,757 assumed, and 337,355 missing,
+  with zero invalid or duplicate rows. The general verifier reports 105 legacy
+  `system.star_count` differences without allowing that facet to redefine
+  audited hierarchy membership.
+- Golden multisets are `GKMM` for HD 110067, `FKMM` for HD 79107, `FKMMU` for
+  Gl 161.1, `MUUUU` for HD 18134, and `AAMMMM` for Castor. These are outputs of
+  shared evidence precedence and hierarchy rules, not per-system overrides.
+- Removed display-name deduplication from simulation leaf assembly, which had
+  collapsed distinct HD 79107 members sharing a source label. Inferred
+  nonstellar endpoints such as Castor CC no longer become stellar bodies or
+  badges merely because their structural node kind says inferred leaf.
+- Map tile v4 consumes the projection for both `All` and the physically ranked
+  `Primary` selection, and adds a separate bounded planet-category bitmask.
+  Neither presentation artifact changes CORE planet counts or canonical source
+  classifications.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

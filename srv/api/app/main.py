@@ -220,7 +220,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v2"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v3"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -486,12 +486,19 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
             arm_db_path=arm_db_path,
         )
 
+    stellar_leaf_classifications = _stellar_leaf_display_classifications_for_system(system_id)
+    _overlay_stellar_leaf_classifications(hierarchy, stellar_leaf_classifications)
+
     effective_star_count = max(
         int(star_count or 0),
         int(((hierarchy or {}).get("counts") or {}).get("stars") or 0),
     )
     system["star_count"] = effective_star_count
     system["planet_count"] = planet_count
+    system["stellar_class_badges"] = [
+        row.get("classification_value") or "UNKNOWN"
+        for row in stellar_leaf_classifications
+    ]
     system.update(summarize_star_temperatures(stars))
     system["snapshot"] = snapshot
     system["aliases"] = aliases
@@ -545,6 +552,7 @@ def _object_public_system_payload(system_id: int, *, name_style: str = "public_f
         "infrared_evidence": infrared_evidence,
         "narrative_blocks": narrative_blocks,
         "hierarchy": hierarchy,
+        "stellar_leaf_classifications": stellar_leaf_classifications,
     }
 
 
@@ -1714,6 +1722,8 @@ def _iter_hierarchy_render_star_nodes(node: Optional[Dict[str, Any]]) -> List[Di
         or component_type in stellar_leaf_kinds
         or node_kind in {*stellar_leaf_kinds, "inferred_star_leaf"}
     )
+    if node_kind == "inferred_star_leaf" and component_type != "star":
+        is_star = False
     if not is_star:
         return child_stars
     try:
@@ -2578,8 +2588,6 @@ def _render_scene_contract(
             if system_display_name and not _is_technical_member_display_name(system_display_name) and component_label:
                 display_name = f"{system_display_name} {component_label}"
         display_key = display_name.lower()
-        if display_key and display_key in rendered_display_names:
-            return ""
         if core_id >= 0 and core_id in rendered_core_star_ids:
             return ""
         render_key = _component_key_for_hierarchy_star_node(node)
@@ -2853,6 +2861,36 @@ def _render_scene_contract(
             if len(render_stars) >= target_hierarchy_star_count:
                 break
             add_hierarchy_star(node)
+
+    leaf_classifications = {
+        str(row.get("leaf_component_key") or ""): row
+        for row in ((arm.get("stellar_leaf_display_classifications") or {}).get("items") or [])
+        if row.get("leaf_component_key")
+    }
+    for render_key, render_star in render_stars.items():
+        leaf_row = leaf_classifications.get(str(render_key))
+        if not leaf_row:
+            continue
+        render_star["stellar_leaf_classification"] = leaf_row
+        class_token = str(leaf_row.get("classification_value") or "UNKNOWN").upper()
+        render_star["spectral_class"] = None if class_token == "UNKNOWN" else class_token
+        fields = render_star.setdefault("fields", {})
+        fields["stellar_leaf_display_class"] = _simulation_field(
+            key="stellar_leaf_display_class",
+            label="Leaf display class",
+            value=class_token,
+            unit=None,
+            status=str(leaf_row.get("classification_status") or "missing"),
+            basis=str(leaf_row.get("evidence_basis") or "no_exact_leaf_classification_evidence"),
+            layer="arm",
+            confidence_tier=("high" if leaf_row.get("classification_status") == "source" else "medium"),
+            replacement_target="reviewed component-specific stellar classification",
+            source_catalog=leaf_row.get("source_catalog"),
+            source_reference=leaf_row.get("source_pk"),
+            confidence=_float_or_none(leaf_row.get("confidence_score")),
+            generator_version=leaf_row.get("projection_version"),
+            notes="Shared hierarchy-leaf display projection used by map, system, and simulation badge surfaces.",
+        )
 
     render_star_key_by_core_star_id: Dict[int, str] = {}
     for render_key, render_star in render_stars.items():
@@ -4403,6 +4441,55 @@ def _enrich_component_rows(
             row["sort_distance_au"] = planet.get("semi_major_axis_au")
 
 
+def _stellar_leaf_display_classifications_for_system(system_id: int) -> List[Dict[str, Any]]:
+    arm_path = _resolve_arm_db_path()
+    if not arm_path:
+        return []
+    con = None
+    try:
+        con = duckdb.connect(str(arm_path), read_only=True)
+        if not _duckdb_has_table(con, "stellar_leaf_display_classifications"):
+            return []
+        return _rows_to_dicts(
+            con.execute(
+                """
+                SELECT *
+                FROM stellar_leaf_display_classifications
+                WHERE system_id = ?
+                ORDER BY hierarchy_node_key
+                """,
+                [int(system_id)],
+            )
+        )
+    finally:
+        if con is not None:
+            con.close()
+
+
+def _overlay_stellar_leaf_classifications(
+    hierarchy: Optional[Dict[str, Any]],
+    rows: List[Dict[str, Any]],
+) -> None:
+    if not isinstance(hierarchy, dict) or not rows:
+        return
+    by_key = {str(row.get("hierarchy_node_key") or ""): row for row in rows}
+
+    def visit(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        row = by_key.get(str(node.get("stable_component_key") or ""))
+        if row:
+            node["stellar_leaf_classification"] = row
+            facts = node.setdefault("quick_facts", {})
+            facts["stellar_leaf_display_class"] = row.get("classification_value")
+            facts["stellar_leaf_display_class_status"] = row.get("classification_status")
+            facts["stellar_leaf_display_class_basis"] = row.get("evidence_basis")
+        for child in node.get("children") or []:
+            visit(child)
+
+    visit(hierarchy.get("root"))
+
+
 def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str, Any]], system: Dict[str, Any]) -> Dict[str, Any]:
     arm_path_raw = _resolve_arm_db_path()
     output: Dict[str, Any] = {
@@ -4416,6 +4503,7 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
         "stellar_parameters": {"count": 0, "items": []},
         "derived_physical_parameters": {"count": 0, "items": []},
         "derived_stellar_classifications": {"count": 0, "items": []},
+        "stellar_leaf_display_classifications": {"count": 0, "items": []},
         "errors": [],
     }
     if not arm_path_raw:
@@ -4425,6 +4513,19 @@ def _arm_object_diagnostics(stars: List[Dict[str, Any]], planets: List[Dict[str,
     con = None
     try:
         con = duckdb.connect(str(arm_path_raw), read_only=True)
+        if _duckdb_has_table(con, "stellar_leaf_display_classifications"):
+            rows = _rows_to_dicts(
+                con.execute(
+                    """
+                    SELECT *
+                    FROM stellar_leaf_display_classifications
+                    WHERE system_id = ?
+                    ORDER BY hierarchy_node_key
+                    """,
+                    [int(system.get("system_id"))],
+                )
+            )
+            output["stellar_leaf_display_classifications"] = {"count": len(rows), "items": rows}
         component_rows: List[Dict[str, Any]] = []
         component_by_key: Dict[str, Dict[str, Any]] = {}
         component_filters = ["(core_object_type = 'system' AND core_object_id = ?)"]
@@ -4731,6 +4832,8 @@ def _system_object_diagnostics(system_id: int) -> Dict[str, Any]:
     planet_environment = _attach_planet_environment_diagnostics(stars, planets)
     disc = _disc_object_diagnostics(system)
     arm = _arm_object_diagnostics(stars, planets, system)
+    stellar_leaf_rows = (arm.get("stellar_leaf_display_classifications") or {}).get("items") or []
+    _overlay_stellar_leaf_classifications(public.get("hierarchy"), stellar_leaf_rows)
     simulation_readiness = _simulation_readiness_diagnostics(stars, planets, arm)
     provenance = {
         "system": _provenance_diagnostics([system], "system", "system_id"),
@@ -5044,6 +5147,8 @@ def _system_simulation_scene_payload(
     stars = public["stars"]
     planets = public["planets"]
     arm = _arm_object_diagnostics(stars, planets, system)
+    stellar_leaf_rows = (arm.get("stellar_leaf_display_classifications") or {}).get("items") or []
+    _overlay_stellar_leaf_classifications(public.get("hierarchy"), stellar_leaf_rows)
     simulation_readiness = _simulation_readiness_diagnostics(stars, planets, arm)
     persisted_assumption_keys = _load_persisted_simulation_assumption_keys(
         system_id,
@@ -5069,6 +5174,7 @@ def _system_simulation_scene_payload(
         "stellar_parameters": arm.get("stellar_parameters") or {"count": 0, "items": []},
         "derived_physical_parameters": arm.get("derived_physical_parameters") or {"count": 0, "items": []},
         "derived_stellar_classifications": arm.get("derived_stellar_classifications") or {"count": 0, "items": []},
+        "stellar_leaf_display_classifications": arm.get("stellar_leaf_display_classifications") or {"count": 0, "items": []},
         "errors": arm.get("errors") or [],
     }
     return {
@@ -5083,6 +5189,7 @@ def _system_simulation_scene_payload(
             "planets": planets,
         },
         "hierarchy": public.get("hierarchy"),
+        "stellar_leaf_classifications": stellar_leaf_rows,
         "arm": arm_public,
         "simulation_readiness": simulation_readiness,
         "render_scene": render_scene,

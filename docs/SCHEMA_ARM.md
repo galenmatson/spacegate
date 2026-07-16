@@ -377,6 +377,44 @@ Rules:
   endpoints remain diagnostics/evidence and must not become rendered or
   classified stars.
 
+## `stellar_leaf_display_classifications`
+
+Deterministic display projection with exactly one row for every eligible
+stellar leaf in `canonical_hierarchy.duckdb`. This is the shared membership and
+classification contract for map labels, simulation bodies, OBJECTS lists,
+system-page heroes, and hierarchy leaves. It does not alter CORE spectral facts
+or promote an assumed class into canonical astronomy.
+
+Implementation status: emitted after ARM and canonical hierarchy construction
+by `scripts/materialize_stellar_leaf_classifications.py` as
+`stellar_leaf_display_classification_v1`.
+
+Key columns:
+- identity: `system_id`, `system_stable_object_key`, `hierarchy_node_key`,
+  `leaf_component_key`, nullable `evidence_component_key`, `star_id`, and
+  `stable_object_key`
+- display context: `display_name`, `catalog_component_label`, `node_kind`, and
+  `hierarchy_source_basis`
+- result: `classification_value`, `classification_status`, `evidence_basis`,
+  `confidence_score`, and `projection_version`
+- conflict visibility: `distinct_candidate_class_count`,
+  `candidate_classes_json`, and `has_classification_conflict`
+- source lineage: `source_catalog`, `source_version`, `source_pk`,
+  `retrieval_checksum`, `retrieved_at`, and `source_value`
+
+Evidence precedence is exact CORE leaf source class, accepted exact-component
+source class, exact MSC endpoint spectral derivation, other derived
+exact-component class, then an explicitly assumed exact-component mass prior.
+Missing leaves remain `UNKNOWN`. Aggregate/barycenter nodes and inferred
+nonstellar endpoints are excluded. A source conflict is preserved on the row
+even when deterministic precedence selects one public display value.
+
+Every eligible hierarchy leaf must appear exactly once. Clients must not add a
+representative class, deduplicate repeated classes, infer membership from a
+display name, or substitute an aggregate-node class. `system.star_count`
+differences are reported separately because audited hierarchy leaves, not a
+legacy count facet, define badge membership.
+
 ## `msc_component_details`
 
 MSC component/context rows for subsystem narration and photometry support.

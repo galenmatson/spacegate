@@ -782,9 +782,9 @@ test.describe("public 3D map beta", () => {
     await starRenderSelect.selectOption("bright");
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.starRenderMode") || "")).toBe("bright");
     await expect(canvas).toHaveAttribute("data-map-star-render-mode", "bright");
-    await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "mass_proxy_then_intrinsic_brightness_v2");
-    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "primary");
-    await classBadgesSelect.selectOption("all");
+    await expect(canvas).toHaveAttribute("data-map-label-class-strategy", "shared_leaf_mass_proxy_then_intrinsic_brightness_v3");
+    await expect(canvas).toHaveAttribute("data-map-label-class-badges", "all");
+    await expect(classBadgesSelect).toHaveValue("all");
     await expect(canvas).toHaveAttribute("data-map-label-class-badges", "all");
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("spacegate.map.classBadges"))).toBe("all");
     await classBadgesSelect.selectOption("off");

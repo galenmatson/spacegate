@@ -16,7 +16,7 @@ const encoded = execFileSync(resolve(repoRoot, ".venv/bin/python"), ["-c", `
 import sys
 sys.path.insert(0, ${JSON.stringify(repoRoot)})
 from scripts.build_map_tiles import encode_tile
-row=(17788193,'canon:system:test','Test Multiple',0.0,0.0,0.0,0.0,30.0,'A',6,0,1,0,5772.0,['A','A','M','M','M','M'],'Test abbrev','Test catalog','Test source')
+row=(17788193,'canon:system:test','Test Multiple',0.0,0.0,0.0,0.0,30.0,'A',6,2,1,0,5772.0,['A','A','M','M','M','M'],17,'Test abbrev','Test catalog','Test source')
 raw,_=encode_tile(depth=4,x=8,y=8,z=8,rows=[row],exact=True,represented_count=1)
 sys.stdout.buffer.write(raw)
 `], { cwd: webRoot });
@@ -28,6 +28,7 @@ assert.equal(decoded.systems[0].display_names.astronomer_abbrev, "Test abbrev");
 assert.equal(decoded.systems[0].display_names.source_technical, "Test source");
 assert.equal(decoded.systems[0].representative_stellar_class, "A");
 assert.deepEqual(decoded.systems[0].stellar_class_badges, ["A", "A", "M", "M", "M", "M"]);
+assert.deepEqual(decoded.systems[0].planet_badges.map((badge) => badge.key), ["hot_gas_giant", "temperate_terrestrial"]);
 assert.deepEqual(
   decoded.systems[0].x_helio_ly.toFixed(4),
   "0.0000",

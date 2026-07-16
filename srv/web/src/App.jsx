@@ -1848,7 +1848,9 @@ function SystemFactPill({ label, value, title = "" }) {
 }
 
 function bestSpectralSummary(system, stars = []) {
-  const classes = Array.isArray(system?.spectral_classes) ? system.spectral_classes : [];
+  const classes = Array.isArray(system?.stellar_class_badges) && system.stellar_class_badges.length
+    ? system.stellar_class_badges
+    : (Array.isArray(system?.spectral_classes) ? system.spectral_classes : []);
   if (classes.length > 0) {
     return classes.slice(0, 4).join(", ");
   }
@@ -2397,6 +2399,12 @@ function HierarchyNodeCard({ node, depth = 0 }) {
   const metaSummary = hierarchyMetaSummary(node, children);
   const showPlainSummary = displayType === "system" || displayType === "subsystem" || (!node?.orbit && displayType !== "star" && displayType !== "planet");
   const showFactChips = displayType !== "system" && displayType !== "subsystem";
+  const hasStellarChildren = children.some((child) => (
+    hierarchyDisplayType(child, Array.isArray(child?.children) ? child.children : []) === "star"
+    || String(child?.component_family || "").toLowerCase() === "star"
+  ));
+  const showStellarClass = displayType === "star"
+    && (!hasStellarChildren || Boolean(node?.stellar_leaf_classification));
 
   return (
     <div className={`hierarchy-node depth-${Math.min(depth, 4)}`}>
@@ -2414,7 +2422,7 @@ function HierarchyNodeCard({ node, depth = 0 }) {
         >
           <div className="hierarchy-node-title-wrap">
             <div className="hierarchy-node-title-row">
-              {displayType === "star" ? (
+              {showStellarClass ? (
                 <StellarClassChips tokens={stellarClassTokensFromRecord(node)} size="compact" />
               ) : null}
               <strong>{displayName}</strong>
@@ -4508,7 +4516,15 @@ function SystemDetailPage({ buildId = "" }) {
     );
   }
 
-  const { system, stars, planets, eclipsing_binaries: eclipsingBinaries = [], hierarchy = null, narrative_blocks: narrativeBlocks = [] } = data;
+  const {
+    system,
+    stars,
+    planets,
+    eclipsing_binaries: eclipsingBinaries = [],
+    hierarchy = null,
+    narrative_blocks: narrativeBlocks = [],
+    stellar_leaf_classifications: stellarLeafClassifications = [],
+  } = data;
   const currentSystemDisplayName = systemDisplayName(system);
   const systemAliasSummary = formatAliasSummary(system?.aliases, {
     exclude: [currentSystemDisplayName, system?.system_name],
@@ -4560,12 +4576,24 @@ function SystemDetailPage({ buildId = "" }) {
               <SystemFactPill label="Coolness" value={formatNumber(system.coolness_score, 1)} />
             </div>
             <div className="system-detail-class-tags">
-              <StellarClassChips tokens={stellarClassTokensFromSystem({
-                ...system,
-                spectral_classes: Array.from(new Set((stars || [])
-                  .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().toUpperCase())
-                  .filter(Boolean))),
-              })} className="system-detail-stellar-tags" />
+              {stellarLeafClassifications.length ? (
+                <span className="stellar-class-chips system-detail-stellar-tags" aria-label="Stellar leaf classes">
+                  {stellarLeafClassifications.map((leaf, index) => (
+                    <StellarClassChips
+                      key={leaf.hierarchy_node_key || `stellar-leaf-${index}`}
+                      tokens={[leaf.classification_value || "UNKNOWN"]}
+                      size="compact"
+                    />
+                  ))}
+                </span>
+              ) : (
+                <StellarClassChips tokens={stellarClassTokensFromSystem({
+                  ...system,
+                  spectral_classes: Array.from(new Set((stars || [])
+                    .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().toUpperCase())
+                    .filter(Boolean))),
+                })} className="system-detail-stellar-tags" />
+              )}
               {systemTags.length > 0 ? (
                 <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
                   {systemTags.map((tag) => (
