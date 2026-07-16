@@ -542,7 +542,9 @@ Representative commits:
 - Retention was applied through `scripts/prune_state_retention.sh` only after a
   dry run, removing seven unserved obsolete/failed build directories and
   reclaiming about 164 GiB. Raw/cooked inputs, manifests, reports needed for
-  verification, and the served build were preserved.
+  verification, and the served build were preserved. After public promotion,
+  a second reviewed Photon retention pass removed two failed `.tmp` builds and
+  reclaimed another 21.72 GiB with the same protected inputs intact.
 - Public archive `20260716T0103Z_94bdab7_side.7z` was transferred resumably to
   antiproton and verified against SHA-256
   `7f2b27792f49502a8962259c23298dcc6852fe97d58920775fef7bd1b43fe450`
