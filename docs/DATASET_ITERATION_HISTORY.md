@@ -648,6 +648,15 @@ Representative commits:
   file existence. Scene artifacts now embed the target build ID, and reuse
   requires both that ID and the current materializer version. The rejected
   candidate was not promoted or published.
+- Replacement side build `20260716T154843Z_622f336_side_rebuild` regenerated
+  1,000/1,000 priority scenes as v2 artifacts with zero failures or stale-build
+  reuse. Strict database, multiplicity, TESS, WISE, extended-object, exact-tile,
+  and derived-integrity verification passed before local promotion.
+- The live Castor browser gate then exposed a brittle expectation that exactly
+  two leaves would carry SB9 `dM1e` notation. The refreshed source evidence
+  supplies three. The gate now tests the reusable scientific invariant instead:
+  every present `dM1e` value must parse as an M star and never as a white dwarf;
+  it does not prescribe how many source rows a future pinned catalog may carry.
 
 ### 24) Photon Retention Timestamp Compatibility
 

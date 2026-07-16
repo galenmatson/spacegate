@@ -972,6 +972,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Require simulation-scene cache reuse to match both materializer contract
   version and target build ID; regression-test copied-version and corrupt-file
   rejection
+- [x] Regenerate and locally promote 1,000/1,000 v2 priority simulation scenes;
+  replace the stale exact-count `dM1e` browser expectation with a general
+  M-dwarf-versus-white-dwarf parsing invariant
 - [x] Remove the temporary Castor-only reviewed-classification build injection
   and confirm a clean ARM rebuild matches the pre-change catalog result
 - [x] Stop post-slice TESS identity re-adjudication: project full-canonical

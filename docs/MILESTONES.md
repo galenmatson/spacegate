@@ -1916,6 +1916,13 @@ antiproton-sized `core.public@v3` profile and passes relaxed build
 verification, multiplicity goldens, known-system API benchmarks, and the V1054
 System Simulation OBJECTS browser regression.
 
+Checkpoint note, July 16, 2026: side build
+`20260716T154843Z_622f336_side_rebuild` regenerated all 1,000 bounded priority
+simulation scenes under the v2 materializer contract and passed strict local
+verification before promotion. Browser gates preserve Castor as a complex-system
+regression target while asserting parser and evidence-precedence invariants
+rather than a catalog-version-specific count of `dM1e` source rows.
+
 ### System Narration Foundation v1
 
 System pages now have a reusable narration block contract instead of one-off
