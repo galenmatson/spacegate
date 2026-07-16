@@ -1114,6 +1114,14 @@ Completed:
   target, system, and stable keys. The public slicer preserves WDS observation
   rows by retained WDS scope and WISE matches by canonical target scope instead
   of applying an invalid source-component-key conjunction.
+- Verified checkpoint: full ARM refresh
+  `20260716T0055Z_94bdab7_canonical_arm` is CORE-identical to the deterministic
+  canonical candidate; public slice `20260716T0100Z_94bdab7_public` retains
+  8,147 WDS observations, 2,105 exact canonical WISE matches, and a zero-delta
+  canonical TESS projection.
+- Final local promotion candidate `20260716T0103Z_94bdab7_side` passes the full
+  database gate with exact four-radius map membership and 1,000/1,000 cached
+  priority simulation scenes.
 
 Remaining:
 

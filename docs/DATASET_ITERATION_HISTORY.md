@@ -508,6 +508,18 @@ Representative commits:
   observations by retained WDS scope and WISE matches by canonical target scope;
   source-native component keys remain evidence identifiers rather than foreign
   keys into the canonical component graph.
+- Full ARM refresh `20260716T0055Z_94bdab7_canonical_arm` passes the complete
+  build gate and is CORE-identical to `20260715T2349Z_06ac777_b`. Its four WISE
+  target-binding tables reproduce exactly across an independent validation
+  rebuild after excluding build-instance metadata. Public slice
+  `20260716T0100Z_94bdab7_public` retains 8,147 in-scope WDS observations and
+  all 2,105 canonical WISE matches; the TESS projection comparator reports zero
+  missing or unexpected rows in all four evidence tables.
+- Final immutable local candidate `20260716T0103Z_94bdab7_side` adds exact
+  100/250/500/1,000-light-year tile artifacts and 1,000 priority simulation
+  scenes. Tile verification reports zero missing, extra, public-name, or
+  representative-class mismatches at every radius; scene generation reports
+  zero failures.
 - Determinism comparison is now scoped to the canonical transform revision and
   hashes ARM science/lineage payloads while excluding only build-instance
   metadata. Paired full builds `20260715T2343Z_06ac777_a` and
