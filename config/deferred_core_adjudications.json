@@ -1,20 +1,21 @@
 {
   "notes": [
-    "These cases were formerly promoted directly by config/core_accepted_supplements.json.",
+    "Some initial cases were formerly promoted directly by config/core_accepted_supplements.json; later cases enter here without ever becoming build overrides.",
     "They are evidence-preserving adjudication inputs, not executable catalog-build overrides.",
     "Each case must be resolved by a general source/reconciliation rule or a future inspectable AAA adjudication record before canonical promotion."
   ],
-  "version": "deferred_core_adjudications_v1",
+  "version": "deferred_core_adjudications_v2",
   "cases": [
     {
       "case_id": "deferred:sirius-a-gaia-backbone-gap",
-      "status": "deferred_aaa_adjudication",
+      "status": "resolved_general_rule",
       "assertion_kind": "canonical_inventory_recovery",
       "display_name": "Sirius A",
       "candidate_source_catalog": "athyg",
       "candidate_source_pk": "584955",
       "candidate_wds_id": "06451-1643",
-      "previous_reason": "bright_primary_missing_from_gaia_dr3_with_wds_compact_companion"
+      "previous_reason": "bright_primary_missing_from_gaia_dr3_with_wds_compact_companion",
+      "resolution_rule": "sbx_athyg_exact_hip_hd_v1"
     },
     {
       "case_id": "deferred:l-134-80-gaia-backbone-gap",
@@ -29,13 +30,25 @@
     },
     {
       "case_id": "deferred:sirius-b-wds-component-link",
-      "status": "deferred_aaa_adjudication",
+      "status": "resolved_general_rule",
       "assertion_kind": "component_identity_binding",
       "display_name": "Sirius B",
       "candidate_target_namespace": "gaia_dr3",
       "candidate_target_id": "2947050466531873024",
       "candidate_wds_id": "06451-1643",
-      "previous_reason": "reviewed_wds_compact_companion_link"
+      "previous_reason": "reviewed_wds_compact_companion_link",
+      "resolution_rule": "wds_sbx_epoch_projected_ab_v1"
+    },
+    {
+      "case_id": "deferred:castor-cc-component-classification",
+      "status": "deferred_aaa_adjudication",
+      "assertion_kind": "component_classification_and_physical_status",
+      "display_name": "Castor CC",
+      "candidate_source_catalog": "msc",
+      "candidate_source_pk": "07346+3153:cc",
+      "candidate_wds_id": "07346+3153",
+      "candidate_component_key": "comp:msc:wds:07346+3153:cc",
+      "previous_reason": "msc_mass_supports_substellar_typing_but_component_reality_and_classification_are_literature_weak"
     }
   ]
 }

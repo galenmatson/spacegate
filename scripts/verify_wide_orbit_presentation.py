@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import sys
 import urllib.parse
@@ -47,10 +48,14 @@ CASES = [
 
 
 def fetch_json(url: str) -> dict[str, Any]:
-    with urllib.request.urlopen(url, timeout=30) as response:
+    request = urllib.request.Request(url, headers={"Accept-Encoding": "identity"})
+    with urllib.request.urlopen(request, timeout=30) as response:
         if response.status != 200:
             raise AssertionError(f"{url} expected 200, got {response.status}")
-        return json.loads(response.read().decode("utf-8"))
+        payload = response.read()
+        if response.headers.get("Content-Encoding", "").lower() == "gzip" or payload.startswith(b"\x1f\x8b"):
+            payload = gzip.decompress(payload)
+        return json.loads(payload.decode("utf-8"))
 
 
 def api_url(base_url: str, path: str, params: dict[str, Any] | None = None) -> str:

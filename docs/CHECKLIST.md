@@ -52,9 +52,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   promoted deep-map artifact pipeline; public build
   `20260716T0103Z_94bdab7_side` carries 1,000/1,000 verified priority scenes
   with zero materialization failures
-- [ ] Install published verification reports from the edge download tree into
-  `$SPACEGATE_STATE_DIR/reports/<build_id>` during bootstrap so antiproton can
-  run strict build verification without relaxed report discovery
+- [x] Install all checksummed reports advertised by edge `current.json` into a
+  staged `$SPACEGATE_STATE_DIR/reports/<build_id>` directory during bootstrap
+- [ ] Define and publish a slice-native QC/provenance report set for immutable
+  presentation builds so antiproton can require reports without relaxed
+  verification; installing reports alone cannot substitute full-build reports
+  whose counts and build IDs do not match the slice
 - [ ] Add a cheap map-selected singleton scene path plus cache telemetry and
   explicit per-process/concurrent-assembly budgets before planning for hundreds
   of concurrent exploratory users; the shared persistent cache and same-scene
@@ -941,13 +944,15 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Materialize deterministic preserved MSC orbit-detail rows into ARM
   `orbit_edges`/`orbital_solutions` where endpoint reconciliation is
   deterministic, with 70 Oph as a visible benchmark
-- [ ] Review the remaining MSC `orb.tsv` diagnostics that still do not resolve
-  to ARM orbit edges after source-native endpoint normalization
-- [ ] Adjudicate Castor MSC endpoint `CC` through the standard component
-  resolution process; its former verifier-specific allowlist has been removed
-- [ ] Reconcile canonical-hierarchy endpoint typing with ARM component typing:
-  inferred leaves currently default to `star` before ARM can classify
-  substellar endpoints from source mass evidence
+- [x] Review and account for every MSC `orb.tsv` diagnostic: 4,627 rows
+  normalize, six out-of-inventory/no-`sys.tsv` rows are explicitly excluded,
+  and zero remain quarantined or unaccounted
+- [x] Register Castor MSC endpoint `CC` in the non-executable adjudication
+  inbox; retain its ARM-derived brown-dwarf typing without treating that as an
+  accepted physical-status verdict
+- [x] Reconcile canonical-hierarchy endpoint typing with ARM component typing:
+  structural node kind is separate from family/type and inferred substellar
+  leaves retain their ARM type
 - [x] Add scalable map label stellar-class badge modes (`Off`, `Primary`,
   `All`) backed by packed tile-v3 repeated-class data
 - [x] Coalesce concurrent cold simulation-scene assembly and persist compatible
@@ -967,9 +972,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add exact member-star search fallback for served side builds missing
   materialized member terms, with `VB 8` focus metadata and alias-authority
   verification
-- [ ] Define WDS pair-observation utilization policy: preserve observation
-  history, but decide when WDS component-pair rows should create ARM support
-  pair entities, orbit/projection evidence, or diagnostics only
+- [x] Define WDS pair-observation utilization v1: preserve source label scope,
+  materialize accepted/missing/ambiguous/excluded endpoint bindings as
+  projection evidence, and prohibit WDS-only bound/orbit promotion
 - [x] Add spectral-subclass-aware main-sequence stellar parameter priors for
   simulation support, guarded against giants, subgiants, remnants, and compact
   objects, without writing those priors into core

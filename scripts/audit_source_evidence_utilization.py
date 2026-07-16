@@ -156,6 +156,28 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
             """,
             limit=sample_limit,
         )
+        msc_reconciliation_counts: dict[str, int] = {}
+        if has_table(con, "msc_orbit_reconciliation"):
+            msc_reconciliation_counts = {
+                "msc_orbit_reconciliation_accepted": scalar(
+                    con, "select count(*)::bigint from msc_orbit_reconciliation where reconciliation_status = 'accepted'"
+                ),
+                "msc_orbit_reconciliation_excluded": scalar(
+                    con, "select count(*)::bigint from msc_orbit_reconciliation where reconciliation_status = 'excluded'"
+                ),
+                "msc_orbit_reconciliation_quarantined": scalar(
+                    con, "select count(*)::bigint from msc_orbit_reconciliation where reconciliation_status = 'quarantined'"
+                ),
+                "msc_orbit_reconciliation_unaccounted": scalar(
+                    con,
+                    """
+                    select count(*)::bigint
+                    from msc_orbit_details m
+                    left join msc_orbit_reconciliation r using (msc_orbit_detail_id)
+                    where r.msc_orbit_reconciliation_id is null
+                    """,
+                ),
+            }
 
         msc_system_orbitlike_total = scalar(
             con,
@@ -277,7 +299,7 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
                    or theta_last_deg is not null
                 """,
             ),
-            "wds_component_observation_rows_without_component_entity": scalar(
+            "wds_observation_pair_keys_not_component_entities_expected": scalar(
                 con,
                 """
                 select count(*)::bigint
@@ -286,7 +308,7 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
                 where c.stable_component_key is null
                 """,
             ),
-            "wds_component_observation_rows_without_arm_orbit_edge": scalar(
+            "wds_observation_rows_not_promoted_to_orbit_expected": scalar(
                 con,
                 """
                 select count(*)::bigint
@@ -369,6 +391,58 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
             ),
             "core_white_dwarf_catalog_mass_rows": scalar(con, "select count(*)::bigint from core_db.stars where wd_catalog_mass_msun is not null"),
         }
+        wds_pair_status: list[dict[str, Any]] = []
+        wds_pair_samples: list[dict[str, Any]] = []
+        if has_table(con, "wds_pair_evidence"):
+            source_coverage.update(
+                {
+                    "wds_pair_evidence_rows": scalar(con, "select count(*)::bigint from wds_pair_evidence"),
+                    "wds_pair_evidence_accepted_rows": scalar(
+                        con, "select count(*)::bigint from wds_pair_evidence where match_status = 'accepted'"
+                    ),
+                    "wds_pair_evidence_asserting_bound_relationship": scalar(
+                        con, "select count(*)::bigint from wds_pair_evidence where asserts_bound_relationship"
+                    ),
+                    "wds_pair_evidence_simulation_ready_orbits": scalar(
+                        con, "select count(*)::bigint from wds_pair_evidence where simulation_ready_orbit"
+                    ),
+                }
+            )
+            wds_pair_status = rows(
+                con,
+                """
+                select pair_parse_status, match_status, match_reason, count(*)::bigint as row_count
+                from wds_pair_evidence
+                group by 1, 2, 3
+                order by 1, 2, 3
+                limit ?
+                """,
+                limit=100,
+            )
+            wds_pair_samples = rows(
+                con,
+                """
+                select
+                  wds_id,
+                  source_component_label,
+                  pair_primary_label,
+                  pair_secondary_label,
+                  primary_component_key,
+                  secondary_component_key,
+                  match_status,
+                  match_reason,
+                  source_pk
+                from wds_pair_evidence
+                where match_status <> 'accepted'
+                  and pair_parse_status <> 'unspecified'
+                order by
+                  case match_status when 'ambiguous' then 0 else 1 end,
+                  wds_id,
+                  source_pk
+                limit ?
+                """,
+                limit=sample_limit,
+            )
         source_coverage["spectral_class_without_source_mass_evidence_rows"] = scalar(
             con,
             """
@@ -561,6 +635,7 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
                 "msc_orbit_detail_rows_without_arm_orbit_edge": msc_orbit_unmatched,
                 "msc_system_detail_orbitlike_rows": msc_system_orbitlike_total,
                 "msc_system_detail_orbitlike_rows_without_arm_orbit_edge": msc_system_orbitlike_without_edge,
+                **msc_reconciliation_counts,
                 "msc_system_detail_endpoint_rows": source_endpoints_total,
                 "msc_system_detail_endpoint_rows_with_physical_values": source_endpoints_with_physical_values,
                 "msc_source_endpoint_keys_missing_component_entity": source_endpoint_keys_missing_component,
@@ -571,7 +646,9 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
             "samples": {
                 "msc_orbit_detail_rows_without_arm_orbit_edge": msc_orbit_unmatched_samples,
                 "msc_source_endpoint_key_bridges": endpoint_bridge_samples,
-                "wds_component_observation_rows_without_component_entity": wds_unmatched_samples,
+                "wds_observation_pair_key_samples": wds_unmatched_samples,
+                "wds_pair_evidence_outcomes": wds_pair_status,
+                "wds_pair_evidence_unresolved": wds_pair_samples,
                 "spectral_class_without_source_mass_evidence_rows": source_mass_gap_samples,
                 "orbital_solutions_by_catalog": orbital_solutions_by_catalog,
                 "core_system_star_count_vs_hierarchy_star_count_mismatches": system_count_mismatch_samples,
@@ -580,7 +657,8 @@ def audit(build_dir: Path, *, sample_limit: int = 20, include_hierarchy_mismatch
                 "MSC detail rows are preserved ARM source evidence.",
                 "Rows without ARM orbit edges are not available to the simulation as normalized orbital solutions.",
                 "MSC source endpoint keys that bridge by WDS label to canonical components indicate evidence we can use, but need deterministic endpoint reconciliation.",
-                "WDS component observations are preserved pair-observation evidence; lack of ARM orbit edges means they have not been normalized as simulation-ready relationships.",
+                "WDS observation pair keys are evidence-record identities, not component entities or orbit edges.",
+                "Accepted WDS pair-evidence bindings resolve source-scoped endpoints only; they do not assert gravitational binding or create simulation-ready orbits.",
                 "Core star_count versus hierarchy mismatch samples are opt-in because they require a recursive graph scan.",
                 "Source coverage counts summarize preserved/normalized evidence streams without scanning every UI consumer.",
             ],

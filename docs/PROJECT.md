@@ -133,6 +133,14 @@ separated because they are support/evidence, may contain alternate or
 confidence-ranked claims, and should not imply canonical Spacegate inventory
 acceptance.
 
+Observation identity is distinct from physical interpretation. For example,
+WDS endpoint bindings may establish which two source-scoped components were
+measured while remaining only sky-projection evidence; they do not by
+themselves establish a bound relationship or fitted orbit. Likewise canonical
+hierarchy stores structural node kind separately from physical component type
+so inferred, substellar, and compact endpoints remain inspectable without
+being flattened into generic stars or promoted into core inventory.
+
 ### Disc (rebuildable derived artifacts)
 
 - coolness scoring

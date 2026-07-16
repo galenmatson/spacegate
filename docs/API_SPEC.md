@@ -1641,6 +1641,8 @@ Response 200:
     },
     "root": {
       "stable_component_key": "comp:msc_system:wds:07346+3153",
+      "node_kind": "system",
+      "component_family": "system",
       "component_type": "system",
       "display_name": "Castor",
       "total_star_count": 6,
@@ -1711,6 +1713,13 @@ Display-name behavior:
   generated from the same system, hierarchy, planet, and infrared evidence in
   the response. These blocks are presentation text, not new science facts.
 - `hierarchy` is the generic nested system graph payload assembled from `arm` component, containment, and orbit records.
+- hierarchy nodes separate structural `node_kind` from storage/API
+  `component_family` and physical `component_type`. A brown dwarf may therefore
+  be an `inferred_star_leaf` in the `star` family with
+  `component_type="brown_dwarf"`; clients must not erase inferred status or
+  treat type as canonical inventory promotion. Inferred substellar endpoints
+  remain renderable hierarchy bodies but contribute zero to stellar-leaf
+  counts.
 - `system.star_count` in detail payloads is descendant-aware when `hierarchy` exposes more stars than the flat `core.stars` member list. Star Search browse filters use the materialized search facet for public-performance reasons.
 - the flat `stars` array remains the canonical direct core membership list; it is not guaranteed to enumerate every nested scientific leaf shown in `hierarchy`.
 

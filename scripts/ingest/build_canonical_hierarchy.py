@@ -160,6 +160,36 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             where node_key like 'src:legacy_core_planet:%'
             """
         )
+        con.execute(
+            """
+            create temp table canonical_star_types as
+            with ranked as (
+              select
+                star_map.canonical_star_key,
+                coalesce(nullif(trim(ce.core_object_type), ''), 'star') as component_family,
+                coalesce(nullif(trim(ce.component_type), ''), 'star') as component_type,
+                row_number() over (
+                  partition by star_map.canonical_star_key
+                  order by
+                    case when ce.core_object_type = 'star' then 0 else 1 end,
+                    case
+                      when ce.component_type in ('brown_dwarf', 'white_dwarf', 'pulsar', 'neutron_star') then 0
+                      when ce.component_type = 'star' then 1
+                      else 2
+                    end,
+                    ce.component_type,
+                    ce.stable_component_key
+                ) as type_rank
+              from core_to_canonical_star star_map
+              join arm.component_entities ce
+                on ce.core_object_type = 'star'
+               and ce.core_object_id = star_map.core_star_id
+            )
+            select canonical_star_key, component_family, component_type
+            from ranked
+            where type_rank = 1
+            """
+        )
 
         con.execute(
             """
@@ -561,6 +591,8 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
               select
                 canonical_system_key as hierarchy_node_key,
                 'system'::varchar as node_kind,
+                'system'::varchar as component_family,
+                'system'::varchar as component_type,
                 canonical_system_key as canonical_key,
                 representative_name as display_name,
                 wds_id,
@@ -570,15 +602,18 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             ),
             star_nodes as (
               select
-                canonical_star_key as hierarchy_node_key,
+                stars.canonical_star_key as hierarchy_node_key,
                 'star'::varchar as node_kind,
-                canonical_star_key as canonical_key,
-                representative_name as display_name,
+                coalesce(types.component_family, 'star')::varchar as component_family,
+                coalesce(types.component_type, 'star')::varchar as component_type,
+                stars.canonical_star_key as canonical_key,
+                stars.representative_name as display_name,
                 cast(null as varchar) as wds_id,
                 cast(null as varchar) as member_role,
                 'canonical_star'::varchar as source_basis
-              from red.canonical_star_groups
-              where canonical_star_key in (
+              from red.canonical_star_groups stars
+              left join canonical_star_types types using (canonical_star_key)
+              where stars.canonical_star_key in (
                 select distinct canonical_star_key from root_star_edges
                 union
                 select distinct canonical_star_key from hosted_planets
@@ -588,6 +623,8 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
               select
                 canonical_planet_key as hierarchy_node_key,
                 'planet'::varchar as node_kind,
+                'planet'::varchar as component_family,
+                'planet'::varchar as component_type,
                 canonical_planet_key as canonical_key,
                 representative_name as display_name,
                 cast(null as varchar) as wds_id,
@@ -602,19 +639,25 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             ),
             msc_leaf as (
               select
-                hierarchy_node_key,
+                leaf.hierarchy_node_key,
                 'inferred_star_leaf'::varchar as node_kind,
+                'star'::varchar as component_family,
+                coalesce(nullif(trim(endpoint.component_type), ''), 'star')::varchar as component_type,
                 cast(null as varchar) as canonical_key,
-                display_name,
-                replace(split_part(stable_component_key, ':', 4), '', '') as wds_id,
-                member_role,
+                leaf.display_name,
+                replace(split_part(leaf.stable_component_key, ':', 4), '', '') as wds_id,
+                leaf.member_role,
                 'msc_inferred_leaf'::varchar as source_basis
-              from msc_leaf_nodes
+              from msc_leaf_nodes leaf
+              left join arm.component_entities endpoint
+                on endpoint.stable_component_key = leaf.stable_component_key
             ),
             unresolved_role as (
               select
                 hierarchy_node_key,
                 'unresolved_component'::varchar as node_kind,
+                'component'::varchar as component_family,
+                'unresolved_component'::varchar as component_type,
                 cast(null as varchar) as canonical_key,
                 display_name,
                 wds_id,

@@ -155,6 +155,19 @@ def parse_wds_pm_token(value: str) -> tuple[float | None, float | None]:
     return ra_pm, dec_pm
 
 
+def parse_wds_pair_label(value: str) -> tuple[str | None, str | None, str]:
+    """Parse the WDS component field without discarding endpoint scope/case."""
+    text = str(value or "").strip()
+    if not text:
+        return None, None, "unspecified"
+    if re.fullmatch(r"[A-Za-z0-9]+,[A-Za-z0-9]+", text):
+        primary, secondary = text.split(",", 1)
+        return primary, secondary, "explicit_pair"
+    if re.fullmatch(r"[A-Za-z0-9]{2}", text):
+        return text[0], text[1], "implicit_single_character_pair"
+    return None, None, "unsupported_label"
+
+
 def cook_wds(raw_path: Path, cooked_path: Path) -> int:
     cooked_path.parent.mkdir(parents=True, exist_ok=True)
     line_count = 0
@@ -167,6 +180,9 @@ def cook_wds(raw_path: Path, cooked_path: Path) -> int:
                 "wds_id",
                 "discoverer",
                 "component",
+                "pair_primary_label",
+                "pair_secondary_label",
+                "pair_parse_status",
                 "first_year",
                 "last_year",
                 "obs_count",
@@ -201,11 +217,16 @@ def cook_wds(raw_path: Path, cooked_path: Path) -> int:
             ra_deg, dec_deg = parse_wds_coord(precise_coordinate)
             pm_primary_ra, pm_primary_dec = parse_wds_pm_token(line[79:87].strip())
             pm_secondary_ra, pm_secondary_dec = parse_wds_pm_token(line[87:95].strip())
+            component = line[17:22].strip()
+            pair_primary, pair_secondary, pair_status = parse_wds_pair_label(component)
             writer.writerow(
                 {
                     "wds_id": line[0:10].strip(),
                     "discoverer": line[10:17].strip(),
-                    "component": line[17:22].strip(),
+                    "component": component,
+                    "pair_primary_label": pair_primary,
+                    "pair_secondary_label": pair_secondary,
+                    "pair_parse_status": pair_status,
                     "first_year": line[22:27].strip(),
                     "last_year": line[27:32].strip(),
                     "obs_count": line[32:37].strip(),

@@ -160,6 +160,11 @@ Canonical emission note:
   the bootstrap source revision so deterministic comparisons never accept
   materially different transform code as a rerun
 - emitted canonical builds ship a sibling `canonical_hierarchy.duckdb`; the API should prefer that hierarchy when present and fall back to `arm` hierarchy otherwise
+- canonical hierarchy nodes carry structural `node_kind` separately from
+  `component_family` and `component_type`. Canonical and inferred stellar
+  endpoints remain in the `star` storage family while retaining types such as
+  `brown_dwarf`, `white_dwarf`, or `pulsar`; inferred status is never erased by
+  classification.
 - emitted canonical builds materialize compact `system_search_terms` so validation exercises the fast search path instead of the alias/star fallback scans
 - the bootstrap build remains an immutable input artifact, but `scripts/build_database.sh` and full `scripts/refresh_core.sh` promotion target the canonical build id
 

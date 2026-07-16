@@ -3333,7 +3333,11 @@ def main() -> int:
           select
             nullif(wds_id, '') as wds_id,
             nullif(discoverer, '') as discoverer,
+            nullif(trim(component), '') as source_component_label,
             lower(regexp_replace(coalesce(component, ''), '[^0-9A-Za-z]+', '', 'g')) as component_label,
+            nullif(trim(pair_primary_label), '') as pair_primary_label,
+            nullif(trim(pair_secondary_label), '') as pair_secondary_label,
+            coalesce(nullif(trim(pair_parse_status), ''), 'unsupported_label') as pair_parse_status,
             try_cast(nullif(first_year, '') as bigint) as first_year,
             try_cast(nullif(last_year, '') as bigint) as last_year,
             try_cast(nullif(obs_count, '') as bigint) as obs_count,
@@ -3357,14 +3361,28 @@ def main() -> int:
           where nullif(wds_id, '') is not null
         )
         select
-          row_number() over (order by t.wds_id, t.component_label, coalesce(m.star_id, -1))::bigint as wds_component_observation_id,
+          row_number() over (
+            order by
+              t.wds_id,
+              t.component_label,
+              coalesce(t.discoverer, ''),
+              coalesce(t.precise_coordinate, ''),
+              coalesce(t.first_year, -1),
+              coalesce(t.last_year, -1),
+              coalesce(t.obs_count, -1),
+              coalesce(m.star_id, -1)
+          )::bigint as wds_component_observation_id,
           s.system_id,
           m.star_id,
           s.stable_object_key,
           coalesce(m.stable_component_key, 'comp:wds:' || t.wds_id || ':' || t.component_label) as stable_component_key,
           t.wds_id,
           t.discoverer,
+          t.source_component_label,
           t.component_label,
+          t.pair_primary_label,
+          t.pair_secondary_label,
+          t.pair_parse_status,
           t.first_year,
           t.last_year,
           t.obs_count,
@@ -3400,6 +3418,109 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: wds_component_observations ({time.monotonic() - stage_started:.1f}s)")
+
+    stage_started = time.monotonic()
+    log("Arm stage: creating wds_pair_evidence")
+    con.execute(
+        f"""
+        create table wds_pair_evidence as
+        with endpoint_candidates as (
+          select distinct
+            st.wds_id,
+            lower(regexp_replace(coalesce(st.component, ''), '[^0-9A-Za-z]+', '', 'g')) as endpoint_label,
+            'component'::varchar as endpoint_scope,
+            'comp:star:' || st.stable_object_key as endpoint_key
+          from core.stars st
+          where st.wds_id is not null and nullif(trim(st.component), '') is not null
+          union
+          select distinct
+            split_part(split_part(ce.stable_component_key, 'wds:', 2), ':', 1) as wds_id,
+            lower(coalesce(ce.catalog_component_label, '')) as endpoint_label,
+            case when ce.component_type = 'subsystem' then 'subsystem' else 'component' end as endpoint_scope,
+            ce.stable_component_key as endpoint_key
+          from component_entities ce
+          where ce.source_catalog = 'msc'
+            and ce.stable_component_key like '%wds:%'
+            and nullif(trim(ce.catalog_component_label), '') is not null
+        ), requested_endpoints as (
+          select
+            w.*,
+            lower(regexp_replace(coalesce(w.pair_primary_label, ''), '[^0-9A-Za-z]+', '', 'g')) as primary_label_norm,
+            lower(regexp_replace(coalesce(w.pair_secondary_label, ''), '[^0-9A-Za-z]+', '', 'g')) as secondary_label_norm,
+            case
+              when length(w.pair_primary_label) > 1 and upper(w.pair_primary_label) = w.pair_primary_label then 'subsystem'
+              else 'component'
+            end as primary_scope,
+            case
+              when length(w.pair_secondary_label) > 1 and upper(w.pair_secondary_label) = w.pair_secondary_label then 'subsystem'
+              else 'component'
+            end as secondary_scope
+          from wds_component_observations w
+        ), candidate_rollup as (
+          select
+            requested.wds_component_observation_id,
+            count(distinct primary_candidate.endpoint_key)::bigint as primary_candidate_count,
+            min(primary_candidate.endpoint_key) as primary_component_key,
+            count(distinct secondary_candidate.endpoint_key)::bigint as secondary_candidate_count,
+            min(secondary_candidate.endpoint_key) as secondary_component_key
+          from requested_endpoints requested
+          left join endpoint_candidates primary_candidate
+            on primary_candidate.wds_id = requested.wds_id
+           and primary_candidate.endpoint_label = requested.primary_label_norm
+           and primary_candidate.endpoint_scope = requested.primary_scope
+          left join endpoint_candidates secondary_candidate
+            on secondary_candidate.wds_id = requested.wds_id
+           and secondary_candidate.endpoint_label = requested.secondary_label_norm
+           and secondary_candidate.endpoint_scope = requested.secondary_scope
+          group by requested.wds_component_observation_id
+        )
+        select
+          requested.wds_component_observation_id::bigint as wds_pair_evidence_id,
+          requested.wds_component_observation_id,
+          requested.system_id,
+          requested.stable_object_key,
+          requested.wds_id,
+          requested.source_component_label,
+          requested.pair_primary_label,
+          requested.pair_secondary_label,
+          requested.pair_parse_status,
+          case when rollup.primary_candidate_count = 1 then rollup.primary_component_key end as primary_component_key,
+          case when rollup.secondary_candidate_count = 1 then rollup.secondary_component_key end as secondary_component_key,
+          rollup.primary_candidate_count,
+          rollup.secondary_candidate_count,
+          case
+            when requested.pair_parse_status not in ('explicit_pair', 'implicit_single_character_pair') then 'excluded'
+            when rollup.primary_candidate_count > 1 or rollup.secondary_candidate_count > 1 then 'ambiguous'
+            when rollup.primary_candidate_count = 0 or rollup.secondary_candidate_count = 0 then 'missing_endpoint'
+            when rollup.primary_component_key = rollup.secondary_component_key then 'ambiguous'
+            else 'accepted'
+          end::varchar as match_status,
+          case
+            when requested.pair_parse_status = 'unspecified' then 'source_pair_unspecified'
+            when requested.pair_parse_status = 'unsupported_label' then 'source_pair_label_unsupported'
+            when rollup.primary_candidate_count > 1 then 'primary_endpoint_not_unique'
+            when rollup.secondary_candidate_count > 1 then 'secondary_endpoint_not_unique'
+            when rollup.primary_candidate_count = 0 then 'primary_endpoint_missing'
+            when rollup.secondary_candidate_count = 0 then 'secondary_endpoint_missing'
+            when rollup.primary_component_key = rollup.secondary_component_key then 'endpoints_collapse_to_same_component'
+            else 'unique_source_scoped_endpoint_pair'
+          end::varchar as match_reason,
+          'sky_projection_measurement'::varchar as evidence_role,
+          false::boolean as asserts_bound_relationship,
+          false::boolean as simulation_ready_orbit,
+          requested.source_catalog,
+          requested.source_version,
+          requested.source_pk,
+          requested.source_row_hash,
+          requested.retrieval_checksum,
+          requested.retrieved_at,
+          requested.ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version
+        from requested_endpoints requested
+        join candidate_rollup rollup using (wds_component_observation_id)
+        """
+    )
+    log(f"Arm stage complete: wds_pair_evidence ({time.monotonic() - stage_started:.1f}s)")
 
     stage_started = time.monotonic()
     log("Arm stage: creating system_hierarchy_edges")
@@ -3992,6 +4113,68 @@ def main() -> int:
         """
     )
     log(f"Arm stage complete: orbit_edges ({time.monotonic() - stage_started:.1f}s)")
+
+    con.execute(
+        f"""
+        create table msc_orbit_reconciliation as
+        with evaluated as (
+          select
+            m.*,
+            exists (
+              select 1 from orbit_edges e where e.source_pk = m.source_pk
+            ) as matched_by_source_pk,
+            exists (
+              select 1
+              from orbit_edges e
+              where (
+                e.primary_component_key = m.primary_component_key
+                and e.secondary_component_key = m.secondary_component_key
+              ) or (
+                e.primary_component_key = m.secondary_component_key
+                and e.secondary_component_key = m.primary_component_key
+              )
+            ) as matched_by_endpoint_pair,
+            exists (
+              select 1 from core.systems s where s.wds_id = m.wds_id
+            ) as canonical_system_exists,
+            exists (
+              select 1 from msc_system_details d where d.wds_id = m.wds_id
+            ) as msc_system_relationship_exists
+          from msc_orbit_details m
+        )
+        select
+          msc_orbit_detail_id::bigint as msc_orbit_reconciliation_id,
+          msc_orbit_detail_id,
+          source_pk as msc_orbit_source_pk,
+          wds_id,
+          primary_component_key,
+          secondary_component_key,
+          case
+            when matched_by_source_pk or matched_by_endpoint_pair then 'accepted'
+            when not canonical_system_exists and not msc_system_relationship_exists then 'excluded'
+            else 'quarantined'
+          end::varchar as reconciliation_status,
+          case
+            when matched_by_source_pk then 'normalized_by_source_pk'
+            when matched_by_endpoint_pair then 'normalized_by_endpoint_pair'
+            when not canonical_system_exists and not msc_system_relationship_exists then 'source_system_not_in_canonical_inventory'
+            when not canonical_system_exists then 'canonical_system_missing'
+            when not msc_system_relationship_exists then 'msc_system_relationship_missing'
+            else 'normalized_orbit_edge_missing'
+          end::varchar as reconciliation_reason,
+          canonical_system_exists,
+          msc_system_relationship_exists,
+          source_catalog,
+          source_version,
+          source_pk,
+          source_row_hash,
+          retrieval_checksum,
+          retrieved_at,
+          {sql_literal(args.ingested_at)}::varchar as ingested_at,
+          {sql_literal(args.transform_version)}::varchar as transform_version
+        from evaluated
+        """
+    )
 
     stage_started = time.monotonic()
     log("Arm stage: creating orbital_solutions")
@@ -5802,6 +5985,18 @@ def main() -> int:
     wds_component_observation_count = int(
         con.execute("select count(*) from wds_component_observations").fetchone()[0] or 0
     )
+    wds_pair_evidence_counts = {
+        str(status): int(count or 0)
+        for status, count in con.execute(
+            "select match_status, count(*)::bigint from wds_pair_evidence group by 1 order by 1"
+        ).fetchall()
+    }
+    msc_orbit_reconciliation_counts = {
+        str(status): int(count or 0)
+        for status, count in con.execute(
+            "select reconciliation_status, count(*)::bigint from msc_orbit_reconciliation group by 1 order by 1"
+        ).fetchall()
+    }
     stellar_parameter_count = int(
         con.execute("select count(*) from stellar_parameters").fetchone()[0] or 0
     )
@@ -6206,6 +6401,8 @@ def main() -> int:
             "msc_system_details": msc_system_detail_count,
             "msc_orbit_details": msc_orbit_detail_count,
             "wds_component_observations": wds_component_observation_count,
+            "wds_pair_evidence_by_status": wds_pair_evidence_counts,
+            "msc_orbit_reconciliation_by_status": msc_orbit_reconciliation_counts,
             "stellar_parameters_rows": stellar_parameter_count,
             "derived_physical_parameters_rows": derived_parameter_count,
             "derived_physical_parameters_by_key": derived_parameter_counts_by_key,

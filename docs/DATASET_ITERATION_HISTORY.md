@@ -570,6 +570,41 @@ Representative commits:
 - `e6d74d5` (source-native canonical stable keys)
 - `06ac777`, `214cb36` (transform-scoped CORE and science-payload determinism)
 
+### 22) Source Evidence Closeout + WDS Pair Policy v1
+
+- Re-ran the source-evidence audit against a fresh ARM built from the pinned
+  multiplicity inputs. The current MSC snapshot preserves 4,633 `orb.tsv`
+  rows: 4,627 normalize to ARM orbit edges and six rows across five WDS scopes
+  have neither a canonical system nor an MSC `sys.tsv` relationship.
+- Added `msc_orbit_reconciliation` so accepted, excluded, and quarantined
+  outcomes are machine-readable. The six tail rows are excluded by the general
+  `source_system_not_in_canonical_inventory` rule; zero rows remain quarantined
+  or unaccounted. No placeholder host or simulator endpoint is fabricated.
+- Inspected the named Tegmine, Xi Scorpii, and Nu Sco warnings. Their orbit rows
+  are normalized, but some source groupings partially overlap other valid
+  groupings and cannot all inhabit one non-overlapping Kepler tree. They remain
+  explicit presentation diagnostics pending evidence-based topology selection.
+- Recooked all 157,299 WDS summary rows with case- and punctuation-preserving
+  pair labels. `wds_pair_evidence` parses single-component pairs (`AB`) and
+  scoped pairs (`Aa,Ab`, `AB,C`), then records unique, missing, ambiguous, or
+  excluded endpoint bindings.
+- The validation ARM accepts 2,080 unique source-scoped WDS pairs. Every row is
+  classified as a sky-projection measurement; bound-relationship assertions
+  and simulation-ready WDS-only orbits both remain zero.
+- Canonical hierarchy now carries `component_family` and `component_type`
+  separately from structural `node_kind`. Full-bootstrap validation retains
+  brown-dwarf, white-dwarf, pulsar, and inferred-leaf types; Castor CC is an
+  inferred brown-dwarf endpoint rather than a hardcoded system exception.
+- Updated the non-executable adjudication inbox: Sirius A/B record the reusable
+  rules that resolved them, L 134-80 remains deferred, and Castor CC is deferred
+  for classification/physical-status review without affecting catalog output.
+- Bootstrap now installs checksummed reports advertised by `current.json` into
+  a staged build-scoped report directory. Publisher discovery includes all
+  build-scoped JSON reports rather than a fixed filename subset.
+
+Representative commits:
+- pending (source evidence closeout v1)
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

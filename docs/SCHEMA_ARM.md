@@ -146,13 +146,14 @@ Notes:
   hierarchy evidence, not a source-object merge or a suffix-only inference.
 - MSC `sys.tsv` and `orb.tsv` rows may both create deterministic `binary` or
   `hierarchical_pair` edges when the host and both endpoint component keys
-  resolve. `orb.tsv` rows that do not resolve remain diagnostics; they must not
-  create fake simulator endpoints.
+  resolve. Every `orb.tsv` row is accounted for in
+  `msc_orbit_reconciliation`; excluded or quarantined rows must not create fake
+  simulator endpoints.
 - WDS pair observations are preserved separately in
-  `wds_component_observations`. They are long-baseline observational evidence,
-  but they are not automatically equivalent to fitted orbital solutions. A
-  later WDS-utilization pass should decide which pair rows become support pair
-  entities, projection evidence, orbit-edge candidates, or diagnostics.
+  `wds_component_observations` and reconciled in `wds_pair_evidence`. Accepted
+  bindings identify two source-scoped endpoints and remain sky-projection
+  measurements. They do not assert gravitational binding and never become
+  fitted orbital solutions without an independent orbit source.
 - Runtime render contracts may expose subsystem nodes as inspectable UI bodies
   with descendant render keys and derived child counts. Those presentation
   handles must remain backed by `component_entities`/`system_hierarchy_edges`
@@ -481,7 +482,10 @@ Columns:
 - `stable_component_key TEXT`
 - `wds_id TEXT`
 - `discoverer TEXT` (nullable)
+- `source_component_label TEXT` (case- and punctuation-preserving WDS value)
 - `component_label TEXT`
+- `pair_primary_label TEXT`, `pair_secondary_label TEXT` (nullable)
+- `pair_parse_status TEXT`
 - observation window: `first_year`, `last_year`, `obs_count`
 - position history: `theta_first_deg`, `theta_last_deg`, `rho_first_arcsec`, `rho_last_arcsec`
 - `mag_primary DOUBLE`, `mag_secondary DOUBLE` (nullable)
@@ -492,6 +496,40 @@ Columns:
 - `precise_coordinate TEXT` (nullable)
 - `ra_deg DOUBLE`, `dec_deg DOUBLE` (nullable)
 - provenance fields (`source_*`, `retrieval_*`, `ingested_at`, `transform_version`)
+
+## `wds_pair_evidence`
+
+Deterministic endpoint accounting for WDS pair-observation rows.
+
+- source observation/system/WDS identifiers and the source-native pair label
+- parsed primary and secondary labels plus parse status
+- resolved primary/secondary component keys and candidate counts
+- `match_status TEXT` (`accepted|missing_endpoint|ambiguous|excluded`)
+- `match_reason TEXT`
+- `evidence_role TEXT` (`sky_projection_measurement` in v1)
+- `asserts_bound_relationship BOOLEAN` (false in v1)
+- `simulation_ready_orbit BOOLEAN` (false in v1)
+- full source and transform provenance
+
+An accepted row means only that both WDS endpoints bind uniquely at their
+source-declared component/subsystem scope. Separation and position angle remain
+projected observations, not Kepler elements or proof that the pair is bound.
+
+## `msc_orbit_reconciliation`
+
+One deterministic outcome per preserved MSC `orb.tsv` row.
+
+- source orbit/WDS identity and endpoint keys
+- unique `msc_orbit_detail_id` plus the source-native orbit PK (which is not
+  assumed unique across preserved source rows)
+- `reconciliation_status TEXT` (`accepted|excluded|quarantined`)
+- `reconciliation_reason TEXT`
+- canonical-system and MSC-system-relationship presence flags
+- full source and transform provenance
+
+Rows outside canonical inventory with no corresponding MSC system relationship
+are explicitly excluded. Any in-scope row that still lacks a normalized edge
+is quarantined and must fail the source-evidence gate.
 
 ## `barycenters`
 
@@ -1025,6 +1063,13 @@ Build fails when:
 - `preferred_solution_id` points to non-existent orbital solution
 - confidence/provenance required fields are null
 - `animation_readiness` marks `full` while missing required Kepler set
+- MSC orbit reconciliation leaves any preserved row unaccounted or quarantined
+  at promotion time
+- an accepted WDS pair lacks two distinct endpoints, or any WDS-only row
+  asserts binding / simulation-ready orbit status
+
+Run `scripts/verify_source_evidence_closeout.py` against candidate ARM and
+canonical-hierarchy artifacts to emit the machine-readable gate report.
 
 ## MSC Policy
 

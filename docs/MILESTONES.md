@@ -1128,18 +1128,35 @@ Completed:
   Archive checksum, public health/auth, API integration, known-system goldens,
   exact/progressive desktop/mobile map checks, 4K Bright rendering, screenshots,
   and canvas-pixel probes pass against the public service.
+- Source-evidence closeout accounts for all 4,633 current MSC orbit rows:
+  4,627 normalize to ARM edges and six rows across five WDS scopes are excluded
+  because neither canonical inventory nor MSC `sys.tsv` contains the system;
+  zero rows remain quarantined or unaccounted.
+- Canonical hierarchy v2 typing separates structural `node_kind` from
+  `component_family`/`component_type`. Across the full bootstrap hierarchy this
+  preserves 2,748,018 brown dwarfs, 176,698 white dwarfs, three pulsars, and
+  171 inferred brown-dwarf leaves without changing stellar storage family or
+  inferred status.
+- WDS pair-evidence v1 preserves source-native endpoint scope and partitions
+  157,299 rows into deterministic binding outcomes. The validation build binds
+  2,080 rows to unique endpoint pairs while asserting zero bound relationships
+  and creating zero simulation-ready orbits.
+- Sirius A/B adjudication inbox entries are marked resolved by their reusable
+  catalog rules. L 134-80 remains deferred; Castor CC is now an explicit
+  non-executable classification/physical-status deferral.
+- Edge bootstrap now validates and installs every report advertised by
+  `current.json`; report paths are bounded relative JSON paths and are staged
+  atomically under the published build ID.
 
 Remaining:
 
-- inspect the six remaining MSC `orb.tsv` rows that do not resolve to ARM
-  orbit edges.
-- inspect known wide-orbit warning cases where source rows are preserved but
-  not yet attached to the simulation tree: Tegmine `orbit:3074`, Xi Scorpii
-  `orbit:13178`, and Nu Sco `orbit:5630`, `orbit:5632`, `orbit:13216`.
-- design WDS pair-observation utilization separately. The expanded audit shows
-  WDS observation rows are preserved, but Spacegate has not yet decided which
-  rows should become ARM pair support entities, projection evidence, orbit-edge
-  candidates, or diagnostics only.
+- define slice-native QC/provenance reports for immutable presentation builds;
+  report installation is complete, but canonical full-build reports cannot be
+  relabeled as slice reports because their build IDs and row counts differ.
+- preserve the known Tegmine, Xi Scorpii, and Nu Sco alternative/overlapping
+  source orbits as explicit simulation-tree diagnostics until an evidence-based
+  topology can select among incompatible groupings; do not force every source
+  solution into one non-overlapping Kepler tree.
 - run the remaining L 134-80 deferred case through the inspectable AAA/human
   adjudication contract; Sirius has been resolved by general catalog rules.
 - evaluate Skiff spectral classifications and VSX composite spectral strings

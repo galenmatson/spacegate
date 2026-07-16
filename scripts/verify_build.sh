@@ -436,6 +436,26 @@ PY
         --arm-db "$arm_db"
       echo "OK: WISE evidence target integrity"
     fi
+    if "$PYTHON_BIN" - "$arm_db" <<'PY'
+import duckdb
+import sys
+con = duckdb.connect(sys.argv[1], read_only=True)
+tables = {str(row[0]) for row in con.execute("show tables").fetchall()}
+con.close()
+required = {"msc_orbit_reconciliation", "wds_pair_evidence"}
+raise SystemExit(0 if required.issubset(tables) else 1)
+PY
+    then
+      source_evidence_args=(
+        --build-dir "$build_dir"
+        --report "$reports_dir/source_evidence_closeout_report.json"
+      )
+      if [[ -f "$build_dir/canonical_hierarchy.duckdb" ]]; then
+        source_evidence_args+=(--hierarchy-db "$build_dir/canonical_hierarchy.duckdb")
+      fi
+      "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_source_evidence_closeout.py" "${source_evidence_args[@]}"
+      echo "OK: source evidence reconciliation"
+    fi
     if [[ "$VERIFY_MULTIPLE_COMPONENT_EVIDENCE" == "1" ]]; then
       "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_multiple_component_evidence.py" \
         --arm-db "$arm_db" \

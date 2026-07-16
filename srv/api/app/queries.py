@@ -249,6 +249,31 @@ def _has_local_column(
         return False
 
 
+def _has_attached_column(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    alias: str,
+    table_name: str,
+    column_name: str,
+) -> bool:
+    try:
+        row = con.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_catalog = ?
+              AND table_schema = 'main'
+              AND table_name = ?
+              AND column_name = ?
+            LIMIT 1
+            """,
+            [alias, table_name, column_name],
+        ).fetchone()
+        return bool(row)
+    except Exception:
+        return False
+
+
 def _clean_name(value: Any) -> str:
     return str(value or "").strip()
 
@@ -2608,11 +2633,23 @@ def _fetch_canonical_hierarchy_for_system(
 
     hierarchy_node_keys = [str(row[0]) for row in hierarchy_rows if row and row[0]]
     key_placeholders = ",".join(["?"] * len(hierarchy_node_keys))
+    has_explicit_types = _has_attached_column(
+        con,
+        alias="canon_hier",
+        table_name="hierarchy_nodes",
+        column_name="component_type",
+    )
+    explicit_type_columns = (
+        "component_family, component_type,"
+        if has_explicit_types
+        else "cast(null as varchar) as component_family, cast(null as varchar) as component_type,"
+    )
     entity_rows = con.execute(
         f"""
         SELECT
           hierarchy_node_key,
           node_kind,
+          {explicit_type_columns}
           canonical_key,
           display_name,
           wds_id,
@@ -2636,6 +2673,8 @@ def _fetch_canonical_hierarchy_for_system(
     for (
         hierarchy_node_key,
         node_kind,
+        explicit_component_family,
+        explicit_component_type,
         canonical_key,
         display_name,
         node_wds_id,
@@ -2644,8 +2683,10 @@ def _fetch_canonical_hierarchy_for_system(
     ) in entity_rows:
         clean_kind = _clean_name(node_kind).lower() or "unknown"
         canonical = _clean_name(canonical_key) or None
-        component_family = node_kind_to_family.get(clean_kind, clean_kind)
-        component_type = "star" if clean_kind == "inferred_star_leaf" else component_family
+        component_family = _clean_name(explicit_component_family).lower() or node_kind_to_family.get(clean_kind, clean_kind)
+        component_type = _clean_name(explicit_component_type).lower() or (
+            "star" if clean_kind == "inferred_star_leaf" else component_family
+        )
         key = str(hierarchy_node_key)
         node_map[key] = {
             "stable_component_key": key,
@@ -2737,12 +2778,17 @@ def _fetch_canonical_hierarchy_for_system(
         if _clean_name(node.get("component_family")).lower() != "star":
             node["self_star_count"] = 0
             continue
+        if _clean_name(node.get("component_type")).lower() in {"brown_dwarf", "substellar"}:
+            node["self_star_count"] = 0
+            continue
         if node.get("node_kind") == "inferred_star_leaf":
             node["self_star_count"] = 1
             continue
         child_keys = children_map.get(node_key, [])
         has_leaf_children = any(
             _clean_name(node_map.get(child_key, {}).get("node_kind")).lower() == "inferred_star_leaf"
+            and _clean_name(node_map.get(child_key, {}).get("component_type")).lower()
+            not in {"brown_dwarf", "substellar"}
             for child_key in child_keys
         )
         node["self_star_count"] = 0 if has_leaf_children else 1

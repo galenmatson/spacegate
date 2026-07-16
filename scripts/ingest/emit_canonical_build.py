@@ -509,7 +509,9 @@ def emit_canonical_build(
             leaf_counts as (
               select
                 e.parent_node_key as canonical_star_key,
-                count(*)::bigint as leaf_star_count
+                count(*) filter (
+                  where coalesce(n.component_type, 'star') not in ('brown_dwarf', 'substellar')
+                )::bigint as leaf_star_count
               from hier.hierarchy_edges e
               join hier.hierarchy_nodes n on n.hierarchy_node_key = e.child_node_key
               where e.edge_kind = 'contains'
