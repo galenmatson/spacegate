@@ -666,6 +666,14 @@ Success criteria:
   priority materializer against the unpromoted temporary build, after ARM is
   ready and before immutable promotion. The default limit is 1,000 and can be
   changed with `--simulation-scene-limit`.
+- Scene warming is a performance optimization, not a science or promotion
+  correctness gate. Admin v2 exposes the allowlisted `Warm Simulation Scenes`
+  background action after promotion. It invokes the same versioned materializer
+  with `--output-mode runtime-cache`, writes only beneath
+  `$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/`, and is bounded to
+  10,000 selected systems. This avoids mutating immutable build artifacts;
+  uncached requests still assemble through the public contract and persist into
+  the same bounded cache.
 - A July 15 Castor smoke measurement reduced a repeated full scene from about
   1.19 seconds cold to 16 ms from the compressed runtime artifact. Two
   simultaneous cold requests produced one assembly and one coalesced response.

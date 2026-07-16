@@ -110,6 +110,13 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
     await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
     await expect(page.locator(".map-search-habitable")).toBeVisible();
+    const temperatureInputs = page.locator(".map-search-topbar .map-search-range input[type='range']");
+    await expect(temperatureInputs).toHaveCount(2);
+    await expect(temperatureInputs.nth(1)).toHaveValue("83000");
+    await expect(page.locator(".map-search-recents", { hasText: "Cool Stars Nearby" })).toBeVisible();
+    await expect(page.locator(".map-stellar-badge-stack").first()).toBeVisible();
+    await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.mapLabelPlanetBadgePlacement || ""))
+      .toBe("right_of_name_ringed_v2");
     const searchToggle = page.locator("[data-testid='map-search-toggle']");
     const minimalToggle = page.locator("[data-testid='map-minimal-toggle']");
     await expect(minimalToggle).toHaveText("MIN");
@@ -942,6 +949,8 @@ test.describe("public 3D map beta", () => {
     await expect(neighborPanel.getByText(/neighbors/i).first()).toBeVisible();
     await expect(neighborPanel.locator("input[type='range']")).toBeVisible();
     await expect(neighborPanel.getByRole("button", { name: /copy list/i })).toBeVisible();
+    await expect.poll(() => page.locator(".map-canvas canvas").evaluate((node) => Number(node.dataset.mapPinnedLabelCount || 0)))
+      .toBeGreaterThan(0);
     await neighborPanel.getByRole("button", { name: /close/i }).click();
     await expect(neighborPanel).toHaveCount(0);
 

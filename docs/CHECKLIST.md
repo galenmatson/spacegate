@@ -968,6 +968,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add tile-v4 confirmed-planet category badges for hot/temperate/cold gas
   giants and terrestrial planets, capped at one per category and omitted when
   composition or environment evidence is ambiguous
+- [x] Distinguish planet map badges from stellar badges with right-of-name
+  placement, smaller bodies, stronger rings, and a separate muted palette
+- [x] Make the map temperature filter's complete neutral range 0-83,000 K
+- [x] Separate neighbor endpoint labels from distance-line labels, continuously
+  update camera-local cool-star recommendations, and add compact multiplicity-
+  preserving stellar badge stacks to Recents and Cool Stars Nearby
 - [ ] Extend tile-v4 planet environment derivation to confirmed planets with
   orbital distance but no published equilibrium temperature/insolation,
   including the authoritative Solar System rows, using a general auditable
@@ -976,6 +982,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   build-keyed compressed runtime artifacts
 - [x] Add side-build priority simulation-scene materialization before immutable
   promotion
+- [x] Add an allowlisted Admin `Warm Simulation Scenes` background action that
+  writes only to the bounded build-keyed runtime cache, allowing priority scene
+  warming to be deferred until after promotion without mutating served builds
 - [x] Fix general stellar-display precedence across map, Explorer, Peek, and
   simulation scenes: preserve lowercase dwarf spectra such as `dM1e`, retain
   tentative `WD?` source evidence over mass priors, use visual badges only as

@@ -40,6 +40,10 @@ contract version and embedded target build ID match; a copied scene from the
 source build must be regenerated even when its schema version is current.
 The API opportunistically prunes oldest artifacts to a 2 GiB default cap;
 operators may set `SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES`.
+The Admin `Warm Simulation Scenes` action writes to this runtime-cache location,
+including a regenerable `materialization_report.json`; it must never target the
+served symlink or an immutable build directory after promotion. Deferred scene
+warming does not make a build incomplete and is not promotion evidence.
 Keep the served build's directory during normal operation; directories for
 build IDs no longer retained in `out/` or referenced by `served/` may be pruned
 as a separate cache cleanup after promotion verification.

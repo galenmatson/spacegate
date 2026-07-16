@@ -9,6 +9,7 @@ import secrets
 import shutil
 import sqlite3
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -343,6 +344,42 @@ def _build_command_generate_snapshots(params: Dict[str, Any]) -> List[str]:
         view_type = "system_card"
     if view_type:
         cmd.extend(["--view-type", view_type])
+    if _normalize_boolean(params.get("force", False)):
+        cmd.append("--force")
+    return cmd
+
+
+def _build_command_materialize_simulation_scenes(params: Dict[str, Any]) -> List[str]:
+    limit = _normalize_integer(params.get("limit", 1000))
+    if limit <= 0 or limit > 10000:
+        raise ActionValidationError("limit must be between 1 and 10000")
+    top_coolness_limit = _normalize_integer(params.get("top_coolness_limit", 500))
+    if top_coolness_limit < 0 or top_coolness_limit > 10000:
+        raise ActionValidationError("top_coolness_limit must be between 0 and 10000")
+    cmd = [
+        sys.executable,
+        str(ROOT_DIR / "scripts" / "materialize_simulation_scenes.py"),
+        "--output-mode", "runtime-cache",
+        "--priority-profile", "search-preview",
+        "--limit", str(limit),
+        "--top-coolness-limit", str(top_coolness_limit),
+    ]
+    build_id = _normalize_string(params.get("build_id"))
+    if build_id:
+        cmd.extend(["--build-id", build_id])
+    sort = _normalize_string(params.get("sort")) or "coolness"
+    if sort not in {"distance", "coolness", "name"}:
+        raise ActionValidationError("sort must be distance, coolness, or name")
+    cmd.extend(["--sort", sort])
+    max_dist_ly = _normalize_string(params.get("max_dist_ly"))
+    if max_dist_ly:
+        try:
+            max_dist = float(max_dist_ly)
+        except ValueError as exc:
+            raise ActionValidationError("max_dist_ly must be numeric") from exc
+        if max_dist < 0 or max_dist > 1000:
+            raise ActionValidationError("max_dist_ly must be between 0 and 1000")
+        cmd.extend(["--max-dist-ly", str(max_dist)])
     if _normalize_boolean(params.get("force", False)):
         cmd.append("--force")
     return cmd
@@ -931,9 +968,9 @@ ACTION_GROUPS: List[Dict[str, Any]] = [
     {
         "key": "presentation",
         "title": "Presentation Generation",
-        "description": "Generate ranking and snapshot artifacts without changing canonical science rows.",
-        "actions": ["score_coolness", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
-        "sequence": ["Score Coolness", "Generate Snapshots", "Save Profile", "Activate Profile"],
+        "description": "Generate ranking, scene-cache, and snapshot artifacts without changing canonical science rows.",
+        "actions": ["score_coolness", "materialize_simulation_scenes", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
+        "sequence": ["Score Coolness", "Warm Simulation Scenes", "Generate Snapshots", "Save Profile", "Activate Profile"],
     },
     {
         "key": "recovery",
@@ -1060,6 +1097,18 @@ ACTION_OPERATOR_GUIDANCE: Dict[str, Dict[str, Any]] = {
         "failure_next_actions": ["Inspect renderer errors and target build coolness availability."],
         "warnings": ["Large runs cross advisory thresholds at 10,000, 100,000, and 1,000,000 requested systems. Queued jobs can be cancelled safely; running snapshot jobs are monitor-only until the runner has a persisted process-control channel."],
         "docs_links": ["docs/SCHEMA_DISC.md"],
+    },
+    "materialize_simulation_scenes": {
+        "group_key": "presentation",
+        "purpose": "Warms selected System Simulation scenes after promotion without mutating the immutable served build.",
+        "prerequisites": "Run against served/current, or provide a retained build id. Dynamic requests continue to work while this job runs.",
+        "writes_to": "$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/ and the admin job log.",
+        "outputs": ["build-keyed compressed runtime scene cache", "materialization report", "structured progress lines"],
+        "expected_duration": "medium_to_long",
+        "success_next_actions": ["Inspect generated/reused counts and verify Peek latency for a priority target."],
+        "failure_next_actions": ["Inspect the job log; the public API may continue assembling uncached scenes on demand."],
+        "warnings": ["CPU intensive while running.", "Runtime cache files are regenerable presentation products and are not promotion evidence."],
+        "docs_links": ["docs/SYSTEM_SIMULATION.md", "docs/RETENTION.md"],
     },
     "backup_admin_db": {
         "group_key": "recovery",
@@ -1510,6 +1559,66 @@ ACTION_SPECS: Dict[str, ActionSpec] = {
         risk_level="low",
         build_command=_build_command_generate_snapshots,
     ),
+    "materialize_simulation_scenes": ActionSpec(
+        name="materialize_simulation_scenes",
+        display_name="Warm Simulation Scenes",
+        description="Materialize priority System Simulation payloads into the bounded runtime cache after promotion.",
+        params_schema={
+            "build_id": {
+                "type": "string",
+                "required": False,
+                "default": "",
+                "allow_empty": True,
+                "placeholder": "leave empty for served/current",
+                "label": "Build ID (optional)",
+            },
+            "limit": {
+                "type": "integer",
+                "required": False,
+                "default": 1000,
+                "min": 1,
+                "max": 10000,
+                "label": "Priority systems",
+            },
+            "top_coolness_limit": {
+                "type": "integer",
+                "required": False,
+                "default": 500,
+                "min": 0,
+                "max": 10000,
+                "label": "Top coolness systems",
+            },
+            "max_dist_ly": {
+                "type": "string",
+                "required": False,
+                "default": "100",
+                "allow_empty": True,
+                "label": "Max distance ly",
+            },
+            "sort": {
+                "type": "string",
+                "required": False,
+                "default": "coolness",
+                "allow_empty": False,
+                "label": "Selection order",
+                "enum": ["coolness", "distance", "name"],
+                "options": [
+                    {"value": "coolness", "label": "Coolness"},
+                    {"value": "distance", "label": "Distance"},
+                    {"value": "name", "label": "Name"},
+                ],
+            },
+            "force": {
+                "type": "boolean",
+                "required": False,
+                "default": False,
+                "label": "Regenerate compatible cache files",
+            },
+        },
+        category="presentation",
+        risk_level="medium",
+        build_command=_build_command_materialize_simulation_scenes,
+    ),
     "save_coolness_profile": ActionSpec(
         name="save_coolness_profile",
         display_name="Save Coolness Profile",
@@ -1722,7 +1831,7 @@ def _validate_params(spec: ActionSpec, params: Dict[str, Any]) -> Dict[str, Any]
 
         normalized[name] = value
 
-    if spec.name in {"verify_build", "publish_db", "build_database", "score_coolness", "generate_snapshots"}:
+    if spec.name in {"verify_build", "publish_db", "build_database", "score_coolness", "generate_snapshots", "materialize_simulation_scenes"}:
         build_id = str(normalized.get("build_id", "") or "").strip()
         if build_id and not _is_safe_build_id(build_id):
             raise ActionValidationError("Invalid build_id format")
@@ -2830,6 +2939,14 @@ def _job_artifact_hints(job: Dict[str, Any]) -> List[Dict[str, Any]]:
                 _path_hint(kind="report", label="snapshot_report.json", path=state_dir / "reports" / build_id / "snapshot_report.json", description="Snapshot generation report."),
             ]
         )
+    elif action == "materialize_simulation_scenes":
+        cache_dir = state_dir / "cache" / "simulation_scenes" / build_id
+        hints.extend(
+            [
+                _path_hint(kind="runtime_cache", label="Simulation scene cache", path=cache_dir, description="Regenerable build-keyed compressed scene payloads."),
+                _path_hint(kind="report", label="materialization_report.json", path=cache_dir / "materialization_report.json", description="Latest runtime-cache materialization summary."),
+            ]
+        )
     elif action in {"save_coolness_profile", "apply_coolness_profile"}:
         profile_id = str(params.get("profile_id") or "").strip()
         profile_version = str(params.get("profile_version") or "").strip()
@@ -3859,7 +3976,7 @@ def _build_next_actions(
 
 
 def _build_related_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db", "generate_snapshots", "retention_dry_run"}
+    build_related_actions = {"build_database", "build_database_slice", "verify_build", "publish_db", "generate_snapshots", "materialize_simulation_scenes", "retention_dry_run"}
     return [
         job for job in jobs
         if job.get("status") in RUNNING_STATUSES and job.get("action") in build_related_actions

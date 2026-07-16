@@ -239,11 +239,52 @@ def _load_scene_builder(root: Path, build_dir: Path):
 def _write_scene(path: Path, payload: dict[str, Any]) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    with path.open("wb") as raw:
-        with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=6, mtime=0) as f:
-            f.write(encoded)
-    path.chmod(0o664)
+    tmp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    try:
+        with tmp_path.open("wb") as raw:
+            with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=6, mtime=0) as f:
+                f.write(encoded)
+        tmp_path.chmod(0o664)
+        os.replace(tmp_path, path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
     return path.stat().st_size
+
+
+def _prune_runtime_cache(state_dir: Path) -> dict[str, int]:
+    root = state_dir / "cache" / "simulation_scenes"
+    try:
+        limit_bytes = max(
+            64 * 1024 * 1024,
+            int(os.getenv("SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES", str(2 * 1024 * 1024 * 1024))),
+        )
+    except ValueError:
+        limit_bytes = 2 * 1024 * 1024 * 1024
+    files: list[tuple[int, str, int, Path]] = []
+    for path in root.glob("*/system_*.json.gz"):
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            continue
+        files.append((stat.st_mtime_ns, str(path), stat.st_size, path))
+    total_bytes = sum(item[2] for item in files)
+    removed_files = 0
+    removed_bytes = 0
+    if total_bytes > limit_bytes:
+        files.sort()
+        for _mtime_ns, _path_text, size, path in files:
+            if total_bytes <= limit_bytes:
+                break
+            path.unlink(missing_ok=True)
+            total_bytes -= size
+            removed_files += 1
+            removed_bytes += size
+    return {
+        "limit_bytes": limit_bytes,
+        "retained_bytes": total_bytes,
+        "removed_files": removed_files,
+        "removed_bytes": removed_bytes,
+    }
 
 
 def _scene_artifact_reusable(path: Path, *, build_id: str) -> bool:
@@ -287,10 +328,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         min_star_count=args.min_star_count,
         min_planet_count=args.min_planet_count,
     )
-    output_dir = build_dir / "disc" / "simulation_scenes"
-    reports_dir = state_dir / "reports" / build_id
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    report_path = reports_dir / "simulation_scene_cache_report.json"
+    if args.system_id:
+        requested_ids = {int(system_id) for system_id in args.system_id}
+        found_ids = {int(row["system_id"]) for row in system_rows}
+        missing_ids = sorted(requested_ids - found_ids)
+        if missing_ids:
+            raise SystemExit(f"Requested system IDs are absent from build {build_id}: {missing_ids}")
+    if args.output_mode == "runtime-cache":
+        output_dir = state_dir / "cache" / "simulation_scenes" / build_id
+        report_path = output_dir / "materialization_report.json"
+    else:
+        output_dir = build_dir / "disc" / "simulation_scenes"
+        report_path = state_dir / "reports" / build_id / "simulation_scene_cache_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
 
     requested = len(system_rows)
     generated = 0
@@ -309,6 +359,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "output_dir": str(output_dir),
             "sort": args.sort,
             "force": bool(args.force),
+            "output_mode": args.output_mode,
         }
     )
 
@@ -333,7 +384,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     "materializer_version": MATERIALIZER_VERSION,
                     "build_id": build_id,
                     "materialized_at_utc": _utc_now(),
-                    "artifact_path": str(out_path.relative_to(build_dir)),
+                    "artifact_path": (
+                        str(out_path.relative_to(build_dir))
+                        if args.output_mode == "build-artifact"
+                        else str(out_path.relative_to(state_dir))
+                    ),
+                    "output_mode": args.output_mode,
                 }
                 total_bytes += _write_scene(out_path, payload)
                 generated += 1
@@ -346,7 +402,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 {
                     "system_id": system_id,
                     "system_name": row.get("system_name"),
-                    "artifact_path": str(out_path.relative_to(build_dir)),
+                    "artifact_path": (
+                        str(out_path.relative_to(build_dir))
+                        if args.output_mode == "build-artifact"
+                        else str(out_path.relative_to(state_dir))
+                    ),
                     "size_bytes": out_path.stat().st_size,
                 }
             )
@@ -364,6 +424,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             )
 
     elapsed_s = time.perf_counter() - started
+    cache_prune = _prune_runtime_cache(state_dir) if args.output_mode == "runtime-cache" else None
     report = {
         "ok": failed == 0,
         "build_id": build_id,
@@ -381,6 +442,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "min_star_count": args.min_star_count,
             "min_planet_count": args.min_planet_count,
             "force": bool(args.force),
+            "output_mode": args.output_mode,
         },
         "requested": requested,
         "generated": generated,
@@ -391,6 +453,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "output_dir": str(output_dir),
         "report_path": str(report_path),
         "elapsed_s": round(elapsed_s, 3),
+        "runtime_cache_prune": cache_prune,
         "examples": examples,
     }
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
@@ -406,6 +469,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=1000, help="Maximum systems to select when --system-id is not provided.")
     parser.add_argument("--sort", choices=["distance", "coolness", "name"], default="distance")
     parser.add_argument("--priority-profile", choices=["none", "search-preview"], default="none", help="Optional priority selector for prebuilding high-value preview scenes.")
+    parser.add_argument(
+        "--output-mode",
+        choices=["build-artifact", "runtime-cache"],
+        default="build-artifact",
+        help="Write immutable build artifacts during a build, or regenerable build-keyed runtime cache files after promotion.",
+    )
     parser.add_argument("--top-coolness-limit", type=int, default=500, help="When using --priority-profile search-preview, include this many top-ranked coolness systems if available.")
     parser.add_argument("--min-dist-ly", type=float, default=None)
     parser.add_argument("--max-dist-ly", type=float, default=100.0)

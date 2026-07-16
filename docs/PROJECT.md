@@ -21,10 +21,10 @@ canonical reduction, explicit ARM evidence/hierarchy/orbit support, a public
 longer a canonical inventory source; its remaining role is transitional alias
 and compatibility enrichment.
 
-The current main quest is to scale exploration beyond the 100 ly monolithic
-map through versioned spatial tiles and LOD loading. In parallel, the AI
-Astronomy Agency must advance through a secure, citation-backed, reviewed
-vertical slice before any broad autonomous ingestion or public narration.
+The public map now uses versioned spatial tiles and LOD loading through the
+1,000 ly radius. The next main-quest milestone is the Concept Tag foundation,
+followed by a secure, citation-backed, reviewed AI Astronomy Agency vertical
+slice before any broad autonomous ingestion or public narration.
 
 ## Core Principles
 

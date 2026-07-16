@@ -30,7 +30,8 @@ const DEFAULT_MAP_RADIUS_LY = 100;
 const LIGHT_YEAR_KM = 9_460_730_472_580.8;
 const SystemPreviewPanel = React.lazy(() => import("./SystemPreviewPanel.jsx"));
 const STAR_SEARCH_SPECTRAL_OPTIONS = ["O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "D"];
-const STAR_SEARCH_DEFAULT_TEMP_RANGE = [0, 50000];
+const STAR_SEARCH_DEFAULT_TEMP_RANGE = [0, 83000];
+const COOL_NEARBY_RECOMPUTE_LY = 2;
 const STAR_SEARCH_SORT_OPTIONS = [
   { value: "match", label: "Best match" },
   { value: "distance", label: "Nearest view" },
@@ -747,20 +748,6 @@ function priorityForSystem(item) {
   return rankScore + coolScore + planetBoost + multiBoost + nearbyBoost;
 }
 
-function neighborInterestScore(system, selectedSystem) {
-  if (!system || !selectedSystem || system.system_id === selectedSystem.system_id) {
-    return -Infinity;
-  }
-  const coolness = Number(system.coolness_score);
-  const coolScore = Number.isFinite(coolness) ? coolness : 0;
-  const routeDistance = distanceBetweenSystems(system, selectedSystem);
-  const nearbyScore = Math.max(0, 24 - routeDistance) * 0.35;
-  const planetBoost = Number(system.planet_count || 0) > 0 ? 20 : 0;
-  const multiBoost = Number(system.star_count || 0) > 1 ? 10 : 0;
-  const nameBoost = isCatalogFallbackName(system.display_name) ? -8 : 4;
-  return coolScore + nearbyScore + planetBoost + multiBoost + nameBoost;
-}
-
 function prepareMapItems(rawItems, frame = "icrs") {
   return (rawItems || [])
     .map((item) => {
@@ -1152,12 +1139,12 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiu
 }
 
 const MAP_PLANET_BADGE_STYLES = {
-  hot_gas_giant: { label: "HG", color: "#ff8a5b", ring: "#ffd0ba" },
-  temperate_gas_giant: { label: "TG", color: "#d5b85f", ring: "#fff0ad" },
-  cold_gas_giant: { label: "CG", color: "#62a9db", ring: "#c9efff" },
-  hot_terrestrial: { label: "HT", color: "#e56a4d", ring: "#ffd1c5" },
-  temperate_terrestrial: { label: "TT", color: "#68a96b", ring: "#d9f6c7" },
-  cold_terrestrial: { label: "CT", color: "#86a9c7", ring: "#e0f3ff" },
+  hot_gas_giant: { label: "HG", color: "#b85f58", ring: "#ffb49a" },
+  temperate_gas_giant: { label: "TG", color: "#4f9a84", ring: "#9ff2d0" },
+  cold_gas_giant: { label: "CG", color: "#596fae", ring: "#a9c8ff" },
+  hot_terrestrial: { label: "HT", color: "#954b47", ring: "#ff9e8b" },
+  temperate_terrestrial: { label: "TT", color: "#397764", ring: "#80d9b8" },
+  cold_terrestrial: { label: "CT", color: "#455983", ring: "#8aace8" },
 };
 
 function createLabelTexture(label, { selected = false, tone = "default", stellarClasses = [], planetBadges = [] } = {}) {
@@ -1184,9 +1171,15 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     .slice(0, 6)
     .map((badge) => MAP_PLANET_BADGE_STYLES[badge?.key || badge])
     .filter(Boolean);
-  const allBadgeCount = badgeTags.length + planetTags.length;
-  const badgeWidth = allBadgeCount ? allBadgeCount * badgeSize + Math.max(0, allBadgeCount - 1) * 3 + badgeGap : 0;
-  const width = Math.ceil(metrics.width + paddingX * 2 + badgeWidth);
+  const stellarBadgeWidth = badgeTags.length
+    ? badgeTags.length * badgeSize + Math.max(0, badgeTags.length - 1) * 3 + badgeGap
+    : 0;
+  const planetBadgeWidth = planetTags.length
+    ? badgeGap + planetTags.length * badgeSize + Math.max(0, planetTags.length - 1) * 3
+    : 0;
+  const textX = paddingX + stellarBadgeWidth;
+  const planetStartX = textX + metrics.width + badgeGap;
+  const width = Math.ceil(metrics.width + paddingX * 2 + stellarBadgeWidth + planetBadgeWidth);
   const height = Math.ceil(fontSize + paddingY * 2);
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
@@ -1229,30 +1222,29 @@ function createLabelTexture(label, { selected = false, tone = "default", stellar
     ctx.textAlign = "start";
   });
   planetTags.forEach((tag, planetIndex) => {
-    const index = badgeTags.length + planetIndex;
-    const badgeX = paddingX + badgeSize / 2 + index * (badgeSize + 3);
+    const badgeX = planetStartX + badgeSize / 2 + planetIndex * (badgeSize + 3);
     const badgeY = height / 2;
     ctx.beginPath();
-    ctx.arc(badgeX, badgeY, badgeSize / 2 - 1, 0, Math.PI * 2);
+    ctx.arc(badgeX, badgeY, badgeSize * 0.34, 0, Math.PI * 2);
     ctx.fillStyle = tag.color;
     ctx.fill();
     ctx.strokeStyle = tag.ring;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.8;
     ctx.stroke();
     ctx.beginPath();
-    ctx.ellipse(badgeX, badgeY, badgeSize * 0.62, badgeSize * 0.22, -0.32, 0, Math.PI * 2);
+    ctx.ellipse(badgeX, badgeY, badgeSize * 0.58, badgeSize * 0.24, -0.32, 0, Math.PI * 2);
     ctx.strokeStyle = tag.ring;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2.8;
     ctx.stroke();
-    ctx.fillStyle = "#05070b";
-    ctx.font = `900 10px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.fillStyle = "#f4fbff";
+    ctx.font = `900 9px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.textAlign = "center";
     ctx.fillText(tag.label, badgeX, badgeY + 1);
     ctx.textAlign = "start";
   });
   ctx.font = `${fontSize}px ui-monospace, SFMono-Regular, Menlo, monospace`;
   ctx.fillStyle = ink;
-  ctx.fillText(text, paddingX + badgeWidth, height / 2 + 1);
+  ctx.fillText(text, textX, height / 2 + 1);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -1315,7 +1307,15 @@ function LabelSprite({
   );
 }
 
-function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems = null, forcedLabelActive = false, classBadgeMode = "all" }) {
+function PriorityLabels({
+  systems,
+  selectedSystem,
+  onSelect,
+  forcedLabelSystems = null,
+  forcedLabelActive = false,
+  pinnedLabelSystems = null,
+  classBadgeMode = "all",
+}) {
   const { camera, gl } = useThree();
   const updateClockRef = useRef(0);
   const lastBuildPositionRef = useRef(null);
@@ -1360,6 +1360,10 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
         const selectedDistanceLy = selectedPosition.distanceTo(camera.position) / LY_TO_SCENE;
         add(selectedSystem, Math.max(18, Number(selectedSystem.map_priority || 0)), selectedDistanceLy);
       }
+      (pinnedLabelSystems || []).forEach((system) => {
+        const position = new THREE.Vector3().fromArray(system.scene_position);
+        add(system, Math.max(16, Number(system.map_priority || 0)), position.distanceTo(camera.position) / LY_TO_SCENE);
+      });
       return candidates;
     }
     if (selectedSystem) {
@@ -1367,6 +1371,10 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
       const selectedDistanceLy = selectedPosition.distanceTo(camera.position) / LY_TO_SCENE;
       add(selectedSystem, Math.max(14, Number(selectedSystem.map_priority || 0)), selectedDistanceLy);
     }
+    (pinnedLabelSystems || []).forEach((system) => {
+      const position = new THREE.Vector3().fromArray(system.scene_position);
+      add(system, Math.max(14, Number(system.map_priority || 0)), position.distanceTo(camera.position) / LY_TO_SCENE);
+    });
     const cameraCell = [camera.position.x, camera.position.y, camera.position.z]
       .map((value) => Math.floor(value / labelIndex.cellSceneSize));
     const nearby = [];
@@ -1415,7 +1423,7 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
       .slice(0, Math.max(0, totalBudget - candidates.length))
       .forEach(({ system, priority, score, cameraDistanceLy }) => add(system, Math.max(priority, score / 4), cameraDistanceLy));
     return candidates;
-  }, [camera, forcedLabelActive, forcedLabelSystems, labelIndex, selectedSystem]);
+  }, [camera, forcedLabelActive, forcedLabelSystems, labelIndex, pinnedLabelSystems, selectedSystem]);
   const [labelSystems, setLabelSystems] = useState(buildLabelSet);
 
   useEffect(() => {
@@ -1434,7 +1442,9 @@ function PriorityLabels({ systems, selectedSystem, onSelect, forcedLabelSystems 
     gl.domElement.dataset.mapLabelStrategy = forcedLabelActive ? "star_search_filters" : "camera_near_10ly_nearest_plus_coolness";
     gl.domElement.dataset.mapLabelClassStrategy = "shared_leaf_mass_proxy_then_intrinsic_brightness_v3";
     gl.domElement.dataset.mapLabelClassBadges = classBadgeMode;
-  }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems]);
+    gl.domElement.dataset.mapLabelPlanetBadgePlacement = "right_of_name_ringed_v2";
+    gl.domElement.dataset.mapPinnedLabelCount = String((pinnedLabelSystems || []).length);
+  }, [classBadgeMode, forcedLabelActive, gl.domElement, labelSystems, pinnedLabelSystems]);
 
   useFrame((_, delta) => {
     updateClockRef.current += delta;
@@ -2338,6 +2348,7 @@ function StarMapScene({
   filterMatchIds,
   filterActive,
   filterLabelSystems,
+  pinnedLabelSystems,
   starRenderMode,
   onSelect,
   onRouteContext,
@@ -2388,6 +2399,7 @@ function StarMapScene({
         onSelect={onSelect}
         forcedLabelSystems={filterLabelSystems}
         forcedLabelActive={filterActive}
+        pinnedLabelSystems={pinnedLabelSystems}
         classBadgeMode={classBadgeMode}
       />
       <RouteOverlays segments={routeSegments} onRemoveSegment={onRemoveRouteSegment} />
@@ -2645,13 +2657,40 @@ function LazyStarSearchPreview({
   );
 }
 
+function MapStellarBadgeStack({ system }) {
+  const sourceTokens = Array.isArray(system?.stellar_class_badges) && system.stellar_class_badges.length
+    ? system.stellar_class_badges
+    : stellarClassTokensFromSystem(system, { includeUnknown: true });
+  const tokens = sourceTokens.slice(0, 8).map((token) => normalizeStellarClassToken(token));
+  const title = tokens.map((token) => (STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U).name).join(", ");
+  return (
+    <span
+      className="map-stellar-badge-stack"
+      style={{ "--stack-width": `${19 + Math.max(0, tokens.length - 1) * 5}px` }}
+      aria-label={`Stellar classes: ${tokens.join(", ")}`}
+      title={title}
+    >
+      {tokens.map((token, index) => {
+        const tag = STELLAR_CLASS_TAGS[token] || STELLAR_CLASS_TAGS.U;
+        return (
+          <span
+            key={`${token}:${index}`}
+            className="map-stellar-badge-stack-item"
+            style={{ "--stack-index": index, "--stack-layer": tokens.length - index, "--stack-color": tag.color }}
+          >
+            {tag.label.slice(0, 2)}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 function MapStarSearchShell({
   open,
   mapRadiusLy = DEFAULT_MAP_RADIUS_LY,
-  systems,
-  selectedSystem,
   selectionHistory,
-  suggestedNeighbors,
+  coolStarsNearby,
   filters,
   filterExtents,
   matchedCount,
@@ -2784,19 +2823,21 @@ function MapStarSearchShell({
           <div>
             {(selectionHistory || []).slice(0, 6).map((system) => (
               <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
-                <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} />
+                <MapStellarBadgeStack system={system} />
+                <span className="map-search-recent-name"><SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} /></span>
                 <span>{formatNumber(system.dist_ly, 1)} ly</span>
               </button>
             ))}
           </div>
         </details>
-        {selectedSystem && suggestedNeighbors?.length > 0 && (
+        {coolStarsNearby?.length > 0 && (
           <details className="map-search-recents" open>
             <summary><span className="map-panel-label">Cool Stars Nearby</span></summary>
             <div>
-              {suggestedNeighbors.slice(0, 6).map(({ system, routeDistance }) => (
+              {coolStarsNearby.slice(0, 6).map(({ system, routeDistance }) => (
                 <button key={system.system_id} type="button" className="map-search-recent-pill" onClick={() => onSelectSystem(system)}>
-                  <SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} />
+                  <MapStellarBadgeStack system={system} />
+                  <span className="map-search-recent-name"><SystemNameDisplay system={system} showCopyButton={false} showInfoButton={false} enablePopover={false} /></span>
                   <span>{formatNumber(routeDistance, 1)} ly</span>
                 </button>
               ))}
@@ -4020,40 +4061,29 @@ export default function StarMapPage({
     [filteredMapSystems],
   );
 
-  const suggestedNeighbors = useMemo(() => {
-    if (!selectedSystem) {
-      return [];
-    }
-    const priorityPool = systems.length > 20000
-      ? [...systems]
-        .sort((left, right) => Number(right.map_priority || 0) - Number(left.map_priority || 0))
-        .slice(0, 5000)
-      : systems;
-    const nearbyPool = systems.length > 20000
-      ? systems.filter((system) => distanceBetweenSystems(selectedSystem, system) <= 25)
-      : [];
-    const candidates = Array.from(new Map(
-      [...priorityPool, ...nearbyPool].map((system) => [String(system.system_id), system]),
-    ).values());
-    const scored = candidates
-      .filter((system) => system.system_id !== selectedSystem.system_id)
-      .map((system) => ({
+  const coolNearbyCellX = Math.round(Number(mapSearchOrigin.x || 0) / COOL_NEARBY_RECOMPUTE_LY) * COOL_NEARBY_RECOMPUTE_LY;
+  const coolNearbyCellY = Math.round(Number(mapSearchOrigin.y || 0) / COOL_NEARBY_RECOMPUTE_LY) * COOL_NEARBY_RECOMPUTE_LY;
+  const coolNearbyCellZ = Math.round(Number(mapSearchOrigin.z || 0) / COOL_NEARBY_RECOMPUTE_LY) * COOL_NEARBY_RECOMPUTE_LY;
+  const coolNearbyCell = useMemo(() => ({
+    x: coolNearbyCellX,
+    y: coolNearbyCellY,
+    z: coolNearbyCellZ,
+  }), [coolNearbyCellX, coolNearbyCellY, coolNearbyCellZ]);
+
+  const coolStarsNearby = useMemo(() => systems
+    .map((system) => {
+      const routeDistance = distanceFromHelioOrigin(system, coolNearbyCell);
+      const coolness = Number(system.coolness_score || 0);
+      const interest = Number(system.map_priority || 0);
+      return {
         system,
-        routeDistance: distanceBetweenSystems(selectedSystem, system),
-        score: neighborInterestScore(system, selectedSystem),
-      }))
-      .filter((entry) => Number.isFinite(entry.score));
-    const preferred = scored
-      .filter((entry) => entry.score >= 28 || entry.routeDistance <= 10)
-      .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
-      .slice(0, 8);
-    if (preferred.length >= 4) {
-      return preferred;
-    }
-    return scored
-      .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
-      .slice(0, 8);
-  }, [selectedSystem, systems]);
+        routeDistance,
+        score: coolness + Math.min(interest, 12) * 0.35 - routeDistance * 0.08,
+      };
+    })
+    .filter((entry) => Number.isFinite(entry.routeDistance) && entry.routeDistance <= 40 && entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.routeDistance - right.routeDistance)
+    .slice(0, 8), [coolNearbyCell, systems]);
 
   const neighborToolEntries = useMemo(() => {
     const origin = neighborTool?.origin;
@@ -4071,6 +4101,11 @@ export default function StarMapPage({
       .sort((left, right) => left.distance_ly - right.distance_ly);
   }, [neighborTool, systems]);
 
+  const neighborLabelSystems = useMemo(
+    () => (neighborTool.open ? neighborToolEntries.map((entry) => entry.system) : []),
+    [neighborTool.open, neighborToolEntries],
+  );
+
   useEffect(() => {
     if (!neighborTool?.open || !neighborTool?.origin?.system_id) {
       setRouteSegments((segments) => segments.filter((segment) => segment.kind !== "neighbor"));
@@ -4085,7 +4120,7 @@ export default function StarMapPage({
         from: origin,
         to: system,
         distance_ly,
-        label: `${shortDisplayName(system.display_name)} · ${formatNumber(distance_ly, 2)} ly`,
+        label: `${formatNumber(distance_ly, 2)} ly`,
       })),
     ]);
   }, [neighborTool?.open, neighborTool?.origin, neighborToolEntries]);
@@ -4446,6 +4481,7 @@ export default function StarMapPage({
           filterMatchIds={filteredMapIds}
           filterActive={activeMapFilter}
           filterLabelSystems={filteredMapSystems}
+          pinnedLabelSystems={neighborLabelSystems}
           starRenderMode={starRenderMode}
           onSelect={(system) => selectSystem(system, { openPeek: true })}
           onRouteContext={setRouteMenu}
@@ -4816,10 +4852,8 @@ export default function StarMapPage({
       <MapStarSearchShell
         open={mapSearchOpen}
         mapRadiusLy={mapRadiusLy}
-        systems={systems}
-        selectedSystem={selectedSystem}
         selectionHistory={selectionHistory}
-        suggestedNeighbors={suggestedNeighbors}
+        coolStarsNearby={coolStarsNearby}
         filters={mapSearchFilters}
         filterExtents={filterExtents}
         matchedCount={activeMapFilter ? filteredMapSystems.length : systems.length}

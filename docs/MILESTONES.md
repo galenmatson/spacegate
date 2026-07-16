@@ -1807,10 +1807,13 @@ executed about 70 DuckDB statements in 1.23 seconds; public-system assembly used
 for a lone star. Peek now reuses
 the simulation-scene body/system payload for source tooltips, defers coolness
 enrichment until tooltip intent, and debounces scene loads by 150 ms so rapid
-selection does not launch every transient request. The next runtime checkpoint
-must make priority-scene materialization a promoted-build gate, add cheap client
-scenes for ordinary map-selected singletons, and measure shared/persistent cache
-behavior before treating VPS capacity as the primary bottleneck.
+selection does not launch every transient request. The initial response proposed
+making priority-scene materialization a promoted-build gate. Subsequent cache
+work showed that this would conflate performance warming with scientific
+correctness: uncached scenes use the same public contract and persist into a
+bounded build-keyed runtime cache. Promotion may therefore omit scene warming,
+while deployment review must still account for the expected cold-request CPU
+profile.
 
 July 15 follow-up implements the first server-side scale correction. Dynamic
 scenes now write compatible build-keyed compressed runtime artifacts, same-scene
@@ -1824,8 +1827,9 @@ no system-specific classification overrides belong in the build path.
 
 July 16 follow-up versions this semantic boundary as
 `simulation_scene_artifact_v2`. The API rejects v1 prebuilt scenes rather than
-serving embedded stale classifications or names; the next side-artifact build
-must rematerialize its bounded priority scene set before deployment.
+serving embedded stale classifications or names; a side-artifact build may
+rematerialize its bounded priority set before deployment or warm the compatible
+runtime cache afterward.
 Candidate verification then exposed that the side builder copied v1 scenes and
 the materializer counted any existing filename as reusable. Reuse now requires
 both the current materializer version and the exact target build ID, preventing
@@ -1852,15 +1856,27 @@ exact search result with HIP 19335, HD 25998, and Gaia
 environment evidence are sufficient; a general orbital-distance/host-
 luminosity fallback for Solar System rows remains explicitly pending.
 
+July 16 presentation/runtime follow-up adds `Warm Simulation Scenes` to the
+allowlisted Admin background-action catalog. The action targets only
+`cache/simulation_scenes/<build_id>/`, never `served/current` or immutable
+`out/<build_id>` contents, and is bounded to 10,000 priority systems. This makes
+scene warming an explicit post-promotion CPU-versus-latency decision while
+retaining on-demand assembly as the correctness path. Map labels now place
+planet badges to the right of system names with distinct ringed styling;
+neighbor lines carry distance-only labels while their endpoints use normal
+system labels; and camera-local Cool Stars Nearby recommendations update on a
+2-ly quantized position to avoid per-frame full-catalog sorting.
+
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
 science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or
 promote CORE, ARM, DISC, hierarchy, or map-tile artifacts. Public health/auth,
 API integration, known-system/search goldens, and the desktop map
 selection-to-Peek Playwright flow passed after container replacement. Priority
-scene materialization for future promoted builds, a cheaper singleton contract,
-cache telemetry, and explicit concurrency budgets remain follow-up work rather
-than blockers for the Concept Tag/AAA path.
+scene materialization is now available as optional pre-promotion artifact work
+or post-promotion Admin cache warming; a cheaper singleton contract, cache
+telemetry, and explicit concurrency budgets remain follow-up work rather than
+blockers for the Concept Tag/AAA path.
 
 The initial Photon review artifact was withdrawn after audit found that it
 included four manually curated Castor component classifications. Spacegate does

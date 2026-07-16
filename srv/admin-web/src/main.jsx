@@ -129,6 +129,15 @@ const fallbackActionGuidance = {
     next: "Reload public search/detail views to confirm new images are referenced correctly.",
     duration: "Medium to long",
   },
+  materialize_simulation_scenes: {
+    group: "presentation",
+    purpose: "Warms priority System Simulation scenes without mutating the immutable served build.",
+    prerequisites: "Run after promotion; uncached scenes remain available through on-demand assembly.",
+    writes: "$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/.",
+    next: "Inspect generated and reused counts, then verify Peek latency for a priority system.",
+    warning: "CPU intensive while running. Cache output is regenerable and is not promotion evidence.",
+    duration: "Medium to long",
+  },
   backup_admin_db: {
     group: "recovery",
     purpose: "Creates a point-in-time backup of admin auth, sessions, jobs, audit, and registry state.",
@@ -194,9 +203,9 @@ const fallbackActionGroups = [
   {
     key: "presentation",
     title: "Presentation Generation",
-    description: "Generate ranking and snapshot artifacts without changing canonical science rows.",
-    actions: ["score_coolness", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
-    sequence: ["Score Coolness", "Generate Snapshots", "Save Profile", "Activate Profile"],
+    description: "Generate ranking, scene-cache, and snapshot artifacts without changing canonical science rows.",
+    actions: ["score_coolness", "materialize_simulation_scenes", "generate_snapshots", "save_coolness_profile", "apply_coolness_profile"],
+    sequence: ["Score Coolness", "Warm Simulation Scenes", "Generate Snapshots", "Save Profile", "Activate Profile"],
   },
   {
     key: "recovery",
@@ -955,7 +964,7 @@ function BuildsScreen({ csrf, openOperationsJob, presentationOnly = false }) {
   const buildActions = ["build_database", "verify_build", "publish_db", "retention_dry_run", "retention_apply"]
     .map((name) => enrichBuildAction(actionsByName.get(name), retentionContext))
     .filter(Boolean);
-  const presentationActions = ["score_coolness", "generate_snapshots"]
+  const presentationActions = ["score_coolness", "materialize_simulation_scenes", "generate_snapshots"]
     .map((name) => actionsByName.get(name))
     .filter(Boolean);
   const kpis = [
@@ -1414,7 +1423,7 @@ function jobMatchesBuild(job, buildId, { allowImplicit = true } = {}) {
   const params = jobParams(job);
   const explicit = String(params.build_id || "").trim();
   if (explicit) return explicit === id;
-  if (allowImplicit && ["verify_build", "publish_db", "score_coolness", "generate_snapshots"].includes(String(job?.action || ""))) {
+  if (allowImplicit && ["verify_build", "publish_db", "score_coolness", "materialize_simulation_scenes", "generate_snapshots"].includes(String(job?.action || ""))) {
     return true;
   }
   return false;
@@ -1436,7 +1445,7 @@ function latestJobByParams(jobs, action, params) {
 }
 
 function relatedJobsForBuild(jobs, buildId) {
-  const actions = new Set(["build_database", "build_database_slice", "verify_build", "publish_db", "score_coolness", "generate_snapshots", "retention_dry_run", "retention_apply"]);
+  const actions = new Set(["build_database", "build_database_slice", "verify_build", "publish_db", "score_coolness", "materialize_simulation_scenes", "generate_snapshots", "retention_dry_run", "retention_apply"]);
   return (jobs || [])
     .filter((job) => actions.has(String(job.action || "")) && (jobMatchesBuild(job, buildId) || ["retention_dry_run", "retention_apply"].includes(String(job.action || ""))))
     .slice(0, 8);
@@ -1810,7 +1819,7 @@ function RecentBuildsPanel({ builds, servedBuildId, jobs, openOperationsJob }) {
           </thead>
           <tbody>
             {builds.map((build) => {
-              const job = latestJobForBuild(jobs, ["verify_build", "publish_db", "score_coolness", "generate_snapshots"], build.build_id, { allowImplicit: build.build_id === servedBuildId });
+              const job = latestJobForBuild(jobs, ["verify_build", "publish_db", "score_coolness", "materialize_simulation_scenes", "generate_snapshots"], build.build_id, { allowImplicit: build.build_id === servedBuildId });
               return (
                 <tr key={build.build_id}>
                   <td>

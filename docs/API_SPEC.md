@@ -1131,6 +1131,15 @@ Notes:
 ### POST /admin/actions/run
 Starts an allowlisted admin action as a background job.
 
+Presentation actions include `materialize_simulation_scenes` (Admin label:
+`Warm Simulation Scenes`). It accepts an optional retained `build_id`, bounded
+`limit` (1-10,000), `top_coolness_limit`, `max_dist_ly` (0-1,000), selection
+`sort`, and `force`. The action always writes compatible compressed payloads to
+`$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/`; it cannot write into
+or mutate the immutable served build. Omitting `build_id` targets
+`served/current`. Public `/simulation-scene` requests remain available through
+on-demand assembly while the background job is queued or running.
+
 Request body:
 ```json
 {
