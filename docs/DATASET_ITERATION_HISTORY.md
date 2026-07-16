@@ -618,7 +618,7 @@ Representative commits:
 Representative commits:
 - `794c04b` (source evidence reconciliation and hierarchy typing)
 - `43b7d24` (checksummed published-report installation)
-- pending (slice-native derived-build verification)
+- `1797236` (slice-native derived-build verification)
 
 ## Recurrent Defect Classes and Mitigations
 
