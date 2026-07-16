@@ -22,6 +22,12 @@ directory before promotion. Published report directories follow the same
 retention protection as local build reports; do not remove reports referenced
 by the active `dl/current.json`.
 
+Derived public-slice and side builds preserve verification lineage through
+`derived_build_verification_report.json`. Retain the report with its build; it
+contains the hashes and reported build IDs of the applicable upstream reports,
+while strict verification recomputes its slice-native counts and integrity
+checks against the derived database.
+
 Simulation-scene runtime artifacts live under
 `$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/`. They are fully
 regenerable presentation products and must never be treated as science inputs.

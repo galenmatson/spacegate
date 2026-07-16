@@ -588,7 +588,8 @@ Representative commits:
   pair labels. `wds_pair_evidence` parses single-component pairs (`AB`) and
   scoped pairs (`Aa,Ab`, `AB,C`), then records unique, missing, ambiguous, or
   excluded endpoint bindings.
-- The validation ARM accepts 2,080 unique source-scoped WDS pairs. Every row is
+- The full canonical ARM accepts 2,077 unique source-scoped WDS pairs; the
+  1,000-ly public slice retains 1,797. Every row is
   classified as a sky-projection measurement; bound-relationship assertions
   and simulation-ready WDS-only orbits both remain zero.
 - Canonical hierarchy now carries `component_family` and `component_type`
@@ -601,9 +602,23 @@ Representative commits:
 - Bootstrap now installs checksummed reports advertised by `current.json` into
   a staged build-scoped report directory. Publisher discovery includes all
   build-scoped JSON reports rather than a fixed filename subset.
+- Immutable public-slice and side builds now emit
+  `derived_build_verification_report.json`. The report recomputes slice-native
+  counts, identifier/stable-key uniqueness, relationship integrity, and
+  required Parquet presence while hashing the applicable upstream verification
+  reports. Strict verification validates the derived report against the actual
+  served databases instead of relabeling full-canonical QC reports.
+- Full canonical build `20260716T1229Z_43b7d24`, public slice
+  `20260716T1356Z_43b7d24_public`, and side candidate
+  `20260716T1410Z_43b7d24_side` pass their applicable evidence, hierarchy,
+  multiplicity, extended-object, TESS, WISE, exact tile, and strict derived
+  verification gates. The side candidate contains 1,000/1,000 priority
+  simulation scenes with zero failures.
 
 Representative commits:
-- pending (source evidence closeout v1)
+- `794c04b` (source evidence reconciliation and hierarchy typing)
+- `43b7d24` (checksummed published-report installation)
+- pending (slice-native derived-build verification)
 
 ## Recurrent Defect Classes and Mitigations
 

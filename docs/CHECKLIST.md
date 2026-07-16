@@ -54,10 +54,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   with zero materialization failures
 - [x] Install all checksummed reports advertised by edge `current.json` into a
   staged `$SPACEGATE_STATE_DIR/reports/<build_id>` directory during bootstrap
-- [ ] Define and publish a slice-native QC/provenance report set for immutable
+- [x] Define and publish a slice-native QC/provenance report set for immutable
   presentation builds so antiproton can require reports without relaxed
-  verification; installing reports alone cannot substitute full-build reports
-  whose counts and build IDs do not match the slice
+  verification (`derived_build_verification_report.json` recomputes live slice
+  integrity and hashes upstream report lineage without relabeling full-build
+  reports whose counts and build IDs do not match the slice)
 - [ ] Add a cheap map-selected singleton scene path plus cache telemetry and
   explicit per-process/concurrent-assembly budgets before planning for hundreds
   of concurrent exploratory users; the shared persistent cache and same-scene

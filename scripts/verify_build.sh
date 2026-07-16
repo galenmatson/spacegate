@@ -112,15 +112,27 @@ PY
   local prov_report="$reports_dir/provenance_report.json"
   local planet_delta_report="$reports_dir/planet_catalog_delta_report.json"
   local planet_reclass_report="$reports_dir/planet_reclassification_report.json"
+  local derived_report="$reports_dir/derived_build_verification_report.json"
 
   local have_reports=1
+  local have_derived_report=0
   if [[ ! -d "$reports_dir" ]]; then
     have_reports=0
   elif [[ ! -f "$qc_report" || ! -f "$match_report" || ! -f "$prov_report" ]]; then
     have_reports=0
   fi
 
-  if [[ $have_reports -eq 0 ]]; then
+  if [[ -f "$derived_report" ]]; then
+    have_derived_report=1
+  fi
+
+  if [[ $have_reports -eq 0 && $have_derived_report -eq 1 ]]; then
+    "$PYTHON_BIN" "$ROOT_DIR/scripts/derived_build_verification.py" verify \
+      --build-dir "$build_dir" \
+      --build-id "$build_id" \
+      --report "$derived_report"
+    echo "OK: derived-build QC/provenance report"
+  elif [[ $have_reports -eq 0 ]]; then
     if [[ "$REQUIRE_REPORTS" == "1" ]]; then
       echo "Error: missing reports for $build_id in $reports_dir" >&2
       echo "Set SPACEGATE_VERIFY_REQUIRE_REPORTS=0 to allow reportless prebuilt DB verification." >&2
@@ -778,7 +790,7 @@ PY
     else
       echo "Warning: missing deterministic rerun checker: $deterministic_script" >&2
     fi
-  elif [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" ]]; then
+  elif [[ "$VERIFY_DETERMINISTIC_RERUN" == "1" && $have_derived_report -eq 0 ]]; then
     echo "Warning: skipping deterministic rerun check (reports missing)." >&2
   fi
 

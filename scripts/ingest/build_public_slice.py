@@ -5,6 +5,8 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1061,6 +1063,24 @@ def build_slice(
     reports_dir.mkdir(parents=True, exist_ok=True)
     report_path = reports_dir / "slice_policy_report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    subprocess.check_call(
+        [
+            sys.executable,
+            str(root / "scripts" / "derived_build_verification.py"),
+            "emit",
+            "--build-dir",
+            str(tmp_dir),
+            "--build-id",
+            slice_build_id,
+            "--source-build-id",
+            source_build_id,
+            "--upstream-reports-dir",
+            str(state / "reports" / source_build_id),
+            "--report",
+            str(reports_dir / "derived_build_verification_report.json"),
+        ],
+        cwd=str(root),
+    )
     tmp_dir.rename(final_dir)
     return report
 

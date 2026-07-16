@@ -1139,20 +1139,23 @@ Completed:
   inferred status.
 - WDS pair-evidence v1 preserves source-native endpoint scope and partitions
   157,299 rows into deterministic binding outcomes. The validation build binds
-  2,080 rows to unique endpoint pairs while asserting zero bound relationships
-  and creating zero simulation-ready orbits.
+  2,077 rows to unique endpoint pairs in the full canonical ARM while asserting
+  zero bound relationships and creating zero simulation-ready orbits. The
+  1,000-ly public slice retains 1,797 accepted pairs.
 - Sirius A/B adjudication inbox entries are marked resolved by their reusable
   catalog rules. L 134-80 remains deferred; Castor CC is now an explicit
   non-executable classification/physical-status deferral.
 - Edge bootstrap now validates and installs every report advertised by
   `current.json`; report paths are bounded relative JSON paths and are staged
   atomically under the published build ID.
+- Public-slice and side-artifact builders emit a slice-native
+  `derived_build_verification_report.json`. It records live slice counts and
+  integrity checks plus hashed upstream report lineage, and strict verification
+  recomputes those checks against the candidate database. Presentation builds
+  no longer require relaxed verification or mislabeled full-build reports.
 
 Remaining:
 
-- define slice-native QC/provenance reports for immutable presentation builds;
-  report installation is complete, but canonical full-build reports cannot be
-  relabeled as slice reports because their build IDs and row counts differ.
 - preserve the known Tegmine, Xi Scorpii, and Nu Sco alternative/overlapping
   source orbits as explicit simulation-tree diagnostics until an evidence-based
   topology can select among incompatible groupings; do not force every source

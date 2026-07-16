@@ -362,6 +362,25 @@ def main() -> int:
                 cwd=str(root),
             )
 
+        subprocess.check_call(
+            [
+                sys.executable,
+                str(root / "scripts" / "derived_build_verification.py"),
+                "emit",
+                "--build-dir",
+                str(tmp_dir),
+                "--build-id",
+                build_id,
+                "--source-build-id",
+                source_build_id,
+                "--upstream-reports-dir",
+                str(state / "reports" / source_build_id),
+                "--report",
+                str(reports_dir / "derived_build_verification_report.json"),
+            ],
+            cwd=str(root),
+        )
+
         report = {
             "generated_at": generated_at,
             "build_id": build_id,
