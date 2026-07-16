@@ -20,13 +20,16 @@ BASE_URL="${SPACEGATE_BOOTSTRAP_BASE_URL:-}"
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/bootstrap_core_db.sh [--overwrite] [--meta-url URL] [--base-url URL]
+  scripts/bootstrap_core_db.sh [--overwrite] [--skip-auto-score] [--meta-url URL] [--base-url URL]
 
 Downloads the current prebuilt core database archive from Spacegate metadata,
 extracts it into $SPACEGATE_STATE_DIR/out/<BUILD_ID>, and promotes it.
 
 Options:
   --overwrite      Re-download archive and replace an existing extracted build.
+  --skip-auto-score
+                   Promote without re-scoring DISC coolness outputs. Use for
+                   immutable published builds that already contain scores.
   --meta-url URL   Metadata URL (default: SPACEGATE_BOOTSTRAP_META_URL or SPACEGATE_PUBLIC_BASE_URL/dl/current.json; default public base https://spacegates.org).
   --base-url URL   Base URL for relative artifact paths in metadata.
 USAGE
@@ -53,6 +56,39 @@ path = sys.argv[2]
 if base and not base.endswith("/"):
     base = base + "/"
 print(urljoin(base, path))
+PY
+}
+
+resolve_local_artifact() {
+  local meta_url="$1"
+  local base_url="$2"
+  local artifact_url="$3"
+
+  "$PYTHON_BIN" - "$meta_url" "$base_url" "$artifact_url" <<'PY'
+import pathlib
+import sys
+from urllib.parse import unquote, urlparse
+
+meta = urlparse(sys.argv[1])
+base = urlparse(sys.argv[2])
+artifact = urlparse(sys.argv[3])
+if artifact.scheme != "file":
+    raise SystemExit(1)
+if meta.scheme != "file" or base.scheme != "file":
+    raise SystemExit("Refusing a file artifact referenced by non-file metadata.")
+for label, parsed in (("metadata", meta), ("base", base), ("artifact", artifact)):
+    if parsed.netloc not in ("", "localhost"):
+        raise SystemExit(f"Unsupported {label} file URL host: {parsed.netloc}")
+
+root = pathlib.Path(unquote(base.path)).resolve(strict=True)
+source = pathlib.Path(unquote(artifact.path)).resolve(strict=True)
+try:
+    source.relative_to(root)
+except ValueError as exc:
+    raise SystemExit(f"Local artifact escapes bootstrap base directory: {source}") from exc
+if not source.is_file():
+    raise SystemExit(f"Local artifact is not a regular file: {source}")
+print(source)
 PY
 }
 
@@ -127,10 +163,15 @@ extract_archive() {
 
 main() {
   local overwrite=0
+  local auto_score_coolness="${SPACEGATE_AUTO_SCORE_COOLNESS:-1}"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --overwrite)
         overwrite=1
+        shift 1
+        ;;
+      --skip-auto-score)
+        auto_score_coolness=0
         shift 1
         ;;
       --meta-url)
@@ -211,9 +252,16 @@ main() {
   local archive_name
   archive_name="$(basename "$artifact_path")"
   local archive_path="$DOWNLOAD_DIR/$archive_name"
+  local archive_label="Archive cache"
   local build_dir="$OUT_DIR/$build_id"
 
-  if [[ -f "$archive_path" && $overwrite -eq 0 ]]; then
+  local local_artifact=""
+  if [[ "$artifact_url" == file://* ]]; then
+    local_artifact="$(resolve_local_artifact "$META_URL" "$artifact_base" "$artifact_url")"
+    archive_path="$local_artifact"
+    archive_label="Archive source"
+    echo "Using local artifact without cache copy: $archive_path"
+  elif [[ -f "$archive_path" && $overwrite -eq 0 ]]; then
     echo "Using existing archive: $archive_path"
   else
     rm -f "$archive_path"
@@ -272,7 +320,8 @@ main() {
     exit 1
   fi
 
-  "$ROOT_DIR/scripts/promote_build.sh" "$build_id"
+  SPACEGATE_AUTO_SCORE_COOLNESS="$auto_score_coolness" \
+    "$ROOT_DIR/scripts/promote_build.sh" "$build_id"
 
   if [[ ! -d "$STATE_DIR/reports/$build_id" ]]; then
     echo "Warning: reports for $build_id are not present in $STATE_DIR/reports." >&2
@@ -280,9 +329,11 @@ main() {
   fi
 
   echo "Bootstrapped build: $build_id"
-  echo "Archive cache: $archive_path"
+  echo "$archive_label: $archive_path"
   echo "Next (Docker default): scripts/compose_spacegate.sh up -d --build api web"
   echo "Host mode (no Docker): scripts/run_spacegate.sh"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

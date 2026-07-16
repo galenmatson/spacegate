@@ -543,6 +543,23 @@ Representative commits:
   dry run, removing seven unserved obsolete/failed build directories and
   reclaiming about 164 GiB. Raw/cooked inputs, manifests, reports needed for
   verification, and the served build were preserved.
+- Public archive `20260716T0103Z_94bdab7_side.7z` was transferred resumably to
+  antiproton and verified against SHA-256
+  `7f2b27792f49502a8962259c23298dcc6852fe97d58920775fef7bd1b43fe450`
+  before extraction. A reviewed edge-retention dry run removed two obsolete,
+  unserved builds and reclaimed 22.54 GiB while preserving the active build;
+  the previous runtime remains extracted for rollback after promotion.
+- Antiproton now serves `20260716T0103Z_94bdab7_side`. Public API integration,
+  known-system hierarchy/search goldens, auth/health checks, and 12 active
+  desktop/mobile tiled-map Playwright checks pass, including all four radii,
+  exact and progressive paths, search handoff, a 4K Bright render, screenshots,
+  and nonblank canvas-pixel probes.
+- Deployment exposed two bootstrap defects without changing science output:
+  local `file://` activation copied the published 6.9-GiB archive into a second
+  cache path, and promotion attempted to re-score an already materialized DISC
+  build with host Python. Bootstrap now bounds local file artifacts to the
+  operator-provided file base, extracts them in place, and supports explicit
+  immutable promotion through `--skip-auto-score`.
 
 Representative commits:
 - `31197e5` (generic SBX/AT-HYG recovery)

@@ -918,9 +918,11 @@ Deliverables:
   request, label, telemetry, or WebGL-resource growth
 - [x] deploy M8.1.4 to antiproton through two observable checkpoints: verify
   public 100/250-ly behavior on `20260714T191900Z_d873067_side_rebuild`, then
-  promote `20260715T015659Z_e392a11_side_rebuild`; public desktop/mobile
-  Playwright checks pass for progressive 500/1,000-ly completion with zero tile
-  failures
+  promote `20260715T015659Z_e392a11_side_rebuild`; the canonical database
+  stability follow-up `20260716T0103Z_94bdab7_side` is now the public build.
+  Public desktop/mobile Playwright checks pass for exact 100/250-ly and
+  progressive 500/1,000-ly completion with zero tile failures, including a 4K
+  Bright render and canvas-pixel probes
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window
@@ -1122,6 +1124,10 @@ Completed:
 - Final local promotion candidate `20260716T0103Z_94bdab7_side` passes the full
   database gate with exact four-radius map membership and 1,000/1,000 cached
   priority simulation scenes.
+- The same immutable candidate was promoted to antiproton on July 16, 2026.
+  Archive checksum, public health/auth, API integration, known-system goldens,
+  exact/progressive desktop/mobile map checks, 4K Bright rendering, screenshots,
+  and canvas-pixel probes pass against the public service.
 
 Remaining:
 

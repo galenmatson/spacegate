@@ -135,11 +135,16 @@ ssh -i ~/.ssh/spacegate_antiproton \
   -o BatchMode=yes \
   -o ConnectTimeout=8 \
   <deploy-user>@<deploy-host> \
-  "cd /srv/spacegate/app && SPACEGATE_STATE_DIR=/srv/spacegate/data scripts/bootstrap_core_db.sh --meta-url file:///srv/spacegate/dl/current.json --base-url file:///srv/spacegate/dl/"
+  "cd /srv/spacegate/app && SPACEGATE_STATE_DIR=/srv/spacegate/data scripts/bootstrap_core_db.sh --skip-auto-score --meta-url file:///srv/spacegate/dl/current.json --base-url file:///srv/spacegate/dl/"
 ```
 
 Use `--overwrite` only after checking that a partial extracted build exists and
 that replacing it is intentional.
+
+`--skip-auto-score` is required for immutable published artifacts whose DISC
+scores were materialized and verified on Photon. The bootstrapper validates and
+extracts a local `file://` artifact directly from the bounded download root; it
+must not make a second multi-gigabyte cache copy on the constrained edge host.
 
 ## Deploy Application Code
 
@@ -148,7 +153,8 @@ After the runtime DB is activated, sync the app and restart containers:
 ```bash
 scripts/deploy_antiproton.sh \
   --ssh-key ~/.ssh/spacegate_antiproton \
-  --ssh-cooldown 2
+  --ssh-cooldown 2 \
+  --skip-auto-score
 ```
 
 The deploy script preserves remote environment files and rebuilds/restarts the

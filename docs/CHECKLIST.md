@@ -48,10 +48,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   auth/health, and desktop map Peek checks pass
 - [x] Align public/admin Docker frontend build stages with Node 22 so current
   `camera-controls` engine requirements are satisfied
-- [ ] Restore build-bound priority simulation-scene materialization in the
-  promoted deep-map artifact pipeline; the July 15 deep build contains zero
-  prebuilt scenes, forcing all Peek requests through live ARM/readiness/scene
-  assembly even though an earlier build carried 1,001 artifacts
+- [x] Restore build-bound priority simulation-scene materialization in the
+  promoted deep-map artifact pipeline; public build
+  `20260716T0103Z_94bdab7_side` carries 1,000/1,000 verified priority scenes
+  with zero materialization failures
 - [ ] Add a cheap map-selected singleton scene path plus cache telemetry and
   explicit per-process/concurrent-assembly budgets before planning for hundreds
   of concurrent exploratory users; the shared persistent cache and same-scene
