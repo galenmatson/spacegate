@@ -683,6 +683,11 @@ or render leaf as `stellar_leaf_classification`. `system.stellar_class_badges`
 is the same ordered leaf sequence. Clients must use this projection for public
 class badges instead of independently combining CORE stars, MSC aggregate
 components, renderer priors, or display names.
+Simulation-scene artifact v4 resolves projection rows through canonical,
+leaf-component, and evidence-component keys. When the projection is present,
+unprojected ARM endpoints are not renderer members; this prevents a source
+detail endpoint or visual prior from creating a star that canonical hierarchy
+did not accept.
 
 ### GET /admin/objects/search
 Searches systems and system-owned components for the Admin Object Diagnostics
@@ -1408,6 +1413,12 @@ Implementation notes:
 - search result items include `display_name`, `display_name_style`,
   `display_name_source`, `display_aliases`, and `requested_name_style`.
   `display_name_style` is derived display/search metadata, not source identity.
+- search result items also include ordered `stellar_object_badges`, the matching
+  duplicate-preserving `stellar_class_badges` sequence, and ordered
+  `planet_object_badges`. Object badge rows carry stable object/component keys,
+  JavaScript-safe text IDs where available, and display names so current cards
+  can show the complete known inventory and later become object-detail links.
+  Clients must not deduplicate classes or cap either list for compactness.
 - dense exact-like identifiers and variable-star names suppress fuzzy alias
   substitution when there is no exact/prefix hit. This prevents public
   surprises such as `V1513 Cyg` resolving to nearby-but-wrong `V1581 Cyg`.

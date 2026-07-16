@@ -974,6 +974,19 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Separate neighbor endpoint labels from distance-line labels, continuously
   update camera-local cool-star recommendations, and add compact multiplicity-
   preserving stellar badge stacks to Recents and Cool Stars Nearby
+- [x] Show every projected star and confirmed CORE planet on Star Search/map
+  result cards and the System Hero; remove the four-class summary cap and keep
+  object keys in the response for future object-detail links
+- [x] Keep the map Search Results header and Close action visible while its card
+  list scrolls, and widen the desktop Filters sidebar by about three characters
+- [x] Make simulation-scene v4 use the canonical stellar-leaf projection as its
+  membership authority and resolve canonical/evidence component-key aliases
+  collision-safely; HD 57041 renders `K,WD` rather than an unprojected assumed
+  member or an M-class white dwarf
+- [x] Add a general gross-position sanity gate for MSC component surrogates and
+  a physically bounded authoritative-name-root bridge into existing WDS
+  systems; rebuild verification must confirm Struve 2398 A/B is one system and
+  the unrelated V1298 Aql surrogate is excluded
 - [ ] Extend tile-v4 planet environment derivation to confirmed planets with
   orbital distance but no published equilibrium temperature/insolation,
   including the authoritative Solar System rows, using a general auditable

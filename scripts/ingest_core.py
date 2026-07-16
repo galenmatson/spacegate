@@ -87,6 +87,8 @@ WDS_GAIA_GATE_MAX_DIST_SPREAD_LY_DEFAULT = 10.0
 WDS_GAIA_GATE_MAX_PM_DELTA_MASYR_DEFAULT = 25.0
 WDS_IDENTIFIER_BRIDGE_MAX_ANG_ARCSEC = 3.0
 WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY = 1.0
+WDS_NAME_ROOT_BRIDGE_MAX_ANG_ARCSEC = 3600.0
+MSC_WDS_POSITION_GATE_MIN_ARCSEC = 36000.0
 WHITE_DWARF_PROB_THRESHOLD = 0.5
 WHITE_DWARF_CATALOG_PWD_THRESHOLD_DEFAULT = 0.8
 ALIAS_NAME_OVERRIDE_LIMIT = 200000
@@ -3223,6 +3225,59 @@ def main() -> int:
         where msc_dedupe_rank = 1
         """
     )
+    con.execute(
+        f"""
+        create or replace temp view msc_component_wds_position_gate as
+        with candidate_coordinates as (
+          select
+            m.msc_row_num,
+            m.dec_deg as msc_dec_deg,
+            try_cast(w.dec_deg as double) as wds_dec_deg,
+            least(
+              abs(m.ra_deg - try_cast(w.ra_deg as double)),
+              360.0 - abs(m.ra_deg - try_cast(w.ra_deg as double))
+            ) as ra_delta_deg,
+            try_cast(w.rho_last_arcsec as double) as pair_sep_arcsec
+          from msc_components m
+          join wds_raw w on nullif(w.wds_id, '') = m.wds_id
+          where m.wds_id is not null
+            and m.ra_deg is not null
+            and m.dec_deg is not null
+            and try_cast(w.ra_deg as double) is not null
+            and try_cast(w.dec_deg as double) is not null
+        ), candidates as (
+          select
+            msc_row_num,
+            degrees(acos(least(1.0, greatest(-1.0,
+              sin(radians(msc_dec_deg)) * sin(radians(wds_dec_deg)) +
+              cos(radians(msc_dec_deg)) * cos(radians(wds_dec_deg)) * cos(radians(ra_delta_deg))
+            )))) * 3600.0 as ang_sep_arcsec,
+            pair_sep_arcsec
+          from candidate_coordinates
+        ), bounds as (
+          select
+            msc_row_num,
+            min(ang_sep_arcsec) as min_ang_sep_arcsec,
+            max(coalesce(pair_sep_arcsec, 0.0)) as max_pair_sep_arcsec
+          from candidates
+          group by msc_row_num
+        )
+        select
+          m.msc_row_num,
+          b.min_ang_sep_arcsec,
+          b.max_pair_sep_arcsec,
+          case
+            when b.msc_row_num is null then true
+            when b.min_ang_sep_arcsec <= greatest(
+              {MSC_WDS_POSITION_GATE_MIN_ARCSEC},
+              b.max_pair_sep_arcsec * 2.0 + 60.0
+            ) then true
+            else false
+          end as position_gate_pass
+        from msc_components m
+        left join bounds b using (msc_row_num)
+        """
+    )
     msc_component_raw_count = con.execute(
         "select count(*) from msc_components_pre_dedupe"
     ).fetchone()[0]
@@ -3233,6 +3288,9 @@ def main() -> int:
     msc_component_dedup_group_count = con.execute(
         "select count(*) from (select msc_dedupe_key from msc_components_ranked group by 1 having count(*) > 1)"
     ).fetchone()[0]
+    msc_component_wds_position_rejected_count = con.execute(
+        "select count(*) from msc_component_wds_position_gate where not position_gate_pass"
+    ).fetchone()[0]
     if msc_component_dedup_dropped_count > 0:
         log(
             "MSC component dedupe: "
@@ -3240,6 +3298,11 @@ def main() -> int:
             f"retained={format_count(msc_component_retained_count)}, "
             f"dropped={format_count(msc_component_dedup_dropped_count)}, "
             f"duplicate_groups={format_count(msc_component_dedup_group_count)}"
+        )
+    if msc_component_wds_position_rejected_count > 0:
+        log(
+            "MSC/WDS position gate: "
+            f"rejected={format_count(msc_component_wds_position_rejected_count)} grossly displaced component rows"
         )
     con.execute(
         """
@@ -3267,9 +3330,11 @@ def main() -> int:
               else 0.97
             end as match_confidence
           from msc_components m
+          join msc_component_wds_position_gate position_gate using (msc_row_num)
           join athyg_stars_stage s
             on (m.hip_id is not null and s.hip_id = m.hip_id)
             or (m.hd_id is not null and s.hd_id = m.hd_id)
+          where position_gate.position_gate_pass
         ), ranked as (
           select
             *,
@@ -3814,11 +3879,13 @@ def main() -> int:
             {sql_literal(ingested_at)} as ingested_at,
             {sql_literal(transform_version)} as transform_version
           from msc_components m
+          left join msc_component_wds_position_gate position_gate using (msc_row_num)
           left join msc_exact_matches x on x.msc_row_num = m.msc_row_num
           left join wds_support ws on ws.wds_id = m.wds_id
           left join orb6_support os on os.wds_id = m.wds_id
           left join sbx_msc_matches sbx on sbx.msc_row_num = m.msc_row_num
           where x.msc_row_num is null
+            and coalesce(position_gate.position_gate_pass, true)
         ), ultracool_inventory_only as (
           select
             cast(morton3d(u.x_pc * {PC_TO_LY}, u.y_pc * {PC_TO_LY}, u.z_pc * {PC_TO_LY}) as bigint) as spatial_index,
@@ -6784,6 +6851,30 @@ def main() -> int:
              (s.hip_id is not null and w.hip_id = s.hip_id)
              or (s.hd_id is not null and w.hd_id = s.hd_id)
            )
+          union all
+          select
+            s.star_id,
+            w.wds_id,
+            3 as match_rank,
+            abs(s.dist_ly - w.dist_ly) as dist_delta_ly,
+            degrees(acos(
+              least(
+                1.0,
+                greatest(
+                  -1.0,
+                  sin(radians(s.dec_deg)) * sin(radians(w.dec_deg)) +
+                  cos(radians(s.dec_deg)) * cos(radians(w.dec_deg)) *
+                    cos(radians(least(abs(s.ra_deg - w.ra_deg), 360.0 - abs(s.ra_deg - w.ra_deg))))
+                )
+              )
+            )) * 3600.0 as ang_sep_arcsec
+          from stars s
+          join stars w
+            on w.wds_id is not null
+           and s.wds_id is null
+           and s.system_name_root_norm is not null
+           and s.system_name_root_norm = w.system_name_root_norm
+           and s.star_id <> w.star_id
         ), per_wds as (
           select
             star_id,
@@ -6801,6 +6892,11 @@ def main() -> int:
              or (
                match_rank in (1, 2)
                and ang_sep_arcsec <= {WDS_IDENTIFIER_BRIDGE_MAX_ANG_ARCSEC}
+               and dist_delta_ly <= {WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY}
+             )
+             or (
+               match_rank = 3
+               and ang_sep_arcsec <= {WDS_NAME_ROOT_BRIDGE_MAX_ANG_ARCSEC}
                and dist_delta_ly <= {WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY}
              )
         ), ranked as (
@@ -11962,6 +12058,10 @@ def main() -> int:
             "dropped_rows": msc_component_dedup_dropped_count,
             "duplicate_groups": msc_component_dedup_group_count,
         },
+        "msc_wds_position_gate": {
+            "minimum_radius_arcsec": MSC_WDS_POSITION_GATE_MIN_ARCSEC,
+            "rejected_rows": msc_component_wds_position_rejected_count,
+        },
         "athyg_merge": {
             "resolved_existing_rows": athyg_merge_existing_match_count,
             "inserted_new_rows": athyg_merge_insert_count,
@@ -12529,6 +12629,7 @@ def main() -> int:
         "msc_component_retained_rows": msc_component_retained_count,
         "msc_component_dedup_dropped_rows": msc_component_dedup_dropped_count,
         "msc_component_duplicate_groups": msc_component_dedup_group_count,
+        "msc_component_wds_position_rejected_rows": msc_component_wds_position_rejected_count,
         "open_cluster_member_min_probability": open_cluster_member_min_probability,
         "gaia_nss_enabled": enable_gaia_nss,
         "gaia_nss_non_single_row_count_check_match": manifest_row_count_match(

@@ -15,6 +15,7 @@ import {
 import { isLightweightPreviewSystem, LightweightSystemPreview } from "./LightweightSystemPreview.jsx";
 import { mapExploreHrefForSystem } from "./mapReturnState.js";
 import { NAME_STYLE_OPTIONS, normalizeNameStyle, readStoredNameStyle, writeStoredNameStyle } from "./nameStyle.js";
+import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 import {
   StellarClassChips,
   stellarClassTokensFromRecord,
@@ -1852,15 +1853,13 @@ function bestSpectralSummary(system, stars = []) {
     ? system.stellar_class_badges
     : (Array.isArray(system?.spectral_classes) ? system.spectral_classes : []);
   if (classes.length > 0) {
-    return classes.slice(0, 4).join(", ");
+    return classes.join(", ");
   }
-  const fromStars = Array.from(new Set(
-    (Array.isArray(stars) ? stars : [])
-      .map((star) => String(star?.spectral_class || "").trim().toUpperCase())
-      .filter(Boolean),
-  ));
+  const fromStars = (Array.isArray(stars) ? stars : [])
+    .map((star) => String(star?.spectral_class || "").trim().toUpperCase())
+    .filter(Boolean);
   if (fromStars.length > 0) {
-    return fromStars.slice(0, 4).join(", ");
+    return fromStars.join(", ");
   }
   return formatText(system?.coolness_dominant_spectral_class);
 }
@@ -3965,7 +3964,7 @@ function SearchPage({ buildId = "" }) {
                               ))}
                             </div>
                           ) : null}
-                          <StellarClassChips tokens={stellarClassTokensFromSystem(item)} size="compact" className="result-stellar-tags" />
+                          <SystemObjectBadges system={item} className="result-stellar-tags" />
                         </div>
                         <div className="distance" title="Coolness rank">
                           {(item.coolness_rank !== null && item.coolness_rank !== undefined)
@@ -4576,24 +4575,12 @@ function SystemDetailPage({ buildId = "" }) {
               <SystemFactPill label="Coolness" value={formatNumber(system.coolness_score, 1)} />
             </div>
             <div className="system-detail-class-tags">
-              {stellarLeafClassifications.length ? (
-                <span className="stellar-class-chips system-detail-stellar-tags" aria-label="Stellar leaf classes">
-                  {stellarLeafClassifications.map((leaf, index) => (
-                    <StellarClassChips
-                      key={leaf.hierarchy_node_key || `stellar-leaf-${index}`}
-                      tokens={[leaf.classification_value || "UNKNOWN"]}
-                      size="compact"
-                    />
-                  ))}
-                </span>
-              ) : (
-                <StellarClassChips tokens={stellarClassTokensFromSystem({
-                  ...system,
-                  spectral_classes: Array.from(new Set((stars || [])
-                    .map((star) => String(star.spectral_class || star.spectral_type_raw || "").trim().toUpperCase())
-                    .filter(Boolean))),
-                })} className="system-detail-stellar-tags" />
-              )}
+              <SystemObjectBadges
+                system={system}
+                stellarObjects={stellarLeafClassifications.length ? stellarLeafClassifications : null}
+                planets={planets}
+                className="system-detail-stellar-tags"
+              />
               {systemTags.length > 0 ? (
                 <div className="result-tags system-detail-tags" aria-label={`${currentSystemDisplayName} discovery tags`}>
                   {systemTags.map((tag) => (

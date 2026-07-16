@@ -2060,6 +2060,19 @@ def _fetch_arm_star_overlay_counts_for_systems(
         return {}
     if not _attach_side_db(con, arm_db_path, alias="arm_db"):
         return {}
+    system_ids = [int(row["system_id"]) for row in systems if row.get("system_id") is not None]
+    if system_ids and _has_table(con, alias="arm_db", table_name="stellar_leaf_display_classifications"):
+        placeholders = ",".join(["?"] * len(system_ids))
+        rows = con.execute(
+            f"""
+            SELECT system_id, COUNT(*)::BIGINT AS leaf_count
+            FROM arm_db.stellar_leaf_display_classifications
+            WHERE system_id IN ({placeholders})
+            GROUP BY system_id
+            """,
+            system_ids,
+        ).fetchall()
+        return {int(system_id): int(count or 0) for system_id, count in rows}
     if not _has_table(con, alias="arm_db", table_name="component_entities"):
         return {}
     if not _has_table(con, alias="arm_db", table_name="system_hierarchy_edges"):
@@ -2110,6 +2123,54 @@ def _fetch_arm_star_overlay_counts_for_systems(
         bind_params,
     ).fetchall()
     return {int(system_id): int(count or 0) for system_id, count in rows}
+
+
+def _fetch_stellar_object_badges_for_systems(
+    con: duckdb.DuckDBPyConnection,
+    system_ids: List[int],
+    *,
+    arm_db_path: Optional[str],
+) -> Dict[int, List[Dict[str, Any]]]:
+    if not system_ids or not arm_db_path:
+        return {}
+    if not _attach_side_db(con, arm_db_path, alias="arm_db"):
+        return {}
+    if not _has_table(con, alias="arm_db", table_name="stellar_leaf_display_classifications"):
+        return {}
+    placeholders = ",".join(["?"] * len(system_ids))
+    rows = con.execute(
+        f"""
+        SELECT
+          system_id,
+          hierarchy_node_key,
+          leaf_component_key,
+          evidence_component_key,
+          CAST(star_id AS VARCHAR) AS star_id_text,
+          stable_object_key,
+          display_name,
+          classification_value,
+          classification_status
+        FROM arm_db.stellar_leaf_display_classifications
+        WHERE system_id IN ({placeholders})
+        ORDER BY system_id, hierarchy_node_key
+        """,
+        system_ids,
+    ).fetchall()
+    output: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        output[int(row[0])].append(
+            {
+                "hierarchy_node_key": row[1],
+                "leaf_component_key": row[2],
+                "evidence_component_key": row[3],
+                "star_id_text": row[4],
+                "stable_object_key": row[5],
+                "display_name": row[6],
+                "classification_value": row[7] or "UNKNOWN",
+                "classification_status": row[8] or "missing",
+            }
+        )
+    return dict(output)
 
 
 def _orbit_solution_payload(
@@ -4059,6 +4120,11 @@ def search_systems(
     system_ids: List[int] = [int(item["system_id"]) for item in results if item.get("system_id") is not None]
     if system_ids:
         matched_search_terms = _fetch_matched_search_terms(con, system_ids, q_norm=q_norm)
+        stellar_object_badges = _fetch_stellar_object_badges_for_systems(
+            con,
+            system_ids,
+            arm_db_path=arm_db_path,
+        )
         arm_star_overlay_counts = (
             {}
             if sort == "star_count"
@@ -4077,6 +4143,28 @@ def search_systems(
             and has_system_spectral_classes_json
         )
         needs_planet_rollup = not has_system_planet_count
+        planet_object_rows = con.execute(
+            f"""
+            SELECT
+              system_id,
+              CAST(planet_id AS VARCHAR) AS planet_id_text,
+              stable_object_key,
+              planet_name
+            FROM planets
+            WHERE system_id IN ({placeholders})
+            ORDER BY system_id, lower(planet_name), stable_object_key
+            """,
+            system_ids,
+        ).fetchall()
+        planet_object_badges: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        for system_id, planet_id_text, stable_object_key, planet_name in planet_object_rows:
+            planet_object_badges[int(system_id)].append(
+                {
+                    "planet_id_text": planet_id_text,
+                    "stable_object_key": stable_object_key,
+                    "display_name": planet_name,
+                }
+            )
         if has_aliases:
             alias_rows = con.execute(
                 f"""
@@ -4212,6 +4300,12 @@ def search_systems(
 
         for item in results:
             sid = int(item.get("system_id") or 0)
+            item["stellar_object_badges"] = stellar_object_badges.get(sid, [])
+            item["stellar_class_badges"] = [
+                row.get("classification_value") or "UNKNOWN"
+                for row in item["stellar_object_badges"]
+            ]
+            item["planet_object_badges"] = planet_object_badges.get(sid, [])
             if needs_star_rollup:
                 star_count, teff_count, min_teff_k, max_teff_k, spectral_classes = star_map.get(
                     sid,

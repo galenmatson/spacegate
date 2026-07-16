@@ -28,7 +28,7 @@
   --map-select-ink: #edf8ff;
   --map-select-checked-bg: #17334d;
   --map-search-offset-top: 118px;
-  --map-search-sidebar-width: 214px;
+  --map-search-sidebar-width: 238px;
   --map-search-sidebar-gap: 18px;
   --map-search-content-left: calc(var(--map-search-sidebar-width) + var(--map-search-sidebar-gap));
 }
@@ -410,6 +410,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.map-search-results > .map-search-results-head {
+  position: sticky;
+  top: -10px;
+  z-index: 5;
+  margin: -10px -10px 0;
+  padding: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
+  background: color-mix(in srgb, var(--map-hud-bg) 94%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .map-search-sidebar-head strong,
@@ -7526,6 +7537,58 @@ main {
   vertical-align: middle;
 }
 
+.system-object-badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  vertical-align: middle;
+}
+
+.system-object-badge,
+.system-object-badge-star {
+  display: inline-flex;
+  align-items: center;
+}
+
+.system-object-badge-planet {
+  gap: 5px;
+  min-height: 22px;
+  padding: 2px 7px 2px 4px;
+  border: 1px solid color-mix(in srgb, #72d6d0 68%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, #123b45 46%, var(--surface-soft));
+  color: color-mix(in srgb, #baf8ed 80%, var(--ink));
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.system-object-planet-icon {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #eafffa 0 8%, #4fb8ac 24%, #17616a 68%, #071e29 100%);
+  box-shadow: 0 0 5px rgba(85, 219, 201, 0.55);
+}
+
+.system-object-planet-icon::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 5px;
+  width: 20px;
+  height: 5px;
+  border: 1.5px solid #9ff1df;
+  border-top-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-16deg);
+}
+
 .stellar-class-chip {
   --star-core: color-mix(in srgb, var(--stellar-chip-color) 76%, white 24%);
   --star-mid: var(--stellar-chip-color);
@@ -10486,7 +10549,7 @@ main {
 @media (max-width: 980px) {
   .map-page {
     --map-search-offset-top: 112px;
-    --map-search-sidebar-width: min(216px, 42vw);
+    --map-search-sidebar-width: min(240px, 42vw);
     --map-search-sidebar-gap: 10px;
     --map-search-content-left: calc(var(--map-search-sidebar-width) + var(--map-search-sidebar-gap));
   }

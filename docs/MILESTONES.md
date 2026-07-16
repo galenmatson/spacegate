@@ -1867,6 +1867,20 @@ neighbor lines carry distance-only labels while their endpoints use normal
 system labels; and camera-local Cool Stars Nearby recommendations update on a
 2-ly quantized position to avoid per-frame full-catalog sorting.
 
+July 16 object-badge and membership follow-up removes the remaining compact
+card cap: Star Search/map result cards and System Hero now render every ordered
+projected stellar leaf plus every confirmed CORE planet, retaining object keys
+for future object-detail navigation. Search result responses expose the same
+batch object-badge contract, and the scrolling map result header keeps its
+Close action visible. Simulation-scene artifact v4 treats the canonical
+stellar-leaf projection as membership authority and joins it through unique
+canonical/evidence aliases, fixing HD 57041's white-dwarf display without a
+system override. The canonical ingest also rejects MSC component rows grossly
+displaced from their claimed WDS field and bridges exact authoritative member
+name roots into an existing WDS system only under distance and sky bounds. The
+first regression target is Struve 2398: its real Gaia A/B pair must become one
+system while a misassociated V1298 Aql MSC surrogate is excluded.
+
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
 science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or

@@ -415,6 +415,11 @@ display name, or substitute an aggregate-node class. `system.star_count`
 differences are reported separately because audited hierarchy leaves, not a
 legacy count facet, define badge membership.
 
+Renderers may resolve a row through `hierarchy_node_key`, `leaf_component_key`,
+or `evidence_component_key`, but ambiguous aliases must fail closed. When this
+projection is available, raw ARM component endpoints absent from it are
+evidence, not additional rendered stellar members.
+
 ## `msc_component_details`
 
 MSC component/context rows for subsystem narration and photometry support.

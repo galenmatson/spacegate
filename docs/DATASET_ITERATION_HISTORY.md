@@ -708,6 +708,30 @@ Representative commits:
   refinement must use a general, provenance-bearing host-luminosity and orbital-
   distance derivation rather than a literal Sol branch.
 
+### 25) Canonical Badge Membership and WDS Bridge Hardening
+
+- Search result cards and System Hero now consume complete ordered object badge
+  lists: duplicate stellar classes are preserved and every confirmed CORE
+  planet is represented. Stable object/component keys and text IDs are retained
+  so the badges can become object-detail links without changing the API shape.
+- Simulation-scene artifact v4 resolves shared leaf classifications through
+  unique hierarchy, canonical leaf-component, and source evidence-component
+  keys. With the projection present, unprojected ARM endpoints are evidence
+  only and cannot become extra render stars. HD 57041 therefore follows its
+  canonical `K,WD` leaves, and the `WD?` source component renders as a white
+  dwarf instead of inheriting an M-class mass prior.
+- The Struve 2398 overlap exposed an upstream MSC component row claiming WDS
+  `18428+5938 B` while carrying V1298 Aql/GJ 752 B identifiers and coordinates
+  more than 50 degrees from the WDS field. Ingest now gates only gross WDS-field
+  position mismatches (a conservative 10-degree floor, expanded for reported
+  pair extent) and reports rejected rows rather than silently creating stars.
+- A separate general bridge attaches an ungrouped member to an existing WDS
+  system when both stars share the exact authoritative proper-name root and
+  pass one-light-year and one-degree bounds. The current corpus produces one
+  such candidate, the real Gaia/AT-HYG Struve 2398 B member. No literal system
+  name, WDS ID, Gaia ID, or per-system output override is present in the build
+  logic.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

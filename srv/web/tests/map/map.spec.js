@@ -109,6 +109,8 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-star-search")).toBeVisible();
     await expect(page.locator("[data-testid='map-star-search-input']")).toBeVisible();
     await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
+    await expect.poll(() => page.locator(".map-search-sidebar").evaluate((node) => Math.round(node.getBoundingClientRect().width)))
+      .toBeGreaterThanOrEqual(230);
     await expect(page.locator(".map-search-habitable")).toBeVisible();
     const temperatureInputs = page.locator(".map-search-topbar .map-search-range input[type='range']");
     await expect(temperatureInputs).toHaveCount(2);
@@ -164,6 +166,7 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-search-card").first()).toBeVisible({ timeout: 10000 });
     await expect(page.locator(".map-search-card").first().getByRole("link", { name: "Detail" })).toBeVisible();
     await expect(page.locator(".map-search-card").first().locator(".stellar-class-chip")).toHaveCount(1);
+    await expect(page.locator(".map-search-card").first().locator(".system-object-badge-planet")).toHaveCount(13);
     await expect.poll(async () => {
       const box = await page.locator(".map-search-card-preview").first().boundingBox();
       return Math.round(box?.height || 0);
@@ -206,6 +209,24 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimePreviewPoolBudget || ""),
       { timeout: 3000 }
     ).toBe("1");
+  });
+
+  test("map Search Results keeps its Close action while cards scroll", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.includes("mobile"), "desktop sticky result header check");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.locator(".map-canvas canvas").waitFor();
+    await page.locator("[data-testid='map-star-search-input']").fill("Gaia");
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    const results = page.locator("[data-testid='map-star-search-results']");
+    const close = results.getByRole("button", { name: /^Close$/ });
+    await expect.poll(() => page.locator(".map-search-card").count(), { timeout: 10000 }).toBeGreaterThanOrEqual(9);
+    const initialTop = (await close.boundingBox())?.y;
+    await results.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+    await expect(close).toBeVisible();
+    const scrolledTop = (await close.boundingBox())?.y;
+    expect(initialTop).toBeDefined();
+    expect(scrolledTop).toBeDefined();
+    expect(Math.abs(scrolledTop - initialTop)).toBeLessThanOrEqual(2);
   });
 
   test("standalone Star Search v2 uses bounded simulation previews", async ({ page }, testInfo) => {
@@ -2027,6 +2048,8 @@ test.describe("public 3D map beta", () => {
     expect(searchPayload.items?.[0]?.hip_id).toBe(19335);
     expect(searchPayload.items?.[0]?.hd_id).toBe(25998);
     expect(String(searchPayload.items?.[0]?.gaia_id || searchPayload.items?.[0]?.gaia_source_id)).toBe("225668203191521280");
+    expect([...searchPayload.items?.[0]?.stellar_class_badges].sort()).toEqual(["F", "K", "M", "M", "UNKNOWN"].sort());
+    expect(searchPayload.items?.[0]?.stellar_object_badges).toHaveLength(5);
 
     const cases = [
       { label: "HD 110067", systemId: 17785520, expected: ["G", "K", "M", "M"] },
@@ -2034,6 +2057,7 @@ test.describe("public 3D map beta", () => {
       { label: "Gl 161.1", systemId: 17783679, expected: ["F", "K", "M", "M", "UNKNOWN"] },
       { label: "HD 18134", systemId: 17783330, expected: ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"] },
       { label: "Castor", systemId: 17784471, expected: ["A", "A", "M", "M", "M", "M"] },
+      { label: "HD 57041", systemId: 17784416, expected: ["K", "WD"] },
     ];
     const sorted = (values) => [...values].sort();
 
@@ -2068,6 +2092,10 @@ test.describe("public 3D map beta", () => {
     await page.goto("/systems/17783679", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/Gl 161\.1/i);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(5);
+
+    await page.goto("/systems/17785520", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(4);
+    await expect(page.locator(".system-detail-stellar-tags .system-object-badge-planet")).toHaveCount(6);
   });
 
   test("multi-star system preview exposes binary render orbits and provenance", async ({ page }, testInfo) => {

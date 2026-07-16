@@ -25,6 +25,7 @@ import {
   stellarClassTokensFromSystem,
   stellarClassTooltip,
 } from "./stellarClassTags.jsx";
+import { SystemObjectBadges } from "./SystemObjectBadges.jsx";
 
 const DEFAULT_MAP_RADIUS_LY = 100;
 const LIGHT_YEAR_KM = 9_460_730_472_580.8;
@@ -2911,7 +2912,7 @@ function MapStarSearchShell({
                   />
                   <div className="map-search-card-body">
                     <h3>{displayName}</h3>
-                    <StellarClassChips tokens={stellarClassTokensFromSystem(system)} size="compact" className="map-search-stellar-tags" />
+                    <SystemObjectBadges system={system} className="map-search-stellar-tags" />
                     <div className="map-search-card-metrics">
                       <span>{formatNumber(system.dist_ly, 2)} ly Sol</span>
                       {Number.isFinite(originDistance) && <span>{formatNumber(originDistance, 2)} ly view</span>}

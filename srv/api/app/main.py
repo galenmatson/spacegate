@@ -220,7 +220,7 @@ DATASET_STATUS_CACHE_TTL_S = 30.0
 _DATASET_STATUS_CACHE: Dict[str, Any] = {}
 SIMULATION_SCENE_CACHE_TTL_S = 15.0 * 60.0
 SIMULATION_SCENE_CACHE_MAX_ITEMS = 256
-SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v3"
+SIMULATION_SCENE_ARTIFACT_VERSION = "simulation_scene_artifact_v4"
 _SIMULATION_SCENE_CACHE_LOCK = threading.Lock()
 _SIMULATION_SCENE_CACHE: "OrderedDict[tuple[str, int], Dict[str, Any]]" = OrderedDict()
 _SIMULATION_SCENE_INFLIGHT_LOCK = threading.Lock()
@@ -2862,13 +2862,22 @@ def _render_scene_contract(
                 break
             add_hierarchy_star(node)
 
-    leaf_classifications = {
-        str(row.get("leaf_component_key") or ""): row
-        for row in ((arm.get("stellar_leaf_display_classifications") or {}).get("items") or [])
-        if row.get("leaf_component_key")
-    }
-    for render_key, render_star in render_stars.items():
-        leaf_row = leaf_classifications.get(str(render_key))
+    stellar_leaf_rows = (arm.get("stellar_leaf_display_classifications") or {}).get("items") or []
+    leaf_classifications = _stellar_leaf_classification_lookup(stellar_leaf_rows)
+    for render_key, render_star in list(render_stars.items()):
+        source = render_star.get("source") if isinstance(render_star.get("source"), dict) else {}
+        candidate_keys = (
+            render_key,
+            source.get("stable_component_key"),
+            source.get("canonical_key"),
+        )
+        leaf_row = next(
+            (leaf_classifications.get(str(key)) for key in candidate_keys if key and leaf_classifications.get(str(key))),
+            None,
+        )
+        if stellar_leaf_rows and not leaf_row:
+            del render_stars[render_key]
+            continue
         if not leaf_row:
             continue
         render_star["stellar_leaf_classification"] = leaf_row
@@ -4466,18 +4475,39 @@ def _stellar_leaf_display_classifications_for_system(system_id: int) -> List[Dic
             con.close()
 
 
+def _stellar_leaf_classification_lookup(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    candidates: Dict[str, List[Dict[str, Any]]] = {}
+    for row in rows:
+        for field in ("hierarchy_node_key", "leaf_component_key", "evidence_component_key", "stable_object_key"):
+            key = str(row.get(field) or "").strip()
+            if key:
+                candidates.setdefault(key, []).append(row)
+    return {
+        key: matches[0]
+        for key, matches in candidates.items()
+        if len({str(match.get("hierarchy_node_key") or "") for match in matches}) == 1
+    }
+
+
 def _overlay_stellar_leaf_classifications(
     hierarchy: Optional[Dict[str, Any]],
     rows: List[Dict[str, Any]],
 ) -> None:
     if not isinstance(hierarchy, dict) or not rows:
         return
-    by_key = {str(row.get("hierarchy_node_key") or ""): row for row in rows}
+    by_key = _stellar_leaf_classification_lookup(rows)
 
     def visit(node: Any) -> None:
         if not isinstance(node, dict):
             return
-        row = by_key.get(str(node.get("stable_component_key") or ""))
+        row = next(
+            (
+                by_key.get(str(key))
+                for key in (node.get("stable_component_key"), node.get("canonical_key"))
+                if key and by_key.get(str(key))
+            ),
+            None,
+        )
         if row:
             node["stellar_leaf_classification"] = row
             facts = node.get("quick_facts")
