@@ -1876,10 +1876,11 @@ Close action visible. Simulation-scene artifact v4 treats the canonical
 stellar-leaf projection as membership authority and joins it through unique
 canonical/evidence aliases, fixing HD 57041's white-dwarf display without a
 system override. The canonical ingest also rejects MSC component rows grossly
-displaced from their claimed WDS field and bridges exact authoritative member
-name roots into an existing WDS system only under distance and sky bounds. The
-first regression target is Struve 2398: its real Gaia A/B pair must become one
-system while a misassociated V1298 Aql MSC surrogate is excluded.
+displaced from their claimed WDS field and bridges exact authoritative
+Gliese/GJ catalog roots or member-name roots into an existing WDS system only
+under distance, sky, and unique-best-match bounds. The first regression target
+is Struve 2398: its real Gaia A/B pair must become one system while a
+misassociated V1298 Aql MSC surrogate is excluded.
 
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served

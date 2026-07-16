@@ -6821,7 +6821,20 @@ def main() -> int:
     con.execute(
         f"""
         create temp table wds_identifier_bridge as
-        with raw_candidates as (
+        with catalog_identifier_roots as (
+          select
+            star_id,
+            lower(trim(regexp_replace(
+              json_extract_string(catalog_ids_json, '$.gl'),
+              '[[:space:]]*[A-Za-z]{{1,2}}$',
+              ''
+            ))) as gliese_root_norm
+          from stars
+          where regexp_matches(
+            coalesce(json_extract_string(catalog_ids_json, '$.gl'), ''),
+            '^(Gl|GJ)[[:space:]]*[0-9]'
+          )
+        ), raw_candidates as (
           select
             s.star_id,
             w.wds_id,
@@ -6869,6 +6882,32 @@ def main() -> int:
               )
             )) * 3600.0 as ang_sep_arcsec
           from stars s
+          join catalog_identifier_roots sr on sr.star_id = s.star_id
+          join catalog_identifier_roots wr
+            on wr.gliese_root_norm = sr.gliese_root_norm
+           and wr.star_id <> sr.star_id
+          join stars w
+            on w.star_id = wr.star_id
+           and w.wds_id is not null
+          where s.wds_id is null
+          union all
+          select
+            s.star_id,
+            w.wds_id,
+            4 as match_rank,
+            abs(s.dist_ly - w.dist_ly) as dist_delta_ly,
+            degrees(acos(
+              least(
+                1.0,
+                greatest(
+                  -1.0,
+                  sin(radians(s.dec_deg)) * sin(radians(w.dec_deg)) +
+                  cos(radians(s.dec_deg)) * cos(radians(w.dec_deg)) *
+                    cos(radians(least(abs(s.ra_deg - w.ra_deg), 360.0 - abs(s.ra_deg - w.ra_deg))))
+                )
+              )
+            )) * 3600.0 as ang_sep_arcsec
+          from stars s
           join stars w
             on w.wds_id is not null
            and s.wds_id is null
@@ -6895,7 +6934,7 @@ def main() -> int:
                and dist_delta_ly <= {WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY}
              )
              or (
-               match_rank = 3
+               match_rank in (3, 4)
                and ang_sep_arcsec <= {WDS_NAME_ROOT_BRIDGE_MAX_ANG_ARCSEC}
                and dist_delta_ly <= {WDS_IDENTIFIER_BRIDGE_MAX_DIST_DELTA_LY}
              )
@@ -6917,13 +6956,20 @@ def main() -> int:
         )
         select
           star_id,
-          'wds:' || wds_id as system_group_key
+          'wds:' || wds_id as system_group_key,
+          match_rank
         from ranked
         where rn = 1 and best_rank_count = 1
         """
     )
     wds_identifier_bridge_count = con.execute(
         "select count(*) from wds_identifier_bridge"
+    ).fetchone()[0]
+    wds_catalog_root_bridge_count = con.execute(
+        "select count(*) from wds_identifier_bridge where match_rank = 3"
+    ).fetchone()[0]
+    wds_name_root_bridge_count = con.execute(
+        "select count(*) from wds_identifier_bridge where match_rank = 4"
     ).fetchone()[0]
     con.execute(
         """
@@ -6969,6 +7015,7 @@ def main() -> int:
     log(
         "System grouping: counts "
         f"(total={total_stars}, wds_grouped={wds_grouped}, wds_bridged={wds_identifier_bridge_count}, "
+        f"catalog_root_bridged={wds_catalog_root_bridge_count}, name_root_bridged={wds_name_root_bridge_count}, "
         f"name_grouped={name_grouped}, proximity_eligible={prox_eligible})"
     )
 
@@ -7675,6 +7722,9 @@ def main() -> int:
         "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
         "wds_gaia_gate_max_pm_delta_mas_yr": wds_gaia_gate_max_pm_delta_mas_yr,
         "wds_group_count": wds_group_count,
+        "wds_identifier_bridge_count": wds_identifier_bridge_count,
+        "wds_catalog_root_bridge_count": wds_catalog_root_bridge_count,
+        "wds_name_root_bridge_count": wds_name_root_bridge_count,
         "name_group_count": name_group_count,
         "proximity_group_count": prox_group_count,
         "solo_group_count": solo_group_count,
@@ -12654,6 +12704,9 @@ def main() -> int:
         "wds_gaia_gate_rejected_group_count": wds_gaia_gate_rejected_group_count,
         "wds_gaia_gate_max_dist_spread_ly": wds_gaia_gate_max_dist_spread_ly,
         "wds_gaia_gate_max_pm_delta_mas_yr": wds_gaia_gate_max_pm_delta_mas_yr,
+        "wds_identifier_bridge_count": wds_identifier_bridge_count,
+        "wds_catalog_root_bridge_count": wds_catalog_root_bridge_count,
+        "wds_name_root_bridge_count": wds_name_root_bridge_count,
         "white_dwarf_probability_threshold": WHITE_DWARF_PROB_THRESHOLD,
         "white_dwarf_catalog_pwd_threshold": white_dwarf_catalog_pwd_threshold,
         "white_dwarf_classprob_evidence_count": wd_classprob_evidence_count,

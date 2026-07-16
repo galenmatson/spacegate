@@ -983,10 +983,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   membership authority and resolve canonical/evidence component-key aliases
   collision-safely; HD 57041 renders `K,WD` rather than an unprojected assumed
   member or an M-class white dwarf
-- [x] Add a general gross-position sanity gate for MSC component surrogates and
-  a physically bounded authoritative-name-root bridge into existing WDS
-  systems; rebuild verification must confirm Struve 2398 A/B is one system and
-  the unrelated V1298 Aql surrogate is excluded
+- [ ] Add a general gross-position sanity gate for MSC component surrogates and
+  a physically bounded authoritative Gliese/GJ or name-root bridge into
+  existing WDS systems; rebuild verification must confirm Struve 2398 A/B is
+  one system and the unrelated V1298 Aql surrogate is excluded
 - [ ] Extend tile-v4 planet environment derivation to confirmed planets with
   orbital distance but no published equilibrium temperature/insolation,
   including the authoritative Solar System rows, using a general auditable

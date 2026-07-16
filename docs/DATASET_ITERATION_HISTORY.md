@@ -726,11 +726,12 @@ Representative commits:
   position mismatches (a conservative 10-degree floor, expanded for reported
   pair extent) and reports rejected rows rather than silently creating stars.
 - A separate general bridge attaches an ungrouped member to an existing WDS
-  system when both stars share the exact authoritative proper-name root and
-  pass one-light-year and one-degree bounds. The current corpus produces one
-  such candidate, the real Gaia/AT-HYG Struve 2398 B member. No literal system
-  name, WDS ID, Gaia ID, or per-system output override is present in the build
-  logic.
+  system when both stars share either an exact authoritative Gliese/GJ catalog
+  identifier root or an exact proper-name root and pass one-light-year,
+  one-degree, and unique-best-match bounds. A full-corpus pre-build audit
+  produces two catalog-root candidates: the real Gaia/AT-HYG Struve 2398 B
+  member and a 37-arcsecond Gl 277 companion. No literal system name, WDS ID,
+  Gaia ID, or per-system output override is present in the build logic.
 
 ## Recurrent Defect Classes and Mitigations
 
