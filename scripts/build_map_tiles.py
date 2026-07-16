@@ -330,10 +330,27 @@ def tile_query(radius: int) -> str:
         SELECT l.system_id, l.classification_value AS stellar_class
         FROM arm_db.stellar_leaf_display_classifications l
         LEFT JOIN stellar_class_candidates s ON s.star_id = l.star_id
+        LEFT JOIN arm_db.msc_system_details mp
+          ON mp.primary_component_key = l.evidence_component_key
+        LEFT JOIN arm_db.msc_system_details ms
+          ON ms.secondary_component_key = l.evidence_component_key
         QUALIFY row_number() OVER (
           PARTITION BY l.system_id
           ORDER BY
-            s.mass_proxy_msun DESC NULLS LAST,
+            coalesce(
+              s.mass_proxy_msun,
+              mp.mass_primary_msun,
+              ms.mass_secondary_msun,
+              CASE l.classification_value
+                WHEN 'BLACK HOLE' THEN 8.0 WHEN 'WR' THEN 20.0 WHEN 'O' THEN 20.0
+                WHEN 'B' THEN 5.0 WHEN 'A' THEN 2.0
+                WHEN 'NS' THEN 1.4 WHEN 'PULSAR' THEN 1.4 WHEN 'MAGNETAR' THEN 1.4
+                WHEN 'F' THEN 1.3 WHEN 'G' THEN 1.0 WHEN 'K' THEN 0.75
+                WHEN 'WD' THEN 0.6 WHEN 'M' THEN 0.3
+                WHEN 'L' THEN 0.06 WHEN 'T' THEN 0.04 WHEN 'Y' THEN 0.02
+                ELSE 0.0
+              END
+            ) DESC,
             s.absmag ASC NULLS LAST,
             s.vmag ASC NULLS LAST,
             CASE l.classification_value
@@ -579,7 +596,7 @@ def build_radius(
         "representative_class_contract": {
             "version": "shared_leaf_mass_proxy_then_intrinsic_brightness_v3",
             "field": "representative_stellar_class",
-            "policy": "object/spectral/evolutionary mass proxy; then lowest available absolute magnitude; stable star_id tie-break",
+            "policy": "exact leaf source/MSC mass when available, otherwise an object/spectral/evolutionary mass proxy; then intrinsic brightness and stable hierarchy tie-break",
         },
         "stellar_class_badge_contract": {
             "version": "shared_hierarchy_leaf_sequence_v2",

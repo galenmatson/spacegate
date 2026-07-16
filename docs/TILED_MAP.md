@@ -129,8 +129,10 @@ to an insolation-derived estimate, ambiguous 2-6 Earth-radius or 10-50
 Earth-mass objects are unbadged, and missing environments produce no badge.
 
 The representative-class policy chooses only among the same shared leaves and
-compares an object/spectral/evolutionary mass proxy, then intrinsic brightness,
-then a stable hierarchy key.
+compares exact leaf source/MSC mass when available, then an
+object/spectral/evolutionary mass proxy, intrinsic brightness, and a stable
+hierarchy key. The class fallback gives a white dwarf a 0.6-solar-mass proxy,
+so it outranks an otherwise unmeasured M dwarf without outranking an A star.
 This makes Sirius use its
 A star, allows a white dwarf to represent a typical WD+M-dwarf system, and
 gives giants an evolutionary floor rather than treating them as dwarfs of the
