@@ -98,21 +98,12 @@ main() {
   local dst_reports_dir="$DL_REPORTS_DIR/$build_id"
   mkdir -p "$dst_reports_dir"
 
-  local -a report_files=(
-    "qc_report.json"
-    "match_report.json"
-    "duplicate_trap_report.json"
-    "provenance_report.json"
-    "system_grouping_report.json"
-    "planet_catalog_delta_report.json"
-    "planet_reclassification_report.json"
-  )
-  local report_name
-  for report_name in "${report_files[@]}"; do
-    if [[ -f "$src_reports_dir/$report_name" ]]; then
-      cp -f "$src_reports_dir/$report_name" "$dst_reports_dir/$report_name"
-    fi
-  done
+  local report_path
+  if [[ -d "$src_reports_dir" ]]; then
+    while IFS= read -r -d '' report_path; do
+      cp -f "$report_path" "$dst_reports_dir/$(basename "$report_path")"
+    done < <(find "$src_reports_dir" -maxdepth 1 -type f -name '*.json' -print0)
+  fi
   if [[ -f "$STATE_DIR/reports/manifests/core_manifest.json" ]]; then
     cp -f "$STATE_DIR/reports/manifests/core_manifest.json" "$dst_reports_dir/core_manifest.json"
   fi

@@ -15,6 +15,13 @@ Out of scope (never pruned by retention script):
 - bounded runtime caches such as WISE image previews and simulation scenes; these have their own cache
   enforcement because they are mutable runtime artifacts, not immutable builds
 
+Published bootstrap metadata may reference checksummed build reports. The
+bootstrapper installs only bounded relative JSON paths under
+`reports/<build_id>/`, verifies byte counts and SHA-256 digests, and stages the
+directory before promotion. Published report directories follow the same
+retention protection as local build reports; do not remove reports referenced
+by the active `dl/current.json`.
+
 Simulation-scene runtime artifacts live under
 `$SPACEGATE_STATE_DIR/cache/simulation_scenes/<build_id>/`. They are fully
 regenerable presentation products and must never be treated as science inputs.

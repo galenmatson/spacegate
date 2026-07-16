@@ -132,6 +132,123 @@ print(sha256 or "")
 PY
 }
 
+read_report_metadata() {
+  local json_path="$1"
+
+  "$PYTHON_BIN" - "$json_path" <<'PY'
+import json
+import pathlib
+import re
+import sys
+from urllib.parse import urlparse
+
+data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+reports = data.get("reports", {})
+if reports is None:
+    reports = {}
+if not isinstance(reports, dict):
+    raise SystemExit("Metadata 'reports' must be an object.")
+
+seen_names = set()
+for key, item in sorted(reports.items()):
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", str(key)):
+        raise SystemExit(f"Unsafe report key: {key!r}")
+    if not isinstance(item, dict):
+        raise SystemExit(f"Report metadata must be an object: {key}")
+    path = str(item.get("path") or "")
+    parsed = urlparse(path)
+    pure = pathlib.PurePosixPath(path)
+    if (
+        not path
+        or parsed.scheme
+        or parsed.netloc
+        or pure.is_absolute()
+        or ".." in pure.parts
+        or pure.name in ("", ".", "..")
+        or pure.suffix.lower() != ".json"
+    ):
+        raise SystemExit(f"Unsafe report path for {key}: {path!r}")
+    if pure.name in seen_names:
+        raise SystemExit(f"Duplicate report filename: {pure.name}")
+    seen_names.add(pure.name)
+    bytes_value = item.get("bytes", "")
+    if bytes_value is None:
+        bytes_value = ""
+    if bytes_value != "" and (not isinstance(bytes_value, int) or bytes_value < 0):
+        raise SystemExit(f"Invalid report byte count for {key}")
+    sha256 = str(item.get("sha256") or "")
+    if sha256 and not re.fullmatch(r"[0-9a-fA-F]{64}", sha256):
+        raise SystemExit(f"Invalid report sha256 for {key}")
+    print("\t".join((path, str(bytes_value), sha256)))
+PY
+}
+
+install_published_reports() {
+  local metadata_path="$1"
+  local meta_url="$2"
+  local artifact_base="$3"
+  local build_id="$4"
+  local overwrite="$5"
+  local report_dir="$STATE_DIR/reports/$build_id"
+  local report_stage="$STATE_DIR/reports/.${build_id}.tmp.$$"
+  local report_manifest=""
+  local report_count=0
+
+  mkdir -p "$STATE_DIR/reports"
+  rm -rf "$report_stage"
+  mkdir -p "$report_stage"
+  if [[ -d "$report_dir" && "$overwrite" -eq 0 ]]; then
+    cp -a "$report_dir/." "$report_stage/"
+  fi
+  report_manifest="$(mktemp)"
+  if ! read_report_metadata "$metadata_path" >"$report_manifest"; then
+    rm -f "$report_manifest"
+    rm -rf "$report_stage"
+    return 1
+  fi
+  while IFS=$'\t' read -r report_path expected_bytes expected_sha; do
+    [[ -n "$report_path" ]] || continue
+    report_count=$((report_count + 1))
+    local report_url report_name report_target local_report actual_bytes actual_sha
+    report_url="$(resolve_artifact_url "$artifact_base" "$report_path")"
+    report_name="$(basename "$report_path")"
+    report_target="$report_stage/$report_name"
+    if [[ "$report_url" == file://* ]]; then
+      local_report="$(resolve_local_artifact "$meta_url" "$artifact_base" "$report_url")"
+      cp -f "$local_report" "$report_target"
+    else
+      curl -fsSL "$report_url" -o "$report_target"
+    fi
+    if [[ "$expected_bytes" =~ ^[0-9]+$ ]]; then
+      actual_bytes="$(stat -c '%s' "$report_target")"
+      if [[ "$actual_bytes" != "$expected_bytes" ]]; then
+        echo "Error: size mismatch for report $report_name (expected $expected_bytes, got $actual_bytes)." >&2
+        rm -f "$report_manifest"
+        rm -rf "$report_stage"
+        return 1
+      fi
+    fi
+    if [[ "$expected_sha" =~ ^[0-9a-fA-F]{64}$ ]]; then
+      actual_sha="$(sha256sum "$report_target" | awk '{print $1}')"
+      if [[ "${actual_sha,,}" != "${expected_sha,,}" ]]; then
+        echo "Error: sha256 mismatch for report $report_name" >&2
+        rm -f "$report_manifest"
+        rm -rf "$report_stage"
+        return 1
+      fi
+    fi
+  done < "$report_manifest"
+  rm -f "$report_manifest"
+
+  if [[ "$report_count" -eq 0 ]]; then
+    rm -rf "$report_stage"
+    return 0
+  fi
+  rm -rf "$report_dir"
+  mv "$report_stage" "$report_dir"
+  echo "Installed published reports: $report_dir ($report_count files)"
+}
+
 extract_archive() {
   local archive_path="$1"
   local target_out_dir="$2"
@@ -319,6 +436,8 @@ main() {
     echo "Error: extracted build is missing $build_dir/core.duckdb" >&2
     exit 1
   fi
+
+  install_published_reports "$tmp_meta" "$META_URL" "$artifact_base" "$build_id" "$overwrite"
 
   SPACEGATE_AUTO_SCORE_COOLNESS="$auto_score_coolness" \
     "$ROOT_DIR/scripts/promote_build.sh" "$build_id"
