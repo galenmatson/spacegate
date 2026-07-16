@@ -1826,6 +1826,10 @@ July 16 follow-up versions this semantic boundary as
 `simulation_scene_artifact_v2`. The API rejects v1 prebuilt scenes rather than
 serving embedded stale classifications or names; the next side-artifact build
 must rematerialize its bounded priority scene set before deployment.
+Candidate verification then exposed that the side builder copied v1 scenes and
+the materializer counted any existing filename as reusable. Reuse now requires
+both the current materializer version and the exact target build ID, preventing
+science-changing ARM rebuilds from inheriting stale scene payloads.
 
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served

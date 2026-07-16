@@ -35,7 +35,9 @@ Each artifact carries a materializer contract version. The API must reject
 older semantic versions after scene classification, naming, membership, or
 evidence-precedence behavior changes; regenerate the bounded priority set with
 the current materializer instead of treating stale presentation output as
-compatible.
+compatible. Side-build materialization may reuse a scene only when both its
+contract version and embedded target build ID match; a copied scene from the
+source build must be regenerated even when its schema version is current.
 The API opportunistically prunes oldest artifacts to a 2 GiB default cap;
 operators may set `SPACEGATE_SIMULATION_SCENE_CACHE_LIMIT_BYTES`.
 Keep the served build's directory during normal operation; directories for

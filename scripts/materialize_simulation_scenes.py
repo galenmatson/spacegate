@@ -237,6 +237,20 @@ def _write_scene(path: Path, payload: dict[str, Any]) -> int:
     return path.stat().st_size
 
 
+def _scene_artifact_reusable(path: Path, *, build_id: str) -> bool:
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        return False
+    materialization = payload.get("materialization") if isinstance(payload, dict) else None
+    return (
+        isinstance(materialization, dict)
+        and materialization.get("materializer_version") == MATERIALIZER_VERSION
+        and materialization.get("build_id") == build_id
+    )
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
     root = _root_dir()
@@ -271,6 +285,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     requested = len(system_rows)
     generated = 0
     reused = 0
+    incompatible_existing = 0
     failed = 0
     total_bytes = 0
     examples: list[dict[str, Any]] = []
@@ -290,16 +305,23 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     for idx, row in enumerate(system_rows, start=1):
         system_id = int(row["system_id"])
         out_path = output_dir / f"system_{system_id}.json.gz"
-        if out_path.exists() and not args.force:
+        reusable = out_path.exists() and not args.force and _scene_artifact_reusable(
+            out_path,
+            build_id=build_id,
+        )
+        if reusable:
             reused += 1
             total_bytes += out_path.stat().st_size
         else:
+            if out_path.exists() and not args.force:
+                incompatible_existing += 1
             try:
                 payload = scene_builder(system_id, build_id=build_id)
                 payload.setdefault("materialization", {})
                 payload["materialization"] = {
                     "materialized": True,
                     "materializer_version": MATERIALIZER_VERSION,
+                    "build_id": build_id,
                     "materialized_at_utc": _utc_now(),
                     "artifact_path": str(out_path.relative_to(build_dir)),
                 }
@@ -326,6 +348,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     "requested": requested,
                     "generated": generated,
                     "reused": reused,
+                    "incompatible_existing": incompatible_existing,
                     "failed": failed,
                 }
             )
@@ -352,6 +375,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "requested": requested,
         "generated": generated,
         "reused": reused,
+        "incompatible_existing": incompatible_existing,
         "failed": failed,
         "selected_artifact_size_bytes": total_bytes,
         "output_dir": str(output_dir),

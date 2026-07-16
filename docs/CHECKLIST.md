@@ -969,6 +969,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   fallback, and invalidate stale v1 scene caches
 - [x] Remove public stable-key copy/display controls from Explorer readouts and
   snapshot metadata; use preferred member/catalog names with component suffixes
+- [x] Require simulation-scene cache reuse to match both materializer contract
+  version and target build ID; regression-test copied-version and corrupt-file
+  rejection
 - [x] Remove the temporary Castor-only reviewed-classification build injection
   and confirm a clean ARM rebuild matches the pre-change catalog result
 - [x] Stop post-slice TESS identity re-adjudication: project full-canonical

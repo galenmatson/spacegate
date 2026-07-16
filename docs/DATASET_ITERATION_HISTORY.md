@@ -643,6 +643,11 @@ Representative commits:
   Existing v1 scenes are rejected and rebuilt through the normal runtime path;
   the next side-artifact checkpoint must regenerate its complete bounded
   priority set before deployment.
+- The first replacement side candidate exposed a reuse-path defect: copied v1
+  files were reported as 1,000 reusable v2 scenes because reuse checked only
+  file existence. Scene artifacts now embed the target build ID, and reuse
+  requires both that ID and the current materializer version. The rejected
+  candidate was not promoted or published.
 
 ### 24) Photon Retention Timestamp Compatibility
 
