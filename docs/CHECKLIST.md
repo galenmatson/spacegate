@@ -52,6 +52,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   promoted deep-map artifact pipeline; public build
   `20260716T0103Z_94bdab7_side` carries 1,000/1,000 verified priority scenes
   with zero materialization failures
+- [ ] Install published verification reports from the edge download tree into
+  `$SPACEGATE_STATE_DIR/reports/<build_id>` during bootstrap so antiproton can
+  run strict build verification without relaxed report discovery
 - [ ] Add a cheap map-selected singleton scene path plus cache telemetry and
   explicit per-process/concurrent-assembly budgets before planning for hundreds
   of concurrent exploratory users; the shared persistent cache and same-scene
