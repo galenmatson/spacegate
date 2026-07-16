@@ -4480,7 +4480,10 @@ def _overlay_stellar_leaf_classifications(
         row = by_key.get(str(node.get("stable_component_key") or ""))
         if row:
             node["stellar_leaf_classification"] = row
-            facts = node.setdefault("quick_facts", {})
+            facts = node.get("quick_facts")
+            if not isinstance(facts, dict):
+                facts = {}
+                node["quick_facts"] = facts
             facts["stellar_leaf_display_class"] = row.get("classification_value")
             facts["stellar_leaf_display_class_status"] = row.get("classification_status")
             facts["stellar_leaf_display_class_basis"] = row.get("evidence_basis")
