@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from materialize_simulation_scenes import (  # noqa: E402
     MATERIALIZER_VERSION,
     _scene_artifact_reusable,
+    _state_dir_for_explicit_build,
 )
 
 
@@ -40,3 +41,17 @@ def test_corrupt_scene_is_not_reusable(tmp_path: Path) -> None:
     artifact = tmp_path / "scene.json.gz"
     artifact.write_bytes(b"not gzip")
     assert not _scene_artifact_reusable(artifact, build_id="candidate")
+
+
+def test_explicit_out_build_infers_external_state_root(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SPACEGATE_STATE_DIR", raising=False)
+    monkeypatch.delenv("SPACEGATE_DATA_DIR", raising=False)
+    build_dir = tmp_path / "state" / "out" / "candidate.tmp"
+    assert _state_dir_for_explicit_build(ROOT, build_dir) == tmp_path / "state"
+
+
+def test_configured_state_root_wins_over_build_inference(tmp_path: Path, monkeypatch) -> None:
+    configured = tmp_path / "configured"
+    monkeypatch.setenv("SPACEGATE_STATE_DIR", str(configured))
+    build_dir = tmp_path / "state" / "out" / "candidate.tmp"
+    assert _state_dir_for_explicit_build(ROOT, build_dir) == configured

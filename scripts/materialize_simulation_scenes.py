@@ -24,6 +24,15 @@ def _state_dir(root: Path) -> Path:
     return Path(os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR") or root / "data")
 
 
+def _state_dir_for_explicit_build(root: Path, build_dir: Path) -> Path:
+    configured = os.getenv("SPACEGATE_STATE_DIR") or os.getenv("SPACEGATE_DATA_DIR")
+    if configured:
+        return Path(configured)
+    if build_dir.parent.name == "out":
+        return build_dir.parent.parent
+    return _state_dir(root)
+
+
 def _resolve_symlink(path: Path) -> Path:
     try:
         return path.resolve(strict=True)
@@ -254,13 +263,14 @@ def _scene_artifact_reusable(path: Path, *, build_id: str) -> bool:
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
     root = _root_dir()
-    state_dir = _state_dir(root)
     if args.build_dir:
         build_dir = Path(args.build_dir).resolve()
+        state_dir = _state_dir_for_explicit_build(root, build_dir)
         build_id = args.build_id or build_dir.name.removesuffix(".tmp")
         if not (build_dir / "core.duckdb").exists():
             raise SystemExit(f"Build directory does not contain core.duckdb: {build_dir}")
     else:
+        state_dir = _state_dir(root)
         build_id, build_dir = _resolve_build_dir(state_dir, args.build_id)
     build_dir = build_dir.resolve()
     scene_builder = _load_scene_builder(root, build_dir)
