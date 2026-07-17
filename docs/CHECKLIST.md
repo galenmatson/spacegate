@@ -987,6 +987,14 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   a physically bounded authoritative Gliese/GJ or name-root bridge into
   existing WDS systems; rebuild verification must confirm Struve 2398 A/B is
   one system and the unrelated V1298 Aql surrogate is excluded
+- [x] Retain unmatched terminal single-letter MSC stellar endpoints in the
+  canonical display hierarchy only when the source tree is terminal and a
+  multi-observation WDS pair links the endpoint to a resolved sibling; gate Nu
+  Sco at six B-class leaves plus one unknown without object-specific transform
+  logic
+- [ ] Make strict edge-host verification self-contained for published derived
+  builds so it validates published canonical-evidence hashes without requiring
+  Photon's upstream canonical ARM path
 - [ ] Extend tile-v4 planet environment derivation to confirmed planets with
   orbital distance but no published equilibrium temperature/insolation,
   including the authoritative Solar System rows, using a general auditable

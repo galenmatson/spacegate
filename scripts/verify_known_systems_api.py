@@ -535,8 +535,8 @@ def assert_render_scene_contract(
             star_names = {normalize(star.get("display_name")) for star in scene_stars}
             raise AssertionError(f"{case.query}: expected two rendered stars, got {sorted(star_names)}")
         spectral_classes = {str(star.get("spectral_class") or "").upper() for star in scene_stars}
-        if not {"A", "D"}.issubset(spectral_classes):
-            raise AssertionError(f"{case.query}: expected A primary and D compact companion classes, got {sorted(spectral_classes)}")
+        if not {"A", "WD"}.issubset(spectral_classes):
+            raise AssertionError(f"{case.query}: expected A primary and normalized WD compact companion classes, got {sorted(spectral_classes)}")
         sirius_b = next(
             (
                 star

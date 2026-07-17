@@ -1984,6 +1984,15 @@ verification before promotion. Browser gates preserve Castor as a complex-system
 regression target while asserting parser and evidence-precedence invariants
 rather than a catalog-version-specific count of `dM1e` source rows.
 
+Checkpoint note, July 17, 2026: public verification of the initial badge-v4
+deployment found that canonical hierarchy omitted an unmatched terminal
+single-letter MSC star even though ARM retained it. The replacement hierarchy
+uses a general terminal/source-tree/WDS-pair/resolved-sibling gate and contains
+no object-specific transform branch. Corrected side build
+`20260717T0336Z_8bee500_side` restores Nu Sco's seven display leaves, retains
+the prior public CORE inventory exactly, passes strict scientific and exact
+tile verification, and regenerates 1,000/1,000 scene-v4 artifacts.
+
 ### System Narration Foundation v1
 
 System pages now have a reusable narration block contract instead of one-off

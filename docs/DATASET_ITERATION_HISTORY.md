@@ -741,6 +741,40 @@ Representative commits:
   V1298 Aql surrogate is absent, and HD 57041 retains exactly its canonical K
   and white-dwarf leaves for the shared display projection.
 
+### 26) WDS-Supported Terminal MSC Leaves
+
+- Public known-system verification of the first July 17 deployment exposed a
+  canonical-hierarchy regression: ARM retained all seven source-native Nu Sco
+  stellar endpoints, but the shared display projection omitted unmatched
+  single-letter endpoint `B`. The deployed interim build remained otherwise
+  healthy while a corrected immutable candidate was rebuilt.
+- Canonical hierarchy now retains a terminal single-letter MSC stellar
+  endpoint only when it is reachable from the source hierarchy, has no child
+  containment edges, is absent from canonical root-role mappings, and a WDS
+  pair with at least two observations links it to an already resolved sibling.
+  This is a general ARM display-hierarchy rule; it adds no CORE inventory row
+  and contains no system name, WDS ID, or source ID branch.
+- The full hierarchy admits 719 such evidence-bounded support leaves. The
+  1,000-ly public side artifact gains 717 leaves and materializes 5,879,857
+  hierarchy display leaves exactly once. Nu Sco is restored to six B-class
+  leaves plus one unknown; Beta Mon does not gain a speculative singleton
+  expansion.
+- Canonical emission now accepts an explicitly paired hierarchy database and
+  report override. This permits hierarchy-only scientific transforms to be
+  re-emitted without mutating the immutable raw build or separating an
+  artifact from its provenance report.
+- Known-system goldens no longer freeze source spelling variants such as
+  `M1_Ve` versus `dM1e`, or raw compact token `D` versus normalized display
+  class `WD`. They continue to assert stable component binding, normalized
+  class, mass, and source compact-object type.
+- Corrected canonical build `20260717T0320Z_8bee500_canonical`, public slice
+  `20260717T0331Z_8bee500_public`, and side artifact
+  `20260717T0336Z_8bee500_side` retain the same 5,869,091 systems, 5,874,636
+  stars, and 6,311 planets as the preceding public build. Strict build,
+  multiplicity, TESS, WISE, extended-object, shared-leaf, exact tile, API,
+  known-system, and targeted Playwright gates pass; 1,000/1,000 scene-v4
+  artifacts were regenerated with zero failures.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
