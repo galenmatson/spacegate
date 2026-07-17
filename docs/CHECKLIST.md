@@ -991,7 +991,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   canonical display hierarchy only when the source tree is terminal and a
   multi-observation WDS pair links the endpoint to a resolved sibling; gate Nu
   Sco at six B-class leaves plus one unknown without object-specific transform
-  logic
+  logic, and suppress the candidate set when already represented canonical
+  leaves exhaust the source tree's terminal-leaf capacity
 - [ ] Make strict edge-host verification self-contained for published derived
   builds so it validates published canonical-evidence hashes without requiring
   Photon's upstream canonical ARM path

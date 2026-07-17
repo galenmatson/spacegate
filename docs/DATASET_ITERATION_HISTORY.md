@@ -752,13 +752,19 @@ Representative commits:
   endpoint only when it is reachable from the source hierarchy, has no child
   containment edges, is absent from canonical root-role mappings, and a WDS
   pair with at least two observations links it to an already resolved sibling.
-  This is a general ARM display-hierarchy rule; it adds no CORE inventory row
-  and contains no system name, WDS ID, or source ID branch.
-- The full hierarchy admits 719 such evidence-bounded support leaves. The
-  1,000-ly public side artifact gains 717 leaves and materializes 5,879,857
-  hierarchy display leaves exactly once. Nu Sco is restored to six B-class
-  leaves plus one unknown; Beta Mon does not gain a speculative singleton
-  expansion.
+  The candidate set is accepted only when the MSC terminal-endpoint count
+  exceeds the hierarchy's already represented physical-leaf count by enough
+  capacity for every unmatched candidate. This is a general ARM display-
+  hierarchy rule; it adds no CORE inventory row and contains no system name,
+  WDS ID, or source ID branch.
+- The full hierarchy evaluates 719 WDS-supported candidates, accepts 658, and
+  explicitly suppresses 61 because canonical leaves already exhaust their
+  source-tree capacity. The 1,000-ly public side retains 656 accepted support
+  leaves and materializes 5,879,796 shared display leaves exactly once. Nu Sco
+  remains six B-class leaves plus one unknown; Struve 2398 remains one system
+  with two M-star leaves; Beta Mon does not gain a speculative singleton
+  expansion. The capacity decision counts and reasons are machine-readable in
+  `canonical_hierarchy_report.json`.
 - Canonical emission now accepts an explicitly paired hierarchy database and
   report override. This permits hierarchy-only scientific transforms to be
   re-emitted without mutating the immutable raw build or separating an
@@ -767,12 +773,14 @@ Representative commits:
   `M1_Ve` versus `dM1e`, or raw compact token `D` versus normalized display
   class `WD`. They continue to assert stable component binding, normalized
   class, mass, and source compact-object type.
-- Corrected canonical build `20260717T0320Z_8bee500_canonical`, public slice
-  `20260717T0331Z_8bee500_public`, and side artifact
-  `20260717T0336Z_8bee500_side` retain the same 5,869,091 systems, 5,874,636
-  stars, and 6,311 planets as the preceding public build. Strict build,
-  multiplicity, TESS, WISE, extended-object, shared-leaf, exact tile, API,
-  known-system, and targeted Playwright gates pass; 1,000/1,000 scene-v4
+- Replacement canonical build `20260717T0557Z_f452835_canonical`, public slice
+  `20260717T0607Z_f452835_public`, and side artifact
+  `20260717T0614Z_f452835_side` retain the same 5,869,091 systems, 5,874,636
+  stars, and 6,311 planets as the preceding public build. The earlier
+  `20260717T0336Z_8bee500_side` checkpoint exposed the Struve capacity defect
+  during post-deployment verification and is superseded. Strict build,
+  multiplicity, TESS, WISE, extended-object, shared-leaf, exact tile, local
+  API, known-system, and targeted Playwright gates pass; 1,000/1,000 scene-v4
   artifacts were regenerated with zero failures.
 
 ## Recurrent Defect Classes and Mitigations

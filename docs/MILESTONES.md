@@ -1988,10 +1988,15 @@ Checkpoint note, July 17, 2026: public verification of the initial badge-v4
 deployment found that canonical hierarchy omitted an unmatched terminal
 single-letter MSC star even though ARM retained it. The replacement hierarchy
 uses a general terminal/source-tree/WDS-pair/resolved-sibling gate and contains
-no object-specific transform branch. Corrected side build
-`20260717T0336Z_8bee500_side` restores Nu Sco's seven display leaves, retains
-the prior public CORE inventory exactly, passes strict scientific and exact
-tile verification, and regenerates 1,000/1,000 scene-v4 artifacts.
+no object-specific transform branch. Post-deployment verification then found
+that the first rule could double-count an unmatched endpoint when canonical
+leaves already represented the source tree's full capacity. The replacement
+rule accepts the complete candidate set only within the source terminal-leaf
+deficit: full canonical hierarchy accepts 658 WDS-supported candidates and
+suppresses 61 with explicit reasons. Replacement side build
+`20260717T0614Z_f452835_side` keeps Nu Sco at seven display leaves, Struve 2398
+at two, retains the prior public CORE inventory exactly, passes strict and
+exact-tile verification, and regenerates 1,000/1,000 scene-v4 artifacts.
 
 ### System Narration Foundation v1
 
