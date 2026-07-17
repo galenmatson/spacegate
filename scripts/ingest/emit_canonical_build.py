@@ -204,10 +204,11 @@ def emit_canonical_build(
     source_build_id: str,
     source_build_dir: Path,
     canonical_build_id: str,
+    hierarchy_source: Path | None = None,
 ) -> dict[str, object]:
     source_core = source_build_dir / "core.duckdb"
     source_arm = source_build_dir / "arm.duckdb"
-    source_hierarchy = source_build_dir / "ingest" / "canonical_hierarchy.duckdb"
+    source_hierarchy = hierarchy_source or source_build_dir / "ingest" / "canonical_hierarchy.duckdb"
     source_reduction = source_build_dir / "ingest" / "canonical_reduction.duckdb"
     missing = [
         str(path)
@@ -979,6 +980,7 @@ def emit_canonical_build(
             "canonical_build_id": canonical_build_id,
             "source_build_id": source_build_id,
             "source_build_dir": str(source_build_dir),
+            "canonical_hierarchy_source": str(source_hierarchy),
             "canonical_build_dir": str(canonical_dir),
             "canonical_build_mode": "ingest_canonical_build",
             "table_counts": {
@@ -1130,6 +1132,11 @@ def main() -> None:
         "--canonical-build-id",
         help="Optional explicit canonical build id. Default: <timestamp>_<gitsha>_canonical",
     )
+    parser.add_argument(
+        "--hierarchy-db",
+        type=Path,
+        help="Optional independently generated canonical hierarchy artifact. The source build remains read-only.",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[2]
@@ -1147,6 +1154,7 @@ def main() -> None:
         source_build_id=source_build_id,
         source_build_dir=source_build_dir,
         canonical_build_id=canonical_build_id,
+        hierarchy_source=args.hierarchy_db.resolve() if args.hierarchy_db else None,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
 
