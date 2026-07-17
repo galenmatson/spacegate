@@ -205,6 +205,7 @@ def emit_canonical_build(
     source_build_dir: Path,
     canonical_build_id: str,
     hierarchy_source: Path | None = None,
+    hierarchy_report_source: Path | None = None,
 ) -> dict[str, object]:
     source_core = source_build_dir / "core.duckdb"
     source_arm = source_build_dir / "arm.duckdb"
@@ -215,6 +216,8 @@ def emit_canonical_build(
         for path in (source_core, source_arm, source_hierarchy, source_reduction)
         if not path.exists()
     ]
+    if hierarchy_report_source is not None and not hierarchy_report_source.is_file():
+        missing.append(str(hierarchy_report_source))
     if missing:
         raise SystemExit("Missing canonical build prerequisites: " + ", ".join(missing))
 
@@ -1107,6 +1110,18 @@ def emit_canonical_build(
                 shutil.copy2(source_report, dest_report)
     if canonical_arm_report.exists():
         shutil.copy2(canonical_arm_report, reports_dir / "arm_report.json")
+    if hierarchy_report_source is not None:
+        hierarchy_payload = json.loads(hierarchy_report_source.read_text(encoding="utf-8"))
+        if not isinstance(hierarchy_payload, dict):
+            raise SystemExit(f"Canonical hierarchy report must be a JSON object: {hierarchy_report_source}")
+        hierarchy_payload.setdefault("bootstrap_source_build_id", source_build_id)
+        hierarchy_payload["canonical_build_id"] = canonical_build_id
+        if hierarchy_payload.get("build_id") == source_build_id:
+            hierarchy_payload["build_id"] = canonical_build_id
+        (reports_dir / "canonical_hierarchy_report.json").write_text(
+            json.dumps(hierarchy_payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     report_path = reports_dir / "canonical_build_report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if determinism_report is not None:
@@ -1137,6 +1152,11 @@ def main() -> None:
         type=Path,
         help="Optional independently generated canonical hierarchy artifact. The source build remains read-only.",
     )
+    parser.add_argument(
+        "--hierarchy-report",
+        type=Path,
+        help="Report produced with --hierarchy-db; installed with matching canonical lineage.",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[2]
@@ -1148,6 +1168,8 @@ def main() -> None:
         if explicit_build_id
         else f"{build_token_now()}_{git_sha(root)}_canonical"
     )
+    if bool(args.hierarchy_db) != bool(args.hierarchy_report):
+        raise SystemExit("--hierarchy-db and --hierarchy-report must be supplied together")
     payload = emit_canonical_build(
         root=root,
         state=state,
@@ -1155,6 +1177,7 @@ def main() -> None:
         source_build_dir=source_build_dir,
         canonical_build_id=canonical_build_id,
         hierarchy_source=args.hierarchy_db.resolve() if args.hierarchy_db else None,
+        hierarchy_report_source=args.hierarchy_report.resolve() if args.hierarchy_report else None,
     )
     print(json.dumps(payload, indent=2, sort_keys=True))
 
