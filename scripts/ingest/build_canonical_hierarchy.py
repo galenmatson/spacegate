@@ -586,7 +586,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
         con.execute(
             """
-            create temp table unresolved_terminal_leaf_nodes as
+            create temp table terminal_leaf_capacity_audit as
             with recursive msc_walk as (
               select
                 sys_map.canonical_system_key,
@@ -618,14 +618,13 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 walk.canonical_system_key,
                 walk.wds_id,
                 ce.stable_component_key,
-                lower(trim(ce.catalog_component_label)) as member_role,
+                lower(trim(ce.catalog_component_label)) as catalog_component_label,
                 ce.display_name,
                 max(walk.path_confidence_score)::double as confidence_score
               from msc_walk walk
               join arm.component_entities ce
                 on ce.stable_component_key = walk.child_component_key
               where ce.component_type = 'star'
-                and lower(trim(coalesce(ce.catalog_component_label, ''))) ~ '^[a-z]$'
                 and not exists (
                   select 1
                   from arm.system_hierarchy_edges child_edge
@@ -633,6 +632,16 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                     and child_edge.edge_kind = 'contains'
                 )
               group by 1, 2, 3, 4, 5
+            ), terminal_single_letter_endpoints as (
+              select
+                canonical_system_key,
+                wds_id,
+                stable_component_key,
+                catalog_component_label as member_role,
+                display_name,
+                confidence_score
+              from terminal_endpoints
+              where catalog_component_label ~ '^[a-z]$'
             ), wds_pair_roles as (
               select
                 wds_id,
@@ -643,37 +652,116 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
               where length(coalesce(component_label, '')) = 2
                 and lower(component_label) ~ '^[a-z][a-z]$'
               group by 1, 2, 3
+            ), represented_leaf_keys as (
+              select
+                root.canonical_system_key,
+                root.canonical_star_key as leaf_key
+              from root_star_edges root
+              where not exists (
+                select 1
+                from msc_leaf_edges leaf
+                where leaf.parent_canonical_star_key = root.canonical_star_key
+              )
+              union
+              select
+                leaf.canonical_system_key,
+                leaf.child_hierarchy_node_key as leaf_key
+              from msc_leaf_edges leaf
+              union
+              select
+                unresolved.canonical_system_key,
+                leaf.child_hierarchy_node_key as leaf_key
+              from unresolved_role_leaf_edges leaf
+              join unresolved_role_nodes unresolved
+                on unresolved.hierarchy_node_key = leaf.parent_unresolved_node_key
+            ), represented_leaf_counts as (
+              select canonical_system_key, count(distinct leaf_key)::bigint as leaf_count
+              from represented_leaf_keys
+              group by 1
+            ), source_terminal_counts as (
+              select canonical_system_key, count(distinct stable_component_key)::bigint as leaf_count
+              from terminal_endpoints
+              group by 1
+            ), candidate_terminal_leaves as (
+              select
+                'canon:leaf:msc:' || terminal.wds_id || ':' || terminal.member_role as hierarchy_node_key,
+                terminal.canonical_system_key,
+                terminal.wds_id,
+                terminal.stable_component_key,
+                terminal.member_role,
+                terminal.display_name,
+                least(0.80, max(terminal.confidence_score))::double as confidence_score,
+                max(pair.max_obs_count)::bigint as supporting_observation_count
+              from terminal_single_letter_endpoints terminal
+              join wds_pair_roles pair
+                on pair.wds_id = terminal.wds_id
+               and (
+                    (pair.role_a = terminal.member_role and exists (
+                      select 1 from root_role_map sibling
+                      where sibling.canonical_system_key = terminal.canonical_system_key
+                        and sibling.member_role = pair.role_b
+                    ))
+                 or (pair.role_b = terminal.member_role and exists (
+                      select 1 from root_role_map sibling
+                      where sibling.canonical_system_key = terminal.canonical_system_key
+                        and sibling.member_role = pair.role_a
+                    ))
+               )
+              left join root_role_map resolved
+                on resolved.canonical_system_key = terminal.canonical_system_key
+               and resolved.member_role = terminal.member_role
+              where resolved.member_role is null
+                and pair.max_obs_count >= 2
+              group by 1, 2, 3, 4, 5, 6
+            ), candidate_counts as (
+              select canonical_system_key, count(*)::bigint as leaf_count
+              from candidate_terminal_leaves
+              group by 1
             )
             select
-              'canon:leaf:msc:' || terminal.wds_id || ':' || terminal.member_role as hierarchy_node_key,
-              terminal.canonical_system_key,
-              terminal.wds_id,
-              terminal.stable_component_key,
-              terminal.member_role,
-              terminal.display_name,
-              least(0.80, max(terminal.confidence_score))::double as confidence_score,
-              max(pair.max_obs_count)::bigint as supporting_observation_count
-            from terminal_endpoints terminal
-            join wds_pair_roles pair
-              on pair.wds_id = terminal.wds_id
-             and (
-                  (pair.role_a = terminal.member_role and exists (
-                    select 1 from root_role_map sibling
-                    where sibling.canonical_system_key = terminal.canonical_system_key
-                      and sibling.member_role = pair.role_b
-                  ))
-               or (pair.role_b = terminal.member_role and exists (
-                    select 1 from root_role_map sibling
-                    where sibling.canonical_system_key = terminal.canonical_system_key
-                      and sibling.member_role = pair.role_a
-                  ))
-             )
-            left join root_role_map resolved
-              on resolved.canonical_system_key = terminal.canonical_system_key
-             and resolved.member_role = terminal.member_role
-            where resolved.member_role is null
-              and pair.max_obs_count >= 2
-            group by 1, 2, 3, 4, 5, 6
+              candidate.*,
+              source_counts.leaf_count as source_terminal_leaf_count,
+              coalesce(represented.leaf_count, 0)::bigint as represented_leaf_count,
+              counts.leaf_count as candidate_leaf_count,
+              greatest(
+                source_counts.leaf_count - coalesce(represented.leaf_count, 0),
+                0
+              )::bigint as available_leaf_capacity,
+              case
+                when counts.leaf_count <= greatest(
+                  source_counts.leaf_count - coalesce(represented.leaf_count, 0),
+                  0
+                ) then 'accepted'
+                else 'suppressed'
+              end::varchar as decision,
+              case
+                when counts.leaf_count <= greatest(
+                  source_counts.leaf_count - coalesce(represented.leaf_count, 0),
+                  0
+                ) then 'wds_supported_terminal_capacity_available'
+                else 'canonical_leaves_already_exhaust_source_terminal_capacity'
+              end::varchar as decision_reason
+            from candidate_terminal_leaves candidate
+            join candidate_counts counts using (canonical_system_key)
+            join source_terminal_counts source_counts using (canonical_system_key)
+            left join represented_leaf_counts represented using (canonical_system_key)
+            """
+        )
+
+        con.execute(
+            """
+            create temp table unresolved_terminal_leaf_nodes as
+            select
+              hierarchy_node_key,
+              canonical_system_key,
+              wds_id,
+              stable_component_key,
+              member_role,
+              display_name,
+              confidence_score,
+              supporting_observation_count
+            from terminal_leaf_capacity_audit
+            where decision = 'accepted'
             """
         )
 
@@ -891,6 +979,31 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             "hierarchy_edges": count_table(con, "hierarchy_edges"),
         }
 
+        terminal_leaf_capacity = {
+            "decision_counts": {
+                str(decision): int(count)
+                for decision, count in con.execute(
+                    """
+                    select decision, count(*)::bigint
+                    from terminal_leaf_capacity_audit
+                    group by decision
+                    order by decision
+                    """
+                ).fetchall()
+            },
+            "reason_counts": {
+                str(reason): int(count)
+                for reason, count in con.execute(
+                    """
+                    select decision_reason, count(*)::bigint
+                    from terminal_leaf_capacity_audit
+                    group by decision_reason
+                    order by decision_reason
+                    """
+                ).fetchall()
+            },
+        }
+
         samples = {
             "castor": con.execute(
                 """
@@ -956,6 +1069,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
         "build_id": build_id,
         "canonical_hierarchy_db_path": str(db_path),
         "table_counts": table_counts,
+        "terminal_leaf_capacity": terminal_leaf_capacity,
         "samples": {
           key: [
             [str(value) if value is not None else None for value in row]
@@ -967,7 +1081,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             "This bootstrap hierarchy prefers canonical root system -> canonical star -> canonical planet containment.",
             "MSC inferred leaf components are attached beneath top-level stars only when the root member_role mapping is unique.",
             "Missing one-letter root roles may be represented as unresolved components only when WDS pair evidence and MSC multi-leaf evidence agree.",
-            "Terminal one-letter MSC stellar endpoints missing from canonical role mappings are retained only when a multi-observation WDS pair links them to a resolved sibling.",
+            "Terminal one-letter MSC stellar endpoints missing from canonical role mappings are retained only when a multi-observation WDS pair links them to a resolved sibling and the MSC terminal count exceeds the already represented physical-leaf count by enough capacity for every candidate.",
             "Singleton MSC subdivisions are suppressed in the canonical hierarchy to avoid overfitting sparse role evidence.",
         ],
     }
