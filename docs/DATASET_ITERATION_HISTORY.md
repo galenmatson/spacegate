@@ -781,7 +781,12 @@ Representative commits:
   during post-deployment verification and is superseded. Strict build,
   multiplicity, TESS, WISE, extended-object, shared-leaf, exact tile, local
   API, known-system, and targeted Playwright gates pass; 1,000/1,000 scene-v4
-  artifacts were regenerated with zero failures.
+  artifacts were regenerated with zero failures. The replacement was deployed
+  to antiproton at 2026-07-17 08:23 UTC after local/remote archive SHA-256
+  agreement. Public health, auth, API integration, known-system, targeted
+  Struve 2398/HD 57041/Nu Sco, and map Playwright checks pass on
+  `coolstars.org`; antiproton retains `20260717T0336Z_8bee500_side` as its one
+  immediate rollback checkpoint.
 
 ## Recurrent Defect Classes and Mitigations
 

@@ -993,6 +993,10 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Sco at six B-class leaves plus one unknown without object-specific transform
   logic, and suppress the candidate set when already represented canonical
   leaves exhaust the source tree's terminal-leaf capacity
+- [x] Deploy capacity-bounded side build `20260717T0614Z_f452835_side` to
+  antiproton; verify public API integration, known systems, Struve 2398 at two
+  M-star leaves, HD 57041 at K+WD, Nu Sco at seven leaves, and targeted map UI
+  flows while retaining one rollback checkpoint
 - [ ] Make strict edge-host verification self-contained for published derived
   builds so it validates published canonical-evidence hashes without requiring
   Photon's upstream canonical ARM path

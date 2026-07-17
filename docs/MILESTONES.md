@@ -1996,7 +1996,10 @@ deficit: full canonical hierarchy accepts 658 WDS-supported candidates and
 suppresses 61 with explicit reasons. Replacement side build
 `20260717T0614Z_f452835_side` keeps Nu Sco at seven display leaves, Struve 2398
 at two, retains the prior public CORE inventory exactly, passes strict and
-exact-tile verification, and regenerates 1,000/1,000 scene-v4 artifacts.
+exact-tile verification, and regenerates 1,000/1,000 scene-v4 artifacts. It was
+deployed to antiproton on July 17 after archive checksum agreement; public API,
+known-system, targeted identity, and map browser verification pass, with the
+superseded `20260717T0336Z_8bee500_side` retained as the immediate rollback.
 
 ### System Narration Foundation v1
 
