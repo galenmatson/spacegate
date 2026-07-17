@@ -983,7 +983,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   membership authority and resolve canonical/evidence component-key aliases
   collision-safely; HD 57041 renders `K,WD` rather than an unprojected assumed
   member or an M-class white dwarf
-- [ ] Add a general gross-position sanity gate for MSC component surrogates and
+- [x] Add a general gross-position sanity gate for MSC component surrogates and
   a physically bounded authoritative Gliese/GJ or name-root bridge into
   existing WDS systems; rebuild verification must confirm Struve 2398 A/B is
   one system and the unrelated V1298 Aql surrogate is excluded

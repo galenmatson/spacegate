@@ -732,6 +732,14 @@ Representative commits:
   produces two catalog-root candidates: the real Gaia/AT-HYG Struve 2398 B
   member and a 37-arcsecond Gl 277 companion. No literal system name, WDS ID,
   Gaia ID, or per-system output override is present in the build logic.
+- Canonical rebuild `20260716T2323Z_868b4d9` reports three rejected gross MSC
+  position mismatches, 262 total WDS bridges, and exactly two catalog-root
+  bridges. Canonical reduction `20260717T0035Z_868b4d9_canonical` and public
+  side artifact `20260717T0057Z_868b4d9_side` pass the full build,
+  multiplicity, source-evidence, shared-leaf, and tile gates. In the public
+  artifact Struve 2398 resolves as one two-star M+M WDS system, the displaced
+  V1298 Aql surrogate is absent, and HD 57041 retains exactly its canonical K
+  and white-dwarf leaves for the shared display projection.
 
 ## Recurrent Defect Classes and Mitigations
 

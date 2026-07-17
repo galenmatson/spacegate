@@ -1882,6 +1882,15 @@ under distance, sky, and unique-best-match bounds. The first regression target
 is Struve 2398: its real Gaia A/B pair must become one system while a
 misassociated V1298 Aql MSC surrogate is excluded.
 
+The July 17 verified checkpoint is canonical build
+`20260717T0035Z_868b4d9_canonical` and deployable public side artifact
+`20260717T0057Z_868b4d9_side`. The public artifact contains 5,869,091 systems,
+5,874,636 CORE stars, and 6,311 planets; all 5,879,140 projected hierarchy
+leaves are accounted for exactly once. Tile-v4 verification passes at
+100/250/500/1,000 ly with zero missing or extra systems, and 1,000 priority
+simulation scenes were generated under `simulation_scene_artifact_v4` with
+zero failures.
+
 The general runtime correction was deployed to antiproton as a code-only
 checkpoint at 2026-07-15 18:33 UTC. The deployment deliberately retained served
 science build `20260715T015659Z_e392a11_side_rebuild`; it did not rebuild or
