@@ -1139,14 +1139,17 @@ function OrientationAxes({ frame = "icrs", showDirectionLabels = false, mapRadiu
   );
 }
 
-const MAP_PLANET_BADGE_STYLES = {
-  hot_gas_giant: { label: "HG", color: "#b85f58", ring: "#ffb49a" },
-  temperate_gas_giant: { label: "TG", color: "#4f9a84", ring: "#9ff2d0" },
-  cold_gas_giant: { label: "CG", color: "#596fae", ring: "#a9c8ff" },
-  hot_terrestrial: { label: "HT", color: "#954b47", ring: "#ff9e8b" },
-  temperate_terrestrial: { label: "TT", color: "#397764", ring: "#80d9b8" },
-  cold_terrestrial: { label: "CT", color: "#455983", ring: "#8aace8" },
-};
+const MAP_PLANET_CATEGORIES = [
+  { bit: 1, key: "hot_gas_giant", queryKey: "hot_jupiter", filterLabel: "Hot Jupiter", label: "HJ", color: "#b85f58", ring: "#ffb49a" },
+  { bit: 2, key: "temperate_gas_giant", queryKey: "temperate_jupiter", filterLabel: "Temperate Jupiter", label: "TJ", color: "#4f9a84", ring: "#9ff2d0" },
+  { bit: 4, key: "cold_gas_giant", queryKey: "cold_jupiter", filterLabel: "Cold Jupiter", label: "CJ", color: "#596fae", ring: "#a9c8ff" },
+  { bit: 8, key: "hot_terrestrial", queryKey: "hot_terrestrial", filterLabel: "Hot Terrestrial", label: "HT", color: "#954b47", ring: "#ff9e8b" },
+  { bit: 16, key: "temperate_terrestrial", queryKey: "temperate_terrestrial", filterLabel: "Temperate Terrestrial", label: "TT", color: "#397764", ring: "#80d9b8" },
+  { bit: 32, key: "cold_terrestrial", queryKey: "cold_terrestrial", filterLabel: "Cold Terrestrial", label: "CT", color: "#455983", ring: "#8aace8" },
+];
+const MAP_PLANET_BADGE_STYLES = Object.fromEntries(
+  MAP_PLANET_CATEGORIES.map((category) => [category.key, category]),
+);
 
 function createLabelTexture(label, { selected = false, tone = "default", stellarClasses = [], planetBadges = [] } = {}) {
   const pixelRatio = 2;
@@ -2489,11 +2492,14 @@ function systemMatchesMapFilters(system, filters, origin) {
   const activeSpectral = spectralTokens(filters.spectralClass);
   const tempLow = Number(filters.temperatureRange?.[0] ?? STAR_SEARCH_DEFAULT_TEMP_RANGE[0]);
   const tempHigh = Number(filters.temperatureRange?.[1] ?? STAR_SEARCH_DEFAULT_TEMP_RANGE[1]);
+  const planetCategoryMask = MAP_PLANET_CATEGORIES
+    .filter((category) => (filters.planetCategories || []).includes(category.queryKey))
+    .reduce((mask, category) => mask | category.bit, 0);
   if (viewpointDistance < filters.distanceRange[0] || viewpointDistance > filters.distanceRange[1]) return false;
   if (starCount < filters.starRange[0] || starCount > filters.starRange[1]) return false;
   if (planetCount < filters.planetRange[0] || planetCount > filters.planetRange[1]) return false;
   if (coolness < filters.coolnessRange[0] || coolness > filters.coolnessRange[1]) return false;
-  if (filters.habitableOnly && !system.has_habitable_candidate) return false;
+  if (planetCategoryMask && !(Number(system.planet_badge_mask || 0) & planetCategoryMask)) return false;
   if (activeSpectral.length && !activeSpectral.some((token) => systemSpectral.includes(token))) return false;
   if ((tempLow > STAR_SEARCH_DEFAULT_TEMP_RANGE[0] || tempHigh < STAR_SEARCH_DEFAULT_TEMP_RANGE[1])) {
     if (!Number.isFinite(minTemp) || !Number.isFinite(maxTemp)) return false;
@@ -2513,7 +2519,7 @@ function buildSearchParamsFromFilters(filters, origin, filterExtents, query = ""
   };
   const q = query.trim();
   if (q) params.q = q;
-  if (filters.habitableOnly) params.has_habitable = "true";
+  if (filters.planetCategories?.length) params.planet_category = filters.planetCategories.join(",");
   const spectral = spectralTokens(filters.spectralClass);
   if (spectral.length) params.spectral_class = spectral.join(",");
   const distLow = Math.min(Number(filters.distanceRange?.[0] ?? 0), Number(filters.distanceRange?.[1] ?? mapRadiusLy));
@@ -2733,6 +2739,19 @@ function MapStarSearchShell({
       return { ...current, spectralClass: STAR_SEARCH_SPECTRAL_OPTIONS.filter((item) => active.has(item)).join(",") };
     });
   };
+  const togglePlanetCategory = (category) => {
+    setFilters((current) => {
+      const active = new Set(current.planetCategories || []);
+      if (active.has(category)) active.delete(category);
+      else active.add(category);
+      return {
+        ...current,
+        planetCategories: MAP_PLANET_CATEGORIES
+          .map((item) => item.queryKey)
+          .filter((item) => active.has(item)),
+      };
+    });
+  };
   const resetFilters = () => {
     setQuery("");
     setFilters({
@@ -2742,7 +2761,7 @@ function MapStarSearchShell({
       coolnessRange: [0, filterExtents.maxCoolness],
       temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
       spectralClass: "",
-      habitableOnly: false,
+      planetCategories: [],
     });
   };
   const activeSpectral = new Set(spectralTokens(filters.spectralClass));
@@ -2810,15 +2829,25 @@ function MapStarSearchShell({
         <DualRangeControl label="Stars" min={0} max={filterExtents.maxStars} step={1} value={filters.starRange} onChange={(value) => updateRange("starRange", value)} format={(value) => formatNumber(value, 0)} />
         <DualRangeControl label="Planets" min={0} max={filterExtents.maxPlanets} step={1} value={filters.planetRange} onChange={(value) => updateRange("planetRange", value)} format={(value) => formatNumber(value, 0)} />
         <DualRangeControl label="Coolness" min={0} max={filterExtents.maxCoolness} step={1} value={filters.coolnessRange} onChange={(value) => updateRange("coolnessRange", value)} format={(value) => formatNumber(value, 0)} />
-        <button
-          type="button"
-          className={`map-search-habitable ${filters.habitableOnly ? "active" : ""}`}
-          onClick={() => setFilters((current) => ({ ...current, habitableOnly: !current.habitableOnly }))}
-          aria-pressed={filters.habitableOnly}
-          title="Filters to systems with a planet candidate in the broad habitable-zone temperature and mass range."
-        >
-          Habitable-zone planets
-        </button>
+        <div className="map-search-planet-categories" role="group" aria-label="Broad confirmed planet category filter">
+          {MAP_PLANET_CATEGORIES.map((category) => {
+            const active = (filters.planetCategories || []).includes(category.queryKey);
+            return (
+              <button
+                key={category.key}
+                type="button"
+                className={`map-search-planet-category ${active ? "active" : ""}`}
+                style={{ "--planet-category-color": category.color, "--planet-category-ring": category.ring }}
+                onClick={() => togglePlanetCategory(category.queryKey)}
+                aria-pressed={active}
+                title={`${category.filterLabel}: confirmed planets with an unambiguous broad size or mass class and a ${category.filterLabel.split(" ")[0].toLowerCase()} temperature proxy. Selected categories match any.`}
+              >
+                <span aria-hidden="true">{category.label}</span>
+                {category.filterLabel}
+              </button>
+            );
+          })}
+        </div>
         <details className="map-search-recents" open>
           <summary><span className="map-panel-label">Recents</span></summary>
           <div>
@@ -3037,7 +3066,7 @@ export default function StarMapPage({
     coolnessRange: [0, 1],
     temperatureRange: STAR_SEARCH_DEFAULT_TEMP_RANGE,
     spectralClass: "",
-    habitableOnly: false,
+    planetCategories: [],
   });
   const [mapSearchResults, setMapSearchResults] = useState([]);
   const [mapSearchResultsOpen, setMapSearchResultsOpen] = useState(false);
@@ -4040,7 +4069,7 @@ export default function StarMapPage({
       || filters.temperatureRange[0] > STAR_SEARCH_DEFAULT_TEMP_RANGE[0]
       || filters.temperatureRange[1] < STAR_SEARCH_DEFAULT_TEMP_RANGE[1]
       || Boolean(filters.spectralClass)
-      || Boolean(filters.habitableOnly)
+      || Boolean(filters.planetCategories?.length)
     );
   }, [filterExtents, mapRadiusLy, mapSearchFilters]);
 

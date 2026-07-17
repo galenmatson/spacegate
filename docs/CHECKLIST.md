@@ -968,6 +968,16 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add tile-v4 confirmed-planet category badges for hot/temperate/cold gas
   giants and terrestrial planets, capped at one per category and omitted when
   composition or environment evidence is ambiguous
+- [x] Replace the map's single habitable-zone toggle with six independently
+  toggleable broad confirmed-planet categories, using identical versioned
+  category SQL for tile masks and API search and explicit OR semantics
+- [ ] Replace the map category environment temperature proxy with an auditable
+  incident-flux-versus-host-dependent-HZ derivation, including safe single-host
+  recovery and multi-star irradiation/component-binding rules
+- [ ] Preserve NASA composite best-mass values with `pl_bmassprov`, limits, and
+  uncertainties in typed planet evidence; distinguish measured mass, `M sin i`,
+  deprojected estimates, and mass-radius-relation estimates before allowing
+  them to influence broad map categories
 - [x] Distinguish planet map badges from stellar badges with right-of-name
   placement, smaller bodies, stronger rings, and a separate muted palette
 - [x] Make the map temperature filter's complete neutral range 0-83,000 K

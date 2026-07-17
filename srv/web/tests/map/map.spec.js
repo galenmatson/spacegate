@@ -111,7 +111,20 @@ test.describe("public 3D map beta", () => {
     await expect(page.locator(".map-search-sidebar")).toContainText(/Filters/i);
     await expect.poll(() => page.locator(".map-search-sidebar").evaluate((node) => Math.round(node.getBoundingClientRect().width)))
       .toBeGreaterThanOrEqual(230);
-    await expect(page.locator(".map-search-habitable")).toBeVisible();
+    const planetCategoryToggles = page.locator(".map-search-planet-category");
+    await expect(planetCategoryToggles).toHaveCount(6);
+    await expect(planetCategoryToggles, "planet category controls should replace the broad HZ toggle").toContainText([
+      "Hot Jupiter",
+      "Temperate Jupiter",
+      "Cold Jupiter",
+      "Hot Terrestrial",
+      "Temperate Terrestrial",
+      "Cold Terrestrial",
+    ]);
+    await planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" }).click();
+    await expect(planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" })).toHaveAttribute("aria-pressed", "true");
+    await planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" }).click();
+    await expect(planetCategoryToggles.filter({ hasText: "Temperate Terrestrial" })).toHaveAttribute("aria-pressed", "false");
     const temperatureInputs = page.locator(".map-search-topbar .map-search-range input[type='range']");
     await expect(temperatureInputs).toHaveCount(2);
     await expect(temperatureInputs.nth(1)).toHaveValue("83000");
@@ -209,6 +222,25 @@ test.describe("public 3D map beta", () => {
       () => page.locator(".map-canvas canvas").evaluate((node) => node.dataset.runtimePreviewPoolBudget || ""),
       { timeout: 3000 }
     ).toBe("1");
+  });
+
+  test("broad planet category controls stay bounded and reach API search", async ({ page }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.locator(".map-canvas canvas").waitFor();
+    const controls = page.locator(".map-search-planet-category");
+    await expect(controls).toHaveCount(6);
+    expect(await controls.evaluateAll((nodes) => nodes.every((node) => node.scrollWidth <= node.clientWidth + 1))).toBeTruthy();
+
+    const coldTerrestrial = controls.filter({ hasText: "Cold Terrestrial" });
+    await coldTerrestrial.scrollIntoViewIfNeeded();
+    await coldTerrestrial.click();
+    const requestPromise = page.waitForRequest((request) => (
+      request.url().includes("/api/v1/systems/search")
+      && new URL(request.url()).searchParams.get("planet_category") === "cold_terrestrial"
+    ));
+    await page.locator(".map-search-topbar").getByRole("button", { name: /^Search$/ }).click();
+    await requestPromise;
+    await expect(page.locator("[data-testid='map-star-search-results']")).toBeVisible();
   });
 
   test("map Search Results keeps its Close action while cards scroll", async ({ page }, testInfo) => {

@@ -128,6 +128,40 @@ source radius is preferred to source mass, equilibrium temperature is preferred
 to an insolation-derived estimate, ambiguous 2-6 Earth-radius or 10-50
 Earth-mass objects are unbadged, and missing environments produce no badge.
 
+The public map calls the broad giant/enveloped class `Jupiter` for immediate
+lay readability. Internally this does not assert Jupiter-like composition:
+
+- radius `<= 2 Rearth` is terrestrial; radius `>= 6 Rearth` is broad
+  giant/enveloped; the interval between remains unclassified;
+- mass is used only when radius is absent: `<= 10 Mearth` is terrestrial and
+  `>= 50 Mearth` is broad giant/enveloped; the middle remains unclassified;
+- source equilibrium temperature is the first environment proxy. When it is
+  absent but positive source insolation exists, the builder uses
+  `278.5 K * S^(1/4)`; `> 320 K` is hot, `200-320 K` temperate, and `< 200 K`
+  cold;
+- only confirmed, visible, nontombstoned CORE major planets contribute. TOI
+  candidates, false positives, false alarms, and ambiguous evidence never
+  alter the mask or canonical planet counts;
+- selected map categories and `GET /systems/search?planet_category=...` use OR
+  semantics. A system may carry several category bits, but no category repeats.
+
+These thresholds are intentionally conservative navigation bins. The Fulton
+radius gap is evidence for two close-in small-planet populations, not a literal
+terrestrial/Jupiter boundary. A future environment revision should prefer
+incident flux against a host-temperature-dependent Kopparapu habitable-zone
+model and should preserve the active classifier version and input provenance.
+Relevant primary references are Fulton et al. 2017
+(`arXiv:1703.10375`), Rogers 2015 (`arXiv:1407.4457`), and Kopparapu et al.
+2013/2014 (`arXiv:1301.6674`, `arXiv:1404.5292`).
+
+Served-build audit on 2026-07-17: 6,306 confirmed major planets include 6,256
+with radius, 2,394 with mass, 4,779 with equilibrium-temperature or insolation
+environment evidence, and 5,881 with semimajor axis. The conservative map
+policy classifies 2,742 planets; 2,363 sit in the ambiguous 2-6 Rearth interval,
+1,192 have a usable broad composition but no current environment, and nine
+lack both size and mass. Across confirmed-planet hosts, 877 systems receive at
+least one category bit and 1,143 receive none under the eligibility policy.
+
 The representative-class policy chooses only among the same shared leaves and
 compares exact leaf source/MSC mass when available, then an
 object/spectral/evolutionary mass proxy, intrinsic brightness, and a stable

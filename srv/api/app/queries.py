@@ -6,6 +6,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import duckdb
 
 from .utils import row_to_dict
+from .planet_categories import (
+    planet_category_bit_sql,
+    planet_category_eligibility_sql,
+    planet_category_mask,
+)
 from .stellar_classification import spectral_class_from_type
 
 
@@ -3283,6 +3288,7 @@ def search_systems(
     spectral_classes: List[str],
     has_planets: Optional[bool],
     has_habitable: Optional[bool],
+    planet_categories: List[str],
     min_coolness_score: Optional[float],
     max_coolness_score: Optional[float],
     sort: str,
@@ -3746,6 +3752,15 @@ def search_systems(
         conditions.append(habitability_clause)
     elif has_habitable is False:
         conditions.append(f"NOT {habitability_clause}")
+
+    if planet_categories:
+        category_bit_expr = planet_category_bit_sql("p")
+        conditions.append(
+            "EXISTS (SELECT 1 FROM planets p WHERE p.system_id = s.system_id "
+            f"AND {planet_category_eligibility_sql('p')} "
+            f"AND (({category_bit_expr}) & ?) <> 0)"
+        )
+        params.append(planet_category_mask(planet_categories))
 
     disc_attached = _attach_side_db(con, disc_db_path, alias="disc_db")
     has_coolness_scores = disc_attached and _has_table(

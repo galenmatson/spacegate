@@ -527,6 +527,53 @@
   background: color-mix(in srgb, #63f79d 24%, var(--surface-soft));
 }
 
+.map-search-planet-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.map-search-planet-category {
+  min-width: 0;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px;
+  border: 1px solid color-mix(in srgb, var(--map-hud-border) 58%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
+  color: var(--map-hud-strong);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.1;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-search-planet-category > span {
+  flex: 0 0 auto;
+  min-width: 22px;
+  padding: 3px 2px;
+  border: 2px solid var(--planet-category-ring);
+  border-radius: 50%;
+  background: var(--planet-category-color);
+  color: #fff;
+  font-size: 0.55rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.map-search-planet-category:hover,
+.map-search-planet-category.active {
+  border-color: var(--planet-category-ring);
+  background: color-mix(in srgb, var(--planet-category-color) 28%, var(--surface-soft));
+}
+
+.map-search-planet-category.active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--planet-category-ring) 55%, transparent);
+}
+
 .map-search-recents summary {
   cursor: pointer;
   list-style: none;
@@ -10694,6 +10741,14 @@ main {
     width: var(--map-search-sidebar-width);
     max-height: min(42vh, calc(100% - 92px));
     padding: 8px;
+  }
+
+  .map-search-planet-categories {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .map-search-planet-category {
+    font-size: 0.58rem;
   }
 
   .map-search-results {

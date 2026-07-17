@@ -15,9 +15,9 @@ const BADGE_CLASSES = [
   null, "O", "B", "A", "F", "G", "K", "M", "L", "T", "Y", "WD", "WR", "NS", "BLACK HOLE", "UNKNOWN",
 ];
 const PLANET_BADGE_CLASSES = [
-  { bit: 1, key: "hot_gas_giant", label: "HG" },
-  { bit: 2, key: "temperate_gas_giant", label: "TG" },
-  { bit: 4, key: "cold_gas_giant", label: "CG" },
+  { bit: 1, key: "hot_gas_giant", label: "HJ" },
+  { bit: 2, key: "temperate_gas_giant", label: "TJ" },
+  { bit: 4, key: "cold_gas_giant", label: "CJ" },
   { bit: 8, key: "hot_terrestrial", label: "HT" },
   { bit: 16, key: "temperate_terrestrial", label: "TT" },
   { bit: 32, key: "cold_terrestrial", label: "CT" },

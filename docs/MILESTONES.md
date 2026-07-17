@@ -926,6 +926,11 @@ Deliverables:
 - [x] formally deprecate the monolithic public transport; retain
   `?map_transport=monolithic` only as a bounded 100-ly diagnostic during the
   observation window
+- [x] M8.1.5 replaces the map's single broad habitable-zone control with six
+  independently toggleable hot/temperate/cold Jupiter/terrestrial navigation
+  bins. Tile labels and API search share one conservative confirmed-planet
+  policy; ambiguous planets and TESS candidate/negative evidence remain
+  explicit and do not contaminate canonical counts
 
 ### M8.2. Extended Objects and Background Sky
 

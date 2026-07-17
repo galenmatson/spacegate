@@ -44,6 +44,10 @@ from . import inference_registry
 from .narration import system_narrative_blocks
 from . import wise_images
 from .db import DatabaseUnavailable
+from .planet_categories import (
+    SUPPORTED_PLANET_CATEGORIES,
+    parse_planet_categories,
+)
 from .queries import (
     choose_display_name,
     choose_display_name_info,
@@ -5269,6 +5273,7 @@ def _admin_search_system_by_id(
         spectral_classes=[],
         has_planets=None,
         has_habitable=None,
+        planet_categories=[],
         min_coolness_score=None,
         max_coolness_score=None,
         sort="name",
@@ -5492,6 +5497,7 @@ def _should_audit_systems_search(
     max_temp_k: Optional[float],
     has_habitable: Optional[bool],
     has_planets: Optional[bool],
+    planet_categories: list[str],
     min_coolness_score: Optional[float],
     max_coolness_score: Optional[float],
     spectral_classes: list[str],
@@ -5517,7 +5523,7 @@ def _should_audit_systems_search(
             min_coolness_score,
             max_coolness_score,
         )
-    ) or bool(spectral_classes)
+    ) or bool(spectral_classes) or bool(planet_categories)
 
 
 def _audit_systems_search(
@@ -5538,6 +5544,7 @@ def _audit_systems_search(
     max_temp_k: Optional[float],
     has_habitable: Optional[bool],
     has_planets: Optional[bool],
+    planet_categories: list[str],
     min_coolness_score: Optional[float],
     max_coolness_score: Optional[float],
     spectral_classes: list[str],
@@ -5560,6 +5567,7 @@ def _audit_systems_search(
         max_temp_k=max_temp_k,
         has_habitable=has_habitable,
         has_planets=has_planets,
+        planet_categories=planet_categories,
         min_coolness_score=min_coolness_score,
         max_coolness_score=max_coolness_score,
         spectral_classes=spectral_classes,
@@ -5590,6 +5598,8 @@ def _audit_systems_search(
         filters["has_planets"] = has_planets
     if has_habitable is not None:
         filters["has_habitable"] = has_habitable
+    if planet_categories:
+        filters["planet_categories"] = planet_categories
 
     details: Dict[str, Any] = {
         "query_raw": _short(q_raw),
@@ -5892,6 +5902,7 @@ def systems_search(
     min_temp_k: Optional[float] = Query(default=None, ge=0),
     max_temp_k: Optional[float] = Query(default=None, ge=0),
     has_habitable: Optional[str] = Query(default=None),
+    planet_category: Optional[str] = Query(default=None),
     min_coolness_score: Optional[float] = Query(default=None),
     max_coolness_score: Optional[float] = Query(default=None),
     spectral_class: Optional[str] = Query(default=None),
@@ -6053,6 +6064,23 @@ def systems_search(
             },
         )
 
+    planet_categories = parse_planet_categories(planet_category)
+    invalid_planet_categories = [
+        value for value in planet_categories if value not in SUPPORTED_PLANET_CATEGORIES
+    ]
+    if invalid_planet_categories:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "bad_request",
+                "message": "Invalid planet_category filter",
+                "details": {
+                    "invalid": invalid_planet_categories,
+                    "allowed": sorted(SUPPORTED_PLANET_CATEGORIES),
+                },
+            },
+        )
+
     include_total_bool = parse_bool(include_total)
     if include_total is not None and include_total_bool is None:
         raise HTTPException(
@@ -6088,6 +6116,7 @@ def systems_search(
                 spectral_classes=spectral_classes,
                 has_planets=has_planets_bool,
                 has_habitable=has_habitable_bool,
+                planet_categories=planet_categories,
                 min_coolness_score=min_coolness_score,
                 max_coolness_score=max_coolness_score,
                 sort=sort_key,
@@ -6118,6 +6147,7 @@ def systems_search(
             max_temp_k=max_temp_k,
             has_habitable=has_habitable_bool,
             has_planets=has_planets_bool,
+            planet_categories=planet_categories,
             min_coolness_score=min_coolness_score,
             max_coolness_score=max_coolness_score,
             spectral_classes=spectral_classes,
@@ -6254,6 +6284,7 @@ def systems_search(
         max_temp_k=max_temp_k,
         has_habitable=has_habitable_bool,
         has_planets=has_planets_bool,
+        planet_categories=planet_categories,
         min_coolness_score=min_coolness_score,
         max_coolness_score=max_coolness_score,
         spectral_classes=spectral_classes,
@@ -10192,6 +10223,7 @@ def admin_objects_search(
             spectral_classes=[],
             has_planets=None,
             has_habitable=None,
+            planet_categories=[],
             min_coolness_score=None,
             max_coolness_score=None,
             sort="name",

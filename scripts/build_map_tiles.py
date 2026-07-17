@@ -21,6 +21,10 @@ from typing import Any, Iterable
 import duckdb
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "srv" / "api"))
+from app.planet_categories import (
+    planet_category_bit_sql,
+    planet_category_eligibility_sql,
+)
 from app.queries import choose_display_name_info
 
 
@@ -370,42 +374,17 @@ def tile_query(radius: int) -> str:
         GROUP BY system_id
       ), classified_planets AS (
         SELECT
-          system_id,
-          CASE
-            WHEN radius_earth IS NOT NULL AND radius_earth <= 2.0 THEN 'terrestrial'
-            WHEN radius_earth IS NOT NULL AND radius_earth >= 6.0 THEN 'gas_giant'
-            WHEN radius_earth IS NULL AND radius_jup IS NOT NULL AND radius_jup * 11.209 <= 2.0 THEN 'terrestrial'
-            WHEN radius_earth IS NULL AND radius_jup IS NOT NULL AND radius_jup * 11.209 >= 6.0 THEN 'gas_giant'
-            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NOT NULL AND mass_earth <= 10.0 THEN 'terrestrial'
-            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NOT NULL AND mass_earth >= 50.0 THEN 'gas_giant'
-            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NULL AND mass_jup IS NOT NULL AND mass_jup * 317.83 <= 10.0 THEN 'terrestrial'
-            WHEN radius_earth IS NULL AND radius_jup IS NULL AND mass_earth IS NULL AND mass_jup IS NOT NULL AND mass_jup * 317.83 >= 50.0 THEN 'gas_giant'
-            ELSE NULL
-          END AS composition_class,
-          coalesce(
-            eq_temp_k,
-            CASE WHEN insol_earth IS NOT NULL AND insol_earth > 0
-              THEN 278.5 * pow(insol_earth, 0.25) ELSE NULL END
-          ) AS temperature_k
-        FROM planets
-        WHERE system_id IS NOT NULL
-          AND coalesce(planet_size_mass_class, '') <> 'subplanet'
+          p.system_id,
+          {planet_category_bit_sql('p')} AS category_bit
+        FROM planets p
+        WHERE p.system_id IS NOT NULL
+          AND {planet_category_eligibility_sql('p')}
       ), planet_badges AS (
         SELECT
           system_id,
-          bit_or(
-            CASE
-              WHEN composition_class = 'gas_giant' AND temperature_k > 320.0 THEN 1
-              WHEN composition_class = 'gas_giant' AND temperature_k >= 200.0 THEN 2
-              WHEN composition_class = 'gas_giant' AND temperature_k < 200.0 THEN 4
-              WHEN composition_class = 'terrestrial' AND temperature_k > 320.0 THEN 8
-              WHEN composition_class = 'terrestrial' AND temperature_k >= 200.0 THEN 16
-              WHEN composition_class = 'terrestrial' AND temperature_k < 200.0 THEN 32
-              ELSE 0
-            END
-          )::integer AS planet_badge_mask
+          bit_or(category_bit)::integer AS planet_badge_mask
         FROM classified_planets
-        WHERE composition_class IS NOT NULL AND temperature_k IS NOT NULL
+        WHERE category_bit <> 0
         GROUP BY system_id
       ), positioned AS (
         SELECT s.*,

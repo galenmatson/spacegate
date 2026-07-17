@@ -162,6 +162,19 @@ Role:
 - planet records and planetary parameters
 - host matching against canonical stars/systems
 - arm-side host-star physical parameter rows for narration/evidence display when matched back to canonical stars
+- broad map planet bins can use the selected `pscomppars` radius (`pl_rade`),
+  best mass (`pl_bmasse`/`pl_bmassj`), equilibrium temperature (`pl_eqt`),
+  insolation (`pl_insol`), and semimajor axis (`pl_orbsmax`). The detailed `ps`
+  rows remain the source-specific literature solutions needed to distinguish
+  direct measurements, estimates, limits, uncertainties, and competing values;
+  a populated composite field must not be narrated as a direct measurement
+  without inspecting that evidence.
+- CORE currently promotes `pl_masse`/`pl_massj`, not the broader best-mass
+  `pl_bmasse`/`pl_bmassj` pair. The latter must travel with `pl_bmassprov`: the
+  current cooked snapshot includes true `Mass`, `Msini`, `Msin(i)/sin(i)`, and
+  `M-R relationship` values. A future classifier may use these as typed
+  evidence, but must not collapse lower bounds and mass-radius estimates into a
+  measured canonical mass.
 
 Source endpoint:
 

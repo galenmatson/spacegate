@@ -1352,6 +1352,11 @@ Query params:
 - `spectral_class` (comma list, optional; values O,B,A,F,G,K,M,L,T,Y,D)
 - `has_planets` (`true|false`, optional)
 - `has_habitable` (`true|false`, optional)
+- `planet_category` (comma list, optional; values `hot_jupiter`,
+  `temperate_jupiter`, `cold_jupiter`, `hot_terrestrial`,
+  `temperate_terrestrial`, `cold_terrestrial`). Multiple values use OR
+  semantics. This is the versioned broad map presentation proxy described in
+  `docs/TILED_MAP.md`, not a canonical composition or habitability claim.
 - `sort` (`match` | `name` | `distance` | `coolness` | `planet_count` | `star_count` | `hottest` | `coolest`, default `name`; public UI uses `match` for named searches and falls back to `coolness` for blank browsing)
 - `limit` (int, default 50, max 200)
 - `include_total` (`true|false`, optional, default `false`)
@@ -1384,6 +1389,10 @@ Implementation notes:
 - search responses include presentation-scoped preview policy fields so clients
   can avoid expensive `/simulation-scene` requests for ordinary singleton
   systems. These fields are runtime/display policy, not canonical science.
+- `planet_category` considers confirmed, visible, nontombstoned CORE major
+  planets only. Ambiguous size/mass or missing-environment rows do not match a
+  category; TOI candidates and negative evidence remain ARM evidence and do not
+  enter this filter.
 - current Gaia-first production builds use transitional AT-HYG alias
   crosswalks plus deterministic Bayer expansion for public name coverage; this
   supports lookups such as `Castor`, `Alpha Geminorum`, `Alpha Centauri`,

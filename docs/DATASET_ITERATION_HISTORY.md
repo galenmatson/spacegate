@@ -788,6 +788,32 @@ Representative commits:
   `coolstars.org`; antiproton retains `20260717T0336Z_8bee500_side` as its one
   immediate rollback checkpoint.
 
+### 27) Broad Planet Navigation Categories
+
+- The map's single broad habitable-zone toggle was replaced with six
+  independently selectable hot/temperate/cold Jupiter/terrestrial navigation
+  bins. Multiple selected bins use OR semantics for both loaded tile labels and
+  `/api/v1/systems/search`; no selection disables the category filter.
+- Tile and API paths now import one SQL policy. The presentation label
+  `Jupiter` maps internally to a broad `giant_or_enveloped` proxy and is not a
+  canonical composition assertion. Radius takes precedence over mass;
+  2-6 Rearth and mass-only 10-50 Mearth objects remain unclassified rather than
+  being forced across the Fulton gap or into a Jovian label.
+- Only confirmed, visible, nontombstoned CORE major planets contribute. TESS
+  candidates and negative evidence stay in ARM. Served-build audit finds 2,742
+  classifiable planets and 877 host systems with at least one map bit; 1,143
+  confirmed-planet systems remain explicitly outside these filters because
+  composition or environment evidence is incomplete or ambiguous.
+- Environment remains the existing source equilibrium-temperature/insolation
+  proxy. A host-dependent incident-flux/HZ derivation, including component
+  binding and multistar irradiation policy, remains a general follow-up rather
+  than a Sol-specific patch.
+- Source audit also found that CORE's promoted mass fields use NASA
+  `pl_masse`/`pl_massj`, while the wider `pl_bmasse` best-mass field mixes true
+  mass, `M sin i`, deprojected values, and mass-radius-relation estimates. This
+  broader evidence remains deferred until its `pl_bmassprov`, uncertainty, and
+  limit semantics can be retained rather than mislabeled as measured mass.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
