@@ -946,33 +946,6 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 order by depth, hierarchy_node_key
                 """
             ).fetchall(),
-            "nu_sco": con.execute(
-                """
-                with recursive walk as (
-                  select
-                    hn.hierarchy_node_key,
-                    hn.node_kind,
-                    hn.display_name,
-                    cast(null as varchar) as parent_node_key,
-                    0 as depth
-                  from hierarchy_nodes hn
-                  where hn.hierarchy_node_key = 'canon:system:wds:16120-1928'
-                  union all
-                  select
-                    child.hierarchy_node_key,
-                    child.node_kind,
-                    child.display_name,
-                    e.parent_node_key,
-                    walk.depth + 1
-                  from walk
-                  join hierarchy_edges e on e.parent_node_key = walk.hierarchy_node_key
-                  join hierarchy_nodes child on child.hierarchy_node_key = e.child_node_key
-                )
-                select depth, node_kind, display_name, hierarchy_node_key, parent_node_key
-                from walk
-                order by depth, hierarchy_node_key
-                """
-            ).fetchall(),
         }
     finally:
         con.close()
