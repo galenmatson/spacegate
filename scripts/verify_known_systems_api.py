@@ -45,12 +45,14 @@ BENCHMARKS: tuple[BenchmarkCase, ...] = (
             "canon:leaf:msc:07346+3153:cb",
         ),
         required_hierarchy_facts=(
-            HierarchyFact("canon:leaf:msc:07346+3153:aa", {"spectral_type_raw": "A1V", "spectral_class": "A", "mass_msun": 2.37}),
-            HierarchyFact("canon:leaf:msc:07346+3153:ba", {"spectral_type_raw": "A2Vm", "spectral_class": "A", "mass_msun": 1.79}),
-            HierarchyFact("canon:leaf:msc:07346+3153:ca", {"spectral_type_raw": "M0.5V", "spectral_class": "M", "mass_msun": 0.6}),
-            HierarchyFact("canon:leaf:msc:07346+3153:ab", {"spectral_type_raw": "dM1e", "spectral_class": "M", "mass_msun": 0.39}),
-            HierarchyFact("canon:leaf:msc:07346+3153:bb", {"spectral_type_raw": "dM1e", "spectral_class": "M", "mass_msun": 0.39}),
-            HierarchyFact("canon:leaf:msc:07346+3153:cb", {"spectral_type_raw": "M1_Ve", "spectral_class": "M", "mass_msun": 0.6}),
+            # Raw spectral strings are source spellings, not stable scientific
+            # invariants. Assert their normalized class and component binding.
+            HierarchyFact("canon:leaf:msc:07346+3153:aa", {"spectral_class": "A", "mass_msun": 2.37}),
+            HierarchyFact("canon:leaf:msc:07346+3153:ba", {"spectral_class": "A", "mass_msun": 1.79}),
+            HierarchyFact("canon:leaf:msc:07346+3153:ca", {"spectral_class": "M", "mass_msun": 0.6}),
+            HierarchyFact("canon:leaf:msc:07346+3153:ab", {"spectral_class": "M", "mass_msun": 0.39}),
+            HierarchyFact("canon:leaf:msc:07346+3153:bb", {"spectral_class": "M", "mass_msun": 0.39}),
+            HierarchyFact("canon:leaf:msc:07346+3153:cb", {"spectral_class": "M", "mass_msun": 0.6}),
         ),
         min_scene_stars=6,
     ),

@@ -118,6 +118,7 @@ def main() -> int:
             "04076+3804": ["F", "K", "M", "M", "UNKNOWN"],
             "02519-6137": ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"],
             "07346+3153": ["A", "A", "M", "M", "M", "M"],
+            "16120-1928": ["B", "B", "B", "B", "B", "B", "UNKNOWN"],
         }
         golden_results: dict[str, dict[str, object]] = {}
         for wds_id, expected in goldens.items():

@@ -586,6 +586,99 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
 
         con.execute(
             """
+            create temp table unresolved_terminal_leaf_nodes as
+            with recursive msc_walk as (
+              select
+                sys_map.canonical_system_key,
+                sys_map.wds_id,
+                e.child_component_key,
+                greatest(coalesce(e.depth_hint, 1), 1)::int as depth,
+                coalesce(e.confidence_score, 0.72)::double as path_confidence_score
+              from arm.system_hierarchy_edges e
+              join arm.component_entities parent_ce
+                on parent_ce.stable_component_key = e.parent_component_key
+              join red.canonical_system_groups sys_map
+                on sys_map.wds_id = replace(parent_ce.stable_component_key, 'comp:msc_system:wds:', '')
+              where parent_ce.stable_component_key like 'comp:msc_system:wds:%'
+                and e.edge_kind = 'contains'
+              union all
+              select
+                walk.canonical_system_key,
+                walk.wds_id,
+                e.child_component_key,
+                walk.depth + 1,
+                least(walk.path_confidence_score, coalesce(e.confidence_score, 0.72))
+              from msc_walk walk
+              join arm.system_hierarchy_edges e
+                on e.parent_component_key = walk.child_component_key
+              where e.edge_kind = 'contains'
+                and walk.depth < 8
+            ), terminal_endpoints as (
+              select
+                walk.canonical_system_key,
+                walk.wds_id,
+                ce.stable_component_key,
+                lower(trim(ce.catalog_component_label)) as member_role,
+                ce.display_name,
+                max(walk.path_confidence_score)::double as confidence_score
+              from msc_walk walk
+              join arm.component_entities ce
+                on ce.stable_component_key = walk.child_component_key
+              where ce.component_type = 'star'
+                and lower(trim(coalesce(ce.catalog_component_label, ''))) ~ '^[a-z]$'
+                and not exists (
+                  select 1
+                  from arm.system_hierarchy_edges child_edge
+                  where child_edge.parent_component_key = ce.stable_component_key
+                    and child_edge.edge_kind = 'contains'
+                )
+              group by 1, 2, 3, 4, 5
+            ), wds_pair_roles as (
+              select
+                wds_id,
+                lower(substr(component_label, 1, 1)) as role_a,
+                lower(substr(component_label, 2, 1)) as role_b,
+                max(coalesce(obs_count, 0))::bigint as max_obs_count
+              from arm.wds_component_observations
+              where length(coalesce(component_label, '')) = 2
+                and lower(component_label) ~ '^[a-z][a-z]$'
+              group by 1, 2, 3
+            )
+            select
+              'canon:leaf:msc:' || terminal.wds_id || ':' || terminal.member_role as hierarchy_node_key,
+              terminal.canonical_system_key,
+              terminal.wds_id,
+              terminal.stable_component_key,
+              terminal.member_role,
+              terminal.display_name,
+              least(0.80, max(terminal.confidence_score))::double as confidence_score,
+              max(pair.max_obs_count)::bigint as supporting_observation_count
+            from terminal_endpoints terminal
+            join wds_pair_roles pair
+              on pair.wds_id = terminal.wds_id
+             and (
+                  (pair.role_a = terminal.member_role and exists (
+                    select 1 from root_role_map sibling
+                    where sibling.canonical_system_key = terminal.canonical_system_key
+                      and sibling.member_role = pair.role_b
+                  ))
+               or (pair.role_b = terminal.member_role and exists (
+                    select 1 from root_role_map sibling
+                    where sibling.canonical_system_key = terminal.canonical_system_key
+                      and sibling.member_role = pair.role_a
+                  ))
+             )
+            left join root_role_map resolved
+              on resolved.canonical_system_key = terminal.canonical_system_key
+             and resolved.member_role = terminal.member_role
+            where resolved.member_role is null
+              and pair.max_obs_count >= 2
+            group by 1, 2, 3, 4, 5, 6
+            """
+        )
+
+        con.execute(
+            """
             create table hierarchy_nodes as
             with system_nodes as (
               select
@@ -664,6 +757,18 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 member_role,
                 'wds_msc_implied_role'::varchar as source_basis
               from unresolved_role_nodes
+            ), unresolved_terminal_leaf as (
+              select
+                hierarchy_node_key,
+                'inferred_star_leaf'::varchar as node_kind,
+                'star'::varchar as component_family,
+                'star'::varchar as component_type,
+                cast(null as varchar) as canonical_key,
+                display_name,
+                wds_id,
+                member_role,
+                'wds_msc_supported_root_leaf'::varchar as source_basis
+              from unresolved_terminal_leaf_nodes
             )
             select * from system_nodes
             union all
@@ -674,6 +779,8 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             select * from msc_leaf
             union all
             select * from unresolved_role
+            union all
+            select * from unresolved_terminal_leaf
             """
         )
 
@@ -751,6 +858,17 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 confidence_score,
                 1::bigint as supporting_edge_count
               from unresolved_role_leaf_edges
+            ), system_to_unresolved_terminal_leaf as (
+              select
+                row_number() over (order by canonical_system_key, hierarchy_node_key)::bigint as hierarchy_edge_id,
+                canonical_system_key as parent_node_key,
+                hierarchy_node_key as child_node_key,
+                'contains'::varchar as edge_kind,
+                member_role,
+                'wds_msc_supported_root_leaf'::varchar as source_basis,
+                confidence_score,
+                supporting_observation_count as supporting_edge_count
+              from unresolved_terminal_leaf_nodes
             )
             select * from system_to_star
             union all
@@ -763,6 +881,8 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             select * from system_to_unresolved_role
             union all
             select * from unresolved_role_to_msc_leaf
+            union all
+            select * from system_to_unresolved_terminal_leaf
             """
         )
 
@@ -826,6 +946,33 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
                 order by depth, hierarchy_node_key
                 """
             ).fetchall(),
+            "nu_sco": con.execute(
+                """
+                with recursive walk as (
+                  select
+                    hn.hierarchy_node_key,
+                    hn.node_kind,
+                    hn.display_name,
+                    cast(null as varchar) as parent_node_key,
+                    0 as depth
+                  from hierarchy_nodes hn
+                  where hn.hierarchy_node_key = 'canon:system:wds:16120-1928'
+                  union all
+                  select
+                    child.hierarchy_node_key,
+                    child.node_kind,
+                    child.display_name,
+                    e.parent_node_key,
+                    walk.depth + 1
+                  from walk
+                  join hierarchy_edges e on e.parent_node_key = walk.hierarchy_node_key
+                  join hierarchy_nodes child on child.hierarchy_node_key = e.child_node_key
+                )
+                select depth, node_kind, display_name, hierarchy_node_key, parent_node_key
+                from walk
+                order by depth, hierarchy_node_key
+                """
+            ).fetchall(),
         }
     finally:
         con.close()
@@ -847,6 +994,7 @@ def build_hierarchy(*, build_id: str, build_dir: Path, reports_dir: Path) -> dic
             "This bootstrap hierarchy prefers canonical root system -> canonical star -> canonical planet containment.",
             "MSC inferred leaf components are attached beneath top-level stars only when the root member_role mapping is unique.",
             "Missing one-letter root roles may be represented as unresolved components only when WDS pair evidence and MSC multi-leaf evidence agree.",
+            "Terminal one-letter MSC stellar endpoints missing from canonical role mappings are retained only when a multi-observation WDS pair links them to a resolved sibling.",
             "Singleton MSC subdivisions are suppressed in the canonical hierarchy to avoid overfitting sparse role evidence.",
         ],
     }
