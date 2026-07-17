@@ -1055,6 +1055,31 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Add ARM-scoped runtime luminosity derivation for hierarchy-rendered stars
   with radius and effective temperature so HZ/temperature-line overlays do not
   lose systems such as TRAPPIST-1
+- [x] Audit active source-catalog field utilization against CORE/ARM/DISC,
+  simulations, map taxonomy, current milestones, and AAA goals; emit a reusable
+  machine-readable report and document the single-rebuild evidence bundle in
+  `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`
+- [ ] Run the retention audit before the next full build; preserve served,
+  rollback, published, referenced, and unique-source artifacts while reducing
+  the current 817 GB immutable `out/` footprint through the documented process
+- [ ] Implement full-canonical Gaia DR2-to-DR3 membership reconciliation for
+  open clusters and all remaining DR2 fallback paths; account for every row
+  without direct DR2/DR3 ID equality
+- [ ] Acquire pinned Gaia AP/FLAME/evolution/extinction/activity evidence and
+  expand Gaia NSS fitted-parameter/uncertainty acquisition; project values,
+  bounds, flags, and methods into ARM
+- [ ] Preserve and exhaustively reconcile all ORB6 rows, and project accepted
+  DEBCat component physical parameters into shared ARM stellar evidence
+- [ ] Materialize typed NASA planet physical observations with uncertainty,
+  limit, reference, transit, density, and best-mass-provenance semantics
+- [ ] Preserve native ATNF/magnetar spin and activity, white-dwarf alternative
+  fits, open-cluster physical context, SNR radio flux, and TESS EB
+  sector/source/flag/Tmag evidence in ARM
+- [ ] Reconcile the default-disabled exoplanet lifecycle sources with the M5.3
+  contract before the next full rebuild
+- [ ] Complete one deterministic Catalog Evidence Utilization v2 canonical
+  rebuild and public slice; compare HZ evidence basis, planet-category deltas,
+  source accounting, and inventory stability before deployment
 - [x] Refresh map/system Playwright expectations for current naming, preview,
   Explorer, and fallback policies; full local map suite passes on photon
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror

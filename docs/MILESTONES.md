@@ -1178,6 +1178,62 @@ Remaining:
 - decide whether a capped/materialized ARM policy for stellar subclass priors
   is worth the storage cost, or whether runtime provenance remains sufficient.
 
+July 17, 2026 catalog-wide follow-up:
+
+- `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md` expands the earlier
+  orbit-focused audit across every active source family and the current
+  simulation, planet, compact-object, cluster, variability, and AAA goals.
+- The reproducible measurement script is
+  `scripts/audit_catalog_feature_utilization.py`; the initial machine report is
+  stored outside the repo under
+  `/data/spacegate/state/reports/source_catalog_utilization_report_20260717.json`.
+- The audit found one identity defect (Gaia DR2 open-cluster membership joined
+  directly to DR3 IDs), one major upstream acquisition gap (Gaia
+  AP/FLAME/evolution/extinction/activity), and several cooked-but-stranded
+  evidence families. These should land as one evidence bundle before another
+  full canonical rebuild, not as one-field rebuilds.
+
+### M8.3c. Catalog Evidence Utilization v2
+
+Status: audited and planned; implementation pending.
+
+Goal:
+
+- make the next full canonical rebuild consume the high-value evidence already
+  present in active catalogs, plus a bounded Gaia physical-parameter refresh,
+  without broadening CORE authority or introducing named-object transforms.
+
+Plan:
+
+- `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`
+
+Deliverables:
+
+- shared full-canonical Gaia DR2-to-DR3 reconciliation for open-cluster and
+  remaining DR2 fallback identities, with exhaustive outcome reports
+- pinned Gaia AP/FLAME/evolution/extinction/activity extract and expanded Gaia
+  NSS fitted-parameter/uncertainty evidence in ARM
+- exhaustive ORB6 preservation/reconciliation and shared DEBCat component
+  physical evidence
+- typed NASA planet physical observations with limits, uncertainties,
+  references, transit observables, and best-mass provenance
+- ARM-native compact-object spin/activity, white-dwarf alternative-model,
+  open-cluster physical, SNR flux, and TESS EB sector/flag/Tmag evidence
+- explicit M5.3 lifecycle-policy reconciliation before rebuild
+- deterministic A/B canonical rebuild, public slice, source-accounting report,
+  and HZ source/prior/missing comparison
+
+Success criteria:
+
+- every targeted source row is either preserved or explicitly accounted for
+- no Gaia DR2 ID is treated as a Gaia DR3 ID by direct equality
+- HZ and planet presentation consume typed source evidence without obscuring
+  source/derived/prior status
+- canonical inventory and planet counts remain stable unless a reusable,
+  reviewed inventory rule justifies a change
+- the evidence bundle needs one full canonical rebuild and one deployment
+  checkpoint rather than a sequence of catalog-specific rebuilds
+
 ### M8.4. Admin Map Overlay and AAA Research Promotion
 
 Goal:

@@ -234,6 +234,19 @@ Source endpoint:
 
 - ESA Gaia Archive TAP (`gaiadr3.astrophysical_parameters`)
 
+July 17, 2026 utilization audit:
+
+- the current extract selects only DSC probability columns even though the same
+  source table contains FLAME luminosity/radius/mass/age, evolutionary stage,
+  extinction, activity, H-alpha, spectral-type, uncertainty, and quality fields
+- at the current outer parallax boundary, official TAP count queries return
+  3,428,436 rows with FLAME luminosity/radius, 1,136,048 with FLAME mass, and
+  1,026,163 with FLAME age
+- acquire a narrow pinned physical-parameter v2 extract and keep those modeled
+  source values in ARM; do not silently promote them into CORE facts
+- full findings and the one-rebuild plan are in
+  `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`
+
 ## 3b) Gaia ultracool dwarf memberships (`J/A+A/669/A139`, `table4`)
 
 Classification: `auxiliary`
@@ -293,6 +306,14 @@ Role:
 
 - orbit-quality support evidence for multiplicity confidence
 
+Current limitation:
+
+- 4,051 rows are cooked, but only 56 normalize in the served build because the
+  current rule requires an already-existing unique binary edge
+- a v2 reconciliation must preserve all source rows and partition accepted,
+  ambiguous, excluded, and missing-endpoint outcomes before using ORB6 to
+  support component-scoped edges
+
 Source endpoint:
 
 - USNO ORB6 export
@@ -305,6 +326,9 @@ Role:
 
 - high-quality detached eclipsing binary physical parameter table
 - benchmark and enrichment support for orbital/mass/radius validation
+- accepted unique component bindings should project source mass, radius, Teff,
+  luminosity, log-g, and metallicity into shared ARM stellar evidence rather
+  than remaining only in the source-specific eclipsing-binary table
 
 Source endpoint:
 

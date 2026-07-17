@@ -814,6 +814,44 @@ Representative commits:
   broader evidence remains deferred until its `pl_bmassprov`, uncertainty, and
   limit semantics can be retained rather than mislabeled as measured mass.
 
+### 28) Catalog-Wide Feature Utilization Audit
+
+- The earlier source-evidence audit was expanded beyond MSC/WDS orbit flow to
+  compare every active cooked catalog against the served CORE/ARM projection,
+  simulation/HZ consumers, planet taxonomy, roadmap milestones, and AAA goals.
+  `scripts/audit_catalog_feature_utilization.py` emits the reusable machine
+  report; the first snapshot is
+  `/data/spacegate/state/reports/source_catalog_utilization_report_20260717.json`.
+- The largest acquisition gap is in the Gaia DR3 astrophysical-parameter table
+  already used for DSC class probabilities. Official boundary-matched TAP
+  queries find 3,428,436 FLAME luminosity/radius rows, 1,136,048 mass rows, and
+  1,026,163 age rows, while served Gaia ARM rows contain none of those fields.
+  The next evidence bundle will preserve bounded source values, uncertainty,
+  flags, and evolutionary context in ARM rather than fabricating CORE facts.
+- Open-cluster membership exposed a cross-release identity defect: 234,128
+  Gaia DR2 membership rows are currently joined directly to Gaia DR3 IDs. A
+  full-canonical `dr2_neighbourhood` reconciliation with explicit outcomes is
+  required before the next rebuild.
+- ORB6 preserves 4,051 cooked orbit rows but normalizes only 56 because the
+  builder requires an already-existing unique binary edge. The safe accepted
+  set remains unchanged; v2 must preserve all detail rows and exhaustively
+  partition the unaccepted tail before expanding bindings.
+- Cooked NASA planet physics, Gaia NSS orbit parameters, DEBCat component
+  physics, compact-object spin/activity, white-dwarf alternative atmosphere
+  fits, cluster ages/extinction, SNR radio flux, and TESS EB sector/Tmag
+  evidence are now tracked as one Catalog Evidence Utilization v2 bundle. The
+  explicit intent is one canonical rebuild after the evidence flows are ready,
+  not successive catalog-specific rebuilds.
+- HZ diagnosis confirms the renderer is evidence-gated rather than randomly
+  omitting disks. Approximately 4,966,395 served CORE stars qualify through a
+  guarded main-sequence prior and 2,002 through source luminosity or
+  radius+Teff. Ultracool objects, remnants, unclassified leaves, and evolved
+  stars without adequate physics intentionally receive no disk. Gaia FLAME can
+  replace many illustrative priors, but remnant and quality guards remain
+  mandatory.
+- Full report and acceptance gates:
+  `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
