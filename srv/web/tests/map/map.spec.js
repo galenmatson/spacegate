@@ -2044,7 +2044,6 @@ test.describe("public 3D map beta", () => {
     });
     expect(searchResponse.ok()).toBeTruthy();
     const searchPayload = await searchResponse.json();
-    expect(searchPayload.items?.[0]?.system_id).toBe(17783679);
     expect(searchPayload.items?.[0]?.hip_id).toBe(19335);
     expect(searchPayload.items?.[0]?.hd_id).toBe(25998);
     expect(String(searchPayload.items?.[0]?.gaia_id || searchPayload.items?.[0]?.gaia_source_id)).toBe("225668203191521280");
@@ -2052,19 +2051,24 @@ test.describe("public 3D map beta", () => {
     expect(searchPayload.items?.[0]?.stellar_object_badges).toHaveLength(5);
 
     const cases = [
-      { label: "HD 110067", systemId: 17785520, expected: ["G", "K", "M", "M"] },
-      { label: "HD 79107", systemId: 17784826, expected: ["F", "K", "M", "M"] },
-      { label: "Gl 161.1", systemId: 17783679, expected: ["F", "K", "M", "M", "UNKNOWN"] },
-      { label: "HD 18134", systemId: 17783330, expected: ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"] },
-      { label: "Castor", systemId: 17784471, expected: ["A", "A", "M", "M", "M", "M"] },
-      { label: "HD 57041", systemId: 17784416, expected: ["K", "WD"] },
+      { label: "HD 110067", expected: ["G", "K", "M", "M"] },
+      { label: "HD 79107", expected: ["F", "K", "M", "M"] },
+      { label: "Gl 161.1", expected: ["F", "K", "M", "M", "UNKNOWN"] },
+      { label: "HD 18134", expected: ["M", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN"] },
+      { label: "Castor", expected: ["A", "A", "M", "M", "M", "M"] },
+      { label: "HD 57041", expected: ["K", "WD"] },
     ];
     const sorted = (values) => [...values].sort();
+    const resolvedSystemIds = new Map();
 
     for (const item of cases) {
       await test.step(item.label, async () => {
-        const detailResponse = await page.request.get(`/api/v1/systems/${item.systemId}`);
-        const sceneResponse = await page.request.get(`/api/v1/systems/${item.systemId}/simulation-scene`);
+        const resolved = await resolveGoldenSystem(page, { query: item.label });
+        expect(resolved?.system_id, `${item.label} system_id`).toBeTruthy();
+        resolvedSystemIds.set(item.label, resolved.system_id);
+        expect(sorted(resolved.stellar_class_badges || [])).toEqual(sorted(item.expected));
+        const detailResponse = await page.request.get(`/api/v1/systems/${resolved.system_id}`);
+        const sceneResponse = await page.request.get(`/api/v1/systems/${resolved.system_id}/simulation-scene`);
         expect(detailResponse.ok()).toBeTruthy();
         expect(sceneResponse.ok()).toBeTruthy();
         const detail = await detailResponse.json();
@@ -2089,11 +2093,11 @@ test.describe("public 3D map beta", () => {
       });
     }
 
-    await page.goto("/systems/17783679", { waitUntil: "domcontentloaded" });
+    await page.goto(`/systems/${resolvedSystemIds.get("Gl 161.1")}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-v2 h1")).toContainText(/Gl 161\.1/i);
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(5);
 
-    await page.goto("/systems/17785520", { waitUntil: "domcontentloaded" });
+    await page.goto(`/systems/${resolvedSystemIds.get("HD 110067")}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".system-detail-stellar-tags .stellar-class-chip")).toHaveCount(4);
     await expect(page.locator(".system-detail-stellar-tags .system-object-badge-planet")).toHaveCount(6);
   });
