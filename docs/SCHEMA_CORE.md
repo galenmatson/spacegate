@@ -553,6 +553,48 @@ Current diagnostic families:
   Gaia/WDS-style catalog labels, useful for prioritizing future name-authority
   enrichment.
 
+## Evidence Lake v2 Identity Graph (Pre-CORE Compiler Artifact)
+
+M8.3c-E2 materializes a release-scoped identity and scope graph under
+`derived/evidence_lake_v2/identity/<graph_id>/`. This graph is not a CORE table
+set and is not served directly. It reads the current CORE as
+`stability_reference_not_new_authority`; its policy prohibits inventory,
+identity, and containment mutation until the E6 shadow build.
+
+Artifact tables:
+
+- `canonical_object_nodes`: permanent Spacegate system, star, and planet keys
+  projected from the stability reference with object type, row ID, root system,
+  display name, and reference build ID.
+- `identifier_nodes`: identifier values scoped by namespace, source, and
+  release. Gaia DR2 and DR3 nodes always have distinct node keys.
+- `canonical_identifier_bindings`: provenance-bearing current CORE identifier
+  bindings to permanent object nodes. Shared identifiers remain separate
+  binding rows for collision/component-scope diagnosis.
+- `release_crossmatch_edges`: every preserved official Gaia DR2/DR3
+  neighborhood pair, forward/reverse presence, raw and normalized match
+  metrics, epoch-propagation flag, row counts, and payload-consistency result.
+- `dr2_release_outcomes`: exactly one accepted, missing, excluded, ambiguous,
+  or quarantined row per targeted DR2 ID, including candidate/predecessor sets,
+  forward/reverse release lineage, canonical binding, high-proper-motion and
+  duplicate-system safeguards, reason, and evidence JSON.
+- `source_record_bindings`: source-family/DR2 target groups, source scope,
+  registered source/release/table, record counts, reconciliation outcome, and
+  accepted permanent object binding.
+- `scope_claims`: physical identity, system containment, component/subsystem,
+  observation-target, and alias/public-name claims. Current hierarchy claims
+  are labeled stability references; raw MSC/WDS relations remain candidates.
+- `identifier_collision_diagnostics`: multi-object namespace bindings with
+  explicit component-aware or review dispositions.
+- `identity_quarantine`: ambiguous release outcomes and genuinely unsafe
+  canonical identifier collisions with the complete candidate evidence.
+- `graph_metadata`: content identity, compiler/policy versions, consumed-input
+  fingerprint, and explicit false inventory/containment mutation flags.
+
+Every table also has an ordered Zstandard Parquet representation with rows,
+bytes, and SHA-256 recorded in `e2_identity_graph_report.json`. The DuckDB file
+is a compiler/inspection convenience, not the only durable representation.
+
 ## `object_identifiers`
 
 Canonical and non-canonical identifier edge table for deterministic ID resolution and stewardship checks.

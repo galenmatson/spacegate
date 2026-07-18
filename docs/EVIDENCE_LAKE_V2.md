@@ -1,16 +1,16 @@
 # Spacegate Evidence Lake v2
 
-Status: active main quest. E0 and E1 completed July 18, 2026; E2 is next.
+Status: active main quest. E0-E2 completed July 18, 2026; E3 is next.
 
 E0 checkpoint:
 
-- `config/evidence_lake/source_releases.json` registers 32 active,
+- `config/evidence_lake/source_releases.json` registers 34 active,
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
-- `config/evidence_lake/schema_baseline.json` pins 59 current manifest entries,
-  1,807 machine-enumerated fields, and exact format contracts for source formats
+- `config/evidence_lake/schema_baseline.json` pins 63 current manifest entries,
+  1,824 machine-enumerated fields, and exact format contracts for source formats
   whose schemas live in official source documents. The baseline fingerprint is
-  `037f3c98ecb4cdb990a01de53d746072233a1a68c5bc4b50d4e912ea9889e184`.
+  `5f1ec5ec044733acf6da32a7532a84cc8d1d118f6ba168d6f9f5e05530f53cbf`.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
@@ -53,6 +53,44 @@ E1 completion checkpoint:
   first indexes, bounded checksum-addressed on-demand caching, source-host
   allowlisting, and explicit prohibitions on bulk Gaia/TIC/product mirroring.
   E3 acquires the actual product indexes; E4 gives them typed evidence tables.
+
+E2 completion checkpoint:
+
+- `scripts/fetch_gaia_dr2_identity.py` derives a deterministic 1,542,049-ID
+  Gaia DR2 target universe from every active DR2 fallback family and preserves
+  155 exact TAP queries with 1,626,847 official neighborhood rows. Five targets
+  have no official DR3 neighbor.
+- `scripts/fetch_gaia_dr2_identity_reverse.py` independently queries all
+  1,625,665 distinct forward DR3 candidates. Its 163 exact TAP queries preserve
+  1,776,331 reverse rows, exposing predecessor merges that a forward-only
+  subset cannot detect. Both acquisitions reproduce byte-for-byte through E1.
+- The reviewed registry now covers 34 sources and 63 manifest artifacts with
+  1,824 machine-enumerated fields. The consolidated active lake contains 27
+  source releases, 72 typed tables, 55,507,822 rows, and 5,213,454,799 Parquet
+  bytes with zero pending artifacts.
+- `config/evidence_lake/identity_graph_policy.json` defines release-scoped
+  identifier and scope semantics. `scripts/compile_evidence_identity_graph.py`
+  consumes exactly 13 typed tables plus the current CORE as a labeled stability
+  reference, never as new authority.
+- Graph `c84389ad55f17081fff008b4` accounts for every DR2 target exactly once:
+  226,392 accepted current-object bindings, 1,234,609 accepted release mappings
+  excluded from the current canonical backbone, 79,671 DR2 splits, 1,372 DR3
+  merges, and five missing targets. No Gaia DR3 canonical collision or
+  forward/reverse payload conflict was found.
+- Physical identity, containment, component/subsystem, observation-target, and
+  alias/name claims are separate. The graph retains 5,877,462 current
+  containment links as `stability_reference_not_new_authority` and 186,198
+  MSC/WDS source relation claims as candidates; verification found zero source
+  relation promotions into canonical containment.
+- Every crossmatch edge, target outcome, and source-family binding carries its
+  registered source, release, and typed-table lineage. Family-by-family
+  accounting and duplicate-system guards pass; 18 accepted component bindings
+  share a root system without collapsing their permanent star identities.
+- Ordered Parquet tables and the graph database live under
+  `/data/spacegate/state/derived/evidence_lake_v2/identity/<graph_id>/` with an
+  atomic `current` pointer. The artifact is not served CORE and cannot mutate
+  canonical inventory or hierarchy. Clean-compile comparison is recorded in
+  `reports/evidence_lake_v2/e2_identity_reproduction.json`.
 
 This plan replaces the narrow Catalog Evidence Utilization v2 rebuild with a
 clean, release-scoped collection and evidence-compilation architecture. It
@@ -151,6 +189,28 @@ Identity compilation must separately resolve:
 Every attempted target must end accepted, missing, excluded, ambiguous, or
 quarantined with an explicit reason. Source relation claims do not become
 canonical containment merely because they exist.
+
+Implementation:
+
+- `config/evidence_lake/identity_graph_policy.json`
+- `scripts/fetch_gaia_dr2_identity.py`
+- `scripts/fetch_gaia_dr2_identity_reverse.py`
+- `scripts/compile_evidence_identity_graph.py`
+- `scripts/verify_evidence_identity_reproduction.py`
+
+The official Gaia neighborhood table is an association-candidate table, not a
+license to equate release identifiers. Automatic release reconciliation
+requires one forward DR3 candidate and one reverse DR2 predecessor. A unique
+release mapping binds to a permanent Spacegate star only when that DR3 ID has
+one current canonical target. Valid mappings outside the current public
+backbone are `excluded`, not identity failures; splits and merges remain
+`ambiguous`; missing rows and conflicting or colliding evidence remain
+explicit.
+
+`proper_motion_propagation` records that Gaia applied epoch propagation. It is
+not a high-proper-motion classification. E2 preserves that safeguard and
+separately flags 812 accepted current stars whose canonical vector motion is at
+least 500 mas/yr.
 
 ### E3. Foundational Source Acquisition
 

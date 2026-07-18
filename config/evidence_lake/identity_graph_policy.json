@@ -1,0 +1,110 @@
+{
+  "schema_version": "spacegate.evidence_identity_graph_policy.v1",
+  "policy_version": "2026-07-18.3",
+  "canonical_reference": {
+    "role": "stability_reference_not_new_authority",
+    "default_path": "/data/spacegate/state/served/current/core.duckdb",
+    "permanent_key": "stable_object_key",
+    "rule": "A release crossmatch can bind an identifier to an existing permanent object, but cannot create, merge, split, or reparent canonical objects in E2."
+  },
+  "gaia_release_reconciliation": {
+    "source_id": "gaia.dr3.dr2_neighbourhood",
+    "table": "gaiadr3.dr2_neighbourhood",
+    "upstream_release_id": "gaia_dr3",
+    "forward_registry_source_id": "gaia.dr3.dr2_neighbourhood",
+    "forward_registry_release_id": "target_union_6eba178f9c5039d9",
+    "reverse_registry_source_id": "gaia.dr3.dr2_neighbourhood_reverse",
+    "reverse_registry_release_id": "reverse_union_469f68b0a3a2d799",
+    "edge_semantics": "official_release_neighbourhood_candidate",
+    "acceptance": "exactly one DR3 candidate for the targeted DR2 identifier and exactly one DR2 predecessor for that DR3 identifier in the independently acquired reverse neighborhood",
+    "missing": "the targeted DR2 identifier has no official DR3 neighborhood row",
+    "ambiguous_split": "the targeted DR2 identifier has more than one official DR3 candidate",
+    "ambiguous_merge": "the sole DR3 candidate has more than one official DR2 predecessor",
+    "excluded": "the release mapping is accepted but the DR3 identifier is absent from the current canonical stability reference",
+    "quarantined": "reverse evidence is incomplete, official pair payloads conflict, or the DR3 identifier binds to multiple canonical objects",
+    "high_proper_motion_mas_yr": 500.0,
+    "proper_motion_rule": "The official proper_motion_propagation flag records whether epoch propagation was used; it is a safeguard signal, not evidence that the source has high proper motion. High proper motion is reported separately from accepted canonical vector motion.",
+    "identifier_rule": "Gaia DR2 and Gaia DR3 source IDs are release-scoped values and are never compared as interchangeable identifiers."
+  },
+  "scope_kinds": {
+    "physical_identity": "A source record purports to describe the same physical object as an identifier node.",
+    "system_containment": "A source explicitly claims parent/child physical containment; candidate relations are never promoted automatically.",
+    "component_or_subsystem": "A source record is scoped to a named component, unresolved component, pair, or subsystem.",
+    "observation_target": "An observation or target-list row points at an identifier without establishing physical identity or containment.",
+    "alias_or_public_name": "A name or alias labels an object or target and remains independent from physical identity."
+  },
+  "source_target_scopes": {
+    "cantat_gaudin_2020_cluster_members": {
+      "scope_kind": "physical_identity",
+      "source_id": "clusters.cantat_gaudin_2020",
+      "release_id": "aa_640_a1",
+      "source_name": "cantat_gaudin_2020_members"
+    },
+    "gaia_edr3_white_dwarf_crosswalk": {
+      "scope_kind": "physical_identity",
+      "source_id": "compact.gaia_edr3_white_dwarf",
+      "release_id": "gaia_edr3_wd_main",
+      "source_name": "gaia_edr3_white_dwarf_main"
+    },
+    "nasa_planet_composite_rows": {
+      "scope_kind": "observation_target",
+      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "release_id": "rolling_snapshot",
+      "source_name": "pscomppars"
+    },
+    "nasa_planet_reference_rows": {
+      "scope_kind": "observation_target",
+      "source_id": "nasa_exoplanet_archive.planetary_systems",
+      "release_id": "rolling_snapshot",
+      "source_name": "ps"
+    },
+    "tess_targeted_tic": {
+      "scope_kind": "observation_target",
+      "source_id": "tess.identity_and_candidate_evidence",
+      "release_id": "snapshot_d804c4e3aaf3",
+      "source_name": "mast_tic_targeted"
+    },
+    "ultracoolsheet": {
+      "scope_kind": "physical_identity",
+      "source_id": "ultracool.ultracoolsheet",
+      "release_id": "rolling_snapshot_20260709",
+      "source_name": "UltracoolSheet_Main"
+    }
+  },
+  "canonical_identifier_release_scopes": {
+    "gaia_dr3": {
+      "source_id": "gaia.dr3.gaia_source",
+      "release_id": "dr3"
+    },
+    "tic": {
+      "source_id": "tess.mast.tic",
+      "release_id": "tic_v8_targeted"
+    }
+  },
+  "fallback_identifier_scope": {
+    "source_id": "spacegate.core.identifier_projection",
+    "release_id": "canonical_reference_build"
+  },
+  "outcomes": [
+    "accepted",
+    "missing",
+    "excluded",
+    "ambiguous",
+    "quarantined"
+  ],
+  "scope_claim_outcomes": [
+    "accepted",
+    "candidate",
+    "missing",
+    "excluded",
+    "ambiguous",
+    "quarantined"
+  ],
+  "production_constraints": {
+    "named_object_branches_forbidden": true,
+    "canonical_containment_mutation": false,
+    "canonical_inventory_mutation": false,
+    "all_targets_accounted": true,
+    "ambiguous_edges_preserved": true
+  }
+}

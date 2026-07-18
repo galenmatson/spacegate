@@ -133,9 +133,21 @@ rollback, or adjudication packet. Superseded parser outputs may be proposed for
 retirement only after the replacement passes
 `scripts/verify_evidence_lake_reproduction.py` and E7 records that no retained
 lineage references them. Never prune individual Parquet files from inside a
-typed snapshot. The active E1 estate is about 10.41 GiB raw and 4.75 GiB typed;
-older immutable parser checkpoints explain why the physical typed directory is
-larger until E7 retirement.
+typed snapshot. After E2's forward/reverse Gaia release evidence, the active
+estate is 63 raw artifacts and 5,213,454,799 typed Parquet bytes across 27
+source releases; older immutable parser checkpoints explain why the physical
+typed directory is larger until E7 retirement.
+
+Evidence Lake identity graphs under
+`derived/evidence_lake_v2/identity/<graph_id>/` are immutable compiler
+artifacts. Preserve the graph named by the adjacent atomic `current` pointer and
+any graph referenced by a build, report, publication, rollback, or adjudication
+packet. Never prune individual graph Parquet files or its DuckDB inspection
+database independently. A superseded, unserved compiler iteration may be
+removed only after the replacement passes
+`scripts/verify_evidence_identity_reproduction.py` and the machine report no
+longer references it. Clean reproduction graphs belong under `tmp/`; remove the
+whole scratch graph only after the comparison report is durably written.
 
 Side-artifact rebuilds created by `scripts/rebuild_side_artifacts.py` are normal
 immutable `out/<build_id>/` artifacts once the `.tmp` directory is renamed into

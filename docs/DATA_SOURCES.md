@@ -41,6 +41,14 @@ Evidence Lake v2 active storage paths are:
   row, and artifact-accounting verification
 - `reports/evidence_lake_v2/e1_clean_reproduction.json`: clean-root deterministic
   rebuild evidence
+- `raw/gaia_dr2_identity*/snapshots/`: immutable forward and independently
+  acquired reverse Gaia release-neighborhood snapshots with exact ADQL chunks
+- `derived/evidence_lake_v2/identity/<graph_id>/`: immutable E2 identity/scope
+  graph database plus ordered Parquet tables
+- `reports/evidence_lake_v2/e2_identity_graph_report.json`: exhaustive target,
+  reverse-universe, collision, quarantine, scope, and artifact accounting
+- `reports/evidence_lake_v2/e2_identity_reproduction.json`: independent graph
+  compile comparison by rows, bytes, and SHA-256
 
 Run the complete E1 gates with:
 
@@ -61,6 +69,36 @@ lineage stay in the typed lake, while spectra, light curves, and imagery are
 retrieved into a bounded checksum-addressed cache only on an approved trigger.
 Arbitrary caller URLs, unbounded transfers, and bulk Gaia/TIC/product mirrors
 are prohibited.
+
+## Gaia Release Identity Evidence
+
+Gaia DR2 and DR3 source IDs are different release-scoped namespaces. Spacegate
+uses the official `gaiadr3.dr2_neighbourhood` table and never compares those
+values as interchangeable identifiers. The E2 target universe includes every
+active DR2 fallback in NASA planet rows, targeted TIC, Cantat-Gaudin cluster
+membership, the Gaia EDR3 white-dwarf catalog, and UltracoolSheet.
+
+The forward collector preserves all official candidates for each targeted DR2
+ID. The reverse collector then queries every distinct forward DR3 candidate so
+that another DR2 predecessor outside Spacegate's initial target union cannot be
+missed. Unique automatic reconciliation requires one candidate in both
+directions; splits and merges remain ambiguous. Every compiled edge, outcome,
+and source-family binding retains its registered source/release/table lineage.
+
+Rebuild the registered typed index and identity graph with:
+
+```bash
+.venv/bin/python scripts/evidence_lake_store.py \
+  --state-dir /data/spacegate/state cook \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e2_typed_cook_report.json
+.venv/bin/python scripts/compile_evidence_identity_graph.py \
+  --state-dir /data/spacegate/state
+```
+
+The graph reads the served CORE only as
+`stability_reference_not_new_authority`. It cannot add objects, merge targets,
+or mutate containment. Its atomic `current` pointer is an internal derived-
+evidence pointer, not the public `served/current` build pointer.
 
 This document defines active, optional, and transitional data sources for Spacegate.
 

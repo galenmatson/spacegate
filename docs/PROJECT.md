@@ -22,12 +22,13 @@ longer a canonical inventory source; its remaining role is transitional alias
 and compatibility enrichment.
 
 The public map now uses versioned spatial tiles and LOD loading through the
-1,000 ly radius. The current main-quest milestone is Evidence Lake v2: rebuild
-catalog acquisition, source-native cooking, identity/scope reconciliation,
-typed evidence, and deterministic value selection so the next canonical build
-uses the richest defensible source data before presentation assumptions. The
-Concept Tag foundation and a secure, citation-backed, reviewed AI Astronomy
-Agency vertical slice follow that scientific checkpoint.
+1,000 ly radius. The current main-quest milestone is Evidence Lake v2. Its
+registry, source-native lake, and release-scoped identity/scope graph are
+complete; foundational source acquisition, typed evidence, and deterministic
+value selection now lead to the shadow canonical build. The next canonical
+build must use the richest defensible source data before presentation
+assumptions. The Concept Tag foundation and a secure, citation-backed, reviewed
+AI Astronomy Agency vertical slice follow that scientific checkpoint.
 
 ## Core Principles
 
@@ -989,13 +990,12 @@ Notes:
 1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
    resolve only material production regressions while the scientific rebuild
    proceeds in parallel.
-2. Execute M8.3c Evidence Lake v2 through the staged plan in
-   `docs/EVIDENCE_LAKE_V2.md`, beginning with retention/storage budgets, source
-   and field accounting, immutable raw snapshots, and source-native schemas
-   before another full canonical rebuild.
-3. Build the release-scoped identity/scope graph, typed evidence tables, and
-   versioned selection/derivation compiler. Shadow-build CORE/ARM/DISC and
-   review the complete A/B scientific diff before promotion or deployment.
+2. Continue M8.3c Evidence Lake v2 through E3 foundational acquisition under
+   the completed registry, immutable source-native lake, and release-scoped
+   identity/scope graph contracts.
+3. Build the E4 typed evidence tables and E5 versioned selection/derivation
+   compiler. Shadow-build CORE/ARM/DISC in E6 and review the complete A/B
+   scientific diff before promotion or deployment.
 4. Build the Concept Tag Foundation after the evidence contract is stable so
    public tags are driven by selected, provenance-bearing facts.
 5. Implement one secure AAA evidence-portfolio vertical slice with source-text

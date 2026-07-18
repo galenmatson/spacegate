@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-18.1",
+  "registry_version": "2026-07-18.2",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -98,6 +98,88 @@
       ],
       "storage_class": "internal_durable",
       "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+    },
+    {
+      "source_id": "gaia.dr3.dr2_neighbourhood",
+      "release_id": "target_union_6eba178f9c5039d9",
+      "state": "active",
+      "authority_roles": {
+        "identity": "official_release_crossmatch"
+      },
+      "publisher": "ESA Gaia",
+      "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/ssec_dm_dr2_neighbourhood.html",
+      "license": {
+        "name": "Gaia Archive terms",
+        "url": "https://www.cosmos.esa.int/web/gaia-users/archive/data-use"
+      },
+      "cadence": "target-universe revision",
+      "identity_namespaces": [
+        "gaia_dr2_source_id",
+        "gaia_dr3_source_id"
+      ],
+      "frame_epoch": "Gaia DR2 ICRS J2015.5 to Gaia DR3 ICRS J2016.0",
+      "retrieval": {
+        "kind": "bounded_targeted_tap",
+        "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
+        "implementation": "scripts/fetch_gaia_dr2_identity.py"
+      },
+      "manifest_entries": [
+        {
+          "manifest": "gaia_dr2_identity_manifest.json",
+          "source_name": "gaia_dr2_identity_target_set"
+        },
+        {
+          "manifest": "gaia_dr2_identity_manifest.json",
+          "source_name": "gaia_dr2_neighbourhood_union"
+        }
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {
+        "kind": "delimited_header",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve"
+      }
+    },
+    {
+      "source_id": "gaia.dr3.dr2_neighbourhood_reverse",
+      "release_id": "reverse_union_469f68b0a3a2d799",
+      "state": "active",
+      "authority_roles": {
+        "identity": "official_release_crossmatch_reverse_completeness"
+      },
+      "publisher": "ESA Gaia",
+      "citation_url": "https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_cross-matches/ssec_dm_dr2_neighbourhood.html",
+      "license": {
+        "name": "Gaia Archive terms",
+        "url": "https://www.cosmos.esa.int/web/gaia-users/archive/data-use"
+      },
+      "cadence": "forward-target-universe revision",
+      "identity_namespaces": [
+        "gaia_dr2_source_id",
+        "gaia_dr3_source_id"
+      ],
+      "frame_epoch": "Gaia DR2 ICRS J2015.5 to Gaia DR3 ICRS J2016.0",
+      "retrieval": {
+        "kind": "bounded_targeted_tap",
+        "endpoint": "https://gea.esac.esa.int/tap-server/tap/sync",
+        "implementation": "scripts/fetch_gaia_dr2_identity_reverse.py"
+      },
+      "manifest_entries": [
+        {
+          "manifest": "gaia_dr2_identity_reverse_manifest.json",
+          "source_name": "gaia_dr3_identity_target_set"
+        },
+        {
+          "manifest": "gaia_dr2_identity_reverse_manifest.json",
+          "source_name": "gaia_dr2_neighbourhood_reverse_union"
+        }
+      ],
+      "storage_class": "internal_durable",
+      "schema_policy": {
+        "kind": "delimited_header",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve"
+      }
     },
     {
       "source_id": "nasa_exoplanet_archive.planetary_systems",

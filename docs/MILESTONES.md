@@ -1196,8 +1196,8 @@ July 17, 2026 catalog-wide follow-up:
 
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
-Status: active on `feature/evidence-lake-v2`. E0 and E1 completed July 18,
-2026; E2 is next.
+Status: active on `feature/evidence-lake-v2`. E0-E2 completed July 18, 2026;
+E3 is next.
 
 Goal:
 
@@ -1239,15 +1239,16 @@ Exit criteria:
 
 Current status (July 18, 2026):
 
-- machine-readable registry covers 32 source releases and all 48 current
-  manifest entries; the pinned baseline accounts for 1,807 machine-enumerated
+- machine-readable registry covers 34 source releases and all 63 current
+  manifest entries after the E2 Gaia forward/reverse additions; the pinned
+  baseline accounts for 1,824 machine-enumerated
   fields and exact source-format contracts for E1 parser work
 - full-refresh preflight now gates registry validity, manifest completeness,
   schema drift, field accounting, and the 300 GiB acquisition floor
 - retention added explicit protected-build inputs, preserved 11 referenced
   lineage builds, reclaimed 196.21 GiB, and left raw/cooked/catalog/scratch
   science state untouched; `/data` now has about 385 GiB free
-- current source-delta baseline accounts for 48 manifest entries with zero
+- current source-delta baseline accounts for 63 manifest entries with zero
   unexplained changes after baseline update
 
 #### M8.3c-E1. Immutable Raw and Source-Native Typed Lake
@@ -1308,6 +1309,32 @@ Exit criteria:
 - no DR2 identifier is treated as a DR3 identifier by direct equality
 - every attempted binding has an explicit outcome and no source relation claim
   silently becomes canonical containment
+
+Current status (July 18, 2026):
+
+- official forward acquisition accounts for 1,542,049 targeted DR2 IDs in 155
+  exact TAP queries and 1,626,847 neighborhood rows; the independent reverse
+  acquisition accounts for all 1,625,665 DR3 candidates in 163 exact queries
+  and 1,776,331 rows
+- the active typed estate expanded to 27 sources, 63 raw artifacts, and 72
+  tables containing 55,507,822 rows; registry/schema accounting passes for 34
+  registered sources, 63 manifest entries, and 1,824 fields
+- graph `c84389ad55f17081fff008b4` has one explicit outcome for every target:
+  226,392 accepted, 1,234,609 excluded from the current canonical backbone,
+  81,043 split/merge ambiguities, and five missing; no target is unaccounted
+- the graph contains permanent object nodes, release-scoped identifiers,
+  official crossmatch candidates, source-record bindings, collision
+  diagnostics, quarantine, and separate physical identity, containment,
+  component/subsystem, observation-target, and alias/name scope claims
+- 5,877,462 existing containment links are labeled as stability references;
+  186,198 MSC/WDS relations remain candidates and zero were promoted into
+  canonical containment
+- edge, outcome, and source-family bindings retain exact source/release/table
+  lineage; all family-level and duplicate-system guards pass, including 18
+  accepted component bindings that share systems but remain distinct stars
+- ordered Parquet artifacts, full hashes, reverse-universe accounting, and a
+  clean independent compile comparison pass; current served CORE remains
+  unchanged
 
 #### M8.3c-E3. Foundational Source Acquisition
 

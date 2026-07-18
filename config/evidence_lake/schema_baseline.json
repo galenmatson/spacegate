@@ -491,6 +491,2328 @@
       "source_name": "gaia_dr3_astrophysical_classprob"
     },
     {
+      "artifact": "state://raw/gaia_dr2_identity/snapshots/target_union_6eba178f9c5039d9/target_set.csv",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 4,
+      "fields": [
+        "dr2_source_id",
+        "source_families",
+        "source_family_count",
+        "source_record_count"
+      ],
+      "manifest": "gaia_dr2_identity_manifest.json",
+      "member_schemas": {
+        "target_set.csv": [
+          "dr2_source_id",
+          "source_families",
+          "source_family_count",
+          "source_record_count"
+        ]
+      },
+      "release_id": "target_union_6eba178f9c5039d9",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "76b4e9fa1663df970407afcd36b315f5b2553ad58dd8b897739a9d2d82cee2b9",
+      "source_id": "gaia.dr3.dr2_neighbourhood",
+      "source_name": "gaia_dr2_identity_target_set"
+    },
+    {
+      "artifact": "state://raw/gaia_dr2_identity/snapshots/target_union_6eba178f9c5039d9/neighbourhood_chunks",
+      "artifact_kind": "directory",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 5,
+      "fields": [
+        "angular_distance",
+        "dr2_source_id",
+        "dr3_source_id",
+        "magnitude_difference",
+        "proper_motion_propagation"
+      ],
+      "manifest": "gaia_dr2_identity_manifest.json",
+      "member_schemas": {
+        "dr2_neighbourhood_00001.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00002.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00003.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00004.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00005.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00006.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00007.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00008.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00009.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00010.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00011.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00012.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00013.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00014.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00015.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00016.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00017.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00018.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00019.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00020.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00021.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00022.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00023.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00024.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00025.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00026.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00027.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00028.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00029.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00030.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00031.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00032.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00033.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00034.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00035.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00036.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00037.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00038.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00039.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00040.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00041.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00042.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00043.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00044.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00045.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00046.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00047.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00048.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00049.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00050.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00051.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00052.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00053.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00054.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00055.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00056.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00057.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00058.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00059.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00060.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00061.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00062.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00063.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00064.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00065.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00066.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00067.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00068.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00069.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00070.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00071.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00072.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00073.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00074.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00075.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00076.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00077.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00078.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00079.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00080.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00081.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00082.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00083.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00084.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00085.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00086.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00087.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00088.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00089.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00090.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00091.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00092.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00093.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00094.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00095.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00096.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00097.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00098.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00099.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00100.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00101.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00102.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00103.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00104.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00105.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00106.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00107.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00108.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00109.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00110.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00111.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00112.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00113.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00114.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00115.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00116.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00117.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00118.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00119.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00120.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00121.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00122.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00123.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00124.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00125.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00126.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00127.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00128.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00129.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00130.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00131.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00132.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00133.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00134.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00135.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00136.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00137.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00138.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00139.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00140.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00141.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00142.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00143.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00144.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00145.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00146.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00147.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00148.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00149.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00150.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00151.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00152.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00153.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00154.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr2_neighbourhood_00155.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ]
+      },
+      "release_id": "target_union_6eba178f9c5039d9",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "6f641ec7e136c5a740676791e42615c7dd905d87dac5565c5e42acecbfa27bcd",
+      "source_id": "gaia.dr3.dr2_neighbourhood",
+      "source_name": "gaia_dr2_neighbourhood_union"
+    },
+    {
+      "artifact": "state://raw/gaia_dr2_identity_reverse/snapshots/reverse_union_469f68b0a3a2d799/neighbourhood_chunks",
+      "artifact_kind": "directory",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 5,
+      "fields": [
+        "angular_distance",
+        "dr2_source_id",
+        "dr3_source_id",
+        "magnitude_difference",
+        "proper_motion_propagation"
+      ],
+      "manifest": "gaia_dr2_identity_reverse_manifest.json",
+      "member_schemas": {
+        "dr3_neighbourhood_00001.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00002.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00003.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00004.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00005.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00006.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00007.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00008.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00009.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00010.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00011.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00012.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00013.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00014.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00015.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00016.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00017.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00018.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00019.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00020.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00021.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00022.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00023.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00024.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00025.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00026.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00027.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00028.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00029.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00030.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00031.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00032.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00033.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00034.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00035.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00036.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00037.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00038.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00039.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00040.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00041.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00042.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00043.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00044.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00045.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00046.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00047.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00048.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00049.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00050.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00051.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00052.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00053.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00054.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00055.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00056.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00057.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00058.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00059.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00060.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00061.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00062.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00063.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00064.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00065.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00066.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00067.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00068.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00069.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00070.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00071.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00072.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00073.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00074.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00075.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00076.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00077.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00078.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00079.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00080.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00081.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00082.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00083.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00084.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00085.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00086.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00087.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00088.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00089.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00090.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00091.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00092.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00093.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00094.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00095.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00096.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00097.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00098.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00099.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00100.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00101.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00102.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00103.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00104.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00105.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00106.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00107.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00108.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00109.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00110.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00111.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00112.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00113.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00114.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00115.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00116.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00117.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00118.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00119.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00120.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00121.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00122.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00123.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00124.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00125.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00126.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00127.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00128.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00129.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00130.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00131.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00132.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00133.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00134.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00135.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00136.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00137.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00138.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00139.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00140.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00141.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00142.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00143.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00144.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00145.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00146.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00147.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00148.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00149.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00150.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00151.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00152.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00153.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00154.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00155.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00156.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00157.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00158.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00159.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00160.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00161.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00162.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ],
+        "dr3_neighbourhood_00163.csv": [
+          "dr2_source_id",
+          "dr3_source_id",
+          "angular_distance",
+          "magnitude_difference",
+          "proper_motion_propagation"
+        ]
+      },
+      "release_id": "reverse_union_469f68b0a3a2d799",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "fd20d76be83a789a78602c3094ed72a68ef639860f03a49f768df9f8010a2d91",
+      "source_id": "gaia.dr3.dr2_neighbourhood_reverse",
+      "source_name": "gaia_dr2_neighbourhood_reverse_union"
+    },
+    {
+      "artifact": "state://raw/gaia_dr2_identity_reverse/snapshots/reverse_union_469f68b0a3a2d799/target_set.csv",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "machine_enumerated",
+      "field_count": 3,
+      "fields": [
+        "dr3_source_id",
+        "forward_dr2_source_count",
+        "forward_pair_count"
+      ],
+      "manifest": "gaia_dr2_identity_reverse_manifest.json",
+      "member_schemas": {
+        "target_set.csv": [
+          "dr3_source_id",
+          "forward_dr2_source_count",
+          "forward_pair_count"
+        ]
+      },
+      "release_id": "reverse_union_469f68b0a3a2d799",
+      "schema_kind": "delimited_header",
+      "schema_sha256": "ba90bcfb5c774fabeb7f2a707b31345dd3f3765a84cc955b3e82a64081d78864",
+      "source_id": "gaia.dr3.dr2_neighbourhood_reverse",
+      "source_name": "gaia_dr3_identity_target_set"
+    },
+    {
       "artifact": "state://raw/gaia_backbone/gaia_dr3_backbone.csv",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -12642,7 +14964,7 @@
       "source_name": "UltracoolSheet_Main"
     }
   ],
-  "registry_version": "2026-07-18.1",
+  "registry_version": "2026-07-18.2",
   "schema_version": "spacegate.evidence_schema_snapshot.v1",
-  "snapshot_sha256": "037f3c98ecb4cdb990a01de53d746072233a1a68c5bc4b50d4e912ea9889e184"
+  "snapshot_sha256": "5f1ec5ec044733acf6da32a7532a84cc8d1d118f6ba168d6f9f5e05530f53cbf"
 }

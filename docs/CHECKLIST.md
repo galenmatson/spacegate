@@ -1084,11 +1084,18 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   uncertainty/limit semantics, citations, licenses, and clean-state determinism
 - [x] E1: implement metadata-first/on-demand storage for spectra, light curves,
   atmosphere spectra, and imagery rather than bulk hot-database ingestion
-- [ ] E2: implement a release-scoped identity/scope graph with permanent
+- [x] E2: implement a release-scoped identity/scope graph with permanent
   Spacegate object IDs and explicit accepted/missing/excluded/ambiguous/
   quarantined outcomes
-- [ ] E2: reconcile Gaia DR2-to-DR3 membership and every remaining DR2 fallback
+- [x] E2: reconcile Gaia DR2-to-DR3 membership and every remaining DR2 fallback
   through the official crossmatch/neighborhood path; forbid direct ID equality
+- [x] E2: independently acquire the reverse Gaia DR3-to-DR2 target universe so
+  release merges outside the forward target subset cannot pass as unique
+- [x] E2: keep physical identity, containment, component/subsystem,
+  observation-target, and alias/name claims separate; verify that MSC/WDS
+  candidate relations never promote canonical containment
+- [x] E2: emit ordered graph Parquet, coverage, collision, quarantine, source-
+  binding, scope, high-proper-motion, and clean-compile determinism reports
 - [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
   variability/rotation, expanded NSS, official crossmatch, and distance evidence
 - [ ] E3: acquire/migrate current Gaia cluster and probability-bearing wide-

@@ -913,6 +913,42 @@ Representative commits:
   parallel DuckDB writes for the large Gaia and TESS tables. Ordered single-
   thread serialization is now versioned parser behavior. All 25 releases then
   reproduced byte-for-byte, and the temporary reproduction tree was removed.
+- E2 added the official Gaia DR2-to-DR3 neighborhood as a release-scoped
+  evidence source rather than treating release IDs as comparable integers. A
+  deterministic union of NASA, TIC, cluster, white-dwarf, and ultracool DR2
+  fallbacks produced 1,542,049 targets and 1,626,847 forward candidate rows.
+- A forward-only lookup could not expose a DR3 candidate with another DR2
+  predecessor outside that target union. E2 therefore acquired an independent
+  reverse universe: 1,625,665 DR3 targets and 1,776,331 official rows. Exact
+  ADQL, chunks, timestamps, hashes, and manifests are retained for both
+  directions, and the new raw/typed snapshots reproduce byte-for-byte.
+- The registry consequently expanded to 34 source contracts and 63 manifest
+  artifacts; the reviewed schema baseline now covers 1,824 fields. The active
+  typed lake contains 27 sources and 72 tables with 55,507,822 rows and no
+  pending parser artifacts.
+- Identity compiler v8 consumes only its 13 declared typed inputs plus the
+  current CORE as a read-only stability reference. Graph
+  `c84389ad55f17081fff008b4` accounts for 226,392 accepted current-object
+  bindings, 1,234,609 release mappings outside the current backbone, 79,671
+  DR2 splits, 1,372 DR3 merges, and five missing targets. No forward/reverse
+  payload conflict or canonical Gaia DR3 collision was found.
+- Earlier compiler iterations incorrectly conflated Gaia's common
+  `proper_motion_propagation` flag with high proper motion and hashed all typed
+  tables into the graph ID. Those artifacts were never served. The final policy
+  separates epoch-propagation safeguards from the 812 accepted stars above 500
+  mas/yr and fingerprints only the 13 consumed typed tables.
+- E2 materializes physical identity, containment, component/subsystem,
+  observation-target, and alias/name scope separately. Existing containment is
+  explicitly labeled `stability_reference_not_new_authority`; all 186,198 raw
+  MSC/WDS relations remain candidate claims, with a gate proving zero canonical
+  promotions. Ordered graph Parquet tables passed a clean independent compile
+  comparison before E2 completion.
+- The final provenance audit replaced placeholder source-family releases with
+  the registered source, release, and typed-table identity on every binding and
+  added the forward/reverse acquisition releases to every crossmatch edge and
+  outcome. Family-level equivalence and duplicate-system gates prove that no
+  attempted source family disappeared and that 18 accepted components sharing
+  root systems remain distinct permanent stars.
 
 ## Recurrent Defect Classes and Mitigations
 

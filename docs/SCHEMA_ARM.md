@@ -26,6 +26,15 @@ Layer rule:
 - promoted canonical summaries may be copied or projected into `core`, but the
   source evidence and competing/alternate solutions should remain in `arm`.
 
+Evidence Lake v2 staging rule:
+
+- M8.3c-E2's release-scoped identity/scope graph is a pre-CORE/pre-ARM compiler
+  artifact, not an ARM build. It references the current CORE only as a labeled
+  stability reference.
+- E4 will materialize source-native scientific domain evidence from the typed
+  lake. E6 then shadow-builds this schema from those contracts; no E2 graph row
+  is promoted into ARM merely because it has an accepted identity binding.
+
 ## Artifact Contract
 
 Per build:
