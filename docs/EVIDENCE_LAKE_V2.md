@@ -8,7 +8,7 @@ E0 checkpoint:
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
 - `config/evidence_lake/schema_baseline.json` pins 48 current manifest entries,
-  1,795 machine-enumerated fields, and exact format contracts for source formats
+  1,807 machine-enumerated fields, and exact format contracts for source formats
   that still require E1 typed parsers. The baseline fingerprint is
   `187e0d61b4cab40da328a8a0d5ac22dc17b32315e7f8a36f487f9f5b6e251e67`.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
@@ -20,6 +20,23 @@ E0 checkpoint:
   separate 54 GiB scratch area was not pruned.
 - Machine reports are under
   `/data/spacegate/state/reports/evidence_lake_v2/`.
+
+E1 progress checkpoint:
+
+- `scripts/evidence_lake_store.py` materializes content-addressed immutable raw
+  snapshots and independently versioned typed Parquet snapshots. All 25
+  available non-planned releases are snapshotted: 392 files totaling about
+  11 GiB in the raw lake.
+- Shape-checked lexical CSV cooking, declared-schema MAST JSON cooking, source-
+  specific parser versioning, row/hash verification, and atomic promotion are
+  active. A NASA composite-table delimiter defect and a MAST null-batch schema
+  defect now fail closed instead of producing plausible lossy tables.
+- The AT-HYG v33 continuation contract preserves 2,552,165 rows and 34 fields
+  across its header-bearing first part and headerless second part. This fixed an
+  E0 audit error that had interpreted the first row of part 2 as a schema.
+- The current typed report accounts for 25 completed tables and 22 explicit
+  parser-pending tables. E1 remains incomplete until the fixed-width, archive,
+  FITS, SQL-row, and documented-text adapters pass field and row accounting.
 
 This plan replaces the narrow Catalog Evidence Utilization v2 rebuild with a
 clean, release-scoped collection and evidence-compilation architecture. It

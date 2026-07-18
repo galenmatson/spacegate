@@ -485,7 +485,17 @@
         {"manifest": "core_manifest.json", "source_name": "athyg_v33-2"}
       ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "delimited_header", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "delimited_header",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "artifact_layout": {
+          "kind": "delimited_continuation",
+          "table_name": "athyg_v33",
+          "header_artifact": "athyg_v33-1",
+          "continuation_artifacts": ["athyg_v33-2"]
+        }
+      }
     },
     {
       "source_id": "planned.distance.gaia_edr3_geometric",

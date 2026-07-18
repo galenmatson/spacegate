@@ -885,6 +885,21 @@ Representative commits:
   196.21 GiB of unreferenced immutable output, and increased `/data` free space
   from about 189 GiB to 385 GiB without deleting raw, cooked, catalog mirror,
   or scratch science state.
+- E1 established content-addressed raw snapshots for all 25 available
+  non-planned releases (392 files, about 11 GiB) and independently versioned
+  typed snapshots. The first estate pass exposed and fixed two silent-loss
+  hazards: NASA `pscomppars` could retain its row count while collapsing 683
+  comma-delimited fields into one, and MAST chunks could let an all-null batch
+  dictate an unusable Arrow type. Both now fail closed with shape or declared-
+  schema checks.
+- AT-HYG v33 is a two-part logical table whose second compressed file has no
+  header. Its release layout is now explicit and the typed lake accounts for
+  1,276,082 rows from part 1 plus 1,276,083 from part 2, retaining 34 fields.
+  The corrected layout raised the pinned E0 field count from 1,795 to 1,807;
+  the previous count had mistaken part 2's first data row for a header.
+- The first complete E1 compiler report records 25 typed tables and 22
+  parser-pending tables. Pending formats remain preserved byte-for-byte and are
+  acceptance failures, not silently accepted opaque inputs.
 
 ## Recurrent Defect Classes and Mitigations
 

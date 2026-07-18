@@ -1240,7 +1240,7 @@ Exit criteria:
 Current status (July 18, 2026):
 
 - machine-readable registry covers 32 source releases and all 48 current
-  manifest entries; the pinned baseline accounts for 1,795 machine-enumerated
+  manifest entries; the pinned baseline accounts for 1,807 machine-enumerated
   fields and exact source-format contracts for E1 parser work
 - full-refresh preflight now gates registry validity, manifest completeness,
   schema drift, field accounting, and the 300 GiB acquisition floor
@@ -1268,6 +1268,17 @@ Exit criteria:
   source-selection policy
 - DuckDB remains a replaceable compiler/query engine rather than the sole
   durable scientific representation
+
+Current status (July 18, 2026):
+
+- all 25 available non-planned releases have immutable raw snapshots with 392
+  files and about 11 GiB of content; mutable legacy aliases were copied rather
+  than hard-linked into the immutable store
+- 25 source-native tables currently type and verify; 22 documented fixed-width,
+  archive, FITS, SQL-row, or text tables remain explicitly parser-pending
+- NASA 683-column CSV shape, TESS MAST schema drift across null-only batches,
+  and AT-HYG two-part continuation behavior now have regression tests and
+  fail-closed accounting
 
 #### M8.3c-E2. Release-Scoped Identity and Scope Graph
 

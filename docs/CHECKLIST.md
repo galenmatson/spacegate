@@ -1073,6 +1073,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   the current 817 GB immutable `out/` footprint through the documented process
 - [x] E0: set explicit raw, typed, build, report, document, and observation-
   product cache budgets; verify backup policy before large acquisition
+- [x] E1: materialize immutable raw snapshots for all 25 available non-planned
+  releases with atomic manifests, checksums, source metadata, and verification
+- [x] E1: add source-specific typed parser versioning, fail-closed field/row
+  accounting, and machine-readable typed coverage/error reporting
+- [ ] E1: close the 22 explicit fixed-width, archive, FITS, SQL-row, and
+  documented-text parser gaps without dropping source-native fields
 - [ ] E1: implement immutable raw snapshots and source-native typed
   Parquet/Arrow cooks with exact queries, checksums, schemas, counts, units,
   uncertainty/limit semantics, citations, licenses, and clean-state determinism

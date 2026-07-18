@@ -154,6 +154,22 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                 errors.append(f"manifest entry registered more than once: {key}")
             seen_manifest_entries.add(key)
 
+        layout = schema_policy.get("artifact_layout") or {}
+        if layout:
+            if layout.get("kind") != "delimited_continuation":
+                errors.append(f"{source_id}.schema_policy.artifact_layout.kind is unsupported")
+            layout_names = {
+                str(layout.get("header_artifact") or ""),
+                *(str(value) for value in layout.get("continuation_artifacts") or []),
+            }
+            entry_names = {str(entry.get("source_name") or "") for entry in entries}
+            if "" in layout_names or layout_names != entry_names:
+                errors.append(
+                    f"{source_id}.schema_policy.artifact_layout must account for every artifact"
+                )
+            if not layout.get("table_name"):
+                errors.append(f"{source_id}.schema_policy.artifact_layout.table_name is required")
+
     return errors
 
 
@@ -182,7 +198,13 @@ def resolve_artifact_path(state_dir: Path, dest_path: str) -> Path:
 def delimited_fields(path: Path) -> list[str]:
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt", encoding="utf-8-sig", errors="replace", newline="") as handle:
-        row = next(csv.reader(handle), [])
+        header = handle.readline()
+    try:
+        dialect = csv.Sniffer().sniff(header, delimiters=",;\t|")
+        delimiter = dialect.delimiter
+    except csv.Error:
+        delimiter = ","
+    row = next(csv.reader([header], delimiter=delimiter), [])
     return [str(value).strip() for value in row if str(value).strip()]
 
 
@@ -261,6 +283,47 @@ def discover_schema_fields(path: Path, schema_kind: str) -> dict[str, Any]:
     return result
 
 
+def apply_artifact_layout_schema(
+    source: dict[str, Any],
+    records: list[dict[str, Any]],
+) -> None:
+    """Apply release-level layout rules that cannot be inferred per file."""
+    layout = (source.get("schema_policy") or {}).get("artifact_layout") or {}
+    if layout.get("kind") != "delimited_continuation":
+        return
+    header_source = str(layout.get("header_artifact") or "")
+    header_record = next(
+        (record for record in records if record.get("source_name") == header_source),
+        None,
+    )
+    if not header_record or header_record.get("field_accounting") != "machine_enumerated":
+        return
+    fields = list(header_record.get("fields") or [])
+    for source_name in layout.get("continuation_artifacts") or []:
+        record = next(
+            (item for item in records if item.get("source_name") == source_name),
+            None,
+        )
+        if not record:
+            continue
+        record["fields"] = fields
+        record["field_count"] = len(fields)
+        record["member_schemas"] = {
+            "inherited_from": header_source,
+            "fields": fields,
+        }
+        record["field_accounting"] = "machine_enumerated_continuation"
+        record.pop("format_contract_sha256", None)
+        record["schema_sha256"] = stable_hash(
+            {
+                "schema_kind": record["schema_kind"],
+                "fields": fields,
+                "member_schemas": record["member_schemas"],
+                "field_accounting": record["field_accounting"],
+            }
+        )
+
+
 def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[str, Any]:
     manifest_dir = state_dir / "reports" / "manifests"
     registered: dict[tuple[str, str], dict[str, Any]] = {}
@@ -298,6 +361,7 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
         }
         source_fields: set[str] = set()
         accounting_states: set[str] = set()
+        source_schema_records: list[dict[str, Any]] = []
         for expected in source.get("manifest_entries") or []:
             key = (expected["manifest"], expected["source_name"])
             actual = actual_entries.get(key)
@@ -339,6 +403,7 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
                 }
             )
             all_schema_records.append(schema_record)
+            source_schema_records.append(schema_record)
             source_fields.update(schema_record.get("fields") or [])
             accounting_states.add(schema_record["field_accounting"])
             source_report["manifest_entries"].append(
@@ -353,6 +418,26 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
                     "field_accounting": schema_record["field_accounting"],
                 }
             )
+        apply_artifact_layout_schema(source, source_schema_records)
+        source_fields = {
+            field for record in source_schema_records for field in record.get("fields") or []
+        }
+        accounting_states = {
+            str(record["field_accounting"]) for record in source_schema_records
+        }
+        for report_entry in source_report["manifest_entries"]:
+            record = next(
+                (
+                    item
+                    for item in source_schema_records
+                    if item.get("source_name") == report_entry.get("source_name")
+                ),
+                None,
+            )
+            if record:
+                report_entry["schema_sha256"] = record["schema_sha256"]
+                report_entry["field_count"] = len(record.get("fields") or [])
+                report_entry["field_accounting"] = record["field_accounting"]
         source_report["field_count"] = len(source_fields)
         source_report["field_disposition_counts"] = {
             source["schema_policy"]["default_disposition"]: len(source_fields)
