@@ -1,16 +1,16 @@
 # Spacegate Evidence Lake v2
 
-Status: active main quest. E0 completed July 18, 2026; E1 in progress.
+Status: active main quest. E0 and E1 completed July 18, 2026; E2 is next.
 
 E0 checkpoint:
 
 - `config/evidence_lake/source_releases.json` registers 32 active,
   transitional, expansion-pending, and planned source releases with domain
   authority, identity, retrieval, license, schema, and storage contracts.
-- `config/evidence_lake/schema_baseline.json` pins 48 current manifest entries,
+- `config/evidence_lake/schema_baseline.json` pins 59 current manifest entries,
   1,807 machine-enumerated fields, and exact format contracts for source formats
-  that still require E1 typed parsers. The baseline fingerprint is
-  `187e0d61b4cab40da328a8a0d5ac22dc17b32315e7f8a36f487f9f5b6e251e67`.
+  whose schemas live in official source documents. The baseline fingerprint is
+  `037f3c98ecb4cdb990a01de53d746072233a1a68c5bc4b50d4e912ea9889e184`.
 - `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
   audits. Full-refresh preflight now fails on unregistered sources, schema
   drift, missing active artifacts, or an acquisition-floor breach.
@@ -21,12 +21,12 @@ E0 checkpoint:
 - Machine reports are under
   `/data/spacegate/state/reports/evidence_lake_v2/`.
 
-E1 progress checkpoint:
+E1 completion checkpoint:
 
 - `scripts/evidence_lake_store.py` materializes content-addressed immutable raw
   snapshots and independently versioned typed Parquet snapshots. All 25
-  available non-planned releases are snapshotted: 392 files totaling about
-  11 GiB in the raw lake.
+  available non-planned releases are snapshotted: 59 artifacts containing 403
+  files and 10.41 GiB of active raw content.
 - Shape-checked lexical CSV cooking, declared-schema MAST JSON cooking, source-
   specific parser versioning, row/hash verification, and atomic promotion are
   active. A NASA composite-table delimiter defect and a MAST null-batch schema
@@ -34,9 +34,25 @@ E1 progress checkpoint:
 - The AT-HYG v33 continuation contract preserves 2,552,165 rows and 34 fields
   across its header-bearing first part and headerless second part. This fixed an
   E0 audit error that had interpreted the first row of part 2 as a schema.
-- The current typed report accounts for 25 completed tables and 22 explicit
-  parser-pending tables. E1 remains incomplete until the fixed-width, archive,
-  FITS, SQL-row, and documented-text adapters pass field and row accounting.
+- Official WDS and CDS format documents now drive fixed-width parsing. MSC
+  retains components, subsystems, orbits, and its previously stranded notes;
+  ORB6 retains all 35 source fields; ATNF retains repeated parameters, source
+  conflict comments, glitches, references, and an archive-member index; Green
+  SNR retains uncertainty markers; and the Gaia EDR3 white-dwarf FITS table
+  retains all 161 columns and its H/He/mixed atmosphere alternatives.
+- The completed typed report contains 68 tables, 48,936,930 rows, 2,539 table-
+  column occurrences, and 5,097,614,282 active Parquet bytes with zero pending
+  tables. Verification accounts for all 59 raw artifacts.
+- Parallel unordered DuckDB output initially reproduced the same rows and
+  schemas with different Parquet hashes for large Gaia/TESS tables. Source-
+  order-preserving single-thread serialization is now part of the parser
+  contract. `scripts/verify_evidence_lake_reproduction.py` rebuilt all 25
+  releases in a clean temporary root, matched every content/table hash, and
+  removed the scratch tree.
+- `config/evidence_lake/observation_product_policy.json` establishes metadata-
+  first indexes, bounded checksum-addressed on-demand caching, source-host
+  allowlisting, and explicit prohibitions on bulk Gaia/TIC/product mirroring.
+  E3 acquires the actual product indexes; E4 gives them typed evidence tables.
 
 This plan replaces the narrow Catalog Evidence Utilization v2 rebuild with a
 clean, release-scoped collection and evidence-compilation architecture. It

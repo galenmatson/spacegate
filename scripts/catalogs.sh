@@ -34,6 +34,7 @@ OPEN_EXOPLANET_CATALOGUE_URL="${OPEN_EXOPLANET_CATALOGUE_URL:-https://codeload.g
 HWC_URL="${HWC_URL:-https://www.hpcf.upr.edu/~abel/phl/hwc/data/hwc.csv}"
 
 WDS_URL="${WDS_URL:-https://astro.gsu.edu/wds/wdsweb_summ2.txt}"
+WDS_FORMAT_URL="${WDS_FORMAT_URL:-https://www.astro.gsu.edu/wds/Webtextfiles/wdsweb_format.txt}"
 MSC_UPSTREAM_URL="${MSC_UPSTREAM_URL:-https://www.ctio.noirlab.edu/~atokovin/stars/newmsc-20260619.tar.gz}"
 MSC_MIRROR_URL="${SPACEGATE_MSC_MIRROR_URL:-${PUBLIC_BASE_URL}/dl/catalogs/current/raw/msc/newmsc-20260619.tar.gz}"
 MSC_URL="${MSC_URL:-${SPACEGATE_MSC_MIRROR_URL:-$MSC_UPSTREAM_URL}}"
@@ -43,12 +44,15 @@ SB9_BASE_URL="${SB9_BASE_URL:-https://cdsarc.cds.unistra.fr/ftp/B/sb9}"
 DEBCAT_URL="${DEBCAT_URL:-https://www.astro.keele.ac.uk/jkt/debcat/debs.dat}"
 CLUSTERS_URL="${CLUSTERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/table1.dat}"
 CLUSTERS_MEMBERS_URL="${CLUSTERS_MEMBERS_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/nodup.dat.gz}"
+CLUSTERS_README_URL="${CLUSTERS_README_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/640/A1/ReadMe}"
 VSX_URL="${VSX_URL:-https://cdsarc.cds.unistra.fr/ftp/B/vsx/vsx.dat}"
+VSX_README_URL="${VSX_README_URL:-https://cdsarc.cds.unistra.fr/ftp/B/vsx/ReadMe}"
 SNR_URL="${SNR_URL:-https://www.mrao.cam.ac.uk/surveys/snrs/snrs.data.html}"
 ATNF_URL="${ATNF_URL:-https://www.atnf.csiro.au/research/pulsar/psrcat/downloads/psrcat_pkg.tar.gz}"
 MAGNETAR_URL="${MAGNETAR_URL:-https://www.physics.mcgill.ca/~pulsar/magnetar/TabO1.csv}"
 ULTRACOOLSHEET_URL="${ULTRACOOLSHEET_URL:-https://docs.google.com/spreadsheets/d/1i98ft8g5mzPp2DNno0kcz4B9nzMxdpyz5UquAVhz-U8/gviz/tq?tqx=out:csv&sheet=Main}"
 GAIA_UCD_URL="${GAIA_UCD_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/table4.dat}"
+GAIA_UCD_README_URL="${GAIA_UCD_README_URL:-https://cdsarc.cds.unistra.fr/ftp/J/A+A/669/A139/ReadMe}"
 WHITE_DWARF_URL="${WHITE_DWARF_URL:-https://warwick.ac.uk/fac/sci/physics/research/astro/research/catalogues/gaiaedr3_wd_main.fits.gz}"
 DWARFARCHIVES_URL="${DWARFARCHIVES_URL:-http://dwarfarchives.org/}"
 CATWISE_BASE_URL="${CATWISE_BASE_URL:-https://irsa.ipac.caltech.edu/data/WISE/CatWISE/2020/catwise_2020.html}"
@@ -235,6 +239,7 @@ catalog_sources() {
       ;;
     wds)
       printf '%s\n' "wds|wdsweb_summ2|$WDS_URL|raw/wds/wdsweb_summ2.txt"
+      printf '%s\n' "wds|wdsweb_format|$WDS_FORMAT_URL|raw/wds/wdsweb_format.txt"
       ;;
     msc)
       printf '%s\n' "msc|newmsc_20260619|$MSC_URL|raw/msc/newmsc-20260619.tar.gz"
@@ -254,9 +259,11 @@ catalog_sources() {
     clusters)
       printf '%s\n' "clusters|cantat_gaudin_2020_table1|$CLUSTERS_URL|raw/clusters/table1.dat"
       printf '%s\n' "clusters|cantat_gaudin_2020_members|$CLUSTERS_MEMBERS_URL|raw/clusters/nodup.dat.gz"
+      printf '%s\n' "clusters|cantat_gaudin_2020_readme|$CLUSTERS_README_URL|raw/clusters/ReadMe"
       ;;
     vsx)
       printf '%s\n' "vsx|vsx_dat|$VSX_URL|raw/vsx/vsx.dat"
+      printf '%s\n' "vsx|vsx_readme|$VSX_README_URL|raw/vsx/ReadMe"
       ;;
     snr)
       printf '%s\n' "snr|snrs_data_html|$SNR_URL|raw/snr/snrs.data.html"
@@ -271,6 +278,13 @@ catalog_sources() {
       printf '%s\n' "extended_objects|vdb_vii_21|$CDS_FTP_BASE_URL/VII/21/catalog.dat|raw/extended_objects/vizier/VII_21_catalog.dat"
       printf '%s\n' "extended_objects|sharpless_vii_20|$CDS_FTP_BASE_URL/VII/20/catalog.dat.gz|raw/extended_objects/vizier/VII_20_catalog.dat.gz"
       printf '%s\n' "extended_objects|cederblad_vii_231|$CDS_FTP_BASE_URL/VII/231/catalog.dat|raw/extended_objects/vizier/VII_231_catalog.dat"
+      printf '%s\n' "extended_objects|lbn_vii_9_readme|$CDS_FTP_BASE_URL/VII/9/ReadMe|raw/extended_objects/vizier/VII_9_ReadMe"
+      printf '%s\n' "extended_objects|ldn_vii_7a_readme|$CDS_FTP_BASE_URL/VII/7A/ReadMe|raw/extended_objects/vizier/VII_7A_ReadMe"
+      printf '%s\n' "extended_objects|barnard_vii_220a_readme|$CDS_FTP_BASE_URL/VII/220A/ReadMe|raw/extended_objects/vizier/VII_220A_ReadMe"
+      printf '%s\n' "extended_objects|magakian_2003_readme|$CDS_FTP_BASE_URL/J/A+A/399/141/ReadMe|raw/extended_objects/vizier/J_A+A_399_141_ReadMe"
+      printf '%s\n' "extended_objects|vdb_vii_21_readme|$CDS_FTP_BASE_URL/VII/21/ReadMe|raw/extended_objects/vizier/VII_21_ReadMe"
+      printf '%s\n' "extended_objects|sharpless_vii_20_readme|$CDS_FTP_BASE_URL/VII/20/ReadMe|raw/extended_objects/vizier/VII_20_ReadMe"
+      printf '%s\n' "extended_objects|cederblad_vii_231_readme|$CDS_FTP_BASE_URL/VII/231/ReadMe|raw/extended_objects/vizier/VII_231_ReadMe"
       ;;
     atnf)
       printf '%s\n' "atnf|psrcat_pkg|$ATNF_URL|raw/atnf/psrcat_pkg.tar.gz"
@@ -283,6 +297,7 @@ catalog_sources() {
       ;;
     gaia_ucd)
       printf '%s\n' "gaia_ucd|table4|$GAIA_UCD_URL|raw/gaia_ucd/table4.dat"
+      printf '%s\n' "gaia_ucd|table4_readme|$GAIA_UCD_README_URL|raw/gaia_ucd/ReadMe"
       ;;
     white_dwarf)
       printf '%s\n' "white_dwarf|gaiaedr3_wd_main|$WHITE_DWARF_URL|raw/white_dwarf/gaiaedr3_wd_main.fits.gz"
@@ -698,15 +713,42 @@ main() {
       manifest_temp[$manifest]="$temp"
     fi
 
-    local entry_json
-    entry_json=$(printf '{"source_name":"%s","url":"%s","dest_path":"%s","retrieved_at":"%s","checked_at":"%s","sha256":"%s","bytes_written":%s}' \
-      "$(json_escape "$source_name")" \
-      "$(json_escape "$url")" \
-      "$(json_escape "$dest")" \
-      "$ts" \
-      "$ts" \
-      "$sha" \
-      "$bytes_written")
+    local entry_json previous_entry
+    previous_entry=""
+    if [[ -n "${skip_dest[$dest]:-}" && -f "$manifest" ]]; then
+      previous_entry="$(
+        jq -c --arg source_name "$source_name" \
+          '.[] | select(.source_name == $source_name)' "$manifest" | head -n 1
+      )"
+    fi
+    if [[ -n "$previous_entry" ]]; then
+      entry_json="$(
+        jq -cn \
+          --argjson previous "$previous_entry" \
+          --arg url "$url" \
+          --arg dest_path "$dest" \
+          --arg checked_at "$ts" \
+          --arg sha256 "$sha" \
+          --argjson bytes_written "$bytes_written" \
+          '$previous + {
+            url: $url,
+            dest_path: $dest_path,
+            checked_at: $checked_at,
+            sha256: $sha256,
+            bytes_written: $bytes_written,
+            verification_mode: "local_checksum_reverified"
+          }'
+      )"
+    else
+      entry_json=$(printf '{"source_name":"%s","url":"%s","dest_path":"%s","retrieved_at":"%s","checked_at":"%s","sha256":"%s","bytes_written":%s,"verification_mode":"retrieved"}' \
+        "$(json_escape "$source_name")" \
+        "$(json_escape "$url")" \
+        "$(json_escape "$dest")" \
+        "$ts" \
+        "$ts" \
+        "$sha" \
+        "$bytes_written")
+    fi
 
     printf '%s\n' "$entry_json" >> "$temp"
   done

@@ -897,9 +897,22 @@ Representative commits:
   1,276,082 rows from part 1 plus 1,276,083 from part 2, retaining 34 fields.
   The corrected layout raised the pinned E0 field count from 1,795 to 1,807;
   the previous count had mistaken part 2's first data row for a header.
-- The first complete E1 compiler report records 25 typed tables and 22
-  parser-pending tables. Pending formats remain preserved byte-for-byte and are
+- The first E1 compiler checkpoint recorded 25 typed tables and 22 parser-
+  pending tables. Pending formats remained preserved byte-for-byte and were
   acceptance failures, not silently accepted opaque inputs.
+- E1 completed later on July 18 with 59 active raw artifacts/403 files and 68
+  source-native typed tables containing 48,936,930 rows. Every raw artifact is
+  represented in typed accounting and no parser remains pending.
+- Official WDS/CDS schema documents replaced positional guesswork. This exposed
+  and fixed a schema-parser defect that had briefly interpreted numbered CDS
+  note prose as fields. MSC now retains all four documented data tables,
+  including notes; ORB6 retains its complete 35-field row; ATNF retains repeated
+  values and 97,472 source conflict/comment lines; and the white-dwarf lake
+  retains all 161 FITS columns and alternative H/He/mixed fits.
+- A clean-root reproduction gate exposed nondeterministic row-group ordering in
+  parallel DuckDB writes for the large Gaia and TESS tables. Ordered single-
+  thread serialization is now versioned parser behavior. All 25 releases then
+  reproduced byte-for-byte, and the temporary reproduction tree was removed.
 
 ## Recurrent Defect Classes and Mitigations
 

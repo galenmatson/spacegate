@@ -107,6 +107,11 @@ def test_raw_snapshot_is_independent_and_typed_cook_is_deterministic(tmp_path: P
 
     repeated = build_typed_snapshot(source, snapshot_dir, typed_root)
     assert repeated["content_sha256"] == typed_manifest["content_sha256"]
+    clean_rebuild = build_typed_snapshot(
+        source, snapshot_dir, state / "typed_clean" / "evidence_lake_v2"
+    )
+    assert clean_rebuild["content_sha256"] == typed_manifest["content_sha256"]
+    assert clean_rebuild["tables"][0]["sha256"] == table["sha256"]
     verification = verify_snapshot(snapshot_dir, typed_dir)
     assert verification["status"] == "pass"
 

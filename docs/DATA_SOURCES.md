@@ -29,6 +29,39 @@ missing active artifacts, and schema changes fail until the registry and pinned
 baseline are reviewed. Planned sources may lack manifests until E3 acquisition;
 active sources may not.
 
+Evidence Lake v2 active storage paths are:
+
+- `raw/evidence_lake_v2/<source>/<release>/<snapshot>/`: immutable byte-
+  preserving source snapshots
+- `typed/evidence_lake_v2/<source>/<release>/<raw>/<parser>/`: independently
+  versioned source-native Parquet tables
+- `reports/evidence_lake_v2/e1_typed_cook_report.json`: typed coverage, rows,
+  fields, parser contracts, and payload sizes
+- `reports/evidence_lake_v2/e1_snapshot_verification.json`: raw and typed hash,
+  row, and artifact-accounting verification
+- `reports/evidence_lake_v2/e1_clean_reproduction.json`: clean-root deterministic
+  rebuild evidence
+
+Run the complete E1 gates with:
+
+```bash
+.venv/bin/python scripts/evidence_lake_store.py \
+  --state-dir /data/spacegate/state cook
+.venv/bin/python scripts/evidence_lake_store.py \
+  --state-dir /data/spacegate/state verify \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e1_snapshot_verification.json
+.venv/bin/python scripts/verify_evidence_lake_reproduction.py \
+  --state-dir /data/spacegate/state \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e1_clean_reproduction.json
+```
+
+Observation payloads follow
+`config/evidence_lake/observation_product_policy.json`: durable metadata and
+lineage stay in the typed lake, while spectra, light curves, and imagery are
+retrieved into a bounded checksum-addressed cache only on an approved trigger.
+Arbitrary caller URLs, unbounded transfers, and bulk Gaia/TIC/product mirrors
+are prohibited.
+
 This document defines active, optional, and transitional data sources for Spacegate.
 
 It is normative for:

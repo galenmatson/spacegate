@@ -169,9 +169,17 @@
       "identity_namespaces": ["wds_id", "wds_component"],
       "frame_epoch": "source-observation specific",
       "retrieval": {"kind": "fixed_width", "implementation": "scripts/catalogs.sh"},
-      "manifest_entries": [{"manifest": "wds_manifest.json", "source_name": "wdsweb_summ2"}],
+      "manifest_entries": [
+        {"manifest": "wds_manifest.json", "source_name": "wdsweb_summ2"},
+        {"manifest": "wds_manifest.json", "source_name": "wdsweb_format"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "documented_fixed_width", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "documented_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "format_artifact": "wdsweb_format"
+      }
     },
     {
       "source_id": "multiplicity.wds_gaia_xmatch",
@@ -240,7 +248,16 @@
         {"manifest": "sb9_manifest.json", "source_name": "sb9_orbits"}
       ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "vizier_readme_fixed_width", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "vizier_readme_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {
+          "sb9_main": "sb9_readme",
+          "sb9_alias": "sb9_readme",
+          "sb9_orbits": "sb9_readme"
+        }
+      }
     },
     {
       "source_id": "multiplicity.sbx",
@@ -293,10 +310,19 @@
       "retrieval": {"kind": "vizier_fixed_width", "implementation": "scripts/catalogs.sh"},
       "manifest_entries": [
         {"manifest": "clusters_manifest.json", "source_name": "cantat_gaudin_2020_table1"},
-        {"manifest": "clusters_manifest.json", "source_name": "cantat_gaudin_2020_members"}
+        {"manifest": "clusters_manifest.json", "source_name": "cantat_gaudin_2020_members"},
+        {"manifest": "clusters_manifest.json", "source_name": "cantat_gaudin_2020_readme"}
       ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "vizier_readme_fixed_width", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "vizier_readme_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {
+          "cantat_gaudin_2020_table1": "cantat_gaudin_2020_readme",
+          "cantat_gaudin_2020_members": "cantat_gaudin_2020_readme"
+        }
+      }
     },
     {
       "source_id": "classification.vsx",
@@ -310,9 +336,17 @@
       "identity_namespaces": ["vsx_oid", "variable_star_name"],
       "frame_epoch": "J2000/source-specific",
       "retrieval": {"kind": "fixed_width", "implementation": "scripts/catalogs.sh"},
-      "manifest_entries": [{"manifest": "vsx_manifest.json", "source_name": "vsx_dat"}],
+      "manifest_entries": [
+        {"manifest": "vsx_manifest.json", "source_name": "vsx_dat"},
+        {"manifest": "vsx_manifest.json", "source_name": "vsx_readme"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "documented_fixed_width", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "documented_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {"vsx_dat": "vsx_readme"}
+      }
     },
     {
       "source_id": "compact.atnf",
@@ -374,9 +408,17 @@
       "identity_namespaces": ["gaia_dr3_source_id"],
       "frame_epoch": "Gaia DR3",
       "retrieval": {"kind": "fixed_width", "implementation": "scripts/catalogs.sh"},
-      "manifest_entries": [{"manifest": "gaia_ucd_manifest.json", "source_name": "table4"}],
+      "manifest_entries": [
+        {"manifest": "gaia_ucd_manifest.json", "source_name": "table4"},
+        {"manifest": "gaia_ucd_manifest.json", "source_name": "table4_readme"}
+      ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "vizier_readme_fixed_width", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "vizier_readme_fixed_width",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {"table4": "table4_readme"}
+      }
     },
     {
       "source_id": "ultracool.ultracoolsheet",
@@ -415,10 +457,30 @@
         {"manifest": "extended_objects_manifest.json", "source_name": "magakian_2003"},
         {"manifest": "extended_objects_manifest.json", "source_name": "vdb_vii_21"},
         {"manifest": "extended_objects_manifest.json", "source_name": "sharpless_vii_20"},
-        {"manifest": "extended_objects_manifest.json", "source_name": "cederblad_vii_231"}
+        {"manifest": "extended_objects_manifest.json", "source_name": "cederblad_vii_231"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "lbn_vii_9_readme"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "ldn_vii_7a_readme"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "barnard_vii_220a_readme"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "magakian_2003_readme"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "vdb_vii_21_readme"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "sharpless_vii_20_readme"},
+        {"manifest": "extended_objects_manifest.json", "source_name": "cederblad_vii_231_readme"}
       ],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "mixed_documented_tables", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "mixed_documented_tables",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "readme_bindings": {
+          "lbn_vii_9": "lbn_vii_9_readme",
+          "ldn_vii_7a": "ldn_vii_7a_readme",
+          "barnard_vii_220a": "barnard_vii_220a_readme",
+          "magakian_2003": "magakian_2003_readme",
+          "vdb_vii_21": "vdb_vii_21_readme",
+          "sharpless_vii_20": "sharpless_vii_20_readme",
+          "cederblad_vii_231": "cederblad_vii_231_readme"
+        }
+      }
     },
     {
       "source_id": "extended.green_snr",

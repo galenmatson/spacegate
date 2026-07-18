@@ -169,6 +169,15 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
                 )
             if not layout.get("table_name"):
                 errors.append(f"{source_id}.schema_policy.artifact_layout.table_name is required")
+        entry_names = {str(entry.get("source_name") or "") for entry in entries}
+        format_artifact = str(schema_policy.get("format_artifact") or "")
+        if format_artifact and format_artifact not in entry_names:
+            errors.append(f"{source_id}.schema_policy.format_artifact is not registered")
+        for data_name, readme_name in (schema_policy.get("readme_bindings") or {}).items():
+            if data_name not in entry_names or readme_name not in entry_names:
+                errors.append(
+                    f"{source_id}.schema_policy.readme_bindings references unregistered artifacts"
+                )
 
     return errors
 

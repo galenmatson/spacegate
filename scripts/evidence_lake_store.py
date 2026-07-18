@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import tarfile
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,13 +29,44 @@ from evidence_lake_registry import (
     stable_hash,
     validate_registry,
 )
+from evidence_lake_native import (
+    bytes_sha256,
+    parse_cds_readme,
+    parse_cds_readme_text,
+    parse_wds_format,
+    safe_tar_members,
+    tar_member_bytes,
+    write_archive_member_index_parquet,
+    write_atnf_catalog_parquet,
+    write_atnf_glitches_parquet,
+    write_atnf_references_parquet,
+    write_document_lines_parquet,
+    write_fits_table_parquet,
+    write_fixed_width_parquet,
+    write_fixed_width_text_parquet,
+    write_green_snr_parquet,
+    write_text_lines_parquet,
+    write_tokenized_parquet,
+)
 
 
 RAW_CONTRACT = "spacegate.evidence_raw_snapshot.v1"
 TYPED_CONTRACT = "spacegate.evidence_typed_snapshot.v1"
-BASE_PARSER_CONTRACT_VERSION = "evidence_typed_cook_v4"
+BASE_PARSER_CONTRACT_VERSION = "evidence_typed_cook_v5"
 SOURCE_PARSER_CONTRACT_VERSIONS = {
-    "tess.identity_and_candidate_evidence": "evidence_typed_cook_v5",
+    "tess.identity_and_candidate_evidence": "evidence_typed_cook_v6",
+    "multiplicity.wds": "evidence_typed_cook_wds_v1",
+    "multiplicity.sb9": "evidence_typed_cook_cds_v2",
+    "clusters.cantat_gaudin_2020": "evidence_typed_cook_cds_v2",
+    "classification.vsx": "evidence_typed_cook_cds_v2",
+    "ultracool.gaia_dr3_sample": "evidence_typed_cook_cds_v2",
+    "extended.openngc_and_nebulae": "evidence_typed_cook_cds_v2",
+    "multiplicity.msc": "evidence_typed_cook_msc_v2",
+    "multiplicity.orb6": "evidence_typed_cook_orb6_v1",
+    "multiplicity.debcat": "evidence_typed_cook_debcat_v1",
+    "compact.atnf": "evidence_typed_cook_atnf_v2",
+    "compact.gaia_edr3_white_dwarf": "evidence_typed_cook_fits_v1",
+    "extended.green_snr": "evidence_typed_cook_green_snr_v2",
 }
 TABULAR_SUFFIXES = (".csv", ".csv.gz")
 
@@ -503,6 +535,563 @@ def artifact_input_files(snapshot_dir: Path, artifact: dict[str, Any]) -> list[P
     return [root / item["path"] for item in artifact["files"]]
 
 
+def single_artifact_file(snapshot_dir: Path, artifact: dict[str, Any]) -> Path:
+    files = artifact_input_files(snapshot_dir, artifact)
+    if len(files) != 1:
+        raise ValueError(
+            f"source-native artifact must contain exactly one file: {artifact['source_name']}"
+        )
+    return files[0]
+
+
+def resolve_cds_table(
+    data_path: Path,
+    tables: dict[str, list[dict[str, Any]]],
+) -> tuple[str, list[dict[str, Any]]]:
+    data_name = data_path.name.removesuffix(".gz")
+    if data_name in tables:
+        return data_name, tables[data_name]
+    data_stem = Path(data_name).stem.lower()
+    matches = [
+        name
+        for name in tables
+        if Path(name).stem.lower() in data_stem or data_stem in Path(name).stem.lower()
+    ]
+    if len(matches) == 1:
+        return matches[0], tables[matches[0]]
+    if len(tables) == 1:
+        name = next(iter(tables))
+        return name, tables[name]
+    raise ValueError(
+        f"cannot resolve CDS schema section for {data_path.name}: {sorted(tables)}"
+    )
+
+
+def documented_artifact_names(source: dict[str, Any]) -> set[str]:
+    policy = source["schema_policy"]
+    names = set(str(value) for value in (policy.get("readme_bindings") or {}).values())
+    if policy.get("format_artifact"):
+        names.add(str(policy["format_artifact"]))
+    return names
+
+
+def cook_documented_artifact(
+    source: dict[str, Any],
+    snapshot_dir: Path,
+    artifact: dict[str, Any],
+    artifacts_by_name: dict[str, dict[str, Any]],
+    output: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> dict[str, Any] | None:
+    source_name = str(artifact["source_name"])
+    policy = source["schema_policy"]
+    if source_name in documented_artifact_names(source):
+        path = single_artifact_file(snapshot_dir, artifact)
+        write_document_lines_parquet(path, output)
+        metadata = parquet_metadata(output, con)
+        return {
+            "source_name": source_name,
+            "status": "typed",
+            "parser": "source_document_lines_v1",
+            "typing_status": "source_schema_document",
+            "raw_tree_sha256": artifact["tree_sha256"],
+            "parquet_path": f"tables/{output.name}",
+            **metadata,
+        }
+
+    schema_fields: list[dict[str, Any]] | None = None
+    schema_document: dict[str, Any] | None = None
+    schema_section: str | None = None
+    record_pattern: re.Pattern[str] | None = None
+    readme_name = (policy.get("readme_bindings") or {}).get(source_name)
+    if readme_name:
+        schema_document = artifacts_by_name.get(str(readme_name))
+        if not schema_document:
+            raise ValueError(f"missing registered schema document: {readme_name}")
+        readme_path = single_artifact_file(snapshot_dir, schema_document)
+        data_path = single_artifact_file(snapshot_dir, artifact)
+        schema_section, schema_fields = resolve_cds_table(
+            data_path,
+            parse_cds_readme(readme_path),
+        )
+    elif source_name != policy.get("format_artifact") and policy.get("format_artifact"):
+        format_name = str(policy["format_artifact"])
+        schema_document = artifacts_by_name.get(format_name)
+        if not schema_document:
+            raise ValueError(f"missing registered format document: {format_name}")
+        schema_fields = parse_wds_format(single_artifact_file(snapshot_dir, schema_document))
+        schema_section = "WDS BIBLE COLUMN Format"
+        record_pattern = re.compile(r"^[0-9]{5}[+-][0-9]{4}")
+    else:
+        return None
+
+    data_path = single_artifact_file(snapshot_dir, artifact)
+    write_report = write_fixed_width_parquet(
+        data_path,
+        schema_fields,
+        output,
+        record_pattern=record_pattern,
+    )
+    metadata = parquet_metadata(output, con)
+    if metadata["row_count"] != write_report["row_count"]:
+        raise ValueError("fixed-width Parquet row count differs from source row accounting")
+    return {
+        "source_name": source_name,
+        "status": "typed",
+        "parser": "documented_fixed_width_lexical_v1",
+        "typing_status": "source_schema_lexical",
+        "raw_tree_sha256": artifact["tree_sha256"],
+        "schema_document_source_name": schema_document["source_name"],
+        "schema_document_sha256": schema_document["tree_sha256"],
+        "schema_section": schema_section,
+        "source_schema": schema_fields,
+        "source_row_accounting": write_report["source_row_accounting"],
+        "parquet_path": f"tables/{output.name}",
+        **metadata,
+    }
+
+
+ORB6_FIELDS = [
+    "ra_j2000_raw",
+    "dec_j2000_raw",
+    "wds_id",
+    "discoverer_designation",
+    "ads_id",
+    "hd_id",
+    "hip_id",
+    "primary_magnitude_raw",
+    "primary_magnitude_flag",
+    "secondary_magnitude_raw",
+    "secondary_magnitude_flag",
+    "period_raw",
+    "period_unit",
+    "period_uncertainty_raw",
+    "semimajor_axis_raw",
+    "semimajor_axis_unit_flag",
+    "semimajor_axis_uncertainty_raw",
+    "inclination_deg_raw",
+    "inclination_uncertainty_raw",
+    "ascending_node_deg_raw",
+    "ascending_node_flag",
+    "ascending_node_uncertainty_raw",
+    "periastron_epoch_raw",
+    "periastron_epoch_unit",
+    "periastron_epoch_uncertainty_raw",
+    "eccentricity_raw",
+    "eccentricity_uncertainty_raw",
+    "longitude_periastron_deg_raw",
+    "longitude_periastron_uncertainty_raw",
+    "equinox_raw",
+    "last_observed_year_raw",
+    "orbit_grade_raw",
+    "notes_flag",
+    "reference_code",
+    "plot_filename",
+]
+
+DEBCAT_FIELDS = [
+    "system_name",
+    "spectral_type_1",
+    "spectral_type_2",
+    "period_days_raw",
+    "visual_magnitude_raw",
+    "b_minus_v_raw",
+    "log_mass_1_raw",
+    "log_mass_1_uncertainty_raw",
+    "log_mass_2_raw",
+    "log_mass_2_uncertainty_raw",
+    "log_radius_1_raw",
+    "log_radius_1_uncertainty_raw",
+    "log_radius_2_raw",
+    "log_radius_2_uncertainty_raw",
+    "log_surface_gravity_1_raw",
+    "log_surface_gravity_1_uncertainty_raw",
+    "log_surface_gravity_2_raw",
+    "log_surface_gravity_2_uncertainty_raw",
+    "log_temperature_1_raw",
+    "log_temperature_1_uncertainty_raw",
+    "log_temperature_2_raw",
+    "log_temperature_2_uncertainty_raw",
+    "log_luminosity_1_raw",
+    "log_luminosity_1_uncertainty_raw",
+    "log_luminosity_2_raw",
+    "log_luminosity_2_uncertainty_raw",
+    "metallicity_raw",
+    "metallicity_uncertainty_raw",
+]
+
+
+def source_native_report(
+    *,
+    source_name: str,
+    parser: str,
+    typing_status: str,
+    raw_tree_sha256: str,
+    output: Path,
+    con: duckdb.DuckDBPyConnection,
+    details: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    metadata = parquet_metadata(output, con)
+    return {
+        "source_name": source_name,
+        "status": "typed",
+        "parser": parser,
+        "typing_status": typing_status,
+        "raw_tree_sha256": raw_tree_sha256,
+        "parquet_path": f"tables/{output.name}",
+        **(details or {}),
+        **metadata,
+    }
+
+
+def cook_msc_archive(
+    artifact: dict[str, Any],
+    path: Path,
+    table_dir: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> list[dict[str, Any]]:
+    reports: list[dict[str, Any]] = []
+    expected_members = {"Readme", "comp.tsv", "sys.tsv", "orb.tsv", "notes.tsv"}
+    with tarfile.open(path, "r:gz") as archive:
+        members = {member.name for member in safe_tar_members(archive)}
+        if members != expected_members:
+            raise ValueError(
+                f"MSC archive membership drift: missing={sorted(expected_members - members)} "
+                f"extra={sorted(members - expected_members)}"
+            )
+        dispositions = {
+            "Readme": "source_schema_document",
+            "comp.tsv": "typed_data",
+            "sys.tsv": "typed_data",
+            "orb.tsv": "typed_data",
+            "notes.tsv": "typed_data",
+        }
+        index_output = table_dir / "msc_archive_members.parquet"
+        index_result = write_archive_member_index_parquet(
+            archive, index_output, dispositions=dispositions
+        )
+        reports.append(
+            source_native_report(
+                source_name="msc_archive_members",
+                parser="validated_tar_member_index_v1",
+                typing_status="archive_member_index",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=index_output,
+                con=con,
+                details={"source_row_accounting": index_result},
+            )
+        )
+
+        readme_bytes = tar_member_bytes(archive, "Readme")
+        readme_text = readme_bytes.decode("utf-8", errors="replace")
+        readme_output = table_dir / "msc_readme.parquet"
+        readme_result = write_text_lines_parquet(readme_text, readme_output)
+        reports.append(
+            source_native_report(
+                source_name="msc_readme",
+                parser="source_document_lines_v1",
+                typing_status="source_schema_document",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=readme_output,
+                con=con,
+                details={
+                    "archive_member": "Readme",
+                    "archive_member_sha256": bytes_sha256(readme_bytes),
+                    "source_row_accounting": readme_result,
+                },
+            )
+        )
+        schemas = parse_cds_readme_text(readme_text)
+        for member_name in ("comp.tsv", "sys.tsv", "orb.tsv", "notes.tsv"):
+            fields = schemas.get(member_name)
+            if not fields:
+                raise ValueError(f"MSC Readme lacks schema for {member_name}")
+            member_bytes = tar_member_bytes(archive, member_name)
+            member_text = member_bytes.decode("utf-8", errors="replace")
+            output = table_dir / f"msc_{Path(member_name).stem}.parquet"
+            result = write_fixed_width_text_parquet(member_text, fields, output)
+            reports.append(
+                source_native_report(
+                    source_name=f"msc_{Path(member_name).stem}",
+                    parser="documented_archive_fixed_width_lexical_v1",
+                    typing_status="source_schema_lexical",
+                    raw_tree_sha256=artifact["tree_sha256"],
+                    output=output,
+                    con=con,
+                    details={
+                        "archive_member": member_name,
+                        "archive_member_sha256": bytes_sha256(member_bytes),
+                        "schema_document_member": "Readme",
+                        "schema_document_sha256": bytes_sha256(readme_bytes),
+                        "source_schema": fields,
+                        "source_row_accounting": result["source_row_accounting"],
+                    },
+                )
+            )
+    return reports
+
+
+def cook_atnf_archive(
+    artifact: dict[str, Any],
+    path: Path,
+    table_dir: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> list[dict[str, Any]]:
+    reports: list[dict[str, Any]] = []
+    data_members = {
+        "psrcat_tar/README": "source_document",
+        "psrcat_tar/psrcat.db": "typed_data",
+        "psrcat_tar/glitch.db": "typed_data",
+        "psrcat_tar/psrcat_ref": "typed_data",
+    }
+    with tarfile.open(path, "r:gz") as archive:
+        members = {member.name for member in safe_tar_members(archive)}
+        missing = set(data_members) - members
+        if missing:
+            raise ValueError(f"ATNF archive lacks required members: {sorted(missing)}")
+        index_output = table_dir / "atnf_archive_members.parquet"
+        index_result = write_archive_member_index_parquet(
+            archive, index_output, dispositions=data_members
+        )
+        reports.append(
+            source_native_report(
+                source_name="atnf_archive_members",
+                parser="validated_tar_member_index_v1",
+                typing_status="archive_member_index",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=index_output,
+                con=con,
+                details={"source_row_accounting": index_result},
+            )
+        )
+
+        readme_bytes = tar_member_bytes(archive, "psrcat_tar/README")
+        readme_output = table_dir / "atnf_readme.parquet"
+        readme_result = write_text_lines_parquet(
+            readme_bytes.decode("utf-8", errors="replace"), readme_output
+        )
+        reports.append(
+            source_native_report(
+                source_name="atnf_readme",
+                parser="source_document_lines_v1",
+                typing_status="source_document",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=readme_output,
+                con=con,
+                details={
+                    "archive_member": "psrcat_tar/README",
+                    "archive_member_sha256": bytes_sha256(readme_bytes),
+                    "source_row_accounting": readme_result,
+                },
+            )
+        )
+
+        catalogue_bytes = tar_member_bytes(archive, "psrcat_tar/psrcat.db")
+        parameters_output = table_dir / "atnf_parameters.parquet"
+        comments_output = table_dir / "atnf_catalogue_comments.parquet"
+        catalogue_result = write_atnf_catalog_parquet(
+            catalogue_bytes.decode("utf-8", errors="replace"),
+            parameters_output,
+            comments_output,
+        )
+        shared = {
+            "archive_member": "psrcat_tar/psrcat.db",
+            "archive_member_sha256": bytes_sha256(catalogue_bytes),
+            "source_row_accounting": catalogue_result,
+        }
+        reports.append(
+            source_native_report(
+                source_name="atnf_parameters",
+                parser="atnf_parameter_blocks_lexical_v1",
+                typing_status="source_schema_lexical",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=parameters_output,
+                con=con,
+                details=shared,
+            )
+        )
+        reports.append(
+            source_native_report(
+                source_name="atnf_catalogue_comments",
+                parser="atnf_parameter_blocks_lexical_v1",
+                typing_status="source_comment_history",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=comments_output,
+                con=con,
+                details=shared,
+            )
+        )
+
+        glitch_bytes = tar_member_bytes(archive, "psrcat_tar/glitch.db")
+        glitch_output = table_dir / "atnf_glitches.parquet"
+        glitch_result = write_atnf_glitches_parquet(
+            glitch_bytes.decode("utf-8", errors="replace"), glitch_output
+        )
+        reports.append(
+            source_native_report(
+                source_name="atnf_glitches",
+                parser="atnf_glitch_table_lexical_v1",
+                typing_status="source_schema_lexical",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=glitch_output,
+                con=con,
+                details={
+                    "archive_member": "psrcat_tar/glitch.db",
+                    "archive_member_sha256": bytes_sha256(glitch_bytes),
+                    "source_row_accounting": glitch_result["source_row_accounting"],
+                },
+            )
+        )
+
+        reference_bytes = tar_member_bytes(archive, "psrcat_tar/psrcat_ref")
+        reference_output = table_dir / "atnf_references.parquet"
+        reference_result = write_atnf_references_parquet(
+            reference_bytes.decode("utf-8", errors="replace"), reference_output
+        )
+        reports.append(
+            source_native_report(
+                source_name="atnf_references",
+                parser="atnf_reference_blocks_v1",
+                typing_status="source_citation_text",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=reference_output,
+                con=con,
+                details={
+                    "archive_member": "psrcat_tar/psrcat_ref",
+                    "archive_member_sha256": bytes_sha256(reference_bytes),
+                    "source_row_accounting": reference_result,
+                },
+            )
+        )
+    return reports
+
+
+def cook_special_source(
+    source: dict[str, Any],
+    raw_manifest: dict[str, Any],
+    raw_snapshot_dir: Path,
+    table_dir: Path,
+    con: duckdb.DuckDBPyConnection,
+) -> list[dict[str, Any]] | None:
+    source_id = str(source["source_id"])
+    if source_id not in {
+        "multiplicity.msc",
+        "multiplicity.orb6",
+        "multiplicity.debcat",
+        "compact.atnf",
+        "compact.gaia_edr3_white_dwarf",
+        "extended.green_snr",
+    }:
+        return None
+    if len(raw_manifest["artifacts"]) != 1:
+        raise ValueError(f"special source expects one raw artifact: {source_id}")
+    artifact = raw_manifest["artifacts"][0]
+    path = single_artifact_file(raw_snapshot_dir, artifact)
+
+    if source_id == "multiplicity.msc":
+        return cook_msc_archive(artifact, path, table_dir, con)
+    if source_id == "compact.atnf":
+        return cook_atnf_archive(artifact, path, table_dir, con)
+    if source_id == "multiplicity.orb6":
+        output = table_dir / "orb6_orbits.parquet"
+        result = write_tokenized_parquet(
+            path, output, ORB6_FIELDS, skip_lines=2, delimiter="|"
+        )
+        return [
+            source_native_report(
+                source_name="orb6_orbits",
+                parser="orb6_pipe_rows_lexical_v1",
+                typing_status="source_schema_lexical",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=output,
+                con=con,
+                details={
+                    "source_schema": [
+                        {"name": name, "source_header": header}
+                        for name, header in zip(
+                            ORB6_FIELDS,
+                            path.read_text(encoding="utf-8", errors="replace")
+                            .splitlines()[1]
+                            .split("|"),
+                            strict=True,
+                        )
+                    ],
+                    "source_row_accounting": result["source_row_accounting"],
+                },
+            )
+        ]
+    if source_id == "multiplicity.debcat":
+        output = table_dir / "debcat_components.parquet"
+        result = write_tokenized_parquet(path, output, DEBCAT_FIELDS, skip_lines=1)
+        return [
+            source_native_report(
+                source_name="debcat_components",
+                parser="debcat_whitespace_rows_lexical_v1",
+                typing_status="source_schema_lexical_sentinels_preserved",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=output,
+                con=con,
+                details={
+                    "source_schema": [{"name": name} for name in DEBCAT_FIELDS],
+                    "null_limit_semantics": {
+                        "numeric_missing_sentinel": "-9.9900 or source-column equivalent",
+                        "string_missing_sentinel": "none",
+                        "normalization_status": "preserved_for_E4",
+                    },
+                    "source_row_accounting": result["source_row_accounting"],
+                },
+            )
+        ]
+    if source_id == "compact.gaia_edr3_white_dwarf":
+        output = table_dir / "gaia_edr3_white_dwarf_main.parquet"
+        result = write_fits_table_parquet(path, output)
+        return [
+            source_native_report(
+                source_name="gaia_edr3_white_dwarf_main",
+                parser="fits_binary_table_source_native_v1",
+                typing_status="source_schema_typed_nulls_normalized",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=output,
+                con=con,
+                details=result,
+            )
+        ]
+    if source_id == "extended.green_snr":
+        output = table_dir / "green_snr_catalogue.parquet"
+        result = write_green_snr_parquet(path, output)
+        return [
+            source_native_report(
+                source_name="green_snr_catalogue",
+                parser="green_snr_html_pre_lexical_v1",
+                typing_status="source_schema_lexical_limits_preserved",
+                raw_tree_sha256=artifact["tree_sha256"],
+                output=output,
+                con=con,
+                details={
+                    "source_schema": [
+                        {"name": name}
+                        for name in (
+                            "galactic_longitude",
+                            "galactic_latitude",
+                            "ra_hour",
+                            "ra_minute",
+                            "ra_second",
+                            "dec_degree",
+                            "dec_arcminute",
+                            "angular_size",
+                            "snr_type",
+                            "flux_1ghz",
+                            "spectral_index",
+                            "other_names",
+                        )
+                    ],
+                    "source_row_accounting": result["source_row_accounting"],
+                },
+            )
+        ]
+    raise AssertionError(source_id)
+
+
 def cook_artifact(
     source: dict[str, Any],
     snapshot_dir: Path,
@@ -618,11 +1207,34 @@ def build_typed_snapshot(source: dict[str, Any], raw_snapshot_dir: Path, typed_r
     temp_dir = Path(tempfile.mkdtemp(prefix=f".{snapshot_id}.", dir=root))
     (temp_dir / "tables").mkdir()
     con = duckdb.connect()
-    con.execute("set preserve_insertion_order=false")
+    # Parallel unordered Parquet writes can preserve rows and schemas while
+    # producing different row-group ordering and hashes on a clean rebuild.
+    con.execute("set threads=1")
+    con.execute("set preserve_insertion_order=true")
     reports: list[dict[str, Any]] = []
     try:
         layout = source["schema_policy"].get("artifact_layout") or {}
-        if layout.get("kind") == "delimited_continuation":
+        try:
+            special_reports = cook_special_source(
+                source,
+                raw_manifest,
+                raw_snapshot_dir,
+                temp_dir / "tables",
+                con,
+            )
+        except Exception as exc:
+            for partial in (temp_dir / "tables").glob("*"):
+                partial.unlink()
+            special_reports = [
+                {
+                    "source_name": str(source["source_id"]),
+                    "status": "parser_error",
+                    "reason": f"{type(exc).__name__}: {exc}",
+                }
+            ]
+        if special_reports is not None:
+            reports.extend(special_reports)
+        elif layout.get("kind") == "delimited_continuation":
             output = temp_dir / "tables" / f"{slug(str(layout['table_name']))}.parquet"
             try:
                 reports.append(
@@ -641,10 +1253,20 @@ def build_typed_snapshot(source: dict[str, Any], raw_snapshot_dir: Path, typed_r
                     }
                 )
         else:
+            artifacts_by_name = {
+                str(item["source_name"]): item for item in raw_manifest["artifacts"]
+            }
             for artifact in raw_manifest["artifacts"]:
                 output = temp_dir / "tables" / f"{slug(str(artifact['source_name']))}.parquet"
                 try:
-                    report = cook_artifact(source, raw_snapshot_dir, artifact, output, con)
+                    report = cook_documented_artifact(
+                        source,
+                        raw_snapshot_dir,
+                        artifact,
+                        artifacts_by_name,
+                        output,
+                        con,
+                    ) or cook_artifact(source, raw_snapshot_dir, artifact, output, con)
                 except Exception as exc:
                     report = {
                         "source_name": artifact["source_name"],
@@ -684,7 +1306,12 @@ def build_typed_snapshot(source: dict[str, Any], raw_snapshot_dir: Path, typed_r
         con.close()
 
 
-def verify_snapshot(raw_dir: Path, typed_dir: Path | None = None) -> dict[str, Any]:
+def verify_snapshot(
+    raw_dir: Path,
+    typed_dir: Path | None = None,
+    *,
+    expected_parser_contract_version: str | None = None,
+) -> dict[str, Any]:
     raw_manifest = load_json(raw_dir / "snapshot_manifest.json")
     errors: list[str] = []
     for artifact in raw_manifest["artifacts"]:
@@ -697,6 +1324,35 @@ def verify_snapshot(raw_dir: Path, typed_dir: Path | None = None) -> dict[str, A
         typed_manifest = load_json(typed_dir / "typed_manifest.json")
         if typed_manifest.get("raw_content_sha256") != raw_manifest.get("content_sha256"):
             errors.append("typed snapshot points to different raw content")
+        if (
+            expected_parser_contract_version
+            and typed_manifest.get("parser_contract_version")
+            != expected_parser_contract_version
+        ):
+            errors.append(
+                "typed parser contract is stale: "
+                f"{typed_manifest.get('parser_contract_version')} != "
+                f"{expected_parser_contract_version}"
+            )
+        accounted_artifacts: set[str] = set()
+        for table in typed_manifest["tables"]:
+            for artifact in raw_manifest["artifacts"]:
+                if table.get("raw_tree_sha256") == artifact["tree_sha256"]:
+                    accounted_artifacts.add(str(artifact["source_name"]))
+            source_rows = table.get("source_row_accounting")
+            if isinstance(source_rows, list):
+                accounted_artifacts.update(
+                    str(row["source_name"])
+                    for row in source_rows
+                    if isinstance(row, dict) and row.get("source_name")
+                )
+        missing_artifacts = sorted(
+            str(artifact["source_name"])
+            for artifact in raw_manifest["artifacts"]
+            if str(artifact["source_name"]) not in accounted_artifacts
+        )
+        if missing_artifacts:
+            errors.append(f"raw artifacts lack typed accounting: {missing_artifacts}")
         con = duckdb.connect()
         try:
             for table in typed_manifest["tables"]:
@@ -723,6 +1379,10 @@ def verify_snapshot(raw_dir: Path, typed_dir: Path | None = None) -> dict[str, A
         "status": "pass" if not errors else "fail",
         "errors": errors,
         "typed": typed_manifest is not None,
+        "raw_artifact_count": len(raw_manifest["artifacts"]),
+        "accounted_raw_artifact_count": (
+            len(accounted_artifacts) if typed_manifest is not None else 0
+        ),
     }
 
 
@@ -794,7 +1454,11 @@ def main() -> int:
                 typed_dir = latest_typed_snapshot_dir(typed_root, source, raw_dir.name)
             except FileNotFoundError:
                 typed_dir = None
-            report = verify_snapshot(raw_dir, typed_dir)
+            report = verify_snapshot(
+                raw_dir,
+                typed_dir,
+                expected_parser_contract_version=parser_contract_version(source),
+            )
             print(f"verify {source['source_id']} {report['status']}")
             reports.append(report)
 
@@ -824,6 +1488,41 @@ def main() -> int:
             "incomplete_table_count": sum(
                 table.get("status") != "typed" for table in table_reports
             ),
+            "typed_row_count": sum(
+                int(table.get("row_count") or 0)
+                for table in table_reports
+                if table.get("status") == "typed"
+            ),
+            "typed_column_count": sum(
+                len(table.get("columns") or [])
+                for table in table_reports
+                if table.get("status") == "typed"
+            ),
+            "typed_bytes": sum(
+                int(table.get("bytes") or 0)
+                for table in table_reports
+                if table.get("status") == "typed"
+            ),
+            "parser_counts": {
+                parser: sum(table.get("parser") == parser for table in table_reports)
+                for parser in sorted(
+                    {
+                        str(table.get("parser"))
+                        for table in table_reports
+                        if table.get("parser")
+                    }
+                )
+            },
+            "typing_status_counts": {
+                status: sum(table.get("typing_status") == status for table in table_reports)
+                for status in sorted(
+                    {
+                        str(table.get("typing_status"))
+                        for table in table_reports
+                        if table.get("typing_status")
+                    }
+                )
+            },
             "sources": reports,
         }
         report_path = args.report or (

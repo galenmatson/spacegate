@@ -16,6 +16,9 @@ from evidence_lake_registry import (  # noqa: E402
 
 
 REGISTRY_PATH = ROOT / "config" / "evidence_lake" / "source_releases.json"
+PRODUCT_POLICY_PATH = (
+    ROOT / "config" / "evidence_lake" / "observation_product_policy.json"
+)
 
 
 def load_registry() -> dict:
@@ -76,6 +79,16 @@ def test_checked_in_registry_is_valid_and_manifest_bindings_are_unique() -> None
     ]
     assert len(manifest_bindings) == len(set(manifest_bindings))
     assert registry["ingestion_envelope"]["buffer_radius_ly"] > 1000
+
+
+def test_observation_product_policy_is_bounded_metadata_first_and_allowlisted() -> None:
+    policy = json.loads(PRODUCT_POLICY_PATH.read_text(encoding="utf-8"))
+    assert policy["schema_version"] == "spacegate.observation_product_storage_policy.v1"
+    assert policy["index_contract"]["payload_storage"] == "locator_and_metadata_only"
+    assert policy["cache_contract"]["maximum_gib"] == 500
+    assert policy["cache_contract"]["minimum_internal_free_gib"] == 300
+    assert "registry-approved" in policy["security_contract"]["locator_policy"]
+    assert "bulk TIC mirror" in policy["acquisition_policy"]["forbidden"]
 
 
 def test_registry_audit_enumerates_fields_and_rejects_unregistered_entries(

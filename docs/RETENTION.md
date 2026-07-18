@@ -126,6 +126,17 @@ metadata references the retention script cannot safely infer on its own.
 Run retention only after successful promotion and verification. Do not run it
 during ingest or while diagnosing a failed build.
 
+Evidence Lake v2 raw and typed snapshots are not `out/` retention candidates.
+Keep the active raw snapshot and active parser-contract snapshot for every
+registered source, plus any snapshot referenced by a build, report, publication,
+rollback, or adjudication packet. Superseded parser outputs may be proposed for
+retirement only after the replacement passes
+`scripts/verify_evidence_lake_reproduction.py` and E7 records that no retained
+lineage references them. Never prune individual Parquet files from inside a
+typed snapshot. The active E1 estate is about 10.41 GiB raw and 4.75 GiB typed;
+older immutable parser checkpoints explain why the physical typed directory is
+larger until E7 retirement.
+
 Side-artifact rebuilds created by `scripts/rebuild_side_artifacts.py` are normal
 immutable `out/<build_id>/` artifacts once the `.tmp` directory is renamed into
 place. Interrupted runs leave `out/<build_id>.tmp`, which is covered by the

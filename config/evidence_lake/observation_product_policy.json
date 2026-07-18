@@ -1,0 +1,76 @@
+{
+  "schema_version": "spacegate.observation_product_storage_policy.v1",
+  "policy_version": "2026-07-18.1",
+  "scope": [
+    "spectrum",
+    "light_curve",
+    "atmosphere_spectrum",
+    "survey_image",
+    "time_series",
+    "observation_document"
+  ],
+  "index_contract": {
+    "storage_class": "internal_durable_typed_lake",
+    "payload_storage": "locator_and_metadata_only",
+    "required_fields": [
+      "source_id",
+      "release_id",
+      "source_product_id",
+      "product_type",
+      "observation_target_node",
+      "access_locator",
+      "access_protocol",
+      "citation",
+      "license",
+      "availability_state"
+    ],
+    "conditional_fields": [
+      "content_sha256",
+      "content_bytes",
+      "media_type",
+      "observation_time",
+      "wavelength_min",
+      "wavelength_max",
+      "calibration_level",
+      "instrument",
+      "proposal_or_program_id",
+      "source_quality_flags"
+    ],
+    "identity_rule": "Observation-target scope is a provenance-bearing edge and never implies physical-object identity or canonical containment."
+  },
+  "cache_contract": {
+    "bulk_root": "/mnt/space/spacegate/observation_cache",
+    "durable_index_root": "/data/spacegate/state/typed/evidence_lake_v2",
+    "ledger_root": "/data/spacegate/state/reports/evidence_lake_v2/observation_cache",
+    "maximum_gib": 500,
+    "minimum_internal_free_gib": 300,
+    "key": "verified content SHA-256 when supplied; otherwise source/release/product locator fingerprint plus retrieval version",
+    "promotion": "download to a bounded temporary file, verify size/type/checksum, then atomically promote",
+    "eviction": "least-recently-used among unpinned reproducible payloads; preserve published, cited, active-job, unique-source, and operator-pinned products",
+    "durability": "The USB bulk cache is replaceable and may not be the only copy of an irreplaceable source artifact.",
+    "failure_mode": "A missing or corrupt payload remains visibly unavailable; never substitute a different product silently."
+  },
+  "security_contract": {
+    "locator_policy": "Only registry-approved source hosts and protocols may be fetched; user-supplied arbitrary URLs are forbidden.",
+    "redirect_policy": "Redirect targets must pass the same source allowlist and protocol checks.",
+    "size_policy": "Require a per-request byte ceiling before transfer and abort when the observed response exceeds it.",
+    "content_policy": "Treat products as untrusted data, never executable content; validate media type and parse in bounded workers.",
+    "path_policy": "Cache paths are derived from encoded identifiers or hashes and cannot contain caller-controlled traversal segments."
+  },
+  "acquisition_policy": {
+    "default": "index_metadata_only",
+    "payload_triggers": [
+      "explicit public inspection",
+      "approved research or AAA job",
+      "operator pin",
+      "bounded prefetch from measured public interest"
+    ],
+    "forbidden": [
+      "bulk Gaia archive mirror",
+      "bulk TIC mirror",
+      "unbounded light-curve mirror",
+      "unbounded spectrum mirror",
+      "payload blobs in CORE or ARM hot databases"
+    ]
+  }
+}

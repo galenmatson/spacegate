@@ -1077,12 +1077,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   releases with atomic manifests, checksums, source metadata, and verification
 - [x] E1: add source-specific typed parser versioning, fail-closed field/row
   accounting, and machine-readable typed coverage/error reporting
-- [ ] E1: close the 22 explicit fixed-width, archive, FITS, SQL-row, and
+- [x] E1: close the 22 explicit fixed-width, archive, FITS, SQL-row, and
   documented-text parser gaps without dropping source-native fields
-- [ ] E1: implement immutable raw snapshots and source-native typed
+- [x] E1: implement immutable raw snapshots and source-native typed
   Parquet/Arrow cooks with exact queries, checksums, schemas, counts, units,
   uncertainty/limit semantics, citations, licenses, and clean-state determinism
-- [ ] E1: implement metadata-first/on-demand storage for spectra, light curves,
+- [x] E1: implement metadata-first/on-demand storage for spectra, light curves,
   atmosphere spectra, and imagery rather than bulk hot-database ingestion
 - [ ] E2: implement a release-scoped identity/scope graph with permanent
   Spacegate object IDs and explicit accepted/missing/excluded/ambiguous/

@@ -1196,8 +1196,8 @@ July 17, 2026 catalog-wide follow-up:
 
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
-Status: active on `feature/evidence-lake-v2`. E0 completed July 18, 2026; E1 is
-in progress.
+Status: active on `feature/evidence-lake-v2`. E0 and E1 completed July 18,
+2026; E2 is next.
 
 Goal:
 
@@ -1271,14 +1271,25 @@ Exit criteria:
 
 Current status (July 18, 2026):
 
-- all 25 available non-planned releases have immutable raw snapshots with 392
-  files and about 11 GiB of content; mutable legacy aliases were copied rather
-  than hard-linked into the immutable store
-- 25 source-native tables currently type and verify; 22 documented fixed-width,
-  archive, FITS, SQL-row, or text tables remain explicitly parser-pending
+- all 25 available non-planned releases have immutable raw snapshots with 59
+  artifacts, 403 files, and 10.41 GiB of active content; mutable legacy aliases
+  were copied rather than hard-linked into the immutable store
+- all fixed-width, archive, FITS, SQL-row, and documented-text gaps are closed;
+  68 typed tables account for 48,936,930 rows and all 59 raw artifacts with zero
+  pending tables
 - NASA 683-column CSV shape, TESS MAST schema drift across null-only batches,
   and AT-HYG two-part continuation behavior now have regression tests and
   fail-closed accounting
+- official WDS/CDS schemas drive lexical parsing; MSC notes, all 35 ORB6
+  fields, ATNF repeats/comments/glitches/references, Green SNR limits, and all
+  161 white-dwarf FITS columns and alternative atmosphere fits are retained
+- the clean-state reproduction gate matches content, schema, row-count, and
+  Parquet hashes for all 25 releases; deterministic single-thread ordered
+  serialization fixed the nondeterministic large Gaia/TESS output it exposed
+- metadata-first observation-product indexing and bounded on-demand cache
+  behavior are pinned by
+  `config/evidence_lake/observation_product_policy.json`; source-specific
+  product indexes are acquired in E3 and normalized in E4
 
 #### M8.3c-E2. Release-Scoped Identity and Scope Graph
 

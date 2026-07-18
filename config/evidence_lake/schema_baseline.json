@@ -15,6 +15,20 @@
       "source_name": "vsx_dat"
     },
     {
+      "artifact": "state://raw/vsx/ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "91e10ddb8b5fe6efa5fd39b3ec66ecfd6c06f6e04e0549056317a19695a246a7",
+      "manifest": "vsx_manifest.json",
+      "release_id": "rolling_snapshot_20260709",
+      "schema_kind": "documented_fixed_width",
+      "schema_sha256": "cd77c6820614e9760929b5531969b31fe0634591db5981b78854bd014e870ea4",
+      "source_id": "classification.vsx",
+      "source_name": "vsx_readme"
+    },
+    {
       "artifact": "state://raw/clusters/nodup.dat.gz",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -27,6 +41,20 @@
       "schema_sha256": "7e7c86efdc8af6cf04201e887188b9f4886d8a8dc742e2c95c1e9d21158dd97e",
       "source_id": "clusters.cantat_gaudin_2020",
       "source_name": "cantat_gaudin_2020_members"
+    },
+    {
+      "artifact": "state://raw/clusters/ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "4551d27383352ab18b5edf913a26361692120e2884c9a01c71220386af9a647e",
+      "manifest": "clusters_manifest.json",
+      "release_id": "aa_640_a1",
+      "schema_kind": "vizier_readme_fixed_width",
+      "schema_sha256": "7e7c86efdc8af6cf04201e887188b9f4886d8a8dc742e2c95c1e9d21158dd97e",
+      "source_id": "clusters.cantat_gaudin_2020",
+      "source_name": "cantat_gaudin_2020_readme"
     },
     {
       "artifact": "state://raw/clusters/table1.dat",
@@ -212,6 +240,20 @@
       "source_name": "barnard_vii_220a"
     },
     {
+      "artifact": "state://raw/extended_objects/vizier/VII_220A_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "0e3712b7ced37610a36123436acce1d6b4d71189b88f008bfc60faa8352045f4",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "barnard_vii_220a_readme"
+    },
+    {
       "artifact": "state://raw/extended_objects/vizier/VII_231_catalog.dat",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -224,6 +266,20 @@
       "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
       "source_id": "extended.openngc_and_nebulae",
       "source_name": "cederblad_vii_231"
+    },
+    {
+      "artifact": "state://raw/extended_objects/vizier/VII_231_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "efb147ffbbdcebc3d766e16ff44b16e280c4a3aff2023f524f34937b6ded9f79",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "cederblad_vii_231_readme"
     },
     {
       "artifact": "state://raw/extended_objects/vizier/VII_9_catalog.dat",
@@ -240,6 +296,20 @@
       "source_name": "lbn_vii_9"
     },
     {
+      "artifact": "state://raw/extended_objects/vizier/VII_9_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "f63e54eab663e1e21b553b56caca99f497dd5903912d2162f95e3edff6347071",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "lbn_vii_9_readme"
+    },
+    {
       "artifact": "state://raw/extended_objects/vizier/VII_7A_ldn",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -254,6 +324,20 @@
       "source_name": "ldn_vii_7a"
     },
     {
+      "artifact": "state://raw/extended_objects/vizier/VII_7A_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "2d87ae5873240d401ff3bcf89015e2c97666e60a5ea161bbdeb7918add389eb7",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "ldn_vii_7a_readme"
+    },
+    {
       "artifact": "state://raw/extended_objects/vizier/J_A+A_399_141_table1.dat",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -266,6 +350,20 @@
       "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
       "source_id": "extended.openngc_and_nebulae",
       "source_name": "magakian_2003"
+    },
+    {
+      "artifact": "state://raw/extended_objects/vizier/J_A+A_399_141_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "bd44dec42b2ed482a2ec689c590e9d6a9ecb24d454238b09a443fb42e05f9c56",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "magakian_2003_readme"
     },
     {
       "artifact": "state://raw/extended_objects/openngc/addendum.csv",
@@ -310,6 +408,20 @@
       "source_name": "sharpless_vii_20"
     },
     {
+      "artifact": "state://raw/extended_objects/vizier/VII_20_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "33f43604a70374b32bc23af1362f7c5e9f3d69e52393dfddd28cae0f7c766989",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "sharpless_vii_20_readme"
+    },
+    {
       "artifact": "state://raw/extended_objects/vizier/VII_21_catalog.dat",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -322,6 +434,20 @@
       "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
       "source_id": "extended.openngc_and_nebulae",
       "source_name": "vdb_vii_21"
+    },
+    {
+      "artifact": "state://raw/extended_objects/vizier/VII_21_ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "0ce6bb16ec51538c18b9f53a91fa008883d424e18b411ef3014f7a79173c1527",
+      "manifest": "extended_objects_manifest.json",
+      "release_id": "spacegate_snapshot_20260713",
+      "schema_kind": "mixed_documented_tables",
+      "schema_sha256": "c8301fa995840e66e991fbb3948cdb3793beedbf548bdd541acfbeca376afcbb",
+      "source_id": "extended.openngc_and_nebulae",
+      "source_name": "vdb_vii_21_readme"
     },
     {
       "artifact": "state://raw/gaia_classprob/gaia_dr3_astrophysical_classprob.csv",
@@ -770,6 +896,20 @@
       "schema_sha256": "f3b94c1e631bd497536f3da83332465ec31147ea5b5e90cc2e49dac07f9c1f75",
       "source_id": "multiplicity.sbx",
       "source_name": "sbx_systems"
+    },
+    {
+      "artifact": "state://raw/wds/wdsweb_format.txt",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "2a68bcc1ffea255c446e5d2806ca5f0360d57a37cb505e17fa531028cb6894b4",
+      "manifest": "wds_manifest.json",
+      "release_id": "rolling_snapshot",
+      "schema_kind": "documented_fixed_width",
+      "schema_sha256": "cd77c6820614e9760929b5531969b31fe0634591db5981b78854bd014e870ea4",
+      "source_id": "multiplicity.wds",
+      "source_name": "wdsweb_format"
     },
     {
       "artifact": "state://raw/wds/wdsweb_summ2.txt",
@@ -11985,6 +12125,20 @@
       "source_name": "table4"
     },
     {
+      "artifact": "state://raw/gaia_ucd/ReadMe",
+      "artifact_kind": "file",
+      "default_disposition": "preserve",
+      "field_accounting": "raw_preserved_documented_schema",
+      "fields": [],
+      "format_contract_sha256": "017a29eac7a14ad9c2691eb8e5c802c0fd68817013c0d784da4f0a4dd1cf1bae",
+      "manifest": "gaia_ucd_manifest.json",
+      "release_id": "aa_669_a139_table4",
+      "schema_kind": "vizier_readme_fixed_width",
+      "schema_sha256": "7e7c86efdc8af6cf04201e887188b9f4886d8a8dc742e2c95c1e9d21158dd97e",
+      "source_id": "ultracool.gaia_dr3_sample",
+      "source_name": "table4_readme"
+    },
+    {
       "artifact": "state://raw/ultracoolsheet/ultracoolsheet_main.csv",
       "artifact_kind": "file",
       "default_disposition": "preserve",
@@ -12490,5 +12644,5 @@
   ],
   "registry_version": "2026-07-18.1",
   "schema_version": "spacegate.evidence_schema_snapshot.v1",
-  "snapshot_sha256": "b8f99b28d134d7bcd8b5145885e2f92167c7eb74811b8c93a9abd698e10c5833"
+  "snapshot_sha256": "037f3c98ecb4cdb990a01de53d746072233a1a68c5bc4b50d4e912ea9889e184"
 }
