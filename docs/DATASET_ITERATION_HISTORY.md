@@ -852,6 +852,30 @@ Representative commits:
 - Full report and acceptance gates:
   `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`.
 
+### 29) Evidence Lake v2 Main-Quest Promotion
+
+- The July 17 catalog-wide utilization audit showed that the conservative v1
+  collector/cooker omitted or stranded foundational Gaia physical parameters,
+  source-native planet observations, multiplicity/orbit values, cluster
+  cross-release identity, and compact/variability evidence. Several downstream
+  derived or assumed values therefore ran when richer source evidence existed
+  upstream.
+- On July 18, 2026, the project promoted Evidence Lake v2 from a bounded
+  catalog-utilization rebuild to the current main quest. The accepted plan is
+  `docs/EVIDENCE_LAKE_V2.md`; staged delivery and acceptance are tracked as
+  M8.3c-E0 through E7 in `docs/MILESTONES.md` and `docs/CHECKLIST.md`.
+- This is a collector, cooker, evidence, selection, and build-compilation
+  redesign, not a rejection of the permanent identity graph, CORE/ARM/DISC/RIM
+  boundaries, immutable build model, provenance/quarantine rules, or the
+  prohibition on named-object production transforms.
+- Source model estimates remain model estimates. The new compiler will prefer
+  acceptable source evidence over coarse Spacegate fallbacks while preserving
+  method, assumptions, uncertainty, coherent parameter sets, alternatives, and
+  conflicts instead of treating every catalog scalar as direct ground truth.
+- Public evidence inspection and interactive image/spectrum/light-curve tools
+  are recorded as later M8.3d/M8.3e objectives. They depend on stable evidence
+  and observation-product contracts and do not expand the foundation rebuild.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

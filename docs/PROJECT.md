@@ -22,9 +22,12 @@ longer a canonical inventory source; its remaining role is transitional alias
 and compatibility enrichment.
 
 The public map now uses versioned spatial tiles and LOD loading through the
-1,000 ly radius. The next main-quest milestone is the Concept Tag foundation,
-followed by a secure, citation-backed, reviewed AI Astronomy Agency vertical
-slice before any broad autonomous ingestion or public narration.
+1,000 ly radius. The current main-quest milestone is Evidence Lake v2: rebuild
+catalog acquisition, source-native cooking, identity/scope reconciliation,
+typed evidence, and deterministic value selection so the next canonical build
+uses the richest defensible source data before presentation assumptions. The
+Concept Tag foundation and a secure, citation-backed, reviewed AI Astronomy
+Agency vertical slice follow that scientific checkpoint.
 
 ## Core Principles
 
@@ -55,6 +58,7 @@ slice before any broad autonomous ingestion or public narration.
 Operational runbook:
 
 - ingest failure recovery + runtime tuning: `docs/INGEST_RECOVERY.md`
+- evidence-lake redesign: `docs/EVIDENCE_LAKE_V2.md`
 - 3D map runtime: `docs/3D_MAP.md`
 - system simulation contract: `docs/SYSTEM_SIMULATION.md`
 
@@ -863,6 +867,8 @@ Operational status:
 - `docs/SCHEMA_DISC.md`: disc contract
 - `docs/SCHEMA_RIM.md`: rim contract
 - `docs/SLICE_PROFILES.md`: slice profile catalog and SLO acceptance gates
+- `docs/EVIDENCE_LAKE_V2.md`: active source-lake, evidence, selection, and
+  canonical shadow-build plan
 - `docs/PUBLIC_DEPLOYMENT.md`: Photon-to-antiproton public deployment runbook
 - `docs/DATA_SOURCES.md`: source inventory and retrieval policy
 - `docs/TESS_INTEGRATION.md`: bounded TIC/TOI identity, inventory recovery,
@@ -980,33 +986,25 @@ Notes:
 
 ## Immediate Next Actions
 
-1. Observe the deployed M8.1.4 checkpoint and resolve only stability regressions
-   that materially affect it. Antiproton first served and passed public
-   100/250-ly verification on build
-   `20260714T191900Z_d873067_side_rebuild`, then atomically promoted the accepted
-   500/1,000-ly build `20260715T015659Z_e392a11_side_rebuild` on July 15, 2026.
-   This preserved an independently observable rollback checkpoint instead of
-   combining both production changes. A later code-only deployment added the
-   general build-keyed simulation-scene runtime cache and same-scene request
-   coalescing while retaining that exact served science build.
-2. Finish publication/retention bookkeeping for the deep build without removing
-   the stable served fallback. Keep build archives and current metadata aligned
-   with the runtime pointer, and treat antiproton's limited disk as a hard
-   operational budget.
-3. Return to the main quest after resolving only stability regressions that
-   materially affect the deployed checkpoint. Castor, V1054 Oph, and Tegmine
-   simulation goldens now match the preserved science checkpoint without
-   changing canonical membership or manufacturing unresolved hierarchy edges.
-4. Treat the completed M8.2a extended-object science foundation as the typed
-   data boundary for later non-stellar map layers; keep rendering deferred.
-5. Build the Concept Tag Foundation so compact/normal/expanded tag priority and
-   concept slugs are stable before reviewed Agency narration is published.
-6. Implement one secure AAA evidence-portfolio vertical slice with source-text
+1. Preserve the deployed M8.1.4 checkpoint as the stability reference and
+   resolve only material production regressions while the scientific rebuild
+   proceeds in parallel.
+2. Execute M8.3c Evidence Lake v2 through the staged plan in
+   `docs/EVIDENCE_LAKE_V2.md`, beginning with retention/storage budgets, source
+   and field accounting, immutable raw snapshots, and source-native schemas
+   before another full canonical rebuild.
+3. Build the release-scoped identity/scope graph, typed evidence tables, and
+   versioned selection/derivation compiler. Shadow-build CORE/ARM/DISC and
+   review the complete A/B scientific diff before promotion or deployment.
+4. Build the Concept Tag Foundation after the evidence contract is stable so
+   public tags are driven by selected, provenance-bearing facts.
+5. Implement one secure AAA evidence-portfolio vertical slice with source-text
    isolation, typed claims, citations, human review, and explicit publication
    state.
-7. Restore deterministic snapshot-manifest coverage in the next public sliced
-   build; the current local side build has live/no-WebGL behavior but no map
-   snapshot rows.
+6. Later, expose the selected and competing evidence through a collapsed System
+   Page inspector, then build interactive source-attributed spectrum, light-
+   curve, image, and atmosphere-analysis labs with scientifically safe
+   gamification.
 
 ## Layered Restabilization Status (March 6, 2026)
 

@@ -41,15 +41,16 @@ Fiction overlays are first-class product features, but must remain fully separat
 
 ## Dependency Graph (High Level)
 
-1. Gaia-first canonical `core`
-2. Deterministic served slices and API performance
-3. Multiplicity hierarchy reliability
-4. Disc factual layer (scores/facts/links)
-5. Visual storytelling (snapshots + generated imagery)
-6. 3D runtime and deep navigation
-7. Rim/worldbuilding tooling
-8. Procedural system generation tools
-9. Community/engagement overlays
+1. Release-scoped source lake, identity graph, and typed evidence compiler
+2. Gaia-first canonical `core`
+3. Deterministic served slices and API performance
+4. Multiplicity hierarchy reliability
+5. Disc factual layer (scores/facts/links)
+6. Visual storytelling (snapshots + generated imagery)
+7. 3D runtime and deep navigation
+8. Rim/worldbuilding tooling
+9. Procedural system generation tools
+10. Community/engagement overlays
 
 Downstream milestones must not bypass upstream quality gates.
 
@@ -1193,46 +1194,263 @@ July 17, 2026 catalog-wide follow-up:
   evidence families. These should land as one evidence bundle before another
   full canonical rebuild, not as one-field rebuilds.
 
-### M8.3c. Catalog Evidence Utilization v2
+### M8.3c. Evidence Lake v2 (Current Main Quest)
 
-Status: audited and planned; implementation pending.
+Status: architecture accepted July 18, 2026; implementation pending on
+`feature/evidence-lake-v2`.
 
 Goal:
 
-- make the next full canonical rebuild consume the high-value evidence already
-  present in active catalogs, plus a bounded Gaia physical-parameter refresh,
-  without broadening CORE authority or introducing named-object transforms.
+- replace the conservative, field-losing catalog collector/cooker path with a
+  release-scoped scientific evidence compiler that preserves the richest useful
+  source data, selects public facts reproducibly, and uses derivations or
+  assumptions only when acceptable evidence is absent.
 
-Plan:
+Plans:
 
+- `docs/EVIDENCE_LAKE_V2.md`
 - `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`
+
+Preserved foundations:
+
+- permanent Spacegate identity and hierarchy contracts
+- CORE/ARM/DISC/RIM ownership boundaries
+- immutable snapshots/builds, provenance, quarantine, and deterministic gates
+- no named-object production transforms
+- current public build as the A/B stability reference
+
+#### M8.3c-E0. Registry, Retention, and Storage Foundation
 
 Deliverables:
 
-- shared full-canonical Gaia DR2-to-DR3 reconciliation for open-cluster and
-  remaining DR2 fallback identities, with exhaustive outcome reports
-- pinned Gaia AP/FLAME/evolution/extinction/activity extract and expanded Gaia
-  NSS fitted-parameter/uncertainty evidence in ARM
-- exhaustive ORB6 preservation/reconciliation and shared DEBCat component
-  physical evidence
-- typed NASA planet physical observations with limits, uncertainties,
-  references, transit observables, and best-mass provenance
-- ARM-native compact-object spin/activity, white-dwarf alternative-model,
-  open-cluster physical, SNR flux, and TESS EB sector/flag/Tmag evidence
-- explicit M5.3 lifecycle-policy reconciliation before rebuild
-- deterministic A/B canonical rebuild, public slice, source-accounting report,
-  and HZ source/prior/missing comparison
+- source-release registry with authority roles, licenses, retrieval contracts,
+  schema snapshots, cadence, completeness gates, and storage classes
+- field-disposition registry accounting for every upstream field as preserved,
+  normalized, index-only, or deliberately omitted with a reason
+- retention audit and explicit raw/typed/build/report/product-cache budgets
+- uncertainty-aware ingestion-envelope policy around the public 1,000-ly sphere
+- schema-drift and source-release delta reports
+
+Exit criteria:
+
+- the next acquisition cannot silently omit an upstream field or change schema
+- served, rollback, published, referenced, and unique-source artifacts remain
+  protected before storage is reclaimed
+
+#### M8.3c-E1. Immutable Raw and Source-Native Typed Lake
+
+Deliverables:
+
+- byte-preserving raw snapshots with exact queries/URLs, timestamps, checksums,
+  schemas, counts, manifests, citations, and licenses
+- independently cooked typed Parquet/Arrow for each source release, preserving
+  record identity, parameter-set/reference grouping, component scope, epochs,
+  frames, units, flags, uncertainty, and limit semantics
+- clean-state raw-to-typed reproduction, row accounting, and determinism gates
+- metadata-first/on-demand policy for bulk spectra, light curves, and imagery
+
+Exit criteria:
+
+- source-native data can be reproduced and inspected without CORE, ARM, or a
+  source-selection policy
+- DuckDB remains a replaceable compiler/query engine rather than the sole
+  durable scientific representation
+
+#### M8.3c-E2. Release-Scoped Identity and Scope Graph
+
+Deliverables:
+
+- source/release-scoped identifier nodes and provenance-bearing crossmatch edges
+- permanent Spacegate object IDs independent of any Gaia release identifier
+- separate outcomes for physical identity, system containment, component scope,
+  observation target scope, and alias/public-name scope
+- full Gaia DR2-to-DR3 neighborhood/crossmatch reconciliation for clusters and
+  every remaining DR2 fallback path
+- exhaustive accepted/missing/excluded/ambiguous/quarantined reports
+
+Exit criteria:
+
+- no DR2 identifier is treated as a DR3 identifier by direct equality
+- every attempted binding has an explicit outcome and no source relation claim
+  silently becomes canonical containment
+
+#### M8.3c-E3. Foundational Source Acquisition
+
+Deliverables:
+
+- bounded Gaia DR3 physical-parameter, NSS, variability/activity/rotation, and
+  official external-crossmatch source releases
+- documented distance-estimate evidence for boundary and uncertain-astrometry
+  use without replacing source astrometry or identity
+- SIMBAD/GCVS/VSX/IAU source roles for aliases, bibliography, and name scope
+- current Gaia cluster membership/physical evidence and probability-bearing
+  Gaia wide-binary evidence
+- complete relevant NASA planet, host, candidate/status, TOI, transit, and RV
+  metadata
+- matched Gaia/APOGEE/GALAH/LAMOST stellar-physics evidence with source-native
+  flags and parameter sets
+- existing multiplicity, compact-object, ultracool, variability, and extended-
+  object sources migrated into the same source contract
+
+Exit criteria:
+
+- acquisition coverage and deliberate omissions are machine-accounted by
+  source, field, object scope, and scientific objective
+- large observation products are discoverable and retrievable without requiring
+  an unbounded local mirror
+
+#### M8.3c-E4. Typed Evidence Contracts
+
+Deliverables:
+
+- domain tables for stellar parameters/classifications, astrometry/distances,
+  photometry/extinction, spectra indexes, variability/activity/rotation,
+  relation claims/orbits, clusters, planets/transits/RV, compact objects,
+  extended objects, citations, and observation-product lineage
+- source record, component binding, method/model, reference, epoch, uncertainty,
+  quality, raw value/unit, normalized value/unit, and lineage on every evidence
+  contract where applicable
+- exhaustive ORB6 reconciliation, DEBCat component physics, Gaia NSS fitted
+  parameters, NASA physical observations, compact spin/activity, white-dwarf
+  alternatives, cluster context, SNR flux, and TESS EB metadata
+- explicit M5.3 lifecycle-policy reconciliation and negative/tombstone evidence
+
+Exit criteria:
+
+- no scientifically useful active cooked evidence remains stranded without a
+  typed destination or deliberate exclusion reason
+- component- and parameter-set scope prevent system-to-member leakage and
+  accidental field-wise composites
+
+#### M8.3c-E5. Selection and Derivation Compiler
+
+Deliverables:
+
+- versioned, per-quantity authority and applicability policies
+- coherent parameter-set selection with alternatives and conflicts preserved
+- selected-fact lineage pointing to exact evidence or derivation records
+- derivation inventory covering every current inferred/assumed value, with
+  inputs, algorithm version, applicability, uncertainty/confidence, and
+  supersession state
+- automatic detection when an empirical or presentation fallback wins despite
+  acceptable higher-authority evidence
+- shared selected-fact consumers for HZ, planet categories, classification,
+  simulations, search, map, API, tags, and later AAA packets
+
+Exit criteria:
+
+- source, derived, empirical, and presentation-prior values cannot be confused
+- UI and renderer code no longer make independent scientific selections
+- improved evidence measurably reduces unnecessary fallback utilization without
+  converting model estimates into falsely labeled direct measurements
+
+#### M8.3c-E6. Shadow Canonical Build and Scientific A/B Review
+
+Deliverables:
+
+- deterministic shadow CORE/ARM/hierarchy/DISC build and public slice
+- machine and human-reviewable A/B reports for inventory, identity, hierarchy,
+  aliases, stellar parameters, classifications, fallback use, luminosity/HZ,
+  planets, orbits, clusters, variability, compact objects, APIs, search, map,
+  simulations, storage, and performance
+- named goldens used only as observations of general policy, never as transform
+  conditions
+- clean-state reproducibility and source/field/identity accounting reports
+
+Exit criteria:
+
+- every inventory or selected-fact delta is attributable to a reusable policy
+  and evidence lineage
+- canonical planet counts/status remain uncontaminated
+- deterministic rebuild, public slice, API/search/map/simulation, and storage
+  budgets pass
+
+#### M8.3c-E7. Promotion, Cutover, and Legacy Retirement
+
+Deliverables:
+
+- reviewed atomic local promotion with the previous build retained for rollback
+- stable public deployment checkpoint only after explicit operator review
+- removal or formal deprecation of old collectors, cookers, stranded schemas,
+  and duplicated selection/fallback paths
+- updated source, schema, ingest, retention, iteration-history, API, and
+  operational documentation
+- Gaia DR4 release adapter plan using the same release-scoped contracts rather
+  than tying permanent identities or evidence schemas to DR3
 
 Success criteria:
 
-- every targeted source row is either preserved or explicitly accounted for
-- no Gaia DR2 ID is treated as a Gaia DR3 ID by direct equality
-- HZ and planet presentation consume typed source evidence without obscuring
-  source/derived/prior status
-- canonical inventory and planet counts remain stable unless a reusable,
-  reviewed inventory rule justifies a change
-- the evidence bundle needs one full canonical rebuild and one deployment
-  checkpoint rather than a sequence of catalog-specific rebuilds
+- Evidence Lake v2 is the only production scientific compilation path
+- a clean build can reproduce the served projection from pinned inputs
+- every selected public fact is inspectable back to evidence or a versioned
+  derivation
+- no deployment to antiproton occurs until E0-E6 pass and the user accepts the
+  scientific A/B checkpoint
+
+### M8.3d. Public Evidence Inspector (Later)
+
+Goal:
+
+- make Spacegate's selected values, competing evidence, and provenance
+  inspectable without overwhelming the primary System Page narrative.
+
+Dependencies:
+
+- M8.3c stable public evidence API and selected-fact lineage
+- Concept Tag presentation vocabulary stable enough for plain-language context
+
+Deliverables:
+
+- collapsed evidence section low on the System Page
+- selected value and reason, uncertainty, method/model, source, reference, and
+  retrieval/release lineage
+- expandable competing values, conflicts, limits, negative evidence, and
+  superseded derivations
+- object/component focus, accessible tables, citation/linkouts, copy controls,
+  and explicit source-versus-derived language
+- bounded summary API plus paginated detail so pages do not ship the evidence
+  lake by default
+
+Success criteria:
+
+- visitors can determine which value Spacegate chose, why, and what credible
+  alternatives exist
+- collapsed-by-default presentation adds negligible initial System Page cost
+- evidence display never implies that a selected model estimate is a direct
+  measurement or that a conflict has disappeared
+
+### M8.3e. Interactive Observation Labs (Later)
+
+Goal:
+
+- let visitors inspect real images, spectra, exoplanet atmosphere spectra,
+  light curves, and related observations through scientifically grounded,
+  accessible tools.
+
+Dependencies:
+
+- M8.3c observation-product indexes, calibration metadata, and lineage
+- M8.3d public provenance patterns
+- Concept Tag and explanatory presentation foundations
+
+Deliverables:
+
+- reusable observation-product viewer contract with attributed remote or cached
+  products, checksums, calibration context, units, uncertainty, and citations
+- first spectrum analyzer with pan/zoom, wavelength/unit modes, line overlays,
+  radial-velocity/redshift context, comparison spectra, and element explanations
+- light-curve/transit inspector and image/multi-wavelength viewer using the same
+  product and provenance contract
+- curated game-like learning missions such as identifying lines, locating a
+  transit, or comparing model spectra, with caveats and explanations
+- saved progress/scoring in presentation or community state only; visitor
+  guesses never alter canonical science or accepted evidence
+
+Success criteria:
+
+- real observations remain distinguishable from models and annotations
+- interactive tools are useful without requiring bulk products in hot databases
+- gamification rewards conceptual understanding rather than false precision
 
 ### M8.4. Admin Map Overlay and AAA Research Promotion
 

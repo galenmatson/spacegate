@@ -1059,27 +1059,87 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   simulations, map taxonomy, current milestones, and AAA goals; emit a reusable
   machine-readable report and document the single-rebuild evidence bundle in
   `docs/SOURCE_CATALOG_UTILIZATION_AUDIT_2026-07-17.md`
+
+### E1. Evidence Lake v2 (Current Main Quest)
+
+- [x] Accept Evidence Lake v2 as the main-quest replacement for the narrower
+  Catalog Evidence Utilization v2 rebuild and document the architecture in
+  `docs/EVIDENCE_LAKE_V2.md`
+- [ ] E0: define the source-release registry, per-domain authority matrix,
+  complete upstream-field disposition registry, schema-drift policy, and
+  uncertainty-aware 1,000-ly ingestion envelope
 - [ ] Run the retention audit before the next full build; preserve served,
   rollback, published, referenced, and unique-source artifacts while reducing
   the current 817 GB immutable `out/` footprint through the documented process
-- [ ] Implement full-canonical Gaia DR2-to-DR3 membership reconciliation for
-  open clusters and all remaining DR2 fallback paths; account for every row
-  without direct DR2/DR3 ID equality
-- [ ] Acquire pinned Gaia AP/FLAME/evolution/extinction/activity evidence and
-  expand Gaia NSS fitted-parameter/uncertainty acquisition; project values,
-  bounds, flags, and methods into ARM
-- [ ] Preserve and exhaustively reconcile all ORB6 rows, and project accepted
-  DEBCat component physical parameters into shared ARM stellar evidence
-- [ ] Materialize typed NASA planet physical observations with uncertainty,
-  limit, reference, transit, density, and best-mass-provenance semantics
-- [ ] Preserve native ATNF/magnetar spin and activity, white-dwarf alternative
-  fits, open-cluster physical context, SNR radio flux, and TESS EB
-  sector/source/flag/Tmag evidence in ARM
-- [ ] Reconcile the default-disabled exoplanet lifecycle sources with the M5.3
-  contract before the next full rebuild
-- [ ] Complete one deterministic Catalog Evidence Utilization v2 canonical
-  rebuild and public slice; compare HZ evidence basis, planet-category deltas,
-  source accounting, and inventory stability before deployment
+- [ ] E0: set explicit raw, typed, build, report, document, and observation-
+  product cache budgets; verify backup policy before large acquisition
+- [ ] E1: implement immutable raw snapshots and source-native typed
+  Parquet/Arrow cooks with exact queries, checksums, schemas, counts, units,
+  uncertainty/limit semantics, citations, licenses, and clean-state determinism
+- [ ] E1: implement metadata-first/on-demand storage for spectra, light curves,
+  atmosphere spectra, and imagery rather than bulk hot-database ingestion
+- [ ] E2: implement a release-scoped identity/scope graph with permanent
+  Spacegate object IDs and explicit accepted/missing/excluded/ambiguous/
+  quarantined outcomes
+- [ ] E2: reconcile Gaia DR2-to-DR3 membership and every remaining DR2 fallback
+  through the official crossmatch/neighborhood path; forbid direct ID equality
+- [ ] E3: acquire the bounded Gaia AP/FLAME/evolution/extinction/activity,
+  variability/rotation, expanded NSS, official crossmatch, and distance evidence
+- [ ] E3: acquire/migrate current Gaia cluster and probability-bearing wide-
+  binary evidence, SIMBAD/GCVS/VSX/IAU naming/bibliography roles, and all active
+  multiplicity/compact/ultracool/extended sources under the new contracts
+- [ ] E3: acquire complete relevant NASA reference-specific/composite planet,
+  host, TOI, Kepler/K2 candidate/status, transit, and RV metadata plus matched
+  APOGEE/GALAH/LAMOST stellar-physics evidence
+- [ ] E4: materialize typed stellar, astrometric/distance, photometric,
+  spectra-product, variability/activity/rotation, multiplicity/orbit, cluster,
+  planet/transit/RV, compact-object, extended-object, citation, and product-
+  lineage evidence contracts
+- [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
+  Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
+  provenance, compact spin/activity, white-dwarf alternatives, cluster context,
+  SNR flux, and TESS EB sector/flag/Tmag evidence
+- [ ] E4: reconcile default-disabled exoplanet lifecycle sources with M5.3 and
+  retain negative evidence, conflicts, transitions, and tombstones
+- [ ] E5: implement versioned per-quantity selection policies that prefer
+  coherent parameter sets, preserve alternatives/conflicts, and point every
+  selected fact to exact evidence
+- [ ] E5: inventory every current derivation and presentation prior; record
+  inputs, algorithm/applicability, uncertainty/confidence, supersession, and
+  fail when a fallback wins despite acceptable higher-authority evidence
+- [ ] E5: make HZ, classifications, planet categories, simulations, search,
+  map, API, tags, and future AAA packets consume the shared selected-fact
+  projection rather than independent scientific fallback logic
+- [ ] E6: produce a deterministic shadow CORE/ARM/hierarchy/DISC build and
+  public slice with complete inventory, identity, evidence, fallback, HZ,
+  planet, orbit, API/search/map/simulation, storage, and performance A/B reports
+- [ ] E6: review and account for every scientific delta using reusable policy;
+  preserve canonical planet/status integrity and prohibit named-object
+  transforms used only to satisfy goldens
+- [ ] E7: locally promote the accepted Evidence Lake v2 build atomically with a
+  tested rollback, then retire or formally deprecate duplicate legacy
+  collectors, cookers, schemas, and selection/fallback paths
+- [ ] E7: update DATA_SOURCES, schema, ingest, retention, API, iteration-history,
+  operations, and Gaia DR4 adapter documentation before any public deployment
+
+### E2. Later Public Evidence and Observation Tools
+
+- [ ] Add a collapsed evidence inspector low on the System Page after M8.3c:
+  show the selected value and reason first, then expandable competing values,
+  uncertainty, limits, conflicts, source/model/reference, component scope, and
+  lineage through a bounded/paginated API
+- [ ] Build a reusable source-attributed observation-product viewer contract
+  for images, spectra, exoplanet atmosphere spectra, and light curves without
+  placing bulk products in hot served databases
+- [ ] Build the first interactive spectrum analyzer with pan/zoom, unit modes,
+  uncertainty, line overlays, radial-velocity/redshift context, comparison
+  spectra, and plain-language element-identification explanations
+- [ ] Add scientifically safe learning missions for identifying spectral lines,
+  finding transits, and comparing observations with models; keep scores/progress
+  in presentation/community state and never promote visitor guesses to evidence
+
+### E3. Remaining Product Roadmap
+
 - [x] Refresh map/system Playwright expectations for current naming, preview,
   Explorer, and fallback policies; full local map suite passes on photon
 - [x] Publish refreshed MSC archive into local Spacegate catalog mirror
