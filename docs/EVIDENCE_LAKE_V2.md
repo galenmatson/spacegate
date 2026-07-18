@@ -1,6 +1,25 @@
 # Spacegate Evidence Lake v2
 
-Status: active main-quest architecture plan (July 18, 2026).
+Status: active main quest. E0 completed July 18, 2026; E1 in progress.
+
+E0 checkpoint:
+
+- `config/evidence_lake/source_releases.json` registers 32 active,
+  transitional, expansion-pending, and planned source releases with domain
+  authority, identity, retrieval, license, schema, and storage contracts.
+- `config/evidence_lake/schema_baseline.json` pins 48 current manifest entries,
+  1,795 machine-enumerated fields, and exact format contracts for source formats
+  that still require E1 typed parsers. The baseline fingerprint is
+  `187e0d61b4cab40da328a8a0d5ac22dc17b32315e7f8a36f487f9f5b6e251e67`.
+- `scripts/evidence_lake_registry.py` emits registry/schema/field and storage
+  audits. Full-refresh preflight now fails on unregistered sources, schema
+  drift, missing active artifacts, or an acquisition-floor breach.
+- Reference-aware retention preserved 11 served/published/rollback lineage
+  builds and reclaimed 196.21 GiB of unreferenced immutable builds. Photon has
+  about 385 GiB free on `/data`, above the 300 GiB acquisition floor. The
+  separate 54 GiB scratch area was not pruned.
+- Machine reports are under
+  `/data/spacegate/state/reports/evidence_lake_v2/`.
 
 This plan replaces the narrow Catalog Evidence Utilization v2 rebuild with a
 clean, release-scoped collection and evidence-compilation architecture. It
@@ -53,6 +72,13 @@ Every source release must declare:
 
 The registry must make uncollected and unused upstream features visible. A new
 source release cannot silently drop or add scientifically relevant fields.
+
+Implementation:
+
+- `config/evidence_lake/source_releases.json`
+- `config/evidence_lake/schema_baseline.json`
+- `scripts/evidence_lake_registry.py`
+- `tests/test_evidence_lake_registry.py`
 
 ### E1. Immutable Raw and Source-Native Typed Lake
 

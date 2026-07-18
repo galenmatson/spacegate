@@ -102,6 +102,27 @@ Photon's current generous default:
 scripts/prune_state_retention.sh --keep-builds 12 --keep-reports 24 --apply
 ```
 
+Before applying retention, preserve every published, rollback, or otherwise
+referenced build reported by the Evidence Lake storage audit. Supply the set
+explicitly so an unserved but required checkpoint cannot be selected merely by
+age:
+
+```bash
+jq -r '.build_references | keys[]' \
+  /data/spacegate/state/reports/evidence_lake_v2/e0_storage_audit.json \
+  > /data/spacegate/state/reports/evidence_lake_v2/protected_builds.txt
+
+SPACEGATE_STATE_DIR=/data/spacegate/state \
+  scripts/prune_state_retention.sh \
+    --keep-builds 12 \
+    --keep-reports 24 \
+    --protect-file /data/spacegate/state/reports/evidence_lake_v2/protected_builds.txt
+```
+
+Review that dry run before adding `--apply`. The script always protects
+`served/current`; `--protect-build` and `--protect-file` extend that set for
+metadata references the retention script cannot safely infer on its own.
+
 Run retention only after successful promotion and verification. Do not run it
 during ingest or while diagnosing a failed build.
 

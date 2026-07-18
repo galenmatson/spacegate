@@ -12,6 +12,11 @@ fi
 STATE_DIR="${SPACEGATE_STATE_DIR:-${SPACEGATE_DATA_DIR:-$ROOT_DIR/data}}"
 MIN_FREE_GB="${SPACEGATE_REFRESH_MIN_FREE_GB:-80}"
 LOCK_PATH="$STATE_DIR/out/.ingest_core.lock"
+PYTHON_BIN="${SPACEGATE_PYTHON_BIN:-$ROOT_DIR/.venv/bin/python}"
+EVIDENCE_REGISTRY_GATE="${SPACEGATE_EVIDENCE_REGISTRY_GATE:-1}"
+EVIDENCE_REPORT_DIR="$STATE_DIR/reports/evidence_lake_v2"
+DOWNLOAD_DIR="${SPACEGATE_DL_ROOT:-$(dirname "$STATE_DIR")/dl}"
+BULK_DIR="${SPACEGATE_BULK_DIR:-/mnt/space/spacegate}"
 
 now_utc() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
@@ -51,6 +56,43 @@ require_path "$ROOT_DIR/scripts/ingest_core.sh"
 require_path "$ROOT_DIR/scripts/promote_build.sh"
 require_path "$ROOT_DIR/scripts/verify_build.sh"
 require_path "$ROOT_DIR/scripts/build_arm.py"
+
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="python3"
+fi
+
+if [[ "$EVIDENCE_REGISTRY_GATE" == "1" ]]; then
+  require_path "$ROOT_DIR/scripts/evidence_lake_registry.py"
+  require_path "$ROOT_DIR/config/evidence_lake/source_releases.json"
+  require_path "$ROOT_DIR/config/evidence_lake/schema_baseline.json"
+  mkdir -p "$EVIDENCE_REPORT_DIR"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/evidence_lake_registry.py" validate \
+    || fail "Evidence Lake source registry validation failed"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/evidence_lake_registry.py" audit \
+    --state-dir "$STATE_DIR" \
+    --report "$EVIDENCE_REPORT_DIR/e0_registry_audit.json" \
+    || fail "Evidence Lake source/schema audit failed"
+  "$PYTHON_BIN" "$ROOT_DIR/scripts/evidence_lake_registry.py" storage \
+    --state-dir "$STATE_DIR" \
+    --download-dir "$DOWNLOAD_DIR" \
+    --bulk-dir "$BULK_DIR" \
+    --report "$EVIDENCE_REPORT_DIR/e0_storage_audit_preflight.json" \
+    || fail "Evidence Lake storage audit failed"
+  if ! "$PYTHON_BIN" - "$EVIDENCE_REPORT_DIR/e0_storage_audit_preflight.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if not report.get("acquisition_ready"):
+    for alert in report.get("alerts") or []:
+        print(f"Evidence Lake storage alert: {alert}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+  then
+    fail "Evidence Lake storage acquisition gate failed"
+  fi
+fi
 
 if [[ -f "$LOCK_PATH" ]]; then
   lock_pid="$(awk -F= '/^pid=/{print $2; exit}' "$LOCK_PATH" 2>/dev/null || true)"

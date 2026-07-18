@@ -1,5 +1,19 @@
 # Spacegate Canonical Ingest Plan
 
+## Evidence Lake Preflight
+
+M8.3c E0 adds a required full-refresh preflight over
+`config/evidence_lake/source_releases.json` and its pinned schema baseline.
+Before source acquisition, `scripts/preflight_full_refresh.sh` verifies source
+and manifest registration, schema/field accounting, current artifacts, storage
+budgets, and the acquisition free-space floor. Set
+`SPACEGATE_EVIDENCE_REGISTRY_GATE=0` only for isolated legacy diagnosis; it is
+not an accepted production build configuration.
+
+The current CSV/fixed-width cookers remain the operational ingest path until E1
+source-native Parquet artifacts reproduce them. The preflight contract does not
+promote registry metadata or source fields into CORE.
+
 This document defines the clean-slate canonicalization pipeline that will replace the remaining AT-HYG-era assumptions in the current ingest flow.
 
 Status:

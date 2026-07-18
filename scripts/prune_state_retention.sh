@@ -11,6 +11,8 @@ KEEP_BUILDS=6
 KEEP_REPORTS=12
 APPLY=0
 PRUNE_TMP=1
+declare -a PROTECTED_BUILD_IDS=()
+declare -a PROTECTED_BUILD_FILES=()
 
 usage() {
   cat <<'EOF'
@@ -24,12 +26,17 @@ Options:
   --state-dir DIR      Override state dir.
   --keep-builds N      Keep newest N build directories in out/ (default: 6).
   --keep-reports N     Keep newest N build report directories in reports/ (default: 12).
+  --protect-build ID   Preserve this build and its report directory (repeatable).
+  --protect-file FILE  Preserve build IDs listed one per line (repeatable).
   --no-prune-tmp       Do not prune out/*.tmp directories.
   --apply              Perform deletions.
   -h, --help           Show help.
 
 Notes:
   - The currently served build is always kept.
+  - Published, rollback, or otherwise referenced builds must be supplied with
+    --protect-build/--protect-file. Evidence Lake storage reports enumerate the
+    referenced set; retention never guesses that an unserved build is safe.
   - Raw and cooked catalogs are untouched.
   - If some directories are root-owned, run with sufficient permissions.
 EOF
@@ -96,6 +103,14 @@ while [[ $# -gt 0 ]]; do
       KEEP_REPORTS="${2:-}"
       shift 2
       ;;
+    --protect-build)
+      PROTECTED_BUILD_IDS+=("${2:-}")
+      shift 2
+      ;;
+    --protect-file)
+      PROTECTED_BUILD_FILES+=("${2:-}")
+      shift 2
+      ;;
     --no-prune-tmp)
       PRUNE_TMP=0
       shift
@@ -114,6 +129,26 @@ while [[ $# -gt 0 ]]; do
       exit 2
       ;;
   esac
+done
+
+for protect_file in "${PROTECTED_BUILD_FILES[@]}"; do
+  if [[ ! -f "$protect_file" ]]; then
+    echo "Protected-build file not found: $protect_file" >&2
+    exit 2
+  fi
+  while IFS= read -r build_id || [[ -n "$build_id" ]]; do
+    build_id="${build_id%%#*}"
+    build_id="${build_id//[[:space:]]/}"
+    [[ -n "$build_id" ]] || continue
+    PROTECTED_BUILD_IDS+=("$build_id")
+  done < "$protect_file"
+done
+
+for build_id in "${PROTECTED_BUILD_IDS[@]}"; do
+  if [[ -z "$build_id" || "$build_id" == */* || "$build_id" == "." || "$build_id" == ".." ]]; then
+    echo "Invalid protected build ID: $build_id" >&2
+    exit 2
+  fi
 done
 
 if ! is_nonnegative_int "$KEEP_BUILDS"; then
@@ -157,6 +192,9 @@ done
 if [[ -n "$served_build_id" ]]; then
   keep_build_map["$served_build_id"]=1
 fi
+for build_id in "${PROTECTED_BUILD_IDS[@]}"; do
+  keep_build_map["$build_id"]=1
+done
 
 declare -a remove_build_paths=()
 for name in "${build_dirs[@]}"; do
@@ -183,6 +221,9 @@ done
 if [[ -n "$served_build_id" ]]; then
   keep_report_map["$served_build_id"]=1
 fi
+for build_id in "${PROTECTED_BUILD_IDS[@]}"; do
+  keep_report_map["$build_id"]=1
+done
 
 declare -a remove_report_paths=()
 for name in "${build_report_dirs[@]}"; do
@@ -195,6 +236,10 @@ total_reclaim=0
 echo "State dir: $STATE_DIR"
 echo "Served build: ${served_build_id:-"(none)"}"
 echo "Retention: keep_builds=$KEEP_BUILDS keep_reports=$KEEP_REPORTS prune_tmp=$PRUNE_TMP"
+if (( ${#PROTECTED_BUILD_IDS[@]} > 0 )); then
+  echo "Explicit protected builds (${#PROTECTED_BUILD_IDS[@]}):"
+  printf '  %s\n' "${PROTECTED_BUILD_IDS[@]}" | sort -u
+fi
 echo
 
 print_candidates() {

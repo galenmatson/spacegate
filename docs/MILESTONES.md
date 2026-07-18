@@ -1196,8 +1196,8 @@ July 17, 2026 catalog-wide follow-up:
 
 ### M8.3c. Evidence Lake v2 (Current Main Quest)
 
-Status: architecture accepted July 18, 2026; implementation pending on
-`feature/evidence-lake-v2`.
+Status: active on `feature/evidence-lake-v2`. E0 completed July 18, 2026; E1 is
+in progress.
 
 Goal:
 
@@ -1236,6 +1236,19 @@ Exit criteria:
 - the next acquisition cannot silently omit an upstream field or change schema
 - served, rollback, published, referenced, and unique-source artifacts remain
   protected before storage is reclaimed
+
+Current status (July 18, 2026):
+
+- machine-readable registry covers 32 source releases and all 48 current
+  manifest entries; the pinned baseline accounts for 1,795 machine-enumerated
+  fields and exact source-format contracts for E1 parser work
+- full-refresh preflight now gates registry validity, manifest completeness,
+  schema drift, field accounting, and the 300 GiB acquisition floor
+- retention added explicit protected-build inputs, preserved 11 referenced
+  lineage builds, reclaimed 196.21 GiB, and left raw/cooked/catalog/scratch
+  science state untouched; `/data` now has about 385 GiB free
+- current source-delta baseline accounts for 48 manifest entries with zero
+  unexplained changes after baseline update
 
 #### M8.3c-E1. Immutable Raw and Source-Native Typed Lake
 

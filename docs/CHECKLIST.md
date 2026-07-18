@@ -1065,13 +1065,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [x] Accept Evidence Lake v2 as the main-quest replacement for the narrower
   Catalog Evidence Utilization v2 rebuild and document the architecture in
   `docs/EVIDENCE_LAKE_V2.md`
-- [ ] E0: define the source-release registry, per-domain authority matrix,
+- [x] E0: define the source-release registry, per-domain authority matrix,
   complete upstream-field disposition registry, schema-drift policy, and
   uncertainty-aware 1,000-ly ingestion envelope
-- [ ] Run the retention audit before the next full build; preserve served,
+- [x] Run the retention audit before the next full build; preserve served,
   rollback, published, referenced, and unique-source artifacts while reducing
   the current 817 GB immutable `out/` footprint through the documented process
-- [ ] E0: set explicit raw, typed, build, report, document, and observation-
+- [x] E0: set explicit raw, typed, build, report, document, and observation-
   product cache budgets; verify backup policy before large acquisition
 - [ ] E1: implement immutable raw snapshots and source-native typed
   Parquet/Arrow cooks with exact queries, checksums, schemas, counts, units,

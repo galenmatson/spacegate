@@ -1,5 +1,34 @@
 # Spacegate Data Sources (Gaia-First)
 
+## Evidence Lake v2 Registry
+
+The active machine-readable source contract is
+`config/evidence_lake/source_releases.json`. It records source/release identity,
+domain-specific authority roles, retrieval implementation, license/citation,
+cadence, identifier namespace, frame/epoch context, schema policy, and storage
+class. `config/evidence_lake/schema_baseline.json` pins the current source schema
+and field-disposition baseline.
+
+Validate and audit before acquisition:
+
+```bash
+.venv/bin/python scripts/evidence_lake_registry.py validate
+.venv/bin/python scripts/evidence_lake_registry.py audit \
+  --state-dir /data/spacegate/state \
+  --report /data/spacegate/state/reports/evidence_lake_v2/e0_registry_audit.json
+```
+
+The default field disposition is `preserve`: an acquired upstream column is
+kept in the immutable raw snapshot and source-native typed layer unless a
+reviewed field rule explicitly normalizes, indexes only, or omits it with a
+reason. Evidence promotion is a later per-quantity policy and must not be
+confused with source preservation.
+
+Full-refresh preflight runs this gate automatically. New manifest entries,
+missing active artifacts, and schema changes fail until the registry and pinned
+baseline are reviewed. Planned sources may lack manifests until E3 acquisition;
+active sources may not.
+
 This document defines active, optional, and transitional data sources for Spacegate.
 
 It is normative for:

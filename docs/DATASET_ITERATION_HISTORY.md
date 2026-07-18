@@ -875,6 +875,16 @@ Representative commits:
 - Public evidence inspection and interactive image/spectrum/light-curve tools
   are recorded as later M8.3d/M8.3e objectives. They depend on stable evidence
   and observation-product contracts and do not expand the foundation rebuild.
+- E0 completed on July 18 with a 32-source registry, exact accounting for all 48
+  current manifest entries, a pinned schema baseline covering 1,795 enumerated
+  fields, and fail-closed full-refresh preflight. Documented source formats not
+  yet parsed as typed tables are pinned by exact artifact contract until E1.
+- The E0 storage audit found two published-metadata references in the original
+  retention candidate set. Retention therefore gained explicit protected-build
+  inputs before apply. The reviewed plan preserved 11 lineage builds, reclaimed
+  196.21 GiB of unreferenced immutable output, and increased `/data` free space
+  from about 189 GiB to 385 GiB without deleting raw, cooked, catalog mirror,
+  or scratch science state.
 
 ## Recurrent Defect Classes and Mitigations
 
