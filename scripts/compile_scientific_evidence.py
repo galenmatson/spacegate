@@ -506,6 +506,19 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                         errors.append(
                             f"{measurement_prefix}.zero_is_missing must be boolean"
                         )
+                    if measurement.get("normalize_numeric") not in (None, False, True):
+                        errors.append(
+                            f"{measurement_prefix}.normalize_numeric must be boolean"
+                        )
+                    for bound in (
+                        "uncertainty_minimum_value",
+                        "uncertainty_maximum_value",
+                    ):
+                        value = measurement.get(bound)
+                        if value is not None and (
+                            isinstance(value, bool) or not isinstance(value, (int, float))
+                        ):
+                            errors.append(f"{measurement_prefix}.{bound} must be numeric")
             for index, measurement in enumerate(
                 table.get("photometry_measurements") or []
             ):
@@ -519,6 +532,15 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     )
                 if measurement.get("zero_is_missing") not in (None, False, True):
                     errors.append(f"{prefix}.zero_is_missing must be boolean")
+                for bound in (
+                    "uncertainty_minimum_value",
+                    "uncertainty_maximum_value",
+                ):
+                    value = measurement.get(bound)
+                    if value is not None and (
+                        isinstance(value, bool) or not isinstance(value, (int, float))
+                    ):
+                        errors.append(f"{prefix}.{bound} must be numeric")
                 minimum = measurement.get("minimum_value")
                 maximum = measurement.get("maximum_value")
                 if minimum is not None and (
@@ -555,6 +577,17 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(f"{prefix}.normalize_numeric must be boolean")
                 if measurement.get("zero_is_missing") not in (None, False, True):
                     errors.append(f"{prefix}.zero_is_missing must be boolean")
+                for bound in (
+                    "uncertainty_minimum_value",
+                    "uncertainty_maximum_value",
+                ):
+                    value = measurement.get(bound)
+                    if value is not None and (
+                        isinstance(value, bool) or not isinstance(value, (int, float))
+                    ):
+                        errors.append(f"{prefix}.{bound} must be numeric")
+                if measurement.get("epoch_field") and measurement.get("epoch_raw"):
+                    errors.append(f"{prefix} cannot define both epoch_field and epoch_raw")
                 minimum = measurement.get("minimum_value")
                 maximum = measurement.get("maximum_value")
                 if minimum is not None and (
@@ -600,6 +633,17 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     errors.append(
                         f"{prefix} cannot define both epoch_field and epoch_raw"
                     )
+            product_missing_values = table.get("observation_product_missing_values")
+            if product_missing_values is not None:
+                prefix = f"{source_id}.{table_name}.observation_product_missing_values"
+                if not isinstance(product_missing_values, dict):
+                    errors.append(f"{prefix} must be an object")
+                else:
+                    for field, values in product_missing_values.items():
+                        if not str(field).strip() or not isinstance(values, list):
+                            errors.append(f"{prefix} entries must map fields to lists")
+                        elif any(not str(value).strip() for value in values):
+                            errors.append(f"{prefix}.{field} contains an empty value")
             configured_storage = table.get("configured_domain_storage") or {}
             configured_destinations = {
                 str(row.get("destination"))
@@ -1783,6 +1827,13 @@ def text_expression(field: str | None) -> str:
     )
 
 
+def configured_epoch_expression(measurement: dict[str, Any]) -> str:
+    epoch_field = measurement.get("epoch_field")
+    if epoch_field:
+        return text_expression(str(epoch_field))
+    return nullable_sql_string(measurement.get("epoch_raw"))
+
+
 def configured_text_expression(
     config: dict[str, Any],
     *,
@@ -2225,6 +2276,8 @@ def configured_measurement_predicate(
         )
     ]
     value = f"try_cast({sql_identifier(field)} as double)"
+    if measurement.get("normalize_numeric", True):
+        clauses.append(f"isfinite({value})")
     if measurement.get("minimum_value") is not None:
         clauses.append(f"{value}>={float(measurement['minimum_value'])}")
     if measurement.get("maximum_value") is not None:
@@ -2237,13 +2290,21 @@ def nullable_measurement_double_expression(
     missing_values: list[Any],
     *,
     absolute: bool = False,
+    minimum_value: float | None = None,
+    maximum_value: float | None = None,
 ) -> str:
     if not field:
         return "null::double"
-    value = f"try_cast({sql_identifier(field)} as double)"
+    source_value = f"try_cast({sql_identifier(field)} as double)"
+    clauses = [missing_value_predicate(field, missing_values), f"isfinite({source_value})"]
+    if minimum_value is not None:
+        clauses.append(f"{source_value}>={float(minimum_value)}")
+    if maximum_value is not None:
+        clauses.append(f"{source_value}<={float(maximum_value)}")
+    value = source_value
     if absolute:
         value = f"abs({value})"
-    return f"case when {missing_value_predicate(field, missing_values)} then {value} end"
+    return f"case when {' and '.join(clauses)} then {value} end"
 
 
 def materialize_scoped_stellar_evidence(
@@ -2350,11 +2411,7 @@ def materialize_scoped_stellar_evidence(
         for measurement in config.get("measurements") or []:
             field = str(measurement["value_field"])
             uncertainty_field = measurement.get("uncertainty_field")
-            predicate = missing_value_predicate(
-                field,
-                list(measurement.get("missing_values") or []),
-                zero_is_missing=bool(measurement.get("zero_is_missing")),
-            )
+            predicate = configured_measurement_predicate(field, measurement)
             raw = text_expression(field)
             uncertainty = nullable_measurement_double_expression(
                 str(uncertainty_field) if uncertainty_field else None,
@@ -2365,10 +2422,17 @@ def materialize_scoped_stellar_evidence(
                     )
                 ),
                 absolute=True,
+                minimum_value=measurement.get("uncertainty_minimum_value"),
+                maximum_value=measurement.get("uncertainty_maximum_value"),
             )
             unit = nullable_sql_string(measurement.get("unit_raw"))
             normalized_unit = nullable_sql_string(
                 measurement.get("normalized_unit", measurement.get("unit_raw"))
+            )
+            normalized_value = (
+                f"try_cast({sql_identifier(field)} as double)"
+                if measurement.get("normalize_numeric", True)
+                else "null::double"
             )
             branches.append(
                 f"""
@@ -2376,7 +2440,7 @@ def materialize_scoped_stellar_evidence(
                   sha256({sql_string('scoped-stellar|' + scope + '|' + field + '|')} || r.source_record_id),
                   {parameter_set_id}, r.source_record_id, {component_scope_sql},
                   {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
-                  try_cast({sql_identifier(field)} as double), {normalized_unit},
+                  {normalized_value}, {normalized_unit},
                   {uncertainty}, {uncertainty}, 'measurement',
                   {sql_string(method)}, {nullable_sql_string(config.get('model'))},
                   {reference},
@@ -2469,6 +2533,8 @@ def materialize_configured_photometry(
                 )
             ),
             absolute=True,
+            minimum_value=measurement.get("uncertainty_minimum_value"),
+            maximum_value=measurement.get("uncertainty_maximum_value"),
         )
         unit = nullable_sql_string(measurement.get("unit_raw"))
         normalized_unit = nullable_sql_string(
@@ -2520,6 +2586,25 @@ def materialize_configured_photometry(
             "insert into photometry_extinction_evidence " + " union all ".join(branches)
         )
     return consumed
+
+
+def configured_photometry_fields(
+    measurements: list[dict[str, Any]],
+) -> set[str]:
+    fields: set[str] = set()
+    for measurement in measurements:
+        fields.add(str(measurement["value_field"]))
+        fields.update(
+            str(value)
+            for value in (
+                measurement.get("uncertainty_field"),
+                measurement.get("bandpass_field"),
+                measurement.get("reference_field"),
+            )
+            if value
+        )
+        fields.update(str(value) for value in measurement.get("quality_fields") or [])
+    return fields
 
 
 def configured_domain_measurement_fields(
@@ -2739,6 +2824,8 @@ def materialize_configured_domain_measurements(
                 measurement.get("uncertainty_missing_values", missing_values)
             ),
             absolute=True,
+            minimum_value=measurement.get("uncertainty_minimum_value"),
+            maximum_value=measurement.get("uncertainty_maximum_value"),
         )
         unit = nullable_sql_string(measurement.get("unit_raw"))
         normalized_unit = nullable_sql_string(
@@ -2770,6 +2857,7 @@ def materialize_configured_domain_measurements(
         normalization = sql_string(
             str(measurement.get("normalization_version") or "source_native_v1")
         )
+        epoch = configured_epoch_expression(measurement)
         normalized_value = (
             f"try_cast({sql_identifier(field)} as double)"
             if measurement.get("normalize_numeric", True)
@@ -2790,7 +2878,7 @@ def materialize_configured_domain_measurements(
                       uncertainty_upper := {uncertainty},
                       bound_semantics := 'measurement',
                       frame_raw := {nullable_sql_string(measurement.get('frame_raw'))},
-                      epoch_raw := {text_expression(epoch_field)},
+                      epoch_raw := {epoch},
                       method := {nullable_sql_string(measurement.get('method'))},
                       model := {nullable_sql_string(measurement.get('model'))},
                       reference_raw := {text_expression(reference_field)},
@@ -2807,7 +2895,7 @@ def materialize_configured_domain_measurements(
                 {normalized_value}, {normalized_unit},
                 {uncertainty}, {uncertainty}, 'measurement',
                 {nullable_sql_string(measurement.get('frame_raw'))},
-                {text_expression(epoch_field)},
+                {epoch},
                 {nullable_sql_string(measurement.get('method'))},
                 {nullable_sql_string(measurement.get('model'))},
                 {text_expression(reference_field)},
@@ -2871,11 +2959,16 @@ def materialize_observation_products(
     table_name: str,
     path: Path,
     fields: list[dict[str, Any]],
+    missing_values_by_field: dict[str, list[Any]] | None = None,
 ) -> set[str]:
+    missing_values_by_field = missing_values_by_field or {}
     branches = []
     for field in fields:
         name = str(field["column_name"])
         raw = text_expression(name)
+        predicate = missing_value_predicate(
+            name, list(missing_values_by_field.get(name) or [])
+        )
         product_kind = (
             "data_validation_report"
             if name.endswith("_dvr")
@@ -2899,7 +2992,7 @@ def materialize_observation_products(
              and r.release_id={sql_string(release_id)}
              and r.source_table={sql_string(table_name)}
              and r.source_row_sha256=sha256(to_json(source_row))
-            where nullif({raw}, '') is not null
+            where {predicate}
             """
         )
     if branches:
@@ -3689,7 +3782,12 @@ def materialize_cluster_memberships(
     probability_field = cluster_membership.get("membership_probability_field")
     probability_field = str(probability_field) if probability_field else None
     reference_field = cluster_membership.get("reference_field")
-    quality_fields = [str(field["column_name"]) for field in fields]
+    quality_fields = list(
+        dict.fromkeys(
+            [str(field["column_name"]) for field in fields]
+            + [str(field) for field in cluster_membership.get("quality_fields") or []]
+        )
+    )
     configured_fields = {
         cluster_field,
         member_field,
@@ -4195,6 +4293,9 @@ def materialize_source(
         configured_coordinate_fields = configured_coordinate_measurement_fields(
             list(table_contract.get("configured_coordinate_measurements") or [])
         )
+        configured_photometry = configured_photometry_fields(
+            list(table_contract.get("photometry_measurements") or [])
+        )
         for destination in sorted(SCALAR_EVIDENCE_DESTINATIONS):
             destination_fields = [
                 field
@@ -4204,11 +4305,7 @@ def materialize_source(
                 and str(field["column_name"]) not in configured_coordinate_fields
                 and not (
                     destination == "photometry_extinction_evidence"
-                    and str(field["column_name"])
-                    in {
-                        str(row["value_field"])
-                        for row in table_contract.get("photometry_measurements") or []
-                    }
+                    and str(field["column_name"]) in configured_photometry
                 )
             ]
             if destination_fields:
@@ -4311,6 +4408,9 @@ def materialize_source(
                     table_name=table_name,
                     path=path,
                     fields=observation_product_fields,
+                    missing_values_by_field=dict(
+                        table_contract.get("observation_product_missing_values") or {}
+                    ),
                 )
             )
         relation_claim = table_contract.get("relation_claim")

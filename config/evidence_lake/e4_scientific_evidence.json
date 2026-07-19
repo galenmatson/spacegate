@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.45",
-  "compiler_version": "scientific_evidence_compiler_v45",
+  "contract_version": "2026-07-19.e4-foundation.49",
+  "compiler_version": "scientific_evidence_compiler_v49",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -840,6 +840,56 @@
         "disposition": "context",
         "destination": "source_records",
         "reason": "exact fixed-width row, source line, and source-document lineage"
+      }
+    ],
+    "ultracoolsheet_objects": [
+      {
+        "pattern": "^(name|name_simbadable|designation_P1_formula|designation_2mass|designation_MKO|designation_WISE|sourceID_Gaia_DR3|sourceID_Gaia_DR2|name_simbad|name_simpleDB|gucds_shortname)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "release-scoped UltracoolSheet object, survey, Gaia-release, SIMBAD, and SimpleDB identity evidence"
+      },
+      {
+        "pattern": "^(ra_|dec_|glon_|glat_|plx_|plxerr_|pmra_|pmraerr_|pmdec_|pmdecerr_|pm_lit|pmerr_lit|angle_lit|angleerr_lit|rv_|rverr_|dist_|disterr_).*$",
+        "disposition": "domain",
+        "destination": "astrometry_distance_evidence",
+        "reason": "source-selected and source-specific positions, parallaxes, motions, velocities, and direct or photometric distance estimates"
+      },
+      {
+        "pattern": "^((g|r|i|z|y|gerr|rerr|ierr|zerr|yerr)_P1|(BP|BPerr|G|Gerr|RP|RPerr)_Gaia|(J|Jerr|H|Herr|Ks|Kserr)_2MASS|(Y|Yerr|J|Jerr|H|Herr|K|Kerr|Lp|Lperr|Mp|Mperr)_MKO|W[1-4]|W[1-4]err|ch[12]|ch[12]err)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "source-native Pan-STARRS1, Gaia, 2MASS, MKO, WISE, and Spitzer photometry with separate uncertainty and quality lineage"
+      },
+      {
+        "pattern": "^(grav_opt|grav_ir|spt_opt|spt_ir|literature_flag|youth_evidence|age_category)$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "separate source-native optical/infrared spectral and gravity classifications plus literature, youth, and age-category evidence"
+      },
+      {
+        "pattern": "^(age_singlevalue_gyr_formula|age_distribution_gyr_formula|sptnum_opt_formula|sptnum_ir_formula|sptnum_formula|sptnumabs_formula|sptnum_photdist_formula)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "maintainer-computed age and numeric spectral encodings retained in explicitly modeled parameter sets rather than treated as direct measurements"
+      },
+      {
+        "pattern": "^(banyan_sigma_results|banyan_sigma_max_hypo_young|banyan_sigma_max_prob_young|banyan_sigma_input_params)$",
+        "disposition": "domain",
+        "destination": "cluster_membership_evidence",
+        "reason": "BANYAN SIGMA best-young-hypothesis membership result with source probability and input context"
+      },
+      {
+        "pattern": "^url_simpleDB$",
+        "disposition": "lineage",
+        "destination": "observation_product_lineage",
+        "reason": "source-published SimpleDB object-record locator retained as on-demand external product lineage"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "source references, quality flags, formulas, multiplicity/exoplanet context, unsplit alias lists, notes, and exact row lineage"
       }
     ],
     "wds_summary": [
@@ -2611,6 +2661,229 @@
               "sql_predicate": "trim(BANYANcl) <> '--' and try_cast(BANYANprob as double) between 0 and 1"
             }
           ]
+        }
+      }
+    },
+    "ultracool.ultracoolsheet": {
+      "adapter_version": "ultracoolsheet_scientific_evidence_v1",
+      "tables": {
+        "UltracoolSheet_Main": {
+          "logical_key_fields": ["name"],
+          "object_scope": "ultracool_source_object_or_component",
+          "field_profile": "ultracoolsheet_objects",
+          "identifier_claims": {
+            "name": {"namespace": "ultracoolsheet_name", "claim_scope": "ultracool_source_object_or_component"},
+            "name_simbadable": {"namespace": "source_search_designation", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]},
+            "designation_P1_formula": {"namespace": "panstarrs1_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
+            "designation_2mass": {"namespace": "twomass_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
+            "designation_MKO": {"namespace": "source_mko_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
+            "designation_WISE": {"namespace": "wise_designation", "claim_scope": "observation_target", "excluded_values": ["null", "nan"]},
+            "sourceID_Gaia_DR3": {"namespace": "gaia_dr3_source_id", "claim_scope": "star_or_substellar_object", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["null", "nan"]},
+            "sourceID_Gaia_DR2": {"namespace": "gaia_dr2_source_id", "claim_scope": "star_or_substellar_object", "normalization": "unsigned_integer_decimal_v1", "excluded_values": ["null", "nan"]},
+            "name_simbad": {"namespace": "simbad_preferred_designation", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]},
+            "name_simpleDB": {"namespace": "simpledb_object_name", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]},
+            "gucds_shortname": {"namespace": "gucds_shortname", "claim_scope": "object_or_component", "excluded_values": ["null", "nan"]}
+          },
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "optical_spectral_classification",
+              "parameter_set_kind": "source_spectral_classification",
+              "classification_field": "spt_opt",
+              "classification_scheme": "optical_spectral_type",
+              "classification_missing_values": ["null", "nan"],
+              "reference_field": "ref_spt_opt",
+              "quality_fields": ["grav_opt", "literature_flag"],
+              "measurements": [],
+              "method": "ultracoolsheet_compiled_optical_classification",
+              "normalization_version": "ultracoolsheet_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "infrared_spectral_classification",
+              "parameter_set_kind": "source_spectral_classification",
+              "classification_field": "spt_ir",
+              "classification_scheme": "infrared_spectral_type",
+              "classification_missing_values": ["null", "nan"],
+              "reference_field": "ref_spt_ir",
+              "quality_fields": ["grav_ir", "literature_flag"],
+              "measurements": [],
+              "method": "ultracoolsheet_compiled_infrared_classification",
+              "normalization_version": "ultracoolsheet_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "optical_gravity_classification",
+              "parameter_set_kind": "source_gravity_classification",
+              "classification_field": "grav_opt",
+              "classification_scheme": "optical_gravity_class",
+              "classification_missing_values": ["null", "nan"],
+              "reference_field": "ref_grav_opt",
+              "quality_fields": ["spt_opt"],
+              "measurements": [],
+              "method": "ultracoolsheet_compiled_optical_gravity",
+              "normalization_version": "ultracoolsheet_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "infrared_gravity_classification",
+              "parameter_set_kind": "source_gravity_classification",
+              "classification_field": "grav_ir",
+              "classification_scheme": "infrared_gravity_class",
+              "classification_missing_values": ["null", "nan"],
+              "reference_field": "ref_grav_ir",
+              "quality_fields": ["spt_ir"],
+              "measurements": [],
+              "method": "ultracoolsheet_compiled_infrared_gravity",
+              "normalization_version": "ultracoolsheet_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "literature_flag",
+              "parameter_set_kind": "source_literature_classification",
+              "classification_field": "literature_flag",
+              "classification_scheme": "ultracoolsheet_literature_flag",
+              "classification_missing_values": ["null", "nan"],
+              "reference_field": "ref_literature_flag",
+              "quality_fields": ["note"],
+              "measurements": [],
+              "method": "ultracoolsheet_literature_compilation",
+              "normalization_version": "ultracoolsheet_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "youth_evidence",
+              "parameter_set_kind": "source_youth_classification",
+              "classification_field": "youth_evidence",
+              "classification_scheme": "ultracoolsheet_youth_evidence",
+              "classification_missing_values": ["null", "nan", "N"],
+              "quality_fields": ["age_category", "age_category_justification"],
+              "measurements": [],
+              "method": "ultracoolsheet_youth_compilation",
+              "normalization_version": "ultracoolsheet_source_native_lexical_v1"
+            },
+            {
+              "scope_key": "age_context",
+              "parameter_set_kind": "source_age_context",
+              "classification_field": "age_category",
+              "classification_scheme": "ultracoolsheet_age_category",
+              "classification_missing_values": ["null", "nan"],
+              "quality_fields": ["age_category_justification", "youth_evidence"],
+              "measurements": [
+                {"value_field": "age_singlevalue_gyr_formula", "quantity_key": "maintainer_selected_age", "unit_raw": "Gyr", "normalized_unit": "Gyr", "missing_values": ["null", "nan"], "minimum_value": 0},
+                {"value_field": "age_distribution_gyr_formula", "quantity_key": "maintainer_age_distribution", "unit_raw": "Gyr", "normalized_unit": null, "normalize_numeric": false, "missing_values": ["null", "nan"]}
+              ],
+              "method": "ultracoolsheet_maintainer_age_formula",
+              "model": "source_spreadsheet_age_compilation",
+              "normalization_version": "ultracoolsheet_formula_result_v1"
+            },
+            {
+              "scope_key": "spectral_numeric_encoding",
+              "parameter_set_kind": "maintainer_spectral_numeric_encoding",
+              "quality_fields": ["spt_opt", "spt_ir", "dist_formula_source"],
+              "measurements": [
+                {"value_field": "sptnum_opt_formula", "quantity_key": "optical_spectral_numeric_code", "missing_values": ["null", "nan"]},
+                {"value_field": "sptnum_ir_formula", "quantity_key": "infrared_spectral_numeric_code", "missing_values": ["null", "nan"]},
+                {"value_field": "sptnum_formula", "quantity_key": "selected_spectral_numeric_code", "missing_values": ["null", "nan"]},
+                {"value_field": "sptnumabs_formula", "quantity_key": "absolute_spectral_numeric_code", "missing_values": ["null", "nan"]},
+                {"value_field": "sptnum_photdist_formula", "quantity_key": "photometric_distance_spectral_numeric_code", "missing_values": ["null", "nan"]}
+              ],
+              "method": "ultracoolsheet_maintainer_spectral_formula",
+              "model": "source_spreadsheet_numeric_encoding",
+              "normalization_version": "ultracoolsheet_formula_result_v1"
+            }
+          ],
+          "photometry_measurements": [
+            {"value_field": "g_P1", "uncertainty_field": "gerr_P1", "quantity_key": "apparent_magnitude", "bandpass": "Pan-STARRS1 g", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "uncertainty_minimum_value": 0, "reference_field": "ref_g_P1", "quality_fields": ["g_nphot_P1", "g_src_P1"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "r_P1", "uncertainty_field": "rerr_P1", "quantity_key": "apparent_magnitude", "bandpass": "Pan-STARRS1 r", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "uncertainty_minimum_value": 0, "reference_field": "ref_r_P1", "quality_fields": ["r_nphot_P1", "r_src_P1"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "i_P1", "uncertainty_field": "ierr_P1", "quantity_key": "apparent_magnitude", "bandpass": "Pan-STARRS1 i", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "uncertainty_minimum_value": 0, "reference_field": "ref_i_P1", "quality_fields": ["i_nphot_P1", "i_src_P1"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "z_P1", "uncertainty_field": "zerr_P1", "quantity_key": "apparent_magnitude", "bandpass": "Pan-STARRS1 z", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "uncertainty_minimum_value": 0, "reference_field": "ref_z_P1", "quality_fields": ["z_nphot_P1", "z_src_P1"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "y_P1", "uncertainty_field": "yerr_P1", "quantity_key": "apparent_magnitude", "bandpass": "Pan-STARRS1 y", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "uncertainty_minimum_value": 0, "reference_field": "ref_y_P1", "quality_fields": ["y_nphot_P1", "y_src_P1"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "BP_Gaia", "uncertainty_field": "BPerr_Gaia", "quantity_key": "apparent_magnitude", "bandpass": "Gaia BP", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_photom_Gaia", "quality_fields": ["sourceID_Gaia_DR3", "flags_Gaia"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "G_Gaia", "uncertainty_field": "Gerr_Gaia", "quantity_key": "apparent_magnitude", "bandpass": "Gaia G", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_photom_Gaia", "quality_fields": ["sourceID_Gaia_DR3", "flags_Gaia"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "RP_Gaia", "uncertainty_field": "RPerr_Gaia", "quantity_key": "apparent_magnitude", "bandpass": "Gaia RP", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_photom_Gaia", "quality_fields": ["sourceID_Gaia_DR3", "flags_Gaia"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "J_2MASS", "uncertainty_field": "Jerr_2MASS", "quantity_key": "apparent_magnitude", "bandpass": "2MASS J", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_J_2MASS", "quality_fields": ["Cflg_2MASS"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "H_2MASS", "uncertainty_field": "Herr_2MASS", "quantity_key": "apparent_magnitude", "bandpass": "2MASS H", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_H_2MASS", "quality_fields": ["Cflg_2MASS"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "Ks_2MASS", "uncertainty_field": "Kserr_2MASS", "quantity_key": "apparent_magnitude", "bandpass": "2MASS Ks", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_Ks_2MASS", "quality_fields": ["Cflg_2MASS"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "Y_MKO", "uncertainty_field": "Yerr_MKO", "quantity_key": "apparent_magnitude", "bandpass": "MKO Y", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_Y_MKO", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "J_MKO", "uncertainty_field": "Jerr_MKO", "quantity_key": "apparent_magnitude", "bandpass": "MKO J", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_J_MKO", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "H_MKO", "uncertainty_field": "Herr_MKO", "quantity_key": "apparent_magnitude", "bandpass": "MKO H", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_H_MKO", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "K_MKO", "uncertainty_field": "Kerr_MKO", "quantity_key": "apparent_magnitude", "bandpass": "MKO K", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_K_MKO", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "Lp_MKO", "uncertainty_field": "Lperr_MKO", "quantity_key": "apparent_magnitude", "bandpass": "MKO Lp", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_Lp_MKO", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "Mp_MKO", "uncertainty_field": "Mperr_MKO", "quantity_key": "apparent_magnitude", "bandpass": "MKO Mp", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_Mp_MKO", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "W1", "uncertainty_field": "W1err", "quantity_key": "apparent_magnitude", "bandpass": "WISE W1", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_W1", "quality_fields": ["chi2_W1", "flag_WISE", "nb_AllWISE", "neigh_AllWISE"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "W2", "uncertainty_field": "W2err", "quantity_key": "apparent_magnitude", "bandpass": "WISE W2", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_W2", "quality_fields": ["chi2_W2", "flag_WISE", "nb_AllWISE", "neigh_AllWISE"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "W3", "uncertainty_field": "W3err", "quantity_key": "apparent_magnitude", "bandpass": "WISE W3", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_W3", "quality_fields": ["chi2_W3", "flag_WISE", "nb_AllWISE", "neigh_AllWISE"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "W4", "uncertainty_field": "W4err", "quantity_key": "apparent_magnitude", "bandpass": "WISE W4", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_W4", "quality_fields": ["chi2_W4", "flag_WISE", "nb_AllWISE", "neigh_AllWISE"], "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "ch1", "uncertainty_field": "ch1err", "quantity_key": "apparent_magnitude", "bandpass": "Spitzer IRAC ch1", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_Spitzer", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"value_field": "ch2", "uncertainty_field": "ch2err", "quantity_key": "apparent_magnitude", "bandpass": "Spitzer IRAC ch2", "unit_raw": "mag", "missing_values": ["null", "nan"], "uncertainty_missing_values": ["null", "nan"], "reference_field": "ref_Spitzer", "method": "ultracoolsheet_photometry", "normalization_version": "ultracoolsheet_source_native_v1"}
+          ],
+          "configured_domain_measurements": [
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_j2000_formula", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "quality_fields": ["source_j2000_formula"], "method": "ultracoolsheet_selected_position_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_j2000_formula", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "quality_fields": ["source_j2000_formula"], "method": "ultracoolsheet_selected_position_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "glon_j2000", "quantity_key": "galactic_longitude", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "Galactic", "epoch_raw": "J2000.0", "quality_fields": ["source_j2000_formula"], "method": "ultracoolsheet_coordinate_transform", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "glat_j2000", "quantity_key": "galactic_latitude", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "Galactic", "epoch_raw": "J2000.0", "quality_fields": ["source_j2000_formula"], "method": "ultracoolsheet_coordinate_transform", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_j2000_P1", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "reference_field": "ref_radec_P1", "quality_fields": ["designation_P1_formula"], "method": "panstarrs1_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_j2000_P1", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "reference_field": "ref_radec_P1", "quality_fields": ["designation_P1_formula"], "method": "panstarrs1_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_epoch_P1", "quantity_key": "right_ascension_at_observation_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_field": "epoch_mjd_P1", "reference_field": "ref_radec_P1", "quality_fields": ["designation_P1_formula"], "method": "panstarrs1_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_epoch_P1", "quantity_key": "declination_at_observation_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_field": "epoch_mjd_P1", "reference_field": "ref_radec_P1", "quality_fields": ["designation_P1_formula"], "method": "panstarrs1_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_epoch_2mass", "quantity_key": "right_ascension_at_observation_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_field": "epoch_2mass", "quality_fields": ["designation_2mass"], "method": "twomass_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_epoch_2mass", "quantity_key": "declination_at_observation_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_field": "epoch_2mass", "quality_fields": ["designation_2mass"], "method": "twomass_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_j2000_WISE", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "reference_field": "ref_astrom_WISE", "quality_fields": ["designation_WISE", "flag_WISE"], "method": "wise_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_j2000_WISE", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "reference_field": "ref_astrom_WISE", "quality_fields": ["designation_WISE", "flag_WISE"], "method": "wise_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_epoch_WISE", "quantity_key": "right_ascension_at_source_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "reference_field": "ref_astrom_WISE", "quality_fields": ["designation_WISE", "flag_WISE"], "method": "wise_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_epoch_WISE", "quantity_key": "declination_at_source_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "reference_field": "ref_astrom_WISE", "quality_fields": ["designation_WISE", "flag_WISE"], "method": "wise_position", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_j2000_Gaia", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "quality_fields": ["sourceID_Gaia_DR3", "astrom_Gaia", "flags_Gaia"], "method": "gaia_position_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_J2000_Gaia", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "quality_fields": ["sourceID_Gaia_DR3", "astrom_Gaia", "flags_Gaia"], "method": "gaia_position_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_epoch_Gaia", "quantity_key": "right_ascension_at_gaia_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "quality_fields": ["sourceID_Gaia_DR3", "astrom_Gaia", "flags_Gaia"], "method": "gaia_position_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_epoch_Gaia", "quantity_key": "declination_at_gaia_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "quality_fields": ["sourceID_Gaia_DR3", "astrom_Gaia", "flags_Gaia"], "method": "gaia_position_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_j2000_simbad", "quantity_key": "right_ascension", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "reference_field": "ref_radec_j2000_simbad", "quality_fields": ["name_simbad"], "method": "simbad_position_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_j2000_simbad", "quantity_key": "declination", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_raw": "J2000.0", "reference_field": "ref_radec_j2000_simbad", "quality_fields": ["name_simbad"], "method": "simbad_position_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "ra_20250703_formula", "quantity_key": "right_ascension_at_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "frame_raw": "ICRS", "epoch_raw": "2025-07-03", "quality_fields": ["source_radec_20250703_formula"], "method": "ultracoolsheet_propagated_position_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dec_20250703_formula", "quantity_key": "declination_at_epoch", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": -90, "maximum_value": 90, "frame_raw": "ICRS", "epoch_raw": "2025-07-03", "quality_fields": ["source_radec_20250703_formula"], "method": "ultracoolsheet_propagated_position_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx_formula", "uncertainty_field": "plxerr_formula", "quantity_key": "maintainer_selected_parallax", "unit_raw": "mas", "normalized_unit": "mas", "missing_values": ["null", "nan"], "reference_field": "ref_plx_formula", "method": "ultracoolsheet_selected_astrometry_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx_lit", "uncertainty_field": "plxerr_lit", "quantity_key": "literature_parallax", "unit_raw": "mas", "normalized_unit": "mas", "missing_values": ["null", "nan"], "reference_field": "ref_plx_lit", "method": "literature_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx_UKIRT", "uncertainty_field": "plxerr_UKIRT", "quantity_key": "ukirt_parallax", "unit_raw": "mas", "normalized_unit": "mas", "missing_values": ["null", "nan"], "reference_field": "ref_plx_UKIRT", "method": "ukirt_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx_Gaia", "uncertainty_field": "plxerr_Gaia", "quantity_key": "gaia_parallax", "unit_raw": "mas", "normalized_unit": "mas", "missing_values": ["null", "nan"], "quality_fields": ["sourceID_Gaia_DR3", "RUWE_Gaia", "nep_Gaia", "flags_Gaia"], "method": "gaia_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "plx_simbad", "uncertainty_field": "plxerr_simbad", "quantity_key": "simbad_parallax", "unit_raw": "mas", "normalized_unit": "mas", "missing_values": ["null", "nan"], "reference_field": "ref_plx_simbad", "quality_fields": ["name_simbad"], "method": "simbad_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_formula", "uncertainty_field": "pmraerr_formula", "quantity_key": "maintainer_selected_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_formula", "method": "ultracoolsheet_selected_astrometry_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_formula", "uncertainty_field": "pmdecerr_formula", "quantity_key": "maintainer_selected_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_formula", "method": "ultracoolsheet_selected_astrometry_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_lit", "uncertainty_field": "pmraerr_lit", "quantity_key": "literature_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_lit", "method": "literature_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_lit", "uncertainty_field": "pmdecerr_lit", "quantity_key": "literature_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_lit", "method": "literature_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pm_lit", "uncertainty_field": "pmerr_lit", "quantity_key": "literature_total_proper_motion", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_pm_lit", "method": "literature_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "angle_lit", "uncertainty_field": "angleerr_lit", "quantity_key": "literature_proper_motion_position_angle", "unit_raw": "deg", "normalized_unit": "deg", "minimum_value": 0, "maximum_value": 360, "missing_values": ["null", "nan"], "reference_field": "ref_pm_lit", "method": "literature_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_UKIRT", "uncertainty_field": "pmraerr_UKIRT", "quantity_key": "ukirt_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_plx_UKIRT", "method": "ukirt_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_UKIRT", "uncertainty_field": "pmdecerr_UKIRT", "quantity_key": "ukirt_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_plx_UKIRT", "method": "ukirt_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_Gaia", "uncertainty_field": "pmraerr_Gaia", "quantity_key": "gaia_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "quality_fields": ["sourceID_Gaia_DR3", "RUWE_Gaia", "nep_Gaia", "flags_Gaia"], "method": "gaia_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_Gaia", "uncertainty_field": "pmdecerr_Gaia", "quantity_key": "gaia_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "quality_fields": ["sourceID_Gaia_DR3", "RUWE_Gaia", "nep_Gaia", "flags_Gaia"], "method": "gaia_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_P1", "uncertainty_field": "pmraerr_P1", "quantity_key": "panstarrs1_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_P1", "method": "panstarrs1_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_P1", "uncertainty_field": "pmdecerr_P1", "quantity_key": "panstarrs1_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_P1", "method": "panstarrs1_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_catwise", "uncertainty_field": "pmraerr_catwise", "quantity_key": "catwise_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "quality_fields": ["designation_WISE", "flag_WISE"], "method": "catwise_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_catwise", "uncertainty_field": "pmdecerr_catwise", "quantity_key": "catwise_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "quality_fields": ["designation_WISE", "flag_WISE"], "method": "catwise_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_simbad", "uncertainty_field": "pmraerr_simbad", "quantity_key": "simbad_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_simbad", "quality_fields": ["name_simbad"], "method": "simbad_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_simbad", "uncertainty_field": "pmdecerr_simbad", "quantity_key": "simbad_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_simbad", "quality_fields": ["name_simbad"], "method": "simbad_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmra_P1_PV34", "uncertainty_field": "pmraerr_P1_PV34", "quantity_key": "panstarrs1_pv34_proper_motion_ra", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_P1_PV34", "method": "panstarrs1_pv34_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "pmdec_P1_PV34", "uncertainty_field": "pmdecerr_P1_PV34", "quantity_key": "panstarrs1_pv34_proper_motion_dec", "unit_raw": "mas yr-1", "normalized_unit": "mas yr-1", "missing_values": ["null", "nan"], "reference_field": "ref_pm_P1_PV34", "method": "panstarrs1_pv34_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_formula", "uncertainty_field": "rverr_formula", "quantity_key": "maintainer_selected_radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "missing_values": ["null", "nan"], "reference_field": "ref_rv_formula", "method": "ultracoolsheet_selected_astrometry_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_lit", "uncertainty_field": "rverr_lit", "quantity_key": "literature_radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "missing_values": ["null", "nan"], "reference_field": "ref_rv_lit", "method": "literature_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "rv_Gaia", "uncertainty_field": "rverr_Gaia", "quantity_key": "gaia_radial_velocity", "unit_raw": "km s-1", "normalized_unit": "km s-1", "missing_values": ["null", "nan"], "quality_fields": ["sourceID_Gaia_DR3", "flags_Gaia"], "method": "gaia_astrometry_as_compiled_by_ultracoolsheet", "normalization_version": "ultracoolsheet_source_native_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_plx_formula", "uncertainty_field": "disterr_plx_formula", "quantity_key": "parallax_distance", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_plx_formula", "method": "ultracoolsheet_parallax_distance_formula", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_J_2MASS_formula", "uncertainty_field": "disterr_J_2MASS_formula", "quantity_key": "photometric_distance_2mass_j", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_J_2MASS", "quality_fields": ["sptnum_photdist_formula", "youth_evidence"], "method": "ultracoolsheet_photometric_distance_formula", "model": "2MASS_J_spectral_relation", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_J_MKO_formula", "uncertainty_field": "disterr_J_MKO_formula", "quantity_key": "photometric_distance_mko_j", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_J_MKO", "quality_fields": ["sptnum_photdist_formula", "youth_evidence"], "method": "ultracoolsheet_photometric_distance_formula", "model": "MKO_J_spectral_relation", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_Ks_2MASS_formula", "uncertainty_field": "disterr_Ks_2MASS_formula", "quantity_key": "photometric_distance_2mass_ks", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_Ks_2MASS", "quality_fields": ["sptnum_photdist_formula", "youth_evidence"], "method": "ultracoolsheet_photometric_distance_formula", "model": "2MASS_Ks_spectral_relation", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_K_MKO_formula", "uncertainty_field": "disterr_K_MKO_formula", "quantity_key": "photometric_distance_mko_k", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_K_MKO", "quality_fields": ["sptnum_photdist_formula", "youth_evidence"], "method": "ultracoolsheet_photometric_distance_formula", "model": "MKO_K_spectral_relation", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_W2_formula", "uncertainty_field": "disterr_W2_formula", "quantity_key": "photometric_distance_wise_w2", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "reference_field": "ref_W2", "quality_fields": ["sptnum_photdist_formula", "youth_evidence"], "method": "ultracoolsheet_photometric_distance_formula", "model": "WISE_W2_spectral_relation", "normalization_version": "ultracoolsheet_formula_result_v1"},
+            {"destination": "astrometry_distance_evidence", "value_field": "dist_formula", "uncertainty_field": "disterr_formula", "quantity_key": "maintainer_selected_distance", "unit_raw": "pc", "normalized_unit": "pc", "minimum_value": 0, "missing_values": ["null", "nan"], "quality_fields": ["dist_formula_source", "sptnum_photdist_formula", "youth_evidence"], "method": "ultracoolsheet_selected_distance_formula", "normalization_version": "ultracoolsheet_formula_result_v1"}
+          ],
+          "cluster_memberships": [
+            {
+              "evidence_key": "banyan_sigma_best_young_hypothesis",
+              "cluster_identity_field": "banyan_sigma_max_hypo_young",
+              "member_identity_field": "name",
+              "membership_probability_field": "banyan_sigma_max_prob_young",
+              "method": "banyan_sigma_best_young_hypothesis",
+              "probability_semantics": "source-published maximum BANYAN SIGMA probability among young hypotheses",
+              "quality_fields": ["banyan_sigma_results", "banyan_sigma_input_params", "youth_evidence", "age_category"],
+              "sql_predicate": "trim(banyan_sigma_max_hypo_young) <> 'null' and try_cast(banyan_sigma_max_prob_young as double) between 0 and 1"
+            }
+          ],
+          "observation_product_missing_values": {
+            "url_simpleDB": ["null", "nan"]
+          }
         }
       }
     },

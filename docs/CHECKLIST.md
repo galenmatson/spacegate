@@ -1194,6 +1194,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   assignments and BANYAN probability-bearing best hypotheses without treating
   sample membership as a spectral classification; pass artifact, source/scope,
   placeholder, citation, and clean-reproduction gates
+- [x] E4 UltracoolSheet checkpoint: preserve all 3,890 rows and 242 fields;
+  separate direct optical/IR classifications from maintainer formulas, retain
+  23-band photometry and source-specific astrometry/distance alternatives,
+  reject non-finite and negative uncertainty sentinels, keep DR2/DR3 identities
+  distinct and alias lists unsplit, and pass artifact, source/scope, citation,
+  product-lineage, and clean-reproduction gates without relation/planet
+  promotion
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

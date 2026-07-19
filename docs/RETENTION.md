@@ -313,6 +313,17 @@ and its compile, artifact-audit, source/scope-audit, and clean-reproduction
 reports are protected E4/E5 inputs. The Gaia UCD scientific audit is an
 explicitly allowlisted failed-artifact audit contract; it does not authorize
 removal of this accepted checkpoint or either source snapshot.
+UltracoolSheet checkpoint `20fdb1c95d25d441160d3bd9`, raw snapshot
+`14fd785307af12849666a603`, typed snapshot `32d437d41bfdfa7242bd8a4a`,
+and its compile, artifact-audit, source/scope-audit, and clean-reproduction
+reports are protected E4/E5 inputs. The UltracoolSheet scientific audit is an
+explicitly allowlisted failed-artifact audit contract; it does not authorize
+removal of this accepted checkpoint or either source snapshot. Independently
+failed v46-v48 artifacts were retired as whole artifacts only after dry-run
+candidate-set hash
+`9db9a29f47011b94e037d8dee4e0e444e7fc9b3f2f78c403a3e9cedc26c1ea95`
+was replayed during apply; 448,364,544 allocated bytes were reclaimed while
+preserving the accepted build and all raw/typed inputs and reports.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

@@ -1598,6 +1598,18 @@ Current status (July 19, 2026, in progress):
   unresolved; placeholder, citation, artifact, scope, and clean-reproduction
   gates pass at logical hash
   `27a516ce3fbfd67062584099c9323038e9c87f4dcb81b67d3479713d6d2958a0`.
+- UltracoolSheet checkpoint `20fdb1c95d25d441160d3bd9` accounts all 3,890
+  pinned rows and 242 fields. Compiler v49 adds finite-number, uncertainty-
+  bound, lexical-measurement, fixed-epoch, multiple-membership, and product-
+  placeholder contracts. The artifact contains 32,841 identities, 149,636
+  astrometry/distance rows, 50,134 measurements across 23 photometric bands,
+  10,887 direct/context classifications, 23,859 maintainer-derived/context
+  parameters, 3,875 BANYAN memberships, and 3,079 real SimpleDB locators.
+  Gaia DR2/DR3 remain separate, source formulas never outrank direct evidence
+  at E4, list-valued aliases remain unsplit, and multiplicity/exoplanet flags
+  create no endpoint-free relations. Artifact, source/scope, placeholder,
+  sentinel, citation, and clean-reproduction gates pass at logical hash
+  `2a7cfb5f4c34df4c17cf2e6e2fa35639d1d0181b984983f7d4779407e62e1bab`.
 - Gaia NSS checkpoint `e198804d34abcf04d209d116` materializes all 50,762
   expanded two-body rows as distinct coherent orbital solutions. All 77 fields
   are accounted as 75 solution/model/quality fields plus Gaia source and NSS

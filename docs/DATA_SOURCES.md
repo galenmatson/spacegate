@@ -757,6 +757,21 @@ Source endpoint:
 
 - Google Sheets published CSV endpoint (pinned URL in `scripts/catalogs.sh`)
 
+Evidence Lake v2 checkpoint:
+
+- raw snapshot `14fd785307af12849666a603`; typed snapshot
+  `32d437d41bfdfa7242bd8a4a`; E4 build `20fdb1c95d25d441160d3bd9`
+- all 242 fields are accounted. Direct optical/infrared spectral and gravity
+  classifications remain distinct from maintainer numeric encodings, selected
+  astrometry, propagated positions, and photometric-distance formulas
+- 23 Pan-STARRS1/Gaia/2MASS/MKO/WISE/Spitzer bandpasses retain values,
+  uncertainties, references, and available quality context; literal `nan`,
+  `null`, and negative Pan-STARRS uncertainty sentinels cannot normalize
+- Gaia DR2 and DR3 IDs remain release-distinct. Pipe-delimited SIMBAD aliases
+  are retained exactly but not split by an undocumented parser
+- multiplicity and exoplanet flags remain source context until an endpoint- and
+  scope-safe relation/lifecycle adapter exists; they do not alter CORE inventory
+
 Core bridge diagnostics:
 
 - `reports/<build_id>/nearby_ultracool_inventory_report.json`

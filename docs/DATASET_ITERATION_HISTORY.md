@@ -1545,6 +1545,37 @@ Representative commits:
   audits pass, and clean reproduction matches logical hash
   `27a516ce3fbfd67062584099c9323038e9c87f4dcb81b67d3479713d6d2958a0`.
 
+### 52) Evidence Lake E4 UltracoolSheet Evidence
+
+- Profiling the pinned 3,890-row, 242-column sheet exposed two general defects:
+  literal `nan` values could pass configured numeric predicates, and product
+  lineage accepted literal `null` URLs. Compiler v49 now requires finite
+  normalized numerics, supports explicit uncertainty bounds and fixed epochs,
+  permits lexical modeled measurements, and applies field-specific product
+  placeholder contracts.
+- Two provisional builds proved the gates useful. One emitted 811 fake
+  SimpleDB locators; the next exposed 17 Pan-STARRS uncertainty sentinels whose
+  exact source spelling was `-999.0000`. The accepted policy rejects any
+  negative uncertainty for those five fields rather than enumerating brittle
+  textual spellings. Raw source values were never altered or deleted.
+- Accepted checkpoint `20fdb1c95d25d441160d3bd9` accounts every source row
+  and field, with 32,841 release-scoped identities, 149,636 astrometry/distance
+  rows, 50,134 photometry rows over 23 bandpasses, 10,887 classifications,
+  23,859 modeled/context parameters, 3,875 BANYAN memberships, and 3,079 real
+  SimpleDB locators. All normalized measurements are finite.
+- Direct optical/infrared types remain separate from sheet-derived numeric
+  encodings and formulas. Gaia DR2/DR3 identities remain separate; list-valued
+  SIMBAD aliases are not heuristically split. Endpoint-free multiplicity and
+  exoplanet flags create no relation or planet evidence. Generic artifact and
+  source/scope audits pass; clean reproduction matches logical hash
+  `2a7cfb5f4c34df4c17cf2e6e2fa35639d1d0181b984983f7d4779407e62e1bab`.
+- The fail-closed retention dry-run identified only the three independently
+  failed v46-v48 artifacts. Replaying candidate-set hash
+  `9db9a29f47011b94e037d8dee4e0e444e7fc9b3f2f78c403a3e9cedc26c1ea95`
+  retired those whole artifacts and reclaimed 448,364,544 allocated bytes. The
+  accepted v49 artifact, immutable raw/typed snapshots, and audit/reproduction
+  reports remain protected.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

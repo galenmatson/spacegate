@@ -1289,6 +1289,24 @@ must not turn it into a cluster identity or a zero-confidence membership.
 Neither family creates containment or a selected stellar classification until
 E5 resolves identity and applies a quantity-specific policy.
 
+## UltracoolSheet Evidence Policy
+
+Evidence Lake E4 preserves the pinned 242-column source row before ARM
+selection. Direct optical and infrared spectral/gravity classifications remain
+separate evidence families. Spreadsheet-selected astrometry, propagated
+coordinates, ages, spectral numeric encodings, and photometric distances are
+explicitly labeled maintainer formula/model results; they do not become direct
+measurements or silently outrank release-native Gaia/source evidence.
+
+Configured numeric evidence must be finite. Source `nan`/`null` lexemes and
+negative Pan-STARRS uncertainty sentinels remain exact source context but cannot
+enter normalized values. Gaia DR2 and DR3 identities use distinct namespaces.
+Pipe-delimited SIMBAD aliases remain unsplit until a versioned parser proves
+token semantics. Multiplicity and exoplanet flags without safe target endpoints
+stay source context and cannot create relation, containment, planet lifecycle,
+or canonical inventory rows. E5 must bind each source row and apply
+quantity-specific authority before selecting any public value.
+
 ## MSC Policy
 
 MSC is mandatory in default science ingest and arm hierarchy/orbit derivation.

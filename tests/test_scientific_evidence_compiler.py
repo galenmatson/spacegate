@@ -135,6 +135,21 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     assert "membership_probability_field" not in ultracool["tables"]["table4"][
         "cluster_memberships"
     ][0]
+    ultracool_sheet = contract["source_adapters"]["ultracool.ultracoolsheet"][
+        "tables"
+    ]["UltracoolSheet_Main"]
+    assert len(ultracool_sheet["photometry_measurements"]) == 23
+    assert len(ultracool_sheet["configured_domain_measurements"]) == 55
+    assert ultracool_sheet["identifier_claims"]["sourceID_Gaia_DR2"][
+        "namespace"
+    ] == "gaia_dr2_source_id"
+    assert ultracool_sheet["identifier_claims"]["sourceID_Gaia_DR3"][
+        "namespace"
+    ] == "gaia_dr3_source_id"
+    assert "identifiers_simbad" not in ultracool_sheet["identifier_claims"]
+    assert ultracool_sheet["observation_product_missing_values"] == {
+        "url_simpleDB": ["null", "nan"]
+    }
     extended = contract["source_adapters"]["extended.openngc_and_nebulae"]
     assert len(extended["tables"]) == 16
     assert extended["tables"]["openngc_addendum"]["table_contract_ref"] == (
@@ -174,6 +189,45 @@ def test_multiple_cluster_memberships_require_distinct_evidence_keys() -> None:
         "ultracool.gaia_dr3_sample.table4.cluster_memberships contains duplicate "
         "evidence_key values"
     ) in errors
+
+
+def test_configured_measurements_reject_nonfinite_numeric_values() -> None:
+    numeric = {"value_field": "value", "quantity_key": "quantity"}
+    lexical = {
+        "value_field": "value",
+        "quantity_key": "quantity",
+        "normalize_numeric": False,
+    }
+    assert "isfinite" in compiler.configured_measurement_predicate("value", numeric)
+    assert "isfinite" not in compiler.configured_measurement_predicate("value", lexical)
+    uncertainty = compiler.nullable_measurement_double_expression(
+        "uncertainty", ["nan"], absolute=True, minimum_value=0
+    )
+    assert "isfinite" in uncertainty
+    assert 'try_cast("uncertainty" as double)>=0.0' in uncertainty
+
+
+def test_configured_photometry_fields_include_lineage_and_quality() -> None:
+    assert compiler.configured_photometry_fields(
+        [
+            {
+                "value_field": "mag",
+                "uncertainty_field": "mag_error",
+                "bandpass_field": "band",
+                "reference_field": "reference",
+                "quality_fields": ["flag", "chi_square"],
+            }
+        ]
+    ) == {"mag", "mag_error", "band", "reference", "flag", "chi_square"}
+
+
+def test_configured_epoch_expression_accepts_field_or_constant() -> None:
+    assert compiler.configured_epoch_expression({"epoch_field": "epoch"}) == (
+        'trim(cast("epoch" as varchar))'
+    )
+    assert compiler.configured_epoch_expression({"epoch_raw": "J2000.0"}) == (
+        "'J2000.0'"
+    )
 
 
 def test_table_contract_reference_inherits_mapping_with_local_overrides() -> None:

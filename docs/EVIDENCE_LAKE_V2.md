@@ -500,6 +500,24 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   canonical containment is promoted. Generic artifact and source/scope audits
   pass; clean reproduction matches logical hash
   `27a516ce3fbfd67062584099c9323038e9c87f4dcb81b67d3479713d6d2958a0`.
+- Compiler/contract v49 rejects non-finite numeric values in configured
+  measurements and uncertainties, supports source-declared uncertainty bounds,
+  fixed or field-based epochs, multiple memberships, lexical measurements, and
+  per-product missing-value contracts. Exact `nan`, negative sentinel, and
+  placeholder URL lexemes remain in source-native rows.
+- UltracoolSheet checkpoint `20fdb1c95d25d441160d3bd9` accounts all 3,890
+  pinned source rows and 242 fields. It materializes 32,841 release-scoped
+  identity claims, 149,636 astrometry/distance observations, 50,134 photometry
+  observations across 23 bandpasses, 10,887 direct/context classifications,
+  23,859 maintainer-derived or context parameters, 3,875 BANYAN memberships,
+  3,079 SimpleDB product locators, 1,001 source-reference records, and 152,122
+  evidence links. Direct optical/IR classifications remain separate from
+  maintainer numeric encodings and selected formulas. Gaia DR2 and DR3 IDs stay
+  in distinct namespaces; pipe-delimited SIMBAD alias inventories remain
+  unsplit source context. Multiplicity and exoplanet flags lack safe endpoints
+  here and create no relation or planet rows. All bindings remain unresolved.
+  Artifact and source/scope audits pass; clean reproduction matches logical hash
+  `2a7cfb5f4c34df4c17cf2e6e2fa35639d1d0181b984983f7d4779407e62e1bab`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through
