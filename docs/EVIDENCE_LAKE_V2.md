@@ -291,8 +291,13 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   from the base basic-data slice. The acquisition compiler checksum-pins that
   exact list and deterministically divides it into 31 modulo buckets of
   732-835 object IDs; basic, alias, and bibliography queries retain separate
-  content identities and independent response caps. Final acquisition and
-  raw/typed reproduction remain in progress.
+  content identities and independent response caps. All 93 targeted queries
+  completed with 24,218 basic rows, 140,962 identifiers, and 68,928
+  bibliography links. Immutable raw snapshot `7e251164da42ef2a93627d84`
+  and typed snapshot `55a9bfcaaa943ddd035df3ab` preserve 35,321,742 rows
+  across the eight active tables. Raw/typed verification and clean scratch
+  reproduction pass content hash
+  `d7b78dd6cb77e5ee2cd9c03771e1e7b893bb7439aa8d2489a95442c7e1182100`.
 - The 7,862,084-row Gaia AP multiple-object-analysis table initially saturated
   every 400,000-row response under a 17-way partition. The reviewed 31-way
   contract completes exactly at 252,595-254,593 rows per partition; canonical
@@ -304,7 +309,7 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   scripts. Immutable snapshot `aea36fe5a6753de90be33301` passes schema/row
   verification and clean typed-hash reproduction. E4 now performs the local
   envelope intersection and relation materialization described below.
-- The staged SIMBAD identity/naming/bibliography slice, expanded Gaia NSS,
+- The complete staged SIMBAD identity/naming/bibliography slice, expanded Gaia NSS,
   GALAH DR4, and all three LAMOST DR11 stellar releases pass immutable
   raw-to-typed verification and clean reproduction. APOGEE DR17 also passes
   after adding a reusable, schema-gated multi-HDU FITS adapter: its 733,901-row

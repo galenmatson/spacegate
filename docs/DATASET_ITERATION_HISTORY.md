@@ -1315,7 +1315,12 @@ Representative commits:
   `8d940fdc1bc8eee0dc8efa7e` is checksum-pinned. The generic TAP compiler splits
   integer target IDs by the product's modulo buckets, persists every exact
   query, and independently applies the same modulo guard; no named object or
-  catalog row receives production special handling.
+  catalog row receives production special handling. All 93 targeted queries
+  complete with 24,218 basic rows, 140,962 identifiers, and 68,928 bibliography
+  links. Eight-table raw snapshot `7e251164da42ef2a93627d84` and 35,321,742-row
+  typed snapshot `55a9bfcaaa943ddd035df3ab` pass immutable verification and
+  clean reproduction at content hash
+  `d7b78dd6cb77e5ee2cd9c03771e1e7b893bb7439aa8d2489a95442c7e1182100`.
 - SIMBAD E4 diagnostic v36 completed but failed independent audit because 285
   component-suffixed aliases matched the broad HIP family while failing numeric
   normalization. They remain valid full SIMBAD identifiers but are not valid

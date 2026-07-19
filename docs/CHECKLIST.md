@@ -1125,6 +1125,9 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   multiplicity/compact/ultracool/extended sources under the new contracts
 - [x] E3 wide-binary checkpoint: pin, source-native type, verify, and clean-
   reproduce the El-Badry Gaia EDR3 main/control FITS tables and method scripts
+- [x] E3 SIMBAD staged checkpoint: acquire the checksum-pinned 24,218-object
+  complete-Gaia-envelope delta; preserve, verify, and clean-reproduce all eight
+  active bridge/basic/identifier/bibliography tables and 35,321,742 rows
 - [x] E3 SBX checkpoint: replace the 10-field/aggregate-orbit Evidence Lake
   input with a separate complete-catalog profile; preserve all 4,080 systems,
   102,459 aliases, 261 configurations, 5,169 full orbit rows, and all 73

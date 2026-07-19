@@ -1414,11 +1414,13 @@ Current status (July 19, 2026, in progress):
   and all three LAMOST DR11 stellar products are source-native typed, verified,
   and clean-reproducible; together they preserve 47,474,126 typed rows before
   APOGEE is counted
-- a checksum-bound SIMBAD hard-envelope delta accounts the 64 matched objects
-  absent from the base slice, including 293 aliases and 173 bibliography links;
-  the resulting eight-table 35,088,164-row typed snapshot cleanly reproduces,
-  while complete-union target seed `8d940fdc1bc8eee0dc8efa7e` identifies 24,218
-  remaining SIMBAD objects for bounded, checksum-pinned acquisition
+- final SIMBAD target seed `8d940fdc1bc8eee0dc8efa7e` accounts the 24,218
+  matched objects absent from the base slice. All 93 checksum-bound targeted
+  queries complete with 24,218 basic rows, 140,962 identifiers, and 68,928
+  bibliography links. Raw snapshot `7e251164da42ef2a93627d84` and typed snapshot
+  `55a9bfcaaa943ddd035df3ab` preserve 35,321,742 rows across eight active tables;
+  verification and clean reproduction pass exact content hash
+  `d7b78dd6cb77e5ee2cd9c03771e1e7b893bb7439aa8d2489a95442c7e1182100`
 - all 15 Gaia AP, supplementary-AP, NSS, variability/rotation, and official
   external-crossmatch hard-parallax products now have registered, disjoint
   posterior-overlap companions guarded by an executable source/field/predicate
