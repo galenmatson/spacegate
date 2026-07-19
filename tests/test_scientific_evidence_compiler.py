@@ -1037,18 +1037,30 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
     selected_adapter["tables"]["test_rows"]["row_selection"] = {
         "policy_id": "alpha_only_v1",
         "sql_predicate": "note = 'alpha'",
+        "cache_selected_rows": True,
         "reason": "test selection",
     }
     with duckdb.connect() as con:
         compiler.create_schema(con)
         selected = compiler.materialize_source(
-            con, input_row, selected_adapter, contract
+            con,
+            input_row,
+            selected_adapter,
+            contract,
+            materialization_cache_root=tmp_path / "scratch",
         )
         assert con.execute("select count(*) from source_records").fetchone()[0] == 1
     assert selected["input_source_rows"] == 3
     assert selected["source_rows"] == 2
     assert selected["excluded_by_row_selection"] == 1
     assert selected["tables"][0]["row_selection_policy"] == "alpha_only_v1"
+    cache = selected["tables"][0]["selected_row_cache"]
+    assert cache == {
+        "enabled": True,
+        "row_count": 2,
+        "source_row_hash_mismatches": 0,
+        "storage": "duckdb_temporary_table",
+    }
 
 
 def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes() -> None:
@@ -1083,6 +1095,7 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
         },
         "citation_summary": {"citations": 1, "evidence_links": 1},
         "logical_content_sha256": "logical",
+        "scientific_content_sha256": "scientific",
         "logical_hash_algorithm": "sha256_bucketed_multiset_v1",
         "tables": [{"table": "source_records", "row_count": 1, "logical_sha256": "a"}],
         "created_at": "2026-07-19T00:00:00Z",
@@ -1099,6 +1112,10 @@ def test_reproduction_comparison_uses_logical_content_not_runtime_database_bytes
     reproduced["external_memberships"] = {"spectroscopy.test": {}}
     assert reproduction.compare_reports(report, reproduced) == [
         "external_memberships"
+    ]
+    reproduced = dict(report, scientific_content_sha256="changed")
+    assert reproduction.compare_reports(report, reproduced) == [
+        "scientific_content_sha256"
     ]
 
 

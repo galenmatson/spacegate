@@ -369,6 +369,12 @@ is not a cleanup candidate. The APOGEE source-audit schema is allowlisted only
 to classify a failed whole artifact for the existing fail-closed retention
 workflow; it cannot authorize deletion without the other checksum, age,
 live-handle, candidate-hash, and explicit-apply gates.
+Optimized v60 `e794324a7c7e86e80a3ea614` supersedes the compiler execution
+path while preserving v58 as the scientific A/B reference. Retention candidate
+hash `f5bb515adecfb310166a1cf9a89d62056795acccfbaa1c2e02ac1581823eb494`
+removed exactly three manifestless APOGEE attempts and reclaimed 3,238,584,320
+allocated bytes. Valid v58/v59 artifacts remain protected pending v60 clean
+reproduction and a reviewed successful-artifact retirement policy.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

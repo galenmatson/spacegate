@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.58",
-  "compiler_version": "scientific_evidence_compiler_v58",
+  "contract_version": "2026-07-19.e4-foundation.60",
+  "compiler_version": "scientific_evidence_compiler_v60",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -1395,6 +1395,7 @@
           "row_selection": {
             "policy_id": "registered_bailer_jones_edr3_envelope_v1",
             "sql_predicate": "true",
+            "cache_selected_rows": true,
             "reason": "retain APOGEE rows whose explicit Gaia EDR3 identity occurs in the checksum-bound Spacegate uncertainty-aware EDR3 envelope",
             "external_membership_groups": [
               {

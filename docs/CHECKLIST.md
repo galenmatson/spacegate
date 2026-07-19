@@ -1155,7 +1155,7 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   Bailer-Jones envelope; account all 243 source fields and independently audit
   coherent stellar/abundance, photometry/extinction, coordinate/RV, identity,
   citation, and product-lineage evidence with zero pending fields
-- [ ] E4 compiler scaling: cache checksum-bound selected rows and insert large
+- [x] E4 compiler scaling: cache checksum-bound selected rows and insert large
   evidence branches incrementally; prove the APOGEE logical hash unchanged
   before materializing GALAH or LAMOST
 - [x] E4 foundation: add the immutable 23-domain compiler contract, deterministic

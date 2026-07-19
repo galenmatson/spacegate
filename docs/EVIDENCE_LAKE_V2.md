@@ -430,6 +430,15 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   The measured 41:53 compile and 9.17-GB peak RSS expose repeated wide-source
   scans and branch buffering; selected-row caching and incremental inserts must
   prove the identical logical hash before GALAH/LAMOST materialization.
+- Compiler/contract v60 closes that scaling defect with an exact-hash-verified
+  DuckDB temporary selected-row table and incremental branch insertion. APOGEE
+  checkpoint `e794324a7c7e86e80a3ea614` has scientific-content hash
+  `194eede6937b26f8c0cd508f6dd7dd0a39ef34b2a455000d1f57ee18c8a5f31b`,
+  exactly matching the v58 projection across every table except the necessarily
+  changing `evidence_build` metadata row. Runtime falls from 41:53 to 11:54 and
+  peak RSS from 9.17 GB to 6.53 GB. The temporary cache accounts all 178,099
+  selected rows with zero source-row hash mismatches and is removed after close;
+  both generic and source-specific audits pass.
 - The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
   source spectral classifications, release-scoped identifier claims,
   authoritative bibliography rows, and object/reference links without selecting

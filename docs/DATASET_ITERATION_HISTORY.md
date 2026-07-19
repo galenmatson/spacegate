@@ -1727,6 +1727,26 @@ Representative commits:
   manifest still reports 12 pending products; no partial milestone is promoted
   into a false whole-program completion.
 
+### 58) Exact Selected-Row Compiler Scaling
+
+- A first Parquet selected-row cache failed closed: all 178,099 APOGEE rows were
+  present, but three complete-row hashes changed after Parquet re-encoding. No
+  artifact was promoted. The accepted implementation uses an in-process DuckDB
+  temporary table, verifies every cached row against the immutable source-record
+  hash set, and refuses materialization on any count or hash mismatch.
+- Large configured evidence families now insert one deterministic branch at a
+  time instead of buffering a multi-million-row `UNION ALL`. v60 checkpoint
+  `e794324a7c7e86e80a3ea614` reproduces every v58 scientific table exactly. Its
+  scientific-content hash, excluding only self-describing `evidence_build`, is
+  `194eede6937b26f8c0cd508f6dd7dd0a39ef34b2a455000d1f57ee18c8a5f31b`.
+  Full logical hashes still include build metadata for same-build reproduction.
+- Runtime improves from 41:53 to 11:54 and peak RSS from 9.17 GB to 6.53 GB.
+  Generic and APOGEE-specific audits pass. Fail-closed retention candidate hash
+  `f5bb515adecfb310166a1cf9a89d62056795acccfbaa1c2e02ac1581823eb494`
+  retired exactly three manifestless attempts from this work and reclaimed
+  3,238,584,320 allocated bytes; older ambiguous trees and valid v58/v59 builds
+  were not touched.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

@@ -1489,6 +1489,12 @@ Current status (July 19, 2026, in progress):
   Compile runtime (41:53) and peak RSS (9.17 GB) make selected-row caching and
   incremental evidence insertion a required identical-hash optimization before
   GALAH/LAMOST are materialized
+- optimized APOGEE v60 `e794324a7c7e86e80a3ea614` passes both audits and
+  exactly matches v58 across every scientific table at content hash
+  `194eede6937b26f8c0cd508f6dd7dd0a39ef34b2a455000d1f57ee18c8a5f31b`.
+  Exact-hash temporary selection and incremental inserts reduce runtime to
+  11:54 and peak RSS to 6.53 GB; this is the accepted compiler path for the
+  pending GALAH/LAMOST adapters
 - Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
   materializes all 17,310,560 rows as release-scoped EDR3 identities and
   coherent geometric/photogeometric posterior bundles. Its 33,225,308

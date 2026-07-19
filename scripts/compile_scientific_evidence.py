@@ -142,6 +142,14 @@ def sql_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+def source_relation(path: Path | str) -> str:
+    value = str(path)
+    prefix = "duckdb-table:"
+    if value.startswith(prefix):
+        return sql_identifier(value.removeprefix(prefix))
+    return f"read_parquet({sql_string(value)})"
+
+
 def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9._-]+", "_", value.lower()).strip("._-")
 
@@ -305,6 +313,11 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
             ).strip():
                 errors.append(f"{source_id}.{table_name} has an empty raw artifact name")
             row_selection = table.get("row_selection") or {}
+            if row_selection.get("cache_selected_rows") not in {None, True, False}:
+                errors.append(
+                    f"{source_id}.{table_name}.row_selection.cache_selected_rows "
+                    "must be boolean"
+                )
             for group_index, group in enumerate(
                 row_selection.get("external_membership_groups") or []
             ):
@@ -1872,7 +1885,7 @@ def materialize_identifier_claims(
             select distinct
               sha256(to_json(source_row)) source_row_sha256,
               trim(cast({quoted} as varchar)) value_raw
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             where nullif(trim(cast({quoted} as varchar)), '') is not null
               {excluded_predicate}
           ) s
@@ -1970,7 +1983,7 @@ def materialize_composite_identifier_claims(
                 'source_fields', {sql_string(json.dumps(fields))},
                 'construction', 'literal_prefix_delimiter_suffix_v1'
               )
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -2028,7 +2041,7 @@ def materialize_conditional_identifier_claims(
                 'strip_prefix', {nullable_sql_string(strip_prefix)},
                 'normalization', {sql_string(normalization)}
               )
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -2046,7 +2059,7 @@ def materialize_conditional_identifier_claims(
               r.source_record_id, {sql_string(field)}, {sql_string(namespace)},
               {raw}, {sql_string(normalization)},
               'normalization did not produce a usable identifier'
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -2359,7 +2372,7 @@ def scalar_select_branch(
         "|| r.source_record_id)"
     )
     common_from = f"""
-      from read_parquet({sql_string(str(path))}) source_row
+      from {source_relation(path)} source_row
       join source_records r
         on r.source_id={sql_string(source_id)}
        and r.release_id={sql_string(release_id)}
@@ -2548,7 +2561,7 @@ def materialize_stellar_classifications(
                 'source_field', {sql_string(name)},
                 'source_description', {nullable_sql_string(field.get('description'))}
               )
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -2757,7 +2770,7 @@ def materialize_scoped_stellar_evidence(
                     'missing_values', {sql_string(json.dumps(config.get('classification_missing_values') or []))},
                     'source_quality', {source_quality}
                   )
-                from read_parquet({sql_string(str(path))}) source_row
+                from {source_relation(path)} source_row
                 join source_records r
                   on r.source_id={sql_string(source_id)}
                  and r.release_id={sql_string(release_id)}
@@ -2833,7 +2846,7 @@ def materialize_scoped_stellar_evidence(
                     'source_quality', {source_quality}
                   ),
                   {sql_string(normalization)}
-                from read_parquet({sql_string(str(path))}) source_row
+                from {source_relation(path)} source_row
                 join source_records r
                   on r.source_id={sql_string(source_id)}
                  and r.release_id={sql_string(release_id)}
@@ -2843,9 +2856,8 @@ def materialize_scoped_stellar_evidence(
                 """
             )
         if branches:
-            con.execute(
-                "insert into stellar_parameter_evidence " + " union all ".join(branches)
-            )
+            for branch in branches:
+                con.execute("insert into stellar_parameter_evidence " + branch)
             con.execute(
                 f"""
                 insert into stellar_parameter_sets
@@ -2986,7 +2998,7 @@ def materialize_configured_photometry(
               {sql_string(str(reference_raw)) if reference_raw is not None else text_expression(reference_field)},
               {quality},
               {sql_string(str(measurement.get('normalization_version') or 'source_native_v1'))}
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -2996,9 +3008,8 @@ def materialize_configured_photometry(
             """
         )
     if branches:
-        con.execute(
-            "insert into photometry_extinction_evidence " + " union all ".join(branches)
-        )
+        for branch in branches:
+            con.execute("insert into photometry_extinction_evidence " + branch)
     return consumed
 
 
@@ -3180,7 +3191,7 @@ def materialize_configured_coordinate_measurements(
                 'normalization_valid', ({valid})
               ),
               {sql_string(str(measurement.get('normalization_version') or 'sexagesimal_degrees_v1'))}
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -3274,7 +3285,7 @@ def materialize_configured_domain_measurements(
             "|| r.source_record_id)"
         )
         common_from = f"""
-          from read_parquet({sql_string(str(path))}) source_row
+          from {source_relation(path)} source_row
           join source_records r
             on r.source_id={sql_string(source_id)}
            and r.release_id={sql_string(release_id)}
@@ -3374,9 +3385,8 @@ def materialize_configured_domain_measurements(
             raise ValueError(f"unsupported configured domain destination: {destination}")
         branches_by_destination.setdefault(destination, []).append(branch)
     for destination, branches in branches_by_destination.items():
-        con.execute(
-            f"insert into {sql_identifier(destination)} " + " union all ".join(branches)
-        )
+        for branch in branches:
+            con.execute(f"insert into {sql_identifier(destination)} " + branch)
     for destination, structs in bundle_structs_by_destination.items():
         if destination != "astrometry_distance_evidence":
             raise ValueError(f"unsupported bundle destination: {destination}")
@@ -3390,7 +3400,7 @@ def materialize_configured_domain_measurements(
                 r.source_record_id,
                 'storage_group_only_no_parameter_coherence' bundle_semantics,
                 list_filter({bundle_values}, measurement -> measurement is not null) measurements
-              from read_parquet({sql_string(str(path))}) source_row
+              from {source_relation(path)} source_row
               join source_records r
                 on r.source_id={sql_string(source_id)}
                and r.release_id={sql_string(release_id)}
@@ -3438,7 +3448,7 @@ def materialize_observation_products(
                 'source_field', {sql_string(name)},
                 'source_description', {nullable_sql_string(field.get('description'))}
               )
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -3569,7 +3579,7 @@ def materialize_relation_claims(
           {sql_string(str(relation_claim['reference_raw']))},
           {epoch},
           {quality}
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -3699,7 +3709,7 @@ def materialize_orbital_solutions(
           {reference},
           {quality},
           {sql_string(str(orbital_solution['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -3790,7 +3800,7 @@ def materialize_extended_objects(
           {nullable_sql_string(extended_object.get('model'))},
           {reference}, {quality},
           {sql_string(str(extended_object['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -3859,7 +3869,7 @@ def materialize_compact_objects(
           {nullable_sql_string(compact_object.get('model'))},
           {reference}, {quality},
           {sql_string(str(compact_object['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -4000,7 +4010,7 @@ def materialize_citation_catalog(
             'first_line', min(source_row.{sql_identifier(str(line_order_field))}),
             'last_line', max(source_row.{sql_identifier(str(line_order_field))})
           ) as varchar)
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -4022,7 +4032,7 @@ def materialize_citation_catalog(
           {text_expression(str(doi_field) if doi_field else None)},
           {text_expression(str(publication_year_field) if publication_year_field else None)},
           cast({context} as varchar)
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -4117,7 +4127,7 @@ def materialize_source_citation_links(
             select distinct
               'identifier_claim_evidence', e.evidence_id, c.citation_id,
               {sql_string(str(link['citation_role']))}
-            from read_parquet({sql_string(str(path))}) source_row
+            from {source_relation(path)} source_row
             join source_records r
               on r.source_id={sql_string(source_id)}
              and r.release_id={sql_string(release_id)}
@@ -4137,7 +4147,7 @@ def materialize_source_citation_links(
                 con.execute(
                     f"""
                     select count(distinct r.source_record_id)
-                    from read_parquet({sql_string(str(path))}) source_row
+                    from {source_relation(path)} source_row
                     join source_records r
                       on r.source_id={sql_string(source_id)}
                      and r.release_id={sql_string(release_id)}
@@ -4215,7 +4225,7 @@ def materialize_cluster_context(
             'row_selection_policy', {nullable_sql_string((cluster_context.get('selection_context') or {}).get('policy_id'))}
           ),
           {sql_string(str(cluster_context['normalization_version']))}
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -4267,7 +4277,7 @@ def materialize_cluster_memberships(
             con.execute(
                 f"""
                 select count(*)
-                from read_parquet({sql_string(str(path))}) source_row
+                from {source_relation(path)} source_row
                 join source_records r
                   on r.source_id={sql_string(source_id)}
                  and r.release_id={sql_string(release_id)}
@@ -4319,7 +4329,7 @@ def materialize_cluster_memberships(
             'probability_semantics', {nullable_sql_string(cluster_membership.get('probability_semantics'))},
             'source_membership_record', {source_quality}
           )
-        from read_parquet({sql_string(str(path))}) source_row
+        from {source_relation(path)} source_row
         join source_records r
           on r.source_id={sql_string(source_id)}
          and r.release_id={sql_string(release_id)}
@@ -4512,7 +4522,7 @@ def materialize_lifecycle_claims(
                 {effective_expression} effective_raw,
                 {reference_expression} reference_raw,
                 {context_json} context_json
-              from read_parquet({sql_string(str(path))}) source_row
+              from {source_relation(path)} source_row
             ), normalized as (
               select *, {normalized} normalized_disposition
               from source_claims s
@@ -4553,6 +4563,7 @@ def materialize_source(
     adapter: dict[str, Any],
     contract: dict[str, Any],
     external_memberships: dict[str, list[dict[str, Any]]] | None = None,
+    materialization_cache_root: Path | None = None,
 ) -> dict[str, Any]:
     source_id = input_row["source_id"]
     release_id = input_row["release_id"]
@@ -4609,7 +4620,7 @@ def materialize_source(
         columns = [
             str(row[0])
             for row in con.execute(
-                f"describe select * from read_parquet({sql_string(str(path))})"
+                f"describe select * from {source_relation(path)}"
             ).fetchall()
         ]
         logical_fields = list(table_contract["logical_key_fields"])
@@ -4660,7 +4671,7 @@ def materialize_source(
                 {source_row_hash} source_row_sha256,
                 {key_json} logical_key_json,
                 {context_json} source_context_json
-              from read_parquet({sql_string(str(path))}) source_row
+              from {source_relation(path)} source_row
               where {row_predicate}
             )
             select
@@ -4698,6 +4709,40 @@ def materialize_source(
             raise ValueError(f"source-record accounting overflow for {table_name}")
         if not table_contract.get("row_selection") and int(source_rows) != typed_source_rows:
             raise ValueError(f"source-record accounting mismatch for {table_name}")
+        evidence_path = path
+        selected_cache_report = {"enabled": False}
+        if (table_contract.get("row_selection") or {}).get("cache_selected_rows"):
+            if materialization_cache_root is None:
+                raise ValueError("selected-row caching requires compiler scratch")
+            cache_table = "_selected_" + stable_hash(
+                [source_id, release_id, table_name]
+            )[:16]
+            evidence_path = "duckdb-table:" + cache_table
+            con.execute(
+                f"create temporary table {sql_identifier(cache_table)} as "
+                f"select source_row.* from {source_relation(path)} "
+                f"source_row where {row_predicate}"
+            )
+            cached_rows, unknown_hashes = con.execute(
+                f"select count(*), count(*) filter(where not exists ("
+                "select 1 from source_records r where "
+                f"r.source_id={sql_string(source_id)} and "
+                f"r.release_id={sql_string(release_id)} and "
+                f"r.source_table={sql_string(table_name)} and "
+                "r.source_row_sha256=sha256(to_json(source_row)))) "
+                f"from {source_relation(evidence_path)} source_row"
+            ).fetchone()
+            if int(cached_rows) != int(source_rows) or int(unknown_hashes):
+                raise ValueError(
+                    f"selected-row cache mismatch for {table_name}: "
+                    f"cached={cached_rows} source={source_rows} unknown={unknown_hashes}"
+                )
+            selected_cache_report = {
+                "enabled": True,
+                "row_count": int(cached_rows),
+                "source_row_hash_mismatches": int(unknown_hashes),
+                "storage": "duckdb_temporary_table",
+            }
         identifier_fields = [
             str(field["column_name"])
             for field, rule, _index in classified_fields
@@ -4712,7 +4757,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 fields=identifier_fields,
                 claim_by_field=identifier_claims,
             )
@@ -4723,7 +4768,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 claims=list(table_contract.get("composite_identifier_claims") or []),
                 available_fields=set(columns),
             )
@@ -4734,7 +4779,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 claims=list(table_contract.get("conditional_identifier_claims") or []),
                 available_fields=set(columns),
             )
@@ -4745,7 +4790,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 claims=list(table_contract.get("lifecycle_claims") or []),
                 available_fields=set(columns),
             )
@@ -4783,7 +4828,7 @@ def materialize_source(
                         source_id=source_id,
                         release_id=release_id,
                         table_name=table_name,
-                        path=path,
+                        path=evidence_path,
                         destination=destination,
                         fields=destination_fields,
                         available_fields=set(columns),
@@ -4806,7 +4851,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     fields=classification_fields,
                     table_contract=table_contract,
                 )
@@ -4817,7 +4862,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 parameter_sets=list(
                     table_contract.get("scoped_stellar_parameter_sets") or []
                 ),
@@ -4830,7 +4875,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 measurements=list(table_contract.get("photometry_measurements") or []),
                 available_fields=set(columns),
             )
@@ -4841,7 +4886,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                     measurements=list(
                         table_contract.get("configured_domain_measurements") or []
                     ),
@@ -4857,7 +4902,7 @@ def materialize_source(
                 source_id=source_id,
                 release_id=release_id,
                 table_name=table_name,
-                path=path,
+                path=evidence_path,
                 measurements=list(
                     table_contract.get("configured_coordinate_measurements") or []
                 ),
@@ -4874,7 +4919,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     fields=observation_product_fields,
                     missing_values_by_field=dict(
                         table_contract.get("observation_product_missing_values") or {}
@@ -4897,7 +4942,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     relation_claim=relation_contract,
                     available_fields=set(columns),
                 )
@@ -4917,7 +4962,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     fields=orbital_solution_fields,
                     orbital_solution=orbital_solution,
                     available_fields=set(columns),
@@ -4936,7 +4981,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     fields=cluster_fields,
                     cluster_context=cluster_context,
                     available_fields=set(columns),
@@ -4967,7 +5012,7 @@ def materialize_source(
                         source_id=source_id,
                         release_id=release_id,
                         table_name=table_name,
-                        path=path,
+                        path=evidence_path,
                         fields=membership_fields,
                         cluster_membership=membership_contract,
                         available_fields=set(columns),
@@ -4989,7 +5034,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     fields=extended_object_fields,
                     extended_object=extended_object,
                     available_fields=set(columns),
@@ -5015,7 +5060,7 @@ def materialize_source(
                         source_id=source_id,
                         release_id=release_id,
                         table_name=table_name,
-                        path=path,
+                        path=evidence_path,
                         fields=compact_object_fields,
                         compact_object=compact_object,
                         available_fields=set(columns),
@@ -5034,7 +5079,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     citation_catalog=citation_catalog,
                     fields=citation_fields,
                     available_fields=set(columns),
@@ -5053,7 +5098,7 @@ def materialize_source(
                     source_id=source_id,
                     release_id=release_id,
                     table_name=table_name,
-                    path=path,
+                    path=evidence_path,
                     links=source_citation_links,
                     available_fields=set(columns),
                 )
@@ -5117,6 +5162,7 @@ def materialize_source(
                     }
                     for group in (external_memberships or {}).get(table_name, [])
                 ],
+                "selected_row_cache": selected_cache_report,
                 "source_records": int(records),
                 "exact_duplicate_rows": int(duplicate_rows),
                 "source_fields": len(columns),
@@ -5389,6 +5435,7 @@ def compile_evidence(
                     contract["source_adapters"][input_row["source_id"]],
                     contract,
                     resolved_external_memberships[input_row["source_id"]],
+                    duckdb_temporary,
                 )
             )
         citation_summary = materialize_citations(con)
@@ -5528,6 +5575,9 @@ def compile_evidence(
         con.close()
         shutil.rmtree(duckdb_temporary, ignore_errors=True)
     logical_content_sha256 = stable_hash(tables)
+    scientific_content_sha256 = stable_hash(
+        [table for table in tables if table["table"] != "evidence_build"]
+    )
     report = {
         "schema_version": "spacegate.scientific_evidence_report.v1",
         "build_id": build_id,
@@ -5550,6 +5600,7 @@ def compile_evidence(
         "relation_claim_counts": relation_claim_counts,
         "citation_summary": citation_summary,
         "logical_content_sha256": logical_content_sha256,
+        "scientific_content_sha256": scientific_content_sha256,
         "logical_hash_algorithm": LOGICAL_HASH_ALGORITHM,
         "materialization_execution": {
             "memory_limit": MATERIALIZATION_MEMORY_LIMIT,
@@ -5586,6 +5637,7 @@ def compile_evidence(
         "database_bytes": database_path.stat().st_size,
         "database_sha256": file_hash(database_path),
         "logical_content_sha256": logical_content_sha256,
+        "scientific_content_sha256": scientific_content_sha256,
         "report": report,
     }
     write_json(temporary / "manifest.json", manifest)
