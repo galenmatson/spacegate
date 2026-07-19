@@ -1372,8 +1372,10 @@ Current status (July 19, 2026, in progress):
   source-native products, and expanded NSS has completed with 50,762 full
   77-column orbit rows
 - official WGSN and GCVS release artifacts are pinned and pass raw/typed
-  verification; GCVS preserves 60,894 catalog rows, 226,060 cross-identifiers,
-  26,018 suspected variables, 25,696 bibliography rows, and its source
+  verification; WGSN preserves 597 distinct named rows, all 16 declared
+  columns, source row identity, and linked resources under a schema-drift gate;
+  GCVS preserves 60,894 catalog rows, 226,060 cross-identifiers, 26,018
+  suspected variables, 25,696 bibliography rows, and its source
   documents/dictionaries
 - registered acquisition contracts now cover Bailer-Jones distances,
   Hunt-Reffert clusters, El-Badry probability-bearing wide binaries, staged

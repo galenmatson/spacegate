@@ -94,6 +94,12 @@ basic-data, and bibliography acquisition. Full TIC, Gaia observation products,
 and survey spectra remain excluded from bulk mirroring; registered metadata
 and product locators drive bounded on-demand retrieval.
 
+Pinned HTML sources must declare their semantic table contract when one exists.
+The WGSN snapshot declares and validates all 16 catalog headers, preserves row
+identity and linked resources, and excludes unrelated page tables and footer
+controls with machine-counted reasons. The exact HTML remains the immutable raw
+authority.
+
 ## Gaia Release Identity Evidence
 
 Gaia DR2 and DR3 source IDs are different release-scoped namespaces. Spacegate

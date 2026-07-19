@@ -81,6 +81,35 @@ def test_checked_in_registry_is_valid_and_manifest_bindings_are_unique() -> None
     assert registry["ingestion_envelope"]["buffer_radius_ly"] > 1000
 
 
+def test_registry_rejects_incomplete_or_duplicate_html_table_contract() -> None:
+    registry = minimal_registry()
+    registry["sources"][0]["schema_policy"] = {
+        "kind": "html_snapshot",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "html_table": {
+            "source_name": "test_rows",
+            "table_id": "names",
+            "fields": [
+                {
+                    "source_header": "Name",
+                    "name": "proper_name",
+                    "disposition": "preserve",
+                },
+                {
+                    "source_header": "Name",
+                    "name": "proper_name",
+                    "disposition": "unexpected",
+                },
+            ],
+        },
+    }
+    errors = validate_registry(registry)
+    assert any("field names must be unique" in error for error in errors)
+    assert any("source headers must be unique" in error for error in errors)
+    assert any("field disposition is invalid" in error for error in errors)
+
+
 def test_observation_product_policy_is_bounded_metadata_first_and_allowlisted() -> None:
     policy = json.loads(PRODUCT_POLICY_PATH.read_text(encoding="utf-8"))
     assert policy["schema_version"] == "spacegate.observation_product_storage_policy.v1"

@@ -6,10 +6,12 @@ from __future__ import annotations
 import gzip
 import hashlib
 import html
+import json
 import re
 import shutil
 import tarfile
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, BinaryIO, Iterable, TextIO
 
@@ -233,6 +235,201 @@ def write_document_lines_parquet(path: Path, output: Path) -> dict[str, int]:
                 yield {"source_line_number": line_number, "text": line.rstrip("\r\n")}
 
     return {"row_count": write_record_batches(rows(), schema, output)}
+
+
+class SourceHTMLTableParser(HTMLParser):
+    """Collect source table cells without attempting to repair page semantics."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.tables: list[dict[str, Any]] = []
+        self._table: dict[str, Any] | None = None
+        self._row: dict[str, Any] | None = None
+        self._cell: dict[str, Any] | None = None
+        self._section: str | None = None
+
+    @staticmethod
+    def attributes(values: list[tuple[str, str | None]]) -> dict[str, str | None]:
+        return {name: value for name, value in values}
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        attributes = self.attributes(attrs)
+        if tag == "table" and self._table is None:
+            self._table = {
+                "table_id": attributes.get("id"),
+                "attributes": attributes,
+                "headers": [],
+                "rows": [],
+                "excluded_footer_row_count": 0,
+            }
+            return
+        if self._table is None:
+            return
+        if tag in {"thead", "tbody", "tfoot"}:
+            self._section = tag
+            return
+        if tag == "tr" and self._row is None:
+            self._row = {
+                "attributes": attributes,
+                "cells": [],
+                "section": self._section,
+            }
+            return
+        if tag in {"th", "td"} and self._row is not None and self._cell is None:
+            self._cell = {
+                "kind": tag,
+                "attributes": attributes,
+                "text": [],
+                "resources": [],
+            }
+            return
+        if self._cell is not None and tag in {"a", "img", "source"}:
+            resource = {
+                "tag": tag,
+                "attributes": attributes,
+            }
+            if attributes.get("href") or attributes.get("src") or attributes.get("srcset"):
+                self._cell["resources"].append(resource)
+
+    def handle_startendtag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        self.handle_starttag(tag, attrs)
+
+    def handle_data(self, data: str) -> None:
+        if self._cell is not None:
+            self._cell["text"].append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in {"th", "td"} and self._cell is not None:
+            self._cell["text"] = " ".join("".join(self._cell["text"]).split()) or None
+            assert self._row is not None
+            self._row["cells"].append(self._cell)
+            self._cell = None
+            return
+        if tag == "tr" and self._row is not None:
+            cells = self._row["cells"]
+            if cells and all(cell["kind"] == "th" for cell in cells):
+                assert self._table is not None
+                self._table["headers"] = [cell["text"] for cell in cells]
+            elif cells and all(cell["kind"] == "td" for cell in cells):
+                assert self._table is not None
+                if self._row["section"] == "tfoot":
+                    self._table["excluded_footer_row_count"] += 1
+                else:
+                    self._table["rows"].append(self._row)
+            self._row = None
+            return
+        if tag in {"thead", "tbody", "tfoot"}:
+            self._section = None
+            return
+        if tag == "table" and self._table is not None:
+            self.tables.append(self._table)
+            self._table = None
+
+
+def parse_html_tables(path: Path) -> list[dict[str, Any]]:
+    parser = SourceHTMLTableParser()
+    with open_text(path) as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), ""):
+            parser.feed(chunk)
+    parser.close()
+    if parser._table is not None or parser._row is not None or parser._cell is not None:
+        raise ValueError(f"unclosed HTML table structure: {path}")
+    return parser.tables
+
+
+def write_html_table_parquet(
+    path: Path,
+    output: Path,
+    *,
+    table_id: str,
+    fields: list[dict[str, str]],
+) -> dict[str, Any]:
+    page_tables = parse_html_tables(path)
+    tables = [table for table in page_tables if table["table_id"] == table_id]
+    if len(tables) != 1:
+        raise ValueError(f"expected one HTML table {table_id!r}, found {len(tables)}")
+    table = tables[0]
+    source_headers = table["headers"]
+    expected_headers = [field["source_header"] for field in fields]
+    if source_headers != expected_headers:
+        raise ValueError(
+            f"HTML table header drift for {table_id}: {source_headers!r} != {expected_headers!r}"
+        )
+    field_names = [field["name"] for field in fields]
+    if len(field_names) != len(set(field_names)):
+        raise ValueError(f"HTML table contract has duplicate field names: {field_names}")
+
+    schema = pa.schema(
+        [
+            pa.field("source_table_id", pa.string()),
+            pa.field("source_row_number", pa.int64()),
+            pa.field("source_row_id", pa.string()),
+            pa.field("source_row_index", pa.int64()),
+            pa.field("source_row_attributes_json", pa.string()),
+            pa.field("source_cell_resources_json", pa.string()),
+        ]
+        + [pa.field(name, pa.string()) for name in field_names]
+    )
+
+    def rows() -> Iterable[dict[str, Any]]:
+        for row_number, source_row in enumerate(table["rows"], start=1):
+            cells = source_row["cells"]
+            if len(cells) != len(fields):
+                raise ValueError(
+                    f"HTML row {row_number} in {table_id} has {len(cells)} cells; "
+                    f"expected {len(fields)}"
+                )
+            attributes = source_row["attributes"]
+            row_index_raw = attributes.get("data-row-index")
+            try:
+                row_index = int(row_index_raw) if row_index_raw is not None else None
+            except ValueError as exc:
+                raise ValueError(
+                    f"HTML row {row_number} has non-integer data-row-index: {row_index_raw!r}"
+                ) from exc
+            resources = []
+            for index, cell in enumerate(cells):
+                if cell["resources"]:
+                    resources.append(
+                        {
+                            "cell_index": index,
+                            "field_name": field_names[index],
+                            "resources": cell["resources"],
+                        }
+                    )
+            result = {
+                "source_table_id": table_id,
+                "source_row_number": row_number,
+                "source_row_id": attributes.get("id"),
+                "source_row_index": row_index,
+                "source_row_attributes_json": json.dumps(
+                    attributes, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ),
+                "source_cell_resources_json": json.dumps(
+                    resources, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ),
+            }
+            result.update(
+                {
+                    field_name: cell["text"]
+                    for field_name, cell in zip(field_names, cells, strict=True)
+                }
+            )
+            yield result
+
+    row_count = write_record_batches(rows(), schema, output)
+    return {
+        "row_count": row_count,
+        "source_table_id": table_id,
+        "source_schema": fields,
+        "source_table_count": len(page_tables),
+        "excluded_page_table_count": len(page_tables) - 1,
+        "excluded_footer_row_count": table["excluded_footer_row_count"],
+    }
 
 
 def bytes_sha256(value: bytes) -> str:

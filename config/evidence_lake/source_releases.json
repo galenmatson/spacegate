@@ -748,7 +748,33 @@
       "retrieval": {"kind": "pinned_http_snapshot", "implementation": "scripts/evidence_http_acquire.py"},
       "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "iau_wgsn_catalog_html"}],
       "storage_class": "internal_durable",
-      "schema_policy": {"kind": "html_snapshot", "drift": "fail_until_reviewed", "default_disposition": "preserve"}
+      "schema_policy": {
+        "kind": "html_snapshot",
+        "drift": "fail_until_reviewed",
+        "default_disposition": "preserve",
+        "html_table": {
+          "source_name": "iau_wgsn_catalog_html",
+          "table_id": "table_1",
+          "fields": [
+            {"source_header": "proper names", "name": "proper_name", "disposition": "preserve"},
+            {"source_header": "NEC+", "name": "nec_number_raw", "disposition": "preserve"},
+            {"source_header": "Designation", "name": "designation", "disposition": "preserve"},
+            {"source_header": "HIP", "name": "hip_id_raw", "disposition": "preserve"},
+            {"source_header": "Bayer ID", "name": "bayer_id", "disposition": "preserve"},
+            {"source_header": "Simbad spelling", "name": "simbad_spelling", "disposition": "preserve"},
+            {"source_header": "Constellation", "name": "constellation", "disposition": "preserve"},
+            {"source_header": "Origin", "name": "origin", "disposition": "preserve"},
+            {"source_header": "Language", "name": "language", "disposition": "preserve"},
+            {"source_header": "Reference", "name": "reference", "disposition": "preserve"},
+            {"source_header": "Date of Adoption", "name": "adoption_date_raw", "disposition": "preserve"},
+            {"source_header": "image", "name": "image", "disposition": "preserve"},
+            {"source_header": "image_source", "name": "image_source", "disposition": "preserve"},
+            {"source_header": "RA", "name": "ra_deg_raw", "disposition": "preserve"},
+            {"source_header": "DEC", "name": "dec_deg_raw", "disposition": "preserve"},
+            {"source_header": "mag", "name": "magnitude_raw", "disposition": "preserve"}
+          ]
+        }
+      }
     },
     {
       "source_id": "classification.gcvs",

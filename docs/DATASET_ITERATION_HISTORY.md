@@ -967,7 +967,10 @@ Representative commits:
   registered GCVS release files. GCVS now contributes 60,894 variable-star
   catalog rows, 226,060 cross-identifiers, 26,018 suspected variables, 25,696
   bibliography rows, and the exact classification dictionary and source schema
-  documents. Raw/typed hash and artifact accounting pass.
+  documents. WGSN is no longer stored only as document lines: its validated
+  semantic cook preserves 597 distinct names, all 16 source fields, source row
+  identity, and linked resources, with the repeated footer and calendar table
+  explicitly excluded. Raw/typed hash and artifact accounting pass.
 - NASA archive probing exposed that current Kepler KOI/TCE tables use uppercase
   legacy TAP names. E3 now explicitly preserves DR25 KOIs, supplemental and
   cumulative KOIs, DR25 threshold-crossing events, and the transit-detection

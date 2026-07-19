@@ -20,6 +20,7 @@ from evidence_lake_native import (  # noqa: E402
     write_fits_table_parquet,
     write_fixed_width_parquet,
     write_green_snr_parquet,
+    write_html_table_parquet,
     write_tokenized_parquet,
     write_votable_files_parquet,
 )
@@ -208,6 +209,75 @@ def test_green_snr_writer_preserves_uncertain_values_and_other_names(tmp_path: P
             f"select flux_1ghz, spectral_index, other_names, detail_href "
             f"from read_parquet('{output}')"
         ).fetchone() == ("19?", "0.64", "Kepler, SN1604", "snrs.G4.5+6.8.html")
+
+
+def test_html_table_writer_validates_schema_and_preserves_resources(tmp_path: Path) -> None:
+    source = tmp_path / "names.html"
+    source.write_text(
+        '<table id="names"><thead><tr><th>Name</th><th>Designation</th></tr></thead>'
+        '<tbody><tr id="names_row_0" data-row-index="0">'
+        '<td>&alpha; Centauri</td><td><a href="/object/1">HIP 71683</a>'
+        '<img src="/image/1.png" alt="chart"></td></tr></tbody>'
+        '<tfoot><tr><td>Name</td><td>Designation</td></tr></tfoot></table>'
+        '<table id="calendar"><tr><th>Day</th></tr><tr><td>1</td></tr></table>',
+        encoding="utf-8",
+    )
+    output = tmp_path / "names.parquet"
+    second_output = tmp_path / "names_second.parquet"
+    result = write_html_table_parquet(
+        source,
+        output,
+        table_id="names",
+        fields=[
+            {"source_header": "Name", "name": "proper_name"},
+            {"source_header": "Designation", "name": "designation"},
+        ],
+    )
+    write_html_table_parquet(
+        source,
+        second_output,
+        table_id="names",
+        fields=[
+            {"source_header": "Name", "name": "proper_name"},
+            {"source_header": "Designation", "name": "designation"},
+        ],
+    )
+    assert output.read_bytes() == second_output.read_bytes()
+    assert result["row_count"] == 1
+    assert result["source_table_count"] == 2
+    assert result["excluded_page_table_count"] == 1
+    assert result["excluded_footer_row_count"] == 1
+    with duckdb.connect() as con:
+        row = con.execute(
+            f"select source_table_id, source_row_number, source_row_id, "
+            f"source_row_index, proper_name, designation, source_cell_resources_json "
+            f"from read_parquet('{output}')"
+        ).fetchone()
+    assert row[:6] == ("names", 1, "names_row_0", 0, "\u03b1 Centauri", "HIP 71683")
+    assert row[6] == (
+        '[{"cell_index":1,"field_name":"designation","resources":'
+        '[{"attributes":{"href":"/object/1"},"tag":"a"},'
+        '{"attributes":{"alt":"chart","src":"/image/1.png"},"tag":"img"}]}]'
+    )
+
+
+def test_html_table_writer_rejects_source_schema_drift(tmp_path: Path) -> None:
+    source = tmp_path / "names.html"
+    source.write_text(
+        '<table id="names"><tr><th>Name</th><th>Unexpected</th></tr>'
+        '<tr><td>Sol</td><td>G2V</td></tr></table>',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="header drift"):
+        write_html_table_parquet(
+            source,
+            tmp_path / "names.parquet",
+            table_id="names",
+            fields=[
+                {"source_header": "Name", "name": "proper_name"},
+                {"source_header": "Designation", "name": "designation"},
+            ],
+        )
 
 
 def test_fits_writer_preserves_schema_and_normalizes_declared_nulls(tmp_path: Path) -> None:

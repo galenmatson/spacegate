@@ -45,6 +45,7 @@ from evidence_lake_native import (
     write_fixed_width_parquet,
     write_fixed_width_text_parquet,
     write_green_snr_parquet,
+    write_html_table_parquet,
     write_text_lines_parquet,
     write_tokenized_parquet,
     write_votable_files_parquet,
@@ -68,7 +69,7 @@ SOURCE_PARSER_CONTRACT_VERSIONS = {
     "spectroscopy.galah_dr4": "evidence_typed_cook_fits_v1",
     "spectroscopy.lamost_dr11": "evidence_typed_cook_fits_v1",
     "multiplicity.el_badry_2021_wide_binary": "evidence_typed_cook_fits_v1",
-    "naming.iau_wgsn": "evidence_typed_cook_document_v1",
+    "naming.iau_wgsn": "evidence_typed_cook_html_table_v2",
     "classification.gcvs": "evidence_typed_cook_cds_v1",
     "tess.identity_and_candidate_evidence": "evidence_typed_cook_v6",
     "multiplicity.wds": "evidence_typed_cook_wds_v1",
@@ -1153,9 +1154,30 @@ def cook_artifact(
             raise ValueError(
                 f"HTML artifact must contain exactly one payload: {artifact['source_name']}"
             )
-        write_document_lines_parquet(html_files[0], output)
-        parser = "source_document_lines_v1"
-        expected_fields = ["source_line_number", "text"]
+        table_contract = source["schema_policy"].get("html_table")
+        if table_contract:
+            source_schema = write_html_table_parquet(
+                html_files[0],
+                output,
+                table_id=str(table_contract["table_id"]),
+                fields=list(table_contract["fields"]),
+            )
+            parser = "validated_html_table_lexical_v1"
+            expected_fields = sorted(
+                [field["name"] for field in source_schema["source_schema"]]
+                + [
+                    "source_table_id",
+                    "source_row_number",
+                    "source_row_id",
+                    "source_row_index",
+                    "source_row_attributes_json",
+                    "source_cell_resources_json",
+                ]
+            )
+        else:
+            write_document_lines_parquet(html_files[0], output)
+            parser = "source_document_lines_v1"
+            expected_fields = ["source_line_number", "text"]
     elif json_files and source["schema_policy"]["kind"] == "mixed_tabular_snapshot":
         source_schema = write_mast_json_parquet(json_files, output)
         parser = "mast_json_declared_schema_arrow_v2"
@@ -1195,6 +1217,8 @@ def cook_artifact(
                 "astropy_votable_binary_arrow_v1",
                 "fits_binary_table_source_native_v1",
             }
+            else "source_schema_lexical"
+            if parser == "validated_html_table_lexical_v1"
             else "lexical_preserved_source_types_pending"
         ),
         **(
@@ -1205,6 +1229,18 @@ def cook_artifact(
                 "astropy_votable_binary_arrow_v1",
                 "fits_binary_table_source_native_v1",
             }
+            else {
+                "source_schema": source_schema["source_schema"],
+                "source_table_id": source_schema["source_table_id"],
+                "source_table_count": source_schema["source_table_count"],
+                "excluded_page_table_count": source_schema[
+                    "excluded_page_table_count"
+                ],
+                "excluded_footer_row_count": source_schema[
+                    "excluded_footer_row_count"
+                ],
+            }
+            if parser == "validated_html_table_lexical_v1"
             else {}
         ),
         "raw_tree_sha256": artifact["tree_sha256"],

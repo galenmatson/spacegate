@@ -170,6 +170,37 @@ def validate_registry(registry: dict[str, Any]) -> list[str]:
             if not layout.get("table_name"):
                 errors.append(f"{source_id}.schema_policy.artifact_layout.table_name is required")
         entry_names = {str(entry.get("source_name") or "") for entry in entries}
+        html_table = schema_policy.get("html_table") or {}
+        if html_table:
+            html_source_name = str(html_table.get("source_name") or "")
+            if schema_policy.get("kind") != "html_snapshot":
+                errors.append(
+                    f"{source_id}.schema_policy.html_table requires html_snapshot kind"
+                )
+            if not html_table.get("table_id"):
+                errors.append(f"{source_id}.schema_policy.html_table.table_id is required")
+            if html_source_name not in entry_names:
+                errors.append(
+                    f"{source_id}.schema_policy.html_table source_name is not registered"
+                )
+            html_fields = html_table.get("fields") or []
+            if not html_fields:
+                errors.append(f"{source_id}.schema_policy.html_table.fields is required")
+            names = [str(field.get("name") or "") for field in html_fields]
+            headers = [str(field.get("source_header") or "") for field in html_fields]
+            if "" in names or len(names) != len(set(names)):
+                errors.append(
+                    f"{source_id}.schema_policy.html_table field names must be unique"
+                )
+            if "" in headers or len(headers) != len(set(headers)):
+                errors.append(
+                    f"{source_id}.schema_policy.html_table source headers must be unique"
+                )
+            for field in html_fields:
+                if field.get("disposition") not in ALLOWED_DISPOSITIONS:
+                    errors.append(
+                        f"{source_id}.schema_policy.html_table field disposition is invalid"
+                    )
         format_artifact = str(schema_policy.get("format_artifact") or "")
         if format_artifact and format_artifact not in entry_names:
             errors.append(f"{source_id}.schema_policy.format_artifact is not registered")
@@ -351,6 +382,39 @@ def apply_artifact_layout_schema(
         )
 
 
+def apply_declared_html_table_schema(
+    source: dict[str, Any],
+    records: list[dict[str, Any]],
+) -> None:
+    contract = (source.get("schema_policy") or {}).get("html_table") or {}
+    if not contract:
+        return
+    source_name = str(contract["source_name"])
+    record = next(
+        (item for item in records if item.get("source_name") == source_name),
+        None,
+    )
+    if not record:
+        return
+    fields = [str(field["name"]) for field in contract["fields"]]
+    record["fields"] = fields
+    record["field_count"] = len(fields)
+    record["member_schemas"] = {
+        "table_id": str(contract["table_id"]),
+        "fields": list(contract["fields"]),
+    }
+    record["field_accounting"] = "machine_declared_html_table"
+    record.pop("format_contract_sha256", None)
+    record["schema_sha256"] = stable_hash(
+        {
+            "schema_kind": record["schema_kind"],
+            "fields": fields,
+            "member_schemas": record["member_schemas"],
+            "field_accounting": record["field_accounting"],
+        }
+    )
+
+
 def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[str, Any]:
     manifest_dir = state_dir / "reports" / "manifests"
     registered: dict[tuple[str, str], dict[str, Any]] = {}
@@ -446,6 +510,7 @@ def collect_registry_audit(registry: dict[str, Any], state_dir: Path) -> dict[st
                 }
             )
         apply_artifact_layout_schema(source, source_schema_records)
+        apply_declared_html_table_schema(source, source_schema_records)
         source_fields = {
             field for record in source_schema_records for field in record.get("fields") or []
         }

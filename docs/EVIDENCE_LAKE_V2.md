@@ -229,7 +229,10 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
 - `config/evidence_lake/e3_http_sources.json` and
   `scripts/evidence_http_acquire.py` provide content-addressed, Range-resumable,
   checksum-gated release-file acquisition. WGSN and all six registered GCVS
-  artifacts are pinned, raw-snapshotted, typed, and verified.
+  artifacts are pinned, raw-snapshotted, typed, and verified. The WGSN cook
+  validates its declared 16-field table contract and preserves 597 names,
+  source row identity, and linked resources while explicitly excluding the
+  page footer and unrelated calendar table.
 - The Gaia 1,250-ly envelope is measured at 31,987,126 source rows. The program
   accounts for all 764 upstream columns across `gaia_source`, AP main and
   supplementary, NSS orbit, variability summary, and rotation-modulation
