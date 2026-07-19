@@ -125,6 +125,12 @@ and negative claims remain evidence only and cannot inflate canonical planet
 inventory. Identifier claims carry semantic scope independent of the mixed
 planet/host/target source row, producing separate auditable binding outcomes.
 
+The El-Badry Gaia EDR3 wide-binary release is preserved under the same raw and
+typed contracts: 1,817,594 probability-bearing main-catalog rows (217 columns),
+517,993 shifted-control rows (201 columns), and both published method scripts.
+Snapshot `aea36fe5a6753de90be33301` passes clean typed reproduction; it is not an
+accepted canonical containment source until E4 relation-policy materialization.
+
 ## Gaia Release Identity Evidence
 
 Gaia DR2 and DR3 source IDs are different release-scoped namespaces. Spacegate

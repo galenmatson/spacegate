@@ -1386,6 +1386,10 @@ Current status (July 19, 2026, in progress):
   preserve 206,989 rows and all 2,093 upstream fields with zero omissions,
   including the uppercase legacy Kepler KOI/TCE products missed by the earlier
   schema probe; clean raw-to-typed reproduction passes
+- the pinned El-Badry Gaia EDR3 probability-bearing wide-binary release is
+  source-native typed and reproducible: 1,817,594 main rows/217 columns,
+  517,993 shifted-control rows/201 columns, and both published method scripts;
+  bounded relation materialization remains E4 work
 - the large source transfers and typed cooks are still running; E3 remains open
   until every registered product is complete, field-accounted, typed, and
   covered by the machine-readable acquisition report

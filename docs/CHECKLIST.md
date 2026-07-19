@@ -1109,6 +1109,8 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
 - [ ] E3: acquire/migrate current Gaia cluster and probability-bearing wide-
   binary evidence, SIMBAD/GCVS/VSX/IAU naming/bibliography roles, and all active
   multiplicity/compact/ultracool/extended sources under the new contracts
+- [x] E3 wide-binary checkpoint: pin, source-native type, verify, and clean-
+  reproduce the El-Badry Gaia EDR3 main/control FITS tables and method scripts
 - [ ] E3: acquire complete relevant NASA reference-specific/composite planet,
   host, TOI, Kepler/K2 candidate/status, transit, and RV metadata plus matched
   APOGEE/GALAH/LAMOST stellar-physics evidence

@@ -253,6 +253,12 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   envelope, then request basic, alias, and bibliography evidence for the
   matched object set. SIMBAD remains identity/naming evidence, not a canonical
   inventory catalog.
+- The El-Badry, Rix, and Heintz Gaia EDR3 wide-binary release is pinned and
+  typed as source-native evidence: 1,817,594 catalog rows across 217 columns,
+  517,993 shifted-control rows across 201 columns, and both published method
+  scripts. Immutable snapshot `aea36fe5a6753de90be33301` passes schema/row
+  verification and clean typed-hash reproduction. Relation materialization and
+  local envelope intersection remain E4 work.
 
 ### E4. Typed Scientific Evidence
 

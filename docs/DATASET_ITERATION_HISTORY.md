@@ -1011,6 +1011,16 @@ Representative commits:
   mistaken for completed scientific normalization. A clean scratch rebuild
   reproduces the build ID and every logical table hash exactly.
 
+### 32) Evidence Lake E3 Probability-Bearing Wide Binaries
+
+- The pinned Zenodo release for El-Badry, Rix, and Heintz (2021) is preserved as
+  immutable snapshot `aea36fe5a6753de90be33301`: 1,817,594 main-catalog rows
+  and 517,993 shifted-control rows retain all 217 and 201 source columns.
+- Both published selection/neighbor method scripts are retained and typed as
+  source documents. Schema/row verification and clean typed-hash reproduction
+  pass. These rows remain relation evidence rather than canonical containment;
+  envelope intersection and E4 probability/quality policy are still pending.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:
