@@ -1301,6 +1301,9 @@ Representative commits:
   snapshot `35a41010cf74f950e61b5412` preserve 32,176,271 source-native rows in
   separate 152-field tables. The official EDR3-distance join selects scope; it
   does not merge distance estimates into Gaia facts or interchange DR2 IDs.
+  A clean external-scratch recook exactly reproduces both table hashes, typed
+  snapshot ID, and content hash `1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35`;
+  its temporary tree is removed only after the durable pass report is written.
 - A general coverage audit found that 15 downstream Gaia products still used
   only the hard-parallax branch. AP, supplementary AP, NSS, variability,
   rotation, and official external-crossmatch products now have explicit,

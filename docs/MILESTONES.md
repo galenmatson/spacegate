@@ -1381,8 +1381,8 @@ Current status (July 19, 2026, in progress):
   its disjoint uncertainty supplement now accounts all 189,145 posterior-
   overlap rows across 127 uncapped partitions, giving a 32,176,271-row union;
   combined raw snapshot `fcd1f77edf401a7e19c72197` and typed snapshot
-  `35a41010cf74f950e61b5412` are immutable and verified, with clean reproduction
-  running from external scratch
+  `35a41010cf74f950e61b5412` are immutable, verified, and clean-reproduced from
+  external scratch with exact table, snapshot-ID, and content-hash agreement
 - all 764 fields across the six foundational Gaia table families are assigned
   to source-native products, and expanded NSS has completed with 50,762 full
   77-column orbit rows

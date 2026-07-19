@@ -248,8 +248,10 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
   source-native Gaia rows. Raw snapshot `fcd1f77edf401a7e19c72197` preserves
   the two branches as separate 152-field tables. Typed snapshot
   `35a41010cf74f950e61b5412` preserves all rows in separate Parquet tables and
-  passes raw/typed verification; clean reproduction is running from `/mnt/space`
-  scratch as the remaining Gaia-source boundary gate.
+  passes raw/typed verification. Clean reproduction from `/mnt/space` matches
+  both tables, typed snapshot identity, and content hash
+  `1e8db7b0971badce3141dac2296bfd34b7c57135f5f58e0a83bbcd81b9f16a35`;
+  the scratch tree was removed after the durable report was written.
 - Fifteen Gaia-derived AP, supplementary-AP, NSS, variability/rotation, and
   official external-crossmatch products now have explicit disjoint posterior-
   overlap companions. A checked acquisition contract requires matching source,
