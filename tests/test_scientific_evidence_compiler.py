@@ -61,6 +61,15 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
     ]
     assert nss_orbit["model_field"] == "nss_solution_type"
     assert "corr_vec" in nss_orbit["quality_fields"]
+    wgsn = contract["source_adapters"]["naming.iau_wgsn"]["tables"][
+        "iau_wgsn_catalog_html"
+    ]
+    assert wgsn["identifier_claims"]["bayer_id"]["claim_scope"] == (
+        "alias_system_or_component"
+    )
+    assert wgsn["source_citation_links"][0]["identifier_claim_field"] == (
+        "proper_name"
+    )
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -226,6 +235,13 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                         "ucd": None,
                         "description": "candidate disposition",
                     },
+                    {
+                        "column_name": "reference",
+                        "datatype": "char",
+                        "unit": None,
+                        "ucd": None,
+                        "description": "source reference",
+                    },
                 ]
             }
         ),
@@ -235,8 +251,9 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
     with duckdb.connect() as con:
         con.execute(
             f"copy (select * from (values "
-            f"('1','alpha','PC'),('1','alpha','PC'),('1','beta','FP')) "
-            f"t(source_id,note,disposition)) to '{parquet}' "
+            f"('1','alpha','PC','REF'),('1','alpha','PC','REF'),"
+            f"('1','beta','FP','--')) "
+            f"t(source_id,note,disposition,reference)) to '{parquet}' "
             f"(format parquet, compression zstd)"
         )
 
@@ -287,6 +304,20 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                         "context_fields": ["note"],
                     }
                 ],
+                "citation_catalog": {
+                    "reference_key_field": "reference",
+                    "citation_text_field": "reference",
+                    "excluded_values": ["--"],
+                },
+                "source_citation_links": [
+                    {
+                        "identifier_claim_field": "source_id",
+                        "reference_key_field": "reference",
+                        "citation_role": "source_identity_reference",
+                        "excluded_reference_values": ["--"],
+                        "required": True,
+                    }
+                ],
             }
         },
     }
@@ -313,6 +344,12 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                     "disposition": "context",
                     "destination": "source_records",
                     "reason": "source context",
+                },
+                {
+                    "pattern": "reference",
+                    "disposition": "lineage",
+                    "destination": "citations",
+                    "reason": "source citation",
                 },
             ]
         }
@@ -347,6 +384,12 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
                 "select disposition_normalized, evidence_polarity "
                 "from planet_lifecycle_evidence order by disposition_normalized"
             ).fetchall()
+            citation_count = con.execute(
+                "select count(*) from citations"
+            ).fetchone()[0]
+            citation_link_count = con.execute(
+                "select count(*) from evidence_citations"
+            ).fetchone()[0]
         snapshots.append(records)
         assert report["source_rows"] == 3
         assert report["source_records"] == 2
@@ -356,6 +399,7 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         assert dispositions == [
             ("disposition", "materialized"),
             ("note", "materialized"),
+            ("reference", "materialized"),
             ("source_id", "materialized"),
         ]
         assert identifier_claims == [("1",), ("1",)]
@@ -363,6 +407,8 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
             ("CANDIDATE", "candidate"),
             ("FALSE_POSITIVE", "negative"),
         ]
+        assert citation_count == 1
+        assert citation_link_count == 1
         assert binding_count == 4
         assert binding_scopes == [("host",), ("object",)]
     assert snapshots[0] == snapshots[1]

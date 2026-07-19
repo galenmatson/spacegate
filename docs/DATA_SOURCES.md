@@ -137,6 +137,16 @@ identity and linked resources, and excludes unrelated page tables and footer
 controls with machine-counted reasons. The exact HTML remains the immutable raw
 authority.
 
+E4 WGSN checkpoint `0ff30b04008b93aafb3de66f` treats WGSN strictly as a
+naming authority. It emits official-name, NEC+, catalog-designation, HIP,
+Bayer, SIMBAD-search-spelling, and exact derived HR/HD/HIP/GJ identifier claims
+with separate alias, observation-target, source-record, and ambiguous system-
+or-component scopes. Source coordinates and magnitude remain naming context,
+not astrometric or photometric authority. The `-` designation and 28 `--`
+reference placeholders remain raw context rather than fabricated identity or
+citation evidence. All 22 fields are accounted; artifact, scope, and clean-
+reproduction gates pass.
+
 GCVS uses a documented fixed-width lexical contract. Its registry explicitly
 declares `|` as a trailing layout delimiter, so parser v2 removes one trailing
 separator after slicing and trims only the remaining layout padding. It does

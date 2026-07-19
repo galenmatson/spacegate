@@ -1156,6 +1156,11 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   32-bucket astrometry-citation materialization; checkpoint
   `fc5bd4e6398d72bde50ba6d5` passes independent artifact audit and clean
   logical-hash reproduction under the bounded memory policy
+- [x] E4 WGSN naming checkpoint: materialize all 597 official name records and
+  22 fields with proper-name, source-record, catalog, HIP, Bayer, search-
+  spelling, and exact HR/HD/HIP/GJ claims; retain shared target/scope ambiguity,
+  exclude raw placeholders from promotion, and pass artifact, scope, and clean-
+  reproduction gates
 - [x] E4 NASA identity/lifecycle checkpoint: materialize 750,151 release-scoped
   identifier claims and 72,809 positive/candidate/negative lifecycle claims;
   preserve per-identifier semantic scope, and verify clean logical-hash

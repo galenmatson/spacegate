@@ -1583,6 +1583,12 @@ Current status (July 19, 2026, in progress):
   logical hashes. Checkpoint `fc5bd4e6398d72bde50ba6d5` passes the independent
   artifact audit and clean reproduction at logical hash
   `673cebbbfcc4055fb7a6a007824ba11eac75bcc7b038bb138a15abf6cf9288d7`.
+- WGSN checkpoint `0ff30b04008b93aafb3de66f` materializes all 597 official
+  name records and 22 fields into 3,847 source-scoped identity claims, 91
+  meaningful references, and 564 evidence links. Shared HIP and Bayer values
+  remain distinct ambiguous-scope evidence; no merge or containment is inferred.
+  Artifact/scope audits and clean reproduction pass logical hash
+  `512b05b67ca0632bbe164b82e1b96182643e9b4e911da6b8ce9d8bdba1d37fe5`.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

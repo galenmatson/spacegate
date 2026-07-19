@@ -396,6 +396,18 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   and clean reproduction matches logical hash
   `673cebbbfcc4055fb7a6a007824ba11eac75bcc7b038bb138a15abf6cf9288d7`
   with no differing sections and removes its external scratch tree.
+- Compiler/contract v39 adds the official IAU WGSN naming adapter and permits a
+  configured same-row citation link without a redundant `evidence_citations`
+  field disposition. Required-link accounting now follows materialized source
+  records, so row-selection exclusions cannot create false missing-link errors.
+  Checkpoint `0ff30b04008b93aafb3de66f` accounts all 597 name records and 22
+  fields as 3,847 scoped identifier claims, 91 meaningful source references,
+  and 564 name-to-reference links. Raw `-`/`--` placeholders remain context and
+  are not promoted as identifiers or citations. Shared HIP and Bayer values
+  remain separate observation-target or system/component-ambiguous claims; they
+  never merge objects or imply containment. Independent artifact and scope
+  audits pass, and clean reproduction matches logical hash
+  `512b05b67ca0632bbe164b82e1b96182643e9b4e911da6b8ce9d8bdba1d37fe5`.
 - NASA checkpoint build `cb82c09179afa740b02e2cdf` accounts 206,989 source
   rows as 203,932 exact
   source records and preserves 3,057 repeated identical row occurrences through

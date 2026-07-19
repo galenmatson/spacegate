@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.evidence_source_registry.v1",
-  "registry_version": "2026-07-19.10",
+  "registry_version": "2026-07-19.11",
   "ingestion_envelope": {
     "coordinate_frame": "ICRS",
     "public_radius_ly": 1000.0,
@@ -881,7 +881,7 @@
       "citation_url": "https://www.iau.org/science/scientific_bodies/working_groups/280/",
       "license": {"name": "IAU website terms", "url": "https://www.iau.org/terms-and-conditions/"},
       "cadence": "continuously updated; Spacegate pins dated snapshots",
-      "identity_namespaces": ["iau_star_name", "catalog_designation"],
+      "identity_namespaces": ["iau_star_name", "iau_wgsn_nec_plus_id", "catalog_designation", "hip_id", "bayer_designation", "iau_star_name_search_spelling", "hr_id", "hd_id", "gj_id"],
       "frame_epoch": "source-specific",
       "retrieval": {"kind": "pinned_http_snapshot", "implementation": "scripts/evidence_http_acquire.py"},
       "manifest_entries": [{"manifest": "evidence_lake_e3_http_manifest.json", "source_name": "iau_wgsn_catalog_html"}],

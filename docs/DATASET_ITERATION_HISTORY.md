@@ -1371,6 +1371,31 @@ Representative commits:
   authorized whole-artifact removal and reclaimed 42,799,505,408 allocated
   bytes. Raw/typed SIMBAD snapshots, v38, and all durable reports remain.
 
+### 45) Evidence Lake E4 Official WGSN Naming Evidence
+
+- Compiler/contract v39 adds a source-native IAU WGSN adapter. All 597 official
+  name rows and 22 typed fields become 597 exact source records and 3,847
+  release-scoped identifier claims. Proper names, WGSN NEC+ records, catalog
+  designations, HIP observation targets, Bayer system/component-ambiguous
+  aliases, SIMBAD search spellings, and exact HR/HD/HIP/GJ designations retain
+  separate namespaces and scopes.
+- The adapter does not turn the naming table's coordinates or magnitude into
+  astrometric/photometric authority. Cultural origin, language, constellation,
+  adoption, image, coordinates, magnitude, and HTML lineage remain exact source
+  context. The raw `-` designation and 28 `--` reference placeholders are
+  preserved there but excluded from identifier/citation promotion.
+- Required same-row citation-link accounting now counts only source records
+  actually materialized after row selection. This general correction removes a
+  false-failure mode for every adapter and does not require a dummy citation-
+  link field disposition. WGSN materializes 91 meaningful reference texts and
+  564 exact name-to-reference links.
+- The scope audit proves HIP 72105 remains two claims for Izar and Pulcherrima,
+  while Bayer `alpha Cen` remains three claims for Proxima Centauri, Rigil
+  Kentaurus, and Toliman. These are evidence collisions, not merge or
+  containment instructions. Checkpoint `0ff30b04008b93aafb3de66f` passes the
+  independent artifact and scope audits and clean-reproduces logical hash
+  `512b05b67ca0632bbe164b82e1b96182643e9b4e911da6b8ce9d8bdba1d37fe5`.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

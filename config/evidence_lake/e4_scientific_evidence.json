@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.38",
-  "compiler_version": "scientific_evidence_compiler_v38",
+  "contract_version": "2026-07-19.e4-foundation.39",
+  "compiler_version": "scientific_evidence_compiler_v39",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -660,6 +660,26 @@
         "reason": "complete coherent Gaia NSS fitted solution, uncertainties, correlations, diagnostics, model, and source lineage"
       }
     ],
+    "iau_wgsn_names": [
+      {
+        "pattern": "^(proper_name|nec_number_raw|designation|hip_id_raw|bayer_id|simbad_spelling)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "official proper name plus source-native catalog, observation-target, Bayer, and search-spelling identity evidence"
+      },
+      {
+        "pattern": "^reference$",
+        "disposition": "lineage",
+        "destination": "citations",
+        "reason": "WGSN source reference for the official proper-name record"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "context",
+        "destination": "source_records",
+        "reason": "constellation, cultural origin, language, adoption, image, source coordinates, magnitude, and HTML row lineage retained as naming context"
+      }
+    ],
     "simbad_identifiers": [
       {
         "pattern": ".*",
@@ -804,6 +824,38 @@
     ]
   },
   "source_adapters": {
+    "naming.iau_wgsn": {
+      "adapter_version": "iau_wgsn_scientific_evidence_v1",
+      "tables": {
+        "iau_wgsn_catalog_html": {
+          "logical_key_fields": ["proper_name"],
+          "object_scope": "official_name_record",
+          "field_profile": "iau_wgsn_names",
+          "identifier_claims": {
+            "proper_name": {"namespace": "iau_star_name", "claim_scope": "alias_name"},
+            "nec_number_raw": {"namespace": "iau_wgsn_nec_plus_id", "claim_scope": "source_catalog_record"},
+            "designation": {"namespace": "catalog_designation", "claim_scope": "observation_target", "excluded_values": ["-"]},
+            "hip_id_raw": {"namespace": "hip_id", "claim_scope": "observation_target", "normalization": "unsigned_integer_decimal_v1"},
+            "bayer_id": {"namespace": "bayer_designation", "claim_scope": "alias_system_or_component"},
+            "simbad_spelling": {"namespace": "iau_star_name_search_spelling", "claim_scope": "alias_name"}
+          },
+          "conditional_identifier_claims": [
+            {"value_field": "designation", "namespace": "hr_id", "claim_scope": "observation_target", "sql_predicate": "regexp_full_match(designation, 'HR [0-9]+')", "strip_prefix": "HR ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "designation", "namespace": "hd_id", "claim_scope": "observation_target", "sql_predicate": "regexp_full_match(designation, 'HD [0-9]+')", "strip_prefix": "HD ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "designation", "namespace": "hip_id", "claim_scope": "observation_target", "sql_predicate": "regexp_full_match(designation, 'HIP [0-9]+')", "strip_prefix": "HIP ", "normalization": "unsigned_integer_decimal_v1"},
+            {"value_field": "designation", "namespace": "gj_id", "claim_scope": "observation_target", "sql_predicate": "regexp_full_match(designation, 'GJ [0-9]+')", "strip_prefix": "GJ ", "normalization": "unsigned_integer_decimal_v1"}
+          ],
+          "citation_catalog": {
+            "reference_key_field": "reference",
+            "citation_text_field": "reference",
+            "excluded_values": ["--"]
+          },
+          "source_citation_links": [
+            {"identifier_claim_field": "proper_name", "reference_key_field": "reference", "citation_role": "iau_official_name_reference", "excluded_reference_values": ["--"], "required": true}
+          ]
+        }
+      }
+    },
     "identity.simbad": {
       "adapter_version": "simbad_scientific_evidence_v5",
       "table_order": [

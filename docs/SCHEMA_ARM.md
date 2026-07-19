@@ -54,6 +54,14 @@ Evidence Lake v2 staging rule:
   rejections rather than empty claims. Independent audit and clean logical-hash
   reproduction pass. This checkpoint is still pre-ARM evidence, not a selected
   public-fact or canonical-inventory promotion.
+- WGSN checkpoint `0ff30b04008b93aafb3de66f` keeps official naming evidence
+  source scoped. Proper-name/search-spelling aliases, source catalog records,
+  observation-target identifiers, and Bayer system-or-component ambiguity are
+  distinct claim scopes. Shared values remain multiple evidence rows and cannot
+  merge objects or create containment. Coordinates and magnitude are retained
+  as naming context, while source placeholders are not promoted as identifiers
+  or citations. E5 may select public names only through an explicit naming
+  authority policy over these claims.
 - `astrometry_distance_evidence_bundles` is a storage grouping, not a coherent
   physical parameter set or selected-fact record. It keeps multiple typed
   astrometry/distance/velocity measurements attached to one exact source record

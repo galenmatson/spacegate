@@ -267,6 +267,10 @@ do not remove the current reference, a reproduction input, or a rollback build.
 Complete-envelope SIMBAD checkpoint `fc5bd4e6398d72bde50ba6d5`, its immutable
 raw/typed inputs, independent audit, and clean-reproduction report are protected
 inputs to E4/E5.
+Official WGSN checkpoint `0ff30b04008b93aafb3de66f`, raw snapshot
+`ec563be8ca8038acd3cfe78e`, typed snapshot `437e2f27863efe5adc0423ab`,
+and its compile, artifact-audit, scope-audit, and clean-reproduction reports are
+also protected E4/E5 inputs.
 
 The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 `fcbb6466bea0a7798ae8d2ed` (ORB6), and `b3a141c0caf953aa83c4e52b`

@@ -484,6 +484,11 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 for field in ("reference_key_field", "citation_text_field"):
                     if not str(citation_catalog.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
+                if any(
+                    not str(value).strip()
+                    for value in citation_catalog.get("excluded_values") or []
+                ):
+                    errors.append(f"{prefix}.excluded_values contains an empty value")
             for index, link in enumerate(table.get("source_citation_links") or []):
                 prefix = f"{source_id}.{table_name}.source_citation_links[{index}]"
                 for field in (
@@ -493,6 +498,13 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 ):
                     if not str(link.get(field) or "").strip():
                         errors.append(f"{prefix}.{field} must be non-empty")
+                if any(
+                    not str(value).strip()
+                    for value in link.get("excluded_reference_values") or []
+                ):
+                    errors.append(
+                        f"{prefix}.excluded_reference_values contains an empty value"
+                    )
             extended_object = table.get("extended_object")
             if extended_object:
                 prefix = f"{source_id}.{table_name}.extended_object"
@@ -2895,6 +2907,9 @@ def materialize_citation_catalog(
     bibcode_field = citation_catalog.get("bibcode_field")
     doi_field = citation_catalog.get("doi_field")
     publication_year_field = citation_catalog.get("publication_year_field")
+    excluded_values = [
+        str(value) for value in citation_catalog.get("excluded_values") or []
+    ]
     consumed = {key_field, text_field, *context_fields}
     consumed.update(
         str(field)
@@ -2915,6 +2930,15 @@ def materialize_citation_catalog(
             f"citation-catalog fields lack a typed role in {table_name}: {unconsumed}"
         )
     context = logical_key_expression(context_fields, "t") if context_fields else "'{}'::json"
+    excluded_predicate = ""
+    if excluded_values:
+        excluded_predicate = (
+            "and trim(cast(t."
+            + sql_identifier(key_field)
+            + " as varchar)) not in ("
+            + ", ".join(sql_string(value) for value in excluded_values)
+            + ")"
+        )
     rows = con.execute(
         f"""
         select distinct
@@ -2933,6 +2957,7 @@ def materialize_citation_catalog(
          and r.source_row_sha256=sha256(to_json(t))
         where nullif(trim(cast(t.{sql_identifier(key_field)} as varchar)), '') is not null
           and nullif(trim(cast(t.{sql_identifier(text_field)} as varchar)), '') is not null
+          {excluded_predicate}
         order by 1, 2
         """
     ).fetchall()
@@ -2998,6 +3023,16 @@ def materialize_source_citation_links(
         if missing:
             raise ValueError(f"source citation-link fields missing from {table_name}: {missing}")
         consumed.update(required_fields)
+        excluded_values = [
+            str(value) for value in link.get("excluded_reference_values") or []
+        ]
+        excluded_predicate = ""
+        if excluded_values:
+            excluded_predicate = (
+                f"and trim(cast(t.{sql_identifier(reference_field)} as varchar)) not in ("
+                + ", ".join(sql_string(value) for value in excluded_values)
+                + ")"
+            )
         evidence_id = (
             f"sha256({sql_string('identifier|' + claim_field + '|')} || "
             f"r.source_record_id || '|' || trim(cast(t.{sql_identifier(claim_field)} as varchar)))"
@@ -3021,16 +3056,23 @@ def materialize_source_citation_links(
              and c.source_reference_key=trim(cast(t.{sql_identifier(reference_field)} as varchar))
             where nullif(trim(cast(t.{sql_identifier(claim_field)} as varchar)), '') is not null
               and nullif(trim(cast(t.{sql_identifier(reference_field)} as varchar)), '') is not null
+              {excluded_predicate}
             """
         )
         if link.get("required"):
             expected = int(
                 con.execute(
                     f"""
-                    select count(distinct sha256(to_json(t)))
+                    select count(distinct r.source_record_id)
                     from read_parquet({sql_string(str(path))}) t
+                    join source_records r
+                      on r.source_id={sql_string(source_id)}
+                     and r.release_id={sql_string(release_id)}
+                     and r.source_table={sql_string(table_name)}
+                     and r.source_row_sha256=sha256(to_json(t))
                     where nullif(trim(cast(t.{sql_identifier(claim_field)} as varchar)), '') is not null
                       and nullif(trim(cast(t.{sql_identifier(reference_field)} as varchar)), '') is not null
+                      {excluded_predicate}
                     """
                 ).fetchone()[0]
             )
@@ -3670,7 +3712,7 @@ def materialize_source(
         source_citation_fields = fields_by_destination.get("evidence_citations") or []
         source_citation_links = list(table_contract.get("source_citation_links") or [])
         if source_citation_fields or source_citation_links:
-            if not source_citation_fields or not source_citation_links:
+            if source_citation_fields and not source_citation_links:
                 raise ValueError(
                     f"source citation-link profile/config mismatch for {table_name}"
                 )
