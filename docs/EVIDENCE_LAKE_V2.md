@@ -388,6 +388,22 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   The 286,011,392-byte artifact has logical hash
   `5bcf94b69a5a0e1a1905f2a891fd95d7f852c6c9af55531cdf6d9448f6747834`;
   clean reproduction and the independent artifact audit pass.
+- Compiler v24 permits one source row to emit multiple uniquely typed compact
+  parameter sets with independent predicates, references, and methods. McGill
+  magnetar checkpoint `c599c951590451ace4248934` uses this contract to account
+  all 31 rows and 47 fields without flattening timing, X-ray, distance,
+  position, and association/activity contexts together. The result contains
+  139 parameter sets: 26 timing, 26 X-ray, 25 distance, 31 position, and 31
+  source context.
+- McGill's seven trailing `#`/`##` source footnote markers remain in raw names
+  but are removed from normalized `magnetar_name` identity. Its timing, X-ray,
+  distance, association, and position reference families remain exact source
+  codes, producing 96 distinct records and 128 evidence links. The publisher's
+  expanded bibliography is not in the pinned `TabO1.csv`; acquiring and
+  validating it remains an explicit follow-up rather than inventing citation
+  text. The 6,041,600-byte artifact has logical hash
+  `9d95e4669d24ff8c0db396f253436d96be42a81c9f390d0cd2b9883cf93f2979`;
+  clean reproduction and independent audit pass.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

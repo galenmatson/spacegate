@@ -265,6 +265,10 @@ Evidence Lake E4 source checkpoints:
   91,858 parameter/glitch contexts, 97,424 identifier claims, 1,210 full source
   references, and 84,388 exact citation links; unmatched lexical reference
   tokens remain source-native evidence rather than placeholder bibliography
+- McGill Magnetar Catalogue `c599c951590451ace4248934`: all 31 rows/47 fields,
+  31 normalized/raw magnetar identities, and 139 separate timing, X-ray,
+  distance, position, and source-context parameter sets; 96 source reference
+  codes are retained, while full bibliography acquisition remains pending
 
 ### Exoplanet Lifecycle Notes
 

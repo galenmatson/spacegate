@@ -1482,6 +1482,14 @@ Current status (July 19, 2026, in progress):
   create 84,388 evidence-citation links; 959 non-bibliographic lexical tokens
   remain in raw parameter JSON and cannot become placeholder citations. Clean
   logical reproduction and the independent artifact audit pass.
+- McGill magnetar checkpoint `c599c951590451ace4248934` accounts all 31 rows
+  and 47 fields as 139 coherent compact-object contexts: 26 timing, 26 X-ray,
+  25 distance, 31 position, and 31 source-context parameter sets. Each context
+  retains its own reference family. Seven trailing source footnote markers are
+  removed only from normalized search identity, while exact names remain raw.
+  The source codes produce 96 distinct reference records and 128 links; full
+  bibliography expansion remains an explicit E3/E4 follow-up. Clean
+  reproduction and the independent artifact audit pass.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

@@ -90,6 +90,12 @@ Evidence Lake v2 staging rule:
   unmatched tokens remain in `parameter_set_raw` and do not receive synthetic
   citations. Predicate-scoped identifier claims similarly expose PSRJ/PSRB
   aliases only from the ATNF parameter occurrences that assert those names.
+- A single source record may emit multiple `compact_object_evidence` rows when
+  it contains genuinely distinct coherent parameter contexts. Each
+  `compact_kind` has a collision-free evidence identity, its own applicability
+  predicate, method, reference, parameter JSON, and quality JSON. McGill
+  timing, X-ray, distance, position, and association/activity records use this
+  contract rather than one incompatible field-wise composite.
 
 ## Artifact Contract
 

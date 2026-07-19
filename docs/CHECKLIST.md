@@ -1159,6 +1159,13 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   materialize predicate-scoped PSRJ/PSRB aliases and link only exact reference
   keys while retaining unmatched lexical tokens; pass clean reproduction and
   artifact audit
+- [x] E4 McGill magnetar checkpoint: preserve all timing, magnetic-field,
+  spin-down, X-ray, distance, position, association, band, and activity fields
+  as separate coherent parameter contexts; retain raw footnoted names and
+  reference families, and pass clean reproduction/artifact audit
+- [ ] E3/E4 McGill bibliography follow-up: pin and type the publisher's full
+  reference-key bibliography, then validate source codes before creating
+  resolved citation metadata
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

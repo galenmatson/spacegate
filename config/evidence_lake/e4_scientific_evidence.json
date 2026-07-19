@@ -1,7 +1,7 @@
 {
   "schema_version": "spacegate.scientific_evidence_contract.v3",
-  "contract_version": "2026-07-19.e4-foundation.23",
-  "compiler_version": "scientific_evidence_compiler_v23",
+  "contract_version": "2026-07-19.e4-foundation.24",
+  "compiler_version": "scientific_evidence_compiler_v24",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -575,6 +575,20 @@
         "disposition": "lineage",
         "destination": "citations",
         "reason": "ATNF reference-code bibliography and exact source block"
+      }
+    ],
+    "mcgill_magnetar_parameters": [
+      {
+        "pattern": "^Name$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-native magnetar name with raw footnote markers preserved"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "compact_object_evidence",
+        "reason": "coherent source-native timing, X-ray, distance, position, association, band, and activity parameter context"
       }
     ]
   },
@@ -1307,6 +1321,83 @@
             "citation_text_field": "citation_text",
             "context_fields": ["source_start_line", "source_end_line", "raw_block"]
           }
+        }
+      }
+    },
+    "compact.mcgill_magnetar": {
+      "adapter_version": "mcgill_magnetar_scientific_evidence_v1",
+      "tables": {
+        "TabO1": {
+          "logical_key_fields": ["Name"],
+          "object_scope": "compact_object",
+          "field_profile": "mcgill_magnetar_parameters",
+          "identifier_claims": {
+            "Name": {
+              "namespace": "magnetar_name",
+              "claim_scope": "compact_object",
+              "normalization": "strip_trailing_hash_footnote_v1"
+            }
+          },
+          "compact_object_parameter_sets": [
+            {
+              "compact_kind": "magnetar_timing",
+              "parameter_set_key_fields": ["Name", "Ref_Time"],
+              "parameter_fields": [
+                "Period", "Period_Err", "Pdot_lim", "Pdot", "Pdot_Err",
+                "B_lim", "B", "Edot_lim", "Edot", "Age_lim", "Age", "Ref_Time"
+              ],
+              "quality_fields": ["Name"],
+              "reference_field": "Ref_Time",
+              "sql_predicate": "coalesce(nullif(trim(Period), ''), nullif(trim(Pdot), ''), nullif(trim(B), ''), nullif(trim(Edot), ''), nullif(trim(Age), '')) is not null",
+              "method": "mcgill_source_timing_solution",
+              "normalization_version": "mcgill_source_native_lexical_v1"
+            },
+            {
+              "compact_kind": "magnetar_xray_spectrum",
+              "parameter_set_key_fields": ["Name", "Ref_Xray"],
+              "parameter_fields": [
+                "NH", "NH_EUp", "NH_EDn", "Gamma", "Gamma_EUp", "Gamma_EDn",
+                "kT", "kT_EUp", "kT_EDn", "kT2", "kT2_EUp", "kT2_EDn",
+                "Flux_lim", "Flux", "Flux_EUp", "Flux_EDn", "Ref_Xray",
+                "Lumin_lim", "Lumin"
+              ],
+              "quality_fields": ["Name", "Bands"],
+              "reference_field": "Ref_Xray",
+              "sql_predicate": "coalesce(nullif(trim(NH), ''), nullif(trim(Gamma), ''), nullif(trim(kT), ''), nullif(trim(kT2), ''), nullif(trim(Flux), ''), nullif(trim(Lumin), '')) is not null",
+              "method": "mcgill_source_xray_solution",
+              "normalization_version": "mcgill_source_native_lexical_v1"
+            },
+            {
+              "compact_kind": "magnetar_distance",
+              "parameter_set_key_fields": ["Name", "Ref_Dist"],
+              "parameter_fields": ["Dist_lim", "Dist", "Dist_EUp", "Dist_EDn", "Ref_Dist"],
+              "quality_fields": ["Name"],
+              "reference_field": "Ref_Dist",
+              "sql_predicate": "nullif(trim(Dist), '') is not null",
+              "method": "mcgill_source_distance_estimate",
+              "normalization_version": "mcgill_source_native_lexical_v1"
+            },
+            {
+              "compact_kind": "magnetar_position",
+              "parameter_set_key_fields": ["Name", "Ref_Pos"],
+              "parameter_fields": ["RA", "RA_Err", "Decl", "Decl_Err", "Ref_Pos"],
+              "quality_fields": ["Name"],
+              "reference_field": "Ref_Pos",
+              "sql_predicate": "nullif(trim(RA), '') is not null and nullif(trim(Decl), '') is not null",
+              "method": "mcgill_source_position",
+              "normalization_version": "mcgill_source_native_lexical_v1"
+            },
+            {
+              "compact_kind": "magnetar_context",
+              "parameter_set_key_fields": ["Name"],
+              "parameter_fields": ["Assoc", "Ref_Assoc", "OptIR", "Bands", "Activity"],
+              "quality_fields": ["Name"],
+              "reference_field": "Ref_Assoc",
+              "sql_predicate": "coalesce(nullif(trim(Assoc), ''), nullif(trim(OptIR), ''), nullif(trim(Bands), ''), nullif(trim(Activity), '')) is not null",
+              "method": "mcgill_source_context",
+              "normalization_version": "mcgill_source_native_lexical_v1"
+            }
+          ]
         }
       }
     }

@@ -1145,6 +1145,28 @@ Representative commits:
   The independent artifact audit and clean scratch reproduction pass. No ATNF
   row has been promoted to canonical inventory or selected as a public fact.
 
+### 38) Evidence Lake E4 McGill Magnetar Coherent Contexts
+
+- Compiler v24 added a general list of predicate-scoped compact-object
+  parameter sets per source record. Evidence IDs include `compact_kind`, so
+  timing, X-ray, distance, position, and contextual evidence cannot collide or
+  masquerade as one compatible fit.
+- McGill checkpoint `c599c951590451ace4248934` accounts all 31 catalog rows and
+  all 47 fields. It emits 26 timing contexts, 26 X-ray contexts, 25 distance
+  contexts, 31 positions, and 31 association/band/activity contexts, with each
+  retaining its own source-native reference family.
+- Seven names carry trailing `#`/`##` publisher footnote markers. The exact raw
+  identifier remains immutable; the general
+  `strip_trailing_hash_footnote_v1` policy removes only those trailing markers
+  from normalized identity and leaves internal hashes untouched.
+- The pinned CSV contains reference codes but not the publisher's expanded
+  bibliography. E4 retains 96 distinct raw code records and 128 evidence links;
+  E3/E4 must acquire and validate full citation text rather than manufacturing
+  it. The 6,041,600-byte artifact has logical hash
+  `9d95e4669d24ff8c0db396f253436d96be42a81c9f390d0cd2b9883cf93f2979`.
+  Clean scratch reproduction and the independent artifact audit pass; no served
+  or canonical database changed.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

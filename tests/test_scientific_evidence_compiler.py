@@ -35,6 +35,8 @@ def test_checked_in_scientific_evidence_contract_is_complete_and_valid() -> None
         "el_badry_shifted_control_catalog",
         "el_badry_wide_binary_catalog",
     }
+    magnetar_adapter = contract["source_adapters"]["compact.mcgill_magnetar"]
+    assert len(magnetar_adapter["tables"]["TabO1"]["compact_object_parameter_sets"]) == 5
 
 
 def test_contract_table_order_must_cover_each_table_exactly_once() -> None:
@@ -893,6 +895,125 @@ def test_conditional_identifier_claims_apply_only_to_matching_rows(
         ).fetchall()
     assert consumed == {"value_raw"}
     assert claims == [("psrj", "J1234+5678", "compact_object", "parameter_name='PSRJ'")]
+
+
+def test_identifier_normalization_strips_only_trailing_hash_footnotes(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "names.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            "('AX J1818.8-1559 #'),('PSR J1846-0258 ##'),('Name#Internal')) "
+            "t(Name)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'compact.test', 'r1', 'names', 'compact_object', '{}', '{}', ?, "
+            "1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [(f"record-{index}", row[0]) for index, row in enumerate(rows)],
+        )
+        compiler.materialize_identifier_claims(
+            con,
+            source_id="compact.test",
+            release_id="r1",
+            table_name="names",
+            path=parquet,
+            fields=["Name"],
+            claim_by_field={
+                "Name": {
+                    "namespace": "compact_name",
+                    "claim_scope": "compact_object",
+                    "normalization": "strip_trailing_hash_footnote_v1",
+                }
+            },
+        )
+        names = con.execute(
+            "select identifier_raw,identifier_normalized "
+            "from identifier_claim_evidence order by identifier_raw"
+        ).fetchall()
+    assert names == [
+        ("AX J1818.8-1559 #", "AX J1818.8-1559"),
+        ("Name#Internal", "Name#Internal"),
+        ("PSR J1846-0258 ##", "PSR J1846-0258"),
+    ]
+
+
+def test_multiple_compact_parameter_sets_have_distinct_ids_and_predicates(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "compact.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select * from (values "
+            "('Object A','5.0','timing-ref','0.4','xray-ref'),"
+            "('Object B','7.0','timing-ref',null,null)) "
+            "t(Name,Period,Ref_Time,kT,Ref_Xray)) "
+            f"to '{parquet}' (format parquet)"
+        )
+        rows = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchall()
+        compiler.create_schema(con)
+        con.executemany(
+            "insert into source_records values "
+            "(?, 'compact.test', 'r1', 'compact', 'compact_object', '{}', '{}', ?, "
+            "1, 'raw', 'typed', 'raw-tree', 'typed-table', "
+            "timestamp '2026-07-19 00:00:00')",
+            [(f"record-{index}", row[0]) for index, row in enumerate(rows)],
+        )
+        common = {
+            "source_id": "compact.test",
+            "release_id": "r1",
+            "table_name": "compact",
+            "path": parquet,
+            "fields": [
+                {"column_name": name}
+                for name in ("Name", "Period", "Ref_Time", "kT", "Ref_Xray")
+            ],
+            "available_fields": {"Name", "Period", "Ref_Time", "kT", "Ref_Xray"},
+        }
+        timing_fields = compiler.materialize_compact_objects(
+            con,
+            compact_object={
+                "compact_kind": "timing",
+                "parameter_set_key_fields": ["Name", "Ref_Time"],
+                "parameter_fields": ["Period", "Ref_Time"],
+                "quality_fields": ["Name"],
+                "reference_field": "Ref_Time",
+                "sql_predicate": "nullif(trim(Period), '') is not null",
+                "method": "source_timing",
+                "normalization_version": "source_native_v1",
+            },
+            **common,
+        )
+        xray_fields = compiler.materialize_compact_objects(
+            con,
+            compact_object={
+                "compact_kind": "xray",
+                "parameter_set_key_fields": ["Name", "Ref_Xray"],
+                "parameter_fields": ["kT", "Ref_Xray"],
+                "quality_fields": ["Name"],
+                "reference_field": "Ref_Xray",
+                "sql_predicate": "nullif(trim(kT), '') is not null",
+                "method": "source_xray",
+                "normalization_version": "source_native_v1",
+            },
+            **common,
+        )
+        rows = con.execute(
+            "select compact_kind,count(*),count(distinct evidence_id) "
+            "from compact_object_evidence group by 1 order by 1"
+        ).fetchall()
+    assert timing_fields == {"Name", "Period", "Ref_Time"}
+    assert xray_fields == {"Name", "kT", "Ref_Xray"}
+    assert rows == [("timing", 2, 2), ("xray", 1, 1)]
 
 
 def test_authoritative_citation_catalog_validates_compact_references(

@@ -199,6 +199,7 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 if claim.get("normalization") not in {
                     None,
                     "trim_v1",
+                    "strip_trailing_hash_footnote_v1",
                     "unsigned_integer_decimal_v1",
                 }:
                     errors.append(
@@ -361,9 +362,20 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     value = extended_object.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
-            compact_object = table.get("compact_object")
-            if compact_object:
-                prefix = f"{source_id}.{table_name}.compact_object"
+            compact_objects = list(table.get("compact_object_parameter_sets") or [])
+            if table.get("compact_object") and compact_objects:
+                errors.append(
+                    f"{source_id}.{table_name} cannot define both compact-object contract forms"
+                )
+            if table.get("compact_object"):
+                compact_objects = [table["compact_object"]]
+            compact_kinds: list[str] = []
+            for compact_index, compact_object in enumerate(compact_objects):
+                prefix = (
+                    f"{source_id}.{table_name}.compact_object_parameter_sets[{compact_index}]"
+                    if table.get("compact_object_parameter_sets")
+                    else f"{source_id}.{table_name}.compact_object"
+                )
                 required = {
                     "compact_kind",
                     "parameter_set_key_fields",
@@ -379,6 +391,15 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     value = compact_object.get(field)
                     if value is None or value == "" or value == []:
                         errors.append(f"{prefix}.{field} must be non-empty")
+                compact_kinds.append(str(compact_object.get("compact_kind") or ""))
+                if compact_object.get("sql_predicate") is not None and not str(
+                    compact_object.get("sql_predicate") or ""
+                ).strip():
+                    errors.append(f"{prefix}.sql_predicate must be non-empty")
+            if len(compact_kinds) != len(set(compact_kinds)):
+                errors.append(
+                    f"{source_id}.{table_name} compact-object kinds must be unique"
+                )
             for index, claim in enumerate(table.get("lifecycle_claims") or []):
                 prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
                 if not claim.get("claim_role"):
@@ -1007,6 +1028,8 @@ def materialize_identifier_claims(
         normalized = (
             "cast(try_cast(s.value_raw as ubigint) as varchar)"
             if normalization == "unsigned_integer_decimal_v1"
+            else "regexp_replace(trim(s.value_raw), '\\s+#+\\s*$', '')"
+            if normalization == "strip_trailing_hash_footnote_v1"
             else "trim(s.value_raw)"
         )
         branches.append(
@@ -2285,11 +2308,6 @@ def materialize_compact_objects(
     missing = sorted(consumed - available_fields)
     if missing:
         raise ValueError(f"compact-object fields missing from {table_name}: {missing}")
-    unconsumed = sorted(destination_fields - consumed)
-    if unconsumed:
-        raise ValueError(
-            f"compact-object fields lack a typed role in {table_name}: {unconsumed}"
-        )
     parameter_set_key = logical_key_expression(key_fields, "t")
     parameters = logical_key_expression(parameter_fields, "t")
     quality = logical_key_expression(quality_fields, "t")
@@ -2308,14 +2326,16 @@ def materialize_compact_objects(
               and c.source_reference_key={candidate}
           ) then {candidate} end
         """
-    namespace = f"compact-object|{table_name}|"
+    compact_kind = str(compact_object["compact_kind"])
+    namespace = f"compact-object|{table_name}|{compact_kind}|"
+    predicate = str(compact_object.get("sql_predicate") or "true")
     con.execute(
         f"""
         insert into compact_object_evidence
         select distinct
           sha256({sql_string(namespace)} || r.source_record_id),
           r.source_record_id,
-          {sql_string(str(compact_object['compact_kind']))},
+          {sql_string(compact_kind)},
           cast({parameter_set_key} as varchar), {parameters},
           {sql_string(str(compact_object['method']))},
           {nullable_sql_string(compact_object.get('model'))},
@@ -2327,6 +2347,7 @@ def materialize_compact_objects(
          and r.release_id={sql_string(release_id)}
          and r.source_table={sql_string(table_name)}
          and r.source_row_sha256=sha256(to_json(t))
+        where {predicate}
         """
     )
     return consumed
@@ -2983,24 +3004,29 @@ def materialize_source(
         compact_object_fields = fields_by_destination.get(
             "compact_object_evidence"
         ) or []
-        compact_object = table_contract.get("compact_object")
-        if compact_object_fields or compact_object:
-            if not compact_object_fields or not compact_object:
+        compact_objects = list(
+            table_contract.get("compact_object_parameter_sets") or []
+        )
+        if table_contract.get("compact_object"):
+            compact_objects = [table_contract["compact_object"]]
+        if compact_object_fields or compact_objects:
+            if not compact_object_fields or not compact_objects:
                 raise ValueError(
                     f"compact-object profile/config mismatch for {table_name}"
                 )
-            materialized_fields.update(
-                materialize_compact_objects(
-                    con,
-                    source_id=source_id,
-                    release_id=release_id,
-                    table_name=table_name,
-                    path=path,
-                    fields=compact_object_fields,
-                    compact_object=compact_object,
-                    available_fields=set(columns),
+            for compact_object in compact_objects:
+                materialized_fields.update(
+                    materialize_compact_objects(
+                        con,
+                        source_id=source_id,
+                        release_id=release_id,
+                        table_name=table_name,
+                        path=path,
+                        fields=compact_object_fields,
+                        compact_object=compact_object,
+                        available_fields=set(columns),
+                    )
                 )
-            )
         citation_fields = fields_by_destination.get("citations") or []
         citation_catalog = table_contract.get("citation_catalog")
         if citation_fields or citation_catalog:

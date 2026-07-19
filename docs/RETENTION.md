@@ -182,7 +182,9 @@ The E4 source checkpoints `aaf262b1791d98ce3e9f96e7` (bounded wide binary),
 E4/E5 build. White-dwarf checkpoint `486e4975af015d4e5f5a3c9b` and its
 clean-reproduction report are likewise protected. ATNF checkpoint
 `64c55c19a5a10a88877d4cd2`, its pinned raw/typed package, and its audit and
-clean-reproduction reports are also protected. Earlier
+clean-reproduction reports are also protected. McGill magnetar checkpoint
+`c599c951590451ace4248934`, its pinned `TabO1.csv` raw/typed snapshots, and its
+audit and clean-reproduction reports are likewise protected. Earlier
 source-specific compiler iterations may be proposed only by a retention
 dry-run after the replacement's clean-reproduction report is durable; never
 manually remove a hidden interrupted compiler directory.
