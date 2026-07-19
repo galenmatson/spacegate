@@ -1741,7 +1741,9 @@ Representative commits:
   `194eede6937b26f8c0cd508f6dd7dd0a39ef34b2a455000d1f57ee18c8a5f31b`.
   Full logical hashes still include build metadata for same-build reproduction.
 - Runtime improves from 41:53 to 11:54 and peak RSS from 9.17 GB to 6.53 GB.
-  Generic and APOGEE-specific audits pass. Fail-closed retention candidate hash
+  Generic and APOGEE-specific audits pass. Clean reproduction completes in
+  11:56 with no differing sections and removes its `/mnt/space` scratch tree.
+  Fail-closed retention candidate hash
   `f5bb515adecfb310166a1cf9a89d62056795acccfbaa1c2e02ac1581823eb494`
   retired exactly three manifestless attempts from this work and reclaimed
   3,238,584,320 allocated bytes; older ambiguous trees and valid v58/v59 builds

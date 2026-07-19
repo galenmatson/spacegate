@@ -439,6 +439,8 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   peak RSS from 9.17 GB to 6.53 GB. The temporary cache accounts all 178,099
   selected rows with zero source-row hash mismatches and is removed after close;
   both generic and source-specific audits pass.
+  Clean reproduction completes in 11:56 with no differing report sections and
+  removes its `/mnt/space` artifact and compiler scratch after comparison.
 - The SIMBAD adapter adds grouped astrometry/distance measurement bundles,
   source spectral classifications, release-scoped identifier claims,
   authoritative bibliography rows, and object/reference links without selecting

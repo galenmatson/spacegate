@@ -1494,7 +1494,8 @@ Current status (July 19, 2026, in progress):
   `194eede6937b26f8c0cd508f6dd7dd0a39ef34b2a455000d1f57ee18c8a5f31b`.
   Exact-hash temporary selection and incremental inserts reduce runtime to
   11:54 and peak RSS to 6.53 GB; this is the accepted compiler path for the
-  pending GALAH/LAMOST adapters
+  pending GALAH/LAMOST adapters. Clean reproduction passes in 11:56 with no
+  differing sections and removes its external scratch tree
 - Bailer-Jones EDR3 distance diagnostic `520df722a1564ee857b1ae43`
   materializes all 17,310,560 rows as release-scoped EDR3 identities and
   coherent geometric/photogeometric posterior bundles. Its 33,225,308
