@@ -1609,6 +1609,20 @@ Representative commits:
   retired exactly those five trees and reclaimed 2,600,095,744 allocated bytes.
   Raw/typed inputs, failed-audit reports, and the accepted artifact remain.
 
+### 54) Evidence Lake Async TAP Retry Hygiene
+
+- A Gaia uncertainty-envelope spectroscopy acquisition exposed an operational
+  defect in the general TAP collector: the one-hour client deadline submitted a
+  replacement while the original ESA UWS job remained `EXECUTING`. The four
+  resulting jobs were explicitly aborted; no response artifact or manifest row
+  from that attempt was promoted.
+- Collector lineage now retains every async attempt and its cleanup outcome,
+  and a retry first aborts any nonterminal job. The 94-field spectroscopy
+  supplement uses the same reviewed 17-way deterministic partition count as its
+  completed hard-parallax sibling instead of three oversized partitions.
+  Acquisition program `2026-07-19.e3-foundation.10` therefore produces a new
+  content-addressed snapshot while completed sibling products remain reusable.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

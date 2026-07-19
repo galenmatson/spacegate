@@ -91,7 +91,9 @@ Both collectors separate long job budgets from stalled transfers. TAP response
 reads and resumable HTTP downloads default to a 180-second socket-inactivity
 timeout, so a route change or dead stream retries promptly without discarding
 completed buckets or partial release files. Operators may override it with
-`--read-stall-timeout`.
+`--read-stall-timeout`. An asynchronous TAP retry first aborts its nonterminal
+UWS job and preserves every attempt and cleanup result in the bucket lineage;
+this prevents timed-out queries from continuing upstream beside replacements.
 
 The Gaia program preserves a disjoint two-branch ingestion envelope. The
 measured hard-parallax branch contains 31,987,126 `gaia_source` rows at

@@ -233,8 +233,9 @@ E3 acquisition checkpoint (July 19, 2026, in progress):
 - `config/evidence_lake/e3_acquisition_program.json` and
   `scripts/evidence_tap_acquire.py` define exact schema-accounted TAP products,
   deterministic partitions, resumable response sets, checksums, row/MAXREC
-  gates, UWS lineage, bounded read-stall recovery, inter-process manifest
-  locking, and atomic promotion.
+  gates, complete UWS attempt lineage, pre-retry abort of nonterminal jobs,
+  bounded read-stall recovery, inter-process manifest locking, and atomic
+  promotion.
 - `config/evidence_lake/e3_http_sources.json` and
   `scripts/evidence_http_acquire.py` provide content-addressed, Range-resumable,
   checksum-gated release-file acquisition with a socket-inactivity timeout

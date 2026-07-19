@@ -340,6 +340,54 @@ def test_sync_tap_request_bounds_socket_inactivity_timeout(monkeypatch) -> None:
     assert timeouts == [4]
 
 
+def test_async_timeout_aborts_job_before_failing(monkeypatch, tmp_path: Path) -> None:
+    opened: list[tuple[str, bytes | None]] = []
+
+    class AsyncResponse(FakeResponse):
+        def __init__(self, payload: bytes, url: str) -> None:
+            super().__init__(payload)
+            self.url = url
+
+        def geturl(self) -> str:
+            return self.url
+
+    job_url = "https://example.test/tap/async/job-1"
+
+    def fake_urlopen(request, timeout):
+        opened.append((request.full_url, request.data))
+        if request.full_url.endswith("/async"):
+            return AsyncResponse(b"", job_url)
+        if request.full_url.endswith("/phase") and request.data is not None:
+            return AsyncResponse(b"", request.full_url)
+        raise AssertionError(request.full_url)
+
+    times = iter([0.0, 2.0])
+    monkeypatch.setattr(acquire.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(acquire, "read_url", lambda *_args, **_kwargs: b"EXECUTING")
+    monkeypatch.setattr(acquire.time, "monotonic", lambda: next(times))
+    status_path = tmp_path / "job.uws.json"
+
+    try:
+        acquire.tap_async_request(
+            "https://example.test/tap/sync",
+            "select source_id from test.rows",
+            timeout_s=1,
+            read_stall_timeout_s=1,
+            retries=1,
+            max_rec=10,
+            status_path=status_path,
+        )
+    except RuntimeError as error:
+        assert "exceeded 1s" in str(error)
+    else:
+        raise AssertionError("timed-out async job was accepted")
+
+    assert opened[-1] == (job_url + "/phase", b"PHASE=ABORT")
+    status = json.loads(status_path.read_text())
+    assert status["schema_version"] == "spacegate.tap_uws_lineage.v1"
+    assert status["attempts"][0]["cleanup"]["status"] == "pass"
+
+
 def test_resolve_product_fields_preserves_release_order_and_groups() -> None:
     schema = [
         {"column_name": "solution_id"},

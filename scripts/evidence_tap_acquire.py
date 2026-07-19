@@ -167,6 +167,20 @@ def read_url(url: str, *, timeout_s: int) -> bytes:
         return response.read()
 
 
+def abort_async_job(job_url: str, *, timeout_s: int) -> None:
+    """Abort one nonterminal UWS job before a retry can submit a replacement."""
+    request = urllib.request.Request(
+        job_url.rstrip("/") + "/phase",
+        data=urllib.parse.urlencode({"PHASE": "ABORT"}).encode("ascii"),
+        headers={
+            "User-Agent": USER_AGENT,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout_s) as response:
+        response.read()
+
+
 def tap_async_request(
     endpoint: str,
     adql: str,
@@ -181,8 +195,21 @@ def tap_async_request(
     """Run one IVOA UWS TAP job and return its exact result body and lineage."""
     async_endpoint = endpoint[:-5] + "/async" if endpoint.endswith("/sync") else endpoint
     last_error: Exception | None = None
+    run_status: dict[str, Any] = {
+        "schema_version": "spacegate.tap_uws_lineage.v1",
+        "mode": "ivoa_uws_async",
+        "attempts": [],
+    }
     for attempt in range(1, retries + 1):
         submitted_at = utc_now()
+        job_url: str | None = None
+        phase: str | None = None
+        status: dict[str, Any] = {
+            "attempt": attempt,
+            "submitted_at": submitted_at,
+            "phases": [],
+        }
+        run_status["attempts"].append(status)
         try:
             body = urllib.parse.urlencode(
                 {
@@ -207,15 +234,9 @@ def tap_async_request(
             ) as response:
                 job_url = response.geturl().rstrip("/")
                 response.read()
-            status = {
-                "mode": "ivoa_uws_async",
-                "job_url": job_url,
-                "submitted_at": submitted_at,
-                "phases": [],
-                "attempt": attempt,
-            }
+            status["job_url"] = job_url
             if status_path is not None:
-                write_json(status_path, status)
+                write_json(status_path, run_status)
             print(f"{utc_now()} async submitted {job_url}", flush=True)
             deadline = time.monotonic() + timeout_s
             phases: list[dict[str, str]] = []
@@ -232,7 +253,7 @@ def tap_async_request(
                     previous = phase
                     status["phases"] = phases
                     if status_path is not None:
-                        write_json(status_path, status)
+                        write_json(status_path, run_status)
                     print(f"{utc_now()} async {job_url} phase={phase}", flush=True)
                 if phase == "COMPLETED":
                     break
@@ -254,9 +275,47 @@ def tap_async_request(
                 timeout_s=min(timeout_s, read_stall_timeout_s),
             )
             status["completed_at"] = utc_now()
-            return payload, status
+            run_status["completed_at"] = status["completed_at"]
+            if status_path is not None:
+                write_json(status_path, run_status)
+            return payload, run_status
         except Exception as exc:  # network behavior is exercised operationally
             last_error = exc
+            status["failed_at"] = utc_now()
+            status["error"] = f"{type(exc).__name__}: {exc}"
+            if job_url is not None and phase not in {
+                "COMPLETED",
+                "ERROR",
+                "ABORTED",
+                "HELD",
+                "SUSPENDED",
+                "ARCHIVED",
+            }:
+                try:
+                    abort_async_job(
+                        job_url,
+                        timeout_s=min(timeout_s, read_stall_timeout_s),
+                    )
+                    status["cleanup"] = {
+                        "action": "abort",
+                        "status": "pass",
+                        "completed_at": utc_now(),
+                    }
+                    print(f"{utc_now()} async aborted {job_url}", flush=True)
+                except Exception as cleanup_error:
+                    status["cleanup"] = {
+                        "action": "abort",
+                        "status": "fail",
+                        "completed_at": utc_now(),
+                        "error": f"{type(cleanup_error).__name__}: {cleanup_error}",
+                    }
+                    print(
+                        f"{utc_now()} async abort failed {job_url}: "
+                        f"{type(cleanup_error).__name__}: {cleanup_error}",
+                        flush=True,
+                    )
+            if status_path is not None:
+                write_json(status_path, run_status)
             if attempt == retries:
                 break
             delay = min(2**attempt, 30)

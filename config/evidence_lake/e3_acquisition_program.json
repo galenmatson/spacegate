@@ -1,6 +1,6 @@
 {
   "schema_version": "spacegate.e3_acquisition_program.v1",
-  "program_version": "2026-07-19.e3-foundation.9",
+  "program_version": "2026-07-19.e3-foundation.10",
   "manifest_name": "evidence_lake_e3_manifest.json",
   "products": [
     {
@@ -367,7 +367,7 @@
       "ordered": false,
       "tap_mode": "async",
       "output_format": "votable_gzip",
-      "buckets": 3,
+      "buckets": 17,
       "max_rec": 400000,
       "unselected_field_reason": "preserved_in_sibling_gaia_parameter_set_product"
     },
