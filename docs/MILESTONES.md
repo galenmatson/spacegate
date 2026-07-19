@@ -1445,6 +1445,18 @@ Current status (July 19, 2026, in progress):
   `R_chance_align` remains a non-strict confidence statistic, including 289,705
   values above one; zero strict probabilities or canonical containment rows are
   fabricated. Clean reproduction and the independent artifact audit pass.
+- ORB6 checkpoint `fcbb6466bea0a7798ae8d2ed` preserves all 4,051 published
+  visual-orbit rows and all 37 source/lineage fields as coherent source-native
+  solutions. It emits 16,397 WDS/discoverer/ADS/HD/HIP identity claims and 799
+  reference-code citations without parsing combined pair labels into canonical
+  endpoints or promoting an orbit into containment.
+- DEBCat checkpoint `b3a141c0caf953aa83c4e52b` preserves all 374 rows and all
+  30 fields. Explicit primary, secondary, and system scopes produce 3,804
+  accepted physical measurements, 557 component classifications, 963 coherent
+  parameter sets, 746 integrated-photometry values, and 374 binary-period
+  solutions. Source `-9.99`, `-1.00`, and `none` sentinels remain in immutable
+  source rows but cannot become measurements, classifications, or inflated
+  uncertainties. Component bindings remain unresolved for E2/E5 reconciliation.
 - build identity hashes compiler and registry bytes, contract, runtime versions,
   and raw/typed inputs; clean logical-hash reproduction remains required
 

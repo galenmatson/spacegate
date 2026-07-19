@@ -334,6 +334,22 @@ E4 compiler checkpoint (July 19, 2026, in progress):
   matches logical hash `2b45feebcbe9bb3f18743b1043613ca2c454abf9cb393836e9a0c542d220dcaf`,
   and the independent artifact audit reports zero endpoint, scope, sentinel,
   citation, probability, uncertainty, parameter-set, or lineage failures.
+- Scientific-evidence contract v2 adds explicit `component_scope` to stellar
+  classifications, stellar parameter sets, and their measurements. A source
+  row may therefore carry multiple coherent component parameter sets without
+  projecting primary, secondary, or system values onto the wrong object.
+- ORB6 checkpoint `fcbb6466bea0a7798ae8d2ed` exhaustively retains 4,051 rows,
+  37 fields, 4,051 visual-orbit parameter sets, 16,397 catalog identity claims,
+  and 799 reference codes. The source's combined discoverer designation stays
+  an opaque pair-scope claim until the identity/scope graph resolves it; E4
+  does not split labels such as `Aa,Ab` or infer canonical endpoints.
+- DEBCat checkpoint `b3a141c0caf953aa83c4e52b` exhaustively retains 374 rows
+  and 30 fields while materializing component-scoped mass, radius, surface
+  gravity, temperature, luminosity, and spectral classification plus
+  system-scoped metallicity and integrated photometry. Published logarithmic
+  values remain logarithmic source measurements. Missing-value sentinels are
+  recorded in the adapter and filtered from evidence without erasing the exact
+  source row. All primary/secondary binding outcomes remain unresolved.
 - The build materializes 9,689,745 stellar, astrometric, photometric, rotation,
   planet, lifecycle, transit, and RV evidence rows; 272,355 coherent stellar and
   planet parameter sets; 111,084 on-demand Kepler validation products; 2,961

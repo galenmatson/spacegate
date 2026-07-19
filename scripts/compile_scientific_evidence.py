@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONTRACT = ROOT / "config" / "evidence_lake" / "e4_scientific_evidence.json"
 DEFAULT_REGISTRY = ROOT / "config" / "evidence_lake" / "source_releases.json"
 DEFAULT_STATE = Path(os.environ.get("SPACEGATE_STATE_DIR", "/data/spacegate/state"))
-BUILD_CONTRACT = "spacegate.scientific_evidence_build.v1"
+BUILD_CONTRACT = "spacegate.scientific_evidence_build.v2"
 LOGICAL_HASH_ALGORITHM = "sha256_bucketed_multiset_v1"
 
 
@@ -117,7 +117,7 @@ def slug(value: str) -> str:
 
 def validate_contract(contract: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if contract.get("schema_version") != "spacegate.scientific_evidence_contract.v1":
+    if contract.get("schema_version") != "spacegate.scientific_evidence_contract.v2":
         errors.append("unsupported scientific evidence contract")
     if set(contract.get("domain_tables") or []) != DOMAIN_TABLES:
         errors.append("domain_tables must exactly match the compiler contract")
@@ -170,6 +170,10 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                 errors.append(f"{source_id}.{table_name} lacks logical key fields")
             if table.get("field_profile") not in profiles:
                 errors.append(f"{source_id}.{table_name} references an unknown field profile")
+            if table.get("raw_artifact_name") is not None and not str(
+                table.get("raw_artifact_name")
+            ).strip():
+                errors.append(f"{source_id}.{table_name} has an empty raw artifact name")
             for field, claim in (table.get("identifier_claims") or {}).items():
                 if (
                     not str(field).strip()
@@ -233,6 +237,62 @@ def validate_contract(contract: dict[str, Any]) -> list[str]:
                     for field in ("policy_id", "sql_predicate", "reason")
                 ):
                     errors.append(f"{prefix} values must be non-empty")
+            orbital_solution = table.get("orbital_solution")
+            if orbital_solution:
+                prefix = f"{source_id}.{table_name}.orbital_solution"
+                required = {
+                    "solution_key_fields",
+                    "parameter_fields",
+                    "quality_fields",
+                    "method",
+                    "normalization_version",
+                }
+                missing = sorted(required - set(orbital_solution))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                for field in required:
+                    value = orbital_solution.get(field)
+                    if value is None or value == "" or value == []:
+                        errors.append(f"{prefix}.{field} must be non-empty")
+            for index, parameter_set in enumerate(
+                table.get("scoped_stellar_parameter_sets") or []
+            ):
+                prefix = (
+                    f"{source_id}.{table_name}.scoped_stellar_parameter_sets[{index}]"
+                )
+                required = {
+                    "parameter_set_kind",
+                    "method",
+                    "normalization_version",
+                    "measurements",
+                }
+                missing = sorted(required - set(parameter_set))
+                if missing:
+                    errors.append(f"{prefix} lacks {missing}")
+                for field in required:
+                    value = parameter_set.get(field)
+                    if value is None or value == "" or value == []:
+                        errors.append(f"{prefix}.{field} must be non-empty")
+                if not str(
+                    parameter_set.get("scope_key")
+                    or parameter_set.get("component_scope")
+                    or ""
+                ).strip():
+                    errors.append(f"{prefix} requires scope_key or component_scope")
+                for measurement_index, measurement in enumerate(
+                    parameter_set.get("measurements") or []
+                ):
+                    measurement_prefix = f"{prefix}.measurements[{measurement_index}]"
+                    for field in ("value_field", "quantity_key"):
+                        if not str(measurement.get(field) or "").strip():
+                            errors.append(f"{measurement_prefix}.{field} must be non-empty")
+            for index, measurement in enumerate(
+                table.get("photometry_measurements") or []
+            ):
+                prefix = f"{source_id}.{table_name}.photometry_measurements[{index}]"
+                for field in ("value_field", "quantity_key"):
+                    if not str(measurement.get(field) or "").strip():
+                        errors.append(f"{prefix}.{field} must be non-empty")
             for index, claim in enumerate(table.get("lifecycle_claims") or []):
                 prefix = f"{source_id}.{table_name}.lifecycle_claims[{index}]"
                 if not claim.get("claim_role"):
@@ -396,6 +456,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
         create table stellar_parameter_sets (
           parameter_set_id varchar primary key,
           source_record_id varchar not null,
+          component_scope varchar,
           method varchar,
           model varchar,
           reference_raw varchar,
@@ -407,6 +468,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
           evidence_id varchar primary key,
           parameter_set_id varchar not null,
           source_record_id varchar not null,
+          component_scope varchar,
           quantity_key varchar not null,
           value_raw varchar,
           unit_raw varchar,
@@ -424,6 +486,7 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
         create table stellar_classification_evidence (
           evidence_id varchar primary key,
           source_record_id varchar not null,
+          component_scope varchar,
           classification_scheme varchar not null,
           classification_raw varchar not null,
           classification_normalized varchar,
@@ -718,6 +781,8 @@ def typed_table_by_name(typed_manifest: dict[str, Any]) -> dict[str, dict[str, A
 def product_manifest(input_row: dict[str, Any], artifact: dict[str, Any]) -> dict[str, Any]:
     root = input_row["raw_path"] / str(artifact["artifact_path"])
     candidates = list(root.rglob("product_manifest.json"))
+    if not candidates:
+        return {}
     if len(candidates) != 1:
         raise ValueError(
             f"expected one product manifest for {artifact['source_name']}, found {len(candidates)}"
@@ -737,16 +802,25 @@ def source_field_metadata(
     source_schema = typed_table.get("source_schema")
     if isinstance(source_schema, dict):
         source_schema = source_schema.get("source_schema")
+    typed_columns = typed_table.get("columns") or []
     if not isinstance(source_schema, list):
-        source_schema = typed_table.get("columns") or []
+        source_schema = typed_columns
+    schema_by_name = {
+        str(field.get("column_name") or field.get("name")): field
+        for field in source_schema
+        if field.get("column_name") or field.get("name")
+    }
+    ordered_schema = typed_columns or source_schema
 
     fields = []
-    for field in source_schema:
-        name = field.get("column_name") or field.get("name")
+    for typed_field in ordered_schema:
+        name = typed_field.get("column_name") or typed_field.get("name")
         if not name:
             raise ValueError(
                 f"source-native schema contains an unnamed field: {typed_table['source_name']}"
             )
+        field = dict(typed_field)
+        field.update(schema_by_name.get(str(name), {}))
         fields.append(
             {
                 "column_name": str(name),
@@ -1120,9 +1194,10 @@ def scalar_select_branch(
         parameter_set_id, _kind = parameter_set_id_expression(
             destination, table_contract
         )
+        component_scope = "null::varchar, " if destination == "stellar_parameter_evidence" else ""
         return f"""
           select distinct
-            {evidence_id}, {parameter_set_id}, r.source_record_id,
+            {evidence_id}, {parameter_set_id}, r.source_record_id, {component_scope}
             {sql_string(quantity)}, {raw_value}, {unit}, {normalized_value}, {normalized_unit},
             {lower}, {upper}, {bound}, null, null, {reference}, {quality}, {normalization}
           {common_from}
@@ -1250,7 +1325,8 @@ def materialize_parameter_sets(
             )
         else:
             select_columns = (
-                f"e.parameter_set_id, e.source_record_id, null, null, {reference}, "
+                f"e.parameter_set_id, e.source_record_id, e.component_scope, "
+                f"null, null, {reference}, "
                 f"null, null, json_object('parameter_set_kind', {sql_string(kind)})"
             )
         con.execute(
@@ -1262,7 +1338,7 @@ def materialize_parameter_sets(
             where r.source_id={sql_string(source_id)}
               and r.release_id={sql_string(release_id)}
               and r.source_table={sql_string(table_name)}
-            group by e.parameter_set_id, e.source_record_id
+            group by e.parameter_set_id, e.source_record_id{', e.component_scope' if set_table == 'stellar_parameter_sets' else ''}
             """
         )
 
@@ -1288,7 +1364,7 @@ def materialize_stellar_classifications(
             f"""
             select distinct
               sha256({sql_string('classification|' + name + '|')} || r.source_record_id),
-              r.source_record_id, 'spectral_type', {raw}, null, null, null, null,
+              r.source_record_id, null, 'spectral_type', {raw}, null, null, null, null,
               {text_expression(reference_field)},
               json_object(
                 'source_field', {sql_string(name)},
@@ -1308,6 +1384,266 @@ def materialize_stellar_classifications(
             "insert into stellar_classification_evidence " + " union all ".join(branches)
         )
     return {str(field["column_name"]) for field in fields}
+
+
+def configured_scoped_stellar_fields(table_contract: dict[str, Any]) -> set[str]:
+    fields: set[str] = set()
+    for parameter_set in table_contract.get("scoped_stellar_parameter_sets") or []:
+        if parameter_set.get("classification_field"):
+            fields.add(str(parameter_set["classification_field"]))
+        if parameter_set.get("reference_field"):
+            fields.add(str(parameter_set["reference_field"]))
+        for measurement in parameter_set.get("measurements") or []:
+            fields.add(str(measurement["value_field"]))
+            if measurement.get("uncertainty_field"):
+                fields.add(str(measurement["uncertainty_field"]))
+    return fields
+
+
+def missing_value_predicate(field: str, missing_values: list[Any]) -> str:
+    raw = f"trim(cast({sql_identifier(field)} as varchar))"
+    clauses = [f"nullif({raw}, '') is not null"]
+    if missing_values:
+        values = ", ".join(sql_string(str(value).strip().lower()) for value in missing_values)
+        clauses.append(f"lower({raw}) not in ({values})")
+    return " and ".join(clauses)
+
+
+def nullable_measurement_double_expression(
+    field: str | None,
+    missing_values: list[Any],
+    *,
+    absolute: bool = False,
+) -> str:
+    if not field:
+        return "null::double"
+    value = f"try_cast({sql_identifier(field)} as double)"
+    if absolute:
+        value = f"abs({value})"
+    return f"case when {missing_value_predicate(field, missing_values)} then {value} end"
+
+
+def materialize_scoped_stellar_evidence(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    parameter_sets: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    for config in parameter_sets:
+        component_scope = config.get("component_scope")
+        scope = str(config.get("scope_key") or component_scope)
+        component_scope_sql = nullable_sql_string(component_scope)
+        kind = str(config["parameter_set_kind"])
+        method = str(config["method"])
+        normalization = str(config["normalization_version"])
+        reference_field = config.get("reference_field")
+        configured_fields = {
+            str(value)
+            for value in (config.get("classification_field"), reference_field)
+            if value
+        }
+        for measurement in config["measurements"]:
+            configured_fields.add(str(measurement["value_field"]))
+            if measurement.get("uncertainty_field"):
+                configured_fields.add(str(measurement["uncertainty_field"]))
+        missing = sorted(configured_fields - available_fields)
+        if missing:
+            raise ValueError(
+                f"scoped stellar fields missing from {table_name}.{scope}: {missing}"
+            )
+        consumed.update(configured_fields)
+        reference = text_expression(reference_field)
+        parameter_set_id = (
+            f"sha256({sql_string('stellar-parameter-set|' + kind + '|' + scope + '|')} "
+            "|| r.source_record_id)"
+        )
+        classification_field = config.get("classification_field")
+        if classification_field:
+            classification_field = str(classification_field)
+            raw = text_expression(classification_field)
+            predicate = missing_value_predicate(
+                classification_field,
+                list(config.get("classification_missing_values") or []),
+            )
+            con.execute(
+                f"""
+                insert into stellar_classification_evidence
+                select distinct
+                  sha256({sql_string('scoped-classification|' + scope + '|')} || r.source_record_id),
+                  r.source_record_id,
+                  {component_scope_sql},
+                  {sql_string(str(config.get('classification_scheme') or 'spectral_type'))},
+                  {raw}, null, null,
+                  {sql_string(method)},
+                  {nullable_sql_string(config.get('model'))},
+                  {reference},
+                  json_object(
+                    'source_field', {sql_string(classification_field)},
+                    'evidence_scope', {sql_string(scope)},
+                    'component_scope', {component_scope_sql},
+                    'missing_values', {sql_string(json.dumps(config.get('classification_missing_values') or []))}
+                  )
+                from read_parquet({sql_string(str(path))}) t
+                join source_records r
+                  on r.source_id={sql_string(source_id)}
+                 and r.release_id={sql_string(release_id)}
+                 and r.source_table={sql_string(table_name)}
+                 and r.source_row_sha256=sha256(to_json(t))
+                where {predicate}
+                """
+            )
+        branches = []
+        for measurement in config["measurements"]:
+            field = str(measurement["value_field"])
+            uncertainty_field = measurement.get("uncertainty_field")
+            predicate = missing_value_predicate(
+                field, list(measurement.get("missing_values") or [])
+            )
+            raw = text_expression(field)
+            uncertainty = nullable_measurement_double_expression(
+                str(uncertainty_field) if uncertainty_field else None,
+                list(
+                    measurement.get(
+                        "uncertainty_missing_values",
+                        measurement.get("missing_values") or [],
+                    )
+                ),
+                absolute=True,
+            )
+            unit = nullable_sql_string(measurement.get("unit_raw"))
+            normalized_unit = nullable_sql_string(
+                measurement.get("normalized_unit", measurement.get("unit_raw"))
+            )
+            branches.append(
+                f"""
+                select distinct
+                  sha256({sql_string('scoped-stellar|' + scope + '|' + field + '|')} || r.source_record_id),
+                  {parameter_set_id}, r.source_record_id, {component_scope_sql},
+                  {sql_string(str(measurement['quantity_key']))}, {raw}, {unit},
+                  try_cast({sql_identifier(field)} as double), {normalized_unit},
+                  {uncertainty}, {uncertainty}, 'measurement',
+                  {sql_string(method)}, {nullable_sql_string(config.get('model'))},
+                  {reference},
+                  json_object(
+                    'source_field', {sql_string(field)},
+                    'uncertainty_field', {nullable_sql_string(uncertainty_field)},
+                    'evidence_scope', {sql_string(scope)},
+                    'component_scope', {component_scope_sql},
+                    'parameter_set_kind', {sql_string(kind)},
+                    'missing_values', {sql_string(json.dumps(measurement.get('missing_values') or []))}
+                  ),
+                  {sql_string(normalization)}
+                from read_parquet({sql_string(str(path))}) t
+                join source_records r
+                  on r.source_id={sql_string(source_id)}
+                 and r.release_id={sql_string(release_id)}
+                 and r.source_table={sql_string(table_name)}
+                 and r.source_row_sha256=sha256(to_json(t))
+                where {predicate}
+                """
+            )
+        if branches:
+            con.execute(
+                "insert into stellar_parameter_evidence " + " union all ".join(branches)
+            )
+            con.execute(
+                f"""
+                insert into stellar_parameter_sets
+                select
+                  e.parameter_set_id, e.source_record_id, e.component_scope,
+                  {sql_string(method)}, {nullable_sql_string(config.get('model'))},
+                  any_value(e.reference_raw), null, null,
+                  json_object(
+                    'parameter_set_kind', {sql_string(kind)},
+                    'evidence_scope', {sql_string(scope)},
+                    'component_scope', {component_scope_sql}
+                  )
+                from stellar_parameter_evidence e
+                join source_records r using (source_record_id)
+                where r.source_id={sql_string(source_id)}
+                  and r.release_id={sql_string(release_id)}
+                  and r.source_table={sql_string(table_name)}
+                  and e.component_scope is not distinct from {component_scope_sql}
+                  and e.parameter_set_id={parameter_set_id}
+                group by e.parameter_set_id, e.source_record_id, e.component_scope
+                """
+            )
+    return consumed
+
+
+def materialize_configured_photometry(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    measurements: list[dict[str, Any]],
+    available_fields: set[str],
+) -> set[str]:
+    consumed: set[str] = set()
+    branches = []
+    for measurement in measurements:
+        field = str(measurement["value_field"])
+        uncertainty_field = measurement.get("uncertainty_field")
+        fields = {field} | ({str(uncertainty_field)} if uncertainty_field else set())
+        missing = sorted(fields - available_fields)
+        if missing:
+            raise ValueError(f"photometry fields missing from {table_name}: {missing}")
+        consumed.update(fields)
+        raw = text_expression(field)
+        uncertainty = nullable_measurement_double_expression(
+            str(uncertainty_field) if uncertainty_field else None,
+            list(
+                measurement.get(
+                    "uncertainty_missing_values",
+                    measurement.get("missing_values") or [],
+                )
+            ),
+            absolute=True,
+        )
+        unit = nullable_sql_string(measurement.get("unit_raw"))
+        normalized_unit = nullable_sql_string(
+            measurement.get("normalized_unit", measurement.get("unit_raw"))
+        )
+        predicate = missing_value_predicate(
+            field, list(measurement.get("missing_values") or [])
+        )
+        branches.append(
+            f"""
+            select distinct
+              sha256({sql_string('configured-photometry|' + field + '|')} || r.source_record_id),
+              r.source_record_id, {sql_string(str(measurement['quantity_key']))},
+              {nullable_sql_string(measurement.get('bandpass'))}, {raw}, {unit},
+              try_cast({sql_identifier(field)} as double), {normalized_unit},
+              {uncertainty}, {uncertainty}, 'measurement',
+              {nullable_sql_string(measurement.get('method'))},
+              {nullable_sql_string(measurement.get('model'))},
+              {text_expression(measurement.get('reference_field'))},
+              json_object(
+                'source_field', {sql_string(field)},
+                'missing_values', {sql_string(json.dumps(measurement.get('missing_values') or []))}
+              ),
+              {sql_string(str(measurement.get('normalization_version') or 'source_native_v1'))}
+            from read_parquet({sql_string(str(path))}) t
+            join source_records r
+              on r.source_id={sql_string(source_id)}
+             and r.release_id={sql_string(release_id)}
+             and r.source_table={sql_string(table_name)}
+             and r.source_row_sha256=sha256(to_json(t))
+            where {predicate}
+            """
+        )
+    if branches:
+        con.execute(
+            "insert into photometry_extinction_evidence " + " union all ".join(branches)
+        )
+    return consumed
 
 
 def materialize_observation_products(
@@ -1469,6 +1805,74 @@ def materialize_relation_claims(
                 f"strict relation probabilities outside [0, 1] in {table_name}: {invalid}"
             )
     return required
+
+
+def materialize_orbital_solutions(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source_id: str,
+    release_id: str,
+    table_name: str,
+    path: Path,
+    fields: list[dict[str, Any]],
+    orbital_solution: dict[str, Any],
+    available_fields: set[str],
+) -> set[str]:
+    destination_fields = {str(field["column_name"]) for field in fields}
+    key_fields = [str(field) for field in orbital_solution["solution_key_fields"]]
+    parameter_fields = [str(field) for field in orbital_solution["parameter_fields"]]
+    quality_fields = [str(field) for field in orbital_solution["quality_fields"]]
+    optional_fields = [
+        str(field)
+        for field in (
+            orbital_solution.get("epoch_field"),
+            orbital_solution.get("frame_field"),
+            orbital_solution.get("reference_field"),
+        )
+        if field
+    ]
+    consumed = set(key_fields + parameter_fields + quality_fields + optional_fields)
+    missing = sorted(consumed - available_fields)
+    if missing:
+        raise ValueError(f"orbital solution fields missing from {table_name}: {missing}")
+    unconsumed = sorted(destination_fields - consumed)
+    if unconsumed:
+        raise ValueError(
+            f"orbital solution fields lack a typed role in {table_name}: {unconsumed}"
+        )
+    solution_key = f"cast({logical_key_expression(key_fields)} as varchar)"
+    parameters = logical_key_expression(parameter_fields)
+    quality = logical_key_expression(quality_fields)
+    epoch = text_expression(orbital_solution.get("epoch_field"))
+    frame = text_expression(orbital_solution.get("frame_field"))
+    reference = text_expression(orbital_solution.get("reference_field"))
+    model = nullable_sql_string(orbital_solution.get("model"))
+    namespace = f"orbital-solution|{table_name}|"
+    con.execute(
+        f"""
+        insert into orbital_solution_evidence
+        select distinct
+          sha256({sql_string(namespace)} || r.source_record_id),
+          r.source_record_id,
+          null,
+          {solution_key},
+          {parameters},
+          {epoch},
+          {frame},
+          {sql_string(str(orbital_solution['method']))},
+          {model},
+          {reference},
+          {quality},
+          {sql_string(str(orbital_solution['normalization_version']))}
+        from read_parquet({sql_string(str(path))}) t
+        join source_records r
+          on r.source_id={sql_string(source_id)}
+         and r.release_id={sql_string(release_id)}
+         and r.source_table={sql_string(table_name)}
+         and r.source_row_sha256=sha256(to_json(t))
+        """
+    )
+    return consumed
 
 
 class ReferenceFragmentParser(HTMLParser):
@@ -1684,11 +2088,20 @@ def materialize_source(
     raw_artifacts = artifact_by_name(raw_manifest)
     typed_tables = typed_table_by_name(typed_manifest)
     configured_tables = set(adapter["tables"])
-    if set(typed_tables) != configured_tables or set(raw_artifacts) != configured_tables:
+    configured_raw_artifacts = {
+        str(table.get("raw_artifact_name") or table_name)
+        for table_name, table in adapter["tables"].items()
+    }
+    if (
+        set(typed_tables) != configured_tables
+        or set(raw_artifacts) != configured_raw_artifacts
+    ):
         raise ValueError(
             f"adapter table coverage mismatch for {source_id}: "
             f"typed_only={sorted(set(typed_tables) - configured_tables)} "
-            f"configured_only={sorted(configured_tables - set(typed_tables))}"
+            f"configured_only={sorted(configured_tables - set(typed_tables))} "
+            f"raw_only={sorted(set(raw_artifacts) - configured_raw_artifacts)} "
+            f"raw_missing={sorted(configured_raw_artifacts - set(raw_artifacts))}"
         )
 
     con.execute(
@@ -1708,7 +2121,10 @@ def materialize_source(
     for table_name in sorted(configured_tables):
         table_contract = adapter["tables"][table_name]
         typed_table = typed_tables[table_name]
-        artifact = raw_artifacts[table_name]
+        raw_artifact_name = str(
+            table_contract.get("raw_artifact_name") or table_name
+        )
+        artifact = raw_artifacts[raw_artifact_name]
         path = input_row["typed_path"] / typed_table["parquet_path"]
         if not path.exists():
             raise FileNotFoundError(path)
@@ -1827,8 +2243,21 @@ def materialize_source(
         for field, rule, _rule_index in classified_fields:
             if rule["disposition"] != "exclude":
                 fields_by_destination.setdefault(rule["destination"], []).append(field)
+        scoped_stellar_fields = configured_scoped_stellar_fields(table_contract)
         for destination in sorted(SCALAR_EVIDENCE_DESTINATIONS):
-            destination_fields = fields_by_destination.get(destination) or []
+            destination_fields = [
+                field
+                for field in (fields_by_destination.get(destination) or [])
+                if str(field["column_name"]) not in scoped_stellar_fields
+                and not (
+                    destination == "photometry_extinction_evidence"
+                    and str(field["column_name"])
+                    in {
+                        str(row["value_field"])
+                        for row in table_contract.get("photometry_measurements") or []
+                    }
+                )
+            ]
             if destination_fields:
                 materialized_fields.update(
                     materialize_scalar_evidence(
@@ -1847,6 +2276,11 @@ def materialize_source(
         classification_fields = fields_by_destination.get(
             "stellar_classification_evidence"
         ) or []
+        classification_fields = [
+            field
+            for field in classification_fields
+            if str(field["column_name"]) not in scoped_stellar_fields
+        ]
         if classification_fields:
             materialized_fields.update(
                 materialize_stellar_classifications(
@@ -1859,6 +2293,30 @@ def materialize_source(
                     table_contract=table_contract,
                 )
             )
+        materialized_fields.update(
+            materialize_scoped_stellar_evidence(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                parameter_sets=list(
+                    table_contract.get("scoped_stellar_parameter_sets") or []
+                ),
+                available_fields=set(columns),
+            )
+        )
+        materialized_fields.update(
+            materialize_configured_photometry(
+                con,
+                source_id=source_id,
+                release_id=release_id,
+                table_name=table_name,
+                path=path,
+                measurements=list(table_contract.get("photometry_measurements") or []),
+                available_fields=set(columns),
+            )
+        )
         observation_product_fields = fields_by_destination.get(
             "observation_product_lineage"
         ) or []
@@ -1883,6 +2341,27 @@ def materialize_source(
                     table_name=table_name,
                     path=path,
                     relation_claim=relation_claim,
+                    available_fields=set(columns),
+                )
+            )
+        orbital_solution_fields = fields_by_destination.get(
+            "orbital_solution_evidence"
+        ) or []
+        orbital_solution = table_contract.get("orbital_solution")
+        if orbital_solution_fields or orbital_solution:
+            if not orbital_solution_fields or not orbital_solution:
+                raise ValueError(
+                    f"orbital solution profile/config mismatch for {table_name}"
+                )
+            materialized_fields.update(
+                materialize_orbital_solutions(
+                    con,
+                    source_id=source_id,
+                    release_id=release_id,
+                    table_name=table_name,
+                    path=path,
+                    fields=orbital_solution_fields,
+                    orbital_solution=orbital_solution,
                     available_fields=set(columns),
                 )
             )
@@ -1950,6 +2429,16 @@ def materialize_source(
           from identifier_claim_evidence i
           join source_records r using (source_record_id)
           where r.source_id=? and r.release_id=?
+          union
+          select e.source_record_id, 'stellar_component' binding_scope, e.component_scope
+          from stellar_parameter_evidence e
+          join source_records r using (source_record_id)
+          where r.source_id=? and r.release_id=? and e.component_scope is not null
+          union
+          select e.source_record_id, 'stellar_component' binding_scope, e.component_scope
+          from stellar_classification_evidence e
+          join source_records r using (source_record_id)
+          where r.source_id=? and r.release_id=? and e.component_scope is not null
         )
         select
           sha256('binding|unresolved|' || s.source_record_id || '|' || s.binding_scope
@@ -1972,7 +2461,16 @@ def materialize_source(
         from binding_scopes s
         join source_records r using (source_record_id)
         """,
-        [source_id, release_id, source_id, release_id],
+        [
+            source_id,
+            release_id,
+            source_id,
+            release_id,
+            source_id,
+            release_id,
+            source_id,
+            release_id,
+        ],
     )
     return {
         "source_id": source_id,

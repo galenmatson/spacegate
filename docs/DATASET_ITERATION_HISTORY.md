@@ -1053,6 +1053,31 @@ Representative commits:
   sentinels, invalid probabilities, orphan citations/lineage, negative
   uncertainty magnitudes, or parameter-set integrity failures.
 
+### 34) Evidence Lake E4 ORB6 and DEBCat Scoped Evidence
+
+- The compiler now maps typed tables to their source-native raw artifact names,
+  allowing archive or legacy raw products to emit independently named typed
+  tables without weakening exact raw/typed coverage checks. Product metadata
+  falls back to the pinned typed source schema when an older immutable raw
+  snapshot predates per-product manifests.
+- ORB6 checkpoint `fcbb6466bea0a7798ae8d2ed` preserves all 4,051 rows and 37
+  fields as coherent visual-orbit solutions, plus 16,397 WDS/discoverer/ADS/HD/
+  HIP claims and 799 reference-code citations. No discoverer designation is
+  parsed into endpoints and no relation is accepted merely because an orbit
+  row exists.
+- Scientific-evidence contract v2 introduces explicit component scope on
+  stellar classifications, parameter sets, and measurements. Its artifact
+  audit rejects parameter-set scope mismatches and component evidence without
+  an explicit binding outcome.
+- DEBCat checkpoint `b3a141c0caf953aa83c4e52b` preserves all 374 rows and 30
+  fields. It emits 3,804 component/system physical measurements, 557 component
+  classifications, 963 coherent parameter sets, 746 integrated photometry
+  values, and 374 period solutions. Primary, secondary, and system evidence
+  remain distinct. Missing sentinels are excluded from evidence and missing
+  uncertainty sentinels become null rather than an erroneous large uncertainty.
+- Both checkpoints pass clean logical-hash reproduction and the independent
+  artifact audit. They do not alter the served database or canonical hierarchy.
+
 ## Recurrent Defect Classes and Mitigations
 
 1. Duplicate entities from overlapping catalogs:

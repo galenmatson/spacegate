@@ -103,6 +103,30 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
               and c.evidence_id is null
             """,
         ),
+        "empty_orbital_solution_parameter_sets": scalar_count(
+            con,
+            "select count(*) from orbital_solution_evidence "
+            "where parameter_set_raw is null or parameter_set_raw::varchar='{}'",
+        ),
+        "orphan_orbital_solution_relations": scalar_count(
+            con,
+            "select count(*) from orbital_solution_evidence o "
+            "left join relation_claim_evidence r "
+            "on r.evidence_id=o.relation_claim_id "
+            "where o.relation_claim_id is not null and r.evidence_id is null",
+        ),
+        "orbital_solution_evidence_without_citations": scalar_count(
+            con,
+            """
+            select count(*)
+            from orbital_solution_evidence o
+            left join evidence_citations c
+              on c.evidence_table='orbital_solution_evidence'
+             and c.evidence_id=o.evidence_id
+            where nullif(trim(o.reference_raw), '') is not null
+              and c.evidence_id is null
+            """,
+        ),
         "orphan_planet_parameter_evidence": scalar_count(
             con,
             "select count(*) from planet_parameter_evidence e "
@@ -114,6 +138,33 @@ def audit_evidence(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
             "select count(*) from stellar_parameter_evidence e "
             "left join stellar_parameter_sets s using (parameter_set_id) "
             "where s.parameter_set_id is null",
+        ),
+        "stellar_parameter_component_scope_mismatch": scalar_count(
+            con,
+            "select count(*) from stellar_parameter_evidence e "
+            "join stellar_parameter_sets s using (parameter_set_id) "
+            "where e.component_scope is distinct from s.component_scope",
+        ),
+        "component_scoped_evidence_without_binding_scope": scalar_count(
+            con,
+            """
+            with scoped as (
+              select source_record_id, component_scope
+              from stellar_parameter_evidence
+              where component_scope is not null
+              union
+              select source_record_id, component_scope
+              from stellar_classification_evidence
+              where component_scope is not null
+            )
+            select count(*)
+            from scoped s
+            left join object_binding_outcomes b
+              on b.source_record_id=s.source_record_id
+             and b.binding_scope='stellar_component'
+             and b.component_scope=s.component_scope
+            where b.binding_outcome_id is null
+            """,
         ),
         "empty_planet_parameter_sets": scalar_count(
             con,

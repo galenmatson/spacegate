@@ -483,9 +483,10 @@ Current limitation:
 
 - 4,051 rows are cooked, but only 56 normalize in the served build because the
   current rule requires an already-existing unique binary edge
-- a v2 reconciliation must preserve all source rows and partition accepted,
-  ambiguous, excluded, and missing-endpoint outcomes before using ORB6 to
-  support component-scoped edges
+- Evidence Lake E4 checkpoint `fcbb6466bea0a7798ae8d2ed` now preserves all
+  4,051 source rows and 37 fields as coherent visual-orbit evidence with
+  WDS/discoverer/ADS/HD/HIP claims. Canonical endpoint reconciliation remains
+  pending; combined pair designations are not parsed or promoted in E4.
 
 Source endpoint:
 
@@ -502,6 +503,17 @@ Role:
 - accepted unique component bindings should project source mass, radius, Teff,
   luminosity, log-g, and metallicity into shared ARM stellar evidence rather
   than remaining only in the source-specific eclipsing-binary table
+
+Evidence Lake status:
+
+- checkpoint `b3a141c0caf953aa83c4e52b` preserves all 374 rows/30 fields and
+  materializes separate primary/secondary physics and classifications,
+  system-scoped metallicity and integrated photometry, and binary period
+  solutions
+- `-9.99`, `-1.00`, and `none` are explicit source missing sentinels; they stay
+  visible in source-native rows but are not measurements or classifications
+- component bindings remain unresolved until the release-scoped identity and
+  period/endpoint reconciliation policy accepts them
 
 Source endpoint:
 

@@ -1138,6 +1138,12 @@ This checklist tracks implementation against `docs/PROJECT.md` and the Gaia-firs
   distinct endpoint scopes, preserve `R_chance_align` as a non-strict
   confidence statistic, account every field and filtered row, and pass clean
   reproduction plus the independent artifact audit without canonical promotion
+- [x] E4 ORB6 checkpoint: preserve all 4,051 visual-orbit rows and 37 fields as
+  coherent solutions with WDS/discoverer/ADS/HD/HIP identity evidence; leave
+  combined pair scope unresolved and pass clean reproduction/artifact audit
+- [x] E4 DEBCat checkpoint: preserve all 374 rows and 30 fields with separate
+  primary/secondary/system parameter scopes, explicit missing sentinels, and no
+  component or system leakage; pass clean reproduction/artifact audit
 - [ ] E4: preserve and exhaustively reconcile ORB6, DEBCat component physics,
   Gaia NSS fitted values, NASA uncertainties/limits/references/best-mass
   provenance, compact spin/activity, white-dwarf alternatives, cluster context,

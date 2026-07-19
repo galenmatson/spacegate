@@ -108,7 +108,7 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
             "content_sha256": "raw-content",
             "artifacts": [
                 {
-                    "source_name": "test_rows",
+                    "source_name": "raw_rows",
                     "artifact_path": "artifacts/test_rows",
                     "tree_sha256": "raw-tree",
                     "retrieved_at": "2026-07-19T00:00:00Z",
@@ -134,6 +134,7 @@ def test_source_record_compilation_is_deterministic_and_accounts_duplicates(
         "adapter_version": "test_adapter_v1",
         "tables": {
             "test_rows": {
+                "raw_artifact_name": "raw_rows",
                 "logical_key_fields": ["source_id"],
                 "object_scope": "object",
                 "field_profile": "test",
@@ -324,6 +325,20 @@ def test_artifact_audit_rejects_invalid_relation_probability() -> None:
     assert report["checks"]["strict_probabilities_outside_unit_interval"] == 1
 
 
+def test_artifact_audit_rejects_empty_or_orphaned_orbital_solutions() -> None:
+    with duckdb.connect() as con:
+        compiler.create_schema(con)
+        con.execute(
+            "insert into orbital_solution_evidence "
+            "(evidence_id,source_record_id,relation_claim_id,solution_key) "
+            "values ('orbit','record','missing-relation','solution')"
+        )
+        report = artifact_audit.audit_evidence(con)
+    assert report["status"] == "fail"
+    assert report["checks"]["empty_orbital_solution_parameter_sets"] == 1
+    assert report["checks"]["orphan_orbital_solution_relations"] == 1
+
+
 def test_refuted_planet_claim_is_negative_evidence() -> None:
     expression = compiler.lifecycle_polarity_expression("disposition")
     with duckdb.connect() as con:
@@ -372,6 +387,24 @@ def test_source_field_metadata_falls_back_to_source_native_fits_schema() -> None
             "description": None,
         },
     ]
+    fields_with_lineage = compiler.source_field_metadata(
+        {
+            "source_name": "source_rows",
+            "source_schema": {"source_schema": [{"name": "value", "unit": "K"}]},
+            "columns": [
+                {"name": "source_line_number", "type": "BIGINT"},
+                {"name": "value", "type": "VARCHAR"},
+                {"name": "raw_row", "type": "VARCHAR"},
+            ],
+        },
+        {},
+    )
+    assert [field["column_name"] for field in fields_with_lineage] == [
+        "source_line_number",
+        "value",
+        "raw_row",
+    ]
+    assert fields_with_lineage[1]["unit"] == "K"
 
 
 def test_relation_claim_preserves_non_probability_statistic_and_control_polarity(
@@ -445,6 +478,194 @@ def test_relation_claim_preserves_non_probability_statistic_and_control_polarity
         ("21", "22", None, 4.2, "negative_control"),
     ]
     assert all(json.loads(row[5])["sep_AU"] in {100.0, 200.0} for row in evidence)
+
+
+def test_orbital_solution_preserves_one_coherent_source_parameter_set(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "orbit.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select '00021-6817' wds_id, 'I 699AB' pair_designation, "
+            "'290.0' period_raw, '1884.54' epoch_raw, 'Zir2013d' reference_code, "
+            "'2' grade_raw) "
+            f"to '{parquet}' (format parquet)"
+        )
+        source_row_sha256 = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.orbits','r1','orbits','orbital_solution',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')",
+            [source_row_sha256],
+        )
+        consumed = compiler.materialize_orbital_solutions(
+            con,
+            source_id="test.orbits",
+            release_id="r1",
+            table_name="orbits",
+            path=parquet,
+            fields=[
+                {"column_name": "period_raw"},
+                {"column_name": "epoch_raw"},
+                {"column_name": "reference_code"},
+                {"column_name": "grade_raw"},
+            ],
+            orbital_solution={
+                "solution_key_fields": [
+                    "wds_id",
+                    "pair_designation",
+                    "reference_code",
+                ],
+                "parameter_fields": ["period_raw", "epoch_raw"],
+                "quality_fields": ["grade_raw"],
+                "epoch_field": "epoch_raw",
+                "reference_field": "reference_code",
+                "method": "published_visual_orbit_solution",
+                "normalization_version": "source_native_v1",
+            },
+            available_fields={
+                "wds_id",
+                "pair_designation",
+                "period_raw",
+                "epoch_raw",
+                "reference_code",
+                "grade_raw",
+            },
+        )
+        row = con.execute(
+            "select relation_claim_id,solution_key,parameter_set_raw::varchar,"
+            "epoch_raw,reference_raw,quality_json::varchar "
+            "from orbital_solution_evidence"
+        ).fetchone()
+    assert consumed == {
+        "wds_id",
+        "pair_designation",
+        "period_raw",
+        "epoch_raw",
+        "reference_code",
+        "grade_raw",
+    }
+    assert row[0] is None
+    assert json.loads(row[1]) == {
+        "wds_id": "00021-6817",
+        "pair_designation": "I 699AB",
+        "reference_code": "Zir2013d",
+    }
+    assert json.loads(row[2]) == {"period_raw": "290.0", "epoch_raw": "1884.54"}
+    assert row[3:5] == ("1884.54", "Zir2013d")
+    assert json.loads(row[5]) == {"grade_raw": "2"}
+
+
+def test_scoped_stellar_parameter_sets_keep_binary_components_separate(
+    tmp_path: Path,
+) -> None:
+    parquet = tmp_path / "components.parquet"
+    with duckdb.connect() as con:
+        con.execute(
+            f"copy (select 'M4V' spectral_1, 'none' spectral_2, "
+            "'-0.65' log_mass_1, '0.01' log_mass_error_1, "
+            "'-9.99' log_mass_2, '-9.99' log_mass_error_2) "
+            f"to '{parquet}' (format parquet)"
+        )
+        source_row_sha256 = con.execute(
+            f"select sha256(to_json(t)) from read_parquet('{parquet}') t"
+        ).fetchone()[0]
+        compiler.create_schema(con)
+        con.execute(
+            "insert into source_records values "
+            "('record','test.binary','r1','components','binary_system',"
+            "'{}','{}',?,1,'raw','typed','raw-tree','typed-table',"
+            "timestamp '2026-07-19 00:00:00')",
+            [source_row_sha256],
+        )
+        consumed = compiler.materialize_scoped_stellar_evidence(
+            con,
+            source_id="test.binary",
+            release_id="r1",
+            table_name="components",
+            path=parquet,
+            parameter_sets=[
+                {
+                    "component_scope": "primary",
+                    "parameter_set_kind": "dynamical_component",
+                    "classification_field": "spectral_1",
+                    "classification_missing_values": ["none"],
+                    "method": "published_binary_solution",
+                    "normalization_version": "source_native_v1",
+                    "measurements": [
+                        {
+                            "value_field": "log_mass_1",
+                            "uncertainty_field": "log_mass_error_1",
+                            "quantity_key": "log10_mass",
+                            "unit_raw": "dex(M_sun)",
+                            "missing_values": ["-9.99"],
+                        }
+                    ],
+                },
+                {
+                    "component_scope": "secondary",
+                    "parameter_set_kind": "dynamical_component",
+                    "classification_field": "spectral_2",
+                    "classification_missing_values": ["none"],
+                    "method": "published_binary_solution",
+                    "normalization_version": "source_native_v1",
+                    "measurements": [
+                        {
+                            "value_field": "log_mass_2",
+                            "uncertainty_field": "log_mass_error_2",
+                            "quantity_key": "log10_mass",
+                            "unit_raw": "dex(M_sun)",
+                            "missing_values": ["-9.99"],
+                        }
+                    ],
+                },
+            ],
+            available_fields={
+                "spectral_1",
+                "spectral_2",
+                "log_mass_1",
+                "log_mass_error_1",
+                "log_mass_2",
+                "log_mass_error_2",
+            },
+        )
+        evidence = con.execute(
+            "select component_scope,quantity_key,value_raw,uncertainty_lower "
+            "from stellar_parameter_evidence"
+        ).fetchall()
+        classifications = con.execute(
+            "select component_scope,classification_raw "
+            "from stellar_classification_evidence"
+        ).fetchall()
+        parameter_sets = con.execute(
+            "select component_scope from stellar_parameter_sets"
+        ).fetchall()
+    assert consumed == {
+        "spectral_1",
+        "spectral_2",
+        "log_mass_1",
+        "log_mass_error_1",
+        "log_mass_2",
+        "log_mass_error_2",
+    }
+    assert evidence == [("primary", "log10_mass", "-0.65", 0.01)]
+    assert classifications == [("primary", "M4V")]
+    assert parameter_sets == [("primary",)]
+
+
+def test_missing_uncertainty_sentinel_does_not_become_large_uncertainty() -> None:
+    expression = compiler.nullable_measurement_double_expression(
+        "uncertainty", ["-9.99", "-9.9900"], absolute=True
+    )
+    with duckdb.connect() as con:
+        rows = con.execute(
+            f"select {expression} from (values ('-9.9900'),('-0.25')) t(uncertainty)"
+        ).fetchall()
+    assert rows == [(None,), (0.25,)]
 
 
 def test_scalar_grouping_preserves_measurement_companions() -> None:

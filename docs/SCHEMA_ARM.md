@@ -60,6 +60,17 @@ Evidence Lake v2 staging rule:
   versus negative-control polarity. Endpoint identifier claims and unresolved
   binding outcomes carry `left`/`right` component scope. The source's KDE ratio
   may exceed one, so it is never written to the strict probability column.
+- Scientific-evidence contract v2 adds nullable `component_scope` to
+  `stellar_parameter_sets`, `stellar_parameter_evidence`, and
+  `stellar_classification_evidence`. Scoped evidence must agree with its
+  parameter set and must have an explicit unresolved or resolved
+  `stellar_component` binding outcome. A null scope is system/record scoped;
+  it must not be copied onto a component without later accepted binding policy.
+- `orbital_solution_evidence` preserves one coherent source solution and may
+  retain an unresolved `relation_claim_id`. ORB6 combined pair designations are
+  identity evidence, not instructions to manufacture endpoints. DEBCat primary
+  and secondary measurements remain separate parameter sets, while metallicity
+  and integrated photometry remain system scoped.
 
 ## Artifact Contract
 

@@ -1,7 +1,7 @@
 {
-  "schema_version": "spacegate.scientific_evidence_contract.v1",
-  "contract_version": "2026-07-19.e4-foundation.15",
-  "compiler_version": "scientific_evidence_compiler_v15",
+  "schema_version": "spacegate.scientific_evidence_contract.v2",
+  "contract_version": "2026-07-19.e4-foundation.18",
+  "compiler_version": "scientific_evidence_compiler_v18",
   "artifact_family": "scientific_evidence",
   "binding_statuses": [
     "accepted",
@@ -422,6 +422,52 @@
         "destination": "source_records",
         "reason": "pinned source method code retained line-for-line with release provenance"
       }
+    ],
+    "orb6_visual_orbits": [
+      {
+        "pattern": "^(wds_id|discoverer_designation|ads_id|hd_id|hip_id)$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-scoped visual-system, pair-designation, and catalog cross-identification evidence"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "published ORB6 visual-orbit solution, coordinates, photometry, uncertainty, quality, and row lineage preserved as one coherent parameter set"
+      }
+    ],
+    "debcat_component_physics": [
+      {
+        "pattern": "^system_name$",
+        "disposition": "identity",
+        "destination": "identifier_claim_evidence",
+        "reason": "source-native detached eclipsing binary system identity"
+      },
+      {
+        "pattern": "^spectral_type_[12]$",
+        "disposition": "domain",
+        "destination": "stellar_classification_evidence",
+        "reason": "component-scoped published spectral classification"
+      },
+      {
+        "pattern": "^(visual_magnitude_raw|b_minus_v_raw)$",
+        "disposition": "domain",
+        "destination": "photometry_extinction_evidence",
+        "reason": "integrated detached-binary photometry with explicit missing-value semantics"
+      },
+      {
+        "pattern": "^(log_(mass|radius|surface_gravity|temperature|luminosity)_[12](_uncertainty)?_raw|metallicity(_uncertainty)?_raw)$",
+        "disposition": "domain",
+        "destination": "stellar_parameter_evidence",
+        "reason": "component-scoped dynamical physics or system-scoped metallicity with source uncertainties and missing-value semantics"
+      },
+      {
+        "pattern": ".*",
+        "disposition": "domain",
+        "destination": "orbital_solution_evidence",
+        "reason": "binary period and exact source-row quality lineage preserved as one coherent system solution"
+      }
     ]
   },
   "source_adapters": {
@@ -686,6 +732,165 @@
           "logical_key_fields": ["source_line_number"],
           "object_scope": "method_document",
           "field_profile": "source_method_document"
+        }
+      }
+    },
+    "multiplicity.orb6": {
+      "adapter_version": "orb6_scientific_evidence_v1",
+      "tables": {
+        "orb6_orbits": {
+          "raw_artifact_name": "orb6orbits",
+          "logical_key_fields": [
+            "wds_id",
+            "discoverer_designation",
+            "reference_code",
+            "period_raw",
+            "periastron_epoch_raw"
+          ],
+          "object_scope": "orbital_solution",
+          "field_profile": "orb6_visual_orbits",
+          "identifier_claims": {
+            "wds_id": {"namespace": "wds_id", "claim_scope": "visual_multiple_system"},
+            "discoverer_designation": {"namespace": "wds_discoverer_designation", "claim_scope": "orbital_solution_pair_designation"},
+            "ads_id": {"namespace": "ads_id", "claim_scope": "visual_multiple_system"},
+            "hd_id": {"namespace": "hd_id", "claim_scope": "visual_multiple_system"},
+            "hip_id": {"namespace": "hip_id", "claim_scope": "visual_multiple_system"}
+          },
+          "orbital_solution": {
+            "solution_key_fields": [
+              "wds_id",
+              "discoverer_designation",
+              "reference_code",
+              "period_raw",
+              "periastron_epoch_raw"
+            ],
+            "parameter_fields": [
+              "ra_j2000_raw",
+              "dec_j2000_raw",
+              "primary_magnitude_raw",
+              "primary_magnitude_flag",
+              "secondary_magnitude_raw",
+              "secondary_magnitude_flag",
+              "period_raw",
+              "period_unit",
+              "period_uncertainty_raw",
+              "semimajor_axis_raw",
+              "semimajor_axis_unit_flag",
+              "semimajor_axis_uncertainty_raw",
+              "inclination_deg_raw",
+              "inclination_uncertainty_raw",
+              "ascending_node_deg_raw",
+              "ascending_node_flag",
+              "ascending_node_uncertainty_raw",
+              "periastron_epoch_raw",
+              "periastron_epoch_unit",
+              "periastron_epoch_uncertainty_raw",
+              "eccentricity_raw",
+              "eccentricity_uncertainty_raw",
+              "longitude_periastron_deg_raw",
+              "longitude_periastron_uncertainty_raw",
+              "equinox_raw",
+              "last_observed_year_raw"
+            ],
+            "quality_fields": [
+              "source_line_number",
+              "orbit_grade_raw",
+              "notes_flag",
+              "plot_filename",
+              "raw_row"
+            ],
+            "epoch_field": "periastron_epoch_raw",
+            "frame_field": "equinox_raw",
+            "reference_field": "reference_code",
+            "method": "published_visual_orbit_solution",
+            "normalization_version": "orb6_source_native_parameter_set_v1"
+          }
+        }
+      }
+    },
+    "multiplicity.debcat": {
+      "adapter_version": "debcat_scientific_evidence_v1",
+      "tables": {
+        "debcat_components": {
+          "raw_artifact_name": "debs_dat",
+          "logical_key_fields": ["system_name", "period_days_raw"],
+          "object_scope": "detached_eclipsing_binary_system",
+          "field_profile": "debcat_component_physics",
+          "identifier_claims": {
+            "system_name": {"namespace": "debcat_system_name", "claim_scope": "binary_system"}
+          },
+          "orbital_solution": {
+            "solution_key_fields": ["system_name", "period_days_raw"],
+            "parameter_fields": ["period_days_raw"],
+            "quality_fields": ["source_line_number", "raw_row"],
+            "method": "compiled_detached_eclipsing_binary_solution",
+            "normalization_version": "debcat_source_native_system_solution_v1"
+          },
+          "photometry_measurements": [
+            {
+              "value_field": "visual_magnitude_raw",
+              "quantity_key": "apparent_magnitude",
+              "bandpass": "V",
+              "unit_raw": "mag",
+              "missing_values": ["-1", "-1.00", "-9.99", "-9.9900"],
+              "method": "debcat_compilation",
+              "normalization_version": "debcat_source_native_photometry_v1"
+            },
+            {
+              "value_field": "b_minus_v_raw",
+              "quantity_key": "color_index",
+              "bandpass": "B-V",
+              "unit_raw": "mag",
+              "missing_values": ["-1", "-1.00", "-9.99", "-9.9900"],
+              "method": "debcat_compilation",
+              "normalization_version": "debcat_source_native_photometry_v1"
+            }
+          ],
+          "scoped_stellar_parameter_sets": [
+            {
+              "scope_key": "primary_component",
+              "component_scope": "primary",
+              "parameter_set_kind": "debcat_component_physics",
+              "classification_field": "spectral_type_1",
+              "classification_scheme": "MK_spectral_type",
+              "classification_missing_values": ["none"],
+              "method": "debcat_detached_eclipsing_binary_compilation",
+              "normalization_version": "debcat_source_native_log_parameters_v1",
+              "measurements": [
+                {"value_field": "log_mass_1_raw", "uncertainty_field": "log_mass_1_uncertainty_raw", "quantity_key": "log10_mass", "unit_raw": "dex(M_sun)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_radius_1_raw", "uncertainty_field": "log_radius_1_uncertainty_raw", "quantity_key": "log10_radius", "unit_raw": "dex(R_sun)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_surface_gravity_1_raw", "uncertainty_field": "log_surface_gravity_1_uncertainty_raw", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_temperature_1_raw", "uncertainty_field": "log_temperature_1_uncertainty_raw", "quantity_key": "log10_effective_temperature", "unit_raw": "dex(K)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_luminosity_1_raw", "uncertainty_field": "log_luminosity_1_uncertainty_raw", "quantity_key": "log10_luminosity", "unit_raw": "dex(L_sun)", "missing_values": ["-9.99", "-9.9900"]}
+              ]
+            },
+            {
+              "scope_key": "secondary_component",
+              "component_scope": "secondary",
+              "parameter_set_kind": "debcat_component_physics",
+              "classification_field": "spectral_type_2",
+              "classification_scheme": "MK_spectral_type",
+              "classification_missing_values": ["none"],
+              "method": "debcat_detached_eclipsing_binary_compilation",
+              "normalization_version": "debcat_source_native_log_parameters_v1",
+              "measurements": [
+                {"value_field": "log_mass_2_raw", "uncertainty_field": "log_mass_2_uncertainty_raw", "quantity_key": "log10_mass", "unit_raw": "dex(M_sun)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_radius_2_raw", "uncertainty_field": "log_radius_2_uncertainty_raw", "quantity_key": "log10_radius", "unit_raw": "dex(R_sun)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_surface_gravity_2_raw", "uncertainty_field": "log_surface_gravity_2_uncertainty_raw", "quantity_key": "log10_surface_gravity", "unit_raw": "dex(cm s-2)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_temperature_2_raw", "uncertainty_field": "log_temperature_2_uncertainty_raw", "quantity_key": "log10_effective_temperature", "unit_raw": "dex(K)", "missing_values": ["-9.99", "-9.9900"]},
+                {"value_field": "log_luminosity_2_raw", "uncertainty_field": "log_luminosity_2_uncertainty_raw", "quantity_key": "log10_luminosity", "unit_raw": "dex(L_sun)", "missing_values": ["-9.99", "-9.9900"]}
+              ]
+            },
+            {
+              "scope_key": "binary_system",
+              "parameter_set_kind": "debcat_system_composition",
+              "method": "debcat_detached_eclipsing_binary_compilation",
+              "normalization_version": "debcat_source_native_log_parameters_v1",
+              "measurements": [
+                {"value_field": "metallicity_raw", "uncertainty_field": "metallicity_uncertainty_raw", "quantity_key": "metallicity_m_h", "unit_raw": "dex", "missing_values": ["-9.99", "-9.9900"]}
+              ]
+            }
+          ]
         }
       }
     }
